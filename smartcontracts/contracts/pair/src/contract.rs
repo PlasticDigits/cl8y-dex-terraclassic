@@ -264,7 +264,7 @@ pub fn instantiate(
         },
     )?;
 
-    let instantiate_lp_msg = cw20_base::msg::InstantiateMsg {
+    let instantiate_lp_msg = cw20_mintable::msg::InstantiateMsg {
         name: "CL8Y DEX LP Token".to_string(),
         symbol: "CL8Y-LP".to_string(),
         decimals: 6,

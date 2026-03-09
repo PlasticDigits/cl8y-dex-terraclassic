@@ -5,32 +5,11 @@ mod helpers {
     use cw_multi_test::{App, ContractWrapper, Executor};
     use dex_common::types::AssetInfo;
 
-    /// CW20 Mintable wrapper: same as cw20_base but without ticker symbol
-    /// format restrictions. On Terra Classic, CW20 Mintable accepts symbols
-    /// with digits (e.g. "CL8Y") unlike cw20_base's `[a-zA-Z\-]{3,12}`.
     pub fn cw20_mintable_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
-        use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-
-        fn instantiate(
-            mut deps: DepsMut,
-            env: Env,
-            info: MessageInfo,
-            msg: cw20_base::msg::InstantiateMsg,
-        ) -> Result<Response, cw20_base::ContractError> {
-            let original_symbol = msg.symbol.clone();
-            let mut safe_msg = msg;
-            safe_msg.symbol = "TEMP".to_string();
-            let res = cw20_base::contract::instantiate(deps.branch(), env, info, safe_msg)?;
-            let mut token_info = cw20_base::state::TOKEN_INFO.load(deps.storage)?;
-            token_info.symbol = original_symbol;
-            cw20_base::state::TOKEN_INFO.save(deps.storage, &token_info)?;
-            Ok(res)
-        }
-
         let contract = ContractWrapper::new(
-            cw20_base::contract::execute,
-            instantiate,
-            cw20_base::contract::query,
+            cw20_mintable::contract::execute,
+            cw20_mintable::contract::instantiate,
+            cw20_mintable::contract::query,
         );
         Box::new(contract)
     }
@@ -85,7 +64,7 @@ mod helpers {
         app.instantiate_contract(
             cw20_code_id,
             owner.clone(),
-            &cw20_base::msg::InstantiateMsg {
+            &cw20_mintable::msg::InstantiateMsg {
                 name: name.to_string(),
                 symbol: symbol.to_string(),
                 decimals: 6,
@@ -1196,7 +1175,7 @@ mod fee_discount_tests {
             .instantiate_contract(
                 cw20_code_id,
                 base.user.clone(),
-                &cw20_base::msg::InstantiateMsg {
+                &cw20_mintable::msg::InstantiateMsg {
                     name: "CL8Y Token".to_string(),
                     symbol: "CL8Y".to_string(),
                     decimals: 18,
