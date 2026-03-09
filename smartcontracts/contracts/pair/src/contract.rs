@@ -7,15 +7,21 @@ use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::error::ContractError;
 use crate::msg::{
-    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, InstantiateMsg, PoolResponse,
-    QueryMsg, ReverseSimulationResponse, SimulationResponse,
+    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, InstantiateMsg, ObserveResponse,
+    OracleInfoResponse, PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
-use crate::state::{PairInfoState, FEE_CONFIG, HOOKS, PAIR_INFO, RESERVES, TOTAL_LP_SUPPLY};
+use crate::state::{
+    OracleState, PairInfoState, FEE_CONFIG, HOOKS, OBSERVATIONS, ORACLE_STATE, PAIR_INFO,
+    RESERVES, TOTAL_LP_SUPPLY,
+};
 use dex_common::hook::HookExecuteMsg;
-use dex_common::types::{Asset, AssetInfo, FeeConfig, PairInfo};
+use dex_common::oracle::{
+    log2_ratio_q64, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
+};
+use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.0.0";
+const CONTRACT_VERSION: &str = "1.1.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 
 fn isqrt(n: Uint128) -> Uint128 {
@@ -37,6 +43,163 @@ fn token_addr(info: &AssetInfo) -> &str {
         AssetInfo::NativeToken { .. } => unreachable!("native tokens not supported"),
     }
 }
+
+// ---------------------------------------------------------------------------
+// TWAP Oracle — internal helpers
+// ---------------------------------------------------------------------------
+// The oracle samples the *current* reserves (before mutation) on every
+// state-changing action. This is critical for manipulation resistance:
+// an attacker's trade in this block does NOT influence the observation
+// recorded for this block.
+
+/// Write a new observation into the ring buffer if the block timestamp has
+/// advanced since the last write. Called at the **top** of every execute
+/// path that mutates reserves.
+fn oracle_update(
+    storage: &mut dyn cosmwasm_std::Storage,
+    block_time: u64,
+    reserve_a: Uint128,
+    reserve_b: Uint128,
+) -> Result<(), ContractError> {
+    if reserve_a.is_zero() || reserve_b.is_zero() {
+        return Ok(());
+    }
+
+    let mut state = ORACLE_STATE.load(storage)?;
+    let last_obs = OBSERVATIONS.may_load(storage, state.index)?;
+
+    let (last_ts, last_tick_cum) = match last_obs {
+        Some(obs) => (obs.timestamp, obs.tick_cumulative),
+        None => (0u64, 0i128),
+    };
+
+    if block_time <= last_ts {
+        return Ok(());
+    }
+
+    let dt = (block_time - last_ts) as i128;
+    let tick = log2_ratio_q64(reserve_b, reserve_a).map_err(|e| ContractError::Oracle {
+        reason: e.to_string(),
+    })?;
+    let new_tick_cumulative = last_tick_cum.wrapping_add(tick.wrapping_mul(dt));
+
+    let new_index = if state.cardinality_initialized < state.cardinality {
+        state.cardinality_initialized
+    } else {
+        (state.index + 1) % state.cardinality
+    };
+
+    OBSERVATIONS.save(
+        storage,
+        new_index,
+        &Observation {
+            timestamp: block_time,
+            tick_cumulative: new_tick_cumulative,
+        },
+    )?;
+
+    state.index = new_index;
+    if state.cardinality_initialized < state.cardinality {
+        state.cardinality_initialized += 1;
+    }
+    ORACLE_STATE.save(storage, &state)?;
+
+    Ok(())
+}
+
+/// Binary search the ring buffer for the two observations bracketing the
+/// target timestamp, then linearly interpolate the cumulative tick.
+fn oracle_observe_single(
+    storage: &dyn cosmwasm_std::Storage,
+    block_time: u64,
+    seconds_ago: u32,
+    state: &OracleState,
+    latest_obs: &Observation,
+    reserve_a: Uint128,
+    reserve_b: Uint128,
+) -> Result<i128, ContractError> {
+    let target = block_time - seconds_ago as u64;
+
+    if seconds_ago == 0 || target >= latest_obs.timestamp {
+        if target == latest_obs.timestamp {
+            return Ok(latest_obs.tick_cumulative);
+        }
+        // Extrapolate forward from latest observation to `target` using current reserves.
+        if reserve_a.is_zero() || reserve_b.is_zero() {
+            return Ok(latest_obs.tick_cumulative);
+        }
+        let dt = (target - latest_obs.timestamp) as i128;
+        let tick =
+            log2_ratio_q64(reserve_b, reserve_a).map_err(|e| ContractError::Oracle {
+                reason: e.to_string(),
+            })?;
+        return Ok(latest_obs.tick_cumulative.wrapping_add(tick.wrapping_mul(dt)));
+    }
+
+    let n = state.cardinality_initialized;
+    if n < 2 {
+        return Err(ContractError::Oracle {
+            reason: "not enough observations for the requested window".into(),
+        });
+    }
+
+    // Oldest observation in the ring buffer.
+    let oldest_idx = if n < state.cardinality {
+        0u16
+    } else {
+        (state.index + 1) % state.cardinality
+    };
+    let oldest = OBSERVATIONS.load(storage, oldest_idx)?;
+    if target < oldest.timestamp {
+        return Err(ContractError::Oracle {
+            reason: format!(
+                "observation window too old: requested {}s ago but oldest is {}s ago",
+                seconds_ago,
+                block_time - oldest.timestamp
+            ),
+        });
+    }
+
+    // Binary search for the two observations bracketing `target`.
+    let mut lo: u16 = 0;
+    let mut hi: u16 = n - 1;
+    while lo < hi {
+        let mid = lo + (hi - lo + 1) / 2;
+        let mid_idx = (oldest_idx + mid) % state.cardinality;
+        let obs = OBSERVATIONS.load(storage, mid_idx)?;
+        if obs.timestamp <= target {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    let before_idx = (oldest_idx + lo) % state.cardinality;
+    let before = OBSERVATIONS.load(storage, before_idx)?;
+
+    if before.timestamp == target {
+        return Ok(before.tick_cumulative);
+    }
+
+    let after_idx = (oldest_idx + lo + 1) % state.cardinality;
+    let after = if (lo + 1) < n {
+        OBSERVATIONS.load(storage, after_idx)?
+    } else {
+        latest_obs.clone()
+    };
+
+    let time_span = (after.timestamp - before.timestamp) as i128;
+    let tick_span = after.tick_cumulative.wrapping_sub(before.tick_cumulative);
+    let dt = (target - before.timestamp) as i128;
+
+    Ok(before
+        .tick_cumulative
+        .wrapping_add(tick_span.wrapping_mul(dt) / time_span))
+}
+
+// ---------------------------------------------------------------------------
+// Instantiate
+// ---------------------------------------------------------------------------
 
 pub fn instantiate(
     deps: DepsMut,
@@ -67,6 +230,15 @@ pub fn instantiate(
     RESERVES.save(deps.storage, &(Uint128::zero(), Uint128::zero()))?;
     HOOKS.save(deps.storage, &vec![])?;
     TOTAL_LP_SUPPLY.save(deps.storage, &Uint128::zero())?;
+
+    ORACLE_STATE.save(
+        deps.storage,
+        &OracleState {
+            cardinality: DEFAULT_OBSERVATION_CARDINALITY,
+            index: 0,
+            cardinality_initialized: 0,
+        },
+    )?;
 
     let instantiate_lp_msg = cw20_base::msg::InstantiateMsg {
         name: "CL8Y DEX LP Token".to_string(),
@@ -117,6 +289,10 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
     }
 }
 
+// ---------------------------------------------------------------------------
+// Execute
+// ---------------------------------------------------------------------------
+
 pub fn execute(
     deps: DepsMut,
     env: Env,
@@ -146,6 +322,9 @@ pub fn execute(
         }
         ExecuteMsg::UpdateFee { fee_bps } => execute_update_fee(deps, info, fee_bps),
         ExecuteMsg::UpdateHooks { hooks } => execute_update_hooks(deps, info, hooks),
+        ExecuteMsg::IncreaseObservationCardinality { new_cardinality } => {
+            execute_increase_observation_cardinality(deps, new_cardinality)
+        }
     }
 }
 
@@ -241,6 +420,14 @@ fn execute_swap(
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
+
+    // Record observation BEFORE reserves change — critical for manipulation resistance.
+    oracle_update(
+        deps.storage,
+        env.block.time.seconds(),
+        reserve_a,
+        reserve_b,
+    )?;
 
     let offer_token_addr = info.sender.to_string();
     let token_a_addr = token_addr(&pair_info.asset_infos[0]);
@@ -394,6 +581,14 @@ fn execute_provide_liquidity(
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let total_supply = TOTAL_LP_SUPPLY.load(deps.storage)?;
 
+    // Record observation BEFORE reserves change.
+    oracle_update(
+        deps.storage,
+        env.block.time.seconds(),
+        reserve_a,
+        reserve_b,
+    )?;
+
     let lp_tokens = if reserve_a.is_zero() && reserve_b.is_zero() {
         isqrt(amount_a.checked_mul(amount_b)?)
     } else {
@@ -467,7 +662,7 @@ fn execute_provide_liquidity(
 
 fn execute_withdraw_liquidity(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     sender: Addr,
     lp_amount: Uint128,
@@ -484,6 +679,14 @@ fn execute_withdraw_liquidity(
 
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let total_supply = TOTAL_LP_SUPPLY.load(deps.storage)?;
+
+    // Record observation BEFORE reserves change.
+    oracle_update(
+        deps.storage,
+        env.block.time.seconds(),
+        reserve_a,
+        reserve_b,
+    )?;
 
     if total_supply.is_zero() {
         return Err(ContractError::InsufficientLiquidity {});
@@ -600,6 +803,34 @@ fn execute_update_hooks(
         .add_attribute("hooks_count", validated_hooks.len().to_string()))
 }
 
+fn execute_increase_observation_cardinality(
+    deps: DepsMut,
+    new_cardinality: u16,
+) -> Result<Response, ContractError> {
+    if new_cardinality > MAX_OBSERVATION_CARDINALITY {
+        return Err(ContractError::Oracle {
+            reason: format!(
+                "cardinality exceeds maximum ({})",
+                MAX_OBSERVATION_CARDINALITY
+            ),
+        });
+    }
+
+    let mut state = ORACLE_STATE.load(deps.storage)?;
+    if new_cardinality <= state.cardinality {
+        return Err(ContractError::Oracle {
+            reason: "new cardinality must be greater than current".into(),
+        });
+    }
+
+    state.cardinality = new_cardinality;
+    ORACLE_STATE.save(deps.storage, &state)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "increase_observation_cardinality")
+        .add_attribute("new_cardinality", new_cardinality.to_string()))
+}
+
 // ---------------------------------------------------------------------------
 // Query
 // ---------------------------------------------------------------------------
@@ -616,12 +847,20 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::GetFeeConfig {} => to_json_binary(&query_fee_config(deps)?),
         QueryMsg::GetHooks {} => to_json_binary(&query_hooks(deps)?),
+        QueryMsg::Observe { seconds_ago } => to_json_binary(
+            &query_observe(deps, &env, seconds_ago)
+                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+        ),
+        QueryMsg::OracleInfo {} => to_json_binary(
+            &query_oracle_info(deps)
+                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+        ),
     }
 }
 
-fn query_pair(deps: Deps, env: &Env) -> StdResult<PairInfo> {
+fn query_pair(deps: Deps, env: &Env) -> StdResult<dex_common::types::PairInfo> {
     let state = PAIR_INFO.load(deps.storage)?;
-    Ok(PairInfo {
+    Ok(dex_common::types::PairInfo {
         asset_infos: state.asset_infos,
         contract_addr: env.contract.address.clone(),
         liquidity_token: state.lp_token,
@@ -728,14 +967,12 @@ fn query_reverse_simulation(
 
     let ask_amount = ask_asset.amount;
 
-    // gross_needed = ask_amount * 10000 / (10000 - fee_bps)
     let fee_denom = 10000u128 - fee_config.fee_bps as u128;
     let gross_needed = ask_amount
         .checked_mul(Uint128::new(10000))?
         .checked_div(Uint128::new(fee_denom))?;
     let commission_amount = gross_needed.checked_sub(ask_amount)?;
 
-    // offer_amount = input_reserve * gross_needed / (output_reserve - gross_needed)
     let denom = output_reserve.checked_sub(gross_needed)?;
     let offer_amount = input_reserve
         .checked_mul(gross_needed)?
@@ -767,12 +1004,72 @@ fn query_hooks(deps: Deps) -> StdResult<HooksResponse> {
     Ok(HooksResponse { hooks })
 }
 
+fn query_observe(
+    deps: Deps,
+    env: &Env,
+    seconds_ago: Vec<u32>,
+) -> Result<ObserveResponse, ContractError> {
+    let state = ORACLE_STATE.load(deps.storage)?;
+
+    if state.cardinality_initialized == 0 {
+        return Err(ContractError::Oracle {
+            reason: "no observations recorded yet".into(),
+        });
+    }
+
+    let latest = OBSERVATIONS.load(deps.storage, state.index)?;
+    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
+    let block_time = env.block.time.seconds();
+
+    let mut tick_cumulatives = Vec::with_capacity(seconds_ago.len());
+    for &sa in &seconds_ago {
+        let tc = oracle_observe_single(
+            deps.storage,
+            block_time,
+            sa,
+            &state,
+            &latest,
+            reserve_a,
+            reserve_b,
+        )?;
+        tick_cumulatives.push(tc);
+    }
+
+    Ok(ObserveResponse { tick_cumulatives })
+}
+
+fn query_oracle_info(deps: Deps) -> Result<OracleInfoResponse, ContractError> {
+    let state = ORACLE_STATE.load(deps.storage)?;
+
+    if state.cardinality_initialized == 0 {
+        return Ok(OracleInfoResponse {
+            observation_cardinality: state.cardinality,
+            observation_index: state.index,
+            oldest_observation_timestamp: 0,
+            newest_observation_timestamp: 0,
+        });
+    }
+
+    let latest = OBSERVATIONS.load(deps.storage, state.index)?;
+    let oldest_idx = if state.cardinality_initialized < state.cardinality {
+        0u16
+    } else {
+        (state.index + 1) % state.cardinality
+    };
+    let oldest = OBSERVATIONS.load(deps.storage, oldest_idx)?;
+
+    Ok(OracleInfoResponse {
+        observation_cardinality: state.cardinality,
+        observation_index: state.index,
+        oldest_observation_timestamp: oldest.timestamp,
+        newest_observation_timestamp: latest.timestamp,
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Match the provided assets against the pair's asset_infos and return (amount_a, amount_b)
-/// in the order of the pair's asset_infos.
 fn match_asset_amounts(
     pair_asset_infos: &[AssetInfo; 2],
     provided: &[Asset; 2],

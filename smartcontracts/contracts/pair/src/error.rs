@@ -41,4 +41,7 @@ pub enum ContractError {
 
     #[error("Asset mismatch: provided asset does not match pair assets")]
     AssetMismatch {},
+
+    #[error("Oracle: {reason}")]
+    Oracle { reason: String },
 }

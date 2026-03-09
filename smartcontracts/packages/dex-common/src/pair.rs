@@ -2,6 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 
+use crate::oracle::{ObserveResponse, OracleInfoResponse};
 use crate::types::{Asset, AssetInfo, FeeConfig};
 
 #[cw_serde]
@@ -38,6 +39,11 @@ pub enum ExecuteMsg {
     UpdateHooks {
         hooks: Vec<String>,
     },
+    /// Grow the TWAP observation ring buffer. Larger cardinality supports
+    /// longer TWAP windows. Anyone may call this (pays the gas for storage).
+    IncreaseObservationCardinality {
+        new_cardinality: u16,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
@@ -71,6 +77,23 @@ pub enum QueryMsg {
     GetFeeConfig {},
     #[returns(HooksResponse)]
     GetHooks {},
+
+    // ---- TWAP oracle queries ----
+
+    /// Return cumulative ticks at the requested `seconds_ago` offsets.
+    /// Consumers compute TWAP as:
+    ///   `avg_tick = (tick[0] - tick[1]) / (seconds_ago[1] - seconds_ago[0])`
+    ///   `price = 2^(avg_tick / 2^64)`
+    ///
+    /// **SECURITY WARNING:** This TWAP should NOT be the sole price feed for
+    /// liquidations, mark prices, or collateral valuation. Always validate
+    /// against a secondary oracle (Band, off-chain relay, governance
+    /// reference) and apply deviation / staleness checks.
+    #[returns(ObserveResponse)]
+    Observe { seconds_ago: Vec<u32> },
+    /// Metadata about the oracle ring buffer.
+    #[returns(OracleInfoResponse)]
+    OracleInfo {},
 }
 
 /// TerraSwap-compatible pool response.
