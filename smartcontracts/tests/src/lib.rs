@@ -3,6 +3,7 @@ mod helpers {
     use cosmwasm_std::{Addr, Empty, Uint128};
     use cw20::{BalanceResponse, Cw20QueryMsg};
     use cw_multi_test::{App, ContractWrapper, Executor};
+    use dex_common::types::AssetInfo;
 
     pub fn cw20_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
         let contract = ContractWrapper::new(
@@ -95,6 +96,12 @@ mod helpers {
         Addr::unchecked(pair_addr)
     }
 
+    pub fn asset_info_token(addr: &Addr) -> AssetInfo {
+        AssetInfo::Token {
+            contract_addr: addr.to_string(),
+        }
+    }
+
     pub struct TestEnv {
         pub factory: Addr,
         pub token_a: Addr,
@@ -159,8 +166,10 @@ mod helpers {
                 user.clone(),
                 factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    token_a: token_a.to_string(),
-                    token_b: token_b.to_string(),
+                    asset_infos: [
+                        asset_info_token(&token_a),
+                        asset_info_token(&token_b),
+                    ],
                 },
                 &[],
             )
@@ -168,14 +177,14 @@ mod helpers {
 
         let pair = extract_pair_address(&resp.events);
 
-        let pair_info_resp: dex_common::pair::PairInfoResponse = app
+        let pair_info: dex_common::types::PairInfo = app
             .wrap()
             .query_wasm_smart(
                 pair.to_string(),
-                &dex_common::pair::QueryMsg::GetPairInfo {},
+                &dex_common::pair::QueryMsg::Pair {},
             )
             .unwrap();
-        let lp_token = pair_info_resp.pair.lp_token;
+        let lp_token = pair_info.liquidity_token;
 
         let router = app
             .instantiate_contract(
@@ -203,7 +212,7 @@ mod helpers {
         }
     }
 
-    pub fn add_liquidity(
+    pub fn provide_liquidity(
         app: &mut App,
         env: &TestEnv,
         provider: &Addr,
@@ -237,11 +246,20 @@ mod helpers {
         app.execute_contract(
             provider.clone(),
             env.pair.clone(),
-            &dex_common::pair::ExecuteMsg::AddLiquidity {
-                token_a_amount: amount_a,
-                token_b_amount: amount_b,
-                min_lp_tokens: None,
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: amount_a,
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: amount_b,
+                    },
+                ],
                 slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
             },
             &[],
         )
@@ -254,6 +272,7 @@ mod factory_tests {
     use super::helpers::*;
     use cosmwasm_std::{Addr, Uint128};
     use cw_multi_test::{App, Executor};
+    use dex_common::types::AssetInfo;
 
     #[test]
     fn test_instantiate() {
@@ -287,7 +306,7 @@ mod factory_tests {
             .wrap()
             .query_wasm_smart(
                 factory.to_string(),
-                &dex_common::factory::QueryMsg::GetConfig {},
+                &dex_common::factory::QueryMsg::Config {},
             )
             .unwrap();
 
@@ -333,20 +352,21 @@ mod factory_tests {
             .unwrap();
         assert_eq!(count.count, 1);
 
-        let pair_info: dex_common::pair::PairInfoResponse = app
+        let pair_info: dex_common::types::PairInfo = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::GetPairInfo {},
+                &dex_common::pair::QueryMsg::Pair {},
             )
             .unwrap();
 
-        let pair = pair_info.pair;
-        assert!(
-            (pair.token_a == env.token_a && pair.token_b == env.token_b)
-                || (pair.token_a == env.token_b && pair.token_b == env.token_a)
-        );
-        assert_ne!(pair.lp_token, Addr::unchecked(""));
+        let has_both = pair_info.asset_infos.iter().any(|a| {
+            matches!(a, AssetInfo::Token { contract_addr } if contract_addr == &env.token_a.to_string())
+        }) && pair_info.asset_infos.iter().any(|a| {
+            matches!(a, AssetInfo::Token { contract_addr } if contract_addr == &env.token_b.to_string())
+        });
+        assert!(has_both, "pair should contain both token_a and token_b");
+        assert_ne!(pair_info.liquidity_token, Addr::unchecked(""));
 
         let fee_config: dex_common::pair::FeeConfigResponse = app
             .wrap()
@@ -357,6 +377,67 @@ mod factory_tests {
             .unwrap();
         assert_eq!(fee_config.fee_config.fee_bps, 30);
         assert_eq!(fee_config.fee_config.treasury, env.treasury);
+    }
+
+    #[test]
+    fn test_create_pair_native_token_rejected() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let token_a = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "Token A",
+            "TKNA",
+            Uint128::new(1_000_000),
+        );
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let err = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [
+                        asset_info_token(&token_a),
+                        AssetInfo::NativeToken {
+                            denom: "uluna".to_string(),
+                        },
+                    ],
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Native tokens are not supported")
+        );
     }
 
     #[test]
@@ -410,8 +491,10 @@ mod factory_tests {
                 user.clone(),
                 factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    token_a: token_a.to_string(),
-                    token_b: token_b.to_string(),
+                    asset_infos: [
+                        asset_info_token(&token_a),
+                        asset_info_token(&token_b),
+                    ],
                 },
                 &[],
             )
@@ -434,8 +517,10 @@ mod factory_tests {
                 env.user.clone(),
                 env.factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    token_a: env.token_a.to_string(),
-                    token_b: env.token_b.to_string(),
+                    asset_infos: [
+                        asset_info_token(&env.token_a),
+                        asset_info_token(&env.token_b),
+                    ],
                 },
                 &[],
             )
@@ -563,7 +648,7 @@ mod factory_tests {
             .wrap()
             .query_wasm_smart(
                 factory.to_string(),
-                &dex_common::factory::QueryMsg::GetConfig {},
+                &dex_common::factory::QueryMsg::Config {},
             )
             .unwrap();
 
@@ -622,8 +707,10 @@ mod factory_tests {
                 user.clone(),
                 factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    token_a: tokens[i * 2].to_string(),
-                    token_b: tokens[i * 2 + 1].to_string(),
+                    asset_infos: [
+                        asset_info_token(&tokens[i * 2]),
+                        asset_info_token(&tokens[i * 2 + 1]),
+                    ],
                 },
                 &[],
             )
@@ -643,27 +730,25 @@ mod factory_tests {
             .wrap()
             .query_wasm_smart(
                 factory.to_string(),
-                &dex_common::factory::QueryMsg::GetAllPairs {
+                &dex_common::factory::QueryMsg::Pairs {
                     start_after: None,
                     limit: Some(2),
                 },
             )
             .unwrap();
         assert_eq!(page1.pairs.len(), 2);
-        assert!(page1.next.is_some());
 
         let page2: dex_common::factory::PairsResponse = app
             .wrap()
             .query_wasm_smart(
                 factory.to_string(),
-                &dex_common::factory::QueryMsg::GetAllPairs {
-                    start_after: page1.next,
+                &dex_common::factory::QueryMsg::Pairs {
+                    start_after: Some(page1.pairs[1].asset_infos.clone()),
                     limit: Some(2),
                 },
             )
             .unwrap();
         assert_eq!(page2.pairs.len(), 1);
-        assert!(page2.next.is_none());
     }
 }
 
@@ -674,24 +759,25 @@ mod pair_tests {
     use cw_multi_test::{App, Executor};
 
     #[test]
-    fn test_add_liquidity_first() {
+    fn test_provide_liquidity_first() {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
         let amount_a = Uint128::new(1_000_000);
         let amount_b = Uint128::new(1_000_000);
 
-        add_liquidity(&mut app, &env, &env.user, amount_a, amount_b);
+        provide_liquidity(&mut app, &env, &env.user, amount_a, amount_b);
 
-        let reserves: dex_common::pair::ReservesResponse = app
+        let pool: dex_common::pair::PoolResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::GetReserves {},
+                &dex_common::pair::QueryMsg::Pool {},
             )
             .unwrap();
-        assert_eq!(reserves.reserve_a, amount_a);
-        assert_eq!(reserves.reserve_b, amount_b);
+        assert_eq!(pool.assets[0].amount, amount_a);
+        assert_eq!(pool.assets[1].amount, amount_b);
+        assert_eq!(pool.total_share, Uint128::new(1_000_000));
 
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
         assert_eq!(lp_balance, Uint128::new(1_000_000));
@@ -702,7 +788,7 @@ mod pair_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        add_liquidity(
+        provide_liquidity(
             &mut app,
             &env,
             &env.user,
@@ -715,8 +801,10 @@ mod pair_tests {
 
         let swap_amount = Uint128::new(1_000);
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
-            min_output: None,
+            belief_price: None,
+            max_spread: None,
             to: None,
+            deadline: None,
         })
         .unwrap();
 
@@ -735,29 +823,28 @@ mod pair_tests {
         let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
         let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
 
-        // k = 1M * 1M, input 1000 → gross_output=1000, fee=3 (30bps), net=997
         let net_output = user_b_after - user_b_before;
         let fee = treasury_b_after - treasury_b_before;
         assert_eq!(net_output, Uint128::new(997));
         assert_eq!(fee, Uint128::new(3));
 
-        let reserves: dex_common::pair::ReservesResponse = app
+        let pool: dex_common::pair::PoolResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::GetReserves {},
+                &dex_common::pair::QueryMsg::Pool {},
             )
             .unwrap();
-        assert_eq!(reserves.reserve_a, Uint128::new(1_001_000));
-        assert_eq!(reserves.reserve_b, Uint128::new(999_000));
+        assert_eq!(pool.assets[0].amount, Uint128::new(1_001_000));
+        assert_eq!(pool.assets[1].amount, Uint128::new(999_000));
     }
 
     #[test]
-    fn test_swap_slippage() {
+    fn test_swap_max_spread() {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        add_liquidity(
+        provide_liquidity(
             &mut app,
             &env,
             &env.user,
@@ -766,8 +853,10 @@ mod pair_tests {
         );
 
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
-            min_output: Some(Uint128::new(999_999)),
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::permille(1)),
             to: None,
+            deadline: None,
         })
         .unwrap();
 
@@ -777,7 +866,7 @@ mod pair_tests {
                 env.token_a.clone(),
                 &cw20::Cw20ExecuteMsg::Send {
                     contract: env.pair.to_string(),
-                    amount: Uint128::new(1_000),
+                    amount: Uint128::new(100_000),
                     msg: swap_msg,
                 },
                 &[],
@@ -787,17 +876,17 @@ mod pair_tests {
         assert!(
             err.root_cause()
                 .to_string()
-                .contains("Minimum output not met")
+                .contains("Max spread assertion")
         );
     }
 
     #[test]
-    fn test_remove_liquidity() {
+    fn test_withdraw_liquidity() {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
         let amount = Uint128::new(1_000_000);
-        add_liquidity(&mut app, &env, &env.user, amount, amount);
+        provide_liquidity(&mut app, &env, &env.user, amount, amount);
 
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
         assert_eq!(lp_balance, Uint128::new(1_000_000));
@@ -806,11 +895,8 @@ mod pair_tests {
         let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
 
         let remove_amount = Uint128::new(500_000);
-        let remove_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::RemoveLiquidity {
-            min_a: None,
-            min_b: None,
-        })
-        .unwrap();
+        let remove_msg =
+            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity {}).unwrap();
 
         app.execute_contract(
             env.user.clone(),
@@ -833,23 +919,23 @@ mod pair_tests {
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
         assert_eq!(lp_balance, Uint128::new(500_000));
 
-        let reserves: dex_common::pair::ReservesResponse = app
+        let pool: dex_common::pair::PoolResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::GetReserves {},
+                &dex_common::pair::QueryMsg::Pool {},
             )
             .unwrap();
-        assert_eq!(reserves.reserve_a, Uint128::new(500_000));
-        assert_eq!(reserves.reserve_b, Uint128::new(500_000));
+        assert_eq!(pool.assets[0].amount, Uint128::new(500_000));
+        assert_eq!(pool.assets[1].amount, Uint128::new(500_000));
     }
 
     #[test]
-    fn test_simulate_swap() {
+    fn test_simulation() {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        add_liquidity(
+        provide_liquidity(
             &mut app,
             &env,
             &env.user,
@@ -857,27 +943,54 @@ mod pair_tests {
             Uint128::new(1_000_000),
         );
 
-        let pair_info: dex_common::pair::PairInfoResponse = app
+        let sim: dex_common::pair::SimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::GetPairInfo {},
-            )
-            .unwrap();
-
-        let sim: dex_common::pair::SimulateSwapResponse = app
-            .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::SimulateSwap {
-                    offer_token: pair_info.pair.token_a.to_string(),
-                    offer_amount: Uint128::new(1_000),
+                &dex_common::pair::QueryMsg::Simulation {
+                    offer_asset: dex_common::types::Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: Uint128::new(1_000),
+                    },
                 },
             )
             .unwrap();
 
         assert_eq!(sim.return_amount, Uint128::new(997));
-        assert_eq!(sim.fee_amount, Uint128::new(3));
+        assert_eq!(sim.commission_amount, Uint128::new(3));
+    }
+
+    #[test]
+    fn test_reverse_simulation() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let rsim: dex_common::pair::ReverseSimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::ReverseSimulation {
+                    ask_asset: dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(997),
+                    },
+                },
+            )
+            .unwrap();
+
+        assert!(
+            rsim.offer_amount >= Uint128::new(1_000),
+            "reverse simulation offer_amount should be >= 1000, got {}",
+            rsim.offer_amount
+        );
     }
 
     #[test]
@@ -937,7 +1050,7 @@ mod router_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        add_liquidity(
+        provide_liquidity(
             &mut app,
             &env,
             &env.user,
@@ -948,10 +1061,14 @@ mod router_tests {
         let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
 
         let swap_amount = Uint128::new(1_000);
-        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::SwapTokens {
-            route: vec![env.pair.to_string()],
-            min_output: None,
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_a),
+                ask_asset_info: asset_info_token(&env.token_b),
+            }],
+            minimum_receive: None,
             to: None,
+            deadline: None,
         })
         .unwrap();
 
@@ -975,5 +1092,49 @@ mod router_tests {
 
         let net_output = user_b_after - user_b_before;
         assert_eq!(net_output, Uint128::new(997));
+    }
+
+    #[test]
+    fn test_native_swap_rejected() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![cl8y_dex_router::msg::SwapOperation::NativeSwap {
+                offer_denom: "uluna".to_string(),
+                ask_denom: "uusd".to_string(),
+            }],
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.router.to_string(),
+                    amount: Uint128::new(1_000),
+                    msg: hook_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Native token swaps are not supported")
+        );
     }
 }

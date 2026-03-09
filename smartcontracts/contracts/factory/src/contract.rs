@@ -16,7 +16,7 @@ use crate::state::{
 };
 use dex_common::pagination::calc_limit;
 use dex_common::pair::PairInstantiateMsg;
-use dex_common::types::PairInfo;
+use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
 const CONTRACT_VERSION: &str = "1.0.0";
@@ -71,8 +71,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::CreatePair { token_a, token_b } => {
-            execute_create_pair(deps, env, info, token_a, token_b)
+        ExecuteMsg::CreatePair { asset_infos } => {
+            execute_create_pair(deps, env, info, asset_infos)
         }
         ExecuteMsg::AddWhitelistedCodeId { code_id } => {
             execute_add_whitelisted_code_id(deps, info, code_id)
@@ -106,23 +106,24 @@ fn execute_create_pair(
     deps: DepsMut,
     env: Env,
     _info: MessageInfo,
-    token_a: String,
-    token_b: String,
+    asset_infos: [AssetInfo; 2],
 ) -> Result<Response, ContractError> {
-    let token_a_addr = deps.api.addr_validate(&token_a)?;
-    let token_b_addr = deps.api.addr_validate(&token_b)?;
+    let addr_a = asset_infos[0]
+        .assert_is_token()
+        .map_err(|_| ContractError::NativeTokenNotSupported {})?;
+    let addr_b = asset_infos[1]
+        .assert_is_token()
+        .map_err(|_| ContractError::NativeTokenNotSupported {})?;
+
+    let token_a_addr = deps.api.addr_validate(addr_a)?;
+    let token_b_addr = deps.api.addr_validate(addr_b)?;
 
     if token_a_addr == token_b_addr {
         return Err(ContractError::InvalidTokens {});
     }
 
-    let (token_a_addr, token_b_addr) = if token_a_addr < token_b_addr {
-        (token_a_addr, token_b_addr)
-    } else {
-        (token_b_addr, token_a_addr)
-    };
-
-    if PAIRS.has(deps.storage, (&token_a_addr, &token_b_addr)) {
+    let key = pair_key(&asset_infos);
+    if PAIRS.has(deps.storage, &key) {
         return Err(ContractError::PairAlreadyExists {});
     }
 
@@ -142,11 +143,10 @@ fn execute_create_pair(
 
     let config = CONFIG.load(deps.storage)?;
 
-    PENDING_PAIR.save(deps.storage, &(token_a_addr.clone(), token_b_addr.clone()))?;
+    PENDING_PAIR.save(deps.storage, &asset_infos)?;
 
     let instantiate_msg = PairInstantiateMsg {
-        token_a: token_a_addr.clone(),
-        token_b: token_b_addr.clone(),
+        asset_infos: asset_infos.clone(),
         fee_bps: config.default_fee_bps,
         treasury: config.treasury,
         factory: env.contract.address,
@@ -167,8 +167,7 @@ fn execute_create_pair(
     Ok(Response::new()
         .add_submessage(sub_msg)
         .add_attribute("action", "create_pair")
-        .add_attribute("token_a", token_a_addr)
-        .add_attribute("token_b", token_b_addr))
+        .add_attribute("pair", format!("{}-{}", asset_infos[0], asset_infos[1])))
 }
 
 fn execute_add_whitelisted_code_id(
@@ -279,12 +278,10 @@ fn execute_update_config(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetConfig {} => to_json_binary(&query_config(deps)?),
-        QueryMsg::GetPair { token_a, token_b } => {
-            to_json_binary(&query_pair(deps, token_a, token_b)?)
-        }
-        QueryMsg::GetAllPairs { start_after, limit } => {
-            to_json_binary(&query_all_pairs(deps, start_after, limit)?)
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::Pair { asset_infos } => to_json_binary(&query_pair(deps, asset_infos)?),
+        QueryMsg::Pairs { start_after, limit } => {
+            to_json_binary(&query_pairs(deps, start_after, limit)?)
         }
         QueryMsg::GetWhitelistedCodeIds { start_after, limit } => {
             to_json_binary(&query_whitelisted_code_ids(deps, start_after, limit)?)
@@ -304,53 +301,47 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
-fn query_pair(deps: Deps, token_a: String, token_b: String) -> StdResult<PairResponse> {
-    let a = deps.api.addr_validate(&token_a)?;
-    let b = deps.api.addr_validate(&token_b)?;
-    let (a, b) = if a < b { (a, b) } else { (b, a) };
-
+fn query_pair(deps: Deps, asset_infos: [AssetInfo; 2]) -> StdResult<PairResponse> {
+    let key = pair_key(&asset_infos);
     let pair_info = PAIRS
-        .load(deps.storage, (&a, &b))
+        .load(deps.storage, &key)
         .map_err(|_| StdError::generic_err("pair not found"))?;
 
     Ok(PairResponse { pair: pair_info })
 }
 
-fn query_all_pairs(
+fn query_pairs(
     deps: Deps,
-    start_after: Option<String>,
+    start_after: Option<[AssetInfo; 2]>,
     limit: Option<u32>,
 ) -> StdResult<PairsResponse> {
     let limit = calc_limit(limit);
 
-    let start: Option<u64> = start_after
-        .map(|s| {
-            s.parse::<u64>()
-                .map_err(|e| StdError::generic_err(format!("invalid cursor: {e}")))
-        })
-        .transpose()?;
-
-    let min = start.map(Bound::exclusive);
-
-    let results: Vec<(u64, PairInfo)> = PAIR_INDEX
-        .range(deps.storage, min, None, Order::Ascending)
-        .take(limit + 1)
-        .collect::<StdResult<Vec<_>>>()?;
-
-    let has_more = results.len() > limit;
-    let next = if has_more {
-        results.get(limit - 1).map(|(idx, _)| idx.to_string())
+    let start_idx: Option<u64> = if let Some(after_assets) = start_after {
+        let after_key = pair_key(&after_assets);
+        let mut found_idx: Option<u64> = None;
+        for result in PAIR_INDEX.range(deps.storage, None, None, Order::Ascending) {
+            let (idx, info) = result?;
+            let info_key = pair_key(&info.asset_infos);
+            if info_key == after_key {
+                found_idx = Some(idx);
+                break;
+            }
+        }
+        found_idx
     } else {
         None
     };
 
-    let pairs = results
-        .into_iter()
-        .take(limit)
-        .map(|(_, p)| p)
-        .collect();
+    let min = start_idx.map(Bound::exclusive);
 
-    Ok(PairsResponse { pairs, next })
+    let pairs: Vec<PairInfo> = PAIR_INDEX
+        .range(deps.storage, min, None, Order::Ascending)
+        .take(limit)
+        .map(|r| r.map(|(_, p)| p))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    Ok(PairsResponse { pairs })
 }
 
 fn query_whitelisted_code_ids(
@@ -400,21 +391,21 @@ fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, Contrac
     let contract_addr = parse_reply_contract_address(msg)?;
     let pair_addr = deps.api.addr_validate(&contract_addr)?;
 
-    let (token_a, token_b) = PENDING_PAIR.load(deps.storage)?;
+    let asset_infos = PENDING_PAIR.load(deps.storage)?;
     PENDING_PAIR.remove(deps.storage);
 
-    let pair_info_resp: dex_common::pair::PairInfoResponse = deps
+    let pair_info_resp: PairInfo = deps
         .querier
         .query_wasm_smart(
             pair_addr.to_string(),
-            &dex_common::pair::QueryMsg::GetPairInfo {},
+            &dex_common::pair::QueryMsg::Pair {},
         )?;
-    let pair_info = pair_info_resp.pair;
 
-    PAIRS.save(deps.storage, (&token_a, &token_b), &pair_info)?;
+    let key = pair_key(&asset_infos);
+    PAIRS.save(deps.storage, &key, &pair_info_resp)?;
 
     let count = PAIR_COUNT.load(deps.storage)?;
-    PAIR_INDEX.save(deps.storage, count, &pair_info)?;
+    PAIR_INDEX.save(deps.storage, count, &pair_info_resp)?;
     PAIR_COUNT.save(deps.storage, &(count + 1))?;
 
     Ok(Response::new()
@@ -423,8 +414,6 @@ fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, Contrac
         .add_attribute("pair_index", count.to_string()))
 }
 
-/// Extracts the contract address from a `WasmMsg::Instantiate` reply by parsing
-/// the protobuf-encoded `MsgInstantiateContractResponse` in the reply data.
 fn parse_reply_contract_address(msg: Reply) -> StdResult<String> {
     let response = msg.result.into_result().map_err(StdError::generic_err)?;
     let data = response
@@ -433,8 +422,6 @@ fn parse_reply_contract_address(msg: Reply) -> StdResult<String> {
     parse_protobuf_contract_address(data.as_slice())
 }
 
-/// Reads field 1 (contract_address, string) from a MsgInstantiateContractResponse
-/// protobuf. Field tag 0x0a = field number 1, wire type 2 (length-delimited).
 fn parse_protobuf_contract_address(bytes: &[u8]) -> StdResult<String> {
     if bytes.len() < 2 || bytes[0] != 0x0a {
         return Err(StdError::generic_err(

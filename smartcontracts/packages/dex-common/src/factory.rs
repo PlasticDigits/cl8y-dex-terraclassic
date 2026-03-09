@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
 
-use crate::types::PairInfo;
+use crate::types::{AssetInfo, PairInfo};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -15,9 +15,10 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    /// TerraSwap-compatible: create a pair from two AssetInfo values.
+    /// Only `AssetInfo::Token` is accepted; `NativeToken` is rejected.
     CreatePair {
-        token_a: String,
-        token_b: String,
+        asset_infos: [AssetInfo; 2],
     },
     AddWhitelistedCodeId {
         code_id: u64,
@@ -43,13 +44,16 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    /// TerraSwap-compatible query name.
     #[returns(ConfigResponse)]
-    GetConfig {},
+    Config {},
+    /// TerraSwap-compatible: look up a pair by its two AssetInfos.
     #[returns(PairResponse)]
-    GetPair { token_a: String, token_b: String },
+    Pair { asset_infos: [AssetInfo; 2] },
+    /// TerraSwap-compatible: paginated list of pairs.
     #[returns(PairsResponse)]
-    GetAllPairs {
-        start_after: Option<String>,
+    Pairs {
+        start_after: Option<[AssetInfo; 2]>,
         limit: Option<u32>,
     },
     #[returns(CodeIdsResponse)]
@@ -75,10 +79,10 @@ pub struct PairResponse {
     pub pair: PairInfo,
 }
 
+/// TerraSwap-compatible response: flat list of pairs, no cursor.
 #[cw_serde]
 pub struct PairsResponse {
     pub pairs: Vec<PairInfo>,
-    pub next: Option<String>,
 }
 
 #[cw_serde]

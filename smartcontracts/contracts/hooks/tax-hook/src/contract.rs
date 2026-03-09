@@ -48,12 +48,11 @@ pub fn execute(
             HookExecuteMsg::AfterSwap {
                 pair: _,
                 sender: _,
-                input_token: _,
-                input_amount: _,
-                output_token,
-                output_amount,
-                fee_amount: _,
-            } => execute_after_swap(deps, env, output_token.to_string(), output_amount),
+                offer_asset: _,
+                return_asset,
+                commission_amount: _,
+                spread_amount: _,
+            } => execute_after_swap(deps, env, return_asset.info.to_string(), return_asset.amount),
         },
         ExecuteMsg::UpdateConfig {
             recipient,

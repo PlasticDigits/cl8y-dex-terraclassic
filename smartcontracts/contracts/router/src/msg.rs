@@ -1,28 +1,46 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
+use dex_common::types::AssetInfo;
 
 #[cw_serde]
 pub struct InstantiateMsg {
     pub factory: String,
 }
 
+/// TerraSwap-compatible swap operation.
 #[cw_serde]
-pub enum ExecuteMsg {
-    Receive(Cw20ReceiveMsg),
-    SwapTokens {
-        route: Vec<String>,
-        min_output: Option<Uint128>,
-        to: Option<String>,
+pub enum SwapOperation {
+    NativeSwap {
+        offer_denom: String,
+        ask_denom: String,
+    },
+    TerraSwap {
+        offer_asset_info: AssetInfo,
+        ask_asset_info: AssetInfo,
     },
 }
 
 #[cw_serde]
-pub enum Cw20HookMsg {
-    SwapTokens {
-        route: Vec<String>,
-        min_output: Option<Uint128>,
+pub enum ExecuteMsg {
+    Receive(Cw20ReceiveMsg),
+    /// TerraSwap-compatible multi-hop swap.
+    ExecuteSwapOperations {
+        operations: Vec<SwapOperation>,
+        minimum_receive: Option<Uint128>,
         to: Option<String>,
+        deadline: Option<u64>,
+    },
+}
+
+/// TerraSwap-compatible CW20 hook message for the router.
+#[cw_serde]
+pub enum Cw20HookMsg {
+    ExecuteSwapOperations {
+        operations: Vec<SwapOperation>,
+        minimum_receive: Option<Uint128>,
+        to: Option<String>,
+        deadline: Option<u64>,
     },
 }
 
@@ -30,11 +48,16 @@ pub enum Cw20HookMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(ConfigResponse)]
-    GetConfig {},
-    #[returns(SimulateRouteResponse)]
-    SimulateRoute {
-        route: Vec<String>,
+    Config {},
+    #[returns(SimulateSwapOperationsResponse)]
+    SimulateSwapOperations {
         offer_amount: Uint128,
+        operations: Vec<SwapOperation>,
+    },
+    #[returns(SimulateSwapOperationsResponse)]
+    ReverseSimulateSwapOperations {
+        ask_amount: Uint128,
+        operations: Vec<SwapOperation>,
     },
 }
 
@@ -44,7 +67,6 @@ pub struct ConfigResponse {
 }
 
 #[cw_serde]
-pub struct SimulateRouteResponse {
-    pub return_amount: Uint128,
-    pub fee_amounts: Vec<Uint128>,
+pub struct SimulateSwapOperationsResponse {
+    pub amount: Uint128,
 }

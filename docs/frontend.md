@@ -40,14 +40,23 @@ The dApp connects to Terra Classic wallets using the Station browser extension o
 
 - **Network detection:** the `VITE_NETWORK` env var controls which chain the dApp targets (`mainnet`, `testnet`, `local`).
 - **Signing:** all transactions use the connected wallet's signer. The dApp never handles private keys.
-- **CW20 allowances:** before `AddLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
+- **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
+
+## Contract Message Format
+
+The frontend uses TerraSwap-compatible message names:
+
+- **Factory:** `create_pair { asset_infos }`, queries `config`, `pair`, `pairs`
+- **Pair:** swap via CW20 Send with `{ swap: { belief_price, max_spread, to } }`, provide liquidity via `provide_liquidity { assets }`, withdraw via CW20 Send with `{ withdraw_liquidity: {} }`
+- **Queries:** `pool` (reserves + total LP share), `simulation { offer_asset }`, `reverse_simulation { ask_asset }`
+- **Types:** `AssetInfo` (`token` or `native_token`), `Asset` (`info` + `amount`), `PairInfo` (`asset_infos`, `contract_addr`, `liquidity_token`)
 
 ## Pages
 
 | Route           | Description                                       |
 |-----------------|---------------------------------------------------|
 | `/`             | Swap interface — select tokens, enter amount, swap|
-| `/pool`         | View pools, add/remove liquidity                  |
+| `/pool`         | View pools, provide/withdraw liquidity            |
 | `/pool/create`  | Create a new token pair via the Factory            |
 
 ## Environment Variables

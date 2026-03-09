@@ -196,8 +196,10 @@ echo "[11/12] Creating test pair (TSTA/TSTB) via Factory..."
 CREATE_PAIR_MSG=$(cat <<EOF
 {
   "create_pair": {
-    "token_a": "$TOKEN_A_ADDRESS",
-    "token_b": "$TOKEN_B_ADDRESS"
+    "asset_infos": [
+      { "token": { "contract_addr": "$TOKEN_A_ADDRESS" } },
+      { "token": { "contract_addr": "$TOKEN_B_ADDRESS" } }
+    ]
   }
 }
 EOF

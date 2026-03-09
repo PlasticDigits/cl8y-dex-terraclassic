@@ -30,9 +30,15 @@ pub enum ContractError {
     #[error("Invalid fee: {reason}")]
     InvalidFee { reason: String },
 
-    #[error("Minimum output not met: expected at least {min}, got {actual}")]
-    MinimumOutputNotMet { min: String, actual: String },
+    #[error("Max spread assertion: actual spread ({actual}) exceeds max allowed ({max})")]
+    MaxSpreadAssertion { max: String, actual: String },
 
     #[error("Insufficient LP tokens: expected at least {min}, got {actual}")]
     InsufficientLpTokens { min: String, actual: String },
+
+    #[error("Native tokens are not supported; use CW20 wrapped tokens instead")]
+    NativeTokenNotSupported {},
+
+    #[error("Asset mismatch: provided asset does not match pair assets")]
+    AssetMismatch {},
 }

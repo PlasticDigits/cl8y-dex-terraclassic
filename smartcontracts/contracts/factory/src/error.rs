@@ -19,4 +19,6 @@ pub enum ContractError {
     InvalidTokens {},
     #[error("Invalid code ID")]
     InvalidCodeId {},
+    #[error("Native tokens are not supported; use CW20 wrapped tokens instead")]
+    NativeTokenNotSupported {},
 }

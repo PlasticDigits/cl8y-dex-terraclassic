@@ -12,7 +12,7 @@ The Factory contract has a single `governance` address that controls:
 
 ## Treasury Management
 
-All swap fees are sent directly to the `treasury` address configured in the Factory. The Pair contract holds no fees — they are transferred atomically during each swap.
+All swap commissions are sent directly to the `treasury` address configured in the Factory. The Pair contract holds no fees — they are transferred atomically during each swap.
 
 - The treasury address can be updated via `UpdateConfig` (governance only).
 - Fee rate is denominated in basis points (1 bps = 0.01%). Max is 10000 (100%).
@@ -20,17 +20,21 @@ All swap fees are sent directly to the `treasury` address configured in the Fact
 
 ## Code ID Whitelist
 
-The Factory maintains a whitelist of CW20 code IDs. When `CreatePair` is called, both token addresses are checked against this whitelist by querying each token's contract info on-chain.
+The Factory maintains a whitelist of CW20 code IDs. When `CreatePair` is called with `asset_infos`, both assets must be `AssetInfo::Token` (native tokens are rejected), and both token contract addresses are checked against this whitelist by querying each token's contract info on-chain.
 
 **Rationale:** this prevents pairs from being created with malicious CW20 contracts that could manipulate balances, re-enter, or steal funds.
 
+## Native Token Rejection
+
+The `AssetInfo` enum includes a `NativeToken` variant for TerraSwap wire compatibility, but all contracts reject it at runtime with a clear error message. This prevents accidental use of native tokens until CW20 wrapping support is added.
+
 ## Hook Safety
 
-Hooks are external contracts invoked via `AfterSwap` after every swap completes. Risks and mitigations:
+Hooks are external contracts invoked via `AfterSwap` after every swap completes. The hook receives `offer_asset`, `return_asset`, `commission_amount`, and `spread_amount` as `Asset` structs. Risks and mitigations:
 
 | Risk                    | Mitigation                                              |
 |-------------------------|---------------------------------------------------------|
-| Hook reverts → swap fails| By design: hooks are not `reply_on_error`, so a reverting hook blocks the swap. Only register trusted hooks. |
+| Hook reverts -> swap fails| By design: hooks are not `reply_on_error`, so a reverting hook blocks the swap. Only register trusted hooks. |
 | Reentrancy              | CosmWasm's actor model prevents cross-contract reentrancy within a single transaction. |
 | Gas griefing             | Hooks consume gas from the swap caller. Only register hooks with bounded execution cost. |
 | Data integrity           | Hook receives read-only data (amounts, addresses). It cannot modify pair state. |
@@ -39,13 +43,13 @@ Hooks are external contracts invoked via `AfterSwap` after every swap completes.
 
 ## Pair Contract Auth
 
-| Action          | Authorized Caller |
-|-----------------|-------------------|
-| Swap            | Any CW20 token (via Send) |
-| AddLiquidity    | Anyone            |
-| RemoveLiquidity | LP token (via Send) |
-| UpdateFee       | Factory only      |
-| UpdateHooks     | Factory only      |
+| Action              | Authorized Caller       |
+|---------------------|-------------------------|
+| Swap (CW20 Send)    | Any CW20 token          |
+| ProvideLiquidity     | Anyone                  |
+| WithdrawLiquidity    | LP token (via CW20 Send)|
+| UpdateFee            | Factory only             |
+| UpdateHooks          | Factory only             |
 
 ## Audit Status
 

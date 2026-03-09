@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getAllPairs } from '@/services/terraclassic/factory'
-import { getReserves, getFeeConfig, addLiquidity, removeLiquidity } from '@/services/terraclassic/pair'
+import { getPool, getFeeConfig, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import type { PairInfo } from '@/types'
+import { assetInfoLabel } from '@/types'
 
 function truncateAddr(addr: string): string {
   if (addr.length <= 16) return addr
@@ -17,22 +18,25 @@ function PoolCard({ pair }: { pair: PairInfo }) {
   const [amountB, setAmountB] = useState('')
   const [lpAmount, setLpAmount] = useState('')
 
-  const reservesQuery = useQuery({
-    queryKey: ['reserves', pair.pair_contract],
-    queryFn: () => getReserves(pair.pair_contract),
+  const tokenA = assetInfoLabel(pair.asset_infos[0])
+  const tokenB = assetInfoLabel(pair.asset_infos[1])
+
+  const poolQuery = useQuery({
+    queryKey: ['pool', pair.contract_addr],
+    queryFn: () => getPool(pair.contract_addr),
     staleTime: 30_000,
   })
 
   const feeQuery = useQuery({
-    queryKey: ['feeConfig', pair.pair_contract],
-    queryFn: () => getFeeConfig(pair.pair_contract),
+    queryKey: ['feeConfig', pair.contract_addr],
+    queryFn: () => getFeeConfig(pair.contract_addr),
     staleTime: 60_000,
   })
 
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      return addLiquidity(address, pair.pair_contract, pair.token_a, pair.token_b, amountA, amountB)
+      return provideLiquidity(address, pair.contract_addr, tokenA, tokenB, amountA, amountB)
     },
     onSuccess: () => {
       setAmountA('')
@@ -43,7 +47,7 @@ function PoolCard({ pair }: { pair: PairInfo }) {
   const removeMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      return removeLiquidity(address, pair.lp_token, pair.pair_contract, lpAmount)
+      return withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, lpAmount)
     },
     onSuccess: () => setLpAmount(''),
   })
@@ -53,10 +57,10 @@ function PoolCard({ pair }: { pair: PairInfo }) {
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className="font-medium text-white">
-            {truncateAddr(pair.token_a)} / {truncateAddr(pair.token_b)}
+            {truncateAddr(tokenA)} / {truncateAddr(tokenB)}
           </p>
           <p className="text-xs text-gray-500 font-mono mt-1">
-            Pair: {truncateAddr(pair.pair_contract)}
+            Pair: {truncateAddr(pair.contract_addr)}
           </p>
         </div>
         {feeQuery.data && (
@@ -66,21 +70,21 @@ function PoolCard({ pair }: { pair: PairInfo }) {
         )}
       </div>
 
-      {reservesQuery.data && (
+      {poolQuery.data && (
         <div className="flex gap-4 text-sm text-gray-400 mb-4">
           <div className="flex-1 bg-dex-bg rounded-lg p-3 border border-dex-border">
-            <p className="text-xs text-gray-500 mb-1">Reserve A</p>
-            <p className="font-mono text-xs text-white">{reservesQuery.data.reserve_a}</p>
+            <p className="text-xs text-gray-500 mb-1">{truncateAddr(assetInfoLabel(poolQuery.data.assets[0].info))}</p>
+            <p className="font-mono text-xs text-white">{poolQuery.data.assets[0].amount}</p>
           </div>
           <div className="flex-1 bg-dex-bg rounded-lg p-3 border border-dex-border">
-            <p className="text-xs text-gray-500 mb-1">Reserve B</p>
-            <p className="font-mono text-xs text-white">{reservesQuery.data.reserve_b}</p>
+            <p className="text-xs text-gray-500 mb-1">{truncateAddr(assetInfoLabel(poolQuery.data.assets[1].info))}</p>
+            <p className="font-mono text-xs text-white">{poolQuery.data.assets[1].amount}</p>
           </div>
         </div>
       )}
 
-      {reservesQuery.isLoading && (
-        <div className="text-xs text-gray-500 mb-4 animate-pulse">Loading reserves...</div>
+      {poolQuery.isLoading && (
+        <div className="text-xs text-gray-500 mb-4 animate-pulse">Loading pool...</div>
       )}
 
       <div className="flex gap-2 mb-3">
@@ -92,7 +96,7 @@ function PoolCard({ pair }: { pair: PairInfo }) {
               : 'border border-dex-border text-gray-300 hover:border-dex-accent/50'
           }`}
         >
-          Add Liquidity
+          Provide Liquidity
         </button>
         <button
           onClick={() => setExpanded(expanded === 'remove' ? null : 'remove')}
@@ -102,7 +106,7 @@ function PoolCard({ pair }: { pair: PairInfo }) {
               : 'border border-dex-border text-gray-300 hover:border-dex-accent/50'
           }`}
         >
-          Remove Liquidity
+          Withdraw Liquidity
         </button>
       </div>
 
@@ -110,8 +114,8 @@ function PoolCard({ pair }: { pair: PairInfo }) {
         <div className="space-y-3 p-4 rounded-xl bg-dex-bg border border-dex-border">
           <div>
             <label className="text-xs text-gray-400 mb-1 block">
-              Token A Amount
-              <span className="text-gray-600 ml-1">({truncateAddr(pair.token_a)})</span>
+              Asset A Amount
+              <span className="text-gray-600 ml-1">({truncateAddr(tokenA)})</span>
             </label>
             <input
               type="text"
@@ -124,8 +128,8 @@ function PoolCard({ pair }: { pair: PairInfo }) {
           </div>
           <div>
             <label className="text-xs text-gray-400 mb-1 block">
-              Token B Amount
-              <span className="text-gray-600 ml-1">({truncateAddr(pair.token_b)})</span>
+              Asset B Amount
+              <span className="text-gray-600 ml-1">({truncateAddr(tokenB)})</span>
             </label>
             <input
               type="text"
@@ -141,14 +145,14 @@ function PoolCard({ pair }: { pair: PairInfo }) {
             disabled={!address || !amountA || !amountB || addMutation.isPending}
             className="w-full py-2.5 rounded-xl font-semibold text-sm transition-colors bg-dex-accent text-dex-bg hover:bg-dex-accent/80 disabled:bg-dex-border disabled:text-gray-500 disabled:cursor-not-allowed"
           >
-            {!address ? 'Connect Wallet' : addMutation.isPending ? 'Adding Liquidity...' : 'Add Liquidity'}
+            {!address ? 'Connect Wallet' : addMutation.isPending ? 'Providing Liquidity...' : 'Provide Liquidity'}
           </button>
           {addMutation.isError && (
             <p className="text-red-400 text-sm">{addMutation.error?.message}</p>
           )}
           {addMutation.isSuccess && (
             <p className="text-green-400 text-sm">
-              Liquidity added! TX: <span className="font-mono text-xs">{addMutation.data}</span>
+              Liquidity provided! TX: <span className="font-mono text-xs">{addMutation.data}</span>
             </p>
           )}
         </div>
@@ -168,21 +172,21 @@ function PoolCard({ pair }: { pair: PairInfo }) {
             />
           </div>
           <p className="text-xs text-gray-500">
-            LP Token: <span className="font-mono">{truncateAddr(pair.lp_token)}</span>
+            LP Token: <span className="font-mono">{truncateAddr(pair.liquidity_token)}</span>
           </p>
           <button
             onClick={() => removeMutation.mutate()}
             disabled={!address || !lpAmount || removeMutation.isPending}
             className="w-full py-2.5 rounded-xl font-semibold text-sm transition-colors bg-dex-accent text-dex-bg hover:bg-dex-accent/80 disabled:bg-dex-border disabled:text-gray-500 disabled:cursor-not-allowed"
           >
-            {!address ? 'Connect Wallet' : removeMutation.isPending ? 'Removing...' : 'Remove Liquidity'}
+            {!address ? 'Connect Wallet' : removeMutation.isPending ? 'Withdrawing...' : 'Withdraw Liquidity'}
           </button>
           {removeMutation.isError && (
             <p className="text-red-400 text-sm">{removeMutation.error?.message}</p>
           )}
           {removeMutation.isSuccess && (
             <p className="text-green-400 text-sm">
-              Liquidity removed! TX: <span className="font-mono text-xs">{removeMutation.data}</span>
+              Liquidity withdrawn! TX: <span className="font-mono text-xs">{removeMutation.data}</span>
             </p>
           )}
         </div>
@@ -227,7 +231,7 @@ export default function PoolPage() {
 
       <div className="space-y-4">
         {pairs.map((pair) => (
-          <PoolCard key={pair.pair_contract} pair={pair} />
+          <PoolCard key={pair.contract_addr} pair={pair} />
         ))}
       </div>
     </div>

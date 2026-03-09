@@ -1,4 +1,4 @@
 pub use dex_common::pair::{
-    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, PairInfoResponse,
-    PairInstantiateMsg as InstantiateMsg, QueryMsg, ReservesResponse, SimulateSwapResponse,
+    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, PairInstantiateMsg as InstantiateMsg,
+    PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
