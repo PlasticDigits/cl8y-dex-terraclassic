@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CHECKS_PASSED=true
+
+echo "=== Pre-commit checks ==="
+
+# --- Rust / CosmWasm ---
+echo ""
+echo ">> cargo fmt --check"
+if ! (cd smartcontracts && cargo fmt --check); then
+  echo "FAIL: cargo fmt"
+  CHECKS_PASSED=false
+fi
+
+echo ""
+echo ">> cargo clippy"
+if ! (cd smartcontracts && cargo clippy -- -D warnings); then
+  echo "FAIL: cargo clippy"
+  CHECKS_PASSED=false
+fi
+
+# --- Frontend ---
+if [[ -d frontend-dapp/node_modules ]]; then
+  echo ""
+  echo ">> tsc --noEmit"
+  if ! (cd frontend-dapp && npx tsc --noEmit); then
+    echo "FAIL: tsc"
+    CHECKS_PASSED=false
+  fi
+
+  echo ""
+  echo ">> eslint"
+  if ! (cd frontend-dapp && npx eslint .); then
+    echo "FAIL: eslint"
+    CHECKS_PASSED=false
+  fi
+else
+  echo ""
+  echo ">> Skipping frontend checks (node_modules not found)"
+fi
+
+# --- Secrets ---
+echo ""
+if command -v gitleaks >/dev/null 2>&1; then
+  echo ">> gitleaks protect --staged"
+  if ! gitleaks protect --staged; then
+    echo "FAIL: gitleaks detected secrets"
+    CHECKS_PASSED=false
+  fi
+else
+  echo "WARNING: gitleaks not installed — skipping secret scan"
+fi
+
+# --- Result ---
+echo ""
+if [[ "${CHECKS_PASSED}" != "true" ]]; then
+  echo "=== Pre-commit FAILED ==="
+  exit 1
+fi
+
+echo "=== Pre-commit PASSED ==="

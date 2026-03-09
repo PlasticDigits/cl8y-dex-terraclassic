@@ -1,0 +1,19 @@
+services:
+  localterra:
+    image: ghcr.io/plasticdigits/localterra-cl8y:latest
+    platform: linux/amd64
+    ports:
+      - "26657:26657"
+      - "1317:1317"
+      - "9090:9090"
+      - "9091:9091"
+    volumes:
+      - localterra-data:/home/terra/.terra
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:26657/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  localterra-data:

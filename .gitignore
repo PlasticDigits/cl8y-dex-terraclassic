@@ -1,0 +1,29 @@
+# Shared
+.env
+.env.*
+!.env.example
+
+# Rust / CosmWasm
+target/
+*.wasm
+!*.wasm.gz
+
+# Frontend (Node.js)
+node_modules/
+dist/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Docker
+infra/
+
+# IDE
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log

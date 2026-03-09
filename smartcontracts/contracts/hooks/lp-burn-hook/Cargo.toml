@@ -1,0 +1,25 @@
+[package]
+name = "cl8y-dex-lp-burn-hook"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+library = []
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw2 = { workspace = true }
+cw20 = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+dex-common = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test = { workspace = true }
+
