@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow Terra Classic addresses and crypto type names"
+regexTarget = "secret"
+regexes = [
+  '''terra1[a-z0-9]{38,}''',
+  '''Secp256k1PubKey''',
+]
