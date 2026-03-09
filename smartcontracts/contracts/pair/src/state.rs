@@ -1,13 +1,12 @@
 use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::Item;
-use dex_common::types::FeeConfig;
+use dex_common::types::{AssetInfo, FeeConfig};
 
 use cosmwasm_schema::cw_serde;
 
 #[cw_serde]
 pub struct PairInfoState {
-    pub token_a: Addr,
-    pub token_b: Addr,
+    pub asset_infos: [AssetInfo; 2],
     pub lp_token: Addr,
     pub factory: Addr,
 }

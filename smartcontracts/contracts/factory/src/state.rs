@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
-use dex_common::types::PairInfo;
+use dex_common::types::{AssetInfo, PairInfo};
 
 #[cw_serde]
 pub struct Config {
@@ -15,15 +15,15 @@ pub struct Config {
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const WHITELISTED_CODE_IDS: Map<u64, bool> = Map::new("whitelisted_code_ids");
 
-/// Maps canonically-ordered (token_a, token_b) to the full PairInfo.
-pub const PAIRS: Map<(&Addr, &Addr), PairInfo> = Map::new("pairs");
+/// Maps canonical pair key string to PairInfo.
+pub const PAIRS: Map<&str, PairInfo> = Map::new("pairs");
 
 pub const PAIR_COUNT: Item<u64> = Item::new("pair_count");
 
 /// Sequential index -> PairInfo for paginated enumeration.
 pub const PAIR_INDEX: Map<u64, PairInfo> = Map::new("pair_index");
 
-/// Temporary storage for the token pair being created, read in the reply handler.
-pub const PENDING_PAIR: Item<(Addr, Addr)> = Item::new("pending_pair");
+/// Temporary storage for the asset pair being created, read in the reply handler.
+pub const PENDING_PAIR: Item<[AssetInfo; 2]> = Item::new("pending_pair");
 
 pub const REPLY_INSTANTIATE_PAIR: u64 = 1;

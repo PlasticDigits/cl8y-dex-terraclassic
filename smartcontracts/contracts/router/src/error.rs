@@ -9,15 +9,18 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Route must not be empty")]
-    EmptyRoute {},
+    #[error("Operations must not be empty")]
+    EmptyOperations {},
 
-    #[error("Invalid route: {reason}")]
-    InvalidRoute { reason: String },
+    #[error("Native token swaps are not supported; use CW20 wrapped tokens instead")]
+    NativeSwapNotSupported {},
 
-    #[error("Pair not found for the given route segment")]
+    #[error("Native tokens are not supported in swap operations; use CW20 wrapped tokens")]
+    NativeTokenNotSupported {},
+
+    #[error("Pair not found for the given swap operation")]
     PairNotFound {},
 
-    #[error("Multi-hop routing is not yet supported; provide a single pair address")]
-    MultiHopNotSupported {},
+    #[error("Minimum receive assertion: expected at least {minimum}, got {actual}")]
+    MinimumReceiveAssertion { minimum: String, actual: String },
 }

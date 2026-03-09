@@ -3,7 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairs } from '@/services/terraclassic/factory'
-import { simulateSwap, swap, getReserves, getFeeConfig } from '@/services/terraclassic/pair'
+import { simulateSwap, swap, getPool, getFeeConfig } from '@/services/terraclassic/pair'
+import { assetInfoLabel } from '@/types'
 
 function truncateAddr(addr: string): string {
   if (addr.length <= 16) return addr
@@ -33,52 +34,57 @@ export default function SwapPage() {
     }
   }, [pairsQuery.data, selectedPair, setSelectedPair, pairs])
 
-  const offerToken = selectedPair
-    ? isReversed ? selectedPair.token_b : selectedPair.token_a
-    : ''
-  const receiveToken = selectedPair
-    ? isReversed ? selectedPair.token_a : selectedPair.token_b
-    : ''
+  const offerAssetInfo = selectedPair
+    ? isReversed
+      ? selectedPair.asset_infos[1]
+      : selectedPair.asset_infos[0]
+    : null
+  const receiveAssetInfo = selectedPair
+    ? isReversed
+      ? selectedPair.asset_infos[0]
+      : selectedPair.asset_infos[1]
+    : null
 
-  const reservesQuery = useQuery({
-    queryKey: ['reserves', selectedPair?.pair_contract],
-    queryFn: () => getReserves(selectedPair!.pair_contract),
+  const offerLabel = offerAssetInfo ? assetInfoLabel(offerAssetInfo) : ''
+  const receiveLabel = receiveAssetInfo ? assetInfoLabel(receiveAssetInfo) : ''
+
+  const poolQuery = useQuery({
+    queryKey: ['pool', selectedPair?.contract_addr],
+    queryFn: () => getPool(selectedPair!.contract_addr),
     enabled: !!selectedPair,
     refetchInterval: 15_000,
   })
 
   const feeQuery = useQuery({
-    queryKey: ['feeConfig', selectedPair?.pair_contract],
-    queryFn: () => getFeeConfig(selectedPair!.pair_contract),
+    queryKey: ['feeConfig', selectedPair?.contract_addr],
+    queryFn: () => getFeeConfig(selectedPair!.contract_addr),
     enabled: !!selectedPair,
   })
 
   const simQuery = useQuery({
-    queryKey: ['simulateSwap', selectedPair?.pair_contract, offerToken, inputAmount],
-    queryFn: () => simulateSwap(selectedPair!.pair_contract, offerToken, inputAmount),
-    enabled: !!selectedPair && !!inputAmount && parseFloat(inputAmount) > 0,
+    queryKey: ['simulation', selectedPair?.contract_addr, offerLabel, inputAmount],
+    queryFn: () => simulateSwap(selectedPair!.contract_addr, offerAssetInfo!, inputAmount),
+    enabled: !!selectedPair && !!offerAssetInfo && !!inputAmount && parseFloat(inputAmount) > 0,
     refetchInterval: 10_000,
   })
 
   const swapMutation = useMutation({
     mutationFn: async () => {
-      if (!address || !selectedPair || !inputAmount) throw new Error('Missing parameters')
-      const minOutput = simQuery.data
-        ? Math.floor(parseFloat(simQuery.data.return_amount) * (1 - slippageTolerance / 100)).toString()
-        : undefined
-      return swap(address, offerToken, selectedPair.pair_contract, inputAmount, minOutput)
+      if (!address || !selectedPair || !inputAmount || !offerAssetInfo) throw new Error('Missing parameters')
+      const maxSpread = (slippageTolerance / 100).toString()
+      return swap(address, offerLabel, selectedPair.contract_addr, inputAmount, undefined, maxSpread)
     },
     onSuccess: () => setInputAmount(''),
   })
 
   const outputAmount = simQuery.data?.return_amount ?? ''
-  const feeAmount = simQuery.data?.fee_amount ?? ''
+  const commissionAmount = simQuery.data?.commission_amount ?? ''
 
   const priceImpact = simQuery.data
     ? (() => {
         const total =
           parseFloat(simQuery.data.return_amount) +
-          parseFloat(simQuery.data.fee_amount) +
+          parseFloat(simQuery.data.commission_amount) +
           parseFloat(simQuery.data.spread_amount)
         if (total === 0) return '0'
         return ((parseFloat(simQuery.data.spread_amount) / total) * 100).toFixed(2)
@@ -109,7 +115,7 @@ export default function SwapPage() {
   }
 
   function handlePairChange(pairContract: string) {
-    const pair = pairs.find((p) => p.pair_contract === pairContract)
+    const pair = pairs.find((p) => p.contract_addr === pairContract)
     if (pair) setSelectedPair(pair)
   }
 
@@ -176,14 +182,14 @@ export default function SwapPage() {
         <div className="mb-4">
           <label className="text-xs text-gray-400 mb-1 block">Trading Pair</label>
           <select
-            value={selectedPair?.pair_contract ?? ''}
+            value={selectedPair?.contract_addr ?? ''}
             onChange={(e) => handlePairChange(e.target.value)}
             className="w-full px-4 py-2.5 rounded-xl bg-dex-bg border border-dex-border text-white text-sm focus:outline-none focus:border-dex-accent appearance-none cursor-pointer"
           >
             {pairs.length === 0 && <option value="">Loading pairs...</option>}
             {pairs.map((pair) => (
-              <option key={pair.pair_contract} value={pair.pair_contract}>
-                {truncateAddr(pair.token_a)} / {truncateAddr(pair.token_b)}
+              <option key={pair.contract_addr} value={pair.contract_addr}>
+                {truncateAddr(assetInfoLabel(pair.asset_infos[0]))} / {truncateAddr(assetInfoLabel(pair.asset_infos[1]))}
               </option>
             ))}
           </select>
@@ -194,7 +200,7 @@ export default function SwapPage() {
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-400">You Pay</span>
             <span className="text-xs text-gray-500 font-mono">
-              {offerToken ? truncateAddr(offerToken) : '--'}
+              {offerLabel ? truncateAddr(offerLabel) : '--'}
             </span>
           </div>
           <input
@@ -224,7 +230,7 @@ export default function SwapPage() {
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-400">You Receive</span>
             <span className="text-xs text-gray-500 font-mono">
-              {receiveToken ? truncateAddr(receiveToken) : '--'}
+              {receiveLabel ? truncateAddr(receiveLabel) : '--'}
             </span>
           </div>
           <div className="text-2xl font-medium text-white">
@@ -241,11 +247,11 @@ export default function SwapPage() {
         {/* Trade Details */}
         {simQuery.data && (
           <div className="space-y-2 mb-4 text-sm border border-dex-border rounded-xl p-4">
-            {reservesQuery.data && (
+            {poolQuery.data && (
               <div className="flex justify-between text-gray-400">
                 <span>Pool Reserves</span>
                 <span className="font-mono text-xs">
-                  {reservesQuery.data.reserve_a} / {reservesQuery.data.reserve_b}
+                  {poolQuery.data.assets[0].amount} / {poolQuery.data.assets[1].amount}
                 </span>
               </div>
             )}
@@ -254,7 +260,7 @@ export default function SwapPage() {
                 <span>Fee</span>
                 <span>
                   {feeQuery.data.fee_bps / 100}%
-                  {feeAmount && <span className="text-gray-500 ml-1">({feeAmount})</span>}
+                  {commissionAmount && <span className="text-gray-500 ml-1">({commissionAmount})</span>}
                 </span>
               </div>
             )}

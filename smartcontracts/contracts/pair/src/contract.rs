@@ -1,18 +1,18 @@
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::error::ContractError;
 use crate::msg::{
-    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, InstantiateMsg, PairInfoResponse,
-    QueryMsg, ReservesResponse, SimulateSwapResponse,
+    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, InstantiateMsg, PoolResponse,
+    QueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
 use crate::state::{PairInfoState, FEE_CONFIG, HOOKS, PAIR_INFO, RESERVES, TOTAL_LP_SUPPLY};
 use dex_common::hook::HookExecuteMsg;
-use dex_common::types::{FeeConfig, PairInfo};
+use dex_common::types::{Asset, AssetInfo, FeeConfig, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
 const CONTRACT_VERSION: &str = "1.0.0";
@@ -31,6 +31,13 @@ fn isqrt(n: Uint128) -> Uint128 {
     x
 }
 
+fn token_addr(info: &AssetInfo) -> &str {
+    match info {
+        AssetInfo::Token { contract_addr } => contract_addr.as_str(),
+        AssetInfo::NativeToken { .. } => unreachable!("native tokens not supported"),
+    }
+}
+
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
@@ -39,9 +46,13 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    for ai in &msg.asset_infos {
+        ai.assert_is_token()
+            .map_err(|e| ContractError::Std(e))?;
+    }
+
     let pair_info = PairInfoState {
-        token_a: msg.token_a.clone(),
-        token_b: msg.token_b.clone(),
+        asset_infos: msg.asset_infos.clone(),
         lp_token: Addr::unchecked(""),
         factory: msg.factory.clone(),
     };
@@ -83,8 +94,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
-        .add_attribute("token_a", msg.token_a)
-        .add_attribute("token_b", msg.token_b))
+        .add_attribute("pair", format!("{}-{}", msg.asset_infos[0], msg.asset_infos[1])))
 }
 
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
@@ -115,12 +125,25 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Receive(cw20_msg) => execute_receive(deps, env, info, cw20_msg),
-        ExecuteMsg::AddLiquidity {
-            token_a_amount,
-            token_b_amount,
-            min_lp_tokens,
+        ExecuteMsg::ProvideLiquidity {
+            assets,
             slippage_tolerance: _,
-        } => execute_add_liquidity(deps, env, info, token_a_amount, token_b_amount, min_lp_tokens),
+            receiver,
+            deadline: _,
+        } => execute_provide_liquidity(deps, env, info, assets, receiver),
+        ExecuteMsg::Swap {
+            offer_asset,
+            belief_price: _,
+            max_spread: _,
+            to: _,
+            deadline: _,
+        } => {
+            offer_asset.info.assert_is_token()
+                .map_err(|_| ContractError::NativeTokenNotSupported {})?;
+            Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+                "Direct Swap execute is not supported for CW20 tokens; use CW20 Send with Cw20HookMsg::Swap instead"
+            )))
+        }
         ExecuteMsg::UpdateFee { fee_bps } => execute_update_fee(deps, info, fee_bps),
         ExecuteMsg::UpdateHooks { hooks } => execute_update_hooks(deps, info, hooks),
     }
@@ -136,22 +159,79 @@ fn execute_receive(
     let token_sender = deps.api.addr_validate(&cw20_msg.sender)?;
 
     match hook_msg {
-        Cw20HookMsg::Swap { min_output, to } => {
-            execute_swap(deps, env, info, token_sender, cw20_msg.amount, min_output, to)
-        }
-        Cw20HookMsg::RemoveLiquidity { min_a, min_b } => {
-            execute_remove_liquidity(deps, env, info, token_sender, cw20_msg.amount, min_a, min_b)
+        Cw20HookMsg::Swap {
+            belief_price,
+            max_spread,
+            to,
+            deadline: _,
+        } => execute_swap(
+            deps,
+            env,
+            info,
+            token_sender,
+            cw20_msg.amount,
+            belief_price,
+            max_spread,
+            to,
+        ),
+        Cw20HookMsg::WithdrawLiquidity {} => {
+            execute_withdraw_liquidity(deps, env, info, token_sender, cw20_msg.amount)
         }
     }
 }
 
+fn assert_max_spread(
+    belief_price: Option<Decimal>,
+    max_spread: Option<Decimal>,
+    offer_amount: Uint128,
+    return_amount: Uint128,
+    spread_amount: Uint128,
+    commission_amount: Uint128,
+) -> Result<(), ContractError> {
+    let default_spread = Decimal::percent(1);
+    let max_allowed = max_spread.unwrap_or(default_spread);
+
+    if let Some(bp) = belief_price {
+        let expected_return = offer_amount * (Decimal::one() / bp);
+        let actual_return = return_amount + commission_amount;
+        let spread = if expected_return > actual_return {
+            expected_return - actual_return
+        } else {
+            Uint128::zero()
+        };
+
+        if expected_return > Uint128::zero()
+            && Decimal::from_ratio(spread, expected_return) > max_allowed
+        {
+            return Err(ContractError::MaxSpreadAssertion {
+                max: max_allowed.to_string(),
+                actual: Decimal::from_ratio(spread, expected_return).to_string(),
+            });
+        }
+    } else {
+        let total_return = return_amount + commission_amount;
+        if total_return > Uint128::zero()
+            && Decimal::from_ratio(spread_amount, total_return) > max_allowed
+        {
+            return Err(ContractError::MaxSpreadAssertion {
+                max: max_allowed.to_string(),
+                actual: Decimal::from_ratio(spread_amount, total_return).to_string(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
 fn execute_swap(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     sender: Addr,
     input_amount: Uint128,
-    min_output: Option<Uint128>,
+    belief_price: Option<Decimal>,
+    max_spread: Option<Decimal>,
     to: Option<String>,
 ) -> Result<Response, ContractError> {
     if input_amount.is_zero() {
@@ -162,11 +242,25 @@ fn execute_swap(
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
-    let (input_reserve, output_reserve, input_token, output_token) =
-        if info.sender == pair_info.token_a {
-            (reserve_a, reserve_b, pair_info.token_a.clone(), pair_info.token_b.clone())
-        } else if info.sender == pair_info.token_b {
-            (reserve_b, reserve_a, pair_info.token_b.clone(), pair_info.token_a.clone())
+    let offer_token_addr = info.sender.to_string();
+    let token_a_addr = token_addr(&pair_info.asset_infos[0]);
+    let token_b_addr = token_addr(&pair_info.asset_infos[1]);
+
+    let (input_reserve, output_reserve, offer_asset_info, ask_asset_info) =
+        if offer_token_addr == token_a_addr {
+            (
+                reserve_a,
+                reserve_b,
+                pair_info.asset_infos[0].clone(),
+                pair_info.asset_infos[1].clone(),
+            )
+        } else if offer_token_addr == token_b_addr {
+            (
+                reserve_b,
+                reserve_a,
+                pair_info.asset_infos[1].clone(),
+                pair_info.asset_infos[0].clone(),
+            )
         } else {
             return Err(ContractError::InvalidToken {});
         };
@@ -180,21 +274,30 @@ fn execute_swap(
     let new_output_reserve = k.checked_div(new_input_reserve)?;
     let gross_output = output_reserve.checked_sub(new_output_reserve)?;
 
-    let fee_amount = gross_output
+    let commission_amount = gross_output
         .checked_mul(Uint128::new(fee_config.fee_bps as u128))?
         .checked_div(Uint128::new(10000))?;
-    let net_output = gross_output.checked_sub(fee_amount)?;
+    let return_amount = gross_output.checked_sub(commission_amount)?;
 
-    if let Some(min) = min_output {
-        if net_output < min {
-            return Err(ContractError::MinimumOutputNotMet {
-                min: min.to_string(),
-                actual: net_output.to_string(),
-            });
-        }
-    }
+    let ideal_output = input_amount
+        .checked_mul(output_reserve)?
+        .checked_div(input_reserve)?;
+    let spread_amount = if ideal_output > gross_output {
+        ideal_output.checked_sub(gross_output)?
+    } else {
+        Uint128::zero()
+    };
 
-    let (new_reserve_a, new_reserve_b) = if info.sender == pair_info.token_a {
+    assert_max_spread(
+        belief_price,
+        max_spread,
+        input_amount,
+        return_amount,
+        spread_amount,
+        commission_amount,
+    )?;
+
+    let (new_reserve_a, new_reserve_b) = if offer_token_addr == token_a_addr {
         (
             reserve_a.checked_add(input_amount)?,
             reserve_b.checked_sub(gross_output)?,
@@ -207,30 +310,32 @@ fn execute_swap(
     };
     RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
 
-    let recipient = match to {
+    let receiver = match to {
         Some(addr) => deps.api.addr_validate(&addr)?,
         None => sender.clone(),
     };
 
+    let ask_token_addr = token_addr(&ask_asset_info);
+
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    if !fee_amount.is_zero() {
+    if !commission_amount.is_zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: output_token.to_string(),
+            contract_addr: ask_token_addr.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: fee_config.treasury.to_string(),
-                amount: fee_amount,
+                amount: commission_amount,
             })?,
             funds: vec![],
         }));
     }
 
-    if !net_output.is_zero() {
+    if !return_amount.is_zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: output_token.to_string(),
+            contract_addr: ask_token_addr.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: recipient.to_string(),
-                amount: net_output,
+                recipient: receiver.to_string(),
+                amount: return_amount,
             })?,
             funds: vec![],
         }));
@@ -243,11 +348,16 @@ fn execute_swap(
             msg: to_json_binary(&HookExecuteMsg::AfterSwap {
                 pair: env.contract.address.clone(),
                 sender: sender.clone(),
-                input_token: input_token.clone(),
-                input_amount,
-                output_token: output_token.clone(),
-                output_amount: net_output,
-                fee_amount,
+                offer_asset: Asset {
+                    info: offer_asset_info.clone(),
+                    amount: input_amount,
+                },
+                return_asset: Asset {
+                    info: ask_asset_info.clone(),
+                    amount: return_amount,
+                },
+                commission_amount,
+                spread_amount,
             })?,
             funds: vec![],
         }));
@@ -257,36 +367,40 @@ fn execute_swap(
         .add_messages(messages)
         .add_attribute("action", "swap")
         .add_attribute("sender", sender)
-        .add_attribute("input_token", input_token)
-        .add_attribute("input_amount", input_amount)
-        .add_attribute("output_token", output_token)
-        .add_attribute("output_amount", net_output)
-        .add_attribute("fee_amount", fee_amount))
+        .add_attribute("receiver", receiver)
+        .add_attribute("offer_asset", offer_asset_info.to_string())
+        .add_attribute("ask_asset", ask_asset_info.to_string())
+        .add_attribute("offer_amount", input_amount)
+        .add_attribute("return_amount", return_amount)
+        .add_attribute("spread_amount", spread_amount)
+        .add_attribute("commission_amount", commission_amount))
 }
 
-fn execute_add_liquidity(
+fn execute_provide_liquidity(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    token_a_amount: Uint128,
-    token_b_amount: Uint128,
-    min_lp_tokens: Option<Uint128>,
+    assets: [Asset; 2],
+    receiver: Option<String>,
 ) -> Result<Response, ContractError> {
-    if token_a_amount.is_zero() || token_b_amount.is_zero() {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+
+    let (amount_a, amount_b) = match_asset_amounts(&pair_info.asset_infos, &assets)?;
+
+    if amount_a.is_zero() || amount_b.is_zero() {
         return Err(ContractError::ZeroAmount {});
     }
 
-    let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let total_supply = TOTAL_LP_SUPPLY.load(deps.storage)?;
 
     let lp_tokens = if reserve_a.is_zero() && reserve_b.is_zero() {
-        isqrt(token_a_amount.checked_mul(token_b_amount)?)
+        isqrt(amount_a.checked_mul(amount_b)?)
     } else {
-        let lp_a = token_a_amount
+        let lp_a = amount_a
             .checked_mul(total_supply)?
             .checked_div(reserve_a)?;
-        let lp_b = token_b_amount
+        let lp_b = amount_b
             .checked_mul(total_supply)?
             .checked_div(reserve_b)?;
         std::cmp::min(lp_a, lp_b)
@@ -296,40 +410,39 @@ fn execute_add_liquidity(
         return Err(ContractError::InsufficientLiquidity {});
     }
 
-    if let Some(min) = min_lp_tokens {
-        if lp_tokens < min {
-            return Err(ContractError::InsufficientLpTokens {
-                min: min.to_string(),
-                actual: lp_tokens.to_string(),
-            });
-        }
-    }
-
-    let new_reserve_a = reserve_a.checked_add(token_a_amount)?;
-    let new_reserve_b = reserve_b.checked_add(token_b_amount)?;
+    let new_reserve_a = reserve_a.checked_add(amount_a)?;
+    let new_reserve_b = reserve_b.checked_add(amount_b)?;
     RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
 
     let new_total_supply = total_supply.checked_add(lp_tokens)?;
     TOTAL_LP_SUPPLY.save(deps.storage, &new_total_supply)?;
 
+    let token_a_addr = token_addr(&pair_info.asset_infos[0]);
+    let token_b_addr = token_addr(&pair_info.asset_infos[1]);
+
+    let lp_receiver = match receiver {
+        Some(addr) => deps.api.addr_validate(&addr)?,
+        None => info.sender.clone(),
+    };
+
     let mut messages: Vec<CosmosMsg> = vec![];
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: pair_info.token_a.to_string(),
+        contract_addr: token_a_addr.to_string(),
         msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
             owner: info.sender.to_string(),
             recipient: env.contract.address.to_string(),
-            amount: token_a_amount,
+            amount: amount_a,
         })?,
         funds: vec![],
     }));
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: pair_info.token_b.to_string(),
+        contract_addr: token_b_addr.to_string(),
         msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
             owner: info.sender.to_string(),
             recipient: env.contract.address.to_string(),
-            amount: token_b_amount,
+            amount: amount_b,
         })?,
         funds: vec![],
     }));
@@ -337,7 +450,7 @@ fn execute_add_liquidity(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: pair_info.lp_token.to_string(),
         msg: to_json_binary(&Cw20ExecuteMsg::Mint {
-            recipient: info.sender.to_string(),
+            recipient: lp_receiver.to_string(),
             amount: lp_tokens,
         })?,
         funds: vec![],
@@ -345,21 +458,19 @@ fn execute_add_liquidity(
 
     Ok(Response::new()
         .add_messages(messages)
-        .add_attribute("action", "add_liquidity")
+        .add_attribute("action", "provide_liquidity")
         .add_attribute("sender", info.sender)
-        .add_attribute("token_a_amount", token_a_amount)
-        .add_attribute("token_b_amount", token_b_amount)
-        .add_attribute("lp_tokens_minted", lp_tokens))
+        .add_attribute("receiver", lp_receiver)
+        .add_attribute("assets", format!("{}, {}", assets[0], assets[1]))
+        .add_attribute("share", lp_tokens))
 }
 
-fn execute_remove_liquidity(
+fn execute_withdraw_liquidity(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
     sender: Addr,
     lp_amount: Uint128,
-    min_a: Option<Uint128>,
-    min_b: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     let pair_info = PAIR_INFO.load(deps.storage)?;
 
@@ -385,29 +496,24 @@ fn execute_remove_liquidity(
         .checked_mul(reserve_b)?
         .checked_div(total_supply)?;
 
-    if let Some(min) = min_a {
-        if amount_a < min {
-            return Err(ContractError::MinimumOutputNotMet {
-                min: min.to_string(),
-                actual: amount_a.to_string(),
-            });
-        }
-    }
-    if let Some(min) = min_b {
-        if amount_b < min {
-            return Err(ContractError::MinimumOutputNotMet {
-                min: min.to_string(),
-                actual: amount_b.to_string(),
-            });
-        }
-    }
-
     let new_reserve_a = reserve_a.checked_sub(amount_a)?;
     let new_reserve_b = reserve_b.checked_sub(amount_b)?;
     RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
 
     let new_total_supply = total_supply.checked_sub(lp_amount)?;
     TOTAL_LP_SUPPLY.save(deps.storage, &new_total_supply)?;
+
+    let token_a_addr = token_addr(&pair_info.asset_infos[0]);
+    let token_b_addr = token_addr(&pair_info.asset_infos[1]);
+
+    let refund_asset_a = Asset {
+        info: pair_info.asset_infos[0].clone(),
+        amount: amount_a,
+    };
+    let refund_asset_b = Asset {
+        info: pair_info.asset_infos[1].clone(),
+        amount: amount_b,
+    };
 
     let mut messages: Vec<CosmosMsg> = vec![];
 
@@ -418,7 +524,7 @@ fn execute_remove_liquidity(
     }));
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: pair_info.token_a.to_string(),
+        contract_addr: token_a_addr.to_string(),
         msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
             recipient: sender.to_string(),
             amount: amount_a,
@@ -427,7 +533,7 @@ fn execute_remove_liquidity(
     }));
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: pair_info.token_b.to_string(),
+        contract_addr: token_b_addr.to_string(),
         msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
             recipient: sender.to_string(),
             amount: amount_b,
@@ -437,11 +543,13 @@ fn execute_remove_liquidity(
 
     Ok(Response::new()
         .add_messages(messages)
-        .add_attribute("action", "remove_liquidity")
+        .add_attribute("action", "withdraw_liquidity")
         .add_attribute("sender", sender)
-        .add_attribute("lp_burned", lp_amount)
-        .add_attribute("token_a_returned", amount_a)
-        .add_attribute("token_b_returned", amount_b))
+        .add_attribute("withdrawn_share", lp_amount)
+        .add_attribute(
+            "refund_assets",
+            format!("{}, {}", refund_asset_a, refund_asset_b),
+        ))
 }
 
 fn execute_update_fee(
@@ -492,36 +600,160 @@ fn execute_update_hooks(
         .add_attribute("hooks_count", validated_hooks.len().to_string()))
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+// ---------------------------------------------------------------------------
+// Query
+// ---------------------------------------------------------------------------
+
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetPairInfo {} => to_json_binary(&query_pair_info(deps)?),
-        QueryMsg::GetReserves {} => to_json_binary(&query_reserves(deps)?),
+        QueryMsg::Pair {} => to_json_binary(&query_pair(deps, &env)?),
+        QueryMsg::Pool {} => to_json_binary(&query_pool(deps)?),
+        QueryMsg::Simulation { offer_asset } => {
+            to_json_binary(&query_simulation(deps, offer_asset)?)
+        }
+        QueryMsg::ReverseSimulation { ask_asset } => {
+            to_json_binary(&query_reverse_simulation(deps, ask_asset)?)
+        }
         QueryMsg::GetFeeConfig {} => to_json_binary(&query_fee_config(deps)?),
         QueryMsg::GetHooks {} => to_json_binary(&query_hooks(deps)?),
-        QueryMsg::SimulateSwap {
-            offer_token,
-            offer_amount,
-        } => to_json_binary(&query_simulate_swap(deps, offer_token, offer_amount)?),
     }
 }
 
-fn query_pair_info(deps: Deps) -> StdResult<PairInfoResponse> {
+fn query_pair(deps: Deps, env: &Env) -> StdResult<PairInfo> {
     let state = PAIR_INFO.load(deps.storage)?;
-    Ok(PairInfoResponse {
-        pair: PairInfo {
-            token_a: state.token_a,
-            token_b: state.token_b,
-            pair_contract: Addr::unchecked(""),
-            lp_token: state.lp_token,
-        },
+    Ok(PairInfo {
+        asset_infos: state.asset_infos,
+        contract_addr: env.contract.address.clone(),
+        liquidity_token: state.lp_token,
     })
 }
 
-fn query_reserves(deps: Deps) -> StdResult<ReservesResponse> {
+fn query_pool(deps: Deps) -> StdResult<PoolResponse> {
+    let state = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
-    Ok(ReservesResponse {
-        reserve_a,
-        reserve_b,
+    let total_share = TOTAL_LP_SUPPLY.load(deps.storage)?;
+
+    Ok(PoolResponse {
+        assets: [
+            Asset {
+                info: state.asset_infos[0].clone(),
+                amount: reserve_a,
+            },
+            Asset {
+                info: state.asset_infos[1].clone(),
+                amount: reserve_b,
+            },
+        ],
+        total_share,
+    })
+}
+
+fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationResponse> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+
+    let (input_reserve, output_reserve) =
+        if offer_asset.info.equal(&pair_info.asset_infos[0]) {
+            (reserve_a, reserve_b)
+        } else if offer_asset.info.equal(&pair_info.asset_infos[1]) {
+            (reserve_b, reserve_a)
+        } else {
+            return Err(cosmwasm_std::StdError::generic_err(
+                "Invalid offer asset: does not match pair assets",
+            ));
+        };
+
+    if input_reserve.is_zero() || output_reserve.is_zero() {
+        return Ok(SimulationResponse {
+            return_amount: Uint128::zero(),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+        });
+    }
+
+    let offer_amount = offer_asset.amount;
+    let k = input_reserve.checked_mul(output_reserve)?;
+    let new_input_reserve = input_reserve.checked_add(offer_amount)?;
+    let new_output_reserve = k.checked_div(new_input_reserve)?;
+    let gross_output = output_reserve.checked_sub(new_output_reserve)?;
+
+    let commission_amount = gross_output
+        .checked_mul(Uint128::new(fee_config.fee_bps as u128))?
+        .checked_div(Uint128::new(10000))?;
+    let return_amount = gross_output.checked_sub(commission_amount)?;
+
+    let ideal_output = offer_amount
+        .checked_mul(output_reserve)?
+        .checked_div(input_reserve)?;
+    let spread_amount = if ideal_output > gross_output {
+        ideal_output.checked_sub(gross_output)?
+    } else {
+        Uint128::zero()
+    };
+
+    Ok(SimulationResponse {
+        return_amount,
+        spread_amount,
+        commission_amount,
+    })
+}
+
+fn query_reverse_simulation(
+    deps: Deps,
+    ask_asset: Asset,
+) -> StdResult<ReverseSimulationResponse> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+
+    let (input_reserve, output_reserve) =
+        if ask_asset.info.equal(&pair_info.asset_infos[1]) {
+            (reserve_a, reserve_b)
+        } else if ask_asset.info.equal(&pair_info.asset_infos[0]) {
+            (reserve_b, reserve_a)
+        } else {
+            return Err(cosmwasm_std::StdError::generic_err(
+                "Invalid ask asset: does not match pair assets",
+            ));
+        };
+
+    if input_reserve.is_zero() || output_reserve.is_zero() {
+        return Ok(ReverseSimulationResponse {
+            offer_amount: Uint128::zero(),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+        });
+    }
+
+    let ask_amount = ask_asset.amount;
+
+    // gross_needed = ask_amount * 10000 / (10000 - fee_bps)
+    let fee_denom = 10000u128 - fee_config.fee_bps as u128;
+    let gross_needed = ask_amount
+        .checked_mul(Uint128::new(10000))?
+        .checked_div(Uint128::new(fee_denom))?;
+    let commission_amount = gross_needed.checked_sub(ask_amount)?;
+
+    // offer_amount = input_reserve * gross_needed / (output_reserve - gross_needed)
+    let denom = output_reserve.checked_sub(gross_needed)?;
+    let offer_amount = input_reserve
+        .checked_mul(gross_needed)?
+        .checked_div(denom)?;
+
+    let ideal_output = offer_amount
+        .checked_mul(output_reserve)?
+        .checked_div(input_reserve)?;
+    let spread_amount = if ideal_output > gross_needed {
+        ideal_output.checked_sub(gross_needed)?
+    } else {
+        Uint128::zero()
+    };
+
+    Ok(ReverseSimulationResponse {
+        offer_amount,
+        spread_amount,
+        commission_amount,
     })
 }
 
@@ -535,55 +767,25 @@ fn query_hooks(deps: Deps) -> StdResult<HooksResponse> {
     Ok(HooksResponse { hooks })
 }
 
-fn query_simulate_swap(
-    deps: Deps,
-    offer_token: String,
-    offer_amount: Uint128,
-) -> StdResult<SimulateSwapResponse> {
-    let pair_info = PAIR_INFO.load(deps.storage)?;
-    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
-    let fee_config = FEE_CONFIG.load(deps.storage)?;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-    let offer_addr = deps.api.addr_validate(&offer_token)?;
-
-    let (input_reserve, output_reserve) = if offer_addr == pair_info.token_a {
-        (reserve_a, reserve_b)
-    } else if offer_addr == pair_info.token_b {
-        (reserve_b, reserve_a)
+/// Match the provided assets against the pair's asset_infos and return (amount_a, amount_b)
+/// in the order of the pair's asset_infos.
+fn match_asset_amounts(
+    pair_asset_infos: &[AssetInfo; 2],
+    provided: &[Asset; 2],
+) -> Result<(Uint128, Uint128), ContractError> {
+    if provided[0].info.equal(&pair_asset_infos[0])
+        && provided[1].info.equal(&pair_asset_infos[1])
+    {
+        Ok((provided[0].amount, provided[1].amount))
+    } else if provided[0].info.equal(&pair_asset_infos[1])
+        && provided[1].info.equal(&pair_asset_infos[0])
+    {
+        Ok((provided[1].amount, provided[0].amount))
     } else {
-        return Err(cosmwasm_std::StdError::generic_err("Invalid offer token"));
-    };
-
-    if input_reserve.is_zero() || output_reserve.is_zero() {
-        return Ok(SimulateSwapResponse {
-            return_amount: Uint128::zero(),
-            fee_amount: Uint128::zero(),
-            spread_amount: Uint128::zero(),
-        });
+        Err(ContractError::AssetMismatch {})
     }
-
-    let k = input_reserve.checked_mul(output_reserve)?;
-    let new_input_reserve = input_reserve.checked_add(offer_amount)?;
-    let new_output_reserve = k.checked_div(new_input_reserve)?;
-    let gross_output = output_reserve.checked_sub(new_output_reserve)?;
-
-    let fee_amount = gross_output
-        .checked_mul(Uint128::new(fee_config.fee_bps as u128))?
-        .checked_div(Uint128::new(10000))?;
-    let net_output = gross_output.checked_sub(fee_amount)?;
-
-    let ideal_output = offer_amount
-        .checked_mul(output_reserve)?
-        .checked_div(input_reserve)?;
-    let spread_amount = if ideal_output > gross_output {
-        ideal_output.checked_sub(gross_output)?
-    } else {
-        Uint128::zero()
-    };
-
-    Ok(SimulateSwapResponse {
-        return_amount: net_output,
-        fee_amount,
-        spread_amount,
-    })
 }

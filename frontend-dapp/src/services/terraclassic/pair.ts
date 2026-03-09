@@ -1,27 +1,48 @@
 import { queryContract } from './queries'
 import { executeTerraContract } from './transactions'
-import type { PairInfo, FeeConfig, ReservesInfo, SimulateSwapResult } from '@/types'
+import type {
+  Asset,
+  AssetInfo,
+  FeeConfig,
+  PairInfo,
+  PoolResponse,
+  SimulationResponse,
+  ReverseSimulationResponse,
+} from '@/types'
+import { tokenAssetInfo } from '@/types'
 
 export async function getPairInfo(pairAddress: string): Promise<PairInfo> {
-  const resp = await queryContract<{ pair_info: PairInfo }>(pairAddress, { get_pair_info: {} })
-  return resp.pair_info
+  return queryContract<PairInfo>(pairAddress, { pair: {} })
 }
 
-export async function getReserves(pairAddress: string): Promise<ReservesInfo> {
-  return queryContract<ReservesInfo>(pairAddress, { get_reserves: {} })
+export async function getPool(pairAddress: string): Promise<PoolResponse> {
+  return queryContract<PoolResponse>(pairAddress, { pool: {} })
 }
 
 export async function getFeeConfig(pairAddress: string): Promise<FeeConfig> {
-  return queryContract<FeeConfig>(pairAddress, { get_fee_config: {} })
+  const resp = await queryContract<{ fee_config: FeeConfig }>(pairAddress, { get_fee_config: {} })
+  return resp.fee_config
 }
 
 export async function simulateSwap(
   pairAddress: string,
-  offerToken: string,
+  offerAssetInfo: AssetInfo,
   offerAmount: string
-): Promise<SimulateSwapResult> {
-  return queryContract<SimulateSwapResult>(pairAddress, {
-    simulate_swap: { offer_token: offerToken, offer_amount: offerAmount },
+): Promise<SimulationResponse> {
+  const offerAsset: Asset = { info: offerAssetInfo, amount: offerAmount }
+  return queryContract<SimulationResponse>(pairAddress, {
+    simulation: { offer_asset: offerAsset },
+  })
+}
+
+export async function reverseSimulateSwap(
+  pairAddress: string,
+  askAssetInfo: AssetInfo,
+  askAmount: string
+): Promise<ReverseSimulationResponse> {
+  const askAsset: Asset = { info: askAssetInfo, amount: askAmount }
+  return queryContract<ReverseSimulationResponse>(pairAddress, {
+    reverse_simulation: { ask_asset: askAsset },
   })
 }
 
@@ -30,12 +51,19 @@ export async function swap(
   tokenAddress: string,
   pairAddress: string,
   amount: string,
-  minOutput?: string,
+  beliefPrice?: string,
+  maxSpread?: string,
   to?: string
 ): Promise<string> {
-  const swapMsg = btoa(JSON.stringify({
-    swap: { min_output: minOutput, to },
-  }))
+  const swapMsg = btoa(
+    JSON.stringify({
+      swap: {
+        belief_price: beliefPrice,
+        max_spread: maxSpread,
+        to,
+      },
+    })
+  )
   return executeTerraContract(walletAddress, tokenAddress, {
     send: {
       contract: pairAddress,
@@ -45,14 +73,13 @@ export async function swap(
   })
 }
 
-export async function addLiquidity(
+export async function provideLiquidity(
   walletAddress: string,
   pairAddress: string,
   tokenA: string,
   tokenB: string,
   amountA: string,
-  amountB: string,
-  minLpTokens?: string
+  amountB: string
 ): Promise<string> {
   await executeTerraContract(walletAddress, tokenA, {
     increase_allowance: { spender: pairAddress, amount: amountA },
@@ -62,31 +89,28 @@ export async function addLiquidity(
     increase_allowance: { spender: pairAddress, amount: amountB },
   })
 
+  const assets: [Asset, Asset] = [
+    { info: tokenAssetInfo(tokenA), amount: amountA },
+    { info: tokenAssetInfo(tokenB), amount: amountB },
+  ]
+
   return executeTerraContract(walletAddress, pairAddress, {
-    add_liquidity: {
-      token_a_amount: amountA,
-      token_b_amount: amountB,
-      min_lp_tokens: minLpTokens,
-    },
+    provide_liquidity: { assets },
   })
 }
 
-export async function removeLiquidity(
+export async function withdrawLiquidity(
   walletAddress: string,
   lpTokenAddress: string,
   pairAddress: string,
-  amount: string,
-  minA?: string,
-  minB?: string
+  amount: string
 ): Promise<string> {
-  const removeMsg = btoa(JSON.stringify({
-    remove_liquidity: { min_a: minA, min_b: minB },
-  }))
+  const withdrawMsg = btoa(JSON.stringify({ withdraw_liquidity: {} }))
   return executeTerraContract(walletAddress, lpTokenAddress, {
     send: {
       contract: pairAddress,
       amount,
-      msg: removeMsg,
+      msg: withdrawMsg,
     },
   })
 }

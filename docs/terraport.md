@@ -576,23 +576,26 @@ TerraSwap base. Their source code is not publicly available. Known operations fr
 
 ## Vyntrex Integration Notes
 
-For Vyntrex to correctly parse Terraport transactions, it needs to handle:
+Our DEX now uses TerraSwap-compatible message, query, and event formats. Vyntrex can parse our contracts the same way it parses Terraport:
 
-1. **The `AssetInfo` enum** -- assets can be either `{ "token": { "contract_addr": "..." } }`
-   or `{ "native_token": { "denom": "..." } }`. This is fundamentally different from our
-   CW20-only model.
+1. **The `AssetInfo` enum** -- we use the same `{ "token": { "contract_addr": "..." } }` /
+   `{ "native_token": { "denom": "..." } }` format. We only accept `token` variant;
+   `native_token` is rejected at runtime.
 
-2. **CW20 `send` wrapping** -- CW20 token swaps and LP withdrawals are wrapped in a CW20
-   `send` message with a base64-encoded inner message. The actual operation is in the
-   decoded `msg` field.
+2. **CW20 `send` wrapping** -- CW20 token swaps use `Cw20HookMsg::Swap { belief_price, max_spread, to, deadline }`.
+   LP withdrawals use `Cw20HookMsg::WithdrawLiquidity {}`. Same format as TerraSwap.
 
-3. **Swap event parsing** -- look for `wasm` events with `action = "swap"` and extract
-   `offer_asset`, `ask_asset`, `offer_amount`, `return_amount`, `spread_amount`,
-   `commission_amount`.
+3. **Swap event parsing** -- our swap events emit the same attributes: `offer_asset`,
+   `ask_asset`, `offer_amount`, `return_amount`, `spread_amount`, `commission_amount`,
+   `sender`, `receiver`.
 
-4. **Router operations** -- multi-hop swaps use `SwapOperation` variants (`native_swap` or
-   `terra_swap`), not simple pair address lists like our router.
+4. **Router operations** -- our router uses `SwapOperation::TerraSwap` and
+   `SwapOperation::NativeSwap` (rejected at runtime). Same format as TerraSwap.
 
-5. **No hooks** -- Terraport does not have the post-swap hook system that our DEX uses
-   (burn-hook, tax-hook, lp-burn-hook). Fee handling is built into the pair contract
-   directly.
+5. **Queries** -- `Config`, `Pair`, `Pairs`, `Pool`, `Simulation`, `ReverseSimulation`,
+   `SimulateSwapOperations`, `ReverseSimulateSwapOperations` -- all match TerraSwap names.
+
+6. **Our extensions** -- governance, treasury, FeeConfig, code ID whitelist, and post-swap
+   hooks (burn-hook, tax-hook, lp-burn-hook) are additive. Their queries and messages use
+   names that don't conflict with TerraSwap (e.g., `GetFeeConfig`, `GetHooks`,
+   `SetPairFee`, `SetPairHooks`). Vyntrex can safely ignore these.
