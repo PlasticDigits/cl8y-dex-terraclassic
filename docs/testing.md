@@ -50,6 +50,29 @@ npx playwright test --ui      # interactive UI
 
 Config: `playwright.config.ts`
 
+### Fee Discount Contract Tests
+
+The fee-discount contract has unit tests covering:
+
+- **Tier management:** `AddTier`, `UpdateTier`, `RemoveTier` — validates governance-only access, duplicate tier rejection, and bps bounds (≤10000)
+- **Registration:** `Register` for self-registration (EOA-only enforcement), `RegisterWallet` for governance-controlled registration, rejection of contracts attempting self-registration
+- **Deregistration:** `Deregister` (self), `DeregisterWallet` (governance), lazy deregistration triggered by insufficient balance
+- **Discount queries:** `GetDiscount` returns correct bps for registered traders, returns 0 for unregistered traders, fires deregistration when CL8Y balance is below threshold
+- **Trusted routers:** `AddTrustedRouter`, `RemoveTrustedRouter`, `IsTrustedRouter` query
+- **Governance tiers:** Tier 0 and Tier 255 cannot be self-registered, only governance can assign them
+- **Config updates:** `UpdateConfig` governance-only access
+
+### Integration Tests (Contracts)
+
+The integration test harness in `smartcontracts/tests/` deploys the full contract suite (Factory, Pair, Router, Fee Discount) to a simulated chain and tests:
+
+- End-to-end swap with discount: register a tier, execute swap, verify reduced commission
+- Swap without registration: verify full fee applied
+- Balance drop: transfer CL8Y away, swap, verify discount revoked and deregistration fired
+- Router trusted forwarding: swap via Router passes trader address correctly
+- Factory `SetDiscountRegistryAll`: verify all pairs receive the registry address
+- Blacklist (Tier 255): verify wallet receives zero discount
+
 ## Coverage
 
 ```bash

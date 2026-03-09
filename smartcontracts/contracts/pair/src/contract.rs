@@ -11,9 +11,10 @@ use crate::msg::{
     OracleInfoResponse, PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
 use crate::state::{
-    OracleState, PairInfoState, FEE_CONFIG, HOOKS, OBSERVATIONS, ORACLE_STATE, PAIR_INFO,
-    PAUSED, RESERVES, TOTAL_LP_SUPPLY,
+    OracleState, PairInfoState, DISCOUNT_REGISTRY, FEE_CONFIG, HOOKS, OBSERVATIONS, ORACLE_STATE,
+    PAIR_INFO, PAUSED, RESERVES, TOTAL_LP_SUPPLY,
 };
+use dex_common::fee_discount;
 use dex_common::hook::HookExecuteMsg;
 use dex_common::oracle::{
     log2_ratio_q64, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
@@ -252,6 +253,7 @@ pub fn instantiate(
     HOOKS.save(deps.storage, &vec![])?;
     TOTAL_LP_SUPPLY.save(deps.storage, &Uint128::zero())?;
     PAUSED.save(deps.storage, &false)?;
+    DISCOUNT_REGISTRY.save(deps.storage, &None)?;
 
     ORACLE_STATE.save(
         deps.storage,
@@ -264,7 +266,7 @@ pub fn instantiate(
 
     let instantiate_lp_msg = cw20_base::msg::InstantiateMsg {
         name: "CL8Y DEX LP Token".to_string(),
-        symbol: "CLDY-LP".to_string(),
+        symbol: "CL8Y-LP".to_string(),
         decimals: 6,
         initial_balances: vec![],
         mint: Some(MinterResponse {
@@ -354,6 +356,9 @@ pub fn execute(
         ExecuteMsg::IncreaseObservationCardinality { new_cardinality } => {
             execute_increase_observation_cardinality(deps, new_cardinality)
         }
+        ExecuteMsg::SetDiscountRegistry { registry } => {
+            execute_set_discount_registry(deps, info, registry)
+        }
         ExecuteMsg::SetPaused { paused } => execute_set_paused(deps, info, paused),
     }
 }
@@ -373,6 +378,7 @@ fn execute_receive(
             max_spread,
             to,
             deadline,
+            trader,
         } => {
             assert_deadline(&env, deadline)?;
             execute_swap(
@@ -384,6 +390,7 @@ fn execute_receive(
                 belief_price,
                 max_spread,
                 to,
+                trader,
             )
         }
         Cw20HookMsg::WithdrawLiquidity {} => {
@@ -445,6 +452,7 @@ fn execute_swap(
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
     to: Option<String>,
+    trader: Option<String>,
 ) -> Result<Response, ContractError> {
     if input_amount.is_zero() {
         return Err(ContractError::ZeroAmount {});
@@ -494,8 +502,49 @@ fn execute_swap(
     let new_output_reserve = k.checked_div(new_input_reserve)?;
     let gross_output = output_reserve.checked_sub(new_output_reserve)?;
 
+    // Determine the trader address for discount lookup.
+    // For direct swaps sender == trader; for router swaps the router passes
+    // the original user via the `trader` field.
+    let trader_addr = trader.unwrap_or_else(|| sender.to_string());
+
+    // Look up fee discount from the registry (if configured).
+    let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
+    let mut deregister_msgs: Vec<CosmosMsg> = vec![];
+
+    let effective_fee_bps = match discount_registry {
+        Some(ref registry) => {
+            let discount_result: StdResult<fee_discount::DiscountResponse> =
+                deps.querier.query_wasm_smart(
+                    registry.to_string(),
+                    &fee_discount::QueryMsg::GetDiscount {
+                        trader: trader_addr.clone(),
+                        sender: sender.to_string(),
+                    },
+                );
+            match discount_result {
+                Ok(discount) => {
+                    if discount.needs_deregister {
+                        deregister_msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                            contract_addr: registry.to_string(),
+                            msg: to_json_binary(&fee_discount::ExecuteMsg::DeregisterWallet {
+                                wallet: trader_addr.clone(),
+                            })?,
+                            funds: vec![],
+                        }));
+                    }
+                    let discounted = (fee_config.fee_bps as u32)
+                        * (10000u32.saturating_sub(discount.discount_bps as u32))
+                        / 10000u32;
+                    discounted as u16
+                }
+                Err(_) => fee_config.fee_bps,
+            }
+        }
+        None => fee_config.fee_bps,
+    };
+
     let commission_amount = gross_output
-        .checked_mul(Uint128::new(fee_config.fee_bps as u128))?
+        .checked_mul(Uint128::new(effective_fee_bps as u128))?
         .checked_div(Uint128::new(10000))?;
     let return_amount = gross_output.checked_sub(commission_amount)?;
 
@@ -585,6 +634,7 @@ fn execute_swap(
 
     Ok(Response::new()
         .add_messages(messages)
+        .add_messages(deregister_msgs)
         .add_attribute("action", "swap")
         .add_attribute("sender", sender)
         .add_attribute("receiver", receiver)
@@ -593,7 +643,8 @@ fn execute_swap(
         .add_attribute("offer_amount", input_amount)
         .add_attribute("return_amount", return_amount)
         .add_attribute("spread_amount", spread_amount)
-        .add_attribute("commission_amount", commission_amount))
+        .add_attribute("commission_amount", commission_amount)
+        .add_attribute("effective_fee_bps", effective_fee_bps.to_string()))
 }
 
 fn execute_provide_liquidity(
@@ -915,6 +966,33 @@ fn execute_increase_observation_cardinality(
     Ok(Response::new()
         .add_attribute("action", "increase_observation_cardinality")
         .add_attribute("new_cardinality", new_cardinality.to_string()))
+}
+
+fn execute_set_discount_registry(
+    deps: DepsMut,
+    info: MessageInfo,
+    registry: Option<String>,
+) -> Result<Response, ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let validated = match registry {
+        Some(addr) => Some(deps.api.addr_validate(&addr)?),
+        None => None,
+    };
+
+    DISCOUNT_REGISTRY.save(deps.storage, &validated)?;
+
+    let registry_str = validated
+        .as_ref()
+        .map(|a| a.to_string())
+        .unwrap_or_else(|| "none".to_string());
+
+    Ok(Response::new()
+        .add_attribute("action", "set_discount_registry")
+        .add_attribute("registry", registry_str))
 }
 
 fn execute_set_paused(

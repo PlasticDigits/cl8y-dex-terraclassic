@@ -51,3 +51,29 @@ export function assetInfoLabel(info: AssetInfo): string {
 export function tokenAssetInfo(contractAddr: string): AssetInfo {
   return { token: { contract_addr: contractAddr } }
 }
+
+/** Fee discount tier definition */
+export interface Tier {
+  min_cl8y_balance: string
+  discount_bps: number
+  governance_only: boolean
+}
+
+/** Fee discount tier entry with ID */
+export interface TierEntry {
+  tier_id: number
+  tier: Tier
+}
+
+/** Fee discount query response */
+export interface DiscountResponse {
+  discount_bps: number
+  needs_deregister: boolean
+}
+
+/** Fee discount registration response */
+export interface RegistrationResponse {
+  registered: boolean
+  tier_id: number | null
+  tier: Tier | null
+}

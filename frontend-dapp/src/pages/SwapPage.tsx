@@ -4,6 +4,8 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { simulateSwap, swap, getPool, getFeeConfig } from '@/services/terraclassic/pair'
+import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
+import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import { assetInfoLabel } from '@/types'
 
 function truncateAddr(addr: string): string {
@@ -59,6 +61,20 @@ export default function SwapPage() {
     queryKey: ['feeConfig', selectedPair?.contract_addr],
     queryFn: () => getFeeConfig(selectedPair!.contract_addr),
     enabled: !!selectedPair,
+  })
+
+  const discountQuery = useQuery({
+    queryKey: ['traderDiscount', address],
+    queryFn: () => getTraderDiscount(address!),
+    enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    staleTime: 15_000,
+  })
+
+  const registrationQuery = useQuery({
+    queryKey: ['feeDiscountRegistration', address],
+    queryFn: () => getRegistration(address!),
+    enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    staleTime: 15_000,
   })
 
   const simQuery = useQuery({
@@ -259,9 +275,30 @@ export default function SwapPage() {
               <div className="flex justify-between text-gray-400">
                 <span>Fee</span>
                 <span>
-                  {feeQuery.data.fee_bps / 100}%
+                  {discountQuery.data && discountQuery.data.discount_bps > 0 ? (
+                    <>
+                      <span className="line-through text-gray-500 mr-1">
+                        {(feeQuery.data.fee_bps / 100).toFixed(2)}%
+                      </span>
+                      <span className="text-dex-accent">
+                        {((feeQuery.data.fee_bps * (10000 - discountQuery.data.discount_bps)) / 10000 / 100).toFixed(2)}%
+                      </span>
+                      <span className="text-dex-accent text-xs ml-1">
+                        (-{(discountQuery.data.discount_bps / 100).toFixed(0)}%)
+                      </span>
+                    </>
+                  ) : (
+                    <>{(feeQuery.data.fee_bps / 100).toFixed(2)}%</>
+                  )}
                   {commissionAmount && <span className="text-gray-500 ml-1">({commissionAmount})</span>}
                 </span>
+              </div>
+            )}
+            {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
+              <div className="p-2 rounded-lg bg-dex-accent/5 border border-dex-accent/15 text-dex-accent text-xs">
+                <a href="/tiers" className="hover:underline">
+                  Hold CL8Y to reduce swap fees &rarr;
+                </a>
               </div>
             )}
             {priceImpact !== null && (

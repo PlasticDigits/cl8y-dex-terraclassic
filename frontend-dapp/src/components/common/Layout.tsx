@@ -4,6 +4,7 @@ import WalletButton from '@/components/wallet/WalletButton'
 const NAV_ITEMS = [
   { path: '/', label: 'Swap' },
   { path: '/pool', label: 'Pool' },
+  { path: '/tiers', label: 'Fee Tiers' },
   { path: '/create', label: 'Create Pair' },
 ]
 

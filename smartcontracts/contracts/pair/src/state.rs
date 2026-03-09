@@ -34,3 +34,4 @@ pub const ORACLE_STATE: Item<OracleState> = Item::new("oracle_state");
 pub const OBSERVATIONS: Map<u16, Observation> = Map::new("observations");
 
 pub const PAUSED: Item<bool> = Item::new("paused");
+pub const DISCOUNT_REGISTRY: Item<Option<Addr>> = Item::new("discount_registry");

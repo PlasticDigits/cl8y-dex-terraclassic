@@ -39,6 +39,15 @@ pub enum ExecuteMsg {
         treasury: Option<String>,
         default_fee_bps: Option<u16>,
     },
+    /// Set the fee discount registry for a specific pair. Governance only.
+    SetDiscountRegistry {
+        pair: String,
+        registry: Option<String>,
+    },
+    /// Set the fee discount registry for all pairs. Governance only.
+    SetDiscountRegistryAll {
+        registry: Option<String>,
+    },
     /// Emergency pause/unpause a pair. Only governance can call this.
     SetPairPaused {
         pair: String,

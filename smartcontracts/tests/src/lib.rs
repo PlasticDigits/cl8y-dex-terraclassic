@@ -5,10 +5,31 @@ mod helpers {
     use cw_multi_test::{App, ContractWrapper, Executor};
     use dex_common::types::AssetInfo;
 
-    pub fn cw20_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+    /// CW20 Mintable wrapper: same as cw20_base but without ticker symbol
+    /// format restrictions. On Terra Classic, CW20 Mintable accepts symbols
+    /// with digits (e.g. "CL8Y") unlike cw20_base's `[a-zA-Z\-]{3,12}`.
+    pub fn cw20_mintable_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+
+        fn instantiate(
+            mut deps: DepsMut,
+            env: Env,
+            info: MessageInfo,
+            msg: cw20_base::msg::InstantiateMsg,
+        ) -> Result<Response, cw20_base::ContractError> {
+            let original_symbol = msg.symbol.clone();
+            let mut safe_msg = msg;
+            safe_msg.symbol = "TEMP".to_string();
+            let res = cw20_base::contract::instantiate(deps.branch(), env, info, safe_msg)?;
+            let mut token_info = cw20_base::state::TOKEN_INFO.load(deps.storage)?;
+            token_info.symbol = original_symbol;
+            cw20_base::state::TOKEN_INFO.save(deps.storage, &token_info)?;
+            Ok(res)
+        }
+
         let contract = ContractWrapper::new(
             cw20_base::contract::execute,
-            cw20_base::contract::instantiate,
+            instantiate,
             cw20_base::contract::query,
         );
         Box::new(contract)
@@ -31,6 +52,15 @@ mod helpers {
             cl8y_dex_pair::contract::query,
         )
         .with_reply(cl8y_dex_pair::contract::reply);
+        Box::new(contract)
+    }
+
+    pub fn fee_discount_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            cl8y_dex_fee_discount::contract::execute,
+            cl8y_dex_fee_discount::contract::instantiate,
+            cl8y_dex_fee_discount::contract::query,
+        );
         Box::new(contract)
     }
 
@@ -120,7 +150,7 @@ mod helpers {
         let treasury = Addr::unchecked("treasury");
         let user = Addr::unchecked("user");
 
-        let cw20_code_id = app.store_code(cw20_contract());
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
         let router_code_id = app.store_code(router_contract());
@@ -281,7 +311,7 @@ mod factory_tests {
         let governance = Addr::unchecked("governance");
         let treasury = Addr::unchecked("treasury");
 
-        let cw20_code_id = app.store_code(cw20_contract());
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
 
@@ -387,7 +417,7 @@ mod factory_tests {
         let treasury = Addr::unchecked("treasury");
         let user = Addr::unchecked("user");
 
-        let cw20_code_id = app.store_code(cw20_contract());
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
 
@@ -448,7 +478,7 @@ mod factory_tests {
         let treasury = Addr::unchecked("treasury");
         let user = Addr::unchecked("user");
 
-        let cw20_code_id = app.store_code(cw20_contract());
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
 
@@ -540,7 +570,7 @@ mod factory_tests {
         let governance = Addr::unchecked("governance");
         let treasury = Addr::unchecked("treasury");
 
-        let cw20_code_id = app.store_code(cw20_contract());
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
 
@@ -611,7 +641,7 @@ mod factory_tests {
         let treasury = Addr::unchecked("treasury");
         let new_treasury = Addr::unchecked("new_treasury");
 
-        let cw20_code_id = app.store_code(cw20_contract());
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
 
@@ -665,7 +695,7 @@ mod factory_tests {
         let treasury = Addr::unchecked("treasury");
         let user = Addr::unchecked("user");
 
-        let cw20_code_id = app.store_code(cw20_contract());
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
 
@@ -806,6 +836,7 @@ mod pair_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            trader: None,
         })
         .unwrap();
 
@@ -858,6 +889,7 @@ mod pair_tests {
             max_spread: Some(cosmwasm_std::Decimal::permille(1)),
             to: None,
             deadline: None,
+            trader: None,
         })
         .unwrap();
 
@@ -1137,5 +1169,582 @@ mod router_tests {
                 .to_string()
                 .contains("Native token swaps are not supported")
         );
+    }
+}
+
+#[cfg(test)]
+mod fee_discount_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{to_json_binary, Addr, Uint128};
+    use cw_multi_test::{App, Executor};
+
+    const ONE_CL8Y: u128 = 1_000_000_000_000_000_000;
+
+    #[allow(dead_code)]
+    struct DiscountTestEnv {
+        base: TestEnv,
+        cl8y_token: Addr,
+        fee_discount: Addr,
+    }
+
+    fn setup_discount_env(app: &mut App) -> DiscountTestEnv {
+        let base = setup_full_env(app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let fee_discount_code_id = app.store_code(fee_discount_contract());
+
+        let cl8y_token = app
+            .instantiate_contract(
+                cw20_code_id,
+                base.user.clone(),
+                &cw20_base::msg::InstantiateMsg {
+                    name: "CL8Y Token".to_string(),
+                    symbol: "CL8Y".to_string(),
+                    decimals: 18,
+                    initial_balances: vec![cw20::Cw20Coin {
+                        address: base.user.to_string(),
+                        amount: Uint128::new(100_000 * ONE_CL8Y),
+                    }],
+                    mint: None,
+                    marketing: None,
+                },
+                &[],
+                "cl8y",
+                None,
+            )
+            .unwrap();
+
+        let fee_discount = app
+            .instantiate_contract(
+                fee_discount_code_id,
+                base.governance.clone(),
+                &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                    governance: base.governance.to_string(),
+                    cl8y_token: cl8y_token.to_string(),
+                },
+                &[],
+                "fee_discount",
+                None,
+            )
+            .unwrap();
+
+        // Add tiers
+        for (tier_id, min_cl8y, discount_bps, governance_only) in [
+            (0u8, 0u128, 10000u16, true),
+            (1, ONE_CL8Y, 1000, false),
+            (2, 50 * ONE_CL8Y, 2500, false),
+            (3, 200 * ONE_CL8Y, 3500, false),
+            (4, 1000 * ONE_CL8Y, 5000, false),
+            (5, 15000 * ONE_CL8Y, 8000, false),
+            (255, 0, 0, true),
+        ] {
+            app.execute_contract(
+                base.governance.clone(),
+                fee_discount.clone(),
+                &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+                    tier_id,
+                    min_cl8y_balance: Uint128::new(min_cl8y),
+                    discount_bps,
+                    governance_only,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+
+        // Add router as trusted
+        app.execute_contract(
+            base.governance.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTrustedRouter {
+                router: base.router.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Set discount registry on pair via factory
+        app.execute_contract(
+            base.governance.clone(),
+            base.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetDiscountRegistry {
+                pair: base.pair.to_string(),
+                registry: Some(fee_discount.to_string()),
+            },
+            &[],
+        )
+        .unwrap();
+
+        DiscountTestEnv {
+            base,
+            cl8y_token,
+            fee_discount,
+        }
+    }
+
+    #[test]
+    fn test_swap_with_tier1_discount() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+
+        // Register for tier 1 (1 CL8Y, 10% discount)
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let swap_amount = Uint128::new(10_000);
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: None,
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_amount,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let net_output = user_b_after - user_b_before;
+        let fee = treasury_b_after - treasury_b_before;
+
+        // Base fee is 30 bps. With 10% discount (1000 bps off), effective = 27 bps
+        // gross_output = 1_000_000 - floor(1_000_000^2 / 1_010_000) = 9_901
+        // fee = floor(9_901 * 27 / 10_000) = 26
+        assert_eq!(fee, Uint128::new(26));
+        assert_eq!(net_output, Uint128::new(9875));
+    }
+
+    #[test]
+    fn test_swap_with_tier4_discount() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+
+        // Register for tier 4 (1000 CL8Y, 50% discount)
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 4 },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let swap_amount = Uint128::new(10_000);
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: None,
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_amount,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let fee = treasury_b_after - treasury_b_before;
+
+        // Base fee 30 bps, 50% discount => 15 bps effective
+        // gross = 9_901, fee = floor(9_901 * 15 / 10_000) = 14
+        assert_eq!(fee, Uint128::new(14));
+    }
+
+    #[test]
+    fn test_swap_no_discount_without_registration() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let swap_amount = Uint128::new(1_000);
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: None,
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_amount,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let fee = treasury_b_after - treasury_b_before;
+
+        // Full 30 bps fee, no discount: gross ~999, fee = 999*30/10000 = 2
+        // Actually: k = 1M*1M, new_input = 1_001_000, new_output = 999000 (floor), gross = 1000-0=1000... wait
+        // Actually gross = 1_000_000 - (1_000_000 * 1_000_000 / 1_001_000) = 1_000_000 - 999_000 = 1_000... hmm
+        // fee = 1000 * 30 / 10000 = 3
+        assert_eq!(fee, Uint128::new(3));
+    }
+
+    #[test]
+    fn test_governance_register_tier0_market_maker() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+
+        let market_maker = Addr::unchecked("market_maker");
+
+        // Transfer tokens to market maker for swapping
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Transfer {
+                recipient: market_maker.to_string(),
+                amount: Uint128::new(100_000),
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Governance registers market maker on tier 0 (100% discount)
+        app.execute_contract(
+            env.governance.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::RegisterWallet {
+                wallet: market_maker.to_string(),
+                tier_id: 0,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let swap_amount = Uint128::new(10_000);
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: None,
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            market_maker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_amount,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let fee = treasury_b_after - treasury_b_before;
+
+        // 100% discount means 0 fee
+        assert_eq!(fee, Uint128::zero());
+    }
+
+    #[test]
+    fn test_self_register_governance_tier_rejected() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+
+        let err = app
+            .execute_contract(
+                denv.base.user.clone(),
+                denv.fee_discount.clone(),
+                &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 0 },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(err.root_cause().to_string().contains("governance-only"));
+    }
+
+    #[test]
+    fn test_self_deregister_governance_tier_rejected() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+
+        // Governance puts user on blacklist tier 255
+        app.execute_contract(
+            denv.base.governance.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::RegisterWallet {
+                wallet: denv.base.user.to_string(),
+                tier_id: 255,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // User tries to deregister — should fail
+        let err = app
+            .execute_contract(
+                denv.base.user.clone(),
+                denv.fee_discount.clone(),
+                &cl8y_dex_fee_discount::msg::ExecuteMsg::Deregister {},
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(err.root_cause().to_string().contains("governance tier"));
+    }
+
+    #[test]
+    fn test_blacklist_tier_no_discount() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+
+        // User registers tier 1 first
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        // Governance blacklists the user (tier 255, 0% discount)
+        app.execute_contract(
+            env.governance.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::RegisterWallet {
+                wallet: env.user.to_string(),
+                tier_id: 255,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: None,
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let fee = treasury_b_after - treasury_b_before;
+
+        // Full fee (30 bps), no discount from blacklist tier
+        assert_eq!(fee, Uint128::new(3));
+
+        // User should not be able to self-switch away
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                denv.fee_discount.clone(),
+                &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(err.root_cause().to_string().contains("governance tier"));
+    }
+
+    #[test]
+    fn test_swap_via_router_with_discount() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+
+        // Register user for tier 4 (50% discount)
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 4 },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_a),
+                ask_asset_info: asset_info_token(&env.token_b),
+            }],
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: Uint128::new(10_000),
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let fee = treasury_b_after - treasury_b_before;
+
+        // 50% discount on 30 bps = 15 bps effective
+        // gross = 9_901, fee = floor(9_901 * 15 / 10_000) = 14
+        assert_eq!(fee, Uint128::new(14));
+    }
+
+    #[test]
+    fn test_tier_switching() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        // Register for tier 1
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let reg: cl8y_dex_fee_discount::msg::RegistrationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                denv.fee_discount.to_string(),
+                &cl8y_dex_fee_discount::msg::QueryMsg::GetRegistration {
+                    trader: env.user.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(reg.tier_id, Some(1));
+
+        // Switch to tier 5
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 5 },
+            &[],
+        )
+        .unwrap();
+
+        let reg: cl8y_dex_fee_discount::msg::RegistrationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                denv.fee_discount.to_string(),
+                &cl8y_dex_fee_discount::msg::QueryMsg::GetRegistration {
+                    trader: env.user.to_string(),
+                },
+            )
+            .unwrap();
+        assert_eq!(reg.tier_id, Some(5));
+    }
+
+    #[test]
+    fn test_insufficient_cl8y_balance_rejected() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+
+        let poor_user = Addr::unchecked("poor_user");
+
+        let err = app
+            .execute_contract(
+                poor_user.clone(),
+                denv.fee_discount.clone(),
+                &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(err.root_cause().to_string().contains("Insufficient CL8Y balance"));
+    }
+
+    #[test]
+    fn test_query_tiers() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+
+        let tiers: cl8y_dex_fee_discount::msg::TiersResponse = app
+            .wrap()
+            .query_wasm_smart(
+                denv.fee_discount.to_string(),
+                &cl8y_dex_fee_discount::msg::QueryMsg::GetTiers {},
+            )
+            .unwrap();
+
+        assert_eq!(tiers.tiers.len(), 7);
+        assert_eq!(tiers.tiers[0].tier_id, 0);
+        assert_eq!(tiers.tiers[0].tier.discount_bps, 10000);
+        assert!(tiers.tiers[0].tier.governance_only);
+        assert_eq!(tiers.tiers[1].tier_id, 1);
+        assert_eq!(tiers.tiers[1].tier.discount_bps, 1000);
+        assert!(!tiers.tiers[1].tier.governance_only);
     }
 }
