@@ -100,6 +100,11 @@ pub fn execute(
         ExecuteMsg::SetPairPaused { pair, paused } => {
             execute_set_pair_paused(deps, info, pair, paused)
         }
+        ExecuteMsg::SweepPair {
+            pair,
+            token,
+            recipient,
+        } => execute_sweep_pair(deps, info, pair, token, recipient),
     }
 }
 
@@ -351,6 +356,35 @@ fn execute_set_pair_paused(
         .add_attribute("action", "set_pair_paused")
         .add_attribute("pair", pair_addr)
         .add_attribute("paused", paused.to_string()))
+}
+
+fn execute_sweep_pair(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+    token: String,
+    recipient: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
+
+    let wasm_msg = WasmMsg::Execute {
+        contract_addr: pair_addr.to_string(),
+        msg: to_json_binary(&dex_common::pair::ExecuteMsg::Sweep {
+            token: token.clone(),
+            recipient: recipient.clone(),
+        })?,
+        funds: vec![],
+    };
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "sweep_pair")
+        .add_attribute("pair", pair_addr)
+        .add_attribute("token", token)
+        .add_attribute("recipient", recipient))
 }
 
 fn execute_update_config(

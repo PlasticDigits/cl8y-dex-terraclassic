@@ -53,4 +53,7 @@ pub enum ContractError {
 
     #[error("Invariant violation: {reason}")]
     InvariantViolation { reason: String },
+
+    #[error("Nothing to sweep: contract balance equals internal reserves for {token}")]
+    NothingToSweep { token: String },
 }

@@ -52,6 +52,14 @@ pub enum ExecuteMsg {
     SetPaused {
         paused: bool,
     },
+    /// Recover tokens sent directly to the pair contract (donations,
+    /// accidental transfers). Sends the excess (actual CW20 balance minus
+    /// internal reserves) to `recipient`. Factory only.
+    /// Does NOT modify internal reserves — pool pricing is unaffected.
+    Sweep {
+        token: String,
+        recipient: String,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
