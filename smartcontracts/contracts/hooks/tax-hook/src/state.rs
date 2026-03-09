@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
 pub struct TaxHookConfig {
@@ -11,3 +11,4 @@ pub struct TaxHookConfig {
 }
 
 pub const CONFIG: Item<TaxHookConfig> = Item::new("config");
+pub const ALLOWED_PAIRS: Map<&str, bool> = Map::new("allowed_pairs");

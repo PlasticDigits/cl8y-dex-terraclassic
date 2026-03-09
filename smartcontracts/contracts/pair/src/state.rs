@@ -32,3 +32,5 @@ pub const TOTAL_LP_SUPPLY: Item<Uint128> = Item::new("total_lp_supply");
 pub const ORACLE_STATE: Item<OracleState> = Item::new("oracle_state");
 /// Ring buffer of observations, keyed by slot index (0 .. cardinality-1).
 pub const OBSERVATIONS: Map<u16, Observation> = Map::new("observations");
+
+pub const PAUSED: Item<bool> = Item::new("paused");

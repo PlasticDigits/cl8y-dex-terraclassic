@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
-import { getAllPairs } from '@/services/terraclassic/factory'
+import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPool, getFeeConfig, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import type { PairInfo } from '@/types'
 import { assetInfoLabel } from '@/types'
@@ -198,7 +198,7 @@ function PoolCard({ pair }: { pair: PairInfo }) {
 export default function PoolPage() {
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
-    queryFn: () => getAllPairs(undefined, 50),
+    queryFn: () => getAllPairsPaginated(),
     staleTime: 60_000,
   })
 

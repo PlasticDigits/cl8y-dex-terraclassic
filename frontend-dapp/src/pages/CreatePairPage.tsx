@@ -1,12 +1,37 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
-import { createPair } from '@/services/terraclassic/factory'
+import { createPair, getWhitelistedCodeIds } from '@/services/terraclassic/factory'
+import { queryContract } from '@/services/terraclassic/queries'
+
+function useCodeIdCheck(tokenAddr: string) {
+  return useQuery({
+    queryKey: ['codeIdCheck', tokenAddr],
+    queryFn: async () => {
+      if (!tokenAddr || !tokenAddr.startsWith('terra1')) return null
+      try {
+        const codeIdsResp = await getWhitelistedCodeIds()
+        const whitelisted = new Set(codeIdsResp.code_ids)
+        const info = await queryContract<{ code_id: number }>(tokenAddr, { contract_info: {} }).catch(() => null)
+        if (!info) return { valid: false, reason: 'Could not query contract info' }
+        if (!whitelisted.has(info.code_id)) return { valid: false, reason: `Code ID ${info.code_id} is not whitelisted` }
+        return { valid: true, reason: null }
+      } catch {
+        return null
+      }
+    },
+    enabled: tokenAddr.length > 5 && tokenAddr.startsWith('terra1'),
+    staleTime: 30_000,
+  })
+}
 
 export default function CreatePairPage() {
   const address = useWalletStore((s) => s.address)
   const [tokenA, setTokenA] = useState('')
   const [tokenB, setTokenB] = useState('')
+
+  const checkA = useCodeIdCheck(tokenA)
+  const checkB = useCodeIdCheck(tokenB)
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -19,6 +44,7 @@ export default function CreatePairPage() {
   })
 
   const isValid = tokenA.length > 0 && tokenB.length > 0 && tokenA !== tokenB
+  const hasWhitelistWarning = (checkA.data && !checkA.data.valid) || (checkB.data && !checkB.data.valid)
 
   return (
     <div className="max-w-lg mx-auto">
@@ -35,6 +61,12 @@ export default function CreatePairPage() {
               placeholder="terra1..."
               className="w-full px-4 py-3 rounded-xl bg-dex-bg border border-dex-border text-white text-sm font-mono focus:outline-none focus:border-dex-accent placeholder-gray-600"
             />
+            {checkA.data && !checkA.data.valid && (
+              <p className="text-amber-400 text-xs mt-1">{checkA.data.reason}</p>
+            )}
+            {checkA.data?.valid && (
+              <p className="text-green-400 text-xs mt-1">Code ID whitelisted</p>
+            )}
           </div>
 
           <div>
@@ -46,10 +78,22 @@ export default function CreatePairPage() {
               placeholder="terra1..."
               className="w-full px-4 py-3 rounded-xl bg-dex-bg border border-dex-border text-white text-sm font-mono focus:outline-none focus:border-dex-accent placeholder-gray-600"
             />
+            {checkB.data && !checkB.data.valid && (
+              <p className="text-amber-400 text-xs mt-1">{checkB.data.reason}</p>
+            )}
+            {checkB.data?.valid && (
+              <p className="text-green-400 text-xs mt-1">Code ID whitelisted</p>
+            )}
           </div>
 
           {tokenA && tokenB && tokenA === tokenB && (
             <p className="text-red-400 text-sm">Token addresses must be different</p>
+          )}
+
+          {hasWhitelistWarning && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+              One or both token code IDs are not whitelisted. The transaction will likely fail.
+            </div>
           )}
 
           <div className="p-4 rounded-xl bg-dex-bg/50 border border-dex-border text-sm text-gray-400">

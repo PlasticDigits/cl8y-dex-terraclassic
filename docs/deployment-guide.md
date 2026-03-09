@@ -63,8 +63,10 @@ Pairs are created through the Factory:
 ```bash
 terrad tx wasm execute <factory_addr> '{
   "create_pair": {
-    "token_a": "<token_a_addr>",
-    "token_b": "<token_b_addr>"
+    "asset_infos": [
+      { "token": { "contract_addr": "<token_a_addr>" } },
+      { "token": { "contract_addr": "<token_b_addr>" } }
+    ]
   }
 }' --from <wallet> --gas auto --gas-adjustment 1.4 \
   --fees 500000uluna --chain-id <chain-id> --node <rpc-url>
@@ -76,8 +78,8 @@ Update `.env.production` with the contract addresses:
 
 ```env
 VITE_NETWORK=mainnet
-VITE_FACTORY=terra1...
-VITE_ROUTER=terra1...
+VITE_FACTORY_ADDRESS=terra1...
+VITE_ROUTER_ADDRESS=terra1...
 ```
 
 Push to the deployment branch. Render.sh builds and serves the static site automatically (see `render.yaml`).

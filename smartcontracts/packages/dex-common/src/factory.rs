@@ -39,6 +39,11 @@ pub enum ExecuteMsg {
         treasury: Option<String>,
         default_fee_bps: Option<u16>,
     },
+    /// Emergency pause/unpause a pair. Only governance can call this.
+    SetPairPaused {
+        pair: String,
+        paused: bool,
+    },
 }
 
 #[cw_serde]

@@ -23,4 +23,10 @@ pub enum ContractError {
 
     #[error("Minimum receive assertion: expected at least {minimum}, got {actual}")]
     MinimumReceiveAssertion { minimum: String, actual: String },
+
+    #[error("Deadline exceeded: transaction expired at {deadline}, current time is {current}")]
+    DeadlineExceeded { deadline: u64, current: u64 },
+
+    #[error("Swap in progress — cannot start another")]
+    SwapInProgress {},
 }

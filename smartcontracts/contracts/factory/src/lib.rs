@@ -40,4 +40,9 @@ pub mod entry {
     pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
         crate::contract::reply(deps, env, msg)
     }
+
+    #[entry_point]
+    pub fn migrate(_deps: DepsMut, _env: Env, _msg: cosmwasm_std::Empty) -> StdResult<Response> {
+        Ok(Response::new().add_attribute("action", "migrate"))
+    }
 }

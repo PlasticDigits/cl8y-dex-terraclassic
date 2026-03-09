@@ -16,6 +16,10 @@ pub enum ExecuteMsg {
         target_pair: Option<String>,
         percentage_bps: Option<u16>,
     },
+    UpdateAllowedPairs {
+        add: Vec<String>,
+        remove: Vec<String>,
+    },
 }
 
 #[cw_serde]

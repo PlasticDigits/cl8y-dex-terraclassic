@@ -11,8 +11,8 @@ pub enum ContractError {
     PairAlreadyExists {},
     #[error("Code ID not whitelisted")]
     CodeIdNotWhitelisted {},
-    #[error("Pair not found")]
-    PairNotFound {},
+    #[error("Pair not found in factory registry: {pair}")]
+    PairNotInRegistry { pair: String },
     #[error("Invalid fee")]
     InvalidFee {},
     #[error("Invalid tokens")]

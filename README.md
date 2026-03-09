@@ -80,7 +80,7 @@ cl8y-dex-terraclassic/
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Rust](https://rustup.rs/) with `wasm32-unknown-unknown` target
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) 24+ (see `.nvmrc`)
 
 ### Smart Contracts
 

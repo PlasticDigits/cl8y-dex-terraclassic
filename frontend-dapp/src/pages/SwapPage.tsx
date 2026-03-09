@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
-import { getAllPairs } from '@/services/terraclassic/factory'
+import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { simulateSwap, swap, getPool, getFeeConfig } from '@/services/terraclassic/pair'
 import { assetInfoLabel } from '@/types'
 
@@ -22,7 +22,7 @@ export default function SwapPage() {
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
-    queryFn: () => getAllPairs(undefined, 50),
+    queryFn: () => getAllPairsPaginated(),
     staleTime: 60_000,
   })
 
@@ -265,20 +265,27 @@ export default function SwapPage() {
               </div>
             )}
             {priceImpact !== null && (
-              <div className="flex justify-between text-gray-400">
-                <span>Price Impact</span>
-                <span
-                  className={
-                    parseFloat(priceImpact) > 5
-                      ? 'text-red-400'
-                      : parseFloat(priceImpact) > 1
-                        ? 'text-amber-400'
-                        : 'text-green-400'
-                  }
-                >
-                  {priceImpact}%
-                </span>
-              </div>
+              <>
+                <div className="flex justify-between text-gray-400">
+                  <span>Price Impact</span>
+                  <span
+                    className={
+                      parseFloat(priceImpact) > 5
+                        ? 'text-red-400 font-semibold'
+                        : parseFloat(priceImpact) > 1
+                          ? 'text-amber-400'
+                          : 'text-green-400'
+                    }
+                  >
+                    {priceImpact}%
+                  </span>
+                </div>
+                {parseFloat(priceImpact) > 5 && (
+                  <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                    High price impact! You may receive significantly fewer tokens than expected.
+                  </div>
+                )}
+              </>
             )}
             {minReceived !== null && (
               <div className="flex justify-between text-gray-400">

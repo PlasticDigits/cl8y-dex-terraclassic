@@ -18,6 +18,10 @@ pub enum ExecuteMsg {
         tax_percentage_bps: Option<u16>,
         tax_token: Option<String>,
     },
+    UpdateAllowedPairs {
+        add: Vec<String>,
+        remove: Vec<String>,
+    },
 }
 
 #[cw_serde]

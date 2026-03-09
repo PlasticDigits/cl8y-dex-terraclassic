@@ -7,7 +7,7 @@ use cw20::Cw20ExecuteMsg;
 
 use crate::error::ContractError;
 use crate::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{BurnHookConfig, CONFIG};
+use crate::state::{BurnHookConfig, ALLOWED_PAIRS, CONFIG};
 use dex_common::hook::HookExecuteMsg;
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-burn-hook";
@@ -20,6 +20,12 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    if msg.burn_percentage_bps > 10000 {
+        return Err(ContractError::InvalidBps {
+            value: msg.burn_percentage_bps,
+        });
+    }
 
     let config = BurnHookConfig {
         burn_token: deps.api.addr_validate(&msg.burn_token)?,
@@ -42,21 +48,39 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Hook(hook_msg) => match hook_msg {
-            HookExecuteMsg::AfterSwap {
-                pair: _,
-                sender: _,
-                offer_asset: _,
-                return_asset,
-                commission_amount: _,
-                spread_amount: _,
-            } => execute_after_swap(deps, env, return_asset.info.to_string(), return_asset.amount),
-        },
+        ExecuteMsg::Hook(hook_msg) => {
+            assert_allowed_pair(deps.as_ref(), &info)?;
+            match hook_msg {
+                HookExecuteMsg::AfterSwap {
+                    pair: _,
+                    sender: _,
+                    offer_asset: _,
+                    return_asset,
+                    commission_amount: _,
+                    spread_amount: _,
+                } => execute_after_swap(deps, env, return_asset.info.to_string(), return_asset.amount),
+            }
+        }
         ExecuteMsg::UpdateConfig {
             burn_token,
             burn_percentage_bps,
         } => execute_update_config(deps, info, burn_token, burn_percentage_bps),
+        ExecuteMsg::UpdateAllowedPairs { add, remove } => {
+            execute_update_allowed_pairs(deps, info, add, remove)
+        }
     }
+}
+
+fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractError> {
+    if !ALLOWED_PAIRS
+        .may_load(deps.storage, info.sender.as_str())?
+        .unwrap_or(false)
+    {
+        return Err(ContractError::UnauthorizedHookCaller {
+            sender: info.sender.to_string(),
+        });
+    }
+    Ok(())
 }
 
 fn execute_after_swap(
@@ -74,9 +98,8 @@ fn execute_after_swap(
     }
 
     let burn_amount = output_amount
-        .checked_mul(Uint128::from(config.burn_percentage_bps as u128))
-        .unwrap_or(Uint128::zero())
-        / Uint128::from(10_000u128);
+        .checked_mul(Uint128::from(config.burn_percentage_bps as u128))?
+        .checked_div(Uint128::new(10_000))?;
 
     if burn_amount.is_zero() {
         return Ok(Response::new()
@@ -130,6 +153,9 @@ fn execute_update_config(
         config.burn_token = deps.api.addr_validate(&token)?;
     }
     if let Some(bps) = burn_percentage_bps {
+        if bps > 10000 {
+            return Err(ContractError::InvalidBps { value: bps });
+        }
         config.burn_percentage_bps = bps;
     }
 
@@ -139,6 +165,32 @@ fn execute_update_config(
         .add_attribute("action", "update_config")
         .add_attribute("burn_token", config.burn_token)
         .add_attribute("burn_percentage_bps", config.burn_percentage_bps.to_string()))
+}
+
+fn execute_update_allowed_pairs(
+    deps: DepsMut,
+    info: MessageInfo,
+    add: Vec<String>,
+    remove: Vec<String>,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if info.sender != config.admin {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    for pair in &add {
+        let addr = deps.api.addr_validate(pair)?;
+        ALLOWED_PAIRS.save(deps.storage, addr.as_str(), &true)?;
+    }
+    for pair in &remove {
+        let addr = deps.api.addr_validate(pair)?;
+        ALLOWED_PAIRS.remove(deps.storage, addr.as_str());
+    }
+
+    Ok(Response::new()
+        .add_attribute("action", "update_allowed_pairs")
+        .add_attribute("added", add.len().to_string())
+        .add_attribute("removed", remove.len().to_string()))
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
