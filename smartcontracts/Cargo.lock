@@ -33,9 +33,9 @@ checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
 name = "base64ct"
-version = "1.8.3"
+version = "1.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
+checksum = "89e25b6adfb930f02d1981565a6e5d9c547ac15a96606256d3b59040e5cd4ca3"
 
 [[package]]
 name = "bech32"
@@ -117,7 +117,6 @@ dependencies = [
  "cw-storage-plus",
  "cw2",
  "cw20",
- "cw20-base",
  "dex-common",
  "schemars",
  "serde",
@@ -167,7 +166,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "cw20",
- "cw20-base",
+ "cw20-mintable",
  "dex-common",
  "schemars",
  "serde",
@@ -221,8 +220,21 @@ dependencies = [
  "cosmwasm-std",
  "cw-multi-test",
  "cw20",
- "cw20-base",
+ "cw20-mintable",
  "dex-common",
+ "serde",
+ "treasury",
+]
+
+[[package]]
+name = "common"
+version = "0.2.0"
+source = "git+https://github.com/PlasticDigits/ustr-cmm#28631993653322a2ecba9795f726f0ac786d559b"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw20",
+ "schemars",
  "serde",
 ]
 
@@ -419,11 +431,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw20-base"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17ad79e86ea3707229bf78df94e08732e8f713207b4a77b2699755596725e7d9"
+name = "cw20-mintable"
+version = "0.1.0"
+source = "git+https://github.com/PlasticDigits/cw20-mintable#73a206b5c39c5bd8f9d3574bda32fc5ae8f52ec8"
 dependencies = [
+ "base64ct",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
@@ -962,6 +974,24 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "treasury"
+version = "0.2.0"
+source = "git+https://github.com/PlasticDigits/ustr-cmm#28631993653322a2ecba9795f726f0ac786d559b"
+dependencies = [
+ "common",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "cw20",
+ "hex",
+ "schemars",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror",
 ]
 
 [[package]]

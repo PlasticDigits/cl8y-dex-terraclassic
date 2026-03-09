@@ -31,6 +31,10 @@ serde = { version = "1.0.188", default-features = false, features = ["derive"] }
 base64ct = "=1.7.3"
 dex-common = { path = "packages/dex-common" }
 
+# External packages
+cw20-mintable = { git = "https://github.com/PlasticDigits/cw20-mintable", features = ["library"] }
+treasury = { git = "https://github.com/PlasticDigits/ustr-cmm", features = ["library"] }
+
 [profile.release]
 opt-level = 3
 debug = false
