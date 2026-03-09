@@ -1,6 +1,6 @@
 # CL8Y DEX - Terra Classic
 
-A decentralized exchange (DEX) built on Terra Classic, featuring an AMM (Automated Market Maker) with customizable fee hooks, CW20 token support, and multi-hop routing.
+A decentralized exchange (DEX) built on Terra Classic, featuring an AMM (Automated Market Maker) with customizable fee hooks, CW20 token support, multi-hop routing, and tiered fee discounts for CL8Y token holders.
 
 ## Quick Start
 
@@ -27,6 +27,7 @@ cl8y-dex-terraclassic/
 │   │   ├── factory/         # Factory - creates and manages trading pairs
 │   │   ├── pair/            # Pair - AMM pool for two tokens
 │   │   ├── router/          # Router - multi-hop swap routing
+│   │   ├── fee-discount/    # Fee Discount - tiered swap fee discounts for CL8Y holders
 │   │   └── hooks/           # Fee hooks (burn, tax, LP burn)
 │   ├── packages/
 │   │   └── dex-common/      # Shared types and messages
@@ -37,7 +38,7 @@ cl8y-dex-terraclassic/
 ├── frontend-dapp/           # React frontend (Vite + TypeScript)
 │   ├── src/
 │   │   ├── components/      # UI components
-│   │   ├── pages/           # Swap, Pool, CreatePair pages
+│   │   ├── pages/           # Swap, Pool, CreatePair, Tiers pages
 │   │   ├── services/        # Terra Classic wallet & contract services
 │   │   └── utils/           # Constants and helpers
 │   └── patches/             # Cosmes library patches

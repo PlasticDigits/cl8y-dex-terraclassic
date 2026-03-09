@@ -91,6 +91,12 @@ pub fn execute(
             treasury,
             default_fee_bps,
         } => execute_update_config(deps, info, governance, treasury, default_fee_bps),
+        ExecuteMsg::SetDiscountRegistry { pair, registry } => {
+            execute_set_discount_registry(deps, info, pair, registry)
+        }
+        ExecuteMsg::SetDiscountRegistryAll { registry } => {
+            execute_set_discount_registry_all(deps, info, registry)
+        }
         ExecuteMsg::SetPairPaused { pair, paused } => {
             execute_set_pair_paused(deps, info, pair, paused)
         }
@@ -262,6 +268,65 @@ fn execute_set_pair_hooks(
         .add_message(wasm_msg)
         .add_attribute("action", "set_pair_hooks")
         .add_attribute("pair", pair_addr))
+}
+
+fn execute_set_discount_registry(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+    registry: Option<String>,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
+
+    let wasm_msg = WasmMsg::Execute {
+        contract_addr: pair_addr.to_string(),
+        msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetDiscountRegistry {
+            registry: registry.clone(),
+        })?,
+        funds: vec![],
+    };
+
+    let registry_str = registry.unwrap_or_else(|| "none".to_string());
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "set_discount_registry")
+        .add_attribute("pair", pair_addr)
+        .add_attribute("registry", registry_str))
+}
+
+fn execute_set_discount_registry_all(
+    deps: DepsMut,
+    info: MessageInfo,
+    registry: Option<String>,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+
+    let count = PAIR_COUNT.load(deps.storage)?;
+    let mut messages = Vec::new();
+
+    for idx in 0..count {
+        if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+            messages.push(WasmMsg::Execute {
+                contract_addr: pair_info.contract_addr.to_string(),
+                msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetDiscountRegistry {
+                    registry: registry.clone(),
+                })?,
+                funds: vec![],
+            });
+        }
+    }
+
+    let registry_str = registry.unwrap_or_else(|| "none".to_string());
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "set_discount_registry_all")
+        .add_attribute("registry", registry_str)
+        .add_attribute("pairs_updated", count.to_string()))
 }
 
 fn execute_set_pair_paused(

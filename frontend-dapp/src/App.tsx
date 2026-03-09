@@ -9,6 +9,7 @@ const queryClient = new QueryClient()
 const SwapPage = lazy(() => import('./pages/SwapPage'))
 const PoolPage = lazy(() => import('./pages/PoolPage'))
 const CreatePairPage = lazy(() => import('./pages/CreatePairPage'))
+const TiersPage = lazy(() => import('./pages/TiersPage'))
 
 function PageFallback() {
   return (
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="/" element={<Suspense fallback={<PageFallback />}><SwapPage /></Suspense>} />
               <Route path="/pool" element={<Suspense fallback={<PageFallback />}><PoolPage /></Suspense>} />
               <Route path="/create" element={<Suspense fallback={<PageFallback />}><CreatePairPage /></Suspense>} />
+              <Route path="/tiers" element={<Suspense fallback={<PageFallback />}><TiersPage /></Suspense>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

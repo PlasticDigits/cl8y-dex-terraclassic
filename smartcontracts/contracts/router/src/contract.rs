@@ -149,6 +149,7 @@ fn execute_swap_operations(
         max_spread: None,
         to: None,
         deadline: None,
+        trader: Some(sender.to_string()),
     };
 
     let send_msg = SubMsg::reply_on_success(
@@ -272,6 +273,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         max_spread: None,
         to: None,
         deadline: None,
+        trader: Some(state.sender.to_string()),
     };
 
     let send_msg = SubMsg::reply_on_success(

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-CL8Y DEX is a constant-product AMM deployed on Terra Classic. The system comprises three core contracts — Factory, Pair, and Router — plus an extensible hook interface. On-chain message and event formats are TerraSwap/Terraport-compatible for Vyntrex integration.
+CL8Y DEX is a constant-product AMM deployed on Terra Classic. The system comprises four core contracts — Factory, Pair, Router, and Fee Discount — plus an extensible hook interface. On-chain message and event formats are TerraSwap/Terraport-compatible for Vyntrex integration.
 
 ## Contract Relationships
 
@@ -13,8 +13,14 @@ graph TD
     PAIR2 -->|instantiates| LP2[LP Token CW20]
     FACTORY -->|SetPairFee / SetPairHooks| PAIR1
     FACTORY -->|SetPairFee / SetPairHooks| PAIR2
+    FACTORY -->|SetDiscountRegistry| PAIR1
+    FACTORY -->|SetDiscountRegistry| PAIR2
     ROUTER[Router] -->|queries factory, forwards swaps| PAIR1
     ROUTER -->|queries factory, forwards swaps| PAIR2
+    DISCOUNT[Fee Discount Registry] -->|queried by| PAIR1
+    DISCOUNT -->|queried by| PAIR2
+    GOV -->|manages tiers, blacklist| DISCOUNT
+    ROUTER -->|registered as trusted router| DISCOUNT
 ```
 
 ## Swap Flow
@@ -37,6 +43,50 @@ sequenceDiagram
     Pair->>Hook: AfterSwap(pair, sender, offer_asset, return_asset, commission_amount, spread_amount)
 ```
 
+## Fee Discount Flow
+
+When a pair has a discount registry configured, the swap path includes a discount lookup:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Router
+    participant CW20 as Input CW20
+    participant Pair
+    participant FeeDiscount as Fee Discount Registry
+
+    User->>CW20: Send { contract: Router, msg: ExecuteSwapOperations }
+    CW20->>Router: Receive(Cw20ReceiveMsg)
+    Router->>CW20: Send { contract: Pair, msg: Swap { trader: User } }
+    CW20->>Pair: Receive(Cw20ReceiveMsg)
+    Pair->>FeeDiscount: Query GetDiscount { trader: User }
+    FeeDiscount->>FeeDiscount: Check registration, verify CL8Y balance
+    alt Insufficient balance
+        FeeDiscount->>FeeDiscount: Fire-and-forget deregistration
+        FeeDiscount-->>Pair: discount_bps: 0
+    else Valid registration
+        FeeDiscount-->>Pair: discount_bps (from tier)
+    end
+    Pair->>Pair: effective_fee = fee_bps * (10000 - discount_bps) / 10000
+    Pair->>Pair: Compute swap with effective_fee
+```
+
+The Router passes the original trader's address through the `trader` field on `Cw20HookMsg::Swap` so the Pair can look up the correct discount. Direct swaps (without the Router) can also receive discounts — the Pair uses `info.sender` as the trader when the `trader` field is omitted.
+
+### Discount Tiers
+
+| Tier | CL8Y Required | Discount | BPS   | Registration       |
+|------|---------------|----------|-------|--------------------|
+| 0    | 0             | 100%     | 10000 | Governance only (market makers) |
+| 1    | 1             | 10%      | 1000  | Self-register, EOA only |
+| 2    | 50            | 25%      | 2500  | Self-register, EOA only |
+| 3    | 200           | 35%      | 3500  | Self-register, EOA only |
+| 4    | 1,000         | 50%      | 5000  | Self-register, EOA only |
+| 5    | 15,000        | 80%      | 8000  | Self-register, EOA only |
+| 255  | 0             | 0%       | 0     | Governance only (blacklist) |
+
+CL8Y token balances are checked on every swap. If a trader's balance falls below their tier's threshold, the fee-discount contract fires a deregistration message and returns zero discount for that swap.
+
 ## TerraSwap Compatibility
 
 Messages, queries, and events use TerraSwap field names so Vyntrex can parse our contracts without custom code:
@@ -56,6 +106,7 @@ Our extensions (governance, treasury, FeeConfig, code ID whitelist, post-swap ho
 - **Factory-gated governance:** only the Factory can update pair fees and hooks, keeping governance centralized at one address.
 - **Code ID whitelist:** the Factory validates that both tokens in a pair were instantiated from whitelisted CW20 code IDs, preventing malicious token contracts.
 - **Hook system:** post-swap hooks allow composable integrations (burn, tax, LP-burn) without modifying the core pair logic.
+- **Fee discount registry:** a separate contract manages tiered fee discounts. Pairs query it during swaps, keeping discount logic decoupled from the AMM core. Balance verification on every swap ensures discounts cannot persist after tokens are moved.
 - **CW20-only:** native tokens are accepted in the type system for TerraSwap wire compatibility but rejected at runtime. Future support will use CW20 wrapping.
 
 ## Directory Layout
@@ -63,10 +114,11 @@ Our extensions (governance, treasury, FeeConfig, code ID whitelist, post-swap ho
 ```
 smartcontracts/
 ├── contracts/
-│   ├── factory/    # Pair registry, governance, code ID whitelist
-│   ├── pair/       # AMM logic, LP minting/burning, fee management
-│   ├── router/     # Multi-hop routing via SwapOperation
-│   └── hooks/      # Post-swap hook contracts (burn, tax, lp-burn)
+│   ├── factory/       # Pair registry, governance, code ID whitelist
+│   ├── pair/          # AMM logic, LP minting/burning, fee management
+│   ├── router/        # Multi-hop routing via SwapOperation
+│   ├── fee-discount/  # Tiered fee discount registry for CL8Y holders
+│   └── hooks/         # Post-swap hook contracts (burn, tax, lp-burn)
 ├── packages/
 │   └── dex-common/ # Shared types (AssetInfo, Asset, PairInfo), messages, pagination
 └── tests/          # Integration test harness

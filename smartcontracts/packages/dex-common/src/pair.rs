@@ -44,6 +44,10 @@ pub enum ExecuteMsg {
     IncreaseObservationCardinality {
         new_cardinality: u16,
     },
+    /// Set the fee discount registry contract address. Factory only.
+    SetDiscountRegistry {
+        registry: Option<String>,
+    },
     /// Emergency pause — only callable by the factory contract.
     SetPaused {
         paused: bool,
@@ -58,6 +62,10 @@ pub enum Cw20HookMsg {
         max_spread: Option<Decimal>,
         to: Option<String>,
         deadline: Option<u64>,
+        /// Original trader address for fee discount lookup.
+        /// Set by trusted routers; the pair verifies the CW20 sender
+        /// is a trusted router before honoring this field.
+        trader: Option<String>,
     },
     WithdrawLiquidity {},
 }

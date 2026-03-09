@@ -3,6 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPool, getFeeConfig, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
+import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
+import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { PairInfo } from '@/types'
 import { assetInfoLabel } from '@/types'
 
@@ -31,6 +33,13 @@ function PoolCard({ pair }: { pair: PairInfo }) {
     queryKey: ['feeConfig', pair.contract_addr],
     queryFn: () => getFeeConfig(pair.contract_addr),
     staleTime: 60_000,
+  })
+
+  const discountQuery = useQuery({
+    queryKey: ['traderDiscount', address],
+    queryFn: () => getTraderDiscount(address!),
+    enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    staleTime: 15_000,
   })
 
   const addMutation = useMutation({
@@ -65,7 +74,16 @@ function PoolCard({ pair }: { pair: PairInfo }) {
         </div>
         {feeQuery.data && (
           <span className="text-xs text-gray-400 bg-dex-bg px-2 py-1 rounded-lg border border-dex-border">
-            Fee: {feeQuery.data.fee_bps} bps
+            Fee: {discountQuery.data && discountQuery.data.discount_bps > 0 ? (
+              <>
+                <span className="line-through mr-1">{feeQuery.data.fee_bps}</span>
+                <span className="text-dex-accent">
+                  {Math.floor(feeQuery.data.fee_bps * (10000 - discountQuery.data.discount_bps) / 10000)}
+                </span>
+              </>
+            ) : (
+              feeQuery.data.fee_bps
+            )} bps
           </span>
         )}
       </div>

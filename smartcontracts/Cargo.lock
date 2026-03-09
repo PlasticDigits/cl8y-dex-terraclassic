@@ -125,6 +125,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "cl8y-dex-fee-discount"
+version = "1.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw2",
+ "cw20",
+ "dex-common",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "cl8y-dex-lp-burn-hook"
 version = "1.0.0"
 dependencies = [
@@ -196,6 +212,7 @@ version = "1.0.0"
 dependencies = [
  "cl8y-dex-burn-hook",
  "cl8y-dex-factory",
+ "cl8y-dex-fee-discount",
  "cl8y-dex-lp-burn-hook",
  "cl8y-dex-pair",
  "cl8y-dex-router",

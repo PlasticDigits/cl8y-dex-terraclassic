@@ -22,7 +22,7 @@ frontend-dapp/
 ├── src/
 │   ├── components/       # Reusable UI components
 │   ├── hooks/            # Custom React hooks (useSwap, usePool, etc.)
-│   ├── pages/            # Route-level page components
+│   ├── pages/            # Route-level page components (Swap, Pool, Tiers)
 │   ├── services/         # Chain interaction, contract queries
 │   ├── stores/           # Zustand stores
 │   ├── test/             # Test setup and helpers
@@ -58,6 +58,39 @@ The frontend uses TerraSwap-compatible message names:
 | `/`             | Swap interface — select tokens, enter amount, swap|
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/pool/create`  | Create a new token pair via the Factory            |
+| `/tiers`        | View fee discount tiers, register/deregister for a tier |
+
+## Fee Discount Service
+
+The `feeDiscount.ts` service in `src/services/` handles all interactions with the fee-discount contract:
+
+**Queries:**
+- `getConfig()` — returns governance address and CL8Y token address
+- `getDiscount(trader)` — returns the trader's current discount in basis points
+- `getTier(tierId)` — returns a single tier's details (min tokens, discount bps)
+- `getTiers()` — returns all configured tiers
+- `getRegistration(wallet)` — returns the wallet's current tier registration (or null)
+- `isTrustedRouter(router)` — checks if an address is a trusted router
+
+**Executions:**
+- `register(tierId)` — self-register for a tier (EOA only)
+- `deregister()` — remove own registration
+
+### Swap Page Integration
+
+The Swap page displays the effective fee after discount. When a connected wallet has a registered tier, the UI shows:
+- The base pair fee (e.g., 0.30%)
+- The discount percentage from the trader's tier
+- The effective fee after discount (e.g., 0.15% for a 50% discount)
+
+### Tiers Page
+
+The `/tiers` page allows users to:
+- View all available discount tiers with CL8Y requirements
+- See their current CL8Y balance and eligible tiers
+- Register for a tier (sends a `Register` transaction)
+- Deregister from their current tier
+- View their active registration status
 
 ## Environment Variables
 
@@ -66,5 +99,6 @@ The frontend uses TerraSwap-compatible message names:
 | `VITE_NETWORK`  | `mainnet` / `testnet` / `local` | Target chain         |
 | `VITE_FACTORY_ADDRESS`  | `terra1abc...`      | Factory contract address  |
 | `VITE_ROUTER_ADDRESS`   | `terra1xyz...`      | Router contract address   |
+| `VITE_FEE_DISCOUNT_ADDRESS` | `terra1def...`  | Fee discount registry contract address |
 
 See `.env.example` for the full list.

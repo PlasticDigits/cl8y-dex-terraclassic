@@ -54,6 +54,8 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `RemoveWhitelistedCodeId`  | `code_id: u64`                                     | Governance  |
 | `SetPairFee`               | `pair: String`, `fee_bps: u16`                     | Governance  |
 | `SetPairHooks`             | `pair: String`, `hooks: Vec<String>`               | Governance  |
+| `SetDiscountRegistry`      | `pair: String`, `registry: Option<String>`         | Governance  |
+| `SetDiscountRegistryAll`   | `registry: Option<String>`                         | Governance  |
 | `UpdateConfig`             | `governance?`, `treasury?`, `default_fee_bps?`     | Governance  |
 
 ### QueryMsg
@@ -89,12 +91,13 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `Swap`               | `offer_asset`, `belief_price?`, `max_spread?`, `to?`, `deadline?`       | (rejected for CW20 -- use CW20 Send) |
 | `UpdateFee`          | `fee_bps: u16`                                                          | Factory    |
 | `UpdateHooks`        | `hooks: Vec<String>`                                                     | Factory    |
+| `SetDiscountRegistry`| `registry: Option<String>`                                              | Factory    |
 
 ### Cw20HookMsg (sent via CW20 Send)
 
 | Variant              | Fields                                                    |
 |----------------------|-----------------------------------------------------------|
-| `Swap`               | `belief_price?`, `max_spread?`, `to?`, `deadline?`        |
+| `Swap`               | `belief_price?`, `max_spread?`, `to?`, `deadline?`, `trader?` |
 | `WithdrawLiquidity`  | (no fields)                                               |
 
 ### QueryMsg
@@ -107,6 +110,7 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `ReverseSimulation`  | `ask_asset`        | `ReverseSimulationResponse`  |
 | `GetFeeConfig`       | —                  | `FeeConfigResponse`          |
 | `GetHooks`           | —                  | `HooksResponse`              |
+| `GetDiscountRegistry`| —                  | `DiscountRegistryResponse`   |
 
 ### Event Attributes (swap)
 
@@ -153,6 +157,8 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 |----------------------------|----------------------------------------------------------|
 | `ExecuteSwapOperations`    | `operations: Vec<SwapOperation>`, `minimum_receive?`, `to?`, `deadline?` |
 
+> **Note:** The Router passes the original sender's address as `trader` in the Pair's `Cw20HookMsg::Swap` so the Pair can look up the correct fee discount.
+
 ### QueryMsg
 
 | Variant                          | Parameters                          | Returns                           |
@@ -160,6 +166,65 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `Config`                         | —                                   | `ConfigResponse`                  |
 | `SimulateSwapOperations`         | `offer_amount`, `operations`        | `SimulateSwapOperationsResponse`  |
 | `ReverseSimulateSwapOperations`  | `ask_amount`, `operations`          | `SimulateSwapOperationsResponse`  |
+
+---
+
+## Fee Discount
+
+The fee-discount contract manages tiered swap fee discounts for CL8Y token holders. Traders register for a tier by holding the required CL8Y balance. The Pair contract queries this registry on each swap to determine the effective fee.
+
+### InstantiateMsg
+
+| Field            | Type     | Description                                          |
+|------------------|----------|------------------------------------------------------|
+| `governance`     | `String` | Address with admin privileges                        |
+| `cl8y_token`     | `String` | CW20 address of the CL8Y token (18 decimals)        |
+
+### ExecuteMsg
+
+| Variant                | Fields                                                     | Auth        |
+|------------------------|------------------------------------------------------------|-------------|
+| `AddTier`              | `tier_id: u8`, `min_tokens: Uint128`, `discount_bps: u16` | Governance  |
+| `UpdateTier`           | `tier_id: u8`, `min_tokens?: Uint128`, `discount_bps?: u16`| Governance  |
+| `RemoveTier`           | `tier_id: u8`                                              | Governance  |
+| `Register`             | `tier_id: u8`                                              | EOA only (self-register) |
+| `RegisterWallet`       | `wallet: String`, `tier_id: u8`                            | Governance  |
+| `Deregister`           | —                                                          | Self        |
+| `DeregisterWallet`     | `wallet: String`                                           | Governance  |
+| `AddTrustedRouter`     | `router: String`                                           | Governance  |
+| `RemoveTrustedRouter`  | `router: String`                                           | Governance  |
+| `UpdateConfig`         | `governance?`, `cl8y_token?`                               | Governance  |
+
+### QueryMsg
+
+| Variant              | Parameters                  | Returns                     |
+|----------------------|-----------------------------|-----------------------------|
+| `Config`             | —                           | `ConfigResponse`            |
+| `GetDiscount`        | `trader: String`            | `DiscountResponse`          |
+| `GetTier`            | `tier_id: u8`               | `TierResponse`              |
+| `GetTiers`           | —                           | `TiersResponse`             |
+| `GetRegistration`    | `wallet: String`            | `RegistrationResponse`      |
+| `IsTrustedRouter`    | `router: String`            | `IsTrustedRouterResponse`   |
+
+### Tier Table (default)
+
+| Tier | CL8Y Required | Discount | BPS   | Notes                         |
+|------|---------------|----------|-------|-------------------------------|
+| 0    | 0             | 100%     | 10000 | Governance-only (market makers)|
+| 1    | 1             | 10%      | 1000  | Self-register, EOA only       |
+| 2    | 50            | 25%      | 2500  | Self-register, EOA only       |
+| 3    | 200           | 35%      | 3500  | Self-register, EOA only       |
+| 4    | 1,000         | 50%      | 5000  | Self-register, EOA only       |
+| 5    | 15,000        | 80%      | 8000  | Self-register, EOA only       |
+| 255  | 0             | 0%       | 0     | Governance-only (blacklist)   |
+
+### Discount Calculation
+
+The Pair applies the discount as: `effective_fee = fee_bps * (10000 - discount_bps) / 10000`. For example, a pair with 30 bps fee and a Tier 4 trader (5000 bps discount) yields an effective fee of 15 bps.
+
+### Balance Verification
+
+The `GetDiscount` query checks the trader's CL8Y token balance on every call. If the balance is below the registered tier's threshold, the contract fires a deregistration message (fire-and-forget) and returns `discount_bps: 0` for that swap.
 
 ---
 
