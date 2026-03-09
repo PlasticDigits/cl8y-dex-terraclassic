@@ -44,6 +44,10 @@ pub enum ExecuteMsg {
     IncreaseObservationCardinality {
         new_cardinality: u16,
     },
+    /// Emergency pause — only callable by the factory contract.
+    SetPaused {
+        paused: bool,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.

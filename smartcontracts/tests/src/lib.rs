@@ -39,7 +39,8 @@ mod helpers {
             cl8y_dex_router::contract::execute,
             cl8y_dex_router::contract::instantiate,
             cl8y_dex_router::contract::query,
-        );
+        )
+        .with_reply(cl8y_dex_router::contract::reply);
         Box::new(contract)
     }
 
@@ -780,7 +781,7 @@ mod pair_tests {
         assert_eq!(pool.total_share, Uint128::new(1_000_000));
 
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
-        assert_eq!(lp_balance, Uint128::new(1_000_000));
+        assert_eq!(lp_balance, Uint128::new(999_000));
     }
 
     #[test]
@@ -889,7 +890,7 @@ mod pair_tests {
         provide_liquidity(&mut app, &env, &env.user, amount, amount);
 
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
-        assert_eq!(lp_balance, Uint128::new(1_000_000));
+        assert_eq!(lp_balance, Uint128::new(999_000));
 
         let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
         let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
@@ -917,7 +918,7 @@ mod pair_tests {
         assert_eq!(user_b_after - user_b_before, Uint128::new(500_000));
 
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
-        assert_eq!(lp_balance, Uint128::new(500_000));
+        assert_eq!(lp_balance, Uint128::new(499_000));
 
         let pool: dex_common::pair::PoolResponse = app
             .wrap()

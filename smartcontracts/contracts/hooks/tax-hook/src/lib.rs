@@ -35,4 +35,9 @@ pub mod entry {
     pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         crate::contract::query(deps, env, msg)
     }
+
+    #[entry_point]
+    pub fn migrate(_deps: DepsMut, _env: Env, _msg: cosmwasm_std::Empty) -> StdResult<Response> {
+        Ok(Response::new().add_attribute("action", "migrate"))
+    }
 }

@@ -64,7 +64,7 @@ The frontend uses TerraSwap-compatible message names:
 | Variable        | Example                    | Description               |
 |-----------------|----------------------------|---------------------------|
 | `VITE_NETWORK`  | `mainnet` / `testnet` / `local` | Target chain         |
-| `VITE_FACTORY`  | `terra1abc...`              | Factory contract address  |
-| `VITE_ROUTER`   | `terra1xyz...`              | Router contract address   |
+| `VITE_FACTORY_ADDRESS`  | `terra1abc...`      | Factory contract address  |
+| `VITE_ROUTER_ADDRESS`   | `terra1xyz...`      | Router contract address   |
 
 See `.env.example` for the full list.

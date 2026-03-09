@@ -6,7 +6,7 @@ pub mod state;
 #[cfg(not(feature = "library"))]
 pub mod entry {
     use cosmwasm_std::entry_point;
-    use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+    use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult};
 
     use crate::error::ContractError;
     use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -34,5 +34,15 @@ pub mod entry {
     #[entry_point]
     pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         crate::contract::query(deps, env, msg)
+    }
+
+    #[entry_point]
+    pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+        crate::contract::reply(deps, env, msg)
+    }
+
+    #[entry_point]
+    pub fn migrate(_deps: DepsMut, _env: Env, _msg: cosmwasm_std::Empty) -> StdResult<Response> {
+        Ok(Response::new().add_attribute("action", "migrate"))
     }
 }

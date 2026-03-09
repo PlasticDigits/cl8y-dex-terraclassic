@@ -12,7 +12,7 @@ use crate::msg::{
 };
 use crate::state::{
     OracleState, PairInfoState, FEE_CONFIG, HOOKS, OBSERVATIONS, ORACLE_STATE, PAIR_INFO,
-    RESERVES, TOTAL_LP_SUPPLY,
+    PAUSED, RESERVES, TOTAL_LP_SUPPLY,
 };
 use dex_common::hook::HookExecuteMsg;
 use dex_common::oracle::{
@@ -21,8 +21,9 @@ use dex_common::oracle::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.1.0";
+const CONTRACT_VERSION: &str = "1.2.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
+const MINIMUM_LIQUIDITY: u128 = 1_000;
 
 fn isqrt(n: Uint128) -> Uint128 {
     if n.is_zero() {
@@ -42,6 +43,26 @@ fn token_addr(info: &AssetInfo) -> &str {
         AssetInfo::Token { contract_addr } => contract_addr.as_str(),
         AssetInfo::NativeToken { .. } => unreachable!("native tokens not supported"),
     }
+}
+
+fn assert_deadline(env: &Env, deadline: Option<u64>) -> Result<(), ContractError> {
+    if let Some(dl) = deadline {
+        let current = env.block.time.seconds();
+        if current > dl {
+            return Err(ContractError::DeadlineExceeded {
+                deadline: dl,
+                current,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn assert_not_paused(storage: &dyn cosmwasm_std::Storage) -> Result<(), ContractError> {
+    if PAUSED.may_load(storage)?.unwrap_or(false) {
+        return Err(ContractError::Paused {});
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +232,7 @@ pub fn instantiate(
 
     for ai in &msg.asset_infos {
         ai.assert_is_token()
-            .map_err(|e| ContractError::Std(e))?;
+            .map_err(ContractError::Std)?;
     }
 
     let pair_info = PairInfoState {
@@ -230,6 +251,7 @@ pub fn instantiate(
     RESERVES.save(deps.storage, &(Uint128::zero(), Uint128::zero()))?;
     HOOKS.save(deps.storage, &vec![])?;
     TOTAL_LP_SUPPLY.save(deps.storage, &Uint128::zero())?;
+    PAUSED.save(deps.storage, &false)?;
 
     ORACLE_STATE.save(
         deps.storage,
@@ -300,13 +322,20 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Receive(cw20_msg) => execute_receive(deps, env, info, cw20_msg),
+        ExecuteMsg::Receive(cw20_msg) => {
+            assert_not_paused(deps.storage)?;
+            execute_receive(deps, env, info, cw20_msg)
+        }
         ExecuteMsg::ProvideLiquidity {
             assets,
-            slippage_tolerance: _,
+            slippage_tolerance,
             receiver,
-            deadline: _,
-        } => execute_provide_liquidity(deps, env, info, assets, receiver),
+            deadline,
+        } => {
+            assert_not_paused(deps.storage)?;
+            assert_deadline(&env, deadline)?;
+            execute_provide_liquidity(deps, env, info, assets, slippage_tolerance, receiver)
+        }
         ExecuteMsg::Swap {
             offer_asset,
             belief_price: _,
@@ -325,6 +354,7 @@ pub fn execute(
         ExecuteMsg::IncreaseObservationCardinality { new_cardinality } => {
             execute_increase_observation_cardinality(deps, new_cardinality)
         }
+        ExecuteMsg::SetPaused { paused } => execute_set_paused(deps, info, paused),
     }
 }
 
@@ -342,17 +372,20 @@ fn execute_receive(
             belief_price,
             max_spread,
             to,
-            deadline: _,
-        } => execute_swap(
-            deps,
-            env,
-            info,
-            token_sender,
-            cw20_msg.amount,
-            belief_price,
-            max_spread,
-            to,
-        ),
+            deadline,
+        } => {
+            assert_deadline(&env, deadline)?;
+            execute_swap(
+                deps,
+                env,
+                info,
+                token_sender,
+                cw20_msg.amount,
+                belief_price,
+                max_spread,
+                to,
+            )
+        }
         Cw20HookMsg::WithdrawLiquidity {} => {
             execute_withdraw_liquidity(deps, env, info, token_sender, cw20_msg.amount)
         }
@@ -568,6 +601,7 @@ fn execute_provide_liquidity(
     env: Env,
     info: MessageInfo,
     assets: [Asset; 2],
+    slippage_tolerance: Option<Decimal>,
     receiver: Option<String>,
 ) -> Result<Response, ContractError> {
     let pair_info = PAIR_INFO.load(deps.storage)?;
@@ -581,7 +615,6 @@ fn execute_provide_liquidity(
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let total_supply = TOTAL_LP_SUPPLY.load(deps.storage)?;
 
-    // Record observation BEFORE reserves change.
     oracle_update(
         deps.storage,
         env.block.time.seconds(),
@@ -589,7 +622,9 @@ fn execute_provide_liquidity(
         reserve_b,
     )?;
 
-    let lp_tokens = if reserve_a.is_zero() && reserve_b.is_zero() {
+    let is_first_deposit = reserve_a.is_zero() && reserve_b.is_zero();
+
+    let lp_tokens_total = if is_first_deposit {
         isqrt(amount_a.checked_mul(amount_b)?)
     } else {
         let lp_a = amount_a
@@ -601,15 +636,47 @@ fn execute_provide_liquidity(
         std::cmp::min(lp_a, lp_b)
     };
 
-    if lp_tokens.is_zero() {
+    if lp_tokens_total.is_zero() {
         return Err(ContractError::InsufficientLiquidity {});
+    }
+
+    let (lp_to_user, lp_to_burn) = if is_first_deposit {
+        let min_liq = Uint128::new(MINIMUM_LIQUIDITY);
+        if lp_tokens_total <= min_liq {
+            return Err(ContractError::InsufficientLiquidity {});
+        }
+        (lp_tokens_total.checked_sub(min_liq)?, min_liq)
+    } else {
+        (lp_tokens_total, Uint128::zero())
+    };
+
+    if let Some(tolerance) = slippage_tolerance {
+        if !is_first_deposit {
+            let expected_lp_a = amount_a
+                .checked_mul(total_supply)?
+                .checked_div(reserve_a)?;
+            let expected_lp_b = amount_b
+                .checked_mul(total_supply)?
+                .checked_div(reserve_b)?;
+            let expected_lp = std::cmp::max(expected_lp_a, expected_lp_b);
+
+            if expected_lp > Uint128::zero() {
+                let min_lp = expected_lp * (Decimal::one() - tolerance);
+                if lp_to_user < min_lp {
+                    return Err(ContractError::SlippageExceeded {
+                        min_lp: min_lp.to_string(),
+                        actual_lp: lp_to_user.to_string(),
+                    });
+                }
+            }
+        }
     }
 
     let new_reserve_a = reserve_a.checked_add(amount_a)?;
     let new_reserve_b = reserve_b.checked_add(amount_b)?;
     RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
 
-    let new_total_supply = total_supply.checked_add(lp_tokens)?;
+    let new_total_supply = total_supply.checked_add(lp_tokens_total)?;
     TOTAL_LP_SUPPLY.save(deps.storage, &new_total_supply)?;
 
     let token_a_addr = token_addr(&pair_info.asset_infos[0]);
@@ -646,10 +713,28 @@ fn execute_provide_liquidity(
         contract_addr: pair_info.lp_token.to_string(),
         msg: to_json_binary(&Cw20ExecuteMsg::Mint {
             recipient: lp_receiver.to_string(),
-            amount: lp_tokens,
+            amount: lp_to_user,
         })?,
         funds: vec![],
     }));
+
+    if !lp_to_burn.is_zero() {
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: pair_info.lp_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Mint {
+                recipient: env.contract.address.to_string(),
+                amount: lp_to_burn,
+            })?,
+            funds: vec![],
+        }));
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: pair_info.lp_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Burn {
+                amount: lp_to_burn,
+            })?,
+            funds: vec![],
+        }));
+    }
 
     Ok(Response::new()
         .add_messages(messages)
@@ -657,7 +742,8 @@ fn execute_provide_liquidity(
         .add_attribute("sender", info.sender)
         .add_attribute("receiver", lp_receiver)
         .add_attribute("assets", format!("{}, {}", assets[0], assets[1]))
-        .add_attribute("share", lp_tokens))
+        .add_attribute("share", lp_to_user)
+        .add_attribute("minimum_liquidity_burned", lp_to_burn))
 }
 
 fn execute_withdraw_liquidity(
@@ -831,6 +917,23 @@ fn execute_increase_observation_cardinality(
         .add_attribute("new_cardinality", new_cardinality.to_string()))
 }
 
+fn execute_set_paused(
+    deps: DepsMut,
+    info: MessageInfo,
+    paused: bool,
+) -> Result<Response, ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    PAUSED.save(deps.storage, &paused)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "set_paused")
+        .add_attribute("paused", paused.to_string()))
+}
+
 // ---------------------------------------------------------------------------
 // Query
 // ---------------------------------------------------------------------------
@@ -967,16 +1070,30 @@ fn query_reverse_simulation(
 
     let ask_amount = ask_asset.amount;
 
+    if fee_config.fee_bps >= 10000 {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "Cannot reverse-simulate with 100% fee",
+        ));
+    }
+
     let fee_denom = 10000u128 - fee_config.fee_bps as u128;
     let gross_needed = ask_amount
         .checked_mul(Uint128::new(10000))?
-        .checked_div(Uint128::new(fee_denom))?;
+        .checked_div(Uint128::new(fee_denom))?
+        .checked_add(Uint128::one())?;
     let commission_amount = gross_needed.checked_sub(ask_amount)?;
+
+    if gross_needed >= output_reserve {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "Insufficient liquidity for reverse simulation",
+        ));
+    }
 
     let denom = output_reserve.checked_sub(gross_needed)?;
     let offer_amount = input_reserve
         .checked_mul(gross_needed)?
-        .checked_div(denom)?;
+        .checked_div(denom)?
+        .checked_add(Uint128::one())?;
 
     let ideal_output = offer_amount
         .checked_mul(output_reserve)?

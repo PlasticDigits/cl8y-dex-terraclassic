@@ -91,6 +91,9 @@ pub fn execute(
             treasury,
             default_fee_bps,
         } => execute_update_config(deps, info, governance, treasury, default_fee_bps),
+        ExecuteMsg::SetPairPaused { pair, paused } => {
+            execute_set_pair_paused(deps, info, pair, paused)
+        }
     }
 }
 
@@ -194,6 +197,20 @@ fn execute_remove_whitelisted_code_id(
         .add_attribute("code_id", code_id.to_string()))
 }
 
+fn assert_pair_in_registry(deps: &DepsMut, pair_addr: &cosmwasm_std::Addr) -> Result<(), ContractError> {
+    let count = PAIR_COUNT.load(deps.storage)?;
+    for idx in 0..count {
+        if let Ok(info) = PAIR_INDEX.load(deps.storage, idx) {
+            if info.contract_addr == *pair_addr {
+                return Ok(());
+            }
+        }
+    }
+    Err(ContractError::PairNotInRegistry {
+        pair: pair_addr.to_string(),
+    })
+}
+
 fn execute_set_pair_fee(
     deps: DepsMut,
     info: MessageInfo,
@@ -207,6 +224,8 @@ fn execute_set_pair_fee(
     }
 
     let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
+
     let wasm_msg = WasmMsg::Execute {
         contract_addr: pair_addr.to_string(),
         msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateFee { fee_bps })?,
@@ -229,6 +248,8 @@ fn execute_set_pair_hooks(
     ensure_governance(&deps, &info)?;
 
     let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
+
     let wasm_msg = WasmMsg::Execute {
         contract_addr: pair_addr.to_string(),
         msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateHooks {
@@ -241,6 +262,30 @@ fn execute_set_pair_hooks(
         .add_message(wasm_msg)
         .add_attribute("action", "set_pair_hooks")
         .add_attribute("pair", pair_addr))
+}
+
+fn execute_set_pair_paused(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+    paused: bool,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
+
+    let wasm_msg = WasmMsg::Execute {
+        contract_addr: pair_addr.to_string(),
+        msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetPaused { paused })?,
+        funds: vec![],
+    };
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "set_pair_paused")
+        .add_attribute("pair", pair_addr)
+        .add_attribute("paused", paused.to_string()))
 }
 
 fn execute_update_config(

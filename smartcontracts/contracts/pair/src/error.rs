@@ -21,8 +21,8 @@ pub enum ContractError {
     #[error("Insufficient liquidity")]
     InsufficientLiquidity {},
 
-    #[error("Slippage exceeded")]
-    SlippageExceeded {},
+    #[error("Slippage exceeded: expected at least {min_lp} LP tokens, would receive {actual_lp}")]
+    SlippageExceeded { min_lp: String, actual_lp: String },
 
     #[error("Zero amount")]
     ZeroAmount {},
@@ -44,4 +44,10 @@ pub enum ContractError {
 
     #[error("Oracle: {reason}")]
     Oracle { reason: String },
+
+    #[error("Deadline exceeded: transaction expired at {deadline}, current time is {current}")]
+    DeadlineExceeded { deadline: u64, current: u64 },
+
+    #[error("Contract is paused")]
+    Paused {},
 }

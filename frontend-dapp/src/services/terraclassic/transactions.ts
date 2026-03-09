@@ -33,6 +33,21 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     return REMOVE_LIQUIDITY_GAS_LIMIT;
   } else if ('create_pair' in executeMsg) {
     return CREATE_PAIR_GAS_LIMIT;
+  } else if ('send' in executeMsg) {
+    const sendMsg = executeMsg.send as { msg?: string } | undefined;
+    if (sendMsg?.msg) {
+      try {
+        const inner = JSON.parse(atob(sendMsg.msg));
+        if ('swap' in inner) return SWAP_GAS_LIMIT;
+        if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT;
+        if ('execute_swap_operations' in inner) return SWAP_GAS_LIMIT;
+      } catch {
+        // fall through to base
+      }
+    }
+    return SWAP_GAS_LIMIT;
+  } else if ('increase_allowance' in executeMsg) {
+    return BASE_GAS_LIMIT;
   }
   return BASE_GAS_LIMIT;
 }

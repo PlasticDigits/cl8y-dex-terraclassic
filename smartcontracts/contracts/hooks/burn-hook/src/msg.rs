@@ -16,6 +16,10 @@ pub enum ExecuteMsg {
         burn_token: Option<String>,
         burn_percentage_bps: Option<u16>,
     },
+    UpdateAllowedPairs {
+        add: Vec<String>,
+        remove: Vec<String>,
+    },
 }
 
 #[cw_serde]

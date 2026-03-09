@@ -94,9 +94,24 @@ export async function provideLiquidity(
     { info: tokenAssetInfo(tokenB), amount: amountB },
   ]
 
-  return executeTerraContract(walletAddress, pairAddress, {
-    provide_liquidity: { assets },
-  })
+  try {
+    const txHash = await executeTerraContract(walletAddress, pairAddress, {
+      provide_liquidity: { assets },
+    })
+    return txHash
+  } catch (error) {
+    try {
+      await executeTerraContract(walletAddress, tokenA, {
+        decrease_allowance: { spender: pairAddress, amount: amountA },
+      })
+    } catch { /* best effort cleanup */ }
+    try {
+      await executeTerraContract(walletAddress, tokenB, {
+        decrease_allowance: { spender: pairAddress, amount: amountB },
+      })
+    } catch { /* best effort cleanup */ }
+    throw error
+  }
 }
 
 export async function withdrawLiquidity(

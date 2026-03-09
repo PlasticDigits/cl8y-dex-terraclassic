@@ -52,7 +52,7 @@ use cosmwasm_std::{Decimal, StdError, StdResult, Uint128};
 
 /// Maximum number of observations the ring buffer can hold.
 /// ~65 535 × 6s blocks ≈ 109 hours of history at one observation per block.
-pub const MAX_OBSERVATION_CARDINALITY: u16 = 65_535;
+pub const MAX_OBSERVATION_CARDINALITY: u16 = 65_000;
 
 /// Default observation cardinality for new pairs.
 /// 360 × 6s blocks ≈ 36 minutes — enough for a 30-minute TWAP window.

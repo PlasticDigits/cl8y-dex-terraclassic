@@ -1,7 +1,7 @@
 import { MnemonicWallet } from '@goblinhunt/cosmes/wallet'
-import { NETWORKS, DEFAULT_NETWORK } from '@/utils/constants'
+import { NETWORKS, DEFAULT_NETWORK, DEV_MODE } from '@/utils/constants'
 
-const DEV_MNEMONIC = 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius'
+const DEFAULT_DEV_MNEMONIC = 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius'
 
 export const DEV_TERRA_ADDRESS = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 
@@ -11,9 +11,14 @@ const GAS_PRICE = {
 }
 
 export function createDevTerraWallet(): MnemonicWallet {
+  if (!DEV_MODE) {
+    throw new Error('Dev wallet is only available in dev mode (VITE_DEV_MODE=true)')
+  }
+
+  const mnemonic = import.meta.env.VITE_DEV_MNEMONIC || DEFAULT_DEV_MNEMONIC
   const networkConfig = NETWORKS[DEFAULT_NETWORK].terra
   return new MnemonicWallet({
-    mnemonic: DEV_MNEMONIC,
+    mnemonic,
     bech32Prefix: 'terra',
     chainId: networkConfig.chainId,
     rpc: networkConfig.rpc,

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, WasmMsg,
+    from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -10,12 +10,13 @@ use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     SimulateSwapOperationsResponse, SwapOperation,
 };
-use crate::state::FACTORY;
+use crate::state::{SwapState, FACTORY, SWAP_STATE};
 use dex_common::pair;
 use dex_common::types::Asset;
 
 const CONTRACT_NAME: &str = "cl8y-dex-router";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const SWAP_REPLY_ID: u64 = 1;
 
 pub fn instantiate(
     deps: DepsMut,
@@ -52,6 +53,19 @@ pub fn execute(
     }
 }
 
+fn assert_deadline(env: &Env, deadline: Option<u64>) -> Result<(), ContractError> {
+    if let Some(dl) = deadline {
+        let current = env.block.time.seconds();
+        if current > dl {
+            return Err(ContractError::DeadlineExceeded {
+                deadline: dl,
+                current,
+            });
+        }
+    }
+    Ok(())
+}
+
 fn execute_receive(
     deps: DepsMut,
     env: Env,
@@ -68,17 +82,20 @@ fn execute_receive(
             operations,
             minimum_receive,
             to,
-            deadline: _,
-        } => execute_swap_operations(
-            deps,
-            env,
-            sender,
-            input_token,
-            amount,
-            operations,
-            minimum_receive,
-            to,
-        ),
+            deadline,
+        } => {
+            assert_deadline(&env, deadline)?;
+            execute_swap_operations(
+                deps,
+                env,
+                sender,
+                input_token,
+                amount,
+                operations,
+                minimum_receive,
+                to,
+            )
+        }
     }
 }
 
@@ -90,104 +107,191 @@ fn execute_swap_operations(
     input_token: cosmwasm_std::Addr,
     amount: Uint128,
     operations: Vec<SwapOperation>,
-    _minimum_receive: Option<Uint128>,
+    minimum_receive: Option<Uint128>,
     to: Option<String>,
 ) -> Result<Response, ContractError> {
     if operations.is_empty() {
         return Err(ContractError::EmptyOperations {});
     }
 
-    let factory = FACTORY.load(deps.storage)?;
-    let recipient = match to {
-        Some(addr) => addr,
-        None => sender.to_string(),
-    };
-
-    let mut messages: Vec<CosmosMsg> = vec![];
-    let mut current_token = input_token;
-    let mut current_amount = amount;
-
-    for (i, op) in operations.iter().enumerate() {
-        match op {
-            SwapOperation::NativeSwap { .. } => {
-                return Err(ContractError::NativeSwapNotSupported {});
-            }
-            SwapOperation::TerraSwap {
-                offer_asset_info,
-                ask_asset_info,
-            } => {
-                offer_asset_info
-                    .assert_is_token()
-                    .map_err(|_| ContractError::NativeTokenNotSupported {})?;
-                ask_asset_info
-                    .assert_is_token()
-                    .map_err(|_| ContractError::NativeTokenNotSupported {})?;
-
-                let pair_response: dex_common::factory::PairResponse = deps
-                    .querier
-                    .query_wasm_smart(
-                        factory.to_string(),
-                        &dex_common::factory::QueryMsg::Pair {
-                            asset_infos: [
-                                offer_asset_info.clone(),
-                                ask_asset_info.clone(),
-                            ],
-                        },
-                    )
-                    .map_err(|_| ContractError::PairNotFound {})?;
-
-                let pair_addr = pair_response.pair.contract_addr;
-
-                let is_last = i == operations.len() - 1;
-                let swap_to = if is_last {
-                    Some(recipient.clone())
-                } else {
-                    None
-                };
-
-                let swap_msg = pair::Cw20HookMsg::Swap {
-                    belief_price: None,
-                    max_spread: None,
-                    to: swap_to,
-                    deadline: None,
-                };
-
-                let send_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: current_token.to_string(),
-                    msg: to_json_binary(&Cw20ExecuteMsg::Send {
-                        contract: pair_addr.to_string(),
-                        amount: current_amount,
-                        msg: to_json_binary(&swap_msg)?,
-                    })?,
-                    funds: vec![],
-                });
-
-                messages.push(send_msg);
-
-                if !is_last {
-                    let sim: pair::SimulationResponse = deps.querier.query_wasm_smart(
-                        pair_addr.to_string(),
-                        &pair::QueryMsg::Simulation {
-                            offer_asset: Asset {
-                                info: offer_asset_info.clone(),
-                                amount: current_amount,
-                            },
-                        },
-                    )?;
-                    current_amount = sim.return_amount;
-                    let ask_addr = ask_asset_info.assert_is_token()
-                        .map_err(|_| ContractError::NativeTokenNotSupported {})?;
-                    current_token = deps.api.addr_validate(ask_addr)?;
-                }
-            }
-        }
+    if SWAP_STATE.may_load(deps.storage)?.is_some() {
+        return Err(ContractError::SwapInProgress {});
     }
 
+    let factory = FACTORY.load(deps.storage)?;
+    let recipient = match to {
+        Some(addr) => deps.api.addr_validate(&addr)?,
+        None => sender.clone(),
+    };
+
+    let first_op = &operations[0];
+    let remaining = operations[1..].to_vec();
+
+    let (pair_addr, ask_asset_info) = resolve_operation(deps.as_ref(), &factory, first_op)?;
+
+    let ask_addr_str = ask_asset_info.assert_is_token()
+        .map_err(|_| ContractError::NativeTokenNotSupported {})?;
+    let output_token = deps.api.addr_validate(ask_addr_str)?;
+
+    SWAP_STATE.save(
+        deps.storage,
+        &SwapState {
+            sender: sender.clone(),
+            recipient: recipient.clone(),
+            remaining_operations: remaining,
+            minimum_receive,
+            output_token,
+        },
+    )?;
+
+    let swap_msg = pair::Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: None,
+        to: None,
+        deadline: None,
+    };
+
+    let send_msg = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: input_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Send {
+                contract: pair_addr.to_string(),
+                amount,
+                msg: to_json_binary(&swap_msg)?,
+            })?,
+            funds: vec![],
+        }),
+        SWAP_REPLY_ID,
+    );
+
     Ok(Response::new()
-        .add_messages(messages)
+        .add_submessage(send_msg)
         .add_attribute("action", "execute_swap_operations")
         .add_attribute("sender", sender)
         .add_attribute("recipient", recipient))
+}
+
+fn resolve_operation(
+    deps: Deps,
+    factory: &cosmwasm_std::Addr,
+    op: &SwapOperation,
+) -> Result<(cosmwasm_std::Addr, dex_common::types::AssetInfo), ContractError> {
+    match op {
+        SwapOperation::NativeSwap { .. } => Err(ContractError::NativeSwapNotSupported {}),
+        SwapOperation::TerraSwap {
+            offer_asset_info,
+            ask_asset_info,
+        } => {
+            offer_asset_info
+                .assert_is_token()
+                .map_err(|_| ContractError::NativeTokenNotSupported {})?;
+            ask_asset_info
+                .assert_is_token()
+                .map_err(|_| ContractError::NativeTokenNotSupported {})?;
+
+            let pair_response: dex_common::factory::PairResponse = deps
+                .querier
+                .query_wasm_smart(
+                    factory.to_string(),
+                    &dex_common::factory::QueryMsg::Pair {
+                        asset_infos: [
+                            offer_asset_info.clone(),
+                            ask_asset_info.clone(),
+                        ],
+                    },
+                )
+                .map_err(|_| ContractError::PairNotFound {})?;
+
+            Ok((pair_response.pair.contract_addr, ask_asset_info.clone()))
+        }
+    }
+}
+
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        SWAP_REPLY_ID => reply_swap_hop(deps, env),
+        id => Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+            format!("unknown reply id: {id}"),
+        ))),
+    }
+}
+
+fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+    let mut state = SWAP_STATE.load(deps.storage)?;
+
+    let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
+        state.output_token.to_string(),
+        &cw20::Cw20QueryMsg::Balance {
+            address: env.contract.address.to_string(),
+        },
+    )?;
+
+    let current_amount = balance.balance;
+
+    if state.remaining_operations.is_empty() {
+        SWAP_STATE.remove(deps.storage);
+
+        if let Some(min) = state.minimum_receive {
+            if current_amount < min {
+                return Err(ContractError::MinimumReceiveAssertion {
+                    minimum: min.to_string(),
+                    actual: current_amount.to_string(),
+                });
+            }
+        }
+
+        let transfer_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: state.output_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: state.recipient.to_string(),
+                amount: current_amount,
+            })?,
+            funds: vec![],
+        });
+
+        return Ok(Response::new()
+            .add_message(transfer_msg)
+            .add_attribute("action", "swap_complete")
+            .add_attribute("output_amount", current_amount)
+            .add_attribute("recipient", state.recipient));
+    }
+
+    let factory = FACTORY.load(deps.storage)?;
+    let next_op = state.remaining_operations.remove(0);
+    let (pair_addr, ask_asset_info) = resolve_operation(deps.as_ref(), &factory, &next_op)?;
+
+    let current_token = state.output_token.clone();
+    let ask_addr_str = ask_asset_info.assert_is_token()
+        .map_err(|_| ContractError::NativeTokenNotSupported {})?;
+    state.output_token = deps.api.addr_validate(ask_addr_str)?;
+
+    SWAP_STATE.save(deps.storage, &state)?;
+
+    let swap_msg = pair::Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: None,
+        to: None,
+        deadline: None,
+    };
+
+    let send_msg = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: current_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Send {
+                contract: pair_addr.to_string(),
+                amount: current_amount,
+                msg: to_json_binary(&swap_msg)?,
+            })?,
+            funds: vec![],
+        }),
+        SWAP_REPLY_ID,
+    );
+
+    Ok(Response::new()
+        .add_submessage(send_msg)
+        .add_attribute("action", "swap_hop")
+        .add_attribute("next_pair", pair_addr)
+        .add_attribute("amount", current_amount))
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

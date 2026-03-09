@@ -38,6 +38,23 @@ export async function getAllPairs(
   })
 }
 
+export async function getAllPairsPaginated(maxPairs = 200): Promise<PairsResponse> {
+  const PAGE_SIZE = 50
+  const allPairs: PairInfo[] = []
+  let startAfter: [AssetInfo, AssetInfo] | undefined
+
+  while (allPairs.length < maxPairs) {
+    const resp = await getAllPairs(startAfter, PAGE_SIZE)
+    if (resp.pairs.length === 0) break
+    allPairs.push(...resp.pairs)
+    if (resp.pairs.length < PAGE_SIZE) break
+    const last = resp.pairs[resp.pairs.length - 1]
+    startAfter = last.asset_infos
+  }
+
+  return { pairs: allPairs }
+}
+
 export async function getPair(assetInfos: [AssetInfo, AssetInfo]): Promise<PairInfo> {
   const resp = await queryContract<PairResponse>(FACTORY_CONTRACT_ADDRESS, {
     pair: { asset_infos: assetInfos },
