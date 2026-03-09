@@ -50,4 +50,7 @@ pub enum ContractError {
 
     #[error("Contract is paused")]
     Paused {},
+
+    #[error("Invariant violation: {reason}")]
+    InvariantViolation { reason: String },
 }

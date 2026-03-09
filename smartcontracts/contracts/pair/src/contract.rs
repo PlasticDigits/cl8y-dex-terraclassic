@@ -39,6 +39,17 @@ fn isqrt(n: Uint128) -> Uint128 {
     x
 }
 
+/// Ceiling division: ceil(a / b). Guarantees result * b >= a, so the pool
+/// never loses value from integer rounding during swaps.
+fn ceil_div(numerator: Uint128, denominator: Uint128) -> Uint128 {
+    let d = numerator / denominator;
+    if d * denominator < numerator {
+        d + Uint128::one()
+    } else {
+        d
+    }
+}
+
 fn token_addr(info: &AssetInfo) -> &str {
     match info {
         AssetInfo::Token { contract_addr } => contract_addr.as_str(),
@@ -499,8 +510,25 @@ fn execute_swap(
 
     let k = input_reserve.checked_mul(output_reserve)?;
     let new_input_reserve = input_reserve.checked_add(input_amount)?;
-    let new_output_reserve = k.checked_div(new_input_reserve)?;
+    let new_output_reserve = ceil_div(k, new_input_reserve);
     let gross_output = output_reserve.checked_sub(new_output_reserve)?;
+
+    // Sanity: ceil_div rounding must produce new_k in [k, k + new_input_reserve).
+    // Any larger increase would indicate a bug, not rounding.
+    let new_k = new_input_reserve.checked_mul(new_output_reserve)?;
+    if new_k < k {
+        return Err(ContractError::InvariantViolation {
+            reason: format!("k decreased: {} -> {}", k, new_k),
+        });
+    }
+    if new_k - k >= new_input_reserve {
+        return Err(ContractError::InvariantViolation {
+            reason: format!(
+                "k increase exceeds rounding bound: delta={}, bound={}",
+                new_k - k, new_input_reserve
+            ),
+        });
+    }
 
     // Determine the trader address for discount lookup.
     // For direct swaps sender == trader; for router swaps the router passes
@@ -543,10 +571,23 @@ fn execute_swap(
         None => fee_config.fee_bps,
     };
 
-    let commission_amount = gross_output
-        .checked_mul(Uint128::new(effective_fee_bps as u128))?
+    let fee_numerator = gross_output
+        .checked_mul(Uint128::new(effective_fee_bps as u128))?;
+    let commission_amount = fee_numerator
         .checked_div(Uint128::new(10000))?;
     let return_amount = gross_output.checked_sub(commission_amount)?;
+
+    // Sanity: floor-division rounding on commission loses < 1 output token.
+    // fee_numerator / 10000 truncates; the remainder must be < 10000.
+    let commission_remainder = fee_numerator - commission_amount.checked_mul(Uint128::new(10000))?;
+    if commission_remainder >= Uint128::new(10000) {
+        return Err(ContractError::InvariantViolation {
+            reason: format!(
+                "commission rounding exceeds 1 token: remainder={}",
+                commission_remainder
+            ),
+        });
+    }
 
     let ideal_output = input_amount
         .checked_mul(output_reserve)?
@@ -676,14 +717,43 @@ fn execute_provide_liquidity(
     let is_first_deposit = reserve_a.is_zero() && reserve_b.is_zero();
 
     let lp_tokens_total = if is_first_deposit {
-        isqrt(amount_a.checked_mul(amount_b)?)
+        let product = amount_a.checked_mul(amount_b)?;
+        let lp = isqrt(product);
+        // Sanity: isqrt rounding — lp^2 <= product < (lp+1)^2
+        if lp.checked_mul(lp)? > product {
+            return Err(ContractError::InvariantViolation {
+                reason: format!("isqrt too large: {}^2 > {}", lp, product),
+            });
+        }
+        if let Ok(next_sq) = (lp + Uint128::one()).checked_mul(lp + Uint128::one()) {
+            if next_sq <= product {
+                return Err(ContractError::InvariantViolation {
+                    reason: format!("isqrt too small: {}^2 <= {}", lp + Uint128::one(), product),
+                });
+            }
+        }
+        lp
     } else {
-        let lp_a = amount_a
-            .checked_mul(total_supply)?
-            .checked_div(reserve_a)?;
-        let lp_b = amount_b
-            .checked_mul(total_supply)?
-            .checked_div(reserve_b)?;
+        let numerator_a = amount_a.checked_mul(total_supply)?;
+        let lp_a = numerator_a.checked_div(reserve_a)?;
+        let numerator_b = amount_b.checked_mul(total_supply)?;
+        let lp_b = numerator_b.checked_div(reserve_b)?;
+
+        // Sanity: floor-division rounding loses < 1 LP token.
+        // numerator - lp * reserve must be < reserve.
+        let rem_a = numerator_a - lp_a.checked_mul(reserve_a)?;
+        if rem_a >= reserve_a {
+            return Err(ContractError::InvariantViolation {
+                reason: format!("LP-A floor rounding exceeds 1 token: rem={}", rem_a),
+            });
+        }
+        let rem_b = numerator_b - lp_b.checked_mul(reserve_b)?;
+        if rem_b >= reserve_b {
+            return Err(ContractError::InvariantViolation {
+                reason: format!("LP-B floor rounding exceeds 1 token: rem={}", rem_b),
+            });
+        }
+
         std::cmp::min(lp_a, lp_b)
     };
 
@@ -829,12 +899,25 @@ fn execute_withdraw_liquidity(
         return Err(ContractError::InsufficientLiquidity {});
     }
 
-    let amount_a = lp_amount
-        .checked_mul(reserve_a)?
-        .checked_div(total_supply)?;
-    let amount_b = lp_amount
-        .checked_mul(reserve_b)?
-        .checked_div(total_supply)?;
+    let numerator_a = lp_amount.checked_mul(reserve_a)?;
+    let amount_a = numerator_a.checked_div(total_supply)?;
+    let numerator_b = lp_amount.checked_mul(reserve_b)?;
+    let amount_b = numerator_b.checked_div(total_supply)?;
+
+    // Sanity: floor-division rounding loses < 1 token per asset.
+    // numerator - amount * total_supply must be < total_supply.
+    let rem_a = numerator_a - amount_a.checked_mul(total_supply)?;
+    if rem_a >= total_supply {
+        return Err(ContractError::InvariantViolation {
+            reason: format!("withdraw-A floor rounding exceeds 1 token: rem={}", rem_a),
+        });
+    }
+    let rem_b = numerator_b - amount_b.checked_mul(total_supply)?;
+    if rem_b >= total_supply {
+        return Err(ContractError::InvariantViolation {
+            reason: format!("withdraw-B floor rounding exceeds 1 token: rem={}", rem_b),
+        });
+    }
 
     let new_reserve_a = reserve_a.checked_sub(amount_a)?;
     let new_reserve_b = reserve_b.checked_sub(amount_b)?;
@@ -1095,7 +1178,7 @@ fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationRespo
     let offer_amount = offer_asset.amount;
     let k = input_reserve.checked_mul(output_reserve)?;
     let new_input_reserve = input_reserve.checked_add(offer_amount)?;
-    let new_output_reserve = k.checked_div(new_input_reserve)?;
+    let new_output_reserve = ceil_div(k, new_input_reserve);
     let gross_output = output_reserve.checked_sub(new_output_reserve)?;
 
     let commission_amount = gross_output
