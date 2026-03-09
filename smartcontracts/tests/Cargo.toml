@@ -19,3 +19,4 @@ cl8y-dex-lp-burn-hook = { path = "../contracts/hooks/lp-burn-hook", features = [
 cl8y-dex-fee-discount = { path = "../contracts/fee-discount", features = ["library"] }
 treasury = { workspace = true }
 serde = { workspace = true }
+proptest = "1"
