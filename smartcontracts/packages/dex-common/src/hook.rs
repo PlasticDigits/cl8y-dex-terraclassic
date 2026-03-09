@@ -14,3 +14,10 @@ pub enum HookExecuteMsg {
         spread_amount: Uint128,
     },
 }
+
+/// Wrapper used by the pair contract when calling hooks.
+/// Serializes identically to each hook's `ExecuteMsg::Hook(...)` variant.
+#[cw_serde]
+pub enum HookCallMsg {
+    Hook(HookExecuteMsg),
+}

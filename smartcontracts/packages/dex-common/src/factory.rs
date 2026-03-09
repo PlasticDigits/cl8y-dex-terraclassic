@@ -53,6 +53,14 @@ pub enum ExecuteMsg {
         pair: String,
         paused: bool,
     },
+    /// Recover tokens accidentally sent to a pair contract. Only governance
+    /// can call this. Sweeps the excess (actual balance minus pool reserves)
+    /// to `recipient`.
+    SweepPair {
+        pair: String,
+        token: String,
+        recipient: String,
+    },
 }
 
 #[cw_serde]

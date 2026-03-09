@@ -15,7 +15,7 @@ use crate::state::{
     PAIR_INFO, PAUSED, RESERVES, TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
-use dex_common::hook::HookExecuteMsg;
+use dex_common::hook::{HookCallMsg, HookExecuteMsg};
 use dex_common::oracle::{
     log2_ratio_q64, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
 };
@@ -371,6 +371,9 @@ pub fn execute(
             execute_set_discount_registry(deps, info, registry)
         }
         ExecuteMsg::SetPaused { paused } => execute_set_paused(deps, info, paused),
+        ExecuteMsg::Sweep { token, recipient } => {
+            execute_sweep(deps, env, info, token, recipient)
+        }
     }
 }
 
@@ -655,7 +658,7 @@ fn execute_swap(
     for hook in hooks {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: hook.to_string(),
-            msg: to_json_binary(&HookExecuteMsg::AfterSwap {
+            msg: to_json_binary(&HookCallMsg::Hook(HookExecuteMsg::AfterSwap {
                 pair: env.contract.address.clone(),
                 sender: sender.clone(),
                 offer_asset: Asset {
@@ -668,7 +671,7 @@ fn execute_swap(
                 },
                 commission_amount,
                 spread_amount,
-            })?,
+            }))?,
             funds: vec![],
         }));
     }
@@ -1093,6 +1096,69 @@ fn execute_set_paused(
     Ok(Response::new()
         .add_attribute("action", "set_paused")
         .add_attribute("paused", paused.to_string()))
+}
+
+fn execute_sweep(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    token: String,
+    recipient: String,
+) -> Result<Response, ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let token_addr = deps.api.addr_validate(&token)?;
+    let recipient_addr = deps.api.addr_validate(&recipient)?;
+
+    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
+    let reserve_for_token = if pair_info.asset_infos[0].equal(&AssetInfo::Token {
+        contract_addr: token_addr.to_string(),
+    }) {
+        reserve_a
+    } else if pair_info.asset_infos[1].equal(&AssetInfo::Token {
+        contract_addr: token_addr.to_string(),
+    }) {
+        reserve_b
+    } else {
+        Uint128::zero()
+    };
+
+    let actual_balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
+        token_addr.to_string(),
+        &cw20::Cw20QueryMsg::Balance {
+            address: env.contract.address.to_string(),
+        },
+    )?;
+
+    let excess = actual_balance
+        .balance
+        .checked_sub(reserve_for_token)
+        .unwrap_or(Uint128::zero());
+
+    if excess.is_zero() {
+        return Err(ContractError::NothingToSweep {
+            token: token_addr.to_string(),
+        });
+    }
+
+    let transfer_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: token_addr.to_string(),
+        msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+            recipient: recipient_addr.to_string(),
+            amount: excess,
+        })?,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_message(transfer_msg)
+        .add_attribute("action", "sweep")
+        .add_attribute("token", token_addr)
+        .add_attribute("recipient", recipient_addr)
+        .add_attribute("amount", excess))
 }
 
 // ---------------------------------------------------------------------------
