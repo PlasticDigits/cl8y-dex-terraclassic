@@ -3,12 +3,15 @@ use axum::http::StatusCode;
 use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, AppState};
+use super::{build_asset_map, internal_err, AppState};
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{candles, pairs as db_pairs, swap_events};
 
-#[derive(Serialize)]
+pub const VALID_INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
+
+#[derive(Serialize, ToSchema)]
 pub struct AssetBrief {
     pub symbol: String,
     pub contract_addr: Option<String>,
@@ -27,7 +30,7 @@ impl From<&AssetRow> for AssetBrief {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct PairResponse {
     pub pair_address: String,
     pub asset_0: AssetBrief,
@@ -37,15 +40,24 @@ pub struct PairResponse {
     pub is_active: bool,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs",
+    responses(
+        (status = 200, description = "List of all trading pairs", body = Vec<PairResponse>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
 pub async fn list_pairs(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PairResponse>>, (StatusCode, String)> {
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut result = Vec::with_capacity(all_pairs.len());
     for p in &all_pairs {
@@ -66,25 +78,38 @@ pub async fn list_pairs(
     Ok(Json(result))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+    ),
+    responses(
+        (status = 200, description = "Pair details", body = PairResponse),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
 pub async fn get_pair(
     State(state): State<AppState>,
     Path(addr): Path<String>,
 ) -> Result<Json<PairResponse>, (StatusCode, String)> {
     let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let a0 = asset_map
         .get(&pair.asset_0_id)
-        .ok_or_else(|| (StatusCode::INTERNAL_SERVER_ERROR, "Asset 0 not found".to_string()))?;
+        .ok_or_else(|| internal_err("Asset 0 not found"))?;
     let a1 = asset_map
         .get(&pair.asset_1_id)
-        .ok_or_else(|| (StatusCode::INTERNAL_SERVER_ERROR, "Asset 1 not found".to_string()))?;
+        .ok_or_else(|| internal_err("Asset 1 not found"))?;
 
     Ok(Json(PairResponse {
         pair_address: pair.contract_address,
@@ -96,15 +121,19 @@ pub async fn get_pair(
     }))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct CandleQuery {
+    /// Candle interval: 1m, 5m, 15m, 1h, 4h, 1d, 1w
     pub interval: Option<String>,
+    /// Start time (RFC 3339)
     pub from: Option<String>,
+    /// End time (RFC 3339)
     pub to: Option<String>,
+    /// Max results (capped at 1000)
     pub limit: Option<i64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CandleResponse {
     pub open_time: String,
     pub open: String,
@@ -116,6 +145,21 @@ pub struct CandleResponse {
     pub trade_count: i32,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/candles",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        CandleQuery,
+    ),
+    responses(
+        (status = 200, description = "OHLCV candle data", body = Vec<CandleResponse>),
+        (status = 400, description = "Invalid interval"),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
 pub async fn get_pair_candles(
     State(state): State<AppState>,
     Path(addr): Path<String>,
@@ -123,10 +167,17 @@ pub async fn get_pair_candles(
 ) -> Result<Json<Vec<CandleResponse>>, (StatusCode, String)> {
     let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
     let interval = q.interval.unwrap_or_else(|| "1h".to_string());
+    if !VALID_INTERVALS.contains(&interval.as_str()) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("Invalid interval '{}'. Valid: {}", interval, VALID_INTERVALS.join(", ")),
+        ));
+    }
+
     let now = Utc::now();
     let from = q
         .from
@@ -140,7 +191,7 @@ pub async fn get_pair_candles(
 
     let rows = candles::get_candles(&state.pool, pair.id, &interval, from, to, limit)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let result: Vec<CandleResponse> = rows
         .iter()
@@ -159,13 +210,15 @@ pub async fn get_pair_candles(
     Ok(Json(result))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct TradesQuery {
+    /// Max results (capped at 200)
     pub limit: Option<i64>,
+    /// Cursor: return trades with id < before
     pub before: Option<i64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct TradeResponse {
     pub id: i64,
     pub pair_address: String,
@@ -180,6 +233,20 @@ pub struct TradeResponse {
     pub price: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/trades",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        TradesQuery,
+    ),
+    responses(
+        (status = 200, description = "Recent trades for pair", body = Vec<TradeResponse>),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
 pub async fn get_pair_trades(
     State(state): State<AppState>,
     Path(addr): Path<String>,
@@ -187,17 +254,17 @@ pub async fn get_pair_trades(
 ) -> Result<Json<Vec<TradeResponse>>, (StatusCode, String)> {
     let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
     let limit = q.limit.unwrap_or(50).min(200);
     let trades = swap_events::get_trades_for_pair(&state.pool, pair.id, limit, q.before)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let result: Vec<TradeResponse> = trades
         .iter()
@@ -229,7 +296,7 @@ pub async fn get_pair_trades(
     Ok(Json(result))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct PairStatsResponse {
     pub volume_base: String,
     pub volume_quote: String,
@@ -241,18 +308,31 @@ pub struct PairStatsResponse {
     pub price_change_pct: Option<f64>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/stats",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+    ),
+    responses(
+        (status = 200, description = "24h statistics for pair", body = PairStatsResponse),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
 pub async fn get_pair_stats(
     State(state): State<AppState>,
     Path(addr): Path<String>,
 ) -> Result<Json<PairStatsResponse>, (StatusCode, String)> {
     let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
     let stats = swap_events::get_24h_stats_for_pair(&state.pool, pair.id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     Ok(Json(PairStatsResponse {
         volume_base: stats.volume_base.to_string(),

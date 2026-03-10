@@ -4,11 +4,20 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, AppState};
+use super::{build_asset_map, internal_err, AppState};
 use crate::db::queries::{pairs as db_pairs, swap_events, traders as db_traders};
 
-#[derive(Serialize)]
+pub const VALID_SORTS: &[&str] = &[
+    "total_volume",
+    "volume_24h",
+    "volume_7d",
+    "volume_30d",
+    "total_trades",
+];
+
+#[derive(Serialize, ToSchema)]
 pub struct TraderResponse {
     pub address: String,
     pub total_trades: i64,
@@ -41,24 +50,52 @@ impl From<&db_traders::TraderRow> for TraderResponse {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/traders/{addr}",
+    params(
+        ("addr" = String, Path, description = "Trader wallet address"),
+    ),
+    responses(
+        (status = 200, description = "Trader profile", body = TraderResponse),
+        (status = 404, description = "Trader not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Traders"
+)]
 pub async fn get_trader_profile(
     State(state): State<AppState>,
     Path(addr): Path<String>,
 ) -> Result<Json<TraderResponse>, (StatusCode, String)> {
     let trader = db_traders::get_trader(&state.pool, &addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Trader not found".to_string()))?;
 
     Ok(Json(TraderResponse::from(&trader)))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct TraderTradesQuery {
+    /// Max results (capped at 200)
     pub limit: Option<i64>,
+    /// Cursor: return trades with id < before
     pub before: Option<i64>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/traders/{addr}/trades",
+    params(
+        ("addr" = String, Path, description = "Trader wallet address"),
+        TraderTradesQuery,
+    ),
+    responses(
+        (status = 200, description = "Trader's trade history", body = Vec<super::pairs::TradeResponse>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Traders"
+)]
 pub async fn get_trader_trades(
     State(state): State<AppState>,
     Path(addr): Path<String>,
@@ -67,15 +104,15 @@ pub async fn get_trader_trades(
     let limit = q.limit.unwrap_or(50).min(200);
     let trades = swap_events::get_trades_for_trader(&state.pool, &addr, limit, q.before)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
     let pair_map: HashMap<i32, String> = all_pairs
         .into_iter()
         .map(|p| (p.id, p.contract_address))
@@ -112,22 +149,48 @@ pub async fn get_trader_trades(
     Ok(Json(result))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct LeaderboardQuery {
+    /// Sort column: total_volume, volume_24h, volume_7d, volume_30d, total_trades
     pub sort: Option<String>,
+    /// Max results (capped at 200)
     pub limit: Option<i64>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/traders/leaderboard",
+    params(LeaderboardQuery),
+    responses(
+        (status = 200, description = "Trader leaderboard", body = Vec<TraderResponse>),
+        (status = 400, description = "Invalid sort column"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Traders"
+)]
 pub async fn leaderboard(
     State(state): State<AppState>,
     Query(q): Query<LeaderboardQuery>,
 ) -> Result<Json<Vec<TraderResponse>>, (StatusCode, String)> {
+    if let Some(ref s) = q.sort {
+        if !VALID_SORTS.contains(&s.as_str()) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "Invalid sort '{}'. Valid: {}",
+                    s,
+                    VALID_SORTS.join(", ")
+                ),
+            ));
+        }
+    }
+
     let sort_by = q.sort.unwrap_or_else(|| "total_volume".to_string());
     let limit = q.limit.unwrap_or(50).min(200);
 
     let rows = db_traders::get_leaderboard(&state.pool, &sort_by, limit)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     Ok(Json(rows.iter().map(TraderResponse::from).collect()))
 }

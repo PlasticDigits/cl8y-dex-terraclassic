@@ -95,7 +95,12 @@ pub async fn rebuild_candles_from_swaps(
         "4h" => "4 hours",
         "1d" => "1 day",
         "1w" => "1 week",
-        other => other,
+        _ => {
+            return Err(sqlx::Error::Protocol(format!(
+                "Invalid candle interval: {}",
+                interval
+            )))
+        }
     };
 
     let sql = format!(

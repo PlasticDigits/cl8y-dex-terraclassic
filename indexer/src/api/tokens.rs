@@ -2,11 +2,12 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::Serialize;
+use utoipa::ToSchema;
 
-use super::{build_asset_map, AppState};
+use super::{build_asset_map, internal_err, AppState};
 use crate::db::queries::{assets, pairs as db_pairs, volume};
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct TokenResponse {
     pub id: i32,
     pub contract_address: Option<String>,
@@ -37,29 +38,51 @@ impl From<&assets::AssetRow> for TokenResponse {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/tokens",
+    responses(
+        (status = 200, description = "List of all tokens", body = Vec<TokenResponse>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Tokens"
+)]
 pub async fn list_tokens(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<TokenResponse>>, (StatusCode, String)> {
     let all = assets::get_all_assets(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     Ok(Json(all.iter().map(TokenResponse::from).collect()))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct TokenDetailResponse {
     pub token: TokenResponse,
     pub volume_stats: Vec<VolumeStatResponse>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct VolumeStatResponse {
     pub window: String,
     pub volume: String,
     pub trade_count: i64,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/tokens/{addr}",
+    params(
+        ("addr" = String, Path, description = "Token contract address or native denom"),
+    ),
+    responses(
+        (status = 200, description = "Token details with volume stats", body = TokenDetailResponse),
+        (status = 404, description = "Token not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Tokens"
+)]
 pub async fn get_token(
     State(state): State<AppState>,
     Path(addr): Path<String>,
@@ -68,7 +91,7 @@ pub async fn get_token(
 
     let vol_rows = volume::get_token_volume(&state.pool, asset.id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let volume_stats = vol_rows
         .iter()
@@ -85,6 +108,19 @@ pub async fn get_token(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/tokens/{addr}/pairs",
+    params(
+        ("addr" = String, Path, description = "Token contract address or native denom"),
+    ),
+    responses(
+        (status = 200, description = "Pairs containing this token", body = Vec<super::pairs::PairResponse>),
+        (status = 404, description = "Token not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Tokens"
+)]
 pub async fn get_token_pairs(
     State(state): State<AppState>,
     Path(addr): Path<String>,
@@ -93,11 +129,11 @@ pub async fn get_token_pairs(
 
     let pair_rows = db_pairs::get_pairs_for_asset(&state.pool, asset.id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut result = Vec::new();
     for p in &pair_rows {
@@ -124,13 +160,13 @@ async fn find_asset(
 ) -> Result<assets::AssetRow, (StatusCode, String)> {
     if let Some(a) = assets::get_asset_by_contract(&state.pool, addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
     {
         return Ok(a);
     }
     if let Some(a) = assets::get_asset_by_denom(&state.pool, addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
     {
         return Ok(a);
     }
