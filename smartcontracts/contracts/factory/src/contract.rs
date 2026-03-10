@@ -108,6 +108,8 @@ pub fn execute(
     }
 }
 
+/// Verify that the caller is the governance address. All admin operations
+/// in the factory are gated behind this check.
 fn ensure_governance(deps: &DepsMut, info: &MessageInfo) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if info.sender != config.governance {
@@ -116,6 +118,10 @@ fn ensure_governance(deps: &DepsMut, info: &MessageInfo) -> Result<(), ContractE
     Ok(())
 }
 
+/// Instantiate a new Pair contract for the given CW20 token pair.
+/// Both tokens must be CW20 (native rejected), both must have whitelisted
+/// code IDs, and the pair must not already exist. The pair contract address
+/// is captured in the `reply` handler after instantiation succeeds.
 fn execute_create_pair(
     deps: DepsMut,
     env: Env,
@@ -184,6 +190,7 @@ fn execute_create_pair(
         .add_attribute("pair", format!("{}-{}", asset_infos[0], asset_infos[1])))
 }
 
+/// Add a CW20 code ID to the whitelist. Governance only.
 fn execute_add_whitelisted_code_id(
     deps: DepsMut,
     info: MessageInfo,
@@ -196,6 +203,7 @@ fn execute_add_whitelisted_code_id(
         .add_attribute("code_id", code_id.to_string()))
 }
 
+/// Remove a CW20 code ID from the whitelist. Governance only.
 fn execute_remove_whitelisted_code_id(
     deps: DepsMut,
     info: MessageInfo,
@@ -208,6 +216,9 @@ fn execute_remove_whitelisted_code_id(
         .add_attribute("code_id", code_id.to_string()))
 }
 
+/// Verify that a pair contract address exists in the factory's registry.
+/// Linear scan over `PAIR_INDEX` — acceptable for governance operations
+/// which are infrequent, but would need indexing for high pair counts.
 fn assert_pair_in_registry(deps: &DepsMut, pair_addr: &cosmwasm_std::Addr) -> Result<(), ContractError> {
     let count = PAIR_COUNT.load(deps.storage)?;
     for idx in 0..count {
@@ -222,6 +233,8 @@ fn assert_pair_in_registry(deps: &DepsMut, pair_addr: &cosmwasm_std::Addr) -> Re
     })
 }
 
+/// Update the swap fee on a specific pair. Governance only.
+/// Delegates to the pair's `UpdateFee` execute message.
 fn execute_set_pair_fee(
     deps: DepsMut,
     info: MessageInfo,
@@ -250,6 +263,8 @@ fn execute_set_pair_fee(
         .add_attribute("fee_bps", fee_bps.to_string()))
 }
 
+/// Register post-swap hooks on a specific pair. Governance only.
+/// Hooks are called after every swap — only register trusted contracts.
 fn execute_set_pair_hooks(
     deps: DepsMut,
     info: MessageInfo,
@@ -275,6 +290,7 @@ fn execute_set_pair_hooks(
         .add_attribute("pair", pair_addr))
 }
 
+/// Set or clear the fee discount registry on a single pair. Governance only.
 fn execute_set_discount_registry(
     deps: DepsMut,
     info: MessageInfo,
@@ -303,6 +319,9 @@ fn execute_set_discount_registry(
         .add_attribute("registry", registry_str))
 }
 
+/// Set or clear the fee discount registry on ALL registered pairs.
+/// Governance only. Iterates over `PAIR_INDEX` and sends a
+/// `SetDiscountRegistry` message to each pair.
 fn execute_set_discount_registry_all(
     deps: DepsMut,
     info: MessageInfo,
@@ -334,6 +353,7 @@ fn execute_set_discount_registry_all(
         .add_attribute("pairs_updated", count.to_string()))
 }
 
+/// Emergency pause/unpause a specific pair. Governance only.
 fn execute_set_pair_paused(
     deps: DepsMut,
     info: MessageInfo,
@@ -358,6 +378,8 @@ fn execute_set_pair_paused(
         .add_attribute("paused", paused.to_string()))
 }
 
+/// Recover excess tokens from a pair (donations, accidental transfers).
+/// Governance only. Delegates to the pair's `Sweep` execute message.
 fn execute_sweep_pair(
     deps: DepsMut,
     info: MessageInfo,
@@ -387,6 +409,8 @@ fn execute_sweep_pair(
         .add_attribute("recipient", recipient))
 }
 
+/// Update factory configuration (governance address, treasury, default fee).
+/// Governance only. Fee must be ≤ 10000 bps.
 fn execute_update_config(
     deps: DepsMut,
     info: MessageInfo,
@@ -531,6 +555,9 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
     }
 }
 
+/// Handle the reply from a successful Pair contract instantiation.
+/// Queries the new pair for its `PairInfo`, stores it in `PAIRS` and
+/// `PAIR_INDEX`, and increments `PAIR_COUNT`.
 fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, ContractError> {
     let contract_addr = parse_reply_contract_address(msg)?;
     let pair_addr = deps.api.addr_validate(&contract_addr)?;
@@ -558,6 +585,7 @@ fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, Contrac
         .add_attribute("pair_index", count.to_string()))
 }
 
+/// Extract the contract address from a SubMsg reply's protobuf-encoded data.
 fn parse_reply_contract_address(msg: Reply) -> StdResult<String> {
     let response = msg.result.into_result().map_err(StdError::generic_err)?;
     let data = response
@@ -566,6 +594,9 @@ fn parse_reply_contract_address(msg: Reply) -> StdResult<String> {
     parse_protobuf_contract_address(data.as_slice())
 }
 
+/// Decode a protobuf string field (field 1) containing the contract address.
+/// Used instead of `cw_utils::parse_reply_instantiate_data` for compatibility
+/// with Terra Classic's response format.
 fn parse_protobuf_contract_address(bytes: &[u8]) -> StdResult<String> {
     if bytes.len() < 2 || bytes[0] != 0x0a {
         return Err(StdError::generic_err(

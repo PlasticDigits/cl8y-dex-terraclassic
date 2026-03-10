@@ -3,12 +3,19 @@ use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
 use dex_common::types::{AssetInfo, PairInfo};
 
+/// Factory-level configuration stored once on instantiation and updatable
+/// by governance.
 #[cw_serde]
 pub struct Config {
+    /// Address that controls all admin operations.
     pub governance: Addr,
+    /// Address that receives swap commissions from all pairs.
     pub treasury: Addr,
+    /// Default swap fee (bps) assigned to new pairs.
     pub default_fee_bps: u16,
+    /// Code ID used to instantiate new Pair contracts.
     pub pair_code_id: u64,
+    /// Code ID used by Pair contracts to instantiate LP tokens.
     pub lp_token_code_id: u64,
 }
 

@@ -56,4 +56,11 @@ pub enum ContractError {
 
     #[error("Nothing to sweep: contract balance equals internal reserves for {token}")]
     NothingToSweep { token: String },
+
+    #[error("Withdraw slippage exceeded: asset {asset} returned {actual} but minimum is {min}")]
+    WithdrawSlippageExceeded {
+        asset: String,
+        actual: String,
+        min: String,
+    },
 }

@@ -1,3 +1,20 @@
+//! # CL8Y DEX Factory
+//!
+//! Registry and governance hub for all CL8Y DEX pairs. The factory:
+//!
+//! - Instantiates new Pair contracts (with LP tokens) via `CreatePair`.
+//! - Maintains a whitelist of allowed CW20 code IDs to prevent malicious
+//!   token contracts from being used in pairs.
+//! - Provides governance-gated admin operations: fee updates, hook
+//!   registration, discount registry configuration, pause, and sweep.
+//! - Stores a sequential pair index for paginated enumeration.
+//!
+//! ## Auth model
+//!
+//! All admin operations require `info.sender == config.governance`.
+//! `CreatePair` is permissionless but validates both tokens against the
+//! code ID whitelist.
+
 pub mod contract;
 pub mod error;
 pub mod msg;

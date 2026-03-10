@@ -24,8 +24,16 @@ use dex_common::types::{Asset, AssetInfo, FeeConfig};
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
 const CONTRACT_VERSION: &str = "1.2.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
+/// First 1000 LP tokens are permanently burned on the initial deposit
+/// to prevent share-inflation griefing attacks where an attacker donates
+/// tokens to make subsequent depositors receive 0 LP shares.
 const MINIMUM_LIQUIDITY: u128 = 1_000;
 
+/// Integer square root via Newton's method. Returns floor(√n).
+///
+/// Used to compute initial LP token supply as `sqrt(amount_a * amount_b)`,
+/// following the Uniswap V2 approach. The caller validates correctness
+/// with two-sided bounds: `result² ≤ n < (result+1)²`.
 fn isqrt(n: Uint128) -> Uint128 {
     if n.is_zero() {
         return Uint128::zero();
@@ -50,6 +58,8 @@ fn ceil_div(numerator: Uint128, denominator: Uint128) -> Uint128 {
     }
 }
 
+/// Extract the CW20 contract address from an `AssetInfo`. Panics on
+/// native tokens — the caller must validate inputs before reaching here.
 fn token_addr(info: &AssetInfo) -> &str {
     match info {
         AssetInfo::Token { contract_addr } => contract_addr.as_str(),
@@ -57,6 +67,9 @@ fn token_addr(info: &AssetInfo) -> &str {
     }
 }
 
+/// Revert if the current block time exceeds the user-supplied deadline.
+/// Protects against transaction delays that could result in execution at
+/// stale prices (e.g., pending mempool transactions or delayed blocks).
 fn assert_deadline(env: &Env, deadline: Option<u64>) -> Result<(), ContractError> {
     if let Some(dl) = deadline {
         let current = env.block.time.seconds();
@@ -70,6 +83,9 @@ fn assert_deadline(env: &Env, deadline: Option<u64>) -> Result<(), ContractError
     Ok(())
 }
 
+/// Gate for pause-protected operations. When paused, all swaps, liquidity
+/// provision, and withdrawals are blocked. Only the factory (via governance)
+/// can pause/unpause.
 fn assert_not_paused(storage: &dyn cosmwasm_std::Storage) -> Result<(), ContractError> {
     if PAUSED.may_load(storage)?.unwrap_or(false) {
         return Err(ContractError::Paused {});
@@ -407,12 +423,17 @@ fn execute_receive(
                 trader,
             )
         }
-        Cw20HookMsg::WithdrawLiquidity {} => {
-            execute_withdraw_liquidity(deps, env, info, token_sender, cw20_msg.amount)
+        Cw20HookMsg::WithdrawLiquidity { min_assets } => {
+            execute_withdraw_liquidity(deps, env, info, token_sender, cw20_msg.amount, min_assets)
         }
     }
 }
 
+/// Validate that the swap's effective spread does not exceed the user's
+/// tolerance. When `belief_price` is provided, spread is computed against
+/// the expected return at that price; otherwise it is computed from the
+/// constant-product spread relative to the gross output. Defaults to 1%
+/// if `max_spread` is not specified.
 fn assert_max_spread(
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
@@ -456,6 +477,16 @@ fn assert_max_spread(
     Ok(())
 }
 
+/// Execute a constant-product swap.
+///
+/// 1. Record a TWAP observation **before** reserves change (manipulation-resistant).
+/// 2. Compute output via `new_output = ceil_div(k, new_input)` — pool-favorable rounding.
+/// 3. Validate the k-invariant: `new_k >= k` with bounded rounding slack.
+/// 4. Look up trader fee discount from the registry (if configured).
+/// 5. Deduct commission (fee), send it to the treasury.
+/// 6. Assert spread/slippage against user tolerance.
+/// 7. Transfer the net return to the receiver.
+/// 8. Fire post-swap hooks (burn, tax, etc.).
 #[allow(clippy::too_many_arguments)]
 fn execute_swap(
     deps: DepsMut,
@@ -691,6 +722,17 @@ fn execute_swap(
         .add_attribute("effective_fee_bps", effective_fee_bps.to_string()))
 }
 
+/// Deposit both tokens proportionally and mint LP tokens to the provider.
+///
+/// **First deposit:** LP = `sqrt(amount_a × amount_b)` with `MINIMUM_LIQUIDITY`
+/// permanently burned to prevent share-inflation griefing.
+///
+/// **Subsequent deposits:** LP = `min(a × supply / reserve_a, b × supply / reserve_b)`.
+/// The smaller ratio is used, so excess tokens beyond the current pool ratio
+/// effectively donate value to existing LPs (incentivizing balanced deposits).
+///
+/// `slippage_tolerance` protects against pool ratio changes between the
+/// user's quote and execution.
 fn execute_provide_liquidity(
     deps: DepsMut,
     env: Env,
@@ -870,12 +912,24 @@ fn execute_provide_liquidity(
         .add_attribute("minimum_liquidity_burned", lp_to_burn))
 }
 
+/// Burn LP tokens and return underlying assets pro-rata.
+///
+/// `amount_x = lp_amount × reserve_x / total_supply` (floor division).
+/// The fractional remainder stays in the pool, slightly benefiting
+/// remaining LPs.
+///
+/// `min_assets` (optional) protects against sandwich attacks: if an
+/// attacker front-runs the withdrawal with a large swap to skew reserves,
+/// the returned amounts will fall below the minimums and the tx reverts.
+///
+/// Auth: only callable via CW20 Send from the pair's LP token contract.
 fn execute_withdraw_liquidity(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     sender: Addr,
     lp_amount: Uint128,
+    min_assets: Option<[Uint128; 2]>,
 ) -> Result<Response, ContractError> {
     let pair_info = PAIR_INFO.load(deps.storage)?;
 
@@ -920,6 +974,23 @@ fn execute_withdraw_liquidity(
         return Err(ContractError::InvariantViolation {
             reason: format!("withdraw-B floor rounding exceeds 1 token: rem={}", rem_b),
         });
+    }
+
+    if let Some([min_a, min_b]) = min_assets {
+        if amount_a < min_a {
+            return Err(ContractError::WithdrawSlippageExceeded {
+                asset: pair_info.asset_infos[0].to_string(),
+                actual: amount_a.to_string(),
+                min: min_a.to_string(),
+            });
+        }
+        if amount_b < min_b {
+            return Err(ContractError::WithdrawSlippageExceeded {
+                asset: pair_info.asset_infos[1].to_string(),
+                actual: amount_b.to_string(),
+                min: min_b.to_string(),
+            });
+        }
     }
 
     let new_reserve_a = reserve_a.checked_sub(amount_a)?;
@@ -978,6 +1049,8 @@ fn execute_withdraw_liquidity(
         ))
 }
 
+/// Update the swap fee rate. Factory (governance) only.
+/// `fee_bps` is in basis points (0–10000, where 10000 = 100%).
 fn execute_update_fee(
     deps: DepsMut,
     info: MessageInfo,
@@ -1004,6 +1077,10 @@ fn execute_update_fee(
         .add_attribute("fee_bps", fee_bps.to_string()))
 }
 
+/// Replace the list of post-swap hook contracts. Factory (governance) only.
+/// Hooks are called after every successful swap with the swap details.
+/// A reverting hook will block the entire swap — only register trusted,
+/// audited hook contracts.
 fn execute_update_hooks(
     deps: DepsMut,
     info: MessageInfo,
@@ -1026,6 +1103,9 @@ fn execute_update_hooks(
         .add_attribute("hooks_count", validated_hooks.len().to_string()))
 }
 
+/// Grow the TWAP oracle ring buffer. Permissionless (caller pays gas).
+/// Larger cardinality supports longer TWAP windows. Bounded by
+/// `MAX_OBSERVATION_CARDINALITY` (65 000 slots ≈ 109 hours at 6s blocks).
 fn execute_increase_observation_cardinality(
     deps: DepsMut,
     new_cardinality: u16,
@@ -1054,6 +1134,9 @@ fn execute_increase_observation_cardinality(
         .add_attribute("new_cardinality", new_cardinality.to_string()))
 }
 
+/// Set or clear the fee discount registry contract. Factory (governance) only.
+/// When set, swaps query this registry for trader-specific fee discounts.
+/// If the registry query fails, the pair silently falls back to the full fee.
 fn execute_set_discount_registry(
     deps: DepsMut,
     info: MessageInfo,
@@ -1081,6 +1164,10 @@ fn execute_set_discount_registry(
         .add_attribute("registry", registry_str))
 }
 
+/// Emergency pause/unpause. Factory (governance) only.
+/// When paused, all CW20 Receive messages (swaps and withdrawals) and
+/// ProvideLiquidity are blocked. Admin-only operations (fee updates,
+/// hooks, sweep) remain available.
 fn execute_set_paused(
     deps: DepsMut,
     info: MessageInfo,
@@ -1098,6 +1185,10 @@ fn execute_set_paused(
         .add_attribute("paused", paused.to_string()))
 }
 
+/// Recover tokens that exceed tracked reserves (donations or accidental
+/// transfers). Factory (governance) only. Sends the excess
+/// (`actual_balance - internal_reserves`) to `recipient`. Does NOT modify
+/// internal reserves — pool pricing is unaffected.
 fn execute_sweep(
     deps: DepsMut,
     env: Env,
@@ -1414,6 +1505,9 @@ fn query_oracle_info(deps: Deps) -> Result<OracleInfoResponse, ContractError> {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/// Match user-supplied assets to the pair's canonical ordering.
+/// Returns `(amount_a, amount_b)` regardless of the order the caller
+/// provided them in.
 fn match_asset_amounts(
     pair_asset_infos: &[AssetInfo; 2],
     provided: &[Asset; 2],

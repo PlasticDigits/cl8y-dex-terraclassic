@@ -71,6 +71,7 @@ pub fn execute(
     }
 }
 
+/// Reject callers that are not registered as allowed pairs.
 fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractError> {
     if !ALLOWED_PAIRS
         .may_load(deps.storage, info.sender.as_str())?
@@ -83,6 +84,9 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
     Ok(())
 }
 
+/// Burn a percentage of the output token from this contract's balance.
+/// Skips gracefully if the output token doesn't match `burn_token`,
+/// the calculated amount is zero, or the balance is insufficient.
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
@@ -137,6 +141,7 @@ fn execute_after_swap(
         .add_attribute("burn_amount", burn_amount))
 }
 
+/// Update burn hook configuration. Admin only.
 fn execute_update_config(
     deps: DepsMut,
     info: MessageInfo,
@@ -167,6 +172,7 @@ fn execute_update_config(
         .add_attribute("burn_percentage_bps", config.burn_percentage_bps.to_string()))
 }
 
+/// Add or remove pair contracts from the allowed callers list. Admin only.
 fn execute_update_allowed_pairs(
     deps: DepsMut,
     info: MessageInfo,

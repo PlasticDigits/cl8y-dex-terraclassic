@@ -53,6 +53,7 @@ pub fn execute(
     }
 }
 
+/// Revert if the current block time exceeds the user-supplied deadline.
 fn assert_deadline(env: &Env, deadline: Option<u64>) -> Result<(), ContractError> {
     if let Some(dl) = deadline {
         let current = env.block.time.seconds();
@@ -66,6 +67,8 @@ fn assert_deadline(env: &Env, deadline: Option<u64>) -> Result<(), ContractError
     Ok(())
 }
 
+/// Handle CW20 Receive — the entry point for all router swaps.
+/// Parses the hook message and delegates to `execute_swap_operations`.
 fn execute_receive(
     deps: DepsMut,
     env: Env,
@@ -99,6 +102,13 @@ fn execute_receive(
     }
 }
 
+/// Initiate a multi-hop swap chain.
+///
+/// 1. Validate operations are non-empty and no swap is already in progress.
+/// 2. Resolve the first pair via factory query.
+/// 3. Store `SwapState` (sender, recipient, remaining ops, minimum_receive).
+/// 4. Send input tokens to the first pair via CW20 Send with SubMsg reply.
+/// 5. Each hop is handled in `reply_swap_hop`.
 #[allow(clippy::too_many_arguments)]
 fn execute_swap_operations(
     deps: DepsMut,
@@ -172,6 +182,8 @@ fn execute_swap_operations(
         .add_attribute("recipient", recipient))
 }
 
+/// Look up the pair contract address for a single swap operation by
+/// querying the factory. Returns the pair address and the ask asset info.
 fn resolve_operation(
     deps: Deps,
     factory: &cosmwasm_std::Addr,
@@ -217,6 +229,13 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     }
 }
 
+/// Handle the completion of each swap hop.
+///
+/// If operations remain: query router's balance of the intermediate token,
+/// resolve the next pair, and chain another SubMsg swap.
+///
+/// If this was the final hop: assert `minimum_receive`, transfer output
+/// to the recipient, and clear `SWAP_STATE`.
 fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut state = SWAP_STATE.load(deps.storage)?;
 
