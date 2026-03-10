@@ -1,0 +1,171 @@
+use std::collections::HashMap;
+
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
+use sqlx::PgPool;
+
+use crate::config::Config;
+use crate::db::queries::{pairs, swap_events};
+use crate::lcd::{LcdClient, TxResponse};
+
+use super::{asset_resolver, candle_builder, pair_discovery, trader_tracker};
+
+type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+#[derive(Debug, Clone)]
+struct ParsedSwap {
+    pair_address: String,
+    sender: String,
+    receiver: Option<String>,
+    offer_asset: String,
+    ask_asset: String,
+    offer_amount: BigDecimal,
+    return_amount: BigDecimal,
+    spread_amount: Option<BigDecimal>,
+    commission_amount: Option<BigDecimal>,
+}
+
+pub async fn process_block_txs(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    _config: &Config,
+    txs: &[TxResponse],
+    height: i64,
+    block_time: DateTime<Utc>,
+) -> Result<(), BoxError> {
+    for tx in txs {
+        let swaps = parse_swaps(tx);
+        for swap in &swaps {
+            if let Err(e) = process_swap(pool, lcd, swap, height, block_time, &tx.txhash).await {
+                tracing::warn!(
+                    "Failed to process swap in tx {} for pair {}: {}",
+                    tx.txhash,
+                    swap.pair_address,
+                    e
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn process_swap(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    swap: &ParsedSwap,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+) -> Result<(), BoxError> {
+    let pair = match pairs::get_pair_by_address(pool, &swap.pair_address).await? {
+        Some(p) => p,
+        None => {
+            match pair_discovery::discover_new_pair(pool, lcd, &swap.pair_address).await {
+                Ok(p) => p,
+                Err(e) => {
+                    tracing::warn!("Could not discover pair {}: {}", swap.pair_address, e);
+                    return Ok(());
+                }
+            }
+        }
+    };
+
+    if swap_events::trade_exists(pool, tx_hash, pair.id).await? {
+        return Ok(());
+    }
+
+    let offer_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.offer_asset).await?;
+    let ask_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.ask_asset).await?;
+
+    let price = if swap.offer_amount > BigDecimal::from(0) {
+        &swap.return_amount / &swap.offer_amount
+    } else {
+        BigDecimal::from(0)
+    };
+
+    swap_events::insert_swap(
+        pool,
+        pair.id,
+        height,
+        block_time,
+        tx_hash,
+        &swap.sender,
+        swap.receiver.as_deref(),
+        offer_asset_id,
+        ask_asset_id,
+        &swap.offer_amount,
+        &swap.return_amount,
+        swap.spread_amount.as_ref(),
+        swap.commission_amount.as_ref(),
+        None,
+        &price,
+    )
+    .await?;
+
+    candle_builder::update_candles_for_swap(
+        pool,
+        pair.id,
+        block_time,
+        &price,
+        &swap.offer_amount,
+        &swap.return_amount,
+    )
+    .await?;
+
+    trader_tracker::update_trader_on_swap(pool, &swap.sender, &swap.offer_amount).await?;
+
+    Ok(())
+}
+
+fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
+    let mut swaps = Vec::new();
+
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+
+        let attrs: HashMap<&str, &str> = event
+            .attributes
+            .iter()
+            .map(|a| (a.key.as_str(), a.value.as_str()))
+            .collect();
+
+        if attrs.get("action").copied() != Some("swap") {
+            continue;
+        }
+
+        let contract = attrs
+            .get("_contract_address")
+            .or(attrs.get("contract_address"));
+        let sender = attrs.get("sender");
+        let offer_amount = attrs.get("offer_amount");
+        let return_amount = attrs.get("return_amount");
+
+        if let (Some(contract), Some(sender), Some(offer), Some(ret)) =
+            (contract, sender, offer_amount, return_amount)
+        {
+            swaps.push(ParsedSwap {
+                pair_address: contract.to_string(),
+                sender: sender.to_string(),
+                receiver: attrs.get("receiver").map(|s| s.to_string()),
+                offer_asset: attrs.get("offer_asset").unwrap_or(&"").to_string(),
+                ask_asset: attrs.get("ask_asset").unwrap_or(&"").to_string(),
+                offer_amount: offer.parse().unwrap_or_default(),
+                return_amount: ret.parse().unwrap_or_default(),
+                spread_amount: attrs.get("spread_amount").and_then(|s| s.parse().ok()),
+                commission_amount: attrs.get("commission_amount").and_then(|s| s.parse().ok()),
+            });
+        }
+    }
+
+    swaps
+}

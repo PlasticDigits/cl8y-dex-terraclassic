@@ -77,3 +77,98 @@ export interface RegistrationResponse {
   tier_id: number | null
   tier: Tier | null
 }
+
+/** TWAP Oracle observe response */
+export interface ObserveResponse {
+  tick_cumulatives: string[]
+}
+
+/** TWAP Oracle info response */
+export interface OracleInfoResponse {
+  observation_cardinality: number
+  observation_index: number
+  oldest_observation_timestamp: number
+  newest_observation_timestamp: number
+}
+
+/** Factory config response */
+export interface FactoryConfigResponse {
+  governance: string
+  treasury: string
+  default_fee_bps: number
+  pair_code_id: number
+  lp_token_code_id: number
+}
+
+/** Hooks response from pair contract */
+export interface HooksResponse {
+  hooks: string[]
+}
+
+/** Tiers response from fee-discount contract */
+export interface TiersResponse {
+  tiers: TierEntry[]
+}
+
+/** Indexer API types */
+export interface IndexerPair {
+  contract_address: string
+  asset_0: { symbol: string; contract_addr: string; decimals: number }
+  asset_1: { symbol: string; contract_addr: string; decimals: number }
+  lp_token: string | null
+  fee_bps: number | null
+  is_active: boolean
+}
+
+export interface IndexerCandle {
+  open_time: string
+  open_price: string
+  high_price: string
+  low_price: string
+  close_price: string
+  volume_base: string
+  volume_quote: string
+  trade_count: number
+}
+
+export interface IndexerTrade {
+  id: number
+  pair_id: number
+  block_timestamp: string
+  tx_hash: string
+  sender: string
+  offer_asset_symbol: string
+  ask_asset_symbol: string
+  offer_amount: string
+  return_amount: string
+  price: string
+}
+
+export interface IndexerPairStats {
+  volume_base: string
+  volume_quote: string
+  trade_count: number
+  high: string | null
+  low: string | null
+  open_price: string | null
+  close_price: string | null
+  price_change_pct: number | null
+}
+
+export interface IndexerOverview {
+  total_volume_24h: string
+  total_trades_24h: number
+  pair_count: number
+  token_count: number
+}
+
+export interface IndexerTrader {
+  address: string
+  total_trades: number
+  total_volume_usd: string
+  volume_24h_usd: string
+  volume_7d_usd: string
+  volume_30d_usd: string
+  tier_id: number
+  tier_name: string
+}

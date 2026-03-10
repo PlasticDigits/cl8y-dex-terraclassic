@@ -3,7 +3,7 @@
 .env.*
 !.env.example
 
-# Rust / CosmWasm
+# Rust / CosmWasm / Indexer
 target/
 *.wasm
 !*.wasm.gz
