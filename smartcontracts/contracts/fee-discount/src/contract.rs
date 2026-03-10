@@ -72,6 +72,7 @@ pub fn execute(
     }
 }
 
+/// Verify that the caller is the governance address.
 fn ensure_governance(deps: &DepsMut, info: &MessageInfo) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     if info.sender != config.governance {
@@ -80,6 +81,8 @@ fn ensure_governance(deps: &DepsMut, info: &MessageInfo) -> Result<(), ContractE
     Ok(())
 }
 
+/// Create a new fee discount tier. Governance only.
+/// `discount_bps` must be ≤ 10000 and the `tier_id` must not already exist.
 fn execute_add_tier(
     deps: DepsMut,
     info: MessageInfo,
@@ -115,6 +118,7 @@ fn execute_add_tier(
         .add_attribute("governance_only", governance_only.to_string()))
 }
 
+/// Modify an existing tier's parameters. Governance only.
 fn execute_update_tier(
     deps: DepsMut,
     info: MessageInfo,
@@ -149,6 +153,8 @@ fn execute_update_tier(
         .add_attribute("tier_id", tier_id.to_string()))
 }
 
+/// Delete a tier. Governance only. Existing registrations referencing
+/// this tier will get 0 discount and `needs_deregister: true` on next query.
 fn execute_remove_tier(
     deps: DepsMut,
     info: MessageInfo,
@@ -167,6 +173,9 @@ fn execute_remove_tier(
         .add_attribute("tier_id", tier_id.to_string()))
 }
 
+/// Self-register for a fee discount tier. EOA only (smart contracts
+/// are rejected). The caller's CL8Y balance must meet the tier's minimum.
+/// Cannot register for governance-only tiers or switch away from one.
 fn execute_register(
     deps: DepsMut,
     info: MessageInfo,
@@ -226,6 +235,9 @@ fn execute_register(
         .add_attribute("tier_id", tier_id.to_string()))
 }
 
+/// Governance-controlled registration. Assigns any wallet (including
+/// contracts) to any tier, bypassing the EOA check and balance requirement.
+/// Used for market maker contracts (Tier 0) and blacklisting (Tier 255).
 fn execute_register_wallet(
     deps: DepsMut,
     info: MessageInfo,
@@ -247,6 +259,8 @@ fn execute_register_wallet(
         .add_attribute("tier_id", tier_id.to_string()))
 }
 
+/// Self-deregister from the current tier. Cannot self-deregister from
+/// governance-only tiers — governance must use `DeregisterWallet` instead.
 fn execute_deregister(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let current_tier_id = REGISTRATIONS
         .may_load(deps.storage, info.sender.as_str())?
@@ -266,6 +280,9 @@ fn execute_deregister(deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
         .add_attribute("wallet", info.sender))
 }
 
+/// Force-deregister a wallet. Governance can deregister anyone.
+/// Non-governance callers can only deregister wallets whose CL8Y balance
+/// has dropped below the tier threshold (community enforcement).
 fn execute_deregister_wallet(
     deps: DepsMut,
     info: MessageInfo,
@@ -317,6 +334,8 @@ fn execute_deregister_wallet(
         .add_attribute("wallet", wallet_addr))
 }
 
+/// Register a router contract as trusted for fee discount attribution.
+/// Governance only.
 fn execute_add_trusted_router(
     deps: DepsMut,
     info: MessageInfo,
@@ -331,6 +350,7 @@ fn execute_add_trusted_router(
         .add_attribute("router", router_addr))
 }
 
+/// Remove a router from the trusted list. Governance only.
 fn execute_remove_trusted_router(
     deps: DepsMut,
     info: MessageInfo,
@@ -345,6 +365,7 @@ fn execute_remove_trusted_router(
         .add_attribute("router", router_addr))
 }
 
+/// Update the fee discount registry configuration. Governance only.
 fn execute_update_config(
     deps: DepsMut,
     info: MessageInfo,
@@ -396,6 +417,12 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
+/// Core discount lookup called by pair contracts during swaps.
+///
+/// If `sender != trader`, the sender must be a trusted router for the
+/// `trader` address to be used for lookup; otherwise falls back to `sender`.
+/// Checks registration, tier existence, and CL8Y balance. Returns
+/// `needs_deregister: true` when the balance has dropped below the threshold.
 fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<DiscountResponse> {
     let config = CONFIG.load(deps.storage)?;
 

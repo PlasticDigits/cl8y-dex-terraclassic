@@ -1,3 +1,23 @@
+//! # CL8Y DEX Router
+//!
+//! Multi-hop swap router that chains swaps across multiple pairs in a
+//! single transaction. Users send input tokens via CW20 Send; the router
+//! executes each hop as a SubMsg, queries its own balance to determine
+//! intermediate output amounts, and delivers the final output to the
+//! recipient.
+//!
+//! ## Reentrancy guard
+//!
+//! A `SWAP_STATE` item prevents concurrent multi-hop swaps. It is set
+//! at the start of `execute_swap_operations` and cleared when the final
+//! hop completes (or on error).
+//!
+//! ## Fee discount attribution
+//!
+//! The router passes the original user's address via the `trader` field
+//! in `Cw20HookMsg::Swap` so the pair can look up the correct fee
+//! discount even though the CW20 Send originates from the router contract.
+
 pub mod contract;
 pub mod error;
 pub mod msg;

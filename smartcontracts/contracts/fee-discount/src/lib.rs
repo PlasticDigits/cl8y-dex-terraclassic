@@ -1,3 +1,25 @@
+//! # CL8Y DEX Fee Discount Registry
+//!
+//! Tiered fee discount system for CL8Y token holders. Traders who hold
+//! sufficient CL8Y tokens can self-register for discount tiers that
+//! reduce their swap fees across all pairs.
+//!
+//! ## Tier system
+//!
+//! Each tier specifies a minimum CL8Y balance and a discount in basis points.
+//! Balances are checked on every swap via the `GetDiscount` query. If a
+//! trader's balance drops below the threshold, the discount is revoked and
+//! a fire-and-forget deregistration is triggered.
+//!
+//! ## Security
+//!
+//! - **EOA-only self-registration:** Smart contracts cannot self-register,
+//!   preventing MEV bots from gaming the discount system.
+//! - **Governance-only tiers:** Tier 0 (100% discount, market makers) and
+//!   Tier 255 (blacklist) can only be assigned by governance.
+//! - **Trusted routers:** Only routers registered as trusted can attribute
+//!   fee discounts to the original trader address.
+
 pub mod contract;
 pub mod error;
 pub mod msg;

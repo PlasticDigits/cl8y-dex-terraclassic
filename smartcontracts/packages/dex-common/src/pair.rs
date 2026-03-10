@@ -75,7 +75,12 @@ pub enum Cw20HookMsg {
         /// is a trusted router before honoring this field.
         trader: Option<String>,
     },
-    WithdrawLiquidity {},
+    /// Burn LP tokens and receive underlying assets pro-rata.
+    /// Optional `min_assets` protects against sandwich attacks by reverting
+    /// if either returned amount falls below the specified minimum.
+    WithdrawLiquidity {
+        min_assets: Option<[Uint128; 2]>,
+    },
 }
 
 #[cw_serde]

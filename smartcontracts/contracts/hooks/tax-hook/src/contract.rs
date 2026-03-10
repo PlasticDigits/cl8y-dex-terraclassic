@@ -74,6 +74,7 @@ pub fn execute(
     }
 }
 
+/// Reject callers that are not registered as allowed pairs.
 fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractError> {
     if !ALLOWED_PAIRS
         .may_load(deps.storage, info.sender.as_str())?
@@ -86,6 +87,10 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
     Ok(())
 }
 
+/// Transfer a percentage of the output token to the configured tax
+/// recipient. Skips gracefully if the output token doesn't match
+/// `tax_token`, the calculated amount is zero, or the balance is
+/// insufficient.
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
@@ -142,6 +147,7 @@ fn execute_after_swap(
         .add_attribute("recipient", config.recipient))
 }
 
+/// Update tax hook configuration. Admin only.
 fn execute_update_config(
     deps: DepsMut,
     info: MessageInfo,
@@ -177,6 +183,7 @@ fn execute_update_config(
         .add_attribute("tax_token", config.tax_token))
 }
 
+/// Add or remove pair contracts from the allowed callers list. Admin only.
 fn execute_update_allowed_pairs(
     deps: DepsMut,
     info: MessageInfo,

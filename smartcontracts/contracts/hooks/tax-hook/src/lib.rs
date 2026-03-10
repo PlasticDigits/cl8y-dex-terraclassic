@@ -1,3 +1,12 @@
+//! # Tax Hook
+//!
+//! Post-swap hook that transfers a configured percentage of the output
+//! token to a tax recipient address. The hook must be pre-funded with
+//! tokens; if its balance is insufficient, it degrades gracefully (no
+//! revert) and emits a warning attribute.
+//!
+//! Only pre-approved pair contracts can trigger the hook.
+
 pub mod contract;
 pub mod error;
 pub mod msg;

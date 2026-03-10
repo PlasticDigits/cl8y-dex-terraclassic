@@ -327,7 +327,7 @@ mod helpers {
         lp_amount: Uint128,
     ) {
         let remove_msg = cosmwasm_std::to_json_binary(
-            &dex_common::pair::Cw20HookMsg::WithdrawLiquidity {},
+            &dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None },
         )
         .unwrap();
 
@@ -1049,7 +1049,7 @@ mod pair_tests {
 
         let remove_amount = Uint128::new(500_000);
         let remove_msg =
-            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity {}).unwrap();
+            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None }).unwrap();
 
         app.execute_contract(
             env.user.clone(),
@@ -2188,7 +2188,7 @@ mod pair_coverage_tests {
 
         provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
 
-        let msg = to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity {}).unwrap();
+        let msg = to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None }).unwrap();
 
         let err = app
             .execute_contract(
@@ -2213,7 +2213,7 @@ mod pair_coverage_tests {
 
         provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
 
-        let msg = to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity {}).unwrap();
+        let msg = to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None }).unwrap();
 
         let err = app
             .execute_contract(
@@ -3786,6 +3786,7 @@ mod hook_coverage_tests {
                 admin.clone(),
                 &cl8y_dex_lp_burn_hook::msg::InstantiateMsg {
                     target_pair: target_pair.to_string(),
+                    lp_token: "lp_token_addr".to_string(),
                     percentage_bps: 300,
                     admin: admin.to_string(),
                 },
@@ -3803,6 +3804,7 @@ mod hook_coverage_tests {
             )
             .unwrap();
         assert_eq!(config.target_pair, target_pair);
+        assert_eq!(config.lp_token, Addr::unchecked("lp_token_addr"));
         assert_eq!(config.percentage_bps, 300);
     }
 
@@ -5107,7 +5109,7 @@ mod security_tests {
         // Withdraw should fail because Receive is paused
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
         let remove_msg = to_json_binary(
-            &dex_common::pair::Cw20HookMsg::WithdrawLiquidity {},
+            &dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None },
         )
         .unwrap();
 
@@ -5952,6 +5954,7 @@ mod hooks_integration_tests {
                 admin.clone(),
                 &cl8y_dex_lp_burn_hook::msg::InstantiateMsg {
                     target_pair: admin.to_string(),
+                    lp_token: "lp_token_addr".to_string(),
                     percentage_bps: 300,
                     admin: admin.to_string(),
                 },
@@ -5967,6 +5970,7 @@ mod hooks_integration_tests {
                 lp_burn_hook.clone(),
                 &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::UpdateConfig {
                     target_pair: None,
+                    lp_token: None,
                     percentage_bps: Some(500),
                 },
                 &[],
@@ -6023,6 +6027,7 @@ mod hooks_integration_tests {
                 admin.clone(),
                 &cl8y_dex_lp_burn_hook::msg::InstantiateMsg {
                     target_pair: admin.to_string(),
+                    lp_token: "lp_token_addr".to_string(),
                     percentage_bps: 10001,
                     admin: admin.to_string(),
                 },

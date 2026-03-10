@@ -1,3 +1,12 @@
+//! # LP Burn Hook
+//!
+//! Post-swap hook that permanently burns LP tokens held by this contract,
+//! proportional to each swap's output volume. Pre-fund the hook with LP
+//! tokens; it gradually burns them, locking underlying reserves in the
+//! pool and increasing the value of all remaining LP shares.
+//!
+//! Only pre-approved pair contracts can trigger the hook.
+
 pub mod contract;
 pub mod error;
 pub mod msg;
