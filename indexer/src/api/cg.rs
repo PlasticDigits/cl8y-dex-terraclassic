@@ -4,11 +4,12 @@ use axum::Json;
 use bigdecimal::ToPrimitive;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, find_pair_by_ticker, orderbook_sim, AppState};
+use super::{build_asset_map, find_pair_by_ticker, internal_err, orderbook_sim, AppState};
 use crate::db::queries::{pairs as db_pairs, swap_events};
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CgPairResponse {
     pub ticker_id: String,
     pub base: String,
@@ -16,15 +17,24 @@ pub struct CgPairResponse {
     pub pool_id: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cg/pairs",
+    responses(
+        (status = 200, description = "CoinGecko-format pair list", body = Vec<CgPairResponse>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinGecko"
+)]
 pub async fn cg_pairs(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CgPairResponse>>, (StatusCode, String)> {
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut result = Vec::new();
     for p in &all_pairs {
@@ -43,7 +53,7 @@ pub async fn cg_pairs(
     Ok(Json(result))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CgTickerResponse {
     pub ticker_id: String,
     pub base_currency: String,
@@ -59,15 +69,24 @@ pub struct CgTickerResponse {
     pub liquidity_in_usd: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cg/tickers",
+    responses(
+        (status = 200, description = "CoinGecko-format ticker data", body = Vec<CgTickerResponse>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinGecko"
+)]
 pub async fn cg_tickers(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CgTickerResponse>>, (StatusCode, String)> {
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut result = Vec::new();
     for p in &all_pairs {
@@ -78,7 +97,7 @@ pub async fn cg_tickers(
 
         let stats = swap_events::get_24h_stats_for_pair(&state.pool, p.id)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            .map_err(internal_err)?;
 
         let last_price_f = stats
             .close_price
@@ -126,13 +145,15 @@ pub async fn cg_tickers(
     Ok(Json(result))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct OrderbookQuery {
+    /// Ticker ID in BASE_TARGET format
     pub ticker_id: String,
+    /// Number of levels (capped at 100, default 20)
     pub depth: Option<usize>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CgOrderbookResponse {
     pub ticker_id: String,
     pub timestamp: String,
@@ -140,16 +161,28 @@ pub struct CgOrderbookResponse {
     pub asks: Vec<[String; 2]>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cg/orderbook",
+    params(OrderbookQuery),
+    responses(
+        (status = 200, description = "Simulated AMM orderbook", body = CgOrderbookResponse),
+        (status = 400, description = "Invalid ticker_id format"),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinGecko"
+)]
 pub async fn cg_orderbook(
     State(state): State<AppState>,
     Query(q): Query<OrderbookQuery>,
 ) -> Result<Json<CgOrderbookResponse>, (StatusCode, String)> {
-    let depth = q.depth.unwrap_or(20);
+    let depth = q.depth.unwrap_or(20).min(100);
     let pair_addr = find_pair_by_ticker(&state, &q.ticker_id).await?;
 
     let ob = orderbook_sim::simulate_orderbook(&state.pool, &state.lcd, &pair_addr, depth)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     Ok(Json(CgOrderbookResponse {
         ticker_id: q.ticker_id,
@@ -159,15 +192,19 @@ pub async fn cg_orderbook(
     }))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct HistoricalTradesQuery {
+    /// Ticker ID in BASE_TARGET format
     pub ticker_id: String,
+    /// Filter by type: "buy" or "sell"
     #[serde(rename = "type")]
+    #[param(rename = "type")]
     pub trade_type: Option<String>,
+    /// Max results (capped at 500)
     pub limit: Option<i64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CgTradeEntry {
     pub trade_id: i64,
     pub price: String,
@@ -178,12 +215,24 @@ pub struct CgTradeEntry {
     pub trade_type: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CgHistoricalTradesResponse {
     pub buy: Vec<CgTradeEntry>,
     pub sell: Vec<CgTradeEntry>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cg/historical_trades",
+    params(HistoricalTradesQuery),
+    responses(
+        (status = 200, description = "Historical trades grouped by buy/sell", body = CgHistoricalTradesResponse),
+        (status = 400, description = "Invalid ticker_id format"),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinGecko"
+)]
 pub async fn cg_historical_trades(
     State(state): State<AppState>,
     Query(q): Query<HistoricalTradesQuery>,
@@ -193,12 +242,12 @@ pub async fn cg_historical_trades(
 
     let pair = db_pairs::get_pair_by_address(&state.pool, &pair_addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
     let trades = swap_events::get_trades_for_pair(&state.pool, pair.id, limit, None)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut buys = Vec::new();
     let mut sells = Vec::new();

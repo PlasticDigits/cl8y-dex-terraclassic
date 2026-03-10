@@ -7,12 +7,18 @@ mod tokens;
 mod traders;
 
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
-use axum::http::StatusCode;
+use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::routing::get;
 use axum::Router;
 use sqlx::PgPool;
+use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::GovernorLayer;
 use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
@@ -22,6 +28,14 @@ use crate::lcd::LcdClient;
 pub struct AppState {
     pub pool: PgPool,
     pub lcd: LcdClient,
+}
+
+pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
+    tracing::error!("Internal error: {}", e);
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Internal server error".to_string(),
+    )
 }
 
 async fn build_asset_map(
@@ -46,10 +60,10 @@ async fn find_pair_by_ticker(
 
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     for p in &all_pairs {
         if let (Some(a0), Some(a1)) =
@@ -67,15 +81,101 @@ async fn find_pair_by_ticker(
     ))
 }
 
-pub async fn serve(
-    pool: PgPool,
-    lcd: LcdClient,
-    config: Config,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let state = AppState { pool, lcd };
-    let cors = CorsLayer::permissive();
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "CL8Y DEX Indexer API",
+        version = "1.0.0",
+        description = "Indexer API for CL8Y DEX on Terra Classic — charting, analytics, CoinGecko and CoinMarketCap integrations.",
+    ),
+    paths(
+        pairs::list_pairs,
+        pairs::get_pair,
+        pairs::get_pair_candles,
+        pairs::get_pair_trades,
+        pairs::get_pair_stats,
+        tokens::list_tokens,
+        tokens::get_token,
+        tokens::get_token_pairs,
+        traders::get_trader_profile,
+        traders::get_trader_trades,
+        traders::leaderboard,
+        overview::get_overview,
+        cg::cg_pairs,
+        cg::cg_tickers,
+        cg::cg_orderbook,
+        cg::cg_historical_trades,
+        cmc::cmc_summary,
+        cmc::cmc_assets,
+        cmc::cmc_ticker,
+        cmc::cmc_orderbook,
+        cmc::cmc_trades,
+    ),
+    components(schemas(
+        pairs::PairResponse,
+        pairs::AssetBrief,
+        pairs::CandleResponse,
+        pairs::TradeResponse,
+        pairs::PairStatsResponse,
+        tokens::TokenResponse,
+        tokens::TokenDetailResponse,
+        tokens::VolumeStatResponse,
+        traders::TraderResponse,
+        overview::OverviewResponse,
+        cg::CgPairResponse,
+        cg::CgTickerResponse,
+        cg::CgOrderbookResponse,
+        cg::CgTradeEntry,
+        cg::CgHistoricalTradesResponse,
+        cmc::CmcSummaryEntry,
+        cmc::CmcAssetEntry,
+        cmc::CmcTickerEntry,
+        cmc::CmcOrderbookResponse,
+        cmc::CmcTradeEntry,
+    )),
+    tags(
+        (name = "Pairs", description = "Trading pair endpoints"),
+        (name = "Tokens", description = "Token/asset endpoints"),
+        (name = "Traders", description = "Trader profile and leaderboard"),
+        (name = "Overview", description = "Global DEX statistics"),
+        (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
+        (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
+    )
+)]
+struct ApiDoc;
 
-    let app = Router::new()
+pub fn build_router(state: AppState, config: &Config) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(
+            config
+                .cors_origins
+                .iter()
+                .map(|o| {
+                    o.parse::<HeaderValue>()
+                        .unwrap_or_else(|_| panic!("invalid CORS origin: {}", o))
+                })
+                .collect::<Vec<_>>(),
+        )
+        .allow_methods([Method::GET])
+        .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+
+    let governor_conf = GovernorConfigBuilder::default()
+        .per_second(config.rate_limit_rps)
+        .burst_size(config.rate_limit_rps as u32 * 2)
+        .use_headers()
+        .finish()
+        .expect("failed to build governor config");
+
+    let governor_limiter = governor_conf.limiter().clone();
+    let cleanup_interval = std::time::Duration::from_secs(60);
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(cleanup_interval).await;
+            governor_limiter.retain_recent();
+        }
+    });
+
+    Router::new()
         .route("/api/v1/pairs", get(pairs::list_pairs))
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
         .route("/api/v1/pairs/{addr}/candles", get(pairs::get_pair_candles))
@@ -100,14 +200,33 @@ pub async fn serve(
         .route("/cmc/ticker", get(cmc::cmc_ticker))
         .route("/cmc/orderbook/{market_pair}", get(cmc::cmc_orderbook))
         .route("/cmc/trades/{market_pair}", get(cmc::cmc_trades))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/api-docs/openapi.json", ApiDoc::openapi()),
+        )
+        .layer(GovernorLayer::new(governor_conf))
         .layer(cors)
-        .with_state(state);
+        .layer(TraceLayer::new_for_http())
+        .with_state(state)
+}
 
-    let addr = format!("0.0.0.0:{}", config.api_port);
+pub async fn serve(
+    pool: PgPool,
+    lcd: LcdClient,
+    config: Config,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let state = AppState { pool, lcd };
+    let app = build_router(state, &config);
+
+    let addr = format!("{}:{}", config.api_bind, config.api_port);
     tracing::info!("API server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }

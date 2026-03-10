@@ -6,13 +6,14 @@ use axum::Json;
 use bigdecimal::ToPrimitive;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, find_pair_by_ticker, orderbook_sim, AppState};
+use super::{build_asset_map, find_pair_by_ticker, internal_err, orderbook_sim, AppState};
 use crate::db::queries::{assets, pairs as db_pairs, swap_events};
 
 // ---------- /cmc/summary ----------
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CmcSummaryEntry {
     pub trading_pairs: String,
     pub base_currency: String,
@@ -27,15 +28,24 @@ pub struct CmcSummaryEntry {
     pub lowest_price_24h: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cmc/summary",
+    responses(
+        (status = 200, description = "CoinMarketCap summary for all pairs", body = Vec<CmcSummaryEntry>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinMarketCap"
+)]
 pub async fn cmc_summary(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<CmcSummaryEntry>>, (StatusCode, String)> {
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut result = Vec::new();
     for p in &all_pairs {
@@ -46,7 +56,7 @@ pub async fn cmc_summary(
 
         let stats = swap_events::get_24h_stats_for_pair(&state.pool, p.id)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            .map_err(internal_err)?;
 
         let last_price_f = stats
             .close_price
@@ -87,7 +97,7 @@ pub async fn cmc_summary(
 
 // ---------- /cmc/assets ----------
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CmcAssetEntry {
     pub name: String,
     pub unified_cryptoasset_id: Option<i32>,
@@ -96,12 +106,21 @@ pub struct CmcAssetEntry {
     pub min_withdraw: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cmc/assets",
+    responses(
+        (status = 200, description = "Asset list in CoinMarketCap format", body = HashMap<String, CmcAssetEntry>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinMarketCap"
+)]
 pub async fn cmc_assets(
     State(state): State<AppState>,
 ) -> Result<Json<HashMap<String, CmcAssetEntry>>, (StatusCode, String)> {
     let all = assets::get_all_assets(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut map = HashMap::new();
     for a in &all {
@@ -122,7 +141,7 @@ pub async fn cmc_assets(
 
 // ---------- /cmc/ticker ----------
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CmcTickerEntry {
     pub base_id: String,
     pub quote_id: String,
@@ -133,15 +152,24 @@ pub struct CmcTickerEntry {
     pub is_frozen: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cmc/ticker",
+    responses(
+        (status = 200, description = "Ticker data in CoinMarketCap format", body = HashMap<String, CmcTickerEntry>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinMarketCap"
+)]
 pub async fn cmc_ticker(
     State(state): State<AppState>,
 ) -> Result<Json<HashMap<String, CmcTickerEntry>>, (StatusCode, String)> {
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
     let asset_map = build_asset_map(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let mut map = HashMap::new();
     for p in &all_pairs {
@@ -152,7 +180,7 @@ pub async fn cmc_ticker(
 
         let stats = swap_events::get_24h_stats_for_pair(&state.pool, p.id)
             .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            .map_err(internal_err)?;
 
         let base_id = a0
             .contract_address
@@ -189,29 +217,45 @@ pub async fn cmc_ticker(
 
 // ---------- /cmc/orderbook/:market_pair ----------
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct CmcOrderbookQuery {
+    /// Number of levels (capped at 100, default 20)
     pub depth: Option<usize>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CmcOrderbookResponse {
     pub timestamp: String,
     pub bids: Vec<[String; 2]>,
     pub asks: Vec<[String; 2]>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cmc/orderbook/{market_pair}",
+    params(
+        ("market_pair" = String, Path, description = "Market pair in BASE_TARGET format"),
+        CmcOrderbookQuery,
+    ),
+    responses(
+        (status = 200, description = "Simulated AMM orderbook", body = CmcOrderbookResponse),
+        (status = 400, description = "Invalid market pair format"),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinMarketCap"
+)]
 pub async fn cmc_orderbook(
     State(state): State<AppState>,
     Path(market_pair): Path<String>,
     Query(q): Query<CmcOrderbookQuery>,
 ) -> Result<Json<CmcOrderbookResponse>, (StatusCode, String)> {
-    let depth = q.depth.unwrap_or(20);
+    let depth = q.depth.unwrap_or(20).min(100);
     let pair_addr = find_pair_by_ticker(&state, &market_pair).await?;
 
     let ob = orderbook_sim::simulate_orderbook(&state.pool, &state.lcd, &pair_addr, depth)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     Ok(Json(CmcOrderbookResponse {
         timestamp: Utc::now().to_rfc3339(),
@@ -222,7 +266,7 @@ pub async fn cmc_orderbook(
 
 // ---------- /cmc/trades/:market_pair ----------
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct CmcTradeEntry {
     pub trade_id: i64,
     pub price: String,
@@ -233,6 +277,20 @@ pub struct CmcTradeEntry {
     pub trade_type: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/cmc/trades/{market_pair}",
+    params(
+        ("market_pair" = String, Path, description = "Market pair in BASE_TARGET format"),
+    ),
+    responses(
+        (status = 200, description = "Recent trades for market pair", body = Vec<CmcTradeEntry>),
+        (status = 400, description = "Invalid market pair format"),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "CoinMarketCap"
+)]
 pub async fn cmc_trades(
     State(state): State<AppState>,
     Path(market_pair): Path<String>,
@@ -241,12 +299,12 @@ pub async fn cmc_trades(
 
     let pair = db_pairs::get_pair_by_address(&state.pool, &pair_addr)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
     let trades = swap_events::get_trades_for_pair(&state.pool, pair.id, 200, None)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let result: Vec<CmcTradeEntry> = trades
         .iter()

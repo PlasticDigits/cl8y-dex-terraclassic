@@ -2,11 +2,12 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use serde::Serialize;
+use utoipa::ToSchema;
 
-use super::AppState;
+use super::{internal_err, AppState};
 use crate::db::queries::{assets, volume};
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct OverviewResponse {
     pub total_volume_24h: String,
     pub total_trades_24h: i64,
@@ -14,16 +15,25 @@ pub struct OverviewResponse {
     pub token_count: i64,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/overview",
+    responses(
+        (status = 200, description = "Global DEX statistics", body = OverviewResponse),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Overview"
+)]
 pub async fn get_overview(
     State(state): State<AppState>,
 ) -> Result<Json<OverviewResponse>, (StatusCode, String)> {
     let global = volume::get_global_stats(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(internal_err)?;
 
     let token_count = assets::get_all_assets(&state.pool)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(internal_err)?
         .len() as i64;
 
     Ok(Json(OverviewResponse {
