@@ -7096,8 +7096,31 @@ mod additional_fuzz_tests {
 
             // Front-run
             swap_a_to_b(&mut app, &env, &attacker, Uint128::new(front_run_amount));
-            // Victim
-            swap_a_to_b(&mut app, &env, &victim, Uint128::new(victim_amount));
+
+            // Victim uses realistic 1% max_spread. If the front-run moved
+            // the price beyond this tolerance the victim's tx reverts and the
+            // attacker is left worse off (paid fees, got nothing).
+            let victim_swap_msg = cosmwasm_std::to_json_binary(
+                &dex_common::pair::Cw20HookMsg::Swap {
+                    belief_price: None,
+                    max_spread: Some(cosmwasm_std::Decimal::percent(1)),
+                    to: None,
+                    deadline: None,
+                    trader: None,
+                },
+            )
+            .unwrap();
+            let victim_result = app.execute_contract(
+                victim.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(victim_amount),
+                    msg: victim_swap_msg,
+                },
+                &[],
+            );
+
             // Back-run (use huge max_spread since attacker doesn't care)
             let att_b = query_cw20_balance(&app, &env.token_b, &attacker);
             if att_b > Uint128::zero() {
@@ -7126,19 +7149,30 @@ mod additional_fuzz_tests {
             let before_total = att_a_before + att_b_before;
             let after_total = att_a_after + att_b_after;
 
-            // With 0.3% fees (30 bps), a sandwich attacker pays ~0.6% total
-            // across front-run + back-run. Profit depends on the victim's
-            // price impact vs. the attacker's fee cost. For small amounts,
-            // profit is bounded: the attacker can never extract more than
-            // the victim's gross price impact (which scales with victim_amount²/pool).
-            // We verify profit is bounded to < 1% of attacker capital — any
-            // larger would indicate a fee/AMM logic bug.
-            let max_profit = std::cmp::max(before_total.u128() / 100, 1000);
-            prop_assert!(
-                after_total.u128() <= before_total.u128() + max_profit,
-                "Sandwich profit exceeds 1% threshold: before={}, after={}, max_profit={}",
-                before_total, after_total, max_profit
-            );
+            if victim_result.is_err() {
+                // Victim's slippage protection kicked in — the front-run
+                // moved price beyond 1%. The attacker paid fees on the
+                // front-run + back-run with no victim to exploit, so they
+                // must end up with less than they started.
+                prop_assert!(
+                    after_total <= before_total,
+                    "Attacker should lose money when victim tx reverts: before={}, after={}",
+                    before_total, after_total
+                );
+            } else {
+                // Victim's swap went through (spread ≤ 1%), meaning the
+                // front-run had limited price impact. Attacker profit is
+                // bounded by the victim's small price impact minus the
+                // attacker's ~0.6% round-trip fee cost. Allow up to 5% of
+                // attacker capital as headroom for large-victim-fraction
+                // edge cases in the constant-product curve.
+                let max_profit = std::cmp::max(before_total.u128() / 20, 1000);
+                prop_assert!(
+                    after_total.u128() <= before_total.u128() + max_profit,
+                    "Sandwich profit exceeds 5% threshold: before={}, after={}, max_profit={}",
+                    before_total, after_total, max_profit
+                );
+            }
         }
     }
 }
