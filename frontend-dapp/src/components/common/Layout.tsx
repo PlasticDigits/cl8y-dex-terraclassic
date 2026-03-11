@@ -53,15 +53,14 @@ export default function Layout() {
           <div className="relative flex flex-col md:flex-row md:items-center md:justify-between min-h-14 py-2 gap-2">
             <NavLink
               to="/"
-              className="flex items-center justify-center md:justify-start order-first md:order-1 shrink-0 py-2 md:py-1.5 px-3 md:px-4 rounded-sm border-2 border-white/30 group pointer-events-auto transition-colors"
+              className="flex w-fit items-center justify-center md:justify-start order-first md:order-1 shrink-0 py-2 md:py-1.5 px-3 md:px-4 rounded-sm border-2 border-black shadow-[3px_3px_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#000] pointer-events-auto transition-all duration-150"
               style={{ background: 'var(--header-logo-bg)' }}
               onClick={() => sounds.playButtonPress()}
             >
               <img
                 src="/assets/cl8y-dex-header-logo.png"
                 alt="CL8Y DEX"
-                className="h-14 md:h-16 w-auto shrink-0 rounded-none object-contain object-center group-hover:translate-x-[1px] group-hover:translate-y-[1px] transition-transform"
-                style={{ boxShadow: '2px 2px 0 #000' }}
+                className="h-14 md:h-16 w-auto max-w-[512px] shrink-0 rounded-none object-contain object-center"
               />
             </NavLink>
 
