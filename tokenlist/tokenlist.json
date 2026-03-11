@@ -1,0 +1,70 @@
+{
+  "name": "CL8Y DEX Terra Classic Token List",
+  "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "keywords": ["terra-classic", "cl8y", "dex"],
+  "tokens": [
+    {
+      "symbol": "LUNC",
+      "name": "Terra Luna Classic",
+      "denom": "uluna",
+      "type": "native",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png"
+    },
+    {
+      "symbol": "USTC",
+      "name": "TerraClassicUSD",
+      "denom": "uusd",
+      "type": "native",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTC.png"
+    },
+    {
+      "symbol": "CL8Y",
+      "name": "CL8Y Token",
+      "address": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png"
+    },
+    {
+      "symbol": "USTR",
+      "name": "USTR Token",
+      "address": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+      "type": "cw20",
+      "decimals": 18,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTR.png"
+    },
+    {
+      "symbol": "ALPHA",
+      "name": "Alpha Token",
+      "address": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/ALPHA.png",
+      "website": "https://luncuniverse.com/"
+    },
+    {
+      "symbol": "USTRIX",
+      "name": "USTRIX Token",
+      "address": "terra1r3eaa2tucjr3es88wzuqpgxvssqflk9cghrjmf9uneds8wljyapqwtrcp5",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTRIX.png",
+      "website": "https://burnix.top"
+    },
+    {
+      "symbol": "SpaceUSD",
+      "name": "SpaceUSD Token",
+      "address": "terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/SPACEUSD.png"
+    }
+  ]
+}
