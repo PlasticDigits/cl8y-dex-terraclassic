@@ -4,15 +4,15 @@ use sqlx::{FromRow, PgPool};
 
 #[derive(Debug, Clone, FromRow)]
 pub struct TraderRow {
-    pub id: i64,
+    pub id: i32,
     pub address: String,
     pub total_trades: i64,
     pub total_volume: BigDecimal,
     pub volume_24h: BigDecimal,
     pub volume_7d: BigDecimal,
     pub volume_30d: BigDecimal,
-    pub tier_id: Option<i16>,
-    pub tier_name: Option<String>,
+    pub tier_id: i16,
+    pub tier_name: String,
     pub registered: bool,
     pub first_trade_at: Option<DateTime<Utc>>,
     pub last_trade_at: Option<DateTime<Utc>>,

@@ -19,7 +19,7 @@ ALTER TABLE traders RENAME COLUMN fee_discount_registered TO registered;
 ALTER TABLE traders ALTER COLUMN total_trades TYPE BIGINT;
 
 -- Rename token_volume_stats.period -> window and add id
-ALTER TABLE token_volume_stats RENAME COLUMN period TO window;
+ALTER TABLE token_volume_stats RENAME COLUMN period TO "window";
 ALTER TABLE token_volume_stats ADD COLUMN IF NOT EXISTS id BIGSERIAL;
 ALTER TABLE token_volume_stats ALTER COLUMN trade_count TYPE BIGINT;
 

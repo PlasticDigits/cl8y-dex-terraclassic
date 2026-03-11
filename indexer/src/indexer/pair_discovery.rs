@@ -112,7 +112,7 @@ pub async fn sync_single_pair(
     let fee_bps: Option<i16> = match lcd
         .query_contract::<FeeConfigResponse>(
             &pair_info.contract_addr,
-            &serde_json::json!({"fee_config": {}}),
+            &serde_json::json!({"get_fee_config": {}}),
         )
         .await
     {
@@ -130,7 +130,7 @@ pub async fn sync_single_pair(
     let hooks: Vec<String> = match lcd
         .query_contract::<HooksResponse>(
             &pair_info.contract_addr,
-            &serde_json::json!({"hooks": {}}),
+            &serde_json::json!({"get_hooks": {}}),
         )
         .await
     {
