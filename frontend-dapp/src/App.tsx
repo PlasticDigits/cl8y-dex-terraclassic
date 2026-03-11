@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Component, Suspense, lazy } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import Layout from './components/common/Layout'
+import { Spinner } from './components/ui'
 
 const queryClient = new QueryClient()
 
@@ -13,8 +14,9 @@ const TiersPage = lazy(() => import('./pages/TiersPage'))
 
 function PageFallback() {
   return (
-    <div className="flex items-center justify-center py-24">
-      <span className="text-sm text-gray-400">Loading...</span>
+    <div className="flex items-center justify-center py-24 gap-3" style={{ color: 'var(--ink-dim)' }}>
+      <Spinner />
+      <span className="text-sm uppercase tracking-wide font-medium">Loading...</span>
     </div>
   )
 }
@@ -41,10 +43,15 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-dex-bg flex items-center justify-center p-8">
-          <div className="max-w-md w-full bg-dex-card rounded-2xl border border-dex-border p-8 text-center">
-            <h2 className="text-lg font-semibold text-white mb-4">Something went wrong</h2>
-            <p className="text-sm text-gray-400 mb-6">
+        <div className="min-h-screen flex items-center justify-center p-8" style={{ background: 'var(--bg-0)' }}>
+          <div className="max-w-md w-full shell-panel-strong text-center">
+            <h2
+              className="text-lg font-semibold mb-4 uppercase tracking-wide"
+              style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+            >
+              Something went wrong
+            </h2>
+            <p className="text-sm mb-6" style={{ color: 'var(--ink-dim)' }}>
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <button
@@ -52,7 +59,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
                 this.setState({ hasError: false, error: null })
                 window.location.href = '/'
               }}
-              className="px-6 py-2.5 rounded-xl font-semibold text-sm bg-dex-accent text-dex-bg hover:bg-dex-accent/80 transition-colors"
+              className="btn-primary btn-cta"
             >
               Reload App
             </button>
