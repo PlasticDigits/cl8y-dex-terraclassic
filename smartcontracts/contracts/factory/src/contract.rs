@@ -161,6 +161,21 @@ fn execute_create_pair(
         return Err(ContractError::CodeIdNotWhitelisted {});
     }
 
+    let token_info_a: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
+        token_a_addr.to_string(),
+        &cw20::Cw20QueryMsg::TokenInfo {},
+    )?;
+    let token_info_b: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
+        token_b_addr.to_string(),
+        &cw20::Cw20QueryMsg::TokenInfo {},
+    )?;
+
+    let truncate = |s: &str| -> String {
+        s.chars().take(6).collect::<String>().to_uppercase()
+    };
+    let sym_a = truncate(&token_info_a.symbol);
+    let sym_b = truncate(&token_info_b.symbol);
+
     let config = CONFIG.load(deps.storage)?;
 
     PENDING_PAIR.save(deps.storage, &asset_infos)?;
@@ -171,6 +186,7 @@ fn execute_create_pair(
         treasury: config.treasury,
         factory: env.contract.address,
         lp_token_code_id: config.lp_token_code_id,
+        token_symbols: Some([sym_a.clone(), sym_b.clone()]),
     };
 
     let sub_msg = SubMsg::reply_on_success(
@@ -179,10 +195,7 @@ fn execute_create_pair(
             code_id: config.pair_code_id,
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
-            label: {
-                let full = format!("cl8y-dex-pair-{}-{}", token_a_addr, token_b_addr);
-                if full.len() > 128 { full[..128].to_string() } else { full }
-            },
+            label: format!("{}-{} cl8ydex lp", sym_a, sym_b),
         },
         REPLY_INSTANTIATE_PAIR,
     );
