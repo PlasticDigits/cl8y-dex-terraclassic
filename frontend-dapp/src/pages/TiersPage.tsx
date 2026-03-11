@@ -20,11 +20,6 @@ function discountLabel(bps: number): string {
   return `${(bps / 100).toFixed(0)}%`
 }
 
-function effectiveFeeLabel(baseBps: number, discountBps: number): string {
-  const effective = (baseBps * (10000 - discountBps)) / 10000
-  return `${(effective / 100).toFixed(2)}%`
-}
-
 function TierRow({
   entry,
   isCurrentTier,
@@ -258,20 +253,20 @@ export default function TiersPage() {
         ))}
       </div>
 
-      {/* Fee Calculation Example */}
+      {/* How it works */}
       <div className="mt-8 shell-panel-strong">
         <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>How it works</h3>
         <div className="text-sm space-y-2" style={{ color: 'var(--ink-dim)' }}>
-          <p>Your swap fee is reduced based on your registered tier. For a pool with 1.80% base fee:</p>
+          <p>Your swap fee is reduced based on your registered tier. If you drop below the required CL8Y holding at any time, you lose your tier.</p>
           <div className="grid grid-cols-3 gap-2 text-xs mt-3">
             <div className="label-neo !mb-0">Tier</div>
             <div className="label-neo !mb-0">Discount</div>
-            <div className="label-neo !mb-0">Effective Fee</div>
+            <div className="label-neo !mb-0">CL8Y Hold</div>
             {selfRegisterTiers.map((t) => (
               <React.Fragment key={t.tier_id}>
                 <div style={{ color: 'var(--ink)' }}>Tier {t.tier_id}</div>
                 <div style={{ color: 'var(--cyan)' }}>{discountLabel(t.tier.discount_bps)}</div>
-                <div style={{ color: 'var(--ink)' }}>{effectiveFeeLabel(180, t.tier.discount_bps)}</div>
+                <div style={{ color: 'var(--ink)' }}>{formatCl8y(t.tier.min_cl8y_balance)}</div>
               </React.Fragment>
             ))}
           </div>

@@ -51,6 +51,20 @@ export default function Layout() {
       <header className="sticky top-0 z-30 border-b-2 border-white/40 overflow-x-clip" style={{ background: 'var(--panel-bg-strong)', backdropFilter: 'blur(8px)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative flex flex-col md:flex-row md:items-center md:justify-between min-h-14 py-2 gap-2">
+            <NavLink
+              to="/"
+              className="flex items-center justify-center md:justify-start order-first md:order-1 shrink-0 py-2 md:py-1.5 px-3 md:px-4 rounded-sm border-2 border-white/30 group pointer-events-auto transition-colors"
+              style={{ background: 'var(--header-logo-bg)' }}
+              onClick={() => sounds.playButtonPress()}
+            >
+              <img
+                src="/assets/cl8y-dex-header-logo.png"
+                alt="CL8Y DEX"
+                className="h-14 md:h-16 w-auto shrink-0 rounded-none object-contain object-center group-hover:translate-x-[1px] group-hover:translate-y-[1px] transition-transform"
+                style={{ boxShadow: '2px 2px 0 #000' }}
+              />
+            </NavLink>
+
             <nav className="flex gap-1 border-2 border-white/30 p-1 min-w-0 w-full md:w-auto md:flex-1 order-2" style={{ background: 'var(--panel-bg)' }}>
               {NAV_ITEMS.map(({ path, label, end, icon }) => (
                 <NavLink
@@ -66,15 +80,11 @@ export default function Layout() {
                     }`
                   }
                 >
-                  <img src={icon} alt="" className="h-4 w-4 shrink-0" aria-hidden />
+                  <img src={icon} alt="" className="h-4 w-4 shrink-0 -mt-0.5" aria-hidden />
                   {label}
                 </NavLink>
               ))}
             </nav>
-
-            <NavLink to="/" className="flex md:absolute left-0 md:left-1/2 top-0 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 w-full md:w-auto justify-center order-first md:order-none py-1 md:py-0 group pointer-events-auto" onClick={() => sounds.playButtonPress()}>
-              <img src="/assets/cl8y-dex-header-logo.png" alt="CL8Y DEX" className="h-12 md:h-14 w-auto shrink-0 rounded-none object-contain object-center group-hover:translate-x-[1px] group-hover:translate-y-[1px] transition-transform" style={{ boxShadow: '2px 2px 0 #000' }} />
-            </NavLink>
 
             <div className="flex items-center gap-2 shrink-0 order-3">
               <WalletButton />
