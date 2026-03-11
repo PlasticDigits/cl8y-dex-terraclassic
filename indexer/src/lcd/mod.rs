@@ -172,12 +172,12 @@ impl LcdClient {
     ) -> Result<TxSearchResponse, LcdError> {
         let event_queries: Vec<String> = events
             .iter()
-            .map(|(k, v)| format!("{}='{}'", k, v))
+            .map(|(k, v)| format!("{}={}", k, v))
             .collect();
         let events_param = event_queries.join("&events=");
 
         let path = format!(
-            "/cosmos/tx/v1beta1/txs?events={}&pagination.offset={}&pagination.limit={}&order_by=ORDER_BY_ASC",
+            "/cosmos/tx/v1beta1/txs?events={}&pagination.offset={}&pagination.limit={}&order_by=1",
             events_param,
             (page.saturating_sub(1)) * limit,
             limit,
