@@ -45,23 +45,21 @@ test.describe('Fee Tiers Page', () => {
     await expect(page.getByRole('heading', { name: /How it works/i })).toBeVisible()
   })
 
-  test('shows effective fee examples', async ({ page }) => {
+  test('shows CL8Y hold requirements in How It Works table', async ({ page }) => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText(/1\.80%/)).toBeVisible()
-    await expect(page.getByText(/Effective Fee/i)).toBeVisible()
+    await expect(page.getByText(/CL8Y Hold/i)).toBeVisible()
+    await expect(page.getByText(/drop below.*lose your tier/i)).toBeVisible()
   })
 
-  test('shows effective fee calculations per tier', async ({ page }) => {
+  test('shows CL8Y hold amounts per tier', async ({ page }) => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText('1.62%')).toBeVisible()
-    await expect(page.getByText('1.35%')).toBeVisible()
-    await expect(page.getByText('1.17%')).toBeVisible()
-    await expect(page.getByText('0.90%')).toBeVisible()
-    await expect(page.getByText('0.36%')).toBeVisible()
+    await expect(page.getByText('1,000')).toBeVisible()
+    await expect(page.getByText('15,000')).toBeVisible()
+    await expect(page.getByText(/Hold \d+ CL8Y/)).toBeVisible()
   })
 
   test('prompts to connect wallet for registration', async ({ page }) => {

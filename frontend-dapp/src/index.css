@@ -12,6 +12,7 @@
 @tailwind utilities;
 
 :root {
+  --header-logo-bg: rgba(24, 24, 24, 0.94);
   --bg-0: #0a0a0a;
   --bg-1: #131313;
   --bg-2: #1a1a1a;
