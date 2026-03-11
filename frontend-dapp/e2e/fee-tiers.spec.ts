@@ -11,26 +11,28 @@ test.describe('Fee Tiers Page', () => {
     await expect(page.getByText(/Hold CL8Y tokens/i)).toBeVisible()
   })
 
-  test('displays all 5 public fee tiers', async ({ page }) => {
+  test('displays all 9 public fee tiers', async ({ page }) => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText('Tier 1')).toBeVisible()
-    await expect(page.getByText('Tier 2')).toBeVisible()
-    await expect(page.getByText('Tier 3')).toBeVisible()
-    await expect(page.getByText('Tier 4')).toBeVisible()
-    await expect(page.getByText('Tier 5')).toBeVisible()
+    for (let i = 1; i <= 9; i++) {
+      await expect(page.getByText(`Tier ${i}`).first()).toBeVisible()
+    }
   })
 
   test('shows discount percentages for each tier', async ({ page }) => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText('10%')).toBeVisible()
-    await expect(page.getByText('25%')).toBeVisible()
-    await expect(page.getByText('35%')).toBeVisible()
-    await expect(page.getByText('50%')).toBeVisible()
-    await expect(page.getByText('80%')).toBeVisible()
+    await expect(page.getByText('2.5%').first()).toBeVisible()
+    await expect(page.getByText('10%').first()).toBeVisible()
+    await expect(page.getByText('20%').first()).toBeVisible()
+    await expect(page.getByText('35%').first()).toBeVisible()
+    await expect(page.getByText('50%').first()).toBeVisible()
+    await expect(page.getByText('60%').first()).toBeVisible()
+    await expect(page.getByText('75%').first()).toBeVisible()
+    await expect(page.getByText('85%').first()).toBeVisible()
+    await expect(page.getByText('95%').first()).toBeVisible()
   })
 
   test('shows CL8Y holding requirements', async ({ page }) => {
@@ -57,9 +59,17 @@ test.describe('Fee Tiers Page', () => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText('1,000')).toBeVisible()
-    await expect(page.getByText('15,000')).toBeVisible()
+    await expect(page.getByText('1,500')).toBeVisible()
+    await expect(page.getByText('7,500')).toBeVisible()
     await expect(page.getByText(/Hold \d+ CL8Y/)).toBeVisible()
+  })
+
+  test('shows effective fee column in How It Works', async ({ page }) => {
+    await page.goto('/tiers')
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.getByText(/Eff\. Fee/i)).toBeVisible()
+    await expect(page.getByText(/default base fee is 1\.8%/i)).toBeVisible()
   })
 
   test('prompts to connect wallet for registration', async ({ page }) => {

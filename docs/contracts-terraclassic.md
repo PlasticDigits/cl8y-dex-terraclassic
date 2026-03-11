@@ -211,11 +211,15 @@ The fee-discount contract manages tiered swap fee discounts for CL8Y token holde
 | Tier | CL8Y Required | Discount | BPS   | Notes                         |
 |------|---------------|----------|-------|-------------------------------|
 | 0    | 0             | 100%     | 10000 | Governance-only (market makers)|
-| 1    | 1             | 10%      | 1000  | Self-register, EOA only       |
-| 2    | 50            | 25%      | 2500  | Self-register, EOA only       |
-| 3    | 200           | 35%      | 3500  | Self-register, EOA only       |
-| 4    | 1,000         | 50%      | 5000  | Self-register, EOA only       |
-| 5    | 15,000        | 80%      | 8000  | Self-register, EOA only       |
+| 1    | 1             | 2.5%     | 250   | Self-register, EOA only       |
+| 2    | 5             | 10%      | 1000  | Self-register, EOA only       |
+| 3    | 20            | 20%      | 2000  | Self-register, EOA only       |
+| 4    | 75            | 35%      | 3500  | Self-register, EOA only       |
+| 5    | 200           | 50%      | 5000  | Self-register, EOA only       |
+| 6    | 500           | 60%      | 6000  | Self-register, EOA only       |
+| 7    | 1,500         | 75%      | 7500  | Self-register, EOA only       |
+| 8    | 3,500         | 85%      | 8500  | Self-register, EOA only       |
+| 9    | 7,500         | 95%      | 9500  | Self-register, EOA only       |
 | 255  | 0             | 0%       | 0     | Governance-only (blacklist)   |
 
 ### Discount Calculation

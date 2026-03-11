@@ -16,6 +16,10 @@ pub struct TraderRow {
     pub registered: bool,
     pub first_trade_at: Option<DateTime<Utc>>,
     pub last_trade_at: Option<DateTime<Utc>>,
+    pub total_realized_pnl: BigDecimal,
+    pub best_trade_pnl: BigDecimal,
+    pub worst_trade_pnl: BigDecimal,
+    pub total_fees_paid: BigDecimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -61,6 +65,10 @@ pub async fn get_leaderboard(
         "volume_7d" => "volume_7d",
         "volume_30d" => "volume_30d",
         "total_trades" => "total_trades",
+        "total_realized_pnl" => "total_realized_pnl",
+        "best_trade_pnl" => "best_trade_pnl",
+        "worst_trade_pnl" => "worst_trade_pnl",
+        "total_fees_paid" => "total_fees_paid",
         _ => "total_volume",
     };
 

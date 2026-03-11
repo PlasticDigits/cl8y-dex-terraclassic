@@ -5,6 +5,7 @@ import type {
   IndexerPairStats,
   IndexerOverview,
   IndexerTrader,
+  IndexerPosition,
 } from '@/types'
 
 const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost:3001'
@@ -75,9 +76,16 @@ export async function getTraderTrades(
 
 /** Get trader leaderboard. */
 export async function getLeaderboard(
-  sort = 'volume_24h',
+  sort = 'total_volume',
   limit = 50
 ): Promise<IndexerTrader[]> {
   const params = new URLSearchParams({ sort, limit: limit.toString() })
   return fetchJson<IndexerTrader[]>(`/api/v1/traders/leaderboard?${params}`)
+}
+
+/** Get trader's open positions with P&L. */
+export async function getTraderPositions(
+  address: string
+): Promise<IndexerPosition[]> {
+  return fetchJson<IndexerPosition[]>(`/api/v1/traders/${address}/positions`)
 }

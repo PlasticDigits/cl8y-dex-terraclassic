@@ -133,12 +133,13 @@ export interface IndexerCandle {
 
 export interface IndexerTrade {
   id: number
-  pair_id: number
+  pair_address: string
+  block_height: number
   block_timestamp: string
   tx_hash: string
   sender: string
-  offer_asset_symbol: string
-  ask_asset_symbol: string
+  offer_asset: string
+  ask_asset: string
   offer_amount: string
   return_amount: string
   price: string
@@ -165,10 +166,28 @@ export interface IndexerOverview {
 export interface IndexerTrader {
   address: string
   total_trades: number
-  total_volume_usd: string
-  volume_24h_usd: string
-  volume_7d_usd: string
-  volume_30d_usd: string
-  tier_id: number
-  tier_name: string
+  total_volume: string
+  volume_24h: string
+  volume_7d: string
+  volume_30d: string
+  tier_id: number | null
+  tier_name: string | null
+  registered: boolean
+  first_trade_at: string | null
+  last_trade_at: string | null
+  total_realized_pnl: string
+  best_trade_pnl: string
+  worst_trade_pnl: string
+  total_fees_paid: string
+}
+
+export interface IndexerPosition {
+  pair_address: string
+  asset_0_symbol: string
+  asset_1_symbol: string
+  net_position_quote: string
+  avg_entry_price: string
+  total_cost_base: string
+  realized_pnl: string
+  trade_count: number
 }
