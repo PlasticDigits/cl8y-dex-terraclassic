@@ -1,46 +1,134 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
+import { sounds } from '@/lib/sounds'
+
+type ThemeMode = 'dark' | 'light'
 
 const NAV_ITEMS = [
-  { path: '/', label: 'Swap' },
-  { path: '/pool', label: 'Pool' },
-  { path: '/tiers', label: 'Fee Tiers' },
-  { path: '/create', label: 'Create Pair' },
+  { path: '/', label: 'Swap', end: true, icon: '/assets/icon-swap.png' },
+  { path: '/pool', label: 'Pool', icon: '/assets/icon-pool.png' },
+  { path: '/tiers', label: 'Fee Tiers', icon: '/assets/icon-fee-tiers.png' },
+  { path: '/create', label: 'Create Pair', icon: '/assets/icon-create-pair.png' },
 ]
 
+function getSystemTheme(): ThemeMode {
+  if (typeof window === 'undefined') return 'dark'
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+}
+
+function getInitialTheme(): ThemeMode {
+  const stored = window.localStorage.getItem('cl8y-dex-theme')
+  if (stored === 'dark' || stored === 'light') return stored
+  return getSystemTheme()
+}
+
 export default function Layout() {
-  const location = useLocation()
+  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: light)')
+    const handler = () => {
+      if (!window.localStorage.getItem('cl8y-dex-theme')) {
+        setTheme(media.matches ? 'light' : 'dark')
+      }
+    }
+    media.addEventListener('change', handler)
+    return () => media.removeEventListener('change', handler)
+  }, [])
+
+  const setThemeAndPersist = (mode: ThemeMode) => {
+    setTheme(mode)
+    window.localStorage.setItem('cl8y-dex-theme', mode)
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-dex-border px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="text-xl font-bold text-dex-accent">CL8Y DEX</Link>
-            <nav className="flex gap-4">
-              {NAV_ITEMS.map(({ path, label }) => (
-                <Link
+    <div className="min-h-screen overflow-x-hidden">
+      <header className="sticky top-0 z-30 border-b-2 border-white/40 overflow-x-clip" style={{ background: 'var(--panel-bg-strong)', backdropFilter: 'blur(8px)' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between min-h-14 py-2 gap-2">
+            <nav className="flex gap-1 border-2 border-white/30 p-1 min-w-0 w-full md:w-auto md:flex-1 order-2" style={{ background: 'var(--panel-bg)' }}>
+              {NAV_ITEMS.map(({ path, label, end, icon }) => (
+                <NavLink
                   key={path}
                   to={path}
-                  className={`text-sm font-medium transition-colors ${
-                    location.pathname === path
-                      ? 'text-white'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
+                  end={end}
+                  onClick={() => sounds.playButtonPress()}
+                  className={({ isActive }) =>
+                    `flex-1 md:flex-none flex items-center justify-center gap-1.5 px-2 md:px-3.5 py-2 text-[10px] md:text-xs font-medium whitespace-nowrap uppercase tracking-[0.04em] md:tracking-wide border transition-colors ${
+                      isActive
+                        ? 'bg-[#202614] text-[#d5ff7f] border-[#b8ff3d]/60 shadow-[2px_2px_0_#000]'
+                        : 'text-slate-200 border-transparent hover:border-white/40 hover:bg-zinc-800'
+                    }`
+                  }
                 >
+                  <img src={icon} alt="" className="h-4 w-4 shrink-0" aria-hidden />
                   {label}
-                </Link>
+                </NavLink>
               ))}
             </nav>
+
+            <NavLink to="/" className="flex md:absolute left-0 md:left-1/2 top-0 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 w-full md:w-auto justify-center order-first md:order-none py-1 md:py-0 group pointer-events-auto" onClick={() => sounds.playButtonPress()}>
+              <img src="/assets/cl8y-dex-header-logo.png" alt="CL8Y DEX" className="h-12 md:h-14 w-auto shrink-0 rounded-none object-contain object-center group-hover:translate-x-[1px] group-hover:translate-y-[1px] transition-transform" style={{ boxShadow: '2px 2px 0 #000' }} />
+            </NavLink>
+
+            <div className="flex items-center gap-2 shrink-0 order-3">
+              <WalletButton />
+            </div>
           </div>
-          <WalletButton />
         </div>
       </header>
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
-        <Outlet />
+
+      <main className="relative max-w-5xl mx-auto px-4 pt-3 pb-6 md:pt-4 md:pb-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-2 mx-auto h-[520px] max-w-3xl rounded-[40px] theme-hero-glow blur-3xl"
+        />
+        <div className="relative z-10">
+          <Outlet />
+        </div>
       </main>
-      <footer className="border-t border-dex-border px-6 py-4 text-center text-xs text-gray-500">
-        CL8Y DEX on Terra Classic
+
+      <footer className="border-t-2 border-white/25 py-6 text-xs md:text-sm uppercase tracking-wider" style={{ color: 'var(--ink-dim)' }}>
+        <div className="mx-auto max-w-5xl px-4 flex flex-col gap-3 items-center justify-center md:flex-row md:justify-between">
+          <p>CL8Y DEX · Terra Classic</p>
+          <div className="flex items-center gap-2" role="group" aria-label="Theme">
+            <div className="inline-flex border border-white/50 p-0.5 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+              <button
+                type="button"
+                aria-pressed={theme === 'dark'}
+                aria-label="Dark theme"
+                className={`px-2.5 py-1 text-[11px] md:text-xs uppercase tracking-wider transition-colors ${
+                  theme === 'dark' ? 'bg-white/20 text-inherit' : 'text-slate-400 hover:text-slate-300'
+                }`}
+                onClick={() => {
+                  sounds.playButtonPress()
+                  setThemeAndPersist('dark')
+                }}
+              >
+                Dark
+              </button>
+              <button
+                type="button"
+                aria-pressed={theme === 'light'}
+                aria-label="Light theme"
+                className={`px-2.5 py-1 text-[11px] md:text-xs uppercase tracking-wider transition-colors ${
+                  theme === 'light' ? 'bg-white/20 text-inherit' : 'text-slate-400 hover:text-slate-300'
+                }`}
+                onClick={() => {
+                  sounds.playButtonPress()
+                  setThemeAndPersist('light')
+                }}
+              >
+                Light
+              </button>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   )

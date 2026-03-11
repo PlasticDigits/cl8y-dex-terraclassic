@@ -150,6 +150,115 @@
       0 0 30px color-mix(in srgb, var(--mint) 36%, transparent),
       2px 2px 0 #000;
   }
+
+  .btn-disabled {
+    @apply inline-flex items-center gap-2 rounded-none px-4 py-2 text-sm font-semibold border-2;
+    border-color: #000;
+    color: var(--ink-subtle);
+    background: var(--surface-1);
+    box-shadow: 3px 3px 0 #000;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: var(--cursor-not-allowed);
+    opacity: 0.6;
+  }
+
+  .input-neo {
+    @apply w-full rounded-none border-2 px-3 py-2 text-sm transition-colors;
+    background: var(--surface-0);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--ink);
+  }
+
+  .input-neo::placeholder {
+    color: var(--ink-subtle);
+  }
+
+  .input-neo:focus {
+    outline: none;
+    border-color: var(--cyan);
+  }
+
+  .select-neo {
+    @apply w-full rounded-none border-2 px-4 py-2.5 text-sm transition-colors appearance-none;
+    background: var(--surface-0);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--ink);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a9a9a9' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  .select-neo:focus {
+    outline: none;
+    border-color: var(--cyan);
+  }
+
+  .label-neo {
+    @apply block text-xs font-semibold uppercase tracking-wide mb-1;
+    color: var(--ink-dim);
+  }
+
+  .alert-error {
+    @apply rounded-none border-2 p-3 text-sm;
+    border-color: #991b1b;
+    background: #221313;
+    color: #f87171;
+    box-shadow: 3px 3px 0 #000;
+  }
+
+  .alert-success {
+    @apply rounded-none border-2 p-3 text-sm;
+    border-color: #166534;
+    background: rgba(22, 101, 52, 0.2);
+    color: #4ade80;
+    box-shadow: 3px 3px 0 #000;
+  }
+
+  .alert-warning {
+    @apply rounded-none border-2 p-3 text-sm;
+    border-color: #92400e;
+    background: #221c13;
+    color: #fbbf24;
+    box-shadow: 3px 3px 0 #000;
+  }
+
+  .alert-info {
+    @apply rounded-none border-2 p-3 text-sm;
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--surface-0);
+    color: var(--ink-dim);
+    box-shadow: 3px 3px 0 #000;
+  }
+
+  .card-neo {
+    @apply rounded-none border-2 p-4;
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--surface-1);
+    box-shadow: 3px 3px 0 #000;
+  }
+
+  .tab-neo {
+    @apply px-4 py-2 text-sm font-medium uppercase tracking-wide border-2 transition-colors;
+  }
+
+  .tab-neo-active {
+    background: var(--accent-surface);
+    color: var(--mint-soft);
+    border-color: color-mix(in srgb, var(--mint) 60%, transparent);
+    box-shadow: 2px 2px 0 #000;
+  }
+
+  .tab-neo-inactive {
+    color: var(--ink-dim);
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--surface-1);
+  }
+
+  .tab-neo-inactive:hover {
+    border-color: rgba(255, 255, 255, 0.35);
+    color: var(--ink);
+  }
 }
 
 @layer utilities {
@@ -237,6 +346,21 @@ input[type='number'] {
 
 .animate-progress-shimmer {
   animation: progress-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease-out;
 }
 
 @layer utilities {

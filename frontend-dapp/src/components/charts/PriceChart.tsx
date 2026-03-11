@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getCandles } from '@/services/indexer/client'
 import type { IndexerCandle } from '@/types'
+import { Spinner } from '@/components/ui'
+import { sounds } from '@/lib/sounds'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const
 
@@ -105,18 +107,21 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
   }, [candlesQuery.data])
 
   return (
-    <div className="bg-dex-card rounded-2xl border border-dex-border p-4">
+    <div className="shell-panel-strong">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-300">Price Chart</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>Price Chart</h3>
         <div className="flex gap-1">
           {INTERVALS.map((iv) => (
             <button
               key={iv}
-              onClick={() => setInterval_(iv)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+              onClick={() => {
+                sounds.playButtonPress()
+                setInterval_(iv)
+              }}
+              className={`tab-neo !text-[10px] !px-2 !py-1 ${
                 interval === iv
-                  ? 'bg-dex-accent text-dex-bg'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'tab-neo-active'
+                  : 'tab-neo-inactive'
               }`}
             >
               {iv}
@@ -126,13 +131,13 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
       </div>
 
       {candlesQuery.isLoading && (
-        <div className="flex items-center justify-center h-[400px] text-gray-500">
-          Loading chart...
+        <div className="flex items-center justify-center h-[400px] gap-3" style={{ color: 'var(--ink-subtle)' }}>
+          <Spinner /> Loading chart...
         </div>
       )}
 
       {candlesQuery.isError && (
-        <div className="flex items-center justify-center h-[400px] text-red-400 text-sm">
+        <div className="flex items-center justify-center h-[400px] text-red-400 text-sm uppercase tracking-wide font-semibold">
           Failed to load chart data
         </div>
       )}

@@ -4,6 +4,8 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { getTiers, getRegistration, register, deregister } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { TierEntry } from '@/types'
+import { Spinner, Badge } from '@/components/ui'
+import { sounds } from '@/lib/sounds'
 
 const CL8Y_DECIMALS = 18
 
@@ -40,19 +42,31 @@ function TierRow({
 
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-xl border transition-colors ${
+      className={`flex items-center gap-4 p-4 rounded-none border-2 transition-colors shadow-[3px_3px_0_#000] ${
         isCurrentTier
-          ? 'border-dex-accent bg-dex-accent/5'
-          : 'border-dex-border bg-dex-bg'
+          ? 'border-[color:var(--mint)] bg-[color:var(--accent-surface)]'
+          : ''
       }`}
+      style={isCurrentTier ? undefined : {
+        borderColor: 'rgba(255,255,255,0.2)',
+        background: 'var(--surface-0)',
+      }}
     >
-      <div className="w-12 h-12 rounded-xl bg-dex-card border border-dex-border flex items-center justify-center text-lg font-bold text-white">
+      <div
+        className="w-12 h-12 rounded-none border-2 flex items-center justify-center text-lg font-bold shadow-[2px_2px_0_#000]"
+        style={{
+          borderColor: 'rgba(255,255,255,0.2)',
+          background: 'var(--surface-1)',
+          color: 'var(--ink)',
+          fontFamily: "'Chakra Petch', sans-serif",
+        }}
+      >
         {tier_id}
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-white">
+          <span className="font-medium uppercase tracking-wide" style={{ color: 'var(--ink)' }}>
             {tier.governance_only
               ? tier_id === 0
                 ? 'Market Maker'
@@ -60,17 +74,13 @@ function TierRow({
               : `Tier ${tier_id}`}
           </span>
           {tier.governance_only && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">
-              Governance
-            </span>
+            <Badge variant="warning">Governance</Badge>
           )}
           {isCurrentTier && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-dex-accent/15 text-dex-accent border border-dex-accent/20">
-              Active
-            </span>
+            <Badge variant="accent">Active</Badge>
           )}
         </div>
-        <div className="text-sm text-gray-400">
+        <div className="text-sm" style={{ color: 'var(--ink-dim)' }}>
           {tier.min_cl8y_balance !== '0' ? (
             <span>Hold {formatCl8y(tier.min_cl8y_balance)} CL8Y</span>
           ) : (
@@ -80,22 +90,27 @@ function TierRow({
       </div>
 
       <div className="text-right">
-        <div className="text-lg font-semibold text-white">{discountLabel(tier.discount_bps)}</div>
-        <div className="text-xs text-gray-500">fee discount</div>
+        <div className="text-lg font-semibold" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>{discountLabel(tier.discount_bps)}</div>
+        <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>fee discount</div>
       </div>
 
       <div className="w-28">
         {!tier.governance_only && canSelfRegister && !isCurrentTier && (
           <button
-            onClick={() => onRegister(tier_id)}
+            onClick={() => {
+              sounds.playButtonPress()
+              onRegister(tier_id)
+            }}
             disabled={isRegistering}
-            className="w-full py-2 rounded-lg text-sm font-medium transition-colors bg-dex-accent text-dex-bg hover:bg-dex-accent/80 disabled:bg-dex-border disabled:text-gray-500 disabled:cursor-not-allowed"
+            className={`w-full py-2 font-semibold text-sm ${
+              isRegistering ? 'btn-disabled !w-full' : 'btn-primary !w-full'
+            }`}
           >
             {isRegistering ? '...' : 'Register'}
           </button>
         )}
         {tier.governance_only && (
-          <span className="block text-center text-xs text-gray-500">Governance only</span>
+          <span className="block text-center text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>Governance only</span>
         )}
       </div>
     </div>
@@ -123,15 +138,19 @@ export default function TiersPage() {
   const registerMutation = useMutation({
     mutationFn: (tierId: number) => register(address!, tierId),
     onSuccess: () => {
+      sounds.playSuccess()
       queryClient.invalidateQueries({ queryKey: ['feeDiscountRegistration'] })
     },
+    onError: () => sounds.playError(),
   })
 
   const deregisterMutation = useMutation({
     mutationFn: () => deregister(address!),
     onSuccess: () => {
+      sounds.playSuccess()
       queryClient.invalidateQueries({ queryKey: ['feeDiscountRegistration'] })
     },
+    onError: () => sounds.playError(),
   })
 
   const tiers = tiersQuery.data ?? []
@@ -145,7 +164,7 @@ export default function TiersPage() {
   if (!FEE_DISCOUNT_CONTRACT_ADDRESS) {
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="bg-dex-card rounded-2xl border border-dex-border p-8 text-center text-gray-400">
+        <div className="shell-panel-strong py-8 text-center" style={{ color: 'var(--ink-dim)' }}>
           Fee discount contract not configured.
         </div>
       </div>
@@ -155,21 +174,21 @@ export default function TiersPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-1">Fee Discount Tiers</h2>
-        <p className="text-sm text-gray-400">
+        <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide" style={{ fontFamily: "'Chakra Petch', sans-serif" }}>Fee Discount Tiers</h2>
+        <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
           Hold CL8Y tokens to reduce your swap fees. Register for a tier below.
         </p>
       </div>
 
       {/* Current Status */}
       {address && (
-        <div className="bg-dex-card rounded-2xl border border-dex-border p-5 mb-6">
+        <div className="shell-panel-strong mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-400 mb-1">Your Status</p>
+              <p className="label-neo">Your Status</p>
               {registration?.registered ? (
                 <div>
-                  <span className="text-white font-medium">
+                  <span className="font-medium" style={{ color: 'var(--ink)' }}>
                     {registration.tier?.governance_only
                       ? currentTierId === 0
                         ? 'Market Maker'
@@ -178,47 +197,50 @@ export default function TiersPage() {
                           : `Tier ${currentTierId}`
                       : `Tier ${currentTierId}`}
                   </span>
-                  <span className="text-dex-accent ml-2">
+                  <span className="ml-2" style={{ color: 'var(--cyan)' }}>
                     {discountLabel(registration.tier?.discount_bps ?? 0)} discount
                   </span>
                 </div>
               ) : (
-                <span className="text-gray-500">Not registered</span>
+                <span style={{ color: 'var(--ink-subtle)' }}>Not registered</span>
               )}
             </div>
             {registration?.registered && !isOnGovernanceTier && (
               <button
-                onClick={() => deregisterMutation.mutate()}
+                onClick={() => {
+                  sounds.playButtonPress()
+                  deregisterMutation.mutate()
+                }}
                 disabled={deregisterMutation.isPending}
-                className="px-4 py-2 rounded-lg text-sm border border-dex-border text-gray-300 hover:border-red-500/50 hover:text-red-400 transition-colors disabled:opacity-50"
+                className="btn-muted !text-xs hover:!border-red-700 hover:!text-red-400 disabled:opacity-50"
               >
                 {deregisterMutation.isPending ? 'Deregistering...' : 'Deregister'}
               </button>
             )}
           </div>
           {(registerMutation.isError || deregisterMutation.isError) && (
-            <p className="mt-3 text-sm text-red-400">
+            <div className="mt-3 alert-error !text-xs">
               {registerMutation.error?.message || deregisterMutation.error?.message}
-            </p>
+            </div>
           )}
         </div>
       )}
 
       {!address && (
-        <div className="bg-dex-card rounded-2xl border border-dex-border p-5 mb-6 text-center text-gray-400 text-sm">
+        <div className="shell-panel-strong mb-6 text-center text-sm" style={{ color: 'var(--ink-dim)' }}>
           Connect your wallet to register for a fee discount tier.
         </div>
       )}
 
       {/* Tier List */}
       {tiersQuery.isLoading && (
-        <div className="bg-dex-card rounded-2xl border border-dex-border p-8 text-center text-gray-400 animate-pulse">
-          Loading tiers...
+        <div className="shell-panel-strong flex items-center justify-center gap-3 py-8">
+          <Spinner /> <span style={{ color: 'var(--ink-dim)' }}>Loading tiers...</span>
         </div>
       )}
 
       {tiersQuery.isError && (
-        <div className="bg-dex-card rounded-2xl border border-dex-border p-8 text-center text-red-400">
+        <div className="alert-error py-8 text-center">
           Failed to load tiers: {tiersQuery.error?.message}
         </div>
       )}
@@ -237,19 +259,19 @@ export default function TiersPage() {
       </div>
 
       {/* Fee Calculation Example */}
-      <div className="mt-8 bg-dex-card rounded-2xl border border-dex-border p-5">
-        <h3 className="text-sm font-medium text-white mb-3">How it works</h3>
-        <div className="text-sm text-gray-400 space-y-2">
+      <div className="mt-8 shell-panel-strong">
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>How it works</h3>
+        <div className="text-sm space-y-2" style={{ color: 'var(--ink-dim)' }}>
           <p>Your swap fee is reduced based on your registered tier. For a pool with 1.80% base fee:</p>
           <div className="grid grid-cols-3 gap-2 text-xs mt-3">
-            <div className="text-gray-500 font-medium">Tier</div>
-            <div className="text-gray-500 font-medium">Discount</div>
-            <div className="text-gray-500 font-medium">Effective Fee</div>
+            <div className="label-neo !mb-0">Tier</div>
+            <div className="label-neo !mb-0">Discount</div>
+            <div className="label-neo !mb-0">Effective Fee</div>
             {selfRegisterTiers.map((t) => (
               <React.Fragment key={t.tier_id}>
-                <div className="text-gray-300">Tier {t.tier_id}</div>
-                <div className="text-dex-accent">{discountLabel(t.tier.discount_bps)}</div>
-                <div className="text-white">{effectiveFeeLabel(180, t.tier.discount_bps)}</div>
+                <div style={{ color: 'var(--ink)' }}>Tier {t.tier_id}</div>
+                <div style={{ color: 'var(--cyan)' }}>{discountLabel(t.tier.discount_bps)}</div>
+                <div style={{ color: 'var(--ink)' }}>{effectiveFeeLabel(180, t.tier.discount_bps)}</div>
               </React.Fragment>
             ))}
           </div>
