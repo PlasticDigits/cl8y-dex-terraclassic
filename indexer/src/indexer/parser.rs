@@ -8,7 +8,7 @@ use crate::config::Config;
 use crate::db::queries::{pairs, swap_events};
 use crate::lcd::{LcdClient, TxResponse};
 
-use super::{asset_resolver, candle_builder, pair_discovery, trader_tracker};
+use super::{asset_resolver, candle_builder, pair_discovery, position_tracker, trader_tracker};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -113,6 +113,19 @@ async fn process_swap(
     .await?;
 
     trader_tracker::update_trader_on_swap(pool, &swap.sender, &swap.offer_amount).await?;
+
+    position_tracker::update_position_on_swap(
+        pool,
+        pair.id,
+        pair.asset_0_id,
+        &swap.sender,
+        offer_asset_id,
+        &swap.offer_amount,
+        &swap.return_amount,
+        swap.spread_amount.as_ref(),
+        swap.commission_amount.as_ref(),
+    )
+    .await?;
 
     Ok(())
 }

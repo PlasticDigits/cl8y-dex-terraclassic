@@ -99,6 +99,7 @@ async fn find_pair_by_ticker(
         tokens::get_token_pairs,
         traders::get_trader_profile,
         traders::get_trader_trades,
+        traders::get_trader_positions,
         traders::leaderboard,
         overview::get_overview,
         cg::cg_pairs,
@@ -121,6 +122,7 @@ async fn find_pair_by_ticker(
         tokens::TokenDetailResponse,
         tokens::VolumeStatResponse,
         traders::TraderResponse,
+        traders::PositionResponse,
         overview::OverviewResponse,
         cg::CgPairResponse,
         cg::CgTickerResponse,
@@ -189,6 +191,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/traders/{addr}/trades",
             get(traders::get_trader_trades),
+        )
+        .route(
+            "/api/v1/traders/{addr}/positions",
+            get(traders::get_trader_positions),
         )
         .route("/api/v1/overview", get(overview::get_overview))
         .route("/cg/pairs", get(cg::cg_pairs))

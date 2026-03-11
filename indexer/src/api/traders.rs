@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use super::{build_asset_map, internal_err, AppState};
-use crate::db::queries::{pairs as db_pairs, swap_events, traders as db_traders};
+use crate::db::queries::{pairs as db_pairs, positions as db_positions, swap_events, traders as db_traders};
 
 pub const VALID_SORTS: &[&str] = &[
     "total_volume",
@@ -15,6 +15,10 @@ pub const VALID_SORTS: &[&str] = &[
     "volume_7d",
     "volume_30d",
     "total_trades",
+    "total_realized_pnl",
+    "best_trade_pnl",
+    "worst_trade_pnl",
+    "total_fees_paid",
 ];
 
 #[derive(Serialize, ToSchema)]
@@ -30,6 +34,10 @@ pub struct TraderResponse {
     pub registered: bool,
     pub first_trade_at: Option<String>,
     pub last_trade_at: Option<String>,
+    pub total_realized_pnl: String,
+    pub best_trade_pnl: String,
+    pub worst_trade_pnl: String,
+    pub total_fees_paid: String,
 }
 
 impl From<&db_traders::TraderRow> for TraderResponse {
@@ -46,8 +54,24 @@ impl From<&db_traders::TraderRow> for TraderResponse {
             registered: t.registered,
             first_trade_at: t.first_trade_at.map(|d| d.to_rfc3339()),
             last_trade_at: t.last_trade_at.map(|d| d.to_rfc3339()),
+            total_realized_pnl: t.total_realized_pnl.to_string(),
+            best_trade_pnl: t.best_trade_pnl.to_string(),
+            worst_trade_pnl: t.worst_trade_pnl.to_string(),
+            total_fees_paid: t.total_fees_paid.to_string(),
         }
     }
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct PositionResponse {
+    pub pair_address: String,
+    pub asset_0_symbol: String,
+    pub asset_1_symbol: String,
+    pub net_position_quote: String,
+    pub avg_entry_price: String,
+    pub total_cost_base: String,
+    pub realized_pnl: String,
+    pub trade_count: i32,
 }
 
 #[utoipa::path(
@@ -193,4 +217,55 @@ pub async fn leaderboard(
         .map_err(internal_err)?;
 
     Ok(Json(rows.iter().map(TraderResponse::from).collect()))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/traders/{addr}/positions",
+    params(
+        ("addr" = String, Path, description = "Trader wallet address"),
+    ),
+    responses(
+        (status = 200, description = "Trader's open positions", body = Vec<PositionResponse>),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Traders"
+)]
+pub async fn get_trader_positions(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+) -> Result<Json<Vec<PositionResponse>>, (StatusCode, String)> {
+    let positions = db_positions::get_positions_for_trader(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?;
+
+    let asset_map = build_asset_map(&state.pool)
+        .await
+        .map_err(internal_err)?;
+
+    let all_pairs = db_pairs::get_all_pairs(&state.pool)
+        .await
+        .map_err(internal_err)?;
+    let pair_map: HashMap<i32, &db_pairs::PairRow> = all_pairs.iter().map(|p| (p.id, p)).collect();
+
+    let result: Vec<PositionResponse> = positions
+        .iter()
+        .filter_map(|pos| {
+            let pair = pair_map.get(&pos.pair_id)?;
+            let a0_sym = asset_map.get(&pair.asset_0_id).map(|a| a.symbol.clone()).unwrap_or_default();
+            let a1_sym = asset_map.get(&pair.asset_1_id).map(|a| a.symbol.clone()).unwrap_or_default();
+            Some(PositionResponse {
+                pair_address: pair.contract_address.clone(),
+                asset_0_symbol: a0_sym,
+                asset_1_symbol: a1_sym,
+                net_position_quote: pos.net_position_quote.to_string(),
+                avg_entry_price: pos.avg_entry_price.to_string(),
+                total_cost_base: pos.total_cost_base.to_string(),
+                realized_pnl: pos.realized_pnl.to_string(),
+                trade_count: pos.trade_count,
+            })
+        })
+        .collect();
+
+    Ok(Json(result))
 }

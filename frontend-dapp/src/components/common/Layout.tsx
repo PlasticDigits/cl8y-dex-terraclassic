@@ -8,6 +8,7 @@ type ThemeMode = 'dark' | 'light'
 const NAV_ITEMS = [
   { path: '/', label: 'Swap', end: true, icon: '/assets/icon-swap.png' },
   { path: '/pool', label: 'Pool', icon: '/assets/icon-pool.png' },
+  { path: '/charts', label: 'Charts', icon: '/assets/icon-chart.png' },
   { path: '/tiers', label: 'Fee Tiers', icon: '/assets/icon-fee-tiers.png' },
   { path: '/create', label: 'Create Pair', icon: '/assets/icon-create-pair.png' },
 ]

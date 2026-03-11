@@ -16,8 +16,17 @@ function formatCl8y(raw: string): string {
   return whole.toLocaleString()
 }
 
+const DEFAULT_FEE_BPS = 180
+
 function discountLabel(bps: number): string {
-  return `${(bps / 100).toFixed(0)}%`
+  const pct = bps / 100
+  return pct % 1 === 0 ? `${pct.toFixed(0)}%` : `${pct.toFixed(1)}%`
+}
+
+function effectiveFeeLabel(discountBps: number): string {
+  const effective = DEFAULT_FEE_BPS * (10000 - discountBps) / 10000
+  const pct = effective / 100
+  return pct % 1 === 0 ? `${pct.toFixed(1)}%` : `${pct.toFixed(2)}%`
 }
 
 function TierRow({
@@ -88,6 +97,13 @@ function TierRow({
         <div className="text-lg font-semibold" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>{discountLabel(tier.discount_bps)}</div>
         <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>fee discount</div>
       </div>
+
+      {!tier.governance_only && (
+        <div className="text-right min-w-[4.5rem]">
+          <div className="text-lg font-semibold" style={{ color: 'var(--mint)', fontFamily: "'Chakra Petch', sans-serif" }}>{effectiveFeeLabel(tier.discount_bps)}</div>
+          <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>eff. fee*</div>
+        </div>
+      )}
 
       <div className="w-28">
         {!tier.governance_only && canSelfRegister && !isCurrentTier && (
@@ -258,18 +274,30 @@ export default function TiersPage() {
         <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>How it works</h3>
         <div className="text-sm space-y-2" style={{ color: 'var(--ink-dim)' }}>
           <p>Your swap fee is reduced based on your registered tier. If you drop below the required CL8Y holding at any time, you lose your tier.</p>
-          <div className="grid grid-cols-3 gap-2 text-xs mt-3">
+          <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
+            The default base fee is 1.8% for most pairs. Some pairs may have a different base fee &mdash; your tier discount applies as a percentage off whichever base fee the pair uses.
+          </p>
+          <div className="grid grid-cols-4 gap-2 text-xs mt-3">
             <div className="label-neo !mb-0">Tier</div>
-            <div className="label-neo !mb-0">Discount</div>
             <div className="label-neo !mb-0">CL8Y Hold</div>
+            <div className="label-neo !mb-0">Discount</div>
+            <div className="label-neo !mb-0">Eff. Fee*</div>
+            <div style={{ color: 'var(--ink-subtle)' }}>No tier</div>
+            <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>
+            <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>
+            <div style={{ color: 'var(--ink-subtle)' }}>1.8%</div>
             {selfRegisterTiers.map((t) => (
               <React.Fragment key={t.tier_id}>
                 <div style={{ color: 'var(--ink)' }}>Tier {t.tier_id}</div>
-                <div style={{ color: 'var(--cyan)' }}>{discountLabel(t.tier.discount_bps)}</div>
                 <div style={{ color: 'var(--ink)' }}>{formatCl8y(t.tier.min_cl8y_balance)}</div>
+                <div style={{ color: 'var(--cyan)' }}>{discountLabel(t.tier.discount_bps)}</div>
+                <div style={{ color: 'var(--mint)' }}>{effectiveFeeLabel(t.tier.discount_bps)}</div>
               </React.Fragment>
             ))}
           </div>
+          <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
+            *Effective fee shown assumes the default 1.8% base fee. Pairs with a custom base fee will have a proportionally different effective fee.
+          </p>
         </div>
       </div>
     </div>

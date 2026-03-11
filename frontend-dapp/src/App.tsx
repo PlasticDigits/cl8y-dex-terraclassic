@@ -11,6 +11,8 @@ const SwapPage = lazy(() => import('./pages/SwapPage'))
 const PoolPage = lazy(() => import('./pages/PoolPage'))
 const CreatePairPage = lazy(() => import('./pages/CreatePairPage'))
 const TiersPage = lazy(() => import('./pages/TiersPage'))
+const ChartsPage = lazy(() => import('./pages/ChartsPage'))
+const TraderPage = lazy(() => import('./pages/TraderPage'))
 
 function PageFallback() {
   return (
@@ -82,6 +84,8 @@ export default function App() {
               <Route path="/pool" element={<Suspense fallback={<PageFallback />}><PoolPage /></Suspense>} />
               <Route path="/create" element={<Suspense fallback={<PageFallback />}><CreatePairPage /></Suspense>} />
               <Route path="/tiers" element={<Suspense fallback={<PageFallback />}><TiersPage /></Suspense>} />
+              <Route path="/charts" element={<Suspense fallback={<PageFallback />}><ChartsPage /></Suspense>} />
+              <Route path="/trader/:address" element={<Suspense fallback={<PageFallback />}><TraderPage /></Suspense>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
