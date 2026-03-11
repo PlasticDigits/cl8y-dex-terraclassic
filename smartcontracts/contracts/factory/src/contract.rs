@@ -179,7 +179,10 @@ fn execute_create_pair(
             code_id: config.pair_code_id,
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
-            label: format!("cl8y-dex-pair-{}-{}", token_a_addr, token_b_addr),
+            label: {
+                let full = format!("cl8y-dex-pair-{}-{}", token_a_addr, token_b_addr);
+                if full.len() > 128 { full[..128].to_string() } else { full }
+            },
         },
         REPLY_INSTANTIATE_PAIR,
     );

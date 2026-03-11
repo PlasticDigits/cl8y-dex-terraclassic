@@ -11,6 +11,7 @@ ARTIFACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/artifacts" && pwd)"
 terrad_tx() {
     docker exec "$CONTAINER_NAME" terrad tx "$@" \
         --from test1 \
+        --keyring-backend test \
         --chain-id "$CHAIN_ID" \
         --gas auto \
         --gas-adjustment 1.3 \
