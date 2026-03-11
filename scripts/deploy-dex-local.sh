@@ -48,7 +48,7 @@ echo "CL8Y DEX - Local Deployment"
 echo "=============================================="
 
 echo ""
-echo "[1/16] Waiting for LocalTerra to be ready..."
+echo "[1/22] Waiting for LocalTerra to be ready..."
 for i in $(seq 1 60); do
     if curl -sf "$NODE/status" > /dev/null 2>&1; then
         echo "LocalTerra is ready!"
@@ -64,7 +64,7 @@ for i in $(seq 1 60); do
 done
 
 echo ""
-echo "[2/16] Copying wasm artifacts into container..."
+echo "[2/22] Copying wasm artifacts into container..."
 if [ ! -d "$ARTIFACTS_DIR" ]; then
     echo "ERROR: artifacts/ directory not found at $ARTIFACTS_DIR"
     echo "Run 'make build-optimized' first."
@@ -75,7 +75,20 @@ docker cp "$ARTIFACTS_DIR/." "$CONTAINER_NAME:/tmp/artifacts/"
 echo "Artifacts copied."
 
 echo ""
-echo "[3/16] Uploading CW20 Mintable wasm..."
+echo "[3/22] Uploading CW20 Mintable wasm..."
+if [ ! -f "$ARTIFACTS_DIR/cw20_mintable.wasm" ] && [ ! -f "$ARTIFACTS_DIR/cw20_base.wasm" ]; then
+    echo "  cw20_mintable.wasm not found in artifacts — building from source..."
+    CW20_TMP_DIR=$(mktemp -d)
+    git clone --depth 1 https://github.com/PlasticDigits/cw20-mintable.git "$CW20_TMP_DIR" 2>&1 | tail -1
+    docker run --rm -v "$CW20_TMP_DIR":/code \
+        --mount type=volume,source=cw20_mintable_cache,target=/code/target \
+        --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+        cosmwasm/workspace-optimizer:0.16.1
+    cp "$CW20_TMP_DIR/artifacts/cw20_mintable.wasm" "$ARTIFACTS_DIR/"
+    rm -rf "$CW20_TMP_DIR"
+    echo "  cw20_mintable.wasm built and copied to artifacts."
+    docker cp "$ARTIFACTS_DIR/cw20_mintable.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
+fi
 CW20_WASM="/tmp/artifacts/cw20_mintable.wasm"
 if ! docker exec "$CONTAINER_NAME" test -f "$CW20_WASM"; then
     CW20_WASM="/tmp/artifacts/cw20_base.wasm"
@@ -90,28 +103,28 @@ CW20_CODE_ID=$(get_code_id "$TX_HASH")
 echo "  CW20 Code ID: $CW20_CODE_ID"
 
 echo ""
-echo "[4/16] Uploading cl8y_dex_factory.wasm..."
+echo "[4/22] Uploading cl8y_dex_factory.wasm..."
 TX_HASH=$(terrad_tx wasm store /tmp/artifacts/cl8y_dex_factory.wasm | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 FACTORY_CODE_ID=$(get_code_id "$TX_HASH")
 echo "  Factory Code ID: $FACTORY_CODE_ID"
 
 echo ""
-echo "[5/16] Uploading cl8y_dex_pair.wasm..."
+echo "[5/22] Uploading cl8y_dex_pair.wasm..."
 TX_HASH=$(terrad_tx wasm store /tmp/artifacts/cl8y_dex_pair.wasm | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 PAIR_CODE_ID=$(get_code_id "$TX_HASH")
 echo "  Pair Code ID: $PAIR_CODE_ID"
 
 echo ""
-echo "[6/16] Uploading cl8y_dex_router.wasm..."
+echo "[6/22] Uploading cl8y_dex_router.wasm..."
 TX_HASH=$(terrad_tx wasm store /tmp/artifacts/cl8y_dex_router.wasm | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 ROUTER_CODE_ID=$(get_code_id "$TX_HASH")
 echo "  Router Code ID: $ROUTER_CODE_ID"
 
 echo ""
-echo "[7/16] Instantiating Factory..."
+echo "[7/22] Instantiating Factory..."
 FACTORY_INIT_MSG=$(cat <<EOF
 {
   "governance": "$TEST_ADDRESS",
@@ -131,7 +144,7 @@ FACTORY_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Factory Address: $FACTORY_ADDRESS"
 
 echo ""
-echo "[8/16] Instantiating Router..."
+echo "[8/22] Instantiating Router..."
 ROUTER_INIT_MSG="{\"factory\": \"$FACTORY_ADDRESS\"}"
 TX_HASH=$(terrad_tx wasm instantiate "$ROUTER_CODE_ID" "$ROUTER_INIT_MSG" \
     --label "cl8y-dex-router" \
@@ -141,7 +154,7 @@ ROUTER_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Router Address: $ROUTER_ADDRESS"
 
 echo ""
-echo "[9/16] Instantiating Test Token A (TSTA)..."
+echo "[9/22] Instantiating Test Token A (TSTA)..."
 TOKEN_A_INIT_MSG=$(cat <<EOF
 {
   "name": "Token A",
@@ -167,7 +180,7 @@ TOKEN_A_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Token A Address: $TOKEN_A_ADDRESS"
 
 echo ""
-echo "[10/16] Instantiating Test Token B (TSTB)..."
+echo "[10/22] Instantiating Test Token B (TSTB)..."
 TOKEN_B_INIT_MSG=$(cat <<EOF
 {
   "name": "Token B",
@@ -193,7 +206,7 @@ TOKEN_B_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Token B Address: $TOKEN_B_ADDRESS"
 
 echo ""
-echo "[11/16] Creating test pair (TSTA/TSTB) via Factory..."
+echo "[11/22] Creating test pair (TSTA/TSTB) via Factory..."
 CREATE_PAIR_MSG=$(cat <<EOF
 {
   "create_pair": {
@@ -213,14 +226,14 @@ PAIR_ADDRESS=$(echo "$PAIR_RESULT" | jq -r '.logs[0].events[] | select(.type=="i
 echo "  Pair Address: $PAIR_ADDRESS"
 
 echo ""
-echo "[12/16] Uploading cl8y_dex_fee_discount.wasm..."
+echo "[12/22] Uploading cl8y_dex_fee_discount.wasm..."
 TX_HASH=$(terrad_tx wasm store /tmp/artifacts/cl8y_dex_fee_discount.wasm | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 FEE_DISCOUNT_CODE_ID=$(get_code_id "$TX_HASH")
 echo "  Fee Discount Code ID: $FEE_DISCOUNT_CODE_ID"
 
 echo ""
-echo "[13/16] Instantiating Fee Discount contract..."
+echo "[13/22] Instantiating Fee Discount contract..."
 FEE_DISCOUNT_INIT_MSG=$(cat <<EOF
 {
   "governance": "$TEST_ADDRESS",
@@ -236,7 +249,7 @@ FEE_DISCOUNT_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Fee Discount Address: $FEE_DISCOUNT_ADDRESS"
 
 echo ""
-echo "[14/16] Adding fee discount tiers..."
+echo "[14/22] Adding fee discount tiers..."
 for TIER_DATA in \
   '{"add_tier":{"tier_id":0,"min_cl8y_balance":"0","discount_bps":10000,"governance_only":true}}' \
   '{"add_tier":{"tier_id":1,"min_cl8y_balance":"1000000000000000000","discount_bps":1000,"governance_only":false}}' \
@@ -253,7 +266,7 @@ done
 echo "  All tiers added."
 
 echo ""
-echo "[15/16] Adding trusted router and setting discount registry..."
+echo "[15/22] Adding trusted router and setting discount registry..."
 TX_HASH=$(terrad_tx wasm execute "$FEE_DISCOUNT_ADDRESS" \
   "{\"add_trusted_router\":{\"router\":\"$ROUTER_ADDRESS\"}}" | jq -r '.txhash')
 echo "  Added trusted router: $TX_HASH"
@@ -265,7 +278,87 @@ echo "  Set discount registry on pair: $TX_HASH"
 sleep 3
 
 echo ""
-echo "[16/16] Deployment complete!"
+echo "[16/22] Approving tokens for pair contract..."
+TX_HASH=$(terrad_tx wasm execute "$TOKEN_A_ADDRESS" \
+  "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDRESS\",\"amount\":\"500000000000\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+echo "  Approved TSTA: $TX_HASH"
+sleep 3
+TX_HASH=$(terrad_tx wasm execute "$TOKEN_B_ADDRESS" \
+  "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDRESS\",\"amount\":\"500000000000\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+echo "  Approved TSTB: $TX_HASH"
+sleep 3
+
+echo ""
+echo "[17/22] Providing initial liquidity (500k TSTA + 500k TSTB)..."
+PROVIDE_MSG=$(cat <<EOF
+{
+  "provide_liquidity": {
+    "assets": [
+      {"info": {"token": {"contract_addr": "$TOKEN_A_ADDRESS"}}, "amount": "500000000000"},
+      {"info": {"token": {"contract_addr": "$TOKEN_B_ADDRESS"}}, "amount": "500000000000"}
+    ],
+    "slippage_tolerance": null,
+    "receiver": null,
+    "deadline": null
+  }
+}
+EOF
+)
+TX_HASH=$(terrad_tx wasm execute "$PAIR_ADDRESS" "$PROVIDE_MSG" | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+sleep 3
+
+echo ""
+echo "[18/22] Approving tokens for router..."
+TX_HASH=$(terrad_tx wasm execute "$TOKEN_A_ADDRESS" \
+  "{\"increase_allowance\":{\"spender\":\"$ROUTER_ADDRESS\",\"amount\":\"100000000000\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+echo "  Approved TSTA for router: $TX_HASH"
+sleep 3
+TX_HASH=$(terrad_tx wasm execute "$TOKEN_B_ADDRESS" \
+  "{\"increase_allowance\":{\"spender\":\"$ROUTER_ADDRESS\",\"amount\":\"100000000000\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+echo "  Approved TSTB for router: $TX_HASH"
+sleep 3
+
+echo ""
+echo "[19/22] Executing test swaps..."
+
+SWAP_HOOK_MSG=$(echo -n '{"swap":{"belief_price":null,"max_spread":"0.05","to":null,"deadline":null,"trader":null}}' | base64 -w0)
+
+echo "  Swap 1: 1000 TSTA -> TSTB (direct to pair)..."
+TX_HASH=$(terrad_tx wasm execute "$TOKEN_A_ADDRESS" \
+  "{\"send\":{\"contract\":\"$PAIR_ADDRESS\",\"amount\":\"1000000000\",\"msg\":\"$SWAP_HOOK_MSG\"}}" | jq -r '.txhash')
+echo "    TX: $TX_HASH"
+sleep 3
+
+echo "  Swap 2: 500 TSTB -> TSTA (direct to pair)..."
+TX_HASH=$(terrad_tx wasm execute "$TOKEN_B_ADDRESS" \
+  "{\"send\":{\"contract\":\"$PAIR_ADDRESS\",\"amount\":\"500000000\",\"msg\":\"$SWAP_HOOK_MSG\"}}" | jq -r '.txhash')
+echo "    TX: $TX_HASH"
+sleep 3
+
+ROUTER_SWAP_MSG=$(echo -n "{\"execute_swap_operations\":{\"operations\":[{\"terra_swap\":{\"offer_asset_info\":{\"token\":{\"contract_addr\":\"$TOKEN_A_ADDRESS\"}},\"ask_asset_info\":{\"token\":{\"contract_addr\":\"$TOKEN_B_ADDRESS\"}}}}],\"minimum_receive\":null,\"to\":null,\"deadline\":null}}" | base64 -w0)
+
+echo "  Swap 3: 2000 TSTA -> TSTB (via router)..."
+TX_HASH=$(terrad_tx wasm execute "$TOKEN_A_ADDRESS" \
+  "{\"send\":{\"contract\":\"$ROUTER_ADDRESS\",\"amount\":\"2000000000\",\"msg\":\"$ROUTER_SWAP_MSG\"}}" | jq -r '.txhash')
+echo "    TX: $TX_HASH"
+sleep 3
+
+echo ""
+echo "[20/22] Querying pool state..."
+POOL_STATE=$(curl -s "$LCD/cosmwasm/wasm/v1/contract/$PAIR_ADDRESS/smart/$(echo -n '{"pool":{}}' | base64 -w0)")
+echo "  Pool reserves:"
+echo "$POOL_STATE" | jq '.data.assets[] | "    \(.info): \(.amount)"' -r 2>/dev/null || echo "  (could not parse pool state)"
+
+echo ""
+echo "[21/22] Querying LP token info..."
+LP_TOKEN_ADDR=$(curl -s "$LCD/cosmwasm/wasm/v1/contract/$PAIR_ADDRESS/smart/$(echo -n '{"pair":{}}' | base64 -w0)" | jq -r '.data.liquidity_token')
+echo "  LP Token: $LP_TOKEN_ADDR"
+LP_BALANCE=$(curl -s "$LCD/cosmwasm/wasm/v1/contract/$LP_TOKEN_ADDR/smart/$(echo -n "{\"balance\":{\"address\":\"$TEST_ADDRESS\"}}" | base64 -w0)" | jq -r '.data.balance')
+echo "  LP Balance (test1): $LP_BALANCE"
+
+echo ""
+echo "[22/22] Deployment complete!"
 echo ""
 echo "=============================================="
 echo "  Contract Addresses"
@@ -276,6 +369,7 @@ echo "  Fee Discount:  $FEE_DISCOUNT_ADDRESS"
 echo "  Token A:       $TOKEN_A_ADDRESS"
 echo "  Token B:       $TOKEN_B_ADDRESS"
 echo "  Pair (A/B):    $PAIR_ADDRESS"
+echo "  LP Token:      $LP_TOKEN_ADDR"
 echo "=============================================="
 echo ""
 echo "Update frontend-dapp/.env:"
@@ -287,4 +381,5 @@ echo "  VITE_TERRA_LCD_URL=$LCD"
 echo "  VITE_TERRA_RPC_URL=$NODE"
 echo ""
 echo "Test address: $TEST_ADDRESS"
-echo "  Has 1M TSTA and 1M TSTB"
+echo "  Pool seeded with 500k TSTA + 500k TSTB"
+echo "  3 test swaps executed (reserves no longer 1:1)"

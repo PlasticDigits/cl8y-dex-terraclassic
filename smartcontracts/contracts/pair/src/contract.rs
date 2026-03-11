@@ -291,9 +291,26 @@ pub fn instantiate(
         },
     )?;
 
+    let (lp_name, lp_symbol, lp_label) = match msg.token_symbols {
+        Some([ref a, ref b]) => {
+            let short_a: String = a.chars().take(4).collect();
+            let short_b: String = b.chars().take(4).collect();
+            (
+                format!("{}-{} CL8YDEX LP", a, b),
+                format!("{}-{}-LP", short_a, short_b),
+                format!("{}-{} cl8ydex lp", a, b),
+            )
+        }
+        None => (
+            "CL8Y DEX LP Token".to_string(),
+            "CL8Y-LP".to_string(),
+            "CL8Y DEX LP Token".to_string(),
+        ),
+    };
+
     let instantiate_lp_msg = cw20_mintable::msg::InstantiateMsg {
-        name: "CL8Y DEX LP Token".to_string(),
-        symbol: "CL8Y-LP".to_string(),
+        name: lp_name,
+        symbol: lp_symbol,
         decimals: 6,
         initial_balances: vec![],
         mint: Some(MinterResponse {
@@ -309,7 +326,7 @@ pub fn instantiate(
             code_id: msg.lp_token_code_id,
             msg: to_json_binary(&instantiate_lp_msg)?,
             funds: vec![],
-            label: "CL8Y DEX LP Token".to_string(),
+            label: lp_label,
         },
         INSTANTIATE_LP_TOKEN_REPLY_ID,
     );

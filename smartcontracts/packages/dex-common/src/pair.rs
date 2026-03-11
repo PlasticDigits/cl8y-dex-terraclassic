@@ -12,6 +12,7 @@ pub struct PairInstantiateMsg {
     pub treasury: Addr,
     pub factory: Addr,
     pub lp_token_code_id: u64,
+    pub token_symbols: Option<[String; 2]>,
 }
 
 #[cw_serde]
