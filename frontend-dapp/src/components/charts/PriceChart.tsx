@@ -95,13 +95,13 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
     if (!seriesRef.current || !candlesQuery.data) return
 
     const data = candlesQuery.data
-      .filter((c: IndexerCandle) => c.open_price && c.close_price)
+      .filter((c: IndexerCandle) => c.open && c.close)
       .map((c: IndexerCandle) => ({
         time: Math.floor(new Date(c.open_time).getTime() / 1000) as number,
-        open: parseFloat(c.open_price),
-        high: parseFloat(c.high_price),
-        low: parseFloat(c.low_price),
-        close: parseFloat(c.close_price),
+        open: parseFloat(c.open),
+        high: parseFloat(c.high),
+        low: parseFloat(c.low),
+        close: parseFloat(c.close),
       }))
       .sort((a, b) => (a.time as number) - (b.time as number))
 
