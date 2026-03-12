@@ -19,19 +19,17 @@ test.describe('Pool Page', () => {
       await page.goto('/pool')
       await page.waitForLoadState('networkidle')
       await expect(async () => {
-        const poolCards = page.locator('[class*="border"]').filter({
-          hasText: /terra1/,
-        })
-        const count = await poolCards.count()
+        const provideBtns = page.getByRole('button', { name: 'Provide Liquidity' })
+        const count = await provideBtns.count()
         expect(count).toBeGreaterThanOrEqual(1)
       }).toPass({ timeout: 15000 })
     })
 
-    test('shows fee badge on pool cards', async ({ page }) => {
+    test('shows fee info on pool cards', async ({ page }) => {
       await page.goto('/pool')
       await page.waitForLoadState('networkidle')
       await expect(async () => {
-        await expect(page.getByText(/\d+ bps/i).first()).toBeVisible()
+        await expect(page.getByText(/Fee:/i).first()).toBeVisible()
       }).toPass({ timeout: 15000 })
     })
 

@@ -1,4 +1,4 @@
-.PHONY: start stop reset build-contracts build-optimized deploy-local deploy-testnet deploy-mainnet dev test-contracts test-frontend test-e2e lint setup-hooks
+.PHONY: start stop restart reset build-contracts build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts test-frontend test-e2e lint setup-hooks wait-healthy
 
 # Infrastructure
 start:
@@ -6,6 +6,8 @@ start:
 
 stop:
 	docker compose down
+
+restart: stop start
 
 reset:
 	docker compose down -v
@@ -18,6 +20,32 @@ logs:
 
 logs-terra:
 	docker compose logs -f localterra
+
+wait-healthy:
+	@echo "Waiting for LocalTerra..."
+	@for i in $$(seq 1 60); do \
+		if curl -sf http://localhost:26657/status > /dev/null 2>&1; then \
+			echo "LocalTerra is ready!"; \
+			break; \
+		fi; \
+		if [ "$$i" -eq 60 ]; then \
+			echo "ERROR: LocalTerra did not start in time."; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done
+	@echo "Waiting for Postgres..."
+	@for i in $$(seq 1 30); do \
+		if pg_isready -h localhost -U postgres > /dev/null 2>&1; then \
+			echo "Postgres is ready!"; \
+			break; \
+		fi; \
+		if [ "$$i" -eq 30 ]; then \
+			echo "ERROR: Postgres did not start in time."; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done
 
 # Smart Contracts
 build-contracts:
@@ -57,6 +85,19 @@ test-e2e:
 
 lint-frontend:
 	cd frontend-dapp && npm run lint
+
+# Indexer
+indexer-dev:
+	cd indexer && cargo run
+
+# Full devnet lifecycle: start infra, build, deploy, start indexer & frontend
+dev-full: start wait-healthy build-optimized deploy-local
+	@echo ""
+	@echo "Starting indexer in background..."
+	cd indexer && cargo run &
+	@sleep 5
+	@echo "Starting frontend dev server..."
+	cd frontend-dapp && npm run dev
 
 # Combined
 test: test-contracts test-frontend

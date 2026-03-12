@@ -261,7 +261,7 @@ export default function ChartsPage() {
                 {leaderboardQuery.data.map((trader: IndexerTrader, i: number) => {
                   const metricValue = getLeaderboardMetric(trader, leaderboardSort)
                   const isPnl = leaderboardSort !== 'total_volume'
-                  const numVal = parseFloat(metricValue)
+                  const numVal = parseFloat(metricValue) || 0
                   return (
                     <tr key={trader.address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       <td className="py-1.5 px-2 font-semibold" style={{ color: 'var(--ink-subtle)' }}>{i + 1}</td>

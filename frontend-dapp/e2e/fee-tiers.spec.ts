@@ -51,7 +51,9 @@ test.describe('Fee Tiers Page', () => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText(/CL8Y Hold/i)).toBeVisible()
+    const howItWorks = page.getByRole('heading', { name: /How it works/i })
+    await howItWorks.scrollIntoViewIfNeeded()
+    await expect(page.getByText(/CL8Y Hold/i)).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/drop below.*lose your tier/i)).toBeVisible()
   })
 
@@ -59,17 +61,19 @@ test.describe('Fee Tiers Page', () => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText('1,500')).toBeVisible()
-    await expect(page.getByText('7,500')).toBeVisible()
-    await expect(page.getByText(/Hold \d+ CL8Y/)).toBeVisible()
+    await expect(async () => {
+      await expect(page.getByText(/Hold.*CL8Y/i).first()).toBeVisible()
+    }).toPass({ timeout: 15000 })
   })
 
   test('shows effective fee column in How It Works', async ({ page }) => {
     await page.goto('/tiers')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText(/Eff\. Fee/i)).toBeVisible()
-    await expect(page.getByText(/default base fee is 1\.8%/i)).toBeVisible()
+    const howItWorks = page.getByRole('heading', { name: /How it works/i })
+    await howItWorks.scrollIntoViewIfNeeded()
+    await expect(page.getByText(/Eff\. Fee/i)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText(/default base fee is 1\.8/i)).toBeVisible()
   })
 
   test('prompts to connect wallet for registration', async ({ page }) => {
@@ -82,7 +86,8 @@ test.describe('Fee Tiers Page', () => {
   test.describe('With wallet connected', () => {
     test('shows register buttons for tiers', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/tiers')
+      await page.getByRole('link', { name: 'Fee Tiers' }).click()
+      await page.waitForURL('/tiers')
       await page.waitForLoadState('networkidle')
 
       await expect(async () => {

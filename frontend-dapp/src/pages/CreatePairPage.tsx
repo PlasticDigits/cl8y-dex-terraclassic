@@ -4,6 +4,8 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { createPair, getWhitelistedCodeIds } from '@/services/terraclassic/factory'
 import { getChainContractInfo } from '@/services/terraclassic/queries'
 import { sounds } from '@/lib/sounds'
+import { TxResultAlert } from '@/components/ui'
+import { isValidTerraAddress } from '@/utils/constants'
 
 function useCodeIdCheck(tokenAddr: string) {
   return useQuery({
@@ -46,7 +48,9 @@ export default function CreatePairPage() {
     onError: () => sounds.playError(),
   })
 
-  const isValid = tokenA.length > 0 && tokenB.length > 0 && tokenA !== tokenB
+  const tokenAValid = isValidTerraAddress(tokenA)
+  const tokenBValid = isValidTerraAddress(tokenB)
+  const isValid = tokenAValid && tokenBValid && tokenA !== tokenB
   const hasWhitelistWarning = (checkA.data && !checkA.data.valid) || (checkB.data && !checkB.data.valid)
 
   return (
@@ -69,6 +73,9 @@ export default function CreatePairPage() {
                 placeholder="terra1..."
                 className="input-neo font-mono"
               />
+              {tokenA.length > 0 && !tokenAValid && (
+                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">Invalid Terra address format</p>
+              )}
               {checkA.data && !checkA.data.valid && (
                 <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">{checkA.data.reason}</p>
               )}
@@ -86,6 +93,9 @@ export default function CreatePairPage() {
                 placeholder="terra1..."
                 className="input-neo font-mono"
               />
+              {tokenB.length > 0 && !tokenBValid && (
+                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">Invalid Terra address format</p>
+              )}
               {checkB.data && !checkB.data.valid && (
                 <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">{checkB.data.reason}</p>
               )}
@@ -134,18 +144,14 @@ export default function CreatePairPage() {
           </div>
 
           {createMutation.isError && (
-            <div className="mt-4 alert-error">
-              {createMutation.error?.message ?? 'Failed to create pair'}
+            <div className="mt-4">
+              <TxResultAlert type="error" message={createMutation.error?.message ?? 'Failed to create pair'} />
             </div>
           )}
 
           {createMutation.isSuccess && (
-            <div className="mt-4 alert-success">
-              <p className="font-semibold mb-2 uppercase tracking-wide">Pair Created Successfully!</p>
-              <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-                Transaction:{' '}
-                <span className="text-green-400 font-mono text-xs break-all">{createMutation.data}</span>
-              </p>
+            <div className="mt-4">
+              <TxResultAlert type="success" message="Pair Created Successfully!" txHash={createMutation.data} />
             </div>
           )}
         </div>

@@ -52,7 +52,8 @@ test.describe('Create Pair Page', () => {
   test.describe('With wallet connected', () => {
     test('shows Create Pair button when connected', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/create')
+      await page.getByRole('link', { name: 'Create Pair' }).click()
+      await page.waitForURL('/create')
 
       const createBtn = page.getByRole('button', { name: /Create Pair/i })
       await expect(createBtn).toBeVisible()
@@ -60,7 +61,8 @@ test.describe('Create Pair Page', () => {
 
     test('Create Pair button is disabled without both addresses', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/create')
+      await page.getByRole('link', { name: 'Create Pair' }).click()
+      await page.waitForURL('/create')
 
       const createBtn = page.getByRole('button', { name: /Create Pair/i })
       await expect(createBtn).toBeDisabled()
@@ -68,7 +70,8 @@ test.describe('Create Pair Page', () => {
 
     test('can fill both addresses and see enabled button', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/create')
+      await page.getByRole('link', { name: 'Create Pair' }).click()
+      await page.waitForURL('/create')
 
       const tokenAInput = page.getByPlaceholder('terra1...').first()
       const tokenBInput = page.getByPlaceholder('terra1...').last()

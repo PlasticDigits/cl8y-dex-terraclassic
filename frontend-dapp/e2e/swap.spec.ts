@@ -31,7 +31,7 @@ test.describe('Swap Page', () => {
     test('shows Connect Wallet as the submit button when disconnected', async ({ page }) => {
       await page.goto('/')
       await page.waitForLoadState('networkidle')
-      const submitBtn = page.getByRole('button', { name: 'Connect Wallet' }).last()
+      const submitBtn = page.locator('button').filter({ hasText: /Connect Wallet/i }).last()
       await expect(submitBtn).toBeVisible()
       await expect(submitBtn).toBeDisabled()
     })

@@ -12,5 +12,5 @@ export const useDexStore = create<DexState>((set) => ({
   selectedPair: null,
   slippageTolerance: 0.5,
   setSelectedPair: (pair) => set({ selectedPair: pair }),
-  setSlippageTolerance: (tolerance) => set({ slippageTolerance: tolerance }),
+  setSlippageTolerance: (tolerance) => set({ slippageTolerance: Math.min(50, Math.max(0.01, tolerance)) }),
 }))

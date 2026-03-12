@@ -1,12 +1,12 @@
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{DateTime, Datelike, Timelike, Utc};
 use sqlx::PgPool;
 
 use crate::db::queries::candles::{self, CandleRow};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-const INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d"];
+const INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 pub async fn update_candles_for_swap(
     pool: &PgPool,
@@ -72,6 +72,7 @@ pub fn interval_seconds(interval: &str) -> i64 {
         "1h" => 3600,
         "4h" => 14400,
         "1d" => 86400,
+        "1w" => 604800,
         _ => 60,
     }
 }
@@ -114,6 +115,17 @@ pub fn truncate_to_interval(ts: DateTime<Utc>, interval: &str) -> DateTime<Utc> 
             .unwrap()
             .with_second(0)
             .unwrap(),
+        "1w" => {
+            let days_since_monday = zeroed.weekday().num_days_from_monday();
+            let monday = zeroed - chrono::Duration::days(days_since_monday as i64);
+            monday
+                .with_hour(0)
+                .unwrap()
+                .with_minute(0)
+                .unwrap()
+                .with_second(0)
+                .unwrap()
+        }
         _ => zeroed,
     }
 }
