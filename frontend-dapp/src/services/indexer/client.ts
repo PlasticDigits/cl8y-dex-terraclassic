@@ -9,13 +9,36 @@ import type {
 } from '@/types'
 
 const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost:3001'
+const FETCH_TIMEOUT_MS = 15_000
+const MAX_RETRIES = 1
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const resp = await fetch(`${INDEXER_URL}${path}`)
-  if (!resp.ok) {
-    throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
+  let lastError: Error | undefined
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    try {
+      const resp = await fetch(`${INDEXER_URL}${path}`, { signal: controller.signal })
+      if (!resp.ok) {
+        throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
+      }
+      const text = await resp.text()
+      try {
+        return JSON.parse(text) as T
+      } catch {
+        throw new Error(`Indexer returned invalid JSON for ${path}`)
+      }
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      const isRetryable = lastError.name === 'AbortError'
+        || lastError.message.includes('Failed to fetch')
+        || lastError.message.includes('NetworkError')
+      if (!isRetryable || attempt >= MAX_RETRIES) throw lastError
+    } finally {
+      clearTimeout(timer)
+    }
   }
-  return resp.json() as Promise<T>
+  throw lastError!
 }
 
 /** Get all indexed pairs with enriched asset info. */

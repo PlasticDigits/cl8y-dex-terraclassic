@@ -4,6 +4,7 @@ import { getCandles } from '@/services/indexer/client'
 import type { IndexerCandle } from '@/types'
 import { Spinner } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const
 
@@ -14,8 +15,8 @@ interface PriceChartProps {
 
 export default function PriceChart({ pairAddress, defaultInterval = '1h' }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<any>(null)
-  const seriesRef = useRef<any>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [interval, setInterval_] = useState(defaultInterval)
 
   const candlesQuery = useQuery({
@@ -26,7 +27,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
   })
 
   useEffect(() => {
-    let chart: any = null
+    let chart: IChartApi | null = null
 
     async function initChart() {
       if (!containerRef.current) return
@@ -56,13 +57,15 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
         height: 400,
       })
 
+      const positive = getComputedStyle(document.documentElement).getPropertyValue('--color-positive').trim() || '#22c55e'
+      const negative = getComputedStyle(document.documentElement).getPropertyValue('--color-negative').trim() || '#ef4444'
       seriesRef.current = chart.addCandlestickSeries({
-        upColor: '#22c55e',
-        downColor: '#ef4444',
-        borderDownColor: '#ef4444',
-        borderUpColor: '#22c55e',
-        wickDownColor: '#ef4444',
-        wickUpColor: '#22c55e',
+        upColor: positive,
+        downColor: negative,
+        borderDownColor: negative,
+        borderUpColor: positive,
+        wickDownColor: negative,
+        wickUpColor: positive,
       })
 
       chartRef.current = chart
@@ -94,13 +97,13 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
     const data = candlesQuery.data
       .filter((c: IndexerCandle) => c.open_price && c.close_price)
       .map((c: IndexerCandle) => ({
-        time: Math.floor(new Date(c.open_time).getTime() / 1000) as any,
+        time: Math.floor(new Date(c.open_time).getTime() / 1000) as number,
         open: parseFloat(c.open_price),
         high: parseFloat(c.high_price),
         low: parseFloat(c.low_price),
         close: parseFloat(c.close_price),
       }))
-      .sort((a: any, b: any) => a.time - b.time)
+      .sort((a, b) => (a.time as number) - (b.time as number))
 
     seriesRef.current.setData(data)
     chartRef.current?.timeScale().fitContent()
@@ -109,11 +112,12 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
   return (
     <div className="shell-panel-strong">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>Price Chart</h3>
-        <div className="flex gap-1">
+        <h3 className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>Price Chart</h3>
+        <div className="flex gap-1" role="group" aria-label="Chart interval">
           {INTERVALS.map((iv) => (
             <button
               key={iv}
+              aria-pressed={interval === iv}
               onClick={() => {
                 sounds.playButtonPress()
                 setInterval_(iv)

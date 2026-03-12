@@ -76,9 +76,9 @@ export function getTokenDisplaySymbol(tokenId: string): string {
   return tokenId
 }
 
-export function shortenAddress(addr: string): string {
-  if (addr.length <= 16) return addr
-  return `${addr.slice(0, 8)}…${addr.slice(-6)}`
+export function shortenAddress(addr: string, startChars = 8, endChars = 6): string {
+  if (addr.length <= startChars + endChars + 2) return addr
+  return `${addr.slice(0, startChars)}…${addr.slice(-endChars)}`
 }
 
 export function isAddressLike(s: string): boolean {

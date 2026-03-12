@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
@@ -8,11 +8,12 @@ import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
-import { Spinner, TokenDisplay } from '@/components/ui'
+import { Spinner, TokenDisplay, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
+import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
 
-function PoolCard({ pair }: { pair: PairInfo }) {
+const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState<'add' | 'remove' | null>(null)
@@ -39,21 +40,22 @@ function PoolCard({ pair }: { pair: PairInfo }) {
 
   const discountQuery = useQuery({
     queryKey: ['traderDiscount', address],
-    queryFn: () => getTraderDiscount(address!),
+    queryFn: () => { if (!address) throw new Error('No address'); return getTraderDiscount(address) },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
 
   const lpBalanceQuery = useQuery({
     queryKey: ['lpBalance', address, pair.liquidity_token],
-    queryFn: () => getTokenBalance(address!, tokenAssetInfo(pair.liquidity_token)),
+    queryFn: () => { if (!address) throw new Error('No address'); return getTokenBalance(address, tokenAssetInfo(pair.liquidity_token)) },
     enabled: !!address && expanded === 'remove',
     refetchInterval: 15_000,
   })
 
+  const LP_DECIMALS = 6
   const lpBalance = lpBalanceQuery.data ?? '0'
-  const lpBalanceDisplay = lpBalance === '0' ? '0' : (Number(lpBalance) / 1e6).toFixed(6)
-  const insufficientLp = !!lpAmount && Number(lpAmount) * 1e6 > Number(lpBalance)
+  const lpBalanceDisplay = lpBalance === '0' ? '0' : formatTokenAmount(lpBalance, LP_DECIMALS)
+  const insufficientLp = !!lpAmount && Number(lpAmount) * 10 ** LP_DECIMALS > Number(lpBalance)
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -86,7 +88,7 @@ function PoolCard({ pair }: { pair: PairInfo }) {
     <div className="shell-panel-strong">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="font-medium uppercase tracking-wide flex items-center gap-1" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>
+          <p className="font-medium uppercase tracking-wide flex items-center gap-1 font-heading" style={{ color: 'var(--ink)' }}>
             <TokenDisplay info={pair.asset_infos[0]} size={18} /> <span style={{ color: 'var(--ink-subtle)' }}>/</span> <TokenDisplay info={pair.asset_infos[1]} size={18} />
           </p>
           <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-subtle)' }}>
@@ -114,11 +116,11 @@ function PoolCard({ pair }: { pair: PairInfo }) {
         <div className="flex gap-4 text-sm mb-4">
           <div className="flex-1 card-neo">
             <div className="mb-1"><TokenDisplay info={poolQuery.data.assets[0].info} size={14} className="text-xs font-semibold uppercase tracking-wide" /></div>
-            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>{poolQuery.data.assets[0].amount}</p>
+            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>{formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))}</p>
           </div>
           <div className="flex-1 card-neo">
             <div className="mb-1"><TokenDisplay info={poolQuery.data.assets[1].info} size={14} className="text-xs font-semibold uppercase tracking-wide" /></div>
-            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>{poolQuery.data.assets[1].amount}</p>
+            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>{formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}</p>
           </div>
         </div>
       )}
@@ -279,7 +281,7 @@ function PoolCard({ pair }: { pair: PairInfo }) {
       )}
     </div>
   )
-}
+})
 
 export default function PoolPage() {
   const pairsQuery = useQuery({
@@ -293,20 +295,18 @@ export default function PoolPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold uppercase tracking-wide" style={{ fontFamily: "'Chakra Petch', sans-serif" }}>Liquidity Pools</h2>
+        <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Liquidity Pools</h2>
         <span className="text-sm uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>{pairs.length} pair(s)</span>
       </div>
 
       {pairsQuery.isLoading && (
-        <div className="shell-panel-strong flex items-center justify-center gap-3 py-8">
-          <Spinner /> <span style={{ color: 'var(--ink-dim)' }}>Loading pools...</span>
+        <div className="space-y-4" aria-live="polite">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height="6rem" />)}
         </div>
       )}
 
       {pairsQuery.isError && (
-        <div className="alert-error py-8 text-center">
-          Failed to load pools: {pairsQuery.error?.message}
-        </div>
+        <RetryError message={`Failed to load pools: ${pairsQuery.error?.message}`} onRetry={() => void pairsQuery.refetch()} />
       )}
 
       {!pairsQuery.isLoading && pairs.length === 0 && !pairsQuery.isError && (

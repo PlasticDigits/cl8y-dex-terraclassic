@@ -2,12 +2,8 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
+import { shortenAddress } from '@/utils/tokenDisplay'
 import WalletModal from './WalletModal'
-
-function formatAddress(addr: string, chars = 6): string {
-  if (addr.length <= chars * 2 + 3) return addr
-  return `${addr.slice(0, chars)}…${addr.slice(-chars)}`
-}
 
 export default function WalletButton() {
   const { address, isConnecting, disconnect } = useWalletStore()
@@ -22,13 +18,15 @@ export default function WalletButton() {
             sounds.playButtonPress()
             setShowDropdown(!showDropdown)
           }}
+          aria-haspopup="true"
+          aria-expanded={showDropdown}
           className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 glass border-2 border-white/30 hover:border-white/60 rounded-none transition-all group shadow-[3px_3px_0_#000]"
         >
           <div className="text-right hidden sm:block">
-            <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>{formatAddress(address, 6)}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>{shortenAddress(address, 6, 6)}</p>
           </div>
           <div className="sm:hidden text-xs font-mono font-medium" style={{ color: 'var(--ink)' }}>
-            {formatAddress(address, 4)}
+            {shortenAddress(address, 4, 4)}
           </div>
           <div className="w-8 h-8 shrink-0 flex items-center justify-center overflow-hidden rounded-sm bg-black/90 p-1 border-2 border-black shadow-[2px_2px_0_#000]">
             <img
@@ -43,14 +41,16 @@ export default function WalletButton() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
             <div
+              role="menu"
               className="absolute right-0 mt-2 w-48 glass border-2 border-white/35 rounded-none shadow-[4px_4px_0_#000] overflow-hidden z-50 animate-fade-in-up"
               style={{ animationDuration: '0.2s' }}
             >
               <div className="p-2">
                 <div className="px-3 py-2 sm:hidden">
-                  <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>{formatAddress(address, 8)}</p>
+                  <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>{shortenAddress(address, 8, 8)}</p>
                 </div>
                 <button
+                  role="menuitem"
                   onClick={() => {
                     sounds.playButtonPress()
                     void disconnect()

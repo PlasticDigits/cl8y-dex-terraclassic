@@ -12,6 +12,8 @@
 @tailwind utilities;
 
 :root {
+  --color-positive: #22c55e;
+  --color-negative: #ef4444;
   --header-logo-bg: rgba(24, 24, 24, 0.94);
   --bg-0: #0a0a0a;
   --bg-1: #131313;
@@ -265,6 +267,9 @@
 @layer utilities {
   .text-muted {
     color: var(--ink-dim);
+  }
+  .font-heading {
+    font-family: 'Chakra Petch', sans-serif;
   }
 }
 

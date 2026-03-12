@@ -9,9 +9,19 @@ import {
   getLeaderboard,
 } from '@/services/indexer/client'
 import PriceChart from '@/components/charts/PriceChart'
-import { Spinner } from '@/components/ui'
+import { Spinner, StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import { formatNum } from '@/utils/formatAmount'
+import { shortenAddress } from '@/utils/tokenDisplay'
+import { formatTime } from '@/utils/formatDate'
+import { getTwapPrices } from '@/services/terraclassic/oracle'
 import type { IndexerPair, IndexerTrade, IndexerTrader } from '@/types'
+
+const TWAP_WINDOWS = [
+  { label: '5m', seconds: 300 },
+  { label: '1h', seconds: 3600 },
+  { label: '24h', seconds: 86400 },
+]
 
 const LEADERBOARD_TABS = [
   { key: 'total_volume', label: 'Volume' },
@@ -19,25 +29,6 @@ const LEADERBOARD_TABS = [
   { key: 'total_realized_pnl', label: 'Most Profit' },
   { key: 'worst_trade_pnl', label: 'Most Loss' },
 ] as const
-
-function formatNum(val: string | number, decimals = 2): string {
-  const n = typeof val === 'string' ? parseFloat(val) : val
-  if (isNaN(n) || n === 0) return '0'
-  if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(decimals) + 'B'
-  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(decimals) + 'M'
-  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(decimals) + 'K'
-  return n.toFixed(decimals)
-}
-
-function truncAddr(addr: string): string {
-  if (addr.length <= 16) return addr
-  return addr.slice(0, 10) + '...' + addr.slice(-6)
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
 
 export default function ChartsPage() {
   const [selectedPairAddr, setSelectedPairAddr] = useState<string>('')
@@ -79,14 +70,23 @@ export default function ChartsPage() {
     refetchInterval: 30_000,
   })
 
+  const twapQuery = useQuery({
+    queryKey: ['twap-prices', activePairAddr],
+    queryFn: () => getTwapPrices(activePairAddr, TWAP_WINDOWS),
+    enabled: !!activePairAddr,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: false,
+  })
+
   const overview = overviewQuery.data
   const stats = statsQuery.data
 
   return (
     <div className="space-y-4">
       <h1
-        className="text-lg font-bold uppercase tracking-wider"
-        style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+        className="text-lg font-bold uppercase tracking-wider font-heading"
+        style={{ color: 'var(--ink)' }}
       >
         Charts & Analytics
       </h1>
@@ -104,6 +104,7 @@ export default function ChartsPage() {
         <label className="label-neo mb-1 block">Select Pair</label>
         <select
           className="select-neo w-full"
+          aria-label="Select pair"
           value={activePairAddr}
           onChange={(e) => {
             sounds.playButtonPress()
@@ -126,8 +127,8 @@ export default function ChartsPage() {
       {stats && activePair && (
         <div className="shell-panel">
           <h3
-            className="text-sm font-semibold uppercase tracking-wide mb-3"
-            style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+            className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+            style={{ color: 'var(--ink)' }}
           >
             24h Stats — {activePair.asset_0.symbol}/{activePair.asset_1.symbol}
           </h3>
@@ -138,7 +139,7 @@ export default function ChartsPage() {
             <StatBox
               label="Price Change"
               value={stats.price_change_pct != null ? `${stats.price_change_pct >= 0 ? '+' : ''}${stats.price_change_pct.toFixed(2)}%` : '—'}
-              color={stats.price_change_pct != null ? (stats.price_change_pct >= 0 ? '#22c55e' : '#ef4444') : undefined}
+              color={stats.price_change_pct != null ? (stats.price_change_pct >= 0 ? 'var(--color-positive)' : 'var(--color-negative)') : undefined}
             />
             <StatBox label="High" value={stats.high ? formatNum(stats.high, 6) : '—'} />
             <StatBox label="Low" value={stats.low ? formatNum(stats.low, 6) : '—'} />
@@ -148,70 +149,77 @@ export default function ChartsPage() {
         </div>
       )}
 
+      {/* TWAP Oracle Prices */}
+      {activePairAddr && activePair && (
+        <div className="shell-panel">
+          <h3
+            className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+            style={{ color: 'var(--ink)' }}
+          >
+            TWAP Oracle — {activePair.asset_0.symbol}/{activePair.asset_1.symbol}
+          </h3>
+          <div className="grid grid-cols-3 gap-3">
+            {TWAP_WINDOWS.map((w) => {
+              const entry = twapQuery.data?.find((e) => e.label === w.label)
+              return (
+                <StatBox
+                  key={w.label}
+                  label={`TWAP ${w.label}`}
+                  value={entry?.price != null ? formatNum(entry.price, 6) : '—'}
+                  loading={twapQuery.isLoading}
+                />
+              )
+            })}
+          </div>
+          {twapQuery.isError && (
+            <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
+              Oracle data unavailable for this pair
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Recent Trades */}
       <div className="shell-panel-strong">
         <h3
-          className="text-sm font-semibold uppercase tracking-wide mb-3"
-          style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+          className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+          style={{ color: 'var(--ink)' }}
         >
           Recent Trades
         </h3>
         {tradesQuery.isLoading && (
-          <div className="flex items-center justify-center py-8 gap-2" style={{ color: 'var(--ink-subtle)' }}>
-            <Spinner /> Loading trades...
+          <div className="space-y-2 py-4" aria-live="polite">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
           </div>
         )}
-        {tradesQuery.data && tradesQuery.data.length === 0 && (
-          <p className="text-center py-8 text-sm" style={{ color: 'var(--ink-dim)' }}>No trades yet</p>
+        {tradesQuery.isError && (
+          <RetryError message="Failed to load trades" onRetry={() => void tradesQuery.refetch()} />
         )}
-        {tradesQuery.data && tradesQuery.data.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                  <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Time</th>
-                  <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Direction</th>
-                  <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Offer</th>
-                  <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Return</th>
-                  <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Price</th>
-                  <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Tx</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tradesQuery.data.map((t: IndexerTrade) => {
-                  const isBuy = activePair && t.offer_asset === activePair.asset_0.symbol
-                  return (
-                    <tr key={t.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="py-1.5 px-2" style={{ color: 'var(--ink-subtle)' }}>{formatTime(t.block_timestamp)}</td>
-                      <td className="py-1.5 px-2 font-medium" style={{ color: isBuy ? '#22c55e' : '#ef4444' }}>
-                        {t.offer_asset} → {t.ask_asset}
-                      </td>
-                      <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>{formatNum(t.offer_amount)}</td>
-                      <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>{formatNum(t.return_amount)}</td>
-                      <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>{formatNum(t.price, 6)}</td>
-                      <td className="py-1.5 px-2" style={{ color: 'var(--ink-dim)' }}>{t.tx_hash.slice(0, 8)}...</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+        {tradesQuery.data && (
+          <TradesTable
+            trades={tradesQuery.data}
+            formatTimeFn={formatTime}
+            activePair={activePair}
+            ariaLabel="Recent trades"
+          />
         )}
       </div>
 
       {/* Leaderboard */}
       <div className="shell-panel-strong">
         <h3
-          className="text-sm font-semibold uppercase tracking-wide mb-3"
-          style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+          className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+          style={{ color: 'var(--ink)' }}
         >
           Leaderboard
         </h3>
 
-        <div className="flex gap-1 mb-4 flex-wrap">
+        <div className="flex gap-1 mb-4 flex-wrap" role="tablist" aria-label="Leaderboard sort">
           {LEADERBOARD_TABS.map((tab) => (
             <button
               key={tab.key}
+              role="tab"
+              aria-selected={leaderboardSort === tab.key}
               onClick={() => {
                 sounds.playButtonPress()
                 setLeaderboardSort(tab.key)
@@ -226,24 +234,27 @@ export default function ChartsPage() {
         </div>
 
         {leaderboardQuery.isLoading && (
-          <div className="flex items-center justify-center py-8 gap-2" style={{ color: 'var(--ink-subtle)' }}>
-            <Spinner /> Loading leaderboard...
+          <div className="space-y-2 py-4" aria-live="polite">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
           </div>
+        )}
+        {leaderboardQuery.isError && (
+          <RetryError message="Failed to load leaderboard" onRetry={() => void leaderboardQuery.refetch()} />
         )}
         {leaderboardQuery.data && leaderboardQuery.data.length === 0 && (
           <p className="text-center py-8 text-sm" style={{ color: 'var(--ink-dim)' }}>No traders yet</p>
         )}
         {leaderboardQuery.data && leaderboardQuery.data.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs" aria-label="Trader leaderboard">
               <thead>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                  <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">#</th>
-                  <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Trader</th>
-                  <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">#</th>
+                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">Trader</th>
+                  <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
                     {LEADERBOARD_TABS.find((t) => t.key === leaderboardSort)?.label ?? 'Value'}
                   </th>
-                  <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Trades</th>
+                  <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Trades</th>
                 </tr>
               </thead>
               <tbody>
@@ -261,12 +272,12 @@ export default function ChartsPage() {
                           style={{ color: 'var(--accent)' }}
                           onClick={() => sounds.playButtonPress()}
                         >
-                          {truncAddr(trader.address)}
+                          {shortenAddress(trader.address, 10, 6)}
                         </Link>
                       </td>
                       <td
                         className="py-1.5 px-2 text-right font-medium"
-                        style={{ color: isPnl ? (numVal >= 0 ? '#22c55e' : '#ef4444') : 'var(--ink)' }}
+                        style={{ color: isPnl ? (numVal >= 0 ? 'var(--color-positive)' : 'var(--color-negative)') : 'var(--ink)' }}
                       >
                         {formatNum(metricValue)}
                       </td>
@@ -285,20 +296,6 @@ export default function ChartsPage() {
   )
 }
 
-function StatBox({ label, value, loading, color }: { label: string; value: string; loading?: boolean; color?: string }) {
-  return (
-    <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
-      <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>{label}</p>
-      {loading ? (
-        <Spinner />
-      ) : (
-        <p className="text-sm font-bold" style={{ color: color ?? 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>
-          {value}
-        </p>
-      )}
-    </div>
-  )
-}
 
 function getLeaderboardMetric(trader: IndexerTrader, sort: string): string {
   switch (sort) {

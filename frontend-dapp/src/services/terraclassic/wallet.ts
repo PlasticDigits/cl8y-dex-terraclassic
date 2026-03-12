@@ -74,6 +74,24 @@ const CONTROLLERS: Partial<Record<WalletName, WalletController>> = {
   [WalletName.COSMOSTATION]: COSMOSTATION_CONTROLLER,
 };
 
+const WALLET_DISPLAY_NAMES: Record<string, string> = {
+  [WalletName.STATION]: 'Station',
+  [WalletName.KEPLR]: 'Keplr',
+  [WalletName.LUNCDASH]: 'LuncDash',
+  [WalletName.GALAXYSTATION]: 'Galaxy',
+  [WalletName.LEAP]: 'Leap',
+  [WalletName.COSMOSTATION]: 'Cosmostation',
+};
+
+const WALLET_TYPE_STRINGS: Record<string, 'station' | 'keplr' | 'luncdash' | 'galaxy' | 'leap' | 'cosmostation'> = {
+  [WalletName.STATION]: 'station',
+  [WalletName.KEPLR]: 'keplr',
+  [WalletName.LUNCDASH]: 'luncdash',
+  [WalletName.GALAXYSTATION]: 'galaxy',
+  [WalletName.LEAP]: 'leap',
+  [WalletName.COSMOSTATION]: 'cosmostation',
+};
+
 const connectedWallets: Map<string, ConnectedWallet> = new Map();
 
 function getChainInfo() {
@@ -258,20 +276,7 @@ export async function connectTerraWallet(
 
     connectedWallets.set(TERRA_CLASSIC_CHAIN_ID, wallet);
 
-    let walletTypeStr: 'station' | 'keplr' | 'luncdash' | 'galaxy' | 'leap' | 'cosmostation';
-    if (walletName === WalletName.STATION) {
-      walletTypeStr = 'station';
-    } else if (walletName === WalletName.LUNCDASH) {
-      walletTypeStr = 'luncdash';
-    } else if (walletName === WalletName.GALAXYSTATION) {
-      walletTypeStr = 'galaxy';
-    } else if (walletName === WalletName.LEAP) {
-      walletTypeStr = 'leap';
-    } else if (walletName === WalletName.COSMOSTATION) {
-      walletTypeStr = 'cosmostation';
-    } else {
-      walletTypeStr = 'keplr';
-    }
+    const walletTypeStr = WALLET_TYPE_STRINGS[walletName] ?? 'keplr';
 
     return {
       address: wallet.address,
@@ -300,20 +305,7 @@ export async function connectTerraWallet(
       throw new Error('Connection rejected by user');
     }
 
-    let walletDisplayName = 'wallet';
-    if (walletName === WalletName.STATION) {
-      walletDisplayName = 'Station';
-    } else if (walletName === WalletName.KEPLR) {
-      walletDisplayName = 'Keplr';
-    } else if (walletName === WalletName.LUNCDASH) {
-      walletDisplayName = 'LuncDash';
-    } else if (walletName === WalletName.GALAXYSTATION) {
-      walletDisplayName = 'Galaxy';
-    } else if (walletName === WalletName.LEAP) {
-      walletDisplayName = 'Leap';
-    } else if (walletName === WalletName.COSMOSTATION) {
-      walletDisplayName = 'Cosmostation';
-    }
+    const walletDisplayName = WALLET_DISPLAY_NAMES[walletName] ?? 'wallet';
 
     throw new Error(`Failed to connect ${walletDisplayName}: ${errorMessage}`);
   }

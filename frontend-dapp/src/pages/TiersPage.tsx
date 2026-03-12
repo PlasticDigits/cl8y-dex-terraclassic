@@ -1,46 +1,46 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getTiers, getRegistration, register, deregister } from '@/services/terraclassic/feeDiscount'
-import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
+import { FEE_DISCOUNT_CONTRACT_ADDRESS, CL8Y_TOKEN_ADDRESS } from '@/utils/constants'
 import type { TierEntry } from '@/types'
 import { Spinner, Badge } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import { formatTokenAmount } from '@/utils/formatAmount'
+import { lookupByCW20 } from '@/utils/tokenRegistry'
+import { getFactoryConfig } from '@/services/terraclassic/settings'
 
-const CL8Y_DECIMALS = 18
+const CL8Y_DECIMALS = lookupByCW20(CL8Y_TOKEN_ADDRESS)?.decimals ?? 18
 
 function formatCl8y(raw: string): string {
-  const n = BigInt(raw)
-  const divisor = BigInt(10) ** BigInt(CL8Y_DECIMALS)
-  const whole = n / divisor
-  return whole.toLocaleString()
+  return formatTokenAmount(raw, CL8Y_DECIMALS)
 }
-
-const DEFAULT_FEE_BPS = 180
 
 function discountLabel(bps: number): string {
   const pct = bps / 100
   return pct % 1 === 0 ? `${pct.toFixed(0)}%` : `${pct.toFixed(1)}%`
 }
 
-function effectiveFeeLabel(discountBps: number): string {
-  const effective = DEFAULT_FEE_BPS * (10000 - discountBps) / 10000
+function effectiveFeeLabel(discountBps: number, baseFee = 180): string {
+  const effective = baseFee * (10000 - discountBps) / 10000
   const pct = effective / 100
   return pct % 1 === 0 ? `${pct.toFixed(1)}%` : `${pct.toFixed(2)}%`
 }
 
-function TierRow({
+const TierRow = memo(function TierRow({
   entry,
   isCurrentTier,
   onRegister,
   isRegistering,
   canSelfRegister,
+  baseFee,
 }: {
   entry: TierEntry
   isCurrentTier: boolean
   onRegister: (tierId: number) => void
   isRegistering: boolean
   canSelfRegister: boolean
+  baseFee: number
 }) {
   const { tier_id, tier } = entry
 
@@ -57,12 +57,11 @@ function TierRow({
       }}
     >
       <div
-        className="w-12 h-12 rounded-none border-2 flex items-center justify-center text-lg font-bold shadow-[2px_2px_0_#000]"
+        className="w-12 h-12 rounded-none border-2 flex items-center justify-center text-lg font-bold shadow-[2px_2px_0_#000] font-heading"
         style={{
           borderColor: 'rgba(255,255,255,0.2)',
           background: 'var(--surface-1)',
           color: 'var(--ink)',
-          fontFamily: "'Chakra Petch', sans-serif",
         }}
       >
         {tier_id}
@@ -94,13 +93,13 @@ function TierRow({
       </div>
 
       <div className="text-right">
-        <div className="text-lg font-semibold" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>{discountLabel(tier.discount_bps)}</div>
+        <div className="text-lg font-semibold font-heading" style={{ color: 'var(--ink)' }}>{discountLabel(tier.discount_bps)}</div>
         <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>fee discount</div>
       </div>
 
       {!tier.governance_only && (
         <div className="text-right min-w-[4.5rem]">
-          <div className="text-lg font-semibold" style={{ color: 'var(--mint)', fontFamily: "'Chakra Petch', sans-serif" }}>{effectiveFeeLabel(tier.discount_bps)}</div>
+          <div className="text-lg font-semibold font-heading" style={{ color: 'var(--mint)' }}>{effectiveFeeLabel(tier.discount_bps, baseFee)}</div>
           <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>eff. fee*</div>
         </div>
       )}
@@ -126,11 +125,19 @@ function TierRow({
       </div>
     </div>
   )
-}
+})
 
 export default function TiersPage() {
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
+
+  const factoryConfigQuery = useQuery({
+    queryKey: ['factoryConfig'],
+    queryFn: getFactoryConfig,
+    staleTime: 120_000,
+  })
+
+  const baseFee = factoryConfigQuery.data?.default_fee_bps ?? 180
 
   const tiersQuery = useQuery({
     queryKey: ['feeDiscountTiers'],
@@ -141,13 +148,13 @@ export default function TiersPage() {
 
   const registrationQuery = useQuery({
     queryKey: ['feeDiscountRegistration', address],
-    queryFn: () => getRegistration(address!),
+    queryFn: () => { if (!address) throw new Error('No address'); return getRegistration(address) },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 10_000,
   })
 
   const registerMutation = useMutation({
-    mutationFn: (tierId: number) => register(address!, tierId),
+    mutationFn: (tierId: number) => { if (!address) throw new Error('No address'); return register(address, tierId) },
     onSuccess: () => {
       sounds.playSuccess()
       queryClient.invalidateQueries({ queryKey: ['feeDiscountRegistration'] })
@@ -156,7 +163,7 @@ export default function TiersPage() {
   })
 
   const deregisterMutation = useMutation({
-    mutationFn: () => deregister(address!),
+    mutationFn: () => { if (!address) throw new Error('No address'); return deregister(address) },
     onSuccess: () => {
       sounds.playSuccess()
       queryClient.invalidateQueries({ queryKey: ['feeDiscountRegistration'] })
@@ -185,7 +192,7 @@ export default function TiersPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide" style={{ fontFamily: "'Chakra Petch', sans-serif" }}>Fee Discount Tiers</h2>
+        <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Fee Discount Tiers</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
           Hold CL8Y tokens to reduce your swap fees. Register for a tier below.
         </p>
@@ -245,13 +252,13 @@ export default function TiersPage() {
 
       {/* Tier List */}
       {tiersQuery.isLoading && (
-        <div className="shell-panel-strong flex items-center justify-center gap-3 py-8">
+        <div className="shell-panel-strong flex items-center justify-center gap-3 py-8" aria-live="polite">
           <Spinner /> <span style={{ color: 'var(--ink-dim)' }}>Loading tiers...</span>
         </div>
       )}
 
       {tiersQuery.isError && (
-        <div className="alert-error py-8 text-center">
+        <div className="alert-error py-8 text-center" aria-live="polite">
           Failed to load tiers: {tiersQuery.error?.message}
         </div>
       )}
@@ -265,17 +272,18 @@ export default function TiersPage() {
             onRegister={(tierId) => registerMutation.mutate(tierId)}
             isRegistering={registerMutation.isPending}
             canSelfRegister={canSelfRegister}
+            baseFee={baseFee}
           />
         ))}
       </div>
 
       {/* How it works */}
       <div className="mt-8 shell-panel-strong">
-        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>How it works</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>How it works</h3>
         <div className="text-sm space-y-2" style={{ color: 'var(--ink-dim)' }}>
           <p>Your swap fee is reduced based on your registered tier. If you drop below the required CL8Y holding at any time, you lose your tier.</p>
           <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
-            The default base fee is 1.8% for most pairs. Some pairs may have a different base fee &mdash; your tier discount applies as a percentage off whichever base fee the pair uses.
+            The default base fee is {(baseFee / 100).toFixed(1)}% for most pairs. Some pairs may have a different base fee &mdash; your tier discount applies as a percentage off whichever base fee the pair uses.
           </p>
           <div className="grid grid-cols-4 gap-2 text-xs mt-3">
             <div className="label-neo !mb-0">Tier</div>
@@ -285,18 +293,18 @@ export default function TiersPage() {
             <div style={{ color: 'var(--ink-subtle)' }}>No tier</div>
             <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>
             <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>
-            <div style={{ color: 'var(--ink-subtle)' }}>1.8%</div>
+            <div style={{ color: 'var(--ink-subtle)' }}>{(baseFee / 100).toFixed(1)}%</div>
             {selfRegisterTiers.map((t) => (
               <React.Fragment key={t.tier_id}>
                 <div style={{ color: 'var(--ink)' }}>Tier {t.tier_id}</div>
                 <div style={{ color: 'var(--ink)' }}>{formatCl8y(t.tier.min_cl8y_balance)}</div>
                 <div style={{ color: 'var(--cyan)' }}>{discountLabel(t.tier.discount_bps)}</div>
-                <div style={{ color: 'var(--mint)' }}>{effectiveFeeLabel(t.tier.discount_bps)}</div>
+                <div style={{ color: 'var(--mint)' }}>{effectiveFeeLabel(t.tier.discount_bps, baseFee)}</div>
               </React.Fragment>
             ))}
           </div>
           <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
-            *Effective fee shown assumes the default 1.8% base fee. Pairs with a custom base fee will have a proportionally different effective fee.
+            *Effective fee shown assumes the default {(baseFee / 100).toFixed(1)}% base fee. Pairs with a custom base fee will have a proportionally different effective fee.
           </p>
         </div>
       </div>

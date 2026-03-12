@@ -4,14 +4,6 @@ import { FACTORY_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { AssetInfo, PairInfo } from '@/types'
 import { tokenAssetInfo } from '@/types'
 
-interface ConfigResponse {
-  governance: string
-  treasury: string
-  default_fee_bps: number
-  pair_code_id: number
-  lp_token_code_id: number
-}
-
 interface PairsResponse {
   pairs: PairInfo[]
 }
@@ -23,10 +15,6 @@ interface PairResponse {
 interface CodeIdsResponse {
   code_ids: number[]
   next: number | null
-}
-
-export async function getFactoryConfig(): Promise<ConfigResponse> {
-  return queryContract<ConfigResponse>(FACTORY_CONTRACT_ADDRESS, { config: {} })
 }
 
 export async function getAllPairs(
