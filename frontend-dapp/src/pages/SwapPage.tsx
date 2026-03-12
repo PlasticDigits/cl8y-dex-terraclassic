@@ -5,6 +5,7 @@ import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool, getFeeConfig } from '@/services/terraclassic/pair'
+import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import { assetInfoLabel } from '@/types'
@@ -78,6 +79,13 @@ export default function SwapPage() {
     staleTime: 15_000,
   })
 
+  const balanceQuery = useQuery({
+    queryKey: ['tokenBalance', address, offerLabel],
+    queryFn: () => getTokenBalance(address!, offerAssetInfo!),
+    enabled: !!address && !!offerAssetInfo,
+    refetchInterval: 15_000,
+  })
+
   const simQuery = useQuery({
     queryKey: ['simulation', selectedPair?.contract_addr, offerLabel, inputAmount],
     queryFn: () => simulateSwap(selectedPair!.contract_addr, offerAssetInfo!, inputAmount),
@@ -126,7 +134,7 @@ export default function SwapPage() {
   } else if (!selectedPair) {
     buttonText = 'Select a Pair'
     buttonDisabled = true
-  } else if (!inputAmount || parseFloat(inputAmount) <= 0) {
+  } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
     buttonText = 'Enter Amount'
     buttonDisabled = true
   } else if (simQuery.isLoading) {
@@ -240,7 +248,10 @@ export default function SwapPage() {
               type="text"
               inputMode="decimal"
               value={inputAmount}
-              onChange={(e) => setInputAmount(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setInputAmount(v)
+              }}
               placeholder="0.00"
               className="w-full text-2xl font-medium bg-transparent focus:outline-none"
               style={{ color: 'var(--ink)' }}
