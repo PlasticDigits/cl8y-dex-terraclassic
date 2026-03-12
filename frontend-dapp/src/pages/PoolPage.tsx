@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPool, getFeeConfig, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
+import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { PairInfo } from '@/types'
-import { assetInfoLabel } from '@/types'
+import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { Spinner, TokenDisplay } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 
 function PoolCard({ pair }: { pair: PairInfo }) {
   const address = useWalletStore((s) => s.address)
+  const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState<'add' | 'remove' | null>(null)
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
@@ -42,6 +44,17 @@ function PoolCard({ pair }: { pair: PairInfo }) {
     staleTime: 15_000,
   })
 
+  const lpBalanceQuery = useQuery({
+    queryKey: ['lpBalance', address, pair.liquidity_token],
+    queryFn: () => getTokenBalance(address!, tokenAssetInfo(pair.liquidity_token)),
+    enabled: !!address && expanded === 'remove',
+    refetchInterval: 15_000,
+  })
+
+  const lpBalance = lpBalanceQuery.data ?? '0'
+  const lpBalanceDisplay = lpBalance === '0' ? '0' : (Number(lpBalance) / 1e6).toFixed(6)
+  const insufficientLp = !!lpAmount && Number(lpAmount) * 1e6 > Number(lpBalance)
+
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
@@ -63,6 +76,8 @@ function PoolCard({ pair }: { pair: PairInfo }) {
     onSuccess: () => {
       sounds.playSuccess()
       setLpAmount('')
+      queryClient.invalidateQueries({ queryKey: ['lpBalance', address, pair.liquidity_token] })
+      queryClient.invalidateQueries({ queryKey: ['pool', pair.contract_addr] })
     },
     onError: () => sounds.playError(),
   })
@@ -197,7 +212,30 @@ function PoolCard({ pair }: { pair: PairInfo }) {
       {expanded === 'remove' && (
         <div className="card-neo space-y-3 animate-fade-in-up">
           <div>
-            <label className="label-neo">LP Token Amount</label>
+            <div className="flex items-center justify-between">
+              <label className="label-neo">LP Token Amount</label>
+              {address && (
+                <span className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
+                  Balance:{' '}
+                  {lpBalanceQuery.isLoading ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playButtonPress()
+                        setLpAmount(lpBalanceDisplay)
+                      }}
+                      className="font-mono underline cursor-pointer hover:opacity-80"
+                      style={{ color: 'var(--cyan)' }}
+                      title="Use max balance"
+                    >
+                      {lpBalanceDisplay}
+                    </button>
+                  )}
+                </span>
+              )}
+            </div>
             <input
               type="text"
               inputMode="decimal"
@@ -210,19 +248,24 @@ function PoolCard({ pair }: { pair: PairInfo }) {
           <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
             LP Token: <span className="font-mono">{pair.liquidity_token.slice(0, 10)}…{pair.liquidity_token.slice(-6)}</span>
           </p>
+          {insufficientLp && (
+            <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }}>
+              Insufficient LP token balance
+            </p>
+          )}
           <button
             onClick={() => {
               sounds.playButtonPress()
               removeMutation.mutate()
             }}
-            disabled={!address || !lpAmount || removeMutation.isPending}
+            disabled={!address || !lpAmount || insufficientLp || removeMutation.isPending}
             className={`w-full py-2.5 font-semibold text-sm ${
-              !address || !lpAmount || removeMutation.isPending
+              !address || !lpAmount || insufficientLp || removeMutation.isPending
                 ? 'btn-disabled !w-full'
                 : 'btn-primary !w-full'
             }`}
           >
-            {!address ? 'Connect Wallet' : removeMutation.isPending ? 'Withdrawing...' : 'Withdraw Liquidity'}
+            {!address ? 'Connect Wallet' : insufficientLp ? 'Insufficient LP Balance' : removeMutation.isPending ? 'Withdrawing...' : 'Withdraw Liquidity'}
           </button>
           {removeMutation.isError && (
             <div className="alert-error">{removeMutation.error?.message}</div>
