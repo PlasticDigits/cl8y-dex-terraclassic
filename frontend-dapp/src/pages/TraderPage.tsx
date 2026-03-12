@@ -9,6 +9,7 @@ import {
 } from '@/services/indexer/client'
 import { Spinner, StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import { isValidTerraAddress } from '@/utils/constants'
 import { formatNum } from '@/utils/formatAmount'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatDateTime } from '@/utils/formatDate'
@@ -58,9 +59,12 @@ export default function TraderPage() {
   const trader = traderQuery.data
   const isOwnProfile = walletAddr && walletAddr === traderAddr
 
+  const searchTrimmed = searchInput.trim()
+  const searchValid = searchTrimmed.length === 0 || isValidTerraAddress(searchTrimmed)
+
   const handleSearch = () => {
-    const addr = searchInput.trim()
-    if (addr) {
+    const addr = searchTrimmed
+    if (addr && isValidTerraAddress(addr)) {
       sounds.playButtonPress()
       navigate(`/trader/${addr}`)
       setSearchInput('')

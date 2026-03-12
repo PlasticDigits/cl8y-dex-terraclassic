@@ -167,7 +167,14 @@ export async function connectTerraWallet(
         let session: { accounts?: string[]; chainId?: number; peerMeta?: unknown } | null = null;
         if (cachedSession) {
           try {
-            session = JSON.parse(cachedSession);
+            const parsed = JSON.parse(cachedSession);
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.accounts && Array.isArray(parsed.accounts) && parsed.accounts.every((a: unknown) => typeof a === 'string')) {
+                session = parsed;
+              } else if (!parsed.accounts) {
+                session = parsed;
+              }
+            }
           } catch (parseError) {
             console.error(`[${walletDisplayName}] Failed to parse cached session JSON:`, parseError);
             session = null;

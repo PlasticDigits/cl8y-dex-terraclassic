@@ -146,18 +146,24 @@ async fn find_pair_by_ticker(
 )]
 struct ApiDoc;
 
+async fn health() -> axum::Json<serde_json::Value> {
+    axum::Json(serde_json::json!({"status": "ok"}))
+}
+
 pub fn build_router(state: AppState, config: &Config) -> Router {
+    let mut origins = Vec::new();
+    for o in &config.cors_origins {
+        match o.parse::<HeaderValue>() {
+            Ok(v) => origins.push(v),
+            Err(_) => {
+                tracing::warn!("Skipping invalid CORS origin: {}", o);
+                continue;
+            }
+        }
+    }
+
     let cors = CorsLayer::new()
-        .allow_origin(
-            config
-                .cors_origins
-                .iter()
-                .map(|o| {
-                    o.parse::<HeaderValue>()
-                        .unwrap_or_else(|_| panic!("invalid CORS origin: {}", o))
-                })
-                .collect::<Vec<_>>(),
-        )
+        .allow_origin(origins)
         .allow_methods([Method::GET])
         .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
 
@@ -178,6 +184,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     });
 
     Router::new()
+        .route("/health", get(health))
         .route("/api/v1/pairs", get(pairs::list_pairs))
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
         .route("/api/v1/pairs/{addr}/candles", get(pairs::get_pair_candles))

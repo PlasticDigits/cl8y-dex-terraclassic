@@ -5,7 +5,15 @@ import type { ReactNode, ErrorInfo } from 'react'
 import Layout from './components/common/Layout'
 import { Spinner } from './components/ui'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 10_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 const SwapPage = lazy(() => import('./pages/SwapPage'))
 const PoolPage = lazy(() => import('./pages/PoolPage'))
@@ -28,8 +36,8 @@ interface ErrorBoundaryState {
   error: Error | null
 }
 
-class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
-  constructor(props: { children: ReactNode }) {
+class ErrorBoundary extends Component<{ children: ReactNode; isRoute?: boolean }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode; isRoute?: boolean }) {
     super(props)
     this.state = { hasError: false, error: null }
   }
@@ -44,6 +52,29 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
   render() {
     if (this.state.hasError) {
+      if (this.props.isRoute) {
+        return (
+          <div className="max-w-md mx-auto py-16 text-center">
+            <div className="shell-panel-strong">
+              <h2
+                className="text-lg font-semibold mb-4 uppercase tracking-wide font-heading"
+                style={{ color: 'var(--ink)' }}
+              >
+                Something went wrong
+              </h2>
+              <p className="text-sm mb-6" style={{ color: 'var(--ink-dim)' }}>
+                {this.state.error?.message || 'An unexpected error occurred'}
+              </p>
+              <button
+                onClick={() => this.setState({ hasError: false, error: null })}
+                className="btn-primary btn-cta"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )
+      }
       return (
         <div className="min-h-screen flex items-center justify-center p-8" style={{ background: 'var(--bg-0)' }}>
           <div className="max-w-md w-full shell-panel-strong text-center">
@@ -80,12 +111,12 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<Suspense fallback={<PageFallback />}><SwapPage /></Suspense>} />
-              <Route path="/pool" element={<Suspense fallback={<PageFallback />}><PoolPage /></Suspense>} />
-              <Route path="/create" element={<Suspense fallback={<PageFallback />}><CreatePairPage /></Suspense>} />
-              <Route path="/tiers" element={<Suspense fallback={<PageFallback />}><TiersPage /></Suspense>} />
-              <Route path="/charts" element={<Suspense fallback={<PageFallback />}><ChartsPage /></Suspense>} />
-              <Route path="/trader/:address" element={<Suspense fallback={<PageFallback />}><TraderPage /></Suspense>} />
+              <Route path="/" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><SwapPage /></Suspense></ErrorBoundary>} />
+              <Route path="/pool" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><PoolPage /></Suspense></ErrorBoundary>} />
+              <Route path="/create" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><CreatePairPage /></Suspense></ErrorBoundary>} />
+              <Route path="/tiers" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><TiersPage /></Suspense></ErrorBoundary>} />
+              <Route path="/charts" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><ChartsPage /></Suspense></ErrorBoundary>} />
+              <Route path="/trader/:address" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><TraderPage /></Suspense></ErrorBoundary>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

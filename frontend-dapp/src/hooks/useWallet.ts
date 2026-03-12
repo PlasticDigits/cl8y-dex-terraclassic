@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { connectTerraWallet, disconnectTerraWallet, registerConnectedWallet } from '@/services/terraclassic/wallet'
 import { createDevTerraWallet, DEV_TERRA_ADDRESS } from '@/services/terraclassic/devWallet'
 import { DEV_MODE } from '@/utils/constants'
-import type { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
+import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 
 const WALLET_STORAGE_KEY = 'cl8y_wallet_connection'
 
@@ -48,14 +48,28 @@ export const useWalletStore = create<WalletState>((set) => ({
   },
 }))
 
+const VALID_WALLET_NAMES = new Set(Object.values(WalletName as Record<string, string>))
+const VALID_WALLET_TYPES = new Set(Object.values(WalletType as Record<string, string>))
+
 if (typeof window !== 'undefined') {
   try {
     const saved = localStorage.getItem(WALLET_STORAGE_KEY)
     if (saved) {
-      const { walletName, walletType } = JSON.parse(saved) as { walletName: WalletName; walletType: WalletType }
-      useWalletStore.getState().connect(walletName, walletType).catch(() => {
+      const parsed = JSON.parse(saved)
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.walletName === 'string' &&
+        typeof parsed.walletType === 'string' &&
+        VALID_WALLET_NAMES.has(parsed.walletName) &&
+        VALID_WALLET_TYPES.has(parsed.walletType)
+      ) {
+        useWalletStore.getState().connect(parsed.walletName as WalletName, parsed.walletType as WalletType).catch(() => {
+          localStorage.removeItem(WALLET_STORAGE_KEY)
+        })
+      } else {
         localStorage.removeItem(WALLET_STORAGE_KEY)
-      })
+      }
     }
   } catch { /* ignore parse / storage errors */ }
 }

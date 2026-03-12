@@ -68,6 +68,7 @@ pub async fn clean_db(pool: &PgPool) {
     sqlx::query("DELETE FROM candles").execute(pool).await.ok();
     sqlx::query("DELETE FROM liquidity_events").execute(pool).await.ok();
     sqlx::query("DELETE FROM token_volume_stats").execute(pool).await.ok();
+    sqlx::query("DELETE FROM trader_positions").execute(pool).await.ok();
     sqlx::query("DELETE FROM traders").execute(pool).await.ok();
     sqlx::query("DELETE FROM pairs").execute(pool).await.ok();
     sqlx::query("DELETE FROM assets").execute(pool).await.ok();

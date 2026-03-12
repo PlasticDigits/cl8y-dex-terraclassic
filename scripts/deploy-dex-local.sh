@@ -5,7 +5,11 @@ CHAIN_ID="localterra"
 NODE="http://localhost:26657"
 LCD="http://localhost:1317"
 TEST_ADDRESS="terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
-CONTAINER_NAME="cl8y-dex-terraclassic-localterra-1"
+CONTAINER_NAME=$(docker compose ps -q localterra 2>/dev/null | head -1)
+if [ -z "$CONTAINER_NAME" ]; then
+    echo "ERROR: localterra container not found. Run 'make start' first."
+    exit 1
+fi
 ARTIFACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/artifacts" && pwd)"
 
 TOKEN_NAMES=("Ember" "Coral" "Jade" "Onyx" "Ruby" "Topaz" "Opal" "Cobalt" "Slate" "Amber")
@@ -384,14 +388,39 @@ for p in "${!PAIR_CONFIGS[@]}"; do
 done
 echo ""
 echo "=============================================="
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 echo ""
-echo "Update frontend-dapp/.env:"
-echo "  VITE_FACTORY_ADDRESS=$FACTORY_ADDRESS"
-echo "  VITE_ROUTER_ADDRESS=$ROUTER_ADDRESS"
-echo "  VITE_FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS"
-echo "  VITE_NETWORK=local"
-echo "  VITE_TERRA_LCD_URL=$LCD"
-echo "  VITE_TERRA_RPC_URL=$NODE"
+echo "[Phase 6.1] Writing frontend-dapp/.env.local..."
+cat > "$REPO_ROOT/frontend-dapp/.env.local" <<ENVEOF
+VITE_NETWORK=local
+VITE_FACTORY_ADDRESS=$FACTORY_ADDRESS
+VITE_ROUTER_ADDRESS=$ROUTER_ADDRESS
+VITE_FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS
+VITE_CL8Y_TOKEN_ADDRESS=${TOKEN_ADDRESSES[0]}
+VITE_TERRA_LCD_URL=$LCD
+VITE_TERRA_RPC_URL=$NODE
+VITE_INDEXER_URL=http://localhost:3001
+VITE_DEV_MODE=true
+ENVEOF
+echo "  Written to frontend-dapp/.env.local"
+
+echo ""
+echo "[Phase 6.2] Writing indexer/.env..."
+cat > "$REPO_ROOT/indexer/.env" <<ENVEOF
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/dex_indexer
+FACTORY_ADDRESS=$FACTORY_ADDRESS
+FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS
+LCD_URLS=http://localhost:1317
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+API_PORT=3001
+API_BIND=127.0.0.1
+POLL_INTERVAL_MS=2000
+RATE_LIMIT_RPS=100
+ENVEOF
+echo "  Written to indexer/.env"
+
 echo ""
 echo "Test address: $TEST_ADDRESS"
 echo "  10 tokens, 20 pairs, $SWAP_COUNT swaps executed"

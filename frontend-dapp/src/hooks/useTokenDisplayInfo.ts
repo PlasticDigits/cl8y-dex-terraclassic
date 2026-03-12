@@ -28,6 +28,7 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
   )
 
   useEffect(() => {
+    let stale = false
     if (!tokenId) return
 
     const cached = getCachedTokenSymbol(tokenId)
@@ -38,9 +39,11 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
 
     if (isCw20) {
       fetchCW20TokenInfo(tokenId).then((result) => {
-        if (result?.symbol) setResolved(result.symbol)
+        if (!stale && result?.symbol) setResolved(result.symbol)
       })
     }
+
+    return () => { stale = true }
   }, [tokenId, isCw20])
 
   if (!tokenId) {

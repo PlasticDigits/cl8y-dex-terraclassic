@@ -2,13 +2,14 @@ import { useState, memo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { getPool, getFeeConfig, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
+import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
+import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
-import { Spinner, TokenDisplay, RetryError, Skeleton } from '@/components/ui'
+import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
@@ -34,7 +35,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
 
   const feeQuery = useQuery({
     queryKey: ['feeConfig', pair.contract_addr],
-    queryFn: () => getFeeConfig(pair.contract_addr),
+    queryFn: () => getPairFeeConfig(pair.contract_addr),
     staleTime: 60_000,
   })
 
@@ -55,7 +56,8 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   const LP_DECIMALS = 6
   const lpBalance = lpBalanceQuery.data ?? '0'
   const lpBalanceDisplay = lpBalance === '0' ? '0' : formatTokenAmount(lpBalance, LP_DECIMALS)
-  const insufficientLp = !!lpAmount && Number(lpAmount) * 10 ** LP_DECIMALS > Number(lpBalance)
+  const lpRaw = Number(lpAmount)
+  const insufficientLp = !!lpAmount && !isNaN(lpRaw) && lpRaw * 10 ** LP_DECIMALS > Number(lpBalance)
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -98,16 +100,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
         {feeQuery.data && (
           <span className="text-xs border-2 px-2 py-1 rounded-none shadow-[1px_1px_0_#000] uppercase tracking-wide font-semibold"
             style={{ color: 'var(--ink-dim)', borderColor: 'rgba(255,255,255,0.2)', background: 'var(--surface-0)' }}>
-            Fee: {discountQuery.data && discountQuery.data.discount_bps > 0 ? (
-              <>
-                <span className="line-through mr-1">{feeQuery.data.fee_bps}</span>
-                <span style={{ color: 'var(--cyan)' }}>
-                  {Math.floor(feeQuery.data.fee_bps * (10000 - discountQuery.data.discount_bps) / 10000)}
-                </span>
-              </>
-            ) : (
-              feeQuery.data.fee_bps
-            )} bps
+            Fee: <FeeDisplay feeBps={feeQuery.data.fee_bps} discountBps={discountQuery.data?.discount_bps} />
           </span>
         )}
       </div>
@@ -167,7 +160,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
               type="text"
               inputMode="decimal"
               value={amountA}
-              onChange={(e) => setAmountA(e.target.value)}
+              onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountA(v) }}
               placeholder="0.00"
               className="input-neo"
             />
@@ -181,7 +174,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
               type="text"
               inputMode="decimal"
               value={amountB}
-              onChange={(e) => setAmountB(e.target.value)}
+              onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountB(v) }}
               placeholder="0.00"
               className="input-neo"
             />
@@ -201,12 +194,10 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
             {!address ? 'Connect Wallet' : addMutation.isPending ? 'Providing Liquidity...' : 'Provide Liquidity'}
           </button>
           {addMutation.isError && (
-            <div className="alert-error">{addMutation.error?.message}</div>
+            <TxResultAlert type="error" message={addMutation.error?.message ?? 'Failed to provide liquidity'} />
           )}
           {addMutation.isSuccess && (
-            <div className="alert-success">
-              Liquidity provided! TX: <span className="font-mono text-xs">{addMutation.data}</span>
-            </div>
+            <TxResultAlert type="success" message="Liquidity provided!" txHash={addMutation.data} />
           )}
         </div>
       )}
@@ -242,7 +233,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
               type="text"
               inputMode="decimal"
               value={lpAmount}
-              onChange={(e) => setLpAmount(e.target.value)}
+              onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setLpAmount(v) }}
               placeholder="0.00"
               className="input-neo"
             />
@@ -270,12 +261,10 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
             {!address ? 'Connect Wallet' : insufficientLp ? 'Insufficient LP Balance' : removeMutation.isPending ? 'Withdrawing...' : 'Withdraw Liquidity'}
           </button>
           {removeMutation.isError && (
-            <div className="alert-error">{removeMutation.error?.message}</div>
+            <TxResultAlert type="error" message={removeMutation.error?.message ?? 'Failed to withdraw liquidity'} />
           )}
           {removeMutation.isSuccess && (
-            <div className="alert-success">
-              Liquidity withdrawn! TX: <span className="font-mono text-xs">{removeMutation.data}</span>
-            </div>
+            <TxResultAlert type="success" message="Liquidity withdrawn!" txHash={removeMutation.data} />
           )}
         </div>
       )}

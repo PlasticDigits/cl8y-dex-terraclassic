@@ -3,7 +3,6 @@ import { executeTerraContract } from './transactions'
 import type {
   Asset,
   AssetInfo,
-  FeeConfig,
   PairInfo,
   PoolResponse,
   SimulationResponse,
@@ -17,11 +16,6 @@ export async function getPairInfo(pairAddress: string): Promise<PairInfo> {
 
 export async function getPool(pairAddress: string): Promise<PoolResponse> {
   return queryContract<PoolResponse>(pairAddress, { pool: {} })
-}
-
-export async function getFeeConfig(pairAddress: string): Promise<FeeConfig> {
-  const resp = await queryContract<{ fee_config: FeeConfig }>(pairAddress, { get_fee_config: {} })
-  return resp.fee_config
 }
 
 export async function simulateSwap(

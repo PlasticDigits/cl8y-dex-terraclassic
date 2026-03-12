@@ -4,13 +4,14 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { simulateSwap, swap, getPool, getFeeConfig } from '@/services/terraclassic/pair'
+import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
+import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import { assetInfoLabel } from '@/types'
 import { sounds } from '@/lib/sounds'
-import { TokenDisplay } from '@/components/ui'
+import { TokenDisplay, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
 
@@ -62,7 +63,7 @@ export default function SwapPage() {
 
   const feeQuery = useQuery({
     queryKey: ['feeConfig', selectedPair?.contract_addr],
-    queryFn: () => { if (!selectedPair) throw new Error('No pair'); return getFeeConfig(selectedPair.contract_addr) },
+    queryFn: () => { if (!selectedPair) throw new Error('No pair'); return getPairFeeConfig(selectedPair.contract_addr) },
     enabled: !!selectedPair,
   })
 
@@ -228,6 +229,11 @@ export default function SwapPage() {
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--ink-subtle)' }}>%</span>
                 </div>
               </div>
+              {slippageTolerance > 5 && (
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-warning, #f59e0b)' }}>
+                  High slippage increases front-running risk
+                </p>
+              )}
             </div>
           )}
 
@@ -270,13 +276,13 @@ export default function SwapPage() {
             {isWalletConnected && balanceQuery.data !== undefined && (
               <div className="flex items-center justify-between mt-2 text-xs" style={{ color: 'var(--ink-subtle)' }}>
                 <span>
-                  Balance: <span className="font-mono">{offerAssetInfo ? formatTokenAmount(balanceQuery.data!, getDecimals(offerAssetInfo)) : balanceQuery.data}</span>
+                  Balance: <span className="font-mono">{offerAssetInfo ? formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo)) : balanceQuery.data}</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => {
                     sounds.playButtonPress()
-                    setInputAmount(balanceQuery.data!)
+                    if (balanceQuery.data) setInputAmount(balanceQuery.data)
                   }}
                   className="uppercase font-semibold tracking-wide hover:underline"
                   style={{ color: 'var(--cyan)' }}
@@ -338,24 +344,11 @@ export default function SwapPage() {
               {feeQuery.data && (
                 <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
                   <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
-                  <span>
-                    {discountQuery.data && discountQuery.data.discount_bps > 0 ? (
-                      <>
-                        <span className="line-through mr-1" style={{ color: 'var(--ink-subtle)' }}>
-                          {(feeQuery.data.fee_bps / 100).toFixed(2)}%
-                        </span>
-                        <span style={{ color: 'var(--cyan)' }}>
-                          {((feeQuery.data.fee_bps * (10000 - discountQuery.data.discount_bps)) / 10000 / 100).toFixed(2)}%
-                        </span>
-                        <span className="text-xs ml-1" style={{ color: 'var(--cyan)' }}>
-                          (-{(discountQuery.data.discount_bps / 100).toFixed(0)}%)
-                        </span>
-                      </>
-                    ) : (
-                      <>{(feeQuery.data.fee_bps / 100).toFixed(2)}%</>
-                    )}
-                    {commissionAmount && receiveAssetInfo && <span className="ml-1" style={{ color: 'var(--ink-subtle)' }}>({formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))})</span>}
-                  </span>
+                  <FeeDisplay
+                    feeBps={feeQuery.data.fee_bps}
+                    discountBps={discountQuery.data?.discount_bps}
+                    commissionAmount={commissionAmount && receiveAssetInfo ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo)) : undefined}
+                  />
                 </div>
               )}
               {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
@@ -418,14 +411,14 @@ export default function SwapPage() {
           </button>
 
           {swapMutation.isError && (
-            <div className="mt-4 alert-error">
-              {swapMutation.error?.message ?? 'Swap failed'}
+            <div className="mt-4">
+              <TxResultAlert type="error" message={swapMutation.error?.message ?? 'Swap failed'} />
             </div>
           )}
 
           {swapMutation.isSuccess && (
-            <div className="mt-4 alert-success">
-              Swap successful! TX: <span className="font-mono text-xs">{swapMutation.data}</span>
+            <div className="mt-4">
+              <TxResultAlert type="success" message="Swap successful!" txHash={swapMutation.data} />
             </div>
           )}
         </div>

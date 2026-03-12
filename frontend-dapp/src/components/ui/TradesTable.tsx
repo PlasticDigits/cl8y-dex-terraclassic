@@ -1,5 +1,6 @@
 import type { IndexerTrade, IndexerPair } from '@/types'
 import { formatNum } from '@/utils/formatAmount'
+import { getExplorerTxUrl } from '@/utils/constants'
 
 export interface TradesTableProps {
   trades: IndexerTrade[]
@@ -41,7 +42,15 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>{formatNum(t.offer_amount)}</td>
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>{formatNum(t.return_amount)}</td>
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>{formatNum(t.price, 6)}</td>
-                <td className="py-1.5 px-2" style={{ color: 'var(--ink-dim)' }}>{t.tx_hash.slice(0, 8)}...</td>
+                <td className="py-1.5 px-2" style={{ color: 'var(--ink-dim)' }}>
+                  {(() => {
+                    const url = getExplorerTxUrl(t.tx_hash)
+                    const label = `${t.tx_hash.slice(0, 8)}...`
+                    return url ? (
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">{label}</a>
+                    ) : label
+                  })()}
+                </td>
               </tr>
             )
           })}

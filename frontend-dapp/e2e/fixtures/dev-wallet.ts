@@ -5,14 +5,14 @@ export const test = base.extend<{ connectWallet: void }>({
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const connectBtn = page.getByRole('button', { name: 'Connect Wallet' }).first()
+    const connectBtn = page.getByRole('button', { name: /CONNECT TC|TC/i }).first()
     await connectBtn.click()
 
     const simBtn = page.getByRole('button', { name: /Simulated Wallet/i })
     await expect(simBtn).toBeVisible({ timeout: 5000 })
     await simBtn.click()
 
-    await expect(page.getByText(/terra1x46/)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('button', { name: /terra1.*20k38v/ })).toBeVisible({ timeout: 5000 })
 
     await use()
   }, { auto: false }],
