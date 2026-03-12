@@ -7,7 +7,7 @@ const GAS_PRICE_ULUNA = '28.325';
 const BASE_GAS_LIMIT = 200000;
 const SWAP_GAS_LIMIT = 400000;
 const ADD_LIQUIDITY_GAS_LIMIT = 500000;
-const REMOVE_LIQUIDITY_GAS_LIMIT = 400000;
+const REMOVE_LIQUIDITY_GAS_LIMIT = 600000;
 const CREATE_PAIR_GAS_LIMIT = 800000;
 
 function estimateTerraClassicFee(gasLimit: number): Fee {
