@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
@@ -55,41 +55,41 @@ export default function SwapPage() {
 
   const poolQuery = useQuery({
     queryKey: ['pool', selectedPair?.contract_addr],
-    queryFn: () => getPool(selectedPair!.contract_addr),
+    queryFn: () => { if (!selectedPair) throw new Error('No pair'); return getPool(selectedPair.contract_addr) },
     enabled: !!selectedPair,
     refetchInterval: 15_000,
   })
 
   const feeQuery = useQuery({
     queryKey: ['feeConfig', selectedPair?.contract_addr],
-    queryFn: () => getFeeConfig(selectedPair!.contract_addr),
+    queryFn: () => { if (!selectedPair) throw new Error('No pair'); return getFeeConfig(selectedPair.contract_addr) },
     enabled: !!selectedPair,
   })
 
   const discountQuery = useQuery({
     queryKey: ['traderDiscount', address],
-    queryFn: () => getTraderDiscount(address!),
+    queryFn: () => { if (!address) throw new Error('No address'); return getTraderDiscount(address) },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
 
   const registrationQuery = useQuery({
     queryKey: ['feeDiscountRegistration', address],
-    queryFn: () => getRegistration(address!),
+    queryFn: () => { if (!address) throw new Error('No address'); return getRegistration(address) },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, offerLabel],
-    queryFn: () => getTokenBalance(address!, offerAssetInfo!),
+    queryFn: () => { if (!address || !offerAssetInfo) throw new Error('Missing params'); return getTokenBalance(address, offerAssetInfo) },
     enabled: !!address && !!offerAssetInfo,
     refetchInterval: 15_000,
   })
 
   const simQuery = useQuery({
     queryKey: ['simulation', selectedPair?.contract_addr, offerLabel, inputAmount],
-    queryFn: () => simulateSwap(selectedPair!.contract_addr, offerAssetInfo!, inputAmount),
+    queryFn: () => { if (!selectedPair || !offerAssetInfo) throw new Error('Missing params'); return simulateSwap(selectedPair.contract_addr, offerAssetInfo, inputAmount) },
     enabled: !!selectedPair && !!offerAssetInfo && !!inputAmount && parseFloat(inputAmount) > 0,
     refetchInterval: 10_000,
   })
@@ -155,27 +155,27 @@ export default function SwapPage() {
     buttonDisabled = true
   }
 
-  function handlePairChange(pairContract: string) {
+  const handlePairChange = useCallback((pairContract: string) => {
     const pair = pairs.find((p) => p.contract_addr === pairContract)
     if (pair) {
       sounds.playButtonPress()
       setSelectedPair(pair)
     }
-  }
+  }, [pairs, setSelectedPair])
 
-  function handleSlippagePreset(value: number) {
+  const handleSlippagePreset = useCallback((value: number) => {
     sounds.playButtonPress()
     setSlippageTolerance(value)
     setCustomSlippage('')
-  }
+  }, [setSlippageTolerance])
 
-  function handleCustomSlippage(value: string) {
+  const handleCustomSlippage = useCallback((value: string) => {
     setCustomSlippage(value)
     const parsed = parseFloat(value)
     if (!isNaN(parsed) && parsed > 0 && parsed <= 50) {
       setSlippageTolerance(parsed)
     }
-  }
+  }, [setSlippageTolerance])
 
   return (
     <div className="max-w-[520px] mx-auto">
@@ -187,7 +187,7 @@ export default function SwapPage() {
         <div className="shell-panel-strong relative z-10">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold uppercase tracking-wide" style={{ fontFamily: "'Chakra Petch', sans-serif" }}>Swap</h2>
+            <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Swap</h2>
             <button
               onClick={() => {
                 sounds.playButtonPress()
@@ -238,6 +238,7 @@ export default function SwapPage() {
               value={selectedPair?.contract_addr ?? ''}
               onChange={(e) => handlePairChange(e.target.value)}
               className="select-neo"
+              aria-label="Select trading pair"
             >
               {pairs.length === 0 && <option value="">Loading pairs...</option>}
               {pairs.map((pair) => (
@@ -269,7 +270,7 @@ export default function SwapPage() {
             {isWalletConnected && balanceQuery.data !== undefined && (
               <div className="flex items-center justify-between mt-2 text-xs" style={{ color: 'var(--ink-subtle)' }}>
                 <span>
-                  Balance: <span className="font-mono">{balanceQuery.data}</span>
+                  Balance: <span className="font-mono">{offerAssetInfo ? formatTokenAmount(balanceQuery.data!, getDecimals(offerAssetInfo)) : balanceQuery.data}</span>
                 </span>
                 <button
                   type="button"
@@ -315,8 +316,8 @@ export default function SwapPage() {
             <div className="text-2xl font-medium" style={{ color: 'var(--ink)' }}>
               {simQuery.isFetching ? (
                 <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>Calculating...</span>
-              ) : outputAmount ? (
-                outputAmount
+              ) : outputAmount && receiveAssetInfo ? (
+                formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
               ) : (
                 <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
               )}
@@ -353,7 +354,7 @@ export default function SwapPage() {
                     ) : (
                       <>{(feeQuery.data.fee_bps / 100).toFixed(2)}%</>
                     )}
-                    {commissionAmount && <span className="ml-1" style={{ color: 'var(--ink-subtle)' }}>({commissionAmount})</span>}
+                    {commissionAmount && receiveAssetInfo && <span className="ml-1" style={{ color: 'var(--ink-subtle)' }}>({formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))})</span>}
                   </span>
                 </div>
               )}
@@ -390,7 +391,7 @@ export default function SwapPage() {
               {minReceived !== null && (
                 <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
                   <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
-                  <span className="font-mono text-xs">{minReceived}</span>
+                  <span className="font-mono text-xs">{receiveAssetInfo ? formatTokenAmount(minReceived!, getDecimals(receiveAssetInfo)) : minReceived}</span>
                 </div>
               )}
               <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>

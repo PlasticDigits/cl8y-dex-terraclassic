@@ -7,36 +7,19 @@ import {
   getTraderTrades,
   getTraderPositions,
 } from '@/services/indexer/client'
-import { Spinner } from '@/components/ui'
+import { Spinner, StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import { formatNum } from '@/utils/formatAmount'
+import { shortenAddress } from '@/utils/tokenDisplay'
+import { formatDateTime } from '@/utils/formatDate'
 import type { IndexerTrade, IndexerPosition } from '@/types'
-
-function formatNum(val: string | number, decimals = 2): string {
-  const n = typeof val === 'string' ? parseFloat(val) : val
-  if (isNaN(n) || n === 0) return '0'
-  if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(decimals) + 'B'
-  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(decimals) + 'M'
-  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(decimals) + 'K'
-  return n.toFixed(decimals)
-}
-
-function truncAddr(addr: string): string {
-  if (addr.length <= 20) return addr
-  return addr.slice(0, 12) + '...' + addr.slice(-6)
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
 
 function PnlValue({ value }: { value: string }) {
   const n = parseFloat(value)
-  const color = n > 0 ? '#22c55e' : n < 0 ? '#ef4444' : 'var(--ink-subtle)'
+  const color = n > 0 ? 'var(--color-positive)' : n < 0 ? 'var(--color-negative)' : 'var(--ink-subtle)'
   const prefix = n > 0 ? '+' : ''
   return (
-    <span style={{ color, fontFamily: "'Chakra Petch', sans-serif" }} className="font-bold">
+    <span style={{ color }} className="font-bold font-heading">
       {prefix}{formatNum(value, 4)}
     </span>
   )
@@ -87,8 +70,8 @@ export default function TraderPage() {
   return (
     <div className="space-y-4">
       <h1
-        className="text-lg font-bold uppercase tracking-wider"
-        style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+        className="text-lg font-bold uppercase tracking-wider font-heading"
+        style={{ color: 'var(--ink)' }}
       >
         Trader Profile
       </h1>
@@ -128,17 +111,16 @@ export default function TraderPage() {
       )}
 
       {traderAddr && traderQuery.isLoading && (
-        <div className="flex items-center justify-center py-12 gap-2" style={{ color: 'var(--ink-subtle)' }}>
-          <Spinner /> Loading trader profile...
+        <div className="shell-panel-strong space-y-3 py-6" aria-live="polite">
+          <Skeleton height="1rem" width="40%" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height="3rem" />)}
+          </div>
         </div>
       )}
 
       {traderAddr && traderQuery.isError && (
-        <div className="shell-panel-strong text-center py-12">
-          <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-            Trader not found. They may not have traded yet.
-          </p>
-        </div>
+        <RetryError message="Trader not found. They may not have traded yet." onRetry={() => void traderQuery.refetch()} />
       )}
 
       {trader && (
@@ -148,7 +130,7 @@ export default function TraderPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
               <div>
                 <p className="text-sm font-mono" style={{ color: 'var(--ink)' }}>
-                  {truncAddr(trader.address)}
+                  {shortenAddress(trader.address, 12, 6)}
                   {isOwnProfile && (
                     <span className="ml-2 text-[10px] uppercase tracking-wider px-2 py-0.5 border border-white/30 rounded-sm" style={{ color: 'var(--accent)' }}>
                       You
@@ -163,18 +145,18 @@ export default function TraderPage() {
               )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard label="Total Trades" value={trader.total_trades.toLocaleString()} />
-              <StatCard label="Total Volume" value={formatNum(trader.total_volume)} />
-              <StatCard label="First Trade" value={formatDateTime(trader.first_trade_at)} />
-              <StatCard label="Last Trade" value={formatDateTime(trader.last_trade_at)} />
+              <StatBox label="Total Trades" value={trader.total_trades.toLocaleString()} />
+              <StatBox label="Total Volume" value={formatNum(trader.total_volume)} />
+              <StatBox label="First Trade" value={formatDateTime(trader.first_trade_at)} />
+              <StatBox label="Last Trade" value={formatDateTime(trader.last_trade_at)} />
             </div>
           </div>
 
           {/* P&L Summary */}
           <div className="shell-panel-strong">
             <h3
-              className="text-sm font-semibold uppercase tracking-wide mb-3"
-              style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+              className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+              style={{ color: 'var(--ink)' }}
             >
               P&L Summary
             </h3>
@@ -193,7 +175,7 @@ export default function TraderPage() {
               </div>
               <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
                 <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>Total Fees Paid</p>
-                <p className="text-sm font-bold" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>
+                <p className="text-sm font-bold font-heading" style={{ color: 'var(--ink)' }}>
                   {formatNum(trader.total_fees_paid)}
                 </p>
               </div>
@@ -203,30 +185,33 @@ export default function TraderPage() {
           {/* Open Positions */}
           <div className="shell-panel-strong">
             <h3
-              className="text-sm font-semibold uppercase tracking-wide mb-3"
-              style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+              className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+              style={{ color: 'var(--ink)' }}
             >
               Positions
             </h3>
             {positionsQuery.isLoading && (
-              <div className="flex items-center justify-center py-6 gap-2" style={{ color: 'var(--ink-subtle)' }}>
-                <Spinner /> Loading positions...
+              <div className="space-y-2 py-4" aria-live="polite">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
               </div>
+            )}
+            {positionsQuery.isError && (
+              <RetryError message="Failed to load positions" onRetry={() => void positionsQuery.refetch()} />
             )}
             {positionsQuery.data && positionsQuery.data.length === 0 && (
               <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>No positions</p>
             )}
             {positionsQuery.data && positionsQuery.data.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full text-xs" aria-label="Open positions">
                   <thead>
                     <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                      <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Pair</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Net Position</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Avg Entry</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Cost Basis</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Realized P&L</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Trades</th>
+                      <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">Pair</th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Net Position</th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Avg Entry</th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Cost Basis</th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Realized P&L</th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Trades</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -251,48 +236,25 @@ export default function TraderPage() {
           {/* Trade History */}
           <div className="shell-panel-strong">
             <h3
-              className="text-sm font-semibold uppercase tracking-wide mb-3"
-              style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+              className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+              style={{ color: 'var(--ink)' }}
             >
               Trade History
             </h3>
             {tradesQuery.isLoading && (
-              <div className="flex items-center justify-center py-6 gap-2" style={{ color: 'var(--ink-subtle)' }}>
-                <Spinner /> Loading trades...
+              <div className="space-y-2 py-4" aria-live="polite">
+                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
               </div>
             )}
-            {tradesQuery.data && tradesQuery.data.length === 0 && (
-              <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>No trades</p>
+            {tradesQuery.isError && (
+              <RetryError message="Failed to load trades" onRetry={() => void tradesQuery.refetch()} />
             )}
-            {tradesQuery.data && tradesQuery.data.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                      <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Time</th>
-                      <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Direction</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Offer</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Return</th>
-                      <th className="text-right py-2 px-2 font-medium uppercase tracking-wider">Price</th>
-                      <th className="text-left py-2 px-2 font-medium uppercase tracking-wider">Tx</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tradesQuery.data.map((t: IndexerTrade) => (
-                      <tr key={t.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="py-1.5 px-2" style={{ color: 'var(--ink-subtle)' }}>{formatDateTime(t.block_timestamp)}</td>
-                        <td className="py-1.5 px-2 font-medium" style={{ color: 'var(--ink)' }}>
-                          {t.offer_asset} → {t.ask_asset}
-                        </td>
-                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>{formatNum(t.offer_amount)}</td>
-                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>{formatNum(t.return_amount)}</td>
-                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>{formatNum(t.price, 6)}</td>
-                        <td className="py-1.5 px-2" style={{ color: 'var(--ink-dim)' }}>{t.tx_hash.slice(0, 8)}...</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            {tradesQuery.data && (
+              <TradesTable
+                trades={tradesQuery.data}
+                formatTimeFn={formatDateTime}
+                ariaLabel="Trade history"
+              />
             )}
           </div>
         </>
@@ -301,13 +263,3 @@ export default function TraderPage() {
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
-      <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>{label}</p>
-      <p className="text-sm font-bold" style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}>
-        {value}
-      </p>
-    </div>
-  )
-}

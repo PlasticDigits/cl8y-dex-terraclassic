@@ -48,8 +48,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
         <div className="min-h-screen flex items-center justify-center p-8" style={{ background: 'var(--bg-0)' }}>
           <div className="max-w-md w-full shell-panel-strong text-center">
             <h2
-              className="text-lg font-semibold mb-4 uppercase tracking-wide"
-              style={{ color: 'var(--ink)', fontFamily: "'Chakra Petch', sans-serif" }}
+              className="text-lg font-semibold mb-4 uppercase tracking-wide font-heading"
+              style={{ color: 'var(--ink)' }}
             >
               Something went wrong
             </h2>

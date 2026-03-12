@@ -57,7 +57,7 @@ export default function CreatePairPage() {
           className="pointer-events-none absolute inset-x-6 top-8 h-[78%] rounded-[28px] theme-hero-glow blur-2xl"
         />
         <div className="shell-panel-strong relative z-10">
-          <h2 className="text-lg font-semibold mb-6 uppercase tracking-wide" style={{ fontFamily: "'Chakra Petch', sans-serif" }}>Create Trading Pair</h2>
+          <h2 className="text-lg font-semibold mb-6 uppercase tracking-wide font-heading">Create Trading Pair</h2>
 
           <div className="space-y-4">
             <div>
