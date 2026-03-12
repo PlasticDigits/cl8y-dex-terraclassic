@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool, getFeeConfig } from '@/services/terraclassic/pair'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
@@ -13,6 +14,8 @@ import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 
 export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
+  const wallet = getConnectedWallet()
+  const isWalletConnected = !!address && !!wallet
   const { selectedPair, setSelectedPair, slippageTolerance, setSlippageTolerance } = useDexStore()
 
   const [inputAmount, setInputAmount] = useState('')
@@ -117,7 +120,7 @@ export default function SwapPage() {
 
   let buttonText = 'Swap'
   let buttonDisabled = false
-  if (!address) {
+  if (!isWalletConnected) {
     buttonText = 'Connect Wallet'
     buttonDisabled = true
   } else if (!selectedPair) {
