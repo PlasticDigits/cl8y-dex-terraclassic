@@ -1,16 +1,12 @@
 import { queryContract } from '@/services/terraclassic/queries'
 import type { AssetInfo } from '@/types'
+import { lookupByTokenId, lookupByAssetInfo } from './tokenRegistry'
 
 interface CW20TokenInfo {
   name: string
   symbol: string
   decimals: number
   total_supply: string
-}
-
-const DENOM_TO_SYMBOL: Record<string, string> = {
-  uluna: 'LUNC',
-  uusd: 'USTC',
 }
 
 const CACHE_KEY = 'cl8y-dex-token-info'
@@ -36,10 +32,14 @@ function saveCache(cache: Record<string, CachedEntry>) {
 const inFlightQueries = new Map<string, Promise<CW20TokenInfo | null>>()
 
 export function getCachedTokenSymbol(tokenId: string): string | null {
-  const lower = tokenId.toLowerCase()
-  if (DENOM_TO_SYMBOL[lower]) return DENOM_TO_SYMBOL[lower]
+  const reg = lookupByTokenId(tokenId)
+  if (reg) return reg.symbol
   const cache = loadCache()
-  return cache[lower]?.symbol ?? null
+  return cache[tokenId.toLowerCase()]?.symbol ?? null
+}
+
+export function getTokenLogoURI(info: AssetInfo): string | undefined {
+  return lookupByAssetInfo(info)?.logoURI
 }
 
 export async function fetchCW20TokenInfo(contractAddr: string): Promise<CW20TokenInfo | null> {
@@ -66,11 +66,11 @@ export async function fetchCW20TokenInfo(contractAddr: string): Promise<CW20Toke
 
 export function getTokenDisplaySymbol(tokenId: string): string {
   if (!tokenId?.trim()) return ''
-  const lower = tokenId.toLowerCase()
-  if (DENOM_TO_SYMBOL[lower]) return DENOM_TO_SYMBOL[lower]
-  if (lower.startsWith('terra1') && lower.length >= 44) {
+  const reg = lookupByTokenId(tokenId)
+  if (reg) return reg.symbol
+  if (tokenId.toLowerCase().startsWith('terra1') && tokenId.length >= 44) {
     const cache = loadCache()
-    if (cache[lower]?.symbol) return cache[lower].symbol
+    if (cache[tokenId.toLowerCase()]?.symbol) return cache[tokenId.toLowerCase()].symbol
     return shortenAddress(tokenId)
   }
   return tokenId

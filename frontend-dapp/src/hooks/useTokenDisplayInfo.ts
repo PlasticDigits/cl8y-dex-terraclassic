@@ -3,6 +3,7 @@ import type { AssetInfo } from '@/types'
 import {
   getCachedTokenSymbol,
   fetchCW20TokenInfo,
+  getTokenLogoURI,
   shortenAddress,
   isAddressLike,
 } from '@/utils/tokenDisplay'
@@ -11,6 +12,7 @@ export interface TokenDisplayInfo {
   displayLabel: string
   symbol: string
   addressForBlockie: string | undefined
+  logoURI: string | undefined
 }
 
 export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
@@ -35,18 +37,19 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
     }
 
     if (isCw20) {
-      fetchCW20TokenInfo(tokenId).then((info) => {
-        if (info?.symbol) setResolved(info.symbol)
+      fetchCW20TokenInfo(tokenId).then((result) => {
+        if (result?.symbol) setResolved(result.symbol)
       })
     }
   }, [tokenId, isCw20])
 
   if (!tokenId) {
-    return { displayLabel: '--', symbol: '', addressForBlockie: undefined }
+    return { displayLabel: '--', symbol: '', addressForBlockie: undefined, logoURI: undefined }
   }
 
   const symbol = resolved ?? (isAddressLike(tokenId) ? shortenAddress(tokenId) : tokenId)
   const addressForBlockie = isCw20 ? tokenId : undefined
+  const logoURI = info ? getTokenLogoURI(info) : undefined
 
-  return { displayLabel: symbol, symbol, addressForBlockie }
+  return { displayLabel: symbol, symbol, addressForBlockie, logoURI }
 }

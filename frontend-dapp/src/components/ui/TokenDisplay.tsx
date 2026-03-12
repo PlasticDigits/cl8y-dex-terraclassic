@@ -9,11 +9,11 @@ export interface TokenDisplayProps {
 }
 
 export function TokenDisplay({ info, size = 18, className = '' }: TokenDisplayProps) {
-  const { displayLabel, addressForBlockie } = useTokenDisplayInfo(info)
+  const { displayLabel, addressForBlockie, logoURI } = useTokenDisplayInfo(info)
 
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      <TokenLogo addressForBlockie={addressForBlockie} size={size} />
+      <TokenLogo addressForBlockie={addressForBlockie} logoURI={logoURI} size={size} />
       <span>{displayLabel}</span>
     </span>
   )
