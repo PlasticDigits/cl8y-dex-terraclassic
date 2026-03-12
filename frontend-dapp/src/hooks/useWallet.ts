@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { connectTerraWallet, disconnectTerraWallet } from '@/services/terraclassic/wallet'
+import { connectTerraWallet, disconnectTerraWallet, registerConnectedWallet } from '@/services/terraclassic/wallet'
 import { createDevTerraWallet, DEV_TERRA_ADDRESS } from '@/services/terraclassic/devWallet'
 import { DEV_MODE } from '@/utils/constants'
 import type { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
@@ -30,7 +30,8 @@ export const useWalletStore = create<WalletState>((set) => ({
   },
   connectDev: () => {
     if (!DEV_MODE) return
-    createDevTerraWallet()
+    const devWallet = createDevTerraWallet()
+    registerConnectedWallet(devWallet)
     set({ address: DEV_TERRA_ADDRESS, walletType: 'simulated', error: null })
   },
   disconnect: async () => {

@@ -330,6 +330,10 @@ export async function disconnectTerraWallet(): Promise<void> {
   }
 }
 
+export function registerConnectedWallet(wallet: ConnectedWallet): void {
+  connectedWallets.set(TERRA_CLASSIC_CHAIN_ID, wallet);
+}
+
 export function getConnectedWallet(): ConnectedWallet | null {
   return connectedWallets.get(TERRA_CLASSIC_CHAIN_ID) || null;
 }
