@@ -12,6 +12,7 @@ import { assetInfoLabel } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { TokenDisplay } from '@/components/ui'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
 
 export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
@@ -126,6 +127,12 @@ export default function SwapPage() {
     ? Math.floor(parseFloat(simQuery.data.return_amount) * (1 - slippageTolerance / 100)).toString()
     : null
 
+  const insufficientBalance =
+    !!inputAmount &&
+    parseFloat(inputAmount) > 0 &&
+    balanceQuery.data !== undefined &&
+    BigInt(inputAmount) > BigInt(balanceQuery.data)
+
   let buttonText = 'Swap'
   let buttonDisabled = false
   if (!isWalletConnected) {
@@ -136,6 +143,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
     buttonText = 'Enter Amount'
+    buttonDisabled = true
+  } else if (insufficientBalance) {
+    buttonText = 'Insufficient Balance'
     buttonDisabled = true
   } else if (simQuery.isLoading) {
     buttonText = 'Calculating...'
@@ -256,6 +266,24 @@ export default function SwapPage() {
               className="w-full text-2xl font-medium bg-transparent focus:outline-none"
               style={{ color: 'var(--ink)' }}
             />
+            {isWalletConnected && balanceQuery.data !== undefined && (
+              <div className="flex items-center justify-between mt-2 text-xs" style={{ color: 'var(--ink-subtle)' }}>
+                <span>
+                  Balance: <span className="font-mono">{balanceQuery.data}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playButtonPress()
+                    setInputAmount(balanceQuery.data!)
+                  }}
+                  className="uppercase font-semibold tracking-wide hover:underline"
+                  style={{ color: 'var(--cyan)' }}
+                >
+                  Max
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Swap Direction Toggle */}
@@ -302,7 +330,7 @@ export default function SwapPage() {
                 <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
                   <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
                   <span className="font-mono text-xs">
-                    {poolQuery.data.assets[0].amount} / {poolQuery.data.assets[1].amount}
+                    {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))} / {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
                   </span>
                 </div>
               )}
