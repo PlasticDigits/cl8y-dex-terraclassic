@@ -12,6 +12,43 @@ import {
 } from '@goblinhunt/cosmes/wallet';
 import { NETWORKS, DEFAULT_NETWORK } from '@/utils/constants';
 
+const TERRA_CLASSIC_BECH32 = {
+  bech32PrefixAccAddr: 'terra',
+  bech32PrefixAccPub: 'terrapub',
+  bech32PrefixValAddr: 'terravaloper',
+  bech32PrefixValPub: 'terravaloperpub',
+  bech32PrefixConsAddr: 'terravalcons',
+  bech32PrefixConsPub: 'terravalconspub',
+};
+
+async function suggestChainToKeplr(): Promise<void> {
+  if (!window.keplr) return;
+
+  const config = NETWORKS[DEFAULT_NETWORK].terra;
+
+  await window.keplr.experimentalSuggestChain({
+    chainId: config.chainId,
+    chainName: DEFAULT_NETWORK === 'local' ? 'LocalTerra' : `Terra Classic (${DEFAULT_NETWORK})`,
+    rpc: config.rpc,
+    rest: config.lcd,
+    bip44: { coinType: 330 },
+    bech32Config: TERRA_CLASSIC_BECH32,
+    currencies: [
+      { coinDenom: 'LUNC', coinMinimalDenom: 'uluna', coinDecimals: 6 },
+      { coinDenom: 'USTC', coinMinimalDenom: 'uusd', coinDecimals: 6 },
+    ],
+    feeCurrencies: [
+      {
+        coinDenom: 'LUNC',
+        coinMinimalDenom: 'uluna',
+        coinDecimals: 6,
+        gasPriceStep: { low: 28.325, average: 28.325, high: 50 },
+      },
+    ],
+    stakeCurrency: { coinDenom: 'LUNC', coinMinimalDenom: 'uluna', coinDecimals: 6 },
+  });
+}
+
 const networkConfig = NETWORKS[DEFAULT_NETWORK].terra;
 const TERRA_CLASSIC_CHAIN_ID = networkConfig.chainId;
 const WC_PROJECT_ID = import.meta.env.VITE_WC_PROJECT_ID || '2ce7811b869be33ffad28cff05c93c15';
@@ -70,6 +107,10 @@ export async function connectTerraWallet(
       rpc: chainInfo.rpc,
       gasPrice: chainInfo.gasPrice,
     });
+
+    if (walletName === WalletName.KEPLR && walletType === WalletType.EXTENSION) {
+      await suggestChainToKeplr();
+    }
 
     let wallets: Map<string, ConnectedWallet>;
     try {
@@ -327,6 +368,7 @@ declare global {
     };
     keplr?: {
       enable: (chainId: string) => Promise<void>;
+      experimentalSuggestChain: (chainInfo: Record<string, unknown>) => Promise<void>;
       getOfflineSigner: (chainId: string) => unknown;
     };
   }

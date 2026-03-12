@@ -13,6 +13,7 @@ interface Window {
   }
   keplr?: {
     enable: (chainId: string) => Promise<void>
+    experimentalSuggestChain: (chainInfo: Record<string, unknown>) => Promise<void>
     getOfflineSigner: (chainId: string) => unknown
   }
 }
