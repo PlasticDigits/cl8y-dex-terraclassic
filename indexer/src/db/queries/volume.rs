@@ -27,20 +27,20 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 
     for (window, cutoff) in [("24h", cutoff_24h), ("7d", cutoff_7d), ("30d", cutoff_30d)] {
         sqlx::query(
-            "INSERT INTO token_volume_stats (asset_id, window, volume, trade_count, updated_at)
+            r#"INSERT INTO token_volume_stats (asset_id, "window", volume, trade_count, updated_at)
              SELECT
                offer_asset_id AS asset_id,
-               $1 AS window,
+               $1 AS "window",
                SUM(offer_amount) AS volume,
                COUNT(*) AS trade_count,
                NOW() AS updated_at
              FROM swap_events
              WHERE block_timestamp >= $2
              GROUP BY offer_asset_id
-             ON CONFLICT (asset_id, window)
+             ON CONFLICT (asset_id, "window")
                DO UPDATE SET volume = EXCLUDED.volume,
                             trade_count = EXCLUDED.trade_count,
-                            updated_at = NOW()",
+                            updated_at = NOW()"#,
         )
         .bind(window)
         .bind(cutoff)
@@ -56,7 +56,7 @@ pub async fn get_token_volume(
     asset_id: i32,
 ) -> Result<Vec<TokenVolumeRow>, sqlx::Error> {
     sqlx::query_as::<_, TokenVolumeRow>(
-        "SELECT * FROM token_volume_stats WHERE asset_id = $1 ORDER BY window",
+        r#"SELECT * FROM token_volume_stats WHERE asset_id = $1 ORDER BY "window""#,
     )
     .bind(asset_id)
     .fetch_all(pool)
