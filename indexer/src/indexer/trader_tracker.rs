@@ -48,7 +48,7 @@ async fn sync_tiers(pool: &PgPool, lcd: &LcdClient, fee_discount_addr: &str) -> 
         match lcd
             .query_contract::<serde_json::Value>(
                 fee_discount_addr,
-                &serde_json::json!({"get_registration": {"address": &trader.address}}),
+                &serde_json::json!({"get_registration": {"trader": &trader.address}}),
             )
             .await
         {

@@ -80,7 +80,7 @@ export default function Layout() {
                     }`
                   }
                 >
-                  <img src={icon} alt="" className="h-4 w-4 shrink-0 -mt-0.5" aria-hidden />
+                  <img src={icon} alt="" className="h-4 w-auto shrink-0 -mt-0.5" aria-hidden />
                   {label}
                 </NavLink>
               ))}
