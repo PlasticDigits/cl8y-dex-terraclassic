@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CL8Y DEX Logo Options Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #f4f4f4;
+      padding: 2rem;
+      margin: 0;
+    }
+    h1 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+    }
+    .card {
+      background: rgba(24, 24, 24, 0.94);
+      border: 2px solid rgba(255,255,255,0.35);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .card h2 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .card img {
+      height: 80px;
+      width: auto;
+      object-fit: contain;
+    }
+    .card.preview-header {
+      background: rgba(12, 45, 70, 0.9);
+      border-color: rgba(189, 235, 255, 0.76);
+    }
+  </style>
+</head>
+<body>
+  <h1>CL8Y DEX Logo Options — Preview</h1>
+  <p style="color: #a9a9a9; margin-bottom: 2rem;">Compare the original and 3 new variants. Open this file in a browser.</p>
+  <div class="grid">
+    <div class="card">
+      <h2>Original</h2>
+      <div class="preview-header card" style="padding: 1rem;">
+        <img src="cl8y-dex-header-logo.png" alt="Original" />
+      </div>
+    </div>
+    <div class="card">
+      <h2>Option 1 — Cyberpunk Neon</h2>
+      <div class="preview-header card" style="padding: 1rem;">
+        <img src="cl8y-dex-header-logo-option-1.png" alt="Option 1" />
+      </div>
+    </div>
+    <div class="card">
+      <h2>Option 2 — Graphic Novel</h2>
+      <div class="preview-header card" style="padding: 1rem;">
+        <img src="cl8y-dex-header-logo-option-2.png" alt="Option 2" />
+      </div>
+    </div>
+    <div class="card">
+      <h2>Option 3 — Retro-Futuristic</h2>
+      <div class="preview-header card" style="padding: 1rem;">
+        <img src="cl8y-dex-header-logo-option-3.png" alt="Option 3" />
+      </div>
+    </div>
+    <div class="card">
+      <h2>Option 4 — Neobrutalist Chrome 3D</h2>
+      <div class="preview-header card" style="padding: 1rem;">
+        <img src="cl8y-dex-header-logo-option-4.png" alt="Option 4" />
+      </div>
+    </div>
+  </div>
+</body>
+</html>
