@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { createPair, getWhitelistedCodeIds } from '@/services/terraclassic/factory'
-import { queryContract } from '@/services/terraclassic/queries'
+import { getChainContractInfo } from '@/services/terraclassic/queries'
 import { sounds } from '@/lib/sounds'
 
 function useCodeIdCheck(tokenAddr: string) {
@@ -13,7 +13,7 @@ function useCodeIdCheck(tokenAddr: string) {
       try {
         const codeIdsResp = await getWhitelistedCodeIds()
         const whitelisted = new Set(codeIdsResp.code_ids)
-        const info = await queryContract<{ code_id: number }>(tokenAddr, { contract_info: {} }).catch(() => null)
+        const info = await getChainContractInfo(tokenAddr).catch(() => null)
         if (!info) return { valid: false, reason: 'Could not query contract info' }
         if (!whitelisted.has(info.code_id)) return { valid: false, reason: `Code ID ${info.code_id} is not whitelisted` }
         return { valid: true, reason: null }
