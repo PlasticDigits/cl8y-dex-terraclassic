@@ -112,7 +112,7 @@ export interface TiersResponse {
 
 /** Indexer API types */
 export interface IndexerPair {
-  contract_address: string
+  pair_address: string
   asset_0: { symbol: string; contract_addr: string; decimals: number }
   asset_1: { symbol: string; contract_addr: string; decimals: number }
   lp_token: string | null
@@ -122,10 +122,10 @@ export interface IndexerPair {
 
 export interface IndexerCandle {
   open_time: string
-  open_price: string
-  high_price: string
-  low_price: string
-  close_price: string
+  open: string
+  high: string
+  low: string
+  close: string
   volume_base: string
   volume_quote: string
   trade_count: number

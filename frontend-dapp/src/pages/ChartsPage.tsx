@@ -47,8 +47,8 @@ export default function ChartsPage() {
   })
 
   const pairs = pairsQuery.data ?? []
-  const activePairAddr = selectedPairAddr || pairs[0]?.contract_address || ''
-  const activePair = pairs.find((p: IndexerPair) => p.contract_address === activePairAddr)
+  const activePairAddr = selectedPairAddr || pairs[0]?.pair_address || ''
+  const activePair = pairs.find((p: IndexerPair) => p.pair_address === activePairAddr)
 
   const statsQuery = useQuery({
     queryKey: ['pair-stats', activePairAddr],
@@ -112,7 +112,7 @@ export default function ChartsPage() {
           }}
         >
           {pairs.map((p: IndexerPair) => (
-            <option key={p.contract_address} value={p.contract_address}>
+            <option key={p.pair_address} value={p.pair_address}>
               {p.asset_0.symbol} / {p.asset_1.symbol}
             </option>
           ))}
