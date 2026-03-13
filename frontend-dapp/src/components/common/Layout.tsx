@@ -65,15 +65,17 @@ export default function Layout() {
               />
             </NavLink>
 
-            <nav className="flex gap-1 border-2 border-white/30 p-1 min-w-0 w-full md:w-auto md:flex-1 order-2" style={{ background: 'var(--panel-bg)' }}>
+            <nav className="flex gap-1 border-2 border-white/30 p-1 min-w-0 w-full md:w-auto md:flex-1 order-2 overflow-x-auto" style={{ background: 'var(--panel-bg)' }}>
               {NAV_ITEMS.map(({ path, label, end, icon }) => (
                 <NavLink
                   key={path}
                   to={path}
                   end={end}
+                  aria-label={label}
+                  title={label}
                   onClick={() => sounds.playButtonPress()}
                   className={({ isActive }) =>
-                    `flex-1 md:flex-none flex items-center justify-center gap-1.5 px-2 md:px-3.5 py-2 text-[10px] md:text-xs font-medium whitespace-nowrap uppercase tracking-[0.04em] md:tracking-wide border transition-colors ${
+                    `flex-shrink-0 flex items-center justify-center gap-1.5 px-2 lg:px-3.5 py-2 text-[10px] lg:text-xs font-medium whitespace-nowrap uppercase tracking-[0.04em] lg:tracking-wide border transition-colors ${
                       isActive
                         ? 'bg-[#202614] text-[#d5ff7f] border-[#b8ff3d]/60 shadow-[2px_2px_0_#000]'
                         : 'text-slate-200 border-transparent hover:border-white/40 hover:bg-zinc-800'
@@ -81,7 +83,7 @@ export default function Layout() {
                   }
                 >
                   <img src={icon} alt="" className="h-4 w-auto shrink-0 -mt-0.5" aria-hidden />
-                  {label}
+                  <span className="hidden lg:inline">{label}</span>
                 </NavLink>
               ))}
             </nav>
