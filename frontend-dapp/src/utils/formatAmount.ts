@@ -72,6 +72,40 @@ export function formatTokenAmount(
 }
 
 /**
+ * Convert a human-readable token amount string to raw on-chain micro-units.
+ * Handles decimal inputs precisely using string manipulation to avoid
+ * floating-point rounding.
+ *
+ *   toRawAmount("10000", 6)   → "10000000000"
+ *   toRawAmount("1.5", 6)     → "1500000"
+ *   toRawAmount("0.001", 6)   → "1000"
+ */
+export function toRawAmount(humanAmount: string, decimals: number): string {
+  if (!humanAmount || humanAmount === '0') return '0'
+  const [intPart, fracPart = ''] = humanAmount.split('.')
+  const paddedFrac = fracPart.padEnd(decimals, '0').slice(0, decimals)
+  const result = (intPart + paddedFrac).replace(/^0+/, '') || '0'
+  return result
+}
+
+/**
+ * Convert a raw on-chain micro-unit amount to a plain decimal string
+ * (no abbreviations, no formatting — suitable for input fields).
+ *
+ *   fromRawAmount("10000000000", 6)  → "10000"
+ *   fromRawAmount("1500000", 6)      → "1.5"
+ *   fromRawAmount("1000", 6)         → "0.001"
+ */
+export function fromRawAmount(rawAmount: string, decimals: number): string {
+  if (!rawAmount || rawAmount === '0') return '0'
+  const padded = rawAmount.padStart(decimals + 1, '0')
+  const intPart = padded.slice(0, padded.length - decimals) || '0'
+  const fracPart = padded.slice(padded.length - decimals)
+  const trimmedFrac = fracPart.replace(/0+$/, '')
+  return trimmedFrac ? `${intPart}.${trimmedFrac}` : intPart
+}
+
+/**
  * Resolve decimals for an AssetInfo from the token registry,
  * defaulting to 6 if the token is unknown.
  */

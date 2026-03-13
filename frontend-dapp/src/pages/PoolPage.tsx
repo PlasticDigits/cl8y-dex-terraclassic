@@ -12,7 +12,7 @@ import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
-import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
+import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 
 const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   const address = useWalletStore((s) => s.address)
@@ -59,10 +59,15 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   const lpRaw = Number(lpAmount)
   const insufficientLp = !!lpAmount && !isNaN(lpRaw) && lpRaw * 10 ** LP_DECIMALS > Number(lpBalance)
 
+  const decimalsA = getDecimals(pair.asset_infos[0])
+  const decimalsB = getDecimals(pair.asset_infos[1])
+
   const addMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      return provideLiquidity(address, pair.contract_addr, tokenA, tokenB, amountA, amountB)
+      const rawA = toRawAmount(amountA, decimalsA)
+      const rawB = toRawAmount(amountB, decimalsB)
+      return provideLiquidity(address, pair.contract_addr, tokenA, tokenB, rawA, rawB)
     },
     onSuccess: () => {
       sounds.playSuccess()
@@ -75,7 +80,8 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   const removeMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      return withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, lpAmount)
+      const rawLp = toRawAmount(lpAmount, LP_DECIMALS)
+      return withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, rawLp)
     },
     onSuccess: () => {
       sounds.playSuccess()
@@ -217,7 +223,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
                       type="button"
                       onClick={() => {
                         sounds.playButtonPress()
-                        setLpAmount(lpBalanceDisplay)
+                        setLpAmount(fromRawAmount(lpBalance, LP_DECIMALS))
                       }}
                       className="font-mono underline cursor-pointer hover:opacity-80"
                       style={{ color: 'var(--cyan)' }}
