@@ -1,15 +1,47 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { execSync } from 'child_process'
+import { networkInterfaces } from 'os'
 
 let gitSha = 'dev'
 try {
   gitSha = execSync('git rev-parse --short HEAD').toString().trim()
 } catch { /* not in git repo yet */ }
 
+function cspDevHosts(): Plugin {
+  return {
+    name: 'csp-dev-hosts',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html, ctx) {
+        if (!ctx.server) return html
+
+        const ips: string[] = []
+        for (const ifaces of Object.values(networkInterfaces())) {
+          if (!ifaces) continue
+          for (const { address, family, internal } of ifaces) {
+            if (internal) continue
+            const host = family === 'IPv6' || (family as unknown) === 6
+              ? `[${address}]`
+              : address
+            ips.push(`http://${host}:*`)
+          }
+        }
+
+        if (ips.length === 0) return html
+
+        return html.replace(
+          'http://127.0.0.1:*;',
+          `http://127.0.0.1:* ${ips.join(' ')};`,
+        )
+      },
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cspDevHosts()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
