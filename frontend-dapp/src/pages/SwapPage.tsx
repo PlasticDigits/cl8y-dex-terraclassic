@@ -13,7 +13,7 @@ import { assetInfoLabel } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { TokenDisplay, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
+import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 
 export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
@@ -88,9 +88,12 @@ export default function SwapPage() {
     refetchInterval: 15_000,
   })
 
+  const offerDecimals = offerAssetInfo ? getDecimals(offerAssetInfo) : 6
+  const rawInputAmount = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
+
   const simQuery = useQuery({
-    queryKey: ['simulation', selectedPair?.contract_addr, offerLabel, inputAmount],
-    queryFn: () => { if (!selectedPair || !offerAssetInfo) throw new Error('Missing params'); return simulateSwap(selectedPair.contract_addr, offerAssetInfo, inputAmount) },
+    queryKey: ['simulation', selectedPair?.contract_addr, offerLabel, rawInputAmount],
+    queryFn: () => { if (!selectedPair || !offerAssetInfo) throw new Error('Missing params'); return simulateSwap(selectedPair.contract_addr, offerAssetInfo, rawInputAmount) },
     enabled: !!selectedPair && !!offerAssetInfo && !!inputAmount && parseFloat(inputAmount) > 0,
     refetchInterval: 10_000,
   })
@@ -99,7 +102,7 @@ export default function SwapPage() {
     mutationFn: async () => {
       if (!address || !selectedPair || !inputAmount || !offerAssetInfo) throw new Error('Missing parameters')
       const maxSpread = (slippageTolerance / 100).toString()
-      return swap(address, offerLabel, selectedPair.contract_addr, inputAmount, undefined, maxSpread)
+      return swap(address, offerLabel, selectedPair.contract_addr, rawInputAmount, undefined, maxSpread)
     },
     onSuccess: () => {
       sounds.playSuccess()
@@ -132,7 +135,7 @@ export default function SwapPage() {
     !!inputAmount &&
     parseFloat(inputAmount) > 0 &&
     balanceQuery.data !== undefined &&
-    BigInt(inputAmount) > BigInt(balanceQuery.data)
+    BigInt(rawInputAmount) > BigInt(balanceQuery.data)
 
   let buttonText = 'Swap'
   let buttonDisabled = false
@@ -171,12 +174,24 @@ export default function SwapPage() {
   }, [setSlippageTolerance])
 
   const handleCustomSlippage = useCallback((value: string) => {
-    setCustomSlippage(value)
-    const parsed = parseFloat(value)
-    if (!isNaN(parsed) && parsed > 0 && parsed <= 50) {
+    // Block non-numeric input: only allow digits and one decimal point
+    const sanitized = value
+      .replace(/[^\d.]/g, '')
+      .replace(/(\.\d*)\./g, '$1') // keep only first decimal (e.g. "5.5.5" -> "5.55")
+    setCustomSlippage(sanitized)
+    const parsed = parseFloat(sanitized)
+    if (!isNaN(parsed) && parsed >= 0.01 && parsed <= 50) {
       setSlippageTolerance(parsed)
+    } else if (!isNaN(parsed) && parsed > 50) {
+      setSlippageTolerance(50)
     }
   }, [setSlippageTolerance])
+
+  const customSlippageError =
+    customSlippage !== '' &&
+    (isNaN(parseFloat(customSlippage)) ||
+      parseFloat(customSlippage) < 0.01 ||
+      parseFloat(customSlippage) > 50)
 
   return (
     <div className="max-w-[520px] mx-auto">
@@ -229,7 +244,12 @@ export default function SwapPage() {
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--ink-subtle)' }}>%</span>
                 </div>
               </div>
-              {slippageTolerance > 5 && (
+              {customSlippageError && (
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-negative)' }}>
+                  Must be between 0.01% and 50%
+                </p>
+              )}
+              {!customSlippageError && slippageTolerance > 5 && (
                 <p className="mt-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-warning, #f59e0b)' }}>
                   High slippage increases front-running risk
                 </p>
@@ -282,7 +302,7 @@ export default function SwapPage() {
                   type="button"
                   onClick={() => {
                     sounds.playButtonPress()
-                    if (balanceQuery.data) setInputAmount(balanceQuery.data)
+                    if (balanceQuery.data) setInputAmount(fromRawAmount(balanceQuery.data, offerDecimals))
                   }}
                   className="uppercase font-semibold tracking-wide hover:underline"
                   style={{ color: 'var(--cyan)' }}
