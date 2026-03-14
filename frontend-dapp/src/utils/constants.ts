@@ -7,6 +7,8 @@ export const CL8Y_TOKEN_ADDRESS = import.meta.env.VITE_CL8Y_TOKEN_ADDRESS || 'te
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 
+export const GAS_PRICE_ULUNA = import.meta.env.VITE_GAS_PRICE_ULUNA || '28.325'
+
 type NetworkConfig = {
   terra: {
     chainId: string

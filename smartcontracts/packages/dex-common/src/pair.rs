@@ -13,6 +13,7 @@ pub struct PairInstantiateMsg {
     pub factory: Addr,
     pub lp_token_code_id: u64,
     pub token_symbols: Option<[String; 2]>,
+    pub governance: String,
 }
 
 #[cw_serde]
@@ -61,6 +62,10 @@ pub enum ExecuteMsg {
         token: String,
         recipient: String,
     },
+    /// Update the LP token's CosmWasm admin. Factory only.
+    SetLpAdmin {
+        admin: String,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
@@ -106,10 +111,9 @@ pub enum QueryMsg {
 
     // ---- TWAP oracle queries ----
 
-    /// Return cumulative ticks at the requested `seconds_ago` offsets.
-    /// Consumers compute TWAP as:
-    ///   `avg_tick = (tick[0] - tick[1]) / (seconds_ago[1] - seconds_ago[0])`
-    ///   `price = 2^(avg_tick / 2^64)`
+    /// Return cumulative price sums at the requested `seconds_ago` offsets.
+    /// Consumers compute the arithmetic-mean TWAP as:
+    ///   `twap = (cum[0] - cum[1]) / (seconds_ago[1] - seconds_ago[0])`
     ///
     /// **SECURITY WARNING:** This TWAP should NOT be the sole price feed for
     /// liquidations, mark prices, or collateral valuation. Always validate

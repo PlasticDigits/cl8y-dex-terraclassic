@@ -1,5 +1,6 @@
 mod cg;
 mod cmc;
+pub mod hooks;
 mod orderbook_sim;
 mod overview;
 mod pairs;
@@ -203,6 +204,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             "/api/v1/traders/{addr}/positions",
             get(traders::get_trader_positions),
         )
+        .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
         .route("/cg/pairs", get(cg::cg_pairs))
         .route("/cg/tickers", get(cg::cg_tickers))

@@ -29,4 +29,7 @@ pub enum ContractError {
 
     #[error("Swap in progress — cannot start another")]
     SwapInProgress {},
+
+    #[error("Too many hops: {actual} exceeds maximum of {max}")]
+    TooManyHops { max: usize, actual: usize },
 }

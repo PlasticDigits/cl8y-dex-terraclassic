@@ -6,6 +6,7 @@ mod lcd;
 
 use config::Config;
 use sqlx::postgres::PgPoolOptions;
+use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -33,12 +34,16 @@ async fn main() -> anyhow::Result<()> {
         config.lcd_cooldown_ms,
     );
 
+    let cancel = CancellationToken::new();
+
     let indexer_pool = pool.clone();
     let indexer_lcd = lcd_client.clone();
     let indexer_config = config.clone();
+    let indexer_cancel = cancel.clone();
     let indexer_handle = tokio::spawn(async move {
         if let Err(e) =
-            indexer::poller::run_indexer(indexer_pool, indexer_lcd, indexer_config).await
+            indexer::poller::run_indexer(indexer_pool, indexer_lcd, indexer_config, indexer_cancel)
+                .await
         {
             tracing::error!("Indexer exited with error: {}", e);
         }
@@ -56,8 +61,13 @@ async fn main() -> anyhow::Result<()> {
     tokio::select! {
         _ = indexer_handle => tracing::warn!("Indexer task ended"),
         _ = api_handle => tracing::warn!("API task ended"),
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("Shutdown signal received, stopping indexer...");
+            cancel.cancel();
+        }
     }
 
+    tracing::info!("Shutdown complete");
     Ok(())
 }
 

@@ -4,10 +4,10 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
-import { getTokenBalance } from '@/services/terraclassic/queries'
+import { getTokenBalance, verifyPairInFactory } from '@/services/terraclassic/queries'
 import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
-import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
-import type { PairInfo } from '@/types'
+import { FEE_DISCOUNT_CONTRACT_ADDRESS, FACTORY_CONTRACT_ADDRESS } from '@/utils/constants'
+import type { PairInfo, AssetInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
@@ -21,11 +21,19 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
   const [lpAmount, setLpAmount] = useState('')
+  const [withdrawSlippage, setWithdrawSlippage] = useState('1.0')
 
   const tokenA = assetInfoLabel(pair.asset_infos[0])
   const tokenB = assetInfoLabel(pair.asset_infos[1])
   const displayA = useTokenDisplayInfo(pair.asset_infos[0])
   const displayB = useTokenDisplayInfo(pair.asset_infos[1])
+
+  const verifyQuery = useQuery({
+    queryKey: ['pairVerify', pair.contract_addr],
+    queryFn: () => verifyPairInFactory(pair.contract_addr, FACTORY_CONTRACT_ADDRESS, pair.asset_infos as [AssetInfo, AssetInfo]),
+    enabled: !!FACTORY_CONTRACT_ADDRESS,
+    staleTime: Infinity,
+  })
 
   const poolQuery = useQuery({
     queryKey: ['pool', pair.contract_addr],
@@ -73,6 +81,9 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
       sounds.playSuccess()
       setAmountA('')
       setAmountB('')
+      queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
+      queryClient.invalidateQueries({ queryKey: ['lpBalance'] })
+      queryClient.invalidateQueries({ queryKey: ['pool', pair.contract_addr] })
     },
     onError: () => sounds.playError(),
   })
@@ -81,11 +92,24 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
       const rawLp = toRawAmount(lpAmount, LP_DECIMALS)
-      return withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, rawLp)
+      let minAssets: [string, string] | undefined
+      if (poolQuery.data && withdrawSlippage) {
+        const slippageFactor = 1 - parseFloat(withdrawSlippage) / 100
+        const totalLp = parseFloat(poolQuery.data.total_share)
+        const rawLpAmount = parseFloat(toRawAmount(lpAmount, LP_DECIMALS))
+        if (totalLp > 0) {
+          const shareRatio = rawLpAmount / totalLp
+          const minA = Math.floor(parseFloat(poolQuery.data.assets[0].amount) * shareRatio * slippageFactor).toString()
+          const minB = Math.floor(parseFloat(poolQuery.data.assets[1].amount) * shareRatio * slippageFactor).toString()
+          minAssets = [minA, minB]
+        }
+      }
+      return withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, rawLp, minAssets)
     },
     onSuccess: () => {
       sounds.playSuccess()
       setLpAmount('')
+      queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['lpBalance', address, pair.liquidity_token] })
       queryClient.invalidateQueries({ queryKey: ['pool', pair.contract_addr] })
     },
@@ -102,6 +126,12 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
           <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-subtle)' }}>
             Pair: {pair.contract_addr.slice(0, 10)}…{pair.contract_addr.slice(-6)}
           </p>
+          {verifyQuery.data === false && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-none border"
+              style={{ color: 'var(--color-negative)', borderColor: 'var(--color-negative)', background: 'color-mix(in srgb, var(--color-negative) 10%, transparent)' }}>
+              Unverified
+            </span>
+          )}
         </div>
         {feeQuery.data && (
           <span className="text-xs border-2 px-2 py-1 rounded-none shadow-[1px_1px_0_#000] uppercase tracking-wide font-semibold"
@@ -252,6 +282,25 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
               Insufficient LP token balance
             </p>
           )}
+          <div>
+            <label className="label-neo">Slippage Tolerance</label>
+            <div className="flex gap-2">
+              {['0.5', '1.0', '2.0'].map((val) => (
+                <button
+                  key={val}
+                  onClick={() => {
+                    sounds.playButtonPress()
+                    setWithdrawSlippage(val)
+                  }}
+                  className={`tab-neo !text-xs !px-3 !py-1.5 ${
+                    withdrawSlippage === val ? 'tab-neo-active' : 'tab-neo-inactive'
+                  }`}
+                >
+                  {val}%
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             onClick={() => {
               sounds.playButtonPress()

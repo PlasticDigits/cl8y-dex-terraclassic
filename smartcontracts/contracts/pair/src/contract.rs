@@ -17,7 +17,7 @@ use crate::state::{
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
 use dex_common::oracle::{
-    log2_ratio_q64, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
+    price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
 };
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
@@ -117,20 +117,45 @@ fn oracle_update(
     let mut state = ORACLE_STATE.load(storage)?;
     let last_obs = OBSERVATIONS.may_load(storage, state.index)?;
 
-    let (last_ts, last_tick_cum) = match last_obs {
-        Some(obs) => (obs.timestamp, obs.tick_cumulative),
-        None => (0u64, 0i128),
+    let (last_ts, last_cum_a, last_cum_b) = match last_obs {
+        Some(obs) => (obs.timestamp, obs.price_a_cumulative, obs.price_b_cumulative),
+        None => {
+            // First observation: seed with current timestamp and zero cumulatives.
+            // No dt to accumulate — just record the starting point.
+            OBSERVATIONS.save(
+                storage,
+                state.index,
+                &Observation {
+                    timestamp: block_time,
+                    price_a_cumulative: Uint128::zero(),
+                    price_b_cumulative: Uint128::zero(),
+                },
+            )?;
+            state.cardinality_initialized = 1;
+            ORACLE_STATE.save(storage, &state)?;
+            return Ok(());
+        }
     };
 
     if block_time <= last_ts {
         return Ok(());
     }
 
-    let dt = (block_time - last_ts) as i128;
-    let tick = log2_ratio_q64(reserve_b, reserve_a).map_err(|e| ContractError::Oracle {
+    let dt = block_time - last_ts;
+    let price_a = Decimal::from_ratio(reserve_b, reserve_a);
+    let price_b = Decimal::from_ratio(reserve_a, reserve_b);
+
+    let delta_a = price_times_dt(price_a, dt).map_err(|e| ContractError::Oracle {
         reason: e.to_string(),
     })?;
-    let new_tick_cumulative = last_tick_cum.wrapping_add(tick.wrapping_mul(dt));
+    let delta_b = price_times_dt(price_b, dt).map_err(|e| ContractError::Oracle {
+        reason: e.to_string(),
+    })?;
+
+    let new_cum_a = last_cum_a.checked_add(delta_a)
+        .map_err(|e| ContractError::Oracle { reason: format!("price_a overflow: {}", e) })?;
+    let new_cum_b = last_cum_b.checked_add(delta_b)
+        .map_err(|e| ContractError::Oracle { reason: format!("price_b overflow: {}", e) })?;
 
     let new_index = if state.cardinality_initialized < state.cardinality {
         state.cardinality_initialized
@@ -143,7 +168,8 @@ fn oracle_update(
         new_index,
         &Observation {
             timestamp: block_time,
-            tick_cumulative: new_tick_cumulative,
+            price_a_cumulative: new_cum_a,
+            price_b_cumulative: new_cum_b,
         },
     )?;
 
@@ -157,7 +183,7 @@ fn oracle_update(
 }
 
 /// Binary search the ring buffer for the two observations bracketing the
-/// target timestamp, then linearly interpolate the cumulative tick.
+/// target timestamp, then linearly interpolate the cumulative prices.
 fn oracle_observe_single(
     storage: &dyn cosmwasm_std::Storage,
     block_time: u64,
@@ -166,23 +192,26 @@ fn oracle_observe_single(
     latest_obs: &Observation,
     reserve_a: Uint128,
     reserve_b: Uint128,
-) -> Result<i128, ContractError> {
+) -> Result<(Uint128, Uint128), ContractError> {
     let target = block_time - seconds_ago as u64;
 
     if seconds_ago == 0 || target >= latest_obs.timestamp {
         if target == latest_obs.timestamp {
-            return Ok(latest_obs.tick_cumulative);
+            return Ok((latest_obs.price_a_cumulative, latest_obs.price_b_cumulative));
         }
-        // Extrapolate forward from latest observation to `target` using current reserves.
         if reserve_a.is_zero() || reserve_b.is_zero() {
-            return Ok(latest_obs.tick_cumulative);
+            return Ok((latest_obs.price_a_cumulative, latest_obs.price_b_cumulative));
         }
-        let dt = (target - latest_obs.timestamp) as i128;
-        let tick =
-            log2_ratio_q64(reserve_b, reserve_a).map_err(|e| ContractError::Oracle {
-                reason: e.to_string(),
-            })?;
-        return Ok(latest_obs.tick_cumulative.wrapping_add(tick.wrapping_mul(dt)));
+        let dt = target - latest_obs.timestamp;
+        let price_a = Decimal::from_ratio(reserve_b, reserve_a);
+        let price_b = Decimal::from_ratio(reserve_a, reserve_b);
+        let delta_a = price_times_dt(price_a, dt).map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
+        let delta_b = price_times_dt(price_b, dt).map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
+        let cum_a = latest_obs.price_a_cumulative.checked_add(delta_a)
+            .map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
+        let cum_b = latest_obs.price_b_cumulative.checked_add(delta_b)
+            .map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
+        return Ok((cum_a, cum_b));
     }
 
     let n = state.cardinality_initialized;
@@ -192,7 +221,6 @@ fn oracle_observe_single(
         });
     }
 
-    // Oldest observation in the ring buffer.
     let oldest_idx = if n < state.cardinality {
         0u16
     } else {
@@ -209,7 +237,6 @@ fn oracle_observe_single(
         });
     }
 
-    // Binary search for the two observations bracketing `target`.
     let mut lo: u16 = 0;
     let mut hi: u16 = n - 1;
     while lo < hi {
@@ -227,7 +254,7 @@ fn oracle_observe_single(
     let before = OBSERVATIONS.load(storage, before_idx)?;
 
     if before.timestamp == target {
-        return Ok(before.tick_cumulative);
+        return Ok((before.price_a_cumulative, before.price_b_cumulative));
     }
 
     let after_idx = (oldest_idx + lo + 1) % state.cardinality;
@@ -237,13 +264,16 @@ fn oracle_observe_single(
         latest_obs.clone()
     };
 
-    let time_span = (after.timestamp - before.timestamp) as i128;
-    let tick_span = after.tick_cumulative.wrapping_sub(before.tick_cumulative);
-    let dt = (target - before.timestamp) as i128;
+    let time_span = after.timestamp - before.timestamp;
+    let dt = target - before.timestamp;
 
-    Ok(before
-        .tick_cumulative
-        .wrapping_add(tick_span.wrapping_mul(dt) / time_span))
+    let diff_a = after.price_a_cumulative - before.price_a_cumulative;
+    let diff_b = after.price_b_cumulative - before.price_b_cumulative;
+
+    let interp_a = before.price_a_cumulative + diff_a.multiply_ratio(dt as u128, time_span as u128);
+    let interp_b = before.price_b_cumulative + diff_b.multiply_ratio(dt as u128, time_span as u128);
+
+    Ok((interp_a, interp_b))
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +352,7 @@ pub fn instantiate(
 
     let sub_msg = SubMsg::reply_on_success(
         WasmMsg::Instantiate {
-            admin: None,
+            admin: Some(env.contract.address.to_string()),
             code_id: msg.lp_token_code_id,
             msg: to_json_binary(&instantiate_lp_msg)?,
             funds: vec![],
@@ -407,6 +437,7 @@ pub fn execute(
         ExecuteMsg::Sweep { token, recipient } => {
             execute_sweep(deps, env, info, token, recipient)
         }
+        ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
     }
 }
 
@@ -607,6 +638,7 @@ fn execute_swap(
                             contract_addr: registry.to_string(),
                             msg: to_json_binary(&fee_discount::ExecuteMsg::DeregisterWallet {
                                 wallet: trader_addr.clone(),
+                                epoch: discount.registration_epoch,
                             })?,
                             funds: vec![],
                         }));
@@ -1269,6 +1301,31 @@ fn execute_sweep(
         .add_attribute("amount", excess))
 }
 
+/// Update the LP token's CosmWasm admin address. Factory only.
+/// Used by the factory to propagate governance changes to LP token contracts.
+fn execute_set_lp_admin(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_admin: String,
+) -> Result<Response, ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let validated_admin = deps.api.addr_validate(&new_admin)?;
+
+    let update_admin_msg = CosmosMsg::Wasm(WasmMsg::UpdateAdmin {
+        contract_addr: pair_info.lp_token.to_string(),
+        admin: validated_admin.to_string(),
+    });
+
+    Ok(Response::new()
+        .add_message(update_admin_msg)
+        .add_attribute("action", "set_lp_admin")
+        .add_attribute("new_admin", validated_admin))
+}
+
 // ---------------------------------------------------------------------------
 // Query
 // ---------------------------------------------------------------------------
@@ -1473,9 +1530,10 @@ fn query_observe(
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let block_time = env.block.time.seconds();
 
-    let mut tick_cumulatives = Vec::with_capacity(seconds_ago.len());
+    let mut price_a_cumulatives = Vec::with_capacity(seconds_ago.len());
+    let mut price_b_cumulatives = Vec::with_capacity(seconds_ago.len());
     for &sa in &seconds_ago {
-        let tc = oracle_observe_single(
+        let (cum_a, cum_b) = oracle_observe_single(
             deps.storage,
             block_time,
             sa,
@@ -1484,10 +1542,11 @@ fn query_observe(
             reserve_a,
             reserve_b,
         )?;
-        tick_cumulatives.push(tc);
+        price_a_cumulatives.push(cum_a);
+        price_b_cumulatives.push(cum_b);
     }
 
-    Ok(ObserveResponse { tick_cumulatives })
+    Ok(ObserveResponse { price_a_cumulatives, price_b_cumulatives })
 }
 
 fn query_oracle_info(deps: Deps) -> Result<OracleInfoResponse, ContractError> {
@@ -1497,6 +1556,7 @@ fn query_oracle_info(deps: Deps) -> Result<OracleInfoResponse, ContractError> {
         return Ok(OracleInfoResponse {
             observation_cardinality: state.cardinality,
             observation_index: state.index,
+            observations_stored: 0,
             oldest_observation_timestamp: 0,
             newest_observation_timestamp: 0,
         });
@@ -1513,6 +1573,7 @@ fn query_oracle_info(deps: Deps) -> Result<OracleInfoResponse, ContractError> {
     Ok(OracleInfoResponse {
         observation_cardinality: state.cardinality,
         observation_index: state.index,
+        observations_stored: state.cardinality_initialized,
         oldest_observation_timestamp: oldest.timestamp,
         newest_observation_timestamp: latest.timestamp,
     })
@@ -1540,4 +1601,17 @@ fn match_asset_amounts(
     } else {
         Err(ContractError::AssetMismatch {})
     }
+}
+
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    _msg: crate::msg::MigrateMsg,
+) -> Result<Response, ContractError> {
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
+        .map_err(ContractError::Std)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("version", CONTRACT_VERSION))
 }

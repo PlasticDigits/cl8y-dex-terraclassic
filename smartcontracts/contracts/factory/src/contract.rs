@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
-    StdResult, SubMsg, WasmMsg,
+    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
+    StdError, StdResult, SubMsg, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
@@ -187,11 +187,12 @@ fn execute_create_pair(
         factory: env.contract.address,
         lp_token_code_id: config.lp_token_code_id,
         token_symbols: Some([sym_a.clone(), sym_b.clone()]),
+        governance: config.governance.to_string(),
     };
 
     let sub_msg = SubMsg::reply_on_success(
         WasmMsg::Instantiate {
-            admin: None,
+            admin: Some(config.governance.to_string()),
             code_id: config.pair_code_id,
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
@@ -437,6 +438,7 @@ fn execute_update_config(
     ensure_governance(&deps, &info)?;
 
     let mut config = CONFIG.load(deps.storage)?;
+    let old_governance = config.governance.clone();
 
     if let Some(gov) = governance {
         config.governance = deps.api.addr_validate(&gov)?;
@@ -451,9 +453,29 @@ fn execute_update_config(
         config.default_fee_bps = fee;
     }
 
+    let new_governance = config.governance.clone();
     CONFIG.save(deps.storage, &config)?;
 
-    Ok(Response::new().add_attribute("action", "update_config"))
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    if new_governance != old_governance {
+        let pair_count = PAIR_COUNT.load(deps.storage)?;
+        for idx in 0..pair_count {
+            if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+                messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: pair_info.contract_addr.to_string(),
+                    msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetLpAdmin {
+                        admin: new_governance.to_string(),
+                    })?,
+                    funds: vec![],
+                }));
+            }
+        }
+    }
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "update_config"))
 }
 
 // ---------------------------------------------------------------------------
@@ -642,4 +664,17 @@ fn parse_protobuf_contract_address(bytes: &[u8]) -> StdResult<String> {
 
     String::from_utf8(bytes[pos..pos + len].to_vec())
         .map_err(|e| StdError::generic_err(format!("invalid utf8 in protobuf: {e}")))
+}
+
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    _msg: crate::msg::MigrateMsg,
+) -> Result<Response, ContractError> {
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
+        .map_err(ContractError::Std)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("version", CONTRACT_VERSION))
 }

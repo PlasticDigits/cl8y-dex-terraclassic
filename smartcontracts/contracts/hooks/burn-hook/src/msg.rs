@@ -35,3 +35,6 @@ pub struct ConfigResponse {
     pub burn_percentage_bps: u16,
     pub admin: Addr,
 }
+
+#[cw_serde]
+pub struct MigrateMsg {}

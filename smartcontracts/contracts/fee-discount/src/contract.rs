@@ -8,7 +8,7 @@ use crate::msg::{
     ConfigResponse, DiscountResponse, ExecuteMsg, InstantiateMsg, IsTrustedRouterResponse,
     QueryMsg, RegistrationResponse, TierEntry, TierResponse, TiersResponse,
 };
-use crate::state::{Config, Tier, CONFIG, REGISTRATIONS, TIERS, TRUSTED_ROUTERS};
+use crate::state::{Config, Tier, CONFIG, EPOCH_COUNTER, REGISTRATIONS, REGISTRATION_EPOCHS, TIERS, TRUSTED_ROUTERS};
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -26,6 +26,7 @@ pub fn instantiate(
         cl8y_token: deps.api.addr_validate(&msg.cl8y_token)?,
     };
     CONFIG.save(deps.storage, &config)?;
+    EPOCH_COUNTER.save(deps.storage, &0u64)?;
 
     Ok(Response::new()
         .add_attribute("action", "instantiate")
@@ -58,8 +59,8 @@ pub fn execute(
             execute_register_wallet(deps, info, wallet, tier_id)
         }
         ExecuteMsg::Deregister {} => execute_deregister(deps, info),
-        ExecuteMsg::DeregisterWallet { wallet } => {
-            execute_deregister_wallet(deps, info, wallet)
+        ExecuteMsg::DeregisterWallet { wallet, epoch } => {
+            execute_deregister_wallet(deps, info, wallet, epoch)
         }
         ExecuteMsg::AddTrustedRouter { router } => execute_add_trusted_router(deps, info, router),
         ExecuteMsg::RemoveTrustedRouter { router } => {
@@ -229,6 +230,10 @@ fn execute_register(
 
     REGISTRATIONS.save(deps.storage, info.sender.as_str(), &tier_id)?;
 
+    let epoch = EPOCH_COUNTER.load(deps.storage).unwrap_or(0) + 1;
+    EPOCH_COUNTER.save(deps.storage, &epoch)?;
+    REGISTRATION_EPOCHS.save(deps.storage, info.sender.as_str(), &epoch)?;
+
     Ok(Response::new()
         .add_attribute("action", "register")
         .add_attribute("wallet", info.sender)
@@ -253,6 +258,10 @@ fn execute_register_wallet(
     let wallet_addr = deps.api.addr_validate(&wallet)?;
     REGISTRATIONS.save(deps.storage, wallet_addr.as_str(), &tier_id)?;
 
+    let epoch = EPOCH_COUNTER.load(deps.storage).unwrap_or(0) + 1;
+    EPOCH_COUNTER.save(deps.storage, &epoch)?;
+    REGISTRATION_EPOCHS.save(deps.storage, wallet_addr.as_str(), &epoch)?;
+
     Ok(Response::new()
         .add_attribute("action", "register_wallet")
         .add_attribute("wallet", wallet_addr)
@@ -274,6 +283,7 @@ fn execute_deregister(deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
     }
 
     REGISTRATIONS.remove(deps.storage, info.sender.as_str());
+    REGISTRATION_EPOCHS.remove(deps.storage, info.sender.as_str());
 
     Ok(Response::new()
         .add_attribute("action", "deregister")
@@ -287,9 +297,19 @@ fn execute_deregister_wallet(
     deps: DepsMut,
     info: MessageInfo,
     wallet: String,
+    epoch: Option<u64>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let wallet_addr = deps.api.addr_validate(&wallet)?;
+
+    if let Some(expected_epoch) = epoch {
+        let current_epoch = REGISTRATION_EPOCHS.may_load(deps.storage, wallet_addr.as_str())?.unwrap_or(0);
+        if current_epoch != expected_epoch {
+            return Ok(Response::new()
+                .add_attribute("action", "deregister_wallet")
+                .add_attribute("skipped", "epoch mismatch — registration was renewed"));
+        }
+    }
 
     let current_tier_id = REGISTRATIONS
         .may_load(deps.storage, wallet_addr.as_str())?
@@ -297,7 +317,6 @@ fn execute_deregister_wallet(
 
     let is_governance = info.sender == config.governance;
 
-    // For governance tiers, only governance can deregister
     if let Some(tier) = TIERS.may_load(deps.storage, current_tier_id)? {
         if tier.governance_only && !is_governance {
             return Err(ContractError::LockedToGovernanceTier {});
@@ -305,10 +324,8 @@ fn execute_deregister_wallet(
     }
 
     if is_governance {
-        // Governance can always deregister
         REGISTRATIONS.remove(deps.storage, wallet_addr.as_str());
     } else {
-        // Non-governance callers: only deregister if balance is below threshold
         if let Some(tier) = TIERS.may_load(deps.storage, current_tier_id)? {
             if !tier.min_cl8y_balance.is_zero() {
                 let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
@@ -328,6 +345,8 @@ fn execute_deregister_wallet(
 
         REGISTRATIONS.remove(deps.storage, wallet_addr.as_str());
     }
+
+    REGISTRATION_EPOCHS.remove(deps.storage, wallet_addr.as_str());
 
     Ok(Response::new()
         .add_attribute("action", "deregister_wallet")
@@ -446,9 +465,12 @@ fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<Disco
             return Ok(DiscountResponse {
                 discount_bps: 0,
                 needs_deregister: false,
+                registration_epoch: None,
             });
         }
     };
+
+    let epoch = REGISTRATION_EPOCHS.may_load(deps.storage, &effective_trader)?.unwrap_or(0);
 
     let tier = match TIERS.may_load(deps.storage, tier_id)? {
         Some(t) => t,
@@ -456,27 +478,27 @@ fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<Disco
             return Ok(DiscountResponse {
                 discount_bps: 0,
                 needs_deregister: true,
+                registration_epoch: Some(epoch),
             });
         }
     };
 
-    // Governance tiers skip balance check and are never auto-deregistered
     if tier.governance_only {
         return Ok(DiscountResponse {
             discount_bps: tier.discount_bps,
             needs_deregister: false,
+            registration_epoch: None,
         });
     }
 
-    // For tiers with 0 min balance, always eligible
     if tier.min_cl8y_balance.is_zero() {
         return Ok(DiscountResponse {
             discount_bps: tier.discount_bps,
             needs_deregister: false,
+            registration_epoch: None,
         });
     }
 
-    // Check CL8Y balance
     let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
         config.cl8y_token.to_string(),
         &cw20::Cw20QueryMsg::Balance {
@@ -488,11 +510,13 @@ fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<Disco
         Ok(DiscountResponse {
             discount_bps: tier.discount_bps,
             needs_deregister: false,
+            registration_epoch: None,
         })
     } else {
         Ok(DiscountResponse {
             discount_bps: 0,
             needs_deregister: true,
+            registration_epoch: Some(epoch),
         })
     }
 }
@@ -537,4 +561,17 @@ fn query_is_trusted_router(deps: Deps, addr: String) -> StdResult<IsTrustedRoute
         .may_load(deps.storage, &addr)?
         .unwrap_or(false);
     Ok(IsTrustedRouterResponse { is_trusted })
+}
+
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    _msg: crate::msg::MigrateMsg,
+) -> Result<Response, ContractError> {
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
+        .map_err(ContractError::Std)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("version", CONTRACT_VERSION))
 }

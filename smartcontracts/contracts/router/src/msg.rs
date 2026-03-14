@@ -70,3 +70,6 @@ pub struct ConfigResponse {
 pub struct SimulateSwapOperationsResponse {
     pub amount: Uint128,
 }
+
+#[cw_serde]
+pub struct MigrateMsg {}

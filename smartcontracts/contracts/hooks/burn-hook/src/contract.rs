@@ -213,3 +213,16 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         admin: config.admin,
     })
 }
+
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    _msg: crate::msg::MigrateMsg,
+) -> Result<Response, ContractError> {
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
+        .map_err(ContractError::Std)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("version", CONTRACT_VERSION))
+}

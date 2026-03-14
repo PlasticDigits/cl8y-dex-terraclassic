@@ -80,6 +80,63 @@ mod helpers {
         Box::new(contract)
     }
 
+    pub fn pair_contract_with_migrate() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            cl8y_dex_pair::contract::execute,
+            cl8y_dex_pair::contract::instantiate,
+            cl8y_dex_pair::contract::query,
+        )
+        .with_reply(cl8y_dex_pair::contract::reply)
+        .with_migrate(cl8y_dex_pair::contract::migrate);
+        Box::new(contract)
+    }
+
+    fn mock_noop_exec(
+        _deps: cosmwasm_std::DepsMut,
+        _env: cosmwasm_std::Env,
+        _info: cosmwasm_std::MessageInfo,
+        _msg: Empty,
+    ) -> cosmwasm_std::StdResult<cosmwasm_std::Response> {
+        Ok(cosmwasm_std::Response::new())
+    }
+
+    fn mock_noop_query(
+        _deps: cosmwasm_std::Deps,
+        _env: cosmwasm_std::Env,
+        _msg: Empty,
+    ) -> cosmwasm_std::StdResult<cosmwasm_std::Binary> {
+        Ok(cosmwasm_std::Binary::default())
+    }
+
+    /// Mock contract that writes cw2 version info as "cl8y-dex-pair" "0.9.0".
+    pub fn mock_old_pair_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        fn inst(
+            deps: cosmwasm_std::DepsMut,
+            _env: cosmwasm_std::Env,
+            _info: cosmwasm_std::MessageInfo,
+            _msg: Empty,
+        ) -> cosmwasm_std::StdResult<cosmwasm_std::Response> {
+            cw2::set_contract_version(deps.storage, "cl8y-dex-pair", "0.9.0")?;
+            Ok(cosmwasm_std::Response::new())
+        }
+        Box::new(ContractWrapper::new(mock_noop_exec, inst, mock_noop_query))
+    }
+
+    /// Mock contract that writes cw2 version info as "cl8y-dex-pair" "99.0.0"
+    /// to simulate attempting a downgrade migration.
+    pub fn mock_future_pair_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        fn inst(
+            deps: cosmwasm_std::DepsMut,
+            _env: cosmwasm_std::Env,
+            _info: cosmwasm_std::MessageInfo,
+            _msg: Empty,
+        ) -> cosmwasm_std::StdResult<cosmwasm_std::Response> {
+            cw2::set_contract_version(deps.storage, "cl8y-dex-pair", "99.0.0")?;
+            Ok(cosmwasm_std::Response::new())
+        }
+        Box::new(ContractWrapper::new(mock_noop_exec, inst, mock_noop_query))
+    }
+
     pub fn create_cw20_token(
         app: &mut App,
         cw20_code_id: u64,
@@ -3331,6 +3388,7 @@ mod fee_discount_coverage_tests {
             fd.clone(),
             &cl8y_dex_fee_discount::msg::ExecuteMsg::DeregisterWallet {
                 wallet: user.to_string(),
+                epoch: None,
             },
             &[],
         )
@@ -5192,7 +5250,7 @@ mod oracle_tests {
             )
             .unwrap();
 
-        assert_eq!(obs.tick_cumulatives.len(), 1);
+        assert_eq!(obs.price_a_cumulatives.len(), 1);
     }
 
     #[test]
@@ -5222,16 +5280,15 @@ mod oracle_tests {
             )
             .unwrap();
 
-        assert_eq!(obs.tick_cumulatives.len(), 2);
+        assert_eq!(obs.price_a_cumulatives.len(), 2);
 
-        // TWAP = 2^((tick[0] - tick[1]) / (60 * 2^64))
-        // With equal reserves, tick should be close to 0, so TWAP ≈ 1
-        let tick_diff = obs.tick_cumulatives[0] - obs.tick_cumulatives[1];
-        let avg_tick = tick_diff / 60;
-        let twap = dex_common::oracle::exp2_tick_to_decimal(avg_tick).unwrap();
+        // TWAP via cumulative prices: avg_price = (cum[0] - cum[1]) / (dt * 1e18)
+        // With equal reserves, price ≈ 1, so the cumulative diff over 60s ≈ 60 * 1e18
+        let cum_diff = obs.price_a_cumulatives[0] - obs.price_a_cumulatives[1];
+        let scale = Uint128::new(1_000_000_000_000_000_000); // 1e18
+        let twap_scaled = cum_diff / Uint128::new(60);
+        let twap_f: f64 = twap_scaled.u128() as f64 / scale.u128() as f64;
 
-        // Price should be close to 1.0 (equal pool, tiny swap)
-        let twap_f: f64 = twap.to_string().parse().unwrap();
         assert!(
             (twap_f - 1.0).abs() < 0.05,
             "TWAP should be close to 1.0 for equal pool, got {}", twap_f
@@ -7443,6 +7500,618 @@ mod sweep_tests {
             err_str.contains("not found") || err_str.contains("not registered"),
             "Expected pair-not-found error, got: {}",
             err_str
+        );
+    }
+}
+
+#[cfg(test)]
+mod new_feature_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{to_json_binary, Addr, Empty, Uint128};
+    use cw_multi_test::{App, Executor};
+
+    // -----------------------------------------------------------------------
+    // 1. Router max-hops validation
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn router_rejects_more_than_4_hops() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+        let router_code_id = app.store_code(router_contract());
+
+        let initial_amount = Uint128::new(1_000_000_000_000);
+
+        let tokens: Vec<Addr> = ["A", "B", "C", "D", "E", "F"]
+            .iter()
+            .map(|name| {
+                create_cw20_token(
+                    &mut app,
+                    cw20_code_id,
+                    &user,
+                    &format!("Token {name}"),
+                    &format!("TKN{name}"),
+                    initial_amount,
+                )
+            })
+            .collect();
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let router = app
+            .instantiate_contract(
+                router_code_id,
+                governance.clone(),
+                &cl8y_dex_router::msg::InstantiateMsg {
+                    factory: factory.to_string(),
+                },
+                &[],
+                "router",
+                None,
+            )
+            .unwrap();
+
+        let mut pairs = vec![];
+        for i in 0..5 {
+            let resp = app
+                .execute_contract(
+                    user.clone(),
+                    factory.clone(),
+                    &dex_common::factory::ExecuteMsg::CreatePair {
+                        asset_infos: [
+                            asset_info_token(&tokens[i]),
+                            asset_info_token(&tokens[i + 1]),
+                        ],
+                    },
+                    &[],
+                )
+                .unwrap();
+            pairs.push(extract_pair_address(&resp.events));
+        }
+
+        let liq = Uint128::new(1_000_000);
+        for (i, pair) in pairs.iter().enumerate() {
+            app.execute_contract(
+                user.clone(),
+                tokens[i].clone(),
+                &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                    spender: pair.to_string(),
+                    amount: liq,
+                    expires: None,
+                },
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                user.clone(),
+                tokens[i + 1].clone(),
+                &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                    spender: pair.to_string(),
+                    amount: liq,
+                    expires: None,
+                },
+                &[],
+            )
+            .unwrap();
+
+            app.execute_contract(
+                user.clone(),
+                pair.clone(),
+                &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                    assets: [
+                        dex_common::types::Asset {
+                            info: asset_info_token(&tokens[i]),
+                            amount: liq,
+                        },
+                        dex_common::types::Asset {
+                            info: asset_info_token(&tokens[i + 1]),
+                            amount: liq,
+                        },
+                    ],
+                    slippage_tolerance: None,
+                    receiver: None,
+                    deadline: None,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+
+        // 5-hop swap A→B→C→D→E→F — exceeds MAX_HOPS(4)
+        let five_ops: Vec<cl8y_dex_router::msg::SwapOperation> = (0..5)
+            .map(|i| cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&tokens[i]),
+                ask_asset_info: asset_info_token(&tokens[i + 1]),
+            })
+            .collect();
+
+        let hook_msg = to_json_binary(
+            &cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+                operations: five_ops,
+                minimum_receive: None,
+                to: None,
+                deadline: None,
+            },
+        )
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                user.clone(),
+                tokens[0].clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: router.to_string(),
+                    amount: Uint128::new(1_000),
+                    msg: hook_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("Too many hops"),
+            "Expected TooManyHops error, got: {}",
+            err.root_cause()
+        );
+
+        // 4-hop swap A→B→C→D→E — exactly at the limit, should succeed
+        let four_ops: Vec<cl8y_dex_router::msg::SwapOperation> = (0..4)
+            .map(|i| cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&tokens[i]),
+                ask_asset_info: asset_info_token(&tokens[i + 1]),
+            })
+            .collect();
+
+        let user_e_before = query_cw20_balance(&app, &tokens[4], &user);
+
+        let hook_msg = to_json_binary(
+            &cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+                operations: four_ops,
+                minimum_receive: None,
+                to: None,
+                deadline: None,
+            },
+        )
+        .unwrap();
+
+        app.execute_contract(
+            user.clone(),
+            tokens[0].clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: router.to_string(),
+                amount: Uint128::new(1_000),
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let user_e_after = query_cw20_balance(&app, &tokens[4], &user);
+        assert!(
+            user_e_after > user_e_before,
+            "4-hop swap should succeed and deliver output tokens"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. Fee-discount epoch-guarded deregistration
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn deregister_with_stale_epoch_is_noop() {
+        let mut app = App::default();
+        let base = setup_full_env(&mut app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let fee_discount_code_id = app.store_code(fee_discount_contract());
+
+        const ONE_CL8Y: u128 = 1_000_000_000_000_000_000;
+
+        let cl8y_token = app
+            .instantiate_contract(
+                cw20_code_id,
+                base.user.clone(),
+                &cw20_mintable::msg::InstantiateMsg {
+                    name: "CL8Y Token".to_string(),
+                    symbol: "CL8Y".to_string(),
+                    decimals: 18,
+                    initial_balances: vec![cw20::Cw20Coin {
+                        address: base.user.to_string(),
+                        amount: Uint128::new(100_000 * ONE_CL8Y),
+                    }],
+                    mint: None,
+                    marketing: None,
+                },
+                &[],
+                "cl8y",
+                None,
+            )
+            .unwrap();
+
+        let fee_discount = app
+            .instantiate_contract(
+                fee_discount_code_id,
+                base.governance.clone(),
+                &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                    governance: base.governance.to_string(),
+                    cl8y_token: cl8y_token.to_string(),
+                },
+                &[],
+                "fee_discount",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            base.governance.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+                tier_id: 1,
+                min_cl8y_balance: Uint128::new(ONE_CL8Y),
+                discount_bps: 1000,
+                governance_only: false,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // 1. Register
+        app.execute_contract(
+            base.user.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let reg: cl8y_dex_fee_discount::msg::RegistrationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                fee_discount.to_string(),
+                &cl8y_dex_fee_discount::msg::QueryMsg::GetRegistration {
+                    trader: base.user.to_string(),
+                },
+            )
+            .unwrap();
+        assert!(reg.registered, "user should be registered after Register");
+
+        // 2. Deregister
+        app.execute_contract(
+            base.user.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Deregister {},
+            &[],
+        )
+        .unwrap();
+
+        let reg: cl8y_dex_fee_discount::msg::RegistrationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                fee_discount.to_string(),
+                &cl8y_dex_fee_discount::msg::QueryMsg::GetRegistration {
+                    trader: base.user.to_string(),
+                },
+            )
+            .unwrap();
+        assert!(!reg.registered, "user should be deregistered");
+
+        // 3. Re-register → new epoch (epoch counter is now 2)
+        app.execute_contract(
+            base.user.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        // 4. Attempt DeregisterWallet with stale epoch=1 (current is 2) → no-op
+        let resp = app
+            .execute_contract(
+                base.governance.clone(),
+                fee_discount.clone(),
+                &cl8y_dex_fee_discount::msg::ExecuteMsg::DeregisterWallet {
+                    wallet: base.user.to_string(),
+                    epoch: Some(1),
+                },
+                &[],
+            )
+            .unwrap();
+
+        let skipped = resp
+            .events
+            .iter()
+            .flat_map(|e| &e.attributes)
+            .any(|a| a.key == "skipped");
+        assert!(skipped, "stale epoch deregistration should produce 'skipped' attribute");
+
+        // 5. Verify wallet is still registered
+        let reg: cl8y_dex_fee_discount::msg::RegistrationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                fee_discount.to_string(),
+                &cl8y_dex_fee_discount::msg::QueryMsg::GetRegistration {
+                    trader: base.user.to_string(),
+                },
+            )
+            .unwrap();
+        assert!(
+            reg.registered,
+            "wallet must remain registered after stale-epoch deregister attempt"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. LP admin propagation on governance change
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn factory_governance_change_updates_lp_admin() {
+        let mut app = App::default();
+
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+        let new_governance = Addr::unchecked("new_governance");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial_amount = Uint128::new(1_000_000_000_000);
+        let token_a = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "Token A",
+            "TKNA",
+            initial_amount,
+        );
+        let token_b = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "Token B",
+            "TKNB",
+            initial_amount,
+        );
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let resp = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [
+                        asset_info_token(&token_a),
+                        asset_info_token(&token_b),
+                    ],
+                },
+                &[],
+            )
+            .unwrap();
+
+        let pair = extract_pair_address(&resp.events);
+        let pair_info: dex_common::types::PairInfo = app
+            .wrap()
+            .query_wasm_smart(
+                pair.to_string(),
+                &dex_common::pair::QueryMsg::Pair {},
+            )
+            .unwrap();
+        let lp_token = pair_info.liquidity_token;
+
+        // LP token admin should initially be the pair contract itself
+        let lp_contract_info = app
+            .wrap()
+            .query_wasm_contract_info(lp_token.to_string())
+            .unwrap();
+        assert_eq!(
+            lp_contract_info.admin,
+            Some(pair.to_string()),
+            "LP token admin should initially be the pair contract"
+        );
+
+        // UpdateConfig propagates SetLpAdmin → UpdateAdmin on LP token.
+        // The pair contract is the LP token's CosmWasm admin, so it can
+        // call UpdateAdmin to change the admin to the new governance.
+        app.execute_contract(
+            governance.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::UpdateConfig {
+                governance: Some(new_governance.to_string()),
+                treasury: None,
+                default_fee_bps: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let lp_contract_info = app
+            .wrap()
+            .query_wasm_contract_info(lp_token.to_string())
+            .unwrap();
+        assert_eq!(
+            lp_contract_info.admin,
+            Some(new_governance.to_string()),
+            "LP token admin should be updated to new governance"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. Pair contract migration version check
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn pair_migration_checks_version() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+
+        let mock_old_id = app.store_code(mock_old_pair_contract());
+        let mock_future_id = app.store_code(mock_future_pair_contract());
+        let pair_code_id = app.store_code(pair_contract_with_migrate());
+
+        // --- Upgrade path: 0.9.0 → 1.2.0 should succeed ---
+        let old_contract = app
+            .instantiate_contract(
+                mock_old_id,
+                governance.clone(),
+                &Empty {},
+                &[],
+                "old_pair",
+                Some(governance.to_string()),
+            )
+            .unwrap();
+
+        app.migrate_contract(
+            governance.clone(),
+            old_contract,
+            &cl8y_dex_pair::msg::MigrateMsg {},
+            pair_code_id,
+        )
+        .unwrap();
+
+        // --- Downgrade path: 99.0.0 → 1.2.0 should fail ---
+        let future_contract = app
+            .instantiate_contract(
+                mock_future_id,
+                governance.clone(),
+                &Empty {},
+                &[],
+                "future_pair",
+                Some(governance.to_string()),
+            )
+            .unwrap();
+
+        let err = app
+            .migrate_contract(
+                governance.clone(),
+                future_contract,
+                &cl8y_dex_pair::msg::MigrateMsg {},
+                pair_code_id,
+            )
+            .unwrap_err();
+
+        let err_msg = err.root_cause().to_string();
+        assert!(
+            err_msg.contains("newer") || err_msg.contains("99.0.0"),
+            "Expected downgrade rejection error, got: {err_msg}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. Hook revert propagates to swap
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn swap_with_reverting_hook_fails() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let burn_hook_code_id = app.store_code(burn_hook_contract());
+
+        let burn_hook = app
+            .instantiate_contract(
+                burn_hook_code_id,
+                env.governance.clone(),
+                &cl8y_dex_burn_hook::msg::InstantiateMsg {
+                    burn_token: env.token_b.to_string(),
+                    burn_percentage_bps: 1000,
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "burn_hook",
+                None,
+            )
+            .unwrap();
+
+        // Attach hook to pair but do NOT register the pair in the hook's
+        // allowed-pairs list — the hook will reject the call.
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: env.pair.to_string(),
+                hooks: vec![burn_hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::one()),
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Unauthorized hook caller"),
+            "Expected hook unauthorized error, got: {}",
+            err.root_cause()
         );
     }
 }

@@ -45,6 +45,33 @@ pub async fn process_block_txs(
                 );
             }
         }
+
+        let hook_events = parse_hook_events(tx);
+        for hook in &hook_events {
+            if crate::db::queries::hook_events::hook_event_exists(pool, &tx.txhash, &hook.hook_address, &hook.action).await.unwrap_or(false) {
+                continue;
+            }
+            if let Err(e) = crate::db::queries::hook_events::insert_hook_event(
+                pool,
+                &tx.txhash,
+                &hook.hook_address,
+                &hook.action,
+                hook.amount.as_ref(),
+                hook.token.as_deref(),
+                hook.skipped.as_deref(),
+                hook.warning.as_deref(),
+                height,
+                block_time,
+            )
+            .await
+            {
+                tracing::warn!(
+                    "Failed to save hook event in tx {}: {}",
+                    tx.txhash,
+                    e
+                );
+            }
+        }
     }
     Ok(())
 }
@@ -181,4 +208,67 @@ fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
     }
 
     swaps
+}
+
+#[derive(Debug, Clone)]
+struct ParsedHookEvent {
+    hook_address: String,
+    action: String,
+    amount: Option<BigDecimal>,
+    token: Option<String>,
+    skipped: Option<String>,
+    warning: Option<String>,
+}
+
+fn parse_hook_events(tx: &TxResponse) -> Vec<ParsedHookEvent> {
+    let mut hooks = Vec::new();
+
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+
+        let attrs: HashMap<&str, &str> = event
+            .attributes
+            .iter()
+            .map(|a| (a.key.as_str(), a.value.as_str()))
+            .collect();
+
+        let action = match attrs.get("action").copied() {
+            Some(a) if a.starts_with("after_swap_") => a,
+            _ => continue,
+        };
+
+        let contract = attrs
+            .get("_contract_address")
+            .or(attrs.get("contract_address"));
+
+        if let Some(contract) = contract {
+            hooks.push(ParsedHookEvent {
+                hook_address: contract.to_string(),
+                action: action.to_string(),
+                amount: attrs
+                    .get("burn_amount")
+                    .or(attrs.get("tax_amount"))
+                    .and_then(|s| s.parse().ok()),
+                token: attrs
+                    .get("burn_token")
+                    .or(attrs.get("tax_token"))
+                    .or(attrs.get("lp_token"))
+                    .map(|s| s.to_string()),
+                skipped: attrs.get("skipped").map(|s| s.to_string()),
+                warning: attrs.get("warning").map(|s| s.to_string()),
+            });
+        }
+    }
+
+    hooks
 }

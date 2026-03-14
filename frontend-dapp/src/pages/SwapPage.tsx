@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
@@ -8,8 +8,9 @@ import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
+import { findRoute, getAllTokens, simulateMultiHopSwap, executeMultiHopSwap } from '@/services/terraclassic/router'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
-import { assetInfoLabel } from '@/types'
+import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { TokenDisplay, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
@@ -19,12 +20,15 @@ export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
-  const { selectedPair, setSelectedPair, slippageTolerance, setSlippageTolerance } = useDexStore()
+  const { slippageTolerance, setSlippageTolerance } = useDexStore()
+  const queryClient = useQueryClient()
 
   const [inputAmount, setInputAmount] = useState('')
-  const [isReversed, setIsReversed] = useState(false)
+  const [fromToken, setFromToken] = useState<string>('')
+  const [toToken, setToToken] = useState<string>('')
   const [showSettings, setShowSettings] = useState(false)
   const [customSlippage, setCustomSlippage] = useState('')
+  const [showImpactConfirm, setShowImpactConfirm] = useState(false)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -32,39 +36,43 @@ export default function SwapPage() {
     staleTime: 60_000,
   })
 
-  const pairs = pairsQuery.data?.pairs ?? []
+  const pairs = useMemo(() => pairsQuery.data?.pairs ?? [], [pairsQuery.data])
 
   useEffect(() => {
-    if (pairs.length > 0 && !selectedPair) {
-      setSelectedPair(pairs[0])
+    if (pairs.length > 0 && !fromToken) {
+      const tokens = getAllTokens(pairs)
+      if (tokens.length >= 2) {
+        setFromToken(tokens[0])
+        setToToken(tokens[1])
+      }
     }
-  }, [pairsQuery.data, selectedPair, setSelectedPair, pairs])
+  }, [pairs, fromToken])
 
-  const offerAssetInfo = selectedPair
-    ? isReversed
-      ? selectedPair.asset_infos[1]
-      : selectedPair.asset_infos[0]
-    : null
-  const receiveAssetInfo = selectedPair
-    ? isReversed
-      ? selectedPair.asset_infos[0]
-      : selectedPair.asset_infos[1]
-    : null
+  const allTokens = pairs.length > 0 ? getAllTokens(pairs) : []
+  const route = fromToken && toToken ? findRoute(pairs, fromToken, toToken) : null
+  const isDirect = route !== null && route.length === 1
+  const isMultiHop = route !== null && route.length > 1
 
-  const offerLabel = offerAssetInfo ? assetInfoLabel(offerAssetInfo) : ''
-  const receiveLabel = receiveAssetInfo ? assetInfoLabel(receiveAssetInfo) : ''
+  const directPair = pairs.find(p => {
+    const a = assetInfoLabel(p.asset_infos[0])
+    const b = assetInfoLabel(p.asset_infos[1])
+    return (a === fromToken && b === toToken) || (b === fromToken && a === toToken)
+  })
+
+  const offerAssetInfo = fromToken ? tokenAssetInfo(fromToken) : null
+  const receiveAssetInfo = toToken ? tokenAssetInfo(toToken) : null
 
   const poolQuery = useQuery({
-    queryKey: ['pool', selectedPair?.contract_addr],
-    queryFn: () => { if (!selectedPair) throw new Error('No pair'); return getPool(selectedPair.contract_addr) },
-    enabled: !!selectedPair,
+    queryKey: ['pool', directPair?.contract_addr],
+    queryFn: () => { if (!directPair) throw new Error('No pair'); return getPool(directPair.contract_addr) },
+    enabled: !!directPair,
     refetchInterval: 15_000,
   })
 
   const feeQuery = useQuery({
-    queryKey: ['feeConfig', selectedPair?.contract_addr],
-    queryFn: () => { if (!selectedPair) throw new Error('No pair'); return getPairFeeConfig(selectedPair.contract_addr) },
-    enabled: !!selectedPair,
+    queryKey: ['feeConfig', directPair?.contract_addr],
+    queryFn: () => { if (!directPair) throw new Error('No pair'); return getPairFeeConfig(directPair.contract_addr) },
+    enabled: !!directPair,
   })
 
   const discountQuery = useQuery({
@@ -82,7 +90,7 @@ export default function SwapPage() {
   })
 
   const balanceQuery = useQuery({
-    queryKey: ['tokenBalance', address, offerLabel],
+    queryKey: ['tokenBalance', address, fromToken],
     queryFn: () => { if (!address || !offerAssetInfo) throw new Error('Missing params'); return getTokenBalance(address, offerAssetInfo) },
     enabled: !!address && !!offerAssetInfo,
     refetchInterval: 15_000,
@@ -92,21 +100,45 @@ export default function SwapPage() {
   const rawInputAmount = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
 
   const simQuery = useQuery({
-    queryKey: ['simulation', selectedPair?.contract_addr, offerLabel, rawInputAmount],
-    queryFn: () => { if (!selectedPair || !offerAssetInfo) throw new Error('Missing params'); return simulateSwap(selectedPair.contract_addr, offerAssetInfo, rawInputAmount) },
-    enabled: !!selectedPair && !!offerAssetInfo && !!inputAmount && parseFloat(inputAmount) > 0,
+    queryKey: ['simulation', fromToken, toToken, rawInputAmount, JSON.stringify(route)],
+    queryFn: async () => {
+      if (!route || !inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
+      if (isDirect && directPair) {
+        const offerInfo = tokenAssetInfo(fromToken)
+        return simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount)
+      }
+      if (isMultiHop && route) {
+        const result = await simulateMultiHopSwap(rawInputAmount, route)
+        return { return_amount: result.amount, spread_amount: '0', commission_amount: '0' }
+      }
+      throw new Error('No route found')
+    },
+    enabled: !!route && !!inputAmount && parseFloat(inputAmount) > 0,
     refetchInterval: 10_000,
   })
 
   const swapMutation = useMutation({
     mutationFn: async () => {
-      if (!address || !selectedPair || !inputAmount || !offerAssetInfo) throw new Error('Missing parameters')
+      if (!address || !inputAmount || !route) throw new Error('Missing parameters')
       const maxSpread = (slippageTolerance / 100).toString()
-      return swap(address, offerLabel, selectedPair.contract_addr, rawInputAmount, undefined, maxSpread)
+
+      if (isDirect && directPair) {
+        return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread)
+      }
+
+      if (isMultiHop && route) {
+        const minReceive = minReceived ?? undefined
+        return executeMultiHopSwap(address, fromToken, rawInputAmount, route, minReceive)
+      }
+
+      throw new Error('No route found')
     },
     onSuccess: () => {
       sounds.playSuccess()
       setInputAmount('')
+      queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
+      queryClient.invalidateQueries({ queryKey: ['pool'] })
+      queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
     onError: () => {
       sounds.playError()
@@ -142,8 +174,8 @@ export default function SwapPage() {
   if (!isWalletConnected) {
     buttonText = 'Connect Wallet'
     buttonDisabled = true
-  } else if (!selectedPair) {
-    buttonText = 'Select a Pair'
+  } else if (!route) {
+    buttonText = 'No Route'
     buttonDisabled = true
   } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
     buttonText = 'Enter Amount'
@@ -157,15 +189,10 @@ export default function SwapPage() {
   } else if (swapMutation.isPending) {
     buttonText = 'Swapping...'
     buttonDisabled = true
+  } else if (showImpactConfirm) {
+    buttonText = `Confirm Swap (${priceImpact}% impact)`
+    buttonDisabled = false
   }
-
-  const handlePairChange = useCallback((pairContract: string) => {
-    const pair = pairs.find((p) => p.contract_addr === pairContract)
-    if (pair) {
-      sounds.playButtonPress()
-      setSelectedPair(pair)
-    }
-  }, [pairs, setSelectedPair])
 
   const handleSlippagePreset = useCallback((value: number) => {
     sounds.playButtonPress()
@@ -257,22 +284,66 @@ export default function SwapPage() {
             </div>
           )}
 
-          {/* Pair Selector */}
-          <div className="mb-4">
-            <label className="label-neo">Trading Pair</label>
-            <select
-              value={selectedPair?.contract_addr ?? ''}
-              onChange={(e) => handlePairChange(e.target.value)}
-              className="select-neo"
-              aria-label="Select trading pair"
-            >
-              {pairs.length === 0 && <option value="">Loading pairs...</option>}
-              {pairs.map((pair) => (
-                <option key={pair.contract_addr} value={pair.contract_addr}>
-                  {getTokenDisplaySymbol(assetInfoLabel(pair.asset_infos[0]))} / {getTokenDisplaySymbol(assetInfoLabel(pair.asset_infos[1]))}
-                </option>
-              ))}
-            </select>
+          {/* Token Selectors */}
+          <div className="mb-4 space-y-2">
+            <div>
+              <label className="label-neo">From Token</label>
+              <select
+                value={fromToken}
+                onChange={(e) => {
+                  sounds.playButtonPress()
+                  setFromToken(e.target.value)
+                  setShowImpactConfirm(false)
+                }}
+                className="select-neo"
+                aria-label="Select from token"
+              >
+                {allTokens.length === 0 && <option value="">Loading tokens...</option>}
+                {allTokens.filter(t => t !== toToken).map((token) => (
+                  <option key={token} value={token}>
+                    {getTokenDisplaySymbol(token)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label-neo">To Token</label>
+              <select
+                value={toToken}
+                onChange={(e) => {
+                  sounds.playButtonPress()
+                  setToToken(e.target.value)
+                  setShowImpactConfirm(false)
+                }}
+                className="select-neo"
+                aria-label="Select to token"
+              >
+                {allTokens.length === 0 && <option value="">Loading tokens...</option>}
+                {allTokens.filter(t => t !== fromToken).map((token) => (
+                  <option key={token} value={token}>
+                    {getTokenDisplaySymbol(token)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {isMultiHop && route && (
+              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+                <span className="uppercase tracking-wide font-medium">Route: </span>
+                {route.map((op, i) => (
+                  <span key={i}>
+                    {i > 0 && ' → '}
+                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
+                  </span>
+                ))}
+                {' → '}
+                {getTokenDisplaySymbol(toToken)}
+              </div>
+            )}
+            {fromToken && toToken && !route && (
+              <div className="alert-error !text-xs">
+                No route found between these tokens
+              </div>
+            )}
           </div>
 
           {/* You Pay */}
@@ -287,7 +358,10 @@ export default function SwapPage() {
               value={inputAmount}
               onChange={(e) => {
                 const v = e.target.value
-                if (v === '' || /^\d*\.?\d*$/.test(v)) setInputAmount(v)
+                if (v === '' || /^\d*\.?\d*$/.test(v)) {
+                  setInputAmount(v)
+                  setShowImpactConfirm(false)
+                }
               }}
               placeholder="0.00"
               className="w-full text-2xl font-medium bg-transparent focus:outline-none"
@@ -318,7 +392,10 @@ export default function SwapPage() {
             <button
               onClick={() => {
                 sounds.playButtonPress()
-                setIsReversed(!isReversed)
+                const tmp = fromToken
+                setFromToken(toToken)
+                setToToken(tmp)
+                setShowImpactConfirm(false)
               }}
               className="w-10 h-10 rounded-none border-2 flex items-center justify-center transition-all hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0_#000] hover:shadow-[1px_1px_0_#000]"
               style={{
@@ -415,9 +492,20 @@ export default function SwapPage() {
           )}
 
           {/* Swap Button */}
+          {showImpactConfirm && (
+            <div className="alert-error mb-3 text-xs">
+              <p className="font-semibold mb-1">High Price Impact Warning</p>
+              <p>This trade has a {priceImpact}% price impact. You may receive significantly fewer tokens than expected. Click the button again to confirm.</p>
+            </div>
+          )}
           <button
             onClick={() => {
               sounds.playButtonPress()
+              if (priceImpact && parseFloat(priceImpact) > 5 && !showImpactConfirm) {
+                setShowImpactConfirm(true)
+                return
+              }
+              setShowImpactConfirm(false)
               swapMutation.mutate()
             }}
             disabled={buttonDisabled}

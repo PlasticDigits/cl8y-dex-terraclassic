@@ -62,7 +62,11 @@ pub mod entry {
     }
 
     #[entry_point]
-    pub fn migrate(_deps: DepsMut, _env: Env, _msg: cosmwasm_std::Empty) -> StdResult<Response> {
-        Ok(Response::new().add_attribute("action", "migrate"))
+    pub fn migrate(
+        deps: DepsMut,
+        env: Env,
+        msg: crate::msg::MigrateMsg,
+    ) -> Result<Response, ContractError> {
+        crate::contract::migrate(deps, env, msg)
     }
 }

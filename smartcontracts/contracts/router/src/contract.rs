@@ -17,6 +17,7 @@ use dex_common::types::Asset;
 const CONTRACT_NAME: &str = "cl8y-dex-router";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SWAP_REPLY_ID: u64 = 1;
+const MAX_HOPS: usize = 4;
 
 pub fn instantiate(
     deps: DepsMut,
@@ -122,6 +123,13 @@ fn execute_swap_operations(
 ) -> Result<Response, ContractError> {
     if operations.is_empty() {
         return Err(ContractError::EmptyOperations {});
+    }
+
+    if operations.len() > MAX_HOPS {
+        return Err(ContractError::TooManyHops {
+            max: MAX_HOPS,
+            actual: operations.len(),
+        });
     }
 
     if SWAP_STATE.may_load(deps.storage)?.is_some() {
@@ -353,6 +361,14 @@ fn query_simulate_swap_operations(
         ));
     }
 
+    if operations.len() > MAX_HOPS {
+        return Err(cosmwasm_std::StdError::generic_err(format!(
+            "Too many hops: {} exceeds maximum of {}",
+            operations.len(),
+            MAX_HOPS
+        )));
+    }
+
     let factory = FACTORY.load(deps.storage)?;
     let mut current_amount = offer_amount;
 
@@ -410,6 +426,14 @@ fn query_reverse_simulate_swap_operations(
         ));
     }
 
+    if operations.len() > MAX_HOPS {
+        return Err(cosmwasm_std::StdError::generic_err(format!(
+            "Too many hops: {} exceeds maximum of {}",
+            operations.len(),
+            MAX_HOPS
+        )));
+    }
+
     let factory = FACTORY.load(deps.storage)?;
     let mut current_amount = ask_amount;
 
@@ -454,4 +478,17 @@ fn query_reverse_simulate_swap_operations(
     Ok(SimulateSwapOperationsResponse {
         amount: current_amount,
     })
+}
+
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    _msg: crate::msg::MigrateMsg,
+) -> Result<Response, ContractError> {
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
+        .map_err(ContractError::Std)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("version", CONTRACT_VERSION))
 }

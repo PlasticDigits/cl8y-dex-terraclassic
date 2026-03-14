@@ -112,9 +112,10 @@ export async function withdrawLiquidity(
   walletAddress: string,
   lpTokenAddress: string,
   pairAddress: string,
-  amount: string
+  amount: string,
+  minAssets?: [string, string]
 ): Promise<string> {
-  const withdrawMsg = btoa(JSON.stringify({ withdraw_liquidity: {} }))
+  const withdrawMsg = btoa(JSON.stringify({ withdraw_liquidity: { min_assets: minAssets } }))
   return executeTerraContract(walletAddress, lpTokenAddress, {
     send: {
       contract: pairAddress,

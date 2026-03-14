@@ -47,9 +47,12 @@ export function assetInfoLabel(info: AssetInfo): string {
   return info.native_token.denom
 }
 
-/** Helper: build a CW20 AssetInfo */
-export function tokenAssetInfo(contractAddr: string): AssetInfo {
-  return { token: { contract_addr: contractAddr } }
+/** Helper: build an AssetInfo from a CW20 address or native denom */
+export function tokenAssetInfo(identifier: string): AssetInfo {
+  if (identifier.startsWith('terra1')) {
+    return { token: { contract_addr: identifier } }
+  }
+  return { native_token: { denom: identifier } }
 }
 
 /** Fee discount tier definition */
@@ -69,6 +72,7 @@ export interface TierEntry {
 export interface DiscountResponse {
   discount_bps: number
   needs_deregister: boolean
+  registration_epoch: number | null
 }
 
 /** Fee discount registration response */
@@ -80,13 +84,15 @@ export interface RegistrationResponse {
 
 /** TWAP Oracle observe response */
 export interface ObserveResponse {
-  tick_cumulatives: string[]
+  price_a_cumulatives: string[]
+  price_b_cumulatives: string[]
 }
 
 /** TWAP Oracle info response */
 export interface OracleInfoResponse {
   observation_cardinality: number
   observation_index: number
+  observations_stored: number
   oldest_observation_timestamp: number
   newest_observation_timestamp: number
 }
