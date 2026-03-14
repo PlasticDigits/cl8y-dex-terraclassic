@@ -19,8 +19,8 @@ export const NETWORKS: Record<string, NetworkConfig> = {
   local: {
     terra: {
       chainId: 'localterra',
-      lcd: 'http://localhost:1317',
-      rpc: 'http://localhost:26657',
+      lcd: TERRA_LCD_URL,
+      rpc: TERRA_RPC_URL,
     },
   },
   testnet: {
