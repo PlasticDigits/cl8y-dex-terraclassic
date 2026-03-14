@@ -21,12 +21,9 @@ const TERRA_CLASSIC_BECH32 = {
   bech32PrefixConsPub: 'terravalconspub',
 };
 
-async function suggestChainToKeplr(): Promise<void> {
-  if (!window.keplr) return;
-
+function getTerraChainSuggestion(): Record<string, unknown> {
   const config = NETWORKS[DEFAULT_NETWORK].terra;
-
-  await window.keplr.experimentalSuggestChain({
+  return {
     chainId: config.chainId,
     chainName: DEFAULT_NETWORK === 'local' ? 'LocalTerra' : `Terra Classic (${DEFAULT_NETWORK})`,
     rpc: config.rpc,
@@ -46,7 +43,31 @@ async function suggestChainToKeplr(): Promise<void> {
       },
     ],
     stakeCurrency: { coinDenom: 'LUNC', coinMinimalDenom: 'uluna', coinDecimals: 6 },
-  });
+  };
+}
+
+async function suggestChainToExtension(walletName: WalletName): Promise<void> {
+  const chainInfo = getTerraChainSuggestion();
+
+  type KeplrLike = { experimentalSuggestChain: (info: Record<string, unknown>) => Promise<void> };
+
+  const w = window as unknown as Record<string, unknown>;
+  let ext: KeplrLike | undefined;
+  switch (walletName) {
+    case WalletName.KEPLR:
+      ext = w.keplr as KeplrLike | undefined;
+      break;
+    case WalletName.LEAP:
+      ext = w.leap as KeplrLike | undefined;
+      break;
+    case WalletName.COSMOSTATION:
+      ext = (w.cosmostation as { providers: { keplr: KeplrLike } } | undefined)?.providers.keplr;
+      break;
+  }
+
+  if (ext?.experimentalSuggestChain) {
+    await ext.experimentalSuggestChain(chainInfo);
+  }
 }
 
 const networkConfig = NETWORKS[DEFAULT_NETWORK].terra;
@@ -126,8 +147,9 @@ export async function connectTerraWallet(
       gasPrice: chainInfo.gasPrice,
     });
 
-    if (walletName === WalletName.KEPLR && walletType === WalletType.EXTENSION) {
-      await suggestChainToKeplr();
+    const SUGGEST_CHAIN_WALLETS: WalletName[] = [WalletName.KEPLR, WalletName.LEAP, WalletName.COSMOSTATION];
+    if (SUGGEST_CHAIN_WALLETS.includes(walletName) && walletType === WalletType.EXTENSION) {
+      await suggestChainToExtension(walletName);
     }
 
     let wallets: Map<string, ConnectedWallet>;
