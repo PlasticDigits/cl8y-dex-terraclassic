@@ -57,8 +57,10 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
         height: 400,
       })
 
-      const positive = getComputedStyle(document.documentElement).getPropertyValue('--color-positive').trim() || '#22c55e'
-      const negative = getComputedStyle(document.documentElement).getPropertyValue('--color-negative').trim() || '#ef4444'
+      const positive =
+        getComputedStyle(document.documentElement).getPropertyValue('--color-positive').trim() || '#22c55e'
+      const negative =
+        getComputedStyle(document.documentElement).getPropertyValue('--color-negative').trim() || '#ef4444'
       seriesRef.current = chart.addCandlestickSeries({
         upColor: positive,
         downColor: negative,
@@ -112,7 +114,9 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
   return (
     <div className="shell-panel-strong">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>Price Chart</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
+          Price Chart
+        </h3>
         <div className="flex gap-1" role="group" aria-label="Chart interval">
           {INTERVALS.map((iv) => (
             <button
@@ -122,11 +126,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
                 sounds.playButtonPress()
                 setInterval_(iv)
               }}
-              className={`tab-neo !text-[10px] !px-2 !py-1 ${
-                interval === iv
-                  ? 'tab-neo-active'
-                  : 'tab-neo-inactive'
-              }`}
+              className={`tab-neo !text-[10px] !px-2 !py-1 ${interval === iv ? 'tab-neo-active' : 'tab-neo-inactive'}`}
             >
               {iv}
             </button>
@@ -146,10 +146,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
         </div>
       )}
 
-      <div
-        ref={containerRef}
-        className={candlesQuery.isLoading || candlesQuery.isError ? 'hidden' : ''}
-      />
+      <div ref={containerRef} className={candlesQuery.isLoading || candlesQuery.isError ? 'hidden' : ''} />
     </div>
   )
 }

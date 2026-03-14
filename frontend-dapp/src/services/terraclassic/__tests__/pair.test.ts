@@ -37,10 +37,7 @@ beforeEach(() => {
 describe('getPairInfo', () => {
   it('queries pair info for the given pair address', async () => {
     const pairInfo: PairInfo = {
-      asset_infos: [
-        { token: { contract_addr: TOKEN_A } },
-        { token: { contract_addr: TOKEN_B } },
-      ],
+      asset_infos: [{ token: { contract_addr: TOKEN_A } }, { token: { contract_addr: TOKEN_B } }],
       contract_addr: PAIR_ADDR,
       liquidity_token: LP_TOKEN,
     }
@@ -135,15 +132,7 @@ describe('swap', () => {
   it('calls executeTerraContract with CW20 send and base64-encoded swap msg', async () => {
     mockedExecute.mockResolvedValueOnce('txhash_swap')
 
-    const result = await swap(
-      WALLET_ADDR,
-      TOKEN_A,
-      PAIR_ADDR,
-      '1000000',
-      '1.0',
-      '0.01',
-      'terra1recipient'
-    )
+    const result = await swap(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '1000000', '1.0', '0.01', 'terra1recipient')
 
     expect(result).toBe('txhash_swap')
     expect(mockedExecute).toHaveBeenCalledTimes(1)
@@ -176,8 +165,7 @@ describe('swap', () => {
 
     await swap(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '500')
 
-    const sendMsg = (mockedExecute.mock.calls[0][2] as Record<string, unknown>)
-      .send as { msg: string }
+    const sendMsg = (mockedExecute.mock.calls[0][2] as Record<string, unknown>).send as { msg: string }
     const decoded = JSON.parse(atob(sendMsg.msg))
     expect(decoded).toEqual({
       swap: {
@@ -196,14 +184,7 @@ describe('provideLiquidity', () => {
       .mockResolvedValueOnce('allowance_b')
       .mockResolvedValueOnce('txhash_provide')
 
-    const result = await provideLiquidity(
-      WALLET_ADDR,
-      PAIR_ADDR,
-      TOKEN_A,
-      TOKEN_B,
-      '1000',
-      '2000'
-    )
+    const result = await provideLiquidity(WALLET_ADDR, PAIR_ADDR, TOKEN_A, TOKEN_B, '1000', '2000')
 
     expect(result).toBe('txhash_provide')
     expect(mockedExecute).toHaveBeenCalledTimes(3)
@@ -234,9 +215,9 @@ describe('provideLiquidity', () => {
       .mockResolvedValueOnce('decrease_a')
       .mockResolvedValueOnce('decrease_b')
 
-    await expect(
-      provideLiquidity(WALLET_ADDR, PAIR_ADDR, TOKEN_A, TOKEN_B, '1000', '2000')
-    ).rejects.toThrow('provide_liquidity failed')
+    await expect(provideLiquidity(WALLET_ADDR, PAIR_ADDR, TOKEN_A, TOKEN_B, '1000', '2000')).rejects.toThrow(
+      'provide_liquidity failed'
+    )
 
     expect(mockedExecute).toHaveBeenCalledTimes(5)
 
@@ -258,9 +239,9 @@ describe('provideLiquidity', () => {
       .mockRejectedValueOnce(new Error('decrease_a failed'))
       .mockRejectedValueOnce(new Error('decrease_b failed'))
 
-    await expect(
-      provideLiquidity(WALLET_ADDR, PAIR_ADDR, TOKEN_A, TOKEN_B, '1000', '2000')
-    ).rejects.toThrow('provide_liquidity failed')
+    await expect(provideLiquidity(WALLET_ADDR, PAIR_ADDR, TOKEN_A, TOKEN_B, '1000', '2000')).rejects.toThrow(
+      'provide_liquidity failed'
+    )
 
     expect(mockedExecute).toHaveBeenCalledTimes(5)
   })

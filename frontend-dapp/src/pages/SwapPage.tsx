@@ -53,7 +53,7 @@ export default function SwapPage() {
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
 
-  const directPair = pairs.find(p => {
+  const directPair = pairs.find((p) => {
     const a = assetInfoLabel(p.asset_infos[0])
     const b = assetInfoLabel(p.asset_infos[1])
     return (a === fromToken && b === toToken) || (b === fromToken && a === toToken)
@@ -64,34 +64,49 @@ export default function SwapPage() {
 
   const poolQuery = useQuery({
     queryKey: ['pool', directPair?.contract_addr],
-    queryFn: () => { if (!directPair) throw new Error('No pair'); return getPool(directPair.contract_addr) },
+    queryFn: () => {
+      if (!directPair) throw new Error('No pair')
+      return getPool(directPair.contract_addr)
+    },
     enabled: !!directPair,
     refetchInterval: 15_000,
   })
 
   const feeQuery = useQuery({
     queryKey: ['feeConfig', directPair?.contract_addr],
-    queryFn: () => { if (!directPair) throw new Error('No pair'); return getPairFeeConfig(directPair.contract_addr) },
+    queryFn: () => {
+      if (!directPair) throw new Error('No pair')
+      return getPairFeeConfig(directPair.contract_addr)
+    },
     enabled: !!directPair,
   })
 
   const discountQuery = useQuery({
     queryKey: ['traderDiscount', address],
-    queryFn: () => { if (!address) throw new Error('No address'); return getTraderDiscount(address) },
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getTraderDiscount(address)
+    },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
 
   const registrationQuery = useQuery({
     queryKey: ['feeDiscountRegistration', address],
-    queryFn: () => { if (!address) throw new Error('No address'); return getRegistration(address) },
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getRegistration(address)
+    },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, fromToken],
-    queryFn: () => { if (!address || !offerAssetInfo) throw new Error('Missing params'); return getTokenBalance(address, offerAssetInfo) },
+    queryFn: () => {
+      if (!address || !offerAssetInfo) throw new Error('Missing params')
+      return getTokenBalance(address, offerAssetInfo)
+    },
     enabled: !!address && !!offerAssetInfo,
     refetchInterval: 15_000,
   })
@@ -194,31 +209,33 @@ export default function SwapPage() {
     buttonDisabled = false
   }
 
-  const handleSlippagePreset = useCallback((value: number) => {
-    sounds.playButtonPress()
-    setSlippageTolerance(value)
-    setCustomSlippage('')
-  }, [setSlippageTolerance])
+  const handleSlippagePreset = useCallback(
+    (value: number) => {
+      sounds.playButtonPress()
+      setSlippageTolerance(value)
+      setCustomSlippage('')
+    },
+    [setSlippageTolerance]
+  )
 
-  const handleCustomSlippage = useCallback((value: string) => {
-    // Block non-numeric input: only allow digits and one decimal point
-    const sanitized = value
-      .replace(/[^\d.]/g, '')
-      .replace(/(\.\d*)\./g, '$1') // keep only first decimal (e.g. "5.5.5" -> "5.55")
-    setCustomSlippage(sanitized)
-    const parsed = parseFloat(sanitized)
-    if (!isNaN(parsed) && parsed >= 0.01 && parsed <= 50) {
-      setSlippageTolerance(parsed)
-    } else if (!isNaN(parsed) && parsed > 50) {
-      setSlippageTolerance(50)
-    }
-  }, [setSlippageTolerance])
+  const handleCustomSlippage = useCallback(
+    (value: string) => {
+      // Block non-numeric input: only allow digits and one decimal point
+      const sanitized = value.replace(/[^\d.]/g, '').replace(/(\.\d*)\./g, '$1') // keep only first decimal (e.g. "5.5.5" -> "5.55")
+      setCustomSlippage(sanitized)
+      const parsed = parseFloat(sanitized)
+      if (!isNaN(parsed) && parsed >= 0.01 && parsed <= 50) {
+        setSlippageTolerance(parsed)
+      } else if (!isNaN(parsed) && parsed > 50) {
+        setSlippageTolerance(50)
+      }
+    },
+    [setSlippageTolerance]
+  )
 
   const customSlippageError =
     customSlippage !== '' &&
-    (isNaN(parseFloat(customSlippage)) ||
-      parseFloat(customSlippage) < 0.01 ||
-      parseFloat(customSlippage) > 50)
+    (isNaN(parseFloat(customSlippage)) || parseFloat(customSlippage) < 0.01 || parseFloat(customSlippage) > 50)
 
   return (
     <div className="max-w-[520px] mx-auto">
@@ -252,9 +269,7 @@ export default function SwapPage() {
                     key={val}
                     onClick={() => handleSlippagePreset(val)}
                     className={`tab-neo !text-xs !px-3 !py-1.5 ${
-                      slippageTolerance === val && !customSlippage
-                        ? 'tab-neo-active'
-                        : 'tab-neo-inactive'
+                      slippageTolerance === val && !customSlippage ? 'tab-neo-active' : 'tab-neo-inactive'
                     }`}
                   >
                     {val}%
@@ -268,16 +283,27 @@ export default function SwapPage() {
                     placeholder="Custom"
                     className="input-neo !text-xs !py-1.5"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--ink-subtle)' }}>%</span>
+                  <span
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+                    style={{ color: 'var(--ink-subtle)' }}
+                  >
+                    %
+                  </span>
                 </div>
               </div>
               {customSlippageError && (
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-negative)' }}>
+                <p
+                  className="mt-2 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: 'var(--color-negative)' }}
+                >
                   Must be between 0.01% and 50%
                 </p>
               )}
               {!customSlippageError && slippageTolerance > 5 && (
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-warning, #f59e0b)' }}>
+                <p
+                  className="mt-2 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: 'var(--color-warning, #f59e0b)' }}
+                >
                   High slippage increases front-running risk
                 </p>
               )}
@@ -299,11 +325,13 @@ export default function SwapPage() {
                 aria-label="Select from token"
               >
                 {allTokens.length === 0 && <option value="">Loading tokens...</option>}
-                {allTokens.filter(t => t !== toToken).map((token) => (
-                  <option key={token} value={token}>
-                    {getTokenDisplaySymbol(token)}
-                  </option>
-                ))}
+                {allTokens
+                  .filter((t) => t !== toToken)
+                  .map((token) => (
+                    <option key={token} value={token}>
+                      {getTokenDisplaySymbol(token)}
+                    </option>
+                  ))}
               </select>
             </div>
             <div>
@@ -319,11 +347,13 @@ export default function SwapPage() {
                 aria-label="Select to token"
               >
                 {allTokens.length === 0 && <option value="">Loading tokens...</option>}
-                {allTokens.filter(t => t !== fromToken).map((token) => (
-                  <option key={token} value={token}>
-                    {getTokenDisplaySymbol(token)}
-                  </option>
-                ))}
+                {allTokens
+                  .filter((t) => t !== fromToken)
+                  .map((token) => (
+                    <option key={token} value={token}>
+                      {getTokenDisplaySymbol(token)}
+                    </option>
+                  ))}
               </select>
             </div>
             {isMultiHop && route && (
@@ -340,9 +370,7 @@ export default function SwapPage() {
               </div>
             )}
             {fromToken && toToken && !route && (
-              <div className="alert-error !text-xs">
-                No route found between these tokens
-              </div>
+              <div className="alert-error !text-xs">No route found between these tokens</div>
             )}
           </div>
 
@@ -370,7 +398,12 @@ export default function SwapPage() {
             {isWalletConnected && balanceQuery.data !== undefined && (
               <div className="flex items-center justify-between mt-2 text-xs" style={{ color: 'var(--ink-subtle)' }}>
                 <span>
-                  Balance: <span className="font-mono">{offerAssetInfo ? formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo)) : balanceQuery.data}</span>
+                  Balance:{' '}
+                  <span className="font-mono">
+                    {offerAssetInfo
+                      ? formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))
+                      : balanceQuery.data}
+                  </span>
                 </span>
                 <button
                   type="button"
@@ -405,7 +438,13 @@ export default function SwapPage() {
               }}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 1v14M8 1L4 5M8 1l4 4M8 15l-4-4M8 15l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M8 1v14M8 1L4 5M8 1l4 4M8 15l-4-4M8 15l4-4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
           </div>
@@ -418,7 +457,9 @@ export default function SwapPage() {
             </div>
             <div className="text-2xl font-medium" style={{ color: 'var(--ink)' }}>
               {simQuery.isFetching ? (
-                <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>Calculating...</span>
+                <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
+                  Calculating...
+                </span>
               ) : outputAmount && receiveAssetInfo ? (
                 formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
               ) : (
@@ -434,7 +475,8 @@ export default function SwapPage() {
                 <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
                   <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
                   <span className="font-mono text-xs">
-                    {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))} / {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
+                    {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))} /{' '}
+                    {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
                   </span>
                 </div>
               )}
@@ -444,12 +486,23 @@ export default function SwapPage() {
                   <FeeDisplay
                     feeBps={feeQuery.data.fee_bps}
                     discountBps={discountQuery.data?.discount_bps}
-                    commissionAmount={commissionAmount && receiveAssetInfo ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo)) : undefined}
+                    commissionAmount={
+                      commissionAmount && receiveAssetInfo
+                        ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))
+                        : undefined
+                    }
                   />
                 </div>
               )}
               {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
-                <div className="p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]" style={{ borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)', background: 'color-mix(in srgb, var(--cyan) 5%, transparent)', color: 'var(--cyan)' }}>
+                <div
+                  className="p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
+                  style={{
+                    borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
+                    background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
+                    color: 'var(--cyan)',
+                  }}
+                >
                   <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
                     Hold CL8Y to reduce swap fees &rarr;
                   </a>
@@ -481,7 +534,9 @@ export default function SwapPage() {
               {minReceived !== null && (
                 <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
                   <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
-                  <span className="font-mono text-xs">{receiveAssetInfo ? formatTokenAmount(minReceived!, getDecimals(receiveAssetInfo)) : minReceived}</span>
+                  <span className="font-mono text-xs">
+                    {receiveAssetInfo ? formatTokenAmount(minReceived!, getDecimals(receiveAssetInfo)) : minReceived}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
@@ -495,7 +550,10 @@ export default function SwapPage() {
           {showImpactConfirm && (
             <div className="alert-error mb-3 text-xs">
               <p className="font-semibold mb-1">High Price Impact Warning</p>
-              <p>This trade has a {priceImpact}% price impact. You may receive significantly fewer tokens than expected. Click the button again to confirm.</p>
+              <p>
+                This trade has a {priceImpact}% price impact. You may receive significantly fewer tokens than expected.
+                Click the button again to confirm.
+              </p>
             </div>
           )}
           <button
@@ -510,9 +568,7 @@ export default function SwapPage() {
             }}
             disabled={buttonDisabled}
             className={`w-full py-4 font-semibold text-base ${
-              buttonDisabled
-                ? 'btn-disabled !w-full !py-4'
-                : 'btn-primary btn-cta !w-full !py-4'
+              buttonDisabled ? 'btn-disabled !w-full !py-4' : 'btn-primary btn-cta !w-full !py-4'
             }`}
           >
             {buttonText}

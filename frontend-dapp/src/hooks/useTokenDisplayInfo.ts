@@ -16,16 +16,10 @@ export interface TokenDisplayInfo {
 }
 
 export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
-  const tokenId = info
-    ? 'token' in info
-      ? info.token.contract_addr
-      : info.native_token.denom
-    : ''
+  const tokenId = info ? ('token' in info ? info.token.contract_addr : info.native_token.denom) : ''
   const isCw20 = !!info && 'token' in info
 
-  const [resolved, setResolved] = useState<string | null>(() =>
-    tokenId ? getCachedTokenSymbol(tokenId) : null
-  )
+  const [resolved, setResolved] = useState<string | null>(() => (tokenId ? getCachedTokenSymbol(tokenId) : null))
 
   useEffect(() => {
     let stale = false
@@ -43,7 +37,9 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
       })
     }
 
-    return () => { stale = true }
+    return () => {
+      stale = true
+    }
   }, [tokenId, isCw20])
 
   if (!tokenId) {

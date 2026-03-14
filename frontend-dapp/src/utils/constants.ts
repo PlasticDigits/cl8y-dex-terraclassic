@@ -3,7 +3,8 @@ export const TERRA_RPC_URL = import.meta.env.VITE_TERRA_RPC_URL || 'https://terr
 export const FACTORY_CONTRACT_ADDRESS = import.meta.env.VITE_FACTORY_ADDRESS || ''
 export const ROUTER_CONTRACT_ADDRESS = import.meta.env.VITE_ROUTER_ADDRESS || ''
 export const FEE_DISCOUNT_CONTRACT_ADDRESS = import.meta.env.VITE_FEE_DISCOUNT_ADDRESS || ''
-export const CL8Y_TOKEN_ADDRESS = import.meta.env.VITE_CL8Y_TOKEN_ADDRESS || 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+export const CL8Y_TOKEN_ADDRESS =
+  import.meta.env.VITE_CL8Y_TOKEN_ADDRESS || 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 

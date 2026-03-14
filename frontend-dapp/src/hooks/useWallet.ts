@@ -27,7 +27,9 @@ export const useWalletStore = create<WalletState>((set) => ({
       const result = await connectTerraWallet(walletName, walletType)
       try {
         localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ walletName, walletType }))
-      } catch { /* storage unavailable */ }
+      } catch {
+        /* storage unavailable */
+      }
       set({ address: result.address, walletType: result.walletType, isConnecting: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Connection failed', isConnecting: false })
@@ -43,7 +45,9 @@ export const useWalletStore = create<WalletState>((set) => ({
     await disconnectTerraWallet()
     try {
       localStorage.removeItem(WALLET_STORAGE_KEY)
-    } catch { /* storage unavailable */ }
+    } catch {
+      /* storage unavailable */
+    }
     set({ address: null, walletType: null })
   },
 }))
@@ -64,7 +68,9 @@ async function attemptAutoReconnect(): Promise<void> {
   let saved: string | null
   try {
     saved = localStorage.getItem(WALLET_STORAGE_KEY)
-  } catch { return }
+  } catch {
+    return
+  }
   if (!saved) return
 
   let parsed: { walletName?: string; walletType?: string }
@@ -95,7 +101,11 @@ async function attemptAutoReconnect(): Promise<void> {
       return
     } catch (err) {
       if (isPermanentError(err)) {
-        try { localStorage.removeItem(WALLET_STORAGE_KEY) } catch { /* */ }
+        try {
+          localStorage.removeItem(WALLET_STORAGE_KEY)
+        } catch {
+          /* */
+        }
         return
       }
       if (attempt < RECONNECT_MAX_RETRIES - 1) {
@@ -106,7 +116,9 @@ async function attemptAutoReconnect(): Promise<void> {
 }
 
 if (typeof window !== 'undefined') {
-  const reconnect = () => { void attemptAutoReconnect() }
+  const reconnect = () => {
+    void attemptAutoReconnect()
+  }
 
   if (document.readyState === 'complete') {
     reconnect()

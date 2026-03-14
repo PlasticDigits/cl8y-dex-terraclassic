@@ -1,13 +1,6 @@
 import { queryContract } from './queries'
 import { executeTerraContract } from './transactions'
-import type {
-  Asset,
-  AssetInfo,
-  PairInfo,
-  PoolResponse,
-  SimulationResponse,
-  ReverseSimulationResponse,
-} from '@/types'
+import type { Asset, AssetInfo, PairInfo, PoolResponse, SimulationResponse, ReverseSimulationResponse } from '@/types'
 import { tokenAssetInfo } from '@/types'
 
 export async function getPairInfo(pairAddress: string): Promise<PairInfo> {
@@ -98,12 +91,16 @@ export async function provideLiquidity(
       await executeTerraContract(walletAddress, tokenA, {
         decrease_allowance: { spender: pairAddress, amount: amountA },
       })
-    } catch { /* best effort cleanup */ }
+    } catch {
+      /* best effort cleanup */
+    }
     try {
       await executeTerraContract(walletAddress, tokenB, {
         decrease_allowance: { spender: pairAddress, amount: amountB },
       })
-    } catch { /* best effort cleanup */ }
+    } catch {
+      /* best effort cleanup */
+    }
     throw error
   }
 }

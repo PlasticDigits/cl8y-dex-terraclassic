@@ -9,13 +9,55 @@ export interface TokenRegistryEntry {
 }
 
 const TOKENS: TokenRegistryEntry[] = [
-  { symbol: 'LUNC', name: 'Terra Luna Classic', decimals: 6, type: 'native', logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png' },
-  { symbol: 'USTC', name: 'TerraClassicUSD', decimals: 6, type: 'native', logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTC.png' },
-  { symbol: 'CL8Y', name: 'CL8Y Token', decimals: 6, type: 'cw20', logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png' },
-  { symbol: 'USTR', name: 'USTR Token', decimals: 18, type: 'cw20', logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTR.png' },
-  { symbol: 'ALPHA', name: 'Alpha Token', decimals: 6, type: 'cw20', logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/ALPHA.png' },
-  { symbol: 'USTRIX', name: 'USTRIX Token', decimals: 6, type: 'cw20', logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTRIX.png' },
-  { symbol: 'SpaceUSD', name: 'SpaceUSD Token', decimals: 6, type: 'cw20', logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/SPACEUSD.png' },
+  {
+    symbol: 'LUNC',
+    name: 'Terra Luna Classic',
+    decimals: 6,
+    type: 'native',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png',
+  },
+  {
+    symbol: 'USTC',
+    name: 'TerraClassicUSD',
+    decimals: 6,
+    type: 'native',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTC.png',
+  },
+  {
+    symbol: 'CL8Y',
+    name: 'CL8Y Token',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png',
+  },
+  {
+    symbol: 'USTR',
+    name: 'USTR Token',
+    decimals: 18,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTR.png',
+  },
+  {
+    symbol: 'ALPHA',
+    name: 'Alpha Token',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/ALPHA.png',
+  },
+  {
+    symbol: 'USTRIX',
+    name: 'USTRIX Token',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTRIX.png',
+  },
+  {
+    symbol: 'SpaceUSD',
+    name: 'SpaceUSD Token',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/SPACEUSD.png',
+  },
 ]
 
 const DENOM_MAP: Record<string, string> = {

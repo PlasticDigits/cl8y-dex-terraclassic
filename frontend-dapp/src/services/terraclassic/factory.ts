@@ -17,10 +17,7 @@ interface CodeIdsResponse {
   next: number | null
 }
 
-export async function getAllPairs(
-  startAfter?: [AssetInfo, AssetInfo],
-  limit?: number
-): Promise<PairsResponse> {
+export async function getAllPairs(startAfter?: [AssetInfo, AssetInfo], limit?: number): Promise<PairsResponse> {
   return queryContract<PairsResponse>(FACTORY_CONTRACT_ADDRESS, {
     pairs: { start_after: startAfter, limit },
   })
@@ -50,20 +47,13 @@ export async function getPair(assetInfos: [AssetInfo, AssetInfo]): Promise<PairI
   return resp.pair
 }
 
-export async function getWhitelistedCodeIds(
-  startAfter?: number,
-  limit?: number
-): Promise<CodeIdsResponse> {
+export async function getWhitelistedCodeIds(startAfter?: number, limit?: number): Promise<CodeIdsResponse> {
   return queryContract<CodeIdsResponse>(FACTORY_CONTRACT_ADDRESS, {
     get_whitelisted_code_ids: { start_after: startAfter, limit },
   })
 }
 
-export async function createPair(
-  walletAddress: string,
-  tokenA: string,
-  tokenB: string
-): Promise<string> {
+export async function createPair(walletAddress: string, tokenA: string, tokenB: string): Promise<string> {
   return executeTerraContract(walletAddress, FACTORY_CONTRACT_ADDRESS, {
     create_pair: {
       asset_infos: [tokenAssetInfo(tokenA), tokenAssetInfo(tokenB)],

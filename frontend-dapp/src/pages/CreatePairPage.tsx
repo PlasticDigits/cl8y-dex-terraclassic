@@ -17,7 +17,8 @@ function useCodeIdCheck(tokenAddr: string) {
         const whitelisted = new Set(codeIdsResp.code_ids)
         const info = await getChainContractInfo(tokenAddr).catch(() => null)
         if (!info) return { valid: false, reason: 'Could not query contract info' }
-        if (!whitelisted.has(info.code_id)) return { valid: false, reason: `Code ID ${info.code_id} is not whitelisted` }
+        if (!whitelisted.has(info.code_id))
+          return { valid: false, reason: `Code ID ${info.code_id} is not whitelisted` }
         return { valid: true, reason: null }
       } catch {
         return null
@@ -74,10 +75,14 @@ export default function CreatePairPage() {
                 className="input-neo font-mono"
               />
               {tokenA.length > 0 && !tokenAValid && (
-                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">Invalid Terra address format</p>
+                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">
+                  Invalid Terra address format
+                </p>
               )}
               {checkA.data && !checkA.data.valid && (
-                <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">{checkA.data.reason}</p>
+                <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">
+                  {checkA.data.reason}
+                </p>
               )}
               {checkA.data?.valid && (
                 <p className="text-green-400 text-xs mt-1 uppercase tracking-wide font-semibold">Code ID whitelisted</p>
@@ -94,10 +99,14 @@ export default function CreatePairPage() {
                 className="input-neo font-mono"
               />
               {tokenB.length > 0 && !tokenBValid && (
-                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">Invalid Terra address format</p>
+                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">
+                  Invalid Terra address format
+                </p>
               )}
               {checkB.data && !checkB.data.valid && (
-                <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">{checkB.data.reason}</p>
+                <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">
+                  {checkB.data.reason}
+                </p>
               )}
               {checkB.data?.valid && (
                 <p className="text-green-400 text-xs mt-1 uppercase tracking-wide font-semibold">Code ID whitelisted</p>
@@ -105,7 +114,9 @@ export default function CreatePairPage() {
             </div>
 
             {tokenA && tokenB && tokenA === tokenB && (
-              <p className="text-red-400 text-sm uppercase tracking-wide font-semibold">Token addresses must be different</p>
+              <p className="text-red-400 text-sm uppercase tracking-wide font-semibold">
+                Token addresses must be different
+              </p>
             )}
 
             {hasWhitelistWarning && (
@@ -115,7 +126,9 @@ export default function CreatePairPage() {
             )}
 
             <div className="alert-info">
-              <p className="mb-2 font-semibold uppercase tracking-wide text-xs" style={{ color: 'var(--ink)' }}>Before creating a pair:</p>
+              <p className="mb-2 font-semibold uppercase tracking-wide text-xs" style={{ color: 'var(--ink)' }}>
+                Before creating a pair:
+              </p>
               <ul className="list-disc list-inside space-y-1 text-xs" style={{ color: 'var(--ink-subtle)' }}>
                 <li>Both tokens must be valid CW20 contracts</li>
                 <li>The token code IDs must be whitelisted by governance</li>
@@ -135,11 +148,7 @@ export default function CreatePairPage() {
                   : 'btn-primary btn-cta !w-full !py-4'
               }`}
             >
-              {!address
-                ? 'Connect Wallet'
-                : createMutation.isPending
-                  ? 'Creating Pair...'
-                  : 'Create Pair'}
+              {!address ? 'Connect Wallet' : createMutation.isPending ? 'Creating Pair...' : 'Create Pair'}
             </button>
           </div>
 

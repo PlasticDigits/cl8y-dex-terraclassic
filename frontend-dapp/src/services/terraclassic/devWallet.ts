@@ -2,7 +2,8 @@ import { MnemonicWallet } from '@goblinhunt/cosmes/wallet'
 import { NETWORKS, DEFAULT_NETWORK, DEV_MODE } from '@/utils/constants'
 import { registerConnectedWallet } from './wallet'
 
-const DEFAULT_DEV_MNEMONIC = 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius'
+const DEFAULT_DEV_MNEMONIC =
+  'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius'
 
 export const DEV_TERRA_ADDRESS = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 

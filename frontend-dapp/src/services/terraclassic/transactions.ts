@@ -1,16 +1,16 @@
-import { MsgExecuteContract } from '@goblinhunt/cosmes/client';
-import type { UnsignedTx } from '@goblinhunt/cosmes/wallet';
-import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs';
-import { getConnectedWallet } from './wallet';
-import { GAS_PRICE_ULUNA } from '@/utils/constants';
-const BASE_GAS_LIMIT = 200000;
-const SWAP_GAS_LIMIT = 600000;
-const ADD_LIQUIDITY_GAS_LIMIT = 500000;
-const REMOVE_LIQUIDITY_GAS_LIMIT = 600000;
-const CREATE_PAIR_GAS_LIMIT = 800000;
+import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
+import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
+import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
+import { getConnectedWallet } from './wallet'
+import { GAS_PRICE_ULUNA } from '@/utils/constants'
+const BASE_GAS_LIMIT = 200000
+const SWAP_GAS_LIMIT = 600000
+const ADD_LIQUIDITY_GAS_LIMIT = 500000
+const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
+const CREATE_PAIR_GAS_LIMIT = 800000
 
 function estimateTerraClassicFee(gasLimit: number): Fee {
-  const feeAmount = Math.ceil(parseFloat(GAS_PRICE_ULUNA) * gasLimit);
+  const feeAmount = Math.ceil(parseFloat(GAS_PRICE_ULUNA) * gasLimit)
 
   return new Fee({
     amount: [
@@ -20,35 +20,35 @@ function estimateTerraClassicFee(gasLimit: number): Fee {
       },
     ],
     gasLimit: BigInt(gasLimit),
-  });
+  })
 }
 
 function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('swap' in executeMsg || 'execute_swap_operations' in executeMsg) {
-    return SWAP_GAS_LIMIT;
+    return SWAP_GAS_LIMIT
   } else if ('provide_liquidity' in executeMsg) {
-    return ADD_LIQUIDITY_GAS_LIMIT;
+    return ADD_LIQUIDITY_GAS_LIMIT
   } else if ('withdraw_liquidity' in executeMsg) {
-    return REMOVE_LIQUIDITY_GAS_LIMIT;
+    return REMOVE_LIQUIDITY_GAS_LIMIT
   } else if ('create_pair' in executeMsg) {
-    return CREATE_PAIR_GAS_LIMIT;
+    return CREATE_PAIR_GAS_LIMIT
   } else if ('send' in executeMsg) {
-    const sendMsg = executeMsg.send as { msg?: string } | undefined;
+    const sendMsg = executeMsg.send as { msg?: string } | undefined
     if (sendMsg?.msg) {
       try {
-        const inner = JSON.parse(atob(sendMsg.msg));
-        if ('swap' in inner) return SWAP_GAS_LIMIT;
-        if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT;
-        if ('execute_swap_operations' in inner) return SWAP_GAS_LIMIT;
+        const inner = JSON.parse(atob(sendMsg.msg))
+        if ('swap' in inner) return SWAP_GAS_LIMIT
+        if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
+        if ('execute_swap_operations' in inner) return SWAP_GAS_LIMIT
       } catch {
         // fall through to base
       }
     }
-    return SWAP_GAS_LIMIT;
+    return SWAP_GAS_LIMIT
   } else if ('increase_allowance' in executeMsg) {
-    return BASE_GAS_LIMIT;
+    return BASE_GAS_LIMIT
   }
-  return BASE_GAS_LIMIT;
+  return BASE_GAS_LIMIT
 }
 
 /**
@@ -65,13 +65,13 @@ export async function executeTerraContract(
   executeMsg: Record<string, unknown>,
   coins?: Array<{ denom: string; amount: string }>
 ): Promise<string> {
-  const wallet = getConnectedWallet();
+  const wallet = getConnectedWallet()
   if (!wallet) {
-    throw new Error('Wallet not connected. Please connect your wallet first.');
+    throw new Error('Wallet not connected. Please connect your wallet first.')
   }
 
   if (wallet.address !== walletAddress) {
-    throw new Error('Wallet address mismatch');
+    throw new Error('Wallet address mismatch')
   }
 
   try {
@@ -80,37 +80,35 @@ export async function executeTerraContract(
       contract: contractAddress,
       msg: executeMsg,
       funds: coins && coins.length > 0 ? coins : [],
-    });
+    })
 
     const unsignedTx: UnsignedTx = {
       msgs: [msg],
       memo: '',
-    };
+    }
 
-    const gasLimit = getGasLimitForTx(executeMsg);
-    const fee = estimateTerraClassicFee(gasLimit);
+    const gasLimit = getGasLimitForTx(executeMsg)
+    const fee = estimateTerraClassicFee(gasLimit)
 
-    const txHash = await wallet.broadcastTx(unsignedTx, fee);
-    const { txResponse } = await wallet.pollTx(txHash);
+    const txHash = await wallet.broadcastTx(unsignedTx, fee)
+    const { txResponse } = await wallet.pollTx(txHash)
 
     if (txResponse.code !== 0) {
       const errorMsg =
-        txResponse.rawLog ||
-        txResponse.logs?.[0]?.log ||
-        `Transaction failed with code ${txResponse.code}`;
-      throw new Error(`Transaction failed: ${errorMsg}`);
+        txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      throw new Error(`Transaction failed: ${errorMsg}`)
     }
 
-    return txHash;
+    return txHash
   } catch (error: unknown) {
-    console.error('Terra Classic transaction error:', error);
-    throw handleTransactionError(error);
+    console.error('Terra Classic transaction error:', error)
+    throw handleTransactionError(error)
   }
 }
 
 function handleTransactionError(error: unknown): Error {
   if (error instanceof Error) {
-    const errorMessage = error.message;
+    const errorMessage = error.message
 
     if (
       errorMessage.includes('User rejected') ||
@@ -118,7 +116,7 @@ function handleTransactionError(error: unknown): Error {
       errorMessage.includes('User denied') ||
       errorMessage.includes('user rejected')
     ) {
-      return new Error('Transaction rejected by user');
+      return new Error('Transaction rejected by user')
     }
 
     if (
@@ -126,13 +124,11 @@ function handleTransactionError(error: unknown): Error {
       errorMessage.includes('NetworkError') ||
       errorMessage.includes('network')
     ) {
-      return new Error(
-        `Network error: ${errorMessage}. Please check your internet connection and try again.`
-      );
+      return new Error(`Network error: ${errorMessage}. Please check your internet connection and try again.`)
     }
 
-    return new Error(`Transaction failed: ${errorMessage}`);
+    return new Error(`Transaction failed: ${errorMessage}`)
   }
 
-  return new Error(`Transaction failed: ${String(error)}`);
+  return new Error(`Transaction failed: ${String(error)}`)
 }

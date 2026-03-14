@@ -6,21 +6,23 @@ CHECKS_PASSED=true
 echo "=== Pre-commit checks ==="
 
 # --- Rust / CosmWasm ---
-echo ""
-echo ">> cargo fmt --check"
-if ! (cd smartcontracts && cargo fmt --check); then
-  echo "FAIL: cargo fmt"
-  CHECKS_PASSED=false
+if [[ -d smartcontracts ]] && command -v cargo >/dev/null 2>&1; then
+  echo ""
+  echo ">> cargo fmt --check"
+  if ! (cd smartcontracts && cargo fmt --check); then
+    echo "FAIL: cargo fmt"
+    CHECKS_PASSED=false
+  fi
+
+  echo ""
+  echo ">> cargo clippy"
+  if ! (cd smartcontracts && cargo clippy -- -D warnings); then
+    echo "FAIL: cargo clippy"
+    CHECKS_PASSED=false
+  fi
 fi
 
-echo ""
-echo ">> cargo clippy"
-if ! (cd smartcontracts && cargo clippy -- -D warnings); then
-  echo "FAIL: cargo clippy"
-  CHECKS_PASSED=false
-fi
-
-# --- Frontend ---
+# --- Frontend (lint-staged: only checks staged files) ---
 if [[ -d frontend-dapp/node_modules ]]; then
   echo ""
   echo ">> tsc --noEmit"
@@ -30,9 +32,9 @@ if [[ -d frontend-dapp/node_modules ]]; then
   fi
 
   echo ""
-  echo ">> eslint"
-  if ! (cd frontend-dapp && npx eslint .); then
-    echo "FAIL: eslint"
+  echo ">> lint-staged (eslint + prettier on staged files)"
+  if ! (cd frontend-dapp && npx lint-staged); then
+    echo "FAIL: lint-staged"
     CHECKS_PASSED=false
   fi
 else

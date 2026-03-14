@@ -23,7 +23,9 @@ if (typeof window !== 'undefined') {
       observe() {}
       unobserve() {}
       disconnect() {}
-      takeRecords() { return [] }
+      takeRecords() {
+        return []
+      }
     } as unknown as typeof IntersectionObserver
   }
 

@@ -30,9 +30,10 @@ async function fetchJson<T>(path: string): Promise<T> {
       }
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
-      const isRetryable = lastError.name === 'AbortError'
-        || lastError.message.includes('Failed to fetch')
-        || lastError.message.includes('NetworkError')
+      const isRetryable =
+        lastError.name === 'AbortError' ||
+        lastError.message.includes('Failed to fetch') ||
+        lastError.message.includes('NetworkError')
       if (!isRetryable || attempt >= MAX_RETRIES) throw lastError
     } finally {
       clearTimeout(timer)
@@ -61,11 +62,7 @@ export async function getCandles(
 }
 
 /** Get recent trades for a pair. */
-export async function getTrades(
-  pairAddr: string,
-  limit = 50,
-  before?: number
-): Promise<IndexerTrade[]> {
+export async function getTrades(pairAddr: string, limit = 50, before?: number): Promise<IndexerTrade[]> {
   const params = new URLSearchParams({ limit: limit.toString() })
   if (before) params.set('before', before.toString())
   return fetchJson<IndexerTrade[]>(`/api/v1/pairs/${pairAddr}/trades?${params}`)
@@ -87,28 +84,19 @@ export async function getTrader(address: string): Promise<IndexerTrader> {
 }
 
 /** Get trader's historical trades. */
-export async function getTraderTrades(
-  address: string,
-  limit = 50,
-  before?: number
-): Promise<IndexerTrade[]> {
+export async function getTraderTrades(address: string, limit = 50, before?: number): Promise<IndexerTrade[]> {
   const params = new URLSearchParams({ limit: limit.toString() })
   if (before) params.set('before', before.toString())
   return fetchJson<IndexerTrade[]>(`/api/v1/traders/${address}/trades?${params}`)
 }
 
 /** Get trader leaderboard. */
-export async function getLeaderboard(
-  sort = 'total_volume',
-  limit = 50
-): Promise<IndexerTrader[]> {
+export async function getLeaderboard(sort = 'total_volume', limit = 50): Promise<IndexerTrader[]> {
   const params = new URLSearchParams({ sort, limit: limit.toString() })
   return fetchJson<IndexerTrader[]>(`/api/v1/traders/leaderboard?${params}`)
 }
 
 /** Get trader's open positions with P&L. */
-export async function getTraderPositions(
-  address: string
-): Promise<IndexerPosition[]> {
+export async function getTraderPositions(address: string): Promise<IndexerPosition[]> {
   return fetchJson<IndexerPosition[]>(`/api/v1/traders/${address}/positions`)
 }

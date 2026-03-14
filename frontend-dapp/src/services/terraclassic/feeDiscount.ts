@@ -3,10 +3,7 @@ import { executeTerraContract } from './transactions'
 import type { DiscountResponse, RegistrationResponse, Tier, TierEntry } from '@/types'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 
-export async function getTraderDiscount(
-  traderAddr: string,
-  senderAddr?: string
-): Promise<DiscountResponse> {
+export async function getTraderDiscount(traderAddr: string, senderAddr?: string): Promise<DiscountResponse> {
   return queryContract<DiscountResponse>(FEE_DISCOUNT_CONTRACT_ADDRESS, {
     get_discount: {
       trader: traderAddr,

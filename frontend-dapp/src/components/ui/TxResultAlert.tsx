@@ -15,9 +15,15 @@ export function TxResultAlert({ type, message, txHash }: TxResultAlertProps) {
       {message}
       {type === 'success' && txHash != null && (
         <>
-          {' '}TX:{' '}
+          {' '}
+          TX:{' '}
           {explorerUrl ? (
-            <a href={explorerUrl} target="_blank" rel="noopener noreferrer" className="font-mono text-xs underline hover:opacity-80">
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-xs underline hover:opacity-80"
+            >
               {txHash.slice(0, 12)}...{txHash.slice(-6)}
             </a>
           ) : (

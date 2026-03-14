@@ -1,17 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { MockMsgExecuteContract, MockFee } = vi.hoisted(() => {
-  const MockMsgExecuteContract = vi.fn(function (
-    this: Record<string, unknown>,
-    args: Record<string, unknown>
-  ) {
+  const MockMsgExecuteContract = vi.fn(function (this: Record<string, unknown>, args: Record<string, unknown>) {
     Object.assign(this, { type: 'MsgExecuteContract', ...args })
   })
 
-  const MockFee = vi.fn(function (
-    this: Record<string, unknown>,
-    args: Record<string, unknown>
-  ) {
+  const MockFee = vi.fn(function (this: Record<string, unknown>, args: Record<string, unknown>) {
     Object.assign(this, { type: 'Fee', ...args })
   })
 
@@ -51,17 +45,17 @@ describe('executeTerraContract', () => {
   it('throws when wallet is not connected', async () => {
     mockedGetWallet.mockReturnValueOnce(null)
 
-    await expect(
-      executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
-    ).rejects.toThrow('Wallet not connected')
+    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow(
+      'Wallet not connected'
+    )
   })
 
   it('throws on wallet address mismatch', async () => {
     mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
 
-    await expect(
-      executeTerraContract('terra1different', 'terra1contract', { swap: {} })
-    ).rejects.toThrow('Wallet address mismatch')
+    await expect(executeTerraContract('terra1different', 'terra1contract', { swap: {} })).rejects.toThrow(
+      'Wallet address mismatch'
+    )
   })
 
   it('broadcasts and polls a transaction successfully', async () => {
@@ -71,11 +65,7 @@ describe('executeTerraContract', () => {
       txResponse: { code: 0, rawLog: '', logs: [] },
     })
 
-    const result = await executeTerraContract(
-      'terra1sender',
-      'terra1contract',
-      { swap: {} }
-    )
+    const result = await executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
 
     expect(result).toBe('ABCD1234')
     expect(mockBroadcastTx).toHaveBeenCalledTimes(1)
@@ -89,36 +79,32 @@ describe('executeTerraContract', () => {
       txResponse: { code: 5, rawLog: 'out of gas', logs: [] },
     })
 
-    await expect(
-      executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
-    ).rejects.toThrow('out of gas')
+    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow('out of gas')
   })
 
   it('wraps user-rejected errors', async () => {
     mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
     mockBroadcastTx.mockRejectedValueOnce(new Error('User rejected the request'))
 
-    await expect(
-      executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
-    ).rejects.toThrow('Transaction rejected by user')
+    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow(
+      'Transaction rejected by user'
+    )
   })
 
   it('wraps network errors', async () => {
     mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
     mockBroadcastTx.mockRejectedValueOnce(new Error('Failed to fetch'))
 
-    await expect(
-      executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
-    ).rejects.toThrow('Network error')
+    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow('Network error')
   })
 
   it('wraps unknown string errors', async () => {
     mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
     mockBroadcastTx.mockRejectedValueOnce('something went wrong')
 
-    await expect(
-      executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
-    ).rejects.toThrow('Transaction failed')
+    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow(
+      'Transaction failed'
+    )
   })
 
   it('passes coins to MsgExecuteContract when provided', async () => {
@@ -131,12 +117,7 @@ describe('executeTerraContract', () => {
     })
 
     const coins = [{ denom: 'uluna', amount: '1000000' }]
-    await executeTerraContract(
-      'terra1sender',
-      'terra1contract',
-      { swap: {} },
-      coins
-    )
+    await executeTerraContract('terra1sender', 'terra1contract', { swap: {} }, coins)
 
     expect(MockMsgExecuteContract).toHaveBeenCalledWith({
       sender: 'terra1sender',
