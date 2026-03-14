@@ -864,6 +864,65 @@
 | 20.7 | token unique_traders | token_volume_stats.unique_traders never updated | | |
 | 20.8 | Volume calculation | Global stats sums offer_amount only (not USD-denominated) | | |
 
+
+---
+
+## 21. ADDITIONAL QA CHECKS (Added 2026-03-14)
+
+> Based on bugs discovered during QA passes on localterra devnet.
+
+### 21.1 Swap — Decimals & Amount Verification
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.1.1 | On-chain amount matches UI input | Swap 100 tokens → Query on-chain balance before/after | Balance decreases by exactly 100 × 10^decimals | | |
+| 21.1.2 | Balance refreshes after swap | Complete swap → Observe balance display | Balance updates in UI without manual page refresh | | |
+| 21.1.3 | MAX button sends correct scaled amount | Click MAX → Execute swap | Full balance deducted on-chain | | |
+| 21.1.4 | Multiple rapid swaps | Execute 3 swaps in quick succession | All succeed, balances correct after each | | |
+| 21.1.5 | Swap on all pairs | Cycle through every pair, execute small swap | All pairs execute successfully | | |
+| 21.1.6 | Gas estimation accuracy | Execute swap → Compare gasWanted vs gasUsed | gasUsed does not exceed gasWanted | | |
+
+### 21.2 Pool — Decimals & Amount Verification
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.2.1 | Provide liquidity amount matches on-chain | Add 100 tokens → Query pool reserves | Reserves increase by 100 × 10^decimals | | |
+| 21.2.2 | Withdraw returns correct scaled amount | Withdraw LP → Check returned tokens | Returned amounts match expected proportional share | | |
+| 21.2.3 | Add/remove on multiple pairs | Provide + withdraw on 3+ different pairs | All succeed with correct amounts | | |
+
+### 21.3 Wallet — Persistence & Edge Cases
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.3.1 | Simulated wallet does not persist | Connect simulated → Refresh page | Wallet disconnects (by design — uses connectDev, not saved to localStorage) | | |
+| 21.3.2 | Keplr chain suggestion | First Keplr connect on fresh browser | experimentalSuggestChain fires, chain appears in Keplr | | |
+| 21.3.3 | Wallet reconnect retry | Connect Keplr → Refresh quickly | Auto-reconnect retries up to 3× with 600/1200/1800ms backoff | | |
+| 21.3.4 | Clear localStorage | Clear cl8y_wallet_connection → Reload | No crash, shows Connect Wallet state | | |
+
+### 21.4 Configuration & Deploy Validation
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.4.1 | Deploy script generates .env.local | Run make deploy-local → Check frontend-dapp/.env.local | Contract addresses match deployed contracts | | |
+| 21.4.2 | Deploy script generates indexer/.env | Run make deploy-local → Check indexer/.env | Correct DB URL, factory address, LCD URLs | | |
+| 21.4.3 | CSP auto-detects host IP | Run vite dev on VPS → Access remotely | cspDevHosts plugin injects VPS IP into CSP connect-src | | |
+| 21.4.4 | NETWORKS.local uses env vars | Check Keplr suggestChain RPC/LCD | Gets values from VITE_TERRA_LCD_URL / VITE_TERRA_RPC_URL env vars | | |
+
+### 21.5 Error Handling — Chain & Wallet Errors
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.5.1 | Chain stopped producing blocks | Wait for chain freeze → Attempt swap | Frontend shows timeout/error, does not hang indefinitely | | |
+| 21.5.2 | Account sequence mismatch | Rapid sequential txs cause mismatch | Clear error message displayed, not silent failure | | |
+| 21.5.3 | Wallet not funded on chain | Connect unfunded wallet → Attempt tx | Clear "account not found" error message | | |
+
+### 21.6 Fee Tiers — Additional Checks
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.6.1 | Fee CTA link on swap page | Click "Hold CL8Y to reduce swap fees →" | Navigates to /tiers page | | |
+| 21.6.2 | Register with insufficient CL8Y | Attempt tier registration with low balance | Clear error showing required vs actual CL8Y balance | | |
+
 ---
 
 ## SIGN-OFF
@@ -898,4 +957,5 @@
 | 18. Configuration | 19 | | | | |
 | 19. Database Integrity | 7 | | | | |
 | 20. Known Limitations | 8 | | | | |
-| **TOTAL** | **370** | | | | |
+| 21. Additional QA Checks | 22 | | | | |
+| **TOTAL** | **392** | | | | |
