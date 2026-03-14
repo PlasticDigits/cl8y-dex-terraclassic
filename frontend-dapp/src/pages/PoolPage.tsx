@@ -30,7 +30,8 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
 
   const verifyQuery = useQuery({
     queryKey: ['pairVerify', pair.contract_addr],
-    queryFn: () => verifyPairInFactory(pair.contract_addr, FACTORY_CONTRACT_ADDRESS, pair.asset_infos as [AssetInfo, AssetInfo]),
+    queryFn: () =>
+      verifyPairInFactory(pair.contract_addr, FACTORY_CONTRACT_ADDRESS, pair.asset_infos as [AssetInfo, AssetInfo]),
     enabled: !!FACTORY_CONTRACT_ADDRESS,
     staleTime: Infinity,
   })
@@ -49,14 +50,20 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
 
   const discountQuery = useQuery({
     queryKey: ['traderDiscount', address],
-    queryFn: () => { if (!address) throw new Error('No address'); return getTraderDiscount(address) },
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getTraderDiscount(address)
+    },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
 
   const lpBalanceQuery = useQuery({
     queryKey: ['lpBalance', address, pair.liquidity_token],
-    queryFn: () => { if (!address) throw new Error('No address'); return getTokenBalance(address, tokenAssetInfo(pair.liquidity_token)) },
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getTokenBalance(address, tokenAssetInfo(pair.liquidity_token))
+    },
     enabled: !!address && expanded === 'remove',
     refetchInterval: 15_000,
   })
@@ -120,22 +127,34 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
     <div className="shell-panel-strong">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="font-medium uppercase tracking-wide flex items-center gap-1 font-heading" style={{ color: 'var(--ink)' }}>
-            <TokenDisplay info={pair.asset_infos[0]} size={18} /> <span style={{ color: 'var(--ink-subtle)' }}>/</span> <TokenDisplay info={pair.asset_infos[1]} size={18} />
+          <p
+            className="font-medium uppercase tracking-wide flex items-center gap-1 font-heading"
+            style={{ color: 'var(--ink)' }}
+          >
+            <TokenDisplay info={pair.asset_infos[0]} size={18} /> <span style={{ color: 'var(--ink-subtle)' }}>/</span>{' '}
+            <TokenDisplay info={pair.asset_infos[1]} size={18} />
           </p>
           <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-subtle)' }}>
             Pair: {pair.contract_addr.slice(0, 10)}…{pair.contract_addr.slice(-6)}
           </p>
           {verifyQuery.data === false && (
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-none border"
-              style={{ color: 'var(--color-negative)', borderColor: 'var(--color-negative)', background: 'color-mix(in srgb, var(--color-negative) 10%, transparent)' }}>
+            <span
+              className="text-xs font-semibold px-2 py-0.5 rounded-none border"
+              style={{
+                color: 'var(--color-negative)',
+                borderColor: 'var(--color-negative)',
+                background: 'color-mix(in srgb, var(--color-negative) 10%, transparent)',
+              }}
+            >
               Unverified
             </span>
           )}
         </div>
         {feeQuery.data && (
-          <span className="text-xs border-2 px-2 py-1 rounded-none shadow-[1px_1px_0_#000] uppercase tracking-wide font-semibold"
-            style={{ color: 'var(--ink-dim)', borderColor: 'rgba(255,255,255,0.2)', background: 'var(--surface-0)' }}>
+          <span
+            className="text-xs border-2 px-2 py-1 rounded-none shadow-[1px_1px_0_#000] uppercase tracking-wide font-semibold"
+            style={{ color: 'var(--ink-dim)', borderColor: 'rgba(255,255,255,0.2)', background: 'var(--surface-0)' }}
+          >
             Fee: <FeeDisplay feeBps={feeQuery.data.fee_bps} discountBps={discountQuery.data?.discount_bps} />
           </span>
         )}
@@ -144,12 +163,28 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
       {poolQuery.data && (
         <div className="flex gap-4 text-sm mb-4">
           <div className="flex-1 card-neo">
-            <div className="mb-1"><TokenDisplay info={poolQuery.data.assets[0].info} size={14} className="text-xs font-semibold uppercase tracking-wide" /></div>
-            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>{formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))}</p>
+            <div className="mb-1">
+              <TokenDisplay
+                info={poolQuery.data.assets[0].info}
+                size={14}
+                className="text-xs font-semibold uppercase tracking-wide"
+              />
+            </div>
+            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>
+              {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))}
+            </p>
           </div>
           <div className="flex-1 card-neo">
-            <div className="mb-1"><TokenDisplay info={poolQuery.data.assets[1].info} size={14} className="text-xs font-semibold uppercase tracking-wide" /></div>
-            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>{formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}</p>
+            <div className="mb-1">
+              <TokenDisplay
+                info={poolQuery.data.assets[1].info}
+                size={14}
+                className="text-xs font-semibold uppercase tracking-wide"
+              />
+            </div>
+            <p className="font-mono text-xs" style={{ color: 'var(--ink)' }}>
+              {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
+            </p>
           </div>
         </div>
       )}
@@ -166,9 +201,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
             sounds.playButtonPress()
             setExpanded(expanded === 'add' ? null : 'add')
           }}
-          className={`tab-neo !text-xs ${
-            expanded === 'add' ? 'tab-neo-active' : 'tab-neo-inactive'
-          }`}
+          className={`tab-neo !text-xs ${expanded === 'add' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
         >
           Provide Liquidity
         </button>
@@ -177,9 +210,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
             sounds.playButtonPress()
             setExpanded(expanded === 'remove' ? null : 'remove')
           }}
-          className={`tab-neo !text-xs ${
-            expanded === 'remove' ? 'tab-neo-active' : 'tab-neo-inactive'
-          }`}
+          className={`tab-neo !text-xs ${expanded === 'remove' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
         >
           Withdraw Liquidity
         </button>
@@ -190,13 +221,18 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
           <div>
             <label className="label-neo">
               Asset A Amount
-              <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>({displayA.displayLabel})</span>
+              <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>
+                ({displayA.displayLabel})
+              </span>
             </label>
             <input
               type="text"
               inputMode="decimal"
               value={amountA}
-              onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountA(v) }}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountA(v)
+              }}
               placeholder="0.00"
               className="input-neo"
             />
@@ -204,13 +240,18 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
           <div>
             <label className="label-neo">
               Asset B Amount
-              <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>({displayB.displayLabel})</span>
+              <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>
+                ({displayB.displayLabel})
+              </span>
             </label>
             <input
               type="text"
               inputMode="decimal"
               value={amountB}
-              onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountB(v) }}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountB(v)
+              }}
               placeholder="0.00"
               className="input-neo"
             />
@@ -222,9 +263,7 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
             }}
             disabled={!address || !amountA || !amountB || addMutation.isPending}
             className={`w-full py-2.5 font-semibold text-sm ${
-              !address || !amountA || !amountB || addMutation.isPending
-                ? 'btn-disabled !w-full'
-                : 'btn-primary !w-full'
+              !address || !amountA || !amountB || addMutation.isPending ? 'btn-disabled !w-full' : 'btn-primary !w-full'
             }`}
           >
             {!address ? 'Connect Wallet' : addMutation.isPending ? 'Providing Liquidity...' : 'Provide Liquidity'}
@@ -269,13 +308,19 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
               type="text"
               inputMode="decimal"
               value={lpAmount}
-              onChange={(e) => { const v = e.target.value; if (v === '' || /^\d*\.?\d*$/.test(v)) setLpAmount(v) }}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setLpAmount(v)
+              }}
               placeholder="0.00"
               className="input-neo"
             />
           </div>
           <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
-            LP Token: <span className="font-mono">{pair.liquidity_token.slice(0, 10)}…{pair.liquidity_token.slice(-6)}</span>
+            LP Token:{' '}
+            <span className="font-mono">
+              {pair.liquidity_token.slice(0, 10)}…{pair.liquidity_token.slice(-6)}
+            </span>
           </p>
           {insufficientLp && (
             <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }}>
@@ -313,7 +358,13 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
                 : 'btn-primary !w-full'
             }`}
           >
-            {!address ? 'Connect Wallet' : insufficientLp ? 'Insufficient LP Balance' : removeMutation.isPending ? 'Withdrawing...' : 'Withdraw Liquidity'}
+            {!address
+              ? 'Connect Wallet'
+              : insufficientLp
+                ? 'Insufficient LP Balance'
+                : removeMutation.isPending
+                  ? 'Withdrawing...'
+                  : 'Withdraw Liquidity'}
           </button>
           {removeMutation.isError && (
             <TxResultAlert type="error" message={removeMutation.error?.message ?? 'Failed to withdraw liquidity'} />
@@ -340,17 +391,24 @@ export default function PoolPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Liquidity Pools</h2>
-        <span className="text-sm uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>{pairs.length} pair(s)</span>
+        <span className="text-sm uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
+          {pairs.length} pair(s)
+        </span>
       </div>
 
       {pairsQuery.isLoading && (
         <div className="space-y-4" aria-live="polite">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height="6rem" />)}
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} height="6rem" />
+          ))}
         </div>
       )}
 
       {pairsQuery.isError && (
-        <RetryError message={`Failed to load pools: ${pairsQuery.error?.message}`} onRetry={() => void pairsQuery.refetch()} />
+        <RetryError
+          message={`Failed to load pools: ${pairsQuery.error?.message}`}
+          onRetry={() => void pairsQuery.refetch()}
+        />
       )}
 
       {!pairsQuery.isLoading && pairs.length === 0 && !pairsQuery.isError && (

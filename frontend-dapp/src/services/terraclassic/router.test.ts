@@ -4,10 +4,7 @@ import type { PairInfo } from '@/types'
 
 function mockPair(tokenA: string, tokenB: string, addr: string): PairInfo {
   return {
-    asset_infos: [
-      { token: { contract_addr: tokenA } },
-      { token: { contract_addr: tokenB } },
-    ],
+    asset_infos: [{ token: { contract_addr: tokenA } }, { token: { contract_addr: tokenB } }],
     contract_addr: addr,
     liquidity_token: `lp_${addr}`,
   }
@@ -58,10 +55,7 @@ describe('findRoute', () => {
 
 describe('getAllTokens', () => {
   it('extracts unique tokens from pairs', () => {
-    const pairs = [
-      mockPair('tokenA', 'tokenB', 'pair1'),
-      mockPair('tokenB', 'tokenC', 'pair2'),
-    ]
+    const pairs = [mockPair('tokenA', 'tokenB', 'pair1'), mockPair('tokenB', 'tokenC', 'pair2')]
     const tokens = getAllTokens(pairs)
     expect(tokens).toHaveLength(3)
     expect(tokens).toContain('tokenA')

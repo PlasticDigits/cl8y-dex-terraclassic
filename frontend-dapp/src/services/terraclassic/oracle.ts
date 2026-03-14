@@ -5,10 +5,7 @@ export type { OracleInfoResponse }
 
 const DECIMAL_SCALE = BigInt('1000000000000000000') // 1e18
 
-export async function observe(
-  pairAddress: string,
-  secondsAgo: number[]
-): Promise<ObserveResponse> {
+export async function observe(pairAddress: string, secondsAgo: number[]): Promise<ObserveResponse> {
   return queryContract<ObserveResponse>(pairAddress, {
     observe: { seconds_ago: secondsAgo },
   })
@@ -20,11 +17,7 @@ export async function getOracleInfo(pairAddress: string): Promise<OracleInfoResp
   })
 }
 
-export function computeTwapPrice(
-  cumStart: bigint,
-  cumEnd: bigint,
-  timeElapsed: number
-): number {
+export function computeTwapPrice(cumStart: bigint, cumEnd: bigint, timeElapsed: number): number {
   if (timeElapsed === 0) return 0
   if (cumEnd < cumStart) return 0
   const diff = cumEnd - cumStart

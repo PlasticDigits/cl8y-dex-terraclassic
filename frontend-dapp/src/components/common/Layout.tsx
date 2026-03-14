@@ -49,7 +49,10 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
-      <header className="sticky top-0 z-30 border-b-2 border-white/40 overflow-x-clip" style={{ background: 'var(--panel-bg-strong)', backdropFilter: 'blur(8px)' }}>
+      <header
+        className="sticky top-0 z-30 border-b-2 border-white/40 overflow-x-clip"
+        style={{ background: 'var(--panel-bg-strong)', backdropFilter: 'blur(8px)' }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative flex flex-col md:flex-row md:items-center md:justify-between min-h-14 py-2 gap-2">
             <NavLink
@@ -65,7 +68,10 @@ export default function Layout() {
               />
             </NavLink>
 
-            <nav className="flex gap-1 border-2 border-white/30 p-1 min-w-0 w-full md:w-auto md:flex-1 order-2 overflow-x-auto" style={{ background: 'var(--panel-bg)' }}>
+            <nav
+              className="flex gap-1 border-2 border-white/30 p-1 min-w-0 w-full md:w-auto md:flex-1 order-2 overflow-x-auto"
+              style={{ background: 'var(--panel-bg)' }}
+            >
               {NAV_ITEMS.map(({ path, label, end, icon }) => (
                 <NavLink
                   key={path}
@@ -105,11 +111,17 @@ export default function Layout() {
         </div>
       </main>
 
-      <footer className="border-t-2 border-white/25 py-6 text-xs md:text-sm uppercase tracking-wider" style={{ color: 'var(--ink-dim)' }}>
+      <footer
+        className="border-t-2 border-white/25 py-6 text-xs md:text-sm uppercase tracking-wider"
+        style={{ color: 'var(--ink-dim)' }}
+      >
         <div className="mx-auto max-w-5xl px-4 flex flex-col gap-3 items-center justify-center md:flex-row md:justify-between">
           <p>CL8Y DEX · Terra Classic</p>
           <div className="flex items-center gap-2" role="group" aria-label="Theme">
-            <div className="inline-flex border border-white/50 p-0.5 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+            <div
+              className="inline-flex border border-white/50 p-0.5 rounded-sm"
+              style={{ background: 'var(--panel-bg)' }}
+            >
               <button
                 type="button"
                 aria-pressed={theme === 'dark'}

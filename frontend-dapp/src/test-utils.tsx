@@ -15,19 +15,14 @@ function createTestQueryClient() {
   })
 }
 
-export function renderWithProviders(
-  ui: React.ReactElement,
-  options?: RenderOptions & { route?: string }
-) {
+export function renderWithProviders(ui: React.ReactElement, options?: RenderOptions & { route?: string }) {
   const queryClient = createTestQueryClient()
   const { route = '/', ...renderOptions } = options ?? {}
 
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <MemoryRouter initialEntries={[route]}>
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       </MemoryRouter>
     )
   }

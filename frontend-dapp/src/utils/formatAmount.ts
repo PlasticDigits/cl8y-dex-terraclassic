@@ -50,11 +50,7 @@ export function formatNum(val: string | number, sigfigs = 4): string {
  *   formatTokenAmount("502498500503", 6)  → "502.5K"   (502,498.50 LUNC)
  *   formatTokenAmount("1000000", 6)       → "1"        (1 LUNC)
  */
-export function formatTokenAmount(
-  rawAmount: string,
-  decimals: number,
-  sigfigs = 4,
-): string {
+export function formatTokenAmount(rawAmount: string, decimals: number, sigfigs = 4): string {
   if (!rawAmount || rawAmount === '0') return '0'
 
   let raw: bigint

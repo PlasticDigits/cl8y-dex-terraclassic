@@ -16,13 +16,7 @@ vi.mock('@/utils/constants', () => ({
 
 import { queryContract } from '@/services/terraclassic/queries'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
-import {
-  getAllPairs,
-  getAllPairsPaginated,
-  getPair,
-  getWhitelistedCodeIds,
-  createPair,
-} from '../factory'
+import { getAllPairs, getAllPairsPaginated, getPair, getWhitelistedCodeIds, createPair } from '../factory'
 import type { AssetInfo, PairInfo } from '@/types'
 
 const mockedQuery = vi.mocked(queryContract)
@@ -35,10 +29,7 @@ const TOKEN_B = 'terra1tokenb'
 
 function makePairInfo(addr: string, a: string, b: string): PairInfo {
   return {
-    asset_infos: [
-      { token: { contract_addr: a } },
-      { token: { contract_addr: b } },
-    ],
+    asset_infos: [{ token: { contract_addr: a } }, { token: { contract_addr: b } }],
     contract_addr: addr,
     liquidity_token: `${addr}_lp`,
   }
@@ -78,10 +69,7 @@ describe('getAllPairs', () => {
 
 describe('getAllPairsPaginated', () => {
   it('returns all pairs from a single page when fewer than page size', async () => {
-    const pairs = [
-      makePairInfo('pair1', TOKEN_A, TOKEN_B),
-      makePairInfo('pair2', TOKEN_A, 'terra1c'),
-    ]
+    const pairs = [makePairInfo('pair1', TOKEN_A, TOKEN_B), makePairInfo('pair2', TOKEN_A, 'terra1c')]
     mockedQuery.mockResolvedValueOnce({ pairs })
 
     const result = await getAllPairsPaginated()
@@ -91,14 +79,10 @@ describe('getAllPairsPaginated', () => {
   })
 
   it('paginates through multiple pages', async () => {
-    const page1 = Array.from({ length: 50 }, (_, i) =>
-      makePairInfo(`pair${i}`, TOKEN_A, `terra1t${i}`)
-    )
+    const page1 = Array.from({ length: 50 }, (_, i) => makePairInfo(`pair${i}`, TOKEN_A, `terra1t${i}`))
     const page2 = [makePairInfo('pair50', TOKEN_A, 'terra1t50')]
 
-    mockedQuery
-      .mockResolvedValueOnce({ pairs: page1 })
-      .mockResolvedValueOnce({ pairs: page2 })
+    mockedQuery.mockResolvedValueOnce({ pairs: page1 }).mockResolvedValueOnce({ pairs: page2 })
 
     const result = await getAllPairsPaginated()
 
@@ -120,12 +104,9 @@ describe('getAllPairsPaginated', () => {
   })
 
   it('respects the maxPairs limit', async () => {
-    const page1 = Array.from({ length: 50 }, (_, i) =>
-      makePairInfo(`pair${i}`, TOKEN_A, `terra1t${i}`)
-    )
+    const page1 = Array.from({ length: 50 }, (_, i) => makePairInfo(`pair${i}`, TOKEN_A, `terra1t${i}`))
 
-    mockedQuery
-      .mockResolvedValueOnce({ pairs: page1 })
+    mockedQuery.mockResolvedValueOnce({ pairs: page1 })
 
     const result = await getAllPairsPaginated(30)
 
@@ -187,10 +168,7 @@ describe('createPair', () => {
     expect(result).toBe('txhash_create')
     expect(mockedExecute).toHaveBeenCalledWith(WALLET, FACTORY, {
       create_pair: {
-        asset_infos: [
-          { token: { contract_addr: TOKEN_A } },
-          { token: { contract_addr: TOKEN_B } },
-        ],
+        asset_infos: [{ token: { contract_addr: TOKEN_A } }, { token: { contract_addr: TOKEN_B } }],
       },
     })
   })

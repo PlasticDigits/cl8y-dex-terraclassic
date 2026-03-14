@@ -2,18 +2,14 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
-import {
-  getTrader,
-  getTraderTrades,
-  getTraderPositions,
-} from '@/services/indexer/client'
-import { Spinner, StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
+import { getTrader, getTraderTrades, getTraderPositions } from '@/services/indexer/client'
+import { StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { isValidTerraAddress } from '@/utils/constants'
 import { formatNum } from '@/utils/formatAmount'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatDateTime } from '@/utils/formatDate'
-import type { IndexerTrade, IndexerPosition } from '@/types'
+import type { IndexerPosition } from '@/types'
 
 function PnlValue({ value }: { value: string }) {
   const n = parseFloat(value)
@@ -21,7 +17,8 @@ function PnlValue({ value }: { value: string }) {
   const prefix = n > 0 ? '+' : ''
   return (
     <span style={{ color }} className="font-bold font-heading">
-      {prefix}{formatNum(value, 4)}
+      {prefix}
+      {formatNum(value, 4)}
     </span>
   )
 }
@@ -60,7 +57,6 @@ export default function TraderPage() {
   const isOwnProfile = walletAddr && walletAddr === traderAddr
 
   const searchTrimmed = searchInput.trim()
-  const searchValid = searchTrimmed.length === 0 || isValidTerraAddress(searchTrimmed)
 
   const handleSearch = () => {
     const addr = searchTrimmed
@@ -73,10 +69,7 @@ export default function TraderPage() {
 
   return (
     <div className="space-y-4">
-      <h1
-        className="text-lg font-bold uppercase tracking-wider font-heading"
-        style={{ color: 'var(--ink)' }}
-      >
+      <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
         Trader Profile
       </h1>
 
@@ -118,13 +111,18 @@ export default function TraderPage() {
         <div className="shell-panel-strong space-y-3 py-6" aria-live="polite">
           <Skeleton height="1rem" width="40%" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height="3rem" />)}
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} height="3rem" />
+            ))}
           </div>
         </div>
       )}
 
       {traderAddr && traderQuery.isError && (
-        <RetryError message="Trader not found. They may not have traded yet." onRetry={() => void traderQuery.refetch()} />
+        <RetryError
+          message="Trader not found. They may not have traded yet."
+          onRetry={() => void traderQuery.refetch()}
+        />
       )}
 
       {trader && (
@@ -136,14 +134,20 @@ export default function TraderPage() {
                 <p className="text-sm font-mono" style={{ color: 'var(--ink)' }}>
                   {shortenAddress(trader.address, 12, 6)}
                   {isOwnProfile && (
-                    <span className="ml-2 text-[10px] uppercase tracking-wider px-2 py-0.5 border border-white/30 rounded-sm" style={{ color: 'var(--accent)' }}>
+                    <span
+                      className="ml-2 text-[10px] uppercase tracking-wider px-2 py-0.5 border border-white/30 rounded-sm"
+                      style={{ color: 'var(--accent)' }}
+                    >
                       You
                     </span>
                   )}
                 </p>
               </div>
               {trader.tier_name && (
-                <span className="text-[10px] uppercase tracking-wider px-2 py-1 border border-white/20 rounded-sm" style={{ color: 'var(--ink-subtle)' }}>
+                <span
+                  className="text-[10px] uppercase tracking-wider px-2 py-1 border border-white/20 rounded-sm"
+                  style={{ color: 'var(--ink-subtle)' }}
+                >
                   Tier: {trader.tier_name}
                 </span>
               )}
@@ -166,19 +170,39 @@ export default function TraderPage() {
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
-                <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>Total Realized P&L</p>
+                <p
+                  className="text-[10px] uppercase tracking-wider font-medium mb-1"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  Total Realized P&L
+                </p>
                 <PnlValue value={trader.total_realized_pnl} />
               </div>
               <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
-                <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>Best Trade</p>
+                <p
+                  className="text-[10px] uppercase tracking-wider font-medium mb-1"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  Best Trade
+                </p>
                 <PnlValue value={trader.best_trade_pnl} />
               </div>
               <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
-                <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>Worst Trade</p>
+                <p
+                  className="text-[10px] uppercase tracking-wider font-medium mb-1"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  Worst Trade
+                </p>
                 <PnlValue value={trader.worst_trade_pnl} />
               </div>
               <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
-                <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>Total Fees Paid</p>
+                <p
+                  className="text-[10px] uppercase tracking-wider font-medium mb-1"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  Total Fees Paid
+                </p>
                 <p className="text-sm font-bold font-heading" style={{ color: 'var(--ink)' }}>
                   {formatNum(trader.total_fees_paid)}
                 </p>
@@ -196,26 +220,42 @@ export default function TraderPage() {
             </h3>
             {positionsQuery.isLoading && (
               <div className="space-y-2 py-4" aria-live="polite">
-                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} height="1.5rem" />
+                ))}
               </div>
             )}
             {positionsQuery.isError && (
               <RetryError message="Failed to load positions" onRetry={() => void positionsQuery.refetch()} />
             )}
             {positionsQuery.data && positionsQuery.data.length === 0 && (
-              <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>No positions</p>
+              <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>
+                No positions
+              </p>
             )}
             {positionsQuery.data && positionsQuery.data.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs" aria-label="Open positions">
                   <thead>
                     <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                      <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">Pair</th>
-                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Net Position</th>
-                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Avg Entry</th>
-                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Cost Basis</th>
-                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Realized P&L</th>
-                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Trades</th>
+                      <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
+                        Pair
+                      </th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                        Net Position
+                      </th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                        Avg Entry
+                      </th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                        Cost Basis
+                      </th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                        Realized P&L
+                      </th>
+                      <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                        Trades
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -224,11 +264,21 @@ export default function TraderPage() {
                         <td className="py-1.5 px-2 font-medium" style={{ color: 'var(--ink)' }}>
                           {pos.asset_0_symbol}/{pos.asset_1_symbol}
                         </td>
-                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>{formatNum(pos.net_position_quote, 4)}</td>
-                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>{formatNum(pos.avg_entry_price, 6)}</td>
-                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>{formatNum(pos.total_cost_base)}</td>
-                        <td className="py-1.5 px-2 text-right"><PnlValue value={pos.realized_pnl} /></td>
-                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>{pos.trade_count}</td>
+                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>
+                          {formatNum(pos.net_position_quote, 4)}
+                        </td>
+                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
+                          {formatNum(pos.avg_entry_price, 6)}
+                        </td>
+                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
+                          {formatNum(pos.total_cost_base)}
+                        </td>
+                        <td className="py-1.5 px-2 text-right">
+                          <PnlValue value={pos.realized_pnl} />
+                        </td>
+                        <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
+                          {pos.trade_count}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -247,18 +297,16 @@ export default function TraderPage() {
             </h3>
             {tradesQuery.isLoading && (
               <div className="space-y-2 py-4" aria-live="polite">
-                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} height="1.5rem" />
+                ))}
               </div>
             )}
             {tradesQuery.isError && (
               <RetryError message="Failed to load trades" onRetry={() => void tradesQuery.refetch()} />
             )}
             {tradesQuery.data && (
-              <TradesTable
-                trades={tradesQuery.data}
-                formatTimeFn={formatDateTime}
-                ariaLabel="Trade history"
-              />
+              <TradesTable trades={tradesQuery.data} formatTimeFn={formatDateTime} ariaLabel="Trade history" />
             )}
           </div>
         </>
@@ -266,4 +314,3 @@ export default function TraderPage() {
     </div>
   )
 }
-

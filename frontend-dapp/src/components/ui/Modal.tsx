@@ -53,7 +53,10 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         aria-labelledby={title ? 'modal-title' : undefined}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b-2" style={{ borderColor: 'rgba(255,255,255,0.2)' }}>
+          <div
+            className="flex items-center justify-between px-6 py-4 border-b-2"
+            style={{ borderColor: 'rgba(255,255,255,0.2)' }}
+          >
             <h2 id="modal-title" className="text-lg font-bold" style={{ color: 'var(--ink)' }}>
               {title}
             </h2>

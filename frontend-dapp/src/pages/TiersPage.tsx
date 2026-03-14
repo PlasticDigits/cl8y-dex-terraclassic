@@ -22,7 +22,7 @@ function discountLabel(bps: number): string {
 }
 
 function effectiveFeeLabel(discountBps: number, baseFee = 180): string {
-  const effective = baseFee * (10000 - discountBps) / 10000
+  const effective = (baseFee * (10000 - discountBps)) / 10000
   const pct = effective / 100
   return pct % 1 === 0 ? `${pct.toFixed(1)}%` : `${pct.toFixed(2)}%`
 }
@@ -47,14 +47,16 @@ const TierRow = memo(function TierRow({
   return (
     <div
       className={`flex items-center gap-4 p-4 rounded-none border-2 transition-colors shadow-[3px_3px_0_#000] ${
-        isCurrentTier
-          ? 'border-[color:var(--mint)] bg-[color:var(--accent-surface)]'
-          : ''
+        isCurrentTier ? 'border-[color:var(--mint)] bg-[color:var(--accent-surface)]' : ''
       }`}
-      style={isCurrentTier ? undefined : {
-        borderColor: 'rgba(255,255,255,0.2)',
-        background: 'var(--surface-0)',
-      }}
+      style={
+        isCurrentTier
+          ? undefined
+          : {
+              borderColor: 'rgba(255,255,255,0.2)',
+              background: 'var(--surface-0)',
+            }
+      }
     >
       <div
         className="w-12 h-12 rounded-none border-2 flex items-center justify-center text-lg font-bold shadow-[2px_2px_0_#000] font-heading"
@@ -70,18 +72,10 @@ const TierRow = memo(function TierRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-medium uppercase tracking-wide" style={{ color: 'var(--ink)' }}>
-            {tier.governance_only
-              ? tier_id === 0
-                ? 'Market Maker'
-                : 'Blacklist'
-              : `Tier ${tier_id}`}
+            {tier.governance_only ? (tier_id === 0 ? 'Market Maker' : 'Blacklist') : `Tier ${tier_id}`}
           </span>
-          {tier.governance_only && (
-            <Badge variant="warning">Governance</Badge>
-          )}
-          {isCurrentTier && (
-            <Badge variant="accent">Active</Badge>
-          )}
+          {tier.governance_only && <Badge variant="warning">Governance</Badge>}
+          {isCurrentTier && <Badge variant="accent">Active</Badge>}
         </div>
         <div className="text-sm" style={{ color: 'var(--ink-dim)' }}>
           {tier.min_cl8y_balance !== '0' ? (
@@ -93,14 +87,22 @@ const TierRow = memo(function TierRow({
       </div>
 
       <div className="text-right">
-        <div className="text-lg font-semibold font-heading" style={{ color: 'var(--ink)' }}>{discountLabel(tier.discount_bps)}</div>
-        <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>fee discount</div>
+        <div className="text-lg font-semibold font-heading" style={{ color: 'var(--ink)' }}>
+          {discountLabel(tier.discount_bps)}
+        </div>
+        <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>
+          fee discount
+        </div>
       </div>
 
       {!tier.governance_only && (
         <div className="text-right min-w-[4.5rem]">
-          <div className="text-lg font-semibold font-heading" style={{ color: 'var(--mint)' }}>{effectiveFeeLabel(tier.discount_bps, baseFee)}</div>
-          <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>eff. fee*</div>
+          <div className="text-lg font-semibold font-heading" style={{ color: 'var(--mint)' }}>
+            {effectiveFeeLabel(tier.discount_bps, baseFee)}
+          </div>
+          <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>
+            eff. fee*
+          </div>
         </div>
       )}
 
@@ -120,7 +122,12 @@ const TierRow = memo(function TierRow({
           </button>
         )}
         {tier.governance_only && (
-          <span className="block text-center text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-subtle)' }}>Governance only</span>
+          <span
+            className="block text-center text-xs uppercase tracking-wide font-medium"
+            style={{ color: 'var(--ink-subtle)' }}
+          >
+            Governance only
+          </span>
         )}
       </div>
     </div>
@@ -148,13 +155,19 @@ export default function TiersPage() {
 
   const registrationQuery = useQuery({
     queryKey: ['feeDiscountRegistration', address],
-    queryFn: () => { if (!address) throw new Error('No address'); return getRegistration(address) },
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getRegistration(address)
+    },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 10_000,
   })
 
   const registerMutation = useMutation({
-    mutationFn: (tierId: number) => { if (!address) throw new Error('No address'); return register(address, tierId) },
+    mutationFn: (tierId: number) => {
+      if (!address) throw new Error('No address')
+      return register(address, tierId)
+    },
     onSuccess: () => {
       sounds.playSuccess()
       queryClient.invalidateQueries({ queryKey: ['feeDiscountRegistration'] })
@@ -163,7 +176,10 @@ export default function TiersPage() {
   })
 
   const deregisterMutation = useMutation({
-    mutationFn: () => { if (!address) throw new Error('No address'); return deregister(address) },
+    mutationFn: () => {
+      if (!address) throw new Error('No address')
+      return deregister(address)
+    },
     onSuccess: () => {
       sounds.playSuccess()
       queryClient.invalidateQueries({ queryKey: ['feeDiscountRegistration'] })
@@ -279,11 +295,17 @@ export default function TiersPage() {
 
       {/* How it works */}
       <div className="mt-8 shell-panel-strong">
-        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>How it works</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
+          How it works
+        </h3>
         <div className="text-sm space-y-2" style={{ color: 'var(--ink-dim)' }}>
-          <p>Your swap fee is reduced based on your registered tier. If you drop below the required CL8Y holding at any time, you lose your tier.</p>
+          <p>
+            Your swap fee is reduced based on your registered tier. If you drop below the required CL8Y holding at any
+            time, you lose your tier.
+          </p>
           <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
-            The default base fee is {(baseFee / 100).toFixed(1)}% for most pairs. Some pairs may have a different base fee &mdash; your tier discount applies as a percentage off whichever base fee the pair uses.
+            The default base fee is {(baseFee / 100).toFixed(1)}% for most pairs. Some pairs may have a different base
+            fee &mdash; your tier discount applies as a percentage off whichever base fee the pair uses.
           </p>
           <div className="grid grid-cols-4 gap-2 text-xs mt-3">
             <div className="label-neo !mb-0">Tier</div>
@@ -304,7 +326,8 @@ export default function TiersPage() {
             ))}
           </div>
           <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
-            *Effective fee shown assumes the default {(baseFee / 100).toFixed(1)}% base fee. Pairs with a custom base fee will have a proportionally different effective fee.
+            *Effective fee shown assumes the default {(baseFee / 100).toFixed(1)}% base fee. Pairs with a custom base
+            fee will have a proportionally different effective fee.
           </p>
         </div>
       </div>

@@ -72,11 +72,7 @@ export async function executeMultiHopSwap(
  * path (BFS) between two tokens. Returns the route as SwapOperation[].
  * Max 4 hops.
  */
-export function findRoute(
-  pairs: PairInfo[],
-  fromToken: string,
-  toToken: string
-): SwapOperation[] | null {
+export function findRoute(pairs: PairInfo[], fromToken: string, toToken: string): SwapOperation[] | null {
   if (fromToken === toToken) return null
 
   const graph = new Map<string, { token: string; pair: PairInfo }[]>()
@@ -93,9 +89,7 @@ export function findRoute(
   }
 
   const visited = new Set<string>()
-  const queue: { token: string; path: SwapOperation[] }[] = [
-    { token: fromToken, path: [] },
-  ]
+  const queue: { token: string; path: SwapOperation[] }[] = [{ token: fromToken, path: [] }]
   visited.add(fromToken)
 
   while (queue.length > 0) {

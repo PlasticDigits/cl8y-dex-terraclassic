@@ -25,7 +25,9 @@ async function lcdFetch(url: string): Promise<Response> {
   throw lastError ?? new Error('LCD fetch failed')
 }
 
-export async function getChainContractInfo(contractAddress: string): Promise<{ code_id: number; creator: string; admin: string; label: string }> {
+export async function getChainContractInfo(
+  contractAddress: string
+): Promise<{ code_id: number; creator: string; admin: string; label: string }> {
   const url = `${TERRA_LCD_URL}/cosmwasm/wasm/v1/contract/${contractAddress}`
   const response = await lcdFetch(url)
   if (!response.ok) {

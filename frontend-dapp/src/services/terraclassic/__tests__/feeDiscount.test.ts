@@ -16,14 +16,7 @@ vi.mock('@/utils/constants', () => ({
 
 import { queryContract } from '@/services/terraclassic/queries'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
-import {
-  getTraderDiscount,
-  getTiers,
-  getTier,
-  getRegistration,
-  register,
-  deregister,
-} from '../feeDiscount'
+import { getTraderDiscount, getTiers, getTier, getRegistration, register, deregister } from '../feeDiscount'
 import type { DiscountResponse, RegistrationResponse, Tier, TierEntry } from '@/types'
 
 const mockedQuery = vi.mocked(queryContract)

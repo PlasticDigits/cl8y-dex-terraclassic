@@ -1,13 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import {
-  getOverview,
-  getPairs,
-  getPairStats,
-  getTrades,
-  getLeaderboard,
-} from '@/services/indexer/client'
+import { getOverview, getPairs, getPairStats, getTrades, getLeaderboard } from '@/services/indexer/client'
 import PriceChart from '@/components/charts/PriceChart'
 import { StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
@@ -92,19 +86,32 @@ export default function ChartsPage() {
 
   return (
     <div className="space-y-4">
-      <h1
-        className="text-lg font-bold uppercase tracking-wider font-heading"
-        style={{ color: 'var(--ink)' }}
-      >
+      <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
         Charts & Analytics
       </h1>
 
       {/* Overview Bar */}
       <div className="shell-panel grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatBox label="24h Volume" value={overview ? formatNum(overview.total_volume_24h) : '—'} loading={overviewQuery.isLoading} />
-        <StatBox label="24h Trades" value={overview ? overview.total_trades_24h.toLocaleString() : '—'} loading={overviewQuery.isLoading} />
-        <StatBox label="Pairs" value={overview ? overview.pair_count.toString() : '—'} loading={overviewQuery.isLoading} />
-        <StatBox label="Tokens" value={overview ? overview.token_count.toString() : '—'} loading={overviewQuery.isLoading} />
+        <StatBox
+          label="24h Volume"
+          value={overview ? formatNum(overview.total_volume_24h) : '—'}
+          loading={overviewQuery.isLoading}
+        />
+        <StatBox
+          label="24h Trades"
+          value={overview ? overview.total_trades_24h.toLocaleString() : '—'}
+          loading={overviewQuery.isLoading}
+        />
+        <StatBox
+          label="Pairs"
+          value={overview ? overview.pair_count.toString() : '—'}
+          loading={overviewQuery.isLoading}
+        />
+        <StatBox
+          label="Tokens"
+          value={overview ? overview.token_count.toString() : '—'}
+          loading={overviewQuery.isLoading}
+        />
       </div>
 
       {/* Pair Selector */}
@@ -146,8 +153,18 @@ export default function ChartsPage() {
             <StatBox label="Trades" value={stats.trade_count.toLocaleString()} />
             <StatBox
               label="Price Change"
-              value={stats.price_change_pct != null ? `${stats.price_change_pct >= 0 ? '+' : ''}${stats.price_change_pct.toFixed(2)}%` : '—'}
-              color={stats.price_change_pct != null ? (stats.price_change_pct >= 0 ? 'var(--color-positive)' : 'var(--color-negative)') : undefined}
+              value={
+                stats.price_change_pct != null
+                  ? `${stats.price_change_pct >= 0 ? '+' : ''}${stats.price_change_pct.toFixed(2)}%`
+                  : '—'
+              }
+              color={
+                stats.price_change_pct != null
+                  ? stats.price_change_pct >= 0
+                    ? 'var(--color-positive)'
+                    : 'var(--color-negative)'
+                  : undefined
+              }
             />
             <StatBox label="High" value={stats.high ? formatNum(stats.high, 6) : '—'} />
             <StatBox label="Low" value={stats.low ? formatNum(stats.low, 6) : '—'} />
@@ -194,20 +211,21 @@ export default function ChartsPage() {
               />
               <StatBox
                 label="Oldest Obs."
-                value={oracleInfoQuery.data.oldest_observation_timestamp > 0
-                  ? formatTime(oracleInfoQuery.data.oldest_observation_timestamp)
-                  : '—'}
+                value={
+                  oracleInfoQuery.data.oldest_observation_timestamp > 0
+                    ? formatTime(oracleInfoQuery.data.oldest_observation_timestamp)
+                    : '—'
+                }
               />
               <StatBox
                 label="Newest Obs."
-                value={oracleInfoQuery.data.newest_observation_timestamp > 0
-                  ? formatTime(oracleInfoQuery.data.newest_observation_timestamp)
-                  : '—'}
+                value={
+                  oracleInfoQuery.data.newest_observation_timestamp > 0
+                    ? formatTime(oracleInfoQuery.data.newest_observation_timestamp)
+                    : '—'
+                }
               />
-              <StatBox
-                label="Ring Buffer"
-                value={oracleInfoQuery.data.observation_cardinality.toString()}
-              />
+              <StatBox label="Ring Buffer" value={oracleInfoQuery.data.observation_cardinality.toString()} />
             </div>
           )}
           {twapQuery.isError && (
@@ -215,7 +233,7 @@ export default function ChartsPage() {
               Oracle data unavailable for this pair
             </p>
           )}
-          {!twapQuery.isLoading && !twapQuery.isError && twapQuery.data?.every(e => e.price === null) && (
+          {!twapQuery.isLoading && !twapQuery.isError && twapQuery.data?.every((e) => e.price === null) && (
             <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
               Oracle observations are still accumulating. TWAP data will be available after sufficient trading activity.
             </p>
@@ -225,15 +243,14 @@ export default function ChartsPage() {
 
       {/* Recent Trades */}
       <div className="shell-panel-strong">
-        <h3
-          className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
-          style={{ color: 'var(--ink)' }}
-        >
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
           Recent Trades
         </h3>
         {tradesQuery.isLoading && (
           <div className="space-y-2 py-4" aria-live="polite">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} height="1.5rem" />
+            ))}
           </div>
         )}
         {tradesQuery.isError && (
@@ -251,10 +268,7 @@ export default function ChartsPage() {
 
       {/* Leaderboard */}
       <div className="shell-panel-strong">
-        <h3
-          className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
-          style={{ color: 'var(--ink)' }}
-        >
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
           Leaderboard
         </h3>
 
@@ -279,26 +293,36 @@ export default function ChartsPage() {
 
         {leaderboardQuery.isLoading && (
           <div className="space-y-2 py-4" aria-live="polite">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height="1.5rem" />)}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} height="1.5rem" />
+            ))}
           </div>
         )}
         {leaderboardQuery.isError && (
           <RetryError message="Failed to load leaderboard" onRetry={() => void leaderboardQuery.refetch()} />
         )}
         {leaderboardQuery.data && leaderboardQuery.data.length === 0 && (
-          <p className="text-center py-8 text-sm" style={{ color: 'var(--ink-dim)' }}>No traders yet</p>
+          <p className="text-center py-8 text-sm" style={{ color: 'var(--ink-dim)' }}>
+            No traders yet
+          </p>
         )}
         {leaderboardQuery.data && leaderboardQuery.data.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-xs" aria-label="Trader leaderboard">
               <thead>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">#</th>
-                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">Trader</th>
+                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
+                    #
+                  </th>
+                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
+                    Trader
+                  </th>
                   <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
                     {LEADERBOARD_TABS.find((t) => t.key === leaderboardSort)?.label ?? 'Value'}
                   </th>
-                  <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">Trades</th>
+                  <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                    Trades
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -308,7 +332,9 @@ export default function ChartsPage() {
                   const numVal = parseFloat(metricValue) || 0
                   return (
                     <tr key={trader.address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="py-1.5 px-2 font-semibold" style={{ color: 'var(--ink-subtle)' }}>{i + 1}</td>
+                      <td className="py-1.5 px-2 font-semibold" style={{ color: 'var(--ink-subtle)' }}>
+                        {i + 1}
+                      </td>
                       <td className="py-1.5 px-2">
                         <Link
                           to={`/trader/${trader.address}`}
@@ -321,7 +347,13 @@ export default function ChartsPage() {
                       </td>
                       <td
                         className="py-1.5 px-2 text-right font-medium"
-                        style={{ color: isPnl ? (numVal >= 0 ? 'var(--color-positive)' : 'var(--color-negative)') : 'var(--ink)' }}
+                        style={{
+                          color: isPnl
+                            ? numVal >= 0
+                              ? 'var(--color-positive)'
+                              : 'var(--color-negative)'
+                            : 'var(--ink)',
+                        }}
                       >
                         {formatNum(metricValue)}
                       </td>
@@ -340,12 +372,15 @@ export default function ChartsPage() {
   )
 }
 
-
 function getLeaderboardMetric(trader: IndexerTrader, sort: string): string {
   switch (sort) {
-    case 'best_trade_pnl': return trader.best_trade_pnl
-    case 'total_realized_pnl': return trader.total_realized_pnl
-    case 'worst_trade_pnl': return trader.worst_trade_pnl
-    default: return trader.total_volume
+    case 'best_trade_pnl':
+      return trader.best_trade_pnl
+    case 'total_realized_pnl':
+      return trader.total_realized_pnl
+    case 'worst_trade_pnl':
+      return trader.worst_trade_pnl
+    default:
+      return trader.total_volume
   }
 }

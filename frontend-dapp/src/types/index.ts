@@ -1,7 +1,5 @@
 /** TerraSwap-compatible asset identifier */
-export type AssetInfo =
-  | { token: { contract_addr: string } }
-  | { native_token: { denom: string } }
+export type AssetInfo = { token: { contract_addr: string } } | { native_token: { denom: string } }
 
 /** TerraSwap-compatible asset */
 export interface Asset {

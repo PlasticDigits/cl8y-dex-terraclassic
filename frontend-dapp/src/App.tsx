@@ -65,10 +65,7 @@ class ErrorBoundary extends Component<{ children: ReactNode; isRoute?: boolean }
               <p className="text-sm mb-6" style={{ color: 'var(--ink-dim)' }}>
                 {this.state.error?.message || 'An unexpected error occurred'}
               </p>
-              <button
-                onClick={() => this.setState({ hasError: false, error: null })}
-                className="btn-primary btn-cta"
-              >
+              <button onClick={() => this.setState({ hasError: false, error: null })} className="btn-primary btn-cta">
                 Try Again
               </button>
             </div>
@@ -111,12 +108,66 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><SwapPage /></Suspense></ErrorBoundary>} />
-              <Route path="/pool" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><PoolPage /></Suspense></ErrorBoundary>} />
-              <Route path="/create" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><CreatePairPage /></Suspense></ErrorBoundary>} />
-              <Route path="/tiers" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><TiersPage /></Suspense></ErrorBoundary>} />
-              <Route path="/charts" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><ChartsPage /></Suspense></ErrorBoundary>} />
-              <Route path="/trader/:address" element={<ErrorBoundary isRoute><Suspense fallback={<PageFallback />}><TraderPage /></Suspense></ErrorBoundary>} />
+              <Route
+                path="/"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <SwapPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/pool"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <PoolPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/create"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <CreatePairPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/tiers"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <TiersPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/charts"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <ChartsPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/trader/:address"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <TraderPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
