@@ -27,7 +27,10 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    DeregisterWallet { wallet: String },
+    DeregisterWallet {
+        wallet: String,
+        epoch: Option<u64>,
+    },
 }
 
 #[cw_serde]
@@ -40,6 +43,7 @@ pub struct ConfigResponse {
 pub struct DiscountResponse {
     pub discount_bps: u16,
     pub needs_deregister: bool,
+    pub registration_epoch: Option<u64>,
 }
 
 #[cw_serde]

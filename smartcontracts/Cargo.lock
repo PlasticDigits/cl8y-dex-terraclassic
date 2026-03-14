@@ -246,6 +246,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",
+ "cw2",
  "cw20",
  "cw20-mintable",
  "dex-common",

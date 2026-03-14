@@ -63,6 +63,21 @@ export async function queryContract<T>(contractAddress: string, queryMsg: Record
   return data.data as T
 }
 
+export async function verifyPairInFactory(
+  pairAddress: string,
+  factoryAddress: string,
+  assetInfos: [AssetInfo, AssetInfo]
+): Promise<boolean> {
+  try {
+    const result = await queryContract<{ pair: { contract_addr: string } }>(factoryAddress, {
+      pair: { asset_infos: assetInfos },
+    })
+    return result.pair.contract_addr === pairAddress
+  } catch {
+    return false
+  }
+}
+
 export async function getTokenBalance(walletAddress: string, assetInfo: AssetInfo): Promise<string> {
   if ('token' in assetInfo) {
     const resp = await queryContract<{ balance: string }>(assetInfo.token.contract_addr, {

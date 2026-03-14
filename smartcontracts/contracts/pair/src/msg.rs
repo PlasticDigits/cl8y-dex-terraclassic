@@ -3,3 +3,8 @@ pub use dex_common::pair::{
     PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
 pub use dex_common::oracle::{ObserveResponse, OracleInfoResponse};
+
+use cosmwasm_schema::cw_serde;
+
+#[cw_serde]
+pub struct MigrateMsg {}

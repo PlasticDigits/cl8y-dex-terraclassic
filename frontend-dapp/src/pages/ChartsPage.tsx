@@ -9,13 +9,13 @@ import {
   getLeaderboard,
 } from '@/services/indexer/client'
 import PriceChart from '@/components/charts/PriceChart'
-import { Spinner, StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
+import { StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { formatNum } from '@/utils/formatAmount'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime } from '@/utils/formatDate'
-import { getTwapPrices } from '@/services/terraclassic/oracle'
-import type { IndexerPair, IndexerTrade, IndexerTrader } from '@/types'
+import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
+import type { IndexerPair, IndexerTrader } from '@/types'
 
 const TWAP_WINDOWS = [
   { label: '5m', seconds: 300 },
@@ -76,6 +76,14 @@ export default function ChartsPage() {
     enabled: !!activePairAddr,
     staleTime: 30_000,
     refetchInterval: 60_000,
+    retry: false,
+  })
+
+  const oracleInfoQuery = useQuery({
+    queryKey: ['oracle-info', activePairAddr],
+    queryFn: () => getOracleInfo(activePairAddr),
+    enabled: !!activePairAddr,
+    staleTime: 60_000,
     retry: false,
   })
 
@@ -149,6 +157,13 @@ export default function ChartsPage() {
         </div>
       )}
 
+      {!statsQuery.isLoading && !stats && activePairAddr && (
+        <div className="shell-panel text-center py-6" style={{ color: 'var(--ink-dim)' }}>
+          <p className="text-sm uppercase tracking-wide font-medium">No Trading Data Yet</p>
+          <p className="text-xs mt-1">Chart data will appear after the first trades are indexed for this pair.</p>
+        </div>
+      )}
+
       {/* TWAP Oracle Prices */}
       {activePairAddr && activePair && (
         <div className="shell-panel">
@@ -171,9 +186,38 @@ export default function ChartsPage() {
               )
             })}
           </div>
+          {oracleInfoQuery.data && (
+            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatBox
+                label="Observations"
+                value={`${oracleInfoQuery.data.observations_stored} / ${oracleInfoQuery.data.observation_cardinality}`}
+              />
+              <StatBox
+                label="Oldest Obs."
+                value={oracleInfoQuery.data.oldest_observation_timestamp > 0
+                  ? formatTime(oracleInfoQuery.data.oldest_observation_timestamp)
+                  : '—'}
+              />
+              <StatBox
+                label="Newest Obs."
+                value={oracleInfoQuery.data.newest_observation_timestamp > 0
+                  ? formatTime(oracleInfoQuery.data.newest_observation_timestamp)
+                  : '—'}
+              />
+              <StatBox
+                label="Ring Buffer"
+                value={oracleInfoQuery.data.observation_cardinality.toString()}
+              />
+            </div>
+          )}
           {twapQuery.isError && (
             <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
               Oracle data unavailable for this pair
+            </p>
+          )}
+          {!twapQuery.isLoading && !twapQuery.isError && twapQuery.data?.every(e => e.price === null) && (
+            <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
+              Oracle observations are still accumulating. TWAP data will be available after sufficient trading activity.
             </p>
           )}
         </div>

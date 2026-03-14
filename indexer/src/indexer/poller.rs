@@ -11,7 +11,7 @@ use super::{pair_discovery, parser, trader_tracker, volume_aggregator};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config) -> Result<(), BoxError> {
+pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config, cancel: tokio_util::sync::CancellationToken) -> Result<(), BoxError> {
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
         tracing::error!("Initial pair sync failed: {}", e);
@@ -42,21 +42,42 @@ pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config) -> Result
     tracing::info!("Indexer starting from height {}", last_indexed + 1);
 
     loop {
+        if cancel.is_cancelled() {
+            tracing::info!("Indexer shutting down gracefully");
+            break;
+        }
+
         let latest = match lcd.get_latest_block_height().await {
             Ok(h) => h,
             Err(e) => {
                 tracing::error!("Failed to get latest block height: {}", e);
-                tokio::time::sleep(Duration::from_millis(config.poll_interval_ms)).await;
+                tokio::select! {
+                    _ = tokio::time::sleep(Duration::from_millis(config.poll_interval_ms)) => {},
+                    _ = cancel.cancelled() => {
+                        tracing::info!("Indexer shutting down gracefully");
+                        break;
+                    }
+                }
                 continue;
             }
         };
 
         if last_indexed >= latest {
-            tokio::time::sleep(Duration::from_millis(config.poll_interval_ms)).await;
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(config.poll_interval_ms)) => {},
+                _ = cancel.cancelled() => {
+                    tracing::info!("Indexer shutting down gracefully");
+                    break;
+                }
+            }
             continue;
         }
 
         for height in (last_indexed + 1)..=latest {
+            if cancel.is_cancelled() {
+                tracing::info!("Indexer shutting down gracefully (mid-catchup)");
+                return Ok(());
+            }
             match lcd.get_block_txs(height).await {
                 Ok(tx_resp) => {
                     let txs = tx_resp.tx_responses.unwrap_or_default();
@@ -89,16 +110,30 @@ pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config) -> Result
                 }
                 Err(e) => {
                     tracing::error!("Failed to fetch block {}: {}", height, e);
-                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(2)) => {},
+                        _ = cancel.cancelled() => {
+                            tracing::info!("Indexer shutting down gracefully");
+                            return Ok(());
+                        }
+                    }
                     break;
                 }
             }
         }
 
         if last_indexed >= latest {
-            tokio::time::sleep(Duration::from_millis(config.poll_interval_ms)).await;
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(config.poll_interval_ms)) => {},
+                _ = cancel.cancelled() => {
+                    tracing::info!("Indexer shutting down gracefully");
+                    break;
+                }
+            }
         }
     }
+
+    Ok(())
 }
 
 fn parse_block_time(ts: Option<&str>) -> DateTime<Utc> {

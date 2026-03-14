@@ -2,8 +2,7 @@ import { MsgExecuteContract } from '@goblinhunt/cosmes/client';
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet';
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs';
 import { getConnectedWallet } from './wallet';
-
-const GAS_PRICE_ULUNA = '28.325';
+import { GAS_PRICE_ULUNA } from '@/utils/constants';
 const BASE_GAS_LIMIT = 200000;
 const SWAP_GAS_LIMIT = 600000;
 const ADD_LIQUIDITY_GAS_LIMIT = 500000;

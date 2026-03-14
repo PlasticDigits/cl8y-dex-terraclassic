@@ -36,6 +36,7 @@ pub enum ExecuteMsg {
     Deregister {},
     DeregisterWallet {
         wallet: String,
+        epoch: Option<u64>,
     },
     AddTrustedRouter {
         router: String,
@@ -76,6 +77,7 @@ pub struct ConfigResponse {
 pub struct DiscountResponse {
     pub discount_bps: u16,
     pub needs_deregister: bool,
+    pub registration_epoch: Option<u64>,
 }
 
 #[cw_serde]
@@ -106,3 +108,6 @@ pub struct RegistrationResponse {
 pub struct IsTrustedRouterResponse {
     pub is_trusted: bool,
 }
+
+#[cw_serde]
+pub struct MigrateMsg {}

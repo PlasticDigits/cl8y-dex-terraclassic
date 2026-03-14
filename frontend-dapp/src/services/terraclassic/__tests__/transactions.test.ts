@@ -166,12 +166,12 @@ describe('gas limit selection (tested indirectly)', () => {
 
   it('uses SWAP_GAS_LIMIT for swap messages', async () => {
     const fee = await getFeeForMsg({ swap: {} })
-    expect(fee.gasLimit).toBe(BigInt(400000))
+    expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
   it('uses SWAP_GAS_LIMIT for execute_swap_operations', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: {} })
-    expect(fee.gasLimit).toBe(BigInt(400000))
+    expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
   it('uses ADD_LIQUIDITY_GAS_LIMIT for provide_liquidity', async () => {
@@ -192,7 +192,7 @@ describe('gas limit selection (tested indirectly)', () => {
   it('uses SWAP_GAS_LIMIT for send with inner swap msg', async () => {
     const innerSwap = btoa(JSON.stringify({ swap: {} }))
     const fee = await getFeeForMsg({ send: { msg: innerSwap } })
-    expect(fee.gasLimit).toBe(BigInt(400000))
+    expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
   it('uses REMOVE_LIQUIDITY_GAS_LIMIT for send with inner withdraw_liquidity msg', async () => {
@@ -213,11 +213,11 @@ describe('gas limit selection (tested indirectly)', () => {
 
   it('uses SWAP_GAS_LIMIT for send without inner msg', async () => {
     const fee = await getFeeForMsg({ send: {} })
-    expect(fee.gasLimit).toBe(BigInt(400000))
+    expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
   it('uses SWAP_GAS_LIMIT for send with invalid base64 msg', async () => {
     const fee = await getFeeForMsg({ send: { msg: '!!!invalid!!!' } })
-    expect(fee.gasLimit).toBe(BigInt(400000))
+    expect(fee.gasLimit).toBe(BigInt(600000))
   })
 })

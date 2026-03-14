@@ -38,3 +38,6 @@ pub struct ConfigResponse {
     pub tax_token: Addr,
     pub admin: Addr,
 }
+
+#[cw_serde]
+pub struct MigrateMsg {}
