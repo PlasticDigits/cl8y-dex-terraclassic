@@ -4,6 +4,7 @@ import { getCandles } from '@/services/indexer/client'
 import type { IndexerCandle } from '@/types'
 import { Spinner } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import { CandlestickSeries } from 'lightweight-charts'
 import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const
@@ -61,7 +62,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
         getComputedStyle(document.documentElement).getPropertyValue('--color-positive').trim() || '#22c55e'
       const negative =
         getComputedStyle(document.documentElement).getPropertyValue('--color-negative').trim() || '#ef4444'
-      seriesRef.current = chart.addCandlestickSeries({
+      seriesRef.current = chart.addSeries(CandlestickSeries, {
         upColor: positive,
         downColor: negative,
         borderDownColor: negative,
