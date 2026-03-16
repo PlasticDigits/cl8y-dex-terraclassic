@@ -9,6 +9,11 @@
 - A Terra Classic wallet (Station extension) with testnet LUNC
 - Access to the repository — [GitLab](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)
 
+## Git Workflow
+
+- **Default branch is `main`** — all MRs should target `main`, not `master`.
+- **Watch out:** QA/dev occasionally merge to `master` by mistake. If you open an MR, double-check the target branch is `main` before merging.
+
 ## Quick Start (Testnet Only)
 
 ```bash
