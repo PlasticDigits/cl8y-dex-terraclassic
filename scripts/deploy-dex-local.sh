@@ -16,6 +16,14 @@ TOKEN_NAMES=("Ember" "Coral" "Jade" "Onyx" "Ruby" "Topaz" "Opal" "Cobalt" "Slate
 TOKEN_SYMBOLS=("EMBER" "CORAL" "JADE" "ONYX" "RUBY" "TOPAZ" "OPAL" "COBALT" "SLATE" "AMBER")
 TOKEN_ADDRESSES=()
 
+NOWHITELIST_NAMES=("Rogue" "Bogus")
+NOWHITELIST_SYMBOLS=("ROGUE" "BOGUS")
+NOWHITELIST_ADDRESSES=()
+
+UNPAIRED_NAMES=("Zinc" "Iron" "Neon")
+UNPAIRED_SYMBOLS=("ZINC" "IRON" "NEON")
+UNPAIRED_ADDRESSES=()
+
 # Pair configs: tokenA_index:tokenB_index:liquidityA(micro):liquidityB(micro)
 PAIR_CONFIGS=(
   "0:1:100000000000:100000000000"     # EMBER/CORAL     1:1
@@ -77,7 +85,8 @@ get_contract_address() {
 }
 
 echo "=============================================="
-echo "CL8Y DEX - Local Deployment (10 Tokens, 20 Pairs)"
+echo "CL8Y DEX - Local Deployment"
+echo "  10 Tokens, 3 Unpaired Tokens, 2 Non-Whitelisted Tokens, 23 Pairs"
 echo "=============================================="
 
 # ── Phase 1: Infrastructure ─────────────────────────────────────────────
@@ -139,6 +148,13 @@ TX_HASH=$(terrad_tx wasm store "$CW20_WASM" | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 CW20_CODE_ID=$(get_code_id "$TX_HASH")
 echo "  CW20 Code ID: $CW20_CODE_ID"
+
+echo ""
+echo "[3b] Uploading CW20 wasm again (for non-whitelisted code ID)..."
+TX_HASH=$(terrad_tx wasm store "$CW20_WASM" | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+CW20_CODE_ID_NOWHITELIST=$(get_code_id "$TX_HASH")
+echo "  Non-whitelisted CW20 Code ID: $CW20_CODE_ID_NOWHITELIST"
 
 echo ""
 echo "[4] Uploading cl8y_dex_factory.wasm..."
@@ -211,6 +227,55 @@ done
 
 echo ""
 echo "  All ${#TOKEN_NAMES[@]} tokens created."
+
+# ── Phase 2b: Non-Whitelisted Tokens ────────────────────────────────────
+
+echo ""
+echo "[Phase 2b] Creating ${#NOWHITELIST_NAMES[@]} Non-Whitelisted Tokens (code_id=$CW20_CODE_ID_NOWHITELIST)"
+echo "----------------------------------------------"
+
+for i in "${!NOWHITELIST_NAMES[@]}"; do
+    NAME="${NOWHITELIST_NAMES[$i]}"
+    SYM="${NOWHITELIST_SYMBOLS[$i]}"
+    echo ""
+    echo "[10b.$((i+1))] Instantiating $NAME ($SYM) — NOT whitelisted..."
+    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
+    TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID_NOWHITELIST" "$INIT_MSG" \
+        --label "test-token-${SYM,,}" \
+        --admin "$TEST_ADDRESS" | jq -r '.txhash')
+    echo "  TX: $TX_HASH"
+    ADDR=$(get_contract_address "$TX_HASH")
+    NOWHITELIST_ADDRESSES+=("$ADDR")
+    echo "  $SYM Address: $ADDR (code_id=$CW20_CODE_ID_NOWHITELIST, NOT whitelisted)"
+done
+
+echo ""
+echo "  All ${#NOWHITELIST_NAMES[@]} non-whitelisted tokens created."
+
+# ── Phase 2c: Unpaired Tokens ───────────────────────────────────────────
+
+echo ""
+echo "[Phase 2c] Creating ${#UNPAIRED_NAMES[@]} Unpaired/Minimally-Paired Tokens"
+echo "----------------------------------------------"
+
+for i in "${!UNPAIRED_NAMES[@]}"; do
+    NAME="${UNPAIRED_NAMES[$i]}"
+    SYM="${UNPAIRED_SYMBOLS[$i]}"
+    echo ""
+    echo "[10c.$((i+1))] Instantiating $NAME ($SYM)..."
+    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
+    TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$INIT_MSG" \
+        --label "test-token-${SYM,,}" \
+        --admin "$TEST_ADDRESS" | jq -r '.txhash')
+    echo "  TX: $TX_HASH"
+    ADDR=$(get_contract_address "$TX_HASH")
+    UNPAIRED_ADDRESSES+=("$ADDR")
+    echo "  $SYM Address: $ADDR"
+done
+
+echo ""
+echo "  All ${#UNPAIRED_NAMES[@]} unpaired tokens created."
+echo "  ZINC: 0 pairs | IRON: will get 1 pair | NEON: will get 2 pairs"
 
 # ── Phase 3: Fee Discount ───────────────────────────────────────────────
 
@@ -309,6 +374,62 @@ done
 echo ""
 echo "  All ${#PAIR_CONFIGS[@]} pairs created with liquidity."
 
+# ── Phase 4b: Unpaired Token Pairs ──────────────────────────────────────
+# IRON gets 1 pair, NEON gets 2 pairs, ZINC stays at 0 pairs
+
+echo ""
+echo "[Phase 4b] Creating Pairs for Unpaired Tokens"
+echo "----------------------------------------------"
+
+UNPAIRED_PAIR_CONFIGS=(
+  "1:0:50000000000:100000000000"     # IRON/EMBER  1:2
+  "2:1:100000000000:100000000000"    # NEON/CORAL   1:1
+  "2:3:20000000000:100000000000"     # NEON/ONYX    1:5
+)
+
+UNPAIRED_PAIR_NUM=0
+for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
+    IFS=':' read -r UNPAIRED_IDX MAIN_IDX LIQ_A LIQ_B <<< "$upc"
+    SYM_A="${UNPAIRED_SYMBOLS[$UNPAIRED_IDX]}"
+    SYM_B="${TOKEN_SYMBOLS[$MAIN_IDX]}"
+    ADDR_A="${UNPAIRED_ADDRESSES[$UNPAIRED_IDX]}"
+    ADDR_B="${TOKEN_ADDRESSES[$MAIN_IDX]}"
+    UNPAIRED_PAIR_NUM=$((UNPAIRED_PAIR_NUM+1))
+
+    echo ""
+    echo "[14b.$UNPAIRED_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
+
+    CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
+    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+    echo "  TX: $TX_HASH"
+    sleep 3
+    PAIR_RESULT=$(terrad_query tx "$TX_HASH")
+    PAIR_ADDR=$(echo "$PAIR_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value' | head -1)
+    echo "  Pair Address: $PAIR_ADDR"
+
+    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
+      "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
+    echo "  Set discount registry: $TX_HASH"
+    sleep 3
+
+    TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \
+      "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_A\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+    echo "  Approved $SYM_A: $TX_HASH"
+    sleep 3
+    TX_HASH=$(terrad_tx wasm execute "$ADDR_B" \
+      "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_B\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+    echo "  Approved $SYM_B: $TX_HASH"
+    sleep 3
+
+    PROVIDE_MSG="{\"provide_liquidity\":{\"assets\":[{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_A\"}},\"amount\":\"$LIQ_A\"},{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_B\"}},\"amount\":\"$LIQ_B\"}],\"slippage_tolerance\":null,\"receiver\":null,\"deadline\":null}}"
+    TX_HASH=$(terrad_tx wasm execute "$PAIR_ADDR" "$PROVIDE_MSG" | jq -r '.txhash')
+    echo "  Liquidity provided ($LIQ_A / $LIQ_B): $TX_HASH"
+    sleep 3
+done
+
+echo ""
+echo "  $UNPAIRED_PAIR_NUM unpaired-token pairs created (ZINC: 0, IRON: 1, NEON: 2)."
+
 # ── Phase 5: Test Swaps ─────────────────────────────────────────────────
 
 echo ""
@@ -376,10 +497,20 @@ echo "  Factory:       $FACTORY_ADDRESS"
 echo "  Router:        $ROUTER_ADDRESS"
 echo "  Fee Discount:  $FEE_DISCOUNT_ADDRESS"
 echo ""
-echo "  Tokens:"
+echo "  Tokens (whitelisted, code_id=$CW20_CODE_ID):"
 for i in "${!TOKEN_SYMBOLS[@]}"; do
     printf "    %-8s %s\n" "${TOKEN_SYMBOLS[$i]}" "${TOKEN_ADDRESSES[$i]}"
 done
+echo ""
+echo "  Non-Whitelisted Tokens (code_id=$CW20_CODE_ID_NOWHITELIST):"
+for i in "${!NOWHITELIST_SYMBOLS[@]}"; do
+    printf "    %-8s %s\n" "${NOWHITELIST_SYMBOLS[$i]}" "${NOWHITELIST_ADDRESSES[$i]}"
+done
+echo ""
+echo "  Unpaired/Minimally-Paired Tokens (whitelisted, code_id=$CW20_CODE_ID):"
+printf "    %-8s %s  (0 pairs)\n" "${UNPAIRED_SYMBOLS[0]}" "${UNPAIRED_ADDRESSES[0]}"
+printf "    %-8s %s  (1 pair)\n" "${UNPAIRED_SYMBOLS[1]}" "${UNPAIRED_ADDRESSES[1]}"
+printf "    %-8s %s  (2 pairs)\n" "${UNPAIRED_SYMBOLS[2]}" "${UNPAIRED_ADDRESSES[2]}"
 echo ""
 echo "  Pairs:"
 for p in "${!PAIR_CONFIGS[@]}"; do
@@ -403,6 +534,11 @@ VITE_TERRA_LCD_URL=$LCD
 VITE_TERRA_RPC_URL=$NODE
 VITE_INDEXER_URL=http://localhost:3001
 VITE_DEV_MODE=true
+VITE_NOWHITELIST_TOKEN_1=${NOWHITELIST_ADDRESSES[0]}
+VITE_NOWHITELIST_TOKEN_2=${NOWHITELIST_ADDRESSES[1]}
+VITE_UNPAIRED_TOKEN_ZINC=${UNPAIRED_ADDRESSES[0]}
+VITE_UNPAIRED_TOKEN_IRON=${UNPAIRED_ADDRESSES[1]}
+VITE_UNPAIRED_TOKEN_NEON=${UNPAIRED_ADDRESSES[2]}
 ENVEOF
 echo "  Written to frontend-dapp/.env.local"
 
@@ -423,4 +559,4 @@ echo "  Written to indexer/.env"
 
 echo ""
 echo "Test address: $TEST_ADDRESS"
-echo "  10 tokens, 20 pairs, $SWAP_COUNT swaps executed"
+echo "  10 tokens, 3 unpaired tokens, 2 non-whitelisted tokens, 23 pairs, $SWAP_COUNT swaps executed"
