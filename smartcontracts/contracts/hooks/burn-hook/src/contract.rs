@@ -37,7 +37,10 @@ pub fn instantiate(
     Ok(Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("burn_token", config.burn_token)
-        .add_attribute("burn_percentage_bps", config.burn_percentage_bps.to_string())
+        .add_attribute(
+            "burn_percentage_bps",
+            config.burn_percentage_bps.to_string(),
+        )
         .add_attribute("admin", config.admin))
 }
 
@@ -58,7 +61,12 @@ pub fn execute(
                     return_asset,
                     commission_amount: _,
                     spread_amount: _,
-                } => execute_after_swap(deps, env, return_asset.info.to_string(), return_asset.amount),
+                } => execute_after_swap(
+                    deps,
+                    env,
+                    return_asset.info.to_string(),
+                    return_asset.amount,
+                ),
             }
         }
         ExecuteMsg::UpdateConfig {
@@ -169,7 +177,10 @@ fn execute_update_config(
     Ok(Response::new()
         .add_attribute("action", "update_config")
         .add_attribute("burn_token", config.burn_token)
-        .add_attribute("burn_percentage_bps", config.burn_percentage_bps.to_string()))
+        .add_attribute(
+            "burn_percentage_bps",
+            config.burn_percentage_bps.to_string(),
+        ))
 }
 
 /// Add or remove pair contracts from the allowed callers list. Admin only.

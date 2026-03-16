@@ -60,7 +60,12 @@ pub fn execute(
                     return_asset,
                     commission_amount: _,
                     spread_amount: _,
-                } => execute_after_swap(deps, env, return_asset.info.to_string(), return_asset.amount),
+                } => execute_after_swap(
+                    deps,
+                    env,
+                    return_asset.info.to_string(),
+                    return_asset.amount,
+                ),
             }
         }
         ExecuteMsg::UpdateConfig {

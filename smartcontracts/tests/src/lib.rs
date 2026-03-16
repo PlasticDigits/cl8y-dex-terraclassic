@@ -193,10 +193,7 @@ mod helpers {
 
     pub fn query_pool(app: &App, pair: &Addr) -> dex_common::pair::PoolResponse {
         app.wrap()
-            .query_wasm_smart(
-                pair.to_string(),
-                &dex_common::pair::QueryMsg::Pool {},
-            )
+            .query_wasm_smart(pair.to_string(), &dex_common::pair::QueryMsg::Pool {})
             .unwrap()
     }
 
@@ -245,22 +242,10 @@ mod helpers {
 
         let initial_amount = Uint128::new(1_000_000_000_000);
 
-        let token_a = create_cw20_token(
-            app,
-            cw20_code_id,
-            &user,
-            "Token A",
-            "TKNA",
-            initial_amount,
-        );
-        let token_b = create_cw20_token(
-            app,
-            cw20_code_id,
-            &user,
-            "Token B",
-            "TKNB",
-            initial_amount,
-        );
+        let token_a =
+            create_cw20_token(app, cw20_code_id, &user, "Token A", "TKNA", initial_amount);
+        let token_b =
+            create_cw20_token(app, cw20_code_id, &user, "Token B", "TKNB", initial_amount);
 
         let factory = app
             .instantiate_contract(
@@ -285,10 +270,7 @@ mod helpers {
                 user.clone(),
                 factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    asset_infos: [
-                        asset_info_token(&token_a),
-                        asset_info_token(&token_b),
-                    ],
+                    asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
                 },
                 &[],
             )
@@ -298,10 +280,7 @@ mod helpers {
 
         let pair_info: dex_common::types::PairInfo = app
             .wrap()
-            .query_wasm_smart(
-                pair.to_string(),
-                &dex_common::pair::QueryMsg::Pair {},
-            )
+            .query_wasm_smart(pair.to_string(), &dex_common::pair::QueryMsg::Pair {})
             .unwrap();
         let lp_token = pair_info.liquidity_token;
 
@@ -377,16 +356,12 @@ mod helpers {
         .unwrap();
     }
 
-    pub fn withdraw_liquidity(
-        app: &mut App,
-        env: &TestEnv,
-        sender: &Addr,
-        lp_amount: Uint128,
-    ) {
-        let remove_msg = cosmwasm_std::to_json_binary(
-            &dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None },
-        )
-        .unwrap();
+    pub fn withdraw_liquidity(app: &mut App, env: &TestEnv, sender: &Addr, lp_amount: Uint128) {
+        let remove_msg =
+            cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity {
+                min_assets: None,
+            })
+            .unwrap();
 
         app.execute_contract(
             sender.clone(),
@@ -455,13 +430,7 @@ mod helpers {
         .unwrap();
     }
 
-    pub fn transfer_tokens(
-        app: &mut App,
-        token: &Addr,
-        from: &Addr,
-        to: &Addr,
-        amount: Uint128,
-    ) {
+    pub fn transfer_tokens(app: &mut App, token: &Addr, from: &Addr, to: &Addr, amount: Uint128) {
         app.execute_contract(
             from.clone(),
             token.clone(),
@@ -562,10 +531,7 @@ mod factory_tests {
 
         let pair_info: dex_common::types::PairInfo = app
             .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Pair {},
-            )
+            .query_wasm_smart(env.pair.to_string(), &dex_common::pair::QueryMsg::Pair {})
             .unwrap();
 
         let has_both = pair_info.asset_infos.iter().any(|a| {
@@ -641,11 +607,10 @@ mod factory_tests {
             )
             .unwrap_err();
 
-        assert!(
-            err.root_cause()
-                .to_string()
-                .contains("Native tokens are not supported")
-        );
+        assert!(err
+            .root_cause()
+            .to_string()
+            .contains("Native tokens are not supported"));
     }
 
     #[test]
@@ -699,20 +664,16 @@ mod factory_tests {
                 user.clone(),
                 factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    asset_infos: [
-                        asset_info_token(&token_a),
-                        asset_info_token(&token_b),
-                    ],
+                    asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
                 },
                 &[],
             )
             .unwrap_err();
 
-        assert!(
-            err.root_cause()
-                .to_string()
-                .contains("Code ID not whitelisted")
-        );
+        assert!(err
+            .root_cause()
+            .to_string()
+            .contains("Code ID not whitelisted"));
     }
 
     #[test]
@@ -734,11 +695,7 @@ mod factory_tests {
             )
             .unwrap_err();
 
-        assert!(
-            err.root_cause()
-                .to_string()
-                .contains("Pair already exists")
-        );
+        assert!(err.root_cause().to_string().contains("Pair already exists"));
     }
 
     #[test]
@@ -898,16 +855,7 @@ mod factory_tests {
         let symbols = ["PTKNA", "PTKNB", "PTKNC", "PTKND", "PTKNE", "PTKNF"];
         let tokens: Vec<Addr> = symbols
             .iter()
-            .map(|sym| {
-                create_cw20_token(
-                    &mut app,
-                    cw20_code_id,
-                    &user,
-                    sym,
-                    sym,
-                    initial_amount,
-                )
-            })
+            .map(|sym| create_cw20_token(&mut app, cw20_code_id, &user, sym, sym, initial_amount))
             .collect();
 
         for i in 0..3 {
@@ -978,10 +926,7 @@ mod pair_tests {
 
         let pool: dex_common::pair::PoolResponse = app
             .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Pool {},
-            )
+            .query_wasm_smart(env.pair.to_string(), &dex_common::pair::QueryMsg::Pool {})
             .unwrap();
         assert_eq!(pool.assets[0].amount, amount_a);
         assert_eq!(pool.assets[1].amount, amount_b);
@@ -1039,10 +984,7 @@ mod pair_tests {
 
         let pool: dex_common::pair::PoolResponse = app
             .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Pool {},
-            )
+            .query_wasm_smart(env.pair.to_string(), &dex_common::pair::QueryMsg::Pool {})
             .unwrap();
         assert_eq!(pool.assets[0].amount, Uint128::new(1_001_000));
         assert_eq!(pool.assets[1].amount, Uint128::new(999_001));
@@ -1083,11 +1025,10 @@ mod pair_tests {
             )
             .unwrap_err();
 
-        assert!(
-            err.root_cause()
-                .to_string()
-                .contains("Max spread assertion")
-        );
+        assert!(err
+            .root_cause()
+            .to_string()
+            .contains("Max spread assertion"));
     }
 
     #[test]
@@ -1106,7 +1047,8 @@ mod pair_tests {
 
         let remove_amount = Uint128::new(500_000);
         let remove_msg =
-            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None }).unwrap();
+            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None })
+                .unwrap();
 
         app.execute_contract(
             env.user.clone(),
@@ -1131,10 +1073,7 @@ mod pair_tests {
 
         let pool: dex_common::pair::PoolResponse = app
             .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Pool {},
-            )
+            .query_wasm_smart(env.pair.to_string(), &dex_common::pair::QueryMsg::Pool {})
             .unwrap();
         assert_eq!(pool.assets[0].amount, Uint128::new(500_000));
         assert_eq!(pool.assets[1].amount, Uint128::new(500_000));
@@ -1341,11 +1280,10 @@ mod router_tests {
             )
             .unwrap_err();
 
-        assert!(
-            err.root_cause()
-                .to_string()
-                .contains("Native token swaps are not supported")
-        );
+        assert!(err
+            .root_cause()
+            .to_string()
+            .contains("Native token swaps are not supported"));
     }
 }
 
@@ -1464,7 +1402,13 @@ mod fee_discount_tests {
         let denv = setup_discount_env(&mut app);
         let env = &denv.base;
 
-        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Register for tier 1 (1 CL8Y, 10% discount)
         app.execute_contract(
@@ -1518,7 +1462,13 @@ mod fee_discount_tests {
         let denv = setup_discount_env(&mut app);
         let env = &denv.base;
 
-        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Register for tier 4 (1000 CL8Y, 50% discount)
         app.execute_contract(
@@ -1566,7 +1516,13 @@ mod fee_discount_tests {
         let denv = setup_discount_env(&mut app);
         let env = &denv.base;
 
-        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
 
@@ -1605,7 +1561,13 @@ mod fee_discount_tests {
         let denv = setup_discount_env(&mut app);
         let env = &denv.base;
 
-        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let market_maker = Addr::unchecked("market_maker");
 
@@ -1716,7 +1678,13 @@ mod fee_discount_tests {
         let denv = setup_discount_env(&mut app);
         let env = &denv.base;
 
-        provide_liquidity(&mut app, env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // User registers tier 1 first
         app.execute_contract(
@@ -1788,7 +1756,13 @@ mod fee_discount_tests {
         let denv = setup_discount_env(&mut app);
         let env = &denv.base;
 
-        provide_liquidity(&mut app, env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         // Register user for tier 4 (50% discount)
         app.execute_contract(
@@ -1896,7 +1870,10 @@ mod fee_discount_tests {
             )
             .unwrap_err();
 
-        assert!(err.root_cause().to_string().contains("Insufficient CL8Y balance"));
+        assert!(err
+            .root_cause()
+            .to_string()
+            .contains("Insufficient CL8Y balance"));
     }
 
     #[test]
@@ -1937,7 +1914,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
         swap_b_to_a(&mut app, &env, &env.user, Uint128::new(1_000));
@@ -1950,11 +1933,23 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let lp_before = query_cw20_balance(&app, &env.lp_token, &env.user);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(500_000), Uint128::new(500_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(500_000),
+            Uint128::new(500_000),
+        );
 
         let lp_after = query_cw20_balance(&app, &env.lp_token, &env.user);
         assert_eq!(lp_after - lp_before, Uint128::new(500_000));
@@ -1970,9 +1965,21 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(200_000), Uint128::new(400_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(200_000),
+            Uint128::new(400_000),
+        );
 
         let pool = query_pool(&app, &env.pair);
         assert_eq!(pool.assets[0].amount, Uint128::new(1_200_000));
@@ -1984,7 +1991,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
@@ -2008,7 +2021,11 @@ mod pair_coverage_tests {
             )
             .unwrap_err();
         let msg = err.root_cause().to_string().to_lowercase();
-        assert!(msg.contains("zero"), "Expected zero-amount error, got: {}", msg);
+        assert!(
+            msg.contains("zero"),
+            "Expected zero-amount error, got: {}",
+            msg
+        );
     }
 
     #[test]
@@ -2016,7 +2033,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let receiver = Addr::unchecked("receiver");
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
@@ -2070,7 +2093,10 @@ mod pair_coverage_tests {
                 &[],
             )
             .unwrap_err();
-        assert!(err.root_cause().to_string().contains("Insufficient liquidity"));
+        assert!(err
+            .root_cause()
+            .to_string()
+            .contains("Insufficient liquidity"));
     }
 
     #[test]
@@ -2131,7 +2157,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         app.execute_contract(
             env.user.clone(),
@@ -2243,9 +2275,17 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
-        let msg = to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None }).unwrap();
+        let msg =
+            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None })
+                .unwrap();
 
         let err = app
             .execute_contract(
@@ -2260,7 +2300,11 @@ mod pair_coverage_tests {
             )
             .unwrap_err();
         let msg = err.root_cause().to_string().to_lowercase();
-        assert!(msg.contains("zero"), "Expected zero-amount error, got: {}", msg);
+        assert!(
+            msg.contains("zero"),
+            "Expected zero-amount error, got: {}",
+            msg
+        );
     }
 
     #[test]
@@ -2268,9 +2312,17 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
-        let msg = to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None }).unwrap();
+        let msg =
+            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None })
+                .unwrap();
 
         let err = app
             .execute_contract(
@@ -2292,7 +2344,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
         withdraw_liquidity(&mut app, &env, &env.user, lp_balance);
@@ -2328,7 +2386,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         app.execute_contract(
             env.governance.clone(),
@@ -2456,7 +2520,13 @@ mod pair_coverage_tests {
         )
         .unwrap();
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000));
     }
 
@@ -2465,7 +2535,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: Some(Decimal::one()),
@@ -2577,7 +2653,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000_000), Uint128::new(1_000_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000_000),
+            Uint128::new(1_000_000_000),
+        );
 
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
@@ -2611,7 +2693,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         for _ in 0..10 {
             swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000));
@@ -2627,7 +2715,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         for i in 0..10 {
             if i % 2 == 0 {
@@ -2647,7 +2741,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_env_with_fee(&mut app, 0);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let treasury_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000));
@@ -2661,7 +2761,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_env_with_fee(&mut app, 5000);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
         let treasury_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
@@ -2683,7 +2789,13 @@ mod pair_coverage_tests {
         let initial_a = query_cw20_balance(&app, &env.token_a, &env.user);
         let initial_b = query_cw20_balance(&app, &env.token_b, &env.user);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
 
@@ -2709,11 +2821,35 @@ mod pair_coverage_tests {
         let env = setup_full_env(&mut app);
 
         let user2 = Addr::unchecked("user2");
-        transfer_tokens(&mut app, &env.token_a, &env.user, &user2, Uint128::new(500_000_000));
-        transfer_tokens(&mut app, &env.token_b, &env.user, &user2, Uint128::new(500_000_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
-        provide_liquidity(&mut app, &env, &user2, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        provide_liquidity(
+            &mut app,
+            &env,
+            &user2,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
 
@@ -2762,7 +2898,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
@@ -2791,7 +2933,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let sim: dex_common::pair::SimulationResponse = app
             .wrap()
@@ -2821,7 +2969,13 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_001), Uint128::new(1_001));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_001),
+            Uint128::new(1_001),
+        );
 
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
         assert_eq!(lp_balance, Uint128::new(1));
@@ -2880,7 +3034,10 @@ mod pair_coverage_tests {
                 &[],
             )
             .unwrap_err();
-        assert!(err.root_cause().to_string().contains("Insufficient liquidity"));
+        assert!(err
+            .root_cause()
+            .to_string()
+            .contains("Insufficient liquidity"));
     }
 }
 
@@ -3128,9 +3285,8 @@ mod fee_discount_coverage_tests {
         )
         .unwrap();
 
-        let result: Result<cl8y_dex_fee_discount::msg::TierResponse, _> = app
-            .wrap()
-            .query_wasm_smart(
+        let result: Result<cl8y_dex_fee_discount::msg::TierResponse, _> =
+            app.wrap().query_wasm_smart(
                 fd.to_string(),
                 &cl8y_dex_fee_discount::msg::QueryMsg::GetTier { tier_id: 1 },
             );
@@ -3185,7 +3341,11 @@ mod fee_discount_coverage_tests {
                 &[],
             )
             .unwrap_err();
-        assert!(err.root_cause().to_string().to_lowercase().contains("not registered"));
+        assert!(err
+            .root_cause()
+            .to_string()
+            .to_lowercase()
+            .contains("not registered"));
     }
 
     #[test]
@@ -3418,7 +3578,13 @@ mod router_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
             .wrap()
@@ -3442,7 +3608,13 @@ mod router_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let rsim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
             .wrap()
@@ -3466,7 +3638,13 @@ mod router_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
@@ -3492,8 +3670,11 @@ mod router_coverage_tests {
             )
             .unwrap_err();
         let msg = err.root_cause().to_string().to_lowercase();
-        assert!(msg.contains("minimum receive") || msg.contains("minimum_receive"),
-            "Expected minimum receive error, got: {}", msg);
+        assert!(
+            msg.contains("minimum receive") || msg.contains("minimum_receive"),
+            "Expected minimum receive error, got: {}",
+            msg
+        );
     }
 
     #[test]
@@ -3506,7 +3687,9 @@ mod router_coverage_tests {
         app.execute_contract(
             env.governance.clone(),
             env.factory.clone(),
-            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId { code_id: cw20_code_id },
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
             &[],
         )
         .unwrap();
@@ -3525,10 +3708,7 @@ mod router_coverage_tests {
                 env.user.clone(),
                 env.factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    asset_infos: [
-                        asset_info_token(&env.token_b),
-                        asset_info_token(&token_c),
-                    ],
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
                 },
                 &[],
             )
@@ -3540,7 +3720,13 @@ mod router_coverage_tests {
             .unwrap();
         let _lp_bc = pair_bc_info.liquidity_token;
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         app.execute_contract(
             env.user.clone(),
@@ -3928,14 +4114,19 @@ mod fuzz_tests {
     ) -> Result<(), proptest::test_runner::TestCaseError> {
         prop_assert!(
             k_after >= k_before,
-            "k decreased: before={}, after={}", k_before, k_after
+            "k decreased: before={}, after={}",
+            k_before,
+            k_after
         );
         let increase = k_after - k_before;
         prop_assert!(
             increase < new_input_reserve,
             "k increase exceeds rounding bound: increase={}, bound={} (new_input_reserve), \
              k_before={}, k_after={}",
-            increase, new_input_reserve, k_before, k_after
+            increase,
+            new_input_reserve,
+            k_before,
+            k_after
         );
         Ok(())
     }
@@ -4821,11 +5012,35 @@ mod security_tests {
 
         let attacker = Addr::unchecked("attacker");
         let victim = Addr::unchecked("victim");
-        transfer_tokens(&mut app, &env.token_a, &env.user, &attacker, Uint128::new(100_000_000));
-        transfer_tokens(&mut app, &env.token_b, &env.user, &attacker, Uint128::new(100_000_000));
-        transfer_tokens(&mut app, &env.token_a, &env.user, &victim, Uint128::new(10_000_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &victim,
+            Uint128::new(10_000_000),
+        );
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         let attacker_b_before = query_cw20_balance(&app, &env.token_b, &attacker);
 
@@ -4870,7 +5085,8 @@ mod security_tests {
         assert!(
             attacker_total_after <= attacker_total_before,
             "Sandwich attack should not be profitable: before={}, after={}",
-            attacker_total_before, attacker_total_after
+            attacker_total_before,
+            attacker_total_after
         );
 
         // Verify conservation
@@ -4894,10 +5110,28 @@ mod security_tests {
 
         let attacker = Addr::unchecked("attacker");
         let victim = Addr::unchecked("victim");
-        transfer_tokens(&mut app, &env.token_a, &env.user, &attacker, Uint128::new(50_000_000));
-        transfer_tokens(&mut app, &env.token_a, &env.user, &victim, Uint128::new(10_000_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &attacker,
+            Uint128::new(50_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &victim,
+            Uint128::new(10_000_000),
+        );
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         // Attacker front-runs: large swap to move price
         swap_a_to_b(&mut app, &env, &attacker, Uint128::new(5_000_000));
@@ -4924,7 +5158,10 @@ mod security_tests {
         );
 
         // With a 5M/10M = 50% pool move, the spread for the victim should exceed 0.5%
-        assert!(result.is_err(), "Tight max_spread should protect victim from sandwich");
+        assert!(
+            result.is_err(),
+            "Tight max_spread should protect victim from sandwich"
+        );
     }
 
     #[test]
@@ -4934,23 +5171,71 @@ mod security_tests {
 
         let attacker = Addr::unchecked("attacker");
         let victim = Addr::unchecked("victim");
-        transfer_tokens(&mut app, &env.token_a, &env.user, &attacker, Uint128::new(100_000_000));
-        transfer_tokens(&mut app, &env.token_b, &env.user, &attacker, Uint128::new(100_000_000));
-        transfer_tokens(&mut app, &env.token_a, &env.user, &victim, Uint128::new(100_000_000));
-        transfer_tokens(&mut app, &env.token_b, &env.user, &victim, Uint128::new(100_000_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &victim,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &victim,
+            Uint128::new(100_000_000),
+        );
 
         // Attacker: first deposit with minimal amount
-        provide_liquidity(&mut app, &env, &attacker, Uint128::new(1_001), Uint128::new(1_001));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &attacker,
+            Uint128::new(1_001),
+            Uint128::new(1_001),
+        );
         let attacker_lp = query_cw20_balance(&app, &env.lp_token, &attacker);
         assert_eq!(attacker_lp, Uint128::new(1)); // 1001 - 1000 MINIMUM_LIQUIDITY
 
         // Attacker: donate tokens directly to the pair contract to inflate share price
-        transfer_tokens(&mut app, &env.token_a, &attacker, &env.pair, Uint128::new(10_000_000));
-        transfer_tokens(&mut app, &env.token_b, &attacker, &env.pair, Uint128::new(10_000_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &attacker,
+            &env.pair,
+            Uint128::new(10_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &attacker,
+            &env.pair,
+            Uint128::new(10_000_000),
+        );
 
         // Victim: provides liquidity — should still get > 0 LP shares
         // because the pair tracks reserves independently of actual balances
-        provide_liquidity(&mut app, &env, &victim, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &victim,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
         let victim_lp = query_cw20_balance(&app, &env.lp_token, &victim);
 
         // The pair uses internal RESERVES state (not raw CW20 balance queries),
@@ -4971,17 +5256,41 @@ mod security_tests {
         let env = setup_full_env(&mut app);
 
         let attacker = Addr::unchecked("attacker");
-        transfer_tokens(&mut app, &env.token_a, &env.user, &attacker, Uint128::new(100_000_000));
-        transfer_tokens(&mut app, &env.token_b, &env.user, &attacker, Uint128::new(100_000_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000_000),
+        );
 
         // Establish liquidity from user
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         let attacker_a_before = query_cw20_balance(&app, &env.token_a, &attacker);
         let attacker_b_before = query_cw20_balance(&app, &env.token_b, &attacker);
 
         // "Flash" attack: provide → swap → withdraw (same block in cw-multi-test)
-        provide_liquidity(&mut app, &env, &attacker, Uint128::new(50_000_000), Uint128::new(50_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &attacker,
+            Uint128::new(50_000_000),
+            Uint128::new(50_000_000),
+        );
         swap_a_to_b(&mut app, &env, &attacker, Uint128::new(1_000_000));
         let lp = query_cw20_balance(&app, &env.lp_token, &attacker);
         withdraw_liquidity(&mut app, &env, &attacker, lp);
@@ -4995,7 +5304,8 @@ mod security_tests {
         assert!(
             total_after <= total_before,
             "Flash provide+swap+withdraw should not be profitable: before={}, after={}",
-            total_before, total_after
+            total_before,
+            total_after
         );
     }
 
@@ -5005,10 +5315,28 @@ mod security_tests {
         let env = setup_full_env(&mut app);
 
         let attacker = Addr::unchecked("attacker");
-        transfer_tokens(&mut app, &env.token_a, &env.user, &attacker, Uint128::new(100_000));
-        transfer_tokens(&mut app, &env.token_b, &env.user, &attacker, Uint128::new(100_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &attacker,
+            Uint128::new(100_000),
+        );
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         let initial_total = Uint128::new(1_000_000_000_000);
 
@@ -5049,8 +5377,14 @@ mod security_tests {
 
         let total_a = user_a + att_a + pool.assets[0].amount + treasury_a;
         let total_b = user_b + att_b + pool.assets[1].amount + treasury_b;
-        assert_eq!(total_a, initial_total, "Token A conservation violated after rounding attack");
-        assert_eq!(total_b, initial_total, "Token B conservation violated after rounding attack");
+        assert_eq!(
+            total_a, initial_total,
+            "Token A conservation violated after rounding attack"
+        );
+        assert_eq!(
+            total_b, initial_total,
+            "Token B conservation violated after rounding attack"
+        );
     }
 
     #[test]
@@ -5058,7 +5392,13 @@ mod security_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let pool_before = query_pool(&app, &env.pair);
 
@@ -5109,11 +5449,23 @@ mod security_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
         let pool_before = query_pool(&app, &env.pair);
 
         // Directly send tokens to pair contract (not via ProvideLiquidity)
-        transfer_tokens(&mut app, &env.token_a, &env.user, &env.pair, Uint128::new(500_000));
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &env.pair,
+            Uint128::new(500_000),
+        );
 
         let pool_after = query_pool(&app, &env.pair);
 
@@ -5128,7 +5480,13 @@ mod security_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
         let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
@@ -5150,7 +5508,13 @@ mod security_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Pause the pair
         app.execute_contract(
@@ -5166,10 +5530,9 @@ mod security_tests {
 
         // Withdraw should fail because Receive is paused
         let lp_balance = query_cw20_balance(&app, &env.lp_token, &env.user);
-        let remove_msg = to_json_binary(
-            &dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None },
-        )
-        .unwrap();
+        let remove_msg =
+            to_json_binary(&dex_common::pair::Cw20HookMsg::WithdrawLiquidity { min_assets: None })
+                .unwrap();
 
         let result = app.execute_contract(
             env.user.clone(),
@@ -5208,7 +5571,13 @@ mod oracle_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Advance time and swap to trigger oracle observation
         app.update_block(|b| b.time = b.time.plus_seconds(10));
@@ -5223,7 +5592,10 @@ mod oracle_tests {
             )
             .unwrap();
 
-        assert!(info.newest_observation_timestamp > 0, "Oracle should have recorded observations");
+        assert!(
+            info.newest_observation_timestamp > 0,
+            "Oracle should have recorded observations"
+        );
     }
 
     #[test]
@@ -5231,7 +5603,13 @@ mod oracle_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Do several swaps with time progression to build observation history
         for i in 1..=5 {
@@ -5259,7 +5637,13 @@ mod oracle_tests {
         let env = setup_full_env(&mut app);
 
         // Equal reserves → price = 1
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // First observation
         app.update_block(|b| b.time = b.time.plus_seconds(10));
@@ -5291,7 +5675,8 @@ mod oracle_tests {
 
         assert!(
             (twap_f - 1.0).abs() < 0.05,
-            "TWAP should be close to 1.0 for equal pool, got {}", twap_f
+            "TWAP should be close to 1.0 for equal pool, got {}",
+            twap_f
         );
     }
 
@@ -5300,7 +5685,13 @@ mod oracle_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         // Build some observation history
         for _ in 0..5 {
@@ -5357,16 +5748,17 @@ mod oracle_tests {
         let env = setup_full_env(&mut app);
 
         // No operations → no observations
-        let result: Result<ObserveResponse, _> = app
-            .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Observe {
-                    seconds_ago: vec![0],
-                },
-            );
+        let result: Result<ObserveResponse, _> = app.wrap().query_wasm_smart(
+            env.pair.to_string(),
+            &dex_common::pair::QueryMsg::Observe {
+                seconds_ago: vec![0],
+            },
+        );
 
-        assert!(result.is_err(), "Observe with no recorded observations should error");
+        assert!(
+            result.is_err(),
+            "Observe with no recorded observations should error"
+        );
     }
 
     #[test]
@@ -5391,11 +5783,23 @@ mod oracle_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Advance time and provide more liquidity (should trigger oracle_update)
         app.update_block(|b| b.time = b.time.plus_seconds(30));
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(500_000), Uint128::new(500_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(500_000),
+            Uint128::new(500_000),
+        );
 
         let info: dex_common::oracle::OracleInfoResponse = app
             .wrap()
@@ -5413,7 +5817,13 @@ mod oracle_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         app.update_block(|b| b.time = b.time.plus_seconds(30));
 
@@ -5510,7 +5920,13 @@ mod oracle_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Build minimal observation history
         app.update_block(|b| b.time = b.time.plus_seconds(10));
@@ -5519,14 +5935,12 @@ mod oracle_tests {
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100));
 
         // Try to observe too far back
-        let result: Result<ObserveResponse, _> = app
-            .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Observe {
-                    seconds_ago: vec![99999],
-                },
-            );
+        let result: Result<ObserveResponse, _> = app.wrap().query_wasm_smart(
+            env.pair.to_string(),
+            &dex_common::pair::QueryMsg::Observe {
+                seconds_ago: vec![99999],
+            },
+        );
 
         assert!(result.is_err(), "Observing too far back should error");
     }
@@ -5547,7 +5961,13 @@ mod deadline_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Set deadline to 100 seconds from genesis
         let deadline = app.block_info().time.seconds() + 100;
@@ -5578,9 +5998,10 @@ mod deadline_tests {
             .unwrap_err();
 
         assert!(
-            err.root_cause().to_string().contains("Deadline") ||
-            err.root_cause().to_string().contains("deadline"),
-            "Expected deadline error, got: {}", err.root_cause()
+            err.root_cause().to_string().contains("Deadline")
+                || err.root_cause().to_string().contains("deadline"),
+            "Expected deadline error, got: {}",
+            err.root_cause()
         );
     }
 
@@ -5589,7 +6010,13 @@ mod deadline_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let deadline = app.block_info().time.seconds() + 1000;
 
@@ -5670,8 +6097,12 @@ mod deadline_tests {
             .unwrap_err();
 
         assert!(
-            err.root_cause().to_string().to_lowercase().contains("deadline"),
-            "Expected deadline error, got: {}", err.root_cause()
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("deadline"),
+            "Expected deadline error, got: {}",
+            err.root_cause()
         );
     }
 
@@ -5680,7 +6111,13 @@ mod deadline_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let deadline = app.block_info().time.seconds() + 100;
         app.update_block(|b| b.time = b.time.plus_seconds(200));
@@ -5710,8 +6147,12 @@ mod deadline_tests {
             .unwrap_err();
 
         assert!(
-            err.root_cause().to_string().to_lowercase().contains("deadline"),
-            "Expected deadline error, got: {}", err.root_cause()
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("deadline"),
+            "Expected deadline error, got: {}",
+            err.root_cause()
         );
     }
 }
@@ -5829,7 +6270,13 @@ mod hooks_integration_tests {
         )
         .unwrap();
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         // The burn hook expects the return_asset info to match its burn_token.
         // The hook is called AFTER the swap, and the return_asset is token_b.
@@ -5888,7 +6335,13 @@ mod hooks_integration_tests {
         )
         .unwrap();
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(10_000_000), Uint128::new(10_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
 
         // Swap should succeed; tax hook skips because it has no token balance
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
@@ -5945,8 +6398,13 @@ mod hooks_integration_tests {
             )
             .unwrap_err();
 
-        assert!(err.root_cause().to_string().to_lowercase().contains("unauthorized") ||
-                err.root_cause().to_string().to_lowercase().contains("hook"));
+        assert!(
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("unauthorized")
+                || err.root_cause().to_string().to_lowercase().contains("hook")
+        );
     }
 
     #[test]
@@ -6243,7 +6701,9 @@ mod line_coverage_tests {
         app.execute_contract(
             env.governance.clone(),
             env.factory.clone(),
-            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId { code_id: cw20_code_id },
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
             &[],
         )
         .unwrap();
@@ -6261,10 +6721,7 @@ mod line_coverage_tests {
             env.user.clone(),
             env.factory.clone(),
             &dex_common::factory::ExecuteMsg::CreatePair {
-                asset_infos: [
-                    asset_info_token(&env.token_b),
-                    asset_info_token(&token_c),
-                ],
+                asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
             },
             &[],
         )
@@ -6341,7 +6798,13 @@ mod line_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Pause
         app.execute_contract(
@@ -6377,7 +6840,11 @@ mod line_coverage_tests {
                 &[],
             )
             .unwrap_err();
-        assert!(err.root_cause().to_string().to_lowercase().contains("paused"));
+        assert!(err
+            .root_cause()
+            .to_string()
+            .to_lowercase()
+            .contains("paused"));
 
         // Unpause
         app.execute_contract(
@@ -6423,9 +6890,7 @@ mod line_coverage_tests {
             .execute_contract(
                 env.user.clone(),
                 env.pair.clone(),
-                &dex_common::pair::ExecuteMsg::SetDiscountRegistry {
-                    registry: None,
-                },
+                &dex_common::pair::ExecuteMsg::SetDiscountRegistry { registry: None },
                 &[],
             )
             .unwrap_err();
@@ -6465,8 +6930,13 @@ mod line_coverage_tests {
                 &[],
             )
             .unwrap_err();
-        assert!(err.root_cause().to_string().to_lowercase().contains("invalid") ||
-                err.root_cause().to_string().to_lowercase().contains("fee"));
+        assert!(
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("invalid")
+                || err.root_cause().to_string().to_lowercase().contains("fee")
+        );
     }
 
     #[test]
@@ -6474,11 +6944,16 @@ mod line_coverage_tests {
         let mut app = App::default();
         let env = setup_env_with_fee(&mut app, 10000);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
-        let result: Result<dex_common::pair::ReverseSimulationResponse, _> = app
-            .wrap()
-            .query_wasm_smart(
+        let result: Result<dex_common::pair::ReverseSimulationResponse, _> =
+            app.wrap().query_wasm_smart(
                 env.pair.to_string(),
                 &dex_common::pair::QueryMsg::ReverseSimulation {
                     ask_asset: dex_common::types::Asset {
@@ -6488,7 +6963,10 @@ mod line_coverage_tests {
                 },
             );
 
-        assert!(result.is_err(), "Reverse simulation with 100% fee should fail");
+        assert!(
+            result.is_err(),
+            "Reverse simulation with 100% fee should fail"
+        );
     }
 
     #[test]
@@ -6496,20 +6974,24 @@ mod line_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let fake_token = Addr::unchecked("fake_token");
-        let result: Result<dex_common::pair::SimulationResponse, _> = app
-            .wrap()
-            .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Simulation {
-                    offer_asset: dex_common::types::Asset {
-                        info: asset_info_token(&fake_token),
-                        amount: Uint128::new(1000),
-                    },
+        let result: Result<dex_common::pair::SimulationResponse, _> = app.wrap().query_wasm_smart(
+            env.pair.to_string(),
+            &dex_common::pair::QueryMsg::Simulation {
+                offer_asset: dex_common::types::Asset {
+                    info: asset_info_token(&fake_token),
+                    amount: Uint128::new(1000),
                 },
-            );
+            },
+        );
 
         assert!(result.is_err(), "Simulation with wrong asset should fail");
     }
@@ -6519,12 +7001,17 @@ mod line_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         let fake_token = Addr::unchecked("fake_token");
-        let result: Result<dex_common::pair::ReverseSimulationResponse, _> = app
-            .wrap()
-            .query_wasm_smart(
+        let result: Result<dex_common::pair::ReverseSimulationResponse, _> =
+            app.wrap().query_wasm_smart(
                 env.pair.to_string(),
                 &dex_common::pair::QueryMsg::ReverseSimulation {
                     ask_asset: dex_common::types::Asset {
@@ -6534,7 +7021,10 @@ mod line_coverage_tests {
                 },
             );
 
-        assert!(result.is_err(), "Reverse simulation with wrong asset should fail");
+        assert!(
+            result.is_err(),
+            "Reverse simulation with wrong asset should fail"
+        );
     }
 
     #[test]
@@ -6567,11 +7057,16 @@ mod line_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
-        let result: Result<cl8y_dex_router::msg::SimulateSwapOperationsResponse, _> = app
-            .wrap()
-            .query_wasm_smart(
+        let result: Result<cl8y_dex_router::msg::SimulateSwapOperationsResponse, _> =
+            app.wrap().query_wasm_smart(
                 env.router.to_string(),
                 &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
                     offer_amount: Uint128::new(10_000),
@@ -6591,7 +7086,13 @@ mod line_coverage_tests {
         let env = setup_full_env(&mut app);
 
         // Provide minimal liquidity
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_001), Uint128::new(1_001));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_001),
+            Uint128::new(1_001),
+        );
 
         let lp = query_cw20_balance(&app, &env.lp_token, &env.user);
         assert_eq!(lp, Uint128::new(1)); // 1001 - 1000 MINIMUM_LIQUIDITY
@@ -6655,9 +7156,7 @@ mod line_coverage_tests {
             .execute_contract(
                 random,
                 env.factory.clone(),
-                &dex_common::factory::ExecuteMsg::SetDiscountRegistryAll {
-                    registry: None,
-                },
+                &dex_common::factory::ExecuteMsg::SetDiscountRegistryAll { registry: None },
                 &[],
             )
             .unwrap_err();
@@ -6683,8 +7182,17 @@ mod line_coverage_tests {
             )
             .unwrap_err();
 
-        assert!(err.root_cause().to_string().to_lowercase().contains("invalid") ||
-                err.root_cause().to_string().to_lowercase().contains("token"));
+        assert!(
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("invalid")
+                || err
+                    .root_cause()
+                    .to_string()
+                    .to_lowercase()
+                    .contains("token")
+        );
     }
 
     #[test]
@@ -6748,7 +7256,13 @@ mod line_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Reverse sim asking for token A (ask = token A means we need to offer token B)
         let rsim: dex_common::pair::ReverseSimulationResponse = app
@@ -6772,7 +7286,13 @@ mod line_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        provide_liquidity(&mut app, &env, &env.user, Uint128::new(1_000_000), Uint128::new(1_000_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
 
         // Create a random CW20 token not part of the pair
         let cw20_code_id = app.store_code(cw20_mintable_contract());
@@ -6807,8 +7327,17 @@ mod line_coverage_tests {
             )
             .unwrap_err();
 
-        assert!(err.root_cause().to_string().to_lowercase().contains("invalid") ||
-                err.root_cause().to_string().to_lowercase().contains("token"));
+        assert!(
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("invalid")
+                || err
+                    .root_cause()
+                    .to_string()
+                    .to_lowercase()
+                    .contains("token")
+        );
     }
 
     #[test]
@@ -6847,8 +7376,13 @@ mod line_coverage_tests {
             )
             .unwrap_err();
 
-        assert!(err.root_cause().to_string().to_lowercase().contains("invalid") ||
-                err.root_cause().to_string().to_lowercase().contains("fee"));
+        assert!(
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("invalid")
+                || err.root_cause().to_string().to_lowercase().contains("fee")
+        );
     }
 }
 
@@ -7413,7 +7947,13 @@ mod sweep_tests {
 
         let donation = Uint128::new(200_000);
         donate_tokens(&mut app, &env.user, &env.token_a, &env.pair, donation);
-        donate_tokens(&mut app, &env.user, &env.token_b, &env.pair, Uint128::new(100_000));
+        donate_tokens(
+            &mut app,
+            &env.user,
+            &env.token_b,
+            &env.pair,
+            Uint128::new(100_000),
+        );
 
         app.execute_contract(
             env.governance.clone(),
@@ -7648,14 +8188,12 @@ mod new_feature_tests {
             })
             .collect();
 
-        let hook_msg = to_json_binary(
-            &cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
-                operations: five_ops,
-                minimum_receive: None,
-                to: None,
-                deadline: None,
-            },
-        )
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: five_ops,
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+        })
         .unwrap();
 
         let err = app
@@ -7687,14 +8225,12 @@ mod new_feature_tests {
 
         let user_e_before = query_cw20_balance(&app, &tokens[4], &user);
 
-        let hook_msg = to_json_binary(
-            &cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
-                operations: four_ops,
-                minimum_receive: None,
-                to: None,
-                deadline: None,
-            },
-        )
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: four_ops,
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+        })
         .unwrap();
 
         app.execute_contract(
@@ -7844,7 +8380,10 @@ mod new_feature_tests {
             .iter()
             .flat_map(|e| &e.attributes)
             .any(|a| a.key == "skipped");
-        assert!(skipped, "stale epoch deregistration should produce 'skipped' attribute");
+        assert!(
+            skipped,
+            "stale epoch deregistration should produce 'skipped' attribute"
+        );
 
         // 5. Verify wallet is still registered
         let reg: cl8y_dex_fee_discount::msg::RegistrationResponse = app
@@ -7920,10 +8459,7 @@ mod new_feature_tests {
                 user.clone(),
                 factory.clone(),
                 &dex_common::factory::ExecuteMsg::CreatePair {
-                    asset_infos: [
-                        asset_info_token(&token_a),
-                        asset_info_token(&token_b),
-                    ],
+                    asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
                 },
                 &[],
             )
@@ -7932,10 +8468,7 @@ mod new_feature_tests {
         let pair = extract_pair_address(&resp.events);
         let pair_info: dex_common::types::PairInfo = app
             .wrap()
-            .query_wasm_smart(
-                pair.to_string(),
-                &dex_common::pair::QueryMsg::Pair {},
-            )
+            .query_wasm_smart(pair.to_string(), &dex_common::pair::QueryMsg::Pair {})
             .unwrap();
         let lp_token = pair_info.liquidity_token;
 

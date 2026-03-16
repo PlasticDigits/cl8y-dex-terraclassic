@@ -104,9 +104,7 @@ pub fn compute_twap_price(
     time_elapsed: u64,
 ) -> StdResult<Decimal> {
     if time_elapsed == 0 {
-        return Err(StdError::generic_err(
-            "oracle: time_elapsed must be > 0",
-        ));
+        return Err(StdError::generic_err("oracle: time_elapsed must be > 0"));
     }
     if cum_end < cum_start {
         return Err(StdError::generic_err(

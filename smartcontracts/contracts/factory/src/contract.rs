@@ -11,7 +11,7 @@ use crate::msg::{
     PairsResponse, QueryMsg,
 };
 use crate::state::{
-    Config, CONFIG, PAIR_COUNT, PAIR_INDEX, PAIRS, PENDING_PAIR, REPLY_INSTANTIATE_PAIR,
+    Config, CONFIG, PAIRS, PAIR_COUNT, PAIR_INDEX, PENDING_PAIR, REPLY_INSTANTIATE_PAIR,
     WHITELISTED_CODE_IDS,
 };
 use dex_common::pagination::calc_limit;
@@ -71,21 +71,15 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::CreatePair { asset_infos } => {
-            execute_create_pair(deps, env, info, asset_infos)
-        }
+        ExecuteMsg::CreatePair { asset_infos } => execute_create_pair(deps, env, info, asset_infos),
         ExecuteMsg::AddWhitelistedCodeId { code_id } => {
             execute_add_whitelisted_code_id(deps, info, code_id)
         }
         ExecuteMsg::RemoveWhitelistedCodeId { code_id } => {
             execute_remove_whitelisted_code_id(deps, info, code_id)
         }
-        ExecuteMsg::SetPairFee { pair, fee_bps } => {
-            execute_set_pair_fee(deps, info, pair, fee_bps)
-        }
-        ExecuteMsg::SetPairHooks { pair, hooks } => {
-            execute_set_pair_hooks(deps, info, pair, hooks)
-        }
+        ExecuteMsg::SetPairFee { pair, fee_bps } => execute_set_pair_fee(deps, info, pair, fee_bps),
+        ExecuteMsg::SetPairHooks { pair, hooks } => execute_set_pair_hooks(deps, info, pair, hooks),
         ExecuteMsg::UpdateConfig {
             governance,
             treasury,
@@ -161,18 +155,14 @@ fn execute_create_pair(
         return Err(ContractError::CodeIdNotWhitelisted {});
     }
 
-    let token_info_a: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
-        token_a_addr.to_string(),
-        &cw20::Cw20QueryMsg::TokenInfo {},
-    )?;
-    let token_info_b: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
-        token_b_addr.to_string(),
-        &cw20::Cw20QueryMsg::TokenInfo {},
-    )?;
+    let token_info_a: cw20::TokenInfoResponse = deps
+        .querier
+        .query_wasm_smart(token_a_addr.to_string(), &cw20::Cw20QueryMsg::TokenInfo {})?;
+    let token_info_b: cw20::TokenInfoResponse = deps
+        .querier
+        .query_wasm_smart(token_b_addr.to_string(), &cw20::Cw20QueryMsg::TokenInfo {})?;
 
-    let truncate = |s: &str| -> String {
-        s.chars().take(6).collect::<String>().to_uppercase()
-    };
+    let truncate = |s: &str| -> String { s.chars().take(6).collect::<String>().to_uppercase() };
     let sym_a = truncate(&token_info_a.symbol);
     let sym_b = truncate(&token_info_b.symbol);
 
@@ -236,7 +226,10 @@ fn execute_remove_whitelisted_code_id(
 /// Verify that a pair contract address exists in the factory's registry.
 /// Linear scan over `PAIR_INDEX` — acceptable for governance operations
 /// which are infrequent, but would need indexing for high pair counts.
-fn assert_pair_in_registry(deps: &DepsMut, pair_addr: &cosmwasm_std::Addr) -> Result<(), ContractError> {
+fn assert_pair_in_registry(
+    deps: &DepsMut,
+    pair_addr: &cosmwasm_std::Addr,
+) -> Result<(), ContractError> {
     let count = PAIR_COUNT.load(deps.storage)?;
     for idx in 0..count {
         if let Ok(info) = PAIR_INDEX.load(deps.storage, idx) {
@@ -605,10 +598,7 @@ fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, Contrac
 
     let pair_info_resp: PairInfo = deps
         .querier
-        .query_wasm_smart(
-            pair_addr.to_string(),
-            &dex_common::pair::QueryMsg::Pair {},
-        )?;
+        .query_wasm_smart(pair_addr.to_string(), &dex_common::pair::QueryMsg::Pair {})?;
 
     let key = pair_key(&asset_infos);
     PAIRS.save(deps.storage, &key, &pair_info_resp)?;
