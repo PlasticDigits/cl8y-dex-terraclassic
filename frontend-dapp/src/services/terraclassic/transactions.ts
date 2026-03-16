@@ -23,8 +23,17 @@ function estimateTerraClassicFee(gasLimit: number): Fee {
   })
 }
 
+const SWAP_GAS_PER_HOP = 400000
+
+function countSwapHops(msg: Record<string, unknown>): number {
+  const ops = (msg as { execute_swap_operations?: { operations?: unknown[] } }).execute_swap_operations
+  return ops?.operations?.length ?? 1
+}
+
 function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
-  if ('swap' in executeMsg || 'execute_swap_operations' in executeMsg) {
+  if ('execute_swap_operations' in executeMsg) {
+    return SWAP_GAS_PER_HOP * countSwapHops(executeMsg)
+  } else if ('swap' in executeMsg) {
     return SWAP_GAS_LIMIT
   } else if ('provide_liquidity' in executeMsg) {
     return ADD_LIQUIDITY_GAS_LIMIT
@@ -39,7 +48,7 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         const inner = JSON.parse(atob(sendMsg.msg))
         if ('swap' in inner) return SWAP_GAS_LIMIT
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
-        if ('execute_swap_operations' in inner) return SWAP_GAS_LIMIT
+        if ('execute_swap_operations' in inner) return SWAP_GAS_PER_HOP * countSwapHops(inner)
       } catch {
         // fall through to base
       }
