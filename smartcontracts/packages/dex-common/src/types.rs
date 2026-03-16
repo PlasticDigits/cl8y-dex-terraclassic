@@ -32,14 +32,10 @@ impl AssetInfo {
 
     pub fn equal(&self, other: &AssetInfo) -> bool {
         match (self, other) {
-            (
-                AssetInfo::Token { contract_addr: a },
-                AssetInfo::Token { contract_addr: b },
-            ) => a == b,
-            (
-                AssetInfo::NativeToken { denom: a },
-                AssetInfo::NativeToken { denom: b },
-            ) => a == b,
+            (AssetInfo::Token { contract_addr: a }, AssetInfo::Token { contract_addr: b }) => {
+                a == b
+            }
+            (AssetInfo::NativeToken { denom: a }, AssetInfo::NativeToken { denom: b }) => a == b,
             _ => false,
         }
     }

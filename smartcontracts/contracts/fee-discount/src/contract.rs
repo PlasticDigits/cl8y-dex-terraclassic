@@ -8,7 +8,9 @@ use crate::msg::{
     ConfigResponse, DiscountResponse, ExecuteMsg, InstantiateMsg, IsTrustedRouterResponse,
     QueryMsg, RegistrationResponse, TierEntry, TierResponse, TiersResponse,
 };
-use crate::state::{Config, Tier, CONFIG, EPOCH_COUNTER, REGISTRATIONS, REGISTRATION_EPOCHS, TIERS, TRUSTED_ROUTERS};
+use crate::state::{
+    Config, Tier, CONFIG, EPOCH_COUNTER, REGISTRATIONS, REGISTRATION_EPOCHS, TIERS, TRUSTED_ROUTERS,
+};
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -46,13 +48,27 @@ pub fn execute(
             min_cl8y_balance,
             discount_bps,
             governance_only,
-        } => execute_add_tier(deps, info, tier_id, min_cl8y_balance, discount_bps, governance_only),
+        } => execute_add_tier(
+            deps,
+            info,
+            tier_id,
+            min_cl8y_balance,
+            discount_bps,
+            governance_only,
+        ),
         ExecuteMsg::UpdateTier {
             tier_id,
             min_cl8y_balance,
             discount_bps,
             governance_only,
-        } => execute_update_tier(deps, info, tier_id, min_cl8y_balance, discount_bps, governance_only),
+        } => execute_update_tier(
+            deps,
+            info,
+            tier_id,
+            min_cl8y_balance,
+            discount_bps,
+            governance_only,
+        ),
         ExecuteMsg::RemoveTier { tier_id } => execute_remove_tier(deps, info, tier_id),
         ExecuteMsg::Register { tier_id } => execute_register(deps, info, tier_id),
         ExecuteMsg::RegisterWallet { wallet, tier_id } => {
@@ -303,7 +319,9 @@ fn execute_deregister_wallet(
     let wallet_addr = deps.api.addr_validate(&wallet)?;
 
     if let Some(expected_epoch) = epoch {
-        let current_epoch = REGISTRATION_EPOCHS.may_load(deps.storage, wallet_addr.as_str())?.unwrap_or(0);
+        let current_epoch = REGISTRATION_EPOCHS
+            .may_load(deps.storage, wallet_addr.as_str())?
+            .unwrap_or(0);
         if current_epoch != expected_epoch {
             return Ok(Response::new()
                 .add_attribute("action", "deregister_wallet")
@@ -419,12 +437,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::GetTier { tier_id } => to_json_binary(&query_tier(deps, tier_id)?),
         QueryMsg::GetTiers {} => to_json_binary(&query_tiers(deps)?),
-        QueryMsg::GetRegistration { trader } => {
-            to_json_binary(&query_registration(deps, trader)?)
-        }
-        QueryMsg::IsTrustedRouter { addr } => {
-            to_json_binary(&query_is_trusted_router(deps, addr)?)
-        }
+        QueryMsg::GetRegistration { trader } => to_json_binary(&query_registration(deps, trader)?),
+        QueryMsg::IsTrustedRouter { addr } => to_json_binary(&query_is_trusted_router(deps, addr)?),
     }
 }
 
@@ -470,7 +484,9 @@ fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<Disco
         }
     };
 
-    let epoch = REGISTRATION_EPOCHS.may_load(deps.storage, &effective_trader)?.unwrap_or(0);
+    let epoch = REGISTRATION_EPOCHS
+        .may_load(deps.storage, &effective_trader)?
+        .unwrap_or(0);
 
     let tier = match TIERS.may_load(deps.storage, tier_id)? {
         Some(t) => t,

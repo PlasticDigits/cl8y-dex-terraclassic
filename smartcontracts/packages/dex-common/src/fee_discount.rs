@@ -27,10 +27,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    DeregisterWallet {
-        wallet: String,
-        epoch: Option<u64>,
-    },
+    DeregisterWallet { wallet: String, epoch: Option<u64> },
 }
 
 #[cw_serde]

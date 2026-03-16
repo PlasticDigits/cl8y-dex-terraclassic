@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdResult, SubMsg, Uint128, WasmMsg,
+    from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -147,7 +147,8 @@ fn execute_swap_operations(
 
     let (pair_addr, ask_asset_info) = resolve_operation(deps.as_ref(), &factory, first_op)?;
 
-    let ask_addr_str = ask_asset_info.assert_is_token()
+    let ask_addr_str = ask_asset_info
+        .assert_is_token()
         .map_err(|_| ContractError::NativeTokenNotSupported {})?;
     let output_token = deps.api.addr_validate(ask_addr_str)?;
 
@@ -215,10 +216,7 @@ fn resolve_operation(
                 .query_wasm_smart(
                     factory.to_string(),
                     &dex_common::factory::QueryMsg::Pair {
-                        asset_infos: [
-                            offer_asset_info.clone(),
-                            ask_asset_info.clone(),
-                        ],
+                        asset_infos: [offer_asset_info.clone(), ask_asset_info.clone()],
                     },
                 )
                 .map_err(|_| ContractError::PairNotFound {})?;
@@ -289,7 +287,8 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let (pair_addr, ask_asset_info) = resolve_operation(deps.as_ref(), &factory, &next_op)?;
 
     let current_token = state.output_token.clone();
-    let ask_addr_str = ask_asset_info.assert_is_token()
+    let ask_addr_str = ask_asset_info
+        .assert_is_token()
         .map_err(|_| ContractError::NativeTokenNotSupported {})?;
     state.output_token = deps.api.addr_validate(ask_addr_str)?;
 
@@ -338,9 +337,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             ask_amount,
             operations,
         } => to_json_binary(&query_reverse_simulate_swap_operations(
-            deps,
-            ask_amount,
-            operations,
+            deps, ask_amount, operations,
         )?),
     }
 }
@@ -383,15 +380,11 @@ fn query_simulate_swap_operations(
                 offer_asset_info,
                 ask_asset_info,
             } => {
-                let pair_response: dex_common::factory::PairResponse = deps
-                    .querier
-                    .query_wasm_smart(
+                let pair_response: dex_common::factory::PairResponse =
+                    deps.querier.query_wasm_smart(
                         factory.to_string(),
                         &dex_common::factory::QueryMsg::Pair {
-                            asset_infos: [
-                                offer_asset_info.clone(),
-                                ask_asset_info.clone(),
-                            ],
+                            asset_infos: [offer_asset_info.clone(), ask_asset_info.clone()],
                         },
                     )?;
 
@@ -448,15 +441,11 @@ fn query_reverse_simulate_swap_operations(
                 offer_asset_info,
                 ask_asset_info,
             } => {
-                let pair_response: dex_common::factory::PairResponse = deps
-                    .querier
-                    .query_wasm_smart(
+                let pair_response: dex_common::factory::PairResponse =
+                    deps.querier.query_wasm_smart(
                         factory.to_string(),
                         &dex_common::factory::QueryMsg::Pair {
-                            asset_infos: [
-                                offer_asset_info.clone(),
-                                ask_asset_info.clone(),
-                            ],
+                            asset_infos: [offer_asset_info.clone(), ask_asset_info.clone()],
                         },
                     )?;
 

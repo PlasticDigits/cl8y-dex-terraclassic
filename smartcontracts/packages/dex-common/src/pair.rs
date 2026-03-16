@@ -84,9 +84,7 @@ pub enum Cw20HookMsg {
     /// Burn LP tokens and receive underlying assets pro-rata.
     /// Optional `min_assets` protects against sandwich attacks by reverting
     /// if either returned amount falls below the specified minimum.
-    WithdrawLiquidity {
-        min_assets: Option<[Uint128; 2]>,
-    },
+    WithdrawLiquidity { min_assets: Option<[Uint128; 2]> },
 }
 
 #[cw_serde]
@@ -110,7 +108,6 @@ pub enum QueryMsg {
     GetHooks {},
 
     // ---- TWAP oracle queries ----
-
     /// Return cumulative price sums at the requested `seconds_ago` offsets.
     /// Consumers compute the arithmetic-mean TWAP as:
     ///   `twap = (cum[0] - cum[1]) / (seconds_ago[1] - seconds_ago[0])`

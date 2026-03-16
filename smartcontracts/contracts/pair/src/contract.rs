@@ -118,7 +118,11 @@ fn oracle_update(
     let last_obs = OBSERVATIONS.may_load(storage, state.index)?;
 
     let (last_ts, last_cum_a, last_cum_b) = match last_obs {
-        Some(obs) => (obs.timestamp, obs.price_a_cumulative, obs.price_b_cumulative),
+        Some(obs) => (
+            obs.timestamp,
+            obs.price_a_cumulative,
+            obs.price_b_cumulative,
+        ),
         None => {
             // First observation: seed with current timestamp and zero cumulatives.
             // No dt to accumulate — just record the starting point.
@@ -152,10 +156,16 @@ fn oracle_update(
         reason: e.to_string(),
     })?;
 
-    let new_cum_a = last_cum_a.checked_add(delta_a)
-        .map_err(|e| ContractError::Oracle { reason: format!("price_a overflow: {}", e) })?;
-    let new_cum_b = last_cum_b.checked_add(delta_b)
-        .map_err(|e| ContractError::Oracle { reason: format!("price_b overflow: {}", e) })?;
+    let new_cum_a = last_cum_a
+        .checked_add(delta_a)
+        .map_err(|e| ContractError::Oracle {
+            reason: format!("price_a overflow: {}", e),
+        })?;
+    let new_cum_b = last_cum_b
+        .checked_add(delta_b)
+        .map_err(|e| ContractError::Oracle {
+            reason: format!("price_b overflow: {}", e),
+        })?;
 
     let new_index = if state.cardinality_initialized < state.cardinality {
         state.cardinality_initialized
@@ -205,12 +215,24 @@ fn oracle_observe_single(
         let dt = target - latest_obs.timestamp;
         let price_a = Decimal::from_ratio(reserve_b, reserve_a);
         let price_b = Decimal::from_ratio(reserve_a, reserve_b);
-        let delta_a = price_times_dt(price_a, dt).map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
-        let delta_b = price_times_dt(price_b, dt).map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
-        let cum_a = latest_obs.price_a_cumulative.checked_add(delta_a)
-            .map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
-        let cum_b = latest_obs.price_b_cumulative.checked_add(delta_b)
-            .map_err(|e| ContractError::Oracle { reason: e.to_string() })?;
+        let delta_a = price_times_dt(price_a, dt).map_err(|e| ContractError::Oracle {
+            reason: e.to_string(),
+        })?;
+        let delta_b = price_times_dt(price_b, dt).map_err(|e| ContractError::Oracle {
+            reason: e.to_string(),
+        })?;
+        let cum_a = latest_obs
+            .price_a_cumulative
+            .checked_add(delta_a)
+            .map_err(|e| ContractError::Oracle {
+                reason: e.to_string(),
+            })?;
+        let cum_b = latest_obs
+            .price_b_cumulative
+            .checked_add(delta_b)
+            .map_err(|e| ContractError::Oracle {
+                reason: e.to_string(),
+            })?;
         return Ok((cum_a, cum_b));
     }
 
@@ -289,8 +311,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     for ai in &msg.asset_infos {
-        ai.assert_is_token()
-            .map_err(ContractError::Std)?;
+        ai.assert_is_token().map_err(ContractError::Std)?;
     }
 
     let pair_info = PairInfoState {
@@ -364,14 +385,18 @@ pub fn instantiate(
     Ok(Response::new()
         .add_submessage(sub_msg)
         .add_attribute("action", "instantiate")
-        .add_attribute("pair", format!("{}-{}", msg.asset_infos[0], msg.asset_infos[1])))
+        .add_attribute(
+            "pair",
+            format!("{}-{}", msg.asset_infos[0], msg.asset_infos[1]),
+        ))
 }
 
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         INSTANTIATE_LP_TOKEN_REPLY_ID => {
-            let res = cw_utils::parse_reply_instantiate_data(msg)
-                .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
+            let res = cw_utils::parse_reply_instantiate_data(msg).map_err(|e| {
+                ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string()))
+            })?;
             let lp_token_addr = deps.api.addr_validate(&res.contract_address)?;
 
             PAIR_INFO.update(deps.storage, |mut info| -> StdResult<_> {
@@ -419,7 +444,9 @@ pub fn execute(
             to: _,
             deadline: _,
         } => {
-            offer_asset.info.assert_is_token()
+            offer_asset
+                .info
+                .assert_is_token()
                 .map_err(|_| ContractError::NativeTokenNotSupported {})?;
             Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
                 "Direct Swap execute is not supported for CW20 tokens; use CW20 Send with Cw20HookMsg::Swap instead"
@@ -434,9 +461,7 @@ pub fn execute(
             execute_set_discount_registry(deps, info, registry)
         }
         ExecuteMsg::SetPaused { paused } => execute_set_paused(deps, info, paused),
-        ExecuteMsg::Sweep { token, recipient } => {
-            execute_sweep(deps, env, info, token, recipient)
-        }
+        ExecuteMsg::Sweep { token, recipient } => execute_sweep(deps, env, info, token, recipient),
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
     }
 }
@@ -556,12 +581,7 @@ fn execute_swap(
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
     // Record observation BEFORE reserves change — critical for manipulation resistance.
-    oracle_update(
-        deps.storage,
-        env.block.time.seconds(),
-        reserve_a,
-        reserve_b,
-    )?;
+    oracle_update(deps.storage, env.block.time.seconds(), reserve_a, reserve_b)?;
 
     let offer_token_addr = info.sender.to_string();
     let token_a_addr = token_addr(&pair_info.asset_infos[0]);
@@ -607,7 +627,8 @@ fn execute_swap(
         return Err(ContractError::InvariantViolation {
             reason: format!(
                 "k increase exceeds rounding bound: delta={}, bound={}",
-                new_k - k, new_input_reserve
+                new_k - k,
+                new_input_reserve
             ),
         });
     }
@@ -654,15 +675,14 @@ fn execute_swap(
         None => fee_config.fee_bps,
     };
 
-    let fee_numerator = gross_output
-        .checked_mul(Uint128::new(effective_fee_bps as u128))?;
-    let commission_amount = fee_numerator
-        .checked_div(Uint128::new(10000))?;
+    let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
+    let commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
     let return_amount = gross_output.checked_sub(commission_amount)?;
 
     // Sanity: floor-division rounding on commission loses < 1 output token.
     // fee_numerator / 10000 truncates; the remainder must be < 10000.
-    let commission_remainder = fee_numerator - commission_amount.checked_mul(Uint128::new(10000))?;
+    let commission_remainder =
+        fee_numerator - commission_amount.checked_mul(Uint128::new(10000))?;
     if commission_remainder >= Uint128::new(10000) {
         return Err(ContractError::InvariantViolation {
             reason: format!(
@@ -801,12 +821,7 @@ fn execute_provide_liquidity(
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let total_supply = TOTAL_LP_SUPPLY.load(deps.storage)?;
 
-    oracle_update(
-        deps.storage,
-        env.block.time.seconds(),
-        reserve_a,
-        reserve_b,
-    )?;
+    oracle_update(deps.storage, env.block.time.seconds(), reserve_a, reserve_b)?;
 
     let is_first_deposit = reserve_a.is_zero() && reserve_b.is_zero();
 
@@ -867,12 +882,8 @@ fn execute_provide_liquidity(
 
     if let Some(tolerance) = slippage_tolerance {
         if !is_first_deposit {
-            let expected_lp_a = amount_a
-                .checked_mul(total_supply)?
-                .checked_div(reserve_a)?;
-            let expected_lp_b = amount_b
-                .checked_mul(total_supply)?
-                .checked_div(reserve_b)?;
+            let expected_lp_a = amount_a.checked_mul(total_supply)?.checked_div(reserve_a)?;
+            let expected_lp_b = amount_b.checked_mul(total_supply)?.checked_div(reserve_b)?;
             let expected_lp = std::cmp::max(expected_lp_a, expected_lp_b);
 
             if expected_lp > Uint128::zero() {
@@ -944,9 +955,7 @@ fn execute_provide_liquidity(
         }));
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pair_info.lp_token.to_string(),
-            msg: to_json_binary(&Cw20ExecuteMsg::Burn {
-                amount: lp_to_burn,
-            })?,
+            msg: to_json_binary(&Cw20ExecuteMsg::Burn { amount: lp_to_burn })?,
             funds: vec![],
         }));
     }
@@ -994,12 +1003,7 @@ fn execute_withdraw_liquidity(
     let total_supply = TOTAL_LP_SUPPLY.load(deps.storage)?;
 
     // Record observation BEFORE reserves change.
-    oracle_update(
-        deps.storage,
-        env.block.time.seconds(),
-        reserve_a,
-        reserve_b,
-    )?;
+    oracle_update(deps.storage, env.block.time.seconds(), reserve_a, reserve_b)?;
 
     if total_supply.is_zero() {
         return Err(ContractError::InsufficientLiquidity {});
@@ -1387,16 +1391,15 @@ fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationRespo
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
-    let (input_reserve, output_reserve) =
-        if offer_asset.info.equal(&pair_info.asset_infos[0]) {
-            (reserve_a, reserve_b)
-        } else if offer_asset.info.equal(&pair_info.asset_infos[1]) {
-            (reserve_b, reserve_a)
-        } else {
-            return Err(cosmwasm_std::StdError::generic_err(
-                "Invalid offer asset: does not match pair assets",
-            ));
-        };
+    let (input_reserve, output_reserve) = if offer_asset.info.equal(&pair_info.asset_infos[0]) {
+        (reserve_a, reserve_b)
+    } else if offer_asset.info.equal(&pair_info.asset_infos[1]) {
+        (reserve_b, reserve_a)
+    } else {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "Invalid offer asset: does not match pair assets",
+        ));
+    };
 
     if input_reserve.is_zero() || output_reserve.is_zero() {
         return Ok(SimulationResponse {
@@ -1433,24 +1436,20 @@ fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationRespo
     })
 }
 
-fn query_reverse_simulation(
-    deps: Deps,
-    ask_asset: Asset,
-) -> StdResult<ReverseSimulationResponse> {
+fn query_reverse_simulation(deps: Deps, ask_asset: Asset) -> StdResult<ReverseSimulationResponse> {
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
-    let (input_reserve, output_reserve) =
-        if ask_asset.info.equal(&pair_info.asset_infos[1]) {
-            (reserve_a, reserve_b)
-        } else if ask_asset.info.equal(&pair_info.asset_infos[0]) {
-            (reserve_b, reserve_a)
-        } else {
-            return Err(cosmwasm_std::StdError::generic_err(
-                "Invalid ask asset: does not match pair assets",
-            ));
-        };
+    let (input_reserve, output_reserve) = if ask_asset.info.equal(&pair_info.asset_infos[1]) {
+        (reserve_a, reserve_b)
+    } else if ask_asset.info.equal(&pair_info.asset_infos[0]) {
+        (reserve_b, reserve_a)
+    } else {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "Invalid ask asset: does not match pair assets",
+        ));
+    };
 
     if input_reserve.is_zero() || output_reserve.is_zero() {
         return Ok(ReverseSimulationResponse {
@@ -1546,7 +1545,10 @@ fn query_observe(
         price_b_cumulatives.push(cum_b);
     }
 
-    Ok(ObserveResponse { price_a_cumulatives, price_b_cumulatives })
+    Ok(ObserveResponse {
+        price_a_cumulatives,
+        price_b_cumulatives,
+    })
 }
 
 fn query_oracle_info(deps: Deps) -> Result<OracleInfoResponse, ContractError> {
@@ -1590,8 +1592,7 @@ fn match_asset_amounts(
     pair_asset_infos: &[AssetInfo; 2],
     provided: &[Asset; 2],
 ) -> Result<(Uint128, Uint128), ContractError> {
-    if provided[0].info.equal(&pair_asset_infos[0])
-        && provided[1].info.equal(&pair_asset_infos[1])
+    if provided[0].info.equal(&pair_asset_infos[0]) && provided[1].info.equal(&pair_asset_infos[1])
     {
         Ok((provided[0].amount, provided[1].amount))
     } else if provided[0].info.equal(&pair_asset_infos[1])
