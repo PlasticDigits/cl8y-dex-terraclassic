@@ -9,6 +9,7 @@ export const CL8Y_TOKEN_ADDRESS =
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 
 export const GAS_PRICE_ULUNA = import.meta.env.VITE_GAS_PRICE_ULUNA || '28.325'
+export const SWAP_GAS_PER_HOP = 400000
 
 type NetworkConfig = {
   terra: {
