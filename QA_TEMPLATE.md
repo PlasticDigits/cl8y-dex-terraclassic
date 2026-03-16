@@ -923,6 +923,48 @@
 | 21.6.1 | Fee CTA link on swap page | Click "Hold CL8Y to reduce swap fees →" | Navigates to /tiers page | | |
 | 21.6.2 | Register with insufficient CL8Y | Attempt tier registration with low balance | Clear error showing required vs actual CL8Y balance | | |
 
+
+---
+
+## 22. MULTI-BROWSER & MULTI-DEVICE TESTING (Added 2026-03-16)
+
+> Tests for scenarios where the user has the DEX open in multiple browsers or devices simultaneously.
+
+### 22.1 Desktop + Desktop (Two Browser Windows)
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 22.1.1 | Same wallet, two windows | Open DEX in Chrome + Firefox with same wallet | Both show same balances, no conflicts | | |
+| 22.1.2 | Swap in window A, balance in B | Execute swap in Chrome → Check Firefox | Balance updates on refresh in Firefox | | |
+| 22.1.3 | Provide liquidity in A, pool in B | Add liquidity in Chrome → Check pool page in Firefox | LP balance visible after refresh | | |
+| 22.1.4 | Concurrent swaps | Execute swap in both windows simultaneously | Both succeed or one fails gracefully with sequence error | | |
+| 22.1.5 | Theme sync | Change theme in Chrome → Check Firefox | Theme may differ (localStorage per browser) — no crash | | |
+
+### 22.2 Desktop + Mobile
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 22.2.1 | Same wallet, desktop + mobile | Open DEX on desktop Chrome + mobile Keplr browser | Both show same balances | | |
+| 22.2.2 | Swap on desktop, check mobile | Execute swap on desktop → Check mobile | Balance updated on mobile after refresh | | |
+| 22.2.3 | Swap on mobile, check desktop | Execute swap on mobile → Check desktop | Balance updated on desktop after refresh | | |
+| 22.2.4 | Mobile responsive during active swap | Start swap on mobile while desktop has DEX open | No interference between sessions | | |
+
+### 22.3 Mobile + Mobile (Two Devices)
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 22.3.1 | Same wallet, two mobile devices | Open DEX on two phones with same wallet | Both show same balances | | |
+| 22.3.2 | Swap on device A, check device B | Execute swap on phone A → Check phone B | Balance updated after refresh | | |
+
+### 22.4 Session & State Isolation
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 22.4.1 | Different wallets in different browsers | Connect Keplr in Chrome, simulated in Firefox | Each shows own balances independently | | |
+| 22.4.2 | Disconnect in one browser | Disconnect wallet in Chrome → Check Firefox | Firefox session unaffected | | |
+| 22.4.3 | Clear localStorage in one browser | Clear Chrome localStorage → Check Firefox | Firefox session unaffected | | |
+| 22.4.4 | Rapid pair switching in both | Switch pairs rapidly in both browsers | No crashes or stale data | | |
+
 ---
 
 ## SIGN-OFF
@@ -958,4 +1000,5 @@
 | 19. Database Integrity | 7 | | | | |
 | 20. Known Limitations | 8 | | | | |
 | 21. Additional QA Checks | 22 | | | | |
-| **TOTAL** | **392** | | | | |
+| 22. Multi-Browser & Multi-Device | 16 | | | | |
+| **TOTAL** | **408** | | | | |
