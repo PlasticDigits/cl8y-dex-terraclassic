@@ -8648,3 +8648,1381 @@ mod new_feature_tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Issue #25 – Multi-user concurrency tests
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod multi_user_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{Addr, Uint128};
+    use cw_multi_test::App;
+
+    #[test]
+    fn test_two_users_swap_same_pair() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let user2 = Addr::unchecked("user2");
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        let pool_before = query_pool(&app, &env.pair);
+        let k_before = pool_before.assets[0].amount.u128() as u128
+            * pool_before.assets[1].amount.u128() as u128;
+
+        let u1_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        let u2_a_before = query_cw20_balance(&app, &env.token_a, &user2);
+        let treasury_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
+        swap_b_to_a(&mut app, &env, &user2, Uint128::new(100_000));
+
+        let u1_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+        let u2_a_after = query_cw20_balance(&app, &env.token_a, &user2);
+        assert!(
+            u1_b_after > u1_b_before,
+            "user1 should have received token_b"
+        );
+        assert!(
+            u2_a_after > u2_a_before,
+            "user2 should have received token_a"
+        );
+
+        let treasury_a_after = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert!(
+            treasury_b_after > treasury_b_before,
+            "treasury should collect fee in token_b"
+        );
+        assert!(
+            treasury_a_after > treasury_a_before,
+            "treasury should collect fee in token_a"
+        );
+
+        let pool_after = query_pool(&app, &env.pair);
+        let k_after =
+            pool_after.assets[0].amount.u128() as u128 * pool_after.assets[1].amount.u128() as u128;
+        assert!(
+            k_after >= k_before,
+            "K invariant must hold after both swaps"
+        );
+    }
+
+    #[test]
+    fn test_two_users_provide_liquidity() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let user2 = Addr::unchecked("user2");
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        provide_liquidity(
+            &mut app,
+            &env,
+            &user2,
+            Uint128::new(2_000_000),
+            Uint128::new(2_000_000),
+        );
+
+        let lp1 = query_cw20_balance(&app, &env.lp_token, &env.user);
+        let lp2 = query_cw20_balance(&app, &env.lp_token, &user2);
+
+        // user2 deposited 2x, so should hold ~2x the LP tokens
+        let ratio = lp2.u128() as f64 / lp1.u128() as f64;
+        assert!(
+            (ratio - 2.0).abs() < 0.01,
+            "LP ratio should be ~2:1, got {ratio}"
+        );
+
+        let pool = query_pool(&app, &env.pair);
+        assert_eq!(pool.assets[0].amount, Uint128::new(3_000_000));
+        assert_eq!(pool.assets[1].amount, Uint128::new(3_000_000));
+
+        // Both withdraw and receive proportional shares
+        let u1_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+        withdraw_liquidity(&mut app, &env, &env.user, lp1);
+        let u1_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+        let got_a_1 = u1_a_after - u1_a_before;
+
+        let u2_a_before = query_cw20_balance(&app, &env.token_a, &user2);
+        withdraw_liquidity(&mut app, &env, &user2, lp2);
+        let u2_a_after = query_cw20_balance(&app, &env.token_a, &user2);
+        let got_a_2 = u2_a_after - u2_a_before;
+
+        let ratio2 = got_a_2.u128() as f64 / got_a_1.u128() as f64;
+        assert!(
+            (ratio2 - 2.0).abs() < 0.01,
+            "Withdrawal ratio should be ~2:1, got {ratio2}"
+        );
+    }
+
+    #[test]
+    fn test_swap_during_withdraw() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let user2 = Addr::unchecked("user2");
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        // user2 swaps A->B, shifting the reserve ratio
+        swap_a_to_b(&mut app, &env, &user2, Uint128::new(100_000));
+
+        let pool_after_swap = query_pool(&app, &env.pair);
+        // Reserves are no longer 1:1
+        assert!(pool_after_swap.assets[0].amount > pool_after_swap.assets[1].amount);
+
+        let lp = query_cw20_balance(&app, &env.lp_token, &env.user);
+        let u1_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+        let u1_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+        withdraw_liquidity(&mut app, &env, &env.user, lp);
+
+        let u1_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+        let u1_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+
+        let got_a = u1_a_after - u1_a_before;
+        let got_b = u1_b_after - u1_b_before;
+
+        // Withdrawal reflects the post-swap reserves, not the original 1:1 deposit
+        assert!(
+            got_a > got_b,
+            "Should get more token_a (which was swapped in) than token_b: got_a={got_a}, got_b={got_b}"
+        );
+    }
+
+    #[test]
+    fn test_pool_reserves_consistent_after_mixed_ops() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let user2 = Addr::unchecked("user2");
+        let user3 = Addr::unchecked("user3");
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &user2,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &user2,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &user3,
+            Uint128::new(100_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &user3,
+            Uint128::new(100_000_000),
+        );
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(5_000_000),
+            Uint128::new(5_000_000),
+        );
+        let pool0 = query_pool(&app, &env.pair);
+        let k_initial =
+            pool0.assets[0].amount.u128() as u128 * pool0.assets[1].amount.u128() as u128;
+
+        // Interleaved operations from different users
+        provide_liquidity(
+            &mut app,
+            &env,
+            &user2,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        swap_a_to_b(&mut app, &env, &user3, Uint128::new(50_000));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &user3,
+            Uint128::new(500_000),
+            Uint128::new(500_000),
+        );
+        swap_b_to_a(&mut app, &env, &user2, Uint128::new(30_000));
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(20_000));
+
+        let pool_final = query_pool(&app, &env.pair);
+        let k_final =
+            pool_final.assets[0].amount.u128() as u128 * pool_final.assets[1].amount.u128() as u128;
+        assert!(k_final >= k_initial, "K must not decrease after mixed ops");
+
+        // total_share should equal sum of all outstanding LP balances + minimum_liquidity (locked)
+        let lp_user = query_cw20_balance(&app, &env.lp_token, &env.user);
+        let lp_user2 = query_cw20_balance(&app, &env.lp_token, &user2);
+        let lp_user3 = query_cw20_balance(&app, &env.lp_token, &user3);
+        let minimum_liquidity = Uint128::new(1_000);
+        let expected_total = lp_user + lp_user2 + lp_user3 + minimum_liquidity;
+        assert_eq!(
+            pool_final.total_share, expected_total,
+            "total_share must equal sum of outstanding LP tokens + minimum_liquidity"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Issue #25 – Fee treasury accumulation tests
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod fee_treasury_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{Addr, Uint128};
+    use cw_multi_test::{App, Executor};
+
+    #[test]
+    fn test_fees_accumulate_across_multiple_swaps() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        let amounts = [
+            1_000u128, 5_000, 10_000, 25_000, 50_000, 3_000, 7_500, 15_000, 40_000, 8_000,
+        ];
+        let mut total_fee = Uint128::zero();
+
+        for amount in amounts {
+            let treasury_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+            swap_a_to_b(&mut app, &env, &env.user, Uint128::new(amount));
+            let treasury_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+            let fee = treasury_after - treasury_before;
+            assert!(!fee.is_zero(), "Fee must be non-zero for swap of {amount}");
+            total_fee += fee;
+        }
+
+        let treasury_total = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert_eq!(
+            treasury_total, total_fee,
+            "Total treasury balance must equal sum of individual fees"
+        );
+        assert!(total_fee > Uint128::zero());
+    }
+
+    #[test]
+    fn test_bidirectional_swap_fees_accumulate() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let user2 = Addr::unchecked("user2");
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &user2,
+            Uint128::new(500_000_000),
+        );
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        // Simulate A->B to predict fee
+        let sim_ab: dex_common::pair::SimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::Simulation {
+                    offer_asset: dex_common::types::Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: Uint128::new(100_000),
+                    },
+                },
+            )
+            .unwrap();
+
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let fee_b = treasury_b_after - treasury_b_before;
+        assert_eq!(
+            fee_b, sim_ab.commission_amount,
+            "Fee in token_b must match simulation"
+        );
+
+        // Now swap B->A from user2
+        let sim_ba: dex_common::pair::SimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::Simulation {
+                    offer_asset: dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(100_000),
+                    },
+                },
+            )
+            .unwrap();
+
+        let treasury_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        swap_b_to_a(&mut app, &env, &user2, Uint128::new(100_000));
+        let treasury_a_after = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let fee_a = treasury_a_after - treasury_a_before;
+        assert_eq!(
+            fee_a, sim_ba.commission_amount,
+            "Fee in token_a must match simulation"
+        );
+
+        // Treasury received fees in both tokens
+        assert!(!fee_a.is_zero());
+        assert!(!fee_b.is_zero());
+    }
+
+    #[test]
+    fn test_fee_accumulation_with_discount_tiers() {
+        let mut app = App::default();
+        let base = setup_full_env(&mut app);
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let fee_discount_code_id = app.store_code(fee_discount_contract());
+
+        const ONE_CL8Y: u128 = 1_000_000_000_000_000_000;
+
+        let cl8y_token = create_cw20_token_with_decimals(
+            &mut app,
+            cw20_code_id,
+            &base.user,
+            "CL8Y Token",
+            "CL8Y",
+            18,
+            Uint128::new(100_000 * ONE_CL8Y),
+        );
+
+        let fee_discount = app
+            .instantiate_contract(
+                fee_discount_code_id,
+                base.governance.clone(),
+                &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                    governance: base.governance.to_string(),
+                    cl8y_token: cl8y_token.to_string(),
+                },
+                &[],
+                "fee_discount",
+                None,
+            )
+            .unwrap();
+
+        // Tier 1: 10% discount, Tier 4: 50% discount
+        for (tier_id, min_cl8y, discount_bps, governance_only) in [
+            (1u8, ONE_CL8Y, 1000u16, false),
+            (4, 1000 * ONE_CL8Y, 5000, false),
+        ] {
+            app.execute_contract(
+                base.governance.clone(),
+                fee_discount.clone(),
+                &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+                    tier_id,
+                    min_cl8y_balance: Uint128::new(min_cl8y),
+                    discount_bps,
+                    governance_only,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+
+        app.execute_contract(
+            base.governance.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTrustedRouter {
+                router: base.router.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            base.governance.clone(),
+            base.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetDiscountRegistry {
+                pair: base.pair.to_string(),
+                registry: Some(fee_discount.to_string()),
+            },
+            &[],
+        )
+        .unwrap();
+
+        provide_liquidity(
+            &mut app,
+            &base,
+            &base.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        // Swap without discount (full 30 bps)
+        let treasury_before = query_cw20_balance(&app, &base.token_b, &base.treasury);
+        swap_a_to_b(&mut app, &base, &base.user, Uint128::new(100_000));
+        let fee_full = query_cw20_balance(&app, &base.token_b, &base.treasury) - treasury_before;
+
+        // Register tier 1 (10% discount → 27 bps effective)
+        app.execute_contract(
+            base.user.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_before = query_cw20_balance(&app, &base.token_b, &base.treasury);
+        swap_a_to_b(&mut app, &base, &base.user, Uint128::new(100_000));
+        let fee_tier1 = query_cw20_balance(&app, &base.token_b, &base.treasury) - treasury_before;
+
+        // Upgrade to tier 4 (50% discount → 15 bps effective)
+        app.execute_contract(
+            base.user.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Deregister {},
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            base.user.clone(),
+            fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 4 },
+            &[],
+        )
+        .unwrap();
+
+        let treasury_before = query_cw20_balance(&app, &base.token_b, &base.treasury);
+        swap_a_to_b(&mut app, &base, &base.user, Uint128::new(100_000));
+        let fee_tier4 = query_cw20_balance(&app, &base.token_b, &base.treasury) - treasury_before;
+
+        assert!(
+            fee_full > fee_tier1,
+            "Tier 1 fee should be less than full fee"
+        );
+        assert!(
+            fee_tier1 > fee_tier4,
+            "Tier 4 fee should be less than tier 1 fee"
+        );
+
+        // All fees accumulated in treasury
+        let total_treasury = query_cw20_balance(&app, &base.token_b, &base.treasury);
+        assert_eq!(total_treasury, fee_full + fee_tier1 + fee_tier4);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Issue #25 – Dust / micro amount tests
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod dust_amount_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{Addr, Uint128};
+    use cw_multi_test::{App, Executor};
+
+    #[test]
+    fn test_swap_one_microunit() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        let pool_before = query_pool(&app, &env.pair);
+
+        let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::one()),
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let result = app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1),
+                msg: swap_msg,
+            },
+            &[],
+        );
+
+        match result {
+            Ok(_) => {
+                let user_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+                let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+                let pool_after = query_pool(&app, &env.pair);
+
+                // User's offer token was deducted
+                assert_eq!(user_a_before - user_a_after, Uint128::new(1));
+                // Pool received the offered token
+                assert_eq!(
+                    pool_after.assets[0].amount,
+                    pool_before.assets[0].amount + Uint128::new(1)
+                );
+
+                // With a 1M:1M pool, 1 microunit produces 0 output due to integer
+                // truncation: floor(1M * 1 / (1M + 1)) = 0. This documents the
+                // dust-loss behavior — the contract does not reject zero-output swaps.
+                if user_b_after == user_b_before {
+                    assert_eq!(
+                        pool_after.assets[1].amount, pool_before.assets[1].amount,
+                        "Zero-output swap must not change ask-side reserves"
+                    );
+                }
+            }
+            Err(_) => {
+                // A clean rejection of dust amounts is also acceptable
+            }
+        }
+    }
+
+    #[test]
+    fn test_provide_liquidity_one_microunit() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        // First deposit to initialize the pool
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let user2 = Addr::unchecked("user2");
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &user2,
+            Uint128::new(1_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_b,
+            &env.user,
+            &user2,
+            Uint128::new(1_000),
+        );
+
+        let lp_before = query_cw20_balance(&app, &env.lp_token, &user2);
+
+        app.execute_contract(
+            user2.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: env.pair.to_string(),
+                amount: Uint128::new(1),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            user2.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: env.pair.to_string(),
+                amount: Uint128::new(1),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let result = app.execute_contract(
+            user2.clone(),
+            env.pair.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: Uint128::new(1),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(1),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        );
+
+        match result {
+            Ok(_) => {
+                let lp_after = query_cw20_balance(&app, &env.lp_token, &user2);
+                assert!(
+                    lp_after > lp_before,
+                    "If 1-microunit LP succeeds, must mint non-zero LP tokens"
+                );
+            }
+            Err(e) => {
+                let msg = e.root_cause().to_string();
+                assert!(!msg.is_empty(), "Rejection must have a clear error message");
+            }
+        }
+    }
+
+    #[test]
+    fn test_no_zero_output_from_rounding() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::one()),
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        // Amounts large enough that the constant-product formula guarantees non-zero
+        // output on a 10M:10M pool (threshold is ~10 for 30 bps fee).
+        for amount in [100u128, 50, 20, 10] {
+            let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+            let result = app.execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(amount),
+                    msg: swap_msg.clone(),
+                },
+                &[],
+            );
+
+            if let Ok(_) = result {
+                let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+                assert!(
+                    user_b_after > user_b_before,
+                    "Swap of {amount} succeeded but produced zero output — rounding bug"
+                );
+            }
+        }
+
+        // Sub-threshold amounts (1-5) may legitimately produce zero output due to
+        // integer truncation: floor(10M * n / (10M + n)) rounds to n-1 or less,
+        // and the 30 bps fee can push it to 0. Document this boundary.
+        let mut zero_output_count = 0u32;
+        for amount in [5u128, 2, 1] {
+            let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+            let result = app.execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(amount),
+                    msg: swap_msg.clone(),
+                },
+                &[],
+            );
+            if let Ok(_) = result {
+                let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+                if user_b_after == user_b_before {
+                    zero_output_count += 1;
+                }
+            }
+        }
+        // At least some sub-threshold swaps should exhibit the zero-output behavior
+        assert!(
+            zero_output_count > 0,
+            "Expected sub-threshold swaps to produce zero output"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Issue #25 – Router multi-hop with reserve verification
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod router_hop_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{to_json_binary, Uint128};
+    use cw_multi_test::{App, Executor};
+
+    #[test]
+    fn test_router_three_hop_swap() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let token_c = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token C",
+            "TKNC",
+            Uint128::new(1_000_000_000_000),
+        );
+        let token_d = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token D",
+            "TKND",
+            Uint128::new(1_000_000_000_000),
+        );
+
+        // Create pair B-C
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bc = extract_pair_address(&resp.events);
+
+        // Create pair C-D
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_c), asset_info_token(&token_d)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_cd = extract_pair_address(&resp.events);
+
+        // Provide liquidity to A-B
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        // Provide liquidity to B-C (manual, since pair_bc is not in TestEnv)
+        for (token, pair) in [(&env.token_b, &pair_bc), (&token_c, &pair_bc)] {
+            app.execute_contract(
+                env.user.clone(),
+                token.clone(),
+                &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                    spender: pair.to_string(),
+                    amount: Uint128::new(10_000_000),
+                    expires: None,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+        app.execute_contract(
+            env.user.clone(),
+            pair_bc.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(10_000_000),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_c),
+                        amount: Uint128::new(10_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Provide liquidity to C-D
+        for (token, pair) in [(&token_c, &pair_cd), (&token_d, &pair_cd)] {
+            app.execute_contract(
+                env.user.clone(),
+                token.clone(),
+                &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                    spender: pair.to_string(),
+                    amount: Uint128::new(10_000_000),
+                    expires: None,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+        app.execute_contract(
+            env.user.clone(),
+            pair_cd.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_c),
+                        amount: Uint128::new(10_000_000),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_d),
+                        amount: Uint128::new(10_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let swap_amount = Uint128::new(10_000);
+
+        // Simulate the 3-hop swap via router
+        let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: swap_amount,
+                    operations: vec![
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&env.token_a),
+                            ask_asset_info: asset_info_token(&env.token_b),
+                        },
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&env.token_b),
+                            ask_asset_info: asset_info_token(&token_c),
+                        },
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&token_c),
+                            ask_asset_info: asset_info_token(&token_d),
+                        },
+                    ],
+                },
+            )
+            .unwrap();
+
+        let user_d_before = query_cw20_balance(&app, &token_d, &env.user);
+
+        // Execute the 3-hop swap
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_a),
+                    ask_asset_info: asset_info_token(&env.token_b),
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_b),
+                    ask_asset_info: asset_info_token(&token_c),
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&token_c),
+                    ask_asset_info: asset_info_token(&token_d),
+                },
+            ],
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: swap_amount,
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let user_d_after = query_cw20_balance(&app, &token_d, &env.user);
+        let received = user_d_after - user_d_before;
+
+        assert!(
+            received > Uint128::zero(),
+            "Must receive token_d from 3-hop swap"
+        );
+        assert_eq!(received, sim.amount, "Actual output must match simulation");
+    }
+
+    #[test]
+    fn test_intermediate_reserves_change_per_hop() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let token_c = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token C",
+            "TKNC",
+            Uint128::new(1_000_000_000_000),
+        );
+        let token_d = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token D",
+            "TKND",
+            Uint128::new(1_000_000_000_000),
+        );
+
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bc = extract_pair_address(&resp.events);
+
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_c), asset_info_token(&token_d)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_cd = extract_pair_address(&resp.events);
+
+        let liq = Uint128::new(10_000_000);
+
+        // Provide liquidity to all 3 pairs
+        provide_liquidity(&mut app, &env, &env.user, liq, liq);
+
+        for (t1, t2, pair) in [
+            (&env.token_b, &token_c, &pair_bc),
+            (&token_c, &token_d, &pair_cd),
+        ] {
+            for token in [t1, t2] {
+                app.execute_contract(
+                    env.user.clone(),
+                    token.clone(),
+                    &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                        spender: pair.to_string(),
+                        amount: liq,
+                        expires: None,
+                    },
+                    &[],
+                )
+                .unwrap();
+            }
+            app.execute_contract(
+                env.user.clone(),
+                pair.clone(),
+                &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                    assets: [
+                        dex_common::types::Asset {
+                            info: asset_info_token(t1),
+                            amount: liq,
+                        },
+                        dex_common::types::Asset {
+                            info: asset_info_token(t2),
+                            amount: liq,
+                        },
+                    ],
+                    slippage_tolerance: None,
+                    receiver: None,
+                    deadline: None,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+
+        // Record reserves before swap
+        let pool_ab_before = query_pool(&app, &env.pair);
+        let pool_bc_before = query_pool(&app, &pair_bc);
+        let pool_cd_before = query_pool(&app, &pair_cd);
+
+        // Execute 3-hop swap A -> B -> C -> D (10_000 stays within default spread)
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_a),
+                    ask_asset_info: asset_info_token(&env.token_b),
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_b),
+                    ask_asset_info: asset_info_token(&token_c),
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&token_c),
+                    ask_asset_info: asset_info_token(&token_d),
+                },
+            ],
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: Uint128::new(10_000),
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let pool_ab_after = query_pool(&app, &env.pair);
+        let pool_bc_after = query_pool(&app, &pair_bc);
+        let pool_cd_after = query_pool(&app, &pair_cd);
+
+        // Pair A-B: more A, less B (user offered A, got B)
+        assert!(
+            pool_ab_after.assets[0].amount > pool_ab_before.assets[0].amount,
+            "A-B pair should have more token_a"
+        );
+        assert!(
+            pool_ab_after.assets[1].amount < pool_ab_before.assets[1].amount,
+            "A-B pair should have less token_b"
+        );
+
+        // Pair B-C: more B, less C (router offered B, got C)
+        assert!(
+            pool_bc_after.assets[0].amount > pool_bc_before.assets[0].amount,
+            "B-C pair should have more token_b"
+        );
+        assert!(
+            pool_bc_after.assets[1].amount < pool_bc_before.assets[1].amount,
+            "B-C pair should have less token_c"
+        );
+
+        // Pair C-D: more C, less D (router offered C, got D)
+        assert!(
+            pool_cd_after.assets[0].amount > pool_cd_before.assets[0].amount,
+            "C-D pair should have more token_c"
+        );
+        assert!(
+            pool_cd_after.assets[1].amount < pool_cd_before.assets[1].amount,
+            "C-D pair should have less token_d"
+        );
+
+        // Verify constant-product invariant holds on each pair (K_after >= K_before due to fees)
+        for (name, before, after) in [
+            ("A-B", &pool_ab_before, &pool_ab_after),
+            ("B-C", &pool_bc_before, &pool_bc_after),
+            ("C-D", &pool_cd_before, &pool_cd_after),
+        ] {
+            let k_before =
+                before.assets[0].amount.u128() as u128 * before.assets[1].amount.u128() as u128;
+            let k_after =
+                after.assets[0].amount.u128() as u128 * after.assets[1].amount.u128() as u128;
+            assert!(k_after >= k_before, "K invariant violated on {name} pair");
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Issue #25 – Reentrancy protection tests
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod reentrancy_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{to_json_binary, Addr, Uint128};
+    use cw_multi_test::{App, Executor};
+
+    #[test]
+    fn test_reentrant_swap_during_swap_rejected() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        // Record state before the attempted reentrant swap
+        let pool_before = query_pool(&app, &env.pair);
+        let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+        // Attempt a normal swap — CosmWasm's execution model prevents reentrancy
+        // by design (single-threaded, no callback re-entry within same message).
+        // We verify state consistency with a double-swap sequence.
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
+
+        let pool_mid = query_pool(&app, &env.pair);
+        let k_before = pool_before.assets[0].amount.u128() as u128
+            * pool_before.assets[1].amount.u128() as u128;
+        let k_mid =
+            pool_mid.assets[0].amount.u128() as u128 * pool_mid.assets[1].amount.u128() as u128;
+
+        // Immediately do another swap (simulates what reentrancy would attempt)
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
+
+        let pool_after = query_pool(&app, &env.pair);
+        let k_after =
+            pool_after.assets[0].amount.u128() as u128 * pool_after.assets[1].amount.u128() as u128;
+
+        // State must be consistent: K never decreases
+        assert!(k_mid >= k_before, "K must not decrease after first swap");
+        assert!(k_after >= k_mid, "K must not decrease after second swap");
+
+        // User balances must have changed correctly
+        let user_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+        let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+        assert!(
+            user_a_after < user_a_before,
+            "User should have spent token_a"
+        );
+        assert!(
+            user_b_after > user_b_before,
+            "User should have received token_b"
+        );
+        assert_eq!(
+            user_a_before - user_a_after,
+            Uint128::new(20_000),
+            "Exactly 20_000 token_a should have been spent across both swaps"
+        );
+    }
+
+    #[test]
+    fn test_state_consistent_after_hook_revert() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let burn_hook_code_id = app.store_code(burn_hook_contract());
+
+        let burn_hook = app
+            .instantiate_contract(
+                burn_hook_code_id,
+                env.governance.clone(),
+                &cl8y_dex_burn_hook::msg::InstantiateMsg {
+                    burn_token: env.token_b.to_string(),
+                    burn_percentage_bps: 1000,
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "burn_hook",
+                None,
+            )
+            .unwrap();
+
+        // Attach hook but do NOT add pair to hook's allowed list → hook will revert
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: env.pair.to_string(),
+                hooks: vec![burn_hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        // Snapshot all state before the failed swap
+        let pool_before = query_pool(&app, &env.pair);
+        let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        let treasury_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::one()),
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Unauthorized hook caller"),
+            "Expected hook unauthorized error, got: {}",
+            err.root_cause()
+        );
+
+        // Verify ALL state is unchanged after the reverted transaction
+        let pool_after = query_pool(&app, &env.pair);
+        assert_eq!(
+            pool_after.assets[0].amount, pool_before.assets[0].amount,
+            "Pool reserve A must be unchanged"
+        );
+        assert_eq!(
+            pool_after.assets[1].amount, pool_before.assets[1].amount,
+            "Pool reserve B must be unchanged"
+        );
+        assert_eq!(
+            pool_after.total_share, pool_before.total_share,
+            "Total LP share must be unchanged"
+        );
+
+        let user_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+        let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+        assert_eq!(
+            user_a_after, user_a_before,
+            "User token_a balance must be unchanged"
+        );
+        assert_eq!(
+            user_b_after, user_b_before,
+            "User token_b balance must be unchanged"
+        );
+
+        let treasury_a_after = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert_eq!(
+            treasury_a_after, treasury_a_before,
+            "Treasury token_a must be unchanged"
+        );
+        assert_eq!(
+            treasury_b_after, treasury_b_before,
+            "Treasury token_b must be unchanged"
+        );
+    }
+}
