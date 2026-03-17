@@ -1,3 +1,5 @@
+import { NATIVE_WRAPPED_PAIRS, WRAPPED_NATIVE_PAIRS } from '@/utils/constants'
+
 /** TerraSwap-compatible asset identifier */
 export type AssetInfo = { token: { contract_addr: string } } | { native_token: { denom: string } }
 
@@ -194,4 +196,16 @@ export interface IndexerPosition {
   total_cost_base: string
   realized_pnl: string
   trade_count: number
+}
+
+export function isNativeDenom(tokenId: string): boolean {
+  return tokenId === 'uluna' || tokenId === 'uusd'
+}
+
+export function getWrappedEquivalent(tokenId: string): string | null {
+  return NATIVE_WRAPPED_PAIRS[tokenId] || null
+}
+
+export function getNativeEquivalent(tokenId: string): string | null {
+  return WRAPPED_NATIVE_PAIRS[tokenId] || null
 }

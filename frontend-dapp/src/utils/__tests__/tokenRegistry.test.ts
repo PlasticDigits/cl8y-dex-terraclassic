@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { lookupByDenom, lookupByCW20, lookupByTokenId, lookupByAssetInfo } from '../tokenRegistry'
+import { lookupByDenom, lookupByCW20, lookupByTokenId, lookupByAssetInfo, TOKENS } from '../tokenRegistry'
 
 describe('lookupByDenom', () => {
   it('returns LUNC for uluna', () => {
@@ -75,5 +75,21 @@ describe('lookupByAssetInfo', () => {
   it('returns undefined for unknown AssetInfo', () => {
     const info = { token: { contract_addr: 'terra1unknown' } }
     expect(lookupByAssetInfo(info)).toBeUndefined()
+  })
+})
+
+describe('wrapped native token entries', () => {
+  it('has LUNC-C entry', () => {
+    const luncC = TOKENS.find((t) => t.symbol === 'LUNC-C')
+    expect(luncC).toBeDefined()
+    expect(luncC?.name).toBe('Wrapped Luna Classic')
+    expect(luncC?.decimals).toBe(6)
+  })
+
+  it('has USTC-C entry', () => {
+    const ustcC = TOKENS.find((t) => t.symbol === 'USTC-C')
+    expect(ustcC).toBeDefined()
+    expect(ustcC?.name).toBe('Wrapped TerraClassicUSD')
+    expect(ustcC?.decimals).toBe(6)
   })
 })

@@ -1,4 +1,5 @@
 import type { AssetInfo } from '@/types'
+import { LUNC_C_TOKEN_ADDRESS, USTC_C_TOKEN_ADDRESS } from './constants'
 
 export interface TokenRegistryEntry {
   symbol: string
@@ -8,7 +9,7 @@ export interface TokenRegistryEntry {
   type: 'native' | 'cw20'
 }
 
-const TOKENS: TokenRegistryEntry[] = [
+export const TOKENS: TokenRegistryEntry[] = [
   {
     symbol: 'LUNC',
     name: 'Terra Luna Classic',
@@ -58,6 +59,20 @@ const TOKENS: TokenRegistryEntry[] = [
     type: 'cw20',
     logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/SPACEUSD.png',
   },
+  {
+    symbol: 'LUNC-C',
+    name: 'Wrapped Luna Classic',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png',
+  },
+  {
+    symbol: 'USTC-C',
+    name: 'Wrapped TerraClassicUSD',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTC.png',
+  },
 ]
 
 const DENOM_MAP: Record<string, string> = {
@@ -72,6 +87,9 @@ const CW20_MAP: Record<string, string> = {
   terra1r3eaa2tucjr3es88wzuqpgxvssqflk9cghrjmf9uneds8wljyapqwtrcp5: 'USTRIX',
   terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl: 'SpaceUSD',
 }
+
+if (LUNC_C_TOKEN_ADDRESS) CW20_MAP[LUNC_C_TOKEN_ADDRESS.toLowerCase()] = 'LUNC-C'
+if (USTC_C_TOKEN_ADDRESS) CW20_MAP[USTC_C_TOKEN_ADDRESS.toLowerCase()] = 'USTC-C'
 
 const BY_SYMBOL = new Map<string, TokenRegistryEntry>()
 for (const t of TOKENS) BY_SYMBOL.set(t.symbol, t)

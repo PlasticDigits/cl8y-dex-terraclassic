@@ -33,7 +33,8 @@ dex-common = { path = "packages/dex-common" }
 
 # External packages
 cw20-mintable = { git = "https://github.com/PlasticDigits/cw20-mintable", features = ["library"] }
-treasury = { git = "https://github.com/PlasticDigits/ustr-cmm", features = ["library"] }
+treasury = { git = "https://gitlab.com/PlasticDigits/ustr-cmm", rev = "3a835bd52b06614746bac1518e0eece6ee50f69f", features = ["library"] }
+wrap-mapper = { git = "https://gitlab.com/PlasticDigits/ustr-cmm", rev = "3a835bd52b06614746bac1518e0eece6ee50f69f", features = ["library"] }
 
 [profile.release]
 opt-level = 3

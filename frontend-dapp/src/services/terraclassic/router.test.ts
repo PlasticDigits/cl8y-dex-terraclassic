@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findRoute, getAllTokens } from './router'
+import { findRoute, getAllTokens, isDirectWrapUnwrap, findRouteWithNativeSupport } from './router'
 import type { PairInfo } from '@/types'
 
 function mockPair(tokenA: string, tokenB: string, addr: string): PairInfo {
@@ -61,5 +61,31 @@ describe('getAllTokens', () => {
     expect(tokens).toContain('tokenA')
     expect(tokens).toContain('tokenB')
     expect(tokens).toContain('tokenC')
+  })
+})
+
+describe('isDirectWrapUnwrap', () => {
+  it('returns null for unrelated CW20 tokens', () => {
+    expect(isDirectWrapUnwrap('terra1abc', 'terra1def')).toBeNull()
+  })
+
+  it('returns null for same token', () => {
+    expect(isDirectWrapUnwrap('uluna', 'uluna')).toBeNull()
+  })
+})
+
+describe('findRouteWithNativeSupport', () => {
+  it('returns null for direct wrap/unwrap', () => {
+    const pairs = [mockPair('tokenA', 'tokenB', 'pair1')]
+    expect(findRouteWithNativeSupport(pairs, 'uluna', 'uluna')).toBeNull()
+  })
+})
+
+describe('getAllTokens with native support', () => {
+  it('returns CW20 tokens when no native mapping configured', () => {
+    const pairs = [mockPair('tokenA', 'tokenB', 'pair1')]
+    const tokens = getAllTokens(pairs)
+    expect(tokens).toContain('tokenA')
+    expect(tokens).toContain('tokenB')
   })
 })
