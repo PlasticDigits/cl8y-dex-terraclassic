@@ -8,9 +8,18 @@ import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
-import { findRoute, getAllTokens, simulateMultiHopSwap, executeMultiHopSwap } from '@/services/terraclassic/router'
+import {
+  findRoute,
+  getAllTokens,
+  simulateMultiHopSwap,
+  executeMultiHopSwap,
+  isDirectWrapUnwrap,
+  findRouteWithNativeSupport,
+  simulateNativeSwap,
+  executeNativeSwap,
+} from '@/services/terraclassic/router'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
-import { assetInfoLabel, tokenAssetInfo } from '@/types'
+import { assetInfoLabel, tokenAssetInfo, isNativeDenom } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { TokenDisplay, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
@@ -49,9 +58,20 @@ export default function SwapPage() {
   }, [pairs, fromToken])
 
   const allTokens = pairs.length > 0 ? getAllTokens(pairs) : []
-  const route = fromToken && toToken ? findRoute(pairs, fromToken, toToken) : null
+
+  const wrapUnwrapType = fromToken && toToken ? isDirectWrapUnwrap(fromToken, toToken) : null
+  const isWrapOrUnwrap = wrapUnwrapType !== null
+
+  const nativeRouteInfo =
+    fromToken && toToken && !isWrapOrUnwrap && (isNativeDenom(fromToken) || isNativeDenom(toToken))
+      ? findRouteWithNativeSupport(pairs, fromToken, toToken)
+      : null
+
+  const route =
+    fromToken && toToken && !isWrapOrUnwrap && !nativeRouteInfo ? findRoute(pairs, fromToken, toToken) : null
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
+  const hasRoute = isWrapOrUnwrap || nativeRouteInfo !== null || route !== null
 
   const directPair = pairs.find((p) => {
     const a = assetInfoLabel(p.asset_infos[0])
@@ -115,9 +135,28 @@ export default function SwapPage() {
   const rawInputAmount = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
 
   const simQuery = useQuery({
-    queryKey: ['simulation', fromToken, toToken, rawInputAmount, JSON.stringify(route)],
+    queryKey: [
+      'simulation',
+      fromToken,
+      toToken,
+      rawInputAmount,
+      JSON.stringify(route),
+      wrapUnwrapType,
+      JSON.stringify(nativeRouteInfo),
+    ],
     queryFn: async () => {
-      if (!route || !inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
+      if (!inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
+
+      if (isWrapOrUnwrap) {
+        return { return_amount: rawInputAmount, spread_amount: '0', commission_amount: '0' }
+      }
+
+      if (nativeRouteInfo) {
+        const result = await simulateNativeSwap(rawInputAmount, fromToken, toToken, pairs)
+        return { return_amount: result.amount, spread_amount: '0', commission_amount: '0' }
+      }
+
+      if (!route) throw new Error('No route found')
       if (isDirect && directPair) {
         const offerInfo = tokenAssetInfo(fromToken)
         return simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount)
@@ -128,14 +167,20 @@ export default function SwapPage() {
       }
       throw new Error('No route found')
     },
-    enabled: !!route && !!inputAmount && parseFloat(inputAmount) > 0,
+    enabled: hasRoute && !!inputAmount && parseFloat(inputAmount) > 0,
     refetchInterval: 10_000,
   })
 
   const swapMutation = useMutation({
     mutationFn: async () => {
-      if (!address || !inputAmount || !route) throw new Error('Missing parameters')
+      if (!address || !inputAmount) throw new Error('Missing parameters')
       const maxSpread = (slippageTolerance / 100).toString()
+
+      if (isWrapOrUnwrap || nativeRouteInfo) {
+        return executeNativeSwap(address, fromToken, toToken, rawInputAmount, pairs, minReceived ?? undefined)
+      }
+
+      if (!route) throw new Error('No route found')
 
       if (isDirect && directPair) {
         return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread)
@@ -189,7 +234,7 @@ export default function SwapPage() {
   if (!isWalletConnected) {
     buttonText = 'Connect Wallet'
     buttonDisabled = true
-  } else if (!route) {
+  } else if (!hasRoute) {
     buttonText = 'No Route'
     buttonDisabled = true
   } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
@@ -356,6 +401,42 @@ export default function SwapPage() {
                   ))}
               </select>
             </div>
+            {isWrapOrUnwrap && (
+              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+                This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
+                (1:1)
+              </div>
+            )}
+            {nativeRouteInfo && (
+              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+                <span className="uppercase tracking-wide font-medium">Route: </span>
+                {nativeRouteInfo.needsWrapInput && <span>{getTokenDisplaySymbol(fromToken)} → </span>}
+                {nativeRouteInfo.operations.map((op, i) => (
+                  <span key={i}>
+                    {i > 0 && ' → '}
+                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
+                  </span>
+                ))}
+                {' → '}
+                {getTokenDisplaySymbol(
+                  assetInfoLabel(
+                    nativeRouteInfo.operations[nativeRouteInfo.operations.length - 1].terra_swap.ask_asset_info
+                  )
+                )}
+                {nativeRouteInfo.needsUnwrapOutput && <span> → {getTokenDisplaySymbol(toToken)}</span>}
+                {(nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
+                  <div className="mt-1">
+                    This swap will{' '}
+                    {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
+                      ? 'wrap and unwrap'
+                      : nativeRouteInfo.needsWrapInput
+                        ? 'wrap'
+                        : 'unwrap'}{' '}
+                    your tokens
+                  </div>
+                )}
+              </div>
+            )}
             {isMultiHop && route && (
               <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
                 <span className="uppercase tracking-wide font-medium">Route: </span>
@@ -369,7 +450,7 @@ export default function SwapPage() {
                 {getTokenDisplaySymbol(toToken)}
               </div>
             )}
-            {fromToken && toToken && !route && (
+            {fromToken && toToken && !hasRoute && (
               <div className="alert-error !text-xs">No route found between these tokens</div>
             )}
           </div>

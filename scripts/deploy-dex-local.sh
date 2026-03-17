@@ -204,6 +204,118 @@ echo "  TX: $TX_HASH"
 ROUTER_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Router Address: $ROUTER_ADDRESS"
 
+# ── Phase 1b: Treasury & Wrap-Mapper ────────────────────────────────────
+
+echo ""
+echo "[Phase 1b] Treasury & Wrap-Mapper Setup"
+echo "----------------------------------------------"
+
+echo ""
+echo "[9b.1] Uploading treasury.wasm..."
+if [ ! -f "$ARTIFACTS_DIR/treasury.wasm" ]; then
+    echo "  treasury.wasm not found in artifacts — building from source..."
+    USTR_TMP_DIR=$(mktemp -d)
+    git clone --depth 1 https://gitlab.com/PlasticDigits/ustr-cmm.git "$USTR_TMP_DIR" 2>&1 | tail -1
+    docker run --rm -v "$USTR_TMP_DIR/contracts":/code \
+        --mount type=volume,source=ustr_cmm_cache,target=/code/target \
+        --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+        cosmwasm/workspace-optimizer:0.16.1
+    cp "$USTR_TMP_DIR/contracts/artifacts/treasury.wasm" "$ARTIFACTS_DIR/"
+    cp "$USTR_TMP_DIR/contracts/artifacts/wrap_mapper.wasm" "$ARTIFACTS_DIR/"
+    rm -rf "$USTR_TMP_DIR"
+    echo "  treasury.wasm and wrap_mapper.wasm built and copied to artifacts."
+    docker cp "$ARTIFACTS_DIR/treasury.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
+    docker cp "$ARTIFACTS_DIR/wrap_mapper.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
+fi
+TX_HASH=$(terrad_tx wasm store /tmp/artifacts/treasury.wasm | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+TREASURY_CODE_ID=$(get_code_id "$TX_HASH")
+echo "  Treasury Code ID: $TREASURY_CODE_ID"
+
+echo ""
+echo "[9b.2] Uploading wrap_mapper.wasm..."
+TX_HASH=$(terrad_tx wasm store /tmp/artifacts/wrap_mapper.wasm | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+WRAP_MAPPER_CODE_ID=$(get_code_id "$TX_HASH")
+echo "  Wrap-Mapper Code ID: $WRAP_MAPPER_CODE_ID"
+
+echo ""
+echo "[9b.3] Instantiating Treasury..."
+TREASURY_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\"}"
+TX_HASH=$(terrad_tx wasm instantiate "$TREASURY_CODE_ID" "$TREASURY_INIT_MSG" \
+    --label "ustr-treasury" \
+    --admin "$TEST_ADDRESS" | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+TREASURY_ADDRESS=$(get_contract_address "$TX_HASH")
+echo "  Treasury Address: $TREASURY_ADDRESS"
+
+echo ""
+echo "[9b.4] Instantiating Wrap-Mapper..."
+WRAP_MAPPER_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TREASURY_ADDRESS\",\"fee_bps\":50}"
+TX_HASH=$(terrad_tx wasm instantiate "$WRAP_MAPPER_CODE_ID" "$WRAP_MAPPER_INIT_MSG" \
+    --label "ustr-wrap-mapper" \
+    --admin "$TEST_ADDRESS" | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+WRAP_MAPPER_ADDRESS=$(get_contract_address "$TX_HASH")
+echo "  Wrap-Mapper Address: $WRAP_MAPPER_ADDRESS"
+
+echo ""
+echo "[9b.5] Creating LUNC-C (Wrapped Luna Classic) CW20 token..."
+LUNC_C_INIT_MSG="{\"name\":\"Wrapped Luna Classic\",\"symbol\":\"LUNC-C\",\"decimals\":6,\"initial_balances\":[],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$LUNC_C_INIT_MSG" \
+    --label "lunc-c-token" \
+    --admin "$TEST_ADDRESS" | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+LUNC_C_ADDRESS=$(get_contract_address "$TX_HASH")
+echo "  LUNC-C Address: $LUNC_C_ADDRESS"
+
+echo ""
+echo "[9b.6] Creating USTC-C (Wrapped TerraClassicUSD) CW20 token..."
+USTC_C_INIT_MSG="{\"name\":\"Wrapped TerraClassicUSD\",\"symbol\":\"USTC-C\",\"decimals\":6,\"initial_balances\":[],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$USTC_C_INIT_MSG" \
+    --label "ustc-c-token" \
+    --admin "$TEST_ADDRESS" | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+USTC_C_ADDRESS=$(get_contract_address "$TX_HASH")
+echo "  USTC-C Address: $USTC_C_ADDRESS"
+
+echo ""
+echo "[9b.7] Registering denom mappings on Wrap-Mapper..."
+TX_HASH=$(terrad_tx wasm execute "$WRAP_MAPPER_ADDRESS" \
+  "{\"set_denom_mapping\":{\"denom\":\"uluna\",\"cw20_addr\":\"$LUNC_C_ADDRESS\"}}" | jq -r '.txhash')
+echo "  uluna -> LUNC-C: $TX_HASH"
+sleep 3
+TX_HASH=$(terrad_tx wasm execute "$WRAP_MAPPER_ADDRESS" \
+  "{\"set_denom_mapping\":{\"denom\":\"uusd\",\"cw20_addr\":\"$USTC_C_ADDRESS\"}}" | jq -r '.txhash')
+echo "  uusd -> USTC-C: $TX_HASH"
+sleep 3
+
+echo ""
+echo "[9b.8] Registering wrappers on Treasury..."
+TX_HASH=$(terrad_tx wasm execute "$TREASURY_ADDRESS" \
+  "{\"set_denom_wrapper\":{\"denom\":\"uluna\",\"wrapper\":\"$WRAP_MAPPER_ADDRESS\"}}" | jq -r '.txhash')
+echo "  uluna wrapper: $TX_HASH"
+sleep 3
+TX_HASH=$(terrad_tx wasm execute "$TREASURY_ADDRESS" \
+  "{\"set_denom_wrapper\":{\"denom\":\"uusd\",\"wrapper\":\"$WRAP_MAPPER_ADDRESS\"}}" | jq -r '.txhash')
+echo "  uusd wrapper: $TX_HASH"
+sleep 3
+
+echo ""
+echo "[9b.9] Setting Wrap-Mapper on Router..."
+TX_HASH=$(terrad_tx wasm execute "$ROUTER_ADDRESS" \
+  "{\"set_wrap_mapper\":{\"wrap_mapper\":\"$WRAP_MAPPER_ADDRESS\"}}" | jq -r '.txhash')
+echo "  Set wrap-mapper: $TX_HASH"
+sleep 3
+
+echo ""
+echo "[9b.10] Funding Treasury with 40M USTC and 10M LUNC..."
+TX_HASH=$(terrad_tx bank send test1 "$TREASURY_ADDRESS" \
+  "40000000000000uusd,10000000000000uluna" | jq -r '.txhash')
+echo "  Fund treasury: $TX_HASH"
+sleep 3
+echo "  Treasury funded: 40,000,000 USTC + 10,000,000 LUNC"
+
 # ── Phase 2: Tokens ─────────────────────────────────────────────────────
 
 echo ""
@@ -496,6 +608,10 @@ echo ""
 echo "  Factory:       $FACTORY_ADDRESS"
 echo "  Router:        $ROUTER_ADDRESS"
 echo "  Fee Discount:  $FEE_DISCOUNT_ADDRESS"
+echo "  Treasury:      $TREASURY_ADDRESS"
+echo "  Wrap-Mapper:   $WRAP_MAPPER_ADDRESS"
+echo "  LUNC-C:        $LUNC_C_ADDRESS"
+echo "  USTC-C:        $USTC_C_ADDRESS"
 echo ""
 echo "  Tokens (whitelisted, code_id=$CW20_CODE_ID):"
 for i in "${!TOKEN_SYMBOLS[@]}"; do
@@ -534,6 +650,10 @@ VITE_TERRA_LCD_URL=$LCD
 VITE_TERRA_RPC_URL=$NODE
 VITE_INDEXER_URL=http://localhost:3001
 VITE_DEV_MODE=true
+VITE_TREASURY_ADDRESS=$TREASURY_ADDRESS
+VITE_WRAP_MAPPER_ADDRESS=$WRAP_MAPPER_ADDRESS
+VITE_LUNC_C_TOKEN_ADDRESS=$LUNC_C_ADDRESS
+VITE_USTC_C_TOKEN_ADDRESS=$USTC_C_ADDRESS
 VITE_NOWHITELIST_TOKEN_1=${NOWHITELIST_ADDRESSES[0]}
 VITE_NOWHITELIST_TOKEN_2=${NOWHITELIST_ADDRESSES[1]}
 VITE_UNPAIRED_TOKEN_ZINC=${UNPAIRED_ADDRESSES[0]}

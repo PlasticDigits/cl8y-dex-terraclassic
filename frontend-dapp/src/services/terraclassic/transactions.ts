@@ -2,7 +2,7 @@ import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 import { getConnectedWallet } from './wallet'
-import { GAS_PRICE_ULUNA, SWAP_GAS_PER_HOP } from '@/utils/constants'
+import { GAS_PRICE_ULUNA, SWAP_GAS_PER_HOP, WRAP_GAS_LIMIT } from '@/utils/constants'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
 const ADD_LIQUIDITY_GAS_LIMIT = 500000
@@ -29,6 +29,9 @@ function countSwapHops(msg: Record<string, unknown>): number {
 }
 
 function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
+  if ('wrap_deposit' in executeMsg) {
+    return WRAP_GAS_LIMIT
+  }
   if ('execute_swap_operations' in executeMsg) {
     return SWAP_GAS_PER_HOP * countSwapHops(executeMsg)
   } else if ('swap' in executeMsg) {
@@ -109,6 +112,58 @@ export async function executeTerraContract(
     return txHash
   } catch (error: unknown) {
     console.error('Terra Classic transaction error:', error)
+    throw handleTransactionError(error)
+  }
+}
+
+export async function executeTerraContractMulti(
+  walletAddress: string,
+  messages: Array<{
+    contract: string
+    msg: Record<string, unknown>
+    coins?: Array<{ denom: string; amount: string }>
+  }>
+): Promise<string> {
+  const wallet = getConnectedWallet()
+  if (!wallet) {
+    throw new Error('Wallet not connected. Please connect your wallet first.')
+  }
+
+  if (wallet.address !== walletAddress) {
+    throw new Error('Wallet address mismatch')
+  }
+
+  try {
+    const msgs = messages.map(
+      (m) =>
+        new MsgExecuteContract({
+          sender: walletAddress,
+          contract: m.contract,
+          msg: m.msg,
+          funds: m.coins && m.coins.length > 0 ? m.coins : [],
+        })
+    )
+
+    const unsignedTx: UnsignedTx = {
+      msgs,
+      memo: '',
+    }
+
+    const totalGas = messages.reduce((sum, m) => sum + getGasLimitForTx(m.msg), 0)
+    const fee = estimateTerraClassicFee(totalGas)
+
+    const txHash = await wallet.broadcastTx(unsignedTx, fee)
+    const { txResponse } = await wallet.pollTx(txHash)
+
+    if (txResponse.code !== 0) {
+      const errorMsg =
+        txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      throw new Error(`Transaction failed: ${errorMsg}`)
+    }
+
+    return txHash
+  } catch (error: unknown) {
+    console.error('Terra Classic multi-message transaction error:', error)
     throw handleTransactionError(error)
   }
 }

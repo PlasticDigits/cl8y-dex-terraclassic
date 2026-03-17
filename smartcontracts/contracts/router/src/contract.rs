@@ -10,9 +10,10 @@ use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     SimulateSwapOperationsResponse, SwapOperation,
 };
-use crate::state::{SwapState, FACTORY, SWAP_STATE};
+use crate::state::{SwapState, FACTORY, SWAP_STATE, WRAP_MAPPER};
 use dex_common::pair;
 use dex_common::types::Asset;
+use dex_common::wrap_mapper;
 
 const CONTRACT_NAME: &str = "cl8y-dex-router";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -43,15 +44,38 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Receive(cw20_msg) => execute_receive(deps, env, info, cw20_msg),
-        ExecuteMsg::ExecuteSwapOperations {
-            operations: _,
-            minimum_receive: _,
-            to: _,
-            deadline: _,
-        } => Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
-            "Use CW20 Send to initiate swaps through the router",
-        ))),
+        ExecuteMsg::ExecuteSwapOperations { .. } => {
+            Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+                "Use CW20 Send to initiate swaps through the router",
+            )))
+        }
+        ExecuteMsg::SetWrapMapper { wrap_mapper } => {
+            execute_set_wrap_mapper(deps, info, wrap_mapper)
+        }
     }
+}
+
+fn execute_set_wrap_mapper(
+    deps: DepsMut,
+    info: MessageInfo,
+    wrap_mapper_addr: String,
+) -> Result<Response, ContractError> {
+    let factory = FACTORY.load(deps.storage)?;
+    let factory_config: dex_common::factory::ConfigResponse = deps.querier.query_wasm_smart(
+        factory.to_string(),
+        &dex_common::factory::QueryMsg::Config {},
+    )?;
+
+    if info.sender != factory_config.governance {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let validated = deps.api.addr_validate(&wrap_mapper_addr)?;
+    WRAP_MAPPER.save(deps.storage, &validated)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "set_wrap_mapper")
+        .add_attribute("wrap_mapper", validated))
 }
 
 /// Revert if the current block time exceeds the user-supplied deadline.
@@ -87,6 +111,7 @@ fn execute_receive(
             minimum_receive,
             to,
             deadline,
+            unwrap_output,
         } => {
             assert_deadline(&env, deadline)?;
             execute_swap_operations(
@@ -98,6 +123,7 @@ fn execute_receive(
                 operations,
                 minimum_receive,
                 to,
+                unwrap_output,
             )
         }
     }
@@ -120,6 +146,7 @@ fn execute_swap_operations(
     operations: Vec<SwapOperation>,
     minimum_receive: Option<Uint128>,
     to: Option<String>,
+    unwrap_output: Option<bool>,
 ) -> Result<Response, ContractError> {
     if operations.is_empty() {
         return Err(ContractError::EmptyOperations {});
@@ -134,6 +161,13 @@ fn execute_swap_operations(
 
     if SWAP_STATE.may_load(deps.storage)?.is_some() {
         return Err(ContractError::SwapInProgress {});
+    }
+
+    let do_unwrap = unwrap_output == Some(true);
+    if do_unwrap {
+        WRAP_MAPPER
+            .may_load(deps.storage)?
+            .ok_or(ContractError::WrapMapperNotSet {})?;
     }
 
     let factory = FACTORY.load(deps.storage)?;
@@ -160,6 +194,7 @@ fn execute_swap_operations(
             remaining_operations: remaining,
             minimum_receive,
             output_token,
+            unwrap_output: do_unwrap,
         },
     )?;
 
@@ -241,7 +276,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 /// resolve the next pair, and chain another SubMsg swap.
 ///
 /// If this was the final hop: assert `minimum_receive`, transfer output
-/// to the recipient, and clear `SWAP_STATE`.
+/// to the recipient (or unwrap via wrap-mapper), and clear `SWAP_STATE`.
 fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut state = SWAP_STATE.load(deps.storage)?;
 
@@ -266,17 +301,37 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             }
         }
 
-        let transfer_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: state.output_token.to_string(),
-            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: state.recipient.to_string(),
-                amount: current_amount,
-            })?,
-            funds: vec![],
-        });
+        let output_msg = if state.unwrap_output {
+            let mapper = WRAP_MAPPER
+                .may_load(deps.storage)?
+                .ok_or(ContractError::WrapMapperNotSet {})?;
+
+            let unwrap_hook = wrap_mapper::Cw20HookMsg::Unwrap {
+                recipient: Some(state.recipient.to_string()),
+            };
+
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: state.output_token.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Send {
+                    contract: mapper.to_string(),
+                    amount: current_amount,
+                    msg: to_json_binary(&unwrap_hook)?,
+                })?,
+                funds: vec![],
+            })
+        } else {
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: state.output_token.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: state.recipient.to_string(),
+                    amount: current_amount,
+                })?,
+                funds: vec![],
+            })
+        };
 
         return Ok(Response::new()
-            .add_message(transfer_msg)
+            .add_message(output_msg)
             .add_attribute("action", "swap_complete")
             .add_attribute("output_amount", current_amount)
             .add_attribute("recipient", state.recipient));
@@ -344,7 +399,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let factory = FACTORY.load(deps.storage)?;
-    Ok(ConfigResponse { factory })
+    let wrap_mapper = WRAP_MAPPER.may_load(deps.storage)?;
+    Ok(ConfigResponse {
+        factory,
+        wrap_mapper,
+    })
 }
 
 fn query_simulate_swap_operations(

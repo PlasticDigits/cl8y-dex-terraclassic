@@ -5,6 +5,23 @@ export const ROUTER_CONTRACT_ADDRESS = import.meta.env.VITE_ROUTER_ADDRESS || ''
 export const FEE_DISCOUNT_CONTRACT_ADDRESS = import.meta.env.VITE_FEE_DISCOUNT_ADDRESS || ''
 export const CL8Y_TOKEN_ADDRESS =
   import.meta.env.VITE_CL8Y_TOKEN_ADDRESS || 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+export const WRAP_MAPPER_CONTRACT_ADDRESS = import.meta.env.VITE_WRAP_MAPPER_ADDRESS || ''
+export const TREASURY_CONTRACT_ADDRESS = import.meta.env.VITE_TREASURY_ADDRESS || ''
+export const LUNC_C_TOKEN_ADDRESS = import.meta.env.VITE_LUNC_C_TOKEN_ADDRESS || ''
+export const USTC_C_TOKEN_ADDRESS = import.meta.env.VITE_USTC_C_TOKEN_ADDRESS || ''
+
+export const NATIVE_WRAPPED_PAIRS: Record<string, string> = {
+  uluna: LUNC_C_TOKEN_ADDRESS,
+  uusd: USTC_C_TOKEN_ADDRESS,
+}
+
+export const WRAPPED_NATIVE_PAIRS: Record<string, string> = {
+  [LUNC_C_TOKEN_ADDRESS]: 'uluna',
+  [USTC_C_TOKEN_ADDRESS]: 'uusd',
+}
+
+export const WRAP_GAS_LIMIT = 300000
+export const UNWRAP_GAS_LIMIT = 400000
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 

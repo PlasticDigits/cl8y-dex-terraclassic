@@ -32,4 +32,10 @@ pub enum ContractError {
 
     #[error("Too many hops: {actual} exceeds maximum of {max}")]
     TooManyHops { max: usize, actual: usize },
+
+    #[error("Wrap mapper contract not configured")]
+    WrapMapperNotSet {},
+
+    #[error("Cannot unwrap output: final asset is not a wrapped native token")]
+    UnwrapOutputNotSupported {},
 }

@@ -30,6 +30,11 @@ pub enum ExecuteMsg {
         minimum_receive: Option<Uint128>,
         to: Option<String>,
         deadline: Option<u64>,
+        unwrap_output: Option<bool>,
+    },
+    /// Set the wrap-mapper contract address (governance-only via factory).
+    SetWrapMapper {
+        wrap_mapper: String,
     },
 }
 
@@ -41,6 +46,7 @@ pub enum Cw20HookMsg {
         minimum_receive: Option<Uint128>,
         to: Option<String>,
         deadline: Option<u64>,
+        unwrap_output: Option<bool>,
     },
 }
 
@@ -64,6 +70,7 @@ pub enum QueryMsg {
 #[cw_serde]
 pub struct ConfigResponse {
     pub factory: Addr,
+    pub wrap_mapper: Option<Addr>,
 }
 
 #[cw_serde]

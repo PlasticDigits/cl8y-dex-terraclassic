@@ -1,4 +1,4 @@
-import { useState, memo } from 'react'
+import { useState, memo, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
@@ -6,12 +6,14 @@ import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terracl
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance, verifyPairInFactory } from '@/services/terraclassic/queries'
 import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
-import { FEE_DISCOUNT_CONTRACT_ADDRESS, FACTORY_CONTRACT_ADDRESS } from '@/utils/constants'
+import { executeTerraContractMulti } from '@/services/terraclassic/transactions'
+import { FEE_DISCOUNT_CONTRACT_ADDRESS, FACTORY_CONTRACT_ADDRESS, TREASURY_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { PairInfo, AssetInfo } from '@/types'
-import { assetInfoLabel, tokenAssetInfo } from '@/types'
+import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent } from '@/types'
 import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
+import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 
 const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
@@ -22,11 +24,19 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   const [amountB, setAmountB] = useState('')
   const [lpAmount, setLpAmount] = useState('')
   const [withdrawSlippage, setWithdrawSlippage] = useState('1.0')
+  const [useNativeA, setUseNativeA] = useState(false)
+  const [useNativeB, setUseNativeB] = useState(false)
+  const [receiveWrapped, setReceiveWrapped] = useState(true)
 
   const tokenA = assetInfoLabel(pair.asset_infos[0])
   const tokenB = assetInfoLabel(pair.asset_infos[1])
   const displayA = useTokenDisplayInfo(pair.asset_infos[0])
   const displayB = useTokenDisplayInfo(pair.asset_infos[1])
+
+  const nativeEquivA = useMemo(() => getNativeEquivalent(tokenA), [tokenA])
+  const nativeEquivB = useMemo(() => getNativeEquivalent(tokenB), [tokenB])
+  const hasNativeOptionA = !!nativeEquivA
+  const hasNativeOptionB = !!nativeEquivB
 
   const verifyQuery = useQuery({
     queryKey: ['pairVerify', pair.contract_addr],
@@ -82,6 +92,70 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
       if (!address) throw new Error('Wallet not connected')
       const rawA = toRawAmount(amountA, decimalsA)
       const rawB = toRawAmount(amountB, decimalsB)
+
+      const needsWrapA = hasNativeOptionA && useNativeA
+      const needsWrapB = hasNativeOptionB && useNativeB
+
+      if (needsWrapA || needsWrapB) {
+        const msgs: Array<{
+          contract: string
+          msg: Record<string, unknown>
+          coins?: Array<{ denom: string; amount: string }>
+        }> = []
+
+        if (needsWrapA) {
+          msgs.push({
+            contract: TREASURY_CONTRACT_ADDRESS,
+            msg: { wrap_deposit: {} },
+            coins: [{ denom: nativeEquivA!, amount: rawA }],
+          })
+        }
+        if (needsWrapB) {
+          msgs.push({
+            contract: TREASURY_CONTRACT_ADDRESS,
+            msg: { wrap_deposit: {} },
+            coins: [{ denom: nativeEquivB!, amount: rawB }],
+          })
+        }
+
+        msgs.push({
+          contract: tokenA,
+          msg: {
+            increase_allowance: {
+              spender: pair.contract_addr,
+              amount: rawA,
+              expires: { never: {} },
+            },
+          },
+        })
+        msgs.push({
+          contract: tokenB,
+          msg: {
+            increase_allowance: {
+              spender: pair.contract_addr,
+              amount: rawB,
+              expires: { never: {} },
+            },
+          },
+        })
+        msgs.push({
+          contract: pair.contract_addr,
+          msg: {
+            provide_liquidity: {
+              assets: [
+                { info: { token: { contract_addr: tokenA } }, amount: rawA },
+                { info: { token: { contract_addr: tokenB } }, amount: rawB },
+              ],
+              slippage_tolerance: null,
+              receiver: null,
+              deadline: null,
+            },
+          },
+        })
+
+        return executeTerraContractMulti(address, msgs)
+      }
+
       return provideLiquidity(address, pair.contract_addr, tokenA, tokenB, rawA, rawB)
     },
     onSuccess: () => {
@@ -225,6 +299,20 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
                 ({displayA.displayLabel})
               </span>
             </label>
+            {hasNativeOptionA && (
+              <label
+                className="flex items-center gap-2 text-xs mb-1 cursor-pointer"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={useNativeA}
+                  onChange={(e) => setUseNativeA(e.target.checked)}
+                  className="accent-[var(--cyan)]"
+                />
+                Use native {getTokenDisplaySymbol(nativeEquivA!)} (auto-wrap)
+              </label>
+            )}
             <input
               type="text"
               inputMode="decimal"
@@ -244,6 +332,20 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
                 ({displayB.displayLabel})
               </span>
             </label>
+            {hasNativeOptionB && (
+              <label
+                className="flex items-center gap-2 text-xs mb-1 cursor-pointer"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={useNativeB}
+                  onChange={(e) => setUseNativeB(e.target.checked)}
+                  className="accent-[var(--cyan)]"
+                />
+                Use native {getTokenDisplaySymbol(nativeEquivB!)} (auto-wrap)
+              </label>
+            )}
             <input
               type="text"
               inputMode="decimal"
@@ -326,6 +428,17 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
             <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }}>
               Insufficient LP token balance
             </p>
+          )}
+          {(hasNativeOptionA || hasNativeOptionB) && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--ink-dim)' }}>
+              <input
+                type="checkbox"
+                checked={receiveWrapped}
+                onChange={(e) => setReceiveWrapped(e.target.checked)}
+                className="accent-[var(--cyan)]"
+              />
+              Receive as wrapped tokens (uncheck to auto-unwrap to native)
+            </label>
           )}
           <div>
             <label className="label-neo">Slippage Tolerance</label>
