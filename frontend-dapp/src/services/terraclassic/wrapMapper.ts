@@ -50,6 +50,36 @@ export async function queryRateLimit(denom: string): Promise<RateLimitResponse> 
   })
 }
 
+interface ConfigResponse {
+  governance: string
+  treasury: string
+  paused: boolean
+  fee_bps: number
+}
+
+export async function queryPausedState(): Promise<boolean> {
+  if (!WRAP_MAPPER_CONTRACT_ADDRESS) return false
+  try {
+    const config = await queryContract<ConfigResponse>(WRAP_MAPPER_CONTRACT_ADDRESS, { config: {} })
+    return config.paused
+  } catch {
+    return false
+  }
+}
+
+export async function checkRateLimitExceeded(denom: string, wrapAmount: string): Promise<boolean> {
+  if (!WRAP_MAPPER_CONTRACT_ADDRESS) return false
+  try {
+    const rl = await queryRateLimit(denom)
+    if (!rl.config) return false
+    const maxAmount = BigInt(rl.config.max_amount_per_window)
+    const used = BigInt(rl.amount_used)
+    return used + BigInt(wrapAmount) > maxAmount
+  } catch {
+    return false
+  }
+}
+
 export function isNativeWrappedPair(tokenA: string, tokenB: string): boolean {
   return NATIVE_WRAPPED_PAIRS[tokenA] === tokenB || NATIVE_WRAPPED_PAIRS[tokenB] === tokenA
 }

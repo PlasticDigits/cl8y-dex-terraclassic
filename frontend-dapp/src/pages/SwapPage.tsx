@@ -18,7 +18,8 @@ import {
   simulateNativeSwap,
   executeNativeSwap,
 } from '@/services/terraclassic/router'
-import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
+import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
+import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { assetInfoLabel, tokenAssetInfo, isNativeDenom } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { TokenDisplay, FeeDisplay, TxResultAlert } from '@/components/ui'
@@ -29,7 +30,7 @@ export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
-  const { slippageTolerance, setSlippageTolerance } = useDexStore()
+  const { slippageTolerance, setSlippageTolerance, deadlineSeconds } = useDexStore()
   const queryClient = useQueryClient()
 
   const [inputAmount, setInputAmount] = useState('')
@@ -134,6 +135,33 @@ export default function SwapPage() {
   const offerDecimals = offerAssetInfo ? getDecimals(offerAssetInfo) : 6
   const rawInputAmount = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
 
+  const needsWrapCheck = isWrapOrUnwrap ? wrapUnwrapType === 'wrap' : (nativeRouteInfo?.needsWrapInput ?? false)
+  const wrapDenom = needsWrapCheck ? (isNativeDenom(fromToken) ? fromToken : null) : null
+
+  const pausedQuery = useQuery({
+    queryKey: ['wrapMapperPaused'],
+    queryFn: queryPausedState,
+    enabled:
+      !!WRAP_MAPPER_CONTRACT_ADDRESS &&
+      (needsWrapCheck ||
+        (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') ||
+        (nativeRouteInfo?.needsUnwrapOutput ?? false)),
+    staleTime: 30_000,
+  })
+
+  const rateLimitQuery = useQuery({
+    queryKey: ['rateLimit', wrapDenom, rawInputAmount],
+    queryFn: () => {
+      if (!wrapDenom) throw new Error('No denom')
+      return checkRateLimitExceeded(wrapDenom, rawInputAmount)
+    },
+    enabled: !!wrapDenom && !!rawInputAmount && rawInputAmount !== '0',
+    staleTime: 15_000,
+  })
+
+  const isWrapPaused = pausedQuery.data === true
+  const isRateLimitExceeded = rateLimitQuery.data === true
+
   const simQuery = useQuery({
     queryKey: [
       'simulation',
@@ -177,7 +205,8 @@ export default function SwapPage() {
       const maxSpread = (slippageTolerance / 100).toString()
 
       if (isWrapOrUnwrap || nativeRouteInfo) {
-        return executeNativeSwap(address, fromToken, toToken, rawInputAmount, pairs, minReceived ?? undefined)
+        const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
+        return executeNativeSwap(address, fromToken, toToken, rawInputAmount, pairs, minReceived ?? undefined, deadline)
       }
 
       if (!route) throw new Error('No route found')
@@ -237,8 +266,14 @@ export default function SwapPage() {
   } else if (!hasRoute) {
     buttonText = 'No Route'
     buttonDisabled = true
+  } else if (isWrapPaused) {
+    buttonText = 'Wrapping is Temporarily Paused'
+    buttonDisabled = true
   } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
     buttonText = 'Enter Amount'
+    buttonDisabled = true
+  } else if (isRateLimitExceeded) {
+    buttonText = 'Rate Limit Exceeded'
     buttonDisabled = true
   } else if (insufficientBalance) {
     buttonText = 'Insufficient Balance'
