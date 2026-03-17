@@ -152,17 +152,17 @@ describe('gas limit selection (tested indirectly)', () => {
 
   it('uses SWAP_GAS_PER_HOP for single-hop execute_swap_operations', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }] } })
-    expect(fee.gasLimit).toBe(BigInt(400000))
+    expect(fee.gasLimit).toBe(BigInt(500000))
   })
 
   it('scales gas by hop count for multi-hop execute_swap_operations', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }] } })
-    expect(fee.gasLimit).toBe(BigInt(800000))
+    expect(fee.gasLimit).toBe(BigInt(1000000))
   })
 
   it('defaults to 1 hop when operations missing', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: {} })
-    expect(fee.gasLimit).toBe(BigInt(400000))
+    expect(fee.gasLimit).toBe(BigInt(500000))
   })
 
   it('uses ADD_LIQUIDITY_GAS_LIMIT for provide_liquidity', async () => {
