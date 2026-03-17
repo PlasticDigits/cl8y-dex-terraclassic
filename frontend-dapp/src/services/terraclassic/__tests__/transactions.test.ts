@@ -33,7 +33,7 @@ vi.mock('@goblinhunt/cosmes/protobufs', () => ({
 }))
 
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { executeTerraContract } from '../transactions'
+import { executeTerraContract, executeTerraContractMulti } from '../transactions'
 
 const mockedGetWallet = vi.mocked(getConnectedWallet)
 
@@ -210,5 +210,85 @@ describe('gas limit selection (tested indirectly)', () => {
   it('uses SWAP_GAS_LIMIT for send with invalid base64 msg', async () => {
     const fee = await getFeeForMsg({ send: { msg: '!!!invalid!!!' } })
     expect(fee.gasLimit).toBe(BigInt(600000))
+  })
+
+  it('uses WRAP_GAS_LIMIT for wrap_deposit messages', async () => {
+    const fee = await getFeeForMsg({ wrap_deposit: {} })
+    expect(fee.gasLimit).toBe(BigInt(300000))
+  })
+
+  it('scales gas for send with inner execute_swap_operations', async () => {
+    const innerMsg = btoa(
+      JSON.stringify({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }, { swap: {} }] } })
+    )
+    const fee = await getFeeForMsg({ send: { msg: innerMsg } })
+    expect(fee.gasLimit).toBe(BigInt(1200000))
+  })
+})
+
+describe('executeTerraContractMulti', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockedGetWallet.mockReturnValue(mockConnectedWallet as never)
+    mockBroadcastTx.mockResolvedValue('MULTIHASH')
+    mockPollTx.mockResolvedValue({
+      txResponse: { code: 0, rawLog: '', logs: [] },
+    })
+  })
+
+  it('builds a TX with multiple MsgExecuteContract messages', async () => {
+    MockMsgExecuteContract.mockClear()
+
+    await executeTerraContractMulti('terra1sender', [
+      {
+        contract: 'terra1treasury',
+        msg: { wrap_deposit: {} },
+        coins: [{ denom: 'uluna', amount: '1000000' }],
+      },
+      {
+        contract: 'terra1token',
+        msg: { send: { contract: 'terra1router', amount: '1000000', msg: btoa('{}') } },
+      },
+    ])
+
+    expect(MockMsgExecuteContract).toHaveBeenCalledTimes(2)
+    expect(MockMsgExecuteContract).toHaveBeenNthCalledWith(1, {
+      sender: 'terra1sender',
+      contract: 'terra1treasury',
+      msg: { wrap_deposit: {} },
+      funds: [{ denom: 'uluna', amount: '1000000' }],
+    })
+    expect(MockMsgExecuteContract).toHaveBeenNthCalledWith(2, {
+      sender: 'terra1sender',
+      contract: 'terra1token',
+      msg: { send: { contract: 'terra1router', amount: '1000000', msg: btoa('{}') } },
+      funds: [],
+    })
+  })
+
+  it('sums gas across all messages', async () => {
+    MockFee.mockClear()
+
+    await executeTerraContractMulti('terra1sender', [
+      { contract: 'terra1treasury', msg: { wrap_deposit: {} } },
+      { contract: 'terra1token', msg: { swap: {} } },
+    ])
+
+    const feeCall = MockFee.mock.calls[0][0] as { gasLimit: bigint }
+    expect(feeCall.gasLimit).toBe(BigInt(300000 + 600000))
+  })
+
+  it('throws when wallet is not connected', async () => {
+    mockedGetWallet.mockReturnValueOnce(null)
+
+    await expect(
+      executeTerraContractMulti('terra1sender', [{ contract: 'terra1c', msg: { swap: {} } }])
+    ).rejects.toThrow('Wallet not connected')
+  })
+
+  it('throws on wallet address mismatch', async () => {
+    await expect(
+      executeTerraContractMulti('terra1different', [{ contract: 'terra1c', msg: { swap: {} } }])
+    ).rejects.toThrow('Wallet address mismatch')
   })
 })

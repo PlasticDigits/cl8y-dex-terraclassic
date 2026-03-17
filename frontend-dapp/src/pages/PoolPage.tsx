@@ -6,8 +6,13 @@ import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terracl
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance, verifyPairInFactory } from '@/services/terraclassic/queries'
 import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
-import { executeTerraContractMulti } from '@/services/terraclassic/transactions'
-import { FEE_DISCOUNT_CONTRACT_ADDRESS, FACTORY_CONTRACT_ADDRESS, TREASURY_CONTRACT_ADDRESS } from '@/utils/constants'
+import { executeTerraContract, executeTerraContractMulti } from '@/services/terraclassic/transactions'
+import {
+  FEE_DISCOUNT_CONTRACT_ADDRESS,
+  FACTORY_CONTRACT_ADDRESS,
+  TREASURY_CONTRACT_ADDRESS,
+  WRAP_MAPPER_CONTRACT_ADDRESS,
+} from '@/utils/constants'
 import type { PairInfo, AssetInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent } from '@/types'
 import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
@@ -185,7 +190,29 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
           minAssets = [minA, minB]
         }
       }
-      return withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, rawLp, minAssets)
+      const txHash = await withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, rawLp, minAssets)
+
+      if (!receiveWrapped && WRAP_MAPPER_CONTRACT_ADDRESS) {
+        const tokensToUnwrap: { cw20: string; denom: string }[] = []
+        if (nativeEquivA) tokensToUnwrap.push({ cw20: tokenA, denom: nativeEquivA })
+        if (nativeEquivB) tokensToUnwrap.push({ cw20: tokenB, denom: nativeEquivB })
+
+        for (const { cw20 } of tokensToUnwrap) {
+          const balanceRaw = await getTokenBalance(address, tokenAssetInfo(cw20))
+          if (balanceRaw && balanceRaw !== '0') {
+            const unwrapMsg = btoa(JSON.stringify({ unwrap: { recipient: null } }))
+            await executeTerraContract(address, cw20, {
+              send: {
+                contract: WRAP_MAPPER_CONTRACT_ADDRESS,
+                amount: balanceRaw,
+                msg: unwrapMsg,
+              },
+            })
+          }
+        }
+      }
+
+      return txHash
     },
     onSuccess: () => {
       sounds.playSuccess()
