@@ -10163,7 +10163,7 @@ mod wrap_router_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(0),
+                    fee_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -10769,7 +10769,7 @@ mod wrap_integration_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(0),
+                    fee_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -10853,7 +10853,9 @@ mod wrap_integration_tests {
         .unwrap();
 
         let balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
-        assert_eq!(balance, Uint128::new(1_000_000));
+        let expected =
+            Uint128::new(1_000_000) - Uint128::new(1_000_000).multiply_ratio(1u128, 10_000u128);
+        assert_eq!(balance, expected);
     }
 
     // B2: Unwrap CW20 to native
@@ -10889,7 +10891,7 @@ mod wrap_integration_tests {
         .unwrap();
 
         let cw20_balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
-        assert_eq!(cw20_balance, Uint128::new(1_000_000));
+        assert!(cw20_balance > Uint128::zero());
 
         let unwrap_msg =
             to_json_binary(&wrap_mapper::msg::Cw20HookMsg::Unwrap { recipient: None }).unwrap();
@@ -10899,7 +10901,7 @@ mod wrap_integration_tests {
             env.lunc_c.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.wrap_mapper.to_string(),
-                amount: Uint128::new(1_000_000),
+                amount: cw20_balance,
                 msg: unwrap_msg,
             },
             &[],
@@ -10909,11 +10911,15 @@ mod wrap_integration_tests {
         let cw20_after = query_cw20_balance(&app, &env.lunc_c, &env.user);
         assert_eq!(cw20_after, Uint128::zero());
 
+        let unwrap_fee = cw20_balance.multiply_ratio(1u128, 10_000u128);
         let native_balance = app
             .wrap()
             .query_balance(env.user.to_string(), "uluna")
             .unwrap();
-        assert_eq!(native_balance.amount, Uint128::new(4_000_000 + 1_000_000));
+        assert_eq!(
+            native_balance.amount,
+            Uint128::new(4_000_000) + cw20_balance - unwrap_fee
+        );
     }
 
     // B3: Wrap then unwrap roundtrip
@@ -10952,6 +10958,8 @@ mod wrap_integration_tests {
         )
         .unwrap();
 
+        let cw20_balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
+
         let unwrap_msg =
             to_json_binary(&wrap_mapper::msg::Cw20HookMsg::Unwrap { recipient: None }).unwrap();
 
@@ -10960,7 +10968,7 @@ mod wrap_integration_tests {
             env.lunc_c.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.wrap_mapper.to_string(),
-                amount: Uint128::new(1_000_000),
+                amount: cw20_balance,
                 msg: unwrap_msg,
             },
             &[],
@@ -10972,7 +10980,13 @@ mod wrap_integration_tests {
             .query_balance(env.user.to_string(), "uluna")
             .unwrap()
             .amount;
-        assert_eq!(native_after, native_before);
+        let wrap_fee = Uint128::new(1_000_000).multiply_ratio(1u128, 10_000u128);
+        let unwrap_fee = cw20_balance.multiply_ratio(1u128, 10_000u128);
+        assert_eq!(
+            native_before - native_after,
+            wrap_fee + unwrap_fee,
+            "Roundtrip loss should equal wrap + unwrap fees"
+        );
 
         let cw20_final = query_cw20_balance(&app, &env.lunc_c, &env.user);
         assert_eq!(cw20_final, Uint128::zero());
@@ -11002,7 +11016,9 @@ mod wrap_integration_tests {
         .unwrap();
 
         let balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
-        assert_eq!(balance, Uint128::new(2_000_000));
+        let expected =
+            Uint128::new(2_000_000) - Uint128::new(2_000_000).multiply_ratio(1u128, 10_000u128);
+        assert_eq!(balance, expected);
     }
 
     // B8: Direct LUNC-C -> LUNC (unwrap only)
@@ -11035,6 +11051,8 @@ mod wrap_integration_tests {
         )
         .unwrap();
 
+        let cw20_balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
+
         let native_before = app
             .wrap()
             .query_balance(env.user.to_string(), "uluna")
@@ -11049,7 +11067,7 @@ mod wrap_integration_tests {
             env.lunc_c.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.wrap_mapper.to_string(),
-                amount: Uint128::new(1_000_000),
+                amount: cw20_balance,
                 msg: unwrap_msg,
             },
             &[],
@@ -11061,7 +11079,8 @@ mod wrap_integration_tests {
             .query_balance(env.user.to_string(), "uluna")
             .unwrap()
             .amount;
-        assert_eq!(native_after - native_before, Uint128::new(1_000_000));
+        let unwrap_fee = cw20_balance.multiply_ratio(1u128, 10_000u128);
+        assert_eq!(native_after - native_before, cw20_balance - unwrap_fee);
     }
 
     // ── E2E wrap env: factory + pair(LUNC-C / token_b) + router + treasury + wrap-mapper ──
@@ -11111,7 +11130,7 @@ mod wrap_integration_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(0),
+                    fee_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -11519,7 +11538,7 @@ mod wrap_integration_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(0),
+                    fee_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -12070,7 +12089,7 @@ mod wrap_security_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(0),
+                    fee_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -12550,7 +12569,7 @@ mod wrap_security_tests {
         .unwrap();
 
         let cw20_balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
-        assert_eq!(cw20_balance, Uint128::new(5_000_000));
+        assert!(cw20_balance > Uint128::zero());
 
         // First unwrap — should succeed
         let unwrap_msg =
@@ -12561,7 +12580,7 @@ mod wrap_security_tests {
             env.lunc_c.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.wrap_mapper.to_string(),
-                amount: Uint128::new(5_000_000),
+                amount: cw20_balance,
                 msg: unwrap_msg.clone(),
             },
             &[],
@@ -12575,7 +12594,7 @@ mod wrap_security_tests {
                 env.lunc_c.clone(),
                 &cw20::Cw20ExecuteMsg::Send {
                     contract: env.wrap_mapper.to_string(),
-                    amount: Uint128::new(5_000_000),
+                    amount: cw20_balance,
                     msg: unwrap_msg,
                 },
                 &[],
@@ -12635,7 +12654,8 @@ mod wrap_security_tests {
         // Instead, we wrap more than treasury can give back: wrap 10M, but treasury only has 10M.
         // If we unwrap 10M that should succeed. The test is: try to unwrap when treasury is empty.
 
-        // Unwrap all 10M — succeeds
+        // Unwrap all minted CW20 — succeeds
+        let cw20_bal = query_cw20_balance(&app, &env.lunc_c, &env.user);
         let unwrap_msg =
             to_json_binary(&wrap_mapper::msg::Cw20HookMsg::Unwrap { recipient: None }).unwrap();
         app.execute_contract(
@@ -12643,7 +12663,7 @@ mod wrap_security_tests {
             env.lunc_c.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.wrap_mapper.to_string(),
-                amount: Uint128::new(10_000_000),
+                amount: cw20_bal,
                 msg: unwrap_msg,
             },
             &[],
@@ -12733,12 +12753,11 @@ mod wrap_security_tests {
 
         match result {
             Ok(_) => {
-                // If it succeeded, verify the CW20 balance matches
                 let balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
-                assert_eq!(balance, Uint128::new(u128::MAX));
+                let fee = Uint128::new(u128::MAX).multiply_ratio(1u128, 10_000u128);
+                assert_eq!(balance, Uint128::new(u128::MAX) - fee);
             }
             Err(e) => {
-                // If it failed, it should be a clean error (overflow), not a panic
                 let msg = e.root_cause().to_string();
                 assert!(
                     msg.contains("overflow")
@@ -12842,13 +12861,14 @@ mod wrap_security_tests {
         .unwrap();
         check_invariant(&app, &env.treasury_contract, &env.lunc_c, "user unwrap 2M");
 
-        // Step 4: Attacker unwraps all 3M
+        // Step 4: Attacker unwraps all CW20
+        let attacker_cw20 = query_cw20_balance(&app, &env.lunc_c, &env.attacker);
         app.execute_contract(
             env.attacker.clone(),
             env.lunc_c.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.wrap_mapper.to_string(),
-                amount: Uint128::new(3_000_000),
+                amount: attacker_cw20,
                 msg: unwrap_msg.clone(),
             },
             &[],
@@ -12942,7 +12962,7 @@ mod wrap_fuzz_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(0),
+                    fee_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -13057,8 +13077,6 @@ mod wrap_fuzz_tests {
             )
             .unwrap();
 
-            let mut wrapped_balance: u128 = 0;
-
             for (is_wrap, amount) in ops {
                 if is_wrap {
                     let native_bal = app
@@ -13077,9 +13095,9 @@ mod wrap_fuzz_tests {
                         &[Coin::new(wrap_amount, "uluna")],
                     )
                     .unwrap();
-                    wrapped_balance += wrap_amount;
                 } else {
-                    let unwrap_amount = std::cmp::min(amount, wrapped_balance);
+                    let cw20_bal = query_cw20_balance(&app, &env.lunc_c, &env.user).u128();
+                    let unwrap_amount = std::cmp::min(amount, cw20_bal);
                     if unwrap_amount == 0 { continue; }
 
                     let unwrap_msg = to_json_binary(
@@ -13098,7 +13116,6 @@ mod wrap_fuzz_tests {
                         &[],
                     )
                     .unwrap();
-                    wrapped_balance -= unwrap_amount;
                 }
 
                 check_treasury_invariant(&app, &env.treasury_contract, &env.lunc_c)?;
@@ -13149,7 +13166,9 @@ mod wrap_fuzz_tests {
             )
             .unwrap();
 
-            // Unwrap
+            let cw20_bal = query_cw20_balance(&app, &env.lunc_c, &env.user);
+
+            // Unwrap all CW20 received
             let unwrap_msg = to_json_binary(
                 &wrap_mapper::msg::Cw20HookMsg::Unwrap { recipient: None },
             )
@@ -13159,7 +13178,7 @@ mod wrap_fuzz_tests {
                 env.lunc_c.clone(),
                 &cw20::Cw20ExecuteMsg::Send {
                     contract: env.wrap_mapper.to_string(),
-                    amount: Uint128::new(wrap_amount),
+                    amount: cw20_bal,
                     msg: unwrap_msg,
                 },
                 &[],
@@ -13172,10 +13191,13 @@ mod wrap_fuzz_tests {
                 .unwrap()
                 .amount;
 
+            let wrap_fee = Uint128::new(wrap_amount).multiply_ratio(1u128, 10_000u128);
+            let unwrap_fee = cw20_bal.multiply_ratio(1u128, 10_000u128);
+            let total_fee = wrap_fee + unwrap_fee;
             prop_assert_eq!(
-                native_before, native_after,
-                "Roundtrip should preserve balance: before={}, after={}",
-                native_before, native_after
+                native_before - native_after, total_fee,
+                "Roundtrip loss should equal wrap+unwrap fee: before={}, after={}, fee={}",
+                native_before, native_after, total_fee
             );
         }
     }
@@ -13269,8 +13291,6 @@ mod wrap_fuzz_tests {
             )
             .unwrap();
 
-            let mut balances: [u128; 3] = [0; 3];
-
             for (user_idx, is_wrap, amount) in ops {
                 let idx = (user_idx % 3) as usize;
                 let user_addr = Addr::unchecked(users[idx]);
@@ -13292,9 +13312,9 @@ mod wrap_fuzz_tests {
                         &[Coin::new(wrap_amt, "uluna")],
                     )
                     .unwrap();
-                    balances[idx] += wrap_amt;
                 } else {
-                    let unwrap_amt = std::cmp::min(amount, balances[idx]);
+                    let cw20_bal = query_cw20_balance(&app, &env.lunc_c, &user_addr).u128();
+                    let unwrap_amt = std::cmp::min(amount, cw20_bal);
                     if unwrap_amt == 0 { continue; }
 
                     let unwrap_msg = to_json_binary(
@@ -13312,11 +13332,967 @@ mod wrap_fuzz_tests {
                         &[],
                     )
                     .unwrap();
-                    balances[idx] -= unwrap_amt;
                 }
 
                 check_treasury_invariant(&app, &env.treasury_contract, &env.lunc_c)?;
             }
         }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// D. ustr-cmm d8b0afd Feature Tests
+//    Tests covering new upstream features: treasury wrapping pause,
+//    wrap-mapper min fee enforcement, minter verification on SetDenomMapping,
+//    and rate limit overflow protection.
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod ustr_cmm_d8b0afd_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{to_json_binary, Addr, Coin, Empty, Uint128};
+    use cw_multi_test::{App, AppBuilder, ContractWrapper, Executor};
+
+    fn wrap_mapper_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        Box::new(
+            ContractWrapper::new(
+                wrap_mapper::contract::execute,
+                wrap_mapper::contract::instantiate,
+                wrap_mapper::contract::query,
+            )
+            .with_migrate(wrap_mapper::contract::migrate),
+        )
+    }
+
+    fn treasury_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        Box::new(
+            ContractWrapper::new(
+                treasury::contract::execute,
+                treasury::contract::instantiate,
+                treasury::contract::query,
+            )
+            .with_migrate(treasury::contract::migrate),
+        )
+    }
+
+    struct TestEnv {
+        pub governance: Addr,
+        pub user: Addr,
+        pub treasury_contract: Addr,
+        pub wrap_mapper: Addr,
+        pub lunc_c: Addr,
+    }
+
+    fn setup_env(app: &mut App) -> TestEnv {
+        let governance = Addr::unchecked("governance");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let treasury_code_id = app.store_code(treasury_contract());
+        let wrap_mapper_code_id = app.store_code(wrap_mapper_contract());
+
+        let treasury = app
+            .instantiate_contract(
+                treasury_code_id,
+                governance.clone(),
+                &treasury::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                },
+                &[],
+                "treasury",
+                None,
+            )
+            .unwrap();
+
+        let wrap_mapper = app
+            .instantiate_contract(
+                wrap_mapper_code_id,
+                governance.clone(),
+                &wrap_mapper::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    fee_bps: Some(1),
+                },
+                &[],
+                "wrap-mapper",
+                None,
+            )
+            .unwrap();
+
+        let lunc_c = app
+            .instantiate_contract(
+                cw20_code_id,
+                governance.clone(),
+                &cw20_mintable::msg::InstantiateMsg {
+                    name: "Wrapped LUNC".to_string(),
+                    symbol: "LUNC-C".to_string(),
+                    decimals: 6,
+                    initial_balances: vec![],
+                    mint: Some(cw20::MinterResponse {
+                        minter: wrap_mapper.to_string(),
+                        cap: None,
+                    }),
+                    marketing: None,
+                },
+                &[],
+                "lunc-c",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            wrap_mapper.clone(),
+            &wrap_mapper::msg::ExecuteMsg::SetDenomMapping {
+                denom: "uluna".to_string(),
+                cw20_addr: lunc_c.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            treasury.clone(),
+            &treasury::msg::ExecuteMsg::SetDenomWrapper {
+                denom: "uluna".to_string(),
+                wrapper: wrap_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        TestEnv {
+            governance,
+            user,
+            treasury_contract: treasury,
+            wrap_mapper,
+            lunc_c,
+        }
+    }
+
+    // ── D1: Treasury SetWrappingPaused blocks WrapDeposit ──
+
+    #[test]
+    fn test_treasury_wrapping_paused_blocks_wrap() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(10_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_env(&mut app);
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::SetWrappingPaused { paused: true },
+            &[],
+        )
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.treasury_contract.clone(),
+                &treasury::msg::ExecuteMsg::WrapDeposit {},
+                &[Coin::new(1_000_000u128, "uluna")],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("paused")
+                || err.root_cause().to_string().contains("Paused"),
+            "WrapDeposit should fail when wrapping is paused, got: {}",
+            err.root_cause()
+        );
+    }
+
+    // ── D2: Treasury SetWrappingPaused blocks InstantWithdraw ──
+
+    #[test]
+    fn test_treasury_wrapping_paused_blocks_instant_withdraw() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(10_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_env(&mut app);
+
+        // Wrap first while unpaused
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(1_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        // Pause wrapping
+        app.execute_contract(
+            env.governance.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::SetWrappingPaused { paused: true },
+            &[],
+        )
+        .unwrap();
+
+        // Unwrap via CW20 Send -> wrap_mapper -> InstantWithdraw should fail
+        let unwrap_msg =
+            to_json_binary(&wrap_mapper::msg::Cw20HookMsg::Unwrap { recipient: None }).unwrap();
+        let cw20_balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.lunc_c.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.wrap_mapper.to_string(),
+                    amount: cw20_balance,
+                    msg: unwrap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("paused")
+                || err.root_cause().to_string().contains("Paused"),
+            "InstantWithdraw should fail when wrapping is paused, got: {}",
+            err.root_cause()
+        );
+    }
+
+    // ── D3: Unpausing restores wrapping operations ──
+
+    #[test]
+    fn test_treasury_unpause_restores_wrapping() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(10_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_env(&mut app);
+
+        // Pause then unpause
+        app.execute_contract(
+            env.governance.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::SetWrappingPaused { paused: true },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::SetWrappingPaused { paused: false },
+            &[],
+        )
+        .unwrap();
+
+        // Wrapping should work again
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(1_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        let balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
+        assert!(
+            balance > Uint128::zero(),
+            "User should have CW20 after unpaused wrap"
+        );
+    }
+
+    // ── D4: Non-governance cannot pause wrapping ──
+
+    #[test]
+    fn test_treasury_pause_unauthorized() {
+        let mut app = App::default();
+        let env = setup_env(&mut app);
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.treasury_contract.clone(),
+                &treasury::msg::ExecuteMsg::SetWrappingPaused { paused: true },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("Unauthorized")
+                || err.root_cause().to_string().contains("unauthorized"),
+            "Non-governance should not pause, got: {}",
+            err.root_cause()
+        );
+    }
+
+    // ── D5: wrapping_paused is reflected in ConfigResponse ──
+
+    #[test]
+    fn test_treasury_config_shows_wrapping_paused() {
+        let mut app = App::default();
+        let env = setup_env(&mut app);
+
+        let config: treasury::msg::ConfigResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.treasury_contract.to_string(),
+                &treasury::msg::QueryMsg::Config {},
+            )
+            .unwrap();
+        assert!(!config.wrapping_paused, "Should default to unpaused");
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::SetWrappingPaused { paused: true },
+            &[],
+        )
+        .unwrap();
+
+        let config: treasury::msg::ConfigResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.treasury_contract.to_string(),
+                &treasury::msg::QueryMsg::Config {},
+            )
+            .unwrap();
+        assert!(
+            config.wrapping_paused,
+            "Should be paused after SetWrappingPaused(true)"
+        );
+    }
+
+    // ── D6: Wrap-mapper instantiation rejects fee_bps = 0 ──
+
+    #[test]
+    fn test_wrap_mapper_instantiate_fee_zero_rejected() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+
+        let treasury_code_id = app.store_code(treasury_contract());
+        let wrap_mapper_code_id = app.store_code(wrap_mapper_contract());
+
+        let treasury = app
+            .instantiate_contract(
+                treasury_code_id,
+                governance.clone(),
+                &treasury::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                },
+                &[],
+                "treasury",
+                None,
+            )
+            .unwrap();
+
+        let err = app
+            .instantiate_contract(
+                wrap_mapper_code_id,
+                governance.clone(),
+                &wrap_mapper::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    fee_bps: Some(0),
+                },
+                &[],
+                "wrap-mapper-zero-fee",
+                None,
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("Fee too low")
+                || err.root_cause().to_string().contains("FeeTooLow"),
+            "fee_bps=0 should be rejected, got: {}",
+            err.root_cause()
+        );
+    }
+
+    // ── D7: Wrap-mapper SetFeeBps rejects 0 ──
+
+    #[test]
+    fn test_wrap_mapper_set_fee_zero_rejected() {
+        let mut app = App::default();
+        let env = setup_env(&mut app);
+
+        let err = app
+            .execute_contract(
+                env.governance.clone(),
+                env.wrap_mapper.clone(),
+                &wrap_mapper::msg::ExecuteMsg::SetFeeBps { fee_bps: 0 },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("Fee too low")
+                || err.root_cause().to_string().contains("FeeTooLow"),
+            "SetFeeBps(0) should be rejected, got: {}",
+            err.root_cause()
+        );
+    }
+
+    // ── D8: SetDenomMapping rejects CW20 where wrap-mapper is not a minter ──
+
+    #[test]
+    fn test_set_denom_mapping_rejects_non_minter_cw20() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let treasury_code_id = app.store_code(treasury_contract());
+        let wrap_mapper_code_id = app.store_code(wrap_mapper_contract());
+
+        let treasury = app
+            .instantiate_contract(
+                treasury_code_id,
+                governance.clone(),
+                &treasury::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                },
+                &[],
+                "treasury",
+                None,
+            )
+            .unwrap();
+
+        let wrap_mapper = app
+            .instantiate_contract(
+                wrap_mapper_code_id,
+                governance.clone(),
+                &wrap_mapper::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    fee_bps: Some(1),
+                },
+                &[],
+                "wrap-mapper",
+                None,
+            )
+            .unwrap();
+
+        // CW20 where governance (not wrap-mapper) is the minter
+        let foreign_cw20 = app
+            .instantiate_contract(
+                cw20_code_id,
+                governance.clone(),
+                &cw20_mintable::msg::InstantiateMsg {
+                    name: "Foreign".to_string(),
+                    symbol: "FRN".to_string(),
+                    decimals: 6,
+                    initial_balances: vec![],
+                    mint: Some(cw20::MinterResponse {
+                        minter: governance.to_string(),
+                        cap: None,
+                    }),
+                    marketing: None,
+                },
+                &[],
+                "foreign-cw20",
+                None,
+            )
+            .unwrap();
+
+        let err = app
+            .execute_contract(
+                governance.clone(),
+                wrap_mapper.clone(),
+                &wrap_mapper::msg::ExecuteMsg::SetDenomMapping {
+                    denom: "uforeign".to_string(),
+                    cw20_addr: foreign_cw20.to_string(),
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("not a minter")
+                || err.root_cause().to_string().contains("NotMinter"),
+            "SetDenomMapping should reject CW20 where wrap-mapper is not a minter, got: {}",
+            err.root_cause()
+        );
+    }
+
+    // ── D9: SetDenomMapping succeeds when wrap-mapper is the primary minter ──
+
+    #[test]
+    fn test_set_denom_mapping_accepts_minter_cw20() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let treasury_code_id = app.store_code(treasury_contract());
+        let wrap_mapper_code_id = app.store_code(wrap_mapper_contract());
+
+        let treasury = app
+            .instantiate_contract(
+                treasury_code_id,
+                governance.clone(),
+                &treasury::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                },
+                &[],
+                "treasury",
+                None,
+            )
+            .unwrap();
+
+        let wrap_mapper = app
+            .instantiate_contract(
+                wrap_mapper_code_id,
+                governance.clone(),
+                &wrap_mapper::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    fee_bps: Some(1),
+                },
+                &[],
+                "wrap-mapper",
+                None,
+            )
+            .unwrap();
+
+        let valid_cw20 = app
+            .instantiate_contract(
+                cw20_code_id,
+                governance.clone(),
+                &cw20_mintable::msg::InstantiateMsg {
+                    name: "Valid".to_string(),
+                    symbol: "VLD".to_string(),
+                    decimals: 6,
+                    initial_balances: vec![],
+                    mint: Some(cw20::MinterResponse {
+                        minter: wrap_mapper.to_string(),
+                        cap: None,
+                    }),
+                    marketing: None,
+                },
+                &[],
+                "valid-cw20",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            wrap_mapper.clone(),
+            &wrap_mapper::msg::ExecuteMsg::SetDenomMapping {
+                denom: "utest".to_string(),
+                cw20_addr: valid_cw20.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+    }
+
+    // ── D10: Rate limit window reset allows wrapping after window expires ──
+    //
+    // The upstream checked_add overflow protection is tested in ustr-cmm's own
+    // unit tests at the contract level. Here we test the window reset behavior
+    // end-to-end: wrapping up to the limit, failing, then succeeding after
+    // the window expires.
+
+    #[test]
+    fn test_rate_limit_window_reset() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(100_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_env(&mut app);
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.wrap_mapper.clone(),
+            &wrap_mapper::msg::ExecuteMsg::SetRateLimit {
+                denom: "uluna".to_string(),
+                config: wrap_mapper::state::RateLimitConfig {
+                    max_amount_per_window: Uint128::new(5_000_000),
+                    window_seconds: 3600,
+                },
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Wrap at the limit
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(5_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        // Should fail — rate limit hit
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.treasury_contract.clone(),
+                &treasury::msg::ExecuteMsg::WrapDeposit {},
+                &[Coin::new(1u128, "uluna")],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().to_lowercase().contains("rate")
+                || err
+                    .root_cause()
+                    .to_string()
+                    .to_lowercase()
+                    .contains("limit"),
+            "Should fail with rate limit error, got: {}",
+            err.root_cause()
+        );
+
+        // Advance time past the window
+        app.update_block(|b| {
+            b.time = b.time.plus_seconds(3601);
+            b.height += 1;
+        });
+
+        // Should succeed after window reset
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(1_000_000u128, "uluna")],
+        )
+        .unwrap();
+    }
+
+    // ── D11: Fee deduction is correctly applied at minimum fee ──
+
+    #[test]
+    fn test_min_fee_deduction_correctness() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(100_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_env(&mut app);
+
+        let wrap_amount = 10_000_000u128;
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(wrap_amount, "uluna")],
+        )
+        .unwrap();
+
+        let cw20_balance = query_cw20_balance(&app, &env.lunc_c, &env.user);
+        let expected_fee = Uint128::new(wrap_amount).multiply_ratio(1u128, 10_000u128);
+        let expected_mint = Uint128::new(wrap_amount) - expected_fee;
+        assert_eq!(
+            cw20_balance, expected_mint,
+            "Minted CW20 should be amount minus 1 bps fee"
+        );
+
+        // Treasury should have the full native amount (fee stays in treasury)
+        let treasury_balance = app
+            .wrap()
+            .query_balance(env.treasury_contract.to_string(), "uluna")
+            .unwrap()
+            .amount;
+        assert_eq!(
+            treasury_balance,
+            Uint128::new(wrap_amount),
+            "Treasury should hold the full native deposit"
+        );
+
+        // Treasury invariant: native >= CW20 supply
+        assert!(treasury_balance >= cw20_balance);
+    }
+
+    // ── D12: E2E wrap→swap→unwrap with fee at each wrapping step ──
+
+    #[test]
+    fn test_e2e_wrap_swap_unwrap_with_fees() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(100_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+
+        let governance = Addr::unchecked("governance");
+        let fee_sink = Addr::unchecked("fee_sink");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+        let router_code_id = app.store_code(router_contract());
+        let wrap_mapper_code_id = app.store_code(wrap_mapper_contract());
+        let treasury_code_id = app.store_code(treasury_contract());
+
+        let treasury_contract = app
+            .instantiate_contract(
+                treasury_code_id,
+                governance.clone(),
+                &treasury::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                },
+                &[],
+                "treasury",
+                None,
+            )
+            .unwrap();
+
+        let wrap_mapper = app
+            .instantiate_contract(
+                wrap_mapper_code_id,
+                governance.clone(),
+                &wrap_mapper::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury_contract.to_string(),
+                    fee_bps: Some(50),
+                },
+                &[],
+                "wrap-mapper",
+                None,
+            )
+            .unwrap();
+
+        let lunc_c = app
+            .instantiate_contract(
+                cw20_code_id,
+                governance.clone(),
+                &cw20_mintable::msg::InstantiateMsg {
+                    name: "Wrapped LUNC".to_string(),
+                    symbol: "LUNC-C".to_string(),
+                    decimals: 6,
+                    initial_balances: vec![],
+                    mint: Some(cw20::MinterResponse {
+                        minter: wrap_mapper.to_string(),
+                        cap: None,
+                    }),
+                    marketing: None,
+                },
+                &[],
+                "lunc-c",
+                None,
+            )
+            .unwrap();
+
+        let token_b = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "Token B",
+            "TKNB",
+            Uint128::new(1_000_000_000_000),
+        );
+
+        app.execute_contract(
+            governance.clone(),
+            wrap_mapper.clone(),
+            &wrap_mapper::msg::ExecuteMsg::SetDenomMapping {
+                denom: "uluna".to_string(),
+                cw20_addr: lunc_c.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::SetDenomWrapper {
+                denom: "uluna".to_string(),
+                wrapper: wrap_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: fee_sink.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        // Wrap LUNC for pool seeding — 50 bps fee = 0.5%
+        app.execute_contract(
+            user.clone(),
+            treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(50_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        let lunc_c_bal = query_cw20_balance(&app, &lunc_c, &user);
+        let expected =
+            Uint128::new(50_000_000) - Uint128::new(50_000_000).multiply_ratio(50u128, 10_000u128);
+        assert_eq!(lunc_c_bal, expected, "50 bps fee on 50M");
+
+        // Create pair and provide liquidity
+        let resp = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&lunc_c), asset_info_token(&token_b)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair = extract_pair_address(&resp.events);
+
+        for token in [&lunc_c, &token_b] {
+            app.execute_contract(
+                user.clone(),
+                token.clone(),
+                &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                    spender: pair.to_string(),
+                    amount: Uint128::new(10_000_000),
+                    expires: None,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+
+        app.execute_contract(
+            user.clone(),
+            pair.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&lunc_c),
+                        amount: Uint128::new(10_000_000),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_b),
+                        amount: Uint128::new(10_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let router = app
+            .instantiate_contract(
+                router_code_id,
+                governance.clone(),
+                &cl8y_dex_router::msg::InstantiateMsg {
+                    factory: factory.to_string(),
+                },
+                &[],
+                "router",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            router.clone(),
+            &cl8y_dex_router::msg::ExecuteMsg::SetWrapMapper {
+                wrap_mapper: wrap_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        // Swap small amount of LUNC-C → token_b
+        let swap_amount = 50_000u128;
+        let swap_hook = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&lunc_c),
+                ask_asset_info: asset_info_token(&token_b),
+            }],
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+            unwrap_output: None,
+        })
+        .unwrap();
+
+        let token_b_before = query_cw20_balance(&app, &token_b, &user);
+
+        app.execute_contract(
+            user.clone(),
+            lunc_c.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: router.to_string(),
+                amount: Uint128::new(swap_amount),
+                msg: swap_hook,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let token_b_after = query_cw20_balance(&app, &token_b, &user);
+        assert!(
+            token_b_after > token_b_before,
+            "Swap should produce output even with wrapping fee"
+        );
+
+        // Treasury invariant holds
+        let treasury_native = app
+            .wrap()
+            .query_balance(treasury_contract.to_string(), "uluna")
+            .unwrap()
+            .amount;
+        let supply: cw20::TokenInfoResponse = app
+            .wrap()
+            .query_wasm_smart(lunc_c.to_string(), &cw20::Cw20QueryMsg::TokenInfo {})
+            .unwrap();
+        assert!(
+            treasury_native >= supply.total_supply,
+            "Treasury invariant must hold with 50 bps fee: native={}, supply={}",
+            treasury_native,
+            supply.total_supply
+        );
     }
 }

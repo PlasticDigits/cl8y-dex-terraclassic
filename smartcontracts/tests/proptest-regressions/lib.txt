@@ -4,3 +4,7 @@
 #
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
+cc 4c057738089df7de8f05c2c37c9ebd032b55e3fb1c34aaeceb460b94bce48040 # shrinks to limit = 1000000
+cc e9781724c08acb4cc51508a9362dc2e63def4340047832290bd3d92277ac1878 # shrinks to wrap_amount = 1000
+cc 1406cc1159190178dbe448d0345eedd9d5108a0d5d0edb89c881ce8c929c2494 # shrinks to ops = [(false, 100000), (false, 100000), (false, 100000)]
+cc 56ae8e617ff0013e4a6d7a1cf3bdd66b5e64324554297a0fd030e2a9f70c5bba # shrinks to ops = [(0, false, 100000), (0, false, 100000), (0, false, 100000), (0, false, 100000), (0, false, 100000)]
