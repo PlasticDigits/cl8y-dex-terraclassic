@@ -216,6 +216,7 @@ if [ ! -f "$ARTIFACTS_DIR/treasury.wasm" ]; then
     echo "  treasury.wasm not found in artifacts — building from source..."
     USTR_TMP_DIR=$(mktemp -d)
     git clone --depth 1 https://gitlab.com/PlasticDigits/ustr-cmm.git "$USTR_TMP_DIR" 2>&1 | tail -1
+    git -C "$USTR_TMP_DIR" submodule update --init --recursive 2>&1 | tail -1
     docker run --rm -v "$USTR_TMP_DIR/contracts":/code \
         --mount type=volume,source=ustr_cmm_cache,target=/code/target \
         --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
