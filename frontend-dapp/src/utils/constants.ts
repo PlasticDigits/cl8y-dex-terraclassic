@@ -26,7 +26,7 @@ export const UNWRAP_GAS_LIMIT = 400000
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 
 export const GAS_PRICE_ULUNA = import.meta.env.VITE_GAS_PRICE_ULUNA || '28.325'
-export const SWAP_GAS_PER_HOP = 400000
+export const SWAP_GAS_PER_HOP = 500000
 
 type NetworkConfig = {
   terra: {
