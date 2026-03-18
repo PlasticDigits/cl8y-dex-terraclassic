@@ -222,7 +222,7 @@ describe('gas limit selection (tested indirectly)', () => {
       JSON.stringify({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }, { swap: {} }] } })
     )
     const fee = await getFeeForMsg({ send: { msg: innerMsg } })
-    expect(fee.gasLimit).toBe(BigInt(1200000))
+    expect(fee.gasLimit).toBe(BigInt(1800000))
   })
 })
 
