@@ -66,14 +66,22 @@ cd frontend-dapp && npm ci && npm run dev
 
 `scripts/deploy-dex-local.sh` automates the entire local deployment:
 
-1. Waits for LocalTerra to be healthy
-2. Uploads CW20, Factory, Pair, Router, and Fee Discount WASM contracts
-3. Instantiates the Factory and Router
-4. Creates 10 test tokens (EMBER, CORAL, JADE, etc.)
-5. Creates 20 trading pairs with initial liquidity
-6. Executes 60 test swaps to seed price history
-7. Writes `frontend-dapp/.env.local` (LCD/RPC URLs, contract addresses)
-8. Writes `indexer/.env` (Postgres connection, Factory address, API port)
+1. **Staleness guard** — checks that WASM artifacts are newer than their source; exits with an error and tells you to run `make build-optimized` if anything is stale
+2. Waits for LocalTerra to be healthy
+3. Uploads CW20, Factory, Pair, Router, and Fee Discount WASM contracts
+4. Instantiates the Factory and Router
+5. Uploads and instantiates Treasury and Wrap-Mapper (builds from ustr-cmm source if `.wasm` not present)
+6. Creates wrapped-native CW20 tokens (LUNC-C, USTC-C) and registers denom mappings
+7. Registers the Wrap-Mapper on the Router (enables native denom swap path)
+8. Funds the Treasury with LUNC + USTC
+9. Creates 10 whitelisted test tokens (EMBER, CORAL, JADE, etc.)
+10. Creates 2 non-whitelisted tokens (ROGUE, BOGUS) under a separate code ID
+11. Creates 3 unpaired/minimally-paired tokens (ZINC, IRON, NEON)
+12. Instantiates the Fee Discount contract with 11 tiers
+13. Creates 23 trading pairs + 3 unpaired-token pairs, all with initial liquidity
+14. Executes ~60 test swaps to seed price history
+15. Writes `frontend-dapp/.env.local` (LCD/RPC URLs, all contract addresses including Treasury/Wrap-Mapper/wrapped tokens)
+16. Writes `indexer/.env` (Postgres connection, Factory address, API port)
 
 ### Verifying the indexer
 

@@ -61,7 +61,7 @@ lint-contracts:
 	cd smartcontracts && cargo fmt --check && cargo clippy -- -D warnings
 
 # Deployment
-deploy-local:
+deploy-local: build-optimized
 	./scripts/deploy-dex-local.sh
 
 deploy-testnet:
