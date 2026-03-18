@@ -522,6 +522,56 @@ done
 echo ""
 echo "  All ${#PAIR_CONFIGS[@]} pairs created with liquidity."
 
+# ── Phase 4a: Liquidity Withdraw + Re-Provide Cycle ─────────────────────
+# Generate at least one remove + re-add event for the first pair so the
+# indexer's liquidity_events table is populated with both event types.
+
+echo ""
+echo "[Phase 4a] Liquidity withdraw/re-provide cycle (pair 1: ${TOKEN_SYMBOLS[0]}/${TOKEN_SYMBOLS[1]})"
+echo "----------------------------------------------"
+
+LP_PAIR_ADDR="${PAIR_ADDRESSES[0]}"
+
+echo "  Querying pair info for LP token address..."
+LP_TOKEN=$(terrad_query wasm contract-state smart "$LP_PAIR_ADDR" '{"pair":{}}' | jq -r '.data.liquidity_token')
+echo "  LP Token: $LP_TOKEN"
+
+echo "  Querying LP balance..."
+LP_BALANCE=$(terrad_query wasm contract-state smart "$LP_TOKEN" \
+  "{\"balance\":{\"address\":\"$TEST_ADDRESS\"}}" | jq -r '.data.balance')
+echo "  LP Balance: $LP_BALANCE"
+
+WITHDRAW_AMOUNT=$((LP_BALANCE / 10))
+echo "  Withdrawing 10% of LP ($WITHDRAW_AMOUNT)..."
+WITHDRAW_HOOK=$(echo -n '{"withdraw_liquidity":{}}' | base64 -w0)
+TX_HASH=$(terrad_tx wasm execute "$LP_TOKEN" \
+  "{\"send\":{\"contract\":\"$LP_PAIR_ADDR\",\"amount\":\"$WITHDRAW_AMOUNT\",\"msg\":\"$WITHDRAW_HOOK\"}}" | jq -r '.txhash')
+echo "  Withdraw TX: $TX_HASH"
+sleep 3
+
+READD_A=5000000000
+READD_B=5000000000
+READD_ADDR_A="${TOKEN_ADDRESSES[0]}"
+READD_ADDR_B="${TOKEN_ADDRESSES[1]}"
+
+echo "  Re-approving tokens for re-provide..."
+TX_HASH=$(terrad_tx wasm execute "$READD_ADDR_A" \
+  "{\"increase_allowance\":{\"spender\":\"$LP_PAIR_ADDR\",\"amount\":\"$READD_A\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+echo "  Approved ${TOKEN_SYMBOLS[0]}: $TX_HASH"
+sleep 3
+TX_HASH=$(terrad_tx wasm execute "$READD_ADDR_B" \
+  "{\"increase_allowance\":{\"spender\":\"$LP_PAIR_ADDR\",\"amount\":\"$READD_B\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+echo "  Approved ${TOKEN_SYMBOLS[1]}: $TX_HASH"
+sleep 3
+
+echo "  Re-providing liquidity ($READD_A / $READD_B)..."
+READD_MSG="{\"provide_liquidity\":{\"assets\":[{\"info\":{\"token\":{\"contract_addr\":\"$READD_ADDR_A\"}},\"amount\":\"$READD_A\"},{\"info\":{\"token\":{\"contract_addr\":\"$READD_ADDR_B\"}},\"amount\":\"$READD_B\"}],\"slippage_tolerance\":null,\"receiver\":null,\"deadline\":null}}"
+TX_HASH=$(terrad_tx wasm execute "$LP_PAIR_ADDR" "$READD_MSG" | jq -r '.txhash')
+echo "  Re-provide TX: $TX_HASH"
+sleep 3
+
+echo "  Liquidity cycle complete (1 withdraw + 1 re-provide)."
+
 # ── Phase 4b: Unpaired Token Pairs ──────────────────────────────────────
 # IRON gets 1 pair, NEON gets 2 pairs, ZINC stays at 0 pairs
 

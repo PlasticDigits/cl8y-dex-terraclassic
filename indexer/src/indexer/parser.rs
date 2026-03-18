@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::config::Config;
-use crate::db::queries::{assets, pairs, swap_events};
+use crate::db::queries::{assets, liquidity, pairs, swap_events};
 use crate::lcd::{LcdClient, TxResponse};
 
 use super::{asset_resolver, candle_builder, oracle, pair_discovery, position_tracker, trader_tracker};
@@ -42,6 +42,18 @@ pub async fn process_block_txs(
                     "Failed to process swap in tx {} for pair {}: {}",
                     tx.txhash,
                     swap.pair_address,
+                    e
+                );
+            }
+        }
+
+        let liq_events = parse_liquidity_events(tx);
+        for liq in &liq_events {
+            if let Err(e) = process_liquidity_event(pool, lcd, liq, height, block_time, &tx.txhash).await {
+                tracing::warn!(
+                    "Failed to process liquidity event in tx {} for pair {}: {}",
+                    tx.txhash,
+                    liq.pair_address,
                     e
                 );
             }
@@ -274,6 +286,128 @@ fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
     }
 
     swaps
+}
+
+#[derive(Debug, Clone)]
+struct ParsedLiquidityEvent {
+    pair_address: String,
+    provider: String,
+    event_type: String,
+    asset_0_amount: BigDecimal,
+    asset_1_amount: BigDecimal,
+    lp_amount: BigDecimal,
+}
+
+fn parse_liquidity_events(tx: &TxResponse) -> Vec<ParsedLiquidityEvent> {
+    let mut out = Vec::new();
+
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+
+        let attrs: HashMap<&str, &str> = event
+            .attributes
+            .iter()
+            .map(|a| (a.key.as_str(), a.value.as_str()))
+            .collect();
+
+        let (event_type, assets_key, lp_key) = match attrs.get("action").copied() {
+            Some("provide_liquidity") => ("add", "assets", "share"),
+            Some("withdraw_liquidity") => ("remove", "refund_assets", "withdrawn_share"),
+            _ => continue,
+        };
+
+        let contract = attrs
+            .get("_contract_address")
+            .or(attrs.get("contract_address"));
+        let provider = attrs.get("sender");
+        let (a0, a1) = parse_asset_amounts(attrs.get(assets_key).copied().unwrap_or(""));
+        let lp: BigDecimal = attrs
+            .get(lp_key)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_default();
+
+        if let (Some(contract), Some(provider)) = (contract, provider) {
+            out.push(ParsedLiquidityEvent {
+                pair_address: contract.to_string(),
+                provider: provider.to_string(),
+                event_type: event_type.to_string(),
+                asset_0_amount: a0,
+                asset_1_amount: a1,
+                lp_amount: lp,
+            });
+        }
+    }
+
+    out
+}
+
+/// Parse the stringified assets attribute emitted by pair contracts.
+/// Format: `"<addr_or_denom> <amount>, <addr_or_denom> <amount>"`
+fn parse_asset_amounts(assets_str: &str) -> (BigDecimal, BigDecimal) {
+    let parts: Vec<&str> = assets_str.split(", ").collect();
+    let amount_0 = parts
+        .first()
+        .and_then(|p| p.rsplit_once(' '))
+        .and_then(|(_, amt)| amt.parse().ok())
+        .unwrap_or_default();
+    let amount_1 = parts
+        .get(1)
+        .and_then(|p| p.rsplit_once(' '))
+        .and_then(|(_, amt)| amt.parse().ok())
+        .unwrap_or_default();
+    (amount_0, amount_1)
+}
+
+async fn process_liquidity_event(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    event: &ParsedLiquidityEvent,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+) -> Result<(), BoxError> {
+    let pair = match pairs::get_pair_by_address(pool, &event.pair_address).await? {
+        Some(p) => p,
+        None => {
+            match pair_discovery::discover_new_pair(pool, lcd, &event.pair_address).await {
+                Ok(p) => p,
+                Err(e) => {
+                    tracing::warn!("Could not discover pair {}: {}", event.pair_address, e);
+                    return Ok(());
+                }
+            }
+        }
+    };
+
+    if liquidity::liquidity_event_exists(pool, tx_hash, pair.id, &event.event_type).await? {
+        return Ok(());
+    }
+
+    liquidity::insert_liquidity_event(
+        pool,
+        pair.id,
+        height,
+        block_time,
+        tx_hash,
+        &event.provider,
+        &event.event_type,
+        &event.asset_0_amount,
+        &event.asset_1_amount,
+        &event.lp_amount,
+    )
+    .await?;
+
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
