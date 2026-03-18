@@ -89,6 +89,35 @@ Once the indexer is running (`make indexer-dev`), it indexes on-chain events
 into Postgres and exposes an API on `http://localhost:3001`. The frontend
 connects to this for charts, trade history, and leaderboard data.
 
+### Seeding historical data for chart / candle testing
+
+A fresh LocalTerra only has a few minutes of block history, so longer candle
+intervals (1h, 4h, 1d, 1w) will be empty. The indexer includes a `seed-qa`
+command that inserts synthetic swap events with timestamps spread across
+several weeks and rebuilds all candle intervals from them.
+
+**Prerequisites:** contracts must be deployed first (`make deploy-local`) so
+that pairs exist in the database, and the indexer must have run at least once
+to apply migrations.
+
+```bash
+# Seed 4 weeks of history (default), 24 swaps/pair/day
+cd indexer && cargo run -- seed-qa
+
+# Customise the time span and density
+cargo run -- seed-qa --weeks 6 --swaps-per-day 40
+
+# Remove all seeded data and rebuild candles from real swaps only
+cargo run -- seed-qa --clean
+```
+
+After seeding, restart the indexer (`make indexer-dev`) and open the charts
+page — you should see populated candles for all intervals including 1w.
+
+> **Note:** seeded swaps use a `SEEDQA_` tx-hash prefix and a fixed sender
+> address, so they are easy to distinguish from real on-chain activity. The
+> `--clean` flag removes only seeded data; real swap events are preserved.
+
 ### Useful Makefile commands
 
 | Command           | Description                                     |

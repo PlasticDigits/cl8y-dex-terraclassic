@@ -7,3 +7,4 @@ pub mod oracle;
 pub mod volume_aggregator;
 pub mod trader_tracker;
 pub mod position_tracker;
+pub mod seed_qa;

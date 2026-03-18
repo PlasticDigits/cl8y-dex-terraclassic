@@ -5,6 +5,7 @@ mod indexer;
 mod lcd;
 
 use config::Config;
+use indexer::seed_qa::{self, SeedQaConfig};
 use sqlx::postgres::PgPoolOptions;
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
@@ -15,6 +16,83 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
 
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() > 1 && args[1] == "seed-qa" {
+        return run_seed_qa(&args[2..]).await;
+    }
+
+    run_server().await
+}
+
+async fn run_seed_qa(args: &[String]) -> anyhow::Result<()> {
+    let config = Config::from_env();
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&config.database_url)
+        .await?;
+
+    sqlx::migrate!().run(&pool).await?;
+
+    if args.iter().any(|a| a == "--clean") {
+        seed_qa::clean(&pool).await?;
+        return Ok(());
+    }
+
+    let mut seed_config = SeedQaConfig::default();
+
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--weeks" => {
+                i += 1;
+                seed_config.span_weeks = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .expect("--weeks requires a number");
+            }
+            "--swaps-per-day" => {
+                i += 1;
+                seed_config.swaps_per_day = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .expect("--swaps-per-day requires a number");
+            }
+            "--help" | "-h" => {
+                print_seed_qa_help();
+                return Ok(());
+            }
+            other => {
+                eprintln!("Unknown argument: {}", other);
+                print_seed_qa_help();
+                std::process::exit(1);
+            }
+        }
+        i += 1;
+    }
+
+    seed_qa::run(&pool, seed_config).await?;
+    Ok(())
+}
+
+fn print_seed_qa_help() {
+    eprintln!(
+        "\
+Usage: cl8y-dex-indexer seed-qa [OPTIONS]
+
+Insert synthetic swap history with spread-out timestamps so QA can
+test 1h, 4h, 1d, and 1w candle intervals on a fresh local chain.
+
+Options:
+  --weeks <N>           Time span to cover (default: 4)
+  --swaps-per-day <N>   Swaps per pair per day (default: 24)
+  --clean               Remove all seeded data and rebuild candles
+  -h, --help            Show this help"
+    );
+}
+
+async fn run_server() -> anyhow::Result<()> {
     let config = Config::from_env();
     tracing::info!("Starting CL8Y DEX indexer");
     tracing::info!("LCD endpoints: {:?}", config.lcd_urls);
