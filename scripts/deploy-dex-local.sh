@@ -11,6 +11,41 @@ if [ -z "$CONTAINER_NAME" ]; then
     exit 1
 fi
 ARTIFACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/artifacts" && pwd)"
+CONTRACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/contracts" && pwd)"
+
+# ── Staleness check ────────────────────────────────────────────────────
+# Fail fast if any WASM artifact is older than its source, so QA doesn't
+# chase phantom contract errors from a stale build.
+STALE_CONTRACTS=()
+for wasm in "$ARTIFACTS_DIR"/cl8y_dex_*.wasm; do
+    [ -f "$wasm" ] || continue
+    basename=$(basename "$wasm" .wasm)
+    # cl8y_dex_factory.wasm  -> contracts/factory
+    # cl8y_dex_burn_hook.wasm -> contracts/hooks/burn-hook
+    short=${basename#cl8y_dex_}            # e.g. "factory", "burn_hook"
+    short_dash=${short//_/-}               # e.g. "factory", "burn-hook"
+    if [ -d "$CONTRACTS_DIR/$short_dash" ]; then
+        src_dir="$CONTRACTS_DIR/$short_dash"
+    elif [ -d "$CONTRACTS_DIR/hooks/$short_dash" ]; then
+        src_dir="$CONTRACTS_DIR/hooks/$short_dash"
+    else
+        continue
+    fi
+    newest_src=$(find "$src_dir/src" -name '*.rs' -newer "$wasm" 2>/dev/null | head -1)
+    if [ -n "$newest_src" ]; then
+        STALE_CONTRACTS+=("$basename")
+    fi
+done
+if [ ${#STALE_CONTRACTS[@]} -gt 0 ]; then
+    echo ""
+    echo "ERROR: Stale WASM artifacts detected — source is newer than the build:"
+    for sc in "${STALE_CONTRACTS[@]}"; do
+        echo "  - $sc.wasm"
+    done
+    echo ""
+    echo "Run 'make build-optimized' first, then re-run this script."
+    exit 1
+fi
 
 TOKEN_NAMES=("Ember" "Coral" "Jade" "Onyx" "Ruby" "Topaz" "Opal" "Cobalt" "Slate" "Amber")
 TOKEN_SYMBOLS=("EMBER" "CORAL" "JADE" "ONYX" "RUBY" "TOPAZ" "OPAL" "COBALT" "SLATE" "AMBER")
