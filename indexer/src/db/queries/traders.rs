@@ -30,11 +30,12 @@ pub async fn upsert_trader(
     trade_volume: &BigDecimal,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
-        "INSERT INTO traders (address, total_trades, total_volume, last_trade_at)
-         VALUES ($1, 1, $2, NOW())
+        "INSERT INTO traders (address, total_trades, total_volume, first_trade_at, last_trade_at)
+         VALUES ($1, 1, $2, NOW(), NOW())
          ON CONFLICT (address)
            DO UPDATE SET total_trades = traders.total_trades + 1,
                         total_volume = traders.total_volume + $2,
+                        first_trade_at = COALESCE(traders.first_trade_at, EXCLUDED.first_trade_at),
                         last_trade_at = NOW(),
                         updated_at = NOW()",
     )
