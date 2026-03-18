@@ -8,6 +8,7 @@ pub struct TokenVolumeRow {
     pub asset_id: i32,
     pub window: String,
     pub volume: BigDecimal,
+    pub volume_usd: BigDecimal,
     pub trade_count: i64,
     pub updated_at: DateTime<Utc>,
 }
@@ -15,6 +16,7 @@ pub struct TokenVolumeRow {
 #[derive(Debug, Clone, Default)]
 pub struct GlobalStats {
     pub total_volume_24h: BigDecimal,
+    pub total_volume_24h_usd: BigDecimal,
     pub total_trades_24h: i64,
     pub pair_count: i64,
 }
@@ -27,11 +29,12 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 
     for (window, cutoff) in [("24h", cutoff_24h), ("7d", cutoff_7d), ("30d", cutoff_30d)] {
         sqlx::query(
-            r#"INSERT INTO token_volume_stats (asset_id, "window", volume, trade_count, updated_at)
+            r#"INSERT INTO token_volume_stats (asset_id, "window", volume, volume_usd, trade_count, updated_at)
              SELECT
                offer_asset_id AS asset_id,
                $1 AS "window",
                SUM(offer_amount) AS volume,
+               COALESCE(SUM(volume_usd), 0) AS volume_usd,
                COUNT(*) AS trade_count,
                NOW() AS updated_at
              FROM swap_events
@@ -39,6 +42,7 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
              GROUP BY offer_asset_id
              ON CONFLICT (asset_id, "window")
                DO UPDATE SET volume = EXCLUDED.volume,
+                            volume_usd = EXCLUDED.volume_usd,
                             trade_count = EXCLUDED.trade_count,
                             updated_at = NOW()"#,
         )
@@ -69,11 +73,14 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
     #[derive(FromRow)]
     struct AggRow {
         total_volume: Option<BigDecimal>,
+        total_volume_usd: Option<BigDecimal>,
         total_trades: Option<i64>,
     }
 
     let agg = sqlx::query_as::<_, AggRow>(
-        "SELECT SUM(offer_amount) AS total_volume, COUNT(*) AS total_trades
+        "SELECT SUM(offer_amount) AS total_volume,
+                COALESCE(SUM(volume_usd), 0) AS total_volume_usd,
+                COUNT(*) AS total_trades
          FROM swap_events WHERE block_timestamp >= $1",
     )
     .bind(cutoff_24h)
@@ -87,6 +94,7 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
 
     Ok(GlobalStats {
         total_volume_24h: agg.total_volume.unwrap_or_default(),
+        total_volume_24h_usd: agg.total_volume_usd.unwrap_or_default(),
         total_trades_24h: agg.total_trades.unwrap_or(0),
         pair_count,
     })

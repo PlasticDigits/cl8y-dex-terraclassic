@@ -7,7 +7,7 @@ use serde_json::Value;
 async fn cmc_summary_returns_200() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/cmc/summary").await;
@@ -24,7 +24,7 @@ async fn cmc_summary_returns_200() {
 async fn cmc_assets_returns_map() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/cmc/assets").await;
@@ -41,7 +41,7 @@ async fn cmc_assets_returns_map() {
 async fn cmc_ticker_returns_map() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/cmc/ticker").await;
@@ -57,7 +57,7 @@ async fn cmc_ticker_returns_map() {
 async fn cmc_trades_returns_trades() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/cmc/trades/LUNC_USTC").await;
@@ -73,7 +73,7 @@ async fn cmc_trades_returns_trades() {
 async fn cmc_trades_invalid_pair_returns_400() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/cmc/trades/INVALID").await;

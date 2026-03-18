@@ -7,7 +7,7 @@ use serde_json::Value;
 async fn get_trader_profile_returns_trader() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -25,7 +25,7 @@ async fn get_trader_profile_returns_trader() {
 async fn get_trader_not_found() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/api/v1/traders/terra1unknown").await;
@@ -36,7 +36,7 @@ async fn get_trader_not_found() {
 async fn get_trader_trades_returns_trades() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -58,7 +58,7 @@ async fn get_trader_trades_returns_trades() {
 async fn leaderboard_default_sort() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/api/v1/traders/leaderboard").await;
@@ -72,7 +72,7 @@ async fn leaderboard_default_sort() {
 async fn leaderboard_valid_sort_columns() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     for sort in &["total_volume", "volume_24h", "volume_7d", "volume_30d", "total_trades"] {
@@ -87,7 +87,7 @@ async fn leaderboard_valid_sort_columns() {
 async fn leaderboard_invalid_sort_returns_400() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -100,7 +100,7 @@ async fn leaderboard_invalid_sort_returns_400() {
 async fn leaderboard_limit_capped() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server

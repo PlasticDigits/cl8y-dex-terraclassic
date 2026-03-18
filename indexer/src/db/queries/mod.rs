@@ -2,6 +2,7 @@ pub mod assets;
 pub mod candles;
 pub mod hook_events;
 pub mod liquidity;
+pub mod oracle;
 pub mod pairs;
 pub mod positions;
 pub mod state;

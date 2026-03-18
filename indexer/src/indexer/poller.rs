@@ -7,11 +7,11 @@ use crate::config::Config;
 use crate::db::queries::state;
 use crate::lcd::LcdClient;
 
-use super::{pair_discovery, parser, trader_tracker, volume_aggregator};
+use super::{oracle, pair_discovery, parser, trader_tracker, volume_aggregator};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config, cancel: tokio_util::sync::CancellationToken) -> Result<(), BoxError> {
+pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config, cancel: tokio_util::sync::CancellationToken, ustc_price: oracle::SharedPrice) -> Result<(), BoxError> {
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
         tracing::error!("Initial pair sync failed: {}", e);
@@ -27,6 +27,13 @@ pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config, cancel: t
     let fee_addr = config.fee_discount_address.clone();
     tokio::spawn(async move {
         trader_tracker::run_tier_sync_loop(tier_pool, tier_lcd, fee_addr).await;
+    });
+
+    let oracle_pool = pool.clone();
+    let oracle_interval = config.oracle_poll_interval_ms;
+    let oracle_price = ustc_price.clone();
+    tokio::spawn(async move {
+        oracle::run_oracle_loop(oracle_pool, oracle_interval, oracle_price).await;
     });
 
     let mut last_indexed = state::get_last_indexed_height(&pool).await?;
@@ -92,6 +99,7 @@ pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config, cancel: t
                             &txs,
                             height,
                             block_time,
+                            &ustc_price,
                         )
                         .await
                         {

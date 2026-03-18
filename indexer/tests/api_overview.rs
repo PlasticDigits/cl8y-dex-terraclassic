@@ -7,7 +7,7 @@ use serde_json::Value;
 async fn overview_returns_stats() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/api/v1/overview").await;

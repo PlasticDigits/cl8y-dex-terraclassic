@@ -36,7 +36,9 @@ pub fn test_config() -> Config {
             "https://dex.cl8y.com".to_string(),
             "http://localhost:5173".to_string(),
         ],
-        rate_limit_rps: 1000,
+        rate_limit_rps: 0,
+        oracle_poll_interval_ms: 30000,
+        ustc_denom: None,
     }
 }
 
@@ -64,6 +66,7 @@ pub async fn setup_pool() -> PgPool {
 }
 
 pub async fn clean_db(pool: &PgPool) {
+    sqlx::query("DELETE FROM ustc_prices").execute(pool).await.ok();
     sqlx::query("DELETE FROM swap_events").execute(pool).await.ok();
     sqlx::query("DELETE FROM candles").execute(pool).await.ok();
     sqlx::query("DELETE FROM liquidity_events").execute(pool).await.ok();
@@ -164,9 +167,17 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
     }
 }
 
-pub fn build_test_app(pool: PgPool) -> Router {
+pub async fn build_test_app(pool: PgPool) -> Router {
+    build_test_app_with_price(pool, None).await
+}
+
+pub async fn build_test_app_with_price(pool: PgPool, ustc_price: Option<bigdecimal::BigDecimal>) -> Router {
     let config = test_config();
     let lcd = LcdClient::new(config.lcd_urls.clone(), config.lcd_timeout_ms, config.lcd_cooldown_ms);
-    let state = AppState { pool, lcd };
+    let price_handle = cl8y_dex_indexer::indexer::oracle::new_shared_price();
+    if let Some(price) = ustc_price {
+        *price_handle.write().await = Some(price);
+    }
+    let state = AppState { pool, lcd, ustc_price: price_handle };
     build_router(state, &config)
 }

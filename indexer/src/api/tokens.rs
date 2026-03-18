@@ -67,6 +67,7 @@ pub struct TokenDetailResponse {
 pub struct VolumeStatResponse {
     pub window: String,
     pub volume: String,
+    pub volume_usd: String,
     pub trade_count: i64,
 }
 
@@ -98,6 +99,7 @@ pub async fn get_token(
         .map(|v| VolumeStatResponse {
             window: v.window.clone(),
             volume: v.volume.to_string(),
+            volume_usd: v.volume_usd.to_string(),
             trade_count: v.trade_count,
         })
         .collect();
