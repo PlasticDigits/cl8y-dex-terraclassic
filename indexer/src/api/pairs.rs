@@ -300,6 +300,7 @@ pub async fn get_pair_trades(
 pub struct PairStatsResponse {
     pub volume_base: String,
     pub volume_quote: String,
+    pub volume_usd: Option<String>,
     pub trade_count: i64,
     pub high: Option<String>,
     pub low: Option<String>,
@@ -337,6 +338,7 @@ pub async fn get_pair_stats(
     Ok(Json(PairStatsResponse {
         volume_base: stats.volume_base.to_string(),
         volume_quote: stats.volume_quote.to_string(),
+        volume_usd: stats.volume_usd.map(|v| v.to_string()),
         trade_count: stats.trade_count,
         high: stats.high.map(|v| v.to_string()),
         low: stats.low.map(|v| v.to_string()),

@@ -116,6 +116,12 @@ pub async fn cg_tickers(
             .or(a1.denom.as_deref())
             .unwrap_or("");
 
+        let liquidity_usd = stats
+            .volume_usd
+            .as_ref()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "0".to_string());
+
         result.push(CgTickerResponse {
             ticker_id: format!("{}_{}", a0.symbol, a1.symbol),
             base_currency: base_addr.to_string(),
@@ -138,7 +144,7 @@ pub async fn cg_tickers(
                 .map(|l| l.to_string())
                 .unwrap_or_else(|| "0".to_string()),
             pool_id: p.contract_address.clone(),
-            liquidity_in_usd: "0".to_string(),
+            liquidity_in_usd: liquidity_usd,
         });
     }
 

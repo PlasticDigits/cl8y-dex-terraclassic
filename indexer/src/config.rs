@@ -14,6 +14,8 @@ pub struct Config {
     pub start_block: Option<i64>,
     pub cors_origins: Vec<String>,
     pub rate_limit_rps: u64,
+    pub oracle_poll_interval_ms: u64,
+    pub ustc_denom: Option<String>,
 }
 
 impl Config {
@@ -62,6 +64,11 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(60),
+            oracle_poll_interval_ms: env::var("ORACLE_POLL_INTERVAL_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(30000),
+            ustc_denom: env::var("USTC_DENOM").ok(),
         }
     }
 }

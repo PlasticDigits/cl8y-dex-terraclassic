@@ -7,7 +7,7 @@ use serde_json::Value;
 async fn list_pairs_returns_200() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/api/v1/pairs").await;
@@ -27,7 +27,7 @@ async fn list_pairs_returns_200() {
 async fn get_pair_returns_pair() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -45,7 +45,7 @@ async fn get_pair_returns_pair() {
 async fn get_pair_not_found() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -58,7 +58,7 @@ async fn get_pair_not_found() {
 async fn get_pair_candles_valid_interval() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -79,7 +79,7 @@ async fn get_pair_candles_valid_interval() {
 async fn get_pair_candles_invalid_interval_returns_400() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -95,7 +95,7 @@ async fn get_pair_candles_invalid_interval_returns_400() {
 async fn get_pair_candles_default_interval() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -108,7 +108,7 @@ async fn get_pair_candles_default_interval() {
 async fn get_pair_trades_returns_trades() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -126,7 +126,7 @@ async fn get_pair_trades_returns_trades() {
 async fn get_pair_trades_with_limit() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -145,7 +145,7 @@ async fn get_pair_trades_with_limit() {
 async fn get_pair_trades_pagination() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -174,7 +174,7 @@ async fn get_pair_trades_pagination() {
 async fn get_pair_stats_returns_stats() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server

@@ -1,6 +1,7 @@
 mod cg;
 mod cmc;
 pub mod hooks;
+mod oracle;
 mod orderbook_sim;
 mod overview;
 mod pairs;
@@ -23,12 +24,14 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
+use crate::indexer::oracle::SharedPrice;
 use crate::lcd::LcdClient;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub lcd: LcdClient,
+    pub ustc_price: SharedPrice,
 }
 
 pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
@@ -103,6 +106,8 @@ async fn find_pair_by_ticker(
         traders::get_trader_positions,
         traders::leaderboard,
         overview::get_overview,
+        oracle::get_oracle_price,
+        oracle::get_oracle_history,
         cg::cg_pairs,
         cg::cg_tickers,
         cg::cg_orderbook,
@@ -135,12 +140,17 @@ async fn find_pair_by_ticker(
         cmc::CmcTickerEntry,
         cmc::CmcOrderbookResponse,
         cmc::CmcTradeEntry,
+        oracle::OraclePriceResponse,
+        oracle::OracleSourcePrice,
+        oracle::OracleHistoryEntry,
+        oracle::OracleHistoryResponse,
     )),
     tags(
         (name = "Pairs", description = "Trading pair endpoints"),
         (name = "Tokens", description = "Token/asset endpoints"),
         (name = "Traders", description = "Trader profile and leaderboard"),
         (name = "Overview", description = "Global DEX statistics"),
+        (name = "Oracle", description = "USTC/USD oracle price feeds"),
         (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
         (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
     )
@@ -168,23 +178,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .allow_methods([Method::GET])
         .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
 
-    let governor_conf = GovernorConfigBuilder::default()
-        .per_second(config.rate_limit_rps)
-        .burst_size(config.rate_limit_rps as u32 * 2)
-        .use_headers()
-        .finish()
-        .expect("failed to build governor config");
-
-    let governor_limiter = governor_conf.limiter().clone();
-    let cleanup_interval = std::time::Duration::from_secs(60);
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(cleanup_interval).await;
-            governor_limiter.retain_recent();
-        }
-    });
-
-    Router::new()
+    let router = Router::new()
         .route("/health", get(health))
         .route("/api/v1/pairs", get(pairs::list_pairs))
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
@@ -206,6 +200,8 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
+        .route("/api/v1/oracle/price", get(oracle::get_oracle_price))
+        .route("/api/v1/oracle/history", get(oracle::get_oracle_history))
         .route("/cg/pairs", get(cg::cg_pairs))
         .route("/cg/tickers", get(cg::cg_tickers))
         .route("/cg/orderbook", get(cg::cg_orderbook))
@@ -218,8 +214,31 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .merge(
             SwaggerUi::new("/swagger-ui")
                 .url("/api-docs/openapi.json", ApiDoc::openapi()),
-        )
-        .layer(GovernorLayer::new(governor_conf))
+        );
+
+    let router = if config.rate_limit_rps > 0 {
+        let governor_conf = GovernorConfigBuilder::default()
+            .per_second(config.rate_limit_rps)
+            .burst_size(config.rate_limit_rps as u32 * 2)
+            .use_headers()
+            .finish()
+            .expect("failed to build governor config");
+
+        let governor_limiter = governor_conf.limiter().clone();
+        let cleanup_interval = std::time::Duration::from_secs(60);
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(cleanup_interval).await;
+                governor_limiter.retain_recent();
+            }
+        });
+
+        router.layer(GovernorLayer::new(governor_conf))
+    } else {
+        router
+    };
+
+    router
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
@@ -229,8 +248,9 @@ pub async fn serve(
     pool: PgPool,
     lcd: LcdClient,
     config: Config,
+    ustc_price: SharedPrice,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let state = AppState { pool, lcd };
+    let state = AppState { pool, lcd, ustc_price };
     let app = build_router(state, &config);
 
     let addr = format!("{}:{}", config.api_bind, config.api_port);

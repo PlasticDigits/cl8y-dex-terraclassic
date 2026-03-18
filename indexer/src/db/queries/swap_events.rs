@@ -19,12 +19,14 @@ pub struct SwapEventRow {
     pub commission_amount: Option<BigDecimal>,
     pub effective_fee_bps: Option<i16>,
     pub price: BigDecimal,
+    pub volume_usd: Option<BigDecimal>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct PairStats {
     pub volume_base: BigDecimal,
     pub volume_quote: BigDecimal,
+    pub volume_usd: Option<BigDecimal>,
     pub trade_count: i64,
     pub high: Option<BigDecimal>,
     pub low: Option<BigDecimal>,
@@ -50,13 +52,14 @@ pub async fn insert_swap(
     commission_amount: Option<&BigDecimal>,
     effective_fee_bps: Option<i16>,
     price: &BigDecimal,
+    volume_usd: Option<&BigDecimal>,
 ) -> Result<i64, sqlx::Error> {
     sqlx::query_scalar::<_, i64>(
         "INSERT INTO swap_events
          (pair_id, block_height, block_timestamp, tx_hash, sender, receiver,
           offer_asset_id, ask_asset_id, offer_amount, return_amount,
-          spread_amount, commission_amount, effective_fee_bps, price)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          spread_amount, commission_amount, effective_fee_bps, price, volume_usd)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING id",
     )
     .bind(pair_id)
@@ -73,6 +76,7 @@ pub async fn insert_swap(
     .bind(commission_amount)
     .bind(effective_fee_bps)
     .bind(price)
+    .bind(volume_usd)
     .fetch_one(pool)
     .await
 }
@@ -161,6 +165,7 @@ pub async fn get_24h_stats_for_pair(
     struct StatsRow {
         volume_base: Option<BigDecimal>,
         volume_quote: Option<BigDecimal>,
+        volume_usd: Option<BigDecimal>,
         trade_count: Option<i64>,
         high: Option<BigDecimal>,
         low: Option<BigDecimal>,
@@ -170,6 +175,7 @@ pub async fn get_24h_stats_for_pair(
         "SELECT
            COALESCE(SUM(offer_amount), 0) AS volume_base,
            COALESCE(SUM(return_amount), 0) AS volume_quote,
+           SUM(volume_usd) AS volume_usd,
            COUNT(*) AS trade_count,
            MAX(price) AS high,
            MIN(price) AS low
@@ -223,6 +229,7 @@ pub async fn get_24h_stats_for_pair(
     Ok(PairStats {
         volume_base: stats.volume_base.unwrap_or_default(),
         volume_quote: stats.volume_quote.unwrap_or_default(),
+        volume_usd: stats.volume_usd,
         trade_count: stats.trade_count.unwrap_or(0),
         high: stats.high,
         low: stats.low,

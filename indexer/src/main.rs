@@ -35,14 +35,16 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let cancel = CancellationToken::new();
+    let ustc_price = indexer::oracle::new_shared_price();
 
     let indexer_pool = pool.clone();
     let indexer_lcd = lcd_client.clone();
     let indexer_config = config.clone();
     let indexer_cancel = cancel.clone();
+    let indexer_ustc = ustc_price.clone();
     let indexer_handle = tokio::spawn(async move {
         if let Err(e) =
-            indexer::poller::run_indexer(indexer_pool, indexer_lcd, indexer_config, indexer_cancel)
+            indexer::poller::run_indexer(indexer_pool, indexer_lcd, indexer_config, indexer_cancel, indexer_ustc)
                 .await
         {
             tracing::error!("Indexer exited with error: {}", e);
@@ -52,8 +54,9 @@ async fn main() -> anyhow::Result<()> {
     let api_pool = pool.clone();
     let api_lcd = lcd_client.clone();
     let api_config = config.clone();
+    let api_ustc = ustc_price.clone();
     let api_handle = tokio::spawn(async move {
-        if let Err(e) = api::serve(api_pool, api_lcd, api_config).await {
+        if let Err(e) = api::serve(api_pool, api_lcd, api_config, api_ustc).await {
             tracing::error!("API server exited with error: {}", e);
         }
     });

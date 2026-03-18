@@ -7,7 +7,7 @@ use serde_json::Value;
 async fn cg_pairs_returns_200() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/cg/pairs").await;
@@ -24,7 +24,7 @@ async fn cg_pairs_returns_200() {
 async fn cg_tickers_returns_200() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server.get("/cg/tickers").await;
@@ -41,7 +41,7 @@ async fn cg_tickers_returns_200() {
 async fn cg_historical_trades_returns_trades() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -58,7 +58,7 @@ async fn cg_historical_trades_returns_trades() {
 async fn cg_historical_trades_invalid_ticker() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -71,7 +71,7 @@ async fn cg_historical_trades_invalid_ticker() {
 async fn cg_historical_trades_filter_buy() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
-    let app = common::build_test_app(pool);
+    let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
     let resp = server
