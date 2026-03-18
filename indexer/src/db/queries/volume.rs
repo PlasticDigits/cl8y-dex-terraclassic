@@ -10,6 +10,7 @@ pub struct TokenVolumeRow {
     pub volume: BigDecimal,
     pub volume_usd: BigDecimal,
     pub trade_count: i64,
+    pub unique_traders: i64,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -29,13 +30,14 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 
     for (window, cutoff) in [("24h", cutoff_24h), ("7d", cutoff_7d), ("30d", cutoff_30d)] {
         sqlx::query(
-            r#"INSERT INTO token_volume_stats (asset_id, "window", volume, volume_usd, trade_count, updated_at)
+            r#"INSERT INTO token_volume_stats (asset_id, "window", volume, volume_usd, trade_count, unique_traders, updated_at)
              SELECT
                offer_asset_id AS asset_id,
                $1 AS "window",
                SUM(offer_amount) AS volume,
                COALESCE(SUM(volume_usd), 0) AS volume_usd,
                COUNT(*) AS trade_count,
+               COUNT(DISTINCT sender) AS unique_traders,
                NOW() AS updated_at
              FROM swap_events
              WHERE block_timestamp >= $2
@@ -44,6 +46,7 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
                DO UPDATE SET volume = EXCLUDED.volume,
                             volume_usd = EXCLUDED.volume_usd,
                             trade_count = EXCLUDED.trade_count,
+                            unique_traders = EXCLUDED.unique_traders,
                             updated_at = NOW()"#,
         )
         .bind(window)
