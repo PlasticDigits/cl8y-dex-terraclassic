@@ -262,7 +262,7 @@ fn oracle_observe_single(
     let mut lo: u16 = 0;
     let mut hi: u16 = n - 1;
     while lo < hi {
-        let mid = lo + (hi - lo + 1) / 2;
+        let mid = lo + (hi - lo).div_ceil(2);
         let mid_idx = (oldest_idx + mid) % state.cardinality;
         let obs = OBSERVATIONS.load(storage, mid_idx)?;
         if obs.timestamp <= target {
