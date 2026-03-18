@@ -17,6 +17,23 @@ pub struct LiquidityEventRow {
     pub created_at: DateTime<Utc>,
 }
 
+pub async fn liquidity_event_exists(
+    pool: &PgPool,
+    tx_hash: &str,
+    pair_id: i32,
+    event_type: &str,
+) -> Result<bool, sqlx::Error> {
+    let count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM liquidity_events WHERE tx_hash = $1 AND pair_id = $2 AND event_type = $3",
+    )
+    .bind(tx_hash)
+    .bind(pair_id)
+    .bind(event_type)
+    .fetch_one(pool)
+    .await?;
+    Ok(count > 0)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn insert_liquidity_event(
     pool: &PgPool,
