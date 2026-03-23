@@ -112,6 +112,7 @@ fn execute_receive(
             to,
             deadline,
             unwrap_output,
+            max_spread,
         } => {
             assert_deadline(&env, deadline)?;
             execute_swap_operations(
@@ -124,6 +125,7 @@ fn execute_receive(
                 minimum_receive,
                 to,
                 unwrap_output,
+                max_spread,
             )
         }
     }
@@ -147,6 +149,7 @@ fn execute_swap_operations(
     minimum_receive: Option<Uint128>,
     to: Option<String>,
     unwrap_output: Option<bool>,
+    max_spread: cosmwasm_std::Decimal,
 ) -> Result<Response, ContractError> {
     if operations.is_empty() {
         return Err(ContractError::EmptyOperations {});
@@ -195,12 +198,13 @@ fn execute_swap_operations(
             minimum_receive,
             output_token,
             unwrap_output: do_unwrap,
+            max_spread,
         },
     )?;
 
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
-        max_spread: None,
+        max_spread: Some(max_spread),
         to: None,
         deadline: None,
         trader: Some(sender.to_string()),
@@ -351,7 +355,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
-        max_spread: None,
+        max_spread: Some(state.max_spread),
         to: None,
         deadline: None,
         trader: Some(state.sender.to_string()),

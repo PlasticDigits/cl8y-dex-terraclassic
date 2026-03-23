@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use dex_common::types::AssetInfo;
 
@@ -27,6 +27,7 @@ pub enum ExecuteMsg {
     /// TerraSwap-compatible multi-hop swap.
     ExecuteSwapOperations {
         operations: Vec<SwapOperation>,
+        max_spread: Decimal,
         minimum_receive: Option<Uint128>,
         to: Option<String>,
         deadline: Option<u64>,
@@ -43,6 +44,7 @@ pub enum ExecuteMsg {
 pub enum Cw20HookMsg {
     ExecuteSwapOperations {
         operations: Vec<SwapOperation>,
+        max_spread: Decimal,
         minimum_receive: Option<Uint128>,
         to: Option<String>,
         deadline: Option<u64>,

@@ -206,7 +206,16 @@ export default function SwapPage() {
 
       if (isWrapOrUnwrap || nativeRouteInfo) {
         const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
-        return executeNativeSwap(address, fromToken, toToken, rawInputAmount, pairs, minReceived ?? undefined, deadline)
+        return executeNativeSwap(
+          address,
+          fromToken,
+          toToken,
+          rawInputAmount,
+          pairs,
+          maxSpread,
+          minReceived ?? undefined,
+          deadline
+        )
       }
 
       if (!route) throw new Error('No route found')
@@ -217,7 +226,7 @@ export default function SwapPage() {
 
       if (isMultiHop && route) {
         const minReceive = minReceived ?? undefined
-        return executeMultiHopSwap(address, fromToken, rawInputAmount, route, minReceive)
+        return executeMultiHopSwap(address, fromToken, rawInputAmount, route, maxSpread, minReceive)
       }
 
       throw new Error('No route found')

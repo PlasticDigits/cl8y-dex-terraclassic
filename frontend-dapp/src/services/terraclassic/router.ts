@@ -49,6 +49,7 @@ export async function executeMultiHopSwap(
   inputTokenAddress: string,
   amount: string,
   operations: SwapOperation[],
+  maxSpread: string,
   minimumReceive?: string,
   to?: string,
   deadline?: number
@@ -57,6 +58,7 @@ export async function executeMultiHopSwap(
     JSON.stringify({
       execute_swap_operations: {
         operations: operations.map((op) => ({ terra_swap: op.terra_swap })),
+        max_spread: maxSpread,
         minimum_receive: minimumReceive,
         to,
         deadline,
@@ -216,6 +218,7 @@ export async function executeNativeSwap(
   toToken: string,
   amount: string,
   pairs: PairInfo[],
+  maxSpread: string,
   minimumReceive?: string,
   deadline?: number
 ): Promise<string> {
@@ -248,6 +251,7 @@ export async function executeNativeSwap(
   const swapHookMsg = {
     execute_swap_operations: {
       operations: routeInfo.operations.map((op) => ({ terra_swap: op.terra_swap })),
+      max_spread: maxSpread,
       minimum_receive: minimumReceive,
       to: undefined,
       deadline,
