@@ -27,7 +27,18 @@ export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 
 export const GAS_PRICE_ULUNA = import.meta.env.VITE_GAS_PRICE_ULUNA || '28.325'
 export const SWAP_GAS_PER_HOP = 600000
+/** Multiplier on (per-hop base × hop count) before floor/padding. */
 export const SWAP_GAS_BUFFER = 1.1
+/**
+ * Minimum gas attributed per hop for `execute_swap_operations` (total floor = hops × this).
+ * Guards against underestimates when buffer × base is still too low for some pairs.
+ */
+export const EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP = 661000
+/**
+ * Extra gas added per hop on top of the buffered estimate (absorbs small runtime variance;
+ * e.g. QA saw gasUsed 1,320,097 vs wanted 1,320,000 on a 2-hop).
+ */
+export const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50000
 
 type NetworkConfig = {
   terra: {

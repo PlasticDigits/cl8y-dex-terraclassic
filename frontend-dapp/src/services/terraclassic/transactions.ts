@@ -2,7 +2,14 @@ import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 import { getConnectedWallet } from './wallet'
-import { GAS_PRICE_ULUNA, SWAP_GAS_BUFFER, SWAP_GAS_PER_HOP, WRAP_GAS_LIMIT } from '@/utils/constants'
+import {
+  EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP,
+  GAS_PRICE_ULUNA,
+  SWAP_GAS_BUFFER,
+  SWAP_GAS_PER_HOP,
+  SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
+  WRAP_GAS_LIMIT,
+} from '@/utils/constants'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
 const ADD_LIQUIDITY_GAS_LIMIT = 500000
@@ -28,12 +35,21 @@ function countSwapHops(msg: Record<string, unknown>): number {
   return ops?.operations?.length ?? 1
 }
 
+/** Buffered estimate + per-hop padding, floored at min gas per hop (see constants). */
+function gasLimitForExecuteSwapOperations(hops: number): number {
+  const hopCount = Math.max(hops, 1)
+  const scaled = Math.round(SWAP_GAS_PER_HOP * hopCount * SWAP_GAS_BUFFER)
+  const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
+  const floor = hopCount * EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP
+  return Math.max(padded, floor)
+}
+
 function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('wrap_deposit' in executeMsg) {
     return WRAP_GAS_LIMIT
   }
   if ('execute_swap_operations' in executeMsg) {
-    return Math.round(SWAP_GAS_PER_HOP * countSwapHops(executeMsg) * SWAP_GAS_BUFFER)
+    return gasLimitForExecuteSwapOperations(countSwapHops(executeMsg))
   } else if ('swap' in executeMsg) {
     return SWAP_GAS_LIMIT
   } else if ('provide_liquidity' in executeMsg) {
@@ -49,8 +65,7 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         const inner = JSON.parse(atob(sendMsg.msg))
         if ('swap' in inner) return SWAP_GAS_LIMIT
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
-        if ('execute_swap_operations' in inner)
-          return Math.round(SWAP_GAS_PER_HOP * countSwapHops(inner) * SWAP_GAS_BUFFER)
+        if ('execute_swap_operations' in inner) return gasLimitForExecuteSwapOperations(countSwapHops(inner))
       } catch {
         // fall through to base
       }
