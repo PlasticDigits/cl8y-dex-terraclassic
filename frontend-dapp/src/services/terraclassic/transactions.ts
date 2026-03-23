@@ -2,7 +2,7 @@ import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 import { getConnectedWallet } from './wallet'
-import { GAS_PRICE_ULUNA, SWAP_GAS_PER_HOP, WRAP_GAS_LIMIT } from '@/utils/constants'
+import { GAS_PRICE_ULUNA, SWAP_GAS_BUFFER, SWAP_GAS_PER_HOP, WRAP_GAS_LIMIT } from '@/utils/constants'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
 const ADD_LIQUIDITY_GAS_LIMIT = 500000
@@ -33,7 +33,7 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     return WRAP_GAS_LIMIT
   }
   if ('execute_swap_operations' in executeMsg) {
-    return SWAP_GAS_PER_HOP * countSwapHops(executeMsg)
+    return Math.round(SWAP_GAS_PER_HOP * countSwapHops(executeMsg) * SWAP_GAS_BUFFER)
   } else if ('swap' in executeMsg) {
     return SWAP_GAS_LIMIT
   } else if ('provide_liquidity' in executeMsg) {
@@ -49,7 +49,8 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         const inner = JSON.parse(atob(sendMsg.msg))
         if ('swap' in inner) return SWAP_GAS_LIMIT
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
-        if ('execute_swap_operations' in inner) return SWAP_GAS_PER_HOP * countSwapHops(inner)
+        if ('execute_swap_operations' in inner)
+          return Math.round(SWAP_GAS_PER_HOP * countSwapHops(inner) * SWAP_GAS_BUFFER)
       } catch {
         // fall through to base
       }
