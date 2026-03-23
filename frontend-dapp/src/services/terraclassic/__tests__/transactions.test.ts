@@ -150,19 +150,26 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
-  it('uses SWAP_GAS_PER_HOP with buffer for single-hop execute_swap_operations', async () => {
+  it('uses buffered estimate + per-hop padding and floor for single-hop execute_swap_operations', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }] } })
-    expect(fee.gasLimit).toBe(BigInt(660000))
+    // round(600k×1.1) + 50k padding = 710k; floor 661k×1
+    expect(fee.gasLimit).toBe(BigInt(710000))
   })
 
-  it('scales gas by hop count with buffer for multi-hop execute_swap_operations', async () => {
+  it('scales gas by hop count with buffer, padding, and floor for multi-hop execute_swap_operations', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }] } })
-    expect(fee.gasLimit).toBe(BigInt(1320000))
+    // round(600k×2×1.1) + 2×50k = 1.42M; floor 661k×2 = 1.322M
+    expect(fee.gasLimit).toBe(BigInt(1420000))
   })
 
-  it('defaults to 1 hop with buffer when operations missing', async () => {
+  it('2-hop gas limit stays above observed out-of-gas usage from #39 (1,320,097)', async () => {
+    const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }] } })
+    expect(fee.gasLimit).toBeGreaterThan(BigInt(1320097))
+  })
+
+  it('defaults to 1 hop with padding/floor when operations missing', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: {} })
-    expect(fee.gasLimit).toBe(BigInt(660000))
+    expect(fee.gasLimit).toBe(BigInt(710000))
   })
 
   it('uses ADD_LIQUIDITY_GAS_LIMIT for provide_liquidity', async () => {
@@ -222,7 +229,7 @@ describe('gas limit selection (tested indirectly)', () => {
       JSON.stringify({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }, { swap: {} }] } })
     )
     const fee = await getFeeForMsg({ send: { msg: innerMsg } })
-    expect(fee.gasLimit).toBe(BigInt(1980000))
+    expect(fee.gasLimit).toBe(BigInt(2130000))
   })
 })
 
