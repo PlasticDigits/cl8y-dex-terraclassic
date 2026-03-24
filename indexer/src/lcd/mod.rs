@@ -170,10 +170,8 @@ impl LcdClient {
         page: u32,
         limit: u32,
     ) -> Result<TxSearchResponse, LcdError> {
-        let event_queries: Vec<String> = events
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect();
+        let event_queries: Vec<String> =
+            events.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
         let events_param = event_queries.join("&events=");
 
         let path = format!(

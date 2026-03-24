@@ -121,9 +121,14 @@ async fn run_server() -> anyhow::Result<()> {
     let indexer_cancel = cancel.clone();
     let indexer_ustc = ustc_price.clone();
     let indexer_handle = tokio::spawn(async move {
-        if let Err(e) =
-            indexer::poller::run_indexer(indexer_pool, indexer_lcd, indexer_config, indexer_cancel, indexer_ustc)
-                .await
+        if let Err(e) = indexer::poller::run_indexer(
+            indexer_pool,
+            indexer_lcd,
+            indexer_config,
+            indexer_cancel,
+            indexer_ustc,
+        )
+        .await
         {
             tracing::error!("Indexer exited with error: {}", e);
         }

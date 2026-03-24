@@ -6,6 +6,19 @@ CL8Y DEX tests focus on real contract behavior — no blockchain mocks. Unit tes
 
 ## Test Types
 
+### Indexer (Rust)
+
+- **Unit tests (`cargo test --lib`):** parser stress tests, candle OHLC merge invariants, position clamping, oracle `f64` conversion, CG ticker shape validation — **no database required**.
+- **Integration tests (`cargo test --tests`):** require PostgreSQL (set `TEST_DATABASE_URL` or use the default URL with valid credentials). They assert API allowlists, caps, CORS, rate limiting (429), and sanitized 500 responses.
+
+```bash
+cd indexer
+cargo test --lib          # fast, no Postgres
+cargo test --tests        # needs Postgres + migrations
+```
+
+See [Indexer invariants](./indexer-invariants.md) for the full matrix.
+
 ### Unit Tests (Rust)
 
 Test individual contract functions in isolation using `cosmwasm_std::testing` helpers.

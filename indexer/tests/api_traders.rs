@@ -40,10 +40,7 @@ async fn get_trader_trades_returns_trades() {
     let server = TestServer::new(app);
 
     let resp = server
-        .get(&format!(
-            "/api/v1/traders/{}/trades",
-            seed.trader_address
-        ))
+        .get(&format!("/api/v1/traders/{}/trades", seed.trader_address))
         .await;
     resp.assert_status_ok();
 
@@ -75,7 +72,13 @@ async fn leaderboard_valid_sort_columns() {
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
-    for sort in &["total_volume", "volume_24h", "volume_7d", "volume_30d", "total_trades"] {
+    for sort in &[
+        "total_volume",
+        "volume_24h",
+        "volume_7d",
+        "volume_30d",
+        "total_trades",
+    ] {
         let resp = server
             .get(&format!("/api/v1/traders/leaderboard?sort={}", sort))
             .await;
@@ -103,11 +106,42 @@ async fn leaderboard_limit_capped() {
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
-    let resp = server
-        .get("/api/v1/traders/leaderboard?limit=999")
-        .await;
+    let resp = server.get("/api/v1/traders/leaderboard?limit=999").await;
     resp.assert_status_ok();
 
     let body: Vec<Value> = resp.json();
     assert!(body.len() <= 200);
+}
+
+#[tokio::test]
+async fn get_trader_positions_returns_rows() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+
+    sqlx::query(
+        "INSERT INTO trader_positions
+         (trader_address, pair_id, net_position_quote, avg_entry_price, total_cost_base, realized_pnl, trade_count)
+         VALUES ($1, $2, 100, 0.5, 50, 0, 1)",
+    )
+    .bind(&seed.trader_address)
+    .bind(seed.pair_id)
+    .execute(&pool)
+    .await
+    .expect("insert position");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/positions",
+            seed.trader_address
+        ))
+        .await;
+    resp.assert_status_ok();
+
+    let body: Vec<Value> = resp.json();
+    assert_eq!(body.len(), 1);
+    assert_eq!(body[0]["pair_address"], seed.pair_address);
+    assert!(body[0]["net_position_quote"].is_string());
 }

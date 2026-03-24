@@ -43,9 +43,7 @@ pub async fn cmc_summary(
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut result = Vec::new();
     for p in &all_pairs {
@@ -167,9 +165,7 @@ pub async fn cmc_ticker(
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut map = HashMap::new();
     for p in &all_pairs {
@@ -253,9 +249,15 @@ pub async fn cmc_orderbook(
     let depth = q.depth.unwrap_or(20).min(100);
     let pair_addr = find_pair_by_ticker(&state, &market_pair).await?;
 
-    let ob = orderbook_sim::simulate_orderbook(&state.pool, &state.lcd, &pair_addr, depth)
-        .await
-        .map_err(internal_err)?;
+    let ob = orderbook_sim::simulate_orderbook_cached(
+        &state.orderbook_cache,
+        &state.pool,
+        &state.lcd,
+        &pair_addr,
+        depth,
+    )
+    .await
+    .map_err(internal_err)?;
 
     Ok(Json(CmcOrderbookResponse {
         timestamp: Utc::now().to_rfc3339(),

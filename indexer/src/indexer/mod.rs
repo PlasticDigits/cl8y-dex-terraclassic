@@ -1,10 +1,10 @@
-pub mod poller;
-pub mod parser;
-pub mod pair_discovery;
 pub mod asset_resolver;
 pub mod candle_builder;
 pub mod oracle;
-pub mod volume_aggregator;
-pub mod trader_tracker;
+pub mod pair_discovery;
+pub mod parser;
+pub mod poller;
 pub mod position_tracker;
 pub mod seed_qa;
+pub mod trader_tracker;
+pub mod volume_aggregator;

@@ -1,9 +1,22 @@
+//! Per-pair quote exposure and PnL. Net quote position is clamped to ≥ 0 after sells (`net_quote_after_sell`). See `docs/indexer-invariants.md`.
+
 use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 
 use crate::db::queries::positions;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+/// After selling `offer_amount` of quote, clamp net quote position to ≥ 0.
+pub(crate) fn net_quote_after_sell(old_pos: &BigDecimal, offer_amount: &BigDecimal) -> BigDecimal {
+    let zero = BigDecimal::from(0);
+    let raw = old_pos - offer_amount;
+    if raw < zero {
+        zero
+    } else {
+        raw
+    }
+}
 
 /// Update trader position and P&L after a swap.
 ///
@@ -72,7 +85,7 @@ pub async fn update_position_on_swap(
 
         let trade_pnl = (&exit_price - &old_avg) * offer_amount;
         let new_rpnl = &old_rpnl + &trade_pnl;
-        let new_pos = &old_pos - offer_amount;
+        let new_pos = net_quote_after_sell(&old_pos, offer_amount);
 
         let (new_cost, new_avg) = if new_pos > zero {
             let cost = &new_pos * &old_avg;
@@ -98,4 +111,31 @@ pub async fn update_position_on_swap(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn net_quote_clamped_when_oversold() {
+        let old = BigDecimal::from_str("50").unwrap();
+        let sell = BigDecimal::from_str("100").unwrap();
+        assert_eq!(net_quote_after_sell(&old, &sell), BigDecimal::from(0));
+    }
+
+    #[test]
+    fn net_quote_partial_close() {
+        let old = BigDecimal::from_str("100").unwrap();
+        let sell = BigDecimal::from_str("30").unwrap();
+        assert_eq!(net_quote_after_sell(&old, &sell), BigDecimal::from(70));
+    }
+
+    #[test]
+    fn net_quote_exact_close() {
+        let old = BigDecimal::from_str("42").unwrap();
+        let sell = BigDecimal::from_str("42").unwrap();
+        assert_eq!(net_quote_after_sell(&old, &sell), BigDecimal::from(0));
+    }
 }

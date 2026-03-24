@@ -1,8 +1,8 @@
 use sqlx::PgPool;
 
 use crate::db::queries::assets;
-use crate::lcd::LcdClient;
 use crate::lcd::types::{AssetInfo, Cw20TokenInfoResponse};
+use crate::lcd::LcdClient;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -46,8 +46,8 @@ pub async fn resolve_asset(
                 return Ok(asset.id);
             }
 
-            let id = assets::upsert_asset(pool, None, Some(denom), false, denom, denom, 6, None)
-                .await?;
+            let id =
+                assets::upsert_asset(pool, None, Some(denom), false, denom, denom, 6, None).await?;
 
             tracing::info!("Resolved new native asset: {} -> id {}", denom, id);
             Ok(id)

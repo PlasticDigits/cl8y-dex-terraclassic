@@ -35,10 +35,9 @@ pub async fn run(pool: &PgPool, config: SeedQaConfig) -> Result<(), BoxError> {
         asset_1_id: i32,
     }
 
-    let pairs: Vec<PairRow> =
-        sqlx::query_as("SELECT id, asset_0_id, asset_1_id FROM pairs")
-            .fetch_all(pool)
-            .await?;
+    let pairs: Vec<PairRow> = sqlx::query_as("SELECT id, asset_0_id, asset_1_id FROM pairs")
+        .fetch_all(pool)
+        .await?;
 
     if pairs.is_empty() {
         return Err("No pairs found. Deploy contracts first with `make deploy-local`.".into());
@@ -65,7 +64,8 @@ pub async fn run(pool: &PgPool, config: SeedQaConfig) -> Result<(), BoxError> {
         let mut block_height: i64 = 900_000;
 
         for i in 0..total_swaps {
-            let timestamp: DateTime<Utc> = start + Duration::seconds(step_secs * i as i64)
+            let timestamp: DateTime<Utc> = start
+                + Duration::seconds(step_secs * i as i64)
                 + Duration::seconds(rng.gen_range(0..step_secs.max(1)));
 
             // Random walk: ±3% per step with slight upward drift
@@ -114,7 +114,10 @@ pub async fn run(pool: &PgPool, config: SeedQaConfig) -> Result<(), BoxError> {
         );
     }
 
-    tracing::info!("QA seed complete. Total swap events: {}", total_swaps as usize * pairs.len());
+    tracing::info!(
+        "QA seed complete. Total swap events: {}",
+        total_swaps as usize * pairs.len()
+    );
     Ok(())
 }
 
@@ -140,11 +143,10 @@ pub async fn clean(pool: &PgPool) -> Result<(), BoxError> {
 
     sqlx::query("DELETE FROM candles").execute(pool).await?;
 
-    let earliest: Option<DateTime<Utc>> = sqlx::query_scalar(
-        "SELECT MIN(block_timestamp) FROM swap_events",
-    )
-    .fetch_one(pool)
-    .await?;
+    let earliest: Option<DateTime<Utc>> =
+        sqlx::query_scalar("SELECT MIN(block_timestamp) FROM swap_events")
+            .fetch_one(pool)
+            .await?;
 
     if let Some(from) = earliest {
         for pair in &pairs {

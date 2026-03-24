@@ -32,15 +32,11 @@ pub async fn cg_pairs(
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut result = Vec::new();
     for p in &all_pairs {
-        if let (Some(a0), Some(a1)) =
-            (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id))
-        {
+        if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
             result.push(CgPairResponse {
                 ticker_id: format!("{}_{}", a0.symbol, a1.symbol),
                 base: a0.symbol.clone(),
@@ -84,9 +80,7 @@ pub async fn cg_tickers(
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut result = Vec::new();
     for p in &all_pairs {
@@ -186,9 +180,15 @@ pub async fn cg_orderbook(
     let depth = q.depth.unwrap_or(20).min(100);
     let pair_addr = find_pair_by_ticker(&state, &q.ticker_id).await?;
 
-    let ob = orderbook_sim::simulate_orderbook(&state.pool, &state.lcd, &pair_addr, depth)
-        .await
-        .map_err(internal_err)?;
+    let ob = orderbook_sim::simulate_orderbook_cached(
+        &state.orderbook_cache,
+        &state.pool,
+        &state.lcd,
+        &pair_addr,
+        depth,
+    )
+    .await
+    .map_err(internal_err)?;
 
     Ok(Json(CgOrderbookResponse {
         ticker_id: q.ticker_id,
@@ -282,6 +282,13 @@ pub async fn cg_historical_trades(
         };
 
         match q.trade_type.as_deref() {
+            None | Some("") => {
+                if is_buy {
+                    buys.push(entry);
+                } else {
+                    sells.push(entry);
+                }
+            }
             Some("buy") => {
                 if is_buy {
                     buys.push(entry);
@@ -292,15 +299,17 @@ pub async fn cg_historical_trades(
                     sells.push(entry);
                 }
             }
-            _ => {
-                if is_buy {
-                    buys.push(entry);
-                } else {
-                    sells.push(entry);
-                }
+            Some(other) => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    format!("Invalid type '{}'. Valid values: buy, sell", other),
+                ));
             }
         }
     }
 
-    Ok(Json(CgHistoricalTradesResponse { buy: buys, sell: sells }))
+    Ok(Json(CgHistoricalTradesResponse {
+        buy: buys,
+        sell: sells,
+    }))
 }

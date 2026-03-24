@@ -2,7 +2,7 @@ use axum::extract::{Query, State};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use super::AppState;
+use super::{internal_err, AppState};
 
 #[derive(Deserialize)]
 pub struct HookEventsQuery {
@@ -49,9 +49,5 @@ pub async fn get_hook_events(
         .await
     };
 
-    rows.map(Json)
-        .map_err(|e| {
-            tracing::error!("Failed to query hook events: {}", e);
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        })
+    rows.map(Json).map_err(internal_err)
 }

@@ -1,6 +1,6 @@
 mod common;
 
-use axum::http::{header, HeaderValue};
+use axum::http::{header, HeaderValue, StatusCode};
 use axum_test::TestServer;
 use serde_json::Value;
 
@@ -11,7 +11,14 @@ async fn invalid_interval_rejected() {
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
-    let bad_intervals = &["3h", "2m", "12h", "1M", "abc", "%27%3B%20DROP%20TABLE%20pairs%3B%20--"];
+    let bad_intervals = &[
+        "3h",
+        "2m",
+        "12h",
+        "1M",
+        "abc",
+        "%27%3B%20DROP%20TABLE%20pairs%3B%20--",
+    ];
     for interval in bad_intervals {
         let resp = server
             .get(&format!(
@@ -57,10 +64,7 @@ async fn invalid_sort_rejected() {
     ];
     for sort in bad_sorts {
         let resp = server
-            .get(&format!(
-                "/api/v1/traders/leaderboard?sort={}",
-                sort
-            ))
+            .get(&format!("/api/v1/traders/leaderboard?sort={}", sort))
             .await;
         resp.assert_status_bad_request();
     }
@@ -106,10 +110,11 @@ async fn cors_allowed_origin_gets_headers() {
         .await;
     resp.assert_status_ok();
 
-    let acao = resp
-        .headers()
-        .get(header::ACCESS_CONTROL_ALLOW_ORIGIN);
-    assert!(acao.is_some(), "should return ACAO header for allowed origin");
+    let acao = resp.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN);
+    assert!(
+        acao.is_some(),
+        "should return ACAO header for allowed origin"
+    );
     assert_eq!(acao.unwrap().to_str().unwrap(), "https://dex.cl8y.com");
 }
 
@@ -128,9 +133,7 @@ async fn cors_disallowed_origin_no_acao() {
         )
         .await;
 
-    let acao = resp
-        .headers()
-        .get(header::ACCESS_CONTROL_ALLOW_ORIGIN);
+    let acao = resp.headers().get(header::ACCESS_CONTROL_ALLOW_ORIGIN);
     assert!(
         acao.is_none(),
         "should NOT return ACAO header for disallowed origin"
@@ -186,6 +189,112 @@ async fn swagger_ui_available() {
     resp.assert_status_ok();
     let body = resp.text();
     assert!(body.contains("swagger"), "swagger UI page should load");
+}
+
+#[tokio::test]
+async fn cg_ticker_id_attack_matrix_all_400() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let bad_tickers = [
+        "",
+        "_",
+        "A",
+        "A_",
+        "_B",
+        "A_B_C",
+        "LUNC_USTC_EXTRA",
+        "SINGLESEGMENT",
+    ];
+    for t in bad_tickers {
+        let url = if t.is_empty() {
+            "/cg/historical_trades?ticker_id=".to_string()
+        } else {
+            format!("/cg/historical_trades?ticker_id={}", t)
+        };
+        let resp = server.get(&url).await;
+        resp.assert_status_bad_request();
+    }
+}
+
+#[tokio::test]
+async fn oracle_history_limit_capped_at_1000() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/history?limit=999999").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let prices = body["prices"].as_array().expect("prices array");
+    assert!(prices.len() <= 1000);
+}
+
+#[tokio::test]
+async fn leaderboard_all_documented_sort_columns_accepted() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let sorts = [
+        "total_volume",
+        "volume_24h",
+        "volume_7d",
+        "volume_30d",
+        "total_trades",
+        "total_realized_pnl",
+        "best_trade_pnl",
+        "worst_trade_pnl",
+        "total_fees_paid",
+    ];
+    for sort in sorts {
+        let resp = server
+            .get(&format!("/api/v1/traders/leaderboard?sort={}", sort))
+            .await;
+        resp.assert_status_ok();
+    }
+}
+
+#[tokio::test]
+async fn trader_trades_limit_capped_at_200() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/trades?limit=99999",
+            seed.trader_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert!(body.len() <= 200);
+}
+
+#[tokio::test]
+async fn rate_limit_returns_429_when_exceeded() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 10;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::new(app);
+
+    let mut saw_429 = false;
+    for _ in 0..120 {
+        let resp = server.get("/health").await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            break;
+        }
+    }
+    assert!(saw_429, "expected governor to return 429 after burst");
 }
 
 #[tokio::test]

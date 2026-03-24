@@ -65,11 +65,7 @@ pub async fn sync_all_pairs(
                     total += 1;
                 }
                 Err(e) => {
-                    tracing::error!(
-                        "Failed to sync pair {}: {}",
-                        pair_info.contract_addr,
-                        e
-                    );
+                    tracing::error!("Failed to sync pair {}: {}", pair_info.contract_addr, e);
                 }
             }
         }

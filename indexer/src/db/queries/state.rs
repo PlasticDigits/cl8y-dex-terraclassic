@@ -1,12 +1,10 @@
 use sqlx::PgPool;
 
 pub async fn get_state(pool: &PgPool, key: &str) -> Result<Option<String>, sqlx::Error> {
-    let row = sqlx::query_scalar::<_, String>(
-        "SELECT value FROM indexer_state WHERE key = $1",
-    )
-    .bind(key)
-    .fetch_optional(pool)
-    .await?;
+    let row = sqlx::query_scalar::<_, String>("SELECT value FROM indexer_state WHERE key = $1")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
     Ok(row)
 }
 

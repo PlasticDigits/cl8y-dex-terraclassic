@@ -155,10 +155,7 @@ pub async fn get_last_trade_for_pair(
     .await
 }
 
-pub async fn get_24h_stats_for_pair(
-    pool: &PgPool,
-    pair_id: i32,
-) -> Result<PairStats, sqlx::Error> {
+pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairStats, sqlx::Error> {
     let cutoff = Utc::now() - chrono::Duration::hours(24);
 
     #[derive(FromRow)]
@@ -239,11 +236,7 @@ pub async fn get_24h_stats_for_pair(
     })
 }
 
-pub async fn trade_exists(
-    pool: &PgPool,
-    tx_hash: &str,
-    pair_id: i32,
-) -> Result<bool, sqlx::Error> {
+pub async fn trade_exists(pool: &PgPool, tx_hash: &str, pair_id: i32) -> Result<bool, sqlx::Error> {
     let count = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM swap_events WHERE tx_hash = $1 AND pair_id = $2",
     )
