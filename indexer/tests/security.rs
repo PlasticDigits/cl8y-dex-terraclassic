@@ -1,5 +1,7 @@
 mod common;
 
+use std::net::SocketAddr;
+
 use axum::http::{header, HeaderValue, StatusCode};
 use axum_test::TestServer;
 use serde_json::Value;
@@ -284,7 +286,10 @@ async fn rate_limit_returns_429_when_exceeded() {
     let mut config = common::test_config();
     config.rate_limit_rps = 10;
     let app = common::build_test_app_with_price_and_config(pool, None, config).await;
-    let server = TestServer::new(app);
+    // Governor's default PeerIpKeyExtractor needs ConnectInfo; mock transport omits it unless we use a real TCP server.
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
 
     let mut saw_429 = false;
     for _ in 0..120 {

@@ -5,6 +5,8 @@ import { DEV_MODE } from '@/utils/constants'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 
 const WALLET_STORAGE_KEY = 'cl8y_wallet_connection'
+/** Persists simulated dev wallet across full page loads (Playwright `page.goto`, refresh). */
+const DEV_SIM_STORAGE_KEY = 'cl8y_dev_sim'
 
 interface WalletState {
   address: string | null
@@ -37,6 +39,11 @@ export const useWalletStore = create<WalletState>((set) => ({
   },
   connectDev: () => {
     if (!DEV_MODE) return
+    try {
+      localStorage.setItem(DEV_SIM_STORAGE_KEY, '1')
+    } catch {
+      /* storage unavailable */
+    }
     const devWallet = createDevTerraWallet()
     registerConnectedWallet(devWallet)
     set({ address: DEV_TERRA_ADDRESS, walletType: 'simulated', error: null })
@@ -45,6 +52,7 @@ export const useWalletStore = create<WalletState>((set) => ({
     await disconnectTerraWallet()
     try {
       localStorage.removeItem(WALLET_STORAGE_KEY)
+      localStorage.removeItem(DEV_SIM_STORAGE_KEY)
     } catch {
       /* storage unavailable */
     }
@@ -115,9 +123,29 @@ async function attemptAutoReconnect(): Promise<void> {
   }
 }
 
+function restoreDevSimIfNeeded(): void {
+  if (!DEV_MODE) {
+    try {
+      localStorage.removeItem(DEV_SIM_STORAGE_KEY)
+    } catch {
+      /* storage unavailable */
+    }
+    return
+  }
+  try {
+    if (localStorage.getItem(WALLET_STORAGE_KEY)) return
+    if (localStorage.getItem(DEV_SIM_STORAGE_KEY) !== '1') return
+    useWalletStore.getState().connectDev()
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 if (typeof window !== 'undefined') {
   const reconnect = () => {
-    void attemptAutoReconnect()
+    void attemptAutoReconnect().finally(() => {
+      restoreDevSimIfNeeded()
+    })
   }
 
   if (document.readyState === 'complete') {

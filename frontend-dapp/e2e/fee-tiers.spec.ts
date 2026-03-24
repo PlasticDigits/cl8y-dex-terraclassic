@@ -53,7 +53,7 @@ test.describe('Fee Tiers Page', () => {
 
     const howItWorks = page.getByRole('heading', { name: /How it works/i })
     await howItWorks.scrollIntoViewIfNeeded()
-    await expect(page.getByText(/CL8Y Hold/i)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('CL8Y Hold', { exact: true })).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/drop below.*lose your tier/i)).toBeVisible()
   })
 
@@ -72,7 +72,7 @@ test.describe('Fee Tiers Page', () => {
 
     const howItWorks = page.getByRole('heading', { name: /How it works/i })
     await howItWorks.scrollIntoViewIfNeeded()
-    await expect(page.getByText(/Eff\. Fee/i)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Eff. Fee*', { exact: true }).first()).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/default base fee is 1\.8/i)).toBeVisible()
   })
 
