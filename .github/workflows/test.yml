@@ -42,8 +42,19 @@ jobs:
       - name: Clippy
         run: cargo clippy -- -D warnings
 
-      - name: Unit tests
-        run: cargo test
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Contract tests (with LCOV coverage)
+        run: cargo llvm-cov test --workspace --lcov --output-path lcov.info
+
+      - name: Upload smart contracts LCOV
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartcontracts-lcov
+          path: smartcontracts/lcov.info
 
       - name: Build WASM (pair)
         run: cargo build --release --target wasm32-unknown-unknown -p cl8y-dex-pair

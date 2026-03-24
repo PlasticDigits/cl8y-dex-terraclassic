@@ -75,6 +75,8 @@ The integration test harness in `smartcontracts/tests/` deploys the full contrac
 
 ## Coverage
 
+### Frontend (Vitest)
+
 ```bash
 cd frontend-dapp
 npx vitest run --coverage
@@ -82,10 +84,26 @@ npx vitest run --coverage
 
 Coverage reports are generated in `frontend-dapp/coverage/` in text, JSON, and HTML formats (configured via `vitest.config.ts`).
 
+### Smart contracts (Rust / LLVM)
+
+Instrumented line coverage for the CosmWasm workspace uses [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov):
+
+```bash
+cargo install cargo-llvm-cov
+cd smartcontracts
+cargo llvm-cov test --workspace --lcov --output-path lcov.info
+# Optional HTML report:
+cargo llvm-cov report --html --output-dir target/llvm-cov-html
+```
+
+Or from the repo root: `make coverage-contracts` (writes `smartcontracts/lcov.info`).
+
+Use coverage to find **untested business logic**, not as a vanity metric — see [contracts-security-audit.md](./contracts-security-audit.md) for invariant-to-test mapping.
+
 ## CI
 
 The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
-1. `cargo fmt --check` + `cargo clippy` + `cargo test` + WASM builds
+1. `cargo fmt --check` + `cargo clippy` + contract tests via `cargo llvm-cov test` (LCOV artifact) + WASM builds
 2. `tsc --noEmit` + `npm run lint` + `npm run test:run`
 
 See [the workflow file](../.github/workflows/test.yml) for details.
