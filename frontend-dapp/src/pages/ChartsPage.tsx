@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useDeferredValue, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { getOverview, getPairs, getPairStats, getTrades, getLeaderboard, INDEXER_URL } from '@/services/indexer/client'
@@ -26,7 +26,9 @@ const LEADERBOARD_TABS = [
 
 export default function ChartsPage() {
   const [selectedPairAddr, setSelectedPairAddr] = useState<string>('')
+  const [pairSearch, setPairSearch] = useState('')
   const [leaderboardSort, setLeaderboardSort] = useState<string>('total_volume')
+  const deferredPairSearch = useDeferredValue(pairSearch.trim())
 
   const overviewQuery = useQuery({
     queryKey: ['indexer-overview'],
@@ -35,14 +37,27 @@ export default function ChartsPage() {
   })
 
   const pairsQuery = useQuery({
-    queryKey: ['indexer-pairs'],
-    queryFn: getPairs,
+    queryKey: ['indexer-pairs', deferredPairSearch],
+    queryFn: () =>
+      getPairs({
+        limit: 200,
+        q: deferredPairSearch || undefined,
+        sort: 'symbol',
+        order: 'asc',
+      }),
     staleTime: 60_000,
   })
 
-  const pairs = pairsQuery.data ?? []
+  const pairs = pairsQuery.data?.items ?? []
   const activePairAddr = selectedPairAddr || pairs[0]?.pair_address || ''
   const activePair = pairs.find((p: IndexerPair) => p.pair_address === activePairAddr)
+
+  useEffect(() => {
+    if (pairs.length === 0) return
+    if (selectedPairAddr && !pairs.some((p) => p.pair_address === selectedPairAddr)) {
+      setSelectedPairAddr(pairs[0].pair_address)
+    }
+  }, [pairs, selectedPairAddr])
 
   const statsQuery = useQuery({
     queryKey: ['pair-stats', activePairAddr],
@@ -147,6 +162,18 @@ export default function ChartsPage() {
 
       {/* Pair Selector */}
       <div className="shell-panel">
+        <label htmlFor="chart-pair-search" className="label-neo mb-1 block">
+          Find pair
+        </label>
+        <input
+          id="chart-pair-search"
+          type="search"
+          className="input-neo w-full mb-3"
+          placeholder="Search by symbol, pair address, or token…"
+          value={pairSearch}
+          onChange={(e) => setPairSearch(e.target.value)}
+          aria-label="Filter pairs by symbol or address"
+        />
         <label className="label-neo mb-1 block">Select Pair</label>
         <select
           className="select-neo w-full"

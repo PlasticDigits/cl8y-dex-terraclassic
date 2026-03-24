@@ -1,5 +1,7 @@
 import type {
   IndexerPair,
+  IndexerPairsListResponse,
+  IndexerPairSort,
   IndexerCandle,
   IndexerTrade,
   IndexerPairStats,
@@ -42,9 +44,41 @@ async function fetchJson<T>(path: string): Promise<T> {
   throw lastError!
 }
 
-/** Get all indexed pairs with enriched asset info. */
-export async function getPairs(): Promise<IndexerPair[]> {
-  return fetchJson<IndexerPair[]>('/api/v1/pairs')
+export interface GetPairsParams {
+  limit?: number
+  offset?: number
+  /** Search pair address, symbols, contracts, denoms */
+  q?: string
+  /** Exact CW20 contract or native denom — pairs that include this token */
+  asset?: string
+  sort?: IndexerPairSort
+  order?: 'asc' | 'desc'
+}
+
+/** Paginated pair list from the indexer (sort, filter, search). */
+export async function getPairs(params?: GetPairsParams): Promise<IndexerPairsListResponse> {
+  const sp = new URLSearchParams()
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.offset != null) sp.set('offset', String(params.offset))
+  if (params?.q?.trim()) sp.set('q', params.q.trim())
+  if (params?.asset?.trim()) sp.set('asset', params.asset.trim())
+  if (params?.sort) sp.set('sort', params.sort)
+  if (params?.order) sp.set('order', params.order)
+  const qs = sp.toString()
+  return fetchJson<IndexerPairsListResponse>(`/api/v1/pairs${qs ? `?${qs}` : ''}`)
+}
+
+/** Load up to `maxPairs` by paging the indexer (e.g. chart pair selector). */
+export async function getAllPairsPaged(maxPairs = 5000, pageSize = 100): Promise<IndexerPair[]> {
+  const out: IndexerPair[] = []
+  let offset = 0
+  while (out.length < maxPairs) {
+    const page = await getPairs({ limit: pageSize, offset, sort: 'symbol', order: 'asc' })
+    out.push(...page.items)
+    if (page.items.length < pageSize || out.length >= page.total) break
+    offset += pageSize
+  }
+  return out
 }
 
 /** Get OHLCV candles for a pair. */

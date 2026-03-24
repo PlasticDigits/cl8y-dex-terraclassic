@@ -178,6 +178,8 @@ pub async fn find_pair_by_ticker(
     ),
     components(schemas(
         pairs::PairResponse,
+        pairs::PairListResponse,
+        pairs::ListPairsQuery,
         pairs::AssetBrief,
         pairs::CandleResponse,
         pairs::TradeResponse,

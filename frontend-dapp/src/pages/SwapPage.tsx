@@ -22,8 +22,8 @@ import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassi
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { assetInfoLabel, tokenAssetInfo, isNativeDenom } from '@/types'
 import { sounds } from '@/lib/sounds'
-import { FeeDisplay, TxResultAlert } from '@/components/ui'
-import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui'
+import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 
 export default function SwapPage() {
@@ -59,7 +59,14 @@ export default function SwapPage() {
     }
   }, [pairs, fromToken])
 
-  const allTokens = pairs.length > 0 ? getAllTokens(pairs) : []
+  const allTokens = useMemo(() => (pairs.length > 0 ? getAllTokens(pairs) : []), [pairs])
+
+  useEffect(() => {
+    const cw20Tokens = allTokens.filter((tokenId) => tokenId.startsWith('terra1'))
+    cw20Tokens.forEach((tokenId) => {
+      void fetchCW20TokenInfo(tokenId)
+    })
+  }, [allTokens])
 
   const wrapUnwrapType = fromToken && toToken ? isDirectWrapUnwrap(fromToken, toToken) : null
   const isWrapOrUnwrap = wrapUnwrapType !== null
@@ -327,23 +334,30 @@ export default function SwapPage() {
     customSlippage !== '' &&
     (isNaN(parseFloat(customSlippage)) || parseFloat(customSlippage) < 0.01 || parseFloat(customSlippage) > 50)
 
+  const handleToggleSettings = useCallback(() => {
+    sounds.playButtonPress()
+    setShowSettings((prev) => !prev)
+  }, [])
+
+  const handleOpenSettings = useCallback(() => {
+    sounds.playButtonPress()
+    setShowSettings(true)
+  }, [])
+
   return (
-    <div className="max-w-[520px] mx-auto">
+    <div className="max-w-[520px] mx-auto w-full">
       <div className="relative">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-6 top-8 h-[78%] rounded-[28px] theme-hero-glow blur-2xl"
+          className="pointer-events-none absolute inset-x-3 sm:inset-x-6 top-6 sm:top-8 h-[78%] rounded-[28px] theme-hero-glow blur-2xl"
         />
         <div className="shell-panel-strong relative z-10">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
             <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Swap</h2>
             <button
-              onClick={() => {
-                sounds.playButtonPress()
-                setShowSettings(!showSettings)
-              }}
-              className="btn-muted !text-xs !px-3 !py-1"
+              onClick={handleToggleSettings}
+              className="btn-muted !text-[11px] sm:!text-xs !px-2.5 sm:!px-3 !py-1"
             >
               Settings
             </button>
@@ -351,9 +365,9 @@ export default function SwapPage() {
 
           {/* Slippage Settings */}
           {showSettings && (
-            <div className="mb-6 card-neo animate-fade-in-up">
+            <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
               <p className="label-neo mb-3">Slippage Tolerance</p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {[0.1, 0.5, 1.0].map((val) => (
                   <button
                     key={val}
@@ -402,27 +416,20 @@ export default function SwapPage() {
 
           {/* You Pay */}
           <div className="card-neo mb-2">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <span className="label-neo !mb-0 pt-1">You Pay</span>
-              <select
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+              <span className="label-neo !mb-0 sm:pt-1">You Pay</span>
+              <TokenSelect
                 value={fromToken}
-                onChange={(e) => {
+                tokens={allTokens}
+                excludeToken={toToken}
+                onChange={(tokenId) => {
                   sounds.playButtonPress()
-                  setFromToken(e.target.value)
+                  setFromToken(tokenId)
                   setShowImpactConfirm(false)
                 }}
-                className="select-neo min-w-[170px] max-w-[220px] shrink-0 !py-2 !pl-3 !pr-10 !text-sm font-medium"
                 aria-label="Select token you pay"
-              >
-                {allTokens.length === 0 && <option value="">Loading tokens...</option>}
-                {allTokens
-                  .filter((t) => t !== toToken)
-                  .map((token) => (
-                    <option key={token} value={token}>
-                      {getTokenDisplaySymbol(token)}
-                    </option>
-                  ))}
-              </select>
+                disabled={allTokens.length === 0}
+              />
             </div>
             <input
               type="text"
@@ -436,26 +443,39 @@ export default function SwapPage() {
                 }
               }}
               placeholder="0.00"
-              className="w-full text-2xl font-medium bg-transparent focus:outline-none"
+              className="w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent focus:outline-none"
               style={{ color: 'var(--ink)' }}
             />
-            {isWalletConnected && balanceQuery.data !== undefined && (
-              <div className="flex items-center justify-between mt-2 text-xs" style={{ color: 'var(--ink-subtle)' }}>
-                <span>
-                  Balance:{' '}
-                  <span className="font-mono">
-                    {offerAssetInfo
-                      ? formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))
-                      : balanceQuery.data}
-                  </span>
+            {isWalletConnected && (
+              <div
+                className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs min-h-[1.5rem]"
+                style={{ color: 'var(--ink-subtle)' }}
+              >
+                <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                  <span className="shrink-0">Balance:</span>
+                  {!offerAssetInfo ? (
+                    <span className="font-mono">—</span>
+                  ) : balanceQuery.isLoading ? (
+                    <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
+                      <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
+                      <span className="sr-only">Loading balance</span>
+                    </span>
+                  ) : balanceQuery.isError ? (
+                    <span className="font-mono">—</span>
+                  ) : (
+                    <span className="font-mono truncate">
+                      {formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))}
+                    </span>
+                  )}
                 </span>
                 <button
                   type="button"
+                  disabled={!offerAssetInfo || balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data}
                   onClick={() => {
                     sounds.playButtonPress()
                     if (balanceQuery.data) setInputAmount(fromRawAmount(balanceQuery.data, offerDecimals))
                   }}
-                  className="uppercase font-semibold tracking-wide hover:underline"
+                  className="ml-auto uppercase font-semibold tracking-wide hover:underline shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
                   style={{ color: 'var(--cyan)' }}
                 >
                   Max
@@ -474,7 +494,7 @@ export default function SwapPage() {
                 setToToken(tmp)
                 setShowImpactConfirm(false)
               }}
-              className="w-10 h-10 rounded-none border-2 flex items-center justify-center transition-all hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0_#000] hover:shadow-[1px_1px_0_#000]"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-none border-2 flex items-center justify-center transition-all hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0_#000] hover:shadow-[1px_1px_0_#000]"
               style={{
                 borderColor: 'rgba(255,255,255,0.3)',
                 background: 'var(--surface-raised)',
@@ -495,29 +515,22 @@ export default function SwapPage() {
 
           {/* You Receive */}
           <div className="card-neo mt-2 mb-4">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <span className="label-neo !mb-0 pt-1">You Receive</span>
-              <select
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+              <span className="label-neo !mb-0 sm:pt-1">You Receive</span>
+              <TokenSelect
                 value={toToken}
-                onChange={(e) => {
+                tokens={allTokens}
+                excludeToken={fromToken}
+                onChange={(tokenId) => {
                   sounds.playButtonPress()
-                  setToToken(e.target.value)
+                  setToToken(tokenId)
                   setShowImpactConfirm(false)
                 }}
-                className="select-neo min-w-[170px] max-w-[220px] shrink-0 !py-2 !pl-3 !pr-10 !text-sm font-medium"
                 aria-label="Select token you receive"
-              >
-                {allTokens.length === 0 && <option value="">Loading tokens...</option>}
-                {allTokens
-                  .filter((t) => t !== fromToken)
-                  .map((token) => (
-                    <option key={token} value={token}>
-                      {getTokenDisplaySymbol(token)}
-                    </option>
-                  ))}
-              </select>
+                disabled={allTokens.length === 0}
+              />
             </div>
-            <div className="text-2xl font-medium" style={{ color: 'var(--ink)' }}>
+            <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
               {simQuery.isFetching ? (
                 <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
                   Calculating...
@@ -532,13 +545,13 @@ export default function SwapPage() {
 
           <div className="mb-4 space-y-2">
             {isWrapOrUnwrap && (
-              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+              <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
                 This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
                 (1:1)
               </div>
             )}
             {nativeRouteInfo && (
-              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+              <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
                 <span className="uppercase tracking-wide font-medium">Route: </span>
                 {nativeRouteInfo.needsWrapInput && <span>{getTokenDisplaySymbol(fromToken)} → </span>}
                 {nativeRouteInfo.operations.map((op, i) => (
@@ -568,7 +581,7 @@ export default function SwapPage() {
               </div>
             )}
             {isMultiHop && route && (
-              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+              <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
                 <span className="uppercase tracking-wide font-medium">Route: </span>
                 {route.map((op, i) => (
                   <span key={i}>
@@ -587,18 +600,24 @@ export default function SwapPage() {
 
           {/* Trade Details */}
           {simQuery.data && (
-            <div className="card-neo space-y-2 mb-4 text-sm">
+            <div className="card-neo mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm sm:block sm:space-y-2">
               {poolQuery.data && (
-                <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
+                <div
+                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
                   <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
-                  <span className="font-mono text-xs">
+                  <span className="font-mono text-xs sm:text-right break-all">
                     {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))} /{' '}
                     {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
                   </span>
                 </div>
               )}
               {feeQuery.data && (
-                <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
+                <div
+                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
                   <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
                   <FeeDisplay
                     feeBps={feeQuery.data.fee_bps}
@@ -613,7 +632,7 @@ export default function SwapPage() {
               )}
               {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
                 <div
-                  className="p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
+                  className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
                   style={{
                     borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
                     background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
@@ -627,7 +646,10 @@ export default function SwapPage() {
               )}
               {priceImpact !== null && (
                 <>
-                  <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
+                  <div
+                    className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                    style={{ color: 'var(--ink-dim)' }}
+                  >
                     <span className="uppercase text-xs tracking-wide font-medium">Price Impact</span>
                     <span
                       className={
@@ -642,24 +664,39 @@ export default function SwapPage() {
                     </span>
                   </div>
                   {parseFloat(priceImpact) > 5 && (
-                    <div className="alert-error !text-xs">
+                    <div className="col-span-2 alert-error !text-xs">
                       High price impact! You may receive significantly fewer tokens than expected.
                     </div>
                   )}
                 </>
               )}
               {minReceived !== null && (
-                <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
+                <div
+                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
                   <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
-                  <span className="font-mono text-xs">
+                  <span className="font-mono text-xs sm:text-right break-all">
                     {receiveAssetInfo ? formatTokenAmount(minReceived!, getDecimals(receiveAssetInfo)) : minReceived}
                   </span>
                 </div>
               )}
-              <div className="flex justify-between" style={{ color: 'var(--ink-dim)' }}>
+              <button
+                type="button"
+                onClick={handleOpenSettings}
+                aria-expanded={showSettings}
+                aria-controls="swap-slippage-settings"
+                className="min-w-0 flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between"
+                style={{ color: 'var(--ink-dim)' }}
+              >
                 <span className="uppercase text-xs tracking-wide font-medium">Slippage Tolerance</span>
-                <span>{slippageTolerance}%</span>
-              </div>
+                <span className="inline-flex items-center gap-1">
+                  <span>{slippageTolerance}%</span>
+                  <span aria-hidden="true" className="text-[10px]" style={{ color: 'var(--cyan)' }}>
+                    {showSettings ? '▲' : '▼'}
+                  </span>
+                </span>
+              </button>
             </div>
           )}
 
@@ -688,8 +725,8 @@ export default function SwapPage() {
               swapMutation.mutate()
             }}
             disabled={buttonDisabled}
-            className={`w-full py-4 font-semibold text-base ${
-              buttonDisabled ? 'btn-disabled !w-full !py-4' : 'btn-primary btn-cta !w-full !py-4'
+            className={`w-full py-3.5 sm:py-4 font-semibold text-base ${
+              buttonDisabled ? 'btn-disabled !w-full !py-3.5 sm:!py-4' : 'btn-primary btn-cta !w-full !py-3.5 sm:!py-4'
             }`}
           >
             {buttonText}

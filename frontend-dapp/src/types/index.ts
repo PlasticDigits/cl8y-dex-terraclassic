@@ -116,14 +116,53 @@ export interface TiersResponse {
   tiers: TierEntry[]
 }
 
+/** Indexer API — asset row (CW20 and/or native) */
+export interface IndexerAssetBrief {
+  symbol: string
+  contract_addr: string | null
+  denom: string | null
+  decimals: number
+}
+
 /** Indexer API types */
 export interface IndexerPair {
   pair_address: string
-  asset_0: { symbol: string; contract_addr: string; decimals: number }
-  asset_1: { symbol: string; contract_addr: string; decimals: number }
+  asset_0: IndexerAssetBrief
+  asset_1: IndexerAssetBrief
   lp_token: string | null
   fee_bps: number | null
   is_active: boolean
+  /** 24h quote-side volume from indexed swaps (string integer) */
+  volume_quote_24h?: string
+}
+
+/** Paginated response from `GET /api/v1/pairs` */
+export interface IndexerPairsListResponse {
+  items: IndexerPair[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h'
+
+/** Map indexer pair metadata to on-chain `PairInfo` for pool queries and txs */
+export function indexerAssetToAssetInfo(a: IndexerAssetBrief): AssetInfo {
+  if (a.contract_addr) {
+    return { token: { contract_addr: a.contract_addr } }
+  }
+  if (a.denom) {
+    return { native_token: { denom: a.denom } }
+  }
+  throw new Error('Indexer asset has neither contract_addr nor denom')
+}
+
+export function indexerPairToPairInfo(p: IndexerPair): PairInfo {
+  return {
+    asset_infos: [indexerAssetToAssetInfo(p.asset_0), indexerAssetToAssetInfo(p.asset_1)],
+    contract_addr: p.pair_address,
+    liquidity_token: p.lp_token ?? '',
+  }
 }
 
 export interface IndexerCandle {

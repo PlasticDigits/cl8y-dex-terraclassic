@@ -2,7 +2,9 @@ mod common;
 
 use axum_test::TestServer;
 use serde_json::Value;
+use serial_test::serial;
 
+#[serial]
 #[tokio::test]
 async fn list_pairs_returns_200() {
     let pool = common::setup_pool().await;
@@ -13,16 +15,40 @@ async fn list_pairs_returns_200() {
     let resp = server.get("/api/v1/pairs").await;
     resp.assert_status_ok();
 
-    let body: Vec<Value> = resp.json();
-    assert!(!body.is_empty(), "should have at least one pair");
+    let body: Value = resp.json();
+    let items = body["items"].as_array().expect("items array");
+    assert!(!items.is_empty(), "should have at least one pair");
+    assert!(body["total"].as_i64().unwrap() >= 1);
+    assert_eq!(body["limit"].as_i64().unwrap(), 50);
+    assert_eq!(body["offset"].as_i64().unwrap(), 0);
 
-    let pair = &body[0];
+    let pair = &items[0];
     assert_eq!(pair["pair_address"], seed.pair_address);
     assert!(pair["asset_0"]["symbol"].is_string());
     assert!(pair["asset_1"]["symbol"].is_string());
     assert!(pair["is_active"].as_bool().unwrap());
+    assert!(pair["volume_quote_24h"].is_string());
+
+    // Pagination, sort, search (same server / DB to avoid parallel seed conflicts)
+    let resp = server.get("/api/v1/pairs?limit=1&offset=0&sort=id&order=asc").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["items"].as_array().unwrap().len(), 1);
+    assert!(body["total"].as_i64().unwrap() >= 1);
+
+    let resp = server.get("/api/v1/pairs?sort=volume_24h&order=desc").await;
+    resp.assert_status_ok();
+
+    let resp = server.get("/api/v1/pairs?q=LUNC").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert!(!body["items"].as_array().unwrap().is_empty());
+
+    let resp = server.get("/api/v1/pairs?sort=bad_sort").await;
+    resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_returns_pair() {
     let pool = common::setup_pool().await;
@@ -41,6 +67,7 @@ async fn get_pair_returns_pair() {
     assert_eq!(body["asset_1"]["symbol"], "USTC");
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_not_found() {
     let pool = common::setup_pool().await;
@@ -52,6 +79,7 @@ async fn get_pair_not_found() {
     resp.assert_status_not_found();
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_candles_valid_interval() {
     let pool = common::setup_pool().await;
@@ -73,6 +101,7 @@ async fn get_pair_candles_valid_interval() {
     assert!(body[0]["open"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_candles_invalid_interval_returns_400() {
     let pool = common::setup_pool().await;
@@ -89,6 +118,7 @@ async fn get_pair_candles_invalid_interval_returns_400() {
     resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_candles_default_interval() {
     let pool = common::setup_pool().await;
@@ -102,6 +132,7 @@ async fn get_pair_candles_default_interval() {
     resp.assert_status_ok();
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_trades_returns_trades() {
     let pool = common::setup_pool().await;
@@ -120,6 +151,7 @@ async fn get_pair_trades_returns_trades() {
     assert!(body[0]["sender"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_trades_with_limit() {
     let pool = common::setup_pool().await;
@@ -139,6 +171,7 @@ async fn get_pair_trades_with_limit() {
     assert!(body.len() <= 2);
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_trades_pagination() {
     let pool = common::setup_pool().await;
@@ -171,6 +204,7 @@ async fn get_pair_trades_pagination() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn get_pair_stats_returns_stats() {
     let pool = common::setup_pool().await;

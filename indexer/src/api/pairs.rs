@@ -38,40 +38,155 @@ pub struct PairResponse {
     pub lp_token: Option<String>,
     pub fee_bps: Option<i16>,
     pub is_active: bool,
+    /// Sum of quote-side amounts in swaps over the last 24h (from indexer). Omitted when unknown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_quote_24h: Option<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct PairListResponse {
+    pub items: Vec<PairResponse>,
+    pub total: i64,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+const PAIR_LIST_LIMIT_DEFAULT: i64 = 50;
+const PAIR_LIST_LIMIT_MAX: i64 = 100;
+const PAIR_LIST_Q_MAX_LEN: usize = 128;
+
+#[derive(Deserialize, IntoParams, ToSchema)]
+pub struct ListPairsQuery {
+    /// Page size (default 50, max 100)
+    pub limit: Option<i64>,
+    /// Offset for pagination
+    pub offset: Option<i64>,
+    /// Search pair address, token symbols, contract addresses, or denoms (substring, case-insensitive)
+    pub q: Option<String>,
+    /// Filter to pairs that include this token (exact CW20 contract or native denom)
+    pub asset: Option<String>,
+    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h` (default `id`)
+    pub sort: Option<String>,
+    /// `asc` or `desc`. Default: `asc` for id/fee/created/symbol; `desc` for volume_24h
+    pub order: Option<String>,
+}
+
+fn parse_pair_list_sort(s: Option<&str>) -> Result<db_pairs::PairListSort, (StatusCode, String)> {
+    match s.map(str::trim).filter(|x| !x.is_empty()) {
+        None | Some("id") => Ok(db_pairs::PairListSort::Id),
+        Some("fee") => Ok(db_pairs::PairListSort::Fee),
+        Some("created") => Ok(db_pairs::PairListSort::Created),
+        Some("symbol") => Ok(db_pairs::PairListSort::Symbol),
+        Some("volume_24h") => Ok(db_pairs::PairListSort::Volume24h),
+        Some(other) => Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Invalid sort '{}'. Use id, fee, created, symbol, or volume_24h",
+                other
+            ),
+        )),
+    }
+}
+
+fn parse_pair_list_order(
+    sort: db_pairs::PairListSort,
+    order: Option<&str>,
+) -> Result<bool, (StatusCode, String)> {
+    match order.map(str::trim).filter(|x| !x.is_empty()) {
+        None => Ok(matches!(sort, db_pairs::PairListSort::Volume24h)),
+        Some(o) if o.eq_ignore_ascii_case("asc") => Ok(false),
+        Some(o) if o.eq_ignore_ascii_case("desc") => Ok(true),
+        Some(o) => Err((
+            StatusCode::BAD_REQUEST,
+            format!("Invalid order '{}'. Use asc or desc", o),
+        )),
+    }
+}
+
+fn volume_quote_to_string(v: &bigdecimal::BigDecimal) -> String {
+    v.normalized().to_string()
 }
 
 #[utoipa::path(
     get,
     path = "/api/v1/pairs",
+    params(ListPairsQuery),
     responses(
-        (status = 200, description = "List of all trading pairs", body = Vec<PairResponse>),
+        (status = 200, description = "Paginated trading pairs", body = PairListResponse),
+        (status = 400, description = "Invalid query parameters"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "Pairs"
 )]
 pub async fn list_pairs(
     State(state): State<AppState>,
-) -> Result<Json<Vec<PairResponse>>, (StatusCode, String)> {
-    let all_pairs = db_pairs::get_all_pairs(&state.pool)
+    Query(q): Query<ListPairsQuery>,
+) -> Result<Json<PairListResponse>, (StatusCode, String)> {
+    let limit = q
+        .limit
+        .unwrap_or(PAIR_LIST_LIMIT_DEFAULT)
+        .clamp(1, PAIR_LIST_LIMIT_MAX);
+    let offset = q.offset.unwrap_or(0).max(0);
+
+    let q_trimmed = q.q.as_ref().map(|s| {
+        let t = s.trim();
+        t.chars().take(PAIR_LIST_Q_MAX_LEN).collect::<String>()
+    });
+    let q_ref = q_trimmed.as_deref().filter(|s| !s.is_empty());
+
+    let asset_trimmed = q.asset.as_ref().map(|s| s.trim().to_string());
+    let asset_ref = asset_trimmed.as_deref().filter(|s| !s.is_empty());
+
+    let sort = parse_pair_list_sort(q.sort.as_deref())?;
+    let sort_desc = parse_pair_list_order(sort, q.order.as_deref())?;
+
+    let total = db_pairs::count_pairs_filtered(&state.pool, q_ref, asset_ref)
         .await
         .map_err(internal_err)?;
+
+    let rows = db_pairs::list_pairs_filtered(
+        &state.pool,
+        db_pairs::PairListParams {
+            q: q_ref,
+            asset: asset_ref,
+            sort,
+            sort_desc,
+            limit,
+            offset,
+        },
+    )
+    .await
+    .map_err(internal_err)?;
+
     let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
-    let mut result = Vec::with_capacity(all_pairs.len());
-    for p in &all_pairs {
-        if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
-            result.push(PairResponse {
-                pair_address: p.contract_address.clone(),
-                asset_0: AssetBrief::from(a0),
-                asset_1: AssetBrief::from(a1),
-                lp_token: p.lp_token.clone(),
-                fee_bps: p.fee_bps,
-                is_active: true,
-            });
-        }
+    let mut items = Vec::with_capacity(rows.len());
+    for row in rows {
+        let p = &row.pair;
+        let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) else {
+            continue;
+        };
+        let volume_quote_24h = row
+            .volume_quote_24h
+            .as_ref()
+            .map(volume_quote_to_string);
+        items.push(PairResponse {
+            pair_address: p.contract_address.clone(),
+            asset_0: AssetBrief::from(a0),
+            asset_1: AssetBrief::from(a1),
+            lp_token: p.lp_token.clone(),
+            fee_bps: p.fee_bps,
+            is_active: true,
+            volume_quote_24h,
+        });
     }
 
-    Ok(Json(result))
+    Ok(Json(PairListResponse {
+        items,
+        total,
+        limit,
+        offset,
+    }))
 }
 
 #[utoipa::path(
@@ -112,6 +227,7 @@ pub async fn get_pair(
         lp_token: pair.lp_token,
         fee_bps: pair.fee_bps,
         is_active: true,
+        volume_quote_24h: None,
     }))
 }
 
