@@ -2,6 +2,9 @@
 mod adversarial_token;
 
 #[cfg(test)]
+mod mock_failing_hook;
+
+#[cfg(test)]
 mod helpers {
     use cosmwasm_std::{Addr, Empty, Uint128};
     use cw20::{BalanceResponse, Cw20QueryMsg};
@@ -3688,6 +3691,71 @@ mod router_coverage_tests {
         );
     }
 
+    /// R1: after a failed `ExecuteSwapOperations` tx, router is not stuck in `SwapInProgress`.
+    #[test]
+    fn test_router_failed_swap_then_retry_succeeds() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let fail_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_a),
+                ask_asset_info: asset_info_token(&env.token_b),
+            }],
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: Some(Uint128::new(999_999)),
+            to: None,
+            deadline: None,
+            unwrap_output: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: Uint128::new(1_000),
+                msg: fail_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+
+        let ok_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_a),
+                ask_asset_info: asset_info_token(&env.token_b),
+            }],
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+            unwrap_output: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: Uint128::new(5_000),
+                msg: ok_msg,
+            },
+            &[],
+        )
+        .expect("router must accept a new swap after a prior failed tx");
+    }
+
     #[test]
     fn test_router_multi_hop() {
         let mut app = App::default();
@@ -6179,9 +6247,156 @@ mod deadline_tests {
 #[cfg(test)]
 mod audit_invariant_tests {
     use super::helpers::*;
+    use super::mock_failing_hook::mock_failing_hook_contract;
     use cosmwasm_std::{to_json_binary, Uint128};
     use cw20::Cw20ExecuteMsg;
     use cw_multi_test::{App, Executor};
+
+    /// P1: \(k\) non-decreasing on swap (integer reserves; see also `fuzz_tests`, `security_tests`).
+    #[test]
+    fn p1_k_non_decreasing_after_swap() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let before = query_pool(&app, &env.pair);
+        let k_before = before.assets[0].amount.u128() * before.assets[1].amount.u128();
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(50_000));
+        let after = query_pool(&app, &env.pair);
+        let k_after = after.assets[0].amount.u128() * after.assets[1].amount.u128();
+        assert!(
+            k_after >= k_before,
+            "k must not decrease (got before={k_before} after={k_after})"
+        );
+    }
+
+    /// P7: pair admin paths are factory-only (`UpdateFee` example).
+    #[test]
+    fn p7_non_factory_cannot_update_pair_fee() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.pair.clone(),
+                &dex_common::pair::ExecuteMsg::UpdateFee { fee_bps: 100 },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().contains("Unauthorized"),
+            "{}",
+            err.root_cause()
+        );
+    }
+
+    /// P8: factory governance-only (`AddWhitelistedCodeId` example).
+    #[test]
+    fn p8_non_governance_cannot_add_whitelisted_code_id() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId { code_id: 999 },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().contains("Unauthorized"),
+            "{}",
+            err.root_cause()
+        );
+    }
+
+    /// H1 (griefing): allowlisted post-swap hook returns `Err` → entire swap rolls back (no reserve drift).
+    #[test]
+    fn swap_fails_atomically_when_allowlisted_hook_reverts() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let hook_code = app.store_code(mock_failing_hook_contract());
+        let mock_hook = app
+            .instantiate_contract(
+                hook_code,
+                env.governance.clone(),
+                &super::mock_failing_hook::InstantiateMsg {
+                    pair: env.pair.to_string(),
+                },
+                &[],
+                "mock_failing_hook",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: env.pair.to_string(),
+                hooks: vec![mock_hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let pool_before = query_pool(&app, &env.pair);
+        let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::one()),
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("mock hook failure"),
+            "expected hook error, got {}",
+            err.root_cause()
+        );
+
+        let pool_after = query_pool(&app, &env.pair);
+        assert_eq!(pool_after.assets, pool_before.assets);
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_a, &env.user),
+            user_a_before
+        );
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_b, &env.user),
+            user_b_before
+        );
+    }
 
     /// P5: `GetDiscount` query failure → pair uses full `fee_bps` (same as no registry).
     #[test]
@@ -6527,6 +6742,118 @@ mod hooks_integration_tests {
                 random,
                 burn_hook.clone(),
                 &cl8y_dex_burn_hook::msg::ExecuteMsg::Hook(
+                    dex_common::hook::HookExecuteMsg::AfterSwap {
+                        pair: env.pair.clone(),
+                        sender: env.user.clone(),
+                        offer_asset: dex_common::types::Asset {
+                            info: asset_info_token(&env.token_a),
+                            amount: Uint128::new(1000),
+                        },
+                        return_asset: dex_common::types::Asset {
+                            info: asset_info_token(&env.token_b),
+                            amount: Uint128::new(900),
+                        },
+                        commission_amount: Uint128::new(3),
+                        spread_amount: Uint128::new(97),
+                    },
+                ),
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("unauthorized")
+                || err.root_cause().to_string().to_lowercase().contains("hook")
+        );
+    }
+
+    #[test]
+    fn test_tax_hook_unauthorized_hook_caller_rejected() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let tax_hook_code_id = app.store_code(tax_hook_contract());
+        let tax_hook = app
+            .instantiate_contract(
+                tax_hook_code_id,
+                env.governance.clone(),
+                &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                    recipient: env.treasury.to_string(),
+                    tax_percentage_bps: 200,
+                    tax_token: env.token_b.to_string(),
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "tax_hook",
+                None,
+            )
+            .unwrap();
+
+        let random = Addr::unchecked("random");
+        let err = app
+            .execute_contract(
+                random,
+                tax_hook.clone(),
+                &cl8y_dex_tax_hook::msg::ExecuteMsg::Hook(
+                    dex_common::hook::HookExecuteMsg::AfterSwap {
+                        pair: env.pair.clone(),
+                        sender: env.user.clone(),
+                        offer_asset: dex_common::types::Asset {
+                            info: asset_info_token(&env.token_a),
+                            amount: Uint128::new(1000),
+                        },
+                        return_asset: dex_common::types::Asset {
+                            info: asset_info_token(&env.token_b),
+                            amount: Uint128::new(900),
+                        },
+                        commission_amount: Uint128::new(3),
+                        spread_amount: Uint128::new(97),
+                    },
+                ),
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .to_lowercase()
+                .contains("unauthorized")
+                || err.root_cause().to_string().to_lowercase().contains("hook")
+        );
+    }
+
+    #[test]
+    fn test_lp_burn_hook_unauthorized_hook_caller_rejected() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let lp_burn_code_id = app.store_code(lp_burn_hook_contract());
+        let lp_burn_hook = app
+            .instantiate_contract(
+                lp_burn_code_id,
+                env.governance.clone(),
+                &cl8y_dex_lp_burn_hook::msg::InstantiateMsg {
+                    target_pair: env.pair.to_string(),
+                    lp_token: env.lp_token.to_string(),
+                    percentage_bps: 100,
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "lp_burn_hook",
+                None,
+            )
+            .unwrap();
+
+        let random = Addr::unchecked("random");
+        let err = app
+            .execute_contract(
+                random,
+                lp_burn_hook.clone(),
+                &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::Hook(
                     dex_common::hook::HookExecuteMsg::AfterSwap {
                         pair: env.pair.clone(),
                         sender: env.user.clone(),
