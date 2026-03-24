@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128, WasmMsg,
+    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
@@ -12,6 +12,7 @@ use dex_common::hook::HookExecuteMsg;
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-burn-hook";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const BURN_REPLY_ID: u64 = 1;
 
 pub fn instantiate(
     deps: DepsMut,
@@ -134,16 +135,19 @@ fn execute_after_swap(
             .add_attribute("available", balance.balance));
     }
 
-    let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: config.burn_token.to_string(),
-        msg: to_json_binary(&Cw20ExecuteMsg::Burn {
-            amount: burn_amount,
-        })?,
-        funds: vec![],
-    });
+    let burn_msg = SubMsg::reply_on_error(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.burn_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Burn {
+                amount: burn_amount,
+            })?,
+            funds: vec![],
+        }),
+        BURN_REPLY_ID,
+    );
 
     Ok(Response::new()
-        .add_message(burn_msg)
+        .add_submessage(burn_msg)
         .add_attribute("action", "after_swap_burn_hook")
         .add_attribute("burn_token", config.burn_token)
         .add_attribute("burn_amount", burn_amount))
@@ -223,6 +227,27 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         burn_percentage_bps: config.burn_percentage_bps,
         admin: config.admin,
     })
+}
+
+/// Swallow CW20 Burn failures so a misbehaving token never reverts the
+/// parent swap.  Only fires for `reply_on_error` submessages.
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        BURN_REPLY_ID => {
+            let err_msg = msg
+                .result
+                .into_result()
+                .err()
+                .unwrap_or_else(|| "unknown".to_string());
+            Ok(Response::new()
+                .add_attribute("action", "after_swap_burn_hook")
+                .add_attribute("warning", "burn call failed — swallowed")
+                .add_attribute("error", err_msg))
+        }
+        id => Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+            format!("unknown reply id: {id}"),
+        ))),
+    }
 }
 
 pub fn migrate(

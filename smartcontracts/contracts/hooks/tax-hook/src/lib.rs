@@ -15,7 +15,7 @@ pub mod state;
 #[cfg(not(feature = "library"))]
 pub mod entry {
     use cosmwasm_std::entry_point;
-    use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+    use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult};
 
     use crate::error::ContractError;
     use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -38,6 +38,11 @@ pub mod entry {
         msg: ExecuteMsg,
     ) -> Result<Response, ContractError> {
         crate::contract::execute(deps, env, info, msg)
+    }
+
+    #[entry_point]
+    pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+        crate::contract::reply(deps, env, msg)
     }
 
     #[entry_point]
