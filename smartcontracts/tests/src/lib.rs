@@ -1,4 +1,7 @@
 #[cfg(test)]
+mod adversarial_token;
+
+#[cfg(test)]
 mod helpers {
     use cosmwasm_std::{Addr, Empty, Uint128};
     use cw20::{BalanceResponse, Cw20QueryMsg};
@@ -1215,6 +1218,7 @@ mod router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -1262,6 +1266,7 @@ mod router_tests {
                 offer_denom: "uluna".to_string(),
                 ask_denom: "uusd".to_string(),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -1782,6 +1787,7 @@ mod fee_discount_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -3654,6 +3660,7 @@ mod router_coverage_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999)),
             to: None,
             deadline: None,
@@ -3789,6 +3796,7 @@ mod router_coverage_tests {
                     ask_asset_info: asset_info_token(&token_c),
                 },
             ],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -6132,6 +6140,7 @@ mod deadline_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: Some(deadline),
@@ -7047,6 +7056,7 @@ mod line_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                     }],
+                    max_spread: cosmwasm_std::Decimal::one(),
                     minimum_receive: None,
                     to: None,
                     deadline: None,
@@ -8197,6 +8207,7 @@ mod new_feature_tests {
 
         let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
             operations: five_ops,
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -8235,6 +8246,7 @@ mod new_feature_tests {
 
         let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
             operations: four_ops,
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -9632,6 +9644,7 @@ mod router_hop_tests {
                     ask_asset_info: asset_info_token(&token_d),
                 },
             ],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -9785,6 +9798,7 @@ mod router_hop_tests {
                     ask_asset_info: asset_info_token(&token_d),
                 },
             ],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -10310,6 +10324,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -10363,6 +10378,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -10412,6 +10428,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -10518,6 +10535,7 @@ mod wrap_router_tests {
                     ask_asset_info: asset_info_token(&token_c),
                 },
             ],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -10565,6 +10583,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -10615,6 +10634,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999_999)),
             to: None,
             deadline: None,
@@ -10640,6 +10660,149 @@ mod wrap_router_tests {
                 .to_string()
                 .contains("Minimum receive assertion"),
             "Expected MinimumReceiveAssertion, got: {}",
+            err.root_cause()
+        );
+    }
+
+    /// Router `minimum_receive` is enforced on the final wrapped CW20 balance held by the
+    /// router **before** unwrap. It does not bound native `uluna` after wrap-mapper fees.
+    #[test]
+    fn test_unwrap_minimum_receive_checked_on_wrapped_cw20_only() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(100_000_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_wrap_env(&mut app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [
+                        asset_info_token(&env.token_b),
+                        asset_info_token(&env.lunc_c),
+                    ],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bl = extract_pair_address(&resp.events);
+
+        provide_liquidity_raw(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_a,
+            &env.token_b,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(50_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        provide_liquidity_raw(
+            &mut app,
+            &pair_bl,
+            &env.user,
+            &env.token_b,
+            &env.lunc_c,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.router.clone(),
+            &cl8y_dex_router::msg::ExecuteMsg::SetWrapMapper {
+                wrap_mapper: env.wrap_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let offer = Uint128::new(50_000);
+        let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: offer,
+                    operations: vec![
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&env.token_a),
+                            ask_asset_info: asset_info_token(&env.token_b),
+                        },
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&env.token_b),
+                            ask_asset_info: asset_info_token(&env.lunc_c),
+                        },
+                    ],
+                },
+            )
+            .unwrap();
+
+        let impossibly_high = sim.amount.checked_add(Uint128::new(1_000_000)).unwrap();
+        let swap_hook = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_a),
+                    ask_asset_info: asset_info_token(&env.token_b),
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_b),
+                    ask_asset_info: asset_info_token(&env.lunc_c),
+                },
+            ],
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: Some(impossibly_high),
+            to: None,
+            deadline: None,
+            unwrap_output: Some(true),
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.router.to_string(),
+                    amount: offer,
+                    msg: swap_hook,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Minimum receive assertion"),
+            "Expected MinimumReceiveAssertion on wrapped balance, got: {}",
             err.root_cause()
         );
     }
@@ -11372,6 +11535,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&env.lunc_c),
                 ask_asset_info: asset_info_token(&env.token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -11458,6 +11622,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&env.token_b),
                 ask_asset_info: asset_info_token(&env.lunc_c),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -11714,6 +11879,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&ustc_c),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
@@ -14251,6 +14417,7 @@ mod ustr_cmm_d8b0afd_tests {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&token_b),
             }],
+            max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
             to: None,
             deadline: None,
