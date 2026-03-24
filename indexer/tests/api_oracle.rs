@@ -98,7 +98,10 @@ async fn overview_includes_usd_fields() {
     let body: serde_json::Value = resp.json();
     assert!(body.get("total_volume_24h_usd").is_some());
     assert!(body.get("ustc_price_usd").is_some());
-    assert!(body["ustc_price_usd"].as_str().unwrap().starts_with("0.005"));
+    assert!(body["ustc_price_usd"]
+        .as_str()
+        .unwrap()
+        .starts_with("0.005"));
 }
 
 #[tokio::test]

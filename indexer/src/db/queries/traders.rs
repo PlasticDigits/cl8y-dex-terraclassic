@@ -46,10 +46,7 @@ pub async fn upsert_trader(
     Ok(())
 }
 
-pub async fn get_trader(
-    pool: &PgPool,
-    address: &str,
-) -> Result<Option<TraderRow>, sqlx::Error> {
+pub async fn get_trader(pool: &PgPool, address: &str) -> Result<Option<TraderRow>, sqlx::Error> {
     sqlx::query_as::<_, TraderRow>("SELECT * FROM traders WHERE address = $1")
         .bind(address)
         .fetch_optional(pool)
@@ -73,10 +70,7 @@ pub async fn get_leaderboard(
         _ => "total_volume",
     };
 
-    let sql = format!(
-        "SELECT * FROM traders ORDER BY {} DESC LIMIT $1",
-        order_col
-    );
+    let sql = format!("SELECT * FROM traders ORDER BY {} DESC LIMIT $1", order_col);
 
     sqlx::query_as::<_, TraderRow>(&sql)
         .bind(limit)

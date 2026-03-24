@@ -1,3 +1,5 @@
+pub mod lcd_mock;
+
 use std::env;
 use std::sync::Once;
 
@@ -21,8 +23,9 @@ fn init_tracing() {
 
 pub fn test_config() -> Config {
     Config {
-        database_url: env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/dex_indexer_test".into()),
+        database_url: env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://postgres:postgres@localhost:5432/dex_indexer_test".into()
+        }),
         lcd_urls: vec!["http://localhost:9999".to_string()],
         factory_address: "terra1factory".to_string(),
         fee_discount_address: None,
@@ -45,17 +48,15 @@ pub fn test_config() -> Config {
 pub async fn setup_pool() -> PgPool {
     init_tracing();
     let config = test_config();
-    let pool = match PgPool::connect(&config.database_url).await {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!(
-                "Skipping test: cannot connect to test database at {}: {}",
+    let pool = PgPool::connect(&config.database_url)
+        .await
+        .unwrap_or_else(|e| {
+            panic!(
+                "Integration tests require PostgreSQL at {}: {}.\n\
+                 Set TEST_DATABASE_URL or run `cargo test --lib` for unit tests only.",
                 config.database_url, e
             );
-            eprintln!("Set TEST_DATABASE_URL to a running PostgreSQL instance to run integration tests.");
-            std::process::exit(0);
-        }
-    };
+        });
 
     sqlx::migrate!()
         .run(&pool)
@@ -66,12 +67,31 @@ pub async fn setup_pool() -> PgPool {
 }
 
 pub async fn clean_db(pool: &PgPool) {
-    sqlx::query("DELETE FROM ustc_prices").execute(pool).await.ok();
-    sqlx::query("DELETE FROM swap_events").execute(pool).await.ok();
+    sqlx::query("DELETE FROM ustc_prices")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM hook_events")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM swap_events")
+        .execute(pool)
+        .await
+        .ok();
     sqlx::query("DELETE FROM candles").execute(pool).await.ok();
-    sqlx::query("DELETE FROM liquidity_events").execute(pool).await.ok();
-    sqlx::query("DELETE FROM token_volume_stats").execute(pool).await.ok();
-    sqlx::query("DELETE FROM trader_positions").execute(pool).await.ok();
+    sqlx::query("DELETE FROM liquidity_events")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM token_volume_stats")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM trader_positions")
+        .execute(pool)
+        .await
+        .ok();
     sqlx::query("DELETE FROM traders").execute(pool).await.ok();
     sqlx::query("DELETE FROM pairs").execute(pool).await.ok();
     sqlx::query("DELETE FROM assets").execute(pool).await.ok();
@@ -168,16 +188,36 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
 }
 
 pub async fn build_test_app(pool: PgPool) -> Router {
-    build_test_app_with_price(pool, None).await
+    build_test_app_with_price_and_config(pool, None, test_config()).await
 }
 
-pub async fn build_test_app_with_price(pool: PgPool, ustc_price: Option<bigdecimal::BigDecimal>) -> Router {
-    let config = test_config();
-    let lcd = LcdClient::new(config.lcd_urls.clone(), config.lcd_timeout_ms, config.lcd_cooldown_ms);
+pub async fn build_test_app_with_price(
+    pool: PgPool,
+    ustc_price: Option<bigdecimal::BigDecimal>,
+) -> Router {
+    build_test_app_with_price_and_config(pool, ustc_price, test_config()).await
+}
+
+pub async fn build_test_app_with_price_and_config(
+    pool: PgPool,
+    ustc_price: Option<bigdecimal::BigDecimal>,
+    config: Config,
+) -> Router {
+    let lcd = LcdClient::new(
+        config.lcd_urls.clone(),
+        config.lcd_timeout_ms,
+        config.lcd_cooldown_ms,
+    );
     let price_handle = cl8y_dex_indexer::indexer::oracle::new_shared_price();
     if let Some(price) = ustc_price {
         *price_handle.write().await = Some(price);
     }
-    let state = AppState { pool, lcd, ustc_price: price_handle };
+    let state = AppState {
+        pool,
+        lcd,
+        ustc_price: price_handle,
+        ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
+        orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
+    };
     build_router(state, &config)
 }

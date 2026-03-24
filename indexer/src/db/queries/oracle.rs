@@ -15,19 +15,15 @@ pub async fn insert_price(
     price_usd: &BigDecimal,
     source: &str,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "INSERT INTO ustc_prices (price_usd, source, fetched_at) VALUES ($1, $2, NOW())",
-    )
-    .bind(price_usd)
-    .bind(source)
-    .execute(pool)
-    .await?;
+    sqlx::query("INSERT INTO ustc_prices (price_usd, source, fetched_at) VALUES ($1, $2, NOW())")
+        .bind(price_usd)
+        .bind(source)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
-pub async fn get_latest_average_price(
-    pool: &PgPool,
-) -> Result<Option<BigDecimal>, sqlx::Error> {
+pub async fn get_latest_average_price(pool: &PgPool) -> Result<Option<BigDecimal>, sqlx::Error> {
     sqlx::query_scalar::<_, BigDecimal>(
         "SELECT price_usd FROM ustc_prices WHERE source = 'average' ORDER BY fetched_at DESC LIMIT 1",
     )
@@ -35,9 +31,7 @@ pub async fn get_latest_average_price(
     .await
 }
 
-pub async fn get_latest_prices_by_source(
-    pool: &PgPool,
-) -> Result<Vec<UstcPriceRow>, sqlx::Error> {
+pub async fn get_latest_prices_by_source(pool: &PgPool) -> Result<Vec<UstcPriceRow>, sqlx::Error> {
     sqlx::query_as::<_, UstcPriceRow>(
         "SELECT DISTINCT ON (source) * FROM ustc_prices ORDER BY source, fetched_at DESC",
     )

@@ -1,10 +1,24 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
 use sqlx::PgPool;
+use tokio::sync::RwLock;
 
 use crate::lcd::{LcdClient, PoolResponse};
 
+const ORDERBOOK_CACHE_TTL: Duration = Duration::from_secs(30);
+
+#[derive(Clone, Debug)]
 pub struct OrderbookData {
     pub bids: Vec<[String; 2]>,
     pub asks: Vec<[String; 2]>,
+}
+
+/// In-memory cache of simulated orderbooks to limit LCD amplification (per pair + depth).
+#[derive(Clone, Default)]
+pub struct OrderbookCache {
+    inner: Arc<RwLock<HashMap<String, (OrderbookData, Instant)>>>,
 }
 
 /// Simulate an AMM orderbook by walking the constant-product curve.
@@ -60,4 +74,29 @@ pub async fn simulate_orderbook(
     }
 
     Ok(OrderbookData { bids, asks })
+}
+
+/// Like [`simulate_orderbook`] but caches results per `(pair_addr, depth)` for [`ORDERBOOK_CACHE_TTL`].
+pub async fn simulate_orderbook_cached(
+    cache: &OrderbookCache,
+    pool: &PgPool,
+    lcd: &LcdClient,
+    pair_addr: &str,
+    depth: usize,
+) -> Result<OrderbookData, Box<dyn std::error::Error + Send + Sync>> {
+    let key = format!("{}:{}", pair_addr, depth);
+    let now = Instant::now();
+    {
+        let guard = cache.inner.read().await;
+        if let Some((data, exp)) = guard.get(&key) {
+            if now < *exp {
+                return Ok(data.clone());
+            }
+        }
+    }
+
+    let data = simulate_orderbook(pool, lcd, pair_addr, depth).await?;
+    let mut guard = cache.inner.write().await;
+    guard.insert(key, (data.clone(), now + ORDERBOOK_CACHE_TTL));
+    Ok(data)
 }

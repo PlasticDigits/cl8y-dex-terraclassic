@@ -55,15 +55,11 @@ pub async fn list_pairs(
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut result = Vec::with_capacity(all_pairs.len());
     for p in &all_pairs {
-        if let (Some(a0), Some(a1)) =
-            (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id))
-        {
+        if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
             result.push(PairResponse {
                 pair_address: p.contract_address.clone(),
                 asset_0: AssetBrief::from(a0),
@@ -100,9 +96,7 @@ pub async fn get_pair(
         .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let a0 = asset_map
         .get(&pair.asset_0_id)
@@ -174,18 +168,29 @@ pub async fn get_pair_candles(
     if !VALID_INTERVALS.contains(&interval.as_str()) {
         return Err((
             StatusCode::BAD_REQUEST,
-            format!("Invalid interval '{}'. Valid: {}", interval, VALID_INTERVALS.join(", ")),
+            format!(
+                "Invalid interval '{}'. Valid: {}",
+                interval,
+                VALID_INTERVALS.join(", ")
+            ),
         ));
     }
 
     let now = Utc::now();
     let from = q
         .from
-        .and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|d| d.with_timezone(&Utc)))
+        .and_then(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .ok()
+                .map(|d| d.with_timezone(&Utc))
+        })
         .unwrap_or_else(|| now - chrono::Duration::days(7));
-    let to = q
-        .to
-        .and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|d| d.with_timezone(&Utc)))
+    let to =
+        q.to.and_then(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .ok()
+                .map(|d| d.with_timezone(&Utc))
+        })
         .unwrap_or(now);
     let limit = q.limit.unwrap_or(200).min(1000);
 
@@ -262,9 +267,7 @@ pub async fn get_pair_trades(
         .await
         .map_err(internal_err)?;
 
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let result: Vec<TradeResponse> = trades
         .iter()

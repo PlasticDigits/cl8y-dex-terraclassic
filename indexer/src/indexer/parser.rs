@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+//! Tx log parsing for swaps, liquidity, and hooks.
+//!
+//! **Invariants:** duplicate wasm attribute keys use the last value (`wasm_attr_last`).
+//! Parsing must not panic on adversarial attribute lists (see stress tests in `#[cfg(test)]`).
+//! Full matrix: `docs/indexer-invariants.md`.
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
@@ -6,11 +10,27 @@ use sqlx::PgPool;
 
 use crate::config::Config;
 use crate::db::queries::{assets, liquidity, pairs, swap_events};
-use crate::lcd::{LcdClient, TxResponse};
+use crate::lcd::{Attribute, LcdClient, TxResponse};
 
-use super::{asset_resolver, candle_builder, oracle, pair_discovery, position_tracker, trader_tracker};
+use super::{
+    asset_resolver, candle_builder, oracle, pair_discovery, position_tracker, trader_tracker,
+};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+/// Last value wins for duplicate keys (CosmWasm can emit repeated attribute keys).
+fn wasm_attr_last<'a>(attributes: &'a [Attribute], key: &str) -> Option<&'a str> {
+    attributes
+        .iter()
+        .rev()
+        .find(|a| a.key == key)
+        .map(|a| a.value.as_str())
+}
+
+fn wasm_contract_addr(attributes: &[Attribute]) -> Option<&str> {
+    wasm_attr_last(attributes, "_contract_address")
+        .or_else(|| wasm_attr_last(attributes, "contract_address"))
+}
 
 #[derive(Debug, Clone)]
 struct ParsedSwap {
@@ -37,7 +57,11 @@ pub async fn process_block_txs(
     for tx in txs {
         let swaps = parse_swaps(tx);
         for swap in &swaps {
-            if let Err(e) = process_swap(pool, lcd, config, swap, height, block_time, &tx.txhash, ustc_price).await {
+            if let Err(e) = process_swap(
+                pool, lcd, config, swap, height, block_time, &tx.txhash, ustc_price,
+            )
+            .await
+            {
                 tracing::warn!(
                     "Failed to process swap in tx {} for pair {}: {}",
                     tx.txhash,
@@ -49,7 +73,9 @@ pub async fn process_block_txs(
 
         let liq_events = parse_liquidity_events(tx);
         for liq in &liq_events {
-            if let Err(e) = process_liquidity_event(pool, lcd, liq, height, block_time, &tx.txhash).await {
+            if let Err(e) =
+                process_liquidity_event(pool, lcd, liq, height, block_time, &tx.txhash).await
+            {
                 tracing::warn!(
                     "Failed to process liquidity event in tx {} for pair {}: {}",
                     tx.txhash,
@@ -61,7 +87,15 @@ pub async fn process_block_txs(
 
         let hook_events = parse_hook_events(tx);
         for hook in &hook_events {
-            if crate::db::queries::hook_events::hook_event_exists(pool, &tx.txhash, &hook.hook_address, &hook.action).await.unwrap_or(false) {
+            if crate::db::queries::hook_events::hook_event_exists(
+                pool,
+                &tx.txhash,
+                &hook.hook_address,
+                &hook.action,
+            )
+            .await
+            .unwrap_or(false)
+            {
                 continue;
             }
             if let Err(e) = crate::db::queries::hook_events::insert_hook_event(
@@ -78,11 +112,7 @@ pub async fn process_block_txs(
             )
             .await
             {
-                tracing::warn!(
-                    "Failed to save hook event in tx {}: {}",
-                    tx.txhash,
-                    e
-                );
+                tracing::warn!("Failed to save hook event in tx {}: {}", tx.txhash, e);
             }
         }
     }
@@ -101,15 +131,13 @@ async fn process_swap(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &swap.pair_address).await? {
         Some(p) => p,
-        None => {
-            match pair_discovery::discover_new_pair(pool, lcd, &swap.pair_address).await {
-                Ok(p) => p,
-                Err(e) => {
-                    tracing::warn!("Could not discover pair {}: {}", swap.pair_address, e);
-                    return Ok(());
-                }
+        None => match pair_discovery::discover_new_pair(pool, lcd, &swap.pair_address).await {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!("Could not discover pair {}: {}", swap.pair_address, e);
+                return Ok(());
             }
-        }
+        },
     };
 
     if swap_events::trade_exists(pool, tx_hash, pair.id).await? {
@@ -251,22 +279,16 @@ fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
             continue;
         }
 
-        let attrs: HashMap<&str, &str> = event
-            .attributes
-            .iter()
-            .map(|a| (a.key.as_str(), a.value.as_str()))
-            .collect();
+        let attrs = &event.attributes;
 
-        if attrs.get("action").copied() != Some("swap") {
+        if wasm_attr_last(attrs, "action") != Some("swap") {
             continue;
         }
 
-        let contract = attrs
-            .get("_contract_address")
-            .or(attrs.get("contract_address"));
-        let sender = attrs.get("sender");
-        let offer_amount = attrs.get("offer_amount");
-        let return_amount = attrs.get("return_amount");
+        let contract = wasm_contract_addr(attrs);
+        let sender = wasm_attr_last(attrs, "sender");
+        let offer_amount = wasm_attr_last(attrs, "offer_amount");
+        let return_amount = wasm_attr_last(attrs, "return_amount");
 
         if let (Some(contract), Some(sender), Some(offer), Some(ret)) =
             (contract, sender, offer_amount, return_amount)
@@ -274,13 +296,16 @@ fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
             swaps.push(ParsedSwap {
                 pair_address: contract.to_string(),
                 sender: sender.to_string(),
-                receiver: attrs.get("receiver").map(|s| s.to_string()),
-                offer_asset: attrs.get("offer_asset").unwrap_or(&"").to_string(),
-                ask_asset: attrs.get("ask_asset").unwrap_or(&"").to_string(),
+                receiver: wasm_attr_last(attrs, "receiver").map(|s| s.to_string()),
+                offer_asset: wasm_attr_last(attrs, "offer_asset")
+                    .unwrap_or("")
+                    .to_string(),
+                ask_asset: wasm_attr_last(attrs, "ask_asset").unwrap_or("").to_string(),
                 offer_amount: offer.parse().unwrap_or_default(),
                 return_amount: ret.parse().unwrap_or_default(),
-                spread_amount: attrs.get("spread_amount").and_then(|s| s.parse().ok()),
-                commission_amount: attrs.get("commission_amount").and_then(|s| s.parse().ok()),
+                spread_amount: wasm_attr_last(attrs, "spread_amount").and_then(|s| s.parse().ok()),
+                commission_amount: wasm_attr_last(attrs, "commission_amount")
+                    .and_then(|s| s.parse().ok()),
             });
         }
     }
@@ -314,25 +339,18 @@ fn parse_liquidity_events(tx: &TxResponse) -> Vec<ParsedLiquidityEvent> {
             continue;
         }
 
-        let attrs: HashMap<&str, &str> = event
-            .attributes
-            .iter()
-            .map(|a| (a.key.as_str(), a.value.as_str()))
-            .collect();
+        let attrs = &event.attributes;
 
-        let (event_type, assets_key, lp_key) = match attrs.get("action").copied() {
+        let (event_type, assets_key, lp_key) = match wasm_attr_last(attrs, "action") {
             Some("provide_liquidity") => ("add", "assets", "share"),
             Some("withdraw_liquidity") => ("remove", "refund_assets", "withdrawn_share"),
             _ => continue,
         };
 
-        let contract = attrs
-            .get("_contract_address")
-            .or(attrs.get("contract_address"));
-        let provider = attrs.get("sender");
-        let (a0, a1) = parse_asset_amounts(attrs.get(assets_key).copied().unwrap_or(""));
-        let lp: BigDecimal = attrs
-            .get(lp_key)
+        let contract = wasm_contract_addr(attrs);
+        let provider = wasm_attr_last(attrs, "sender");
+        let (a0, a1) = parse_asset_amounts(wasm_attr_last(attrs, assets_key).unwrap_or(""));
+        let lp: BigDecimal = wasm_attr_last(attrs, lp_key)
             .and_then(|s| s.parse().ok())
             .unwrap_or_default();
 
@@ -378,15 +396,13 @@ async fn process_liquidity_event(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &event.pair_address).await? {
         Some(p) => p,
-        None => {
-            match pair_discovery::discover_new_pair(pool, lcd, &event.pair_address).await {
-                Ok(p) => p,
-                Err(e) => {
-                    tracing::warn!("Could not discover pair {}: {}", event.pair_address, e);
-                    return Ok(());
-                }
+        None => match pair_discovery::discover_new_pair(pool, lcd, &event.pair_address).await {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!("Could not discover pair {}: {}", event.pair_address, e);
+                return Ok(());
             }
-        }
+        },
     };
 
     if liquidity::liquidity_event_exists(pool, tx_hash, pair.id, &event.event_type).await? {
@@ -436,39 +452,205 @@ fn parse_hook_events(tx: &TxResponse) -> Vec<ParsedHookEvent> {
             continue;
         }
 
-        let attrs: HashMap<&str, &str> = event
-            .attributes
-            .iter()
-            .map(|a| (a.key.as_str(), a.value.as_str()))
-            .collect();
+        let attrs = &event.attributes;
 
-        let action = match attrs.get("action").copied() {
+        let action = match wasm_attr_last(attrs, "action") {
             Some(a) if a.starts_with("after_swap_") => a,
             _ => continue,
         };
 
-        let contract = attrs
-            .get("_contract_address")
-            .or(attrs.get("contract_address"));
+        let contract = wasm_contract_addr(attrs);
 
         if let Some(contract) = contract {
             hooks.push(ParsedHookEvent {
                 hook_address: contract.to_string(),
                 action: action.to_string(),
-                amount: attrs
-                    .get("burn_amount")
-                    .or(attrs.get("tax_amount"))
+                amount: wasm_attr_last(attrs, "burn_amount")
+                    .or_else(|| wasm_attr_last(attrs, "tax_amount"))
                     .and_then(|s| s.parse().ok()),
-                token: attrs
-                    .get("burn_token")
-                    .or(attrs.get("tax_token"))
-                    .or(attrs.get("lp_token"))
+                token: wasm_attr_last(attrs, "burn_token")
+                    .or_else(|| wasm_attr_last(attrs, "tax_token"))
+                    .or_else(|| wasm_attr_last(attrs, "lp_token"))
                     .map(|s| s.to_string()),
-                skipped: attrs.get("skipped").map(|s| s.to_string()),
-                warning: attrs.get("warning").map(|s| s.to_string()),
+                skipped: wasm_attr_last(attrs, "skipped").map(|s| s.to_string()),
+                warning: wasm_attr_last(attrs, "warning").map(|s| s.to_string()),
             });
         }
     }
 
     hooks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lcd::{Attribute, Event, TxLog, TxResponse};
+
+    fn wasm_tx(attrs: Vec<(&str, &str)>) -> TxResponse {
+        let attributes: Vec<Attribute> = attrs
+            .into_iter()
+            .map(|(k, v)| Attribute {
+                key: k.to_string(),
+                value: v.to_string(),
+            })
+            .collect();
+        TxResponse {
+            height: "1".into(),
+            txhash: "ABCDHASH".into(),
+            logs: Some(vec![TxLog {
+                events: vec![Event {
+                    event_type: "wasm".into(),
+                    attributes,
+                }],
+            }]),
+            timestamp: None,
+            events: None,
+        }
+    }
+
+    #[test]
+    fn parse_swaps_extracts_swap_event() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "100"),
+            ("return_amount", "95"),
+            ("offer_asset", "uluna"),
+            ("ask_asset", "uusd"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(swaps[0].pair_address, "terra1pair");
+        assert_eq!(swaps[0].sender, "terra1user");
+        assert_eq!(swaps[0].offer_amount.to_string(), "100");
+        assert_eq!(swaps[0].return_amount.to_string(), "95");
+    }
+
+    #[test]
+    fn parse_swaps_duplicate_attr_keys_last_wins() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "1"),
+            ("offer_amount", "200"),
+            ("return_amount", "95"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(swaps[0].offer_amount.to_string(), "200");
+    }
+
+    #[test]
+    fn parse_swaps_ignores_non_swap_action() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "provide_liquidity"),
+        ]);
+        assert!(parse_swaps(&tx).is_empty());
+    }
+
+    #[test]
+    fn parse_asset_amounts_parses_pair() {
+        let (a0, a1) = parse_asset_amounts("uluna 1000, uusd 950");
+        assert_eq!(a0, BigDecimal::from(1000));
+        assert_eq!(a1, BigDecimal::from(950));
+    }
+
+    #[test]
+    fn parse_liquidity_add() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "provide_liquidity"),
+            ("sender", "terra1lp"),
+            ("assets", "uluna 100, uusd 200"),
+            ("share", "50"),
+        ]);
+        let evs = parse_liquidity_events(&tx);
+        assert_eq!(evs.len(), 1);
+        assert_eq!(evs[0].event_type, "add");
+        assert_eq!(evs[0].asset_0_amount, BigDecimal::from(100));
+        assert_eq!(evs[0].asset_1_amount, BigDecimal::from(200));
+    }
+
+    #[test]
+    fn parse_hook_after_swap() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1hook"),
+            ("action", "after_swap_burn"),
+            ("burn_amount", "10"),
+        ]);
+        let hooks = parse_hook_events(&tx);
+        assert_eq!(hooks.len(), 1);
+        assert_eq!(hooks[0].hook_address, "terra1hook");
+        assert_eq!(hooks[0].action, "after_swap_burn");
+    }
+
+    #[test]
+    fn wasm_attr_last_finds_last_duplicate() {
+        let attrs = vec![
+            Attribute {
+                key: "k".into(),
+                value: "first".into(),
+            },
+            Attribute {
+                key: "k".into(),
+                value: "second".into(),
+            },
+        ];
+        assert_eq!(wasm_attr_last(&attrs, "k"), Some("second"));
+    }
+
+    /// Deterministic pseudo-fuzz: must never panic (denial-of-service via indexer parse path).
+    #[test]
+    fn parse_asset_amounts_ascii_stress_no_panic() {
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+        let mut rng = StdRng::seed_from_u64(0xC0FFEE);
+        for _ in 0..12_000 {
+            let len = rng.gen_range(0..512usize);
+            let s: String = (0..len)
+                .map(|_| rng.gen_range(b'!'..=b'~') as char)
+                .collect();
+            let _ = parse_asset_amounts(&s);
+        }
+    }
+
+    #[test]
+    fn parse_wasm_event_pipelines_stress_no_panic() {
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+        let mut rng = StdRng::seed_from_u64(0xDECAF);
+        for seed_i in 0..800u32 {
+            let n = rng.gen_range(0..80usize);
+            let mut attrs = Vec::with_capacity(n);
+            for _ in 0..n {
+                let kl = rng.gen_range(0..32usize);
+                let vl = rng.gen_range(0..64usize);
+                let key: String = (0..kl)
+                    .map(|_| (b'a' + rng.gen_range(0..26)) as char)
+                    .collect();
+                let val: String = (0..vl)
+                    .map(|_| rng.gen_range(b'0'..=b'z') as char)
+                    .collect();
+                attrs.push(Attribute { key, value: val });
+            }
+            let tx = TxResponse {
+                height: "1".into(),
+                txhash: format!("hash{}", seed_i),
+                logs: Some(vec![TxLog {
+                    events: vec![Event {
+                        event_type: "wasm".into(),
+                        attributes: attrs,
+                    }],
+                }]),
+                timestamp: None,
+                events: None,
+            };
+            let _ = parse_swaps(&tx);
+            let _ = parse_liquidity_events(&tx);
+            let _ = parse_hook_events(&tx);
+        }
+    }
 }

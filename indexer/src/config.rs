@@ -31,8 +31,7 @@ impl Config {
         let lcd_urls: Vec<String> = lcd_raw.split(',').map(|s| s.trim().to_string()).collect();
 
         let cors_raw = env::var("CORS_ORIGINS").expect("CORS_ORIGINS must be set");
-        let cors_origins: Vec<String> =
-            cors_raw.split(',').map(|s| s.trim().to_string()).collect();
+        let cors_origins: Vec<String> = cors_raw.split(',').map(|s| s.trim().to_string()).collect();
 
         Self {
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
@@ -56,9 +55,7 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(30000),
-            start_block: env::var("START_BLOCK")
-                .ok()
-                .and_then(|v| v.parse().ok()),
+            start_block: env::var("START_BLOCK").ok().and_then(|v| v.parse().ok()),
             cors_origins,
             rate_limit_rps: env::var("RATE_LIMIT_RPS")
                 .ok()

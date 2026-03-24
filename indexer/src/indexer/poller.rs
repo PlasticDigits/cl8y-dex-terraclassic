@@ -11,7 +11,13 @@ use super::{oracle, pair_discovery, parser, trader_tracker, volume_aggregator};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config, cancel: tokio_util::sync::CancellationToken, ustc_price: oracle::SharedPrice) -> Result<(), BoxError> {
+pub async fn run_indexer(
+    pool: PgPool,
+    lcd: LcdClient,
+    config: Config,
+    cancel: tokio_util::sync::CancellationToken,
+    ustc_price: oracle::SharedPrice,
+) -> Result<(), BoxError> {
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
         tracing::error!("Initial pair sync failed: {}", e);
@@ -145,7 +151,22 @@ pub async fn run_indexer(pool: PgPool, lcd: LcdClient, config: Config, cancel: t
 }
 
 fn parse_block_time(ts: Option<&str>) -> DateTime<Utc> {
-    ts.and_then(|s| DateTime::parse_from_rfc3339(s).ok())
-        .map(|dt| dt.with_timezone(&Utc))
-        .unwrap_or_else(Utc::now)
+    match ts {
+        Some(s) => match DateTime::parse_from_rfc3339(s) {
+            Ok(dt) => dt.with_timezone(&Utc),
+            Err(_) => {
+                tracing::warn!(
+                    "Invalid block timestamp {:?}; using current UTC (candles may be misaligned)",
+                    s
+                );
+                Utc::now()
+            }
+        },
+        None => {
+            tracing::warn!(
+                "Missing block timestamp; using current UTC (candles may be misaligned)"
+            );
+            Utc::now()
+        }
+    }
 }

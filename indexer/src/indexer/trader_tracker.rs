@@ -36,11 +36,14 @@ pub async fn run_tier_sync_loop(pool: PgPool, lcd: LcdClient, fee_discount_addr:
     }
 }
 
-async fn sync_tiers(pool: &PgPool, lcd: &LcdClient, fee_discount_addr: &str) -> Result<(), BoxError> {
-    let all_traders: Vec<TraderRow> =
-        sqlx::query_as("SELECT * FROM traders")
-            .fetch_all(pool)
-            .await?;
+async fn sync_tiers(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    fee_discount_addr: &str,
+) -> Result<(), BoxError> {
+    let all_traders: Vec<TraderRow> = sqlx::query_as("SELECT * FROM traders")
+        .fetch_all(pool)
+        .await?;
 
     tracing::info!("Syncing tiers for {} traders", all_traders.len());
 
@@ -53,10 +56,7 @@ async fn sync_tiers(pool: &PgPool, lcd: &LcdClient, fee_discount_addr: &str) -> 
             .await
         {
             Ok(val) => {
-                let tier_id = val
-                    .get("tier_id")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as i16;
+                let tier_id = val.get("tier_id").and_then(|v| v.as_u64()).unwrap_or(0) as i16;
                 let tier_name = val
                     .get("tier_name")
                     .and_then(|v| v.as_str())
@@ -67,19 +67,20 @@ async fn sync_tiers(pool: &PgPool, lcd: &LcdClient, fee_discount_addr: &str) -> 
                     .and_then(|v| v.as_bool())
                     .unwrap_or(false);
 
-                if let Err(e) =
-                    traders::update_trader_tier(pool, &trader.address, tier_id, &tier_name, registered)
-                        .await
+                if let Err(e) = traders::update_trader_tier(
+                    pool,
+                    &trader.address,
+                    tier_id,
+                    &tier_name,
+                    registered,
+                )
+                .await
                 {
                     tracing::warn!("Failed to update tier for {}: {}", trader.address, e);
                 }
             }
             Err(e) => {
-                tracing::warn!(
-                    "Failed to query registration for {}: {}",
-                    trader.address,
-                    e
-                );
+                tracing::warn!("Failed to query registration for {}: {}", trader.address, e);
             }
         }
     }

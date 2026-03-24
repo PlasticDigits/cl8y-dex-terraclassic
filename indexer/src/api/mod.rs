@@ -1,8 +1,11 @@
+//! HTTP API: routing, CORS, rate limits, timeouts, and ticker/orderbook caches.
+//! Invariants and threat model: see repository `docs/indexer-invariants.md`.
+
 mod cg;
 mod cmc;
 pub mod hooks;
 mod oracle;
-mod orderbook_sim;
+pub mod orderbook_sim;
 mod overview;
 mod pairs;
 mod tokens;
@@ -10,6 +13,7 @@ mod traders;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::time::{Duration, Instant};
 
 use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::routing::get;
@@ -17,7 +21,9 @@ use axum::Router;
 use sqlx::PgPool;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::GovernorLayer;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
+use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -27,11 +33,22 @@ use crate::db::queries::{assets, pairs as db_pairs};
 use crate::indexer::oracle::SharedPrice;
 use crate::lcd::LcdClient;
 
+const TICKER_MAP_TTL: Duration = Duration::from_secs(30);
+
+/// Cached `BASE_TARGET` ticker string → pair contract address (refreshed periodically).
+#[derive(Clone, Default)]
+pub struct TickerMapCache {
+    pub(crate) inner:
+        std::sync::Arc<tokio::sync::RwLock<Option<(HashMap<String, String>, Instant)>>>,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub lcd: LcdClient,
     pub ustc_price: SharedPrice,
+    pub ticker_map_cache: TickerMapCache,
+    pub orderbook_cache: orderbook_sim::OrderbookCache,
 }
 
 pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
@@ -42,47 +59,88 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
     )
 }
 
-async fn build_asset_map(
-    pool: &PgPool,
-) -> Result<HashMap<i32, assets::AssetRow>, sqlx::Error> {
+async fn build_asset_map(pool: &PgPool) -> Result<HashMap<i32, assets::AssetRow>, sqlx::Error> {
     let all = assets::get_all_assets(pool).await?;
     Ok(all.into_iter().map(|a| (a.id, a)).collect())
 }
 
-async fn find_pair_by_ticker(
+/// CoinGecko `ticker_id` / CMC `market_pair`: exactly `BASE_TARGET` with non-empty symbols.
+/// Rejects `A_B_C`, `_`, `A_`, `__`, encoded slashes, etc.
+pub(crate) fn cg_ticker_segments(ticker_id: &str) -> Option<(&str, &str)> {
+    let parts: Vec<&str> = ticker_id.split('_').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+    let (a, b) = (parts[0], parts[1]);
+    if a.is_empty() || b.is_empty() {
+        return None;
+    }
+    Some((a, b))
+}
+
+pub async fn find_pair_by_ticker(
     state: &AppState,
     ticker_id: &str,
 ) -> Result<String, (StatusCode, String)> {
-    let parts: Vec<&str> = ticker_id.split('_').collect();
-    if parts.len() != 2 {
+    if cg_ticker_segments(ticker_id).is_none() {
         return Err((
             StatusCode::BAD_REQUEST,
             "Invalid ticker_id format, expected BASE_TARGET".to_string(),
         ));
     }
-    let (base_sym, target_sym) = (parts[0], parts[1]);
 
-    let all_pairs = db_pairs::get_all_pairs(&state.pool)
-        .await
-        .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let now = Instant::now();
 
-    for p in &all_pairs {
-        if let (Some(a0), Some(a1)) =
-            (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id))
-        {
-            if a0.symbol == base_sym && a1.symbol == target_sym {
-                return Ok(p.contract_address.clone());
+    {
+        let guard = state.ticker_map_cache.inner.read().await;
+        if let Some((ref map, exp)) = *guard {
+            if now < exp {
+                return match map.get(ticker_id) {
+                    Some(addr) => Ok(addr.clone()),
+                    None => Err((
+                        StatusCode::NOT_FOUND,
+                        format!("Pair not found for ticker: {}", ticker_id),
+                    )),
+                };
             }
         }
     }
 
-    Err((
-        StatusCode::NOT_FOUND,
-        format!("Pair not found for ticker: {}", ticker_id),
-    ))
+    let mut write = state.ticker_map_cache.inner.write().await;
+    if let Some((ref map, exp)) = *write {
+        if now < exp {
+            return match map.get(ticker_id) {
+                Some(addr) => Ok(addr.clone()),
+                None => Err((
+                    StatusCode::NOT_FOUND,
+                    format!("Pair not found for ticker: {}", ticker_id),
+                )),
+            };
+        }
+    }
+
+    let all_pairs = db_pairs::get_all_pairs(&state.pool)
+        .await
+        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
+
+    let mut map = HashMap::new();
+    for p in &all_pairs {
+        if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
+            let key = format!("{}_{}", a0.symbol, a1.symbol);
+            map.entry(key).or_insert_with(|| p.contract_address.clone());
+        }
+    }
+
+    let result = map.get(ticker_id).cloned();
+    *write = Some((map, now + TICKER_MAP_TTL));
+
+    result.ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Pair not found for ticker: {}", ticker_id),
+        )
+    })
 }
 
 #[derive(OpenApi)]
@@ -211,10 +269,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/cmc/ticker", get(cmc::cmc_ticker))
         .route("/cmc/orderbook/{market_pair}", get(cmc::cmc_orderbook))
         .route("/cmc/trades/{market_pair}", get(cmc::cmc_trades))
-        .merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", ApiDoc::openapi()),
-        );
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 
     let router = if config.rate_limit_rps > 0 {
         let governor_conf = GovernorConfigBuilder::default()
@@ -239,8 +294,13 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     };
 
     router
-        .layer(cors)
         .layer(TraceLayer::new_for_http())
+        .layer(cors)
+        .layer(CompressionLayer::new())
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(30),
+        ))
         .with_state(state)
 }
 
@@ -250,7 +310,13 @@ pub async fn serve(
     config: Config,
     ustc_price: SharedPrice,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let state = AppState { pool, lcd, ustc_price };
+    let state = AppState {
+        pool,
+        lcd,
+        ustc_price,
+        ticker_map_cache: TickerMapCache::default(),
+        orderbook_cache: orderbook_sim::OrderbookCache::default(),
+    };
     let app = build_router(state, &config);
 
     let addr = format!("{}:{}", config.api_bind, config.api_port);
@@ -264,4 +330,64 @@ pub async fn serve(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod cg_ticker_tests {
+    use super::cg_ticker_segments;
+
+    #[test]
+    fn valid_base_target_accepted() {
+        assert_eq!(cg_ticker_segments("LUNC_USTC"), Some(("LUNC", "USTC")));
+    }
+
+    #[test]
+    fn attack_and_edge_matrix_rejected() {
+        let bad = [
+            "",
+            "_",
+            "A",
+            "A_",
+            "_B",
+            "A_B_C",
+            "A__B",
+            "__",
+            "BASE_TARGET_EXTRA",
+            "LUNC_USTC_extra",
+            "unicode_test_\u{2603}_bad",
+            "SINGLESEGMENT",
+        ];
+        for s in bad {
+            assert!(cg_ticker_segments(s).is_none(), "expected reject: {:?}", s);
+        }
+    }
+}
+
+#[cfg(test)]
+mod cg_ticker_proptest {
+    use super::cg_ticker_segments;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn valid_base_target_from_two_segments_without_underscore(
+            a in "[a-zA-Z0-9]{1,24}",
+            b in "[a-zA-Z0-9]{1,24}",
+        ) {
+            prop_assume!(!a.contains('_') && !b.contains('_'));
+            let t = format!("{}_{}", a, b);
+            let got = cg_ticker_segments(&t);
+            prop_assert_eq!(got, Some((a.as_str(), b.as_str())));
+        }
+
+        #[test]
+        fn three_segments_rejected(
+            a in "[a-z]{1,8}",
+            b in "[a-z]{1,8}",
+            c in "[a-z]{1,8}",
+        ) {
+            let t = format!("{}_{}_{}", a, b, c);
+            prop_assert!(cg_ticker_segments(&t).is_none());
+        }
+    }
 }

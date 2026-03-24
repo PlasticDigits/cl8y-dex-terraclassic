@@ -90,10 +90,9 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
     .fetch_one(pool)
     .await?;
 
-    let pair_count =
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM pairs")
-            .fetch_one(pool)
-            .await?;
+    let pair_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM pairs")
+        .fetch_one(pool)
+        .await?;
 
     Ok(GlobalStats {
         total_volume_24h: agg.total_volume.unwrap_or_default(),

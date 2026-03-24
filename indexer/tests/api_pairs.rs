@@ -48,9 +48,7 @@ async fn get_pair_not_found() {
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
-    let resp = server
-        .get("/api/v1/pairs/terra1nonexistent")
-        .await;
+    let resp = server.get("/api/v1/pairs/terra1nonexistent").await;
     resp.assert_status_not_found();
 }
 
@@ -149,7 +147,10 @@ async fn get_pair_trades_pagination() {
     let server = TestServer::new(app);
 
     let resp = server
-        .get(&format!("/api/v1/pairs/{}/trades?limit=2", seed.pair_address))
+        .get(&format!(
+            "/api/v1/pairs/{}/trades?limit=2",
+            seed.pair_address
+        ))
         .await;
     resp.assert_status_ok();
     let page1: Vec<Value> = resp.json();

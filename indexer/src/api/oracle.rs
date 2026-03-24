@@ -92,11 +92,18 @@ pub async fn get_oracle_history(
     let now = Utc::now();
     let from = q
         .from
-        .and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|d| d.with_timezone(&Utc)))
+        .and_then(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .ok()
+                .map(|d| d.with_timezone(&Utc))
+        })
         .unwrap_or_else(|| now - chrono::Duration::hours(24));
-    let to = q
-        .to
-        .and_then(|s| DateTime::parse_from_rfc3339(&s).ok().map(|d| d.with_timezone(&Utc)))
+    let to =
+        q.to.and_then(|s| {
+            DateTime::parse_from_rfc3339(&s)
+                .ok()
+                .map(|d| d.with_timezone(&Utc))
+        })
         .unwrap_or(now);
     let limit = q.limit.unwrap_or(200).min(1000);
 

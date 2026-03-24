@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use super::{build_asset_map, internal_err, AppState};
-use crate::db::queries::{pairs as db_pairs, positions as db_positions, swap_events, traders as db_traders};
+use crate::db::queries::{
+    pairs as db_pairs, positions as db_positions, swap_events, traders as db_traders,
+};
 
 pub const VALID_SORTS: &[&str] = &[
     "total_volume",
@@ -130,9 +132,7 @@ pub async fn get_trader_trades(
         .await
         .map_err(internal_err)?;
 
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
@@ -200,11 +200,7 @@ pub async fn leaderboard(
         if !VALID_SORTS.contains(&s.as_str()) {
             return Err((
                 StatusCode::BAD_REQUEST,
-                format!(
-                    "Invalid sort '{}'. Valid: {}",
-                    s,
-                    VALID_SORTS.join(", ")
-                ),
+                format!("Invalid sort '{}'. Valid: {}", s, VALID_SORTS.join(", ")),
             ));
         }
     }
@@ -239,9 +235,7 @@ pub async fn get_trader_positions(
         .await
         .map_err(internal_err)?;
 
-    let asset_map = build_asset_map(&state.pool)
-        .await
-        .map_err(internal_err)?;
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
@@ -252,8 +246,14 @@ pub async fn get_trader_positions(
         .iter()
         .filter_map(|pos| {
             let pair = pair_map.get(&pos.pair_id)?;
-            let a0_sym = asset_map.get(&pair.asset_0_id).map(|a| a.symbol.clone()).unwrap_or_default();
-            let a1_sym = asset_map.get(&pair.asset_1_id).map(|a| a.symbol.clone()).unwrap_or_default();
+            let a0_sym = asset_map
+                .get(&pair.asset_0_id)
+                .map(|a| a.symbol.clone())
+                .unwrap_or_default();
+            let a1_sym = asset_map
+                .get(&pair.asset_1_id)
+                .map(|a| a.symbol.clone())
+                .unwrap_or_default();
             Some(PositionResponse {
                 pair_address: pair.contract_address.clone(),
                 asset_0_symbol: a0_sym,

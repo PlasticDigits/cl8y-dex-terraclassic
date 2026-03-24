@@ -41,12 +41,7 @@ pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, latest_price: 
                 Ok(price) => {
                     tracing::debug!("Oracle: {} returned ${:.8}", source, price);
                     prices.push(*price);
-                    if let Err(e) = db_oracle::insert_price(
-                        &pool,
-                        &f64_to_bd(*price),
-                        source,
-                    )
-                    .await
+                    if let Err(e) = db_oracle::insert_price(&pool, &f64_to_bd(*price), source).await
                     {
                         tracing::error!("Oracle: failed to store {} price: {}", source, e);
                     }
@@ -90,10 +85,7 @@ async fn fetch_all_sources(
 
     let (kc_res, mx_res) = tokio::join!(kucoin, mexc);
 
-    let mut results = vec![
-        ("kucoin", kc_res),
-        ("mexc", mx_res),
-    ];
+    let mut results = vec![("kucoin", kc_res), ("mexc", mx_res)];
 
     if include_coingecko {
         let cg_res = fetch_coingecko(client).await;
@@ -221,5 +213,13 @@ mod tests {
         let prices = vec![0.00512];
         let avg = prices.iter().sum::<f64>() / prices.len() as f64;
         assert!((avg - 0.00512).abs() < 1e-10);
+    }
+
+    #[test]
+    fn f64_to_bd_non_finite_defaults_to_zero() {
+        let nan_bd = f64_to_bd(f64::NAN);
+        assert_eq!(nan_bd, BigDecimal::from(0));
+        let inf_bd = f64_to_bd(f64::INFINITY);
+        assert_eq!(inf_bd, BigDecimal::from(0));
     }
 }

@@ -4,6 +4,7 @@
 - [Architecture Overview](./architecture.md) — system diagram, contract relationships, swap flow
 - [Security Model](./security-model.md) — governance keys, treasury, hook safety
 - [Contracts Security Audit & Invariants](./contracts-security-audit.md) — invariant matrix, attack paths, test mapping
+- [Indexer Invariants & API Security](./indexer-invariants.md) — HTTP/indexing invariants, caps, caches, test mapping
 
 ## Smart Contracts
 - [Contract Reference](./contracts-terraclassic.md) — Factory, Pair, Router message schemas
