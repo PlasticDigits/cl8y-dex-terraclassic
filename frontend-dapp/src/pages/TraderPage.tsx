@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
-import { getTrader, getTraderTrades, getTraderPositions } from '@/services/indexer/client'
+import { getTrader, getTraderTrades, getTraderPositions, INDEXER_URL } from '@/services/indexer/client'
 import { StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { isValidTerraAddress } from '@/utils/constants'
+import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { formatNum } from '@/utils/formatAmount'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatDateTime } from '@/utils/formatDate'
@@ -118,7 +119,32 @@ export default function TraderPage() {
         </div>
       )}
 
-      {traderAddr && traderQuery.isError && (
+      {traderAddr && traderQuery.isError && isIndexerUnavailableError(traderQuery.error) && (
+        <div
+          className="shell-panel border-2 border-amber-500/40"
+          style={{ background: 'var(--panel-bg-strong)' }}
+          role="alert"
+        >
+          <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
+            Indexer unavailable
+          </p>
+          <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+            Trader profiles are loaded from the indexer at{' '}
+            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">{INDEXER_URL}</code>. Start the
+            indexer or set{' '}
+            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">VITE_INDEXER_URL</code>.
+          </p>
+          <button
+            type="button"
+            className="btn-muted !text-xs !px-4 !py-1.5 mt-3"
+            onClick={() => void traderQuery.refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {traderAddr && traderQuery.isError && !isIndexerUnavailableError(traderQuery.error) && (
         <RetryError
           message="Trader not found. They may not have traded yet."
           onRetry={() => void traderQuery.refetch()}

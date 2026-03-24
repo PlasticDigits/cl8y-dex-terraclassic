@@ -1,4 +1,4 @@
-import { getExplorerTxUrl } from '@/utils/constants'
+import { getExplorerTxUrl } from '@/utils/terraExplorer'
 
 export interface TxResultAlertProps {
   type: 'success' | 'error'

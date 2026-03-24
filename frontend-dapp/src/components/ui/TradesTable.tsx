@@ -1,6 +1,6 @@
 import type { IndexerTrade, IndexerPair } from '@/types'
 import { formatNum } from '@/utils/formatAmount'
-import { getExplorerTxUrl } from '@/utils/constants'
+import { getExplorerTxUrl } from '@/utils/terraExplorer'
 
 export interface TradesTableProps {
   trades: IndexerTrade[]

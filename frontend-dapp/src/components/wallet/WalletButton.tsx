@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { shortenAddress } from '@/utils/tokenDisplay'
+import { DEFAULT_NETWORK, NETWORKS } from '@/utils/constants'
+import { getTerraChainLogoPath } from '@/utils/networkDisplay'
 import WalletModal from './WalletModal'
 
 export default function WalletButton() {
-  const { address, isConnecting, disconnect } = useWalletStore()
-  const [showModal, setShowModal] = useState(false)
+  const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen } = useWalletStore()
   const [showDropdown, setShowDropdown] = useState(false)
+  const chainLogoPath = getTerraChainLogoPath(NETWORKS[DEFAULT_NETWORK].terra.chainId)
 
   if (address) {
     return (
@@ -31,7 +33,7 @@ export default function WalletButton() {
             {shortenAddress(address, 4, 4)}
           </div>
           <div className="w-8 h-8 shrink-0 flex items-center justify-center overflow-hidden rounded-sm bg-black/90 p-1 border-2 border-black shadow-[2px_2px_0_#000]">
-            <img src="/chains/terraclassic-icon.png" alt="Terra Classic" className="h-full w-full object-contain" />
+            <img src={chainLogoPath} alt="Terra Classic" className="h-full w-full object-contain" />
           </div>
         </button>
 
@@ -82,7 +84,7 @@ export default function WalletButton() {
       <button
         onClick={() => {
           sounds.playButtonPress()
-          setShowModal(true)
+          setWalletModalOpen(true)
         }}
         disabled={isConnecting}
         className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
@@ -103,7 +105,7 @@ export default function WalletButton() {
           ) : (
             <>
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-black p-0.5">
-                <img src="/chains/terraclassic-icon.png" alt="" className="h-full w-full object-contain" />
+                <img src={chainLogoPath} alt="" className="h-full w-full object-contain" />
               </span>
               <span className="hidden sm:inline">CONNECT TC</span>
               <span className="sm:hidden">TC</span>
@@ -111,7 +113,7 @@ export default function WalletButton() {
           )}
         </span>
       </button>
-      {showModal && createPortal(<WalletModal onClose={() => setShowModal(false)} />, document.body)}
+      {walletModalOpen && createPortal(<WalletModal onClose={() => setWalletModalOpen(false)} />, document.body)}
     </>
   )
 }

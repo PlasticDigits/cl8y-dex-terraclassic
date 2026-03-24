@@ -5,7 +5,7 @@ import type { IndexerCandle } from '@/types'
 import { Spinner } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { CandlestickSeries } from 'lightweight-charts'
-import type { IChartApi, ISeriesApi } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const
 
@@ -74,7 +74,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
       chartRef.current = chart
 
       const resizeObserver = new ResizeObserver(() => {
-        if (containerRef.current) {
+        if (containerRef.current && chart) {
           chart.applyOptions({ width: containerRef.current.clientWidth })
         }
       })
@@ -100,7 +100,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
     const data = candlesQuery.data
       .filter((c: IndexerCandle) => c.open && c.close)
       .map((c: IndexerCandle) => ({
-        time: Math.floor(new Date(c.open_time).getTime() / 1000) as number,
+        time: Math.floor(new Date(c.open_time).getTime() / 1000) as Time,
         open: parseFloat(c.open),
         high: parseFloat(c.high),
         low: parseFloat(c.low),

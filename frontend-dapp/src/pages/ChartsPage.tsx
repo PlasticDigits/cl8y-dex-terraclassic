@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { getOverview, getPairs, getPairStats, getTrades, getLeaderboard } from '@/services/indexer/client'
+import { getOverview, getPairs, getPairStats, getTrades, getLeaderboard, INDEXER_URL } from '@/services/indexer/client'
 import PriceChart from '@/components/charts/PriceChart'
 import { StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { formatNum } from '@/utils/formatAmount'
 import { shortenAddress } from '@/utils/tokenDisplay'
-import { formatTime } from '@/utils/formatDate'
+import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
 import type { IndexerPair, IndexerTrader } from '@/types'
 
@@ -84,11 +84,42 @@ export default function ChartsPage() {
   const overview = overviewQuery.data
   const stats = statsQuery.data
 
+  const indexerUnavailable = pairsQuery.isError || overviewQuery.isError
+
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
         Charts & Analytics
       </h1>
+
+      {indexerUnavailable && (
+        <div
+          className="shell-panel border-2 border-amber-500/40"
+          style={{ background: 'var(--panel-bg-strong)' }}
+          role="alert"
+        >
+          <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
+            Indexer unavailable
+          </p>
+          <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+            Charts and analytics require the indexer HTTP API at{' '}
+            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">{INDEXER_URL}</code>. Start the
+            indexer service, or set{' '}
+            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">VITE_INDEXER_URL</code> to match
+            your deployment.
+          </p>
+          <button
+            type="button"
+            className="btn-muted !text-xs !px-4 !py-1.5 mt-3"
+            onClick={() => {
+              void overviewQuery.refetch()
+              void pairsQuery.refetch()
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Overview Bar */}
       <div className="shell-panel grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -133,6 +164,11 @@ export default function ChartsPage() {
           ))}
           {pairs.length === 0 && <option value="">No pairs available</option>}
         </select>
+        {pairsQuery.isSuccess && pairs.length === 0 && !pairsQuery.isLoading && !indexerUnavailable && (
+          <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+            No pairs in the indexer yet. After swaps are indexed, pairs will appear here.
+          </p>
+        )}
       </div>
 
       {/* Price Chart */}
@@ -213,7 +249,7 @@ export default function ChartsPage() {
                 label="Oldest Obs."
                 value={
                   oracleInfoQuery.data.oldest_observation_timestamp > 0
-                    ? formatTime(oracleInfoQuery.data.oldest_observation_timestamp)
+                    ? formatTimeFromUnixSeconds(oracleInfoQuery.data.oldest_observation_timestamp)
                     : '—'
                 }
               />
@@ -221,7 +257,7 @@ export default function ChartsPage() {
                 label="Newest Obs."
                 value={
                   oracleInfoQuery.data.newest_observation_timestamp > 0
-                    ? formatTime(oracleInfoQuery.data.newest_observation_timestamp)
+                    ? formatTimeFromUnixSeconds(oracleInfoQuery.data.newest_observation_timestamp)
                     : '—'
                 }
               />

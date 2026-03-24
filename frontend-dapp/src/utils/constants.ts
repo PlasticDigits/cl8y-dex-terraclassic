@@ -74,18 +74,6 @@ export const NETWORKS: Record<string, NetworkConfig> = {
 
 export const DEFAULT_NETWORK = (import.meta.env.VITE_NETWORK || 'local') as keyof typeof NETWORKS
 
-const EXPLORER_TX_URLS: Record<string, string> = {
-  local: 'http://localhost:1317/cosmos/tx/v1beta1/txs/',
-  testnet: 'https://finder.terra-classic.hexxagon.io/testnet/tx/',
-  mainnet: 'https://finder.terra-classic.hexxagon.io/mainnet/tx/',
-}
-
-export function getExplorerTxUrl(txHash: string): string | null {
-  const base = EXPLORER_TX_URLS[DEFAULT_NETWORK]
-  if (!base) return null
-  return `${base}${txHash}`
-}
-
 export function isValidTerraAddress(addr: string): boolean {
   return /^terra1[a-z0-9]{38,}$/.test(addr)
 }
