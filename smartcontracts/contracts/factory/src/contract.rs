@@ -527,6 +527,11 @@ fn query_pairs(
                 break;
             }
         }
+        if found_idx.is_none() {
+            return Err(StdError::generic_err(
+                "start_after pair not found in registry",
+            ));
+        }
         found_idx
     } else {
         None

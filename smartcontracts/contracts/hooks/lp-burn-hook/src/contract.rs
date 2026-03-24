@@ -20,8 +20,8 @@
 //! mechanism that deepens liquidity over time.
 
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128, WasmMsg,
+    to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
@@ -33,6 +33,7 @@ use dex_common::hook::HookExecuteMsg;
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-lp-burn-hook";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const LP_BURN_REPLY_ID: u64 = 1;
 
 /// Initialize the LP burn hook with a target pair, its LP token, the burn
 /// percentage, and an admin address for config updates.
@@ -79,13 +80,13 @@ pub fn execute(
             assert_allowed_pair(deps.as_ref(), &info)?;
             match hook_msg {
                 HookExecuteMsg::AfterSwap {
-                    pair: _,
+                    pair,
                     sender: _,
                     offer_asset: _,
                     return_asset,
                     commission_amount: _,
                     spread_amount: _,
-                } => execute_after_swap(deps, env, return_asset.amount),
+                } => execute_after_swap(deps, env, pair, return_asset.amount),
             }
         }
         ExecuteMsg::UpdateConfig {
@@ -121,9 +122,16 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
+    pair: Addr,
     output_amount: Uint128,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
+
+    if pair != config.target_pair {
+        return Ok(Response::new()
+            .add_attribute("action", "after_swap_lp_burn_hook")
+            .add_attribute("skipped", "pair does not match target_pair"));
+    }
 
     let target_burn = output_amount
         .checked_mul(Uint128::from(config.percentage_bps as u128))?
@@ -151,16 +159,19 @@ fn execute_after_swap(
 
     let actual_burn = std::cmp::min(target_burn, balance.balance);
 
-    let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: config.lp_token.to_string(),
-        msg: to_json_binary(&Cw20ExecuteMsg::Burn {
-            amount: actual_burn,
-        })?,
-        funds: vec![],
-    });
+    let burn_msg = SubMsg::reply_on_error(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.lp_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Burn {
+                amount: actual_burn,
+            })?,
+            funds: vec![],
+        }),
+        LP_BURN_REPLY_ID,
+    );
 
     Ok(Response::new()
-        .add_message(burn_msg)
+        .add_submessage(burn_msg)
         .add_attribute("action", "after_swap_lp_burn_hook")
         .add_attribute("target_pair", config.target_pair)
         .add_attribute("lp_token", config.lp_token)
@@ -246,6 +257,27 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         percentage_bps: config.percentage_bps,
         admin: config.admin,
     })
+}
+
+/// Swallow CW20 Burn failures so a misbehaving LP token never reverts
+/// the parent swap.
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        LP_BURN_REPLY_ID => {
+            let err_msg = msg
+                .result
+                .into_result()
+                .err()
+                .unwrap_or_else(|| "unknown".to_string());
+            Ok(Response::new()
+                .add_attribute("action", "after_swap_lp_burn_hook")
+                .add_attribute("warning", "lp burn call failed — swallowed")
+                .add_attribute("error", err_msg))
+        }
+        id => Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+            format!("unknown reply id: {id}"),
+        ))),
+    }
 }
 
 pub fn migrate(

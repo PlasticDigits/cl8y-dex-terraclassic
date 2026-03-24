@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128, WasmMsg,
+    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
@@ -12,6 +12,7 @@ use dex_common::hook::HookExecuteMsg;
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-tax-hook";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const TAX_TRANSFER_REPLY_ID: u64 = 1;
 
 pub fn instantiate(
     deps: DepsMut,
@@ -135,17 +136,20 @@ fn execute_after_swap(
             .add_attribute("available", balance.balance));
     }
 
-    let transfer_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: config.tax_token.to_string(),
-        msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-            recipient: config.recipient.to_string(),
-            amount: tax_amount,
-        })?,
-        funds: vec![],
-    });
+    let transfer_msg = SubMsg::reply_on_error(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.tax_token.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: config.recipient.to_string(),
+                amount: tax_amount,
+            })?,
+            funds: vec![],
+        }),
+        TAX_TRANSFER_REPLY_ID,
+    );
 
     Ok(Response::new()
-        .add_message(transfer_msg)
+        .add_submessage(transfer_msg)
         .add_attribute("action", "after_swap_tax_hook")
         .add_attribute("tax_token", config.tax_token)
         .add_attribute("tax_amount", tax_amount)
@@ -229,6 +233,27 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         tax_token: config.tax_token,
         admin: config.admin,
     })
+}
+
+/// Swallow CW20 Transfer failures so a misbehaving token / recipient
+/// never reverts the parent swap.
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        TAX_TRANSFER_REPLY_ID => {
+            let err_msg = msg
+                .result
+                .into_result()
+                .err()
+                .unwrap_or_else(|| "unknown".to_string());
+            Ok(Response::new()
+                .add_attribute("action", "after_swap_tax_hook")
+                .add_attribute("warning", "transfer call failed — swallowed")
+                .add_attribute("error", err_msg))
+        }
+        id => Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+            format!("unknown reply id: {id}"),
+        ))),
+    }
 }
 
 pub fn migrate(
