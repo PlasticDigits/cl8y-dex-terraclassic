@@ -8,7 +8,7 @@ import type {
   IndexerPosition,
 } from '@/types'
 
-const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost:3001'
+export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost:3001'
 const FETCH_TIMEOUT_MS = 15_000
 const MAX_RETRIES = 1
 

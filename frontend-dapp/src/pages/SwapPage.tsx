@@ -22,12 +22,13 @@ import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassi
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { assetInfoLabel, tokenAssetInfo, isNativeDenom } from '@/types'
 import { sounds } from '@/lib/sounds'
-import { TokenDisplay, FeeDisplay, TxResultAlert } from '@/components/ui'
+import { FeeDisplay, TxResultAlert } from '@/components/ui'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 
 export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
+  const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
   const { slippageTolerance, setSlippageTolerance, deadlineSeconds } = useDexStore()
@@ -271,7 +272,7 @@ export default function SwapPage() {
   let buttonDisabled = false
   if (!isWalletConnected) {
     buttonText = 'Connect Wallet'
-    buttonDisabled = true
+    buttonDisabled = false
   } else if (!hasRoute) {
     buttonText = 'No Route'
     buttonDisabled = true
@@ -399,10 +400,10 @@ export default function SwapPage() {
             </div>
           )}
 
-          {/* Token Selectors */}
-          <div className="mb-4 space-y-2">
-            <div>
-              <label className="label-neo">From Token</label>
+          {/* You Pay */}
+          <div className="card-neo mb-2">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <span className="label-neo !mb-0 pt-1">You Pay</span>
               <select
                 value={fromToken}
                 onChange={(e) => {
@@ -410,8 +411,8 @@ export default function SwapPage() {
                   setFromToken(e.target.value)
                   setShowImpactConfirm(false)
                 }}
-                className="select-neo"
-                aria-label="Select from token"
+                className="select-neo min-w-[170px] max-w-[220px] shrink-0 !py-2 !pl-3 !pr-10 !text-sm font-medium"
+                aria-label="Select token you pay"
               >
                 {allTokens.length === 0 && <option value="">Loading tokens...</option>}
                 {allTokens
@@ -422,88 +423,6 @@ export default function SwapPage() {
                     </option>
                   ))}
               </select>
-            </div>
-            <div>
-              <label className="label-neo">To Token</label>
-              <select
-                value={toToken}
-                onChange={(e) => {
-                  sounds.playButtonPress()
-                  setToToken(e.target.value)
-                  setShowImpactConfirm(false)
-                }}
-                className="select-neo"
-                aria-label="Select to token"
-              >
-                {allTokens.length === 0 && <option value="">Loading tokens...</option>}
-                {allTokens
-                  .filter((t) => t !== fromToken)
-                  .map((token) => (
-                    <option key={token} value={token}>
-                      {getTokenDisplaySymbol(token)}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            {isWrapOrUnwrap && (
-              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
-                This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
-                (1:1)
-              </div>
-            )}
-            {nativeRouteInfo && (
-              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
-                <span className="uppercase tracking-wide font-medium">Route: </span>
-                {nativeRouteInfo.needsWrapInput && <span>{getTokenDisplaySymbol(fromToken)} → </span>}
-                {nativeRouteInfo.operations.map((op, i) => (
-                  <span key={i}>
-                    {i > 0 && ' → '}
-                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
-                  </span>
-                ))}
-                {' → '}
-                {getTokenDisplaySymbol(
-                  assetInfoLabel(
-                    nativeRouteInfo.operations[nativeRouteInfo.operations.length - 1].terra_swap.ask_asset_info
-                  )
-                )}
-                {nativeRouteInfo.needsUnwrapOutput && <span> → {getTokenDisplaySymbol(toToken)}</span>}
-                {(nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
-                  <div className="mt-1">
-                    This swap will{' '}
-                    {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
-                      ? 'wrap and unwrap'
-                      : nativeRouteInfo.needsWrapInput
-                        ? 'wrap'
-                        : 'unwrap'}{' '}
-                    your tokens
-                  </div>
-                )}
-              </div>
-            )}
-            {isMultiHop && route && (
-              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
-                <span className="uppercase tracking-wide font-medium">Route: </span>
-                {route.map((op, i) => (
-                  <span key={i}>
-                    {i > 0 && ' → '}
-                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
-                  </span>
-                ))}
-                {' → '}
-                {getTokenDisplaySymbol(toToken)}
-              </div>
-            )}
-            {fromToken && toToken && !hasRoute && (
-              <div className="alert-error !text-xs">No route found between these tokens</div>
-            )}
-          </div>
-
-          {/* You Pay */}
-          <div className="card-neo mb-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="label-neo !mb-0">You Pay</span>
-              <TokenDisplay info={offerAssetInfo} size={16} className="text-xs font-medium" />
             </div>
             <input
               type="text"
@@ -576,9 +495,27 @@ export default function SwapPage() {
 
           {/* You Receive */}
           <div className="card-neo mt-2 mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="label-neo !mb-0">You Receive</span>
-              <TokenDisplay info={receiveAssetInfo} size={16} className="text-xs font-medium" />
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <span className="label-neo !mb-0 pt-1">You Receive</span>
+              <select
+                value={toToken}
+                onChange={(e) => {
+                  sounds.playButtonPress()
+                  setToToken(e.target.value)
+                  setShowImpactConfirm(false)
+                }}
+                className="select-neo min-w-[170px] max-w-[220px] shrink-0 !py-2 !pl-3 !pr-10 !text-sm font-medium"
+                aria-label="Select token you receive"
+              >
+                {allTokens.length === 0 && <option value="">Loading tokens...</option>}
+                {allTokens
+                  .filter((t) => t !== fromToken)
+                  .map((token) => (
+                    <option key={token} value={token}>
+                      {getTokenDisplaySymbol(token)}
+                    </option>
+                  ))}
+              </select>
             </div>
             <div className="text-2xl font-medium" style={{ color: 'var(--ink)' }}>
               {simQuery.isFetching ? (
@@ -591,6 +528,61 @@ export default function SwapPage() {
                 <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
               )}
             </div>
+          </div>
+
+          <div className="mb-4 space-y-2">
+            {isWrapOrUnwrap && (
+              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+                This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
+                (1:1)
+              </div>
+            )}
+            {nativeRouteInfo && (
+              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+                <span className="uppercase tracking-wide font-medium">Route: </span>
+                {nativeRouteInfo.needsWrapInput && <span>{getTokenDisplaySymbol(fromToken)} → </span>}
+                {nativeRouteInfo.operations.map((op, i) => (
+                  <span key={i}>
+                    {i > 0 && ' → '}
+                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
+                  </span>
+                ))}
+                {' → '}
+                {getTokenDisplaySymbol(
+                  assetInfoLabel(
+                    nativeRouteInfo.operations[nativeRouteInfo.operations.length - 1].terra_swap.ask_asset_info
+                  )
+                )}
+                {nativeRouteInfo.needsUnwrapOutput && <span> → {getTokenDisplaySymbol(toToken)}</span>}
+                {(nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
+                  <div className="mt-1">
+                    This swap will{' '}
+                    {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
+                      ? 'wrap and unwrap'
+                      : nativeRouteInfo.needsWrapInput
+                        ? 'wrap'
+                        : 'unwrap'}{' '}
+                    your tokens
+                  </div>
+                )}
+              </div>
+            )}
+            {isMultiHop && route && (
+              <div className="card-neo text-xs" style={{ color: 'var(--ink-dim)' }}>
+                <span className="uppercase tracking-wide font-medium">Route: </span>
+                {route.map((op, i) => (
+                  <span key={i}>
+                    {i > 0 && ' → '}
+                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
+                  </span>
+                ))}
+                {' → '}
+                {getTokenDisplaySymbol(toToken)}
+              </div>
+            )}
+            {fromToken && toToken && !hasRoute && (
+              <div className="alert-error !text-xs">No route found between these tokens</div>
+            )}
           </div>
 
           {/* Trade Details */}
@@ -684,6 +676,10 @@ export default function SwapPage() {
           <button
             onClick={() => {
               sounds.playButtonPress()
+              if (!isWalletConnected) {
+                openWalletModal()
+                return
+              }
               if (priceImpact && parseFloat(priceImpact) > 5 && !showImpactConfirm) {
                 setShowImpactConfirm(true)
                 return

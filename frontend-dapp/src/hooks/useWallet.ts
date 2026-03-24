@@ -13,6 +13,10 @@ interface WalletState {
   walletType: string | null
   isConnecting: boolean
   error: string | null
+  walletModalOpen: boolean
+  setWalletModalOpen: (open: boolean) => void
+  openWalletModal: () => void
+  closeWalletModal: () => void
   connect: (walletName: WalletName, walletType: WalletType) => Promise<void>
   connectDev: () => void
   disconnect: () => Promise<void>
@@ -23,6 +27,10 @@ export const useWalletStore = create<WalletState>((set) => ({
   walletType: null,
   isConnecting: false,
   error: null,
+  walletModalOpen: false,
+  setWalletModalOpen: (open) => set({ walletModalOpen: open }),
+  openWalletModal: () => set({ walletModalOpen: true }),
+  closeWalletModal: () => set({ walletModalOpen: false }),
   connect: async (walletName, walletType) => {
     set({ isConnecting: true, error: null })
     try {
@@ -32,7 +40,7 @@ export const useWalletStore = create<WalletState>((set) => ({
       } catch {
         /* storage unavailable */
       }
-      set({ address: result.address, walletType: result.walletType, isConnecting: false })
+      set({ address: result.address, walletType: result.walletType, isConnecting: false, walletModalOpen: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Connection failed', isConnecting: false })
     }
@@ -46,7 +54,7 @@ export const useWalletStore = create<WalletState>((set) => ({
     }
     const devWallet = createDevTerraWallet()
     registerConnectedWallet(devWallet)
-    set({ address: DEV_TERRA_ADDRESS, walletType: 'simulated', error: null })
+    set({ address: DEV_TERRA_ADDRESS, walletType: 'simulated', error: null, walletModalOpen: false })
   },
   disconnect: async () => {
     await disconnectTerraWallet()

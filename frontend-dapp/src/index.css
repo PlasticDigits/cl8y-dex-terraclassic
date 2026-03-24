@@ -201,6 +201,11 @@
     border-color: var(--cyan);
   }
 
+  .select-neo option {
+    background: var(--surface-0);
+    color: var(--ink);
+  }
+
   .label-neo {
     @apply block text-xs font-semibold uppercase tracking-wide mb-1;
     color: var(--ink-dim);

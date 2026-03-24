@@ -5,19 +5,17 @@ import type { IndexerTrade } from '@/types'
 
 const mockTrades: IndexerTrade[] = [
   {
-    id: '1',
+    id: 1,
     pair_address: 'terra1pair',
     block_height: 100,
     block_timestamp: '2025-01-15T12:00:00Z',
     tx_hash: 'ABCDEF1234567890',
+    sender: 'terra1trader',
     offer_asset: 'CL8Y',
     ask_asset: 'LUNC',
-    offer_amount: 1000,
-    return_amount: 500,
-    spread_amount: 10,
-    commission_amount: 5,
-    price: 0.5,
-    trader_address: 'terra1trader',
+    offer_amount: '1000',
+    return_amount: '500',
+    price: '0.5',
   },
 ]
 

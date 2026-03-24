@@ -26,6 +26,7 @@ describe('useWalletStore', () => {
       walletType: null,
       isConnecting: false,
       error: null,
+      walletModalOpen: false,
     })
     vi.mocked(connectTerraWallet).mockReset()
     vi.mocked(disconnectTerraWallet).mockReset()

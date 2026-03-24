@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module '*.json' {
+  const value: Record<string, unknown>
+  export default value
+}
+
 declare module 'react-blockies'
 
 declare const __GIT_SHA__: string

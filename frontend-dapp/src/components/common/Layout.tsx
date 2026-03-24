@@ -1,6 +1,7 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
+import NetworkBadge from '@/components/wallet/NetworkBadge'
 import { sounds } from '@/lib/sounds'
 
 type ThemeMode = 'dark' | 'light'
@@ -95,6 +96,7 @@ export default function Layout() {
             </nav>
 
             <div className="flex items-center gap-2 shrink-0 order-3">
+              <NetworkBadge />
               <WalletButton />
             </div>
           </div>

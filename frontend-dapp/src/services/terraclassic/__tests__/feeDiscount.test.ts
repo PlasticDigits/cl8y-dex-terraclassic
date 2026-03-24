@@ -35,6 +35,7 @@ describe('getTraderDiscount', () => {
     const discount: DiscountResponse = {
       discount_bps: 50,
       needs_deregister: false,
+      registration_epoch: null,
     }
     mockedQuery.mockResolvedValueOnce(discount)
 
@@ -50,6 +51,7 @@ describe('getTraderDiscount', () => {
     const discount: DiscountResponse = {
       discount_bps: 100,
       needs_deregister: true,
+      registration_epoch: 0,
     }
     mockedQuery.mockResolvedValueOnce(discount)
 
