@@ -4,20 +4,20 @@ test.describe('Swap Page', () => {
   test.describe('Without wallet', () => {
     test('shows swap form with pair selector', async ({ page }) => {
       await page.goto('/')
+      await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: 'Swap' })).toBeVisible()
-      await expect(page.getByText('Trading Pair')).toBeVisible()
+      await expect(page.getByText('From Token')).toBeVisible()
+      await expect(page.getByText('To Token')).toBeVisible()
     })
 
     test('loads available trading pairs from factory', async ({ page }) => {
       await page.goto('/')
-      const pairSelector = page.locator('select')
-      await expect(pairSelector).toBeVisible()
-      await pairSelector.waitFor({ state: 'attached' })
+      await page.waitForLoadState('networkidle')
+      const fromSelect = page.getByLabel('Select from token')
+      await expect(fromSelect).toBeVisible()
       await expect(async () => {
-        const options = await pairSelector.locator('option').allTextContents()
-        const hasPair = options.some(
-          (opt) => !opt.includes('Loading') && !opt.includes('Select')
-        )
+        const options = await fromSelect.locator('option').allTextContents()
+        const hasPair = options.some((opt) => !opt.includes('Loading') && !opt.includes('Select'))
         expect(hasPair).toBe(true)
       }).toPass({ timeout: 15000 })
     })
@@ -31,7 +31,10 @@ test.describe('Swap Page', () => {
     test('shows Connect Wallet as the submit button when disconnected', async ({ page }) => {
       await page.goto('/')
       await page.waitForLoadState('networkidle')
-      const submitBtn = page.locator('button').filter({ hasText: /Connect Wallet/i }).last()
+      const submitBtn = page
+        .locator('button')
+        .filter({ hasText: /Connect Wallet/i })
+        .last()
       await expect(submitBtn).toBeVisible()
       await expect(submitBtn).toBeDisabled()
     })
@@ -56,25 +59,24 @@ test.describe('Swap Page', () => {
   test.describe('With wallet connected', () => {
     test('shows Enter Amount when no amount typed', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/')
       await page.waitForLoadState('networkidle')
 
       await expect(async () => {
-        const pairSelector = page.locator('select')
-        const options = await pairSelector.locator('option').allTextContents()
-        const hasPair = options.some(
-          (opt) => !opt.includes('Loading') && !opt.includes('Select')
-        )
+        const fromSelect = page.getByLabel('Select from token')
+        const options = await fromSelect.locator('option').allTextContents()
+        const hasPair = options.some((opt) => !opt.includes('Loading') && !opt.includes('Select'))
         expect(hasPair).toBe(true)
       }).toPass({ timeout: 15000 })
 
-      const submitBtn = page.locator('button').filter({ hasText: /Enter Amount|Swap|Connect/i }).last()
+      const submitBtn = page
+        .locator('button')
+        .filter({ hasText: /Enter Amount|Swap|Connect/i })
+        .last()
       await expect(submitBtn).toBeVisible()
     })
 
     test('accepts numeric input in You Pay field', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/')
       await page.waitForLoadState('networkidle')
       const input = page.getByPlaceholder('0.00').first()
       await input.fill('100')
@@ -83,7 +85,6 @@ test.describe('Swap Page', () => {
 
     test('clears amount on empty input', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/')
       await page.waitForLoadState('networkidle')
       const input = page.getByPlaceholder('0.00').first()
       await input.fill('100')
@@ -94,14 +95,12 @@ test.describe('Swap Page', () => {
 
     test('shows estimated output when amount entered with loaded pair', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/')
+      await page.waitForLoadState('networkidle')
 
       await expect(async () => {
-        const pairSelector = page.locator('select')
-        const options = await pairSelector.locator('option').allTextContents()
-        const hasPair = options.some(
-          (opt) => !opt.includes('Loading') && !opt.includes('Select')
-        )
+        const fromSelect = page.getByLabel('Select from token')
+        const options = await fromSelect.locator('option').allTextContents()
+        const hasPair = options.some((opt) => !opt.includes('Loading') && !opt.includes('Select'))
         expect(hasPair).toBe(true)
       }).toPass({ timeout: 15000 })
 

@@ -1,0 +1,11 @@
+---
+description: Playwright E2E parallelism — use 5 workers
+globs: frontend-dapp/playwright.config.ts,frontend-dapp/e2e/**/*.ts
+alwaysApply: false
+---
+
+# Playwright workers
+
+- Keep `workers` at **5** in `frontend-dapp/playwright.config.ts` (see `defineConfig`).
+- Higher parallelism overloads the Vite dev server during `webServer` runs and causes flaky E2E; do not raise without measuring stability.
+- Do not rely on `npx playwright test --workers=N` to override this for routine runs — change the config if the project standard changes.

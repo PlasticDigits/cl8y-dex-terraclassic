@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
+import { headerConnectButton, headerConnectedWalletButton } from './helpers/wallet-ui'
 
 test.describe('Navigation', () => {
   test('loads the app with CL8Y DEX branding', async ({ page }) => {
@@ -35,40 +36,44 @@ test.describe('Navigation', () => {
 
   test('footer shows Terra Classic branding', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByText(/CL8Y DEX on Terra Classic/i)).toBeVisible()
+    await expect(page.getByText(/CL8Y DEX.*Terra Classic/i)).toBeVisible()
   })
 })
 
 test.describe('Wallet Connection', () => {
-  test('shows Connect Wallet button when disconnected', async ({ page }) => {
+  test('shows connect control in header when disconnected', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('button', { name: 'Connect Wallet' }).first()).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await expect(headerConnectButton(page)).toBeVisible()
   })
 
   test('opens wallet modal on click', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Connect Wallet' }).first().click()
+    await page.waitForLoadState('networkidle')
+    await headerConnectButton(page).click()
     await expect(page.getByRole('heading', { name: /Connect Wallet/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Simulated Wallet/i })).toBeVisible()
   })
 
   test('connects simulated dev wallet', async ({ page, connectWallet }) => {
     await connectWallet
-    await expect(page.getByText(/terra1x46/)).toBeVisible()
+    await expect(headerConnectedWalletButton(page)).toBeVisible()
   })
 
   test('disconnects wallet', async ({ page, connectWallet }) => {
     await connectWallet
-    await expect(page.getByText(/terra1x46/)).toBeVisible()
-    await page.getByRole('button', { name: 'Disconnect' }).click()
-    await expect(page.getByRole('button', { name: 'Connect Wallet' }).first()).toBeVisible()
+    await expect(headerConnectedWalletButton(page)).toBeVisible()
+    await headerConnectedWalletButton(page).click()
+    await page.getByRole('menuitem', { name: 'Disconnect' }).click()
+    await expect(headerConnectButton(page)).toBeVisible()
   })
 
   test('wallet modal can be closed with X button', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Connect Wallet' }).first().click()
+    await page.waitForLoadState('networkidle')
+    await headerConnectButton(page).click()
     await expect(page.getByRole('heading', { name: /Connect Wallet/i })).toBeVisible()
-    await page.getByRole('button', { name: '×' }).click()
+    await page.getByRole('button', { name: /close modal/i }).click()
     await expect(page.getByRole('heading', { name: /Connect Wallet/i })).not.toBeVisible()
   })
 })

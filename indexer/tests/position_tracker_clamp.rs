@@ -1,5 +1,7 @@
 mod common;
 
+use std::str::FromStr;
+
 use bigdecimal::BigDecimal;
 use cl8y_dex_indexer::indexer::position_tracker;
 
@@ -51,5 +53,8 @@ async fn position_net_quote_clamped_when_oversold() {
     .await
     .expect("select net");
 
-    assert_eq!(net, "0");
+    assert_eq!(
+        BigDecimal::from_str(&net).expect("parse net"),
+        BigDecimal::from(0)
+    );
 }
