@@ -100,3 +100,5 @@ This lazy approach avoids the need for a background process or cron job to monit
 ## Audit Status
 
 Contracts have not yet been formally audited. A third-party audit is recommended before mainnet deployment with significant TVL.
+
+For an **in-repo** invariant matrix, trust assumptions, and mapping to automated tests, see [contracts-security-audit.md](./contracts-security-audit.md).

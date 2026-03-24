@@ -6172,6 +6172,139 @@ mod deadline_tests {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Audit / invariant regressions (see docs/contracts-security-audit.md)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod audit_invariant_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{to_json_binary, Uint128};
+    use cw20::Cw20ExecuteMsg;
+    use cw_multi_test::{App, Executor};
+
+    /// P5: `GetDiscount` query failure → pair uses full `fee_bps` (same as no registry).
+    #[test]
+    fn swap_uses_full_fee_when_discount_registry_query_fails() {
+        let swap_in = Uint128::new(10_000);
+        let liq = Uint128::new(1_000_000);
+
+        let mut app_baseline = App::default();
+        let env_baseline = setup_full_env(&mut app_baseline);
+        provide_liquidity(
+            &mut app_baseline,
+            &env_baseline,
+            &env_baseline.user,
+            liq,
+            liq,
+        );
+        let treasury_b_before =
+            query_cw20_balance(&app_baseline, &env_baseline.token_b, &env_baseline.treasury);
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::one()),
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+        app_baseline
+            .execute_contract(
+                env_baseline.user.clone(),
+                env_baseline.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env_baseline.pair.to_string(),
+                    amount: swap_in,
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap();
+        let treasury_b_after_baseline =
+            query_cw20_balance(&app_baseline, &env_baseline.token_b, &env_baseline.treasury);
+        let commission_baseline = treasury_b_after_baseline - treasury_b_before;
+
+        let mut app_bad_reg = App::default();
+        let env_bad = setup_full_env(&mut app_bad_reg);
+        app_bad_reg
+            .execute_contract(
+                env_bad.governance.clone(),
+                env_bad.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetDiscountRegistry {
+                    pair: env_bad.pair.to_string(),
+                    // CW20 token — cannot answer fee-discount `GetDiscount`; query fails.
+                    registry: Some(env_bad.token_b.to_string()),
+                },
+                &[],
+            )
+            .unwrap();
+        provide_liquidity(&mut app_bad_reg, &env_bad, &env_bad.user, liq, liq);
+        let treasury_b_before_bad =
+            query_cw20_balance(&app_bad_reg, &env_bad.token_b, &env_bad.treasury);
+        let swap_msg_bad = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(cosmwasm_std::Decimal::one()),
+            to: None,
+            deadline: None,
+            trader: None,
+        })
+        .unwrap();
+        app_bad_reg
+            .execute_contract(
+                env_bad.user.clone(),
+                env_bad.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env_bad.pair.to_string(),
+                    amount: swap_in,
+                    msg: swap_msg_bad,
+                },
+                &[],
+            )
+            .unwrap();
+        let treasury_b_after_bad =
+            query_cw20_balance(&app_bad_reg, &env_bad.token_b, &env_bad.treasury);
+        let commission_bad = treasury_b_after_bad - treasury_b_before_bad;
+
+        assert_eq!(
+            commission_baseline, commission_bad,
+            "broken discount registry must fall back to full pair fee (treasury commission B)"
+        );
+    }
+}
+
+/// Property tests mirroring pair discount × fee composition (business logic).
+#[cfg(test)]
+mod fee_math_property_tests {
+    use proptest::prelude::*;
+
+    fn effective_fee_bps_after_discount(pair_fee_bps: u16, discount_bps: u16) -> u16 {
+        let discounted =
+            (pair_fee_bps as u32) * (10000u32.saturating_sub(discount_bps as u32)) / 10000u32;
+        discounted as u16
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(256))]
+
+        #[test]
+        fn prop_effective_swap_fee_lte_pair_fee(
+            pair_fee in 0u16..=10000u16,
+            discount in 0u16..=10000u16,
+        ) {
+            let eff = effective_fee_bps_after_discount(pair_fee, discount);
+            prop_assert!(eff <= pair_fee, "effective {} > pair {}", eff, pair_fee);
+        }
+
+        #[test]
+        fn prop_effective_swap_fee_zero_when_full_discount(
+            pair_fee in 1u16..=10000u16,
+        ) {
+            let eff = effective_fee_bps_after_discount(pair_fee, 10000u16);
+            prop_assert_eq!(eff, 0u16);
+        }
+    }
+}
+
 // ===========================================================================
 // HOOKS INTEGRATION TESTS — end-to-end tests with actual hook contracts
 // ===========================================================================

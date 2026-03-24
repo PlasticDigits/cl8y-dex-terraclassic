@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts test-frontend test-e2e lint setup-hooks wait-healthy
+.PHONY: start stop restart reset build-contracts build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy
 
 # Infrastructure
 start:
@@ -56,6 +56,11 @@ build-optimized:
 
 test-contracts:
 	cd smartcontracts && cargo test
+
+# Requires: cargo install cargo-llvm-cov
+coverage-contracts:
+	cd smartcontracts && cargo llvm-cov test --workspace --lcov --output-path lcov.info && \
+		echo "LCOV written to smartcontracts/lcov.info (open HTML via: cargo llvm-cov report --open)"
 
 lint-contracts:
 	cd smartcontracts && cargo fmt --check && cargo clippy -- -D warnings
