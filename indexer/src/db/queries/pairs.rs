@@ -1,5 +1,6 @@
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 
 #[derive(Debug, Clone, FromRow)]
 pub struct PairRow {
@@ -13,6 +14,146 @@ pub struct PairRow {
     pub created_at_block: Option<i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+/// One row from the paginated pair list (includes 24h quote volume from swap_events).
+#[derive(Debug, Clone, FromRow)]
+pub struct PairListRow {
+    #[sqlx(flatten)]
+    pub pair: PairRow,
+    pub volume_quote_24h: Option<BigDecimal>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PairListSort {
+    #[default]
+    Id,
+    Fee,
+    Created,
+    Symbol,
+    Volume24h,
+}
+
+pub struct PairListParams<'a> {
+    pub q: Option<&'a str>,
+    pub asset: Option<&'a str>,
+    pub sort: PairListSort,
+    pub sort_desc: bool,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+fn push_pair_list_filters(qb: &mut QueryBuilder<'_, Postgres>, q: Option<&str>, asset: Option<&str>) {
+    if let Some(q) = q.filter(|s| !s.trim().is_empty()) {
+        let pattern = format!("%{}%", q.trim());
+        qb.push(
+            " AND (p.contract_address ILIKE ",
+        );
+        qb.push_bind(pattern.clone());
+        qb.push(" OR a0.symbol ILIKE ");
+        qb.push_bind(pattern.clone());
+        qb.push(" OR a1.symbol ILIKE ");
+        qb.push_bind(pattern.clone());
+        qb.push(" OR COALESCE(a0.contract_address, '') ILIKE ");
+        qb.push_bind(pattern.clone());
+        qb.push(" OR COALESCE(a1.contract_address, '') ILIKE ");
+        qb.push_bind(pattern.clone());
+        qb.push(" OR COALESCE(a0.denom, '') ILIKE ");
+        qb.push_bind(pattern.clone());
+        qb.push(" OR COALESCE(a1.denom, '') ILIKE ");
+        qb.push_bind(pattern);
+        qb.push(")");
+    }
+
+    if let Some(asset) = asset.filter(|s| !s.trim().is_empty()) {
+        let a = asset.trim().to_string();
+        qb.push(
+            " AND (a0.contract_address = ",
+        );
+        qb.push_bind(a.clone());
+        qb.push(" OR a1.contract_address = ");
+        qb.push_bind(a.clone());
+        qb.push(" OR a0.denom = ");
+        qb.push_bind(a.clone());
+        qb.push(" OR a1.denom = ");
+        qb.push_bind(a);
+        qb.push(")");
+    }
+}
+
+fn push_pair_list_order_by(qb: &mut QueryBuilder<'_, Postgres>, sort: PairListSort, sort_desc: bool) {
+    qb.push(" ORDER BY ");
+    let desc = if sort_desc { " DESC" } else { " ASC" };
+    match sort {
+        PairListSort::Id => {
+            qb.push("p.id");
+            qb.push(desc);
+        }
+        PairListSort::Fee => {
+            qb.push("p.fee_bps");
+            qb.push(desc);
+            qb.push(" NULLS LAST, p.id ASC");
+        }
+        PairListSort::Created => {
+            qb.push("p.created_at_block");
+            qb.push(desc);
+            qb.push(" NULLS LAST, p.id ASC");
+        }
+        PairListSort::Symbol => {
+            qb.push("(LOWER(a0.symbol) || '/' || LOWER(a1.symbol))");
+            qb.push(desc);
+            qb.push(", p.id ASC");
+        }
+        PairListSort::Volume24h => {
+            qb.push("COALESCE(se.volume_quote_24h, 0)");
+            qb.push(desc);
+            qb.push(", p.id ASC");
+        }
+    }
+}
+
+pub async fn count_pairs_filtered(
+    pool: &PgPool,
+    q: Option<&str>,
+    asset: Option<&str>,
+) -> Result<i64, sqlx::Error> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT COUNT(*)::bigint FROM pairs p
+         INNER JOIN assets a0 ON a0.id = p.asset_0_id
+         INNER JOIN assets a1 ON a1.id = p.asset_1_id
+         WHERE 1=1",
+    );
+    push_pair_list_filters(&mut qb, q, asset);
+    let total: i64 = qb.build_query_scalar().fetch_one(pool).await?;
+    Ok(total)
+}
+
+pub async fn list_pairs_filtered(
+    pool: &PgPool,
+    params: PairListParams<'_>,
+) -> Result<Vec<PairListRow>, sqlx::Error> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        "SELECT p.id, p.contract_address, p.asset_0_id, p.asset_1_id, p.lp_token, p.fee_bps, p.hooks,
+                p.created_at_block, p.created_at, p.updated_at, se.volume_quote_24h
+         FROM pairs p
+         INNER JOIN assets a0 ON a0.id = p.asset_0_id
+         INNER JOIN assets a1 ON a1.id = p.asset_1_id
+         LEFT JOIN (
+           SELECT pair_id, SUM(return_amount) AS volume_quote_24h
+           FROM swap_events
+           WHERE block_timestamp >= NOW() - INTERVAL '24 hours'
+           GROUP BY pair_id
+         ) se ON se.pair_id = p.id
+         WHERE 1=1",
+    );
+    push_pair_list_filters(&mut qb, params.q, params.asset);
+    push_pair_list_order_by(&mut qb, params.sort, params.sort_desc);
+    qb.push(" LIMIT ");
+    qb.push_bind(params.limit);
+    qb.push(" OFFSET ");
+    qb.push_bind(params.offset);
+
+    qb.build_query_as::<PairListRow>().fetch_all(pool).await
 }
 
 pub async fn upsert_pair(

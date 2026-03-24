@@ -22,7 +22,7 @@ export default function WalletButton() {
           }}
           aria-haspopup="true"
           aria-expanded={showDropdown}
-          className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 glass border-2 border-white/30 hover:border-white/60 rounded-none transition-all group shadow-[3px_3px_0_#000]"
+          className="flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2 glass border-2 border-white/30 hover:border-white/60 rounded-none transition-all group shadow-[3px_3px_0_#000]"
         >
           <div className="text-right hidden sm:block">
             <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
@@ -32,7 +32,7 @@ export default function WalletButton() {
           <div className="sm:hidden text-xs font-mono font-medium" style={{ color: 'var(--ink)' }}>
             {shortenAddress(address, 4, 4)}
           </div>
-          <div className="w-8 h-8 shrink-0 flex items-center justify-center overflow-hidden rounded-sm bg-black/90 p-1 border-2 border-black shadow-[2px_2px_0_#000]">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center overflow-hidden rounded-sm bg-black/90 p-1 border-2 border-black shadow-[2px_2px_0_#000]">
             <img src={chainLogoPath} alt="Terra Classic" className="h-full w-full object-contain" />
           </div>
         </button>
@@ -87,7 +87,7 @@ export default function WalletButton() {
           setWalletModalOpen(true)
         }}
         disabled={isConnecting}
-        className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+        className="btn-primary !px-3 !py-1.5 sm:!px-4 sm:!py-2 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <span className="flex items-center gap-2">
           {isConnecting ? (

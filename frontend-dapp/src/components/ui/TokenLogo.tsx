@@ -3,12 +3,14 @@ import Blockies from 'react-blockies'
 
 export interface TokenLogoProps {
   addressForBlockie?: string
+  /** Used when there is no logo and no CW20 address (e.g. native denom for Blockies). */
+  blockieSeed?: string
   logoURI?: string
   size?: number
   className?: string
 }
 
-export function TokenLogo({ addressForBlockie, logoURI, size = 20, className = '' }: TokenLogoProps) {
+export function TokenLogo({ addressForBlockie, blockieSeed, logoURI, size = 20, className = '' }: TokenLogoProps) {
   const [imgFailed, setImgFailed] = useState(false)
 
   const wrapClass = `inline-block shrink-0 overflow-hidden rounded-full ${className}`
@@ -29,11 +31,12 @@ export function TokenLogo({ addressForBlockie, logoURI, size = 20, className = '
     )
   }
 
-  if (addressForBlockie) {
+  const blockieSeedFinal = addressForBlockie ?? blockieSeed
+  if (blockieSeedFinal) {
     const scale = Math.max(2, Math.ceil(size / 6))
     return (
       <span className={wrapClass} style={wrapStyle}>
-        <Blockies seed={addressForBlockie.toLowerCase()} size={6} scale={scale} />
+        <Blockies seed={blockieSeedFinal.toLowerCase()} size={6} scale={scale} />
       </span>
     )
   }

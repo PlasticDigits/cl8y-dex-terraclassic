@@ -54,18 +54,18 @@ export default function Layout() {
         className="sticky top-0 z-30 border-b-2 border-white/40 overflow-x-clip"
         style={{ background: 'var(--panel-bg-strong)', backdropFilter: 'blur(8px)' }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="relative flex flex-col md:flex-row md:items-center md:justify-between min-h-14 py-2 gap-2">
             <NavLink
               to="/"
-              className="flex w-fit items-center justify-center md:justify-start order-first md:order-1 shrink-0 py-2 md:py-1.5 px-3 md:px-4 rounded-sm border-2 border-black shadow-[3px_3px_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#000] pointer-events-auto transition-all duration-150"
+              className="flex w-fit items-center justify-center md:justify-start order-first md:order-1 shrink-0 py-1 md:py-1.5 px-1.5 md:px-4 rounded-sm border-2 border-black shadow-[3px_3px_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#000] pointer-events-auto transition-all duration-150"
               style={{ background: 'var(--header-logo-bg)' }}
               onClick={() => sounds.playButtonPress()}
             >
               <img
                 src="/assets/cl8y-dex-header-logo.png"
                 alt="CL8Y DEX"
-                className="h-14 md:h-16 w-auto max-w-[512px] shrink-0 rounded-none object-contain object-center"
+                className="h-7 sm:h-12 md:h-16 w-auto max-w-[512px] shrink-0 rounded-none object-contain object-center"
               />
             </NavLink>
 
@@ -95,7 +95,7 @@ export default function Layout() {
               ))}
             </nav>
 
-            <div className="flex items-center gap-2 shrink-0 order-3">
+            <div className="flex w-full items-center justify-between gap-2 shrink-0 order-3 sm:w-auto sm:justify-start">
               <NetworkBadge />
               <WalletButton />
             </div>
@@ -103,7 +103,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="relative max-w-5xl mx-auto px-4 pt-3 pb-6 md:pt-4 md:pb-8">
+      <main className="relative max-w-5xl mx-auto px-3 sm:px-4 pt-2.5 pb-5 md:pt-4 md:pb-8">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-2 mx-auto h-[520px] max-w-3xl rounded-[40px] theme-hero-glow blur-3xl"
@@ -114,7 +114,7 @@ export default function Layout() {
       </main>
 
       <footer
-        className="border-t-2 border-white/25 py-6 text-xs md:text-sm uppercase tracking-wider"
+        className="border-t-2 border-white/25 py-4 md:py-6 text-xs md:text-sm uppercase tracking-wider"
         style={{ color: 'var(--ink-dim)' }}
       >
         <div className="mx-auto max-w-5xl px-4 flex flex-col gap-3 items-center justify-center md:flex-row md:justify-between">

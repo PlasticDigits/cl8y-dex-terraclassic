@@ -1,7 +1,6 @@
 import { useState, memo, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
-import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance, verifyPairInFactory } from '@/services/terraclassic/queries'
@@ -14,14 +13,16 @@ import {
   WRAP_MAPPER_CONTRACT_ADDRESS,
 } from '@/utils/constants'
 import type { PairInfo, AssetInfo } from '@/types'
-import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent } from '@/types'
+import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
+import type { IndexerPairSort } from '@/types'
+import { getPairs, INDEXER_URL } from '@/services/indexer/client'
 import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 
-const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
+const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairInfo; volumeQuote24h?: string }) {
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState<'add' | 'remove' | null>(null)
@@ -238,6 +239,11 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
           <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-subtle)' }}>
             Pair: {pair.contract_addr.slice(0, 10)}…{pair.contract_addr.slice(-6)}
           </p>
+          {volumeQuote24h && (
+            <p className="text-xs mt-1 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              24h vol (quote, indexed): {formatNum(volumeQuote24h)}
+            </p>
+          )}
           {verifyQuery.data === false && (
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded-none border"
@@ -518,22 +524,118 @@ const PoolCard = memo(function PoolCard({ pair }: { pair: PairInfo }) {
   )
 })
 
+const PAGE_SIZE = 20
+
 export default function PoolPage() {
+  const [q, setQ] = useState('')
+  const [submittedQ, setSubmittedQ] = useState('')
+  const [sort, setSort] = useState<IndexerPairSort>('symbol')
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc')
+  const [page, setPage] = useState(0)
+
   const pairsQuery = useQuery({
-    queryKey: ['allPairs'],
-    queryFn: () => getAllPairsPaginated(),
-    staleTime: 60_000,
+    queryKey: ['indexer-pairs', submittedQ, sort, order, page],
+    queryFn: () =>
+      getPairs({
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+        q: submittedQ.trim() || undefined,
+        sort,
+        order,
+      }),
+    staleTime: 30_000,
   })
 
-  const pairs = pairsQuery.data?.pairs ?? []
+  const total = pairsQuery.data?.total ?? 0
+  const indexerPairs = pairsQuery.data?.items ?? []
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const canPrev = page > 0
+  const canNext = (page + 1) * PAGE_SIZE < total
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Liquidity Pools</h2>
         <span className="text-sm uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
-          {pairs.length} pair(s)
+          {total.toLocaleString()} pair(s)
         </span>
+      </div>
+
+      <div
+        className="shell-panel mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+        role="search"
+        aria-label="Filter and sort pools"
+      >
+        <div className="flex-1 min-w-[12rem]">
+          <label htmlFor="pool-search" className="label-neo mb-1 block">
+            Search
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="pool-search"
+              type="search"
+              className="input-neo flex-1"
+              placeholder="Symbol, address, denom…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setPage(0)
+                  setSubmittedQ(q)
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn-muted shrink-0"
+              onClick={() => {
+                setPage(0)
+                setSubmittedQ(q)
+              }}
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+        <div>
+          <label htmlFor="pool-sort" className="label-neo mb-1 block">
+            Sort
+          </label>
+          <select
+            id="pool-sort"
+            className="select-neo w-full sm:w-44"
+            value={sort}
+            onChange={(e) => {
+              const v = e.target.value as IndexerPairSort
+              setSort(v)
+              setPage(0)
+              if (v === 'volume_24h') setOrder('desc')
+            }}
+          >
+            <option value="symbol">Name (A–Z)</option>
+            <option value="volume_24h">24h volume</option>
+            <option value="fee">Fee</option>
+            <option value="created">Created</option>
+            <option value="id">Pair ID</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="pool-order" className="label-neo mb-1 block">
+            Order
+          </label>
+          <select
+            id="pool-order"
+            className="select-neo w-full sm:w-44"
+            value={order}
+            onChange={(e) => {
+              setOrder(e.target.value as 'asc' | 'desc')
+              setPage(0)
+            }}
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div>
       </div>
 
       {pairsQuery.isLoading && (
@@ -546,22 +648,48 @@ export default function PoolPage() {
 
       {pairsQuery.isError && (
         <RetryError
-          message={`Failed to load pools: ${pairsQuery.error?.message}`}
+          message={`Failed to load pools from indexer (${pairsQuery.error?.message}). Set VITE_INDEXER_URL (currently ${INDEXER_URL}) or start the indexer.`}
           onRetry={() => void pairsQuery.refetch()}
         />
       )}
 
-      {!pairsQuery.isLoading && pairs.length === 0 && !pairsQuery.isError && (
+      {!pairsQuery.isLoading && indexerPairs.length === 0 && !pairsQuery.isError && (
         <div className="shell-panel-strong py-8 text-center" style={{ color: 'var(--ink-dim)' }}>
-          No liquidity pools found.
+          No liquidity pools match your filters.
         </div>
       )}
 
       <div className="space-y-4">
-        {pairs.map((pair) => (
-          <PoolCard key={pair.contract_addr} pair={pair} />
+        {indexerPairs.map((ip) => (
+          <PoolCard key={ip.pair_address} pair={indexerPairToPairInfo(ip)} volumeQuote24h={ip.volume_quote_24h} />
         ))}
       </div>
+
+      {total > PAGE_SIZE && !pairsQuery.isLoading && !pairsQuery.isError && (
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
+          <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+            Page {page + 1} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn-muted !text-xs"
+              disabled={!canPrev}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              className="btn-muted !text-xs"
+              disabled={!canNext}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
