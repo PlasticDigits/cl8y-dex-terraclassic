@@ -20,11 +20,12 @@ import {
 } from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
-import { assetInfoLabel, tokenAssetInfo, isNativeDenom } from '@/types'
+import { assetInfoLabel, tokenAssetInfo, isNativeDenom, type IndexerRouteSolveResponse } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui'
-import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { getRouteSolve } from '@/services/indexer/client'
 
 export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
@@ -40,6 +41,9 @@ export default function SwapPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [customSlippage, setCustomSlippage] = useState('')
   const [showImpactConfirm, setShowImpactConfirm] = useState(false)
+  const [indexerRouteResult, setIndexerRouteResult] = useState<IndexerRouteSolveResponse | null>(null)
+  const [indexerRouteError, setIndexerRouteError] = useState<string | null>(null)
+  const [indexerRouteLoading, setIndexerRouteLoading] = useState(false)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -81,6 +85,32 @@ export default function SwapPage() {
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
   const hasRoute = isWrapOrUnwrap || nativeRouteInfo !== null || route !== null
+
+  const checkIndexerRoute = useCallback(async () => {
+    if (!fromToken || !toToken) return
+    setIndexerRouteError(null)
+    setIndexerRouteResult(null)
+    if (!fromToken.startsWith('terra1') || !toToken.startsWith('terra1')) {
+      setIndexerRouteError(
+        'Indexer route solver only accepts CW20 contract addresses in the asset table. Native-only denoms are not routable via this endpoint.'
+      )
+      return
+    }
+    setIndexerRouteLoading(true)
+    try {
+      const res = await getRouteSolve(fromToken, toToken)
+      setIndexerRouteResult(res)
+    } catch (e) {
+      setIndexerRouteError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setIndexerRouteLoading(false)
+    }
+  }, [fromToken, toToken])
+
+  useEffect(() => {
+    setIndexerRouteResult(null)
+    setIndexerRouteError(null)
+  }, [fromToken, toToken])
 
   const directPair = pairs.find((p) => {
     const a = assetInfoLabel(p.asset_infos[0])
@@ -365,53 +395,93 @@ export default function SwapPage() {
 
           {/* Slippage Settings */}
           {showSettings && (
-            <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
-              <p className="label-neo mb-3">Slippage Tolerance</p>
-              <div className="flex flex-wrap gap-2">
-                {[0.1, 0.5, 1.0].map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => handleSlippagePreset(val)}
-                    className={`tab-neo !text-xs !px-3 !py-1.5 ${
-                      slippageTolerance === val && !customSlippage ? 'tab-neo-active' : 'tab-neo-inactive'
-                    }`}
-                  >
-                    {val}%
-                  </button>
-                ))}
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={customSlippage}
-                    onChange={(e) => handleCustomSlippage(e.target.value)}
-                    placeholder="Custom"
-                    className="input-neo !text-xs !py-1.5"
-                  />
-                  <span
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
-                    style={{ color: 'var(--ink-subtle)' }}
-                  >
-                    %
-                  </span>
+            <>
+              <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
+                <p className="label-neo mb-3">Slippage Tolerance</p>
+                <div className="flex flex-wrap gap-2">
+                  {[0.1, 0.5, 1.0].map((val) => (
+                    <button
+                      key={val}
+                      onClick={() => handleSlippagePreset(val)}
+                      className={`tab-neo !text-xs !px-3 !py-1.5 ${
+                        slippageTolerance === val && !customSlippage ? 'tab-neo-active' : 'tab-neo-inactive'
+                      }`}
+                    >
+                      {val}%
+                    </button>
+                  ))}
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={customSlippage}
+                      onChange={(e) => handleCustomSlippage(e.target.value)}
+                      placeholder="Custom"
+                      className="input-neo !text-xs !py-1.5"
+                    />
+                    <span
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+                      style={{ color: 'var(--ink-subtle)' }}
+                    >
+                      %
+                    </span>
+                  </div>
                 </div>
+                {customSlippageError && (
+                  <p
+                    className="mt-2 text-xs font-semibold uppercase tracking-wide"
+                    style={{ color: 'var(--color-negative)' }}
+                  >
+                    Must be between 0.01% and 50%
+                  </p>
+                )}
+                {!customSlippageError && slippageTolerance > 5 && (
+                  <p
+                    className="mt-2 text-xs font-semibold uppercase tracking-wide"
+                    style={{ color: 'var(--color-warning, #f59e0b)' }}
+                  >
+                    High slippage increases front-running risk
+                  </p>
+                )}
               </div>
-              {customSlippageError && (
-                <p
-                  className="mt-2 text-xs font-semibold uppercase tracking-wide"
-                  style={{ color: 'var(--color-negative)' }}
-                >
-                  Must be between 0.01% and 50%
+              <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
+                <p className="label-neo mb-3">Indexer route check</p>
+                <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+                  Compares this token pair with the indexer&apos;s BFS graph (max 4 hops). Only CW20 addresses present
+                  in the indexer asset table are supported; native-only assets without a CW20 row are not routable via{' '}
+                  <code className="font-mono text-[10px]">/api/v1/route/solve</code>.
                 </p>
-              )}
-              {!customSlippageError && slippageTolerance > 5 && (
-                <p
-                  className="mt-2 text-xs font-semibold uppercase tracking-wide"
-                  style={{ color: 'var(--color-warning, #f59e0b)' }}
+                <button
+                  type="button"
+                  className="btn-muted !text-xs"
+                  onClick={() => {
+                    sounds.playButtonPress()
+                    void checkIndexerRoute()
+                  }}
+                  disabled={indexerRouteLoading || !fromToken || !toToken}
                 >
-                  High slippage increases front-running risk
-                </p>
-              )}
-            </div>
+                  {indexerRouteLoading ? 'Checking…' : 'Compare indexer route'}
+                </button>
+                {indexerRouteError && (
+                  <p className="text-xs mt-2 font-medium" style={{ color: 'var(--color-negative)' }}>
+                    {indexerRouteError}
+                  </p>
+                )}
+                {indexerRouteResult && (
+                  <div className="mt-3 text-[11px] space-y-1.5 font-mono" style={{ color: 'var(--ink-subtle)' }}>
+                    <p>
+                      Indexer hops: {indexerRouteResult.hops.length}
+                      {route != null && <span style={{ color: 'var(--ink-dim)' }}> · Client hops: {route.length}</span>}
+                    </p>
+                    {indexerRouteResult.hops.map((h, i) => (
+                      <p key={`${h.pair}-${i}`}>
+                        {i + 1}. {shortenAddress(h.pair, 8, 6)} · {shortenAddress(h.offer_token, 4, 4)} →{' '}
+                        {shortenAddress(h.ask_token, 4, 4)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* You Pay */}

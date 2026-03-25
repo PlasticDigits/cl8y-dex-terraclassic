@@ -15,7 +15,7 @@ import {
 import type { PairInfo, AssetInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
 import type { IndexerPairSort } from '@/types'
-import { getPairs, INDEXER_URL } from '@/services/indexer/client'
+import { getPairs, getTokens, INDEXER_URL } from '@/services/indexer/client'
 import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
@@ -546,6 +546,13 @@ export default function PoolPage() {
     staleTime: 30_000,
   })
 
+  const indexerTokensQuery = useQuery({
+    queryKey: ['indexer-tokens-list'],
+    queryFn: getTokens,
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+
   const total = pairsQuery.data?.total ?? 0
   const indexerPairs = pairsQuery.data?.items ?? []
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -556,9 +563,14 @@ export default function PoolPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Liquidity Pools</h2>
-        <span className="text-sm uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
-          {total.toLocaleString()} pair(s)
-        </span>
+        <div className="text-sm uppercase tracking-wide font-medium text-right" style={{ color: 'var(--ink-dim)' }}>
+          <span className="block">{total.toLocaleString()} pair(s)</span>
+          {indexerTokensQuery.data != null && (
+            <span className="block text-xs font-normal mt-0.5 normal-case tracking-normal">
+              {indexerTokensQuery.data.length} indexed tokens
+            </span>
+          )}
+        </div>
       </div>
 
       <div

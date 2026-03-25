@@ -203,9 +203,92 @@ export interface IndexerPairStats {
 
 export interface IndexerOverview {
   total_volume_24h: string
+  /** Quote-side 24h volume valued in USD (indexer oracle) */
+  total_volume_24h_usd?: string
   total_trades_24h: number
   pair_count: number
   token_count: number
+  /** Cached USTC/USD reference from indexer oracle; null if unavailable */
+  ustc_price_usd?: string | null
+}
+
+/** `GET /api/v1/tokens` */
+export interface IndexerToken {
+  id: number
+  contract_address: string | null
+  denom: string | null
+  is_cw20: boolean
+  name: string
+  symbol: string
+  decimals: number
+  logo_url: string | null
+  coingecko_id: string | null
+  cmc_id: number | null
+}
+
+/** Per-window volume from `GET /api/v1/tokens/{addr}` */
+export interface IndexerVolumeStat {
+  window: string
+  volume: string
+  volume_usd: string
+  trade_count: number
+  unique_traders: number
+}
+
+export interface IndexerTokenDetail {
+  token: IndexerToken
+  volume_stats: IndexerVolumeStat[]
+}
+
+/** `GET /api/v1/hooks` */
+export interface IndexerHookEvent {
+  id: number
+  tx_hash: string
+  hook_address: string
+  action: string
+  amount: string | number | null
+  token: string | null
+  skipped: string | null
+  warning: string | null
+  block_height: number
+  block_time: string
+}
+
+/** `GET /api/v1/oracle/price` */
+export interface IndexerOracleSourcePrice {
+  source: string
+  price_usd: string
+  fetched_at: string
+}
+
+export interface IndexerOraclePriceResponse {
+  price_usd: string | null
+  sources: IndexerOracleSourcePrice[]
+}
+
+/** `GET /api/v1/oracle/history` */
+export interface IndexerOracleHistoryEntry {
+  price_usd: string
+  fetched_at: string
+}
+
+export interface IndexerOracleHistoryResponse {
+  prices: IndexerOracleHistoryEntry[]
+}
+
+/** `GET /api/v1/route/solve` — hops use CW20 addresses from indexer assets only */
+export interface IndexerRouteHop {
+  pair: string
+  offer_token: string
+  ask_token: string
+}
+
+export interface IndexerRouteSolveResponse {
+  token_in: string
+  token_out: string
+  hops: IndexerRouteHop[]
+  router_operations: unknown[]
+  estimated_amount_out?: string
 }
 
 export interface IndexerTrader {

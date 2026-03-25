@@ -7,7 +7,7 @@ import { sounds } from '@/lib/sounds'
 import { CandlestickSeries } from 'lightweight-charts'
 import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts'
 
-const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const
+const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'] as const
 
 interface PriceChartProps {
   pairAddress: string

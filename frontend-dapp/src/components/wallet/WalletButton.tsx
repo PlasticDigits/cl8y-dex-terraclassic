@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { shortenAddress } from '@/utils/tokenDisplay'
@@ -51,6 +52,26 @@ export default function WalletButton() {
                     {shortenAddress(address, 8, 8)}
                   </p>
                 </div>
+                <Link
+                  role="menuitem"
+                  to={`/trader/${address}`}
+                  onClick={() => {
+                    sounds.playButtonPress()
+                    setShowDropdown(false)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-white/5 rounded-lg transition-colors"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                  Trader profile
+                </Link>
                 <button
                   role="menuitem"
                   onClick={() => {
