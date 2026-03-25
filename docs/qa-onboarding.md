@@ -11,8 +11,7 @@
 
 ## Git Workflow
 
-- **Default branch is `main`** — all MRs should target `main`, not `master`.
-- **Watch out:** QA/dev occasionally merge to `master` by mistake. If you open an MR, double-check the target branch is `main` before merging.
+- **Default branch:** `main` is the only long-lived integration branch in this repository. Open merge requests and base releases on `main`.
 
 ## Quick Start (Testnet Only)
 
@@ -149,6 +148,18 @@ page — you should see populated candles for all intervals including 1w.
 4. Verify LP tokens received
 5. Remove liquidity — enter LP amount, confirm
 6. Verify both tokens returned
+
+### Indexer pool list API & Pool/Charts (when shipping indexer or pool-list UI)
+
+For releases that change **liquidity pool discovery** (indexer-backed list, search, sort, pagination) or **Charts** pair selection, run the dedicated checklist in **`QA_TEMPLATE.md` §23** (Indexer pool list API & Pool/Charts UI). It covers:
+
+- **`GET /api/v1/pairs`** — envelope `{ items, total, limit, offset }`, pagination defaults, `q` / `asset` / `sort` / `order`, `volume_quote_24h`, validation errors
+- **`GET /api/v1/pairs/{addr}`** — detail response vs list-only fields
+- **Integration tests:** `cd indexer && cargo test --test api_pairs` (requires Postgres and `TEST_DATABASE_URL`)
+- **Pool page** — `VITE_INDEXER_URL`, error handling, total count formatting, UI controls, E2E `frontend-dapp/e2e/pool.spec.ts`
+- **Charts** — “Find pair” filter behavior and safe selection when the list changes
+
+The short **`docs/qa-templates/qa-test-pass.md`** template includes condensed bullets for the same areas when filing a test pass.
 
 ### Create Pair
 1. Navigate to `/pool/create`

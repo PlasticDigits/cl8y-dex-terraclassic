@@ -26,6 +26,10 @@
 
 ### Pool / Liquidity
 - [ ] Pool list loads and shows pairs
+- [ ] **Indexer pool list** (only if this release touches pool list or indexer): data from `VITE_INDEXER_URL`; clear error if indexer unavailable (no silent factory fallback)
+- [ ] **Indexer pool list (continued):** header shows **total** pair count with thousands separators; search via Apply and Enter; empty search shows unfiltered list; sort, order, and pagination behave correctly
+- [ ] **Indexer pool list (continued):** cards show on-chain reserves, fee, Provide/Withdraw; indexed 24h vol (quote) when present; `cd indexer && cargo test --test api_pairs` passes (Postgres + `TEST_DATABASE_URL`)
+- [ ] **Indexer pool list (E2E):** `frontend-dapp/e2e/pool.spec.ts` — pair count assertion allows formatted numbers (e.g. thousands separators)
 - [ ] Add liquidity — both amounts required
 - [ ] Add liquidity — LP tokens received
 - [ ] Remove liquidity — LP tokens burned
@@ -45,6 +49,10 @@
 - [ ] Mobile layout (≤767px)
 - [ ] No horizontal scroll
 - [ ] Touch interactions work (mobile)
+
+### Charts (pair picker — if release touches Charts / indexer pairs)
+- [ ] “Find pair” search filters the dropdown (debounced OK)
+- [ ] If the selected pair disappears from the filter, selection resets without errors
 
 ### General
 - [ ] No console errors during normal flows

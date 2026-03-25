@@ -77,6 +77,10 @@ cl8y-dex-terraclassic/
 
 ## Development
 
+### Git
+
+The default branch is **`main`** (the only long-lived integration branch). Merge requests should target `main`.
+
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/)
