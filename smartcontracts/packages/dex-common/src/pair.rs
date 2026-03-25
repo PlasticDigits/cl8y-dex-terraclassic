@@ -5,6 +5,61 @@ use cw20::Cw20ReceiveMsg;
 use crate::oracle::{ObserveResponse, OracleInfoResponse};
 use crate::types::{Asset, AssetInfo, FeeConfig};
 
+// ---------------------------------------------------------------------------
+// Limit orders (hybrid AMM + FIFO doubly-linked book)
+// ---------------------------------------------------------------------------
+
+/// On-chain caps (pair contract enforces the same upper bounds).
+pub const MAX_ADJUST_STEPS_HARD_CAP: u32 = 256;
+pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 256;
+
+/// Pattern C: explicit split between constant-product pool and limit book.
+/// `pool_input + book_input` must equal the CW20 `amount` on the swap hook.
+#[cw_serde]
+pub struct HybridSwapParams {
+    /// Amount routed to the AMM after the book leg (includes any book remainder
+    /// rolled forward when the book cannot fully fill `book_input`).
+    pub pool_input: Uint128,
+    /// Amount allocated to match against the limit book first (offer token units).
+    pub book_input: Uint128,
+    /// Stop after touching this many distinct maker orders (each order counts once per tx).
+    pub max_maker_fills: u32,
+    /// Optional order id to start linear insert/match adjustment (indexer hint).
+    pub book_start_hint: Option<u64>,
+}
+
+/// Which side of the book the maker is on.
+///
+/// **Price** is always **token1 per token0** (output token1 per 1 unit of token0), matching pool pricing.
+///
+/// - **Bid**: maker escrows **token1** and buys token0 from incoming takers. Matched when a taker
+///   swaps **token0 → token1** (taker sells token0, receives token1 from bids’ escrow).
+/// - **Ask**: maker escrows **token0** and sells for token1. Matched when a taker swaps
+///   **token1 → token0** (taker pays token1, receives token0 from asks’ escrow).
+///
+/// **Composite sort key** (total order, no duplicate keys):
+/// - Bids: descending `price`, then ascending `order_id` (better bids first; FIFO at same price).
+/// - Asks: ascending `price`, then ascending `order_id` (better asks first; FIFO at same price).
+#[cw_serde]
+pub enum LimitOrderSide {
+    Bid,
+    Ask,
+}
+
+/// Resting limit order returned by queries.
+#[cw_serde]
+pub struct LimitOrderResponse {
+    pub order_id: u64,
+    pub owner: Addr,
+    pub side: LimitOrderSide,
+    /// Token1 per token0 (minimum acceptable when the order executes).
+    pub price: Decimal,
+    /// Remaining escrow: token1 for bids, token0 for asks.
+    pub remaining: Uint128,
+    pub prev: Option<u64>,
+    pub next: Option<u64>,
+}
+
 #[cw_serde]
 pub struct PairInstantiateMsg {
     pub asset_infos: [AssetInfo; 2],
@@ -66,6 +121,10 @@ pub enum ExecuteMsg {
     SetLpAdmin {
         admin: String,
     },
+    /// Cancel a resting limit order and refund remaining escrow to `owner`.
+    CancelLimitOrder {
+        order_id: u64,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
@@ -80,6 +139,18 @@ pub enum Cw20HookMsg {
         /// Set by trusted routers; the pair verifies the CW20 sender
         /// is a trusted router before honoring this field.
         trader: Option<String>,
+        /// Pattern C: optional split between limit book and pool (see [`HybridSwapParams`]).
+        hybrid: Option<HybridSwapParams>,
+    },
+    /// Post a limit order using the escrowed CW20 as the correct side asset (token0 for Ask, token1 for Bid).
+    PlaceLimitOrder {
+        side: LimitOrderSide,
+        /// Minimum token1 per token0 for maker fills.
+        price: Decimal,
+        /// If set, insert/match adjustment starts from this order id (indexer hint).
+        hint_after_order_id: Option<u64>,
+        /// Max prev/next steps when locating insert position from the hint.
+        max_adjust_steps: u32,
     },
     /// Burn LP tokens and receive underlying assets pro-rata.
     /// Optional `min_assets` protects against sandwich attacks by reverting
@@ -121,6 +192,13 @@ pub enum QueryMsg {
     /// Metadata about the oracle ring buffer.
     #[returns(OracleInfoResponse)]
     OracleInfo {},
+
+    /// Limit order by id (if it exists).
+    #[returns(LimitOrderResponse)]
+    LimitOrder { order_id: u64 },
+    /// Head order id for bid or ask list (empty book = none).
+    #[returns(Option<u64>)]
+    OrderBookHead { side: LimitOrderSide },
 }
 
 /// TerraSwap-compatible pool response.

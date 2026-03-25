@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
+use dex_common::pair::HybridSwapParams;
 use dex_common::types::AssetInfo;
 
 #[cw_serde]
@@ -18,6 +19,8 @@ pub enum SwapOperation {
     TerraSwap {
         offer_asset_info: AssetInfo,
         ask_asset_info: AssetInfo,
+        /// Pattern C: per-hop book vs pool split (None = 100% pool, TerraSwap-compatible default).
+        hybrid: Option<HybridSwapParams>,
     },
 }
 

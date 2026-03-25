@@ -717,6 +717,7 @@ mod adversarial_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: Decimal::one(),
             minimum_receive: None,
@@ -779,6 +780,7 @@ mod adversarial_tests {
                     operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
+                        hybrid: None,
                     }],
                     max_spread: Decimal::one(),
                     minimum_receive: None,

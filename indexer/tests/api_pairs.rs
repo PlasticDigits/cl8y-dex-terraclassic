@@ -30,7 +30,9 @@ async fn list_pairs_returns_200() {
     assert!(pair["volume_quote_24h"].is_string());
 
     // Pagination, sort, search (same server / DB to avoid parallel seed conflicts)
-    let resp = server.get("/api/v1/pairs?limit=1&offset=0&sort=id&order=asc").await;
+    let resp = server
+        .get("/api/v1/pairs?limit=1&offset=0&sort=id&order=asc")
+        .await;
     resp.assert_status_ok();
     let body: Value = resp.json();
     assert_eq!(body["items"].as_array().unwrap().len(), 1);

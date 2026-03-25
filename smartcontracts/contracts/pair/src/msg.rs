@@ -1,6 +1,6 @@
 pub use dex_common::oracle::{ObserveResponse, OracleInfoResponse};
 pub use dex_common::pair::{
-    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse,
+    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, LimitOrderResponse,
     PairInstantiateMsg as InstantiateMsg, PoolResponse, QueryMsg, ReverseSimulationResponse,
     SimulationResponse,
 };

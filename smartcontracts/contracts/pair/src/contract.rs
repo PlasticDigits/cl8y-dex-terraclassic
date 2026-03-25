@@ -7,22 +7,26 @@ use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::error::ContractError;
 use crate::msg::{
-    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, InstantiateMsg, ObserveResponse,
-    OracleInfoResponse, PoolResponse, QueryMsg, ReverseSimulationResponse, SimulationResponse,
+    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, InstantiateMsg, LimitOrderResponse,
+    ObserveResponse, OracleInfoResponse, PoolResponse, QueryMsg, ReverseSimulationResponse,
+    SimulationResponse,
 };
+use crate::orderbook;
 use crate::state::{
     OracleState, PairInfoState, DISCOUNT_REGISTRY, FEE_CONFIG, HOOKS, OBSERVATIONS, ORACLE_STATE,
-    PAIR_INFO, PAUSED, RESERVES, TOTAL_LP_SUPPLY,
+    ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1, RESERVES,
+    TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
 };
+use dex_common::pair::{HybridSwapParams, LimitOrderSide};
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.2.0";
+const CONTRACT_VERSION: &str = "1.3.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -332,6 +336,9 @@ pub fn instantiate(
     TOTAL_LP_SUPPLY.save(deps.storage, &Uint128::zero())?;
     PAUSED.save(deps.storage, &false)?;
     DISCOUNT_REGISTRY.save(deps.storage, &None)?;
+    ORDER_NEXT_ID.save(deps.storage, &1u64)?;
+    PENDING_ESCROW_TOKEN0.save(deps.storage, &Uint128::zero())?;
+    PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
 
     ORACLE_STATE.save(
         deps.storage,
@@ -463,6 +470,10 @@ pub fn execute(
         ExecuteMsg::SetPaused { paused } => execute_set_paused(deps, info, paused),
         ExecuteMsg::Sweep { token, recipient } => execute_sweep(deps, env, info, token, recipient),
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
+        ExecuteMsg::CancelLimitOrder { order_id } => {
+            assert_not_paused(deps.storage)?;
+            execute_cancel_limit_order(deps, env, info, order_id)
+        }
     }
 }
 
@@ -482,6 +493,7 @@ fn execute_receive(
             to,
             deadline,
             trader,
+            hybrid,
         } => {
             assert_deadline(&env, deadline)?;
             execute_swap(
@@ -494,8 +506,25 @@ fn execute_receive(
                 max_spread,
                 to,
                 trader,
+                hybrid,
             )
         }
+        Cw20HookMsg::PlaceLimitOrder {
+            side,
+            price,
+            hint_after_order_id,
+            max_adjust_steps,
+        } => execute_place_limit_order(
+            deps,
+            env,
+            info,
+            token_sender,
+            cw20_msg.amount,
+            side,
+            price,
+            hint_after_order_id,
+            max_adjust_steps,
+        ),
         Cw20HookMsg::WithdrawLiquidity { min_assets } => {
             execute_withdraw_liquidity(deps, env, info, token_sender, cw20_msg.amount, min_assets)
         }
@@ -571,16 +600,36 @@ fn execute_swap(
     max_spread: Option<Decimal>,
     to: Option<String>,
     trader: Option<String>,
+    hybrid: Option<HybridSwapParams>,
 ) -> Result<Response, ContractError> {
     if input_amount.is_zero() {
         return Err(ContractError::ZeroAmount {});
     }
 
+    let (pool_leg, book_leg, max_makers, book_hint) = match &hybrid {
+        None => (input_amount, Uint128::zero(), 0u32, None),
+        Some(h) => {
+            if h.pool_input.checked_add(h.book_input)? != input_amount {
+                return Err(ContractError::HybridSplitMismatch {});
+            }
+            if h.book_input > Uint128::zero() && h.max_maker_fills == 0 {
+                return Err(ContractError::InvalidHybridParams {
+                    reason: "max_maker_fills must be > 0 when book_input > 0".into(),
+                });
+            }
+            (
+                h.pool_input,
+                h.book_input,
+                h.max_maker_fills,
+                h.book_start_hint,
+            )
+        }
+    };
+
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
 
-    // Record observation BEFORE reserves change — critical for manipulation resistance.
     oracle_update(deps.storage, env.block.time.seconds(), reserve_a, reserve_b)?;
 
     let offer_token_addr = info.sender.to_string();
@@ -606,39 +655,12 @@ fn execute_swap(
             return Err(ContractError::InvalidToken {});
         };
 
-    if input_reserve.is_zero() || output_reserve.is_zero() {
-        return Err(ContractError::InsufficientLiquidity {});
-    }
+    let receiver = match to {
+        Some(addr) => deps.api.addr_validate(&addr)?,
+        None => sender.clone(),
+    };
 
-    let k = input_reserve.checked_mul(output_reserve)?;
-    let new_input_reserve = input_reserve.checked_add(input_amount)?;
-    let new_output_reserve = ceil_div(k, new_input_reserve);
-    let gross_output = output_reserve.checked_sub(new_output_reserve)?;
-
-    // Sanity: ceil_div rounding must produce new_k in [k, k + new_input_reserve).
-    // Any larger increase would indicate a bug, not rounding.
-    let new_k = new_input_reserve.checked_mul(new_output_reserve)?;
-    if new_k < k {
-        return Err(ContractError::InvariantViolation {
-            reason: format!("k decreased: {} -> {}", k, new_k),
-        });
-    }
-    if new_k - k >= new_input_reserve {
-        return Err(ContractError::InvariantViolation {
-            reason: format!(
-                "k increase exceeds rounding bound: delta={}, bound={}",
-                new_k - k,
-                new_input_reserve
-            ),
-        });
-    }
-
-    // Determine the trader address for discount lookup.
-    // For direct swaps sender == trader; for router swaps the router passes
-    // the original user via the `trader` field.
     let trader_addr = trader.unwrap_or_else(|| sender.to_string());
-
-    // Look up fee discount from the registry (if configured).
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
     let mut deregister_msgs: Vec<CosmosMsg> = vec![];
 
@@ -675,88 +697,154 @@ fn execute_swap(
         None => fee_config.fee_bps,
     };
 
-    let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
-    let commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
-    let return_amount = gross_output.checked_sub(commission_amount)?;
-
-    // Sanity: floor-division rounding on commission loses < 1 output token.
-    // fee_numerator / 10000 truncates; the remainder must be < 10000.
-    let commission_remainder =
-        fee_numerator - commission_amount.checked_mul(Uint128::new(10000))?;
-    if commission_remainder >= Uint128::new(10000) {
-        return Err(ContractError::InvariantViolation {
-            reason: format!(
-                "commission rounding exceeds 1 token: remainder={}",
-                commission_remainder
-            ),
-        });
-    }
-
-    let ideal_output = input_amount
-        .checked_mul(output_reserve)?
-        .checked_div(input_reserve)?;
-    let spread_amount = if ideal_output > gross_output {
-        ideal_output.checked_sub(gross_output)?
-    } else {
-        Uint128::zero()
-    };
-
-    assert_max_spread(
-        belief_price,
-        max_spread,
-        input_amount,
-        return_amount,
-        spread_amount,
-        commission_amount,
-    )?;
-
-    let (new_reserve_a, new_reserve_b) = if offer_token_addr == token_a_addr {
-        (
-            reserve_a.checked_add(input_amount)?,
-            reserve_b.checked_sub(gross_output)?,
-        )
-    } else {
-        (
-            reserve_a.checked_sub(gross_output)?,
-            reserve_b.checked_add(input_amount)?,
-        )
-    };
-    RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
-
-    let receiver = match to {
-        Some(addr) => deps.api.addr_validate(&addr)?,
-        None => sender.clone(),
-    };
-
     let ask_token_addr = token_addr(&ask_asset_info);
 
-    let mut messages: Vec<CosmosMsg> = vec![];
+    let mut book_messages: Vec<CosmosMsg> = vec![];
+    let mut book_return_net = Uint128::zero();
+    let mut offer_consumed_by_book = Uint128::zero();
 
-    if !commission_amount.is_zero() {
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: ask_token_addr.to_string(),
-            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: fee_config.treasury.to_string(),
-                amount: commission_amount,
-            })?,
-            funds: vec![],
-        }));
+    if book_leg > Uint128::zero() {
+        if offer_token_addr == token_a_addr {
+            let (t1_out, t0_used, _mk, msgs) = orderbook::match_bids(
+                deps.storage,
+                book_leg,
+                max_makers,
+                book_hint,
+                token_a_addr,
+                token_b_addr,
+                &receiver,
+                &fee_config.treasury,
+                effective_fee_bps,
+            )?;
+            book_messages = msgs;
+            book_return_net = t1_out;
+            offer_consumed_by_book = t0_used;
+        } else {
+            let (t0_out, t1_used, _mk, msgs) = orderbook::match_asks(
+                deps.storage,
+                book_leg,
+                max_makers,
+                book_hint,
+                token_a_addr,
+                token_b_addr,
+                &receiver,
+                &fee_config.treasury,
+                effective_fee_bps,
+            )?;
+            book_messages = msgs;
+            book_return_net = t0_out;
+            offer_consumed_by_book = t1_used;
+        }
     }
 
-    if !return_amount.is_zero() {
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: ask_token_addr.to_string(),
-            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: receiver.to_string(),
-                amount: return_amount,
-            })?,
-            funds: vec![],
-        }));
+    let pool_input_amount = pool_leg.checked_add(book_leg.checked_sub(offer_consumed_by_book)?)?;
+
+    let mut return_amount = Uint128::zero();
+    let mut commission_amount = Uint128::zero();
+    let mut spread_amount = Uint128::zero();
+    let mut pool_messages: Vec<CosmosMsg> = vec![];
+
+    if pool_input_amount > Uint128::zero() {
+        if input_reserve.is_zero() || output_reserve.is_zero() {
+            return Err(ContractError::InsufficientLiquidity {});
+        }
+
+        let k = input_reserve.checked_mul(output_reserve)?;
+        let new_input_reserve = input_reserve.checked_add(pool_input_amount)?;
+        let new_output_reserve = ceil_div(k, new_input_reserve);
+        let gross_output = output_reserve.checked_sub(new_output_reserve)?;
+
+        let new_k = new_input_reserve.checked_mul(new_output_reserve)?;
+        if new_k < k {
+            return Err(ContractError::InvariantViolation {
+                reason: format!("k decreased: {} -> {}", k, new_k),
+            });
+        }
+        if new_k - k >= new_input_reserve {
+            return Err(ContractError::InvariantViolation {
+                reason: format!(
+                    "k increase exceeds rounding bound: delta={}, bound={}",
+                    new_k - k,
+                    new_input_reserve
+                ),
+            });
+        }
+
+        let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
+        commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
+        return_amount = gross_output.checked_sub(commission_amount)?;
+
+        let commission_remainder =
+            fee_numerator - commission_amount.checked_mul(Uint128::new(10000))?;
+        if commission_remainder >= Uint128::new(10000) {
+            return Err(ContractError::InvariantViolation {
+                reason: format!(
+                    "commission rounding exceeds 1 token: remainder={}",
+                    commission_remainder
+                ),
+            });
+        }
+
+        let ideal_output = pool_input_amount
+            .checked_mul(output_reserve)?
+            .checked_div(input_reserve)?;
+        spread_amount = if ideal_output > gross_output {
+            ideal_output.checked_sub(gross_output)?
+        } else {
+            Uint128::zero()
+        };
+
+        assert_max_spread(
+            belief_price,
+            max_spread,
+            pool_input_amount,
+            return_amount,
+            spread_amount,
+            commission_amount,
+        )?;
+
+        let (new_reserve_a, new_reserve_b) = if offer_token_addr == token_a_addr {
+            (
+                reserve_a.checked_add(pool_input_amount)?,
+                reserve_b.checked_sub(gross_output)?,
+            )
+        } else {
+            (
+                reserve_a.checked_sub(gross_output)?,
+                reserve_b.checked_add(pool_input_amount)?,
+            )
+        };
+        RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
+
+        if !commission_amount.is_zero() {
+            pool_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: ask_token_addr.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: fee_config.treasury.to_string(),
+                    amount: commission_amount,
+                })?,
+                funds: vec![],
+            }));
+        }
+
+        if !return_amount.is_zero() {
+            pool_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: ask_token_addr.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: receiver.to_string(),
+                    amount: return_amount,
+                })?,
+                funds: vec![],
+            }));
+        }
     }
+
+    let total_return = book_return_net.checked_add(return_amount)?;
 
     let hooks = HOOKS.load(deps.storage)?;
+    let mut hook_messages: Vec<CosmosMsg> = vec![];
     for hook in hooks {
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        hook_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: hook.to_string(),
             msg: to_json_binary(&HookCallMsg::Hook(HookExecuteMsg::AfterSwap {
                 pair: env.contract.address.clone(),
@@ -767,7 +855,7 @@ fn execute_swap(
                 },
                 return_asset: Asset {
                     info: ask_asset_info.clone(),
-                    amount: return_amount,
+                    amount: total_return,
                 },
                 commission_amount,
                 spread_amount,
@@ -776,8 +864,10 @@ fn execute_swap(
         }));
     }
 
-    Ok(Response::new()
-        .add_messages(messages)
+    let mut resp = Response::new()
+        .add_messages(book_messages)
+        .add_messages(pool_messages)
+        .add_messages(hook_messages)
         .add_messages(deregister_msgs)
         .add_attribute("action", "swap")
         .add_attribute("sender", sender)
@@ -785,10 +875,132 @@ fn execute_swap(
         .add_attribute("offer_asset", offer_asset_info.to_string())
         .add_attribute("ask_asset", ask_asset_info.to_string())
         .add_attribute("offer_amount", input_amount)
-        .add_attribute("return_amount", return_amount)
+        .add_attribute("return_amount", total_return)
+        .add_attribute("pool_return_amount", return_amount)
+        .add_attribute("book_return_amount", book_return_net)
         .add_attribute("spread_amount", spread_amount)
         .add_attribute("commission_amount", commission_amount)
-        .add_attribute("effective_fee_bps", effective_fee_bps.to_string()))
+        .add_attribute("effective_fee_bps", effective_fee_bps.to_string());
+
+    if book_leg > Uint128::zero() {
+        resp = resp.add_attribute("limit_book_offer_consumed", offer_consumed_by_book);
+    }
+
+    Ok(resp)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_place_limit_order(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    owner: Addr,
+    amount: Uint128,
+    side: LimitOrderSide,
+    price: Decimal,
+    hint_after_order_id: Option<u64>,
+    max_adjust_steps: u32,
+) -> Result<Response, ContractError> {
+    if amount.is_zero() {
+        return Err(ContractError::ZeroAmount {});
+    }
+    if price.is_zero() {
+        return Err(ContractError::InvalidHybridParams {
+            reason: "limit price must be positive".into(),
+        });
+    }
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let token_a = token_addr(&pair_info.asset_infos[0]);
+    let token_b = token_addr(&pair_info.asset_infos[1]);
+    let cw20_addr = info.sender.as_str();
+
+    let id = match side {
+        LimitOrderSide::Bid => {
+            if cw20_addr != token_b {
+                return Err(ContractError::InvalidToken {});
+            }
+            orderbook::insert_bid(
+                deps.storage,
+                price,
+                amount,
+                owner,
+                hint_after_order_id,
+                max_adjust_steps,
+            )?
+        }
+        LimitOrderSide::Ask => {
+            if cw20_addr != token_a {
+                return Err(ContractError::InvalidToken {});
+            }
+            orderbook::insert_ask(
+                deps.storage,
+                price,
+                amount,
+                owner,
+                hint_after_order_id,
+                max_adjust_steps,
+            )?
+        }
+    };
+
+    Ok(Response::new()
+        .add_attribute("action", "place_limit_order")
+        .add_attribute("limit_order_placed", id.to_string())
+        .add_attribute("order_id", id.to_string()))
+}
+
+fn execute_cancel_limit_order(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    order_id: u64,
+) -> Result<Response, ContractError> {
+    let o = crate::state::ORDERS.load(deps.storage, order_id)?;
+    if o.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let token_a = token_addr(&pair_info.asset_infos[0]);
+    let token_b = token_addr(&pair_info.asset_infos[1]);
+    let removed = orderbook::unlink_order(deps.storage, order_id)?;
+
+    let refund_msg = match removed.side {
+        LimitOrderSide::Bid => {
+            let mut esc = PENDING_ESCROW_TOKEN1
+                .may_load(deps.storage)?
+                .unwrap_or(Uint128::zero());
+            esc = esc.saturating_sub(removed.remaining);
+            PENDING_ESCROW_TOKEN1.save(deps.storage, &esc)?;
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: token_b.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: removed.owner.to_string(),
+                    amount: removed.remaining,
+                })?,
+                funds: vec![],
+            })
+        }
+        LimitOrderSide::Ask => {
+            let mut esc = PENDING_ESCROW_TOKEN0
+                .may_load(deps.storage)?
+                .unwrap_or(Uint128::zero());
+            esc = esc.saturating_sub(removed.remaining);
+            PENDING_ESCROW_TOKEN0.save(deps.storage, &esc)?;
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: token_a.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: removed.owner.to_string(),
+                    amount: removed.remaining,
+                })?,
+                funds: vec![],
+            })
+        }
+    };
+
+    Ok(Response::new()
+        .add_message(refund_msg)
+        .add_attribute("action", "cancel_limit_order")
+        .add_attribute("limit_order_cancelled", order_id.to_string()))
 }
 
 /// Deposit both tokens proportionally and mint LP tokens to the provider.
@@ -1277,9 +1489,27 @@ fn execute_sweep(
         },
     )?;
 
+    let pending_escrow = if pair_info.asset_infos[0].equal(&AssetInfo::Token {
+        contract_addr: token_addr.to_string(),
+    }) {
+        PENDING_ESCROW_TOKEN0
+            .may_load(deps.storage)?
+            .unwrap_or_default()
+    } else if pair_info.asset_infos[1].equal(&AssetInfo::Token {
+        contract_addr: token_addr.to_string(),
+    }) {
+        PENDING_ESCROW_TOKEN1
+            .may_load(deps.storage)?
+            .unwrap_or_default()
+    } else {
+        Uint128::zero()
+    };
+
     let excess = actual_balance
         .balance
         .checked_sub(reserve_for_token)
+        .unwrap_or(Uint128::zero())
+        .checked_sub(pending_escrow)
         .unwrap_or(Uint128::zero());
 
     if excess.is_zero() {
@@ -1354,7 +1584,17 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &query_oracle_info(deps)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
         ),
+        QueryMsg::LimitOrder { order_id } => to_json_binary(&query_limit_order(deps, order_id)?),
+        QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
     }
+}
+
+fn query_limit_order(deps: Deps, order_id: u64) -> StdResult<LimitOrderResponse> {
+    orderbook::load_order_response(deps.storage, order_id)
+}
+
+fn query_order_book_head(deps: Deps, side: LimitOrderSide) -> StdResult<Option<u64>> {
+    orderbook::query_head(deps.storage, side)
 }
 
 fn query_pair(deps: Deps, env: &Env) -> StdResult<dex_common::types::PairInfo> {
@@ -1611,6 +1851,16 @@ pub fn migrate(
 ) -> Result<Response, ContractError> {
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
         .map_err(ContractError::Std)?;
+
+    if ORDER_NEXT_ID.may_load(deps.storage)?.is_none() {
+        ORDER_NEXT_ID.save(deps.storage, &1u64)?;
+    }
+    if PENDING_ESCROW_TOKEN0.may_load(deps.storage)?.is_none() {
+        PENDING_ESCROW_TOKEN0.save(deps.storage, &Uint128::zero())?;
+    }
+    if PENDING_ESCROW_TOKEN1.may_load(deps.storage)?.is_none() {
+        PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
+    }
 
     Ok(Response::new()
         .add_attribute("action", "migrate")

@@ -163,13 +163,11 @@ pub async fn list_pairs(
     let mut items = Vec::with_capacity(rows.len());
     for row in rows {
         let p = &row.pair;
-        let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) else {
+        let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id))
+        else {
             continue;
         };
-        let volume_quote_24h = row
-            .volume_quote_24h
-            .as_ref()
-            .map(volume_quote_to_string);
+        let volume_quote_24h = row.volume_quote_24h.as_ref().map(volume_quote_to_string);
         items.push(PairResponse {
             pair_address: p.contract_address.clone(),
             asset_0: AssetBrief::from(a0),
