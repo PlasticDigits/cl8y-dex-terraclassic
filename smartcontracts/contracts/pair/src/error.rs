@@ -63,4 +63,13 @@ pub enum ContractError {
         actual: String,
         min: String,
     },
+
+    #[error("Limit order insert exceeded max adjust steps ({max})")]
+    LimitInsertStepsExceeded { max: u32 },
+
+    #[error("Hybrid swap split mismatch: pool_input + book_input must equal offer amount")]
+    HybridSplitMismatch {},
+
+    #[error("Invalid hybrid parameters")]
+    InvalidHybridParams { reason: String },
 }

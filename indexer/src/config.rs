@@ -16,6 +16,8 @@ pub struct Config {
     pub rate_limit_rps: u64,
     pub oracle_poll_interval_ms: u64,
     pub ustc_denom: Option<String>,
+    /// Router contract for `SimulateSwapOperations` in route solver (optional).
+    pub router_address: Option<String>,
 }
 
 impl Config {
@@ -66,6 +68,7 @@ impl Config {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(30000),
             ustc_denom: env::var("USTC_DENOM").ok(),
+            router_address: env::var("ROUTER_ADDRESS").ok().filter(|s| !s.is_empty()),
         }
     }
 }

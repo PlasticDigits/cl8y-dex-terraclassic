@@ -202,12 +202,18 @@ fn execute_swap_operations(
         },
     )?;
 
+    let first_hybrid = match &first_op {
+        SwapOperation::TerraSwap { hybrid, .. } => hybrid.clone(),
+        SwapOperation::NativeSwap { .. } => None,
+    };
+
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(max_spread),
         to: None,
         deadline: None,
         trader: Some(sender.to_string()),
+        hybrid: first_hybrid,
     };
 
     let send_msg = SubMsg::reply_on_success(
@@ -242,6 +248,7 @@ fn resolve_operation(
         SwapOperation::TerraSwap {
             offer_asset_info,
             ask_asset_info,
+            hybrid: _,
         } => {
             offer_asset_info
                 .assert_is_token()
@@ -353,12 +360,18 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     SWAP_STATE.save(deps.storage, &state)?;
 
+    let hop_hybrid = match &next_op {
+        SwapOperation::TerraSwap { hybrid, .. } => hybrid.clone(),
+        SwapOperation::NativeSwap { .. } => None,
+    };
+
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(state.max_spread),
         to: None,
         deadline: None,
         trader: Some(state.sender.to_string()),
+        hybrid: hop_hybrid,
     };
 
     let send_msg = SubMsg::reply_on_success(
@@ -442,6 +455,7 @@ fn query_simulate_swap_operations(
             SwapOperation::TerraSwap {
                 offer_asset_info,
                 ask_asset_info,
+                hybrid: _,
             } => {
                 let pair_response: dex_common::factory::PairResponse =
                     deps.querier.query_wasm_smart(
@@ -503,6 +517,7 @@ fn query_reverse_simulate_swap_operations(
             SwapOperation::TerraSwap {
                 offer_asset_info,
                 ask_asset_info,
+                hybrid: _,
             } => {
                 let pair_response: dex_common::factory::PairResponse =
                     deps.querier.query_wasm_smart(

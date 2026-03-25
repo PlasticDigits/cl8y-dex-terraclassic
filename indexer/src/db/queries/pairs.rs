@@ -43,12 +43,14 @@ pub struct PairListParams<'a> {
     pub offset: i64,
 }
 
-fn push_pair_list_filters(qb: &mut QueryBuilder<'_, Postgres>, q: Option<&str>, asset: Option<&str>) {
+fn push_pair_list_filters(
+    qb: &mut QueryBuilder<'_, Postgres>,
+    q: Option<&str>,
+    asset: Option<&str>,
+) {
     if let Some(q) = q.filter(|s| !s.trim().is_empty()) {
         let pattern = format!("%{}%", q.trim());
-        qb.push(
-            " AND (p.contract_address ILIKE ",
-        );
+        qb.push(" AND (p.contract_address ILIKE ");
         qb.push_bind(pattern.clone());
         qb.push(" OR a0.symbol ILIKE ");
         qb.push_bind(pattern.clone());
@@ -67,9 +69,7 @@ fn push_pair_list_filters(qb: &mut QueryBuilder<'_, Postgres>, q: Option<&str>, 
 
     if let Some(asset) = asset.filter(|s| !s.trim().is_empty()) {
         let a = asset.trim().to_string();
-        qb.push(
-            " AND (a0.contract_address = ",
-        );
+        qb.push(" AND (a0.contract_address = ");
         qb.push_bind(a.clone());
         qb.push(" OR a1.contract_address = ");
         qb.push_bind(a.clone());
@@ -81,7 +81,11 @@ fn push_pair_list_filters(qb: &mut QueryBuilder<'_, Postgres>, q: Option<&str>, 
     }
 }
 
-fn push_pair_list_order_by(qb: &mut QueryBuilder<'_, Postgres>, sort: PairListSort, sort_desc: bool) {
+fn push_pair_list_order_by(
+    qb: &mut QueryBuilder<'_, Postgres>,
+    sort: PairListSort,
+    sort_desc: bool,
+) {
     qb.push(" ORDER BY ");
     let desc = if sort_desc { " DESC" } else { " ASC" };
     match sort {

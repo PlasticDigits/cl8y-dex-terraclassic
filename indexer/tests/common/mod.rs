@@ -42,6 +42,7 @@ pub fn test_config() -> Config {
         rate_limit_rps: 0,
         oracle_poll_interval_ms: 30000,
         ustc_denom: None,
+        router_address: None,
     }
 }
 
@@ -218,6 +219,7 @@ pub async fn build_test_app_with_price_and_config(
         ustc_price: price_handle,
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
+        router_address: config.router_address.clone(),
     };
     build_router(state, &config)
 }

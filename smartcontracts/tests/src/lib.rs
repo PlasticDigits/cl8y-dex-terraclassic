@@ -322,6 +322,7 @@ mod helpers {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -345,6 +346,7 @@ mod helpers {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -964,6 +966,7 @@ mod pair_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -1014,6 +1017,7 @@ mod pair_tests {
             max_spread: Some(cosmwasm_std::Decimal::permille(1)),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -1220,6 +1224,7 @@ mod router_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -1438,6 +1443,7 @@ mod fee_discount_tests {
             max_spread: Some(Decimal::percent(5)),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -1497,6 +1503,7 @@ mod fee_discount_tests {
             max_spread: Some(Decimal::percent(5)),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -1542,6 +1549,7 @@ mod fee_discount_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -1613,6 +1621,7 @@ mod fee_discount_tests {
             max_spread: Some(Decimal::percent(5)),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -1724,6 +1733,7 @@ mod fee_discount_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -1789,6 +1799,7 @@ mod fee_discount_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -2016,6 +2027,7 @@ mod pair_coverage_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -2059,6 +2071,7 @@ mod pair_coverage_tests {
             max_spread: None,
             to: Some(receiver.to_string()),
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -2089,6 +2102,7 @@ mod pair_coverage_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -2376,6 +2390,7 @@ mod pair_coverage_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -2422,6 +2437,7 @@ mod pair_coverage_tests {
             max_spread: None,
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -2560,6 +2576,7 @@ mod pair_coverage_tests {
             max_spread: Some(Decimal::percent(5)),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -2678,6 +2695,7 @@ mod pair_coverage_tests {
             max_spread: Some(Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -3607,6 +3625,7 @@ mod router_coverage_tests {
                     operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
+                        hybrid: None,
                     }],
                 },
             )
@@ -3637,6 +3656,7 @@ mod router_coverage_tests {
                     operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
+                        hybrid: None,
                     }],
                 },
             )
@@ -3662,6 +3682,7 @@ mod router_coverage_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999)),
@@ -3709,6 +3730,7 @@ mod router_coverage_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999)),
@@ -3734,6 +3756,7 @@ mod router_coverage_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -3858,10 +3881,12 @@ mod router_coverage_tests {
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
+                    hybrid: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -4538,7 +4563,11 @@ mod fuzz_tests {
             let k = input_reserve * output_reserve;
             let new_input = input_reserve + swap_amount;
             // Ceiling division to match contract behavior
-            let new_output = if k % new_input == 0 { k / new_input } else { k / new_input + 1 };
+            let new_output = if k.is_multiple_of(new_input) {
+                k / new_input
+            } else {
+                k / new_input + 1
+            };
             let expected_gross = output_reserve - new_output;
             let expected_commission = expected_gross * (fee_bps as u128) / 10000;
             let expected_return = expected_gross - expected_commission;
@@ -5015,6 +5044,7 @@ mod fuzz_tests {
                 max_spread: Some(cosmwasm_std::Decimal::percent(99999)),
                 to: None,
                 deadline: None,
+            hybrid: None,
                 trader: None,
             })
             .unwrap();
@@ -5123,7 +5153,7 @@ mod security_tests {
             Uint128::new(10_000_000),
         );
 
-        let attacker_b_before = query_cw20_balance(&app, &env.token_b, &attacker);
+        let _attacker_b_before = query_cw20_balance(&app, &env.token_b, &attacker);
 
         // Attacker front-runs: large swap A→B to move price
         swap_a_to_b(&mut app, &env, &attacker, Uint128::new(5_000_000));
@@ -5138,6 +5168,7 @@ mod security_tests {
             max_spread: Some(Decimal::percent(9999999)),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -5223,6 +5254,7 @@ mod security_tests {
             max_spread: Some(Decimal::permille(5)), // 0.5%
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -5430,6 +5462,7 @@ mod security_tests {
                     max_spread: Some(Decimal::one()),
                     to: None,
                     deadline: None,
+                    hybrid: None,
                     trader: None,
                 })
                 .unwrap();
@@ -5491,6 +5524,7 @@ mod security_tests {
             max_spread: None, // defaults to 1% — will likely reject
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -5643,7 +5677,7 @@ mod security_tests {
 #[cfg(test)]
 mod oracle_tests {
     use super::helpers::*;
-    use cosmwasm_std::{Addr, Uint128};
+    use cosmwasm_std::Uint128;
     use cw_multi_test::{App, Executor};
     use dex_common::oracle::ObserveResponse;
 
@@ -5693,7 +5727,7 @@ mod oracle_tests {
         );
 
         // Do several swaps with time progression to build observation history
-        for i in 1..=5 {
+        for _ in 1..=5 {
             app.update_block(|b| b.time = b.time.plus_seconds(10));
             swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000));
         }
@@ -5782,7 +5816,7 @@ mod oracle_tests {
 
         // Record observation before manipulation
         app.update_block(|b| b.time = b.time.plus_seconds(10));
-        let obs_before: ObserveResponse = app
+        let _obs_before: ObserveResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
@@ -5796,7 +5830,7 @@ mod oracle_tests {
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(5_000_000));
 
         // The observation should NOT change within the same block
-        let obs_after: ObserveResponse = app
+        let _obs_after: ObserveResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
@@ -6034,7 +6068,7 @@ mod oracle_tests {
 #[cfg(test)]
 mod deadline_tests {
     use super::helpers::*;
-    use cosmwasm_std::{to_json_binary, Addr, Decimal, Uint128};
+    use cosmwasm_std::{to_json_binary, Decimal, Uint128};
     use cw_multi_test::{App, Executor};
 
     #[test]
@@ -6061,6 +6095,7 @@ mod deadline_tests {
             max_spread: Some(Decimal::one()),
             to: None,
             deadline: Some(deadline),
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -6106,6 +6141,7 @@ mod deadline_tests {
             max_spread: Some(Decimal::one()),
             to: None,
             deadline: Some(deadline),
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -6207,6 +6243,7 @@ mod deadline_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -6363,6 +6400,7 @@ mod audit_invariant_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -6420,6 +6458,7 @@ mod audit_invariant_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -6461,6 +6500,7 @@ mod audit_invariant_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -7299,6 +7339,7 @@ mod line_coverage_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -7515,6 +7556,7 @@ mod line_coverage_tests {
                     operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
+                        hybrid: None,
                     }],
                     max_spread: cosmwasm_std::Decimal::one(),
                     minimum_receive: None,
@@ -7787,6 +7829,7 @@ mod line_coverage_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -7870,7 +7913,7 @@ mod line_coverage_tests {
 #[cfg(test)]
 mod additional_fuzz_tests {
     use super::helpers::*;
-    use cosmwasm_std::{to_json_binary, Addr, Uint128};
+    use cosmwasm_std::{Addr, Uint128};
     use cw_multi_test::{App, Executor};
     use proptest::prelude::*;
 
@@ -8125,6 +8168,7 @@ mod additional_fuzz_tests {
                         operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env1.token_a),
                             ask_asset_info: asset_info_token(&env1.token_b),
+                hybrid: None,
                         }],
                     },
                 )
@@ -8174,6 +8218,7 @@ mod additional_fuzz_tests {
                     max_spread: Some(cosmwasm_std::Decimal::percent(1)),
                     to: None,
                     deadline: None,
+            hybrid: None,
                     trader: None,
                 },
             )
@@ -8197,6 +8242,7 @@ mod additional_fuzz_tests {
                     max_spread: Some(cosmwasm_std::Decimal::percent(9999999)),
                     to: None,
                     deadline: None,
+            hybrid: None,
                     trader: None,
                 }).unwrap();
                 app.execute_contract(
@@ -8662,6 +8708,7 @@ mod new_feature_tests {
             .map(|i| cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&tokens[i]),
                 ask_asset_info: asset_info_token(&tokens[i + 1]),
+                hybrid: None,
             })
             .collect();
 
@@ -8699,6 +8746,7 @@ mod new_feature_tests {
             .map(|i| cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&tokens[i]),
                 ask_asset_info: asset_info_token(&tokens[i + 1]),
+                hybrid: None,
             })
             .collect();
 
@@ -9103,6 +9151,7 @@ mod new_feature_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -9694,6 +9743,7 @@ mod dust_amount_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -9849,6 +9899,7 @@ mod dust_amount_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -9869,7 +9920,7 @@ mod dust_amount_tests {
                 &[],
             );
 
-            if let Ok(_) = result {
+            if result.is_ok() {
                 let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
                 assert!(
                     user_b_after > user_b_before,
@@ -9894,7 +9945,7 @@ mod dust_amount_tests {
                 },
                 &[],
             );
-            if let Ok(_) = result {
+            if result.is_ok() {
                 let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
                 if user_b_after == user_b_before {
                     zero_output_count += 1;
@@ -10072,14 +10123,17 @@ mod router_hop_tests {
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_a),
                             ask_asset_info: asset_info_token(&env.token_b),
+                            hybrid: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_b),
                             ask_asset_info: asset_info_token(&token_c),
+                            hybrid: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&token_c),
                             ask_asset_info: asset_info_token(&token_d),
+                            hybrid: None,
                         },
                     ],
                 },
@@ -10094,14 +10148,17 @@ mod router_hop_tests {
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
+                    hybrid: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&token_c),
                     ask_asset_info: asset_info_token(&token_d),
+                    hybrid: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -10248,14 +10305,17 @@ mod router_hop_tests {
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
+                    hybrid: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&token_c),
                     ask_asset_info: asset_info_token(&token_d),
+                    hybrid: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -10318,10 +10378,8 @@ mod router_hop_tests {
             ("B-C", &pool_bc_before, &pool_bc_after),
             ("C-D", &pool_cd_before, &pool_cd_after),
         ] {
-            let k_before =
-                before.assets[0].amount.u128() as u128 * before.assets[1].amount.u128() as u128;
-            let k_after =
-                after.assets[0].amount.u128() as u128 * after.assets[1].amount.u128() as u128;
+            let k_before = before.assets[0].amount.u128() * before.assets[1].amount.u128();
+            let k_after = after.assets[0].amount.u128() * after.assets[1].amount.u128();
             assert!(k_after >= k_before, "K invariant violated on {name} pair");
         }
     }
@@ -10333,7 +10391,7 @@ mod router_hop_tests {
 #[cfg(test)]
 mod reentrancy_tests {
     use super::helpers::*;
-    use cosmwasm_std::{to_json_binary, Addr, Uint128};
+    use cosmwasm_std::{to_json_binary, Uint128};
     use cw_multi_test::{App, Executor};
 
     #[test]
@@ -10448,6 +10506,7 @@ mod reentrancy_tests {
             max_spread: Some(cosmwasm_std::Decimal::one()),
             to: None,
             deadline: None,
+            hybrid: None,
             trader: None,
         })
         .unwrap();
@@ -10783,6 +10842,7 @@ mod wrap_router_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -10837,6 +10897,7 @@ mod wrap_router_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -10887,6 +10948,7 @@ mod wrap_router_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -10989,10 +11051,12 @@ mod wrap_router_tests {
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
+                    hybrid: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -11042,6 +11106,7 @@ mod wrap_router_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -11093,6 +11158,7 @@ mod wrap_router_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999_999)),
@@ -11215,10 +11281,12 @@ mod wrap_router_tests {
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_a),
                             ask_asset_info: asset_info_token(&env.token_b),
+                            hybrid: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_b),
                             ask_asset_info: asset_info_token(&env.lunc_c),
+                            hybrid: None,
                         },
                     ],
                 },
@@ -11231,10 +11299,12 @@ mod wrap_router_tests {
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&env.lunc_c),
+                    hybrid: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -11708,6 +11778,7 @@ mod wrap_integration_tests {
 
     // ── E2E wrap env: factory + pair(LUNC-C / token_b) + router + treasury + wrap-mapper ──
 
+    #[allow(dead_code)]
     struct E2eWrapEnv {
         pub factory: Addr,
         pub token_b: Addr,
@@ -11994,6 +12065,7 @@ mod wrap_integration_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.lunc_c),
                 ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -12081,6 +12153,7 @@ mod wrap_integration_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_b),
                 ask_asset_info: asset_info_token(&env.lunc_c),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -12338,6 +12411,7 @@ mod wrap_integration_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&ustc_c),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -14876,6 +14950,7 @@ mod ustr_cmm_d8b0afd_tests {
             operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&token_b),
+                hybrid: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,

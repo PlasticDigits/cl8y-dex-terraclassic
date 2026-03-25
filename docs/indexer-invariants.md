@@ -6,7 +6,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 
 - **Indexer task:** LCD → parse txs → Postgres (swaps, candles, traders, positions, hooks, oracle rows).
 - **API task:** Axum GET handlers → SQLx (parameterized) → JSON.
-- **Shared state:** `AppState` (pool, LCD client, USTC price cache, ticker map cache, orderbook cache).
+- **Shared state:** `AppState` (pool, LCD client, USTC price cache, ticker map cache, orderbook cache, optional `router_address` for route simulation).
 
 ## API invariants
 

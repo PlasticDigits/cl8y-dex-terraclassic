@@ -8,6 +8,7 @@ mod oracle;
 pub mod orderbook_sim;
 mod overview;
 mod pairs;
+mod route_solver;
 mod tokens;
 mod traders;
 
@@ -49,6 +50,8 @@ pub struct AppState {
     pub ustc_price: SharedPrice,
     pub ticker_map_cache: TickerMapCache,
     pub orderbook_cache: orderbook_sim::OrderbookCache,
+    /// Set when `ROUTER_ADDRESS` is configured (LCD simulation in route solver).
+    pub router_address: Option<String>,
 }
 
 pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
@@ -260,6 +263,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
+        .route("/api/v1/route/solve", get(route_solver::solve_route))
         .route("/api/v1/oracle/price", get(oracle::get_oracle_price))
         .route("/api/v1/oracle/history", get(oracle::get_oracle_history))
         .route("/cg/pairs", get(cg::cg_pairs))
@@ -312,12 +316,14 @@ pub async fn serve(
     config: Config,
     ustc_price: SharedPrice,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let router_address = config.router_address.clone();
     let state = AppState {
         pool,
         lcd,
         ustc_price,
         ticker_map_cache: TickerMapCache::default(),
         orderbook_cache: orderbook_sim::OrderbookCache::default(),
+        router_address,
     };
     let app = build_router(state, &config);
 
