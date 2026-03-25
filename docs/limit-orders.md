@@ -13,16 +13,31 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 ### Swap with Pattern C (`Cw20HookMsg::Swap`)
 
 - **`hybrid`:** optional [`HybridSwapParams`](../smartcontracts/packages/dex-common/src/pair.rs): `pool_input`, `book_input` (must sum to the CW20 `amount`), `max_maker_fills`, optional `book_start_hint` (order id).
-- **`MAX_ADJUST_STEPS`:** placement uses `PlaceLimitOrder { max_adjust_steps }`; swap book walk uses the same bounded linear adjustment from `book_start_hint` (see pair contract). Hard caps: `MAX_ADJUST_STEPS_HARD_CAP` / `MAX_MAKER_FILLS_HARD_CAP` in `dex-common::pair`.
+- **Match walk:** If `book_start_hint` is set and that order id still exists, matching starts from that id; otherwise it starts from the book head (see `orderbook::match_bids` / `match_asks`).
+- **`MAX_ADJUST_STEPS`:** placement uses `PlaceLimitOrder { max_adjust_steps }` to cap the linear walk when finding an insert position from the **book head**. Hard caps: `MAX_ADJUST_STEPS_HARD_CAP` / `MAX_MAKER_FILLS_HARD_CAP` in `dex-common::pair`.
 
 ### Place / cancel limit
 
 - **`Cw20HookMsg::PlaceLimitOrder`:** `side`, `price`, `hint_after_order_id`, `max_adjust_steps`.
-- **`ExecuteMsg::CancelLimitOrder`:** `order_id`.
+- **`hint_after_order_id`:** reserved for future indexer-assisted insertion. The **current implementation ignores this field** and always walks from the book head (same as `find_insert_bid` / `find_insert_ask` in the pair crate). Clients may send `null`; wire compatibility is preserved.
+- **`ExecuteMsg::CancelLimitOrder`:** `order_id`. Only the stored **owner** may cancel.
 
 ### Router
 
 - Each `SwapOperation::TerraSwap` may include `hybrid: Option<HybridSwapParams>` (same fields as the pair hook). `None` is legacy pool-only.
+- **`SimulateSwapOperations` / `ReverseSimulateSwapOperations`:** the router **does not** apply `hybrid` when querying the pair — it only uses each hop’s pool `Simulation` / `ReverseSimulation`, which are **AMM-only** and do not include limit-book fills. Quotes can diverge from executed hybrid swaps whenever the on-chain book is non-empty. See [contracts-security-audit.md](./contracts-security-audit.md) invariant **L8**.
+
+### Pair `Simulation` query
+
+- The pair’s `Simulation` / `ReverseSimulation` queries use **reserves only** (no book). Off-chain tooling must not treat them as hybrid-aware.
+
+### Pause (governance)
+
+- When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders) and **`CancelLimitOrder` is blocked**, so maker escrow cannot be refunded until unpause. This is a **governance/ops** risk surface (see [contracts-security-audit.md](./contracts-security-audit.md) **L6** and residual risks).
+
+### Post-swap hooks and hybrid
+
+- For hybrid swaps, `AfterSwap.return_asset.amount` is the **total** output (book + pool legs). `commission_amount` and `spread_amount` in the hook payload reflect the **pool leg only**; book-side fees are sent to `treasury` inside the book match path. Hooks and indexers must not assume `commission_amount` is the full fee for the transaction. See invariant **L7** in [contracts-security-audit.md](./contracts-security-audit.md).
 
 ## Ordering (composite key, FIFO)
 

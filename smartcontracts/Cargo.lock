@@ -195,6 +195,7 @@ dependencies = [
  "cw20",
  "cw20-mintable",
  "dex-common",
+ "proptest",
  "schemars",
  "serde",
  "thiserror",
