@@ -577,3 +577,92 @@ pub fn query_head(storage: &dyn Storage, side: LimitOrderSide) -> StdResult<Opti
         LimitOrderSide::Ask => Ok(HEAD_ASK.may_load(storage)?.flatten()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    #[test]
+    fn bid_head_is_best_price_then_fifo() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let a = Addr::unchecked("alice");
+        let b = Addr::unchecked("bob");
+        let id_worse = insert_bid(
+            storage,
+            Decimal::percent(50),
+            Uint128::new(100),
+            a.clone(),
+            None,
+            32,
+        )
+        .unwrap();
+        let id_better =
+            insert_bid(storage, Decimal::one(), Uint128::new(100), b, None, 32).unwrap();
+        assert_ne!(id_worse, id_better);
+        let head = query_head(storage, LimitOrderSide::Bid).unwrap().unwrap();
+        assert_eq!(head, id_better);
+        let lo = load_order_response(storage, head).unwrap();
+        assert_eq!(lo.price, Decimal::one());
+    }
+
+    #[test]
+    fn ask_head_is_best_price_then_fifo() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let a = Addr::unchecked("alice");
+        let b = Addr::unchecked("bob");
+        let _id_worse = insert_ask(
+            storage,
+            Decimal::from_atomics(2u128, 0).unwrap(),
+            Uint128::new(100),
+            a.clone(),
+            None,
+            32,
+        )
+        .unwrap();
+        let id_better =
+            insert_ask(storage, Decimal::one(), Uint128::new(100), b, None, 32).unwrap();
+        let head = query_head(storage, LimitOrderSide::Ask).unwrap().unwrap();
+        assert_eq!(head, id_better);
+        let lo = load_order_response(storage, head).unwrap();
+        assert_eq!(lo.price, Decimal::one());
+    }
+
+    #[test]
+    fn unlink_order_repairs_doubly_linked_list() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50),
+            o.clone(),
+            None,
+            32,
+        )
+        .unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_atomics(99u128, 2).unwrap(),
+            Uint128::new(50),
+            o.clone(),
+            None,
+            32,
+        )
+        .unwrap();
+        assert_eq!(
+            query_head(storage, LimitOrderSide::Bid).unwrap().unwrap(),
+            id1
+        );
+        unlink_order(storage, id1).unwrap();
+        assert_eq!(
+            query_head(storage, LimitOrderSide::Bid).unwrap().unwrap(),
+            id2
+        );
+        let lo2 = load_order_response(storage, id2).unwrap();
+        assert!(lo2.prev.is_none());
+    }
+}

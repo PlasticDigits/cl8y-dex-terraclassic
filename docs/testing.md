@@ -17,7 +17,24 @@ cargo test --lib          # fast, no Postgres
 cargo test --tests        # needs Postgres + migrations
 ```
 
-See [Indexer invariants](./indexer-invariants.md) for the full matrix.
+#### Shared Postgres and test parallelism
+
+Integration tests call [`tests/common/mod.rs`](../indexer/tests/common/mod.rs) helpers that **truncate and re-seed** the same database. With default Cargo/Rust test parallelism, multiple integration test **binaries** and multiple **tests per binary** can run concurrently against that DB, which can surface as duplicate unique keys (e.g. on `assets.denom`) or foreign-key violations—not application bugs.
+
+When using a **single** shared test database (typical local or CI), prefer serialized execution:
+
+```bash
+cd indexer
+export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:5432/dex_indexer_test}"
+cargo test --tests -j 1 -- --test-threads=1
+```
+
+- **`-j 1`** — run one integration test crate at a time (reduces cross-crate contention).
+- **`--test-threads=1`** — run tests inside each binary one at a time (reduces intra-crate contention).
+
+Start Postgres (for example `docker compose up -d postgres` from the repo root) and ensure the target database exists (e.g. `CREATE DATABASE dex_indexer_test;`) before the first run.
+
+See [Indexer invariants](./indexer-invariants.md) for the full matrix and the same note under **Running tests**.
 
 ### Unit Tests (Rust)
 

@@ -27,6 +27,8 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | Abuse: response size | `CompressionLayer` | Reduces bandwidth cost | Operational |
 | LCD amplification | Orderbook responses cached 30s per `(pair, depth)` | Repeated CG/CMC orderbook hits reuse cache | [`orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs), [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs) (wiremock LCD) |
 | Ticker resolution load | Full ticker→pair map cached 30s | Reduces DB scans on CG/CMC | [`api/mod.rs`](../indexer/src/api/mod.rs) |
+| Route discovery | `GET /api/v1/route/solve` — BFS over indexed pairs (max 4 hops); `token_in` / `token_out` must match `assets.contract_address` (native-only assets without a contract address are not routable) | Unknown token → **400**; no path → **404** | [`route_solver.rs`](../indexer/src/api/route_solver.rs), [`api_route_solve.rs`](../indexer/tests/api_route_solve.rs) |
+| Route simulation | Optional `estimated_amount_out` when `amount_in` is set **and** `ROUTER_ADDRESS` env is configured | LCD `simulate_swap_operations` on router; otherwise field omitted | Same; requires live LCD in production |
 
 ## Indexing invariants
 
@@ -57,6 +59,8 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 - **Integration tests:** Require PostgreSQL and migrations (e.g. CI service or `TEST_DATABASE_URL`). `cd indexer && cargo test --tests`. Orderbook routes are also covered with a **wiremock** stub of the LCD `pool` smart query ([`tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock.rs)).
 
 Integration tests **fail fast** if the database is unreachable (see [`tests/common/mod.rs`](../indexer/tests/common/mod.rs)).
+
+**Shared DB / flaky tests:** If you see sporadic duplicate-key or FK errors against one database, run tests with serialized parallelism as documented in [Testing — Shared Postgres and test parallelism](./testing.md#shared-postgres-and-test-parallelism) (`cargo test --tests -j 1 -- --test-threads=1`).
 
 ## Maintenance
 

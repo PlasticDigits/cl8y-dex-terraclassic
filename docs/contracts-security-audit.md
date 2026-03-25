@@ -20,7 +20,7 @@ This document is the **in-repo security audit and invariant matrix** for the Cos
 | Crate / path                                       | Role                                                                                                              |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `cl8y-dex-factory`                                 | Pair creation, whitelist, governance-only pair config (fees, hooks, discount registry, pause, sweep).             |
-| `cl8y-dex-pair`                                    | Constant-product AMM, reserves, fees, TWAP observations, post-swap hooks, pause/sweep.                            |
+| `cl8y-dex-pair`                                    | Constant-product AMM, reserves, fees, TWAP observations, post-swap hooks, pause/sweep, **FIFO limit book** + Pattern C hybrid swaps. |
 | `cl8y-dex-router`                                  | Multi-hop swaps, `SwapState` + reply chain, `trader` forwarding for discounts, optional unwrap via `wrap_mapper`. |
 | `cl8y-dex-fee-discount`                            | Tiered discounts, EOA registration, trusted routers, lazy deregistration.                                         |
 | `cl8y-dex-burn-hook` / `tax-hook` / `lp-burn-hook` | Post-swap callbacks; gated by **allowed caller** (expected: real pair contracts).                                 |
@@ -49,6 +49,12 @@ Each row states a property that should **always** hold (under the trust model). 
 | H2  | **LP burn hook + forged `pair`** — if a **non-pair** address is allowlisted, spoofed `AfterSwap` can drive burns (governance misconfiguration risk) | [lp-burn-hook `execute_after_swap](../smartcontracts/contracts/hooks/lp-burn-hook/src/contract.rs)`    | `adversarial_token::lp_burn_hook_accepts_spoofed_pair_when_spoofer_allowlisted`                                                                      |
 | W1  | **Treasury collateralization** — native backing ≥ CW20 wrapped supply (wrap-mapper / treasury harness)                                              | External `treasury` / `wrap-mapper`                                                                    | `wrap_security_tests::test_wrap_mapper_reentrancy` (invariant check); `wrap_security_tests::test_unwrap_exceeds_treasury_balance`; `wrap_fuzz_tests::prop_wrap_unwrap_treasury_invariant`; [NATIVE_TOKEN_WRAPPING.md](../NATIVE_TOKEN_WRAPPING.md) |
 
+
+## Limit orders and hybrid swaps (pair)
+
+- **Escrow:** Bids lock **token1** and asks lock **token0** in pending escrow; balances are excluded from reserves and sweep ([`limit-orders.md`](./limit-orders.md)).
+- **Bounded work:** `max_adjust_steps` (placement) and `book_start_hint` (swap) cap linear walks; `max_maker_fills` caps distinct makers per tx (`MAX_*_HARD_CAP` in `dex-common::pair`).
+- **Economic:** Taker flow matches book then pool; fee and spread checks apply to the combined path. Integration coverage: `cl8y-dex-tests::limit_order_tests`, pair `orderbook` unit tests.
 
 ## Attack paths considered (non-governance)
 

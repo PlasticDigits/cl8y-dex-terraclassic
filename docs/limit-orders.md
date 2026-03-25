@@ -2,6 +2,12 @@
 
 This document is the implementation reference for the hybrid AMM + FIFO limit book. Canonical message shapes live in [`smartcontracts/packages/dex-common/src/pair.rs`](../smartcontracts/packages/dex-common/src/pair.rs).
 
+## Exchange API “orderbook” vs on-chain limit book
+
+CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorderbook) and [`GET /cmc/orderbook/:market_pair`](./CG_CMC_COMPLIANCE.md#get-cmcorderbookmarket_pair) return an **AMM-simulated** level-2 book (walking the bonding curve). That is **not** the FIFO limit book stored on pairs.
+
+**Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. The indexer does not currently expose these as HTTP proxy endpoints; [`GET /api/v1/route/solve`](./indexer-invariants.md) only discovers routes and returns pool-only `hybrid: null` operations (clients patch `hybrid` off-chain if needed).
+
 ## Messages (CosmWasm)
 
 ### Swap with Pattern C (`Cw20HookMsg::Swap`)
@@ -35,6 +41,7 @@ When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker
 - **`GET /api/v1/route/solve`** — query params: `token_in`, `token_out` (CW20 addresses indexed in `assets`), optional `amount_in` (raw integer string).
 - Returns `hops` (pair + offer/ask tokens per hop), `router_operations` (TerraSwap ops with `hybrid: null` for pool-only routing).
 - Optional **`estimated_amount_out`:** set when `amount_in` is provided **and** `ROUTER_ADDRESS` is configured; the indexer calls the router `simulate_swap_operations` query on LCD.
+- **Running indexer integration tests:** route tests live under [`indexer/tests/api_route_solve.rs`](../indexer/tests/api_route_solve.rs). They need Postgres; if multiple tests share one DB, use the serialized commands in [Testing — Shared Postgres and test parallelism](./testing.md#shared-postgres-and-test-parallelism).
 
 ## Tx attributes (indexer / analytics)
 
@@ -51,3 +58,40 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `limit_book_offer_consumed` | When the book leg consumed offer token |
 
 Fine-grained per-fill lines are not required for basic sync; the indexer can combine on-chain queries (`LimitOrder`, `OrderBookHead`) with these attributes for reconciliation.
+
+The **tx indexer** does not yet persist hybrid/limit-specific attributes into dedicated tables; treat chain queries and logs as authoritative for book-level analytics until extended.
+
+## Example JSON (logical shapes)
+
+`Cw20HookMsg::PlaceLimitOrder` (inside CW20 `send.msg`):
+
+```json
+{
+  "place_limit_order": {
+    "side": "bid",
+    "price": "1.0",
+    "hint_after_order_id": null,
+    "max_adjust_steps": 32
+  }
+}
+```
+
+`Cw20HookMsg::Swap` with Pattern C (book leg only; amounts are raw integer strings):
+
+```json
+{
+  "swap": {
+    "belief_price": null,
+    "max_spread": "1",
+    "to": null,
+    "deadline": null,
+    "trader": null,
+    "hybrid": {
+      "pool_input": "0",
+      "book_input": "1000000",
+      "max_maker_fills": 8,
+      "book_start_hint": null
+    }
+  }
+}
+```
