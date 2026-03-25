@@ -53,6 +53,9 @@ pub struct LimitOrder {
     pub price: Decimal,
     pub remaining: Uint128,
     pub side: LimitOrderSide,
+    /// `None` = never expires (also default for orders stored before this field existed).
+    #[serde(default)]
+    pub expires_at: Option<u64>,
     pub prev: Option<u64>,
     pub next: Option<u64>,
 }

@@ -71,6 +71,16 @@ mod helpers {
         Box::new(contract)
     }
 
+    pub fn burn_hook_contract_with_reply() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            cl8y_dex_burn_hook::contract::execute,
+            cl8y_dex_burn_hook::contract::instantiate,
+            cl8y_dex_burn_hook::contract::query,
+        )
+        .with_reply(cl8y_dex_burn_hook::contract::reply);
+        Box::new(contract)
+    }
+
     pub fn tax_hook_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
         let contract = ContractWrapper::new(
             cl8y_dex_tax_hook::contract::execute,
@@ -80,12 +90,32 @@ mod helpers {
         Box::new(contract)
     }
 
+    pub fn tax_hook_contract_with_reply() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            cl8y_dex_tax_hook::contract::execute,
+            cl8y_dex_tax_hook::contract::instantiate,
+            cl8y_dex_tax_hook::contract::query,
+        )
+        .with_reply(cl8y_dex_tax_hook::contract::reply);
+        Box::new(contract)
+    }
+
     pub fn lp_burn_hook_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
         let contract = ContractWrapper::new(
             cl8y_dex_lp_burn_hook::contract::execute,
             cl8y_dex_lp_burn_hook::contract::instantiate,
             cl8y_dex_lp_burn_hook::contract::query,
         );
+        Box::new(contract)
+    }
+
+    pub fn lp_burn_hook_contract_with_reply() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            cl8y_dex_lp_burn_hook::contract::execute,
+            cl8y_dex_lp_burn_hook::contract::instantiate,
+            cl8y_dex_lp_burn_hook::contract::query,
+        )
+        .with_reply(cl8y_dex_lp_burn_hook::contract::reply);
         Box::new(contract)
     }
 
@@ -3937,6 +3967,8 @@ mod hook_coverage_tests {
     use super::helpers::*;
     use cosmwasm_std::{Addr, Uint128};
     use cw_multi_test::{App, Executor};
+    use dex_common::hook::HookExecuteMsg;
+    use dex_common::types::{Asset, AssetInfo};
 
     #[test]
     fn test_burn_hook_instantiate_and_config() {
@@ -4192,6 +4224,404 @@ mod hook_coverage_tests {
             )
             .unwrap_err();
         assert!(err.root_cause().to_string().contains("Invalid"));
+    }
+
+    #[test]
+    fn test_burn_hook_skips_mismatched_output_token() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let burn_hook_code_id = app.store_code(burn_hook_contract());
+        let burn_hook = app
+            .instantiate_contract(
+                burn_hook_code_id,
+                env.governance.clone(),
+                &cl8y_dex_burn_hook::msg::InstantiateMsg {
+                    burn_token: env.token_a.to_string(),
+                    burn_percentage_bps: 1000,
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "burn_hook",
+                None,
+            )
+            .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            burn_hook.clone(),
+            &cl8y_dex_burn_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        let res = app
+            .execute_contract(
+                env.pair.clone(),
+                burn_hook,
+                &cl8y_dex_burn_hook::msg::ExecuteMsg::Hook(HookExecuteMsg::AfterSwap {
+                    pair: env.pair.clone(),
+                    sender: env.user.clone(),
+                    offer_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_a.to_string(),
+                        },
+                        amount: Uint128::new(1),
+                    },
+                    return_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_b.to_string(),
+                        },
+                        amount: Uint128::new(1000),
+                    },
+                    commission_amount: Uint128::zero(),
+                    spread_amount: Uint128::zero(),
+                }),
+                &[],
+            )
+            .unwrap();
+
+        let attrs: String = res
+            .events
+            .iter()
+            .flat_map(|e| e.attributes.iter())
+            .map(|a| format!("{}={}", a.key, a.value))
+            .collect::<Vec<_>>()
+            .join(";");
+        assert!(
+            attrs.contains("skipped") && attrs.contains("burn_token"),
+            "attrs={}",
+            attrs
+        );
+    }
+
+    #[test]
+    fn test_tax_hook_skips_mismatched_output_token() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let tax_recipient = Addr::unchecked("tax_recipient_skip");
+        let tax_hook_code_id = app.store_code(tax_hook_contract_with_reply());
+        let tax_hook = app
+            .instantiate_contract(
+                tax_hook_code_id,
+                env.governance.clone(),
+                &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                    recipient: tax_recipient.to_string(),
+                    tax_percentage_bps: 500,
+                    tax_token: env.token_a.to_string(),
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "tax_hook",
+                None,
+            )
+            .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            tax_hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        let res = app
+            .execute_contract(
+                env.pair.clone(),
+                tax_hook,
+                &cl8y_dex_tax_hook::msg::ExecuteMsg::Hook(HookExecuteMsg::AfterSwap {
+                    pair: env.pair.clone(),
+                    sender: env.user.clone(),
+                    offer_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_a.to_string(),
+                        },
+                        amount: Uint128::new(1),
+                    },
+                    return_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_b.to_string(),
+                        },
+                        amount: Uint128::new(1000),
+                    },
+                    commission_amount: Uint128::zero(),
+                    spread_amount: Uint128::zero(),
+                }),
+                &[],
+            )
+            .unwrap();
+
+        let attrs: String = res
+            .events
+            .iter()
+            .flat_map(|e| e.attributes.iter())
+            .map(|a| format!("{}={}", a.key, a.value))
+            .collect::<Vec<_>>()
+            .join(";");
+        assert!(
+            attrs.contains("skipped") && attrs.contains("tax_token"),
+            "attrs={}",
+            attrs
+        );
+    }
+
+    #[test]
+    fn test_tax_hook_skips_zero_tax_after_config_update() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let tax_recipient = Addr::unchecked("tax_recipient_zero");
+        let tax_hook_code_id = app.store_code(tax_hook_contract_with_reply());
+        let tax_hook = app
+            .instantiate_contract(
+                tax_hook_code_id,
+                env.governance.clone(),
+                &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                    recipient: tax_recipient.to_string(),
+                    tax_percentage_bps: 100,
+                    tax_token: env.token_b.to_string(),
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "tax_hook",
+                None,
+            )
+            .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            tax_hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            tax_hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateConfig {
+                recipient: None,
+                tax_percentage_bps: Some(0),
+                tax_token: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let res = app
+            .execute_contract(
+                env.pair.clone(),
+                tax_hook,
+                &cl8y_dex_tax_hook::msg::ExecuteMsg::Hook(HookExecuteMsg::AfterSwap {
+                    pair: env.pair.clone(),
+                    sender: env.user.clone(),
+                    offer_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_a.to_string(),
+                        },
+                        amount: Uint128::new(1),
+                    },
+                    return_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_b.to_string(),
+                        },
+                        amount: Uint128::new(10_000),
+                    },
+                    commission_amount: Uint128::zero(),
+                    spread_amount: Uint128::zero(),
+                }),
+                &[],
+            )
+            .unwrap();
+
+        let attrs: String = res
+            .events
+            .iter()
+            .flat_map(|e| e.attributes.iter())
+            .map(|a| format!("{}={}", a.key, a.value))
+            .collect::<Vec<_>>()
+            .join(";");
+        assert!(
+            attrs.contains("skipped") && attrs.contains("tax_amount"),
+            "attrs={}",
+            attrs
+        );
+    }
+
+    #[test]
+    fn test_lp_burn_hook_skips_mismatched_pair() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let lp_burn_code_id = app.store_code(lp_burn_hook_contract_with_reply());
+        let lp_burn_hook = app
+            .instantiate_contract(
+                lp_burn_code_id,
+                env.governance.clone(),
+                &cl8y_dex_lp_burn_hook::msg::InstantiateMsg {
+                    target_pair: env.pair.to_string(),
+                    lp_token: env.lp_token.to_string(),
+                    percentage_bps: 100,
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "lp_burn_hook",
+                None,
+            )
+            .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            lp_burn_hook.clone(),
+            &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        let other = Addr::unchecked("other_pair");
+        let res = app
+            .execute_contract(
+                env.pair.clone(),
+                lp_burn_hook,
+                &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::Hook(HookExecuteMsg::AfterSwap {
+                    pair: other,
+                    sender: env.user.clone(),
+                    offer_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_a.to_string(),
+                        },
+                        amount: Uint128::new(1),
+                    },
+                    return_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_b.to_string(),
+                        },
+                        amount: Uint128::new(10_000),
+                    },
+                    commission_amount: Uint128::zero(),
+                    spread_amount: Uint128::zero(),
+                }),
+                &[],
+            )
+            .unwrap();
+
+        let attrs: String = res
+            .events
+            .iter()
+            .flat_map(|e| e.attributes.iter())
+            .map(|a| format!("{}={}", a.key, a.value))
+            .collect::<Vec<_>>()
+            .join(";");
+        assert!(
+            attrs.contains("skipped") && attrs.contains("target_pair"),
+            "attrs={}",
+            attrs
+        );
+    }
+
+    #[test]
+    fn test_lp_burn_hook_update_allowed_pairs_roundtrip() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let lp_burn_code_id = app.store_code(lp_burn_hook_contract());
+        let lp_burn_hook = app
+            .instantiate_contract(
+                lp_burn_code_id,
+                env.governance.clone(),
+                &cl8y_dex_lp_burn_hook::msg::InstantiateMsg {
+                    target_pair: env.pair.to_string(),
+                    lp_token: env.lp_token.to_string(),
+                    percentage_bps: 100,
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "lp_burn_hook",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            lp_burn_hook.clone(),
+            &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            lp_burn_hook.clone(),
+            &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![],
+                remove: vec![env.pair.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.pair.clone(),
+                lp_burn_hook,
+                &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::Hook(HookExecuteMsg::AfterSwap {
+                    pair: env.pair.clone(),
+                    sender: env.user.clone(),
+                    offer_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_a.to_string(),
+                        },
+                        amount: Uint128::new(1),
+                    },
+                    return_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_b.to_string(),
+                        },
+                        amount: Uint128::new(100),
+                    },
+                    commission_amount: Uint128::zero(),
+                    spread_amount: Uint128::zero(),
+                }),
+                &[],
+            )
+            .unwrap_err();
+        assert!(err.root_cause().to_string().contains("Unauthorized"));
+    }
+
+    #[test]
+    fn test_burn_hook_contract_with_reply_instantiates() {
+        let mut app = App::default();
+        let admin = Addr::unchecked("admin");
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let burn_hook_code_id = app.store_code(burn_hook_contract_with_reply());
+        let burn_token = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &admin,
+            "BurnToken",
+            "BURN",
+            Uint128::new(1_000_000),
+        );
+        app.instantiate_contract(
+            burn_hook_code_id,
+            admin.clone(),
+            &cl8y_dex_burn_hook::msg::InstantiateMsg {
+                burn_token: burn_token.to_string(),
+                burn_percentage_bps: 500,
+                admin: admin.to_string(),
+            },
+            &[],
+            "burn_hook_reply",
+            None,
+        )
+        .unwrap();
     }
 }
 
@@ -7192,6 +7622,68 @@ mod line_coverage_tests {
             .unwrap();
 
         assert!(!code_ids.code_ids.is_empty());
+    }
+
+    /// `next` is the last id on the page when more results exist; page 2 uses exclusive `start_after`.
+    #[test]
+    fn test_factory_whitelisted_code_ids_pagination_no_duplicate_ids() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let extra_a = app.store_code(cw20_mintable_contract());
+        let extra_b = app.store_code(cw20_mintable_contract());
+
+        for code_id in [extra_a, extra_b] {
+            app.execute_contract(
+                env.governance.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId { code_id },
+                &[],
+            )
+            .unwrap();
+        }
+
+        let page1: dex_common::factory::CodeIdsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.factory.to_string(),
+                &dex_common::factory::QueryMsg::GetWhitelistedCodeIds {
+                    start_after: None,
+                    limit: Some(2),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(page1.code_ids.len(), 2);
+        assert!(
+            page1.next.is_some(),
+            "expected next cursor when more than two code ids exist"
+        );
+
+        let page2: dex_common::factory::CodeIdsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.factory.to_string(),
+                &dex_common::factory::QueryMsg::GetWhitelistedCodeIds {
+                    start_after: page1.next,
+                    limit: Some(2),
+                },
+            )
+            .unwrap();
+
+        for id in &page2.code_ids {
+            assert!(
+                !page1.code_ids.contains(id),
+                "page 2 must not repeat page 1 ids"
+            );
+        }
+
+        if let (Some(&last_p1), Some(&first_p2)) = (page1.code_ids.last(), page2.code_ids.first()) {
+            assert!(
+                first_p2 > last_p1,
+                "second page must be strictly after the last id of the first page"
+            );
+        }
     }
 
     #[test]

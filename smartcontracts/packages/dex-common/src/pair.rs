@@ -56,6 +56,9 @@ pub struct LimitOrderResponse {
     pub price: Decimal,
     /// Remaining escrow: token1 for bids, token0 for asks.
     pub remaining: Uint128,
+    /// Unix seconds when the order stops being matchable (`None` = no expiry).
+    #[serde(default)]
+    pub expires_at: Option<u64>,
     pub prev: Option<u64>,
     pub next: Option<u64>,
 }
@@ -153,6 +156,9 @@ pub enum Cw20HookMsg {
         hint_after_order_id: Option<u64>,
         /// Max steps when walking the book from the **head** to find the insert position.
         max_adjust_steps: u32,
+        /// Unix seconds after which the order is no longer matched (must be `> now` if set).
+        #[serde(default)]
+        expires_at: Option<u64>,
     },
     /// Burn LP tokens and receive underlying assets pro-rata.
     /// Optional `min_assets` protects against sandwich attacks by reverting

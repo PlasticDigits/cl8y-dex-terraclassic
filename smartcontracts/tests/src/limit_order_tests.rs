@@ -26,6 +26,7 @@ fn place_bid_with_steps(
         price,
         hint_after_order_id: None,
         max_adjust_steps,
+        expires_at: None,
     })
     .unwrap();
     let res = app
@@ -76,6 +77,7 @@ fn place_ask(
         price,
         hint_after_order_id: None,
         max_adjust_steps: 32,
+        expires_at: None,
     })
     .unwrap();
     let res = app
@@ -265,6 +267,242 @@ fn ask_and_hybrid_swap_partially_fills_book() {
     assert!(lo.remaining < ask_escrow);
 }
 
+/// Non-unity bid price: fee is taken in token1; treasury receives token1 commission.
+#[test]
+fn hybrid_bid_non_unity_price_treasury_and_escrow_coherent() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_nu_bid");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let price = Decimal::from_ratio(2u128, 1u128);
+    let bid_escrow = Uint128::new(2_000_000);
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        bid_escrow,
+        price,
+    );
+
+    let tre_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+    let swap_in = Uint128::new(100_000);
+    swap_a_to_b_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_a,
+        swap_in,
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+    );
+
+    let cost_token1 = Uint128::new(200_000);
+    let commission = cost_token1.multiply_ratio(30u128, 10_000u128);
+    let net_to_taker = cost_token1.checked_sub(commission).unwrap();
+
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert_eq!(lo.remaining, bid_escrow.checked_sub(cost_token1).unwrap());
+
+    let taker_b = query_cw20_balance(&app, &env.token_b, &taker);
+    assert_eq!(taker_b, net_to_taker);
+
+    let tre_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+    assert_eq!(tre_b_after.checked_sub(tre_b_before).unwrap(), commission);
+}
+
+/// Non-unity ask price: fee on token0 output; treasury receives token0 commission (ask-side fix).
+#[test]
+fn hybrid_ask_non_unity_price_treasury_fee_in_token0() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_nu_ask");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let price = Decimal::from_ratio(1u128, 10u128);
+    let ask_escrow = Uint128::new(1_000_000);
+    let order_id = place_ask(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_a,
+        ask_escrow,
+        price,
+    );
+
+    let tre_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+    let swap_in = Uint128::new(50_000);
+    swap_b_to_a_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_b,
+        swap_in,
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+    );
+
+    let fill_t0 = Uint128::new(500_000);
+    let commission = fill_t0.multiply_ratio(30u128, 10_000u128);
+    let net_t0 = fill_t0.checked_sub(commission).unwrap();
+
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert_eq!(lo.remaining, ask_escrow.checked_sub(fill_t0).unwrap());
+
+    let taker_a = query_cw20_balance(&app, &env.token_a, &taker);
+    assert_eq!(taker_a, net_t0);
+
+    let tre_a_after = query_cw20_balance(&app, &env.token_a, &env.treasury);
+    assert_eq!(tre_a_after.checked_sub(tre_a_before).unwrap(), commission);
+}
+
+#[test]
+fn place_limit_order_expiry_not_future_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let now = app.block_info().time.seconds();
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
+        side: LimitOrderSide::Bid,
+        price: Decimal::one(),
+        hint_after_order_id: None,
+        max_adjust_steps: 32,
+        expires_at: Some(now),
+    })
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(10_000),
+                msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    // `InvalidHybridParams` display is generic; `reason` is only in Debug.
+    let s = format!("{:?}", err.root_cause());
+    assert!(s.contains("expires_at") || s.contains("future"), "{}", s);
+}
+
+#[test]
+fn expired_bid_skipped_on_hybrid_swap_without_maker_credit() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
+        side: LimitOrderSide::Bid,
+        price: Decimal::one(),
+        hint_after_order_id: None,
+        max_adjust_steps: 32,
+        expires_at: Some(exp),
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(10_000),
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+    let order_id = parse_limit_order_placed(&res.events);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    swap_a_to_b_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_a,
+        Uint128::new(5_000),
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(5_000),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+    );
+
+    let res: Result<LimitOrderResponse, _> = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::LimitOrder { order_id });
+    assert!(
+        res.is_err(),
+        "expired order should be unlinked, not queryable"
+    );
+}
+
 #[test]
 fn cancel_limit_order_refunds_escrow() {
     let mut app = App::default();
@@ -317,6 +555,7 @@ fn place_limit_order_wrong_escrow_token_rejected() {
         price: Decimal::one(),
         hint_after_order_id: None,
         max_adjust_steps: 32,
+        expires_at: None,
     })
     .unwrap();
     let err = app
@@ -476,7 +715,7 @@ fn hybrid_max_maker_zero_with_book_rejected() {
 }
 
 #[test]
-fn pause_blocks_swap_place_and_cancel() {
+fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     provide_liquidity(
@@ -534,6 +773,7 @@ fn pause_blocks_swap_place_and_cancel() {
         price: Decimal::one(),
         hint_after_order_id: None,
         max_adjust_steps: 32,
+        expires_at: None,
     })
     .unwrap();
     assert!(app
@@ -549,14 +789,20 @@ fn pause_blocks_swap_place_and_cancel() {
         )
         .is_err());
 
-    assert!(app
-        .execute_contract(
-            env.user.clone(),
-            env.pair.clone(),
-            &ExecuteMsg::CancelLimitOrder { order_id },
-            &[],
-        )
-        .is_err());
+    // Cancel is allowed while paused so makers can recover escrow.
+    let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::CancelLimitOrder { order_id },
+        &[],
+    )
+    .unwrap();
+    let bal_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        bal_after.checked_sub(bal_before).unwrap(),
+        Uint128::new(50_000)
+    );
 
     app.execute_contract(
         env.governance.clone(),
@@ -565,14 +811,6 @@ fn pause_blocks_swap_place_and_cancel() {
             pair: env.pair.to_string(),
             paused: false,
         },
-        &[],
-    )
-    .unwrap();
-
-    app.execute_contract(
-        env.user.clone(),
-        env.pair.clone(),
-        &ExecuteMsg::CancelLimitOrder { order_id },
         &[],
     )
     .unwrap();
@@ -776,6 +1014,7 @@ fn place_limit_insert_steps_exceeded() {
         price: Decimal::from_ratio(5u128, 10u128),
         hint_after_order_id: None,
         max_adjust_steps: 5,
+        expires_at: None,
     })
     .unwrap();
 
