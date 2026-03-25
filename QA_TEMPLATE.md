@@ -224,6 +224,8 @@
 
 ### 3.1 Pool Display
 
+> **Indexer-backed discovery** (list from indexer, search/sort/pagination, formatted totals): see **§23**.
+
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
 | 3.1.1 | Pool page loads | Navigate to /pool | Pool cards displayed for available pairs | | |
@@ -310,6 +312,8 @@
 ## 5. CHARTS & ANALYTICS
 
 ### 5.1 Price Chart
+
+> **“Find pair” search and selection** when filtering narrows the list: see **§23.5**.
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
@@ -605,6 +609,8 @@
 ## 13. INDEXER / BACKEND API
 
 ### 13.1 Pairs API
+
+> **Paginated list** (`GET /api/v1/pairs` with `limit`/`offset`, `q`, `asset`, `sort`, `order`, `volume_quote_24h`): full matrix in **§23**.
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
@@ -967,6 +973,71 @@
 
 ---
 
+## 23. INDEXER POOL LIST API & POOL/CHARTS UI (Added 2026-03-25)
+
+> Run this section whenever a release touches **indexer pool discovery** (`GET /api/v1/pairs` list semantics), **Pool** page list/search/sort/pagination, or **Charts** pair selection. See GitLab issue #41.
+
+### 23.1 `GET /api/v1/pairs` (paginated list)
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 23.1.1 | Response envelope | `GET /api/v1/pairs` | JSON is `{ items, total, limit, offset }`, not a raw array | | |
+| 23.1.2 | Default pagination | Omit `limit` and `offset` | `limit=50`, `offset=0` (or equivalent documented defaults) | | |
+| 23.1.3 | Max `limit` | Request `limit=200` | `limit` **capped at 100** | | |
+| 23.1.4 | Invalid `sort` | `sort=not_a_field` | **400** with a clear error body | | |
+| 23.1.5 | Invalid `order` | `order=sideways` | **400** with a clear error body | | |
+| 23.1.6 | `q` substring search | Search known pair addr fragment, symbol, CW20 addr, native denom | Matching pairs only; matching is **case-insensitive** | | |
+| 23.1.7 | `asset` filter | Pass exact CW20 contract or native denom present in a pair | Only pairs that include that asset | | |
+| 23.1.8 | `sort` values | For each: `id`, `fee`, `created`, `symbol`, `volume_24h` | Result order matches the selected sort field | | |
+| 23.1.9 | `order` asc/desc | Same query with `order=asc` vs `order=desc` | Order inverts appropriately | | |
+| 23.1.10 | Default order for volume | `sort=volume_24h` without `order` | **Descending** by volume (highest first) | | |
+| 23.1.11 | `volume_quote_24h` on list | Pair with swaps in last 24h | Field present and non-zero when applicable | | |
+| 23.1.12 | `volume_quote_24h` zero/absent | Pair with no recent volume | Matches documented behavior (0 or omitted) | | |
+
+### 23.2 `GET /api/v1/pairs/{addr}` (single pair)
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 23.2.1 | Detail still works | `GET` valid pair contract address | 200; pair payload as documented | | |
+| 23.2.2 | No list-only fields | Compare to list item | `volume_quote_24h` **omitted** on single-pair response (per API contract) | | |
+
+### 23.3 Automated — indexer integration tests
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 23.3.1 | API pairs tests | Postgres running; `TEST_DATABASE_URL` set → `cd indexer && cargo test --test api_pairs` | All tests pass | | |
+
+### 23.4 Frontend — Pool page (`/pool`)
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 23.4.1 | Indexer data source | Confirm `VITE_INDEXER_URL` points at indexer; load `/pool` | List comes from indexer API | | |
+| 23.4.2 | Indexer unavailable | Block indexer URL or stop API | **Clear error** shown; **no** silent fallback to factory-only list | | |
+| 23.4.3 | Total pair count | View header | Shows **total** from API; large numbers use **thousands separators** | | |
+| 23.4.4 | Search — Apply | Type query → click Apply | Results filter to query | | |
+| 23.4.5 | Search — Enter | Type query → press Enter | Same as Apply | | |
+| 23.4.6 | Empty search | Clear search → Apply | Full unfiltered page (per page size) | | |
+| 23.4.7 | Sort + Order | Change sort and order controls | List updates; order control makes sense for metric (e.g. 24h volume defaults to desc) | | |
+| 23.4.8 | Pagination | Use Previous / Next; view page indicator | Correct items; first page disables Prev; last page disables Next | | |
+| 23.4.9 | Pool card contents | Open a card | **On-chain** reserves, fee, Provide/Withdraw; **indexed 24h volume (quote)** line when data exists | | |
+| 23.4.10 | E2E pool page | `frontend-dapp/e2e/pool.spec.ts` | Passes; assertions allow **formatted** pair counts (e.g. commas) | | |
+
+### 23.5 Frontend — Charts (pair selection)
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 23.5.1 | Find pair search | Type in pair search on Charts | Dropdown list **filters** (debounced typing OK) | | |
+| 23.5.2 | Selection after filter narrows | Select pair → filter so current pair would disappear | Selection resets to a **valid** pair; **no** console/runtime errors | | |
+
+### 23.6 Regression (indexer + pool UI releases)
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 23.6.1 | Core swap / wallet / token UI | Smoke swap flow; TokenSelect | No new breakages vs last release | | |
+| 23.6.2 | Charts with indexer | Indexer up → `/charts` | Analytics and pair stats load as before | | |
+
+---
+
 ## SIGN-OFF
 
 | Role | Name | Date | Signature |
@@ -1001,4 +1072,5 @@
 | 20. Known Limitations | 8 | | | | |
 | 21. Additional QA Checks | 22 | | | | |
 | 22. Multi-Browser & Multi-Device | 16 | | | | |
-| **TOTAL** | **408** | | | | |
+| 23. Indexer Pool List & Pool/Charts UI | 29 | | | | |
+| **TOTAL** | **437** | | | | |
