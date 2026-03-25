@@ -14,7 +14,7 @@
 
 ## Development
 - [Local Development](./local-development.md) — Docker setup, deploy scripts, Makefile
-- [Testing](./testing.md) — test philosophy, running unit/integration/E2E tests
+- [Testing](./testing.md) — test philosophy, running unit/integration/E2E tests (includes indexer Postgres setup and [shared-DB parallelism](./testing.md#shared-postgres-and-test-parallelism))
 
 ## Deployment
 - [Deployment Guide](./deployment-guide.md) — mainnet and testnet deployment steps

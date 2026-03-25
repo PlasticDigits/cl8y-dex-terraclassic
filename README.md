@@ -95,6 +95,10 @@ make lint-contracts    # Check formatting and clippy
 make build-optimized   # Build production wasm
 ```
 
+### Indexer (Rust)
+
+The indexer has library tests (`cargo test --lib`, no Postgres) and integration tests (`cargo test --tests`) that require PostgreSQL and migrations. See [Testing — Indexer (Rust)](docs/testing.md#indexer-rust) and [Shared Postgres and test parallelism](docs/testing.md#shared-postgres-and-test-parallelism) for `TEST_DATABASE_URL` and how to avoid flaky runs when multiple tests share one database.
+
 ### Frontend
 
 ```bash

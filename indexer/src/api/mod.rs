@@ -154,6 +154,7 @@ pub async fn find_pair_by_ticker(
         description = "Indexer API for CL8Y DEX on Terra Classic — charting, analytics, CoinGecko and CoinMarketCap integrations.",
     ),
     paths(
+        route_solver::solve_route,
         pairs::list_pairs,
         pairs::get_pair,
         pairs::get_pair_candles,
@@ -180,6 +181,9 @@ pub async fn find_pair_by_ticker(
         cmc::cmc_trades,
     ),
     components(schemas(
+        route_solver::SolveRouteParams,
+        route_solver::RouteHop,
+        route_solver::RouteSolveResponse,
         pairs::PairResponse,
         pairs::PairListResponse,
         pairs::ListPairsQuery,
@@ -209,6 +213,7 @@ pub async fn find_pair_by_ticker(
         oracle::OracleHistoryResponse,
     )),
     tags(
+        (name = "Routing", description = "Multihop route discovery for swaps"),
         (name = "Pairs", description = "Trading pair endpoints"),
         (name = "Tokens", description = "Token/asset endpoints"),
         (name = "Traders", description = "Trader profile and leaderboard"),

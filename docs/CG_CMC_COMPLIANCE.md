@@ -87,6 +87,8 @@ Returns 24-hour market data for all trading pairs.
 - `bid` and `ask` are simulated from the last trade price since AMMs don't have a traditional order book. The spread is set to 0.2% (0.1% each side).
 - `liquidity_in_usd` is `"0"` unless a USD price oracle is configured.
 
+**On-chain limit orders:** The depth shown in CG/CMC `orderbook` endpoints is **curve-simulated**, not the FIFO limit book. Resting maker orders on CL8Y pairs are stored and queried on-chain; see [limit-orders.md](./limit-orders.md).
+
 ### `GET /cg/orderbook`
 
 Returns a simulated order book derived from the AMM constant-product curve.

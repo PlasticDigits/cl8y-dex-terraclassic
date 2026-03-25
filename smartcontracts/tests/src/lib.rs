@@ -5,6 +5,9 @@ mod adversarial_token;
 mod mock_failing_hook;
 
 #[cfg(test)]
+mod limit_order_tests;
+
+#[cfg(test)]
 mod helpers {
     use cosmwasm_std::{Addr, Empty, Uint128};
     use cw20::{BalanceResponse, Cw20QueryMsg};

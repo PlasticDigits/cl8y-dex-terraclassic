@@ -188,6 +188,66 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
     }
 }
 
+/// Two CW20 assets connected by one pair, plus a third asset with no pair (no path A↔C).
+pub struct RouteSolveSeed {
+    pub token_a: String,
+    pub token_b: String,
+    pub token_c: String,
+}
+
+pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
+    clean_db(pool).await;
+
+    let token_a = "terra1routesolveaaa".to_string();
+    let token_b = "terra1routesolvebbb".to_string();
+    let token_c = "terra1routesolveccc".to_string();
+
+    let asset_a_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route A', 'RTEA', 6)
+         RETURNING id",
+    )
+    .bind(&token_a)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset a");
+
+    let asset_b_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route B', 'RTEB', 6)
+         RETURNING id",
+    )
+    .bind(&token_b)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset b");
+
+    sqlx::query(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route C', 'RTEC', 6)",
+    )
+    .bind(&token_c)
+    .execute(pool)
+    .await
+    .expect("insert route asset c");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairrouteabc', $1, $2, 'terra1lproute', 30)",
+    )
+    .bind(asset_a_id)
+    .bind(asset_b_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair");
+
+    RouteSolveSeed {
+        token_a,
+        token_b,
+        token_c,
+    }
+}
+
 pub async fn build_test_app(pool: PgPool) -> Router {
     build_test_app_with_price_and_config(pool, None, test_config()).await
 }

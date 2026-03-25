@@ -8,19 +8,20 @@ use std::collections::{HashMap, VecDeque};
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::api::internal_err;
 use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, IntoParams, ToSchema)]
 pub struct SolveRouteParams {
     /// CW20 contract address (must match indexed `assets.contract_address`).
     pub token_in: String,
     pub token_out: String,
-    /// Raw integer amount in offer token (optional; triggers router simulation when set).
+    /// Raw integer amount in offer token (optional; triggers router simulation when `ROUTER_ADDRESS` is set).
     pub amount_in: Option<String>,
 }
 
@@ -123,25 +124,37 @@ fn hop_count(prev: &HashMap<i32, (i32, String)>, start: i32, mut u: i32) -> usiz
     n
 }
 
-#[derive(serde::Serialize)]
-struct RouteHop {
-    pair: String,
-    offer_token: String,
-    ask_token: String,
+#[derive(Serialize, ToSchema)]
+pub struct RouteHop {
+    pub pair: String,
+    pub offer_token: String,
+    pub ask_token: String,
 }
 
-#[derive(serde::Serialize)]
-struct RouteSolveResponse {
-    token_in: String,
-    token_out: String,
-    hops: Vec<RouteHop>,
-    /// Router `ExecuteSwapOperations` operations (JSON), `hybrid: null` = pool-only.
-    router_operations: Vec<serde_json::Value>,
+#[derive(Serialize, ToSchema)]
+pub struct RouteSolveResponse {
+    pub token_in: String,
+    pub token_out: String,
+    pub hops: Vec<RouteHop>,
+    /// Router `ExecuteSwapOperations` operations (JSON); each op has `terra_swap.hybrid: null` for pool-only routing.
+    #[schema(value_type = Vec<Object>)]
+    pub router_operations: Vec<serde_json::Value>,
     /// From `SimulateSwapOperations` when `amount_in` and `ROUTER_ADDRESS` are set.
-    estimated_amount_out: Option<String>,
+    pub estimated_amount_out: Option<String>,
 }
 
-/// GET `/api/v1/route/solve?token_in=...&token_out=...&amount_in=...`
+/// Multihop route discovery (BFS, max 4 hops). Returns pool-only `router_operations` unless clients patch `hybrid` off-chain.
+#[utoipa::path(
+    get,
+    path = "/api/v1/route/solve",
+    params(SolveRouteParams),
+    responses(
+        (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
+        (status = 400, description = "token_in or token_out not found in indexer assets"),
+        (status = 404, description = "No route within 4 hops"),
+    ),
+    tag = "Routing"
+)]
 pub async fn solve_route(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
