@@ -21,6 +21,7 @@ const CreatePairPage = lazy(() => import('./pages/CreatePairPage'))
 const TiersPage = lazy(() => import('./pages/TiersPage'))
 const ChartsPage = lazy(() => import('./pages/ChartsPage'))
 const TraderPage = lazy(() => import('./pages/TraderPage'))
+const ProtocolPage = lazy(() => import('./pages/ProtocolPage'))
 
 function PageFallback() {
   return (
@@ -159,11 +160,31 @@ export default function App() {
                 }
               />
               <Route
+                path="/trader"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <TraderPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
                 path="/trader/:address"
                 element={
                   <ErrorBoundary isRoute>
                     <Suspense fallback={<PageFallback />}>
                       <TraderPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/protocol"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <ProtocolPage />
                     </Suspense>
                   </ErrorBoundary>
                 }

@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { path: '/', label: 'Swap', end: true, icon: '/assets/icon-swap.png' },
   { path: '/pool', label: 'Pool', icon: '/assets/icon-pool.png' },
   { path: '/charts', label: 'Charts', icon: '/assets/icon-chart.png' },
+  { path: '/trader', label: 'Trader', end: false, icon: '/assets/icon-price-up.png' },
+  { path: '/protocol', label: 'Protocol', icon: '/assets/icon-settings.png' },
   { path: '/tiers', label: 'Fee Tiers', icon: '/assets/icon-fee-tiers.png' },
   { path: '/create', label: 'Create Pair', icon: '/assets/icon-create-pair.png' },
 ]
@@ -77,7 +79,7 @@ export default function Layout() {
                 <NavLink
                   key={path}
                   to={path}
-                  end={end}
+                  end={end !== false}
                   aria-label={label}
                   title={label}
                   onClick={() => sounds.playButtonPress()}

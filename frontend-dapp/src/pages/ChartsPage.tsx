@@ -1,7 +1,15 @@
-import { useState, useDeferredValue, useEffect } from 'react'
+import { useState, useDeferredValue, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { getOverview, getPairs, getPairStats, getTrades, getLeaderboard, INDEXER_URL } from '@/services/indexer/client'
+import {
+  getOverview,
+  getPairs,
+  getPair,
+  getPairStats,
+  getTrades,
+  getLeaderboard,
+  INDEXER_URL,
+} from '@/services/indexer/client'
 import PriceChart from '@/components/charts/PriceChart'
 import { StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
@@ -9,7 +17,9 @@ import { formatNum } from '@/utils/formatAmount'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
-import type { IndexerPair, IndexerTrader } from '@/types'
+import type { IndexerPair, IndexerPairSort, IndexerTrader } from '@/types'
+
+const PAIR_PAGE_SIZE = 50
 
 const TWAP_WINDOWS = [
   { label: '5m', seconds: 300 },
@@ -27,8 +37,15 @@ const LEADERBOARD_TABS = [
 export default function ChartsPage() {
   const [selectedPairAddr, setSelectedPairAddr] = useState<string>('')
   const [pairSearch, setPairSearch] = useState('')
+  const [pairSort, setPairSort] = useState<IndexerPairSort>('volume_24h')
+  const [pairOrder, setPairOrder] = useState<'asc' | 'desc'>('desc')
+  const [pairPage, setPairPage] = useState(0)
   const [leaderboardSort, setLeaderboardSort] = useState<string>('total_volume')
   const deferredPairSearch = useDeferredValue(pairSearch.trim())
+
+  useEffect(() => {
+    setPairPage(0)
+  }, [deferredPairSearch])
 
   const overviewQuery = useQuery({
     queryKey: ['indexer-overview'],
@@ -37,27 +54,59 @@ export default function ChartsPage() {
   })
 
   const pairsQuery = useQuery({
-    queryKey: ['indexer-pairs', deferredPairSearch],
+    queryKey: ['indexer-pairs', deferredPairSearch, pairSort, pairOrder, pairPage],
     queryFn: () =>
       getPairs({
-        limit: 200,
+        limit: PAIR_PAGE_SIZE,
+        offset: pairPage * PAIR_PAGE_SIZE,
         q: deferredPairSearch || undefined,
-        sort: 'symbol',
-        order: 'asc',
+        sort: pairSort,
+        order: pairOrder,
       }),
     staleTime: 60_000,
   })
 
   const pairs = pairsQuery.data?.items ?? []
-  const activePairAddr = selectedPairAddr || pairs[0]?.pair_address || ''
-  const activePair = pairs.find((p: IndexerPair) => p.pair_address === activePairAddr)
+  const pairTotal = pairsQuery.data?.total ?? 0
+  const pairTotalPages = Math.max(1, Math.ceil(pairTotal / PAIR_PAGE_SIZE))
+  const canPairPrev = pairPage > 0
+  const canPairNext = (pairPage + 1) * PAIR_PAGE_SIZE < pairTotal
+
+  const needsPairFetch = !!selectedPairAddr && !pairs.some((p: IndexerPair) => p.pair_address === selectedPairAddr)
+
+  const selectedPairQuery = useQuery({
+    queryKey: ['indexer-pair-one', selectedPairAddr],
+    queryFn: () => getPair(selectedPairAddr),
+    enabled: needsPairFetch,
+    staleTime: 60_000,
+    retry: false,
+  })
 
   useEffect(() => {
-    if (pairs.length === 0) return
-    if (selectedPairAddr && !pairs.some((p) => p.pair_address === selectedPairAddr)) {
-      setSelectedPairAddr(pairs[0].pair_address)
+    if (selectedPairQuery.isError) {
+      setSelectedPairAddr('')
     }
-  }, [pairs, selectedPairAddr])
+  }, [selectedPairQuery.isError])
+
+  const pairOptions = useMemo(() => {
+    const list = [...pairs]
+    const extra = selectedPairQuery.data
+    if (extra && !list.some((p) => p.pair_address === extra.pair_address)) {
+      list.unshift(extra)
+    }
+    return list
+  }, [pairs, selectedPairQuery.data])
+
+  const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
+  const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
+
+  useEffect(() => {
+    if (pairOptions.length === 0) return
+    if (!selectedPairAddr) return
+    if (pairOptions.some((p) => p.pair_address === selectedPairAddr)) return
+    if (needsPairFetch && selectedPairQuery.isLoading) return
+    setSelectedPairAddr(pairOptions[0].pair_address)
+  }, [pairOptions, selectedPairAddr, needsPairFetch, selectedPairQuery.isLoading])
 
   const statsQuery = useQuery({
     queryKey: ['pair-stats', activePairAddr],
@@ -137,10 +186,28 @@ export default function ChartsPage() {
       )}
 
       {/* Overview Bar */}
-      <div className="shell-panel grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatBox
           label="24h Volume"
           value={overview ? formatNum(overview.total_volume_24h) : '—'}
+          loading={overviewQuery.isLoading}
+        />
+        <StatBox
+          label="24h Volume (USD)"
+          value={
+            overview?.total_volume_24h_usd != null && overview.total_volume_24h_usd !== ''
+              ? formatNum(overview.total_volume_24h_usd, 2)
+              : '—'
+          }
+          loading={overviewQuery.isLoading}
+        />
+        <StatBox
+          label="USTC / USD"
+          value={
+            overview?.ustc_price_usd != null && overview.ustc_price_usd !== ''
+              ? `$${formatNum(overview.ustc_price_usd, 6)}`
+              : '—'
+          }
           loading={overviewQuery.isLoading}
         />
         <StatBox
@@ -174,6 +241,49 @@ export default function ChartsPage() {
           onChange={(e) => setPairSearch(e.target.value)}
           aria-label="Filter pairs by symbol or address"
         />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label htmlFor="chart-pair-sort" className="label-neo mb-1 block">
+              Sort
+            </label>
+            <select
+              id="chart-pair-sort"
+              className="select-neo w-full"
+              value={pairSort}
+              onChange={(e) => {
+                sounds.playButtonPress()
+                const v = e.target.value as IndexerPairSort
+                setPairSort(v)
+                setPairPage(0)
+                if (v === 'volume_24h') setPairOrder('desc')
+              }}
+            >
+              <option value="volume_24h">24h volume</option>
+              <option value="symbol">Name (A–Z)</option>
+              <option value="fee">Fee</option>
+              <option value="created">Created</option>
+              <option value="id">Pair ID</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="chart-pair-order" className="label-neo mb-1 block">
+              Order
+            </label>
+            <select
+              id="chart-pair-order"
+              className="select-neo w-full"
+              value={pairOrder}
+              onChange={(e) => {
+                sounds.playButtonPress()
+                setPairOrder(e.target.value as 'asc' | 'desc')
+                setPairPage(0)
+              }}
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+        </div>
         <label className="label-neo mb-1 block">Select Pair</label>
         <select
           className="select-neo w-full"
@@ -184,13 +294,49 @@ export default function ChartsPage() {
             setSelectedPairAddr(e.target.value)
           }}
         >
-          {pairs.map((p: IndexerPair) => (
+          {pairOptions.map((p: IndexerPair) => (
             <option key={p.pair_address} value={p.pair_address}>
               {p.asset_0.symbol} / {p.asset_1.symbol}
             </option>
           ))}
-          {pairs.length === 0 && <option value="">No pairs available</option>}
+          {pairOptions.length === 0 && <option value="">No pairs available</option>}
         </select>
+        {pairTotal > PAIR_PAGE_SIZE && !pairsQuery.isLoading && !pairsQuery.isError && (
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+            <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              Page {pairPage + 1} of {pairTotalPages} · {pairTotal.toLocaleString()} pair(s)
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="btn-muted !text-xs"
+                disabled={!canPairPrev}
+                onClick={() => {
+                  sounds.playButtonPress()
+                  setPairPage((p) => Math.max(0, p - 1))
+                }}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="btn-muted !text-xs"
+                disabled={!canPairNext}
+                onClick={() => {
+                  sounds.playButtonPress()
+                  setPairPage((p) => p + 1)
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+        {needsPairFetch && selectedPairQuery.isLoading && (
+          <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
+            Loading selected pair…
+          </p>
+        )}
         {pairsQuery.isSuccess && pairs.length === 0 && !pairsQuery.isLoading && !indexerUnavailable && (
           <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
             No pairs in the indexer yet. After swaps are indexed, pairs will appear here.

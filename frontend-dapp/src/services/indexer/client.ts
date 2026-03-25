@@ -8,6 +8,12 @@ import type {
   IndexerOverview,
   IndexerTrader,
   IndexerPosition,
+  IndexerToken,
+  IndexerTokenDetail,
+  IndexerHookEvent,
+  IndexerOraclePriceResponse,
+  IndexerOracleHistoryResponse,
+  IndexerRouteSolveResponse,
 } from '@/types'
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost:3001'
@@ -66,6 +72,11 @@ export async function getPairs(params?: GetPairsParams): Promise<IndexerPairsLis
   if (params?.order) sp.set('order', params.order)
   const qs = sp.toString()
   return fetchJson<IndexerPairsListResponse>(`/api/v1/pairs${qs ? `?${qs}` : ''}`)
+}
+
+/** Single pair metadata from `GET /api/v1/pairs/{addr}`. */
+export async function getPair(pairAddr: string): Promise<IndexerPair> {
+  return fetchJson<IndexerPair>(`/api/v1/pairs/${pairAddr}`)
 }
 
 /** Load up to `maxPairs` by paging the indexer (e.g. chart pair selector). */
@@ -133,4 +144,70 @@ export async function getLeaderboard(sort = 'total_volume', limit = 50): Promise
 /** Get trader's open positions with P&L. */
 export async function getTraderPositions(address: string): Promise<IndexerPosition[]> {
   return fetchJson<IndexerPosition[]>(`/api/v1/traders/${address}/positions`)
+}
+
+/** All indexed tokens (metadata + ids for aggregators). */
+export async function getTokens(): Promise<IndexerToken[]> {
+  return fetchJson<IndexerToken[]>('/api/v1/tokens')
+}
+
+/** Token detail with per-window volume stats. */
+export async function getTokenDetail(addrOrDenom: string): Promise<IndexerTokenDetail> {
+  const enc = encodeURIComponent(addrOrDenom)
+  return fetchJson<IndexerTokenDetail>(`/api/v1/tokens/${enc}`)
+}
+
+/** Pairs that include this token. */
+export async function getTokenPairs(addrOrDenom: string): Promise<IndexerPair[]> {
+  const enc = encodeURIComponent(addrOrDenom)
+  return fetchJson<IndexerPair[]>(`/api/v1/tokens/${enc}/pairs`)
+}
+
+export interface GetHookEventsParams {
+  hook_address?: string
+  limit?: number
+}
+
+/** Recent hook execution events (burn, tax, etc.). */
+export async function getHookEvents(params?: GetHookEventsParams): Promise<IndexerHookEvent[]> {
+  const sp = new URLSearchParams()
+  if (params?.hook_address?.trim()) sp.set('hook_address', params.hook_address.trim())
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  const qs = sp.toString()
+  return fetchJson<IndexerHookEvent[]>(`/api/v1/hooks${qs ? `?${qs}` : ''}`)
+}
+
+/** Latest USTC/USD oracle snapshot (indexer-polled sources). */
+export async function getOraclePrice(): Promise<IndexerOraclePriceResponse> {
+  return fetchJson<IndexerOraclePriceResponse>('/api/v1/oracle/price')
+}
+
+export interface GetOracleHistoryParams {
+  from?: string
+  to?: string
+  limit?: number
+}
+
+/** USTC/USD price history (defaults to last 24h if `from` omitted). */
+export async function getOracleHistory(params?: GetOracleHistoryParams): Promise<IndexerOracleHistoryResponse> {
+  const sp = new URLSearchParams()
+  if (params?.from) sp.set('from', params.from)
+  if (params?.to) sp.set('to', params.to)
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  const qs = sp.toString()
+  return fetchJson<IndexerOracleHistoryResponse>(`/api/v1/oracle/history${qs ? `?${qs}` : ''}`)
+}
+
+/**
+ * Multihop route from indexer graph (BFS, max 4 hops).
+ * **Limitation:** `token_in` / `token_out` must match indexed CW20 `contract_address` entries; native-only assets without a CW20 row are not routable via this endpoint.
+ */
+export async function getRouteSolve(
+  tokenIn: string,
+  tokenOut: string,
+  amountIn?: string
+): Promise<IndexerRouteSolveResponse> {
+  const sp = new URLSearchParams({ token_in: tokenIn.trim(), token_out: tokenOut.trim() })
+  if (amountIn?.trim()) sp.set('amount_in', amountIn.trim())
+  return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`)
 }

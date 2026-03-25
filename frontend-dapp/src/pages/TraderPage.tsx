@@ -25,7 +25,7 @@ function PnlValue({ value }: { value: string }) {
 }
 
 export default function TraderPage() {
-  const { address: paramAddr } = useParams<{ address: string }>()
+  const { address: paramAddr } = useParams<{ address?: string }>()
   const navigate = useNavigate()
   const walletAddr = useWalletStore((s) => s.address)
   const [searchInput, setSearchInput] = useState('')
