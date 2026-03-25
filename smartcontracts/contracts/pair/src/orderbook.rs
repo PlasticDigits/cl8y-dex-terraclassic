@@ -21,6 +21,34 @@ use crate::state::{
 
 use dex_common::pair::{MAX_ADJUST_STEPS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP};
 
+fn escrow_sub_pending_token1(
+    storage: &mut dyn Storage,
+    amount: Uint128,
+) -> Result<(), ContractError> {
+    let mut esc = PENDING_ESCROW_TOKEN1.may_load(storage)?.unwrap_or_default();
+    esc = esc
+        .checked_sub(amount)
+        .map_err(|_| ContractError::InvariantViolation {
+            reason: "pending escrow token1 underflow".into(),
+        })?;
+    PENDING_ESCROW_TOKEN1.save(storage, &esc)?;
+    Ok(())
+}
+
+fn escrow_sub_pending_token0(
+    storage: &mut dyn Storage,
+    amount: Uint128,
+) -> Result<(), ContractError> {
+    let mut esc = PENDING_ESCROW_TOKEN0.may_load(storage)?.unwrap_or_default();
+    esc = esc
+        .checked_sub(amount)
+        .map_err(|_| ContractError::InvariantViolation {
+            reason: "pending escrow token0 underflow".into(),
+        })?;
+    PENDING_ESCROW_TOKEN0.save(storage, &esc)?;
+    Ok(())
+}
+
 /// `true` if order `a` should be closer to the bid head than `b` (better bid first).
 pub fn bid_before(a_price: Decimal, a_id: u64, b_price: Decimal, b_id: u64) -> bool {
     a_price > b_price || (a_price == b_price && a_id < b_id)
@@ -52,6 +80,7 @@ pub fn insert_bid(
     owner: Addr,
     hint_after: Option<u64>,
     max_adjust_steps: u32,
+    expires_at: Option<u64>,
 ) -> Result<u64, ContractError> {
     let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let id = next_order_id(storage)?;
@@ -69,6 +98,7 @@ pub fn insert_bid(
         price,
         remaining: remaining_token1,
         side: LimitOrderSide::Bid,
+        expires_at,
         prev,
         next,
     };
@@ -116,6 +146,7 @@ pub fn insert_ask(
     owner: Addr,
     hint_after: Option<u64>,
     max_adjust_steps: u32,
+    expires_at: Option<u64>,
 ) -> Result<u64, ContractError> {
     let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let id = next_order_id(storage)?;
@@ -133,6 +164,7 @@ pub fn insert_ask(
         price,
         remaining: remaining_token0,
         side: LimitOrderSide::Ask,
+        expires_at,
         prev,
         next,
     };
@@ -266,6 +298,7 @@ pub fn unlink_order(storage: &mut dyn Storage, id: u64) -> StdResult<LimitOrder>
 #[allow(clippy::too_many_arguments)]
 pub fn match_bids(
     storage: &mut dyn Storage,
+    now: u64,
     token0_budget: Uint128,
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
@@ -291,16 +324,31 @@ pub fn match_bids(
         HEAD_BID.may_load(storage)?.flatten()
     };
 
-    while token0_left > Uint128::zero() && makers_used < cap {
+    while makers_used < cap {
         let oid = match cur {
             Some(id) => id,
             None => break,
         };
-        let mut order = ORDERS.load(storage, oid)?;
-        if order.remaining.is_zero() {
-            cur = order.next;
+        let order = ORDERS.load(storage, oid)?;
+        let next_ptr = order.next;
+
+        if order.expires_at.is_some_and(|e| now >= e) {
+            escrow_sub_pending_token1(storage, order.remaining)?;
+            unlink_order(storage, oid)?;
+            cur = next_ptr;
             continue;
         }
+
+        if order.remaining.is_zero() {
+            cur = next_ptr;
+            continue;
+        }
+
+        if token0_left.is_zero() {
+            break;
+        }
+
+        let mut order = order;
 
         if order.price.is_zero() {
             return Err(ContractError::InvariantViolation {
@@ -384,11 +432,7 @@ pub fn match_bids(
             }));
         }
 
-        let mut esc = PENDING_ESCROW_TOKEN1
-            .may_load(storage)?
-            .unwrap_or(Uint128::zero());
-        esc = esc.saturating_sub(cost);
-        PENDING_ESCROW_TOKEN1.save(storage, &esc)?;
+        escrow_sub_pending_token1(storage, cost)?;
 
         order.remaining = order.remaining.checked_sub(cost)?;
         token0_left = token0_left.checked_sub(fill)?;
@@ -415,6 +459,7 @@ pub fn match_bids(
 #[allow(clippy::too_many_arguments)]
 pub fn match_asks(
     storage: &mut dyn Storage,
+    now: u64,
     token1_budget: Uint128,
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
@@ -440,16 +485,31 @@ pub fn match_asks(
         HEAD_ASK.may_load(storage)?.flatten()
     };
 
-    while token1_left > Uint128::zero() && makers_used < cap {
+    while makers_used < cap {
         let oid = match cur {
             Some(id) => id,
             None => break,
         };
-        let mut order = ORDERS.load(storage, oid)?;
-        if order.remaining.is_zero() {
-            cur = order.next;
+        let order = ORDERS.load(storage, oid)?;
+        let next_ptr = order.next;
+
+        if order.expires_at.is_some_and(|e| now >= e) {
+            escrow_sub_pending_token0(storage, order.remaining)?;
+            unlink_order(storage, oid)?;
+            cur = next_ptr;
             continue;
         }
+
+        if order.remaining.is_zero() {
+            cur = next_ptr;
+            continue;
+        }
+
+        if token1_left.is_zero() {
+            break;
+        }
+
+        let mut order = order;
 
         let max_fill_token0_from_ask = order.remaining;
         let max_fill_token0_from_budget = if !order.price.is_zero() {
@@ -495,7 +555,8 @@ pub fn match_asks(
 
         makers_used += 1;
 
-        let commission = cost
+        // Fee on token0 output to taker (same denomination as net and treasury).
+        let commission = fill_t0
             .checked_mul(Uint128::new(effective_fee_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = fill_t0.checked_sub(commission)?;
@@ -531,11 +592,7 @@ pub fn match_asks(
             }));
         }
 
-        let mut esc = PENDING_ESCROW_TOKEN0
-            .may_load(storage)?
-            .unwrap_or(Uint128::zero());
-        esc = esc.saturating_sub(fill_t0);
-        PENDING_ESCROW_TOKEN0.save(storage, &esc)?;
+        escrow_sub_pending_token0(storage, fill_t0)?;
 
         order.remaining = order.remaining.checked_sub(fill_t0)?;
         token1_left = token1_left.checked_sub(cost)?;
@@ -566,6 +623,7 @@ pub fn load_order_response(storage: &dyn Storage, id: u64) -> StdResult<LimitOrd
         side: o.side,
         price: o.price,
         remaining: o.remaining,
+        expires_at: o.expires_at,
         prev: o.prev,
         next: o.next,
     })
@@ -596,10 +654,19 @@ mod tests {
             a.clone(),
             None,
             32,
+            None,
         )
         .unwrap();
-        let id_better =
-            insert_bid(storage, Decimal::one(), Uint128::new(100), b, None, 32).unwrap();
+        let id_better = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            b,
+            None,
+            32,
+            None,
+        )
+        .unwrap();
         assert_ne!(id_worse, id_better);
         let head = query_head(storage, LimitOrderSide::Bid).unwrap().unwrap();
         assert_eq!(head, id_better);
@@ -620,10 +687,19 @@ mod tests {
             a.clone(),
             None,
             32,
+            None,
         )
         .unwrap();
-        let id_better =
-            insert_ask(storage, Decimal::one(), Uint128::new(100), b, None, 32).unwrap();
+        let id_better = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            b,
+            None,
+            32,
+            None,
+        )
+        .unwrap();
         let head = query_head(storage, LimitOrderSide::Ask).unwrap().unwrap();
         assert_eq!(head, id_better);
         let lo = load_order_response(storage, head).unwrap();
@@ -642,6 +718,7 @@ mod tests {
             o.clone(),
             None,
             32,
+            None,
         )
         .unwrap();
         let id2 = insert_bid(
@@ -651,6 +728,7 @@ mod tests {
             o.clone(),
             None,
             32,
+            None,
         )
         .unwrap();
         assert_eq!(
@@ -765,6 +843,7 @@ mod proptest_limits {
                             owner.clone(),
                             None,
                             256,
+                            None,
                         ).unwrap();
                     }
                     Op::Ask { price_num, price_den, amt } => {
@@ -776,6 +855,7 @@ mod proptest_limits {
                             owner.clone(),
                             None,
                             256,
+                            None,
                         ).unwrap();
                     }
                 }
@@ -801,12 +881,54 @@ mod proptest_limits {
                     owner.clone(),
                     None,
                     256,
+                    None,
                 )
                 .unwrap();
             }
             let cap = max_makers.min(MAX_MAKER_FILLS_HARD_CAP);
             let (_t1_out, _t0_used, makers_used, _msgs) = match_bids(
                 storage,
+                1,
+                Uint128::new(budget),
+                max_makers,
+                None,
+                "token0_addr",
+                "token1_addr",
+                &Addr::unchecked("recv"),
+                &Addr::unchecked("treasury"),
+                30,
+            )
+            .unwrap();
+            prop_assert!(makers_used <= cap);
+            assert_escrow_matches_lists(storage);
+        }
+
+        #[test]
+        fn prop_match_asks_maker_cap(
+            n_asks in 1usize..8usize,
+            budget in 1u128..200_000u128,
+            max_makers in 0u32..20u32,
+        ) {
+            let mut deps = mock_dependencies();
+            let storage = deps.as_mut().storage;
+            let owner = Addr::unchecked("maker");
+            for i in 0..n_asks {
+                let price = Decimal::from_ratio(100u128 + i as u128, 100u128);
+                insert_ask(
+                    storage,
+                    price,
+                    Uint128::new(10_000),
+                    owner.clone(),
+                    None,
+                    256,
+                    None,
+                )
+                .unwrap();
+            }
+            let cap = max_makers.min(MAX_MAKER_FILLS_HARD_CAP);
+            let (_t0_out, _t1_used, makers_used, _msgs) = match_asks(
+                storage,
+                1,
                 Uint128::new(budget),
                 max_makers,
                 None,

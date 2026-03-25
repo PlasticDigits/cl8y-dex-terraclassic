@@ -562,13 +562,12 @@ fn query_whitelisted_code_ids(
         .collect::<StdResult<Vec<_>>>()?;
 
     let has_more = results.len() > limit;
+    let code_ids: Vec<u64> = results.into_iter().take(limit).collect();
     let next = if has_more {
-        results.get(limit - 1).copied()
+        code_ids.last().copied()
     } else {
         None
     };
-
-    let code_ids = results.into_iter().take(limit).collect();
 
     Ok(CodeIdsResponse { code_ids, next })
 }

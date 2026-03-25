@@ -26,7 +26,7 @@ use dex_common::pair::{HybridSwapParams, LimitOrderSide};
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.3.0";
+const CONTRACT_VERSION: &str = "1.4.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -471,7 +471,6 @@ pub fn execute(
         ExecuteMsg::Sweep { token, recipient } => execute_sweep(deps, env, info, token, recipient),
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
         ExecuteMsg::CancelLimitOrder { order_id } => {
-            assert_not_paused(deps.storage)?;
             execute_cancel_limit_order(deps, env, info, order_id)
         }
     }
@@ -514,6 +513,7 @@ fn execute_receive(
             price,
             hint_after_order_id,
             max_adjust_steps,
+            expires_at,
         } => execute_place_limit_order(
             deps,
             env,
@@ -524,6 +524,7 @@ fn execute_receive(
             price,
             hint_after_order_id,
             max_adjust_steps,
+            expires_at,
         ),
         Cw20HookMsg::WithdrawLiquidity { min_assets } => {
             execute_withdraw_liquidity(deps, env, info, token_sender, cw20_msg.amount, min_assets)
@@ -707,6 +708,7 @@ fn execute_swap(
         if offer_token_addr == token_a_addr {
             let (t1_out, t0_used, _mk, msgs) = orderbook::match_bids(
                 deps.storage,
+                env.block.time.seconds(),
                 book_leg,
                 max_makers,
                 book_hint,
@@ -722,6 +724,7 @@ fn execute_swap(
         } else {
             let (t0_out, t1_used, _mk, msgs) = orderbook::match_asks(
                 deps.storage,
+                env.block.time.seconds(),
                 book_leg,
                 max_makers,
                 book_hint,
@@ -892,7 +895,7 @@ fn execute_swap(
 #[allow(clippy::too_many_arguments)]
 fn execute_place_limit_order(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     owner: Addr,
     amount: Uint128,
@@ -900,6 +903,7 @@ fn execute_place_limit_order(
     price: Decimal,
     hint_after_order_id: Option<u64>,
     max_adjust_steps: u32,
+    expires_at: Option<u64>,
 ) -> Result<Response, ContractError> {
     if amount.is_zero() {
         return Err(ContractError::ZeroAmount {});
@@ -908,6 +912,14 @@ fn execute_place_limit_order(
         return Err(ContractError::InvalidHybridParams {
             reason: "limit price must be positive".into(),
         });
+    }
+    let now = env.block.time.seconds();
+    if let Some(t) = expires_at {
+        if t <= now {
+            return Err(ContractError::InvalidHybridParams {
+                reason: "expires_at must be in the future".into(),
+            });
+        }
     }
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let token_a = token_addr(&pair_info.asset_infos[0]);
@@ -926,6 +938,7 @@ fn execute_place_limit_order(
                 owner,
                 hint_after_order_id,
                 max_adjust_steps,
+                expires_at,
             )?
         }
         LimitOrderSide::Ask => {
@@ -939,6 +952,7 @@ fn execute_place_limit_order(
                 owner,
                 hint_after_order_id,
                 max_adjust_steps,
+                expires_at,
             )?
         }
     };
@@ -969,7 +983,11 @@ fn execute_cancel_limit_order(
             let mut esc = PENDING_ESCROW_TOKEN1
                 .may_load(deps.storage)?
                 .unwrap_or(Uint128::zero());
-            esc = esc.saturating_sub(removed.remaining);
+            esc = esc.checked_sub(removed.remaining).map_err(|_| {
+                ContractError::InvariantViolation {
+                    reason: "pending escrow token1 underflow on cancel".into(),
+                }
+            })?;
             PENDING_ESCROW_TOKEN1.save(deps.storage, &esc)?;
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_b.to_string(),
@@ -984,7 +1002,11 @@ fn execute_cancel_limit_order(
             let mut esc = PENDING_ESCROW_TOKEN0
                 .may_load(deps.storage)?
                 .unwrap_or(Uint128::zero());
-            esc = esc.saturating_sub(removed.remaining);
+            esc = esc.checked_sub(removed.remaining).map_err(|_| {
+                ContractError::InvariantViolation {
+                    reason: "pending escrow token0 underflow on cancel".into(),
+                }
+            })?;
             PENDING_ESCROW_TOKEN0.save(deps.storage, &esc)?;
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_a.to_string(),

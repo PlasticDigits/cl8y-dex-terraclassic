@@ -18,7 +18,7 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 
 ### Place / cancel limit
 
-- **`Cw20HookMsg::PlaceLimitOrder`:** `side`, `price`, `hint_after_order_id`, `max_adjust_steps`.
+- **`Cw20HookMsg::PlaceLimitOrder`:** `side`, `price`, `hint_after_order_id`, `max_adjust_steps`, optional **`expires_at`** (Unix seconds; `null` = no expiry). If set, it must be **strictly greater** than the block time at placement.
 - **`hint_after_order_id`:** reserved for future indexer-assisted insertion. The **current implementation ignores this field** and always walks from the book head (same as `find_insert_bid` / `find_insert_ask` in the pair crate). Clients may send `null`; wire compatibility is preserved.
 - **`ExecuteMsg::CancelLimitOrder`:** `order_id`. Only the stored **owner** may cancel.
 
@@ -33,7 +33,11 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 
 ### Pause (governance)
 
-- When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders) and **`CancelLimitOrder` is blocked**, so maker escrow cannot be refunded until unpause. This is a **governance/ops** risk surface (see [contracts-security-audit.md](./contracts-security-audit.md) **L6** and residual risks).
+- When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders). **`CancelLimitOrder` is not paused** — makers can cancel resting orders and receive escrow refunds while the pair is paused (see [contracts-security-audit.md](./contracts-security-audit.md) **L6**).
+
+### Expiry (`expires_at`)
+
+- If **`expires_at`** is set and a swap’s match walk reaches that order when **`block_time >= expires_at`**, the order is **unlinked**, pending escrow is decremented for its remaining size, and **no** CW20 transfer to the maker is performed in that transaction. Tokens stay in the pair contract and follow normal **sweep** rules (excess over reserves + pending). **Cancel** still refunds the maker while the order exists and is unexpired.
 
 ### Post-swap hooks and hybrid
 
@@ -86,7 +90,8 @@ The **tx indexer** does not yet persist hybrid/limit-specific attributes into de
     "side": "bid",
     "price": "1.0",
     "hint_after_order_id": null,
-    "max_adjust_steps": 32
+    "max_adjust_steps": 32,
+    "expires_at": null
   }
 }
 ```
