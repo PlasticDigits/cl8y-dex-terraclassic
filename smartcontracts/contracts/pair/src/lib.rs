@@ -8,12 +8,26 @@
 //!
 //! - **k monotonicity:** After every swap, k' ≥ k. The pool never loses
 //!   value from rounding — `ceil_div` ensures the pool retains any
-//!   fractional remainder.
+//!   fractional remainder. (Applies to the **constant-product leg**; the
+//!   limit book matches against escrow and does not change `k` directly.)
 //! - **Token conservation:** Tokens enter and leave the pool only through
 //!   explicit `ProvideLiquidity`, `WithdrawLiquidity`, or `Swap` paths.
 //!   Direct CW20 transfers do not affect tracked reserves.
 //! - **MINIMUM_LIQUIDITY:** The first 1000 LP tokens are permanently
 //!   burned to prevent share-inflation attacks on the first depositor.
+//!
+//! ## Limit book and escrow (FIFO hybrid)
+//!
+//! - **Escrow:** Bids lock **token1**; asks lock **token0**. Pending amounts
+//!   live in `PENDING_ESCROW_TOKEN0` / `PENDING_ESCROW_TOKEN1` and are
+//!   excluded from `RESERVES` and from sweepable “excess” (see `execute_sweep`).
+//! - **Cancel:** Only the stored `owner` may cancel and receive the refund.
+//! - **Bounded work:** Placement insert position is found by a linear walk
+//!   from the book head capped by `max_adjust_steps` (see `orderbook`).
+//!   Hybrid swaps cap distinct makers per tx via `max_maker_fills`.
+//! - **Queries:** `Simulation` / `ReverseSimulation` are **pool-only** and do
+//!   not walk the on-chain limit book. See repository docs (`limit-orders.md`,
+//!   `contracts-security-audit.md` invariant L8).
 //!
 //! ## Auth model
 //!

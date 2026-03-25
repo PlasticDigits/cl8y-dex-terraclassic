@@ -1430,9 +1430,10 @@ fn execute_set_discount_registry(
 }
 
 /// Emergency pause/unpause. Factory (governance) only.
-/// When paused, all CW20 Receive messages (swaps and withdrawals) and
-/// ProvideLiquidity are blocked. Admin-only operations (fee updates,
-/// hooks, sweep) remain available.
+/// When paused, all CW20 Receive messages (swaps, **limit placement**, LP
+/// withdrawals via Send) and ProvideLiquidity are blocked; **`CancelLimitOrder`
+/// is also blocked**, so resting limit escrow cannot be withdrawn until
+/// unpause. Admin-only operations (fee updates, hooks, sweep) remain available.
 fn execute_set_paused(
     deps: DepsMut,
     info: MessageInfo,
@@ -1626,6 +1627,9 @@ fn query_pool(deps: Deps) -> StdResult<PoolResponse> {
     })
 }
 
+/// Constant-product pool simulation only — **does not include** the on-chain limit book
+/// or Pattern C hybrid fills. See `docs/limit-orders.md` and invariant L8 in
+/// `docs/contracts-security-audit.md`.
 fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationResponse> {
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
@@ -1676,6 +1680,7 @@ fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationRespo
     })
 }
 
+/// Pool-only reverse simulation; **ignores** limit-book liquidity (same scope as `query_simulation`).
 fn query_reverse_simulation(deps: Deps, ask_asset: Asset) -> StdResult<ReverseSimulationResponse> {
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;

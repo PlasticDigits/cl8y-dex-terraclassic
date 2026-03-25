@@ -666,3 +666,159 @@ mod tests {
         assert!(lo2.prev.is_none());
     }
 }
+
+/// Property tests for limit-book invariants (L1 / L5 in `docs/contracts-security-audit.md`).
+#[cfg(test)]
+mod proptest_limits {
+    use super::*;
+    use cosmwasm_std::testing::mock_dependencies;
+    use proptest::prelude::*;
+
+    fn walk_bid_sum(storage: &dyn Storage) -> Uint128 {
+        let mut sum = Uint128::zero();
+        let mut cur = HEAD_BID.may_load(storage).unwrap().flatten();
+        let mut prev: Option<u64> = None;
+        while let Some(id) = cur {
+            let o = ORDERS.load(storage, id).unwrap();
+            assert_eq!(o.side, LimitOrderSide::Bid);
+            assert_eq!(o.prev, prev, "DLL prev link at {}", id);
+            sum = sum.checked_add(o.remaining).unwrap();
+            prev = Some(id);
+            cur = o.next;
+        }
+        sum
+    }
+
+    fn walk_ask_sum(storage: &dyn Storage) -> Uint128 {
+        let mut sum = Uint128::zero();
+        let mut cur = HEAD_ASK.may_load(storage).unwrap().flatten();
+        let mut prev: Option<u64> = None;
+        while let Some(id) = cur {
+            let o = ORDERS.load(storage, id).unwrap();
+            assert_eq!(o.side, LimitOrderSide::Ask);
+            assert_eq!(o.prev, prev, "DLL prev link at {}", id);
+            sum = sum.checked_add(o.remaining).unwrap();
+            prev = Some(id);
+            cur = o.next;
+        }
+        sum
+    }
+
+    fn assert_escrow_matches_lists(storage: &dyn Storage) {
+        let p1 = PENDING_ESCROW_TOKEN1
+            .may_load(storage)
+            .unwrap()
+            .unwrap_or_default();
+        let p0 = PENDING_ESCROW_TOKEN0
+            .may_load(storage)
+            .unwrap()
+            .unwrap_or_default();
+        assert_eq!(walk_bid_sum(storage), p1);
+        assert_eq!(walk_ask_sum(storage), p0);
+    }
+
+    #[derive(Clone, Debug)]
+    enum Op {
+        Bid {
+            price_num: u128,
+            price_den: u128,
+            amt: u128,
+        },
+        Ask {
+            price_num: u128,
+            price_den: u128,
+            amt: u128,
+        },
+    }
+
+    fn op_strategy() -> impl Strategy<Value = Op> {
+        prop_oneof![
+            (1u128..=500u128, 1u128..=100u128, 1u128..=50_000u128).prop_map(|(n, d, a)| Op::Bid {
+                price_num: n,
+                price_den: d,
+                amt: a,
+            }),
+            (1u128..=500u128, 1u128..=100u128, 1u128..=50_000u128).prop_map(|(n, d, a)| Op::Ask {
+                price_num: n,
+                price_den: d,
+                amt: a,
+            }),
+        ]
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn prop_escrow_dll_after_random_inserts(ops in proptest::collection::vec(op_strategy(), 0..24)) {
+            let mut deps = mock_dependencies();
+            let storage = deps.as_mut().storage;
+            let owner = Addr::unchecked("maker");
+            for op in ops {
+                match op {
+                    Op::Bid { price_num, price_den, amt } => {
+                        let price = Decimal::from_ratio(price_num, price_den);
+                        insert_bid(
+                            storage,
+                            price,
+                            Uint128::new(amt),
+                            owner.clone(),
+                            None,
+                            256,
+                        ).unwrap();
+                    }
+                    Op::Ask { price_num, price_den, amt } => {
+                        let price = Decimal::from_ratio(price_num, price_den);
+                        insert_ask(
+                            storage,
+                            price,
+                            Uint128::new(amt),
+                            owner.clone(),
+                            None,
+                            256,
+                        ).unwrap();
+                    }
+                }
+                assert_escrow_matches_lists(storage);
+            }
+        }
+
+        #[test]
+        fn prop_match_bids_maker_cap(
+            n_bids in 1usize..8usize,
+            budget in 1u128..200_000u128,
+            max_makers in 0u32..20u32,
+        ) {
+            let mut deps = mock_dependencies();
+            let storage = deps.as_mut().storage;
+            let owner = Addr::unchecked("maker");
+            for i in 0..n_bids {
+                let price = Decimal::from_ratio(100u128 + i as u128, 100u128);
+                insert_bid(
+                    storage,
+                    price,
+                    Uint128::new(10_000),
+                    owner.clone(),
+                    None,
+                    256,
+                )
+                .unwrap();
+            }
+            let cap = max_makers.min(MAX_MAKER_FILLS_HARD_CAP);
+            let (_t1_out, _t0_used, makers_used, _msgs) = match_bids(
+                storage,
+                Uint128::new(budget),
+                max_makers,
+                None,
+                "token0_addr",
+                "token1_addr",
+                &Addr::unchecked("recv"),
+                &Addr::unchecked("treasury"),
+                30,
+            )
+            .unwrap();
+            prop_assert!(makers_used <= cap);
+            assert_escrow_matches_lists(storage);
+        }
+    }
+}

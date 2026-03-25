@@ -423,6 +423,13 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
+/// Simulates multi-hop output using each pair’s **pool-only** `Simulation` query.
+///
+/// **Limit book:** `SwapOperation::TerraSwap.hybrid` is accepted on the wire but
+/// **ignored here** — the router does not model Pattern C / limit-book fills.
+/// Executed swaps that use `hybrid: Some(...)` can therefore produce different
+/// amounts than this simulation whenever the on-chain book is non-empty. See
+/// repository `docs/limit-orders.md` and `docs/contracts-security-audit.md` (L8).
 fn query_simulate_swap_operations(
     deps: Deps,
     offer_amount: Uint128,
@@ -485,6 +492,9 @@ fn query_simulate_swap_operations(
     })
 }
 
+/// Reverse-simulates using each pair’s **pool-only** `ReverseSimulation` query.
+/// The `hybrid` field on `SwapOperation::TerraSwap` is **ignored** (same as
+/// `query_simulate_swap_operations`).
 fn query_reverse_simulate_swap_operations(
     deps: Deps,
     ask_amount: Uint128,

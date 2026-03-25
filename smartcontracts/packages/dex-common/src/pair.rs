@@ -147,9 +147,11 @@ pub enum Cw20HookMsg {
         side: LimitOrderSide,
         /// Minimum token1 per token0 for maker fills.
         price: Decimal,
-        /// If set, insert/match adjustment starts from this order id (indexer hint).
+        /// Reserved for future indexer-assisted insertion. **Current pair
+        /// implementations ignore this field** and locate the insert position by
+        /// walking from the book head (capped by `max_adjust_steps`).
         hint_after_order_id: Option<u64>,
-        /// Max prev/next steps when locating insert position from the hint.
+        /// Max steps when walking the book from the **head** to find the insert position.
         max_adjust_steps: u32,
     },
     /// Burn LP tokens and receive underlying assets pro-rata.

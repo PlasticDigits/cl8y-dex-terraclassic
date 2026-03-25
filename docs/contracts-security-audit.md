@@ -48,13 +48,19 @@ Each row states a property that should **always** hold (under the trust model). 
 | H1  | **Hook caller allowlist** — only allowlisted addresses can invoke `Hook`; **griefing:** allowlisted hook `Err` rolls back the whole swap            | `assert_allowed_pair` in each hook                                                                     | **Allowlist:** `new_feature_tests::swap_with_reverting_hook_fails` (misnamed: disallowed caller → `Unauthorized hook caller`); `hooks_integration_tests::test_hook_unauthorized_caller_rejected`, `test_tax_hook_unauthorized_hook_caller_rejected`, `test_lp_burn_hook_unauthorized_hook_caller_rejected`. **Allowlisted + failing:** `audit_invariant_tests::swap_fails_atomically_when_allowlisted_hook_reverts` |
 | H2  | **LP burn hook + forged `pair`** — if a **non-pair** address is allowlisted, spoofed `AfterSwap` can drive burns (governance misconfiguration risk) | [lp-burn-hook `execute_after_swap](../smartcontracts/contracts/hooks/lp-burn-hook/src/contract.rs)`    | `adversarial_token::lp_burn_hook_accepts_spoofed_pair_when_spoofer_allowlisted`                                                                      |
 | W1  | **Treasury collateralization** — native backing ≥ CW20 wrapped supply (wrap-mapper / treasury harness)                                              | External `treasury` / `wrap-mapper`                                                                    | `wrap_security_tests::test_wrap_mapper_reentrancy` (invariant check); `wrap_security_tests::test_unwrap_exceeds_treasury_balance`; `wrap_fuzz_tests::prop_wrap_unwrap_treasury_invariant`; [NATIVE_TOKEN_WRAPPING.md](../NATIVE_TOKEN_WRAPPING.md) |
+| L1  | **Escrow vs reserves** — `PENDING_ESCROW_TOKEN0/1` tracks maker escrow; sweep uses `balance − reserves − pending_escrow` ([pair `execute_sweep`](../smartcontracts/contracts/pair/src/contract.rs)) | [state `PENDING_ESCROW_*`](../smartcontracts/contracts/pair/src/state.rs); [orderbook insert/match](../smartcontracts/contracts/pair/src/orderbook.rs) | `limit_order_tests`; pair `orderbook::proptest_limits` (`prop_escrow_dll_after_random_inserts`) |
+| L2  | **Side-correct CW20 on place** — bids only via token1 CW20 `Send`; asks only via token0 CW20 `Send` | [pair `execute_place_limit_order`](../smartcontracts/contracts/pair/src/contract.rs) | `limit_order_tests::place_limit_order_wrong_escrow_token_rejected` |
+| L3  | **Cancel owner-only** — only `owner` may `CancelLimitOrder` | [pair `execute_cancel_limit_order`](../smartcontracts/contracts/pair/src/contract.rs) | `limit_order_tests::cancel_limit_order_non_owner_rejected` |
+| L4  | **Hybrid params** — `pool_input + book_input == amount`; if `book_input > 0` then `max_maker_fills > 0` | [pair `execute_swap`](../smartcontracts/contracts/pair/src/contract.rs) | `limit_order_tests` (split mismatch, zero max makers) |
+| L5  | **Bounded work** — insert walks capped by `max_adjust_steps` (min with hard cap); match uses `max_maker_fills` (min with hard cap); invalid `book_start_hint` falls back to book head | [orderbook](../smartcontracts/contracts/pair/src/orderbook.rs) | `limit_order_tests` (steps exceeded, hint fallback); `orderbook` unit tests; pair `orderbook::proptest_limits::prop_match_bids_maker_cap` |
+| L6  | **Pause freezes book** — while paused: no `Receive` (swap / place limit), no `CancelLimitOrder` (escrow frozen until unpause) | [pair `execute`](../smartcontracts/contracts/pair/src/contract.rs) `assert_not_paused` | `limit_order_tests::pause_blocks_swap_place_and_cancel` |
+| L7  | **Hooks + hybrid** — `AfterSwap.commission_amount` / `spread_amount` reflect the **pool leg only**; `return_asset.amount` is **book + pool** net to user | [pair `execute_swap`](../smartcontracts/contracts/pair/src/contract.rs) | Documented contract; integrators must not assume hook commission equals all fees in a hybrid tx |
+| L8  | **Simulation is pool-only** — pair `Simulation` / `ReverseSimulation` and router `SimulateSwapOperations` **ignore the limit book** and any `hybrid` field on router ops | [pair `query_simulation`](../smartcontracts/contracts/pair/src/contract.rs); [router `query_simulate_swap_operations`](../smartcontracts/contracts/router/src/contract.rs) | `limit_order_tests::router_simulate_ignores_hybrid_book`; [limit-orders.md](./limit-orders.md) |
 
 
 ## Limit orders and hybrid swaps (pair)
 
-- **Escrow:** Bids lock **token1** and asks lock **token0** in pending escrow; balances are excluded from reserves and sweep ([`limit-orders.md`](./limit-orders.md)).
-- **Bounded work:** `max_adjust_steps` (placement) and `book_start_hint` (swap) cap linear walks; `max_maker_fills` caps distinct makers per tx (`MAX_*_HARD_CAP` in `dex-common::pair`).
-- **Economic:** Taker flow matches book then pool; fee and spread checks apply to the combined path. Integration coverage: `cl8y-dex-tests::limit_order_tests`, pair `orderbook` unit tests.
+See invariant rows **L1–L8** above and [`limit-orders.md`](./limit-orders.md) for message shapes, pause semantics, indexer hints, and simulation limits.
 
 ## Attack paths considered (non-governance)
 
@@ -68,7 +74,7 @@ Each row states a property that should **always** hold (under the trust model). 
 
 ## Residual risks (not “bugs” under trusted governance)
 
-- **Malicious governance** can set destructive hooks, pause pairs, or point discount registry to broken contracts (users pay full fee if query fails).
+- **Malicious governance** can set destructive hooks, pause pairs (**including** freezing limit escrow: no cancel while paused), or point discount registry to broken contracts (users pay full fee if query fails).
 - **Wasm admin / migration** on-chain is outside these crates; deployment checklist should restrict migration keys.
 - **Indexer / frontend** are not authoritative for on-chain safety; oracle/TWAP consumers must follow disclaimers in `dex-common` pair query docs.
 

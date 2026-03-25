@@ -24,4 +24,5 @@ dex-common = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
+proptest = "1"
 
