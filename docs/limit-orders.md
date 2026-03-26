@@ -75,10 +75,11 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `action` = `swap` | Any swap |
 | `book_return_amount`, `pool_return_amount`, `return_amount` | Hybrid breakdown |
 | `limit_book_offer_consumed` | When the book leg consumed offer token |
+| `action` = `limit_order_fill` | One **wasm event per maker fill** (not on the main swap attribute list) |
+| `order_id`, `side` (`bid` / `ask`), `maker`, `price` | Per fill |
+| `token0_amount`, `token1_amount`, `commission_amount` | Raw amounts in pair token0 / token1; fee denomination matches side (bid: token1 fee; ask: token0 fee) |
 
-Fine-grained per-fill lines are not required for basic sync; the indexer can combine on-chain queries (`LimitOrder`, `OrderBookHead`) with these attributes for reconciliation.
-
-The **tx indexer** does not yet persist hybrid/limit-specific attributes into dedicated tables; treat chain queries and logs as authoritative for book-level analytics until extended.
+The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, and stores each `limit_order_fill` in `limit_order_fills`. HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills.
 
 ## Example JSON (logical shapes)
 

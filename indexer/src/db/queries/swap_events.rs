@@ -20,6 +20,9 @@ pub struct SwapEventRow {
     pub effective_fee_bps: Option<i16>,
     pub price: BigDecimal,
     pub volume_usd: Option<BigDecimal>,
+    pub pool_return_amount: Option<BigDecimal>,
+    pub book_return_amount: Option<BigDecimal>,
+    pub limit_book_offer_consumed: Option<BigDecimal>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -53,13 +56,17 @@ pub async fn insert_swap(
     effective_fee_bps: Option<i16>,
     price: &BigDecimal,
     volume_usd: Option<&BigDecimal>,
+    pool_return_amount: Option<&BigDecimal>,
+    book_return_amount: Option<&BigDecimal>,
+    limit_book_offer_consumed: Option<&BigDecimal>,
 ) -> Result<i64, sqlx::Error> {
     sqlx::query_scalar::<_, i64>(
         "INSERT INTO swap_events
          (pair_id, block_height, block_timestamp, tx_hash, sender, receiver,
           offer_asset_id, ask_asset_id, offer_amount, return_amount,
-          spread_amount, commission_amount, effective_fee_bps, price, volume_usd)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          spread_amount, commission_amount, effective_fee_bps, price, volume_usd,
+          pool_return_amount, book_return_amount, limit_book_offer_consumed)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          RETURNING id",
     )
     .bind(pair_id)
@@ -77,6 +84,9 @@ pub async fn insert_swap(
     .bind(effective_fee_bps)
     .bind(price)
     .bind(volume_usd)
+    .bind(pool_return_amount)
+    .bind(book_return_amount)
+    .bind(limit_book_offer_consumed)
     .fetch_one(pool)
     .await
 }

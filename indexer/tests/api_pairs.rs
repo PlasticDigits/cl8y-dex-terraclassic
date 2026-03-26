@@ -155,6 +155,70 @@ async fn get_pair_trades_returns_trades() {
 
 #[serial]
 #[tokio::test]
+async fn get_pair_limit_fills_returns_indexed_fills() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    sqlx::query(
+        "INSERT INTO limit_order_fills
+         (pair_id, swap_event_id, block_height, block_timestamp, tx_hash, order_id, side, maker, price, token0_amount, token1_amount, commission_amount)
+         VALUES ($1, NULL, 1001, NOW(), $2, 7, 'bid', 'terra1maker', 1.5, 100, 150, 1)",
+    )
+    .bind(seed.pair_id)
+    .bind("lofilltx0001")
+    .execute(&pool)
+    .await
+    .expect("insert limit_order_fills");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!("/api/v1/pairs/{}/limit-fills", seed.pair_address))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert!(!body.is_empty());
+    assert_eq!(body[0]["order_id"], 7);
+    assert_eq!(body[0]["side"], "bid");
+    assert_eq!(body[0]["maker"], "terra1maker");
+}
+
+#[serial]
+#[tokio::test]
+async fn get_pair_order_limit_fills_filters_by_order_id() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    for (tid, oid) in [("lofilltx_a", 1i64), ("lofilltx_b", 2i64)] {
+        sqlx::query(
+            "INSERT INTO limit_order_fills
+             (pair_id, swap_event_id, block_height, block_timestamp, tx_hash, order_id, side, maker, price, token0_amount, token1_amount, commission_amount)
+             VALUES ($1, NULL, 1002, NOW(), $2, $3, 'ask', 'terra1mk', 2, 10, 20, 0)",
+        )
+        .bind(seed.pair_id)
+        .bind(tid)
+        .bind(oid)
+        .execute(&pool)
+        .await
+        .expect("insert limit_order_fills");
+    }
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/limit-orders/2/fills",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert_eq!(body.len(), 1);
+    assert_eq!(body[0]["order_id"], 2);
+}
+
+#[serial]
+#[tokio::test]
 async fn get_pair_trades_with_limit() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;

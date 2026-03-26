@@ -7,7 +7,7 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::{build_asset_map, internal_err, AppState};
 use crate::db::queries::assets::AssetRow;
-use crate::db::queries::{candles, pairs as db_pairs, swap_events};
+use crate::db::queries::{candles, limit_order_fills, pairs as db_pairs, swap_events};
 
 pub const VALID_INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
@@ -337,6 +337,10 @@ pub struct TradesQuery {
     pub before: Option<i64>,
 }
 
+pub(crate) fn opt_bd_string(v: &Option<bigdecimal::BigDecimal>) -> Option<String> {
+    v.as_ref().map(|b| b.normalized().to_string())
+}
+
 #[derive(Serialize, ToSchema)]
 pub struct TradeResponse {
     pub id: i64,
@@ -350,6 +354,31 @@ pub struct TradeResponse {
     pub offer_amount: String,
     pub return_amount: String,
     pub price: String,
+    /// Pattern C / hybrid: pool leg output (when present on-chain).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pool_return_amount: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub book_return_amount: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit_book_offer_consumed: Option<String>,
+}
+
+/// Indexed per-maker fill from wasm `limit_order_fill` events.
+#[derive(Serialize, ToSchema)]
+pub struct LimitFillResponse {
+    pub id: i64,
+    pub pair_address: String,
+    pub swap_event_id: Option<i64>,
+    pub block_height: i64,
+    pub block_timestamp: String,
+    pub tx_hash: String,
+    pub order_id: i64,
+    pub side: String,
+    pub maker: String,
+    pub price: String,
+    pub token0_amount: String,
+    pub token1_amount: String,
+    pub commission_amount: String,
 }
 
 #[utoipa::path(
@@ -406,7 +435,127 @@ pub async fn get_pair_trades(
                 offer_amount: t.offer_amount.to_string(),
                 return_amount: t.return_amount.to_string(),
                 price: t.price.to_string(),
+                pool_return_amount: opt_bd_string(&t.pool_return_amount),
+                book_return_amount: opt_bd_string(&t.book_return_amount),
+                limit_book_offer_consumed: opt_bd_string(&t.limit_book_offer_consumed),
             }
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct LimitFillsQuery {
+    /// Max results (capped at 200)
+    pub limit: Option<i64>,
+    /// Cursor: return rows with id < before
+    pub before: Option<i64>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/limit-fills",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        LimitFillsQuery,
+    ),
+    responses(
+        (status = 200, description = "Per-maker limit fills indexed from chain", body = Vec<LimitFillResponse>),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_limit_fills(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<LimitFillsQuery>,
+) -> Result<Json<Vec<LimitFillResponse>>, (StatusCode, String)> {
+    let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let limit = q.limit.unwrap_or(50).min(200);
+    let rows = limit_order_fills::list_fills_for_pair(&state.pool, pair.id, limit, q.before)
+        .await
+        .map_err(internal_err)?;
+
+    let result: Vec<LimitFillResponse> = rows
+        .iter()
+        .map(|r| LimitFillResponse {
+            id: r.id,
+            pair_address: addr.clone(),
+            swap_event_id: r.swap_event_id,
+            block_height: r.block_height,
+            block_timestamp: r.block_timestamp.to_rfc3339(),
+            tx_hash: r.tx_hash.clone(),
+            order_id: r.order_id,
+            side: r.side.clone(),
+            maker: r.maker.clone(),
+            price: r.price.to_string(),
+            token0_amount: r.token0_amount.to_string(),
+            token1_amount: r.token1_amount.to_string(),
+            commission_amount: r.commission_amount.to_string(),
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct LimitFillsForOrderQuery {
+    /// Max results (capped at 200)
+    pub limit: Option<i64>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/limit-orders/{order_id}/fills",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        ("order_id" = i64, Path, description = "On-chain limit order id"),
+        LimitFillsForOrderQuery,
+    ),
+    responses(
+        (status = 200, description = "Fills for a single resting order", body = Vec<LimitFillResponse>),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_order_limit_fills(
+    State(state): State<AppState>,
+    Path((addr, order_id)): Path<(String, i64)>,
+    Query(q): Query<LimitFillsForOrderQuery>,
+) -> Result<Json<Vec<LimitFillResponse>>, (StatusCode, String)> {
+    let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let limit = q.limit.unwrap_or(50).min(200);
+    let rows = limit_order_fills::list_fills_for_order(&state.pool, pair.id, order_id, limit)
+        .await
+        .map_err(internal_err)?;
+
+    let result: Vec<LimitFillResponse> = rows
+        .iter()
+        .map(|r| LimitFillResponse {
+            id: r.id,
+            pair_address: addr.clone(),
+            swap_event_id: r.swap_event_id,
+            block_height: r.block_height,
+            block_timestamp: r.block_timestamp.to_rfc3339(),
+            tx_hash: r.tx_hash.clone(),
+            order_id: r.order_id,
+            side: r.side.clone(),
+            maker: r.maker.clone(),
+            price: r.price.to_string(),
+            token0_amount: r.token0_amount.to_string(),
+            token1_amount: r.token1_amount.to_string(),
+            commission_amount: r.commission_amount.to_string(),
         })
         .collect();
 

@@ -53,6 +53,17 @@ fn parse_limit_order_placed(events: &[cosmwasm_std::Event]) -> u64 {
         .expect("limit_order_placed attribute")
 }
 
+fn count_limit_order_fill_events(events: &[cosmwasm_std::Event]) -> usize {
+    events
+        .iter()
+        .filter(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_fill")
+        })
+        .count()
+}
+
 fn place_bid(
     app: &mut App,
     pair: &cosmwasm_std::Addr,
@@ -213,6 +224,157 @@ fn bid_and_hybrid_swap_partially_fills_book() {
     assert_eq!(lo.side, LimitOrderSide::Bid);
     assert!(lo.remaining < bid_escrow);
     assert!(!lo.remaining.is_zero());
+}
+
+/// One wasm event per maker fill (`action` = `limit_order_fill`) for indexers.
+#[test]
+fn hybrid_swap_emits_limit_order_fill_events() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_fill_ev");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(500_000),
+        Decimal::one(),
+    );
+
+    let swap_in = Uint128::new(100_000);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(count_limit_order_fill_events(&res.events), 1);
+    let fill_ev = res
+        .events
+        .iter()
+        .find(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_fill")
+        })
+        .expect("limit_order_fill event");
+    let oid = fill_ev
+        .attributes
+        .iter()
+        .find(|a| a.key == "order_id")
+        .map(|a| a.value.parse::<u64>().unwrap())
+        .expect("order_id");
+    assert_eq!(oid, order_id);
+    let side = fill_ev
+        .attributes
+        .iter()
+        .find(|a| a.key == "side")
+        .map(|a| a.value.as_str())
+        .expect("side");
+    assert_eq!(side, "bid");
+}
+
+#[test]
+fn hybrid_swap_two_makers_emits_two_fill_events() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_two_mk");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(80_000),
+        Decimal::one(),
+    );
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(80_000),
+        Decimal::one(),
+    );
+
+    let book_in = Uint128::new(100_000);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: book_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: book_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(count_limit_order_fill_events(&res.events), 2);
 }
 
 #[test]
@@ -872,19 +1034,33 @@ fn fifo_two_bids_same_price_older_filled_first() {
         Uint128::new(200_000),
     );
 
-    swap_a_to_b_hybrid(
-        &mut app,
-        &env.pair,
-        &taker,
-        &env.token_a,
-        Uint128::new(50_000),
-        Some(HybridSwapParams {
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
             pool_input: Uint128::zero(),
             book_input: Uint128::new(50_000),
             max_maker_fills: 8,
             book_start_hint: None,
         }),
-    );
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(50_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(count_limit_order_fill_events(&res.events), 1);
 
     let lo_a = query_limit(&app, &env.pair, id_alice);
     let lo_b = query_limit(&app, &env.pair, id_bob);

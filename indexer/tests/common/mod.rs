@@ -76,6 +76,10 @@ pub async fn clean_db(pool: &PgPool) {
         .execute(pool)
         .await
         .ok();
+    sqlx::query("DELETE FROM limit_order_fills")
+        .execute(pool)
+        .await
+        .ok();
     sqlx::query("DELETE FROM swap_events")
         .execute(pool)
         .await
