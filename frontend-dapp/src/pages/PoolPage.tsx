@@ -562,7 +562,12 @@ export default function PoolPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Liquidity Pools</h2>
+        <div>
+          <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Liquidity Pools</h2>
+          <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
+            Browse pairs, compare fees, and add or remove liquidity.
+          </p>
+        </div>
         <div className="text-sm uppercase tracking-wide font-medium text-right" style={{ color: 'var(--ink-dim)' }}>
           <span className="block">{total.toLocaleString()} pair(s)</span>
           {indexerTokensQuery.data != null && (
@@ -582,7 +587,7 @@ export default function PoolPage() {
           <label htmlFor="pool-search" className="label-neo mb-1 block">
             Search
           </label>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               id="pool-search"
               type="search"
@@ -599,13 +604,13 @@ export default function PoolPage() {
             />
             <button
               type="button"
-              className="btn-muted shrink-0"
+              className="btn-muted shrink-0 sm:self-auto"
               onClick={() => {
                 setPage(0)
                 setSubmittedQ(q)
               }}
             >
-              Apply
+              Search
             </button>
           </div>
         </div>
@@ -660,7 +665,7 @@ export default function PoolPage() {
 
       {pairsQuery.isError && (
         <RetryError
-          message={`Failed to load pools from indexer (${pairsQuery.error?.message}). Set VITE_INDEXER_URL (currently ${INDEXER_URL}) or start the indexer.`}
+          message={`Pool data is unavailable right now. Check the indexer connection at ${INDEXER_URL} and try again.`}
           onRetry={() => void pairsQuery.refetch()}
         />
       )}

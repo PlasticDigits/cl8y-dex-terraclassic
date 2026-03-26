@@ -7,20 +7,17 @@ export interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-blue-900/30 text-blue-400 border-blue-700',
-  success: 'bg-green-900/30 text-green-400 border-green-700',
-  warning: 'bg-yellow-900/30 text-yellow-400 border-yellow-700',
-  error: 'bg-red-900/30 text-red-400 border-red-700',
-  neutral: 'bg-gray-700/30 text-gray-400 border-gray-500',
-  accent: 'border-[color:var(--mint)] text-[color:var(--mint-soft)] bg-[color:var(--accent-surface)]',
+  default: 'badge-neo',
+  success: 'badge-neo badge-neo-success',
+  warning: 'badge-neo badge-neo-warning',
+  error: 'badge-neo badge-neo-error',
+  neutral: 'badge-neo',
+  accent: 'badge-neo badge-neo-accent',
 }
 
 export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {
   return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-semibold uppercase tracking-wide border-2 shadow-[1px_1px_0_#000] ${variantClasses[variant]} ${className}`.trim()}
-      role="status"
-    >
+    <span className={`${variantClasses[variant]} ${className}`.trim()} role="status">
       {children}
     </span>
   )

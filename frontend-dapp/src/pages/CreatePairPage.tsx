@@ -62,7 +62,12 @@ export default function CreatePairPage() {
           className="pointer-events-none absolute inset-x-6 top-8 h-[78%] rounded-[28px] theme-hero-glow blur-2xl"
         />
         <div className="shell-panel-strong relative z-10">
-          <h2 className="text-lg font-semibold mb-6 uppercase tracking-wide font-heading">Create Trading Pair</h2>
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Create Trading Pair</h2>
+            <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
+              Add a new CW20 market once both token contracts are verified and approved.
+            </p>
+          </div>
 
           <div className="space-y-4">
             <div>
@@ -148,7 +153,7 @@ export default function CreatePairPage() {
                   : 'btn-primary btn-cta !w-full !py-4'
               }`}
             >
-              {!address ? 'Connect Wallet' : createMutation.isPending ? 'Creating Pair...' : 'Create Pair'}
+              {!address ? 'Connect Wallet To Create' : createMutation.isPending ? 'Creating Pair...' : 'Create Pair'}
             </button>
           </div>
 

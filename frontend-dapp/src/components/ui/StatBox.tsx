@@ -9,7 +9,7 @@ export interface StatBoxProps {
 
 export function StatBox({ label, value, loading, color }: StatBoxProps) {
   return (
-    <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+    <div className="card-neo !p-3">
       <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
         {label}
       </p>
