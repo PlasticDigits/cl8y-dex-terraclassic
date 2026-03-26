@@ -79,7 +79,7 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `order_id`, `side` (`bid` / `ask`), `maker`, `price` | Per fill |
 | `token0_amount`, `token1_amount`, `commission_amount` | Raw amounts in pair token0 / token1; fee denomination matches side (bid: token1 fee; ask: token0 fee) |
 
-The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, and stores each `limit_order_fill` in `limit_order_fills`. HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills.
+The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, stores each `limit_order_fill` in `limit_order_fills`, and indexes wasm `place_limit_order` / `cancel_limit_order` into **`limit_order_placements`** and **`limit_order_cancellations`** (metadata columns such as `side` / `price` / `owner` may be null when not emitted on-chain). HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields and optional **`effective_fee_bps`** when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills; **`GET /api/v1/pairs/{addr}/limit-placements`** and **`.../limit-cancellations`** list lifecycle events.
 
 ## Example JSON (logical shapes)
 

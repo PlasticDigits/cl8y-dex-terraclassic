@@ -287,3 +287,55 @@ async fn get_pair_stats_returns_stats() {
     assert!(body["volume_base"].is_string());
     assert!(body["trade_count"].is_i64());
 }
+
+#[serial]
+#[tokio::test]
+async fn get_pair_liquidity_events_returns_rows() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/liquidity-events",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert!(!body.is_empty());
+    assert_eq!(body[0]["event_type"], "add");
+    assert!(body[0]["lp_amount"].is_string());
+}
+
+#[serial]
+#[tokio::test]
+async fn get_pair_limit_placements_and_cancellations() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/limit-placements",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let p: Vec<Value> = resp.json();
+    assert_eq!(p.len(), 1);
+    assert_eq!(p[0]["order_id"], 7);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/limit-cancellations",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let c: Vec<Value> = resp.json();
+    assert_eq!(c.len(), 1);
+    assert_eq!(c[0]["order_id"], 7);
+}

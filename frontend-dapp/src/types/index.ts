@@ -188,6 +188,67 @@ export interface IndexerTrade {
   offer_amount: string
   return_amount: string
   price: string
+  /** Hybrid / Pattern C when indexer has on-chain attrs */
+  pool_return_amount?: string
+  book_return_amount?: string
+  limit_book_offer_consumed?: string
+  effective_fee_bps?: number
+}
+
+/** `GET /api/v1/pairs/{addr}/limit-fills` */
+export interface IndexerLimitFill {
+  id: number
+  pair_address: string
+  swap_event_id: number | null
+  block_height: number
+  block_timestamp: string
+  tx_hash: string
+  order_id: number
+  side: string
+  maker: string
+  price: string
+  token0_amount: string
+  token1_amount: string
+  commission_amount: string
+}
+
+/** `GET /api/v1/pairs/{addr}/liquidity-events` */
+export interface IndexerLiquidityEvent {
+  id: number
+  pair_address: string
+  block_height: number
+  block_timestamp: string
+  tx_hash: string
+  provider: string
+  event_type: string
+  asset_0_amount: string
+  asset_1_amount: string
+  lp_amount: string
+}
+
+/** `GET /api/v1/pairs/{addr}/limit-placements` */
+export interface IndexerLimitPlacement {
+  id: number
+  pair_address: string
+  block_height: number
+  block_timestamp: string
+  tx_hash: string
+  order_id: number
+  owner?: string | null
+  side?: string | null
+  price?: string | null
+  expires_at?: number | null
+}
+
+/** `GET /api/v1/pairs/{addr}/limit-cancellations` */
+export interface IndexerLimitCancellation {
+  id: number
+  pair_address: string
+  block_height: number
+  block_timestamp: string
+  tx_hash: string
+  order_id: number
+  owner?: string | null
 }
 
 export interface IndexerPairStats {
