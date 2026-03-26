@@ -569,7 +569,8 @@ fn parse_limit_order_cancellations(tx: &TxResponse) -> Vec<ParsedLimitOrderCance
         let Some(contract) = wasm_contract_addr(attrs) else {
             continue;
         };
-        let oid = wasm_attr_last(attrs, "limit_order_cancelled").and_then(|s| s.parse::<i64>().ok());
+        let oid =
+            wasm_attr_last(attrs, "limit_order_cancelled").and_then(|s| s.parse::<i64>().ok());
         let Some(order_id) = oid else {
             continue;
         };
@@ -601,16 +602,7 @@ async fn process_limit_order_placement(
     };
 
     limit_order_lifecycle::insert_placement(
-        pool,
-        pair.id,
-        height,
-        block_time,
-        tx_hash,
-        p.order_id,
-        None,
-        None,
-        None,
-        None,
+        pool, pair.id, height, block_time, tx_hash, p.order_id, None, None, None, None,
     )
     .await?;
     Ok(())
@@ -636,13 +628,7 @@ async fn process_limit_order_cancellation(
     };
 
     limit_order_lifecycle::insert_cancellation(
-        pool,
-        pair.id,
-        height,
-        block_time,
-        tx_hash,
-        c.order_id,
-        None,
+        pool, pair.id, height, block_time, tx_hash, c.order_id, None,
     )
     .await?;
     Ok(())
