@@ -480,135 +480,137 @@ export default function SwapPage() {
           </>
         )}
 
-        {/* You Pay */}
-        <div className="card-neo mb-2 !p-4 sm:!p-5">
-          <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-            <span className="label-neo !mb-0 sm:pt-1">You Pay</span>
-            <TokenSelect
-              value={fromToken}
-              tokens={allTokens}
-              excludeToken={toToken}
-              onChange={(tokenId) => {
-                sounds.playButtonPress()
-                setFromToken(tokenId)
-                setShowImpactConfirm(false)
-              }}
-              aria-label="Select token you pay"
-              disabled={allTokens.length === 0}
-            />
-          </div>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={inputAmount}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === '' || /^\d*\.?\d*$/.test(v)) {
-                setInputAmount(v)
-                setShowImpactConfirm(false)
-              }
-            }}
-            placeholder="0.00"
-            className="w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent focus:outline-none"
-            style={{ color: 'var(--ink)' }}
-          />
-          {isWalletConnected && (
-            <div
-              className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs min-h-[1.5rem]"
-              style={{ color: 'var(--ink-subtle)' }}
-            >
-              <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                <span className="shrink-0">Balance:</span>
-                {!offerAssetInfo ? (
-                  <span className="font-mono">—</span>
-                ) : balanceQuery.isLoading ? (
-                  <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
-                    <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
-                    <span className="sr-only">Loading balance</span>
-                  </span>
-                ) : balanceQuery.isError ? (
-                  <span className="font-mono">—</span>
-                ) : (
-                  <span className="font-mono truncate">
-                    {formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))}
-                  </span>
-                )}
-              </span>
-              <button
-                type="button"
-                disabled={!offerAssetInfo || balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data}
-                onClick={() => {
+        {/* You Pay / swap direction / You Receive — abutting cards, control on seam */}
+        <div className="swap-io-stack relative mb-4">
+          <div className="card-neo swap-io-card-pay !p-4 sm:!p-5">
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+              <span className="label-neo !mb-0 sm:pt-1">You Pay</span>
+              <TokenSelect
+                value={fromToken}
+                tokens={allTokens}
+                excludeToken={toToken}
+                onChange={(tokenId) => {
                   sounds.playButtonPress()
-                  if (balanceQuery.data) setInputAmount(fromRawAmount(balanceQuery.data, offerDecimals))
+                  setFromToken(tokenId)
+                  setShowImpactConfirm(false)
                 }}
-                className="ml-auto uppercase font-semibold tracking-wide hover:underline shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-                style={{ color: 'var(--cyan)' }}
-              >
-                Max
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Swap Direction Toggle */}
-        <div className="flex justify-center -my-1 relative z-10">
-          <button
-            onClick={() => {
-              sounds.playButtonPress()
-              const tmp = fromToken
-              setFromToken(toToken)
-              setToToken(tmp)
-              setShowImpactConfirm(false)
-            }}
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-[18px] border flex items-center justify-center transition-all hover:-translate-y-0.5"
-            style={{
-              borderColor: 'rgba(255, 225, 190, 0.2)',
-              background:
-                'linear-gradient(180deg, rgba(72, 44, 31, 0.98), rgba(37, 22, 18, 0.99)), rgba(255, 255, 255, 0.03)',
-              color: 'var(--cyan)',
-              boxShadow:
-                '0 16px 34px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 161, 59, 0.08), inset 0 1px 0 rgba(255, 243, 221, 0.2)',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M8 1v14M8 1L4 5M8 1l4 4M8 15l-4-4M8 15l4-4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                aria-label="Select token you pay"
+                disabled={allTokens.length === 0}
               />
-            </svg>
-          </button>
-        </div>
+            </div>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={inputAmount}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) {
+                  setInputAmount(v)
+                  setShowImpactConfirm(false)
+                }
+              }}
+              placeholder="0.00"
+              className="w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent focus:outline-none"
+              style={{ color: 'var(--ink)' }}
+            />
+            {isWalletConnected && (
+              <div
+                className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs min-h-[1.5rem]"
+                style={{ color: 'var(--ink-subtle)' }}
+              >
+                <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                  <span className="shrink-0">Balance:</span>
+                  {!offerAssetInfo ? (
+                    <span className="font-mono">—</span>
+                  ) : balanceQuery.isLoading ? (
+                    <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
+                      <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
+                      <span className="sr-only">Loading balance</span>
+                    </span>
+                  ) : balanceQuery.isError ? (
+                    <span className="font-mono">—</span>
+                  ) : (
+                    <span className="font-mono truncate">
+                      {formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))}
+                    </span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  disabled={!offerAssetInfo || balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data}
+                  onClick={() => {
+                    sounds.playButtonPress()
+                    if (balanceQuery.data) setInputAmount(fromRawAmount(balanceQuery.data, offerDecimals))
+                  }}
+                  className="ml-auto uppercase font-semibold tracking-wide hover:underline shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                  style={{ color: 'var(--cyan)' }}
+                >
+                  Max
+                </button>
+              </div>
+            )}
+          </div>
 
-        {/* You Receive */}
-        <div className="card-neo mt-2 mb-4 !p-4 sm:!p-5">
-          <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-            <span className="label-neo !mb-0 sm:pt-1">You Receive</span>
-            <TokenSelect
-              value={toToken}
-              tokens={allTokens}
-              excludeToken={fromToken}
-              onChange={(tokenId) => {
+          <div className="relative z-20 flex justify-center pointer-events-none -my-[22px] sm:-my-6">
+            <button
+              type="button"
+              aria-label="Swap pay and receive tokens"
+              onClick={() => {
                 sounds.playButtonPress()
-                setToToken(tokenId)
+                const tmp = fromToken
+                setFromToken(toToken)
+                setToToken(tmp)
                 setShowImpactConfirm(false)
               }}
-              aria-label="Select token you receive"
-              disabled={allTokens.length === 0}
-            />
+              className="pointer-events-auto w-11 h-11 sm:w-12 sm:h-12 rounded-[18px] border flex items-center justify-center transition-all hover:-translate-y-0.5"
+              style={{
+                borderColor: 'rgba(255, 225, 190, 0.2)',
+                background:
+                  'linear-gradient(180deg, rgba(72, 44, 31, 0.98), rgba(37, 22, 18, 0.99)), rgba(255, 255, 255, 0.03)',
+                color: 'var(--cyan)',
+                boxShadow:
+                  '0 16px 34px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 161, 59, 0.08), inset 0 1px 0 rgba(255, 243, 221, 0.2)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path
+                  d="M8 1v14M8 1L4 5M8 1l4 4M8 15l-4-4M8 15l4-4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
           </div>
-          <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
-            {simQuery.isFetching ? (
-              <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
-                Calculating...
-              </span>
-            ) : outputAmount && receiveAssetInfo ? (
-              formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
-            ) : (
-              <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
-            )}
+
+          <div className="card-neo swap-io-card-receive !p-4 sm:!p-5">
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+              <span className="label-neo !mb-0 sm:pt-1">You Receive</span>
+              <TokenSelect
+                value={toToken}
+                tokens={allTokens}
+                excludeToken={fromToken}
+                onChange={(tokenId) => {
+                  sounds.playButtonPress()
+                  setToToken(tokenId)
+                  setShowImpactConfirm(false)
+                }}
+                aria-label="Select token you receive"
+                disabled={allTokens.length === 0}
+              />
+            </div>
+            <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
+              {simQuery.isFetching ? (
+                <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
+                  Calculating...
+                </span>
+              ) : outputAmount && receiveAssetInfo ? (
+                formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
+              ) : (
+                <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
+              )}
+            </div>
           </div>
         </div>
 
