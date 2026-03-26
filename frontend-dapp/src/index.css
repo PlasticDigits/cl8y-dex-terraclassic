@@ -73,6 +73,11 @@
     cursor: var(--cursor-default);
   }
 
+  #root {
+    padding-top: 8px;
+    padding-bottom: 0;
+  }
+
   html {
     background: var(--bg-0);
   }
@@ -293,8 +298,9 @@
     pointer-events: none;
   }
 
+  /* Position (fixed + coords) comes from TokenSelect portal inline styles — must sit above cards/shell (stacking contexts). */
   .token-select-dropdown {
-    @apply absolute z-[100] left-0 right-0 mt-2 max-h-60 overflow-y-auto p-2 m-0 list-none;
+    @apply max-h-60 overflow-y-auto p-2 m-0 list-none;
     border: 1px solid var(--line);
     border-radius: 18px;
     background: linear-gradient(180deg, rgba(37, 23, 19, 0.96), rgba(22, 13, 11, 0.98));
@@ -302,6 +308,7 @@
       0 28px 60px rgba(0, 0, 0, 0.34),
       inset 0 1px 0 rgba(255, 244, 224, 0.12);
     backdrop-filter: blur(20px);
+    z-index: 100;
   }
 
   .token-select-option {
@@ -366,6 +373,81 @@
       0 24px 54px rgba(0, 0, 0, 0.22),
       inset 0 1px 0 rgba(255, 243, 223, 0.08);
     backdrop-filter: blur(14px);
+  }
+
+  /* Swap page: two halves abut; direction button sits on the seam (see SwapPage).
+     One gradient + blur on the stack so the fill reads as a single surface. */
+  .swap-io-stack {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 213, 158, 0.14);
+    box-shadow:
+      0 24px 54px rgba(0, 0, 0, 0.22),
+      inset 0 1px 0 rgba(255, 243, 223, 0.08);
+    backdrop-filter: blur(14px);
+  }
+
+  .swap-io-stack::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(55, 33, 25, 0.7) 0%,
+        rgba(40, 24, 19, 0.71) 42%,
+        rgba(30, 18, 15, 0.72) 58%,
+        rgba(27, 16, 14, 0.72) 100%
+      ),
+      rgba(255, 255, 255, 0.03);
+  }
+
+  .swap-io-card-pay.card-neo,
+  .swap-io-card-receive.card-neo {
+    position: relative;
+    z-index: 1;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .swap-io-card-pay.card-neo {
+    border-radius: 24px 24px 0 0;
+    border-bottom: 1px solid rgba(255, 213, 158, 0.14);
+  }
+
+  .swap-io-card-receive.card-neo {
+    border-radius: 0 0 24px 24px;
+    margin-top: -1px;
+  }
+
+  :root[data-theme='light'] .swap-io-stack {
+    border-color: rgba(167, 108, 71, 0.2);
+    box-shadow:
+      0 24px 54px rgba(113, 66, 38, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  }
+
+  :root[data-theme='light'] .swap-io-stack::before {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 252, 248, 0.97) 0%,
+        rgba(252, 244, 234, 0.95) 40%,
+        rgba(246, 236, 222, 0.94) 60%,
+        rgba(247, 232, 216, 0.96) 100%
+      ),
+      rgba(255, 255, 255, 0.42);
+  }
+
+  :root[data-theme='light'] .swap-io-card-pay.card-neo {
+    border-bottom-color: rgba(167, 108, 71, 0.2);
   }
 
   .tab-neo {
@@ -1133,10 +1215,25 @@ input[type='number'] {
 
 @media (max-width: 767px) {
   .app-header {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     width: min(100% - 16px, 560px);
-    margin-top: 8px;
-    grid-template-columns: 1fr;
-    gap: 14px;
+    margin-top: 0px;
+    padding: 10px 12px;
+  }
+
+  .app-brand {
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  /* Logo only on small screens — saves vertical space */
+  .app-brand-copy {
+    display: none;
   }
 
   .app-desktop-nav {
@@ -1144,7 +1241,13 @@ input[type='number'] {
   }
 
   .app-header-controls {
-    justify-content: stretch;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: nowrap;
   }
 
   .app-main-shell {
@@ -1172,31 +1275,22 @@ input[type='number'] {
 
 @media (max-width: 480px) {
   .app-brand-mark {
-    width: 50px;
-    height: 50px;
+    width: 48px;
+    height: 48px;
   }
 
   .app-brand-logo {
-    width: 40px;
-    height: 40px;
-  }
-
-  .app-brand-kicker {
-    display: none;
-  }
-
-  .app-brand-title {
-    font-size: 0.94rem;
+    width: 38px;
+    height: 38px;
   }
 
   .app-header-controls {
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .network-badge,
   .wallet-trigger {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
   }
 

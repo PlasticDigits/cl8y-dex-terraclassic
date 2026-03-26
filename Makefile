@@ -36,7 +36,8 @@ wait-healthy:
 	done
 	@echo "Waiting for Postgres..."
 	@for i in $$(seq 1 30); do \
-		if pg_isready -h localhost -U postgres > /dev/null 2>&1; then \
+		if pg_isready -h localhost -U postgres > /dev/null 2>&1 \
+			|| docker compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then \
 			echo "Postgres is ready!"; \
 			break; \
 		fi; \
