@@ -182,13 +182,12 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
         .expect("insert swap event");
     }
 
-    let first_swap_id: i64 = sqlx::query_scalar(
-        "SELECT id FROM swap_events WHERE pair_id = $1 ORDER BY id ASC LIMIT 1",
-    )
-    .bind(pair_id)
-    .fetch_one(pool)
-    .await
-    .expect("first swap id");
+    let first_swap_id: i64 =
+        sqlx::query_scalar("SELECT id FROM swap_events WHERE pair_id = $1 ORDER BY id ASC LIMIT 1")
+            .bind(pair_id)
+            .fetch_one(pool)
+            .await
+            .expect("first swap id");
 
     sqlx::query(
         "INSERT INTO limit_order_fills
