@@ -171,6 +171,7 @@ pub async fn get_trader_trades(
                 limit_book_offer_consumed: super::pairs::opt_bd_string(
                     &t.limit_book_offer_consumed,
                 ),
+                effective_fee_bps: t.effective_fee_bps,
             }
         })
         .collect();

@@ -66,3 +66,34 @@ pub async fn insert_liquidity_event(
     .fetch_one(pool)
     .await
 }
+
+pub async fn list_liquidity_for_pair(
+    pool: &PgPool,
+    pair_id: i32,
+    limit: i64,
+    before_id: Option<i64>,
+) -> Result<Vec<LiquidityEventRow>, sqlx::Error> {
+    match before_id {
+        Some(bid) => {
+            sqlx::query_as::<_, LiquidityEventRow>(
+                "SELECT * FROM liquidity_events WHERE pair_id = $1 AND id < $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(pair_id)
+            .bind(limit)
+            .bind(bid)
+            .fetch_all(pool)
+            .await
+        }
+        None => {
+            sqlx::query_as::<_, LiquidityEventRow>(
+                "SELECT * FROM liquidity_events WHERE pair_id = $1
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(pair_id)
+            .bind(limit)
+            .fetch_all(pool)
+            .await
+        }
+    }
+}

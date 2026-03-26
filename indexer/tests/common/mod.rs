@@ -76,6 +76,14 @@ pub async fn clean_db(pool: &PgPool) {
         .execute(pool)
         .await
         .ok();
+    sqlx::query("DELETE FROM limit_order_placements")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM limit_order_cancellations")
+        .execute(pool)
+        .await
+        .ok();
     sqlx::query("DELETE FROM limit_order_fills")
         .execute(pool)
         .await
@@ -173,6 +181,69 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
         .await
         .expect("insert swap event");
     }
+
+    let first_swap_id: i64 = sqlx::query_scalar(
+        "SELECT id FROM swap_events WHERE pair_id = $1 ORDER BY id ASC LIMIT 1",
+    )
+    .bind(pair_id)
+    .fetch_one(pool)
+    .await
+    .expect("first swap id");
+
+    sqlx::query(
+        "INSERT INTO limit_order_fills
+         (pair_id, swap_event_id, block_height, block_timestamp, tx_hash, order_id, side, maker, price, token0_amount, token1_amount, commission_amount)
+         VALUES ($1, $2, 1000, NOW(), 'txfill0', 42, 'bid', $3, 1.0, 100, 100, 1)",
+    )
+    .bind(pair_id)
+    .bind(first_swap_id)
+    .bind(&trader_address)
+    .execute(pool)
+    .await
+    .expect("insert limit fill");
+
+    sqlx::query(
+        "INSERT INTO limit_order_fills
+         (pair_id, swap_event_id, block_height, block_timestamp, tx_hash, order_id, side, maker, price, token0_amount, token1_amount, commission_amount)
+         VALUES ($1, $2, 1001, NOW(), 'txfill1', 43, 'ask', $3, 1.1, 50, 55, 0)",
+    )
+    .bind(pair_id)
+    .bind(first_swap_id)
+    .bind(&trader_address)
+    .execute(pool)
+    .await
+    .expect("insert limit fill 2");
+
+    sqlx::query(
+        "INSERT INTO liquidity_events
+         (pair_id, block_height, block_timestamp, tx_hash, provider, event_type, asset_0_amount, asset_1_amount, lp_amount)
+         VALUES ($1, 1000, NOW(), 'txliq0', $2, 'add', 1000, 1000, 500)",
+    )
+    .bind(pair_id)
+    .bind(&trader_address)
+    .execute(pool)
+    .await
+    .expect("insert liquidity event");
+
+    sqlx::query(
+        "INSERT INTO limit_order_placements
+         (pair_id, block_height, block_timestamp, tx_hash, order_id)
+         VALUES ($1, 1000, NOW(), 'txplace0', 7)",
+    )
+    .bind(pair_id)
+    .execute(pool)
+    .await
+    .expect("insert placement");
+
+    sqlx::query(
+        "INSERT INTO limit_order_cancellations
+         (pair_id, block_height, block_timestamp, tx_hash, order_id)
+         VALUES ($1, 1001, NOW(), 'txcancel0', 7)",
+    )
+    .bind(pair_id)
+    .execute(pool)
+    .await
+    .expect("insert cancellation");
 
     sqlx::query(
         "INSERT INTO candles (pair_id, interval, open_time, open, high, low, close, volume_base, volume_quote, trade_count)

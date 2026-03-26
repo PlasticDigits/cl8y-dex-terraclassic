@@ -7,7 +7,9 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::{build_asset_map, internal_err, AppState};
 use crate::db::queries::assets::AssetRow;
-use crate::db::queries::{candles, limit_order_fills, pairs as db_pairs, swap_events};
+use crate::db::queries::{
+    candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
+};
 
 pub const VALID_INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
@@ -329,7 +331,7 @@ pub async fn get_pair_candles(
     Ok(Json(result))
 }
 
-#[derive(Deserialize, IntoParams)]
+#[derive(Deserialize, IntoParams, utoipa::ToSchema)]
 pub struct TradesQuery {
     /// Max results (capped at 200)
     pub limit: Option<i64>,
@@ -361,6 +363,8 @@ pub struct TradeResponse {
     pub book_return_amount: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit_book_offer_consumed: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effective_fee_bps: Option<i16>,
 }
 
 /// Indexed per-maker fill from wasm `limit_order_fill` events.
@@ -438,6 +442,7 @@ pub async fn get_pair_trades(
                 pool_return_amount: opt_bd_string(&t.pool_return_amount),
                 book_return_amount: opt_bd_string(&t.book_return_amount),
                 limit_book_offer_consumed: opt_bd_string(&t.limit_book_offer_consumed),
+                effective_fee_bps: t.effective_fee_bps,
             }
         })
         .collect();
@@ -445,7 +450,200 @@ pub async fn get_pair_trades(
     Ok(Json(result))
 }
 
-#[derive(Deserialize, IntoParams)]
+#[derive(Deserialize, IntoParams, utoipa::ToSchema)]
+pub struct LiquidityEventsQuery {
+    pub limit: Option<i64>,
+    pub before: Option<i64>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LiquidityEventResponse {
+    pub id: i64,
+    pub pair_address: String,
+    pub block_height: i64,
+    pub block_timestamp: String,
+    pub tx_hash: String,
+    pub provider: String,
+    pub event_type: String,
+    pub asset_0_amount: String,
+    pub asset_1_amount: String,
+    pub lp_amount: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/liquidity-events",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        LiquidityEventsQuery,
+    ),
+    responses(
+        (status = 200, description = "Add/remove liquidity events", body = Vec<LiquidityEventResponse>),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_liquidity_events(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<LiquidityEventsQuery>,
+) -> Result<Json<Vec<LiquidityEventResponse>>, (StatusCode, String)> {
+    let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let limit = q.limit.unwrap_or(50).min(200);
+    let rows = liquidity::list_liquidity_for_pair(&state.pool, pair.id, limit, q.before)
+        .await
+        .map_err(internal_err)?;
+
+    let result: Vec<LiquidityEventResponse> = rows
+        .iter()
+        .map(|r| LiquidityEventResponse {
+            id: r.id,
+            pair_address: addr.clone(),
+            block_height: r.block_height,
+            block_timestamp: r.block_timestamp.to_rfc3339(),
+            tx_hash: r.tx_hash.clone(),
+            provider: r.provider.clone(),
+            event_type: r.event_type.clone(),
+            asset_0_amount: r.asset_0_amount.to_string(),
+            asset_1_amount: r.asset_1_amount.to_string(),
+            lp_amount: r.lp_amount.to_string(),
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LimitPlacementResponse {
+    pub id: i64,
+    pub pair_address: String,
+    pub block_height: i64,
+    pub block_timestamp: String,
+    pub tx_hash: String,
+    pub order_id: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub side: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub price: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<i64>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/limit-placements",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        LimitFillsQuery,
+    ),
+    responses(
+        (status = 200, description = "Indexed place_limit_order events", body = Vec<LimitPlacementResponse>),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_limit_placements(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<LimitFillsQuery>,
+) -> Result<Json<Vec<LimitPlacementResponse>>, (StatusCode, String)> {
+    let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let limit = q.limit.unwrap_or(50).min(200);
+    let rows =
+        limit_order_lifecycle::list_placements_for_pair(&state.pool, pair.id, limit, q.before)
+            .await
+            .map_err(internal_err)?;
+
+    let result: Vec<LimitPlacementResponse> = rows
+        .iter()
+        .map(|r| LimitPlacementResponse {
+            id: r.id,
+            pair_address: addr.clone(),
+            block_height: r.block_height,
+            block_timestamp: r.block_timestamp.to_rfc3339(),
+            tx_hash: r.tx_hash.clone(),
+            order_id: r.order_id,
+            owner: r.owner.clone(),
+            side: r.side.clone(),
+            price: r.price.as_ref().map(|p| p.normalized().to_string()),
+            expires_at: r.expires_at,
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LimitCancellationResponse {
+    pub id: i64,
+    pub pair_address: String,
+    pub block_height: i64,
+    pub block_timestamp: String,
+    pub tx_hash: String,
+    pub order_id: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/limit-cancellations",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        LimitFillsQuery,
+    ),
+    responses(
+        (status = 200, description = "Indexed cancel_limit_order events", body = Vec<LimitCancellationResponse>),
+        (status = 404, description = "Pair not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_limit_cancellations(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<LimitFillsQuery>,
+) -> Result<Json<Vec<LimitCancellationResponse>>, (StatusCode, String)> {
+    let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let limit = q.limit.unwrap_or(50).min(200);
+    let rows =
+        limit_order_lifecycle::list_cancellations_for_pair(&state.pool, pair.id, limit, q.before)
+            .await
+            .map_err(internal_err)?;
+
+    let result: Vec<LimitCancellationResponse> = rows
+        .iter()
+        .map(|r| LimitCancellationResponse {
+            id: r.id,
+            pair_address: addr.clone(),
+            block_height: r.block_height,
+            block_timestamp: r.block_timestamp.to_rfc3339(),
+            tx_hash: r.tx_hash.clone(),
+            order_id: r.order_id,
+            owner: r.owner.clone(),
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(Deserialize, IntoParams, utoipa::ToSchema)]
 pub struct LimitFillsQuery {
     /// Max results (capped at 200)
     pub limit: Option<i64>,

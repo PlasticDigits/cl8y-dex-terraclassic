@@ -4,7 +4,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 
 ## Architecture
 
-- **Indexer task:** LCD → parse txs → Postgres (swaps, candles, traders, positions, hooks, oracle rows).
+- **Indexer task:** LCD → parse txs → Postgres (swaps, candles, traders, positions, limit fills and lifecycle rows, liquidity events, hooks, oracle rows).
 - **API task:** Axum GET handlers → SQLx (parameterized) → JSON.
 - **Shared state:** `AppState` (pool, LCD client, USTC price cache, ticker map cache, orderbook cache, optional `router_address` for route simulation).
 
@@ -29,13 +29,16 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | Ticker resolution load | Full ticker→pair map cached 30s | Reduces DB scans on CG/CMC | [`api/mod.rs`](../indexer/src/api/mod.rs) |
 | Route discovery | `GET /api/v1/route/solve` — BFS over indexed pairs (max 4 hops); `token_in` / `token_out` must match `assets.contract_address` (native-only assets without a contract address are not routable) | Unknown token → **400**; no path → **404** | [`route_solver.rs`](../indexer/src/api/route_solver.rs), [`api_route_solve.rs`](../indexer/tests/api_route_solve.rs) |
 | Route simulation | Optional `estimated_amount_out` when `amount_in` is set **and** `ROUTER_ADDRESS` env is configured | LCD `simulate_swap_operations` on router; otherwise field omitted | Same; requires live LCD in production |
+| Pair liquidity history | `GET /api/v1/pairs/{addr}/liquidity-events` — `limit`/`before` capped like trades | Unknown pair → **404** | [`api_pairs.rs`](../indexer/tests/api_pairs.rs) |
+| Limit placements / cancellations | `GET /api/v1/pairs/{addr}/limit-placements`, `.../limit-cancellations` | Unknown pair → **404** | Same |
+| Hooks OpenAPI | `GET /api/v1/hooks` documented under Swagger **Hooks** tag | Same error handling as other read routes | [`api_hooks.rs`](../indexer/tests/api_hooks.rs) |
 
 ## Indexing invariants
 
 | Invariant | Enforcement | Unhappy path | Tests |
 |-----------|-------------|--------------|-------|
 | Block time usable | RFC3339 parse; else `tracing::warn` + `Utc::now()` | Misaligned candles (documented risk) | Manual / logs |
-| Swap dedup | `(tx_hash, pair_id)` | Replay not double-counted | Implicit DB unique usage |
+| Swap dedup | Unique index on `(tx_hash, pair_id)`; `INSERT ... ON CONFLICT DO NOTHING` in [`insert_swap`](../indexer/src/db/queries/swap_events.rs) | Replay skipped; optional `trade_exists` fast path in parser | Migration `20260326120000_*`; [`parser.rs`](../indexer/src/indexer/parser.rs) |
 | Wasm attributes | `wasm_attr_last`: duplicate keys → last wins | Matches CosmWasm multi-attribute events | [`parser.rs`](../indexer/src/indexer/parser.rs) unit tests + fuzz |
 | Candle price positive | `price <= 0` → skip update | No zero/negative OHLC from bad ratio | [`candle_skip_zero_price.rs`](../indexer/tests/candle_skip_zero_price.rs), `merge_candle_ohlc` unit tests |
 | Candle OHLC consistency | `high ≥ low`, `high ≥ close`, `low ≤ close`, `open` unchanged on update | Enforced by merge logic | Unit tests + **proptest** on `merge_candle_ohlc` ([`candle_builder.rs`](../indexer/src/indexer/candle_builder.rs)) |

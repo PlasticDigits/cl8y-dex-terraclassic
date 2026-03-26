@@ -159,9 +159,13 @@ pub async fn find_pair_by_ticker(
         pairs::get_pair,
         pairs::get_pair_candles,
         pairs::get_pair_trades,
+        pairs::get_pair_liquidity_events,
+        pairs::get_pair_limit_placements,
+        pairs::get_pair_limit_cancellations,
         pairs::get_pair_limit_fills,
         pairs::get_pair_order_limit_fills,
         pairs::get_pair_stats,
+        hooks::get_hook_events,
         tokens::list_tokens,
         tokens::get_token,
         tokens::get_token_pairs,
@@ -192,8 +196,15 @@ pub async fn find_pair_by_ticker(
         pairs::AssetBrief,
         pairs::CandleResponse,
         pairs::TradeResponse,
+        pairs::TradesQuery,
+        pairs::LiquidityEventsQuery,
+        pairs::LiquidityEventResponse,
+        pairs::LimitPlacementResponse,
+        pairs::LimitCancellationResponse,
         pairs::LimitFillResponse,
         pairs::PairStatsResponse,
+        hooks::HookEventsQuery,
+        hooks::HookEventResponse,
         tokens::TokenResponse,
         tokens::TokenDetailResponse,
         tokens::VolumeStatResponse,
@@ -224,6 +235,7 @@ pub async fn find_pair_by_ticker(
         (name = "Oracle", description = "USTC/USD oracle price feeds"),
         (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
         (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
+        (name = "Hooks", description = "Post-swap hook execution events"),
     )
 )]
 struct ApiDoc;
@@ -255,6 +267,18 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
         .route("/api/v1/pairs/{addr}/candles", get(pairs::get_pair_candles))
         .route("/api/v1/pairs/{addr}/trades", get(pairs::get_pair_trades))
+        .route(
+            "/api/v1/pairs/{addr}/liquidity-events",
+            get(pairs::get_pair_liquidity_events),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-placements",
+            get(pairs::get_pair_limit_placements),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-cancellations",
+            get(pairs::get_pair_limit_cancellations),
+        )
         .route(
             "/api/v1/pairs/{addr}/limit-fills",
             get(pairs::get_pair_limit_fills),

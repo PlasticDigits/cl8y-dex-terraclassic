@@ -9,7 +9,9 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::config::Config;
-use crate::db::queries::{assets, limit_order_fills, liquidity, pairs, swap_events};
+use crate::db::queries::{
+    assets, limit_order_fills, limit_order_lifecycle, liquidity, pairs, swap_events,
+};
 use crate::lcd::{Attribute, LcdClient, TxResponse};
 
 use super::{
@@ -61,6 +63,18 @@ struct ParsedLimitOrderFill {
     commission_amount: BigDecimal,
 }
 
+#[derive(Debug, Clone)]
+struct ParsedLimitOrderPlacement {
+    pair_address: String,
+    order_id: i64,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedLimitOrderCancellation {
+    pair_address: String,
+    order_id: i64,
+}
+
 pub async fn process_block_txs(
     pool: &PgPool,
     lcd: &LcdClient,
@@ -110,6 +124,34 @@ pub async fn process_block_txs(
                     "Failed to process limit order fill in tx {} for pair {}: {}",
                     tx.txhash,
                     fill.pair_address,
+                    e
+                );
+            }
+        }
+
+        let placements = parse_limit_order_placements(tx);
+        for p in &placements {
+            if let Err(e) =
+                process_limit_order_placement(pool, lcd, p, height, block_time, &tx.txhash).await
+            {
+                tracing::warn!(
+                    "Failed to process limit order placement in tx {} for pair {}: {}",
+                    tx.txhash,
+                    p.pair_address,
+                    e
+                );
+            }
+        }
+
+        let cancellations = parse_limit_order_cancellations(tx);
+        for c in &cancellations {
+            if let Err(e) =
+                process_limit_order_cancellation(pool, lcd, c, height, block_time, &tx.txhash).await
+            {
+                tracing::warn!(
+                    "Failed to process limit order cancel in tx {} for pair {}: {}",
+                    tx.txhash,
+                    c.pair_address,
                     e
                 );
             }
@@ -194,7 +236,7 @@ async fn process_swap(
     )
     .await;
 
-    swap_events::insert_swap(
+    let inserted = swap_events::insert_swap(
         pool,
         pair.id,
         height,
@@ -216,6 +258,9 @@ async fn process_swap(
         swap.limit_book_offer_consumed.as_ref(),
     )
     .await?;
+    if inserted.is_none() {
+        return Ok(());
+    }
 
     candle_builder::update_candles_for_swap(
         pool,
@@ -463,6 +508,143 @@ async fn process_limit_order_fill(
     )
     .await?;
 
+    Ok(())
+}
+
+fn parse_limit_order_placements(tx: &TxResponse) -> Vec<ParsedLimitOrderPlacement> {
+    let mut out = Vec::new();
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+        let attrs = &event.attributes;
+        if wasm_attr_last(attrs, "action") != Some("place_limit_order") {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr(attrs) else {
+            continue;
+        };
+        let oid = wasm_attr_last(attrs, "order_id")
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| {
+                wasm_attr_last(attrs, "limit_order_placed").and_then(|s| s.parse::<i64>().ok())
+            });
+        let Some(order_id) = oid else {
+            continue;
+        };
+        out.push(ParsedLimitOrderPlacement {
+            pair_address: contract.to_string(),
+            order_id,
+        });
+    }
+    out
+}
+
+fn parse_limit_order_cancellations(tx: &TxResponse) -> Vec<ParsedLimitOrderCancellation> {
+    let mut out = Vec::new();
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+        let attrs = &event.attributes;
+        if wasm_attr_last(attrs, "action") != Some("cancel_limit_order") {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr(attrs) else {
+            continue;
+        };
+        let oid = wasm_attr_last(attrs, "limit_order_cancelled").and_then(|s| s.parse::<i64>().ok());
+        let Some(order_id) = oid else {
+            continue;
+        };
+        out.push(ParsedLimitOrderCancellation {
+            pair_address: contract.to_string(),
+            order_id,
+        });
+    }
+    out
+}
+
+async fn process_limit_order_placement(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    p: &ParsedLimitOrderPlacement,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+) -> Result<(), BoxError> {
+    let pair = match pairs::get_pair_by_address(pool, &p.pair_address).await? {
+        Some(pair) => pair,
+        None => match pair_discovery::discover_new_pair(pool, lcd, &p.pair_address).await {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("Could not discover pair {}: {}", p.pair_address, e);
+                return Ok(());
+            }
+        },
+    };
+
+    limit_order_lifecycle::insert_placement(
+        pool,
+        pair.id,
+        height,
+        block_time,
+        tx_hash,
+        p.order_id,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn process_limit_order_cancellation(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    c: &ParsedLimitOrderCancellation,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+) -> Result<(), BoxError> {
+    let pair = match pairs::get_pair_by_address(pool, &c.pair_address).await? {
+        Some(pair) => pair,
+        None => match pair_discovery::discover_new_pair(pool, lcd, &c.pair_address).await {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("Could not discover pair {}: {}", c.pair_address, e);
+                return Ok(());
+            }
+        },
+    };
+
+    limit_order_lifecycle::insert_cancellation(
+        pool,
+        pair.id,
+        height,
+        block_time,
+        tx_hash,
+        c.order_id,
+        None,
+    )
+    .await?;
     Ok(())
 }
 
@@ -771,6 +953,29 @@ mod tests {
         assert_eq!(fills[0].side, "bid");
         assert_eq!(fills[1].order_id, 8);
         assert_eq!(fills[1].side, "ask");
+    }
+
+    #[test]
+    fn parse_limit_order_placements_and_cancellations() {
+        let tx = wasm_tx_multi(vec![
+            vec![
+                ("_contract_address", "terra1pair"),
+                ("action", "place_limit_order"),
+                ("order_id", "99"),
+                ("limit_order_placed", "99"),
+            ],
+            vec![
+                ("_contract_address", "terra1pair"),
+                ("action", "cancel_limit_order"),
+                ("limit_order_cancelled", "99"),
+            ],
+        ]);
+        let p = parse_limit_order_placements(&tx);
+        assert_eq!(p.len(), 1);
+        assert_eq!(p[0].order_id, 99);
+        let c = parse_limit_order_cancellations(&tx);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[0].order_id, 99);
     }
 
     #[test]

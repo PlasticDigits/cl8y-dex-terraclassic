@@ -46,6 +46,8 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
         <tbody>
           {trades.map((t) => {
             const isBuy = activePair && t.offer_asset === activePair.asset_0.symbol
+            const hybrid =
+              t.pool_return_amount != null || t.book_return_amount != null || t.limit_book_offer_consumed != null
             return (
               <tr key={t.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                 <td className="py-1.5 px-2" style={{ color: 'var(--ink-subtle)' }}>
@@ -58,6 +60,11 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
                   }}
                 >
                   {t.offer_asset} → {t.ask_asset}
+                  {hybrid ? (
+                    <span className="ml-1 font-normal opacity-70" title="Pool + limit book legs">
+                      (hybrid)
+                    </span>
+                  ) : null}
                 </td>
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>
                   {formatNum(t.offer_amount)}

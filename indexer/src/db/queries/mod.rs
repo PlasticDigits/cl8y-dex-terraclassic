@@ -2,6 +2,7 @@ pub mod assets;
 pub mod candles;
 pub mod hook_events;
 pub mod limit_order_fills;
+pub mod limit_order_lifecycle;
 pub mod liquidity;
 pub mod oracle;
 pub mod pairs;

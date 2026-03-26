@@ -14,6 +14,10 @@ import type {
   IndexerOraclePriceResponse,
   IndexerOracleHistoryResponse,
   IndexerRouteSolveResponse,
+  IndexerLimitFill,
+  IndexerLiquidityEvent,
+  IndexerLimitPlacement,
+  IndexerLimitCancellation,
 } from '@/types'
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost:3001'
@@ -116,6 +120,69 @@ export async function getTrades(pairAddr: string, limit = 50, before?: number): 
 /** Get 24h stats for a pair. */
 export async function getPairStats(pairAddr: string): Promise<IndexerPairStats> {
   return fetchJson<IndexerPairStats>(`/api/v1/pairs/${pairAddr}/stats`)
+}
+
+export interface GetPairSubresourceParams {
+  limit?: number
+  before?: number
+}
+
+/** Add/remove liquidity history for a pair. */
+export async function getPairLiquidityEvents(
+  pairAddr: string,
+  params?: GetPairSubresourceParams
+): Promise<IndexerLiquidityEvent[]> {
+  const sp = new URLSearchParams()
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.before != null) sp.set('before', String(params.before))
+  const qs = sp.toString()
+  return fetchJson<IndexerLiquidityEvent[]>(`/api/v1/pairs/${pairAddr}/liquidity-events${qs ? `?${qs}` : ''}`)
+}
+
+/** Per-maker limit fills for a pair. */
+export async function getPairLimitFills(
+  pairAddr: string,
+  params?: GetPairSubresourceParams
+): Promise<IndexerLimitFill[]> {
+  const sp = new URLSearchParams()
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.before != null) sp.set('before', String(params.before))
+  const qs = sp.toString()
+  return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${pairAddr}/limit-fills${qs ? `?${qs}` : ''}`)
+}
+
+/** Fills for a single on-chain order id. */
+export async function getPairOrderLimitFills(
+  pairAddr: string,
+  orderId: number,
+  limit = 50
+): Promise<IndexerLimitFill[]> {
+  const sp = new URLSearchParams({ limit: String(limit) })
+  return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${pairAddr}/limit-orders/${orderId}/fills?${sp}`)
+}
+
+/** Indexed `place_limit_order` events for a pair. */
+export async function getPairLimitPlacements(
+  pairAddr: string,
+  params?: GetPairSubresourceParams
+): Promise<IndexerLimitPlacement[]> {
+  const sp = new URLSearchParams()
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.before != null) sp.set('before', String(params.before))
+  const qs = sp.toString()
+  return fetchJson<IndexerLimitPlacement[]>(`/api/v1/pairs/${pairAddr}/limit-placements${qs ? `?${qs}` : ''}`)
+}
+
+/** Indexed `cancel_limit_order` events for a pair. */
+export async function getPairLimitCancellations(
+  pairAddr: string,
+  params?: GetPairSubresourceParams
+): Promise<IndexerLimitCancellation[]> {
+  const sp = new URLSearchParams()
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.before != null) sp.set('before', String(params.before))
+  const qs = sp.toString()
+  return fetchJson<IndexerLimitCancellation[]>(`/api/v1/pairs/${pairAddr}/limit-cancellations${qs ? `?${qs}` : ''}`)
 }
 
 /** Get global DEX overview stats. */
