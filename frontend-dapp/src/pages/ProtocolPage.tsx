@@ -46,20 +46,21 @@ export default function ProtocolPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
-        Protocol & Oracle
-      </h1>
+      <div>
+        <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
+          Protocol & Oracle
+        </h1>
+        <p className="text-sm mt-1 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
+          Review reference pricing and hook activity used around the protocol.
+        </p>
+      </div>
       <p className="text-xs leading-relaxed max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
         USTC/USD reference from the indexer&apos;s polled oracle (distinct from per-pair TWAP on the Charts page). Hook
         events show burn/tax and other post-swap hooks as recorded by the indexer.
       </p>
 
       {(priceQuery.isError || historyQuery.isError) && (
-        <div
-          className="shell-panel border-2 border-amber-500/40"
-          style={{ background: 'var(--panel-bg-strong)' }}
-          role="alert"
-        >
+        <div className="alert-warning" role="alert">
           <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
             Oracle API unavailable
           </p>
@@ -88,7 +89,7 @@ export default function ProtocolPage() {
           )}
         </div>
         {oracle && oracle.sources.length > 1 && (
-          <div className="overflow-x-auto border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+          <div className="card-neo !p-0 overflow-x-auto">
             <table className="w-full text-xs" aria-label="Oracle sources">
               <thead>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
@@ -133,7 +134,7 @@ export default function ProtocolPage() {
           </p>
         )}
         {history.length > 0 && (
-          <div className="overflow-x-auto max-h-64 overflow-y-auto border border-white/10 rounded-sm">
+          <div className="card-neo !p-0 overflow-x-auto max-h-64 overflow-y-auto">
             <table className="w-full text-xs" aria-label="USTC USD oracle history">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--panel-bg-strong)' }}>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
@@ -158,16 +159,18 @@ export default function ProtocolPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
           Hook events
         </h2>
-        <div className="flex flex-col sm:flex-row gap-2 mb-4">
-          <input
-            type="text"
-            className="input-neo flex-1"
-            placeholder="Filter by hook contract (optional)"
-            value={hookFilter}
-            onChange={(e) => setHookFilter(e.target.value)}
-            aria-label="Filter hook events by contract"
-          />
-        </div>
+        {!hooksQuery.isError && (
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <input
+              type="text"
+              className="input-neo flex-1"
+              placeholder="Filter by hook contract (optional)"
+              value={hookFilter}
+              onChange={(e) => setHookFilter(e.target.value)}
+              aria-label="Filter hook events by contract"
+            />
+          </div>
+        )}
         {hooksQuery.isLoading && (
           <div className="space-y-2 py-4" aria-live="polite">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -184,7 +187,7 @@ export default function ProtocolPage() {
           </p>
         )}
         {hooksQuery.data && hooksQuery.data.length > 0 && (
-          <div className="overflow-x-auto max-h-96 overflow-y-auto border border-white/10 rounded-sm">
+          <div className="card-neo !p-0 overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full text-xs" aria-label="Hook events">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--panel-bg-strong)' }}>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>

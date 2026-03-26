@@ -1,0 +1,58 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(128 128) rotate(90) scale(120)">
+      <stop offset="0" stop-color="#FFF1D7"/>
+      <stop offset="0.3" stop-color="#FCD58F"/>
+      <stop offset="0.72" stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#7C2D12"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="48" y1="32" x2="208" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8E8"/>
+      <stop offset="0.22" stop-color="#FCD487"/>
+      <stop offset="0.55" stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="88" y1="60" x2="174" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7E3" stop-opacity="0.92"/>
+      <stop offset="0.28" stop-color="#FCD38D" stop-opacity="0.84"/>
+      <stop offset="0.65" stop-color="#FB923C" stop-opacity="0.68"/>
+      <stop offset="1" stop-color="#9A3412" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="ember" x1="80" y1="212" x2="184" y2="74" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C2D12"/>
+      <stop offset="0.46" stop-color="#F97316"/>
+      <stop offset="1" stop-color="#FED7AA"/>
+    </linearGradient>
+    <filter id="softGlow" x="12" y="12" width="232" height="232" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.24 0 1 0 0 0.11 0 0 1 0 0.03 0 0 0 0.9 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+    <filter id="innerGlow" x="42" y="42" width="172" height="172" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="blur" in2="SourceAlpha" operator="in" result="inner"/>
+      <feColorMatrix in="inner" type="matrix" values="1 0 0 0 0.95 0 1 0 0 0.61 0 0 1 0 0.1 0 0 0 1 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+  </defs>
+
+  <circle cx="128" cy="128" r="100" fill="#1C100C"/>
+  <g filter="url(#softGlow)">
+    <circle cx="128" cy="128" r="96" fill="url(#bgGlow)"/>
+    <circle cx="128" cy="128" r="96" stroke="url(#rim)" stroke-width="8"/>
+    <circle cx="128" cy="128" r="80" fill="rgba(255,255,255,0.05)" stroke="#FDE7BE" stroke-opacity="0.35" stroke-width="2"/>
+  </g>
+
+  <g filter="url(#innerGlow)">
+    <path d="M128 54C144.4 54 160.2 58.5 173.9 66.9L162.7 85.2C152.4 79 140.5 75.7 128 75.7C108.7 75.7 90.9 83.7 77.9 97.7C64.9 111.7 58.4 130.6 60.2 149.7L37.5 152C34.8 126.7 43.4 101.3 61.2 82.2C79 63 103.1 54 128 54Z" fill="url(#glass)"/>
+    <path d="M203.4 84.4C214.1 100.6 219.2 120 217.8 139.7L195.1 138.1C196.2 123.5 192.4 109.2 184.5 97.1L203.4 84.4Z" fill="url(#glass)"/>
+    <path d="M196.7 151.2L218.7 156.8C214.4 173.8 205 189.2 191.6 201.2L176.3 184.4C186.4 175.2 193.5 163.8 196.7 151.2Z" fill="url(#glass)"/>
+    <path d="M164 195.1L174.1 215.5C159.9 222.5 144.2 226 128.4 225.8L128.7 203.1C140.9 203.2 152.9 200.4 164 195.1Z" fill="url(#glass)"/>
+    <path d="M118.2 202.4L115.5 225C100.7 223.3 86.5 218.5 73.9 211L85.5 191.4C95 197 106.4 200.7 118.2 202.4Z" fill="url(#glass)"/>
+    <path d="M71 184.8L55.2 201.1C43.4 189.7 35.1 175.3 30.9 159.5L53.1 153.6C56.2 165.4 62.4 176.2 71 184.8Z" fill="url(#glass)"/>
+    <path d="M124.4 88.2C134.5 88.2 142.6 95.1 143.5 104.2L160.4 114.7L149 133.2L138.1 126.4L104.7 149.4C103.1 150.5 102.2 152.3 102.2 154.2C102.2 157.5 104.9 160.2 108.3 160.2H131.7C150 160.2 164.8 175 164.8 193.3C164.8 211.6 150 226.4 131.7 226.4C113.4 226.4 98.6 211.6 98.6 193.3V189.7H120.7V193.3C120.7 199.4 125.6 204.3 131.7 204.3C137.7 204.3 142.7 199.4 142.7 193.3C142.7 187.2 137.7 182.3 131.7 182.3H108.3C89.9 182.3 75.1 167.4 75.1 149.1C75.1 138.6 80.1 128.8 88.5 122.5L122.3 99.2C123 92.9 128 88.2 134.2 88.2H124.4Z" fill="url(#ember)"/>
+    <path d="M126.5 30.5C149.4 30.2 171.7 37.3 190 50.9L177 68.4C162.7 57.8 145.4 52.4 127.8 52.6L126.5 30.5Z" fill="#FFF7E2" fill-opacity="0.5"/>
+    <path d="M71.9 70.2C81 59.3 92.4 50.7 105.3 45.3L112.8 66.7C102.8 70.9 94 77.6 86.9 86.2L71.9 70.2Z" fill="#FFF7E2" fill-opacity="0.34"/>
+    <ellipse cx="103" cy="82" rx="30" ry="16" transform="rotate(-25 103 82)" fill="#FFF9EF" fill-opacity="0.26"/>
+  </g>
+</svg>

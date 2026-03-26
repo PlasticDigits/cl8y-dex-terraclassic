@@ -152,16 +152,17 @@ export default function ChartsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
-        Charts & Analytics
-      </h1>
+      <div>
+        <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
+          Charts & Analytics
+        </h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
+          Track pair activity, recent trades, and trader leaderboards.
+        </p>
+      </div>
 
       {indexerUnavailable && (
-        <div
-          className="shell-panel border-2 border-amber-500/40"
-          style={{ background: 'var(--panel-bg-strong)' }}
-          role="alert"
-        >
+        <div className="alert-warning" role="alert">
           <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
             Indexer unavailable
           </p>
@@ -185,47 +186,48 @@ export default function ChartsPage() {
         </div>
       )}
 
-      {/* Overview Bar */}
-      <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatBox
-          label="24h Volume"
-          value={overview ? formatNum(overview.total_volume_24h) : '—'}
-          loading={overviewQuery.isLoading}
-        />
-        <StatBox
-          label="24h Volume (USD)"
-          value={
-            overview?.total_volume_24h_usd != null && overview.total_volume_24h_usd !== ''
-              ? formatNum(overview.total_volume_24h_usd, 2)
-              : '—'
-          }
-          loading={overviewQuery.isLoading}
-        />
-        <StatBox
-          label="USTC / USD"
-          value={
-            overview?.ustc_price_usd != null && overview.ustc_price_usd !== ''
-              ? `$${formatNum(overview.ustc_price_usd, 6)}`
-              : '—'
-          }
-          loading={overviewQuery.isLoading}
-        />
-        <StatBox
-          label="24h Trades"
-          value={overview ? overview.total_trades_24h.toLocaleString() : '—'}
-          loading={overviewQuery.isLoading}
-        />
-        <StatBox
-          label="Pairs"
-          value={overview ? overview.pair_count.toString() : '—'}
-          loading={overviewQuery.isLoading}
-        />
-        <StatBox
-          label="Tokens"
-          value={overview ? overview.token_count.toString() : '—'}
-          loading={overviewQuery.isLoading}
-        />
-      </div>
+      {(!indexerUnavailable || overviewQuery.isLoading || overview) && (
+        <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatBox
+            label="24h Volume"
+            value={overview ? formatNum(overview.total_volume_24h) : '—'}
+            loading={overviewQuery.isLoading}
+          />
+          <StatBox
+            label="24h Volume (USD)"
+            value={
+              overview?.total_volume_24h_usd != null && overview.total_volume_24h_usd !== ''
+                ? formatNum(overview.total_volume_24h_usd, 2)
+                : '—'
+            }
+            loading={overviewQuery.isLoading}
+          />
+          <StatBox
+            label="USTC / USD"
+            value={
+              overview?.ustc_price_usd != null && overview.ustc_price_usd !== ''
+                ? `$${formatNum(overview.ustc_price_usd, 6)}`
+                : '—'
+            }
+            loading={overviewQuery.isLoading}
+          />
+          <StatBox
+            label="24h Trades"
+            value={overview ? overview.total_trades_24h.toLocaleString() : '—'}
+            loading={overviewQuery.isLoading}
+          />
+          <StatBox
+            label="Pairs"
+            value={overview ? overview.pair_count.toString() : '—'}
+            loading={overviewQuery.isLoading}
+          />
+          <StatBox
+            label="Tokens"
+            value={overview ? overview.token_count.toString() : '—'}
+            loading={overviewQuery.isLoading}
+          />
+        </div>
+      )}
 
       {/* Pair Selector */}
       <div className="shell-panel">
@@ -289,6 +291,7 @@ export default function ChartsPage() {
           className="select-neo w-full"
           aria-label="Select pair"
           value={activePairAddr}
+          disabled={pairOptions.length === 0}
           onChange={(e) => {
             sounds.playButtonPress()
             setSelectedPairAddr(e.target.value)
@@ -299,7 +302,7 @@ export default function ChartsPage() {
               {p.asset_0.symbol} / {p.asset_1.symbol}
             </option>
           ))}
-          {pairOptions.length === 0 && <option value="">No pairs available</option>}
+          {pairOptions.length === 0 && <option value="">No indexed pairs available</option>}
         </select>
         {pairTotal > PAIR_PAGE_SIZE && !pairsQuery.isLoading && !pairsQuery.isError && (
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
@@ -548,7 +551,7 @@ export default function ChartsPage() {
                         <Link
                           to={`/trader/${trader.address}`}
                           className="hover:underline"
-                          style={{ color: 'var(--accent)' }}
+                          style={{ color: 'var(--mint)' }}
                           onClick={() => sounds.playButtonPress()}
                         >
                           {shortenAddress(trader.address, 10, 6)}

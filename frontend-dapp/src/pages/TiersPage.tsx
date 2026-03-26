@@ -46,7 +46,7 @@ const TierRow = memo(function TierRow({
 
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-none border-2 transition-colors shadow-[3px_3px_0_#000] ${
+      className={`flex items-center gap-4 p-4 rounded-[24px] border transition-colors ${
         isCurrentTier ? 'border-[color:var(--mint)] bg-[color:var(--accent-surface)]' : ''
       }`}
       style={
@@ -59,7 +59,7 @@ const TierRow = memo(function TierRow({
       }
     >
       <div
-        className="w-12 h-12 rounded-none border-2 flex items-center justify-center text-lg font-bold shadow-[2px_2px_0_#000] font-heading"
+        className="w-12 h-12 rounded-[18px] border flex items-center justify-center text-lg font-bold font-heading"
         style={{
           borderColor: 'rgba(255,255,255,0.2)',
           background: 'var(--surface-1)',
@@ -210,7 +210,7 @@ export default function TiersPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Fee Discount Tiers</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Hold CL8Y tokens to reduce your swap fees. Register for a tier below.
+          Hold CL8Y tokens to reduce swap fees, then register for the tier that matches your balance.
         </p>
       </div>
 
@@ -246,7 +246,7 @@ export default function TiersPage() {
                   deregisterMutation.mutate()
                 }}
                 disabled={deregisterMutation.isPending}
-                className="btn-muted !text-xs hover:!border-red-700 hover:!text-red-400 disabled:opacity-50"
+                className="btn-muted !text-xs disabled:opacity-50"
               >
                 {deregisterMutation.isPending ? 'Deregistering...' : 'Deregister'}
               </button>

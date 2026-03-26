@@ -375,445 +375,443 @@ export default function SwapPage() {
   }, [])
 
   return (
-    <div className="max-w-[520px] mx-auto w-full">
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-3 sm:inset-x-6 top-6 sm:top-8 h-[78%] rounded-[28px] theme-hero-glow blur-2xl"
-        />
-        <div className="shell-panel-strong relative z-10">
-          {/* Header */}
-          <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
-            <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Swap</h2>
-            <button
-              onClick={handleToggleSettings}
-              className="btn-muted !text-[11px] sm:!text-xs !px-2.5 sm:!px-3 !py-1"
-            >
-              Settings
-            </button>
-          </div>
+    <div className="relative max-w-[620px] mx-auto w-full">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-3 sm:inset-x-6 top-6 sm:top-8 h-[78%] rounded-[40px] theme-hero-glow blur-3xl"
+      />
+      <div className="shell-panel-strong relative z-10 !p-5 sm:!p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+          <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Swap</h2>
+          <button onClick={handleToggleSettings} className="btn-muted !text-[11px] sm:!text-xs !px-2.5 sm:!px-3 !py-1">
+            Settings
+          </button>
+        </div>
 
-          {/* Slippage Settings */}
-          {showSettings && (
-            <>
-              <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
-                <p className="label-neo mb-3">Slippage Tolerance</p>
-                <div className="flex flex-wrap gap-2">
-                  {[0.1, 0.5, 1.0].map((val) => (
-                    <button
-                      key={val}
-                      onClick={() => handleSlippagePreset(val)}
-                      className={`tab-neo !text-xs !px-3 !py-1.5 ${
-                        slippageTolerance === val && !customSlippage ? 'tab-neo-active' : 'tab-neo-inactive'
-                      }`}
-                    >
-                      {val}%
-                    </button>
-                  ))}
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={customSlippage}
-                      onChange={(e) => handleCustomSlippage(e.target.value)}
-                      placeholder="Custom"
-                      className="input-neo !text-xs !py-1.5"
-                    />
-                    <span
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
-                      style={{ color: 'var(--ink-subtle)' }}
-                    >
-                      %
-                    </span>
-                  </div>
-                </div>
-                {customSlippageError && (
-                  <p
-                    className="mt-2 text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: 'var(--color-negative)' }}
+        {/* Slippage Settings */}
+        {showSettings && (
+          <>
+            <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
+              <p className="label-neo mb-3">Slippage Tolerance</p>
+              <div className="flex flex-wrap gap-2">
+                {[0.1, 0.5, 1.0].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => handleSlippagePreset(val)}
+                    className={`tab-neo !text-xs !px-3 !py-1.5 ${
+                      slippageTolerance === val && !customSlippage ? 'tab-neo-active' : 'tab-neo-inactive'
+                    }`}
                   >
-                    Must be between 0.01% and 50%
-                  </p>
-                )}
-                {!customSlippageError && slippageTolerance > 5 && (
-                  <p
-                    className="mt-2 text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: 'var(--color-warning, #f59e0b)' }}
-                  >
-                    High slippage increases front-running risk
-                  </p>
-                )}
-              </div>
-              <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
-                <p className="label-neo mb-3">Indexer route check</p>
-                <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                  Compares this token pair with the indexer&apos;s BFS graph (max 4 hops). Only CW20 addresses present
-                  in the indexer asset table are supported; native-only assets without a CW20 row are not routable via{' '}
-                  <code className="font-mono text-[10px]">/api/v1/route/solve</code>.
-                </p>
-                <button
-                  type="button"
-                  className="btn-muted !text-xs"
-                  onClick={() => {
-                    sounds.playButtonPress()
-                    void checkIndexerRoute()
-                  }}
-                  disabled={indexerRouteLoading || !fromToken || !toToken}
-                >
-                  {indexerRouteLoading ? 'Checking…' : 'Compare indexer route'}
-                </button>
-                {indexerRouteError && (
-                  <p className="text-xs mt-2 font-medium" style={{ color: 'var(--color-negative)' }}>
-                    {indexerRouteError}
-                  </p>
-                )}
-                {indexerRouteResult && (
-                  <div className="mt-3 text-[11px] space-y-1.5 font-mono" style={{ color: 'var(--ink-subtle)' }}>
-                    <p>
-                      Indexer hops: {indexerRouteResult.hops.length}
-                      {route != null && <span style={{ color: 'var(--ink-dim)' }}> · Client hops: {route.length}</span>}
-                    </p>
-                    {indexerRouteResult.hops.map((h, i) => (
-                      <p key={`${h.pair}-${i}`}>
-                        {i + 1}. {shortenAddress(h.pair, 8, 6)} · {shortenAddress(h.offer_token, 4, 4)} →{' '}
-                        {shortenAddress(h.ask_token, 4, 4)}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* You Pay */}
-          <div className="card-neo mb-2">
-            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-              <span className="label-neo !mb-0 sm:pt-1">You Pay</span>
-              <TokenSelect
-                value={fromToken}
-                tokens={allTokens}
-                excludeToken={toToken}
-                onChange={(tokenId) => {
-                  sounds.playButtonPress()
-                  setFromToken(tokenId)
-                  setShowImpactConfirm(false)
-                }}
-                aria-label="Select token you pay"
-                disabled={allTokens.length === 0}
-              />
-            </div>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={inputAmount}
-              onChange={(e) => {
-                const v = e.target.value
-                if (v === '' || /^\d*\.?\d*$/.test(v)) {
-                  setInputAmount(v)
-                  setShowImpactConfirm(false)
-                }
-              }}
-              placeholder="0.00"
-              className="w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent focus:outline-none"
-              style={{ color: 'var(--ink)' }}
-            />
-            {isWalletConnected && (
-              <div
-                className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs min-h-[1.5rem]"
-                style={{ color: 'var(--ink-subtle)' }}
-              >
-                <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                  <span className="shrink-0">Balance:</span>
-                  {!offerAssetInfo ? (
-                    <span className="font-mono">—</span>
-                  ) : balanceQuery.isLoading ? (
-                    <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
-                      <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
-                      <span className="sr-only">Loading balance</span>
-                    </span>
-                  ) : balanceQuery.isError ? (
-                    <span className="font-mono">—</span>
-                  ) : (
-                    <span className="font-mono truncate">
-                      {formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))}
-                    </span>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  disabled={!offerAssetInfo || balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data}
-                  onClick={() => {
-                    sounds.playButtonPress()
-                    if (balanceQuery.data) setInputAmount(fromRawAmount(balanceQuery.data, offerDecimals))
-                  }}
-                  className="ml-auto uppercase font-semibold tracking-wide hover:underline shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-                  style={{ color: 'var(--cyan)' }}
-                >
-                  Max
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Swap Direction Toggle */}
-          <div className="flex justify-center -my-1 relative z-10">
-            <button
-              onClick={() => {
-                sounds.playButtonPress()
-                const tmp = fromToken
-                setFromToken(toToken)
-                setToToken(tmp)
-                setShowImpactConfirm(false)
-              }}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-none border-2 flex items-center justify-center transition-all hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0_#000] hover:shadow-[1px_1px_0_#000]"
-              style={{
-                borderColor: 'rgba(255,255,255,0.3)',
-                background: 'var(--surface-raised)',
-                color: 'var(--ink-dim)',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M8 1v14M8 1L4 5M8 1l4 4M8 15l-4-4M8 15l4-4"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* You Receive */}
-          <div className="card-neo mt-2 mb-4">
-            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-              <span className="label-neo !mb-0 sm:pt-1">You Receive</span>
-              <TokenSelect
-                value={toToken}
-                tokens={allTokens}
-                excludeToken={fromToken}
-                onChange={(tokenId) => {
-                  sounds.playButtonPress()
-                  setToToken(tokenId)
-                  setShowImpactConfirm(false)
-                }}
-                aria-label="Select token you receive"
-                disabled={allTokens.length === 0}
-              />
-            </div>
-            <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
-              {simQuery.isFetching ? (
-                <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
-                  Calculating...
-                </span>
-              ) : outputAmount && receiveAssetInfo ? (
-                formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
-              ) : (
-                <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
-              )}
-            </div>
-          </div>
-
-          <div className="mb-4 space-y-2">
-            {isWrapOrUnwrap && (
-              <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
-                (1:1)
-              </div>
-            )}
-            {nativeRouteInfo && (
-              <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                <span className="uppercase tracking-wide font-medium">Route: </span>
-                {nativeRouteInfo.needsWrapInput && <span>{getTokenDisplaySymbol(fromToken)} → </span>}
-                {nativeRouteInfo.operations.map((op, i) => (
-                  <span key={i}>
-                    {i > 0 && ' → '}
-                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
-                  </span>
+                    {val}%
+                  </button>
                 ))}
-                {' → '}
-                {getTokenDisplaySymbol(
-                  assetInfoLabel(
-                    nativeRouteInfo.operations[nativeRouteInfo.operations.length - 1].terra_swap.ask_asset_info
-                  )
-                )}
-                {nativeRouteInfo.needsUnwrapOutput && <span> → {getTokenDisplaySymbol(toToken)}</span>}
-                {(nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
-                  <div className="mt-1">
-                    This swap will{' '}
-                    {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
-                      ? 'wrap and unwrap'
-                      : nativeRouteInfo.needsWrapInput
-                        ? 'wrap'
-                        : 'unwrap'}{' '}
-                    your tokens
-                  </div>
-                )}
-              </div>
-            )}
-            {isMultiHop && route && (
-              <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                <span className="uppercase tracking-wide font-medium">Route: </span>
-                {route.map((op, i) => (
-                  <span key={i}>
-                    {i > 0 && ' → '}
-                    {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
-                  </span>
-                ))}
-                {' → '}
-                {getTokenDisplaySymbol(toToken)}
-              </div>
-            )}
-            {fromToken && toToken && !hasRoute && (
-              <div className="alert-error !text-xs">No route found between these tokens</div>
-            )}
-          </div>
-
-          {/* Trade Details */}
-          {simQuery.data && (
-            <div className="card-neo mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm sm:block sm:space-y-2">
-              {poolQuery.data && (
-                <div
-                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
-                  <span className="font-mono text-xs sm:text-right break-all">
-                    {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))} /{' '}
-                    {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
-                  </span>
-                </div>
-              )}
-              {feeQuery.data && (
-                <div
-                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
-                  <FeeDisplay
-                    feeBps={feeQuery.data.fee_bps}
-                    discountBps={discountQuery.data?.discount_bps}
-                    commissionAmount={
-                      commissionAmount && receiveAssetInfo
-                        ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))
-                        : undefined
-                    }
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={customSlippage}
+                    onChange={(e) => handleCustomSlippage(e.target.value)}
+                    placeholder="Custom"
+                    className="input-neo !text-xs !py-1.5"
                   />
-                </div>
-              )}
-              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
-                <div
-                  className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
-                  style={{
-                    borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
-                    background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
-                    color: 'var(--cyan)',
-                  }}
-                >
-                  <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
-                    Hold CL8Y to reduce swap fees &rarr;
-                  </a>
-                </div>
-              )}
-              {priceImpact !== null && (
-                <>
-                  <div
-                    className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                    style={{ color: 'var(--ink-dim)' }}
+                  <span
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+                    style={{ color: 'var(--ink-subtle)' }}
                   >
-                    <span className="uppercase text-xs tracking-wide font-medium">Price Impact</span>
-                    <span
-                      className={
-                        parseFloat(priceImpact) > 5
-                          ? 'text-red-400 font-semibold'
-                          : parseFloat(priceImpact) > 1
-                            ? 'text-amber-400'
-                            : 'text-green-400'
-                      }
-                    >
-                      {priceImpact}%
-                    </span>
-                  </div>
-                  {parseFloat(priceImpact) > 5 && (
-                    <div className="col-span-2 alert-error !text-xs">
-                      High price impact! You may receive significantly fewer tokens than expected.
-                    </div>
-                  )}
-                </>
-              )}
-              {minReceived !== null && (
-                <div
-                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
-                  <span className="font-mono text-xs sm:text-right break-all">
-                    {receiveAssetInfo ? formatTokenAmount(minReceived!, getDecimals(receiveAssetInfo)) : minReceived}
+                    %
                   </span>
                 </div>
+              </div>
+              {customSlippageError && (
+                <p
+                  className="mt-2 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: 'var(--color-negative)' }}
+                >
+                  Must be between 0.01% and 50%
+                </p>
               )}
+              {!customSlippageError && slippageTolerance > 5 && (
+                <p
+                  className="mt-2 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: 'var(--color-warning, #f59e0b)' }}
+                >
+                  High slippage increases front-running risk
+                </p>
+              )}
+            </div>
+            <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
+              <p className="label-neo mb-3">Indexer route check</p>
+              <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+                Compares this token pair with the indexer&apos;s BFS graph (max 4 hops). Only CW20 addresses present in
+                the indexer asset table are supported; native-only assets without a CW20 row are not routable via{' '}
+                <code className="font-mono text-[10px]">/api/v1/route/solve</code>.
+              </p>
               <button
                 type="button"
-                onClick={handleOpenSettings}
-                aria-expanded={showSettings}
-                aria-controls="swap-slippage-settings"
-                className="min-w-0 flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between"
-                style={{ color: 'var(--ink-dim)' }}
+                className="btn-muted !text-xs"
+                onClick={() => {
+                  sounds.playButtonPress()
+                  void checkIndexerRoute()
+                }}
+                disabled={indexerRouteLoading || !fromToken || !toToken}
               >
-                <span className="uppercase text-xs tracking-wide font-medium">Slippage Tolerance</span>
-                <span className="inline-flex items-center gap-1">
-                  <span>{slippageTolerance}%</span>
-                  <span aria-hidden="true" className="text-[10px]" style={{ color: 'var(--cyan)' }}>
-                    {showSettings ? '▲' : '▼'}
+                {indexerRouteLoading ? 'Checking…' : 'Compare indexer route'}
+              </button>
+              {indexerRouteError && (
+                <p className="text-xs mt-2 font-medium" style={{ color: 'var(--color-negative)' }}>
+                  {indexerRouteError}
+                </p>
+              )}
+              {indexerRouteResult && (
+                <div className="mt-3 text-[11px] space-y-1.5 font-mono" style={{ color: 'var(--ink-subtle)' }}>
+                  <p>
+                    Indexer hops: {indexerRouteResult.hops.length}
+                    {route != null && <span style={{ color: 'var(--ink-dim)' }}> · Client hops: {route.length}</span>}
+                  </p>
+                  {indexerRouteResult.hops.map((h, i) => (
+                    <p key={`${h.pair}-${i}`}>
+                      {i + 1}. {shortenAddress(h.pair, 8, 6)} · {shortenAddress(h.offer_token, 4, 4)} →{' '}
+                      {shortenAddress(h.ask_token, 4, 4)}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* You Pay */}
+        <div className="card-neo mb-2 !p-4 sm:!p-5">
+          <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+            <span className="label-neo !mb-0 sm:pt-1">You Pay</span>
+            <TokenSelect
+              value={fromToken}
+              tokens={allTokens}
+              excludeToken={toToken}
+              onChange={(tokenId) => {
+                sounds.playButtonPress()
+                setFromToken(tokenId)
+                setShowImpactConfirm(false)
+              }}
+              aria-label="Select token you pay"
+              disabled={allTokens.length === 0}
+            />
+          </div>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={inputAmount}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === '' || /^\d*\.?\d*$/.test(v)) {
+                setInputAmount(v)
+                setShowImpactConfirm(false)
+              }
+            }}
+            placeholder="0.00"
+            className="w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent focus:outline-none"
+            style={{ color: 'var(--ink)' }}
+          />
+          {isWalletConnected && (
+            <div
+              className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs min-h-[1.5rem]"
+              style={{ color: 'var(--ink-subtle)' }}
+            >
+              <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                <span className="shrink-0">Balance:</span>
+                {!offerAssetInfo ? (
+                  <span className="font-mono">—</span>
+                ) : balanceQuery.isLoading ? (
+                  <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
+                    <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
+                    <span className="sr-only">Loading balance</span>
                   </span>
-                </span>
+                ) : balanceQuery.isError ? (
+                  <span className="font-mono">—</span>
+                ) : (
+                  <span className="font-mono truncate">
+                    {formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))}
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                disabled={!offerAssetInfo || balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data}
+                onClick={() => {
+                  sounds.playButtonPress()
+                  if (balanceQuery.data) setInputAmount(fromRawAmount(balanceQuery.data, offerDecimals))
+                }}
+                className="ml-auto uppercase font-semibold tracking-wide hover:underline shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                style={{ color: 'var(--cyan)' }}
+              >
+                Max
               </button>
             </div>
           )}
+        </div>
 
-          {/* Swap Button */}
-          {showImpactConfirm && (
-            <div className="alert-error mb-3 text-xs">
-              <p className="font-semibold mb-1">High Price Impact Warning</p>
-              <p>
-                This trade has a {priceImpact}% price impact. You may receive significantly fewer tokens than expected.
-                Click the button again to confirm.
-              </p>
-            </div>
-          )}
+        {/* Swap Direction Toggle */}
+        <div className="flex justify-center -my-1 relative z-10">
           <button
             onClick={() => {
               sounds.playButtonPress()
-              if (!isWalletConnected) {
-                openWalletModal()
-                return
-              }
-              if (priceImpact && parseFloat(priceImpact) > 5 && !showImpactConfirm) {
-                setShowImpactConfirm(true)
-                return
-              }
+              const tmp = fromToken
+              setFromToken(toToken)
+              setToToken(tmp)
               setShowImpactConfirm(false)
-              swapMutation.mutate()
             }}
-            disabled={buttonDisabled}
-            className={`w-full py-3.5 sm:py-4 font-semibold text-base ${
-              buttonDisabled ? 'btn-disabled !w-full !py-3.5 sm:!py-4' : 'btn-primary btn-cta !w-full !py-3.5 sm:!py-4'
-            }`}
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-[18px] border flex items-center justify-center transition-all hover:-translate-y-0.5"
+            style={{
+              borderColor: 'rgba(255, 225, 190, 0.2)',
+              background:
+                'linear-gradient(180deg, rgba(72, 44, 31, 0.98), rgba(37, 22, 18, 0.99)), rgba(255, 255, 255, 0.03)',
+              color: 'var(--cyan)',
+              boxShadow:
+                '0 16px 34px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 161, 59, 0.08), inset 0 1px 0 rgba(255, 243, 221, 0.2)',
+            }}
           >
-            {buttonText}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M8 1v14M8 1L4 5M8 1l4 4M8 15l-4-4M8 15l4-4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
+        </div>
 
-          {swapMutation.isError && (
-            <div className="mt-4">
-              <TxResultAlert type="error" message={swapMutation.error?.message ?? 'Swap failed'} />
+        {/* You Receive */}
+        <div className="card-neo mt-2 mb-4 !p-4 sm:!p-5">
+          <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+            <span className="label-neo !mb-0 sm:pt-1">You Receive</span>
+            <TokenSelect
+              value={toToken}
+              tokens={allTokens}
+              excludeToken={fromToken}
+              onChange={(tokenId) => {
+                sounds.playButtonPress()
+                setToToken(tokenId)
+                setShowImpactConfirm(false)
+              }}
+              aria-label="Select token you receive"
+              disabled={allTokens.length === 0}
+            />
+          </div>
+          <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
+            {simQuery.isFetching ? (
+              <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
+                Calculating...
+              </span>
+            ) : outputAmount && receiveAssetInfo ? (
+              formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
+            ) : (
+              <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-4 space-y-2">
+          {isWrapOrUnwrap && (
+            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+              This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
+              (1:1)
             </div>
           )}
-
-          {swapMutation.isSuccess && (
-            <div className="mt-4">
-              <TxResultAlert type="success" message="Swap successful!" txHash={swapMutation.data} />
+          {nativeRouteInfo && (
+            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+              <span className="uppercase tracking-wide font-medium">Route: </span>
+              {nativeRouteInfo.needsWrapInput && <span>{getTokenDisplaySymbol(fromToken)} → </span>}
+              {nativeRouteInfo.operations.map((op, i) => (
+                <span key={i}>
+                  {i > 0 && ' → '}
+                  {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
+                </span>
+              ))}
+              {' → '}
+              {getTokenDisplaySymbol(
+                assetInfoLabel(
+                  nativeRouteInfo.operations[nativeRouteInfo.operations.length - 1].terra_swap.ask_asset_info
+                )
+              )}
+              {nativeRouteInfo.needsUnwrapOutput && <span> → {getTokenDisplaySymbol(toToken)}</span>}
+              {(nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
+                <div className="mt-1">
+                  This swap will{' '}
+                  {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
+                    ? 'wrap and unwrap'
+                    : nativeRouteInfo.needsWrapInput
+                      ? 'wrap'
+                      : 'unwrap'}{' '}
+                  your tokens
+                </div>
+              )}
             </div>
+          )}
+          {isMultiHop && route && (
+            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+              <span className="uppercase tracking-wide font-medium">Route: </span>
+              {route.map((op, i) => (
+                <span key={i}>
+                  {i > 0 && ' → '}
+                  {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
+                </span>
+              ))}
+              {' → '}
+              {getTokenDisplaySymbol(toToken)}
+            </div>
+          )}
+          {fromToken && toToken && !hasRoute && (
+            <div className="alert-error !text-xs">No route found between these tokens</div>
           )}
         </div>
+
+        {/* Trade Details */}
+        {simQuery.data && (
+          <div className="card-neo mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm sm:block sm:space-y-2">
+            {poolQuery.data && (
+              <div
+                className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
+                <span className="font-mono text-xs sm:text-right break-all">
+                  {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))} /{' '}
+                  {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
+                </span>
+              </div>
+            )}
+            {feeQuery.data && (
+              <div
+                className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
+                <FeeDisplay
+                  feeBps={feeQuery.data.fee_bps}
+                  discountBps={discountQuery.data?.discount_bps}
+                  commissionAmount={
+                    commissionAmount && receiveAssetInfo
+                      ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))
+                      : undefined
+                  }
+                />
+              </div>
+            )}
+            {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
+              <div
+                className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
+                  background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
+                  color: 'var(--cyan)',
+                }}
+              >
+                <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
+                  Hold CL8Y to reduce swap fees &rarr;
+                </a>
+              </div>
+            )}
+            {priceImpact !== null && (
+              <>
+                <div
+                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  <span className="uppercase text-xs tracking-wide font-medium">Price Impact</span>
+                  <span
+                    className={
+                      parseFloat(priceImpact) > 5
+                        ? 'text-red-400 font-semibold'
+                        : parseFloat(priceImpact) > 1
+                          ? 'text-amber-400'
+                          : 'text-green-400'
+                    }
+                  >
+                    {priceImpact}%
+                  </span>
+                </div>
+                {parseFloat(priceImpact) > 5 && (
+                  <div className="col-span-2 alert-error !text-xs">
+                    High price impact! You may receive significantly fewer tokens than expected.
+                  </div>
+                )}
+              </>
+            )}
+            {minReceived !== null && (
+              <div
+                className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
+                <span className="font-mono text-xs sm:text-right break-all">
+                  {receiveAssetInfo ? formatTokenAmount(minReceived!, getDecimals(receiveAssetInfo)) : minReceived}
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleOpenSettings}
+              aria-expanded={showSettings}
+              aria-controls="swap-slippage-settings"
+              className="min-w-0 flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between"
+              style={{ color: 'var(--ink-dim)' }}
+            >
+              <span className="uppercase text-xs tracking-wide font-medium">Slippage Tolerance</span>
+              <span className="inline-flex items-center gap-1">
+                <span>{slippageTolerance}%</span>
+                <span aria-hidden="true" className="text-[10px]" style={{ color: 'var(--cyan)' }}>
+                  {showSettings ? '▲' : '▼'}
+                </span>
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Swap Button */}
+        {showImpactConfirm && (
+          <div className="alert-error mb-3 text-xs">
+            <p className="font-semibold mb-1">High Price Impact Warning</p>
+            <p>
+              This trade has a {priceImpact}% price impact. You may receive significantly fewer tokens than expected.
+              Click the button again to confirm.
+            </p>
+          </div>
+        )}
+        <button
+          onClick={() => {
+            sounds.playButtonPress()
+            if (!isWalletConnected) {
+              openWalletModal()
+              return
+            }
+            if (priceImpact && parseFloat(priceImpact) > 5 && !showImpactConfirm) {
+              setShowImpactConfirm(true)
+              return
+            }
+            setShowImpactConfirm(false)
+            swapMutation.mutate()
+          }}
+          disabled={buttonDisabled}
+          className={`w-full py-3.5 sm:py-4 font-semibold text-base ${
+            buttonDisabled ? 'btn-disabled !w-full !py-3.5 sm:!py-4' : 'btn-primary btn-cta !w-full !py-3.5 sm:!py-4'
+          }`}
+        >
+          {buttonText}
+        </button>
+
+        {swapMutation.isError && (
+          <div className="mt-4">
+            <TxResultAlert type="error" message={swapMutation.error?.message ?? 'Swap failed'} />
+          </div>
+        )}
+
+        {swapMutation.isSuccess && (
+          <div className="mt-4">
+            <TxResultAlert type="success" message="Swap successful!" txHash={swapMutation.data} />
+          </div>
+        )}
       </div>
     </div>
   )

@@ -32,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-gradient-to-br from-black/75 via-black/70 to-amber-950/30 backdrop-blur-md"
+        className="app-modal-backdrop"
         onClick={() => {
           sounds.playButtonPress()
           onClose()
@@ -43,21 +43,14 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       <div
         ref={modalRef}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-sm border-2 rounded-none overflow-hidden shadow-[6px_6px_0_#000] animate-fade-in-up"
-        style={{
-          background: 'var(--panel-bg-strong)',
-          borderColor: 'rgba(255,255,255,0.4)',
-        }}
+        className="app-modal-panel animate-fade-in-up"
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
       >
         {title && (
-          <div
-            className="flex items-center justify-between px-6 py-4 border-b-2"
-            style={{ borderColor: 'rgba(255,255,255,0.2)' }}
-          >
-            <h2 id="modal-title" className="text-lg font-bold" style={{ color: 'var(--ink)' }}>
+          <div className="app-modal-header">
+            <h2 id="modal-title" className="text-lg font-semibold font-heading" style={{ color: 'var(--ink)' }}>
               {title}
             </h2>
             <button
@@ -65,7 +58,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
                 sounds.playButtonPress()
                 onClose()
               }}
-              className="p-1 transition-colors"
+              className="btn-muted !min-h-0 !px-2.5 !py-2"
               style={{ color: 'var(--ink-subtle)' }}
               aria-label="Close modal"
             >

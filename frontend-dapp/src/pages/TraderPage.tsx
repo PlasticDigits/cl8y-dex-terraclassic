@@ -70,9 +70,14 @@ export default function TraderPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
-        Trader Profile
-      </h1>
+      <div>
+        <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
+          Trader Profile
+        </h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
+          Look up a wallet to review trading activity, positions, and P&amp;L.
+        </p>
+      </div>
 
       {/* Search / My Profile */}
       <div className="shell-panel flex flex-col sm:flex-row gap-2">
@@ -80,7 +85,7 @@ export default function TraderPage() {
           <input
             type="text"
             className="input-neo flex-1"
-            placeholder="Search trader address..."
+            placeholder="Paste a trader wallet address"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -103,7 +108,7 @@ export default function TraderPage() {
       {!traderAddr && (
         <div className="shell-panel-strong text-center py-12">
           <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-            Enter a trader address above or connect your wallet to view your profile.
+            Search for a trader wallet above, or open your own profile once your wallet is connected.
           </p>
         </div>
       )}
@@ -120,11 +125,7 @@ export default function TraderPage() {
       )}
 
       {traderAddr && traderQuery.isError && isIndexerUnavailableError(traderQuery.error) && (
-        <div
-          className="shell-panel border-2 border-amber-500/40"
-          style={{ background: 'var(--panel-bg-strong)' }}
-          role="alert"
-        >
+        <div className="alert-warning" role="alert">
           <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
             Indexer unavailable
           </p>
@@ -160,20 +161,14 @@ export default function TraderPage() {
                 <p className="text-sm font-mono" style={{ color: 'var(--ink)' }}>
                   {shortenAddress(trader.address, 12, 6)}
                   {isOwnProfile && (
-                    <span
-                      className="ml-2 text-[10px] uppercase tracking-wider px-2 py-0.5 border border-white/30 rounded-sm"
-                      style={{ color: 'var(--accent)' }}
-                    >
+                    <span className="badge-neo badge-neo-accent ml-2" style={{ color: 'var(--accent)' }}>
                       You
                     </span>
                   )}
                 </p>
               </div>
               {trader.tier_name && (
-                <span
-                  className="text-[10px] uppercase tracking-wider px-2 py-1 border border-white/20 rounded-sm"
-                  style={{ color: 'var(--ink-subtle)' }}
-                >
+                <span className="badge-neo" style={{ color: 'var(--ink-subtle)' }}>
                   Tier: {trader.tier_name}
                 </span>
               )}
@@ -195,7 +190,7 @@ export default function TraderPage() {
               P&L Summary
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+              <div className="card-neo !p-3">
                 <p
                   className="text-[10px] uppercase tracking-wider font-medium mb-1"
                   style={{ color: 'var(--ink-dim)' }}
@@ -204,7 +199,7 @@ export default function TraderPage() {
                 </p>
                 <PnlValue value={trader.total_realized_pnl} />
               </div>
-              <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+              <div className="card-neo !p-3">
                 <p
                   className="text-[10px] uppercase tracking-wider font-medium mb-1"
                   style={{ color: 'var(--ink-dim)' }}
@@ -213,7 +208,7 @@ export default function TraderPage() {
                 </p>
                 <PnlValue value={trader.best_trade_pnl} />
               </div>
-              <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+              <div className="card-neo !p-3">
                 <p
                   className="text-[10px] uppercase tracking-wider font-medium mb-1"
                   style={{ color: 'var(--ink-dim)' }}
@@ -222,7 +217,7 @@ export default function TraderPage() {
                 </p>
                 <PnlValue value={trader.worst_trade_pnl} />
               </div>
-              <div className="p-3 border border-white/10 rounded-sm" style={{ background: 'var(--panel-bg)' }}>
+              <div className="card-neo !p-3">
                 <p
                   className="text-[10px] uppercase tracking-wider font-medium mb-1"
                   style={{ color: 'var(--ink-dim)' }}
