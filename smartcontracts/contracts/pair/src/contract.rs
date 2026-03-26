@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdResult, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, Event, MessageInfo,
+    Reply, Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
@@ -701,17 +701,19 @@ fn execute_swap(
     let ask_token_addr = token_addr(&ask_asset_info);
 
     let mut book_messages: Vec<CosmosMsg> = vec![];
+    let mut book_fill_events: Vec<Event> = vec![];
     let mut book_return_net = Uint128::zero();
     let mut offer_consumed_by_book = Uint128::zero();
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
-            let (t1_out, t0_used, _mk, msgs) = orderbook::match_bids(
+            let (t1_out, t0_used, _mk, msgs, fill_events) = orderbook::match_bids(
                 deps.storage,
                 env.block.time.seconds(),
                 book_leg,
                 max_makers,
                 book_hint,
+                env.contract.address.as_str(),
                 token_a_addr,
                 token_b_addr,
                 &receiver,
@@ -719,15 +721,17 @@ fn execute_swap(
                 effective_fee_bps,
             )?;
             book_messages = msgs;
+            book_fill_events = fill_events;
             book_return_net = t1_out;
             offer_consumed_by_book = t0_used;
         } else {
-            let (t0_out, t1_used, _mk, msgs) = orderbook::match_asks(
+            let (t0_out, t1_used, _mk, msgs, fill_events) = orderbook::match_asks(
                 deps.storage,
                 env.block.time.seconds(),
                 book_leg,
                 max_makers,
                 book_hint,
+                env.contract.address.as_str(),
                 token_a_addr,
                 token_b_addr,
                 &receiver,
@@ -735,6 +739,7 @@ fn execute_swap(
                 effective_fee_bps,
             )?;
             book_messages = msgs;
+            book_fill_events = fill_events;
             book_return_net = t0_out;
             offer_consumed_by_book = t1_used;
         }
@@ -869,6 +874,7 @@ fn execute_swap(
 
     let mut resp = Response::new()
         .add_messages(book_messages)
+        .add_events(book_fill_events)
         .add_messages(pool_messages)
         .add_messages(hook_messages)
         .add_messages(deregister_msgs)

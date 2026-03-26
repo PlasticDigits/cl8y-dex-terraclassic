@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::config::Config;
-use crate::db::queries::{assets, liquidity, pairs, swap_events};
+use crate::db::queries::{assets, limit_order_fills, liquidity, pairs, swap_events};
 use crate::lcd::{Attribute, LcdClient, TxResponse};
 
 use super::{
@@ -43,6 +43,22 @@ struct ParsedSwap {
     return_amount: BigDecimal,
     spread_amount: Option<BigDecimal>,
     commission_amount: Option<BigDecimal>,
+    effective_fee_bps: Option<i16>,
+    pool_return_amount: Option<BigDecimal>,
+    book_return_amount: Option<BigDecimal>,
+    limit_book_offer_consumed: Option<BigDecimal>,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedLimitOrderFill {
+    pair_address: String,
+    order_id: i64,
+    side: String,
+    maker: String,
+    price: BigDecimal,
+    token0_amount: BigDecimal,
+    token1_amount: BigDecimal,
+    commission_amount: BigDecimal,
 }
 
 pub async fn process_block_txs(
@@ -80,6 +96,20 @@ pub async fn process_block_txs(
                     "Failed to process liquidity event in tx {} for pair {}: {}",
                     tx.txhash,
                     liq.pair_address,
+                    e
+                );
+            }
+        }
+
+        let lo_fills = parse_limit_order_fills(tx);
+        for fill in &lo_fills {
+            if let Err(e) =
+                process_limit_order_fill(pool, lcd, fill, height, block_time, &tx.txhash).await
+            {
+                tracing::warn!(
+                    "Failed to process limit order fill in tx {} for pair {}: {}",
+                    tx.txhash,
+                    fill.pair_address,
                     e
                 );
             }
@@ -178,9 +208,12 @@ async fn process_swap(
         &swap.return_amount,
         swap.spread_amount.as_ref(),
         swap.commission_amount.as_ref(),
-        None,
+        swap.effective_fee_bps,
         &price,
         volume_usd.as_ref(),
+        swap.pool_return_amount.as_ref(),
+        swap.book_return_amount.as_ref(),
+        swap.limit_book_offer_consumed.as_ref(),
     )
     .await?;
 
@@ -306,11 +339,131 @@ fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
                 spread_amount: wasm_attr_last(attrs, "spread_amount").and_then(|s| s.parse().ok()),
                 commission_amount: wasm_attr_last(attrs, "commission_amount")
                     .and_then(|s| s.parse().ok()),
+                effective_fee_bps: wasm_attr_last(attrs, "effective_fee_bps")
+                    .and_then(|s| s.parse().ok()),
+                pool_return_amount: wasm_attr_last(attrs, "pool_return_amount")
+                    .and_then(|s| s.parse().ok()),
+                book_return_amount: wasm_attr_last(attrs, "book_return_amount")
+                    .and_then(|s| s.parse().ok()),
+                limit_book_offer_consumed: wasm_attr_last(attrs, "limit_book_offer_consumed")
+                    .and_then(|s| s.parse().ok()),
             });
         }
     }
 
     swaps
+}
+
+fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
+    let mut out = Vec::new();
+
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+        let attrs = &event.attributes;
+        if wasm_attr_last(attrs, "action") != Some("limit_order_fill") {
+            continue;
+        }
+
+        let contract = wasm_contract_addr(attrs);
+        let order_id_s = wasm_attr_last(attrs, "order_id");
+        let side = wasm_attr_last(attrs, "side");
+        let maker = wasm_attr_last(attrs, "maker");
+        let price_s = wasm_attr_last(attrs, "price");
+        let t0 = wasm_attr_last(attrs, "token0_amount");
+        let t1 = wasm_attr_last(attrs, "token1_amount");
+        let comm = wasm_attr_last(attrs, "commission_amount");
+
+        let Some(contract) = contract else { continue };
+        let Some(side) = side else { continue };
+        if side != "bid" && side != "ask" {
+            continue;
+        }
+        let Some(maker) = maker else { continue };
+
+        let Some(oid) = order_id_s.and_then(|s| s.parse::<i64>().ok()) else {
+            continue;
+        };
+        let Some(price) = price_s.and_then(|s| s.parse::<BigDecimal>().ok()) else {
+            continue;
+        };
+        let Some(token0_amount) = t0.and_then(|s| s.parse::<BigDecimal>().ok()) else {
+            continue;
+        };
+        let Some(token1_amount) = t1.and_then(|s| s.parse::<BigDecimal>().ok()) else {
+            continue;
+        };
+        let Some(commission_amount) = comm.and_then(|s| s.parse::<BigDecimal>().ok()) else {
+            continue;
+        };
+
+        out.push(ParsedLimitOrderFill {
+            pair_address: contract.to_string(),
+            order_id: oid,
+            side: side.to_string(),
+            maker: maker.to_string(),
+            price,
+            token0_amount,
+            token1_amount,
+            commission_amount,
+        });
+    }
+
+    out
+}
+
+async fn process_limit_order_fill(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    fill: &ParsedLimitOrderFill,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+) -> Result<(), BoxError> {
+    let pair = match pairs::get_pair_by_address(pool, &fill.pair_address).await? {
+        Some(p) => p,
+        None => match pair_discovery::discover_new_pair(pool, lcd, &fill.pair_address).await {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!("Could not discover pair {}: {}", fill.pair_address, e);
+                return Ok(());
+            }
+        },
+    };
+
+    if limit_order_fills::fill_exists(pool, tx_hash, pair.id, fill.order_id).await? {
+        return Ok(());
+    }
+
+    let swap_event_id = limit_order_fills::swap_id_for_tx_pair(pool, tx_hash, pair.id).await?;
+
+    limit_order_fills::insert_fill(
+        pool,
+        pair.id,
+        swap_event_id,
+        height,
+        block_time,
+        tx_hash,
+        fill.order_id,
+        &fill.side,
+        &fill.maker,
+        &fill.price,
+        &fill.token0_amount,
+        &fill.token1_amount,
+        &fill.commission_amount,
+    )
+    .await?;
+
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -508,6 +661,29 @@ mod tests {
         }
     }
 
+    fn wasm_tx_multi(events: Vec<Vec<(&str, &str)>>) -> TxResponse {
+        let evs: Vec<Event> = events
+            .into_iter()
+            .map(|attrs| Event {
+                event_type: "wasm".into(),
+                attributes: attrs
+                    .into_iter()
+                    .map(|(k, v)| Attribute {
+                        key: k.to_string(),
+                        value: v.to_string(),
+                    })
+                    .collect(),
+            })
+            .collect();
+        TxResponse {
+            height: "1".into(),
+            txhash: "ABCDHASH".into(),
+            logs: Some(vec![TxLog { events: evs }]),
+            timestamp: None,
+            events: None,
+        }
+    }
+
     #[test]
     fn parse_swaps_extracts_swap_event() {
         let tx = wasm_tx(vec![
@@ -525,6 +701,76 @@ mod tests {
         assert_eq!(swaps[0].sender, "terra1user");
         assert_eq!(swaps[0].offer_amount.to_string(), "100");
         assert_eq!(swaps[0].return_amount.to_string(), "95");
+    }
+
+    #[test]
+    fn parse_swaps_hybrid_and_fee_attrs() {
+        let tx = wasm_tx(vec![
+            ("contract_address", "terra1pair"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "100"),
+            ("return_amount", "95"),
+            ("offer_asset", "uluna"),
+            ("ask_asset", "uusd"),
+            ("pool_return_amount", "40"),
+            ("book_return_amount", "55"),
+            ("limit_book_offer_consumed", "60"),
+            ("effective_fee_bps", "30"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(
+            swaps[0].pool_return_amount.as_ref().unwrap().to_string(),
+            "40"
+        );
+        assert_eq!(
+            swaps[0].book_return_amount.as_ref().unwrap().to_string(),
+            "55"
+        );
+        assert_eq!(
+            swaps[0]
+                .limit_book_offer_consumed
+                .as_ref()
+                .unwrap()
+                .to_string(),
+            "60"
+        );
+        assert_eq!(swaps[0].effective_fee_bps, Some(30));
+    }
+
+    #[test]
+    fn parse_limit_order_fills_extracts_events() {
+        let tx = wasm_tx_multi(vec![
+            vec![
+                ("contract_address", "terra1pair"),
+                ("action", "limit_order_fill"),
+                ("order_id", "7"),
+                ("side", "bid"),
+                ("maker", "terra1maker"),
+                ("price", "1.5"),
+                ("token0_amount", "100"),
+                ("token1_amount", "150"),
+                ("commission_amount", "1"),
+            ],
+            vec![
+                ("contract_address", "terra1pair"),
+                ("action", "limit_order_fill"),
+                ("order_id", "8"),
+                ("side", "ask"),
+                ("maker", "terra1mk2"),
+                ("price", "2"),
+                ("token0_amount", "10"),
+                ("token1_amount", "20"),
+                ("commission_amount", "0"),
+            ],
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 2);
+        assert_eq!(fills[0].order_id, 7);
+        assert_eq!(fills[0].side, "bid");
+        assert_eq!(fills[1].order_id, 8);
+        assert_eq!(fills[1].side, "ask");
     }
 
     #[test]
@@ -651,6 +897,7 @@ mod tests {
             let _ = parse_swaps(&tx);
             let _ = parse_liquidity_events(&tx);
             let _ = parse_hook_events(&tx);
+            let _ = parse_limit_order_fills(&tx);
         }
     }
 }

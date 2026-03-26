@@ -166,6 +166,11 @@ pub async fn get_trader_trades(
                 offer_amount: t.offer_amount.to_string(),
                 return_amount: t.return_amount.to_string(),
                 price: t.price.to_string(),
+                pool_return_amount: super::pairs::opt_bd_string(&t.pool_return_amount),
+                book_return_amount: super::pairs::opt_bd_string(&t.book_return_amount),
+                limit_book_offer_consumed: super::pairs::opt_bd_string(
+                    &t.limit_book_offer_consumed,
+                ),
             }
         })
         .collect();

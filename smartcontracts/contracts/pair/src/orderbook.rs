@@ -9,7 +9,9 @@
 //! - **Asks** (makers escrow token0; matched on taker **token1 → token0**):
 //!   Walk best-first: **ascending** `price`, then **ascending** `order_id` (FIFO at same price).
 
-use cosmwasm_std::{Addr, CosmosMsg, Decimal, StdError, StdResult, Storage, Uint128, WasmMsg};
+use cosmwasm_std::{
+    Addr, CosmosMsg, Decimal, Event, StdError, StdResult, Storage, Uint128, WasmMsg,
+};
 use cw20::Cw20ExecuteMsg;
 use dex_common::pair::{LimitOrderResponse, LimitOrderSide};
 
@@ -20,6 +22,9 @@ use crate::state::{
 };
 
 use dex_common::pair::{MAX_ADJUST_STEPS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP};
+
+/// Output token to taker, offer consumed, distinct makers, CW20 transfers, wasm fill events.
+type BookMatchOutput = (Uint128, Uint128, u32, Vec<CosmosMsg>, Vec<Event>);
 
 fn escrow_sub_pending_token1(
     storage: &mut dyn Storage,
@@ -294,6 +299,42 @@ pub fn unlink_order(storage: &mut dyn Storage, id: u64) -> StdResult<LimitOrder>
     Ok(order)
 }
 
+fn side_str(side: LimitOrderSide) -> &'static str {
+    match side {
+        LimitOrderSide::Bid => "bid",
+        LimitOrderSide::Ask => "ask",
+    }
+}
+
+/// One wasm event per maker fill for indexers (action: `limit_order_fill`).
+///
+/// `token0_amount` / `token1_amount` are raw amounts in the pair's token0 / token1 assets.
+/// For bids: taker pays `token0_amount` token0; `token1_amount` is token1 taken from bid escrow
+/// (`net_to_taker` + `commission_amount` to treasury).
+/// `commission_amount` is always in token1 for bids.
+#[allow(clippy::too_many_arguments)]
+fn limit_order_fill_event(
+    pair_contract: &str,
+    order_id: u64,
+    side: LimitOrderSide,
+    maker: &Addr,
+    price: Decimal,
+    token0_amount: Uint128,
+    token1_amount: Uint128,
+    commission_amount: Uint128,
+) -> Event {
+    Event::new("wasm")
+        .add_attribute("contract_address", pair_contract)
+        .add_attribute("action", "limit_order_fill")
+        .add_attribute("order_id", order_id.to_string())
+        .add_attribute("side", side_str(side))
+        .add_attribute("maker", maker.as_str())
+        .add_attribute("price", price.to_string())
+        .add_attribute("token0_amount", token0_amount)
+        .add_attribute("token1_amount", token1_amount)
+        .add_attribute("commission_amount", commission_amount)
+}
+
 /// Match bids while taker sells token0 for token1. `token0_budget` is filled from the taker.
 #[allow(clippy::too_many_arguments)]
 pub fn match_bids(
@@ -302,17 +343,19 @@ pub fn match_bids(
     token0_budget: Uint128,
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
+    pair_contract: &str,
     token0_addr: &str,
     token1_addr: &str,
     receiver: &Addr,
     treasury: &Addr,
     effective_fee_bps: u16,
-) -> Result<(Uint128, Uint128, u32, Vec<CosmosMsg>), ContractError> {
+) -> Result<BookMatchOutput, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let mut token0_left = token0_budget;
     let mut token1_out_total = Uint128::zero();
     let mut makers_used = 0u32;
     let mut msgs: Vec<CosmosMsg> = Vec::new();
+    let mut fill_events: Vec<Event> = Vec::new();
 
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
@@ -434,6 +477,17 @@ pub fn match_bids(
 
         escrow_sub_pending_token1(storage, cost)?;
 
+        fill_events.push(limit_order_fill_event(
+            pair_contract,
+            oid,
+            LimitOrderSide::Bid,
+            &order.owner,
+            order.price,
+            fill,
+            cost,
+            commission,
+        ));
+
         order.remaining = order.remaining.checked_sub(cost)?;
         token0_left = token0_left.checked_sub(fill)?;
         token1_out_total = token1_out_total.checked_add(net_to_taker)?;
@@ -452,6 +506,7 @@ pub fn match_bids(
         token0_budget.checked_sub(token0_left)?,
         makers_used,
         msgs,
+        fill_events,
     ))
 }
 
@@ -463,17 +518,19 @@ pub fn match_asks(
     token1_budget: Uint128,
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
+    pair_contract: &str,
     token0_addr: &str,
     token1_addr: &str,
     receiver: &Addr,
     treasury: &Addr,
     effective_fee_bps: u16,
-) -> Result<(Uint128, Uint128, u32, Vec<CosmosMsg>), ContractError> {
+) -> Result<BookMatchOutput, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let mut token1_left = token1_budget;
     let mut token0_out_total = Uint128::zero();
     let mut makers_used = 0u32;
     let mut msgs: Vec<CosmosMsg> = Vec::new();
+    let mut fill_events: Vec<Event> = Vec::new();
 
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
@@ -594,6 +651,17 @@ pub fn match_asks(
 
         escrow_sub_pending_token0(storage, fill_t0)?;
 
+        fill_events.push(limit_order_fill_event(
+            pair_contract,
+            oid,
+            LimitOrderSide::Ask,
+            &order.owner,
+            order.price,
+            fill_t0,
+            cost,
+            commission,
+        ));
+
         order.remaining = order.remaining.checked_sub(fill_t0)?;
         token1_left = token1_left.checked_sub(cost)?;
         token0_out_total = token0_out_total.checked_add(net_to_taker)?;
@@ -612,6 +680,7 @@ pub fn match_asks(
         token1_budget.checked_sub(token1_left)?,
         makers_used,
         msgs,
+        fill_events,
     ))
 }
 
@@ -886,12 +955,13 @@ mod proptest_limits {
                 .unwrap();
             }
             let cap = max_makers.min(MAX_MAKER_FILLS_HARD_CAP);
-            let (_t1_out, _t0_used, makers_used, _msgs) = match_bids(
+            let (_t1_out, _t0_used, makers_used, _msgs, _evs) = match_bids(
                 storage,
                 1,
                 Uint128::new(budget),
                 max_makers,
                 None,
+                "pair_addr",
                 "token0_addr",
                 "token1_addr",
                 &Addr::unchecked("recv"),
@@ -926,12 +996,13 @@ mod proptest_limits {
                 .unwrap();
             }
             let cap = max_makers.min(MAX_MAKER_FILLS_HARD_CAP);
-            let (_t0_out, _t1_used, makers_used, _msgs) = match_asks(
+            let (_t0_out, _t1_used, makers_used, _msgs, _evs) = match_asks(
                 storage,
                 1,
                 Uint128::new(budget),
                 max_makers,
                 None,
+                "pair_addr",
                 "token0_addr",
                 "token1_addr",
                 &Addr::unchecked("recv"),

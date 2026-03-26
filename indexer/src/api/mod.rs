@@ -159,6 +159,8 @@ pub async fn find_pair_by_ticker(
         pairs::get_pair,
         pairs::get_pair_candles,
         pairs::get_pair_trades,
+        pairs::get_pair_limit_fills,
+        pairs::get_pair_order_limit_fills,
         pairs::get_pair_stats,
         tokens::list_tokens,
         tokens::get_token,
@@ -190,6 +192,7 @@ pub async fn find_pair_by_ticker(
         pairs::AssetBrief,
         pairs::CandleResponse,
         pairs::TradeResponse,
+        pairs::LimitFillResponse,
         pairs::PairStatsResponse,
         tokens::TokenResponse,
         tokens::TokenDetailResponse,
@@ -252,6 +255,14 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
         .route("/api/v1/pairs/{addr}/candles", get(pairs::get_pair_candles))
         .route("/api/v1/pairs/{addr}/trades", get(pairs::get_pair_trades))
+        .route(
+            "/api/v1/pairs/{addr}/limit-fills",
+            get(pairs::get_pair_limit_fills),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-orders/{order_id}/fills",
+            get(pairs::get_pair_order_limit_fills),
+        )
         .route("/api/v1/pairs/{addr}/stats", get(pairs::get_pair_stats))
         .route("/api/v1/tokens", get(tokens::list_tokens))
         .route("/api/v1/tokens/{addr}", get(tokens::get_token))
