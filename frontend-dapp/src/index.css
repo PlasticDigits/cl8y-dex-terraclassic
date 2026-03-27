@@ -172,18 +172,19 @@
 
   .btn-muted {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-150;
-    border: 1px solid rgba(255, 220, 184, 0.08);
+    border: 1px solid var(--line);
     border-radius: 16px;
     color: var(--ink-dim);
-    background: rgba(255, 255, 255, 0.035);
-    box-shadow: inset 0 1px 0 rgba(255, 248, 235, 0.08);
+    background: var(--control-surface);
+    box-shadow: var(--shadow-button-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
   .btn-muted:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--control-surface-hover);
     color: var(--ink);
+    transform: translateY(-1px);
   }
 
   .btn-cta {
@@ -217,7 +218,7 @@
     @apply w-full px-4 py-3 text-sm transition-colors;
     border: 1px solid rgba(255, 220, 184, 0.12);
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--control-surface);
     color: var(--ink);
     box-shadow: inset 0 1px 0 rgba(255, 248, 235, 0.06);
   }
@@ -238,7 +239,7 @@
     @apply w-full px-4 py-3 text-sm transition-colors appearance-none;
     border: 1px solid rgba(255, 220, 184, 0.12);
     border-radius: 18px;
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: var(--control-surface);
     color: var(--ink);
     box-shadow: inset 0 1px 0 rgba(255, 248, 235, 0.06);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffd8aa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
@@ -255,7 +256,7 @@
   }
 
   .select-neo option {
-    background: #2a1914;
+    background: var(--surface-raised);
     color: var(--ink);
   }
 
@@ -264,7 +265,7 @@
     position: relative;
     border: 1px solid rgba(255, 220, 184, 0.12);
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.035);
+    background: var(--control-surface);
     color: var(--ink);
     min-height: 48px;
     box-shadow:
@@ -303,10 +304,8 @@
     @apply max-h-60 overflow-y-auto p-2 m-0 list-none;
     border: 1px solid var(--line);
     border-radius: 18px;
-    background: linear-gradient(180deg, rgba(37, 23, 19, 0.96), rgba(22, 13, 11, 0.98));
-    box-shadow:
-      0 28px 60px rgba(0, 0, 0, 0.34),
-      inset 0 1px 0 rgba(255, 244, 224, 0.12);
+    background: var(--menu-bg);
+    box-shadow: var(--shadow-menu);
     backdrop-filter: blur(20px);
     z-index: 100;
   }
@@ -329,15 +328,15 @@
 
   .label-neo {
     @apply block text-xs font-semibold uppercase tracking-wide mb-1;
-    color: var(--ink-dim);
+    color: color-mix(in srgb, var(--ink) 76%, transparent);
   }
 
   .alert-error {
     @apply p-3 text-sm;
     border: 1px solid rgba(248, 113, 113, 0.22);
     border-radius: 18px;
-    background: rgba(72, 17, 17, 0.32);
-    color: #ffb8b8;
+    background: var(--alert-error-bg);
+    color: var(--alert-error-text);
   }
 
   .alert-success {
@@ -352,15 +351,15 @@
     @apply p-3 text-sm;
     border: 1px solid rgba(251, 191, 36, 0.22);
     border-radius: 18px;
-    background: rgba(74, 40, 12, 0.28);
-    color: #ffd28d;
+    background: var(--alert-warning-bg);
+    color: var(--alert-warning-text);
   }
 
   .alert-info {
     @apply p-3 text-sm;
     border: 1px solid rgba(255, 220, 184, 0.12);
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--control-surface);
     color: var(--ink-dim);
   }
 
@@ -368,10 +367,8 @@
     @apply p-4 sm:p-5;
     border: 1px solid rgba(255, 213, 158, 0.14);
     border-radius: 24px;
-    background: linear-gradient(180deg, rgba(55, 33, 25, 0.7), rgba(27, 16, 14, 0.72)), rgba(255, 255, 255, 0.03);
-    box-shadow:
-      0 24px 54px rgba(0, 0, 0, 0.22),
-      inset 0 1px 0 rgba(255, 243, 223, 0.08);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-card);
     backdrop-filter: blur(14px);
   }
 
@@ -629,8 +626,8 @@
     border: 1px solid rgba(255, 220, 184, 0.08);
     border-radius: 14px;
     color: var(--ink-dim);
-    background: rgba(255, 255, 255, 0.035);
-    box-shadow: inset 0 1px 0 rgba(255, 248, 235, 0.08);
+    background: var(--control-surface);
+    box-shadow: var(--shadow-button-muted);
     text-decoration: none;
     transition:
       background-color 0.18s ease,
@@ -647,7 +644,7 @@
   .app-footer-theme-button:hover,
   .network-badge:hover,
   .wallet-trigger:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--control-surface-hover);
     color: var(--ink);
     transform: translateY(-1px);
   }
@@ -690,11 +687,9 @@
     padding: 8px;
     border: 1px solid var(--line);
     border-radius: 18px;
-    background: linear-gradient(180deg, rgba(37, 23, 19, 0.94), rgba(23, 14, 12, 0.96));
+    background: var(--menu-bg);
     backdrop-filter: blur(20px);
-    box-shadow:
-      0 24px 48px rgba(0, 0, 0, 0.34),
-      inset 0 1px 0 rgba(255, 244, 224, 0.12);
+    box-shadow: var(--shadow-menu);
   }
 
   .app-menu-link,
@@ -725,10 +720,8 @@
 
   .wallet-trigger-connected {
     color: var(--ink);
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 248, 235, 0.12),
-      0 16px 28px rgba(0, 0, 0, 0.18);
+    background: var(--control-surface-hover);
+    box-shadow: var(--shadow-button-muted);
   }
 
   .wallet-trigger-icon {
@@ -788,7 +781,7 @@
     padding: 18px 20px;
     border: 1px solid var(--line);
     border-radius: 22px;
-    background: rgba(255, 255, 255, 0.025);
+    background: var(--control-surface);
     backdrop-filter: blur(18px);
     color: var(--ink-dim);
     text-transform: uppercase;
@@ -817,7 +810,7 @@
     border-bottom: 0;
     border-left: 0;
     border-radius: 22px 22px 0 0;
-    background: linear-gradient(180deg, rgba(29, 17, 14, 0.86), rgba(15, 9, 8, 0.96));
+    background: var(--menu-bg);
     backdrop-filter: blur(18px);
     box-shadow:
       0 18px 50px rgba(0, 0, 0, 0.32),
@@ -848,11 +841,9 @@
     padding: 10px;
     border: 1px solid var(--line);
     border-radius: 20px;
-    background: linear-gradient(180deg, rgba(37, 23, 19, 0.96), rgba(22, 13, 11, 0.98));
+    background: var(--menu-bg);
     backdrop-filter: blur(20px);
-    box-shadow:
-      0 28px 60px rgba(0, 0, 0, 0.34),
-      inset 0 1px 0 rgba(255, 244, 224, 0.12);
+    box-shadow: var(--shadow-menu);
   }
 
   .app-mobile-theme-group {
@@ -924,7 +915,7 @@
     padding: 14px 16px;
     border: 1px solid rgba(255, 220, 184, 0.1);
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--control-surface);
     color: var(--ink);
     transition:
       background-color 0.18s ease,
@@ -933,7 +924,7 @@
   }
 
   .wallet-option-card:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--control-surface-hover);
     border-color: rgba(255, 220, 184, 0.16);
     transform: translateY(-1px);
   }
