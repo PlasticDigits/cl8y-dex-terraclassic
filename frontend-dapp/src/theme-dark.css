@@ -29,4 +29,15 @@
   --overlay: rgba(7, 4, 3, 0.32);
   --accent-gradient: linear-gradient(135deg, #f59e0b 0%, #f97316 55%, #ea580c 100%);
   --focus-ring: rgba(255, 214, 153, 0.78);
+  --shadow-button-muted: inset 0 1px 0 rgba(255, 248, 235, 0.08), 0 12px 24px rgba(0, 0, 0, 0.14);
+  --shadow-card: 0 24px 54px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 243, 223, 0.08);
+  --shadow-menu: 0 28px 60px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 244, 224, 0.12);
+  --control-surface: rgba(255, 255, 255, 0.035);
+  --control-surface-hover: rgba(255, 255, 255, 0.06);
+  --card-bg: linear-gradient(180deg, rgba(55, 33, 25, 0.7), rgba(27, 16, 14, 0.72)), rgba(255, 255, 255, 0.03);
+  --menu-bg: linear-gradient(180deg, rgba(37, 23, 19, 0.96), rgba(22, 13, 11, 0.98));
+  --alert-error-bg: rgba(72, 17, 17, 0.32);
+  --alert-error-text: #ffb8b8;
+  --alert-warning-bg: rgba(74, 40, 12, 0.28);
+  --alert-warning-text: #ffd28d;
 }

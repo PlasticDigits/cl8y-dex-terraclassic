@@ -32,4 +32,15 @@
   --shadow-panel: 0 24px 60px rgba(113, 66, 38, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.78);
   --shadow-panel-strong: 0 28px 68px rgba(113, 66, 38, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.86);
   --shadow-button: inset 0 1px 0 rgba(255, 255, 255, 0.38), 0 14px 24px rgba(216, 102, 38, 0.18);
+  --shadow-button-muted: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 12px 24px rgba(113, 66, 38, 0.08);
+  --shadow-card: 0 20px 48px rgba(113, 66, 38, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  --shadow-menu: 0 24px 48px rgba(113, 66, 38, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  --control-surface: rgba(255, 255, 255, 0.62);
+  --control-surface-hover: rgba(255, 255, 255, 0.82);
+  --card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 236, 221, 0.92)), rgba(255, 255, 255, 0.4);
+  --menu-bg: linear-gradient(180deg, rgba(255, 252, 248, 0.97), rgba(247, 234, 219, 0.98));
+  --alert-error-bg: linear-gradient(180deg, rgba(255, 246, 244, 0.95), rgba(251, 228, 225, 0.98));
+  --alert-error-text: #9b3d33;
+  --alert-warning-bg: linear-gradient(180deg, rgba(255, 249, 240, 0.95), rgba(252, 238, 214, 0.98));
+  --alert-warning-text: #8a5521;
 }
