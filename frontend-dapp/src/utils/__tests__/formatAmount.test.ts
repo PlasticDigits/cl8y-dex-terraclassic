@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatNum, formatTokenAmount, formatTokenAmountGrouped, getDecimals } from '../formatAmount'
+import { formatNum, formatTokenAmount, formatTokenAmountAbbrev, getDecimals } from '../formatAmount'
 
 describe('formatNum', () => {
   it('returns 0 for zero', () => {
@@ -78,29 +78,29 @@ describe('formatTokenAmount', () => {
   })
 })
 
-describe('formatTokenAmountGrouped', () => {
+describe('formatTokenAmountAbbrev', () => {
   it('returns 0 for empty or invalid', () => {
-    expect(formatTokenAmountGrouped('', 18)).toBe('0')
-    expect(formatTokenAmountGrouped('0', 18)).toBe('0')
-    expect(formatTokenAmountGrouped('not_a_number', 18)).toBe('0')
+    expect(formatTokenAmountAbbrev('', 18)).toBe('0')
+    expect(formatTokenAmountAbbrev('0', 18)).toBe('0')
+    expect(formatTokenAmountAbbrev('not_a_number', 18)).toBe('0')
   })
 
-  it('groups whole tokens and omits decimal point', () => {
-    expect(formatTokenAmountGrouped('1000000000000000000', 18)).toBe('1')
-    expect(formatTokenAmountGrouped('5000000000000000000', 18)).toBe('5')
-    expect(formatTokenAmountGrouped('20000000000000000000', 18)).toBe('20')
-    expect(formatTokenAmountGrouped('3500000000000000000000', 18)).toBe('3,500')
-    expect(formatTokenAmountGrouped('7500000000000000000000', 18)).toBe('7,500')
+  it('uses K/M with no junk decimals for whole token amounts', () => {
+    expect(formatTokenAmountAbbrev('1000000000000000000', 18)).toBe('1')
+    expect(formatTokenAmountAbbrev('5000000000000000000', 18)).toBe('5')
+    expect(formatTokenAmountAbbrev('20000000000000000000', 18)).toBe('20')
+    expect(formatTokenAmountAbbrev('3500000000000000000000', 18)).toBe('3.5K')
+    expect(formatTokenAmountAbbrev('7500000000000000000000', 18)).toBe('7.5K')
+    expect(formatTokenAmountAbbrev('5000000000000000000000', 18)).toBe('5K')
   })
 
-  it('keeps non-zero fractional part without abbreviations', () => {
-    expect(formatTokenAmountGrouped('1500000000000000000', 18)).toBe('1.5')
-    expect(formatTokenAmountGrouped('1000000000000000001', 18)).toBe('1.000000000000000001')
+  it('formats fractional token amounts and strips trailing zeros', () => {
+    expect(formatTokenAmountAbbrev('1500000000000000000', 18)).toBe('1.5')
   })
 
   it('works with 6 decimals', () => {
-    expect(formatTokenAmountGrouped('1500000', 6)).toBe('1.5')
-    expect(formatTokenAmountGrouped('1000000', 6)).toBe('1')
+    expect(formatTokenAmountAbbrev('1500000', 6)).toBe('1.5')
+    expect(formatTokenAmountAbbrev('1000000', 6)).toBe('1')
   })
 })
 

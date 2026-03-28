@@ -101,19 +101,50 @@ export function fromRawAmount(rawAmount: string, decimals: number): string {
   return trimmedFrac ? `${intPart}.${trimmedFrac}` : intPart
 }
 
-function addThousandsSeparators(intStr: string): string {
-  const neg = intStr.startsWith('-')
-  const digits = neg ? intStr.slice(1) : intStr
-  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  return neg ? `-${grouped}` : grouped
+function stripTrailingZerosAbbrevDisplay(s: string): string {
+  const suffix = /[KMBT]$/.exec(s)?.[0] ?? ''
+  const core = suffix ? s.slice(0, -1) : s
+  const n = parseFloat(core.replace(/,/g, ''))
+  if (isNaN(n)) return s
+  if (n === 0 && !suffix) return '0'
+  if (Number.isInteger(n)) {
+    return n.toLocaleString('en-US', { maximumFractionDigits: 0, useGrouping: true }) + suffix
+  }
+  const formatted = n.toLocaleString('en-US', { maximumFractionDigits: 12, useGrouping: true })
+  return formatted + suffix
+}
+
+function formatWholeTokensAbbrev(absWhole: bigint, sign: string): string {
+  if (absWhole === 0n) return '0'
+  const tiers: [bigint, string][] = [
+    [10n ** 12n, 'T'],
+    [10n ** 9n, 'B'],
+    [10n ** 6n, 'M'],
+    [10n ** 3n, 'K'],
+  ]
+  for (const [th, suf] of tiers) {
+    if (absWhole >= th) {
+      const scaledInt = absWhole / th
+      const rem = absWhole % th
+      if (rem === 0n) {
+        return `${sign}${scaledInt.toLocaleString('en-US')}${suf}`
+      }
+      const q = Number(absWhole) / Number(th)
+      if (!Number.isFinite(q)) {
+        return `${sign}${absWhole.toLocaleString('en-US')}`
+      }
+      const coef = stripTrailingZerosAbbrevDisplay(String(q))
+      return `${sign}${coef}${suf}`
+    }
+  }
+  return `${sign}${absWhole.toLocaleString('en-US')}`
 }
 
 /**
- * Format a raw token amount with thousands grouping only (no K/M/B/T).
- * Whole-token amounts have no decimal point; otherwise trailing fractional
- * zeros are stripped. Uses exact string conversion (no float rounding).
+ * Like formatTokenAmount (K/M/B/T) but omits meaningless decimals for whole
+ * token counts (e.g. "1" and "5K" instead of "1.000" and "5.000K").
  */
-export function formatTokenAmountGrouped(rawAmount: string, decimals: number): string {
+export function formatTokenAmountAbbrev(rawAmount: string, decimals: number, sigfigs = 4): string {
   if (!rawAmount || rawAmount === '0') return '0'
   let raw: bigint
   try {
@@ -123,17 +154,19 @@ export function formatTokenAmountGrouped(rawAmount: string, decimals: number): s
   }
   if (raw === 0n) return '0'
 
-  const human = fromRawAmount(rawAmount, decimals)
-  if (human === '0') return '0'
+  const divisor = 10n ** BigInt(decimals)
+  const whole = raw / divisor
+  const remainder = raw % divisor
 
-  const dot = human.indexOf('.')
-  if (dot === -1) {
-    return addThousandsSeparators(human)
+  const sign = whole < 0n ? '-' : ''
+  const absWhole = whole < 0n ? -whole : whole
+
+  if (remainder === 0n) {
+    return formatWholeTokensAbbrev(absWhole, sign)
   }
-  const intPart = human.slice(0, dot)
-  const fracPart = human.slice(dot + 1).replace(/0+$/, '')
-  const groupedInt = addThousandsSeparators(intPart)
-  return fracPart ? `${groupedInt}.${fracPart}` : groupedInt
+
+  const value = Number(whole) + Number(remainder) / Number(divisor)
+  return stripTrailingZerosAbbrevDisplay(formatNum(value, sigfigs))
 }
 
 /**
