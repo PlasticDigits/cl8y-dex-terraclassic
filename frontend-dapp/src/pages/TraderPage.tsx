@@ -98,7 +98,7 @@ export default function TraderPage() {
           <Link
             to={`/trader/${walletAddr}`}
             onClick={() => sounds.playButtonPress()}
-            className="btn-muted !px-4 !py-1.5 !text-xs text-center"
+            className="btn-primary !px-4 !py-1.5 !text-xs text-center no-underline"
           >
             My Profile
           </Link>
@@ -137,7 +137,7 @@ export default function TraderPage() {
           </p>
           <button
             type="button"
-            className="btn-muted !text-xs !px-4 !py-1.5 mt-3"
+            className="btn-primary !text-xs !px-4 !py-1.5 mt-3"
             onClick={() => void traderQuery.refetch()}
           >
             Retry
