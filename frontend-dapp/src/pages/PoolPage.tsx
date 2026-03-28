@@ -16,11 +16,33 @@ import type { PairInfo, AssetInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
 import type { IndexerPairSort } from '@/types'
 import { getPairs, getTokens, INDEXER_URL } from '@/services/indexer/client'
-import { Spinner, TokenDisplay, RetryError, Skeleton, FeeDisplay, TxResultAlert } from '@/components/ui'
+import {
+  Spinner,
+  TokenDisplay,
+  RetryError,
+  Skeleton,
+  FeeDisplay,
+  TxResultAlert,
+  MenuSelect,
+  type MenuSelectOption,
+} from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+
+const POOL_SORT_OPTIONS: MenuSelectOption[] = [
+  { value: 'symbol', label: 'Name (A–Z)' },
+  { value: 'volume_24h', label: '24h volume' },
+  { value: 'fee', label: 'Fee' },
+  { value: 'created', label: 'Created' },
+  { value: 'id', label: 'Pair ID' },
+]
+
+const ORDER_OPTIONS: MenuSelectOption[] = [
+  { value: 'asc', label: 'Ascending' },
+  { value: 'desc', label: 'Descending' },
+]
 
 const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairInfo; volumeQuote24h?: string }) {
   const address = useWalletStore((s) => s.address)
@@ -579,7 +601,7 @@ export default function PoolPage() {
       </div>
 
       <div
-        className="shell-panel shell-panel-native-select-host mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+        className="shell-panel mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
         role="search"
         aria-label="Filter and sort pools"
       >
@@ -618,40 +640,33 @@ export default function PoolPage() {
           <label htmlFor="pool-sort" className="label-neo mb-1 block">
             Sort
           </label>
-          <select
+          <MenuSelect
             id="pool-sort"
-            className="select-neo w-full sm:w-44"
+            className="relative w-full sm:w-44"
             value={sort}
-            onChange={(e) => {
-              const v = e.target.value as IndexerPairSort
-              setSort(v)
+            options={POOL_SORT_OPTIONS}
+            onChange={(v) => {
+              const next = v as IndexerPairSort
+              setSort(next)
               setPage(0)
-              if (v === 'volume_24h') setOrder('desc')
+              if (next === 'volume_24h') setOrder('desc')
             }}
-          >
-            <option value="symbol">Name (A–Z)</option>
-            <option value="volume_24h">24h volume</option>
-            <option value="fee">Fee</option>
-            <option value="created">Created</option>
-            <option value="id">Pair ID</option>
-          </select>
+          />
         </div>
         <div>
           <label htmlFor="pool-order" className="label-neo mb-1 block">
             Order
           </label>
-          <select
+          <MenuSelect
             id="pool-order"
-            className="select-neo w-full sm:w-44"
+            className="relative w-full sm:w-44"
             value={order}
-            onChange={(e) => {
-              setOrder(e.target.value as 'asc' | 'desc')
+            options={ORDER_OPTIONS}
+            onChange={(v) => {
+              setOrder(v as 'asc' | 'desc')
               setPage(0)
             }}
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
+          />
         </div>
       </div>
 
