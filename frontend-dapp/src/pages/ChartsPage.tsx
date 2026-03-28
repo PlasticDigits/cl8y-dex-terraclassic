@@ -11,7 +11,7 @@ import {
   INDEXER_URL,
 } from '@/services/indexer/client'
 import PriceChart from '@/components/charts/PriceChart'
-import { StatBox, TradesTable, RetryError, Skeleton } from '@/components/ui'
+import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelectOption } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { formatNum } from '@/utils/formatAmount'
 import { shortenAddress } from '@/utils/tokenDisplay'
@@ -79,13 +79,14 @@ export default function ChartsPage() {
     staleTime: 60_000,
   })
 
-  const pairs = pairsQuery.data?.items ?? []
+  const pairItems = pairsQuery.data?.items
   const pairTotal = pairsQuery.data?.total ?? 0
   const pairTotalPages = Math.max(1, Math.ceil(pairTotal / PAIR_PAGE_SIZE))
   const canPairPrev = pairPage > 0
   const canPairNext = (pairPage + 1) * PAIR_PAGE_SIZE < pairTotal
 
-  const needsPairFetch = !!selectedPairAddr && !pairs.some((p: IndexerPair) => p.pair_address === selectedPairAddr)
+  const needsPairFetch =
+    !!selectedPairAddr && !(pairItems ?? []).some((p: IndexerPair) => p.pair_address === selectedPairAddr)
 
   const selectedPairQuery = useQuery({
     queryKey: ['indexer-pair-one', selectedPairAddr],
@@ -102,16 +103,26 @@ export default function ChartsPage() {
   }, [selectedPairQuery.isError])
 
   const pairOptions = useMemo(() => {
-    const list = [...pairs]
+    const list = [...(pairItems ?? [])]
     const extra = selectedPairQuery.data
     if (extra && !list.some((p) => p.pair_address === extra.pair_address)) {
       list.unshift(extra)
     }
     return list
-  }, [pairs, selectedPairQuery.data])
+  }, [pairItems, selectedPairQuery.data])
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
   const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
+
+  const pairMenuOptions = useMemo<MenuSelectOption[]>(() => {
+    if (pairOptions.length === 0) {
+      return [{ value: '', label: 'No indexed pairs available' }]
+    }
+    return pairOptions.map((p: IndexerPair) => ({
+      value: p.pair_address,
+      label: `${p.asset_0.symbol} / ${p.asset_1.symbol}`,
+    }))
+  }, [pairOptions])
 
   useEffect(() => {
     if (pairOptions.length === 0) return
@@ -188,7 +199,7 @@ export default function ChartsPage() {
           </p>
           <button
             type="button"
-            className="btn-muted !text-xs !px-4 !py-1.5 mt-3"
+            className="btn-primary !text-xs !px-4 !py-1.5 mt-3"
             onClick={() => {
               void overviewQuery.refetch()
               void pairsQuery.refetch()
@@ -243,7 +254,7 @@ export default function ChartsPage() {
       )}
 
       {/* Pair Selector */}
-      <div className="shell-panel shell-panel-native-select-host">
+      <div className="shell-panel">
         <label htmlFor="chart-pair-search" className="label-neo mb-1 block">
           Find pair
         </label>
@@ -261,62 +272,53 @@ export default function ChartsPage() {
             <label htmlFor="chart-pair-sort" className="label-neo mb-1 block">
               Sort
             </label>
-            <select
+            <MenuSelect
               id="chart-pair-sort"
-              className="select-neo w-full"
+              className="relative w-full"
               value={pairSort}
-              onChange={(e) => {
+              options={CHARTS_PAIR_SORT_OPTIONS}
+              onChange={(v) => {
                 sounds.playButtonPress()
-                const v = e.target.value as IndexerPairSort
-                setPairSort(v)
+                const next = v as IndexerPairSort
+                setPairSort(next)
                 setPairPage(0)
-                if (v === 'volume_24h') setPairOrder('desc')
+                if (next === 'volume_24h') setPairOrder('desc')
               }}
-            >
-              <option value="volume_24h">24h volume</option>
-              <option value="symbol">Name (A–Z)</option>
-              <option value="fee">Fee</option>
-              <option value="created">Created</option>
-              <option value="id">Pair ID</option>
-            </select>
+            />
           </div>
           <div>
             <label htmlFor="chart-pair-order" className="label-neo mb-1 block">
               Order
             </label>
-            <select
+            <MenuSelect
               id="chart-pair-order"
-              className="select-neo w-full"
+              className="relative w-full"
               value={pairOrder}
-              onChange={(e) => {
+              options={ORDER_OPTIONS}
+              onChange={(v) => {
                 sounds.playButtonPress()
-                setPairOrder(e.target.value as 'asc' | 'desc')
+                setPairOrder(v as 'asc' | 'desc')
                 setPairPage(0)
               }}
-            >
-              <option value="asc">Ascending</option>
-              <option value="desc">Descending</option>
-            </select>
+            />
           </div>
         </div>
-        <label className="label-neo mb-1 block">Select Pair</label>
-        <select
-          className="select-neo w-full"
+        <label htmlFor="chart-pair-select" className="label-neo mb-1 block">
+          Select Pair
+        </label>
+        <MenuSelect
+          id="chart-pair-select"
+          className="relative w-full"
           aria-label="Select pair"
           value={activePairAddr}
+          options={pairMenuOptions}
           disabled={pairOptions.length === 0}
-          onChange={(e) => {
+          emptyLabel="No indexed pairs available"
+          onChange={(v) => {
             sounds.playButtonPress()
-            setSelectedPairAddr(e.target.value)
+            setSelectedPairAddr(v)
           }}
-        >
-          {pairOptions.map((p: IndexerPair) => (
-            <option key={p.pair_address} value={p.pair_address}>
-              {p.asset_0.symbol} / {p.asset_1.symbol}
-            </option>
-          ))}
-          {pairOptions.length === 0 && <option value="">No indexed pairs available</option>}
-        </select>
+        />
         {pairTotal > PAIR_PAGE_SIZE && !pairsQuery.isLoading && !pairsQuery.isError && (
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
@@ -353,7 +355,7 @@ export default function ChartsPage() {
             Loading selected pair…
           </p>
         )}
-        {pairsQuery.isSuccess && pairs.length === 0 && !pairsQuery.isLoading && !indexerUnavailable && (
+        {pairsQuery.isSuccess && (pairItems?.length ?? 0) === 0 && !pairsQuery.isLoading && !indexerUnavailable && (
           <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
             No pairs in the indexer yet. After swaps are indexed, pairs will appear here.
           </p>
