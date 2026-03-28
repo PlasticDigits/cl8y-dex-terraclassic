@@ -4,16 +4,16 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { getTiers, getRegistration, register, deregister } from '@/services/terraclassic/feeDiscount'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, CL8Y_TOKEN_ADDRESS } from '@/utils/constants'
 import type { TierEntry } from '@/types'
-import { Spinner, Badge } from '@/components/ui'
+import { Spinner, Badge, RetryError } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
-import { formatTokenAmountGrouped } from '@/utils/formatAmount'
+import { formatTokenAmountAbbrev } from '@/utils/formatAmount'
 import { lookupByCW20 } from '@/utils/tokenRegistry'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
 
 const CL8Y_DECIMALS = lookupByCW20(CL8Y_TOKEN_ADDRESS)?.decimals ?? 18
 
 function formatCl8y(raw: string): string {
-  return formatTokenAmountGrouped(raw, CL8Y_DECIMALS)
+  return formatTokenAmountAbbrev(raw, CL8Y_DECIMALS)
 }
 
 function discountLabel(bps: number): string {
@@ -274,9 +274,10 @@ export default function TiersPage() {
       )}
 
       {tiersQuery.isError && (
-        <div className="alert-error py-8 text-center" aria-live="polite">
-          Failed to load tiers: {tiersQuery.error?.message}
-        </div>
+        <RetryError
+          message={`Failed to load tiers: ${tiersQuery.error?.message ?? 'Unknown error'}`}
+          onRetry={() => void tiersQuery.refetch()}
+        />
       )}
 
       <div className="space-y-3">
