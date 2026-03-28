@@ -144,6 +144,15 @@
     backdrop-filter: blur(18px);
   }
 
+  /* Native <select> menus on many mobile/tablet engines composite with the host stacking
+     context. Panels below (cards / shell-panel-strong with their own backdrop-filter) paint
+     later and can cover the open picker. Keep select hosts above following content (still
+     below .app-header-shell z-40 and .app-mobile-nav-shell z-50). */
+  .shell-panel-native-select-host {
+    position: relative;
+    z-index: 20;
+  }
+
   .shell-panel-strong {
     @apply p-4 sm:p-5;
     border: 1px solid var(--line);
@@ -299,7 +308,7 @@
     pointer-events: none;
   }
 
-  /* Position (fixed + coords) comes from TokenSelect portal inline styles — must sit above cards/shell (stacking contexts). */
+  /* Position (fixed + coords) from TokenSelect / MenuSelect portal — must sit above cards/shell (stacking contexts). */
   .token-select-dropdown {
     @apply max-h-60 overflow-y-auto p-2 m-0 list-none;
     border: 1px solid var(--line);
