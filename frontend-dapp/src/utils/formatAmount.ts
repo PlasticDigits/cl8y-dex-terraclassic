@@ -101,6 +101,41 @@ export function fromRawAmount(rawAmount: string, decimals: number): string {
   return trimmedFrac ? `${intPart}.${trimmedFrac}` : intPart
 }
 
+function addThousandsSeparators(intStr: string): string {
+  const neg = intStr.startsWith('-')
+  const digits = neg ? intStr.slice(1) : intStr
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return neg ? `-${grouped}` : grouped
+}
+
+/**
+ * Format a raw token amount with thousands grouping only (no K/M/B/T).
+ * Whole-token amounts have no decimal point; otherwise trailing fractional
+ * zeros are stripped. Uses exact string conversion (no float rounding).
+ */
+export function formatTokenAmountGrouped(rawAmount: string, decimals: number): string {
+  if (!rawAmount || rawAmount === '0') return '0'
+  let raw: bigint
+  try {
+    raw = BigInt(rawAmount)
+  } catch {
+    return '0'
+  }
+  if (raw === 0n) return '0'
+
+  const human = fromRawAmount(rawAmount, decimals)
+  if (human === '0') return '0'
+
+  const dot = human.indexOf('.')
+  if (dot === -1) {
+    return addThousandsSeparators(human)
+  }
+  const intPart = human.slice(0, dot)
+  const fracPart = human.slice(dot + 1).replace(/0+$/, '')
+  const groupedInt = addThousandsSeparators(intPart)
+  return fracPart ? `${groupedInt}.${fracPart}` : groupedInt
+}
+
 /**
  * Resolve decimals for an AssetInfo from the token registry,
  * defaulting to 6 if the token is unknown.

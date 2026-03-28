@@ -6,14 +6,14 @@ import { FEE_DISCOUNT_CONTRACT_ADDRESS, CL8Y_TOKEN_ADDRESS } from '@/utils/const
 import type { TierEntry } from '@/types'
 import { Spinner, Badge } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
-import { formatTokenAmount } from '@/utils/formatAmount'
+import { formatTokenAmountGrouped } from '@/utils/formatAmount'
 import { lookupByCW20 } from '@/utils/tokenRegistry'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
 
 const CL8Y_DECIMALS = lookupByCW20(CL8Y_TOKEN_ADDRESS)?.decimals ?? 18
 
 function formatCl8y(raw: string): string {
-  return formatTokenAmount(raw, CL8Y_DECIMALS)
+  return formatTokenAmountGrouped(raw, CL8Y_DECIMALS)
 }
 
 function discountLabel(bps: number): string {

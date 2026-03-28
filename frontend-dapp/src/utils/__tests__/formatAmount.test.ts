@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatNum, formatTokenAmount, getDecimals } from '../formatAmount'
+import { formatNum, formatTokenAmount, formatTokenAmountGrouped, getDecimals } from '../formatAmount'
 
 describe('formatNum', () => {
   it('returns 0 for zero', () => {
@@ -75,6 +75,32 @@ describe('formatTokenAmount', () => {
   it('handles very large amounts', () => {
     const result = formatTokenAmount('999999999999999999999999', 18)
     expect(result).toContain('M')
+  })
+})
+
+describe('formatTokenAmountGrouped', () => {
+  it('returns 0 for empty or invalid', () => {
+    expect(formatTokenAmountGrouped('', 18)).toBe('0')
+    expect(formatTokenAmountGrouped('0', 18)).toBe('0')
+    expect(formatTokenAmountGrouped('not_a_number', 18)).toBe('0')
+  })
+
+  it('groups whole tokens and omits decimal point', () => {
+    expect(formatTokenAmountGrouped('1000000000000000000', 18)).toBe('1')
+    expect(formatTokenAmountGrouped('5000000000000000000', 18)).toBe('5')
+    expect(formatTokenAmountGrouped('20000000000000000000', 18)).toBe('20')
+    expect(formatTokenAmountGrouped('3500000000000000000000', 18)).toBe('3,500')
+    expect(formatTokenAmountGrouped('7500000000000000000000', 18)).toBe('7,500')
+  })
+
+  it('keeps non-zero fractional part without abbreviations', () => {
+    expect(formatTokenAmountGrouped('1500000000000000000', 18)).toBe('1.5')
+    expect(formatTokenAmountGrouped('1000000000000000001', 18)).toBe('1.000000000000000001')
+  })
+
+  it('works with 6 decimals', () => {
+    expect(formatTokenAmountGrouped('1500000', 6)).toBe('1.5')
+    expect(formatTokenAmountGrouped('1000000', 6)).toBe('1')
   })
 })
 
