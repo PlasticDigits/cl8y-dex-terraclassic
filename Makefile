@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy
 
 # Infrastructure
 start:
@@ -48,9 +48,28 @@ wait-healthy:
 		sleep 2; \
 	done
 
-# Smart Contracts
+# Smart contracts — two different builds:
+#
+#   make build-optimized  →  CosmWasm workspace-optimizer (Docker). This is what deploy-local and
+#                            production use: small, deterministic, optimizer-processed wasm in
+#                            smartcontracts/artifacts/. Does NOT require wasm32-unknown-unknown on
+#                            the host — only Docker.
+#
+#   make build-contracts / build-artifacts-cargo  →  plain cargo --release wasm. Useful for quick
+#                            local checks / unit tests; NOT a substitute for the optimizer. Do not
+#                            deploy these if you need parity with optimized artifacts.
+#
+# Contract crates only — workspace "tests" member is not wasm32-compatible.
+WASM_CONTRACT_PKGS := -p cl8y-dex-factory -p cl8y-dex-pair -p cl8y-dex-router -p cl8y-dex-fee-discount \
+	-p cl8y-dex-burn-hook -p cl8y-dex-tax-hook -p cl8y-dex-lp-burn-hook
+
 build-contracts:
-	cd smartcontracts && cargo build --release --target wasm32-unknown-unknown
+	cd smartcontracts && cargo build --release --target wasm32-unknown-unknown $(WASM_CONTRACT_PKGS)
+
+# Cargo-only wasm copied to artifacts/ — NOT run through workspace-optimizer (see note above).
+build-artifacts-cargo: build-contracts
+	mkdir -p smartcontracts/artifacts
+	cp smartcontracts/target/wasm32-unknown-unknown/release/cl8y_dex_*.wasm smartcontracts/artifacts/
 
 build-optimized:
 	cd smartcontracts && ./scripts/optimize.sh
