@@ -579,7 +579,7 @@ export default function PoolPage() {
       </div>
 
       <div
-        className="shell-panel mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+        className="shell-panel shell-panel-native-select-host mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
         role="search"
         aria-label="Filter and sort pools"
       >

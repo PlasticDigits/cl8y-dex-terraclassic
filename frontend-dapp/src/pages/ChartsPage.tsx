@@ -34,6 +34,19 @@ const LEADERBOARD_TABS = [
   { key: 'worst_trade_pnl', label: 'Most Loss' },
 ] as const
 
+const CHARTS_PAIR_SORT_OPTIONS: MenuSelectOption[] = [
+  { value: 'volume_24h', label: '24h volume' },
+  { value: 'symbol', label: 'Name (A–Z)' },
+  { value: 'fee', label: 'Fee' },
+  { value: 'created', label: 'Created' },
+  { value: 'id', label: 'Pair ID' },
+]
+
+const ORDER_OPTIONS: MenuSelectOption[] = [
+  { value: 'asc', label: 'Ascending' },
+  { value: 'desc', label: 'Descending' },
+]
+
 export default function ChartsPage() {
   const [selectedPairAddr, setSelectedPairAddr] = useState<string>('')
   const [pairSearch, setPairSearch] = useState('')
@@ -230,7 +243,7 @@ export default function ChartsPage() {
       )}
 
       {/* Pair Selector */}
-      <div className="shell-panel">
+      <div className="shell-panel shell-panel-native-select-host">
         <label htmlFor="chart-pair-search" className="label-neo mb-1 block">
           Find pair
         </label>
