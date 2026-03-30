@@ -53,9 +53,9 @@ Each row states a property that should **always** hold (under the trust model). 
 | L3  | **Cancel owner-only** — only `owner` may `CancelLimitOrder` | [pair `execute_cancel_limit_order`](../smartcontracts/contracts/pair/src/contract.rs) | `limit_order_tests::cancel_limit_order_non_owner_rejected` |
 | L4  | **Hybrid params** — `pool_input + book_input == amount`; if `book_input > 0` then `max_maker_fills > 0` | [pair `execute_swap`](../smartcontracts/contracts/pair/src/contract.rs) | `limit_order_tests` (split mismatch, zero max makers) |
 | L5  | **Bounded work** — insert walks capped by `max_adjust_steps` (min with hard cap); match uses `max_maker_fills` (min with hard cap); invalid `book_start_hint` falls back to book head | [orderbook](../smartcontracts/contracts/pair/src/orderbook.rs) | `limit_order_tests` (steps exceeded, hint fallback); `orderbook` unit tests; pair `orderbook::proptest_limits::prop_match_bids_maker_cap` |
-| L6  | **Pause freezes trading** — while paused: no `Receive` (swap / place limit). **`CancelLimitOrder` remains available** so makers can withdraw escrow without waiting for unpause | [pair `execute`](../smartcontracts/contracts/pair/src/contract.rs) `assert_not_paused` on swap/place paths only | `limit_order_tests::pause_blocks_swap_and_place_cancel_refunds_escrow` |
+| L6  | **Pause freezes trading** — while paused: no `Receive` (swap / place limit) and no **`CancelLimitOrder`**; resting escrow unlocks only after unpause | [pair `execute`](../smartcontracts/contracts/pair/src/contract.rs) `assert_not_paused` on `Receive`, `ProvideLiquidity`, and `CancelLimitOrder` | `limit_order_tests::pause_blocks_swap_and_place_cancel_refunds_escrow` |
 | L7  | **Hooks + hybrid** — `AfterSwap.commission_amount` / `spread_amount` reflect the **pool leg only**; `return_asset.amount` is **book + pool** net to user | [pair `execute_swap`](../smartcontracts/contracts/pair/src/contract.rs) | Documented contract; integrators must not assume hook commission equals all fees in a hybrid tx |
-| L8  | **Simulation is pool-only** — pair `Simulation` / `ReverseSimulation` and router `SimulateSwapOperations` **ignore the limit book** and any `hybrid` field on router ops | [pair `query_simulation`](../smartcontracts/contracts/pair/src/contract.rs); [router `query_simulate_swap_operations`](../smartcontracts/contracts/router/src/contract.rs) | `limit_order_tests::router_simulate_ignores_hybrid_book`; [limit-orders.md](./limit-orders.md) |
+| L8  | **Simulation is pool-only** — pair `Simulation` / `ReverseSimulation` and router `SimulateSwapOperations` **ignore the limit book** and any `hybrid` field on router ops | [pair `query_simulation`](../smartcontracts/contracts/pair/src/contract.rs); [router `query_simulate_swap_operations`](../smartcontracts/contracts/router/src/contract.rs) | `limit_order_tests::router_simulate_swap_hybrid_field_ignored`; [limit-orders.md](./limit-orders.md) |
 
 
 ## Limit orders and hybrid swaps (pair)
@@ -74,7 +74,7 @@ See invariant rows **L1–L8** above and [`limit-orders.md`](./limit-orders.md) 
 
 ## Residual risks (not “bugs” under trusted governance)
 
-- **Malicious governance** can set destructive hooks, pause pairs (blocking new swaps and new limit placements until unpause), or point discount registry to broken contracts (users pay full fee if query fails). Makers can still **cancel** resting limits while paused to recover escrow.
+- **Malicious governance** can set destructive hooks, pause pairs (blocking swaps, new limit placements, and limit cancels until unpause), or point discount registry to broken contracts (users pay full fee if query fails).
 - **Wasm admin / migration** on-chain is outside these crates; deployment checklist should restrict migration keys.
 - **Indexer / frontend** are not authoritative for on-chain safety; oracle/TWAP consumers must follow disclaimers in `dex-common` pair query docs.
 

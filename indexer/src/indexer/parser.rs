@@ -7,6 +7,7 @@
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
+use std::str::FromStr;
 
 use crate::config::Config;
 use crate::db::queries::{
@@ -67,12 +68,17 @@ struct ParsedLimitOrderFill {
 struct ParsedLimitOrderPlacement {
     pair_address: String,
     order_id: i64,
+    owner: Option<String>,
+    side: Option<String>,
+    price: Option<BigDecimal>,
+    expires_at: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
 struct ParsedLimitOrderCancellation {
     pair_address: String,
     order_id: i64,
+    owner: Option<String>,
 }
 
 pub async fn process_block_txs(
@@ -540,9 +546,18 @@ fn parse_limit_order_placements(tx: &TxResponse) -> Vec<ParsedLimitOrderPlacemen
         let Some(order_id) = oid else {
             continue;
         };
+        let owner = wasm_attr_last(attrs, "owner").map(|x| x.to_string());
+        let side = wasm_attr_last(attrs, "side").map(|x| x.to_string());
+        let price = wasm_attr_last(attrs, "price").and_then(|x| BigDecimal::from_str(x).ok());
+        let expires_at =
+            wasm_attr_last(attrs, "expires_at").and_then(|x| x.parse::<i64>().ok());
         out.push(ParsedLimitOrderPlacement {
             pair_address: contract.to_string(),
             order_id,
+            owner,
+            side,
+            price,
+            expires_at,
         });
     }
     out
@@ -574,9 +589,11 @@ fn parse_limit_order_cancellations(tx: &TxResponse) -> Vec<ParsedLimitOrderCance
         let Some(order_id) = oid else {
             continue;
         };
+        let owner = wasm_attr_last(attrs, "owner").map(|x| x.to_string());
         out.push(ParsedLimitOrderCancellation {
             pair_address: contract.to_string(),
             order_id,
+            owner,
         });
     }
     out
@@ -602,7 +619,16 @@ async fn process_limit_order_placement(
     };
 
     limit_order_lifecycle::insert_placement(
-        pool, pair.id, height, block_time, tx_hash, p.order_id, None, None, None, None,
+        pool,
+        pair.id,
+        height,
+        block_time,
+        tx_hash,
+        p.order_id,
+        p.owner.as_deref(),
+        p.side.as_deref(),
+        p.price.as_ref(),
+        p.expires_at,
     )
     .await?;
     Ok(())
@@ -628,7 +654,13 @@ async fn process_limit_order_cancellation(
     };
 
     limit_order_lifecycle::insert_cancellation(
-        pool, pair.id, height, block_time, tx_hash, c.order_id, None,
+        pool,
+        pair.id,
+        height,
+        block_time,
+        tx_hash,
+        c.order_id,
+        c.owner.as_deref(),
     )
     .await?;
     Ok(())
@@ -949,19 +981,29 @@ mod tests {
                 ("action", "place_limit_order"),
                 ("order_id", "99"),
                 ("limit_order_placed", "99"),
+                ("side", "bid"),
+                ("price", "1.5"),
+                ("owner", "terra1maker"),
+                ("expires_at", "2000000000"),
             ],
             vec![
                 ("_contract_address", "terra1pair"),
                 ("action", "cancel_limit_order"),
                 ("limit_order_cancelled", "99"),
+                ("owner", "terra1maker"),
             ],
         ]);
         let p = parse_limit_order_placements(&tx);
         assert_eq!(p.len(), 1);
         assert_eq!(p[0].order_id, 99);
+        assert_eq!(p[0].side.as_deref(), Some("bid"));
+        assert_eq!(p[0].owner.as_deref(), Some("terra1maker"));
+        assert_eq!(p[0].price.as_ref().map(|x| x.to_string()), Some("1.5".into()));
+        assert_eq!(p[0].expires_at, Some(2_000_000_000));
         let c = parse_limit_order_cancellations(&tx);
         assert_eq!(c.len(), 1);
         assert_eq!(c[0].order_id, 99);
+        assert_eq!(c[0].owner.as_deref(), Some("terra1maker"));
     }
 
     #[test]

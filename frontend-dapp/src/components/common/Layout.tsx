@@ -15,6 +15,7 @@ type NavItem = {
 const PRIMARY_NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Swap', end: true },
   { path: '/pool', label: 'Pool' },
+  { path: '/limits', label: 'Limits' },
   { path: '/charts', label: 'Charts' },
 ]
 

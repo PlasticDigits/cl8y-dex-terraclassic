@@ -279,6 +279,61 @@ async fn trader_trades_limit_capped_at_200() {
     assert!(body.len() <= 200);
 }
 
+
+#[tokio::test]
+async fn limit_fills_limit_capped_at_200() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/limit-fills?limit=99999",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert!(body.len() <= 200);
+}
+
+#[tokio::test]
+async fn limit_placements_limit_capped_at_200() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/limit-placements?limit=99999",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert!(body.len() <= 200);
+}
+
+#[tokio::test]
+async fn limit_cancellations_limit_capped_at_200() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/limit-cancellations?limit=99999",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert!(body.len() <= 200);
+}
+
 #[tokio::test]
 async fn rate_limit_returns_429_when_exceeded() {
     let pool = common::setup_pool().await;

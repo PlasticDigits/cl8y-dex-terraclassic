@@ -33,7 +33,7 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 
 ### Pause (governance)
 
-- When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders). **`CancelLimitOrder` is not paused** — makers can cancel resting orders and receive escrow refunds while the pair is paused (see [contracts-security-audit.md](./contracts-security-audit.md) **L6**).
+- When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders) and **`CancelLimitOrder` is blocked** — resting limit escrow stays locked until governance unpauses (see [contracts-security-audit.md](./contracts-security-audit.md) **L6**).
 
 ### Expiry (`expires_at`)
 
@@ -70,8 +70,10 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 |-----------|------|
 | `action` = `place_limit_order` | Limit placed |
 | `limit_order_placed`, `order_id` | Same tx |
+| `side` (`bid` / `ask`), `price`, `owner` | Same tx (for indexers); omitted on older pair code |
+| `expires_at` | Same tx when set |
 | `action` = `cancel_limit_order` | Cancel |
-| `limit_order_cancelled` | Same tx |
+| `limit_order_cancelled`, `owner` | Same tx |
 | `action` = `swap` | Any swap |
 | `book_return_amount`, `pool_return_amount`, `return_amount` | Hybrid breakdown |
 | `limit_book_offer_consumed` | When the book leg consumed offer token |
@@ -79,7 +81,7 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `order_id`, `side` (`bid` / `ask`), `maker`, `price` | Per fill |
 | `token0_amount`, `token1_amount`, `commission_amount` | Raw amounts in pair token0 / token1; fee denomination matches side (bid: token1 fee; ask: token0 fee) |
 
-The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, stores each `limit_order_fill` in `limit_order_fills`, and indexes wasm `place_limit_order` / `cancel_limit_order` into **`limit_order_placements`** and **`limit_order_cancellations`** (metadata columns such as `side` / `price` / `owner` may be null when not emitted on-chain). HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields and optional **`effective_fee_bps`** when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills; **`GET /api/v1/pairs/{addr}/limit-placements`** and **`.../limit-cancellations`** list lifecycle events.
+The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, stores each `limit_order_fill` in `limit_order_fills`, and indexes wasm `place_limit_order` / `cancel_limit_order` into **`limit_order_placements`** and **`limit_order_cancellations`**. Metadata columns (`side`, `price`, `owner`, `expires_at`) are filled from pair wasm attributes when present; **older pair code** that omits those attributes leaves them null in the DB. HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields and optional **`effective_fee_bps`** when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills; **`GET /api/v1/pairs/{addr}/limit-placements`** and **`.../limit-cancellations`** list lifecycle events.
 
 ## Example JSON (logical shapes)
 

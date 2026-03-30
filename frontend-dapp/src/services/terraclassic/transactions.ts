@@ -12,6 +12,10 @@ import {
 } from '@/utils/constants'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
+/** Pattern C / limit-book matching uses more gas than pool-only swaps. */
+const HYBRID_SWAP_GAS_LIMIT = 1200000
+const PLACE_LIMIT_ORDER_GAS_LIMIT = 950000
+const CANCEL_LIMIT_ORDER_GAS_LIMIT = 450000
 const ADD_LIQUIDITY_GAS_LIMIT = 500000
 const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
 const CREATE_PAIR_GAS_LIMIT = 800000
@@ -35,6 +39,26 @@ function countSwapHops(msg: Record<string, unknown>): number {
   return ops?.operations?.length ?? 1
 }
 
+function innerSwapUsesHybrid(inner: Record<string, unknown>): boolean {
+  const sw = inner.swap as { hybrid?: unknown } | undefined
+  return !!(sw && sw.hybrid != null)
+}
+
+function executeSwapOpsUsesHybrid(inner: Record<string, unknown>): boolean {
+  const e = inner.execute_swap_operations as { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> } | undefined
+  if (!e?.operations) return false
+  return e.operations.some((op) => op.terra_swap?.hybrid != null)
+}
+
+function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
+  const hops = countSwapHops(msg)
+  const poolOnly = gasLimitForExecuteSwapOperations(hops)
+  if (executeSwapOpsUsesHybrid(msg)) {
+    return Math.max(poolOnly, HYBRID_SWAP_GAS_LIMIT * hops)
+  }
+  return poolOnly
+}
+
 /** Buffered estimate + per-hop padding, floored at min gas per hop (see constants). */
 function gasLimitForExecuteSwapOperations(hops: number): number {
   const hopCount = Math.max(hops, 1)
@@ -48,8 +72,11 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('wrap_deposit' in executeMsg) {
     return WRAP_GAS_LIMIT
   }
+  if ('cancel_limit_order' in executeMsg) {
+    return CANCEL_LIMIT_ORDER_GAS_LIMIT
+  }
   if ('execute_swap_operations' in executeMsg) {
-    return gasLimitForExecuteSwapOperations(countSwapHops(executeMsg))
+    return gasLimitForSwapOperationsMsg(executeMsg)
   } else if ('swap' in executeMsg) {
     return SWAP_GAS_LIMIT
   } else if ('provide_liquidity' in executeMsg) {
@@ -62,10 +89,13 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     const sendMsg = executeMsg.send as { msg?: string } | undefined
     if (sendMsg?.msg) {
       try {
-        const inner = JSON.parse(atob(sendMsg.msg))
-        if ('swap' in inner) return SWAP_GAS_LIMIT
+        const inner = JSON.parse(atob(sendMsg.msg)) as Record<string, unknown>
+        if ('place_limit_order' in inner) return PLACE_LIMIT_ORDER_GAS_LIMIT
+        if ('swap' in inner) {
+          return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : SWAP_GAS_LIMIT
+        }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
-        if ('execute_swap_operations' in inner) return gasLimitForExecuteSwapOperations(countSwapHops(inner))
+        if ('execute_swap_operations' in inner) return gasLimitForSwapOperationsMsg(inner)
       } catch {
         // fall through to base
       }

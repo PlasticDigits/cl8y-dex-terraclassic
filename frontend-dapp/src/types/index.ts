@@ -41,6 +41,14 @@ export interface ReverseSimulationResponse {
   commission_amount: string
 }
 
+/** Pattern C hybrid swap params (pair CW20 hook / router terra_swap). Amounts are raw integer strings. */
+export interface HybridSwapParams {
+  pool_input: string
+  book_input: string
+  max_maker_fills: number
+  book_start_hint?: number | null
+}
+
 /** Helper: extract contract_addr from a CW20 AssetInfo, or return denom for native */
 export function assetInfoLabel(info: AssetInfo): string {
   if ('token' in info) return info.token.contract_addr

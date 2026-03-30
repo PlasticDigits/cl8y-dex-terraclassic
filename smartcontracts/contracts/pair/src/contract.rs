@@ -471,6 +471,7 @@ pub fn execute(
         ExecuteMsg::Sweep { token, recipient } => execute_sweep(deps, env, info, token, recipient),
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
         ExecuteMsg::CancelLimitOrder { order_id } => {
+            assert_not_paused(deps.storage)?;
             execute_cancel_limit_order(deps, env, info, order_id)
         }
     }
@@ -932,6 +933,9 @@ fn execute_place_limit_order(
     let token_b = token_addr(&pair_info.asset_infos[1]);
     let cw20_addr = info.sender.as_str();
 
+    let side_label = crate::orderbook::side_str(&side);
+    let owner_str = owner.to_string();
+
     let id = match side {
         LimitOrderSide::Bid => {
             if cw20_addr != token_b {
@@ -963,10 +967,17 @@ fn execute_place_limit_order(
         }
     };
 
-    Ok(Response::new()
+    let mut resp = Response::new()
         .add_attribute("action", "place_limit_order")
         .add_attribute("limit_order_placed", id.to_string())
-        .add_attribute("order_id", id.to_string()))
+        .add_attribute("order_id", id.to_string())
+        .add_attribute("side", side_label)
+        .add_attribute("price", price.to_string())
+        .add_attribute("owner", owner_str.as_str());
+    if let Some(t) = expires_at {
+        resp = resp.add_attribute("expires_at", t.to_string());
+    }
+    Ok(resp)
 }
 
 fn execute_cancel_limit_order(
@@ -1028,7 +1039,8 @@ fn execute_cancel_limit_order(
     Ok(Response::new()
         .add_message(refund_msg)
         .add_attribute("action", "cancel_limit_order")
-        .add_attribute("limit_order_cancelled", order_id.to_string()))
+        .add_attribute("limit_order_cancelled", order_id.to_string())
+        .add_attribute("owner", removed.owner.as_str()))
 }
 
 /// Deposit both tokens proportionally and mint LP tokens to the provider.
