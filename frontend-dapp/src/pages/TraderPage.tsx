@@ -90,7 +90,7 @@ export default function TraderPage() {
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
-          <button className="btn-primary !px-4 !py-1.5 !text-xs" onClick={handleSearch}>
+          <button className="btn-primary btn-cta !px-4 !py-1.5 !text-xs" onClick={handleSearch}>
             Search
           </button>
         </div>
@@ -98,7 +98,7 @@ export default function TraderPage() {
           <Link
             to={`/trader/${walletAddr}`}
             onClick={() => sounds.playButtonPress()}
-            className="btn-primary !px-4 !py-1.5 !text-xs text-center no-underline"
+            className="btn-primary btn-cta !px-4 !py-1.5 !text-xs text-center no-underline self-start sm:self-auto"
           >
             My Profile
           </Link>
@@ -137,7 +137,7 @@ export default function TraderPage() {
           </p>
           <button
             type="button"
-            className="btn-primary !text-xs !px-4 !py-1.5 mt-3"
+            className="btn-primary btn-cta !text-xs !px-4 !py-1.5 mt-3"
             onClick={() => void traderQuery.refetch()}
           >
             Retry

@@ -9,7 +9,7 @@ export function RetryError({ message, onRetry }: RetryErrorProps) {
       <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
         {message ?? 'Something went wrong'}
       </p>
-      <button type="button" onClick={onRetry} className="btn-primary !text-xs !px-4 !py-1.5">
+      <button type="button" onClick={onRetry} className="btn-primary btn-cta !text-xs !px-4 !py-1.5">
         Retry
       </button>
     </div>

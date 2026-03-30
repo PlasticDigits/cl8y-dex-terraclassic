@@ -199,7 +199,7 @@ export default function ChartsPage() {
           </p>
           <button
             type="button"
-            className="btn-primary !text-xs !px-4 !py-1.5 mt-3"
+            className="btn-primary btn-cta !text-xs !px-4 !py-1.5 mt-3"
             onClick={() => {
               void overviewQuery.refetch()
               void pairsQuery.refetch()
