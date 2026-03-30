@@ -6,14 +6,31 @@ import {
   TREASURY_CONTRACT_ADDRESS,
   WRAP_MAPPER_CONTRACT_ADDRESS,
 } from '@/utils/constants'
-import type { AssetInfo, PairInfo } from '@/types'
+import type { AssetInfo, HybridSwapParams, PairInfo } from '@/types'
 import { tokenAssetInfo, assetInfoLabel, isNativeDenom, getWrappedEquivalent } from '@/types'
 
 export interface SwapOperation {
   terra_swap: {
     offer_asset_info: AssetInfo
     ask_asset_info: AssetInfo
+    hybrid?: HybridSwapParams | null
   }
+}
+
+function serializeTerraSwap(ts: SwapOperation['terra_swap']) {
+  const out: Record<string, unknown> = {
+    offer_asset_info: ts.offer_asset_info,
+    ask_asset_info: ts.ask_asset_info,
+  }
+  if (ts.hybrid) {
+    out.hybrid = {
+      pool_input: ts.hybrid.pool_input,
+      book_input: ts.hybrid.book_input,
+      max_maker_fills: ts.hybrid.max_maker_fills,
+      book_start_hint: ts.hybrid.book_start_hint ?? undefined,
+    }
+  }
+  return out
 }
 
 interface SimulateResponse {
@@ -27,7 +44,7 @@ export async function simulateMultiHopSwap(
   return queryContract<SimulateResponse>(ROUTER_CONTRACT_ADDRESS, {
     simulate_swap_operations: {
       offer_amount: offerAmount,
-      operations: operations.map((op) => ({ terra_swap: op.terra_swap })),
+      operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
     },
   })
 }
@@ -39,7 +56,7 @@ export async function reverseSimulateMultiHopSwap(
   return queryContract<SimulateResponse>(ROUTER_CONTRACT_ADDRESS, {
     reverse_simulate_swap_operations: {
       ask_amount: askAmount,
-      operations: operations.map((op) => ({ terra_swap: op.terra_swap })),
+      operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
     },
   })
 }
@@ -57,7 +74,7 @@ export async function executeMultiHopSwap(
   const swapMsg = btoa(
     JSON.stringify({
       execute_swap_operations: {
-        operations: operations.map((op) => ({ terra_swap: op.terra_swap })),
+        operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
         max_spread: maxSpread,
         minimum_receive: minimumReceive,
         to,
@@ -250,7 +267,7 @@ export async function executeNativeSwap(
 
   const swapHookMsg = {
     execute_swap_operations: {
-      operations: routeInfo.operations.map((op) => ({ terra_swap: op.terra_swap })),
+      operations: routeInfo.operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
       max_spread: maxSpread,
       minimum_receive: minimumReceive,
       to: undefined,

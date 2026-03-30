@@ -231,6 +231,89 @@ describe('gas limit selection (tested indirectly)', () => {
     const fee = await getFeeForMsg({ send: { msg: innerMsg } })
     expect(fee.gasLimit).toBe(BigInt(2130000))
   })
+
+  it('uses CANCEL_LIMIT_ORDER_GAS_LIMIT for cancel_limit_order', async () => {
+    const fee = await getFeeForMsg({ cancel_limit_order: { order_id: 1 } })
+    expect(fee.gasLimit).toBe(BigInt(450000))
+  })
+
+  it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for send with inner place_limit_order', async () => {
+    const inner = btoa(
+      JSON.stringify({
+        place_limit_order: {
+          side: 'bid',
+          price: '1',
+          hint_after_order_id: null,
+          max_adjust_steps: 32,
+        },
+      })
+    )
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBe(BigInt(950000))
+  })
+
+  it('uses HYBRID_SWAP_GAS_LIMIT for send with inner swap including hybrid', async () => {
+    const inner = btoa(
+      JSON.stringify({
+        swap: {
+          max_spread: '0.01',
+          hybrid: {
+            pool_input: '0',
+            book_input: '1000',
+            max_maker_fills: 8,
+            book_start_hint: null,
+          },
+        },
+      })
+    )
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBe(BigInt(1200000))
+  })
+
+  it('bumps execute_swap_operations gas when a hop includes hybrid', async () => {
+    const fee = await getFeeForMsg({
+      execute_swap_operations: {
+        operations: [
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: 'terra1a' } },
+              ask_asset_info: { token: { contract_addr: 'terra1b' } },
+              hybrid: {
+                pool_input: '1',
+                book_input: '2',
+                max_maker_fills: 4,
+              },
+            },
+          },
+        ],
+      },
+    })
+    expect(fee.gasLimit).toBe(BigInt(1200000))
+  })
+
+  it('2-hop execute_swap_operations with hybrid on each hop uses hybrid floor per hop', async () => {
+    const fee = await getFeeForMsg({
+      execute_swap_operations: {
+        operations: [
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: 'terra1a' } },
+              ask_asset_info: { token: { contract_addr: 'terra1b' } },
+              hybrid: { pool_input: '1', book_input: '1', max_maker_fills: 4 },
+            },
+          },
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: 'terra1b' } },
+              ask_asset_info: { token: { contract_addr: 'terra1c' } },
+              hybrid: { pool_input: '1', book_input: '1', max_maker_fills: 4 },
+            },
+          },
+        ],
+      },
+    })
+    expect(fee.gasLimit).toBe(BigInt(2400000))
+  })
 })
 
 describe('executeTerraContractMulti', () => {

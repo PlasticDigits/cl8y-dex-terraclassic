@@ -299,7 +299,7 @@ pub fn unlink_order(storage: &mut dyn Storage, id: u64) -> StdResult<LimitOrder>
     Ok(order)
 }
 
-fn side_str(side: LimitOrderSide) -> &'static str {
+pub(crate) fn side_str(side: &LimitOrderSide) -> &'static str {
     match side {
         LimitOrderSide::Bid => "bid",
         LimitOrderSide::Ask => "ask",
@@ -327,7 +327,7 @@ fn limit_order_fill_event(
         .add_attribute("contract_address", pair_contract)
         .add_attribute("action", "limit_order_fill")
         .add_attribute("order_id", order_id.to_string())
-        .add_attribute("side", side_str(side))
+        .add_attribute("side", side_str(&side))
         .add_attribute("maker", maker.as_str())
         .add_attribute("price", price.to_string())
         .add_attribute("token0_amount", token0_amount)

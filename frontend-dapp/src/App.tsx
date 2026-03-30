@@ -22,6 +22,7 @@ const TiersPage = lazy(() => import('./pages/TiersPage'))
 const ChartsPage = lazy(() => import('./pages/ChartsPage'))
 const TraderPage = lazy(() => import('./pages/TraderPage'))
 const ProtocolPage = lazy(() => import('./pages/ProtocolPage'))
+const LimitOrdersPage = lazy(() => import('./pages/LimitOrdersPage'))
 
 function PageFallback() {
   return (
@@ -175,6 +176,16 @@ export default function App() {
                   <ErrorBoundary isRoute>
                     <Suspense fallback={<PageFallback />}>
                       <TraderPage />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/limits"
+                element={
+                  <ErrorBoundary isRoute>
+                    <Suspense fallback={<PageFallback />}>
+                      <LimitOrdersPage />
                     </Suspense>
                   </ErrorBoundary>
                 }

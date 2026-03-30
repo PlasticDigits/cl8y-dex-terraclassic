@@ -64,6 +64,37 @@ fn count_limit_order_fill_events(events: &[cosmwasm_std::Event]) -> usize {
         .count()
 }
 
+fn wasm_attr_last(events: &[cosmwasm_std::Event], key: &str) -> Option<String> {
+    events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == key)
+        .last()
+        .map(|a| a.value.clone())
+}
+
+fn wasm_attr_in_action_event(
+    events: &[cosmwasm_std::Event],
+    action: &str,
+    key: &str,
+) -> Option<String> {
+    for e in events {
+        if !e
+            .attributes
+            .iter()
+            .any(|a| a.key == "action" && a.value == action)
+        {
+            continue;
+        }
+        return e
+            .attributes
+            .iter()
+            .find(|a| a.key == key)
+            .map(|a| a.value.clone());
+    }
+    None
+}
+
 fn place_bid(
     app: &mut App,
     pair: &cosmwasm_std::Addr,
@@ -700,6 +731,75 @@ fn cancel_limit_order_refunds_escrow() {
 }
 
 #[test]
+fn limit_order_place_and_cancel_emit_indexer_attrs() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let place_msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
+        side: LimitOrderSide::Bid,
+        price: Decimal::one(),
+        hint_after_order_id: None,
+        max_adjust_steps: 32,
+        expires_at: None,
+    })
+    .unwrap();
+    let place_res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(80_000),
+                msg: place_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(
+        wasm_attr_last(&place_res.events, "action").as_deref(),
+        Some("place_limit_order")
+    );
+    assert_eq!(
+        wasm_attr_last(&place_res.events, "side").as_deref(),
+        Some("bid")
+    );
+    assert_eq!(
+        wasm_attr_last(&place_res.events, "price").as_deref(),
+        Some("1")
+    );
+    assert_eq!(
+        wasm_attr_last(&place_res.events, "owner").as_deref(),
+        Some(env.user.as_str())
+    );
+
+    let order_id = parse_limit_order_placed(&place_res.events);
+    let cancel_res = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrder { order_id },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        wasm_attr_in_action_event(&cancel_res.events, "cancel_limit_order", "action").as_deref(),
+        Some("cancel_limit_order")
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&cancel_res.events, "cancel_limit_order", "owner").as_deref(),
+        Some(env.user.as_str())
+    );
+}
+
+#[test]
 fn place_limit_order_wrong_escrow_token_rejected() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
@@ -951,7 +1051,26 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
         )
         .is_err());
 
-    // Cancel is allowed while paused so makers can recover escrow.
+    assert!(app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrder { order_id },
+            &[],
+        )
+        .is_err());
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairPaused {
+            pair: env.pair.to_string(),
+            paused: false,
+        },
+        &[],
+    )
+    .unwrap();
+
     let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
     app.execute_contract(
         env.user.clone(),
@@ -965,17 +1084,6 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
         bal_after.checked_sub(bal_before).unwrap(),
         Uint128::new(50_000)
     );
-
-    app.execute_contract(
-        env.governance.clone(),
-        env.factory.clone(),
-        &FactoryExecuteMsg::SetPairPaused {
-            pair: env.pair.to_string(),
-            paused: false,
-        },
-        &[],
-    )
-    .unwrap();
 }
 
 #[test]

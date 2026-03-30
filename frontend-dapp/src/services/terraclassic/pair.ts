@@ -1,6 +1,14 @@
 import { queryContract } from './queries'
 import { executeTerraContract } from './transactions'
-import type { Asset, AssetInfo, PairInfo, PoolResponse, SimulationResponse, ReverseSimulationResponse } from '@/types'
+import type {
+  Asset,
+  AssetInfo,
+  HybridSwapParams,
+  PairInfo,
+  PoolResponse,
+  ReverseSimulationResponse,
+  SimulationResponse,
+} from '@/types'
 import { tokenAssetInfo } from '@/types'
 
 export async function getPairInfo(pairAddress: string): Promise<PairInfo> {
@@ -33,6 +41,12 @@ export async function reverseSimulateSwap(
   })
 }
 
+export interface DirectSwapOptions {
+  hybrid?: HybridSwapParams | null
+  deadline?: number | null
+  trader?: string | null
+}
+
 export async function swap(
   walletAddress: string,
   tokenAddress: string,
@@ -40,14 +54,26 @@ export async function swap(
   amount: string,
   beliefPrice?: string,
   maxSpread?: string,
-  to?: string
+  to?: string,
+  options?: DirectSwapOptions
 ): Promise<string> {
+  const hybrid = options?.hybrid
   const swapMsg = btoa(
     JSON.stringify({
       swap: {
         belief_price: beliefPrice,
         max_spread: maxSpread,
         to,
+        deadline: options?.deadline ?? undefined,
+        trader: options?.trader ?? undefined,
+        hybrid: hybrid
+          ? {
+              pool_input: hybrid.pool_input,
+              book_input: hybrid.book_input,
+              max_maker_fills: hybrid.max_maker_fills,
+              book_start_hint: hybrid.book_start_hint ?? undefined,
+            }
+          : undefined,
       },
     })
   )
@@ -57,6 +83,43 @@ export async function swap(
       amount,
       msg: swapMsg,
     },
+  })
+}
+
+/** Bid escrows token1; Ask escrows token0 (pair asset ordering). */
+export async function placeLimitOrder(
+  walletAddress: string,
+  escrowTokenAddress: string,
+  pairAddress: string,
+  amount: string,
+  side: 'bid' | 'ask',
+  price: string,
+  maxAdjustSteps: number,
+  expiresAt?: number | null
+): Promise<string> {
+  const msg = btoa(
+    JSON.stringify({
+      place_limit_order: {
+        side,
+        price,
+        hint_after_order_id: null,
+        max_adjust_steps: maxAdjustSteps,
+        expires_at: expiresAt ?? undefined,
+      },
+    })
+  )
+  return executeTerraContract(walletAddress, escrowTokenAddress, {
+    send: {
+      contract: pairAddress,
+      amount,
+      msg,
+    },
+  })
+}
+
+export async function cancelLimitOrder(walletAddress: string, pairAddress: string, orderId: number): Promise<string> {
+  return executeTerraContract(walletAddress, pairAddress, {
+    cancel_limit_order: { order_id: orderId },
   })
 }
 

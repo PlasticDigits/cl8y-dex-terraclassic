@@ -20,7 +20,13 @@ import {
 } from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
-import { assetInfoLabel, tokenAssetInfo, isNativeDenom, type IndexerRouteSolveResponse } from '@/types'
+import {
+  assetInfoLabel,
+  tokenAssetInfo,
+  isNativeDenom,
+  type HybridSwapParams,
+  type IndexerRouteSolveResponse,
+} from '@/types'
 import { sounds } from '@/lib/sounds'
 import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
@@ -44,6 +50,9 @@ export default function SwapPage() {
   const [indexerRouteResult, setIndexerRouteResult] = useState<IndexerRouteSolveResponse | null>(null)
   const [indexerRouteError, setIndexerRouteError] = useState<string | null>(null)
   const [indexerRouteLoading, setIndexerRouteLoading] = useState(false)
+  const [useHybridBook, setUseHybridBook] = useState(false)
+  const [bookInputHuman, setBookInputHuman] = useState('')
+  const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -259,7 +268,29 @@ export default function SwapPage() {
       if (!route) throw new Error('No route found')
 
       if (isDirect && directPair) {
-        return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread)
+        const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
+        let hybrid: HybridSwapParams | undefined
+        if (useHybridBook && fromToken.startsWith('terra1')) {
+          const payDec = getDecimals(tokenAssetInfo(fromToken))
+          const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
+          const total = BigInt(rawInputAmount)
+          const book = BigInt(bookRaw)
+          if (book > total) throw new Error('Book leg cannot exceed pay amount')
+          if (book > 0n && hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
+          if (book > 0n) {
+            const pool = total - book
+            hybrid = {
+              pool_input: pool.toString(),
+              book_input: book.toString(),
+              max_maker_fills: hybridMaxMakers,
+              book_start_hint: null,
+            }
+          }
+        }
+        return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread, undefined, {
+          hybrid,
+          deadline,
+        })
       }
 
       if (isMultiHop && route) {
@@ -439,6 +470,45 @@ export default function SwapPage() {
                 </p>
               )}
             </div>
+            {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
+              <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
+                <p className="label-neo mb-2">Direct swap: limit book leg</p>
+                <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+                  Only single-hop CW20 swaps. The estimate above is pool-only; Pattern C execution can differ when the
+                  on-chain book has liquidity.
+                </p>
+                <label className="flex items-center gap-2 text-xs mb-3 cursor-pointer">
+                  <input type="checkbox" checked={useHybridBook} onChange={(e) => setUseHybridBook(e.target.checked)} />
+                  Route part of input through the limit book
+                </label>
+                {useHybridBook && (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="label-neo text-[10px]">
+                        Book leg amount ({getTokenDisplaySymbol(fromToken)})
+                      </label>
+                      <input
+                        className="input-neo !text-xs w-full"
+                        value={bookInputHuman}
+                        onChange={(e) => setBookInputHuman(e.target.value)}
+                        placeholder="0.0"
+                      />
+                    </div>
+                    <div>
+                      <label className="label-neo text-[10px]">Max distinct makers</label>
+                      <input
+                        type="number"
+                        className="input-neo !text-xs w-full"
+                        min={1}
+                        max={256}
+                        value={hybridMaxMakers}
+                        onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
               <p className="label-neo mb-3">Indexer route check</p>
               <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
