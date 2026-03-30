@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { usePortalListbox } from './PortalListbox'
 
 export interface MenuSelectOption {
   value: string
@@ -20,7 +21,7 @@ export interface MenuSelectProps {
 }
 
 /**
- * Custom listbox + portal menu (same stacking pattern as TokenSelect).
+ * Custom listbox + portal menu via {@link usePortalListbox} (shared with TokenSelect).
  * Replaces native `<select>` where OS pickers break layout / z-order on mobile and tablet.
  */
 export function MenuSelect({
@@ -34,12 +35,6 @@ export function MenuSelect({
   emptyLabel = 'No options',
 }: MenuSelectProps) {
   const [open, setOpen] = useState(false)
-  const [dropdownPos, setDropdownPos] = useState<{
-    top: number
-    left: number
-    width: number
-    maxHeight: number
-  } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLUListElement>(null)
   const listId = useId()
@@ -52,55 +47,14 @@ export function MenuSelect({
 
   const close = useCallback(() => setOpen(false), [])
 
-  const updateDropdownPosition = useCallback(() => {
-    const el = rootRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const gap = 8
-    const preferredMax = 280
-    const spaceBelow = window.innerHeight - r.bottom - gap - 8
-    const maxHeight = Math.min(preferredMax, Math.max(120, spaceBelow))
-    setDropdownPos({
-      top: r.bottom + gap,
-      left: r.left,
-      width: r.width,
-      maxHeight,
-    })
-  }, [])
-
-  useLayoutEffect(() => {
-    if (!open || !canOpen) {
-      setDropdownPos(null)
-      return
-    }
-    updateDropdownPosition()
-    const w = window
-    w.addEventListener('scroll', updateDropdownPosition, true)
-    w.addEventListener('resize', updateDropdownPosition)
-    return () => {
-      w.removeEventListener('scroll', updateDropdownPosition, true)
-      w.removeEventListener('resize', updateDropdownPosition)
-    }
-  }, [open, canOpen, updateDropdownPosition])
-
-  useEffect(() => {
-    if (!open) return
-    function onDocMouseDown(e: MouseEvent) {
-      const t = e.target as Node
-      if (rootRef.current?.contains(t)) return
-      if (dropdownRef.current?.contains(t)) return
-      close()
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') close()
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open, close])
+  const dropdownStyle = usePortalListbox({
+    open,
+    canShow: canOpen,
+    anchorRef: rootRef,
+    dropdownRef,
+    onClose: close,
+    preferredMaxHeight: 280,
+  })
 
   return (
     <div ref={rootRef} className={className ?? 'relative w-full'}>
@@ -124,7 +78,7 @@ export function MenuSelect({
 
       {open &&
         canOpen &&
-        dropdownPos &&
+        dropdownStyle &&
         createPortal(
           <ul
             ref={dropdownRef}
@@ -132,13 +86,7 @@ export function MenuSelect({
             role="listbox"
             className="token-select-dropdown"
             aria-label={ariaLabel}
-            style={{
-              position: 'fixed',
-              top: dropdownPos.top,
-              left: dropdownPos.left,
-              width: dropdownPos.width,
-              maxHeight: dropdownPos.maxHeight,
-            }}
+            style={dropdownStyle}
           >
             {options.map((opt) => {
               const isSelected = opt.value === value
