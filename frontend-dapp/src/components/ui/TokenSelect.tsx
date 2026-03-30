@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { usePortalListbox } from './PortalListbox'
 import type { AssetInfo } from '@/types'
 import { tokenAssetInfo } from '@/types'
 import { getAddressForBlockie, getTokenLogoURI } from '@/utils/tokenDisplay'
@@ -45,12 +46,6 @@ export function TokenSelect({
   loadingLabel = 'Loading tokens...',
 }: TokenSelectProps) {
   const [open, setOpen] = useState(false)
-  const [dropdownPos, setDropdownPos] = useState<{
-    top: number
-    left: number
-    width: number
-    maxHeight: number
-  } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLUListElement>(null)
   const listId = useId()
@@ -60,55 +55,14 @@ export function TokenSelect({
 
   const close = useCallback(() => setOpen(false), [])
 
-  const updateDropdownPosition = useCallback(() => {
-    const el = rootRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const gap = 8
-    const preferredMax = 240
-    const spaceBelow = window.innerHeight - r.bottom - gap - 8
-    const maxHeight = Math.min(preferredMax, Math.max(120, spaceBelow))
-    setDropdownPos({
-      top: r.bottom + gap,
-      left: r.left,
-      width: r.width,
-      maxHeight,
-    })
-  }, [])
-
-  useLayoutEffect(() => {
-    if (!open || options.length === 0) {
-      setDropdownPos(null)
-      return
-    }
-    updateDropdownPosition()
-    const w = window
-    w.addEventListener('scroll', updateDropdownPosition, true)
-    w.addEventListener('resize', updateDropdownPosition)
-    return () => {
-      w.removeEventListener('scroll', updateDropdownPosition, true)
-      w.removeEventListener('resize', updateDropdownPosition)
-    }
-  }, [open, options.length, updateDropdownPosition])
-
-  useEffect(() => {
-    if (!open) return
-    function onDocMouseDown(e: MouseEvent) {
-      const t = e.target as Node
-      if (rootRef.current?.contains(t)) return
-      if (dropdownRef.current?.contains(t)) return
-      close()
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') close()
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open, close])
+  const dropdownStyle = usePortalListbox({
+    open,
+    canShow: options.length > 0,
+    anchorRef: rootRef,
+    dropdownRef,
+    onClose: close,
+    preferredMaxHeight: 240,
+  })
 
   const selectedLogo = value ? logoPropsForToken(value) : null
 
@@ -141,7 +95,7 @@ export function TokenSelect({
 
       {open &&
         options.length > 0 &&
-        dropdownPos &&
+        dropdownStyle &&
         createPortal(
           <ul
             ref={dropdownRef}
@@ -149,13 +103,7 @@ export function TokenSelect({
             role="listbox"
             className="token-select-dropdown"
             aria-label={ariaLabel}
-            style={{
-              position: 'fixed',
-              top: dropdownPos.top,
-              left: dropdownPos.left,
-              width: dropdownPos.width,
-              maxHeight: dropdownPos.maxHeight,
-            }}
+            style={dropdownStyle}
           >
             {options.map((tokenId) => {
               const lp = logoPropsForToken(tokenId)

@@ -299,7 +299,7 @@
     pointer-events: none;
   }
 
-  /* Position (fixed + coords) from TokenSelect / MenuSelect portal — must sit above cards/shell (stacking contexts). */
+  /* Position (fixed + coords) from portal listbox — above sticky header (40), nav menus (45), mobile tab bar (50). */
   .token-select-dropdown {
     @apply max-h-60 overflow-y-auto p-2 m-0 list-none;
     border: 1px solid var(--line);
@@ -307,7 +307,7 @@
     background: var(--menu-bg);
     box-shadow: var(--shadow-menu);
     backdrop-filter: blur(20px);
-    z-index: 100;
+    z-index: 200;
   }
 
   .token-select-option {
