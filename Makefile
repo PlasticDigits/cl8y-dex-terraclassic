@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help
 
 # Infrastructure
 start:
@@ -13,6 +13,10 @@ reset:
 	docker compose down -v
 
 status:
+	@chmod +x scripts/status.sh
+	./scripts/status.sh
+
+compose-ps:
 	docker compose ps
 
 logs:
@@ -47,6 +51,29 @@ wait-healthy:
 		fi; \
 		sleep 2; \
 	done
+
+# QA server: LocalTerra + deploy + indexer; see scripts/qa/README.md
+start-qa:
+	@chmod +x scripts/qa/start-qa.sh scripts/qa/stop-qa.sh scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
+	./scripts/qa/start-qa.sh
+
+qa-start: start-qa
+
+qa-tunnel-help:
+	@chmod +x scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
+	./scripts/qa/print-qa-tunnel-instructions.sh
+
+stop-qa:
+	@chmod +x scripts/qa/stop-qa.sh
+	./scripts/qa/stop-qa.sh
+
+help:
+	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-healthy"
+	@echo "QA server:       make start-qa (alias qa-start) | stop-qa | qa-tunnel-help"
+	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
+	@echo "Frontend:        make dev | build-frontend | test-frontend | lint-frontend"
+	@echo "Indexer:         make indexer-dev"
+	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:
 #

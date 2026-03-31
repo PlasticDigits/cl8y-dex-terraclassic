@@ -1,0 +1,11 @@
+# Merge: COMPOSE_FILE=docker-compose.yml:docker-compose.qa-shared-host.yml
+# Requires DEX_TERRA_RPC_PORT, DEX_TERRA_LCD_PORT, DEX_TERRA_GRPC_PORT, DEX_TERRA_GRPC_WEB_PORT
+# exported (see scripts/qa/qa-host.env with QA_SHARED_HOST=1).
+
+services:
+  localterra:
+    ports:
+      - "127.0.0.1:${DEX_TERRA_RPC_PORT}:26657"
+      - "127.0.0.1:${DEX_TERRA_LCD_PORT}:1317"
+      - "127.0.0.1:${DEX_TERRA_GRPC_PORT}:9090"
+      - "127.0.0.1:${DEX_TERRA_GRPC_WEB_PORT}:9091"
