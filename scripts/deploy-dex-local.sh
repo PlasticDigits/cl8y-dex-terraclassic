@@ -2,8 +2,13 @@
 set -e
 
 CHAIN_ID="localterra"
-NODE="http://localhost:26657"
-LCD="http://localhost:1317"
+# Host-facing URLs (curl from host, Vite, indexer): match docker published ports (remap when QA_SHARED_HOST).
+_HOST_RPC_PORT="${DEX_TERRA_RPC_PORT:-26657}"
+_HOST_LCD_PORT="${DEX_TERRA_LCD_PORT:-1317}"
+NODE="${TERRA_RPC_URL:-http://localhost:${_HOST_RPC_PORT}}"
+LCD="${TERRA_LCD_URL:-http://localhost:${_HOST_LCD_PORT}}"
+# terrad runs inside the LocalTerra container — always use the in-container Tendermint RPC port.
+TERRAD_NODE="${TERRAD_NODE:-http://127.0.0.1:26657}"
 TEST_ADDRESS="terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
 CONTAINER_NAME=$(docker compose ps -q localterra 2>/dev/null | head -1)
 if [ -z "$CONTAINER_NAME" ]; then
@@ -92,14 +97,14 @@ terrad_tx() {
         --gas auto \
         --gas-adjustment 1.3 \
         --fees 500000000uluna \
-        --node "$NODE" \
+        --node "$TERRAD_NODE" \
         --broadcast-mode sync \
         -y --output json
 }
 
 terrad_query() {
     docker exec "$CONTAINER_NAME" terrad query "$@" \
-        --node "$NODE" \
+        --node "$TERRAD_NODE" \
         --output json
 }
 
@@ -744,6 +749,7 @@ VITE_NOWHITELIST_TOKEN_2=${NOWHITELIST_ADDRESSES[1]}
 VITE_UNPAIRED_TOKEN_ZINC=${UNPAIRED_ADDRESSES[0]}
 VITE_UNPAIRED_TOKEN_IRON=${UNPAIRED_ADDRESSES[1]}
 VITE_UNPAIRED_TOKEN_NEON=${UNPAIRED_ADDRESSES[2]}
+VITE_INDEXER_URL=http://localhost:${API_PORT:-3001}
 ENVEOF
 echo "  Written to frontend-dapp/.env.local"
 
@@ -754,9 +760,9 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/dex_indexer
 FACTORY_ADDRESS=$FACTORY_ADDRESS
 ROUTER_ADDRESS=$ROUTER_ADDRESS
 FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS
-LCD_URLS=http://localhost:1317
+LCD_URLS=$LCD
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:4173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:4173
-API_PORT=3001
+API_PORT=${API_PORT:-3001}
 API_BIND=127.0.0.1
 POLL_INTERVAL_MS=2000
 RATE_LIMIT_RPS=100
