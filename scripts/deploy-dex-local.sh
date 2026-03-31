@@ -752,6 +752,7 @@ echo "[Phase 6.2] Writing indexer/.env..."
 cat > "$REPO_ROOT/indexer/.env" <<ENVEOF
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/dex_indexer
 FACTORY_ADDRESS=$FACTORY_ADDRESS
+ROUTER_ADDRESS=$ROUTER_ADDRESS
 FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS
 LCD_URLS=http://localhost:1317
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:4173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:4173
