@@ -5,36 +5,55 @@ import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 
 const DEFAULT_PLACEHOLDER: MenuSelectOption = { value: '', label: 'Select pair…' }
 
-export type PairMenuOptionsArgs = {
+/** `full`: symbols + shortened pair contract (disambiguates duplicates). `compact`: symbols only (narrow menus). */
+export type PairMenuLabelVariant = 'full' | 'compact'
+
+export type PairMenuLabelOptions = {
+  variant?: PairMenuLabelVariant
+}
+
+const DEFAULT_VARIANT: PairMenuLabelVariant = 'full'
+
+export type PairMenuOptionsArgs = PairMenuLabelOptions & {
   /** When set, prepended as the first row (e.g. empty value + “Select pair…”). */
   placeholder?: MenuSelectOption
 }
 
-/** Single-line label for a pair (token display symbols + shortened pair contract). */
-export function pairInfoMenuLabel(pair: PairInfo): string {
+/** Single-line pair label for menus and headings. */
+export function pairInfoMenuLabel(pair: PairInfo, opts?: PairMenuLabelOptions): string {
+  const variant = opts?.variant ?? DEFAULT_VARIANT
   const a = assetInfoLabel(pair.asset_infos[0])
   const b = assetInfoLabel(pair.asset_infos[1])
   const la = getTokenDisplaySymbol(a)
   const lb = getTokenDisplaySymbol(b)
-  return `${la} / ${lb} — ${shortenAddress(pair.contract_addr)}`
+  const core = `${la} / ${lb}`
+  if (variant === 'compact') return core
+  return `${core} — ${shortenAddress(pair.contract_addr)}`
 }
 
-/** {@link MenuSelect} rows from indexer pairs (same labels as on-chain {@link pairInfosToMenuSelectOptions}). */
-export function indexerPairsToMenuSelectOptions(pairs: IndexerPair[]): MenuSelectOption[] {
+/** Same as {@link pairInfoMenuLabel} for indexer rows. */
+export function indexerPairMenuLabel(p: IndexerPair, opts?: PairMenuLabelOptions): string {
+  return pairInfoMenuLabel(indexerPairToPairInfo(p), opts)
+}
+
+/** {@link MenuSelect} rows from indexer pairs. */
+export function indexerPairsToMenuSelectOptions(pairs: IndexerPair[], args?: PairMenuOptionsArgs): MenuSelectOption[] {
   if (pairs.length === 0) return []
+  const variant = args?.variant ?? DEFAULT_VARIANT
   return pairs.map((p) => ({
     value: p.pair_address,
-    label: pairInfoMenuLabel(indexerPairToPairInfo(p)),
+    label: pairInfoMenuLabel(indexerPairToPairInfo(p), { variant }),
   }))
 }
 
-/** Labels for {@link MenuSelect} from on-chain {@link PairInfo} (factory / LCD). */
+/** {@link MenuSelect} rows from on-chain {@link PairInfo} (factory / LCD). */
 export function pairInfosToMenuSelectOptions(pairs: PairInfo[], args?: PairMenuOptionsArgs): MenuSelectOption[] {
   if (pairs.length === 0) return []
+  const variant = args?.variant ?? DEFAULT_VARIANT
   const placeholder = args?.placeholder ?? DEFAULT_PLACEHOLDER
   const rows = pairs.map((p) => ({
     value: p.contract_addr,
-    label: pairInfoMenuLabel(p),
+    label: pairInfoMenuLabel(p, { variant }),
   }))
   return [placeholder, ...rows]
 }

@@ -28,7 +28,8 @@ import {
 } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
-import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
+import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 
 const POOL_SORT_OPTIONS: MenuSelectOption[] = [
@@ -259,7 +260,7 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
             <TokenDisplay info={pair.asset_infos[1]} size={18} />
           </p>
           <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-subtle)' }}>
-            Pair: {pair.contract_addr.slice(0, 10)}…{pair.contract_addr.slice(-6)}
+            {pairInfoMenuLabel(pair, { variant: 'full' })}
           </p>
           {volumeQuote24h && (
             <p className="text-xs mt-1 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
@@ -474,10 +475,7 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
             />
           </div>
           <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
-            LP Token:{' '}
-            <span className="font-mono">
-              {pair.liquidity_token.slice(0, 10)}…{pair.liquidity_token.slice(-6)}
-            </span>
+            LP Token: <span className="font-mono">{shortenAddress(pair.liquidity_token)}</span>
           </p>
           {insufficientLp && (
             <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }}>
