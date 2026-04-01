@@ -5,7 +5,13 @@ import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 
 const DEFAULT_PLACEHOLDER: MenuSelectOption = { value: '', label: 'Select pair…' }
 
-/** `full`: symbols + shortened pair contract (disambiguates duplicates). `compact`: symbols only (narrow menus). */
+/**
+ * How to render a pair in menus and headings.
+ *
+ * - **`full`** (default): `SYMBOL_A / SYMBOL_B — shortened pair addr` — use for **pickers and tx-heavy flows**
+ *   (e.g. Limit Orders) where disambiguation matters.
+ * - **`compact`**: `SYMBOL_A / SYMBOL_B` only — use for **browse / dense UI** (e.g. Charts pair list on narrow widths).
+ */
 export type PairMenuLabelVariant = 'full' | 'compact'
 
 export type PairMenuLabelOptions = {
