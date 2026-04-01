@@ -14,6 +14,7 @@ import PriceChart from '@/components/charts/PriceChart'
 import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelectOption } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { formatNum } from '@/utils/formatAmount'
+import { indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
@@ -114,15 +115,7 @@ export default function ChartsPage() {
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
   const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
 
-  const pairMenuOptions = useMemo<MenuSelectOption[]>(() => {
-    if (pairOptions.length === 0) {
-      return [{ value: '', label: 'No indexed pairs available' }]
-    }
-    return pairOptions.map((p: IndexerPair) => ({
-      value: p.pair_address,
-      label: `${p.asset_0.symbol} / ${p.asset_1.symbol}`,
-    }))
-  }, [pairOptions])
+  const pairMenuOptions = useMemo(() => indexerPairsToMenuSelectOptions(pairOptions), [pairOptions])
 
   useEffect(() => {
     if (pairOptions.length === 0) return
