@@ -1,4 +1,5 @@
 :root[data-theme='dark'] {
+  color-scheme: dark;
   --header-logo-bg: rgba(34, 21, 17, 0.86);
   --bg-0: #0e0908;
   --bg-1: #1d110f;
@@ -35,7 +36,8 @@
   --control-surface: rgba(255, 255, 255, 0.035);
   --control-surface-hover: rgba(255, 255, 255, 0.06);
   --card-bg: linear-gradient(180deg, rgba(55, 33, 25, 0.7), rgba(27, 16, 14, 0.72)), rgba(255, 255, 255, 0.03);
-  --menu-bg: linear-gradient(180deg, rgba(37, 23, 19, 0.96), rgba(22, 13, 11, 0.98));
+  /* Opaque stops: portaled menus use <button> rows; semi-transparent + blur could read as light on some engines. */
+  --menu-bg: linear-gradient(180deg, rgb(37, 23, 19), rgb(22, 13, 11));
   --alert-error-bg: rgba(72, 17, 17, 0.32);
   --alert-error-text: #ffb8b8;
   --alert-warning-bg: rgba(74, 40, 12, 0.28);

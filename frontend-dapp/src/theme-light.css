@@ -1,4 +1,5 @@
 :root[data-theme='light'] {
+  color-scheme: light;
   --header-logo-bg: rgba(255, 246, 236, 0.92);
   --bg-0: #f4e0cb;
   --bg-1: #f8eadd;
@@ -38,7 +39,7 @@
   --control-surface: rgba(255, 255, 255, 0.62);
   --control-surface-hover: rgba(255, 255, 255, 0.82);
   --card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 236, 221, 0.92)), rgba(255, 255, 255, 0.4);
-  --menu-bg: linear-gradient(180deg, rgba(255, 252, 248, 0.97), rgba(247, 234, 219, 0.98));
+  --menu-bg: linear-gradient(180deg, rgb(255, 252, 248), rgb(247, 234, 219));
   --alert-error-bg: linear-gradient(180deg, rgba(255, 246, 244, 0.95), rgba(251, 228, 225, 0.98));
   --alert-error-text: #9b3d33;
   --alert-warning-bg: linear-gradient(180deg, rgba(255, 249, 240, 0.95), rgba(252, 238, 214, 0.98));
