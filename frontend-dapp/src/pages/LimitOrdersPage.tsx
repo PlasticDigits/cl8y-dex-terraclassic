@@ -36,7 +36,7 @@ export default function LimitOrdersPage() {
 
   const pairs = pairsQuery.data?.pairs ?? []
 
-  const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs), [pairs])
+  const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs, { variant: 'full' }), [pairs])
 
   const selectedPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
 

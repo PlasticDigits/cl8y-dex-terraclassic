@@ -14,7 +14,7 @@ import PriceChart from '@/components/charts/PriceChart'
 import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelectOption } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { formatNum } from '@/utils/formatAmount'
-import { indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
+import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
@@ -115,7 +115,10 @@ export default function ChartsPage() {
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
   const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
 
-  const pairMenuOptions = useMemo(() => indexerPairsToMenuSelectOptions(pairOptions), [pairOptions])
+  const pairMenuOptions = useMemo(
+    () => indexerPairsToMenuSelectOptions(pairOptions, { variant: 'compact' }),
+    [pairOptions]
+  )
 
   useEffect(() => {
     if (pairOptions.length === 0) return
@@ -365,7 +368,7 @@ export default function ChartsPage() {
             className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
             style={{ color: 'var(--ink)' }}
           >
-            24h Stats — {activePair.asset_0.symbol}/{activePair.asset_1.symbol}
+            24h Stats — {indexerPairMenuLabel(activePair, { variant: 'compact' })}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox label="Volume (Base)" value={formatNum(stats.volume_base)} />
@@ -408,7 +411,7 @@ export default function ChartsPage() {
             className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
             style={{ color: 'var(--ink)' }}
           >
-            TWAP Oracle — {activePair.asset_0.symbol}/{activePair.asset_1.symbol}
+            TWAP Oracle — {indexerPairMenuLabel(activePair, { variant: 'compact' })}
           </h3>
           <div className="grid grid-cols-3 gap-3">
             {TWAP_WINDOWS.map((w) => {

@@ -29,6 +29,7 @@ import {
 } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui'
+import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { getRouteSolve } from '@/services/indexer/client'
@@ -473,6 +474,9 @@ export default function SwapPage() {
             {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
               <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
                 <p className="label-neo mb-2">Direct swap: limit book leg</p>
+                <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--ink-subtle)' }}>
+                  {pairInfoMenuLabel(directPair, { variant: 'full' })}
+                </p>
                 <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
                   Only single-hop CW20 swaps. The estimate above is pool-only; Pattern C execution can differ when the
                   on-chain book has liquidity.
