@@ -308,13 +308,19 @@
     box-shadow: var(--shadow-menu);
     backdrop-filter: blur(20px);
     z-index: 200;
+    /* Match page theme for portaled listbox <button> rows (avoids light “system” button surfaces in dark mode). */
+    color-scheme: inherit;
   }
 
   .token-select-option {
     @apply w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-left border-0 cursor-pointer transition-colors;
     border-radius: 14px;
     background: transparent;
+    background-color: transparent;
     color: var(--ink);
+    font: inherit;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .token-select-option:hover {

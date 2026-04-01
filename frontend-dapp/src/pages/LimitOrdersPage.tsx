@@ -7,9 +7,10 @@ import { placeLimitOrder, cancelLimitOrder } from '@/services/terraclassic/pair'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
-import { TxResultAlert, Spinner } from '@/components/ui'
+import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 
 export default function LimitOrdersPage() {
@@ -34,6 +35,8 @@ export default function LimitOrdersPage() {
   })
 
   const pairs = pairsQuery.data?.pairs ?? []
+
+  const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs), [pairs])
 
   const selectedPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
 
@@ -136,25 +139,15 @@ export default function LimitOrdersPage() {
                 <label className="label-neo" htmlFor="limit-pair">
                   Pair
                 </label>
-                <select
+                <MenuSelect
                   id="limit-pair"
-                  className="input-neo w-full"
+                  className="relative w-full"
+                  aria-label="Trading pair"
                   value={pairAddr}
-                  onChange={(e) => setPairAddr(e.target.value)}
-                >
-                  <option value="">Select pair…</option>
-                  {pairs.map((p) => {
-                    const a = assetInfoLabel(p.asset_infos[0])
-                    const b = assetInfoLabel(p.asset_infos[1])
-                    const la = getTokenDisplaySymbol(a)
-                    const lb = getTokenDisplaySymbol(b)
-                    return (
-                      <option key={p.contract_addr} value={p.contract_addr}>
-                        {la} / {lb} — {shortenAddress(p.contract_addr)}
-                      </option>
-                    )
-                  })}
-                </select>
+                  options={pairMenuOptions}
+                  emptyLabel="No pairs on factory"
+                  onChange={setPairAddr}
+                />
               </div>
 
               {selectedPair && (
