@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, Event, MessageInfo,
-    Reply, Response, StdResult, SubMsg, Uint128, WasmMsg,
+    Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
@@ -533,6 +533,35 @@ fn execute_receive(
     }
 }
 
+/// Difference between the spot-linear estimate `floor(offer × out / in)` and the
+/// constant-product `gross_output`. Integer rounding on the two paths can make
+/// this exceed `gross_output` at extreme reserve ratios even though the swap is
+/// economically fine; [`assert_max_spread`] caps it when comparing to `max_spread`.
+fn spot_linear_spread_over_gross(
+    pool_input: Uint128,
+    input_reserve: Uint128,
+    output_reserve: Uint128,
+    gross_output: Uint128,
+) -> StdResult<Uint128> {
+    if input_reserve.is_zero() {
+        return Err(StdError::generic_err(
+            "spot_linear_spread_over_gross: input_reserve is zero",
+        ));
+    }
+    let ideal_output = pool_input
+        .checked_mul(output_reserve)
+        .map_err(StdError::from)?
+        .checked_div(input_reserve)
+        .map_err(StdError::from)?;
+    if ideal_output > gross_output {
+        ideal_output
+            .checked_sub(gross_output)
+            .map_err(StdError::from)
+    } else {
+        Ok(Uint128::zero())
+    }
+}
+
 /// Validate that the swap's effective spread does not exceed the user's
 /// tolerance. When `belief_price` is provided, spread is computed against
 /// the expected return at that price; otherwise it is computed from the
@@ -568,12 +597,13 @@ fn assert_max_spread(
         }
     } else {
         let total_return = return_amount + commission_amount;
+        let spread_cmp = spread_amount.min(total_return);
         if total_return > Uint128::zero()
-            && Decimal::from_ratio(spread_amount, total_return) > max_allowed
+            && Decimal::from_ratio(spread_cmp, total_return) > max_allowed
         {
             return Err(ContractError::MaxSpreadAssertion {
                 max: max_allowed.to_string(),
-                actual: Decimal::from_ratio(spread_amount, total_return).to_string(),
+                actual: Decimal::from_ratio(spread_cmp, total_return).to_string(),
             });
         }
     }
@@ -794,14 +824,13 @@ fn execute_swap(
             });
         }
 
-        let ideal_output = pool_input_amount
-            .checked_mul(output_reserve)?
-            .checked_div(input_reserve)?;
-        spread_amount = if ideal_output > gross_output {
-            ideal_output.checked_sub(gross_output)?
-        } else {
-            Uint128::zero()
-        };
+        spread_amount = spot_linear_spread_over_gross(
+            pool_input_amount,
+            input_reserve,
+            output_reserve,
+            gross_output,
+        )
+        .map_err(ContractError::Std)?;
 
         assert_max_spread(
             belief_price,
@@ -1704,14 +1733,8 @@ fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationRespo
         .checked_div(Uint128::new(10000))?;
     let return_amount = gross_output.checked_sub(commission_amount)?;
 
-    let ideal_output = offer_amount
-        .checked_mul(output_reserve)?
-        .checked_div(input_reserve)?;
-    let spread_amount = if ideal_output > gross_output {
-        ideal_output.checked_sub(gross_output)?
-    } else {
-        Uint128::zero()
-    };
+    let spread_amount =
+        spot_linear_spread_over_gross(offer_amount, input_reserve, output_reserve, gross_output)?;
 
     Ok(SimulationResponse {
         return_amount,
@@ -1771,14 +1794,8 @@ fn query_reverse_simulation(deps: Deps, ask_asset: Asset) -> StdResult<ReverseSi
         .checked_div(denom)?
         .checked_add(Uint128::one())?;
 
-    let ideal_output = offer_amount
-        .checked_mul(output_reserve)?
-        .checked_div(input_reserve)?;
-    let spread_amount = if ideal_output > gross_needed {
-        ideal_output.checked_sub(gross_needed)?
-    } else {
-        Uint128::zero()
-    };
+    let spread_amount =
+        spot_linear_spread_over_gross(offer_amount, input_reserve, output_reserve, gross_needed)?;
 
     Ok(ReverseSimulationResponse {
         offer_amount,
@@ -1910,4 +1927,56 @@ pub fn migrate(
     Ok(Response::new()
         .add_attribute("action", "migrate")
         .add_attribute("version", CONTRACT_VERSION))
+}
+
+#[cfg(test)]
+mod max_spread_tests {
+    use cosmwasm_std::{Decimal, Uint128};
+
+    use super::{assert_max_spread, spot_linear_spread_over_gross};
+    use crate::error::ContractError;
+
+    #[test]
+    fn spot_linear_spread_matches_floor_ideal_minus_gross() {
+        let s = spot_linear_spread_over_gross(
+            Uint128::new(100),
+            Uint128::new(1000),
+            Uint128::new(500),
+            Uint128::new(40),
+        )
+        .unwrap();
+        let ideal = 100u128 * 500 / 1000;
+        assert_eq!(ideal, 50);
+        assert_eq!(s, Uint128::new(10));
+    }
+
+    /// When the spot-linear estimate exceeds gross by more than 100% of gross
+    /// (integer rounding), raw `spread_amount` can be larger than
+    /// `return + commission`. `max_spread = 100%` must still accept the swap.
+    #[test]
+    fn max_spread_one_allows_capped_ratio_when_raw_spread_exceeds_gross() {
+        assert_max_spread(
+            None,
+            Some(Decimal::one()),
+            Uint128::new(1),
+            Uint128::new(90),
+            Uint128::new(150),
+            Uint128::new(10),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn max_spread_half_rejects_at_full_slippage_metric() {
+        let err = assert_max_spread(
+            None,
+            Some(Decimal::percent(50)),
+            Uint128::new(1),
+            Uint128::new(90),
+            Uint128::new(150),
+            Uint128::new(10),
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));
+    }
 }

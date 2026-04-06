@@ -5249,7 +5249,7 @@ mod fuzz_tests {
     // token conservation.
     // -----------------------------------------------------------------------
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(64))]
+        #![proptest_config(ProptestConfig::with_cases(256))]
 
         #[test]
         fn prop_interleaved_provide_swap_withdraw(
