@@ -1224,11 +1224,14 @@ input[type='number'] {
 
 @media (max-width: 767px) {
   /**
-   * Fallback before JS measures the bar; Layout syncs the real height to --app-mobile-nav-stack.
+   * Fallback before JS measures the bar; Layout syncs the real height on :root.
    * Nav = padding + row + safe-area (see .app-mobile-nav-shell).
    */
-  .app-shell {
+  :root {
     --app-mobile-nav-stack: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell {
     padding-bottom: calc(var(--app-mobile-nav-stack) + 38px);
   }
 
@@ -1239,6 +1242,19 @@ input[type='number'] {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     z-index: 55;
+  }
+
+  /* Header-anchored menu: stay above the tab bar and scroll if the viewport is short. */
+  .wallet-menu {
+    z-index: 55;
+    max-height: calc(100dvh - var(--app-mobile-nav-stack) - 96px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-modal-portal-root {
+    padding-bottom: calc(var(--app-mobile-nav-stack) + 16px);
   }
 
   .app-header {

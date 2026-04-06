@@ -1,26 +1,23 @@
 import { useLayoutEffect, type RefObject } from 'react'
 
 /**
- * Writes `--app-mobile-nav-stack` on `shellRef` from the live height of the fixed
- * mobile bottom bar (padding, safe-area, wrapping). Lets overlays (e.g. More sheet)
- * clear the bar without hard-coding pixel estimates.
+ * Writes `--app-mobile-nav-stack` on `document.documentElement` from the live height
+ * of the fixed mobile bottom bar (padding, safe-area, wrapping). Inherited by
+ * `.app-shell`, CSS, and JS (e.g. {@link getMobileBottomNavInsetPx}) consumers.
  */
-export function useSyncMobileNavStack(
-  shellRef: RefObject<HTMLElement | null>,
-  mobileNavRef: RefObject<HTMLElement | null>
-): void {
+export function useSyncMobileNavStack(mobileNavRef: RefObject<HTMLElement | null>): void {
   useLayoutEffect(() => {
-    const shell = shellRef.current
     const nav = mobileNavRef.current
-    if (!shell || !nav) return
+    if (!nav) return
+    const root = document.documentElement
 
     const sync = () => {
       const h = nav.getBoundingClientRect().height
       if (h < 1) {
-        shell.style.removeProperty('--app-mobile-nav-stack')
+        root.style.removeProperty('--app-mobile-nav-stack')
         return
       }
-      shell.style.setProperty('--app-mobile-nav-stack', `${Math.ceil(h)}px`)
+      root.style.setProperty('--app-mobile-nav-stack', `${Math.ceil(h)}px`)
     }
 
     sync()
@@ -30,6 +27,7 @@ export function useSyncMobileNavStack(
     return () => {
       ro.disconnect()
       window.removeEventListener('resize', sync)
+      root.style.removeProperty('--app-mobile-nav-stack')
     }
-  }, [shellRef, mobileNavRef])
+  }, [mobileNavRef])
 }

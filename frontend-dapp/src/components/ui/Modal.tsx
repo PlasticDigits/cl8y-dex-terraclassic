@@ -30,7 +30,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="app-modal-portal-root fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div
         className="app-modal-backdrop"
         onClick={() => {
