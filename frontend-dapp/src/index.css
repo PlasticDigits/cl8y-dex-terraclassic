@@ -1220,6 +1220,18 @@ input[type='number'] {
   .app-main-shell {
     padding-top: 54px;
   }
+
+  /**
+   * Desktop nav + footer stay visible; on short or split viewports (zoom, foldables)
+   * absolute dropdowns must not run off the dynamic viewport.
+   */
+  .app-menu,
+  .wallet-menu {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 240px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @media (max-width: 767px) {
