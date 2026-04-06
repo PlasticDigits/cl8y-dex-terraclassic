@@ -1223,6 +1223,24 @@ input[type='number'] {
 }
 
 @media (max-width: 767px) {
+  /**
+   * Fallback before JS measures the bar; Layout syncs the real height to --app-mobile-nav-stack.
+   * Nav = padding + row + safe-area (see .app-mobile-nav-shell).
+   */
+  .app-shell {
+    --app-mobile-nav-stack: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--app-mobile-nav-stack) + 38px);
+  }
+
+  .app-mobile-more-sheet {
+    bottom: calc(var(--app-mobile-nav-stack) + 8px);
+    max-height: calc(100dvh - var(--app-mobile-nav-stack) - env(safe-area-inset-top, 0px) - 88px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    z-index: 55;
+  }
+
   .app-header {
     display: flex;
     flex-direction: row;

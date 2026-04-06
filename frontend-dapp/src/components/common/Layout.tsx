@@ -1,11 +1,11 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
 import NetworkBadge from '@/components/wallet/NetworkBadge'
+import { ThemeSegmentedControl, type ThemeMode } from '@/components/common/ThemeSegmentedControl'
 import { MORE_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/components/common/navItems'
+import { useSyncMobileNavStack } from '@/hooks/useSyncMobileNavStack'
 import { sounds } from '@/lib/sounds'
-
-type ThemeMode = 'dark' | 'light'
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'dark'
@@ -16,6 +16,10 @@ function getInitialTheme(): ThemeMode {
 
 export default function Layout() {
   const location = useLocation()
+  const shellRef = useRef<HTMLDivElement>(null)
+  const mobileNavRef = useRef<HTMLElement>(null)
+  useSyncMobileNavStack(shellRef, mobileNavRef)
+
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false)
@@ -37,6 +41,7 @@ export default function Layout() {
   }, [])
 
   const setThemeAndPersist = (mode: ThemeMode) => {
+    sounds.playButtonPress()
     setTheme(mode)
     window.localStorage.setItem('cl8y-dex-theme', mode)
   }
@@ -55,7 +60,7 @@ export default function Layout() {
   )
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" ref={shellRef}>
       {(isMoreMenuOpen || isMobileMoreOpen) && (
         <button
           type="button"
@@ -159,34 +164,16 @@ export default function Layout() {
       <footer className="app-footer-shell">
         <div className="app-footer">
           <p>CL8Y DEX · Terra Classic</p>
-          <div className="app-footer-theme-group" role="group" aria-label="Theme">
-            <button
-              type="button"
-              aria-pressed={theme === 'dark'}
-              className={`app-footer-theme-button${theme === 'dark' ? ' app-footer-theme-button-active' : ''}`}
-              onClick={() => {
-                sounds.playButtonPress()
-                setThemeAndPersist('dark')
-              }}
-            >
-              Dark
-            </button>
-            <button
-              type="button"
-              aria-pressed={theme === 'light'}
-              className={`app-footer-theme-button${theme === 'light' ? ' app-footer-theme-button-active' : ''}`}
-              onClick={() => {
-                sounds.playButtonPress()
-                setThemeAndPersist('light')
-              }}
-            >
-              Light
-            </button>
-          </div>
+          <ThemeSegmentedControl
+            theme={theme}
+            onSelect={setThemeAndPersist}
+            groupClassName="app-footer-theme-group"
+            labelStyle="short"
+          />
         </div>
       </footer>
 
-      <nav className="app-mobile-nav-shell" aria-label="Primary">
+      <nav ref={mobileNavRef} className="app-mobile-nav-shell" aria-label="Primary">
         {PRIMARY_NAV_ITEMS.map((item) => (
           <NavLink
             key={item.path}
@@ -230,28 +217,12 @@ export default function Layout() {
               {item.label}
             </NavLink>
           ))}
-          <div className="app-mobile-theme-group" role="group" aria-label="Theme">
-            <button
-              type="button"
-              className={`app-footer-theme-button${theme === 'dark' ? ' app-footer-theme-button-active' : ''}`}
-              onClick={() => {
-                sounds.playButtonPress()
-                setThemeAndPersist('dark')
-              }}
-            >
-              Dark theme
-            </button>
-            <button
-              type="button"
-              className={`app-footer-theme-button${theme === 'light' ? ' app-footer-theme-button-active' : ''}`}
-              onClick={() => {
-                sounds.playButtonPress()
-                setThemeAndPersist('light')
-              }}
-            >
-              Light theme
-            </button>
-          </div>
+          <ThemeSegmentedControl
+            theme={theme}
+            onSelect={setThemeAndPersist}
+            groupClassName="app-mobile-theme-group"
+            labelStyle="long"
+          />
         </section>
       )}
     </div>
