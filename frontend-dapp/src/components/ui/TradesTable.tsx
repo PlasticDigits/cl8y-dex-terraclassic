@@ -1,6 +1,6 @@
 import type { IndexerTrade, IndexerPair } from '@/types'
 import { formatNum } from '@/utils/formatAmount'
-import { getExplorerTxUrl } from '@/utils/terraExplorer'
+import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 
 export interface TradesTableProps {
   trades: IndexerTrade[]
@@ -78,13 +78,19 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
                 <td className="py-1.5 px-2" style={{ color: 'var(--ink-dim)' }}>
                   {(() => {
                     const url = getExplorerTxUrl(t.tx_hash)
-                    const label = `${t.tx_hash.slice(0, 8)}...`
+                    const label = shortenTxHashForDisplay(t.tx_hash)
                     return url ? (
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={t.tx_hash}
+                        className="underline hover:opacity-80"
+                      >
                         {label}
                       </a>
                     ) : (
-                      label
+                      <span title={t.tx_hash}>{label}</span>
                     )
                   })()}
                 </td>

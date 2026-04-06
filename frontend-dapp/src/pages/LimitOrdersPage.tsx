@@ -220,7 +220,7 @@ export default function LimitOrdersPage() {
                   <TxResultAlert type="error" message={(placeMutation.error as Error).message} />
                 )}
                 {placeMutation.isSuccess && (
-                  <TxResultAlert type="success" message={`Submitted: ${placeMutation.data}`} />
+                  <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
                 )}
               </div>
 
@@ -250,7 +250,7 @@ export default function LimitOrdersPage() {
                   <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />
                 )}
                 {cancelMutation.isSuccess && (
-                  <TxResultAlert type="success" message={`Submitted: ${cancelMutation.data}`} />
+                  <TxResultAlert type="success" message="Cancel transaction submitted." txHash={cancelMutation.data} />
                 )}
               </div>
 

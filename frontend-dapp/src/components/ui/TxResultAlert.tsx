@@ -1,4 +1,4 @@
-import { getExplorerTxUrl } from '@/utils/terraExplorer'
+import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 
 export interface TxResultAlertProps {
   type: 'success' | 'error'
@@ -9,9 +9,10 @@ export interface TxResultAlertProps {
 export function TxResultAlert({ type, message, txHash }: TxResultAlertProps) {
   const baseClass = type === 'success' ? 'alert-success' : 'alert-error'
   const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
+  const txLabel = txHash ? shortenTxHashForDisplay(txHash) : ''
 
   return (
-    <div className={baseClass}>
+    <div className={`${baseClass} min-w-0 max-w-full break-words`}>
       {message}
       {type === 'success' && txHash != null && (
         <>
@@ -22,12 +23,15 @@ export function TxResultAlert({ type, message, txHash }: TxResultAlertProps) {
               href={explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-xs underline hover:opacity-80"
+              title={txHash}
+              className="font-mono text-xs underline hover:opacity-80 break-all"
             >
-              {txHash.slice(0, 12)}...{txHash.slice(-6)}
+              {txLabel}
             </a>
           ) : (
-            <span className="font-mono text-xs">{txHash}</span>
+            <span className="font-mono text-xs break-all" title={txHash}>
+              {txLabel}
+            </span>
           )}
         </>
       )}

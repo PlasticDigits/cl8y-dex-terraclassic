@@ -3,13 +3,15 @@ import { render, screen } from '@testing-library/react'
 import { TradesTable } from '../TradesTable'
 import type { IndexerTrade } from '@/types'
 
+const longTxHash = `AAAAAAAA${'0'.repeat(50)}BBBBBB`
+
 const mockTrades: IndexerTrade[] = [
   {
     id: 1,
     pair_address: 'terra1pair',
     block_height: 100,
     block_timestamp: '2025-01-15T12:00:00Z',
-    tx_hash: 'ABCDEF1234567890',
+    tx_hash: longTxHash,
     sender: 'terra1trader',
     offer_asset: 'CL8Y',
     ask_asset: 'LUNC',
@@ -30,7 +32,7 @@ describe('TradesTable', () => {
   it('renders trade rows', () => {
     render(<TradesTable trades={mockTrades} formatTimeFn={formatTimeFn} />)
     expect(screen.getByText('CL8Y → LUNC')).toBeInTheDocument()
-    expect(screen.getByText('ABCDEF12...')).toBeInTheDocument()
+    expect(screen.getByText('AAAAAAAA…BBBBBB')).toBeInTheDocument()
   })
 
   it('renders with aria-label', () => {
