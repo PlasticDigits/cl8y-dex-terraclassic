@@ -2,29 +2,10 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
 import NetworkBadge from '@/components/wallet/NetworkBadge'
+import { MORE_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/components/common/navItems'
 import { sounds } from '@/lib/sounds'
 
 type ThemeMode = 'dark' | 'light'
-
-type NavItem = {
-  path: string
-  label: string
-  end?: boolean
-}
-
-const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Swap', end: true },
-  { path: '/pool', label: 'Pool' },
-  { path: '/limits', label: 'Limits' },
-  { path: '/charts', label: 'Charts' },
-]
-
-const MORE_NAV_ITEMS: NavItem[] = [
-  { path: '/trader', label: 'Trader', end: false },
-  { path: '/protocol', label: 'Protocol' },
-  { path: '/tiers', label: 'Fee Tiers' },
-  { path: '/create', label: 'Create Pair' },
-]
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'dark'

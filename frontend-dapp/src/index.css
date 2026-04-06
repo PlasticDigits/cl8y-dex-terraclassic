@@ -582,6 +582,13 @@
     min-width: 0;
   }
 
+  /* Below 1024px: logo-only brand so desktop nav (768px+) has horizontal room (GitLab #52). */
+  @media (max-width: 1023px) {
+    .app-brand-copy {
+      display: none;
+    }
+  }
+
   .app-brand-kicker {
     color: var(--ink-subtle);
     font-size: 0.72rem;
@@ -605,8 +612,13 @@
 
   .app-desktop-nav {
     justify-content: center;
-    gap: 6px;
+    gap: 10px;
     min-width: 0;
+  }
+
+  .app-desktop-nav > .app-nav-link,
+  .app-desktop-nav > .app-more-wrap {
+    flex-shrink: 0;
   }
 
   .app-header-controls {
@@ -1226,11 +1238,6 @@ input[type='number'] {
   .app-brand {
     flex-shrink: 0;
     min-width: 0;
-  }
-
-  /* Logo only on small screens — saves vertical space */
-  .app-brand-copy {
-    display: none;
   }
 
   .app-desktop-nav {
