@@ -1,5 +1,6 @@
 import chainlistJson from '../../public/chains/chainlist.json'
 import { DEFAULT_NETWORK, NETWORKS } from './constants'
+import { shortenAddress } from './tokenDisplay'
 
 export type ChainlistEntry = {
   id: string
@@ -42,4 +43,9 @@ export function getExplorerTxUrl(txHash: string): string | null {
   const base = explorerTxBaseForChainId(chainId)
   if (!base) return null
   return `${base}${txHash}`
+}
+
+/** Middle-elided hash for alerts, tables, and other compact tx displays. */
+export function shortenTxHashForDisplay(txHash: string): string {
+  return shortenAddress(txHash, 8, 6)
 }
