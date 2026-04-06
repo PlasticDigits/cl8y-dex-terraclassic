@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
+import { getMobileBottomNavInsetPx } from '@/lib/mobileBottomNav'
 
 const VIEWPORT_PAD = 8
 const MIN_MENU_HEIGHT = 120
@@ -18,7 +19,8 @@ export type UsePortalListboxArgs = {
 /**
  * Shared fixed + portal listbox positioning and outside-click / Escape handling
  * for MenuSelect and TokenSelect. Flips above the anchor when space below is tight
- * so the menu does not collide with fixed footers or bottom nav; clamps horizontally.
+ * so the menu does not collide with fixed footers or the mobile tab bar
+ * ({@link getMobileBottomNavInsetPx}); clamps horizontally.
  */
 export function usePortalListbox({
   open,
@@ -43,7 +45,8 @@ export function usePortalListbox({
     let left = r.left + (r.width - width) / 2
     left = Math.min(Math.max(VIEWPORT_PAD, left), vw - VIEWPORT_PAD - width)
 
-    const spaceBelow = vh - r.bottom - gap - VIEWPORT_PAD
+    const bottomBar = getMobileBottomNavInsetPx()
+    const spaceBelow = vh - r.bottom - gap - VIEWPORT_PAD - bottomBar
     const spaceAbove = r.top - gap - VIEWPORT_PAD
 
     const maxBelow = Math.min(preferredMaxHeight, Math.max(MIN_MENU_HEIGHT, spaceBelow))

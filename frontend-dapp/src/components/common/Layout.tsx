@@ -16,9 +16,8 @@ function getInitialTheme(): ThemeMode {
 
 export default function Layout() {
   const location = useLocation()
-  const shellRef = useRef<HTMLDivElement>(null)
   const mobileNavRef = useRef<HTMLElement>(null)
-  useSyncMobileNavStack(shellRef, mobileNavRef)
+  useSyncMobileNavStack(mobileNavRef)
 
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
@@ -60,7 +59,7 @@ export default function Layout() {
   )
 
   return (
-    <div className="app-shell" ref={shellRef}>
+    <div className="app-shell">
       {(isMoreMenuOpen || isMobileMoreOpen) && (
         <button
           type="button"
