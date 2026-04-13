@@ -75,15 +75,7 @@ The Router passes the original trader's address through the `trader` field on `C
 
 ### Discount Tiers
 
-| Tier | CL8Y Required | Discount | BPS   | Registration       |
-|------|---------------|----------|-------|--------------------|
-| 0    | 0             | 100%     | 10000 | Governance only (market makers) |
-| 1    | 1             | 10%      | 1000  | Self-register, EOA only |
-| 2    | 50            | 25%      | 2500  | Self-register, EOA only |
-| 3    | 200           | 35%      | 3500  | Self-register, EOA only |
-| 4    | 1,000         | 50%      | 5000  | Self-register, EOA only |
-| 5    | 15,000        | 80%      | 8000  | Self-register, EOA only |
-| 255  | 0             | 0%       | 0     | Governance only (blacklist) |
+Governance defines tiers on the fee-discount contract (CL8Y balance thresholds and `discount_bps`). Tier **0** (100% discount) and **255** (blacklist) are governance-only; self-service tiers **1–9** use increasing CL8Y minimums. The **authoritative** ladder, `min_cl8y_balance` wire values, and example `terrad` JSON are in **[`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)** (aligned with integration tests in `smartcontracts/tests/src/tier_fixtures.rs`).
 
 CL8Y token balances are checked on every swap. If a trader's balance falls below their tier's threshold, the fee-discount contract fires a deregistration message and returns zero discount for that swap.
 

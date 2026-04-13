@@ -14,6 +14,7 @@ on:
       - "smartcontracts/**"
       - "frontend-dapp/**"
       - "indexer/**"
+      - "docker-compose.yml"
       - ".github/workflows/**"
 
 jobs:

@@ -2,8 +2,8 @@
 
 | Area | Status | Evidence | Issues | Blocker |
 |------|--------|----------|--------|---------|
-| **Contracts build (production)** | Partial | `make build-optimized` + [`smartcontracts/scripts/optimize.sh`](../../../smartcontracts/scripts/optimize.sh) | DEX-P1-009 | Launch |
-| **Contracts build (CI)** | Partial | `.github/workflows/test.yml` cargo wasm only | DEX-P1-009 | Launch |
+| **Contracts build (production)** | Ready | `make build-optimized` + [`smartcontracts/scripts/optimize.sh`](../../../smartcontracts/scripts/optimize.sh) | — | Launch |
+| **Contracts build (CI)** | Ready | PR: `.github/workflows/test.yml` (cargo wasm); release-grade: [`.github/workflows/contracts-wasm-optimizer.yml`](../../../.github/workflows/contracts-wasm-optimizer.yml) | — | Launch |
 | **Contract tests** | Ready | `cargo llvm-cov test` in CI | — | — |
 | **Deployment docs** | Ready | [`docs/deployment-guide.md`](../../deployment-guide.md) | DEX-P2-013 (tier drift) | Low |
 | **Factory / governance ops** | Partial | Doc’d; no automated checklist in CI | DEX-P1-006 | Launch |
@@ -18,7 +18,7 @@
 | **Mainnet vs testnet separation** | Partial | README networks; no env templates in tree | DEX-P2-027 | Low |
 | **Secrets** | N/A in OSS | Document operator secrets outside git | DEX-P2-028 | Medium |
 | **Reconciliation / backfill** | Partial | Indexer dedup; no dedicated CLI | DEX-P2-016 | Medium |
-| **Version pinning** | Partial | `cosmwasm/optimizer:0.16.1` in deployment guide; Docker compose for LocalTerra | DEX-P2-029 | Low |
+| **Version pinning** | Ready | `docker-compose.yml` uses digests for LocalTerra + Postgres; workspace-optimizer pin in `optimize.sh` | — | Low |
 | **Runbooks (pause, incident)** | Missing | Security model + audit; no single runbook | DEX-P2-030 | Medium |
 | **Hybrid launch readiness** | Not ready | Quote mismatch, docs | DEX-P1-003, DEX-P1-005 | Hybrid launch |
 

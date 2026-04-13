@@ -1813,7 +1813,7 @@ mod fee_discount_tests {
             Uint128::new(10_000_000),
         );
 
-        // Register user for tier 4 (50% discount)
+        // Register user for tier 4 (35% fee discount → 19 bps effective on 30 bps pair fee)
         app.execute_contract(
             env.user.clone(),
             denv.fee_discount.clone(),
@@ -1853,10 +1853,9 @@ mod fee_discount_tests {
         let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
         let fee = treasury_b_after - treasury_b_before;
 
-        // 50% discount on 30 bps = 15 bps effective
         // gross = 10_000_000 - ceil(10_000_000^2 / 10_010_000) = 9_990
-        // fee = floor(9_990 * 15 / 10_000) = 14
-        assert_eq!(fee, Uint128::new(14));
+        // fee = floor(9_990 * 19 / 10_000) = 18
+        assert_eq!(fee, Uint128::new(18));
     }
 
     #[test]
