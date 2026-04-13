@@ -39,7 +39,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 
 | Invariant | Enforcement | Unhappy path | Tests |
 |-----------|-------------|--------------|-------|
-| Block time usable | RFC3339 parse; else `tracing::warn` + `Utc::now()` | Misaligned candles (documented risk) | Manual / logs |
+| Block time usable | RFC3339 parse; else `tracing::warn` + `Utc::now()` | Misaligned candles (documented risk) | Manual / logs; see [Block time fallback and candle skew](#block-time-fallback-and-candle-skew) |
 | Swap dedup | Unique index on `(tx_hash, pair_id)`; `INSERT ... ON CONFLICT DO NOTHING` in [`insert_swap`](../indexer/src/db/queries/swap_events.rs) | Replay skipped; optional `trade_exists` fast path in parser | Migration `20260326120000_*`; [`parser.rs`](../indexer/src/indexer/parser.rs) |
 | Wasm attributes | `wasm_attr_last`: duplicate keys → last wins | Matches CosmWasm multi-attribute events | [`parser.rs`](../indexer/src/indexer/parser.rs) unit tests + fuzz |
 | Candle price positive | `price <= 0` → skip update | No zero/negative OHLC from bad ratio | [`candle_skip_zero_price.rs`](../indexer/tests/candle_skip_zero_price.rs), `merge_candle_ohlc` unit tests |
@@ -66,6 +66,18 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 Integration tests **fail fast** if the database is unreachable (see [`tests/common/mod.rs`](../indexer/tests/common/mod.rs)).
 
 **Shared DB / flaky tests:** If you see sporadic duplicate-key or FK errors against one database, run tests with serialized parallelism as documented in [Testing — Shared Postgres and test parallelism](./testing.md#shared-postgres-and-test-parallelism) (`cargo test --tests -j 1 -- --test-threads=1`).
+
+## Block time fallback and candle skew
+
+Block timestamps come from the LCD transaction response (`tx_responses[0].timestamp`). In [`indexer/src/indexer/poller.rs`](../indexer/src/indexer/poller.rs), `parse_block_time`:
+
+- Parses RFC3339 into UTC when valid.
+- If the timestamp is **missing** or **invalid**, logs a **warning** and uses **`Utc::now()`** (wall-clock) for that block’s events.
+
+**Risk:** Event times and candle bucket boundaries can **diverge** from true chain time—**OHLC intervals may skew** relative to block time. Mitigations:
+
+- Run a **reliable LCD** close to your chain; monitor logs for the warning strings and the Prometheus counter `indexer_block_time_fallbacks_total` when metrics are enabled (`METRICS_BIND` non-empty; see [`docs/operator-secrets.md`](./operator-secrets.md)).
+- After prolonged LCD issues, consider **re-indexing** from a known height (see [runbook: reorg / replay / dedup](./runbooks/indexer-reorg-replay-dedup.md)).
 
 ## Maintenance
 

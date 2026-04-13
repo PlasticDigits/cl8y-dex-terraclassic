@@ -647,17 +647,25 @@ fn hybrid_bid_non_unity_price_treasury_and_escrow_coherent() {
     );
 
     let cost_token1 = Uint128::new(200_000);
-    let commission = cost_token1.multiply_ratio(30u128, 10_000u128);
-    let net_to_taker = cost_token1.checked_sub(commission).unwrap();
+    let taker_commission = cost_token1.multiply_ratio(15u128, 10_000u128);
+    let net_to_taker = cost_token1.checked_sub(taker_commission).unwrap();
 
+    let maker_fee_on_place = bid_escrow.multiply_ratio(15u128, 10_000u128);
+    let initial_remaining = bid_escrow.checked_sub(maker_fee_on_place).unwrap();
     let lo = query_limit(&app, &env.pair, order_id);
-    assert_eq!(lo.remaining, bid_escrow.checked_sub(cost_token1).unwrap());
+    assert_eq!(
+        lo.remaining,
+        initial_remaining.checked_sub(cost_token1).unwrap()
+    );
 
     let taker_b = query_cw20_balance(&app, &env.token_b, &taker);
     assert_eq!(taker_b, net_to_taker);
 
     let tre_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
-    assert_eq!(tre_b_after.checked_sub(tre_b_before).unwrap(), commission);
+    assert_eq!(
+        tre_b_after.checked_sub(tre_b_before).unwrap(),
+        taker_commission
+    );
 }
 
 /// Non-unity ask price: fee on token0 output; treasury receives token0 commission (ask-side fix).
@@ -710,17 +718,25 @@ fn hybrid_ask_non_unity_price_treasury_fee_in_token0() {
     );
 
     let fill_t0 = Uint128::new(500_000);
-    let commission = fill_t0.multiply_ratio(30u128, 10_000u128);
-    let net_t0 = fill_t0.checked_sub(commission).unwrap();
+    let taker_commission = fill_t0.multiply_ratio(15u128, 10_000u128);
+    let net_t0 = fill_t0.checked_sub(taker_commission).unwrap();
 
+    let maker_fee_on_place = ask_escrow.multiply_ratio(15u128, 10_000u128);
+    let initial_remaining = ask_escrow.checked_sub(maker_fee_on_place).unwrap();
     let lo = query_limit(&app, &env.pair, order_id);
-    assert_eq!(lo.remaining, ask_escrow.checked_sub(fill_t0).unwrap());
+    assert_eq!(
+        lo.remaining,
+        initial_remaining.checked_sub(fill_t0).unwrap()
+    );
 
     let taker_a = query_cw20_balance(&app, &env.token_a, &taker);
     assert_eq!(taker_a, net_t0);
 
     let tre_a_after = query_cw20_balance(&app, &env.token_a, &env.treasury);
-    assert_eq!(tre_a_after.checked_sub(tre_a_before).unwrap(), commission);
+    assert_eq!(
+        tre_a_after.checked_sub(tre_a_before).unwrap(),
+        taker_commission
+    );
 }
 
 #[test]
@@ -864,7 +880,12 @@ fn cancel_limit_order_refunds_escrow() {
     )
     .unwrap();
     let after = query_cw20_balance(&app, &env.token_b, &env.user);
-    assert_eq!(after.checked_sub(before).unwrap(), escrow);
+    // Maker half (15 bps of 30) charged at placement; cancel refunds post-fee escrow only.
+    let maker_fee = escrow.multiply_ratio(15u128, 10_000u128);
+    assert_eq!(
+        after.checked_sub(before).unwrap(),
+        escrow.checked_sub(maker_fee).unwrap()
+    );
 }
 
 #[test]
@@ -901,19 +922,19 @@ fn limit_order_place_and_cancel_emit_indexer_attrs() {
         .unwrap();
 
     assert_eq!(
-        wasm_attr_last(&place_res.events, "action").as_deref(),
+        wasm_attr_in_action_event(&place_res.events, "place_limit_order", "action").as_deref(),
         Some("place_limit_order")
     );
     assert_eq!(
-        wasm_attr_last(&place_res.events, "side").as_deref(),
+        wasm_attr_in_action_event(&place_res.events, "place_limit_order", "side").as_deref(),
         Some("bid")
     );
     assert_eq!(
-        wasm_attr_last(&place_res.events, "price").as_deref(),
+        wasm_attr_in_action_event(&place_res.events, "place_limit_order", "price").as_deref(),
         Some("1")
     );
     assert_eq!(
-        wasm_attr_last(&place_res.events, "owner").as_deref(),
+        wasm_attr_in_action_event(&place_res.events, "place_limit_order", "owner").as_deref(),
         Some(env.user.as_str())
     );
 
@@ -1237,9 +1258,11 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
     )
     .unwrap();
     let bal_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    let escrow = Uint128::new(50_000);
+    let maker_fee = escrow.multiply_ratio(15u128, 10_000u128);
     assert_eq!(
         bal_after.checked_sub(bal_before).unwrap(),
-        Uint128::new(50_000)
+        escrow.checked_sub(maker_fee).unwrap()
     );
 }
 
@@ -1329,8 +1352,55 @@ fn fifo_two_bids_same_price_older_filled_first() {
 
     let lo_a = query_limit(&app, &env.pair, id_alice);
     let lo_b = query_limit(&app, &env.pair, id_bob);
-    assert_eq!(lo_a.remaining, Uint128::new(50_000));
-    assert_eq!(lo_b.remaining, Uint128::new(100_000));
+    let per_order_maker_fee = Uint128::new(100_000).multiply_ratio(15u128, 10_000u128);
+    let rem_after_place = Uint128::new(100_000)
+        .checked_sub(per_order_maker_fee)
+        .unwrap();
+    assert_eq!(
+        lo_a.remaining,
+        rem_after_place.checked_sub(Uint128::new(50_000)).unwrap()
+    );
+    assert_eq!(lo_b.remaining, rem_after_place);
+}
+
+#[test]
+fn update_limit_order_price_changes_price_not_remaining() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(100_000),
+        Decimal::one(),
+    );
+    let before = query_limit(&app, &env.pair, order_id);
+    let new_price = Decimal::from_ratio(11u128, 10u128);
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id,
+            price: new_price,
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    let after = query_limit(&app, &env.pair, order_id);
+    assert_eq!(after.order_id, order_id);
+    assert_eq!(after.remaining, before.remaining);
+    assert_eq!(after.price, new_price);
 }
 
 #[test]

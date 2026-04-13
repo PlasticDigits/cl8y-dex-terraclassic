@@ -23,6 +23,18 @@ use crate::state::{
 
 use dex_common::pair::{MAX_ADJUST_STEPS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP};
 
+/// Maker-side basis points charged once at order placement (`floor(effective/2)`).
+#[inline]
+pub fn maker_fee_bps(effective_fee_bps: u16) -> u16 {
+    effective_fee_bps / 2
+}
+
+/// Taker-side basis points charged on each book fill (remainder so maker+taker = effective).
+#[inline]
+pub fn taker_fee_bps(effective_fee_bps: u16) -> u16 {
+    effective_fee_bps - maker_fee_bps(effective_fee_bps)
+}
+
 /// Output token to taker, offer consumed, distinct makers, CW20 transfers, wasm fill events.
 type BookMatchOutput = (Uint128, Uint128, u32, Vec<CosmosMsg>, Vec<Event>);
 
@@ -299,6 +311,177 @@ pub fn unlink_order(storage: &mut dyn Storage, id: u64) -> StdResult<LimitOrder>
     Ok(order)
 }
 
+/// Remove an order from the price-time list but keep it in `ORDERS` with `prev`/`next` cleared.
+pub fn detach_limit_order_from_book(
+    storage: &mut dyn Storage,
+    id: u64,
+) -> Result<LimitOrder, ContractError> {
+    let order = ORDERS.load(storage, id)?;
+    let head = match order.side {
+        LimitOrderSide::Bid => HEAD_BID.may_load(storage)?.flatten(),
+        LimitOrderSide::Ask => HEAD_ASK.may_load(storage)?.flatten(),
+    };
+
+    if head == Some(id) {
+        match order.side {
+            LimitOrderSide::Bid => HEAD_BID.save(storage, &order.next)?,
+            LimitOrderSide::Ask => HEAD_ASK.save(storage, &order.next)?,
+        }
+    }
+
+    if let Some(p) = order.prev {
+        ORDERS
+            .update(storage, p, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("prev"))?;
+                x.next = order.next;
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    }
+    if let Some(n) = order.next {
+        ORDERS
+            .update(storage, n, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("next"))?;
+                x.prev = order.prev;
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    }
+
+    let detached = LimitOrder {
+        prev: None,
+        next: None,
+        ..order
+    };
+    ORDERS.save(storage, id, &detached)?;
+    Ok(detached)
+}
+
+fn link_bid_order_at_id(
+    storage: &mut dyn Storage,
+    id: u64,
+    mut order: LimitOrder,
+    hint_after: Option<u64>,
+    max_adjust_steps: u32,
+) -> Result<(), ContractError> {
+    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
+    let mut steps: u32 = 0;
+    let head = HEAD_BID.may_load(storage)?.flatten();
+    let (prev, next) = if head.is_none() {
+        (None, None)
+    } else {
+        find_insert_bid(
+            storage,
+            head,
+            hint_after,
+            order.price,
+            id,
+            max_steps,
+            &mut steps,
+        )?
+    };
+    order.prev = prev;
+    order.next = next;
+    ORDERS.save(storage, id, &order)?;
+
+    if let Some(p) = prev {
+        ORDERS
+            .update(storage, p, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("prev neighbor"))?;
+                x.next = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    } else {
+        HEAD_BID.save(storage, &Some(id))?;
+    }
+    if let Some(n) = next {
+        ORDERS
+            .update(storage, n, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("next neighbor"))?;
+                x.prev = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    }
+    Ok(())
+}
+
+fn link_ask_order_at_id(
+    storage: &mut dyn Storage,
+    id: u64,
+    mut order: LimitOrder,
+    hint_after: Option<u64>,
+    max_adjust_steps: u32,
+) -> Result<(), ContractError> {
+    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
+    let mut steps: u32 = 0;
+    let head = HEAD_ASK.may_load(storage)?.flatten();
+    let (prev, next) = if head.is_none() {
+        (None, None)
+    } else {
+        find_insert_ask(
+            storage,
+            head,
+            hint_after,
+            order.price,
+            id,
+            max_steps,
+            &mut steps,
+        )?
+    };
+    order.prev = prev;
+    order.next = next;
+    ORDERS.save(storage, id, &order)?;
+
+    if let Some(p) = prev {
+        ORDERS
+            .update(storage, p, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("prev neighbor"))?;
+                x.next = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    } else {
+        HEAD_ASK.save(storage, &Some(id))?;
+    }
+    if let Some(n) = next {
+        ORDERS
+            .update(storage, n, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("next neighbor"))?;
+                x.prev = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    }
+    Ok(())
+}
+
+/// Re-sort an existing order at `new_price` without changing its id or escrow.
+pub fn relink_limit_order_price(
+    storage: &mut dyn Storage,
+    id: u64,
+    new_price: Decimal,
+    hint_after: Option<u64>,
+    max_adjust_steps: u32,
+) -> Result<(), ContractError> {
+    if new_price.is_zero() {
+        return Err(ContractError::InvalidHybridParams {
+            reason: "limit price must be positive".into(),
+        });
+    }
+    let mut order = detach_limit_order_from_book(storage, id)?;
+    order.price = new_price;
+    match order.side {
+        LimitOrderSide::Bid => {
+            link_bid_order_at_id(storage, id, order, hint_after, max_adjust_steps)
+        }
+        LimitOrderSide::Ask => {
+            link_ask_order_at_id(storage, id, order, hint_after, max_adjust_steps)
+        }
+    }
+}
+
 pub(crate) fn side_str(side: &LimitOrderSide) -> &'static str {
     match side {
         LimitOrderSide::Bid => "bid",
@@ -311,7 +494,8 @@ pub(crate) fn side_str(side: &LimitOrderSide) -> &'static str {
 /// `token0_amount` / `token1_amount` are raw amounts in the pair's token0 / token1 assets.
 /// For bids: taker pays `token0_amount` token0; `token1_amount` is token1 taken from bid escrow
 /// (`net_to_taker` + `commission_amount` to treasury).
-/// `commission_amount` is always in token1 for bids.
+/// `commission_amount` is the **taker** half of the pair fee for this fill (token1); the maker
+/// half was charged at order placement.
 #[allow(clippy::too_many_arguments)]
 fn limit_order_fill_event(
     pair_contract: &str,
@@ -351,6 +535,7 @@ pub fn match_bids(
     effective_fee_bps: u16,
 ) -> Result<BookMatchOutput, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
+    let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token0_left = token0_budget;
     let mut token1_out_total = Uint128::zero();
     let mut makers_used = 0u32;
@@ -440,7 +625,7 @@ pub fn match_bids(
         makers_used += 1;
 
         let commission = cost
-            .checked_mul(Uint128::new(effective_fee_bps as u128))?
+            .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = cost.checked_sub(commission)?;
 
@@ -526,6 +711,7 @@ pub fn match_asks(
     effective_fee_bps: u16,
 ) -> Result<BookMatchOutput, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
+    let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token1_left = token1_budget;
     let mut token0_out_total = Uint128::zero();
     let mut makers_used = 0u32;
@@ -614,7 +800,7 @@ pub fn match_asks(
 
         // Fee on token0 output to taker (same denomination as net and treasury).
         let commission = fill_t0
-            .checked_mul(Uint128::new(effective_fee_bps as u128))?
+            .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = fill_t0.checked_sub(commission)?;
 
@@ -694,6 +880,7 @@ pub fn simulate_match_bids(
     effective_fee_bps: u16,
 ) -> Result<(Uint128, Uint128, u32), ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
+    let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token0_left = token0_budget;
     let mut token1_out_total = Uint128::zero();
     let mut makers_used: u32 = 0;
@@ -767,7 +954,7 @@ pub fn simulate_match_bids(
         }
         makers_used += 1;
         let commission = cost
-            .checked_mul(Uint128::new(effective_fee_bps as u128))?
+            .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = cost.checked_sub(commission)?;
         order.remaining = order.remaining.checked_sub(cost)?;
@@ -792,6 +979,7 @@ pub fn simulate_match_asks(
     effective_fee_bps: u16,
 ) -> Result<(Uint128, Uint128, u32), ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
+    let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token1_left = token1_budget;
     let mut token0_out_total = Uint128::zero();
     let mut makers_used: u32 = 0;
@@ -864,7 +1052,7 @@ pub fn simulate_match_asks(
         }
         makers_used += 1;
         let commission = fill_t0
-            .checked_mul(Uint128::new(effective_fee_bps as u128))?
+            .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = fill_t0.checked_sub(commission)?;
         order.remaining = order.remaining.checked_sub(fill_t0)?;
