@@ -82,7 +82,7 @@
 |-------|--------|
 | **Severity** | medium |
 | **Components** | `assert_max_spread` in `execute_swap` |
-| **Evidence** | Pool leg uses spread check ([`contract.rs`](../../../smartcontracts/contracts/pair/src/contract.rs) ~835–842); book leg adds to `total_return` — users rely on `max_spread` relative to combined path per implementation (verify when changing). |
+| **Evidence** | [`assert_max_spread`](../../../smartcontracts/contracts/pair/src/contract.rs): **no** `belief_price` — numerator is `min(spread_amount, pool_gross)` from the **pool** leg only; denominator is `pool_gross + book_return_net` (hybrid total gross in ask units, with book leg **net** to taker). **With** `belief_price` — shortfall vs `offer_amount / belief_price` uses `book_return_net + pool_net + pool_commission`. See [ADR 0001](../../adr/0001-hybrid-quoting-and-routing.md) and [`docs/integrators.md`](../../integrators.md). |
 
 ---
 

@@ -16,7 +16,9 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
+use axum::body::Body;
 use axum::http::{header, HeaderValue, Method, StatusCode};
+use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 use sqlx::PgPool;
@@ -254,6 +256,30 @@ async fn health() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"status": "ok"}))
 }
 
+async fn prometheus_metrics() -> Response {
+    match crate::metrics::gather_text() {
+        Ok(body) => Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/plain; version=0.0.4")
+            .body(Body::from(body))
+            .unwrap_or_else(|e| {
+                tracing::error!("metrics response build: {}", e);
+                Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Body::empty())
+                    .unwrap()
+            }),
+        Err(e) => {
+            tracing::error!("Prometheus encode error: {}", e);
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .header(header::CONTENT_TYPE, "text/plain")
+                .body(Body::from("Internal metrics error"))
+                .unwrap()
+        }
+    }
+}
+
 pub fn build_router(state: AppState, config: &Config) -> Router {
     let mut origins = Vec::new();
     for o in &config.cors_origins {
@@ -271,7 +297,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
 
-    let router = Router::new()
+    let api_router = Router::new()
         .route("/health", get(health))
         .route("/api/v1/pairs", get(pairs::list_pairs))
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
@@ -338,7 +364,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/cmc/trades/{market_pair}", get(cmc::cmc_trades))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 
-    let router = if config.rate_limit_rps > 0 {
+    let api_router = if config.rate_limit_rps > 0 {
         let governor_conf = GovernorConfigBuilder::default()
             .per_second(config.rate_limit_rps)
             .burst_size(config.rate_limit_rps as u32 * 2)
@@ -355,9 +381,17 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             }
         });
 
-        router.layer(GovernorLayer::new(governor_conf))
+        api_router.layer(GovernorLayer::new(governor_conf))
     } else {
-        router
+        api_router
+    };
+
+    let router = if config.metrics_enabled {
+        Router::new()
+            .route("/metrics", get(prometheus_metrics))
+            .merge(api_router)
+    } else {
+        api_router
     };
 
     router

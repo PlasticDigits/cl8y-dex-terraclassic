@@ -2,6 +2,7 @@
 
 ## Architecture & Design
 - [Architecture Overview](./architecture.md) — system diagram, contract relationships, swap flow
+- [Integrators](./integrators.md) — hybrid hooks (L7), limit-book fees, slippage semantics
 - [Security Model](./security-model.md) — governance keys, treasury, hook safety
 - [Contracts Security Audit & Invariants](./contracts-security-audit.md) — invariant matrix, attack paths, test mapping
 - [Indexer Invariants & API Security](./indexer-invariants.md) — HTTP/indexing invariants, caps, caches, test mapping
@@ -18,6 +19,13 @@
 
 ## Deployment
 - [Deployment Guide](./deployment-guide.md) — mainnet and testnet deployment steps
+
+## Operations & runbooks
+- [Environment matrix](./environment-matrix.md) — local, testnet, mainnet chain IDs and indexer expectations
+- [Operator secrets](./operator-secrets.md) — DB, LCD, keys, `RUN_MODE`, optional Prometheus
+- [Runbook: indexer reorg, replay, dedup, backfill](./runbooks/indexer-reorg-replay-dedup.md)
+- [Runbook: Wasm admin migration](./runbooks/wasm-admin-migration.md)
+- [Incident template (DEX + indexer)](./templates/incident-dex-indexer.md)
 
 ## QA
 - [QA Onboarding](./qa-onboarding.md) — getting started with QA, test flows, device matrix

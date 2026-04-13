@@ -72,4 +72,7 @@ pub enum ContractError {
 
     #[error("Invalid hybrid parameters")]
     InvalidHybridParams { reason: String },
+
+    #[error("Limit order amount too small after maker fee")]
+    LimitOrderMakerFeeExceedsAmount {},
 }

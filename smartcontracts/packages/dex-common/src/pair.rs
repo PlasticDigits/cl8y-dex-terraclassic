@@ -134,6 +134,14 @@ pub enum ExecuteMsg {
     CancelLimitOrder {
         order_id: u64,
     },
+    /// Change the limit price of an existing order (same `order_id`, same
+    /// remaining size). Does not charge the maker placement fee again.
+    UpdateLimitOrderPrice {
+        order_id: u64,
+        price: Decimal,
+        hint_after_order_id: Option<u64>,
+        max_adjust_steps: u32,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.

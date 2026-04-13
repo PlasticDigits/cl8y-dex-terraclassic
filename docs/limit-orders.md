@@ -24,8 +24,10 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 ### Place / cancel limit
 
 - **`Cw20HookMsg::PlaceLimitOrder`:** `side`, `price`, `hint_after_order_id`, `max_adjust_steps`, optional **`expires_at`** (Unix seconds; `null` = no expiry). If set, it must be **strictly greater** than the block time at placement.
+- **Fees:** Total limit-book fee rate matches the pair’s **effective** swap commission (`fee_bps` after the optional fee-discount registry). The pair charges **half** to the maker at placement (from the escrowed CW20, sent to `treasury`; the resting order’s `remaining` is reduced) and **half** on each book fill (taker leg), same notional bases as before (bids: token1 `cost`; asks: token0 fill). See [`docs/integrators.md`](./integrators.md).
 - **`hint_after_order_id`:** reserved for future indexer-assisted insertion. The **current implementation ignores this field** and always walks from the book head (same as `find_insert_bid` / `find_insert_ask` in the pair crate). Clients may send `null`; wire compatibility is preserved.
 - **`ExecuteMsg::CancelLimitOrder`:** `order_id`. Only the stored **owner** may cancel.
+- **`ExecuteMsg::UpdateLimitOrderPrice`:** `order_id`, `price`, `hint_after_order_id`, `max_adjust_steps`. Owner-only; re-links the order in the FIFO book at a new price **without** charging the maker placement fee again (same `order_id` and `remaining`).
 
 ### Router
 
@@ -47,7 +49,7 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 
 ### Post-swap hooks and hybrid
 
-- For hybrid swaps, `AfterSwap.return_asset.amount` is the **total** output (book + pool legs). `commission_amount` and `spread_amount` in the hook payload reflect the **pool leg only**; book-side fees are sent to `treasury` inside the book match path. Hooks and indexers must not assume `commission_amount` is the full fee for the transaction. See invariant **L7** in [contracts-security-audit.md](./contracts-security-audit.md).
+- For hybrid swaps, `AfterSwap.return_asset.amount` is the **total** output (book + pool legs). `commission_amount` and `spread_amount` in the hook payload reflect the **pool leg only**; book-side fees go to `treasury` (maker half at placement + **taker** half per `limit_order_fill`, not the full pair fee in one event). Hooks and indexers must not assume `commission_amount` is the full fee for the transaction. See invariant **L7** in [contracts-security-audit.md](./contracts-security-audit.md) and [integrators.md](./integrators.md).
 
 ## Ordering (composite key, FIFO)
 
@@ -59,7 +61,7 @@ For each side, the book is a strict total order:
 
 ## Execution order in `execute_swap`
 
-When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker_fills` distinct makers), then routes the **pool leg** (including any book remainder rolled per contract logic). Hooks, spread checks, and fee discount (`trader`) follow the existing swap path. For a given `trader` and fee-discount registry state, **`effective_fee_bps`** applies consistently: **limit book maker fills** charge commission at that same effective rate (see `orderbook.rs` / swap `effective_fee_bps` attribute), aligned with the pool leg’s use of the discount.
+When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker_fills` distinct makers), then routes the **pool leg** (including any book remainder rolled per contract logic). Hooks, spread checks, and fee discount (`trader`) follow the existing swap path. The **pool** leg uses full **`effective_fee_bps`**; each **book fill** charges the **taker half** of `effective_fee_bps` on the fill notional (maker half was paid at order placement). The swap response still exposes a single `effective_fee_bps` attribute for the taker context.
 
 ## Indexer route solver
 
@@ -81,7 +83,9 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `action` = `place_limit_order` | Limit placed |
 | `limit_order_placed`, `order_id` | Same tx |
 | `side` (`bid` / `ask`), `price`, `owner` | Same tx (for indexers); omitted on older pair code |
+| `maker_fee_amount`, `effective_fee_bps` | Same tx (placement fee split vs fills) |
 | `expires_at` | Same tx when set |
+| `action` = `update_limit_order_price` | Owner changed limit price in place |
 | `action` = `cancel_limit_order` | Cancel |
 | `limit_order_cancelled`, `owner` | Same tx |
 | `action` = `swap` | Any swap |
@@ -89,7 +93,7 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `limit_book_offer_consumed` | When the book leg consumed offer token |
 | `action` = `limit_order_fill` | One **wasm event per maker fill** (not on the main swap attribute list) |
 | `order_id`, `side` (`bid` / `ask`), `maker`, `price` | Per fill |
-| `token0_amount`, `token1_amount`, `commission_amount` | Raw amounts in pair token0 / token1; fee denomination matches side (bid: token1 fee; ask: token0 fee) |
+| `token0_amount`, `token1_amount`, `commission_amount` | Raw amounts in pair token0 / token1; `commission_amount` is the **taker** half for that fill (bid: token1; ask: token0) |
 
 ### Wasm attribute coverage vs indexer nulls (operators)
 

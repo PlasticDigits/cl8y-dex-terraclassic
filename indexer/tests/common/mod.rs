@@ -23,6 +23,7 @@ fn init_tracing() {
 
 pub fn test_config() -> Config {
     Config {
+        run_mode: cl8y_dex_indexer::config::RunMode::Dev,
         database_url: env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
             "postgres://postgres:postgres@localhost:5432/dex_indexer_test".into()
         }),
@@ -43,6 +44,7 @@ pub fn test_config() -> Config {
         oracle_poll_interval_ms: 30000,
         ustc_denom: None,
         router_address: None,
+        metrics_enabled: false,
     }
 }
 

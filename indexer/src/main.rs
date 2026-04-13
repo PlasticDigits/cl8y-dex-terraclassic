@@ -3,6 +3,7 @@ mod config;
 mod db;
 mod indexer;
 mod lcd;
+mod metrics;
 
 use config::Config;
 use indexer::seed_qa::{self, SeedQaConfig};
@@ -25,8 +26,18 @@ async fn main() -> anyhow::Result<()> {
     run_server().await
 }
 
+fn load_config_or_exit() -> Config {
+    match Config::from_env() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Configuration error: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
 async fn run_seed_qa(args: &[String]) -> anyhow::Result<()> {
-    let config = Config::from_env();
+    let config = load_config_or_exit();
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
@@ -93,8 +104,8 @@ Options:
 }
 
 async fn run_server() -> anyhow::Result<()> {
-    let config = Config::from_env();
-    tracing::info!("Starting CL8Y DEX indexer");
+    let config = load_config_or_exit();
+    tracing::info!("Starting CL8Y DEX indexer (RUN_MODE={:?})", config.run_mode);
     tracing::info!("LCD endpoints: {:?}", config.lcd_urls);
     tracing::info!("Factory: {}", config.factory_address);
 

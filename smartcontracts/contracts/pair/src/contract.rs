@@ -35,6 +35,51 @@ const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// tokens to make subsequent depositors receive 0 LP shares.
 const MINIMUM_LIQUIDITY: u128 = 1_000;
 
+/// Fee discount for a wallet placing a limit order (`trader` == `sender` == order owner).
+fn effective_fee_bps_with_discount_msgs(
+    deps: Deps,
+    fee_bps: u16,
+    discount_registry: Option<Addr>,
+    owner: Addr,
+) -> Result<(u16, Vec<CosmosMsg>), ContractError> {
+    let trader = owner.to_string();
+    let sender = trader.clone();
+    let mut deregister_msgs: Vec<CosmosMsg> = vec![];
+    let effective_fee_bps = match discount_registry {
+        Some(ref registry) => {
+            let discount_result: StdResult<fee_discount::DiscountResponse> =
+                deps.querier.query_wasm_smart(
+                    registry.to_string(),
+                    &fee_discount::QueryMsg::GetDiscount {
+                        trader: trader.clone(),
+                        sender,
+                    },
+                );
+            match discount_result {
+                Ok(discount) => {
+                    if discount.needs_deregister {
+                        deregister_msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                            contract_addr: registry.to_string(),
+                            msg: to_json_binary(&fee_discount::ExecuteMsg::DeregisterWallet {
+                                wallet: trader,
+                                epoch: discount.registration_epoch,
+                            })?,
+                            funds: vec![],
+                        }));
+                    }
+                    let discounted = (fee_bps as u32)
+                        * (10000u32.saturating_sub(discount.discount_bps as u32))
+                        / 10000u32;
+                    discounted as u16
+                }
+                Err(_) => fee_bps,
+            }
+        }
+        None => fee_bps,
+    };
+    Ok((effective_fee_bps, deregister_msgs))
+}
+
 /// Integer square root via Newton's method. Returns floor(√n).
 ///
 /// Used to compute initial LP token supply as `sqrt(amount_a * amount_b)`,
@@ -475,6 +520,23 @@ pub fn execute(
         ExecuteMsg::CancelLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
             execute_cancel_limit_order(deps, env, info, order_id)
+        }
+        ExecuteMsg::UpdateLimitOrderPrice {
+            order_id,
+            price,
+            hint_after_order_id,
+            max_adjust_steps,
+        } => {
+            assert_not_paused(deps.storage)?;
+            execute_update_limit_order_price(
+                deps,
+                env,
+                info,
+                order_id,
+                price,
+                hint_after_order_id,
+                max_adjust_steps,
+            )
         }
     }
 }
@@ -965,12 +1027,45 @@ fn execute_place_limit_order(
         }
     }
     let pair_info = PAIR_INFO.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
+    let (effective_fee_bps, deregister_msgs) = effective_fee_bps_with_discount_msgs(
+        deps.as_ref(),
+        fee_config.fee_bps,
+        discount_registry,
+        owner.clone(),
+    )?;
+
+    let maker_bps = orderbook::maker_fee_bps(effective_fee_bps);
+    let maker_fee = amount
+        .checked_mul(Uint128::new(maker_bps as u128))?
+        .checked_div(Uint128::new(10000))?;
+    if maker_fee >= amount {
+        return Err(ContractError::LimitOrderMakerFeeExceedsAmount {});
+    }
+    let remaining_for_book = amount.checked_sub(maker_fee)?;
+
     let token_a = token_addr(&pair_info.asset_infos[0]);
     let token_b = token_addr(&pair_info.asset_infos[1]);
     let cw20_addr = info.sender.as_str();
 
     let side_label = crate::orderbook::side_str(&side);
     let owner_str = owner.to_string();
+
+    let mut resp = Response::new();
+    for m in deregister_msgs {
+        resp = resp.add_message(m);
+    }
+    if !maker_fee.is_zero() {
+        resp = resp.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: info.sender.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: fee_config.treasury.to_string(),
+                amount: maker_fee,
+            })?,
+            funds: vec![],
+        }));
+    }
 
     let id = match side {
         LimitOrderSide::Bid => {
@@ -980,7 +1075,7 @@ fn execute_place_limit_order(
             orderbook::insert_bid(
                 deps.storage,
                 price,
-                amount,
+                remaining_for_book,
                 owner,
                 hint_after_order_id,
                 max_adjust_steps,
@@ -994,7 +1089,7 @@ fn execute_place_limit_order(
             orderbook::insert_ask(
                 deps.storage,
                 price,
-                amount,
+                remaining_for_book,
                 owner,
                 hint_after_order_id,
                 max_adjust_steps,
@@ -1003,17 +1098,57 @@ fn execute_place_limit_order(
         }
     };
 
-    let mut resp = Response::new()
+    resp = resp
         .add_attribute("action", "place_limit_order")
         .add_attribute("limit_order_placed", id.to_string())
         .add_attribute("order_id", id.to_string())
         .add_attribute("side", side_label)
         .add_attribute("price", price.to_string())
-        .add_attribute("owner", owner_str.as_str());
+        .add_attribute("owner", owner_str.as_str())
+        .add_attribute("maker_fee_amount", maker_fee)
+        .add_attribute("effective_fee_bps", effective_fee_bps.to_string());
     if let Some(t) = expires_at {
         resp = resp.add_attribute("expires_at", t.to_string());
     }
     Ok(resp)
+}
+
+fn execute_update_limit_order_price(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    order_id: u64,
+    price: Decimal,
+    hint_after_order_id: Option<u64>,
+    max_adjust_steps: u32,
+) -> Result<Response, ContractError> {
+    if price.is_zero() {
+        return Err(ContractError::InvalidHybridParams {
+            reason: "limit price must be positive".into(),
+        });
+    }
+    let o = crate::state::ORDERS.load(deps.storage, order_id)?;
+    if o.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+    if let Some(t) = o.expires_at {
+        if env.block.time.seconds() >= t {
+            return Err(ContractError::InvalidHybridParams {
+                reason: "order expired".into(),
+            });
+        }
+    }
+    orderbook::relink_limit_order_price(
+        deps.storage,
+        order_id,
+        price,
+        hint_after_order_id,
+        max_adjust_steps,
+    )?;
+    Ok(Response::new()
+        .add_attribute("action", "update_limit_order_price")
+        .add_attribute("order_id", order_id.to_string())
+        .add_attribute("price", price.to_string()))
 }
 
 fn execute_cancel_limit_order(
@@ -2238,6 +2373,77 @@ mod max_spread_tests {
             Uint128::new(150),
             Uint128::new(10),
             Uint128::zero(),
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));
+    }
+
+    /// Hybrid no-belief: denominator includes `book_return_net`.
+    #[test]
+    fn max_spread_no_belief_denominator_includes_book_net() {
+        let book = Uint128::new(50);
+        let pool_gross = Uint128::new(100);
+        let spread = Uint128::new(5);
+        let denom = pool_gross.checked_add(book).unwrap();
+        let exact_max = Decimal::from_ratio(spread.min(pool_gross), denom);
+        assert_max_spread(
+            None,
+            Some(exact_max),
+            Uint128::new(1),
+            Uint128::new(90),
+            spread,
+            Uint128::new(10),
+            book,
+        )
+        .unwrap();
+        let tighter = Decimal::from_ratio(4u128, 150u128);
+        let err = assert_max_spread(
+            None,
+            Some(tighter),
+            Uint128::new(1),
+            Uint128::new(90),
+            spread,
+            Uint128::new(10),
+            book,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));
+    }
+
+    /// Belief path: `actual_return` includes pool commission.
+    #[test]
+    fn max_spread_belief_counts_pool_commission_in_actual_return() {
+        let offer = Uint128::new(100);
+        let belief_price = Decimal::from_ratio(Uint128::new(1), Uint128::new(2));
+        let expected_return = offer * (Decimal::one() / belief_price);
+        let book_net = Uint128::new(10);
+        let pool_net = Uint128::new(170);
+        let pool_commission = Uint128::new(20);
+        let actual_with_commission = book_net
+            .checked_add(pool_net)
+            .unwrap()
+            .checked_add(pool_commission)
+            .unwrap();
+        assert_eq!(actual_with_commission, expected_return);
+        let max_tight = Decimal::permille(4);
+        assert_max_spread(
+            Some(belief_price),
+            Some(max_tight),
+            offer,
+            pool_net,
+            Uint128::zero(),
+            pool_commission,
+            book_net,
+        )
+        .unwrap();
+        let err = assert_max_spread(
+            Some(belief_price),
+            Some(max_tight),
+            offer,
+            pool_net.checked_sub(Uint128::new(1)).unwrap(),
+            Uint128::zero(),
+            pool_commission,
+            book_net,
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));
