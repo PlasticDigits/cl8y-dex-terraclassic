@@ -113,6 +113,7 @@ export function TokenSelect({
                   <button
                     type="button"
                     role="option"
+                    data-testid={`token-option-${tokenId}`}
                     aria-selected={isSelected}
                     className={`token-select-option ${isSelected ? 'token-select-option-active' : ''}`}
                     onClick={() => {
