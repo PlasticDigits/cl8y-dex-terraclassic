@@ -165,6 +165,8 @@ pub async fn find_pair_by_ticker(
         pairs::get_pair_limit_cancellations,
         pairs::get_pair_limit_fills,
         pairs::get_pair_order_limit_fills,
+        pairs::get_pair_order_book_head,
+        pairs::get_pair_limit_book_shallow,
         pairs::get_pair_stats,
         hooks::get_hook_events,
         tokens::list_tokens,
@@ -205,6 +207,11 @@ pub async fn find_pair_by_ticker(
         pairs::LimitPlacementResponse,
         pairs::LimitCancellationResponse,
         pairs::LimitFillResponse,
+        pairs::OrderBookHeadQuery,
+        pairs::OrderBookHeadResponse,
+        pairs::LimitBookShallowQuery,
+        pairs::LimitBookShallowResponse,
+        pairs::ShallowLimitOrderItem,
         pairs::PairStatsResponse,
         hooks::HookEventsQuery,
         hooks::HookEventResponse,
@@ -289,6 +296,14 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/pairs/{addr}/limit-orders/{order_id}/fills",
             get(pairs::get_pair_order_limit_fills),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/order-book-head",
+            get(pairs::get_pair_order_book_head),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-book-shallow",
+            get(pairs::get_pair_limit_book_shallow),
         )
         .route("/api/v1/pairs/{addr}/stats", get(pairs::get_pair_stats))
         .route("/api/v1/tokens", get(tokens::list_tokens))

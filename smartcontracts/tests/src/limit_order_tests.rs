@@ -1,6 +1,6 @@
 //! Integration tests for FIFO limit orders and Pattern C hybrid swaps.
 
-use cosmwasm_std::{to_json_binary, Decimal, Uint128};
+use cosmwasm_std::{to_json_binary, Addr, Decimal, Uint128};
 use cw_multi_test::{App, Executor};
 
 use super::helpers::*;
@@ -8,8 +8,8 @@ use super::helpers::*;
 use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::pair::{
     Cw20HookMsg, ExecuteMsg, HybridReverseSimulationResponse, HybridSimulationResponse,
-    HybridSwapParams, LimitOrderResponse, LimitOrderSide, QueryMsg, ReverseSimulationResponse,
-    SimulationResponse,
+    HybridSwapParams, LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg,
+    ReverseSimulationResponse, SimulationResponse,
 };
 use dex_common::types::Asset;
 
@@ -340,6 +340,142 @@ fn hybrid_swap_emits_limit_order_fill_events() {
         .map(|a| a.value.as_str())
         .expect("side");
     assert_eq!(side, "bid");
+}
+
+/// GitLab #83 — hybrid book leg uses the taker’s discounted `effective_fee_bps` (same as pool path).
+#[test]
+fn hybrid_book_fill_uses_taker_discounted_effective_fee_bps() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = Addr::unchecked("taker_disc_book");
+
+    let cw20_code_id = app.store_code(cw20_mintable_contract());
+    let fd_code_id = app.store_code(fee_discount_contract());
+
+    let cl8y = create_cw20_token_with_decimals(
+        &mut app,
+        cw20_code_id,
+        &env.user,
+        "CL8Y",
+        "CL8Y",
+        18,
+        Uint128::new(1_000_000_000_000_000_000_000u128),
+    );
+
+    let fd = app
+        .instantiate_contract(
+            fd_code_id,
+            env.governance.clone(),
+            &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                governance: env.governance.to_string(),
+                cl8y_token: cl8y.to_string(),
+            },
+            &[],
+            "fd_disc_book",
+            None,
+        )
+        .unwrap();
+
+    app.execute_contract(
+        env.governance.clone(),
+        fd.clone(),
+        &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+            tier_id: 1,
+            min_cl8y_balance: Uint128::zero(),
+            discount_bps: 5000,
+            governance_only: false,
+        },
+        &[],
+    )
+    .unwrap();
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetDiscountRegistry {
+            pair: env.pair.to_string(),
+            registry: Some(fd.to_string()),
+        },
+        &[],
+    )
+    .unwrap();
+
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &cl8y,
+        &env.user,
+        &taker,
+        Uint128::new(1_000_000_000_000_000_000u128),
+    );
+    app.execute_contract(
+        taker.clone(),
+        fd,
+        &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+        &[],
+    )
+    .unwrap();
+
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(500_000),
+        Decimal::one(),
+    );
+
+    let base_fee_bps: u32 = 30;
+    let expected_effective = (base_fee_bps * (10000 - 5000u32) / 10000) as u16;
+
+    let swap_in = Uint128::new(100_000);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let eff = wasm_attr_last(&res.events, "effective_fee_bps")
+        .expect("effective_fee_bps")
+        .parse::<u16>()
+        .unwrap();
+    assert_eq!(eff, expected_effective);
 }
 
 #[test]
@@ -977,6 +1113,8 @@ fn hybrid_max_maker_zero_with_book_rejected() {
     );
 }
 
+/// GitLab #87 / invariant L6: pause blocks pool swap, new limit placement, and cancel; `IsPaused` query
+/// reflects paused state; after unpause, cancel refunds bid escrow.
 #[test]
 fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
     let mut app = App::default();
@@ -998,6 +1136,12 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
         Decimal::one(),
     );
 
+    let unpaused: PausedResponse = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::IsPaused {})
+        .unwrap();
+    assert!(!unpaused.paused);
+
     app.execute_contract(
         env.governance.clone(),
         env.factory.clone(),
@@ -1008,6 +1152,12 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
         &[],
     )
     .unwrap();
+
+    let paused: PausedResponse = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::IsPaused {})
+        .unwrap();
+    assert!(paused.paused);
 
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
@@ -1071,6 +1221,12 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
         &[],
     )
     .unwrap();
+
+    let unpaused_again: PausedResponse = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::IsPaused {})
+        .unwrap();
+    assert!(!unpaused_again.paused);
 
     let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
     app.execute_contract(

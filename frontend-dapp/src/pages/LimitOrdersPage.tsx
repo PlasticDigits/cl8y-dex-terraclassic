@@ -3,15 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { placeLimitOrder, cancelLimitOrder } from '@/services/terraclassic/pair'
+import { placeLimitOrder, cancelLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
-import { getPairLimitPlacements } from '@/services/indexer/client'
+import { getPairLimitBookShallow, getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
+import { DOCS_GITLAB_BASE } from '@/utils/constants'
 
 export default function LimitOrdersPage() {
   const address = useWalletStore((s) => s.address)
@@ -27,6 +28,7 @@ export default function LimitOrdersPage() {
   const [maxSteps, setMaxSteps] = useState(32)
   const [expiresUnix, setExpiresUnix] = useState('')
   const [cancelOrderId, setCancelOrderId] = useState('')
+  const [lastIndexedOrderId, setLastIndexedOrderId] = useState<number | null>(null)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -51,6 +53,29 @@ export default function LimitOrdersPage() {
     queryFn: () => getPairLimitPlacements(pairAddr, { limit: 100 }),
     enabled: pairAddr.startsWith('terra1'),
   })
+
+  const pausedQuery = useQuery({
+    queryKey: ['pairPaused', pairAddr],
+    queryFn: () => getPairPaused(pairAddr),
+    enabled: pairAddr.startsWith('terra1'),
+    staleTime: 15_000,
+  })
+
+  const bookBidQuery = useQuery({
+    queryKey: ['limitBookShallow', pairAddr, 'bid'],
+    queryFn: () => getPairLimitBookShallow(pairAddr, 'bid', 10),
+    enabled: pairAddr.startsWith('terra1'),
+    staleTime: 10_000,
+  })
+
+  const bookAskQuery = useQuery({
+    queryKey: ['limitBookShallow', pairAddr, 'ask'],
+    queryFn: () => getPairLimitBookShallow(pairAddr, 'ask', 10),
+    enabled: pairAddr.startsWith('terra1'),
+    staleTime: 10_000,
+  })
+
+  const isPaused = pausedQuery.data?.paused === true
 
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
@@ -78,11 +103,31 @@ export default function LimitOrdersPage() {
         expiresUnix.trim() ? Number(expiresUnix.trim()) : null
       )
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       sounds.playSuccess()
       setAmountHuman('')
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
+      queryClient.invalidateQueries({ queryKey: ['limitBookShallow', pairAddr] })
+      setLastIndexedOrderId(null)
+      const addr = pairAddr
+      const wallet = address
+      if (!addr.startsWith('terra1') || !wallet) return
+      for (let i = 0; i < 24; i++) {
+        await new Promise((r) => setTimeout(r, 500))
+        try {
+          const rows = await getPairLimitPlacements(addr, { limit: 100 })
+          const mine = rows.filter((r) => r.owner === wallet)
+          const maxId = mine.reduce((m, r) => Math.max(m, r.order_id), 0)
+          if (maxId > 0) {
+            setLastIndexedOrderId(maxId)
+            setCancelOrderId(String(maxId))
+            break
+          }
+        } catch {
+          /* indexer may be down in local dev */
+        }
+      }
     },
     onError: () => sounds.playError(),
   })
@@ -98,7 +143,9 @@ export default function LimitOrdersPage() {
     onSuccess: () => {
       sounds.playSuccess()
       setCancelOrderId('')
+      setLastIndexedOrderId(null)
       queryClient.invalidateQueries({ queryKey: ['limitCancellations'] })
+      queryClient.invalidateQueries({ queryKey: ['limitBookShallow', pairAddr] })
     },
     onError: () => sounds.playError(),
   })
@@ -111,6 +158,10 @@ export default function LimitOrdersPage() {
       if (b.startsWith('terra1')) void fetchCW20TokenInfo(b)
     })
   }, [pairs])
+
+  useEffect(() => {
+    setLastIndexedOrderId(null)
+  }, [pairAddr])
 
   return (
     <div className="max-w-[560px] mx-auto">
@@ -153,6 +204,82 @@ export default function LimitOrdersPage() {
               {selectedPair && (
                 <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
                   Token0: {shortenAddress(token0)} · Token1: {shortenAddress(token1)}
+                </div>
+              )}
+
+              {selectedPair && isPaused && (
+                <div className="alert-error text-sm space-y-2" role="status">
+                  <p>
+                    This pair is paused by governance. New limit orders and cancel are unavailable until the pair is
+                    unpaused (invariant L6 — resting escrow stays locked).
+                  </p>
+                  <p className="text-xs opacity-90">
+                    <a
+                      className="underline hover:opacity-80"
+                      href={`${DOCS_GITLAB_BASE}/contracts-security-audit.md`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Security audit (L6)
+                    </a>
+                    {' · '}
+                    <a
+                      className="underline hover:opacity-80"
+                      href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      limit-orders.md
+                    </a>
+                  </p>
+                </div>
+              )}
+
+              {selectedPair && (
+                <div className="card-neo !p-4 space-y-3">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide">On-chain book (indexer → LCD)</h2>
+                  {(bookBidQuery.isLoading || bookAskQuery.isLoading) && <Spinner />}
+                  {(bookBidQuery.isError || bookAskQuery.isError) && (
+                    <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
+                      Book preview unavailable (indexer or LCD).
+                    </p>
+                  )}
+                  {!bookBidQuery.isLoading && !bookBidQuery.isError && bookBidQuery.data && (
+                    <div>
+                      <div
+                        className="text-xs font-medium uppercase tracking-wide mb-1"
+                        style={{ color: 'var(--ink-dim)' }}
+                      >
+                        Bids (shallow)
+                      </div>
+                      <ul className="text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
+                        {bookBidQuery.data.orders.length === 0 && <li className="opacity-70">(empty)</li>}
+                        {bookBidQuery.data.orders.map((o) => (
+                          <li key={`bid-${o.order_id}`}>
+                            #{o.order_id} · {o.price} · rem {o.remaining}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {!bookAskQuery.isLoading && !bookAskQuery.isError && bookAskQuery.data && (
+                    <div>
+                      <div
+                        className="text-xs font-medium uppercase tracking-wide mb-1"
+                        style={{ color: 'var(--ink-dim)' }}
+                      >
+                        Asks (shallow)
+                      </div>
+                      <ul className="text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
+                        {bookAskQuery.data.orders.length === 0 && <li className="opacity-70">(empty)</li>}
+                        {bookAskQuery.data.orders.map((o) => (
+                          <li key={`ask-${o.order_id}`}>
+                            #{o.order_id} · {o.price} · rem {o.remaining}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -208,7 +335,7 @@ export default function LimitOrdersPage() {
                 <button
                   type="button"
                   className="btn-primary btn-cta w-full"
-                  disabled={!isWalletConnected || placeMutation.isPending || !selectedPair}
+                  disabled={!isWalletConnected || placeMutation.isPending || !selectedPair || isPaused}
                   onClick={() => {
                     if (!isWalletConnected) openWalletModal()
                     else placeMutation.mutate()
@@ -221,6 +348,11 @@ export default function LimitOrdersPage() {
                 )}
                 {placeMutation.isSuccess && (
                   <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
+                )}
+                {lastIndexedOrderId != null && (
+                  <p className="text-xs font-mono" data-testid="last-placed-order-id">
+                    Last indexed placement for your wallet: order #{lastIndexedOrderId}
+                  </p>
                 )}
               </div>
 
@@ -238,7 +370,7 @@ export default function LimitOrdersPage() {
                 <button
                   type="button"
                   className="btn-primary btn-cta w-full"
-                  disabled={!isWalletConnected || cancelMutation.isPending || !pairAddr}
+                  disabled={!isWalletConnected || cancelMutation.isPending || !pairAddr || isPaused}
                   onClick={() => {
                     if (!isWalletConnected) openWalletModal()
                     else cancelMutation.mutate()
