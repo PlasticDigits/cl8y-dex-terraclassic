@@ -5,14 +5,14 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 ## Architecture
 
 - **Indexer task:** LCD → parse txs → Postgres (swaps, candles, traders, positions, limit fills and lifecycle rows, liquidity events, hooks, oracle rows).
-- **API task:** Axum GET handlers → SQLx (parameterized) → JSON.
+- **API task:** Axum handlers (primarily `GET`) → SQLx (parameterized) → JSON; `POST /api/v1/route/solve` for hybrid-aware route merge and optional LCD simulation.
 - **Shared state:** `AppState` (pool, LCD client, USTC price cache, ticker map cache, orderbook cache, optional `router_address` for route simulation).
 
 ## API invariants
 
 | Invariant | Enforcement | Unhappy path | Tests |
 |-----------|-------------|--------------|-------|
-| Read-only surface | Only `GET` routes; CORS allows `GET` | `POST` etc. rejected by router | Implicit |
+| Read-only surface | `GET` on all routes except **`POST /api/v1/route/solve`** (JSON body, no writes to indexer DB); CORS allows `GET` and `POST` | Other `POST` → **405** | [`api_route_solve.rs`](../indexer/tests/api_route_solve.rs) |
 | No SQL injection on dynamic ordering | Leaderboard `sort` matched to fixed columns in Rust + API allowlist | Unknown `sort` → **400** | [`security.rs`](../indexer/tests/security.rs), [`api_traders.rs`](../indexer/tests/api_traders.rs) |
 | Candle `interval` allowlist | `VALID_INTERVALS` | Bad / injection-like string → **400** | `security.rs` |
 | Numeric query caps | `.min(200)`, `.min(500)`, `.min(1000)` on limits/depth | Oversized `limit`/`depth` clamped | `security.rs` (pairs candles/trades, oracle history, trader trades), [`api_cg.rs`](../indexer/tests/api_cg.rs), [`api_cmc.rs`](../indexer/tests/api_cmc.rs) |
@@ -28,7 +28,8 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | LCD amplification | Orderbook responses cached 30s per `(pair, depth)` | Repeated CG/CMC orderbook hits reuse cache | [`orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs), [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs) (wiremock LCD) |
 | Ticker resolution load | Full ticker→pair map cached 30s | Reduces DB scans on CG/CMC | [`api/mod.rs`](../indexer/src/api/mod.rs) |
 | Route discovery | `GET /api/v1/route/solve` — BFS over indexed pairs (max 4 hops); `token_in` / `token_out` must match `assets.contract_address` (native-only assets without a contract address are not routable) | Unknown token → **400**; no path → **404** | [`route_solver.rs`](../indexer/src/api/route_solver.rs), [`api_route_solve.rs`](../indexer/tests/api_route_solve.rs) |
-| Route simulation | Optional `estimated_amount_out` when `amount_in` is set **and** `ROUTER_ADDRESS` env is configured | LCD `simulate_swap_operations` on router; otherwise field omitted | Same; requires live LCD in production |
+| Route hybrid merge + simulation | `POST /api/v1/route/solve` with JSON `{ token_in, token_out, amount_in?, hybrid_by_hop? }`. When `hybrid_by_hop` is set, its length **must equal** the number of hops; each entry is `null` (pool-only hop) or a `HybridSwapParams`-shaped object (`pool_input`, `book_input`, `max_maker_fills`, `book_start_hint`). Response `router_operations` reflects merged `hybrid` fields. Optional `estimated_amount_out` uses LCD `simulate_swap_operations` on the router when `amount_in` and `ROUTER_ADDRESS` are set (router validates leg sums). | Bad hybrid length → **400**; router/LCD query error → **400** with generic message (no raw LCD stack) | `api_route_solve.rs` |
+| Route simulation (GET) | Optional `estimated_amount_out` when `amount_in` is set **and** `ROUTER_ADDRESS` env is configured | LCD `simulate_swap_operations` with pool-only ops | Same; requires live LCD in production |
 | Pair liquidity history | `GET /api/v1/pairs/{addr}/liquidity-events` — `limit`/`before` capped like trades | Unknown pair → **404** | [`api_pairs.rs`](../indexer/tests/api_pairs.rs) |
 | Limit placements / cancellations | `GET /api/v1/pairs/{addr}/limit-placements`, `.../limit-cancellations` | Unknown pair → **404** | Same |
 | Hooks OpenAPI | `GET /api/v1/hooks` documented under Swagger **Hooks** tag | Same error handling as other read routes | [`api_hooks.rs`](../indexer/tests/api_hooks.rs) |

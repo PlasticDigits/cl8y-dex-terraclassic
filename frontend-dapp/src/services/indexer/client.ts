@@ -13,6 +13,7 @@ import type {
   IndexerHookEvent,
   IndexerOraclePriceResponse,
   IndexerOracleHistoryResponse,
+  IndexerHybridHopInput,
   IndexerRouteSolveResponse,
   IndexerLimitFill,
   IndexerLiquidityEvent,
@@ -24,13 +25,16 @@ export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost
 const FETCH_TIMEOUT_MS = 15_000
 const MAX_RETRIES = 1
 
-async function fetchJson<T>(path: string): Promise<T> {
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   let lastError: Error | undefined
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
     try {
-      const resp = await fetch(`${INDEXER_URL}${path}`, { signal: controller.signal })
+      const resp = await fetch(`${INDEXER_URL}${path}`, {
+        ...init,
+        signal: controller.signal,
+      })
       if (!resp.ok) {
         throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
       }
@@ -52,6 +56,14 @@ async function fetchJson<T>(path: string): Promise<T> {
     }
   }
   throw lastError!
+}
+
+async function fetchJsonPost<T>(path: string, body: unknown): Promise<T> {
+  return fetchJson<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  })
 }
 
 export interface GetPairsParams {
@@ -277,4 +289,19 @@ export async function getRouteSolve(
   const sp = new URLSearchParams({ token_in: tokenIn.trim(), token_out: tokenOut.trim() })
   if (amountIn?.trim()) sp.set('amount_in', amountIn.trim())
   return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`)
+}
+
+/** `POST /api/v1/route/solve` — merges `hybrid_by_hop` into router ops and optionally returns `estimated_amount_out` from LCD simulation. */
+export async function postRouteSolve(
+  tokenIn: string,
+  tokenOut: string,
+  amountIn: string | undefined,
+  hybridByHop: (IndexerHybridHopInput | null)[]
+): Promise<IndexerRouteSolveResponse> {
+  return fetchJsonPost<IndexerRouteSolveResponse>('/api/v1/route/solve', {
+    token_in: tokenIn.trim(),
+    token_out: tokenOut.trim(),
+    amount_in: amountIn?.trim() || null,
+    hybrid_by_hop: hybridByHop,
+  })
 }

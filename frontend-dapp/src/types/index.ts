@@ -345,6 +345,14 @@ export interface IndexerOracleHistoryResponse {
   prices: IndexerOracleHistoryEntry[]
 }
 
+/** One hop for `POST /api/v1/route/solve` `hybrid_by_hop` (matches on-chain `HybridSwapParams`). */
+export interface IndexerHybridHopInput {
+  pool_input: string
+  book_input: string
+  max_maker_fills: number
+  book_start_hint?: number | null
+}
+
 /** `GET /api/v1/route/solve` — hops use CW20 addresses from indexer assets only */
 export interface IndexerRouteHop {
   pair: string

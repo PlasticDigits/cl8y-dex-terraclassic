@@ -17,8 +17,8 @@
 
 | Scenario | Current evidence | Missing coverage | Suggested test type | Issue | Priority |
 |----------|------------------|------------------|----------------------|-------|----------|
-| Hybrid swap consumes book + pool in one tx | `limit_order_tests` (contract) | Playwright path toggling book leg + asserting `limit_order_fill` / balances | E2E | DEX-P1-011 | P1 |
-| Multi-hop router with `hybrid` on middle hop | Router forwards hybrid per op | Integration test with 2 pairs, second hop hybrid | cw-multi-test | DEX-P1-008 | P1 |
+| Hybrid swap consumes book + pool in one tx | `hybrid_pool_and_book_legs_one_swap` in [`limit_order_tests.rs`](../../../smartcontracts/tests/src/limit_order_tests.rs) (L8 sim vs execute) | Playwright hybrid UI + tx when LocalTerra seeded | E2E | DEX-P1-011 | P1 |
+| Multi-hop router with `hybrid` on first hop | `router_two_hop_first_leg_hybrid_matches_simulate` in [`limit_order_tests.rs`](../../../smartcontracts/tests/src/limit_order_tests.rs) | Optional: second hop hybrid variant | cw-multi-test | DEX-P1-008 | P1 |
 | Router simulate vs execute (hybrid) | `router_simulate_swap_hybrid_field_ignored` (named in audit L8) | Assert documented in test name search | Unit/integration | covered — **document only** | P3 |
 | Quote = execution (pool-only) | Many swap tests | Regression when fee_bps changes | proptest exists | — | P3 |
 | Limit cancel while paused | Audit L6 | Explicit test in `limit_order_tests` | integration | verify exists — if missing add | P1 |
@@ -48,5 +48,5 @@ rg "hybrid" frontend-dapp/e2e -n
 |-------|----|-----|
 | `cargo llvm-cov` contracts | yes `.github/workflows/test.yml` | Does not run `build-optimized` |
 | Indexer tests | yes with Postgres | Integration parallelism note [`docs/testing.md`](../../testing.md) |
-| Playwright | yes | Does not assert hybrid book leg outcomes |
+| Playwright | yes | `hybrid-swap.spec.ts` asserts hybrid disclosure + doc link when LCD up |
 

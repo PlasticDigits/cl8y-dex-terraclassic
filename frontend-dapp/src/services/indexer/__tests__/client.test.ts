@@ -56,6 +56,40 @@ describe('indexer client fetchJson', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
+  it('POST /route/solve sends JSON body', async () => {
+    const body = {
+      token_in: 'terra1a',
+      token_out: 'terra1b',
+      amount_in: '100',
+      hybrid_by_hop: [{ pool_input: '60', book_input: '40', max_maker_fills: 8, book_start_hint: null }],
+    }
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          token_in: 'terra1a',
+          token_out: 'terra1b',
+          hops: [],
+          router_operations: [],
+          estimated_amount_out: '99',
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    const out = await client.postRouteSolve('terra1a', 'terra1b', '100', [
+      { pool_input: '60', book_input: '40', max_maker_fills: 8, book_start_hint: null },
+    ])
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/route/solve'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body),
+      })
+    )
+    expect(out.estimated_amount_out).toBe('99')
+  })
+
   it('builds limit-fills and lifecycle URLs with query params', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))

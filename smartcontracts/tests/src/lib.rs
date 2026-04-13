@@ -474,6 +474,102 @@ mod helpers {
         .unwrap();
     }
 
+    /// [`setup_full_env`] (A/B + router) plus a **B/C** pair with liquidity — for router A→B→C tests.
+    pub struct RouterAbcEnv {
+        pub env: TestEnv,
+        pub token_c: Addr,
+        #[allow(dead_code)]
+        pub pair_bc: Addr,
+    }
+
+    pub fn setup_router_abc_env(app: &mut App) -> RouterAbcEnv {
+        let env = setup_full_env(app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+        let token_c = create_cw20_token(
+            app,
+            cw20_code_id,
+            &env.user,
+            "Token C",
+            "TKNC",
+            Uint128::new(1_000_000_000_000),
+        );
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bc = extract_pair_address(&resp.events);
+        provide_liquidity(
+            app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+        app.execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: pair_bc.to_string(),
+                amount: Uint128::new(10_000_000),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            token_c.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: pair_bc.to_string(),
+                amount: Uint128::new(10_000_000),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            pair_bc.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(10_000_000),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_c),
+                        amount: Uint128::new(10_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap();
+        RouterAbcEnv {
+            env,
+            token_c,
+            pair_bc,
+        }
+    }
+
     pub fn transfer_tokens(app: &mut App, token: &Addr, from: &Addr, to: &Addr, amount: Uint128) {
         app.execute_contract(
             from.clone(),

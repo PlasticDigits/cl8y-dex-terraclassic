@@ -6,7 +6,7 @@ This document is the implementation reference for the hybrid AMM + FIFO limit bo
 
 CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorderbook) and [`GET /cmc/orderbook/:market_pair`](./CG_CMC_COMPLIANCE.md#get-cmcorderbookmarket_pair) return an **AMM-simulated** level-2 book (walking the bonding curve). That is **not** the FIFO limit book stored on pairs.
 
-**Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. The indexer does not currently expose these as HTTP proxy endpoints; [`GET /api/v1/route/solve`](./indexer-invariants.md) only discovers routes and returns pool-only `hybrid: null` operations (clients patch `hybrid` off-chain if needed).
+**Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. The indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (pool-only `hybrid: null` in `router_operations`) and optional **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001).
 
 ## Messages (CosmWasm)
 

@@ -1,8 +1,20 @@
 //! Minimal LCD HTTP stub for cosmwasm `pool` smart queries (orderbook simulation).
 
-use serde_json::json;
+use serde_json::{json, Value};
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+/// Smart-query stub: returns `{"data": ...}` for any wasm contract smart GET (router simulate, pool query, etc.).
+pub async fn start_smart_query_data_mock(data: Value) -> MockServer {
+    let server = MockServer::start().await;
+    let body = json!({ "data": data });
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(body))
+        .mount(&server)
+        .await;
+    server
+}
 
 /// Starts a mock server that answers any `GET .../cosmwasm/wasm/v1/contract/*/smart/*` with a valid [`PoolResponse`](cl8y_dex_indexer::lcd::PoolResponse)-shaped JSON.
 pub async fn start_pool_query_mock() -> MockServer {
