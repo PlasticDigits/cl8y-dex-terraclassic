@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
+import { clickDesktopMoreNavItem } from './helpers/desktop-more-nav'
 
 test.describe('Fee Tiers Page', () => {
   test('shows Fee Discount Tiers heading', async ({ page }) => {
@@ -86,7 +87,7 @@ test.describe('Fee Tiers Page', () => {
   test.describe('With wallet connected', () => {
     test('shows register buttons for tiers', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.getByRole('link', { name: 'Fee Tiers' }).click()
+      await clickDesktopMoreNavItem(page, 'Fee Tiers')
       await page.waitForURL('/tiers')
       await page.waitForLoadState('networkidle')
 

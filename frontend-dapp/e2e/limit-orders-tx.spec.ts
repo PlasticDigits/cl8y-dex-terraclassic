@@ -7,16 +7,27 @@ test.describe('Limit orders funded txs', () => {
     await connectWallet
     await page.goto('/limits')
     await page.waitForLoadState('networkidle')
-    await expect(page.locator('#limit-pair')).toBeVisible({ timeout: 60_000 })
+    const pairTrigger = page.locator('#limit-pair')
+    await expect(pairTrigger).toBeVisible({ timeout: 60_000 })
+    await expect(pairTrigger).toBeEnabled({ timeout: 60_000 })
 
-    await page.locator('#limit-pair').click()
-    const firstOpt = page.getByRole('option').first()
-    await expect(firstOpt).toBeVisible({ timeout: 15_000 })
-    await firstOpt.click()
+    await pairTrigger.click()
+    // pairInfosToMenuSelectOptions prepends { value: '', label: 'Select pair…' }; skip that row.
+    const firstRealPair = page.getByRole('option').filter({ hasText: /\// }).first()
+    await expect(firstRealPair).toBeVisible({ timeout: 15_000 })
+    await firstRealPair.click()
+    await expect(pairTrigger).toContainText(/\//, { timeout: 30_000 })
+
+    const paused = page.getByRole('status').filter({ hasText: /paused by governance/i })
+    if (await paused.isVisible().catch(() => false)) {
+      test.skip(true, 'First factory pair is paused; pick another pair manually for local limit-order txs.')
+    }
 
     const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
     await placeCard.getByPlaceholder('0.0').fill('1')
-    await placeCard.getByRole('button', { name: /^Place limit$/i }).click()
+    const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
+    await expect(placeBtn).toBeEnabled({ timeout: 60_000 })
+    await placeBtn.click()
 
     await expect(placeCard.locator('.alert-success')).toBeVisible({ timeout: 90_000 })
     await expect(placeCard.locator('.alert-success')).toContainText(/TX:/i)
@@ -26,14 +37,24 @@ test.describe('Limit orders funded txs', () => {
     await connectWallet
     await page.goto('/limits')
     await page.waitForLoadState('networkidle')
-    await expect(page.locator('#limit-pair')).toBeVisible({ timeout: 60_000 })
+    const pairTrigger2 = page.locator('#limit-pair')
+    await expect(pairTrigger2).toBeVisible({ timeout: 60_000 })
+    await expect(pairTrigger2).toBeEnabled({ timeout: 60_000 })
 
-    await page.locator('#limit-pair').click()
-    await page.getByRole('option').first().click()
+    await pairTrigger2.click()
+    await page.getByRole('option').filter({ hasText: /\// }).first().click()
+    await expect(pairTrigger2).toContainText(/\//, { timeout: 30_000 })
+
+    const paused2 = page.getByRole('status').filter({ hasText: /paused by governance/i })
+    if (await paused2.isVisible().catch(() => false)) {
+      test.skip(true, 'First factory pair is paused; pick another pair manually for local limit-order txs.')
+    }
 
     const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
     await placeCard.getByPlaceholder('0.0').fill('1')
-    await placeCard.getByRole('button', { name: /^Place limit$/i }).click()
+    const placeBtn2 = placeCard.getByRole('button', { name: /^Place limit$/i })
+    await expect(placeBtn2).toBeEnabled({ timeout: 60_000 })
+    await placeBtn2.click()
     await expect(placeCard.locator('.alert-success')).toBeVisible({ timeout: 90_000 })
 
     const idLocator = page.getByTestId('last-placed-order-id')

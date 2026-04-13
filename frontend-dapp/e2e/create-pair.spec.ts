@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
+import { clickDesktopMoreNavItem } from './helpers/desktop-more-nav'
 
 test.describe('Create Pair Page', () => {
   test('shows Create Trading Pair heading', async ({ page }) => {
@@ -52,7 +53,7 @@ test.describe('Create Pair Page', () => {
   test.describe('With wallet connected', () => {
     test('shows Create Pair button when connected', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.getByRole('link', { name: 'Create Pair' }).click()
+      await clickDesktopMoreNavItem(page, 'Create Pair')
       await page.waitForURL('/create')
 
       const createBtn = page.getByRole('button', { name: /Create Pair/i })
@@ -61,7 +62,7 @@ test.describe('Create Pair Page', () => {
 
     test('Create Pair button is disabled without both addresses', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.getByRole('link', { name: 'Create Pair' }).click()
+      await clickDesktopMoreNavItem(page, 'Create Pair')
       await page.waitForURL('/create')
 
       const createBtn = page.getByRole('button', { name: /Create Pair/i })
@@ -70,7 +71,7 @@ test.describe('Create Pair Page', () => {
 
     test('can fill both addresses and see enabled button', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.getByRole('link', { name: 'Create Pair' }).click()
+      await clickDesktopMoreNavItem(page, 'Create Pair')
       await page.waitForURL('/create')
 
       const tokenAInput = page.getByPlaceholder('terra1...').first()

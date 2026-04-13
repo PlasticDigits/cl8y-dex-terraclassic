@@ -36,7 +36,7 @@ sed 's/\r$//' "$SRC" | grep -v '^VITE_TERRA_RPC_URL=' \
   cat "$TMP"
   echo "VITE_TERRA_RPC_URL=http://localhost:${DEX_TERRA_RPC_PORT}"
   echo "VITE_TERRA_LCD_URL=http://localhost:${DEX_TERRA_LCD_PORT}"
-  echo "VITE_INDEXER_URL=http://localhost:${API_PORT}"
+  echo "VITE_INDEXER_URL=http://127.0.0.1:${API_PORT}"
 } >"$OUT"
 rm -f "$TMP"
 

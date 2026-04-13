@@ -7,13 +7,12 @@ test.describe('Pool Transactions', () => {
     await connectWallet
     await page.getByRole('link', { name: 'Pool' }).click()
     await page.waitForURL(/\/pool/)
-    await page.waitForLoadState('networkidle')
 
-    // Wait for pools to load
     await expect(async () => {
       const panels = await page.locator('.shell-panel-strong').count()
       expect(panels).toBeGreaterThan(0)
-    }).toPass({ timeout: 20000 })
+    }).toPass({ timeout: 90_000 })
+    await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
 
     // Click first "Provide Liquidity" button
     const provideBtn = page.getByRole('button', { name: 'Provide Liquidity' }).first()

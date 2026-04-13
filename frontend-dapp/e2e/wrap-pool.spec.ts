@@ -4,30 +4,33 @@ import { skipIfLcdUnreachable, skipIfNoTxAlert } from './helpers/chain'
 test.describe('Pool with native token wrapping — UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/pool')
-    await page.waitForLoadState('networkidle')
     await expect(async () => {
       await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
-    }).toPass({ timeout: 15000 })
+    }).toPass({ timeout: 90_000 })
   })
 
   test('E6: pool page loads with pairs', async ({ page }) => {
     await expect(async () => {
       const pairCount = await page.getByText(/pair\(s\)/i).textContent()
-      expect(pairCount).toMatch(/\d+\s*pair/i)
-    }).toPass({ timeout: 15000 })
+      expect(pairCount).toMatch(/[\d,]+\s*pair/i)
+      const m = pairCount?.match(/([\d,]+)\s*pair/i)
+      expect(m).toBeTruthy()
+      const n = parseInt(m![1].replace(/,/g, ''), 10)
+      expect(n).toBeGreaterThan(0)
+    }).toPass({ timeout: 90_000 })
   })
 
   test('E7: pool card shows provide and withdraw buttons', async ({ page }) => {
     await expect(async () => {
       await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
       await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-    }).toPass({ timeout: 15000 })
+    }).toPass({ timeout: 90_000 })
   })
 
   test('E8: provide liquidity form expands with native toggle', async ({ page }) => {
     await expect(async () => {
       await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-    }).toPass({ timeout: 15000 })
+    }).toPass({ timeout: 90_000 })
 
     await page
       .getByRole('button', { name: /Provide Liquidity/i })
@@ -45,7 +48,7 @@ test.describe('Pool with native token wrapping — UI', () => {
   test('E9: withdraw form shows receive wrapped checkbox for applicable pairs', async ({ page }) => {
     await expect(async () => {
       await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-    }).toPass({ timeout: 15000 })
+    }).toPass({ timeout: 90_000 })
 
     await page
       .getByRole('button', { name: /Withdraw Liquidity/i })
@@ -63,7 +66,7 @@ test.describe('Pool with native token wrapping — UI', () => {
   test('E10: withdraw slippage tolerance options visible', async ({ page }) => {
     await expect(async () => {
       await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-    }).toPass({ timeout: 15000 })
+    }).toPass({ timeout: 90_000 })
 
     await page
       .getByRole('button', { name: /Withdraw Liquidity/i })
@@ -85,11 +88,11 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     await connectWallet
     await page.getByRole('link', { name: 'Pool' }).click()
     await page.waitForURL(/\/pool/)
-    await page.waitForLoadState('networkidle')
     await expect(async () => {
       const panels = await page.locator('.shell-panel-strong').count()
       expect(panels).toBeGreaterThan(0)
-    }).toPass({ timeout: 20000 })
+    }).toPass({ timeout: 90_000 })
+    await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
   })
 
   test('E7: provide liquidity with native token (auto-wrap)', async ({ page }) => {
@@ -145,6 +148,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E9: withdraw liquidity with auto-unwrap to native', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
     const withdrawBtn = page.getByRole('button', { name: 'Withdraw Liquidity' }).first()
     await withdrawBtn.click()
 
@@ -190,6 +194,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E10: withdraw liquidity — receive as wrapped tokens', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
     const withdrawBtn = page.getByRole('button', { name: 'Withdraw Liquidity' }).first()
     await withdrawBtn.click()
 

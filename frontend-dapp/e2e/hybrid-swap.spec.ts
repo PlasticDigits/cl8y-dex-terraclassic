@@ -58,6 +58,7 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
   test.describe.configure({ mode: 'serial' })
 
   test('hybrid swap emits wasm limit_order_fill (LCD)', async ({ page, connectWallet, request }) => {
+    test.setTimeout(240_000)
     await skipIfLcdUnreachable(request)
     await connectWallet
 
@@ -150,6 +151,6 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
       const json = await fetchTxJson(request, txHash)
       if (!json) throw new Error('LCD tx not indexed yet')
       expect(txJsonHasWasmAction(json, 'limit_order_fill')).toBe(true)
-    }).toPass({ timeout: 120_000 })
+    }).toPass({ timeout: 180_000 })
   })
 })

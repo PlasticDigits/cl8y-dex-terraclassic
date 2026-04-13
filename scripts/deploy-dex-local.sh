@@ -749,7 +749,8 @@ VITE_NOWHITELIST_TOKEN_2=${NOWHITELIST_ADDRESSES[1]}
 VITE_UNPAIRED_TOKEN_ZINC=${UNPAIRED_ADDRESSES[0]}
 VITE_UNPAIRED_TOKEN_IRON=${UNPAIRED_ADDRESSES[1]}
 VITE_UNPAIRED_TOKEN_NEON=${UNPAIRED_ADDRESSES[2]}
-VITE_INDEXER_URL=http://localhost:${API_PORT:-3001}
+# Use 127.0.0.1 so the browser does not resolve "localhost" to ::1 while API_BIND is IPv4-only.
+VITE_INDEXER_URL=http://127.0.0.1:${API_PORT:-3001}
 ENVEOF
 echo "  Written to frontend-dapp/.env.local"
 
@@ -765,7 +766,8 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:4173,h
 API_PORT=${API_PORT:-3001}
 API_BIND=127.0.0.1
 POLL_INTERVAL_MS=2000
-RATE_LIMIT_RPS=100
+# 0 disables tower-governor locally so Playwright + React Query bursts do not 429 the UI.
+RATE_LIMIT_RPS=0
 ENVEOF
 echo "  Written to indexer/.env"
 
