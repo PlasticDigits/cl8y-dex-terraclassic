@@ -1,0 +1,42 @@
+# Release-grade CosmWasm artifacts using workspace-optimizer (same as `make build-optimized`).
+#
+# PR CI (`.github/workflows/test.yml`) still uses `cargo build --target wasm32-unknown-unknown` for speed;
+# that output is NOT a substitute for these artifacts for mainnet uploads.
+#
+# Manual smoke: Actions → "Contracts WASM (workspace-optimizer)" → Run workflow.
+name: Contracts WASM (workspace-optimizer)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "smartcontracts/**"
+      - ".github/workflows/contracts-wasm-optimizer.yml"
+  tags:
+    - "v*"
+
+jobs:
+  optimizer:
+    name: workspace-optimizer + checksums
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build optimized WASM (see smartcontracts/scripts/optimize.sh for image pin)
+        run: ./scripts/optimize.sh
+        working-directory: smartcontracts
+
+      - name: Emit SHA256 checksums
+        working-directory: smartcontracts
+        run: |
+          (cd artifacts && sha256sum cl8y_dex_*.wasm | tee ../wasm-checksums.txt)
+          echo "---"
+          cat wasm-checksums.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cl8y-dex-optimized-wasm
+          path: |
+            smartcontracts/artifacts/cl8y_dex_*.wasm
+            smartcontracts/wasm-checksums.txt

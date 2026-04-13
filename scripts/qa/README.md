@@ -4,7 +4,7 @@
 
 ### One-time
 
-- **Docker** with compose v2.
+- **Docker** with compose v2. LocalTerra / Postgres image **digests** are pinned in root `docker-compose.yml`; bump them after pulling a new tag (see [`docs/local-development.md`](../../docs/local-development.md) § Docker Setup).
 - **Rust + Cargo** on the PATH for `cargo run --release` in `indexer/` (or set **`INDEXER_QA_BIN`** to a prebuilt binary path in the environment before `make start-qa`).
 - Optional repo-root **`.env`**: set **`QA_SSH_HOST`** (hostname as seen from your laptop) so `make qa-tunnel-help` prints a useful `ssh` destination; **`QA_SSH_PORT`** if SSH is not 22.
 

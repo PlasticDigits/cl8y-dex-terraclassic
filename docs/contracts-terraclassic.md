@@ -224,7 +224,7 @@ The fee-discount contract manages tiered swap fee discounts for CL8Y token holde
 
 ### Discount Calculation
 
-The Pair applies the discount as: `effective_fee = fee_bps * (10000 - discount_bps) / 10000`. For example, a pair with 30 bps fee and a Tier 4 trader (5000 bps discount) yields an effective fee of 15 bps.
+The Pair applies the discount as: `effective_fee = fee_bps * (10000 - discount_bps) / 10000`. For example, a pair with 30 bps fee and a Tier 5 trader (5000 bps discount, 50% off the fee) yields an effective fee of 15 bps.
 
 ### Balance Verification
 

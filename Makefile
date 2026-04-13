@@ -82,6 +82,10 @@ help:
 #                            smartcontracts/artifacts/. Does NOT require wasm32-unknown-unknown on
 #                            the host — only Docker.
 #
+#   CI: PRs use plain cargo wasm in .github/workflows/test.yml (fast). Release-grade wasm is built
+#   in .github/workflows/contracts-wasm-optimizer.yml (same optimize.sh); do not upload PR wasm to
+#   mainnet as production artifacts.
+#
 #   make build-contracts / build-artifacts-cargo  →  plain cargo --release wasm. Useful for quick
 #                            local checks / unit tests; NOT a substitute for the optimizer. Do not
 #                            deploy these if you need parity with optimized artifacts.

@@ -10,6 +10,8 @@ The Factory contract has a single `governance` address that controls:
 
 **Key management:** the governance address should be a multisig or DAO-controlled address in production. Never use a single EOA for mainnet governance.
 
+Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md).
+
 ## Treasury Management
 
 All swap commissions are sent directly to the `treasury` address configured in the Factory. The Pair contract holds no fees — they are transferred atomically during each swap.

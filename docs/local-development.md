@@ -32,16 +32,25 @@ VITE_NETWORK=local npm run dev
 
 | Command               | Description                                    |
 |-----------------------|------------------------------------------------|
-| `make build`          | Build all contracts to WASM                    |
+| `make build-contracts` | Build all contracts to WASM (cargo, not optimizer) |
 | `make test`           | Run `cargo test` for all contracts             |
 | `make fmt`            | Run `cargo fmt` on all contracts               |
 | `make clippy`         | Run clippy with `-D warnings`                  |
-| `make optimize`       | Produce optimized WASM via cosmwasm/optimizer   |
+| `make build-optimized` | Produce optimized WASM via workspace-optimizer |
 | `make deploy-local`   | Deploy to LocalTerra                           |
 
 ## Docker Setup
 
 The `docker-compose.yml` at the repo root starts a LocalTerra node for development. Contract deployment scripts in `smartcontracts/scripts/` target this local node by default.
+
+Images use **immutable digests** (LocalTerra + Postgres) for reproducible QA. To bump LocalTerra after a new `:latest` publish:
+
+```bash
+docker pull ghcr.io/plasticdigits/localterra-cl8y:latest
+docker inspect ghcr.io/plasticdigits/localterra-cl8y:latest --format '{{index .RepoDigests 0}}'
+```
+
+Copy the `name@sha256:…` value into `docker-compose.yml` and update the adjacent YAML comment with the human-readable tag.
 
 ```bash
 # Start

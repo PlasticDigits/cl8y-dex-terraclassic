@@ -1,23 +1,23 @@
 # Deployment Guide
 
+See also: **[Pool-only v2 launch runbook](runbooks/launch-checklist.md)** — governance, treasury, hooks, trusted router, verification.
+
 ## Prerequisites
 
-- Rust stable with `wasm32-unknown-unknown` target
-- [cosmwasm/optimizer](https://github.com/CosmWasm/optimizer) Docker image (for production builds)
+- Rust stable with `wasm32-unknown-unknown` target (optional if you only use Docker for wasm)
+- Docker, for **workspace-optimizer** production builds ([`cosmwasm/workspace-optimizer`](https://github.com/CosmWasm/optimizer) — same image as `make build-optimized`)
 - `terrad` CLI or equivalent Terra Classic CLI
 - A funded wallet with sufficient LUNC for gas
 
 ## 1. Build Optimized WASM
 
+**Canonical production wasm** is produced by **CosmWasm workspace-optimizer** (same as `make build-optimized` / `smartcontracts/scripts/optimize.sh`). Artifacts land in `smartcontracts/artifacts/`.
+
 ```bash
-cd smartcontracts
-docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
-  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/optimizer:0.16.1
+make build-optimized
 ```
 
-Optimized artifacts are placed in `smartcontracts/artifacts/`.
+CI uses a **hybrid** policy: pull requests run fast `cargo build --target wasm32-unknown-unknown` in [`.github/workflows/test.yml`](../.github/workflows/test.yml) only. **Do not upload PR wasm to mainnet** — run the **[Contracts WASM (workspace-optimizer)](../.github/workflows/contracts-wasm-optimizer.yml)** workflow (`workflow_dispatch` or on `main` / version tags) and use its artifacts plus `wasm-checksums.txt` for release uploads.
 
 ## 2. Upload Code
 
@@ -69,44 +69,9 @@ terrad tx wasm instantiate <fee_discount_code_id> '{
 
 ### 5a. Add Default Tiers
 
-Set up the standard tier table:
+Use the **authoritative** tier ladder, `min_cl8y_balance` strings, `governance_only` flags, and copy-paste `terrad` examples in **[`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)**. Wire format must match `ExecuteMsg::AddTier` (`min_cl8y_balance`, not `min_tokens`).
 
-```bash
-# Tier 0 — market makers (governance-only, 100% discount)
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":0,"min_tokens":"0","discount_bps":10000}}' ...
-
-# Tier 1 — 1 CL8Y, 2.5% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":1,"min_tokens":"1000000000000000000","discount_bps":250}}' ...
-
-# Tier 2 — 5 CL8Y, 10% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":2,"min_tokens":"5000000000000000000","discount_bps":1000}}' ...
-
-# Tier 3 — 20 CL8Y, 20% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":3,"min_tokens":"20000000000000000000","discount_bps":2000}}' ...
-
-# Tier 4 — 75 CL8Y, 35% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":4,"min_tokens":"75000000000000000000","discount_bps":3500}}' ...
-
-# Tier 5 — 200 CL8Y, 50% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":5,"min_tokens":"200000000000000000000","discount_bps":5000}}' ...
-
-# Tier 6 — 500 CL8Y, 60% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":6,"min_tokens":"500000000000000000000","discount_bps":6000}}' ...
-
-# Tier 7 — 1500 CL8Y, 75% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":7,"min_tokens":"1500000000000000000000","discount_bps":7500}}' ...
-
-# Tier 8 — 3500 CL8Y, 85% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":8,"min_tokens":"3500000000000000000000","discount_bps":8500}}' ...
-
-# Tier 9 — 7500 CL8Y, 95% discount
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":9,"min_tokens":"7500000000000000000000","discount_bps":9500}}' ...
-
-# Tier 255 — blacklist (governance-only, 0% discount)
-terrad tx wasm execute <fee_discount_addr> '{"add_tier":{"tier_id":255,"min_tokens":"0","discount_bps":0}}' ...
-```
-
-> **Note:** CL8Y is a CW20 token with 18 decimals. `min_tokens` values are in the smallest unit (1 CL8Y = 10^18).
+After tiers exist, complete **§5b** (trusted router) before expecting router-originated `trader` discounts.
 
 ### 5b. Register Router as Trusted
 
@@ -164,6 +129,7 @@ Follow the same steps above, substituting:
 
 ## Post-Deployment Checklist
 
+- [ ] Run read-only pool checks: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) (`PAIR_ADDR`, optional `OFFER_TOKEN` / `TERRA_LCD_URL`)
 - [ ] Verify Factory config via `GetConfig` query
 - [ ] Create a test pair and verify it appears in `GetAllPairs`
 - [ ] Execute a test swap and confirm balances
