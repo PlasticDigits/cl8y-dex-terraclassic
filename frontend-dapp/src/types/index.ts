@@ -259,6 +259,32 @@ export interface IndexerLimitCancellation {
   owner?: string | null
 }
 
+/** `GET /api/v1/pairs/{addr}/order-book-head` (indexer → LCD proxy) */
+export interface IndexerOrderBookHeadResponse {
+  head_order_id: number | null
+}
+
+/** One resting level from `GET /api/v1/pairs/{addr}/limit-book-shallow` */
+export interface IndexerShallowLimitOrder {
+  order_id: number
+  owner: string
+  side: string
+  price: string
+  remaining: string
+  expires_at?: number | null
+}
+
+/** `GET /api/v1/pairs/{addr}/limit-book-shallow` */
+export interface IndexerLimitBookShallowResponse {
+  side: string
+  orders: IndexerShallowLimitOrder[]
+}
+
+/** Pair `is_paused` CosmWasm query */
+export interface PairPausedResponse {
+  paused: boolean
+}
+
 export interface IndexerPairStats {
   volume_base: string
   volume_quote: string

@@ -1661,6 +1661,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &query_oracle_info(deps)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
         ),
+        QueryMsg::IsPaused {} => to_json_binary(&query_is_paused(deps)?),
         QueryMsg::LimitOrder { order_id } => to_json_binary(&query_limit_order(deps, order_id)?),
         QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
         QueryMsg::HybridSimulation {
@@ -1671,6 +1672,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &query_hybrid_reverse_simulation(deps, &env, ask_asset, hybrid)?,
         ),
     }
+}
+
+fn query_is_paused(deps: Deps) -> StdResult<dex_common::pair::PausedResponse> {
+    let paused = PAUSED.may_load(deps.storage)?.unwrap_or(false);
+    Ok(dex_common::pair::PausedResponse { paused })
 }
 
 fn query_limit_order(deps: Deps, order_id: u64) -> StdResult<LimitOrderResponse> {

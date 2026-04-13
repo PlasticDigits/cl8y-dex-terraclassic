@@ -279,7 +279,6 @@ async fn trader_trades_limit_capped_at_200() {
     assert!(body.len() <= 200);
 }
 
-
 #[tokio::test]
 async fn limit_fills_limit_capped_at_200() {
     let pool = common::setup_pool().await;
