@@ -22,7 +22,9 @@ use dex_common::hook::{HookCallMsg, HookExecuteMsg};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
 };
-use dex_common::pair::{HybridSwapParams, LimitOrderSide};
+use dex_common::pair::{
+    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams, LimitOrderSide,
+};
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
@@ -574,13 +576,16 @@ fn assert_max_spread(
     return_amount: Uint128,
     spread_amount: Uint128,
     commission_amount: Uint128,
+    book_return_net: Uint128,
 ) -> Result<(), ContractError> {
     let default_spread = Decimal::percent(1);
     let max_allowed = max_spread.unwrap_or(default_spread);
 
     if let Some(bp) = belief_price {
         let expected_return = offer_amount * (Decimal::one() / bp);
-        let actual_return = return_amount + commission_amount;
+        let actual_return = book_return_net
+            .checked_add(return_amount)?
+            .checked_add(commission_amount)?;
         let spread = if expected_return > actual_return {
             expected_return - actual_return
         } else {
@@ -596,14 +601,15 @@ fn assert_max_spread(
             });
         }
     } else {
-        let total_return = return_amount + commission_amount;
-        let spread_cmp = spread_amount.min(total_return);
-        if total_return > Uint128::zero()
-            && Decimal::from_ratio(spread_cmp, total_return) > max_allowed
+        let pool_gross = return_amount.checked_add(commission_amount)?;
+        let total_gross_out = pool_gross.checked_add(book_return_net)?;
+        let spread_cmp = spread_amount.min(pool_gross);
+        if total_gross_out > Uint128::zero()
+            && Decimal::from_ratio(spread_cmp, total_gross_out) > max_allowed
         {
             return Err(ContractError::MaxSpreadAssertion {
                 max: max_allowed.to_string(),
-                actual: Decimal::from_ratio(spread_cmp, total_return).to_string(),
+                actual: Decimal::from_ratio(spread_cmp, total_gross_out).to_string(),
             });
         }
     }
@@ -832,15 +838,6 @@ fn execute_swap(
         )
         .map_err(ContractError::Std)?;
 
-        assert_max_spread(
-            belief_price,
-            max_spread,
-            pool_input_amount,
-            return_amount,
-            spread_amount,
-            commission_amount,
-        )?;
-
         let (new_reserve_a, new_reserve_b) = if offer_token_addr == token_a_addr {
             (
                 reserve_a.checked_add(pool_input_amount)?,
@@ -878,6 +875,16 @@ fn execute_swap(
     }
 
     let total_return = book_return_net.checked_add(return_amount)?;
+
+    assert_max_spread(
+        belief_price,
+        max_spread,
+        input_amount,
+        return_amount,
+        spread_amount,
+        commission_amount,
+        book_return_net,
+    )?;
 
     let hooks = HOOKS.load(deps.storage)?;
     let mut hook_messages: Vec<CosmosMsg> = vec![];
@@ -1656,6 +1663,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         ),
         QueryMsg::LimitOrder { order_id } => to_json_binary(&query_limit_order(deps, order_id)?),
         QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
+        QueryMsg::HybridSimulation {
+            offer_asset,
+            hybrid,
+        } => to_json_binary(&query_hybrid_simulation(deps, &env, offer_asset, hybrid)?),
+        QueryMsg::HybridReverseSimulation { ask_asset, hybrid } => to_json_binary(
+            &query_hybrid_reverse_simulation(deps, &env, ask_asset, hybrid)?,
+        ),
     }
 }
 
@@ -1693,6 +1707,247 @@ fn query_pool(deps: Deps) -> StdResult<PoolResponse> {
             },
         ],
         total_share,
+    })
+}
+
+fn scale_hybrid_template(
+    hybrid: &HybridSwapParams,
+    total: Uint128,
+) -> Result<HybridSwapParams, ContractError> {
+    let den = hybrid.pool_input.checked_add(hybrid.book_input)?;
+    if den.is_zero() {
+        return Err(ContractError::InvalidHybridParams {
+            reason: "hybrid template sum must be positive".into(),
+        });
+    }
+    let book = total.checked_mul(hybrid.book_input)?.checked_div(den)?;
+    let pool = total.checked_sub(book)?;
+    Ok(HybridSwapParams {
+        pool_input: pool,
+        book_input: book,
+        max_maker_fills: hybrid.max_maker_fills,
+        book_start_hint: hybrid.book_start_hint,
+    })
+}
+
+fn simulate_hybrid_swap(
+    deps: Deps,
+    env: &Env,
+    input_amount: Uint128,
+    hybrid: &HybridSwapParams,
+    offer_asset_info: &AssetInfo,
+) -> Result<HybridSimulationResponse, ContractError> {
+    if input_amount.is_zero() {
+        return Ok(HybridSimulationResponse {
+            return_amount: Uint128::zero(),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+            book_return_amount: Uint128::zero(),
+            pool_return_amount: Uint128::zero(),
+        });
+    }
+    if hybrid.pool_input.checked_add(hybrid.book_input)? != input_amount {
+        return Err(ContractError::HybridSplitMismatch {});
+    }
+    if hybrid.book_input > Uint128::zero() && hybrid.max_maker_fills == 0 {
+        return Err(ContractError::InvalidHybridParams {
+            reason: "max_maker_fills must be > 0 when book_input > 0".into(),
+        });
+    }
+    let pool_leg = hybrid.pool_input;
+    let book_leg = hybrid.book_input;
+    let max_makers = hybrid.max_maker_fills;
+    let book_hint = hybrid.book_start_hint;
+
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let effective_fee_bps = fee_config.fee_bps;
+
+    let (input_reserve, output_reserve, _ask_asset_info) =
+        if offer_asset_info.equal(&pair_info.asset_infos[0]) {
+            (reserve_a, reserve_b, pair_info.asset_infos[1].clone())
+        } else if offer_asset_info.equal(&pair_info.asset_infos[1]) {
+            (reserve_b, reserve_a, pair_info.asset_infos[0].clone())
+        } else {
+            return Err(ContractError::InvalidToken {});
+        };
+
+    let offer_token_addr = token_addr(offer_asset_info);
+    let token_a_addr = token_addr(&pair_info.asset_infos[0]);
+
+    let mut book_return_net = Uint128::zero();
+    let mut offer_consumed_by_book = Uint128::zero();
+
+    if book_leg > Uint128::zero() {
+        if offer_token_addr == token_a_addr {
+            let (t1_out, t0_used, _mk) = orderbook::simulate_match_bids(
+                deps.storage,
+                env.block.time.seconds(),
+                book_leg,
+                max_makers,
+                book_hint,
+                effective_fee_bps,
+            )?;
+            book_return_net = t1_out;
+            offer_consumed_by_book = t0_used;
+        } else {
+            let (t0_out, t1_used, _mk) = orderbook::simulate_match_asks(
+                deps.storage,
+                env.block.time.seconds(),
+                book_leg,
+                max_makers,
+                book_hint,
+                effective_fee_bps,
+            )?;
+            book_return_net = t0_out;
+            offer_consumed_by_book = t1_used;
+        }
+    }
+
+    let pool_input_amount = pool_leg.checked_add(book_leg.checked_sub(offer_consumed_by_book)?)?;
+
+    let mut return_amount = Uint128::zero();
+    let mut commission_amount = Uint128::zero();
+    let mut spread_amount = Uint128::zero();
+
+    if pool_input_amount > Uint128::zero() {
+        if input_reserve.is_zero() || output_reserve.is_zero() {
+            return Err(ContractError::InsufficientLiquidity {});
+        }
+        let k = input_reserve.checked_mul(output_reserve)?;
+        let new_input_reserve = input_reserve.checked_add(pool_input_amount)?;
+        let new_output_reserve = ceil_div(k, new_input_reserve);
+        let gross_output = output_reserve.checked_sub(new_output_reserve)?;
+
+        let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
+        commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
+        return_amount = gross_output.checked_sub(commission_amount)?;
+
+        spread_amount = spot_linear_spread_over_gross(
+            pool_input_amount,
+            input_reserve,
+            output_reserve,
+            gross_output,
+        )
+        .map_err(ContractError::Std)?;
+    }
+
+    let total_out = book_return_net.checked_add(return_amount)?;
+    Ok(HybridSimulationResponse {
+        return_amount: total_out,
+        spread_amount,
+        commission_amount,
+        book_return_amount: book_return_net,
+        pool_return_amount: return_amount,
+    })
+}
+
+fn query_hybrid_simulation(
+    deps: Deps,
+    env: &Env,
+    offer_asset: Asset,
+    hybrid: HybridSwapParams,
+) -> StdResult<HybridSimulationResponse> {
+    simulate_hybrid_swap(deps, env, offer_asset.amount, &hybrid, &offer_asset.info)
+        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
+}
+
+fn query_hybrid_reverse_simulation(
+    deps: Deps,
+    env: &Env,
+    ask_asset: Asset,
+    hybrid: HybridSwapParams,
+) -> StdResult<HybridReverseSimulationResponse> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let offer_info = if ask_asset.info.equal(&pair_info.asset_infos[0]) {
+        pair_info.asset_infos[1].clone()
+    } else if ask_asset.info.equal(&pair_info.asset_infos[1]) {
+        pair_info.asset_infos[0].clone()
+    } else {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "Invalid ask asset: does not match pair assets",
+        ));
+    };
+
+    let ask_target = ask_asset.amount;
+    if ask_target.is_zero() {
+        return Ok(HybridReverseSimulationResponse {
+            offer_amount: Uint128::zero(),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+            book_return_amount: Uint128::zero(),
+            pool_return_amount: Uint128::zero(),
+        });
+    }
+
+    let mut hi = Uint128::new(1u128);
+    for _ in 0..128 {
+        let sim = simulate_hybrid_swap(
+            deps,
+            env,
+            hi,
+            &scale_hybrid_template(&hybrid, hi)
+                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+            &offer_info,
+        )
+        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+        if sim.return_amount >= ask_target {
+            break;
+        }
+        hi = hi
+            .checked_mul(Uint128::new(2u128))
+            .map_err(|_| cosmwasm_std::StdError::generic_err("offer overflow"))?;
+    }
+
+    let check_hi = simulate_hybrid_swap(
+        deps,
+        env,
+        hi,
+        &scale_hybrid_template(&hybrid, hi)
+            .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+        &offer_info,
+    )
+    .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+    if check_hi.return_amount < ask_target {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "Insufficient liquidity for hybrid reverse simulation",
+        ));
+    }
+
+    let mut lo = Uint128::new(1u128);
+    let mut r_hi = hi;
+    while lo < r_hi {
+        let mid = lo.checked_add(r_hi)?.checked_div(Uint128::new(2u128))?;
+        if mid.is_zero() {
+            break;
+        }
+        let sim_mid = simulate_hybrid_swap(
+            deps,
+            env,
+            mid,
+            &scale_hybrid_template(&hybrid, mid)
+                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+            &offer_info,
+        )
+        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+        if sim_mid.return_amount >= ask_target {
+            r_hi = mid;
+        } else {
+            lo = mid.checked_add(Uint128::new(1u128))?;
+        }
+    }
+
+    let final_h = scale_hybrid_template(&hybrid, r_hi)
+        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+    let sim = simulate_hybrid_swap(deps, env, r_hi, &final_h, &offer_info)
+        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+    Ok(HybridReverseSimulationResponse {
+        offer_amount: r_hi,
+        spread_amount: sim.spread_amount,
+        commission_amount: sim.commission_amount,
+        book_return_amount: sim.book_return_amount,
+        pool_return_amount: sim.pool_return_amount,
     })
 }
 
@@ -1962,6 +2217,7 @@ mod max_spread_tests {
             Uint128::new(90),
             Uint128::new(150),
             Uint128::new(10),
+            Uint128::zero(),
         )
         .unwrap();
     }
@@ -1975,6 +2231,7 @@ mod max_spread_tests {
             Uint128::new(90),
             Uint128::new(150),
             Uint128::new(10),
+            Uint128::zero(),
         )
         .unwrap_err();
         assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));

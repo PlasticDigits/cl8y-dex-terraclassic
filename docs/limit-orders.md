@@ -25,7 +25,7 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 ### Router
 
 - Each `SwapOperation::TerraSwap` may include `hybrid: Option<HybridSwapParams>` (same fields as the pair hook). `None` is legacy pool-only.
-- **`SimulateSwapOperations` / `ReverseSimulateSwapOperations`:** the router **does not** apply `hybrid` when querying the pair — it only uses each hop’s pool `Simulation` / `ReverseSimulation`, which are **AMM-only** and do not include limit-book fills. Quotes can diverge from executed hybrid swaps whenever the on-chain book is non-empty. See [contracts-security-audit.md](./contracts-security-audit.md) invariant **L8**.
+- **`SimulateSwapOperations` / `ReverseSimulateSwapOperations`:** when `hybrid` is unset, the router uses each hop’s pool-only `Simulation` / `ReverseSimulation`. When `hybrid` is set, the router queries the pair’s **`HybridSimulation`** / **`HybridReverseSimulation`** (read-only book walk + pool leg), so quotes align with Pattern C for the same on-chain book snapshot. Legacy pool-only `Simulation` remains for integrators that do not pass `hybrid`. See [contracts-security-audit.md](./contracts-security-audit.md) invariant **L8**.
 
 ### Pair `Simulation` query
 

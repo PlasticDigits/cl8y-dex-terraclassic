@@ -423,13 +423,8 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
-/// Simulates multi-hop output using each pair’s **pool-only** `Simulation` query.
-///
-/// **Limit book:** `SwapOperation::TerraSwap.hybrid` is accepted on the wire but
-/// **ignored here** — the router does not model Pattern C / limit-book fills.
-/// Executed swaps that use `hybrid: Some(...)` can therefore produce different
-/// amounts than this simulation whenever the on-chain book is non-empty. See
-/// repository `docs/limit-orders.md` and `docs/contracts-security-audit.md` (L8).
+/// Simulates multi-hop output using pool-only `Simulation` or pair `HybridSimulation`.
+/// When `hybrid` is set, legs must sum to the per-hop offer amount.
 fn query_simulate_swap_operations(
     deps: Deps,
     offer_amount: Uint128,
@@ -462,7 +457,7 @@ fn query_simulate_swap_operations(
             SwapOperation::TerraSwap {
                 offer_asset_info,
                 ask_asset_info,
-                hybrid: _,
+                hybrid,
             } => {
                 let pair_response: dex_common::factory::PairResponse =
                     deps.querier.query_wasm_smart(
@@ -472,17 +467,38 @@ fn query_simulate_swap_operations(
                         },
                     )?;
 
-                let sim: pair::SimulationResponse = deps.querier.query_wasm_smart(
-                    pair_response.pair.contract_addr.to_string(),
-                    &pair::QueryMsg::Simulation {
-                        offer_asset: Asset {
-                            info: offer_asset_info.clone(),
-                            amount: current_amount,
-                        },
-                    },
-                )?;
-
-                current_amount = sim.return_amount;
+                current_amount = match hybrid {
+                    None => {
+                        let sim: pair::SimulationResponse = deps.querier.query_wasm_smart(
+                            pair_response.pair.contract_addr.to_string(),
+                            &pair::QueryMsg::Simulation {
+                                offer_asset: Asset {
+                                    info: offer_asset_info.clone(),
+                                    amount: current_amount,
+                                },
+                            },
+                        )?;
+                        sim.return_amount
+                    }
+                    Some(h) => {
+                        if h.pool_input.checked_add(h.book_input)? != current_amount {
+                            return Err(cosmwasm_std::StdError::generic_err(
+                                "hybrid pool_input + book_input must equal simulated offer amount for this hop",
+                            ));
+                        }
+                        let sim: pair::HybridSimulationResponse = deps.querier.query_wasm_smart(
+                            pair_response.pair.contract_addr.to_string(),
+                            &pair::QueryMsg::HybridSimulation {
+                                offer_asset: Asset {
+                                    info: offer_asset_info.clone(),
+                                    amount: current_amount,
+                                },
+                                hybrid: h.clone(),
+                            },
+                        )?;
+                        sim.return_amount
+                    }
+                };
             }
         }
     }
@@ -492,9 +508,7 @@ fn query_simulate_swap_operations(
     })
 }
 
-/// Reverse-simulates using each pair’s **pool-only** `ReverseSimulation` query.
-/// The `hybrid` field on `SwapOperation::TerraSwap` is **ignored** (same as
-/// `query_simulate_swap_operations`).
+/// Reverse-simulates using `ReverseSimulation` or pair `HybridReverseSimulation`.
 fn query_reverse_simulate_swap_operations(
     deps: Deps,
     ask_amount: Uint128,
@@ -527,7 +541,7 @@ fn query_reverse_simulate_swap_operations(
             SwapOperation::TerraSwap {
                 offer_asset_info,
                 ask_asset_info,
-                hybrid: _,
+                hybrid,
             } => {
                 let pair_response: dex_common::factory::PairResponse =
                     deps.querier.query_wasm_smart(
@@ -537,17 +551,34 @@ fn query_reverse_simulate_swap_operations(
                         },
                     )?;
 
-                let sim: pair::ReverseSimulationResponse = deps.querier.query_wasm_smart(
-                    pair_response.pair.contract_addr.to_string(),
-                    &pair::QueryMsg::ReverseSimulation {
-                        ask_asset: Asset {
-                            info: ask_asset_info.clone(),
-                            amount: current_amount,
-                        },
-                    },
-                )?;
-
-                current_amount = sim.offer_amount;
+                current_amount = match hybrid {
+                    None => {
+                        let sim: pair::ReverseSimulationResponse = deps.querier.query_wasm_smart(
+                            pair_response.pair.contract_addr.to_string(),
+                            &pair::QueryMsg::ReverseSimulation {
+                                ask_asset: Asset {
+                                    info: ask_asset_info.clone(),
+                                    amount: current_amount,
+                                },
+                            },
+                        )?;
+                        sim.offer_amount
+                    }
+                    Some(h) => {
+                        let sim: pair::HybridReverseSimulationResponse =
+                            deps.querier.query_wasm_smart(
+                                pair_response.pair.contract_addr.to_string(),
+                                &pair::QueryMsg::HybridReverseSimulation {
+                                    ask_asset: Asset {
+                                        info: ask_asset_info.clone(),
+                                        amount: current_amount,
+                                    },
+                                    hybrid: h.clone(),
+                                },
+                            )?;
+                        sim.offer_amount
+                    }
+                };
             }
         }
     }
