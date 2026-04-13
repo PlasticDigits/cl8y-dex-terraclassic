@@ -1189,12 +1189,13 @@ fn hybrid_pool_and_book_legs_one_swap() {
         Uint128::new(1_000_000),
     );
 
-    let _bid = place_bid(
+    let bid_escrow = Uint128::new(200_000);
+    let order_id = place_bid(
         &mut app,
         &env.pair,
         &env.user,
         &env.token_b,
-        Uint128::new(200_000),
+        bid_escrow,
         Decimal::one(),
     );
 
@@ -1208,18 +1209,64 @@ fn hybrid_pool_and_book_legs_one_swap() {
     );
 
     let total_in = Uint128::new(100_000);
-    swap_a_to_b_hybrid(
-        &mut app,
-        &env.pair,
-        &taker,
-        &env.token_a,
-        total_in,
-        Some(HybridSwapParams {
-            pool_input: Uint128::new(40_000),
-            book_input: Uint128::new(60_000),
-            max_maker_fills: 8,
-            book_start_hint: None,
-        }),
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::new(40_000),
+        book_input: Uint128::new(60_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: total_in,
+                },
+                hybrid: hybrid.clone(),
+            },
+        )
+        .unwrap();
+    assert!(
+        sim.book_return_amount > Uint128::zero(),
+        "L8: book leg should contribute when bid rests at price 1"
+    );
+
+    let taker_b_before = query_cw20_balance(&app, &env.token_b, &taker);
+    let res = {
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            to: None,
+            deadline: None,
+            hybrid: Some(hybrid),
+            trader: None,
+        })
+        .unwrap();
+        app.execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap()
+    };
+    assert!(
+        count_limit_order_fill_events(&res.events) >= 1,
+        "book leg should emit limit_order_fill"
+    );
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert!(lo.remaining < bid_escrow);
+    let taker_b_after = query_cw20_balance(&app, &env.token_b, &taker);
+    assert_eq!(
+        taker_b_after.checked_sub(taker_b_before).unwrap(),
+        sim.return_amount,
+        "L8: executed token B out should match HybridSimulation for same snapshot"
     );
 }
 
@@ -1432,6 +1479,92 @@ fn router_single_hop_forwards_hybrid_to_pair() {
         &[],
     )
     .unwrap();
+}
+
+#[test]
+fn router_two_hop_first_leg_hybrid_matches_simulate() {
+    let mut app = App::default();
+    let abc = setup_router_abc_env(&mut app);
+    let env = &abc.env;
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(500_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_2hop_hybrid");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let offer_a = Uint128::new(80_000);
+    let hop1_hybrid = HybridSwapParams {
+        pool_input: Uint128::new(20_000),
+        book_input: Uint128::new(60_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let operations = vec![
+        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_a),
+            ask_asset_info: asset_info_token(&env.token_b),
+            hybrid: Some(hop1_hybrid),
+        },
+        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_b),
+            ask_asset_info: asset_info_token(&abc.token_c),
+            hybrid: None,
+        },
+    ];
+
+    let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.router.to_string(),
+            &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                offer_amount: offer_a,
+                operations: operations.clone(),
+            },
+        )
+        .unwrap();
+
+    let c_before = query_cw20_balance(&app, &abc.token_c, &taker);
+    let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+        operations,
+        max_spread: Decimal::one(),
+        minimum_receive: None,
+        to: None,
+        deadline: None,
+        unwrap_output: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: offer_a,
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    assert!(count_limit_order_fill_events(&res.events) >= 1);
+    let c_after = query_cw20_balance(&app, &abc.token_c, &taker);
+    let got_c = c_after.checked_sub(c_before).unwrap();
+    assert_eq!(
+        got_c, sim.amount,
+        "L8: router multi-hop output should match SimulateSwapOperations (hybrid on first hop only)"
+    );
 }
 
 #[test]

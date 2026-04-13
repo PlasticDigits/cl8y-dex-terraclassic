@@ -32,7 +32,7 @@ import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
-import { getRouteSolve } from '@/services/indexer/client'
+import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 
 export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
@@ -226,6 +226,9 @@ export default function SwapPage() {
       JSON.stringify(route),
       wrapUnwrapType,
       JSON.stringify(nativeRouteInfo),
+      useHybridBook,
+      bookInputHuman,
+      hybridMaxMakers,
     ],
     queryFn: async () => {
       if (!inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
@@ -241,6 +244,36 @@ export default function SwapPage() {
 
       if (!route) throw new Error('No route found')
       if (isDirect && directPair) {
+        if (useHybridBook && fromToken.startsWith('terra1')) {
+          const payDec = getDecimals(tokenAssetInfo(fromToken))
+          const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
+          const total = BigInt(rawInputAmount)
+          const book = BigInt(bookRaw)
+          if (book > 0n) {
+            if (book > total) throw new Error('Book leg cannot exceed pay amount')
+            if (hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
+            const pool = total - book
+            try {
+              const idx = await postRouteSolve(fromToken, toToken, rawInputAmount, [
+                {
+                  pool_input: pool.toString(),
+                  book_input: book.toString(),
+                  max_maker_fills: hybridMaxMakers,
+                  book_start_hint: null,
+                },
+              ])
+              if (idx.estimated_amount_out?.trim()) {
+                return {
+                  return_amount: idx.estimated_amount_out,
+                  spread_amount: '0',
+                  commission_amount: '0',
+                }
+              }
+            } catch {
+              /* indexer optional; fall back to pool-only pair sim */
+            }
+          }
+        }
         const offerInfo = tokenAssetInfo(fromToken)
         return simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount)
       }
@@ -856,8 +889,17 @@ export default function SwapPage() {
           <div className="alert-error mb-3 text-xs" role="alert">
             <p className="font-semibold mb-1">Limit book leg</p>
             <p>
-              The estimate above is pool-only and may not reflect on-chain limit-book fills. Actual received amounts can
-              differ. See the repository file <span className="font-mono">docs/limit-orders.md</span> (hybrid / L8).
+              The on-screen estimate may still diverge from execution if the indexer or LCD snapshot differs from the
+              chain at submit time (hybrid / L8). Read{' '}
+              <a
+                href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/limit-orders.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-mono text-[10px]"
+              >
+                docs/limit-orders.md
+              </a>{' '}
+              for integrator semantics.
             </p>
           </div>
         )}

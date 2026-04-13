@@ -155,6 +155,7 @@ pub async fn find_pair_by_ticker(
     ),
     paths(
         route_solver::solve_route,
+        route_solver::solve_route_post,
         pairs::list_pairs,
         pairs::get_pair,
         pairs::get_pair_candles,
@@ -188,6 +189,8 @@ pub async fn find_pair_by_ticker(
     ),
     components(schemas(
         route_solver::SolveRouteParams,
+        route_solver::SolveRoutePostBody,
+        route_solver::HybridHopJson,
         route_solver::RouteHop,
         route_solver::RouteSolveResponse,
         pairs::PairResponse,
@@ -258,7 +261,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
 
     let cors = CorsLayer::new()
         .allow_origin(origins)
-        .allow_methods([Method::GET])
+        .allow_methods([Method::GET, Method::POST])
         .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
 
     let router = Router::new()
@@ -303,7 +306,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
-        .route("/api/v1/route/solve", get(route_solver::solve_route))
+        .route(
+            "/api/v1/route/solve",
+            get(route_solver::solve_route).post(route_solver::solve_route_post),
+        )
         .route("/api/v1/oracle/price", get(oracle::get_oracle_price))
         .route("/api/v1/oracle/history", get(oracle::get_oracle_history))
         .route("/cg/pairs", get(cg::cg_pairs))

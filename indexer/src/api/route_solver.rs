@@ -1,7 +1,8 @@
 //! Multihop route discovery and optional LCD simulation.
 //!
-//! Returns TerraSwap-style router operations with `hybrid: null` (100% pool). For Pattern C
-//! limit-order splits, supply `hybrid` per hop off-chain to match `max_maker_fills`.
+//! - `GET /api/v1/route/solve`: returns TerraSwap-style router operations with `hybrid: null` (pool-only).
+//! - `POST /api/v1/route/solve`: same discovery, optional `hybrid_by_hop` merged into ops for hybrid quotes
+//!   when `ROUTER_ADDRESS` and `amount_in` trigger LCD `simulate_swap_operations`.
 
 use std::collections::{HashMap, VecDeque};
 
@@ -11,6 +12,8 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
+
+use sqlx::PgPool;
 
 use crate::api::internal_err;
 use crate::api::AppState;
@@ -23,6 +26,34 @@ pub struct SolveRouteParams {
     pub token_out: String,
     /// Raw integer amount in offer token (optional; triggers router simulation when `ROUTER_ADDRESS` is set).
     pub amount_in: Option<String>,
+}
+
+/// Hybrid parameters for one hop (matches on-chain `HybridSwapParams`; amounts as decimal strings).
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct HybridHopJson {
+    pub pool_input: String,
+    pub book_input: String,
+    pub max_maker_fills: u32,
+    #[serde(default)]
+    pub book_start_hint: Option<u64>,
+}
+
+/// JSON body for [`solve_route_post`]. When `hybrid_by_hop` is omitted or `null`, all hops are pool-only (same as GET).
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct SolveRoutePostBody {
+    pub token_in: String,
+    pub token_out: String,
+    pub amount_in: Option<String>,
+    /// One entry per hop after BFS. `null` = pool-only for that hop. Length must match hop count when present.
+    #[serde(default)]
+    pub hybrid_by_hop: Option<Vec<Option<HybridHopJson>>>,
+}
+
+struct ResolvedRoute {
+    token_in: String,
+    token_out: String,
+    hops: Vec<RouteHop>,
+    ops: Vec<serde_json::Value>,
 }
 
 fn build_id_to_addr_map(all: &[assets::AssetRow]) -> (HashMap<i32, String>, HashMap<String, i32>) {
@@ -124,7 +155,7 @@ fn hop_count(prev: &HashMap<i32, (i32, String)>, start: i32, mut u: i32) -> usiz
     n
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ToSchema, Clone)]
 pub struct RouteHop {
     pub pair: String,
     pub offer_token: String,
@@ -136,58 +167,21 @@ pub struct RouteSolveResponse {
     pub token_in: String,
     pub token_out: String,
     pub hops: Vec<RouteHop>,
-    /// Router `ExecuteSwapOperations` operations (JSON); each op has `terra_swap.hybrid: null` for pool-only routing.
+    /// Router `ExecuteSwapOperations` operations (JSON). `terra_swap.hybrid` is `null` unless merged from POST `hybrid_by_hop`.
     #[schema(value_type = Vec<Object>)]
     pub router_operations: Vec<serde_json::Value>,
     /// From `SimulateSwapOperations` when `amount_in` and `ROUTER_ADDRESS` are set.
     pub estimated_amount_out: Option<String>,
 }
 
-/// Multihop route discovery (BFS, max 4 hops). Returns pool-only `router_operations` unless clients patch `hybrid` off-chain.
-#[utoipa::path(
-    get,
-    path = "/api/v1/route/solve",
-    params(SolveRouteParams),
-    responses(
-        (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
-        (status = 400, description = "token_in or token_out not found in indexer assets"),
-        (status = 404, description = "No route within 4 hops"),
-    ),
-    tag = "Routing"
-)]
-pub async fn solve_route(
-    State(state): State<AppState>,
-    Query(q): Query<SolveRouteParams>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let all_assets = assets::get_all_assets(&state.pool)
-        .await
-        .map_err(internal_err)?;
-    let pair_rows = db_pairs::get_all_pairs(&state.pool)
-        .await
-        .map_err(internal_err)?;
-
-    let (id_to_addr, addr_to_id) = build_id_to_addr_map(&all_assets);
-
-    let start = resolve_id(&addr_to_id, &q.token_in).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            "token_in not found in indexer assets".to_string(),
-        )
-    })?;
-    let goal = resolve_id(&addr_to_id, &q.token_out).ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            "token_out not found in indexer assets".to_string(),
-        )
-    })?;
-
-    let hops_raw = find_path(start, goal, &pair_rows, 4)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "no route within 4 hops".to_string()))?;
-
+fn build_hops_and_ops(
+    hops_raw: &[(String, i32, i32)],
+    id_to_addr: &HashMap<i32, String>,
+) -> Result<(Vec<RouteHop>, Vec<serde_json::Value>), (StatusCode, String)> {
     let mut hops: Vec<RouteHop> = Vec::new();
     let mut ops: Vec<serde_json::Value> = Vec::new();
 
-    for (pair_addr, from_id, to_id) in &hops_raw {
+    for (pair_addr, from_id, to_id) in hops_raw {
         let offer_addr = id_to_addr.get(from_id).ok_or_else(|| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -213,41 +207,186 @@ pub async fn solve_route(
             }
         }));
     }
+    Ok((hops, ops))
+}
 
-    let estimated = if let (Some(ref amt), Some(ref router)) = (&q.amount_in, &state.router_address)
-    {
-        if let Ok(n) = amt.parse::<u128>() {
-            let sim: Result<serde_json::Value, _> = state
-                .lcd
-                .query_contract(
-                    router,
-                    &json!({
-                        "simulate_swap_operations": {
-                            "offer_amount": n.to_string(),
-                            "operations": ops
-                        }
-                    }),
+fn apply_hybrid_by_hop(
+    mut ops: Vec<serde_json::Value>,
+    hybrid_by_hop: &[Option<HybridHopJson>],
+) -> Result<Vec<serde_json::Value>, (StatusCode, String)> {
+    if hybrid_by_hop.len() != ops.len() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "hybrid_by_hop length {} does not match hop count {}",
+                hybrid_by_hop.len(),
+                ops.len()
+            ),
+        ));
+    }
+    for (op, maybe_h) in ops.iter_mut().zip(hybrid_by_hop.iter()) {
+        let Some(h) = maybe_h else {
+            continue;
+        };
+        let terra = op
+            .get_mut("terra_swap")
+            .and_then(|v| v.as_object_mut())
+            .ok_or_else(|| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "invalid router operation shape".to_string(),
                 )
-                .await;
-            sim.ok().and_then(|v| {
-                v.get("amount")
-                    .and_then(|a| a.as_str())
-                    .map(|s| s.to_string())
-            })
-        } else {
-            None
-        }
-    } else {
-        None
+            })?;
+        terra.insert(
+            "hybrid".to_string(),
+            json!({
+                "pool_input": h.pool_input,
+                "book_input": h.book_input,
+                "max_maker_fills": h.max_maker_fills,
+                "book_start_hint": h.book_start_hint,
+            }),
+        );
+    }
+    Ok(ops)
+}
+
+async fn resolve_route(
+    pool: &PgPool,
+    token_in: &str,
+    token_out: &str,
+) -> Result<ResolvedRoute, (StatusCode, String)> {
+    let all_assets = assets::get_all_assets(pool).await.map_err(internal_err)?;
+    let pair_rows = db_pairs::get_all_pairs(pool).await.map_err(internal_err)?;
+
+    let (id_to_addr, addr_to_id) = build_id_to_addr_map(&all_assets);
+
+    let start = resolve_id(&addr_to_id, token_in).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            "token_in not found in indexer assets".to_string(),
+        )
+    })?;
+    let goal = resolve_id(&addr_to_id, token_out).ok_or_else(|| {
+        (
+            StatusCode::BAD_REQUEST,
+            "token_out not found in indexer assets".to_string(),
+        )
+    })?;
+
+    let hops_raw = find_path(start, goal, &pair_rows, 4)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "no route within 4 hops".to_string()))?;
+
+    let (hops, ops) = build_hops_and_ops(&hops_raw, &id_to_addr)?;
+
+    Ok(ResolvedRoute {
+        token_in: token_in.trim().to_string(),
+        token_out: token_out.trim().to_string(),
+        hops,
+        ops,
+    })
+}
+
+async fn maybe_simulate(
+    state: &AppState,
+    amount_in: Option<&str>,
+    ops: &[serde_json::Value],
+) -> Result<Option<String>, (StatusCode, String)> {
+    let (Some(amt), Some(router)) = (amount_in, state.router_address.as_ref()) else {
+        return Ok(None);
     };
+    let Ok(n) = amt.parse::<u128>() else {
+        return Ok(None);
+    };
+    let sim: Result<serde_json::Value, _> = state
+        .lcd
+        .query_contract(
+            router,
+            &json!({
+                "simulate_swap_operations": {
+                    "offer_amount": n.to_string(),
+                    "operations": ops
+                }
+            }),
+        )
+        .await;
+    match sim {
+        Ok(v) => Ok(v
+            .get("amount")
+            .and_then(|a| a.as_str())
+            .map(|s| s.to_string())),
+        Err(e) => {
+            let msg = e.to_string();
+            tracing::warn!("router simulate_swap_operations failed: {}", msg);
+            Err((
+                StatusCode::BAD_REQUEST,
+                "router simulation failed for the given route and hybrid parameters".to_string(),
+            ))
+        }
+    }
+}
+
+/// Multihop route discovery (BFS, max 4 hops). Returns pool-only `router_operations`.
+#[utoipa::path(
+    get,
+    path = "/api/v1/route/solve",
+    params(SolveRouteParams),
+    responses(
+        (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
+        (status = 400, description = "token_in or token_out not found in indexer assets"),
+        (status = 404, description = "No route within 4 hops"),
+    ),
+    tag = "Routing"
+)]
+pub async fn solve_route(
+    State(state): State<AppState>,
+    Query(q): Query<SolveRouteParams>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let resolved = resolve_route(&state.pool, &q.token_in, &q.token_out).await?;
+    let estimated = maybe_simulate(&state, q.amount_in.as_deref(), &resolved.ops).await?;
 
     let body = RouteSolveResponse {
-        token_in: q.token_in.trim().to_string(),
-        token_out: q.token_out.trim().to_string(),
-        hops,
-        router_operations: ops,
+        token_in: resolved.token_in,
+        token_out: resolved.token_out,
+        hops: resolved.hops,
+        router_operations: resolved.ops,
         estimated_amount_out: estimated,
     };
 
     Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
+}
+
+/// Same discovery as GET; optional `hybrid_by_hop` merges hybrid fields into `router_operations` before LCD simulation.
+#[utoipa::path(
+    post,
+    path = "/api/v1/route/solve",
+    request_body = SolveRoutePostBody,
+    responses(
+        (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
+        (status = 400, description = "Bad request (unknown token, hybrid length mismatch, or router simulation error)"),
+        (status = 404, description = "No route within 4 hops"),
+    ),
+    tag = "Routing"
+)]
+pub async fn solve_route_post(
+    State(state): State<AppState>,
+    Json(body): Json<SolveRoutePostBody>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let resolved = resolve_route(&state.pool, &body.token_in, &body.token_out).await?;
+    let ops = if let Some(ref hybrid) = body.hybrid_by_hop {
+        apply_hybrid_by_hop(resolved.ops, hybrid)?
+    } else {
+        resolved.ops
+    };
+
+    let estimated = maybe_simulate(&state, body.amount_in.as_deref(), &ops).await?;
+
+    let out = RouteSolveResponse {
+        token_in: resolved.token_in,
+        token_out: resolved.token_out,
+        hops: resolved.hops,
+        router_operations: ops,
+        estimated_amount_out: estimated,
+    };
+
+    Ok(Json(serde_json::to_value(out).map_err(internal_err)?))
 }
