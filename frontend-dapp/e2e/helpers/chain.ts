@@ -2,7 +2,8 @@ import { test, type APIRequestContext, type Page } from '@playwright/test'
 
 const DEFAULT_LCD = 'http://localhost:1317'
 
-function lcdBaseUrl(): string {
+/** LCD REST base URL (Playwright tests do not load Vite `.env`; set `E2E_LCD_URL` in CI if needed). */
+export function lcdBaseUrl(): string {
   const u = process.env.VITE_TERRA_LCD_URL || process.env.E2E_LCD_URL || DEFAULT_LCD
   return u.replace(/\/$/, '')
 }
