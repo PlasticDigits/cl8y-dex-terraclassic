@@ -684,6 +684,201 @@ pub fn match_asks(
     ))
 }
 
+/// Read-only bid match for hybrid quotes.
+pub fn simulate_match_bids(
+    storage: &dyn Storage,
+    now: u64,
+    token0_budget: Uint128,
+    max_maker_fills: u32,
+    book_start_hint: Option<u64>,
+    effective_fee_bps: u16,
+) -> Result<(Uint128, Uint128, u32), ContractError> {
+    let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
+    let mut token0_left = token0_budget;
+    let mut token1_out_total = Uint128::zero();
+    let mut makers_used: u32 = 0;
+    let mut cur = if let Some(h) = book_start_hint {
+        if ORDERS.may_load(storage, h)?.is_some() {
+            Some(h)
+        } else {
+            HEAD_BID.may_load(storage)?.flatten()
+        }
+    } else {
+        HEAD_BID.may_load(storage)?.flatten()
+    };
+    while makers_used < cap {
+        let oid = match cur {
+            Some(id) => id,
+            None => break,
+        };
+        let order = ORDERS.load(storage, oid)?;
+        let next_ptr = order.next;
+        if order.expires_at.is_some_and(|e| now >= e) {
+            cur = next_ptr;
+            continue;
+        }
+        if order.remaining.is_zero() {
+            cur = next_ptr;
+            continue;
+        }
+        if token0_left.is_zero() {
+            break;
+        }
+        let mut order = order;
+        if order.price.is_zero() {
+            return Err(ContractError::InvariantViolation {
+                reason: "zero bid price".into(),
+            });
+        }
+        let inv = Decimal::one().checked_div(order.price).map_err(|_| {
+            ContractError::InvariantViolation {
+                reason: "bid price div".into(),
+            }
+        })?;
+        let max_fill_from_bid = order.remaining.checked_mul_floor(inv).map_err(|_| {
+            ContractError::InvariantViolation {
+                reason: "bid max fill".into(),
+            }
+        })?;
+        let mut fill = token0_left.min(max_fill_from_bid);
+        if fill.is_zero() {
+            cur = order.next;
+            continue;
+        }
+        let mut cost =
+            fill.checked_mul_floor(order.price)
+                .map_err(|_| ContractError::InvariantViolation {
+                    reason: "cost mul_floor".into(),
+                })?;
+        while fill > Uint128::zero() && cost > order.remaining {
+            fill = fill.saturating_sub(Uint128::one());
+            if fill.is_zero() {
+                break;
+            }
+            cost = fill.checked_mul_floor(order.price).map_err(|_| {
+                ContractError::InvariantViolation {
+                    reason: "cost mul_floor adjust".into(),
+                }
+            })?;
+        }
+        if fill.is_zero() {
+            cur = order.next;
+            continue;
+        }
+        makers_used += 1;
+        let commission = cost
+            .checked_mul(Uint128::new(effective_fee_bps as u128))?
+            .checked_div(Uint128::new(10000))?;
+        let net_to_taker = cost.checked_sub(commission)?;
+        order.remaining = order.remaining.checked_sub(cost)?;
+        token0_left = token0_left.checked_sub(fill)?;
+        token1_out_total = token1_out_total.checked_add(net_to_taker)?;
+        cur = order.next;
+    }
+    Ok((
+        token1_out_total,
+        token0_budget.checked_sub(token0_left)?,
+        makers_used,
+    ))
+}
+
+/// Read-only ask match for hybrid quotes.
+pub fn simulate_match_asks(
+    storage: &dyn Storage,
+    now: u64,
+    token1_budget: Uint128,
+    max_maker_fills: u32,
+    book_start_hint: Option<u64>,
+    effective_fee_bps: u16,
+) -> Result<(Uint128, Uint128, u32), ContractError> {
+    let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
+    let mut token1_left = token1_budget;
+    let mut token0_out_total = Uint128::zero();
+    let mut makers_used: u32 = 0;
+    let mut cur = if let Some(h) = book_start_hint {
+        if ORDERS.may_load(storage, h)?.is_some() {
+            Some(h)
+        } else {
+            HEAD_ASK.may_load(storage)?.flatten()
+        }
+    } else {
+        HEAD_ASK.may_load(storage)?.flatten()
+    };
+    while makers_used < cap {
+        let oid = match cur {
+            Some(id) => id,
+            None => break,
+        };
+        let order = ORDERS.load(storage, oid)?;
+        let next_ptr = order.next;
+        if order.expires_at.is_some_and(|e| now >= e) {
+            cur = next_ptr;
+            continue;
+        }
+        if order.remaining.is_zero() {
+            cur = next_ptr;
+            continue;
+        }
+        if token1_left.is_zero() {
+            break;
+        }
+        let mut order = order;
+        let max_fill_token0_from_ask = order.remaining;
+        let max_fill_token0_from_budget = if !order.price.is_zero() {
+            token1_left
+                .checked_mul_floor(Decimal::one().checked_div(order.price).map_err(|_| {
+                    ContractError::InvariantViolation {
+                        reason: "ask price div".into(),
+                    }
+                })?)
+                .map_err(|_| ContractError::InvariantViolation {
+                    reason: "ask mul_floor".into(),
+                })?
+        } else {
+            Uint128::zero()
+        };
+        let mut fill_t0 = max_fill_token0_from_ask.min(max_fill_token0_from_budget);
+        if fill_t0.is_zero() {
+            cur = order.next;
+            continue;
+        }
+        let mut cost = fill_t0.checked_mul_floor(order.price).map_err(|_| {
+            ContractError::InvariantViolation {
+                reason: "ask cost".into(),
+            }
+        })?;
+        while fill_t0 > Uint128::zero() && cost > token1_left {
+            fill_t0 = fill_t0.saturating_sub(Uint128::one());
+            if fill_t0.is_zero() {
+                break;
+            }
+            cost = fill_t0.checked_mul_floor(order.price).map_err(|_| {
+                ContractError::InvariantViolation {
+                    reason: "ask cost adjust".into(),
+                }
+            })?;
+        }
+        if fill_t0.is_zero() {
+            cur = order.next;
+            continue;
+        }
+        makers_used += 1;
+        let commission = fill_t0
+            .checked_mul(Uint128::new(effective_fee_bps as u128))?
+            .checked_div(Uint128::new(10000))?;
+        let net_to_taker = fill_t0.checked_sub(commission)?;
+        order.remaining = order.remaining.checked_sub(fill_t0)?;
+        token1_left = token1_left.checked_sub(cost)?;
+        token0_out_total = token0_out_total.checked_add(net_to_taker)?;
+        cur = order.next;
+    }
+    Ok((
+        token0_out_total,
+        token1_budget.checked_sub(token1_left)?,
+        makers_used,
+    ))
+}
+
 pub fn load_order_response(storage: &dyn Storage, id: u64) -> StdResult<LimitOrderResponse> {
     let o = ORDERS.load(storage, id)?;
     Ok(LimitOrderResponse {

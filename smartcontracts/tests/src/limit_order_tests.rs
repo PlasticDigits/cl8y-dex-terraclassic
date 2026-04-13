@@ -7,7 +7,8 @@ use super::helpers::*;
 
 use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::pair::{
-    Cw20HookMsg, ExecuteMsg, HybridSwapParams, LimitOrderResponse, LimitOrderSide, QueryMsg,
+    Cw20HookMsg, ExecuteMsg, HybridReverseSimulationResponse, HybridSimulationResponse,
+    HybridSwapParams, LimitOrderResponse, LimitOrderSide, QueryMsg, ReverseSimulationResponse,
     SimulationResponse,
 };
 use dex_common::types::Asset;
@@ -1323,7 +1324,7 @@ fn place_limit_insert_steps_exceeded() {
 }
 
 #[test]
-fn router_simulate_swap_hybrid_field_ignored() {
+fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     provide_liquidity(
@@ -1431,4 +1432,110 @@ fn router_single_hop_forwards_hybrid_to_pair() {
         &[],
     )
     .unwrap();
+}
+
+#[test]
+fn hybrid_reverse_pool_only_matches_reverse_simulation() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let ask_amt = Uint128::new(50_000);
+    let rev: ReverseSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::ReverseSimulation {
+                ask_asset: Asset {
+                    info: asset_info_token(&env.token_b),
+                    amount: ask_amt,
+                },
+            },
+        )
+        .unwrap();
+
+    let hrev: HybridReverseSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridReverseSimulation {
+                ask_asset: Asset {
+                    info: asset_info_token(&env.token_b),
+                    amount: ask_amt,
+                },
+                hybrid: HybridSwapParams {
+                    pool_input: Uint128::new(1u128),
+                    book_input: Uint128::zero(),
+                    max_maker_fills: 8,
+                    book_start_hint: None,
+                },
+            },
+        )
+        .unwrap();
+
+    let diff = if hrev.offer_amount > rev.offer_amount {
+        hrev.offer_amount - rev.offer_amount
+    } else {
+        rev.offer_amount - hrev.offer_amount
+    };
+    assert!(
+        diff <= Uint128::one(),
+        "hybrid reverse offer should match pool reverse within 1 unit; rev={} hrev={}",
+        rev.offer_amount,
+        hrev.offer_amount
+    );
+}
+
+#[test]
+fn hybrid_forward_sim_matches_execute_when_book_empty() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let offer = Uint128::new(100_000);
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::zero(),
+        book_input: offer,
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let h: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: offer,
+                },
+                hybrid: hybrid.clone(),
+            },
+        )
+        .unwrap();
+    let p: SimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::Simulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: offer,
+                },
+            },
+        )
+        .unwrap();
+    assert_eq!(h.return_amount, p.return_amount);
+    assert_eq!(h.book_return_amount, Uint128::zero());
 }

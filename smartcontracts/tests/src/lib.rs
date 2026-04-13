@@ -8,6 +8,9 @@ mod mock_failing_hook;
 mod limit_order_tests;
 
 #[cfg(test)]
+mod tier_fixtures;
+
+#[cfg(test)]
 mod helpers {
     use cosmwasm_std::{Addr, Empty, Uint128};
     use cw20::{BalanceResponse, Cw20QueryMsg};
@@ -1390,16 +1393,9 @@ mod fee_discount_tests {
             )
             .unwrap();
 
-        // Add tiers
-        for (tier_id, min_cl8y, discount_bps, governance_only) in [
-            (0u8, 0u128, 10000u16, true),
-            (1, ONE_CL8Y, 1000, false),
-            (2, 50 * ONE_CL8Y, 2500, false),
-            (3, 200 * ONE_CL8Y, 3500, false),
-            (4, 1000 * ONE_CL8Y, 5000, false),
-            (5, 15000 * ONE_CL8Y, 8000, false),
-            (255, 0, 0, true),
-        ] {
+        for &(tier_id, min_cl8y, discount_bps, governance_only) in
+            super::tier_fixtures::STANDARD_PRODUCTION_TIERS
+        {
             app.execute_contract(
                 base.governance.clone(),
                 fee_discount.clone(),
@@ -1458,7 +1454,7 @@ mod fee_discount_tests {
             Uint128::new(1_000_000),
         );
 
-        // Register for tier 1 (1 CL8Y, 10% discount)
+        // Register for tier 1 (1 CL8Y, 2.5% discount)
         app.execute_contract(
             env.user.clone(),
             denv.fee_discount.clone(),
@@ -1500,9 +1496,9 @@ mod fee_discount_tests {
         let fee = treasury_b_after - treasury_b_before;
 
         // gross_output = 1_000_000 - ceil(1_000_000^2 / 1_010_000) = 9_900
-        // 27 bps effective: fee = floor(9_900 * 27 / 10_000) = 26
-        assert_eq!(fee, Uint128::new(26));
-        assert_eq!(net_output, Uint128::new(9874));
+        // 29 bps effective (30 * 9750 / 10000): fee = floor(9_900 * 29 / 10_000) = 28
+        assert_eq!(fee, Uint128::new(28));
+        assert_eq!(net_output, Uint128::new(9872));
     }
 
     #[test]
@@ -1519,7 +1515,7 @@ mod fee_discount_tests {
             Uint128::new(1_000_000),
         );
 
-        // Register for tier 4 (1000 CL8Y, 50% discount)
+        // Register for tier 4 (75 CL8Y, 35% discount)
         app.execute_contract(
             env.user.clone(),
             denv.fee_discount.clone(),
@@ -1556,8 +1552,8 @@ mod fee_discount_tests {
         let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
         let fee = treasury_b_after - treasury_b_before;
 
-        // gross = 9_900, 15 bps effective: fee = floor(9_900 * 15 / 10_000) = 14
-        assert_eq!(fee, Uint128::new(14));
+        // gross = 9_900, 19 bps effective: fee = floor(9_900 * 19 / 10_000) = 18
+        assert_eq!(fee, Uint128::new(18));
     }
 
     #[test]
@@ -1945,13 +1941,20 @@ mod fee_discount_tests {
             )
             .unwrap();
 
-        assert_eq!(tiers.tiers.len(), 7);
+        assert_eq!(tiers.tiers.len(), 11);
         assert_eq!(tiers.tiers[0].tier_id, 0);
         assert_eq!(tiers.tiers[0].tier.discount_bps, 10000);
         assert!(tiers.tiers[0].tier.governance_only);
         assert_eq!(tiers.tiers[1].tier_id, 1);
-        assert_eq!(tiers.tiers[1].tier.discount_bps, 1000);
+        assert_eq!(tiers.tiers[1].tier.discount_bps, 250);
         assert!(!tiers.tiers[1].tier.governance_only);
+        let t255 = tiers
+            .tiers
+            .iter()
+            .find(|t| t.tier_id == 255)
+            .expect("tier 255");
+        assert_eq!(t255.tier.discount_bps, 0);
+        assert!(t255.tier.governance_only);
     }
 }
 
@@ -5307,15 +5310,12 @@ mod fuzz_tests {
         ) {
             if swap_amount >= init { return Ok(()); }
 
-            let tier_configs: Vec<(u8, u128, u16)> = vec![
-                (1, 1, 1000),
-                (2, 50, 2500),
-                (3, 200, 3500),
-                (4, 1000, 5000),
-                (5, 15000, 8000),
-            ];
-            let (tier_id, _min_cl8y, discount_bps) = tier_configs[tier_idx];
-            let one_cl8y: u128 = 1_000_000_000_000_000_000;
+            let tier_rows: Vec<_> = crate::tier_fixtures::STANDARD_PRODUCTION_TIERS
+                .iter()
+                .copied()
+                .filter(|(id, _, _, _)| (1..=5).contains(id))
+                .collect();
+            let (tier_id, _min_cl8y, discount_bps, _) = tier_rows[tier_idx];
             let base_fee_bps: u16 = 30;
 
             let mut app = App::default();
@@ -5325,7 +5325,7 @@ mod fuzz_tests {
 
             let cl8y_token = create_cw20_token_with_decimals(
                 &mut app, cw20_code_id, &env.user, "CL8Y", "CL8Y", 18,
-                Uint128::new(100_000 * one_cl8y),
+                Uint128::new(100_000 * 1_000_000_000_000_000_000),
             );
 
             let fd = app.instantiate_contract(
@@ -5337,18 +5337,12 @@ mod fuzz_tests {
                 &[], "fd", None,
             ).unwrap();
 
-            for &(tid, min_cl8y_mult, disc, gov_only) in &[
-                (1u8, 1u128, 1000u16, false),
-                (2, 50, 2500, false),
-                (3, 200, 3500, false),
-                (4, 1000, 5000, false),
-                (5, 15000, 8000, false),
-            ] {
+            for &(tid, min_w, disc, gov_only) in &tier_rows {
                 app.execute_contract(
                     env.governance.clone(), fd.clone(),
                     &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
                         tier_id: tid,
-                        min_cl8y_balance: Uint128::new(min_cl8y_mult * one_cl8y),
+                        min_cl8y_balance: Uint128::new(min_w),
                         discount_bps: disc,
                         governance_only: gov_only,
                     },
@@ -10106,10 +10100,10 @@ mod fee_treasury_tests {
             )
             .unwrap();
 
-        // Tier 1: 10% discount, Tier 4: 50% discount
+        // Tier 1 and 4 from canonical production ladder (see docs/reference/fee-discount-tiers.md)
         for (tier_id, min_cl8y, discount_bps, governance_only) in [
-            (1u8, ONE_CL8Y, 1000u16, false),
-            (4, 1000 * ONE_CL8Y, 5000, false),
+            (1u8, ONE_CL8Y, 250u16, false),
+            (4, 75 * ONE_CL8Y, 3500, false),
         ] {
             app.execute_contract(
                 base.governance.clone(),
@@ -10159,7 +10153,7 @@ mod fee_treasury_tests {
         swap_a_to_b(&mut app, &base, &base.user, Uint128::new(100_000));
         let fee_full = query_cw20_balance(&app, &base.token_b, &base.treasury) - treasury_before;
 
-        // Register tier 1 (10% discount → 27 bps effective)
+        // Register tier 1 (2.5% discount → 29 bps effective)
         app.execute_contract(
             base.user.clone(),
             fee_discount.clone(),
@@ -10172,7 +10166,7 @@ mod fee_treasury_tests {
         swap_a_to_b(&mut app, &base, &base.user, Uint128::new(100_000));
         let fee_tier1 = query_cw20_balance(&app, &base.token_b, &base.treasury) - treasury_before;
 
-        // Upgrade to tier 4 (50% discount → 15 bps effective)
+        // Upgrade to tier 4 (35% discount → 19 bps effective)
         app.execute_contract(
             base.user.clone(),
             fee_discount.clone(),

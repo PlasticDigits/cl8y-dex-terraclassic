@@ -94,6 +94,13 @@ export default function SwapPage() {
     fromToken && toToken && !isWrapOrUnwrap && !nativeRouteInfo ? findRoute(pairs, fromToken, toToken) : null
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
+  const showHybridBookSubmitWarning = useMemo(() => {
+    if (!isDirect || !useHybridBook || !fromToken.startsWith('terra1')) return false
+    const t = bookInputHuman.trim()
+    if (!t) return false
+    const n = parseFloat(t)
+    return !Number.isNaN(n) && n > 0
+  }, [isDirect, useHybridBook, fromToken, bookInputHuman])
   const hasRoute = isWrapOrUnwrap || nativeRouteInfo !== null || route !== null
 
   const checkIndexerRoute = useCallback(async () => {
@@ -845,6 +852,15 @@ export default function SwapPage() {
           </div>
         )}
 
+        {showHybridBookSubmitWarning && (
+          <div className="alert-error mb-3 text-xs" role="alert">
+            <p className="font-semibold mb-1">Limit book leg</p>
+            <p>
+              The estimate above is pool-only and may not reflect on-chain limit-book fills. Actual received amounts can
+              differ. See the repository file <span className="font-mono">docs/limit-orders.md</span> (hybrid / L8).
+            </p>
+          </div>
+        )}
         {/* Swap Button */}
         {showImpactConfirm && (
           <div className="alert-error mb-3 text-xs">

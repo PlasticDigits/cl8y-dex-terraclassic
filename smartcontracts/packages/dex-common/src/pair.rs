@@ -207,6 +207,17 @@ pub enum QueryMsg {
     /// Head order id for bid or ask list (empty book = none).
     #[returns(Option<u64>)]
     OrderBookHead { side: LimitOrderSide },
+
+    #[returns(HybridSimulationResponse)]
+    HybridSimulation {
+        offer_asset: Asset,
+        hybrid: HybridSwapParams,
+    },
+    #[returns(HybridReverseSimulationResponse)]
+    HybridReverseSimulation {
+        ask_asset: Asset,
+        hybrid: HybridSwapParams,
+    },
 }
 
 /// TerraSwap-compatible pool response.
@@ -240,4 +251,22 @@ pub struct ReverseSimulationResponse {
     pub offer_amount: Uint128,
     pub spread_amount: Uint128,
     pub commission_amount: Uint128,
+}
+
+#[cw_serde]
+pub struct HybridSimulationResponse {
+    pub return_amount: Uint128,
+    pub spread_amount: Uint128,
+    pub commission_amount: Uint128,
+    pub book_return_amount: Uint128,
+    pub pool_return_amount: Uint128,
+}
+
+#[cw_serde]
+pub struct HybridReverseSimulationResponse {
+    pub offer_amount: Uint128,
+    pub spread_amount: Uint128,
+    pub commission_amount: Uint128,
+    pub book_return_amount: Uint128,
+    pub pool_return_amount: Uint128,
 }
