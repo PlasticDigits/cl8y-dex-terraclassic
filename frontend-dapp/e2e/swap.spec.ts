@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
+import { expectPayTokenListPopulated, payTokenTrigger } from './helpers/token-select'
 
 test.describe('Swap Page', () => {
   test.describe('Without wallet', () => {
@@ -6,20 +7,15 @@ test.describe('Swap Page', () => {
       await page.goto('/')
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: 'Swap' })).toBeVisible()
-      await expect(page.getByText('From Token')).toBeVisible()
-      await expect(page.getByText('To Token')).toBeVisible()
+      await expect(page.getByText('You Pay')).toBeVisible()
+      await expect(page.getByText('You Receive')).toBeVisible()
     })
 
     test('loads available trading pairs from factory', async ({ page }) => {
       await page.goto('/')
       await page.waitForLoadState('networkidle')
-      const fromSelect = page.getByLabel('Select from token')
-      await expect(fromSelect).toBeVisible()
-      await expect(async () => {
-        const options = await fromSelect.locator('option').allTextContents()
-        const hasPair = options.some((opt) => !opt.includes('Loading') && !opt.includes('Select'))
-        expect(hasPair).toBe(true)
-      }).toPass({ timeout: 15000 })
+      await expect(payTokenTrigger(page)).toBeVisible()
+      await expectPayTokenListPopulated(page)
     })
 
     test('shows You Pay and You Receive sections', async ({ page }) => {
@@ -31,12 +27,11 @@ test.describe('Swap Page', () => {
     test('shows Connect Wallet as the submit button when disconnected', async ({ page }) => {
       await page.goto('/')
       await page.waitForLoadState('networkidle')
-      const submitBtn = page
-        .locator('button')
-        .filter({ hasText: /Connect Wallet/i })
-        .last()
+      const swapPanel = page.locator('main .shell-panel-strong').first()
+      const submitBtn = swapPanel.getByRole('button', { name: /^Connect Wallet$/i })
       await expect(submitBtn).toBeVisible()
-      await expect(submitBtn).toBeDisabled()
+      // CTA opens the wallet modal when disconnected; it stays enabled so users can tap it.
+      await expect(submitBtn).toBeEnabled()
     })
 
     test('has a settings button', async ({ page }) => {
@@ -61,18 +56,10 @@ test.describe('Swap Page', () => {
       await connectWallet
       await page.waitForLoadState('networkidle')
 
-      await expect(async () => {
-        const fromSelect = page.getByLabel('Select from token')
-        const options = await fromSelect.locator('option').allTextContents()
-        const hasPair = options.some((opt) => !opt.includes('Loading') && !opt.includes('Select'))
-        expect(hasPair).toBe(true)
-      }).toPass({ timeout: 15000 })
+      await expectPayTokenListPopulated(page)
 
-      const submitBtn = page
-        .locator('button')
-        .filter({ hasText: /Enter Amount|Swap|Connect/i })
-        .last()
-      await expect(submitBtn).toBeVisible()
+      const swapPanel = page.locator('main .shell-panel-strong').first()
+      await expect(swapPanel.getByRole('button', { name: 'Enter Amount' })).toBeVisible()
     })
 
     test('accepts numeric input in You Pay field', async ({ page, connectWallet }) => {
@@ -97,12 +84,7 @@ test.describe('Swap Page', () => {
       await connectWallet
       await page.waitForLoadState('networkidle')
 
-      await expect(async () => {
-        const fromSelect = page.getByLabel('Select from token')
-        const options = await fromSelect.locator('option').allTextContents()
-        const hasPair = options.some((opt) => !opt.includes('Loading') && !opt.includes('Select'))
-        expect(hasPair).toBe(true)
-      }).toPass({ timeout: 15000 })
+      await expectPayTokenListPopulated(page)
 
       const input = page.getByPlaceholder('0.00').first()
       await input.fill('1000')

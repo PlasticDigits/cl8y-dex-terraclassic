@@ -85,12 +85,17 @@ function collectTxEvents(
   return Array.isArray(ev) ? ev : []
 }
 
-/** Whether LCD tx JSON includes a wasm event whose last `action` attribute equals `action`. */
+function isWasmLikeEventType(type: string): boolean {
+  // Terra LCD emits submessage callbacks as `wasm-wasm`; top-level contract calls use `wasm`.
+  return type === 'wasm' || type === 'wasm-wasm'
+}
+
+/** Whether LCD tx JSON includes a wasm / wasm-wasm event whose last `action` attribute equals `action`. */
 export function txJsonHasWasmAction(txJson: unknown, action: string): boolean {
   const root = txJson as Record<string, unknown>
   const tr = (root.tx_response as Record<string, unknown> | undefined) ?? root
   for (const ev of collectTxEvents(tr)) {
-    if (ev.type !== 'wasm') continue
+    if (!isWasmLikeEventType(ev.type)) continue
     if (wasmAttrLast(ev.attributes ?? [], 'action') === action) return true
   }
   return false

@@ -1,37 +1,40 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfNoTxAlert } from './helpers/chain'
+import { swapYouReceiveAmountDisplay } from './helpers/swap-ui'
+import {
+  ARIA_SELECT_TOKEN_PAY,
+  ARIA_SELECT_TOKEN_RECEIVE,
+  expectAtLeastTwoPayTokenOptions,
+  expectPayTokenListPopulated,
+  payTokenTrigger,
+  selectTokenInCombobox,
+  waitForPayTokenTriggerEnabled,
+} from './helpers/token-select'
+
+function swapActionPanel(page: import('@playwright/test').Page) {
+  return page.locator('main .shell-panel-strong').first()
+}
 
 test.describe('Swap with native token wrapping — UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
-    await expect(async () => {
-      const fromSelect = page.getByLabel('Select from token')
-      const options = await fromSelect.locator('option').allTextContents()
-      const hasPair = options.some((opt) => !opt.includes('Loading') && !opt.includes('Select'))
-      expect(hasPair).toBe(true)
-    }).toPass({ timeout: 15000 })
+    await expectPayTokenListPopulated(page)
   })
 
   test('E1: token selector shows native LUNC and USTC options', async ({ page }) => {
-    const fromSelect = page.getByLabel('Select from token')
-    const options = await fromSelect.locator('option').allTextContents()
-    expect(options.length).toBeGreaterThan(0)
+    await payTokenTrigger(page).click()
+    const list = page.getByRole('listbox', { name: ARIA_SELECT_TOKEN_PAY })
+    await expect(list).toBeVisible()
+    expect(await list.getByRole('option').count()).toBeGreaterThan(0)
+    await page.keyboard.press('Escape')
   })
 
   test('E2: selecting native LUNC as input shows wrap note', async ({ page }) => {
-    const fromSelect = page.getByLabel('Select from token')
-    const options = await fromSelect.locator('option').allTextContents()
-
-    const luncOption = options.find((o) => o.includes('LUNC') && !o.includes('LUNC-C'))
-    if (!luncOption) {
+    const picked = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
+    if (!picked) {
       test.skip()
       return
-    }
-
-    const luncValue = await fromSelect.locator('option', { hasText: luncOption }).getAttribute('value')
-    if (luncValue) {
-      await fromSelect.selectOption(luncValue)
     }
 
     const wrapNote = page.getByText('This swap will wrap')
@@ -40,11 +43,11 @@ test.describe('Swap with native token wrapping — UI', () => {
   })
 
   test('E3: swap button never says standalone Wrap or Unwrap', async ({ page }) => {
-    const submitBtn = page
-      .locator('button')
-      .filter({ hasText: /Connect Wallet|Enter Amount|Swap|No Route/i })
-      .last()
-    await expect(submitBtn).toBeVisible()
+    const swapPanel = swapActionPanel(page)
+    const submitBtn = swapPanel.getByRole('button', {
+      name: /Connect Wallet|Enter Amount|Swap|No Route/i,
+    })
+    await expect(submitBtn.first()).toBeVisible()
 
     const wrapButton = page.locator('button').filter({ hasText: /^Wrap$/ })
     await expect(wrapButton).toHaveCount(0)
@@ -53,80 +56,70 @@ test.describe('Swap with native token wrapping — UI', () => {
   })
 
   test('E4: route display loads without errors after pair selection', async ({ page }) => {
-    const fromSelect = page.getByLabel('Select from token')
-    const allValues = await fromSelect
-      .locator('option')
-      .evaluateAll((els) => els.map((el) => (el as HTMLOptionElement).value).filter((v) => v))
-
-    if (allValues.length > 0) {
-      await fromSelect.selectOption(allValues[0])
+    await waitForPayTokenTriggerEnabled(page)
+    await payTokenTrigger(page).click()
+    const list = page.getByRole('listbox', { name: ARIA_SELECT_TOKEN_PAY })
+    await expect(list).toBeVisible()
+    const optCount = await list.getByRole('option').count()
+    if (optCount > 0) {
+      await list.getByRole('option').first().click()
+    } else {
+      await page.keyboard.press('Escape')
     }
 
     await expect(page.getByRole('heading', { name: 'Swap' })).toBeVisible()
   })
 
   test('E5: swap direction toggle button is present', async ({ page }) => {
-    const buttons = page.locator('button')
-    const swapDirectionBtn = buttons.filter({ has: page.locator('svg') })
-    await expect(swapDirectionBtn.first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Swap pay and receive tokens' })).toBeVisible()
   })
 })
-
-// Helper: select a token in a <select> by partial text match
-async function selectTokenByText(
-  page: import('@playwright/test').Page,
-  selectLabel: string,
-  searchText: string
-): Promise<boolean> {
-  const selector = page.locator(`select[aria-label="${selectLabel}"]`)
-  const options = await selector.locator('option').allTextContents()
-  const match = options.find((o) => o.includes(searchText))
-  if (!match) return false
-  const value = await selector.locator('option', { hasText: match }).getAttribute('value')
-  if (!value) return false
-  await selector.selectOption(value)
-  return true
-}
 
 test.describe('Swap Transaction Tests — Native Wrapping', () => {
   test.beforeEach(async ({ page, connectWallet }) => {
     await connectWallet
     await page.waitForLoadState('networkidle')
-    await expect(async () => {
-      const fromSelector = page.locator('select[aria-label="Select from token"]')
-      const options = await fromSelector.locator('option').count()
-      expect(options).toBeGreaterThan(1)
-    }).toPass({ timeout: 20000 })
+    await expectAtLeastTwoPayTokenOptions(page)
   })
 
   test('E1: swap native input — LUNC to CW20', async ({ page }) => {
-    const hasLunc = await selectTokenByText(page, 'Select from token', 'LUNC')
+    const hasLunc = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
     if (!hasLunc) {
       test.skip()
       return
     }
 
-    const toSelector = page.locator('select[aria-label="Select to token"]')
-    const toOptions = await toSelector.locator('option').allTextContents()
-    const cw20Option = toOptions.find((o) => !o.includes('LUNC') && !o.includes('USTC'))
-    if (!cw20Option) {
+    await page.getByRole('button', { name: ARIA_SELECT_TOKEN_RECEIVE }).click()
+    const recvList = page.getByRole('listbox', { name: ARIA_SELECT_TOKEN_RECEIVE })
+    await expect(recvList).toBeVisible()
+    const recvOpts = recvList.getByRole('option')
+    const n = await recvOpts.count()
+    let pickedCw20 = false
+    for (let i = 0; i < n; i++) {
+      const t = (await recvOpts.nth(i).innerText()).replace(/\s+/g, ' ')
+      if (!t.includes('LUNC') && !t.includes('USTC')) {
+        await recvOpts.nth(i).click()
+        pickedCw20 = true
+        break
+      }
+    }
+    if (!pickedCw20) {
+      await page.keyboard.press('Escape')
       test.skip()
       return
     }
-    const cw20Value = await toSelector.locator('option', { hasText: cw20Option }).getAttribute('value')
-    if (cw20Value) await toSelector.selectOption(cw20Value)
 
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('0.1')
 
-    const receiveField = page.locator('.card-neo').filter({ hasText: 'You Receive' }).locator('div.text-2xl')
+    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
       const text = await receiveField.textContent()
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
-    const swapBtn = page.getByRole('button', { name: /^(Swap|Confirm Swap)/ })
+    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
     await expect(swapBtn).toBeEnabled({ timeout: 10000 })
     await swapBtn.click()
 
@@ -134,17 +127,27 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E2: swap native output — CW20 to native USTC', async ({ page }) => {
-    const fromSelector = page.locator('select[aria-label="Select from token"]')
-    const fromOptions = await fromSelector.locator('option').allTextContents()
-    const cw20Option = fromOptions.find((o) => !o.includes('LUNC') && !o.includes('USTC'))
-    if (!cw20Option) {
+    await payTokenTrigger(page).click()
+    const payList = page.getByRole('listbox', { name: ARIA_SELECT_TOKEN_PAY })
+    await expect(payList).toBeVisible()
+    const payOpts = payList.getByRole('option')
+    const pn = await payOpts.count()
+    let pickedFrom = false
+    for (let i = 0; i < pn; i++) {
+      const t = (await payOpts.nth(i).innerText()).replace(/\s+/g, ' ')
+      if (!t.includes('LUNC') && !t.includes('USTC')) {
+        await payOpts.nth(i).click()
+        pickedFrom = true
+        break
+      }
+    }
+    if (!pickedFrom) {
+      await page.keyboard.press('Escape')
       test.skip()
       return
     }
-    const cw20Value = await fromSelector.locator('option', { hasText: cw20Option }).getAttribute('value')
-    if (cw20Value) await fromSelector.selectOption(cw20Value)
 
-    const hasUstc = await selectTokenByText(page, 'Select to token', 'USTC')
+    const hasUstc = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'USTC-C')
     if (!hasUstc) {
       test.skip()
       return
@@ -153,14 +156,14 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('0.1')
 
-    const receiveField = page.locator('.card-neo').filter({ hasText: 'You Receive' }).locator('div.text-2xl')
+    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
       const text = await receiveField.textContent()
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
-    const swapBtn = page.getByRole('button', { name: /^(Swap|Confirm Swap)/ })
+    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
     await expect(swapBtn).toBeEnabled({ timeout: 10000 })
     await swapBtn.click()
 
@@ -168,12 +171,12 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E3: swap native to native — LUNC to USTC', async ({ page }) => {
-    const hasLunc = await selectTokenByText(page, 'Select from token', 'LUNC')
+    const hasLunc = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
     if (!hasLunc) {
       test.skip()
       return
     }
-    const hasUstc = await selectTokenByText(page, 'Select to token', 'USTC')
+    const hasUstc = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'USTC-C')
     if (!hasUstc) {
       test.skip()
       return
@@ -182,7 +185,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('0.1')
 
-    const receiveField = page.locator('.card-neo').filter({ hasText: 'You Receive' }).locator('div.text-2xl')
+    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
       const text = await receiveField.textContent()
       expect(text).not.toBe('0.00')
@@ -193,7 +196,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const routeCount = await routeDisplay.count()
     expect(routeCount).toBeGreaterThanOrEqual(0)
 
-    const swapBtn = page.getByRole('button', { name: /^(Swap|Confirm Swap)/ })
+    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
     await expect(swapBtn).toBeEnabled({ timeout: 10000 })
     await swapBtn.click()
 
@@ -201,13 +204,13 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E4: direct wrap — LUNC to LUNC-C', async ({ page }) => {
-    const hasLunc = await selectTokenByText(page, 'Select from token', 'LUNC')
+    const hasLunc = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
     if (!hasLunc) {
       test.skip()
       return
     }
 
-    const hasLuncC = await selectTokenByText(page, 'Select to token', 'LUNC-C')
+    const hasLuncC = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC-C')
     if (!hasLuncC) {
       test.skip()
       return
@@ -220,7 +223,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('0.1')
 
-    const swapBtn = page.getByRole('button', { name: /^(Swap|Confirm Swap)/ })
+    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
     await expect(swapBtn).toBeEnabled({ timeout: 10000 })
     await swapBtn.click()
 
@@ -228,13 +231,13 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E5: direct unwrap — LUNC-C to LUNC', async ({ page }) => {
-    const hasLuncC = await selectTokenByText(page, 'Select from token', 'LUNC-C')
+    const hasLuncC = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC-C')
     if (!hasLuncC) {
       test.skip()
       return
     }
 
-    const hasLunc = await selectTokenByText(page, 'Select to token', 'LUNC')
+    const hasLunc = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC', 'LUNC-C')
     if (!hasLunc) {
       test.skip()
       return
@@ -243,7 +246,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('0.1')
 
-    const swapBtn = page.getByRole('button', { name: /^(Swap|Confirm Swap)/ })
+    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
     await expect(swapBtn).toBeEnabled({ timeout: 10000 })
     await swapBtn.click()
 
@@ -251,13 +254,13 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E6: wrapped-to-wrapped swap — LUNC-C to USTC-C (normal CW20)', async ({ page }) => {
-    const hasLuncC = await selectTokenByText(page, 'Select from token', 'LUNC-C')
+    const hasLuncC = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC-C')
     if (!hasLuncC) {
       test.skip()
       return
     }
 
-    const hasUstcC = await selectTokenByText(page, 'Select to token', 'USTC-C')
+    const hasUstcC = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC-C')
     if (!hasUstcC) {
       test.skip()
       return
@@ -266,14 +269,14 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('0.1')
 
-    const receiveField = page.locator('.card-neo').filter({ hasText: 'You Receive' }).locator('div.text-2xl')
+    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
       const text = await receiveField.textContent()
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
-    const swapBtn = page.getByRole('button', { name: /^(Swap|Confirm Swap)/ })
+    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
     await expect(swapBtn).toBeEnabled({ timeout: 10000 })
     await swapBtn.click()
 
@@ -281,26 +284,24 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E12: rate limit exceeded shows error in UI', async ({ page }) => {
-    const hasLunc = await selectTokenByText(page, 'Select from token', 'LUNC')
+    const hasLunc = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
     if (!hasLunc) {
       test.skip()
       return
     }
 
-    const hasLuncC = await selectTokenByText(page, 'Select to token', 'LUNC-C')
+    const hasLuncC = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC-C')
     if (!hasLuncC) {
       test.skip()
       return
     }
 
-    // Enter a very large amount to exceed any rate limit
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('999999999999')
 
-    // Check if the button shows rate limit, insufficient balance, or remains enabled
     await page.waitForTimeout(2000)
-    const btn = page
-      .locator('button')
+    const btn = swapActionPanel(page)
+      .getByRole('button')
       .filter({ hasText: /Rate Limit|Insufficient|Swap/i })
       .last()
     await expect(btn).toBeVisible()

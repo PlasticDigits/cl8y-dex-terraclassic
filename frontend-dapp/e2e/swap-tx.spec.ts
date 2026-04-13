@@ -1,5 +1,7 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, skipIfNoTxAlert } from './helpers/chain'
+import { swapYouReceiveAmountDisplay } from './helpers/swap-ui'
+import { expectAtLeastTwoPayTokenOptions } from './helpers/token-select'
 import { headerConnectedWalletButton } from './helpers/wallet-ui'
 
 test.describe('Swap Transaction', () => {
@@ -10,19 +12,14 @@ test.describe('Swap Transaction', () => {
     await expect(headerConnectedWalletButton(page)).toBeVisible({ timeout: 15000 })
     await page.waitForLoadState('networkidle')
 
-    // Wait for tokens to load in from-token selector
-    const fromSelect = page.getByLabel('Select from token')
-    await expect(async () => {
-      const options = await fromSelect.locator('option').count()
-      expect(options).toBeGreaterThan(1)
-    }).toPass({ timeout: 20000 })
+    await expectAtLeastTwoPayTokenOptions(page)
 
     // Enter a small swap amount (in micro units)
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('1000000')
 
     // Wait for simulation result
-    const youReceiveAmount = page.locator('.card-neo').filter({ hasText: 'You Receive' }).locator('div.text-2xl')
+    const youReceiveAmount = swapYouReceiveAmountDisplay(page)
     await expect(youReceiveAmount).not.toHaveText('0.00', { timeout: 15000 })
 
     // Primary swap card is the first shell panel in main (heading "Swap" is inside it)

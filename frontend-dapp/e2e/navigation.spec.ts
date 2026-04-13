@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { DESKTOP_HEADER_NAV_ROW_LABELS } from '../src/components/common/navItems'
+import { clickDesktopMoreNavItem } from './helpers/desktop-more-nav'
 import { headerConnectButton, headerConnectedWalletButton } from './helpers/wallet-ui'
 
 test.describe('Tablet header nav', () => {
@@ -58,14 +59,14 @@ test.describe('Navigation', () => {
 
   test('navigates to Fee Tiers page', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('link', { name: 'Fee Tiers' }).click()
+    await clickDesktopMoreNavItem(page, 'Fee Tiers')
     await expect(page).toHaveURL(/\/tiers/)
     await expect(page.getByRole('heading', { name: /Fee Discount Tiers/i })).toBeVisible()
   })
 
   test('navigates to Create Pair page', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('link', { name: 'Create Pair' }).click()
+    await clickDesktopMoreNavItem(page, 'Create Pair')
     await expect(page).toHaveURL(/\/create/)
     await expect(page.getByRole('heading', { name: /Create Trading Pair/i })).toBeVisible()
   })

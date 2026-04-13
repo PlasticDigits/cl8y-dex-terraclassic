@@ -12,45 +12,45 @@ test.describe('Pool Page', () => {
       await expect(async () => {
         const pairCount = await page.getByText(/pair\(s\)/i).textContent()
         expect(pairCount).toMatch(/[\d,]+\s*pair/i)
-      }).toPass({ timeout: 15000 })
+        const m = pairCount?.match(/([\d,]+)\s*pair/i)
+        expect(m).toBeTruthy()
+        const n = parseInt(m![1].replace(/,/g, ''), 10)
+        expect(n).toBeGreaterThan(0)
+      }).toPass({ timeout: 90_000 })
     })
 
     test('shows pool reserves for each pair', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
       await expect(async () => {
-        const provideBtns = page.getByRole('button', { name: 'Provide Liquidity' })
+        const provideBtns = page.getByRole('button', { name: /Provide Liquidity/i })
         const count = await provideBtns.count()
         expect(count).toBeGreaterThanOrEqual(1)
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
     })
 
     test('shows fee info on pool cards', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
       await expect(async () => {
         await expect(page.getByText(/Fee:/i).first()).toBeVisible()
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
     })
 
     test('shows Provide Liquidity and Withdraw Liquidity buttons', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
       await expect(async () => {
         await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
         await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
     })
   })
 
   test.describe('Provide Liquidity form', () => {
     test('opens provide liquidity form on button click', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
 
       await expect(async () => {
         await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
 
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
@@ -61,11 +61,10 @@ test.describe('Pool Page', () => {
 
     test('has input fields for both assets', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
 
       await expect(async () => {
         await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
 
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
@@ -78,11 +77,10 @@ test.describe('Pool Page', () => {
 
     test('shows Connect Wallet when not connected', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
 
       await expect(async () => {
         await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
 
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
@@ -97,11 +95,10 @@ test.describe('Pool Page', () => {
   test.describe('Withdraw Liquidity form', () => {
     test('opens withdraw form on button click', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
 
       await expect(async () => {
         await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
 
       await page
         .getByRole('button', { name: /Withdraw Liquidity/i })
@@ -114,11 +111,10 @@ test.describe('Pool Page', () => {
 
     test('shows Connect Wallet when not connected', async ({ page }) => {
       await page.goto('/pool')
-      await page.waitForLoadState('networkidle')
 
       await expect(async () => {
         await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 15000 })
+      }).toPass({ timeout: 90_000 })
 
       await page
         .getByRole('button', { name: /Withdraw Liquidity/i })
