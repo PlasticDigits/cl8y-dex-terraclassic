@@ -37,6 +37,17 @@ Slippage checks run in the pair after the book leg and pool leg are computed. Se
 
 These are **execution** semantics; accurate quoting for hybrid uses `HybridSimulation` / router ops with `hybrid` set (invariant L8).
 
+## Route discovery and quotes (L8, `hybrid: null`)
+
+The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-invariants.md](./indexer-invariants.md) for full HTTP semantics).
+
+| Method | Role |
+|--------|------|
+| **`GET`** | BFS path discovery. Response `router_operations` use **`terra_swap.hybrid: null` on every hop** — pool-only ops for backward-compatible clients. Optional `estimated_amount_out` when `amount_in` and `ROUTER_ADDRESS` are set uses LCD `simulate_swap_operations` on that pool-only shape. |
+| **`POST`** | Same discovery, plus optional **`hybrid_by_hop`**: one entry per hop (`null` = pool-only that hop, or a `HybridSwapParams`-shaped object). The indexer merges these into `router_operations` and, when `amount_in` and `ROUTER_ADDRESS` are configured, runs the **same** LCD `simulate_swap_operations` the chain uses for the merged message — so quotes can include limit-book legs when your splits are valid. |
+
+**Invariant L8:** Pool-only pair queries and router sims **without** `hybrid` do not model the book. For book-inclusive quotes you must set `hybrid` on the router op (or use pair `HybridSimulation` / `HybridReverseSimulation` directly). See [limit-orders.md](./limit-orders.md) and [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md).
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.

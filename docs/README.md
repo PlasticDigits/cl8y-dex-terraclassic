@@ -1,5 +1,9 @@
 # CL8Y DEX Documentation
 
+## Production review bundle
+
+The frozen **production review bundle** (executive summary, security review, release readiness, issue backlog) is under [`docs/reviews/20260409T030009Z/README.md`](./reviews/20260409T030009Z/README.md).
+
 ## Architecture & Design
 - [Architecture Overview](./architecture.md) — system diagram, contract relationships, swap flow
 - [Integrators](./integrators.md) — hybrid hooks (L7), limit-book fees, slippage semantics

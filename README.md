@@ -75,6 +75,10 @@ cl8y-dex-terraclassic/
 | Testnet | `rebel-2` | `https://terra-classic-lcd.publicnode.com` |
 | Mainnet | `columbus-5` | `https://terra-classic-lcd.publicnode.com` |
 
+## Documentation
+
+Project docs (architecture, integrators, runbooks, testing) are indexed in [`docs/README.md`](docs/README.md). For **local, testnet, and mainnet** chain IDs, LCD defaults, and indexer expectations (`RUN_MODE`, `LCD_URLS`, etc.), see the [environment matrix](docs/environment-matrix.md).
+
 ## Development
 
 ### Git

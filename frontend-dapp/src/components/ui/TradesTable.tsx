@@ -61,8 +61,11 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
                 >
                   {t.offer_asset} → {t.ask_asset}
                   {hybrid ? (
-                    <span className="ml-1 font-normal opacity-70" title="Pool + limit book legs">
-                      (hybrid)
+                    <span
+                      className="ml-1 inline-flex items-center rounded border border-white/20 px-1 py-px text-[10px] font-normal uppercase tracking-wide text-white/70"
+                      title="Hybrid swap: both the AMM pool and the on-chain limit book contributed. On-chain AfterSwap hooks report pool-leg commission only; book fees appear on limit_order_fill events. See docs/integrators.md."
+                    >
+                      hybrid
                     </span>
                   ) : null}
                 </td>
