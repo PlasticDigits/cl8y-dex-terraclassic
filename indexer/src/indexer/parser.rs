@@ -549,8 +549,7 @@ fn parse_limit_order_placements(tx: &TxResponse) -> Vec<ParsedLimitOrderPlacemen
         let owner = wasm_attr_last(attrs, "owner").map(|x| x.to_string());
         let side = wasm_attr_last(attrs, "side").map(|x| x.to_string());
         let price = wasm_attr_last(attrs, "price").and_then(|x| BigDecimal::from_str(x).ok());
-        let expires_at =
-            wasm_attr_last(attrs, "expires_at").and_then(|x| x.parse::<i64>().ok());
+        let expires_at = wasm_attr_last(attrs, "expires_at").and_then(|x| x.parse::<i64>().ok());
         out.push(ParsedLimitOrderPlacement {
             pair_address: contract.to_string(),
             order_id,
@@ -998,7 +997,10 @@ mod tests {
         assert_eq!(p[0].order_id, 99);
         assert_eq!(p[0].side.as_deref(), Some("bid"));
         assert_eq!(p[0].owner.as_deref(), Some("terra1maker"));
-        assert_eq!(p[0].price.as_ref().map(|x| x.to_string()), Some("1.5".into()));
+        assert_eq!(
+            p[0].price.as_ref().map(|x| x.to_string()),
+            Some("1.5".into())
+        );
         assert_eq!(p[0].expires_at, Some(2_000_000_000));
         let c = parse_limit_order_cancellations(&tx);
         assert_eq!(c.len(), 1);

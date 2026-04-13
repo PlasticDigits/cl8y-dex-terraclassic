@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use super::{build_asset_map, internal_err, AppState};
@@ -10,8 +11,52 @@ use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
     candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
 };
+use crate::lcd::LcdError;
 
 pub const VALID_INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
+
+/// Max levels returned by `limit-book-shallow` (each level is one LCD `limit_order` query).
+const LIMIT_BOOK_SHALLOW_DEPTH_MAX: i64 = 20;
+
+fn lcd_err(e: LcdError) -> (StatusCode, String) {
+    (StatusCode::BAD_GATEWAY, format!("LCD query failed: {e}"))
+}
+
+fn parse_book_side(raw: &str) -> Result<&'static str, (StatusCode, String)> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "bid" => Ok("bid"),
+        "ask" => Ok("ask"),
+        _ => Err((
+            StatusCode::BAD_REQUEST,
+            "Invalid side: use bid or ask".to_string(),
+        )),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct ChainLimitOrderRow {
+    order_id: u64,
+    owner: String,
+    side: serde_json::Value,
+    price: String,
+    remaining: String,
+    #[serde(default)]
+    expires_at: Option<u64>,
+    #[allow(dead_code)]
+    prev: Option<u64>,
+    next: Option<u64>,
+}
+
+fn chain_side_label(v: &serde_json::Value) -> String {
+    v.as_str()
+        .map(std::string::ToString::to_string)
+        .or_else(|| {
+            v.as_object()
+                .and_then(|m| m.keys().next().map(std::string::ToString::to_string))
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
 
 #[derive(Serialize, ToSchema)]
 pub struct AssetBrief {
@@ -758,6 +803,146 @@ pub async fn get_pair_order_limit_fills(
         .collect();
 
     Ok(Json(result))
+}
+
+#[derive(Deserialize, IntoParams, ToSchema)]
+pub struct OrderBookHeadQuery {
+    /// Book side: `bid` or `ask`
+    pub side: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct OrderBookHeadResponse {
+    /// Best order id on this side, or `null` if the book is empty.
+    pub head_order_id: Option<u64>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/order-book-head",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        OrderBookHeadQuery,
+    ),
+    responses(
+        (status = 200, description = "On-chain book head via LCD proxy", body = OrderBookHeadResponse),
+        (status = 400, description = "Invalid side"),
+        (status = 404, description = "Pair not found"),
+        (status = 502, description = "LCD error"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_order_book_head(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<OrderBookHeadQuery>,
+) -> Result<Json<OrderBookHeadResponse>, (StatusCode, String)> {
+    let _pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let side = parse_book_side(&q.side)?;
+    let head: Option<u64> = state
+        .lcd
+        .query_contract(&addr, &json!({ "order_book_head": { "side": side } }))
+        .await
+        .map_err(lcd_err)?;
+
+    Ok(Json(OrderBookHeadResponse {
+        head_order_id: head,
+    }))
+}
+
+#[derive(Deserialize, IntoParams, ToSchema)]
+pub struct LimitBookShallowQuery {
+    /// Book side: `bid` or `ask`
+    pub side: String,
+    /// Max orders to walk from the head (default 10, max 20)
+    pub depth: Option<i64>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ShallowLimitOrderItem {
+    pub order_id: u64,
+    pub owner: String,
+    pub side: String,
+    pub price: String,
+    pub remaining: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LimitBookShallowResponse {
+    pub side: String,
+    pub orders: Vec<ShallowLimitOrderItem>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/limit-book-shallow",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        LimitBookShallowQuery,
+    ),
+    responses(
+        (status = 200, description = "Shallow on-chain book via LCD proxy", body = LimitBookShallowResponse),
+        (status = 400, description = "Invalid side or depth"),
+        (status = 404, description = "Pair not found"),
+        (status = 502, description = "LCD error"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_limit_book_shallow(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<LimitBookShallowQuery>,
+) -> Result<Json<LimitBookShallowResponse>, (StatusCode, String)> {
+    let _pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let side_label = parse_book_side(&q.side)?;
+    let depth = q.depth.unwrap_or(10).clamp(1, LIMIT_BOOK_SHALLOW_DEPTH_MAX);
+
+    let head: Option<u64> = state
+        .lcd
+        .query_contract(&addr, &json!({ "order_book_head": { "side": side_label } }))
+        .await
+        .map_err(lcd_err)?;
+
+    let mut orders = Vec::new();
+    let mut current = head;
+    let mut steps = 0i64;
+    while steps < depth {
+        let Some(oid) = current else {
+            break;
+        };
+        let row: ChainLimitOrderRow = state
+            .lcd
+            .query_contract(&addr, &json!({ "limit_order": { "order_id": oid } }))
+            .await
+            .map_err(lcd_err)?;
+        orders.push(ShallowLimitOrderItem {
+            order_id: row.order_id,
+            owner: row.owner,
+            side: chain_side_label(&row.side),
+            price: row.price,
+            remaining: row.remaining,
+            expires_at: row.expires_at,
+        });
+        current = row.next;
+        steps += 1;
+    }
+
+    Ok(Json(LimitBookShallowResponse {
+        side: side_label.to_string(),
+        orders,
+    }))
 }
 
 #[derive(Serialize, ToSchema)]

@@ -6,7 +6,12 @@ This document is the implementation reference for the hybrid AMM + FIFO limit bo
 
 CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorderbook) and [`GET /cmc/orderbook/:market_pair`](./CG_CMC_COMPLIANCE.md#get-cmcorderbookmarket_pair) return an **AMM-simulated** level-2 book (walking the bonding curve). That is **not** the FIFO limit book stored on pairs.
 
-**Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. The indexer does not currently expose these as HTTP proxy endpoints; [`GET /api/v1/route/solve`](./indexer-invariants.md) only discovers routes and returns pool-only `hybrid: null` operations (clients patch `hybrid` off-chain if needed).
+**Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. The **indexer also proxies** those reads for integrators and the dApp (see [ADR 0002: Limit book surfacing](./adr/0002-limit-book-surfacing.md)):
+
+- **`GET /api/v1/pairs/{addr}/order-book-head?side=bid|ask`** — JSON `{ "head_order_id": <u64> | null }` from LCD `OrderBookHead`.
+- **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid|ask&depth=N`** — shallow walk from head along `next` (default depth 10, max 20); LCD errors → **502**.
+
+[`GET /api/v1/route/solve`](./indexer-invariants.md) still discovers routes and returns pool-only `hybrid: null` operations (clients patch `hybrid` off-chain if needed).
 
 ## Messages (CosmWasm)
 
@@ -34,6 +39,7 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 ### Pause (governance)
 
 - When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders) and **`CancelLimitOrder` is blocked** — resting limit escrow stays locked until governance unpauses (see [contracts-security-audit.md](./contracts-security-audit.md) **L6**).
+- **`IsPaused` query:** `{ "is_paused": {} }` → `{ "paused": bool }` so frontends can show accurate pause copy without guessing from failed transactions.
 
 ### Expiry (`expires_at`)
 
@@ -53,7 +59,7 @@ For each side, the book is a strict total order:
 
 ## Execution order in `execute_swap`
 
-When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker_fills` distinct makers), then routes the **pool leg** (including any book remainder rolled per contract logic). Hooks, spread checks, and fee discount (`trader`) follow the existing swap path.
+When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker_fills` distinct makers), then routes the **pool leg** (including any book remainder rolled per contract logic). Hooks, spread checks, and fee discount (`trader`) follow the existing swap path. For a given `trader` and fee-discount registry state, **`effective_fee_bps`** applies consistently: **limit book maker fills** charge commission at that same effective rate (see `orderbook.rs` / swap `effective_fee_bps` attribute), aligned with the pool leg’s use of the discount.
 
 ## Indexer route solver
 
@@ -61,6 +67,10 @@ When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker
 - Returns `hops` (pair + offer/ask tokens per hop), `router_operations` (TerraSwap ops with `hybrid: null` for pool-only routing).
 - Optional **`estimated_amount_out`:** set when `amount_in` is provided **and** `ROUTER_ADDRESS` is configured; the indexer calls the router `simulate_swap_operations` query on LCD.
 - **Running indexer integration tests:** route tests live under [`indexer/tests/api_route_solve.rs`](../indexer/tests/api_route_solve.rs). They need Postgres; if multiple tests share one DB, use the serialized commands in [Testing — Shared Postgres and test parallelism](./testing.md#shared-postgres-and-test-parallelism).
+
+## Indexer limit book (LCD proxy)
+
+Design record: [ADR 0002](./adr/0002-limit-book-surfacing.md). Endpoints above require the pair address to exist in the indexer DB (**404** if unknown). Each shallow level may incur one LCD `limit_order` query.
 
 ## Tx attributes (indexer / analytics)
 
@@ -81,7 +91,15 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `order_id`, `side` (`bid` / `ask`), `maker`, `price` | Per fill |
 | `token0_amount`, `token1_amount`, `commission_amount` | Raw amounts in pair token0 / token1; fee denomination matches side (bid: token1 fee; ask: token0 fee) |
 
-The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, stores each `limit_order_fill` in `limit_order_fills`, and indexes wasm `place_limit_order` / `cancel_limit_order` into **`limit_order_placements`** and **`limit_order_cancellations`**. Metadata columns (`side`, `price`, `owner`, `expires_at`) are filled from pair wasm attributes when present; **older pair code** that omits those attributes leaves them null in the DB. HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields and optional **`effective_fee_bps`** when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills; **`GET /api/v1/pairs/{addr}/limit-placements`** and **`.../limit-cancellations`** list lifecycle events.
+### Wasm attribute coverage vs indexer nulls (operators)
+
+| Pair build | `place_limit_order` wasm attrs | `cancel_limit_order` wasm attrs | Indexer `limit_order_placements` / `limit_order_cancellations` |
+|------------|-------------------------------|----------------------------------|-------------------------------------------------------------------|
+| **Current** (main branch pair) | `side`, `price`, `owner`, `expires_at` when set | `owner` | Metadata columns populated when attrs appear in tx logs |
+| **Legacy** (older deployed wasm omitting attrs) | May omit `side`, `price`, `owner` | May omit `owner` | Corresponding DB columns stay **null**; rows still keyed by `pair_id`, `order_id`, `tx_hash`, heights/timestamps |
+| **`limit_order_fill` events** | Per-fill `order_id`, `side`, `maker`, `price`, amounts, `commission_amount` | — | Indexed in `limit_order_fills`; aligns with on-chain book fills |
+
+The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, stores each `limit_order_fill` in `limit_order_fills`, and indexes wasm `place_limit_order` / `cancel_limit_order` into **`limit_order_placements`** and **`limit_order_cancellations`**. HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields and optional **`effective_fee_bps`** when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills; **`GET /api/v1/pairs/{addr}/limit-placements`** and **`.../limit-cancellations`** list lifecycle events; **`GET /api/v1/pairs/{addr}/order-book-head`** and **`.../limit-book-shallow`** proxy on-chain book state (see [ADR 0002](./adr/0002-limit-book-surfacing.md)).
 
 ## Example JSON (logical shapes)
 

@@ -10,6 +10,9 @@ export const TREASURY_CONTRACT_ADDRESS = import.meta.env.VITE_TREASURY_ADDRESS |
 export const LUNC_C_TOKEN_ADDRESS = import.meta.env.VITE_LUNC_C_TOKEN_ADDRESS || ''
 export const USTC_C_TOKEN_ADDRESS = import.meta.env.VITE_USTC_C_TOKEN_ADDRESS || ''
 
+/** Default-branch docs in GitLab (security audit, limit orders, ADRs). */
+export const DOCS_GITLAB_BASE = 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs'
+
 export const NATIVE_WRAPPED_PAIRS: Record<string, string> = {
   uluna: LUNC_C_TOKEN_ADDRESS,
   uusd: USTC_C_TOKEN_ADDRESS,

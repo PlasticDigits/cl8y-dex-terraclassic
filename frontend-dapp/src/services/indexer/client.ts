@@ -18,6 +18,8 @@ import type {
   IndexerLiquidityEvent,
   IndexerLimitPlacement,
   IndexerLimitCancellation,
+  IndexerOrderBookHeadResponse,
+  IndexerLimitBookShallowResponse,
 } from '@/types'
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://localhost:3001'
@@ -183,6 +185,25 @@ export async function getPairLimitCancellations(
   if (params?.before != null) sp.set('before', String(params.before))
   const qs = sp.toString()
   return fetchJson<IndexerLimitCancellation[]>(`/api/v1/pairs/${pairAddr}/limit-cancellations${qs ? `?${qs}` : ''}`)
+}
+
+/** On-chain book head for `side` (`bid` | `ask`) via indexer LCD proxy. */
+export async function getPairOrderBookHead(
+  pairAddr: string,
+  side: 'bid' | 'ask'
+): Promise<IndexerOrderBookHeadResponse> {
+  const sp = new URLSearchParams({ side })
+  return fetchJson<IndexerOrderBookHeadResponse>(`/api/v1/pairs/${pairAddr}/order-book-head?${sp}`)
+}
+
+/** Shallow on-chain book walk from head (depth default 10, max 20). */
+export async function getPairLimitBookShallow(
+  pairAddr: string,
+  side: 'bid' | 'ask',
+  depth = 10
+): Promise<IndexerLimitBookShallowResponse> {
+  const sp = new URLSearchParams({ side, depth: String(depth) })
+  return fetchJson<IndexerLimitBookShallowResponse>(`/api/v1/pairs/${pairAddr}/limit-book-shallow?${sp}`)
 }
 
 /** Get global DEX overview stats. */

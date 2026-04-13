@@ -13,13 +13,21 @@ import { executeTerraContract } from '@/services/terraclassic/transactions'
 import {
   getPairInfo,
   getPool,
+  getPairPaused,
   simulateSwap,
   reverseSimulateSwap,
   swap,
   provideLiquidity,
   withdrawLiquidity,
 } from '../pair'
-import type { AssetInfo, PairInfo, PoolResponse, SimulationResponse, ReverseSimulationResponse } from '@/types'
+import type {
+  AssetInfo,
+  PairInfo,
+  PairPausedResponse,
+  PoolResponse,
+  SimulationResponse,
+  ReverseSimulationResponse,
+} from '@/types'
 
 const mockedQuery = vi.mocked(queryContract)
 const mockedExecute = vi.mocked(executeTerraContract)
@@ -47,6 +55,18 @@ describe('getPairInfo', () => {
 
     expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, { pair: {} })
     expect(result).toEqual(pairInfo)
+  })
+})
+
+describe('getPairPaused', () => {
+  it('queries is_paused on the pair contract', async () => {
+    const body: PairPausedResponse = { paused: false }
+    mockedQuery.mockResolvedValueOnce(body)
+
+    const result = await getPairPaused(PAIR_ADDR)
+
+    expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, { is_paused: {} })
+    expect(result).toEqual(body)
   })
 })
 
