@@ -63,6 +63,12 @@ pub struct LimitOrderResponse {
     pub next: Option<u64>,
 }
 
+/// Pair governance pause flag (readable without attempting a swap).
+#[cw_serde]
+pub struct PausedResponse {
+    pub paused: bool,
+}
+
 #[cw_serde]
 pub struct PairInstantiateMsg {
     pub asset_infos: [AssetInfo; 2],
@@ -200,6 +206,10 @@ pub enum QueryMsg {
     /// Metadata about the oracle ring buffer.
     #[returns(OracleInfoResponse)]
     OracleInfo {},
+
+    /// Whether the pair is paused (no swap, no new limits, no cancel per L6).
+    #[returns(PausedResponse)]
+    IsPaused {},
 
     /// Limit order by id (if it exists).
     #[returns(LimitOrderResponse)]

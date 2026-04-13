@@ -5,6 +5,7 @@ import type {
   AssetInfo,
   HybridSwapParams,
   PairInfo,
+  PairPausedResponse,
   PoolResponse,
   ReverseSimulationResponse,
   SimulationResponse,
@@ -17,6 +18,10 @@ export async function getPairInfo(pairAddress: string): Promise<PairInfo> {
 
 export async function getPool(pairAddress: string): Promise<PoolResponse> {
   return queryContract<PoolResponse>(pairAddress, { pool: {} })
+}
+
+export async function getPairPaused(pairAddress: string): Promise<PairPausedResponse> {
+  return queryContract<PairPausedResponse>(pairAddress, { is_paused: {} })
 }
 
 export async function simulateSwap(
