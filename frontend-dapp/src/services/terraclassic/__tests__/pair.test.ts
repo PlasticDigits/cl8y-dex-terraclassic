@@ -195,6 +195,87 @@ describe('swap', () => {
       },
     })
   })
+
+  it('includes hybrid params in CW20 swap msg (SwapPage direct pair path)', async () => {
+    mockedExecute.mockResolvedValueOnce('txhash_hybrid')
+
+    await swap(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '1000', undefined, undefined, undefined, {
+      hybrid: {
+        pool_input: '600',
+        book_input: '400',
+        max_maker_fills: 8,
+        book_start_hint: 42,
+      },
+    })
+
+    const sendMsg = (mockedExecute.mock.calls[0][2] as Record<string, unknown>).send as { msg: string }
+    const decoded = JSON.parse(atob(sendMsg.msg))
+    expect(decoded).toEqual({
+      swap: {
+        belief_price: undefined,
+        max_spread: undefined,
+        to: undefined,
+        hybrid: {
+          pool_input: '600',
+          book_input: '400',
+          max_maker_fills: 8,
+          book_start_hint: 42,
+        },
+      },
+    })
+  })
+
+  it('omits book_start_hint in swap msg when hybrid hint is null', async () => {
+    mockedExecute.mockResolvedValueOnce('txhash_hybrid2')
+
+    await swap(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '1000', undefined, undefined, undefined, {
+      hybrid: {
+        pool_input: '1000',
+        book_input: '0',
+        max_maker_fills: 8,
+        book_start_hint: null,
+      },
+    })
+
+    const sendMsg = (mockedExecute.mock.calls[0][2] as Record<string, unknown>).send as { msg: string }
+    const decoded = JSON.parse(atob(sendMsg.msg)) as {
+      swap: { hybrid?: { book_start_hint?: number } }
+    }
+    expect(decoded.swap.hybrid).toBeDefined()
+    expect(decoded.swap.hybrid?.book_start_hint).toBeUndefined()
+  })
+
+  it('includes deadline and trader with hybrid in swap msg', async () => {
+    mockedExecute.mockResolvedValueOnce('txhash_hybrid3')
+
+    await swap(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '2000', '2.0', '0.05', 'terra1recv', {
+      hybrid: {
+        pool_input: '1000',
+        book_input: '1000',
+        max_maker_fills: 4,
+        book_start_hint: null,
+      },
+      deadline: 1_700_000_000,
+      trader: 'terra1traderreg',
+    })
+
+    const sendMsg = (mockedExecute.mock.calls[0][2] as Record<string, unknown>).send as { msg: string }
+    const decoded = JSON.parse(atob(sendMsg.msg))
+    expect(decoded).toEqual({
+      swap: {
+        belief_price: '2.0',
+        max_spread: '0.05',
+        to: 'terra1recv',
+        deadline: 1_700_000_000,
+        trader: 'terra1traderreg',
+        hybrid: {
+          pool_input: '1000',
+          book_input: '1000',
+          max_maker_fills: 4,
+        },
+      },
+    })
+  })
 })
 
 describe('provideLiquidity', () => {

@@ -9,7 +9,7 @@ use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::pair::{
     Cw20HookMsg, ExecuteMsg, HybridReverseSimulationResponse, HybridSimulationResponse,
     HybridSwapParams, LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg,
-    ReverseSimulationResponse, SimulationResponse,
+    ReverseSimulationResponse, SimulationResponse, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -340,6 +340,67 @@ fn hybrid_swap_emits_limit_order_fill_events() {
         .map(|a| a.value.as_str())
         .expect("side");
     assert_eq!(side, "bid");
+}
+
+/// GitLab #85 — `max_maker_fills` may be set to [`MAX_MAKER_FILLS_HARD_CAP`] (bounded match uses min with cap).
+#[test]
+fn hybrid_swap_accepts_max_maker_fills_at_hard_cap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_max_fill_cap");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let _order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(500_000),
+        Decimal::one(),
+    );
+
+    let swap_in = Uint128::new(100_000);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: MAX_MAKER_FILLS_HARD_CAP,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(count_limit_order_fill_events(&res.events), 1);
 }
 
 /// GitLab #83 — hybrid book leg uses the taker’s discounted `effective_fee_bps` (same as pool path).
