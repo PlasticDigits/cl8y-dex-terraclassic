@@ -35,21 +35,22 @@ fn wasm_contract_addr(attributes: &[Attribute]) -> Option<&str> {
         .or_else(|| wasm_attr_last(attributes, "contract_address"))
 }
 
+/// Parsed wasm `swap` event; same shape as persisted via [`crate::db::queries::swap_events::insert_swap`].
 #[derive(Debug, Clone)]
-struct ParsedSwap {
-    pair_address: String,
-    sender: String,
-    receiver: Option<String>,
-    offer_asset: String,
-    ask_asset: String,
-    offer_amount: BigDecimal,
-    return_amount: BigDecimal,
-    spread_amount: Option<BigDecimal>,
-    commission_amount: Option<BigDecimal>,
-    effective_fee_bps: Option<i16>,
-    pool_return_amount: Option<BigDecimal>,
-    book_return_amount: Option<BigDecimal>,
-    limit_book_offer_consumed: Option<BigDecimal>,
+pub struct ParsedSwap {
+    pub pair_address: String,
+    pub sender: String,
+    pub receiver: Option<String>,
+    pub offer_asset: String,
+    pub ask_asset: String,
+    pub offer_amount: BigDecimal,
+    pub return_amount: BigDecimal,
+    pub spread_amount: Option<BigDecimal>,
+    pub commission_amount: Option<BigDecimal>,
+    pub effective_fee_bps: Option<i16>,
+    pub pool_return_amount: Option<BigDecimal>,
+    pub book_return_amount: Option<BigDecimal>,
+    pub limit_book_offer_consumed: Option<BigDecimal>,
 }
 
 #[derive(Debug, Clone)]
@@ -347,7 +348,9 @@ async fn compute_volume_usd(
     None
 }
 
-fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
+/// Extract swap events from LCD tx logs (`wasm` events with `action=swap`).
+/// Hybrid fields (`pool_return_amount`, `book_return_amount`, `limit_book_offer_consumed`, `effective_fee_bps`) are optional.
+pub fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
     let mut swaps = Vec::new();
 
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
