@@ -53,7 +53,7 @@ if [[ -n "$OFFER_TOKEN" ]]; then
   SIM_MSG="$(jq -nc \
     --arg addr "$OFFER_TOKEN" \
     --arg amt "$OFFER_AMOUNT" \
-    '{simulation:{offer_asset:{info:{token:{contract_addr:$addr}},amount:$amt}}}}')"
+    '{simulation:{offer_asset:{info:{token:{contract_addr:$addr}},amount:$amt}}}')"
   lcd_smart "$PAIR" "$SIM_MSG" | jq .
 else
   echo "== Skipping Simulation (set OFFER_TOKEN to run). =="
