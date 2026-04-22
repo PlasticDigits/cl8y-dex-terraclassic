@@ -90,6 +90,28 @@ describe('indexer client fetchJson', () => {
     expect(out.estimated_amount_out).toBe('99')
   })
 
+  it('GET /route/solve adds hybrid_optimize and max_maker_fills query params', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          token_in: 'terra1a',
+          token_out: 'terra1b',
+          hops: [],
+          router_operations: [],
+          intermediate_tokens: ['terra1a', 'terra1b'],
+          quote_kind: 'indexer_hybrid_lcd',
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    await client.getRouteSolve('terra1a', 'terra1b', '1000', { hybridOptimize: true, maxMakerFills: 12 })
+    const url = vi.mocked(fetch).mock.calls[0][0] as string
+    expect(url).toContain('hybrid_optimize=true')
+    expect(url).toContain('max_maker_fills=12')
+    expect(url).toContain('amount_in=1000')
+  })
+
   it('builds limit-fills and lifecycle URLs with query params', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))

@@ -324,6 +324,71 @@ pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
     }
 }
 
+/// A→B→C chain (two hops) for multihop hybrid tests.
+pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
+    clean_db(pool).await;
+
+    let token_a = "terra1routesolveaaa".to_string();
+    let token_b = "terra1routesolvebbb".to_string();
+    let token_c = "terra1routesolveccc".to_string();
+
+    let asset_a_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route A', 'RTEA', 6)
+         RETURNING id",
+    )
+    .bind(&token_a)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset a");
+
+    let asset_b_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route B', 'RTEB', 6)
+         RETURNING id",
+    )
+    .bind(&token_b)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset b");
+
+    let asset_c_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route C', 'RTEC', 6)
+         RETURNING id",
+    )
+    .bind(&token_c)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset c");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairrouteabc', $1, $2, 'terra1lprouteab', 30)",
+    )
+    .bind(asset_a_id)
+    .bind(asset_b_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair ab");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairroutebcd', $1, $2, 'terra1lproutebc', 30)",
+    )
+    .bind(asset_b_id)
+    .bind(asset_c_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair bc");
+
+    RouteSolveSeed {
+        token_a,
+        token_b,
+        token_c,
+    }
+}
+
 pub async fn build_test_app(pool: PgPool) -> Router {
     build_test_app_with_price_and_config(pool, None, test_config()).await
 }

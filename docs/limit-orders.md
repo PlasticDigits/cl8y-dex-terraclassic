@@ -12,7 +12,7 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 - **`GET /api/v1/pairs/{addr}/limit-book?side=bid|ask&limit=L&after_order_id=OPTIONAL`** — **paginated** walk from head or keyset cursor along `next` (default `limit` 50, max 100 per HTTP response). Response includes `orders`, `has_more`, and `next_after_order_id` (pass the latter as `after_order_id` for the next page). LCD errors → **502**; invalid cursor / side mismatch → **400**.
 - **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid|ask&depth=N`** — legacy small preview walk (default depth 10, max 20); prefer `limit-book` for full depth.
 
-For multihop routing the indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (pool-only `hybrid: null` in `router_operations`) and optional **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001). Default-path hybrid route discovery on `GET` remains future work — [**#101**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/101).
+For multihop routing the indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (default pool-only `hybrid: null`; optional **`hybrid_optimize`** for server-chosen splits, max 3 hops — [**#101**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/101)) and **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001).
 
 ## Messages (CosmWasm)
 
@@ -66,8 +66,8 @@ When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker
 
 ## Indexer route solver
 
-- **`GET /api/v1/route/solve`** — query params: `token_in`, `token_out` (CW20 addresses indexed in `assets`), optional `amount_in` (raw integer string).
-- Returns `hops` (pair + offer/ask tokens per hop), `router_operations` (TerraSwap ops with `hybrid: null` for pool-only routing).
+- **`GET /api/v1/route/solve`** — query params: `token_in`, `token_out` (CW20 addresses indexed in `assets`), optional `amount_in` (raw integer string), optional `hybrid_optimize` / `max_maker_fills` (see [indexer-invariants.md](./indexer-invariants.md)).
+- Returns `hops` (pair + offer/ask tokens per hop), `router_operations` (default `hybrid: null` per hop; merged hybrid params when `hybrid_optimize=true`).
 - Optional **`estimated_amount_out`:** set when `amount_in` is provided **and** `ROUTER_ADDRESS` is configured; the indexer calls the router `simulate_swap_operations` query on LCD.
 - **Running indexer integration tests:** route tests live under [`indexer/tests/api_route_solve.rs`](../indexer/tests/api_route_solve.rs). They need Postgres; if multiple tests share one DB, use the serialized commands in [Testing — Shared Postgres and test parallelism](./testing.md#shared-postgres-and-test-parallelism).
 

@@ -9,9 +9,73 @@
 //!
 //! See GitLab issue #105 for a repo-wide catalog of stubs and test stand-ins.
 
+use base64::Engine;
 use serde_json::{json, Value};
 use wiremock::matchers::{method, path_regex};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+
+/// Decode the JSON cosmwasm smart query from a `/smart/{base64}` LCD path.
+pub fn smart_query_from_request(req: &Request) -> Value {
+    let path = req.url.path();
+    let b64 = path
+        .split("/smart/")
+        .nth(1)
+        .expect("path should contain /smart/");
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(b64)
+        .expect("valid base64 query");
+    serde_json::from_slice(&bytes).expect("valid json query")
+}
+
+/// LCD stub for hybrid route optimization: `HybridSimulation`, pool `Simulation`, router `simulate_swap_operations`.
+pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
+    let responder = |req: &Request| {
+        let q = smart_query_from_request(req);
+        let data = if q.get("simulate_swap_operations").is_some() {
+            json!({ "amount": "8888888" })
+        } else if q.get("hybrid_simulation").is_some() {
+            let book = q["hybrid_simulation"]["hybrid"]["book_input"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            let offer = q["hybrid_simulation"]["offer_asset"]["amount"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            let ret = offer.saturating_add(book / 2);
+            json!({
+                "return_amount": ret.to_string(),
+                "spread_amount": "0",
+                "commission_amount": "0",
+                "book_return_amount": "0",
+                "pool_return_amount": ret.to_string(),
+            })
+        } else if q.get("simulation").is_some() {
+            let offer = q["simulation"]["offer_asset"]["amount"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            json!({
+                "return_amount": (offer / 2).to_string(),
+                "spread_amount": "0",
+                "commission_amount": "0",
+            })
+        } else {
+            json!(null)
+        };
+        ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(responder)
+        .mount(&server)
+        .await;
+    server
+}
 
 /// Smart-query stub: returns `{"data": ...}` for any wasm contract smart GET (router simulate, pool query, etc.).
 pub async fn start_smart_query_data_mock(data: Value) -> MockServer {

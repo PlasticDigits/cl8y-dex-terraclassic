@@ -9,6 +9,7 @@ mod oracle;
 pub mod orderbook_sim;
 mod overview;
 mod pairs;
+mod hybrid_route_opt;
 mod route_solver;
 mod tokens;
 mod traders;
@@ -196,7 +197,8 @@ pub async fn find_pair_by_ticker(
     components(schemas(
         route_solver::SolveRouteParams,
         route_solver::SolveRoutePostBody,
-        route_solver::HybridHopJson,
+        hybrid_route_opt::HybridHopJson,
+        route_solver::RouteQuoteKind,
         route_solver::RouteHop,
         route_solver::RouteSolveResponse,
         pairs::PairResponse,
