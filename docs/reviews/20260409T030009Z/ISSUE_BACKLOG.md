@@ -1,5 +1,7 @@
 # Issue backlog (GitLab-ready)
 
+**Last reviewed:** 2026-04-22 (synced with `main`; live tracking in [GitLab issues](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues)).
+
 Use labels: `contracts`, `backend`, `frontend`, `indexer`, `infra`, `docs`, `security`, `testing`, `architecture`, `v2`, `limit-orders`, `hybrid`, `launch-blocker`, `nice-to-have`.
 
 Priority: **P0** correctness/architecture, **P1** production completeness, **P2** important, **P3** polish.
@@ -16,6 +18,7 @@ Priority: **P0** correctness/architecture, **P1** production completeness, **P2*
 - **Scope:** 1–2 page decision doc; stakeholder sign-off.
 - **Dependencies:** None.
 - **Acceptance criteria:** Document states quote strategy, routing ownership (client vs server), and V1 vs V2 feature boundaries.
+- **GitLab:** Track execution/indexer scope under [**#108** — indexer best execution for default swap](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/108) (epic); architecture epic [**#56**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/56).
 - **Labels:** `architecture`, `product`, `hybrid`, `docs`
 - **Owner:** product + architecture
 - **Priority:** P0
@@ -63,19 +66,19 @@ Priority: **P0** correctness/architecture, **P1** production completeness, **P2*
 
 ## Epic 3: Limit order system completion
 
-### DEX-P1-001 — Limit book visibility API or LCD playbook
+### DEX-P1-001 — Limit book visibility (shallow + head) — **done**; deep book remains
 
-- **Problem:** [`docs/limit-orders.md`](../../limit-orders.md) states indexer does not proxy `LimitOrder` / `OrderBookHead`.
-- **Scope:** Option A: indexer endpoints wrapping LCD smart queries; Option B: documented dApp LCD client module + caching.
-- **Acceptance criteria:** Frontend or docs enable users to see resting book or head order ids without raw terrad.
-- **Labels:** `backend`, `indexer`, `limit-orders`, `frontend`
-- **Priority:** P1
-- **Blockers:** limit-order UX launch
+- **Status:** **Shipped (2026):** indexer proxies `GET /api/v1/pairs/{addr}/order-book-head` and `.../limit-book-shallow` (default depth 10, max 20); [`LimitOrdersPage.tsx`](../../../frontend-dapp/src/pages/LimitOrdersPage.tsx) consumes the shallow book. See [ADR 0002](../../adr/0002-limit-book-surfacing.md) and GitLab [**#71**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/71).
+- **Remaining scope:** CEX-style **deep** book, pagination, and load — GitLab [**#102**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/102).
+- **Labels:** `backend`, `indexer`, `limit-orders`, `frontend` (historical)
+- **Priority:** P1 → follow **#102** for product depth
+- **Blockers:** none for shallow UX; deep work tracked on **#102**
 
 ### DEX-P1-010 — E2E: limit place + cancel (tx path)
 
-- **Problem:** [`e2e/limit-orders.spec.ts`](../../../frontend-dapp/e2e/limit-orders.spec.ts) mostly UI smoke.
+- **Problem:** [`e2e/limit-orders.spec.ts`](../../../frontend-dapp/e2e/limit-orders.spec.ts) is UI smoke; on-chain flows live in [`e2e/limit-orders-tx.spec.ts`](../../../frontend-dapp/e2e/limit-orders-tx.spec.ts) with **conditional** `test.skip` (e.g. paused pair).
 - **Scope:** Playwright flow with funded wallet: place bid/ask, cancel, assert balances or tx success.
+- **Policy:** On the **default** CI/local path, tx E2E must **not** skip solely for missing funds — GitLab [**#103**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/103). Feature tracking: [**#72**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/72).
 - **Labels:** `testing`, `frontend`, `limit-orders`
 - **Priority:** P1
 - **Blockers:** limit launch (confidence)
@@ -109,8 +112,8 @@ Priority: **P0** correctness/architecture, **P1** production completeness, **P2*
 
 ### DEX-P1-004 — Route solver: hybrid strategy (future)
 
-- **Problem:** [`route_solver.rs`](../../../indexer/src/api/route_solver.rs) returns `hybrid: null`.
-- **Scope:** After DEX-P0-EPIC, optional API returning suggested splits or hints (may remain client-computed).
+- **Problem (updated):** `GET /api/v1/route/solve` still emits pool-only ops (`hybrid: null`). `POST` accepts `hybrid_by_hop` and merges hybrid into `router_operations` before optional LCD `simulate_swap_operations` ([`route_solver.rs`](../../../indexer/src/api/route_solver.rs)).
+- **Scope:** After DEX-P0-EPIC, server-suggested splits / default-path hybrid routing — see GitLab [**#101**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/101) (GET hybrid routes, multihop UX).
 - **Labels:** `backend`, `indexer`, `hybrid`
 - **Priority:** P1 (after epic decision)
 - **Blockers:** hybrid (if server-side routing desired)
@@ -280,10 +283,10 @@ Priority: **P0** correctness/architecture, **P1** production completeness, **P2*
 ## Dependency graph (high level)
 
 ```text
-DEX-P0-EPIC ──► DEX-P1-004 (if server routing)
+DEX-P0-EPIC ──► DEX-P1-004 (if server routing); GitLab #108, #101
 DEX-P1-003 ──► DEX-P1-005 (UI follows ADR)
 DEX-P1-009 ──► v2 launch gate
-DEX-P1-001 ──► DEX-P1-010 (E2E may use new API)
+DEX-P1-001 (shallow done) ──► #102 deep book; DEX-P1-010 / #72, #103 (E2E strict path)
 DEX-P1-007, DEX-P1-008 ──► hybrid launch confidence
 ```
 
@@ -291,12 +294,14 @@ DEX-P1-007, DEX-P1-008 ──► hybrid launch confidence
 
 ## Suggested first sprint (issues to create in GitLab)
 
+Many items above already have GitLab IIDs — see [GLAB_ISSUES.md](./GLAB_ISSUES.md). For **new** work, prioritize:
+
 1. DEX-P1-009  
 2. DEX-P1-003  
 3. DEX-P1-005  
 4. DEX-P1-006  
-5. DEX-P1-001  
-6. DEX-P0-EPIC  
+5. ~~DEX-P1-001~~ → shallow done; use **#102** for depth  
+6. DEX-P0-EPIC (**#56**, **#108**)  
 7. DEX-P1-007  
 8. DEX-P1-008  
 9. DEX-P2-005  

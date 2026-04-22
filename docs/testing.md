@@ -49,7 +49,7 @@ cargo test
 
 ### Unit Tests (Frontend)
 
-Test React components and hooks with Vitest and jsdom. Contract calls are stubbed at the service layer.
+Test React components and hooks with Vitest and jsdom. **CosmWasm / LCD I/O** is typically **stubbed at the service layer** so unit tests stay fast and deterministic. That does **not** replace integration coverage for features that depend on indexer HTTP or chart data: use the **integration** Vitest config (below) or dedicated issues (e.g. GitLab [**#104**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) for charts).
 
 ```bash
 cd frontend-dapp
@@ -61,7 +61,7 @@ Config: `vitest.config.ts`
 
 ### Integration Tests (Frontend)
 
-Longer-running tests that interact with a running LocalTerra instance. Separated to avoid slowing down the unit test suite.
+Longer-running tests that interact with a running LocalTerra instance (and, where configured, indexer-backed behavior). Separated to avoid slowing down the unit test suite.
 
 ```bash
 cd frontend-dapp
