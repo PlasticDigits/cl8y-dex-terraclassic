@@ -101,6 +101,24 @@ npx playwright test --ui      # interactive UI
 
 Config: `playwright.config.ts`
 
+**Local stack for strict on-chain tests (default CI path):**
+
+1. `docker compose up -d localterra`
+2. From repo root: `bash scripts/deploy-dex-local.sh` (writes `frontend-dapp/.env.local`, deploys contracts, seeds CW20 balances on the dev account `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v`).
+3. `cd frontend-dapp && npx playwright test`
+
+Before tests, **`e2e/global-setup.ts`** waits for the LCD and runs **`scripts/e2e-provision-dev-wallet.sh`**, which **mints factory CW20s** to the dev wallet when any listed token balance is below **`E2E_DEV_MIN_CW20_U128`** (default `1000000000000` raw units). Native gas denoms **uluna** / **uusd** are expected from genesis (`docker/init-chain.sh`), not from the script.
+
+**Single-file pool tx run (documented in `frontend-dapp/e2e/README.md`):**
+
+```bash
+cd frontend-dapp
+pnpm exec playwright test e2e/pool-tx.spec.ts
+# or: npx playwright test e2e/pool-tx.spec.ts
+```
+
+**Optional chain (skip instead of fail):** set `REQUIRE_LOCALTERRA=0` so global setup and strict LCD/pool assertions are relaxed — for jobs that intentionally omit LocalTerra. Default is strict (unset or any value other than `0`).
+
 ### Fee Discount Contract Tests
 
 The fee-discount contract has unit tests covering:
