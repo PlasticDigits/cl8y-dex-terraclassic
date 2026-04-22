@@ -1,4 +1,13 @@
-//! Minimal LCD HTTP stub for cosmwasm `pool` smart queries (orderbook simulation).
+//! Wiremock-backed **Terra LCD HTTP stub** for integration tests.
+//!
+//! This module only **fakes the LCD REST surface** (for example cosmwasm `.../smart/` responses).
+//! It is **not** the on-chain **FIFO limit orderbook**; nothing here walks real resting orders.
+//!
+//! Production code that **synthesizes bid/ask depth from AMM reserves** (constant-product curve
+//! walk for ticker-style APIs) lives in [`cl8y_dex_indexer::api::orderbook_sim`] — a separate
+//! concept from both this stub and the pair contract’s orderbook state.
+//!
+//! See GitLab issue #105 for a repo-wide catalog of stubs and test stand-ins.
 
 use serde_json::{json, Value};
 use wiremock::matchers::{method, path_regex};

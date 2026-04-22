@@ -36,6 +36,8 @@ Start Postgres (for example `docker compose up -d postgres` from the repo root) 
 
 See [Indexer invariants](./indexer-invariants.md) for the full matrix and the same note under **Running tests**.
 
+**Stubs, mocks, and test stand-ins:** intentional test doubles (Wiremock LCD, Vitest `vi.mock`, placeholder addresses, E2E skips, and how they differ from production paths like the AMM **simulated** orderbook) are cataloged in [GitLab issue #105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105). Key indexer spots: `indexer/tests/common/lcd_mock.rs` (LCD HTTP stub only) vs `indexer/src/api/orderbook_sim.rs` (curve-walk depth, not the on-chain FIFO book).
+
 ### Unit Tests (Rust)
 
 Test individual contract functions in isolation using `cosmwasm_std::testing` helpers.
