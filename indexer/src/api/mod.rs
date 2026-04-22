@@ -4,6 +4,7 @@
 mod cg;
 mod cmc;
 pub mod hooks;
+mod limit_book_lcd;
 mod oracle;
 pub mod orderbook_sim;
 mod overview;
@@ -169,6 +170,7 @@ pub async fn find_pair_by_ticker(
         pairs::get_pair_order_limit_fills,
         pairs::get_pair_order_book_head,
         pairs::get_pair_limit_book_shallow,
+        pairs::get_pair_limit_book,
         pairs::get_pair_stats,
         hooks::get_hook_events,
         tokens::list_tokens,
@@ -213,7 +215,9 @@ pub async fn find_pair_by_ticker(
         pairs::OrderBookHeadResponse,
         pairs::LimitBookShallowQuery,
         pairs::LimitBookShallowResponse,
-        pairs::ShallowLimitOrderItem,
+        pairs::LimitBookOrderItem,
+        pairs::LimitBookPagedQuery,
+        pairs::LimitBookPagedResponse,
         pairs::PairStatsResponse,
         hooks::HookEventsQuery,
         hooks::HookEventResponse,
@@ -330,6 +334,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/pairs/{addr}/limit-book-shallow",
             get(pairs::get_pair_limit_book_shallow),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-book",
+            get(pairs::get_pair_limit_book),
         )
         .route("/api/v1/pairs/{addr}/stats", get(pairs::get_pair_stats))
         .route("/api/v1/tokens", get(tokens::list_tokens))
