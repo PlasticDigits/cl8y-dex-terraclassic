@@ -9,9 +9,9 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 **Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. The **indexer also proxies** those reads for integrators and the dApp (see [ADR 0002: Limit book surfacing](./adr/0002-limit-book-surfacing.md)):
 
 - **`GET /api/v1/pairs/{addr}/order-book-head?side=bid|ask`** — JSON `{ "head_order_id": <u64> | null }` from LCD `OrderBookHead`.
-- **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid|ask&depth=N`** — shallow walk from head along `next` (default depth 10, max 20); LCD errors → **502**.
+- **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid|ask&depth=N`** — shallow walk from head along `next` (default depth 10, max 20); LCD errors → **502**. Full-depth / paginated books are **not** exposed here; product work is tracked as GitLab [**#102**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/102).
 
-For multihop routing the indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (pool-only `hybrid: null` in `router_operations`) and optional **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001).
+For multihop routing the indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (pool-only `hybrid: null` in `router_operations`) and optional **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001). Default-path hybrid route discovery on `GET` remains future work — [**#101**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/101).
 
 ## Messages (CosmWasm)
 

@@ -1,6 +1,7 @@
 # CL8Y DEX Terra Classic — production review bundle
 
 **UTC folder:** `20260409T030009Z`  
+**Last reviewed (bundle sync):** 2026-04-22 — backlog/matrix refreshed vs `main`; use [GitLab issues](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues) for live epics.  
 **Repository:** `cl8y-dex-terraclassic` (Terra Classic DEX). **Bridge / cross-chain is out of program scope** for this repo and this review bundle.
 
 | File | Purpose |
