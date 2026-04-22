@@ -43,6 +43,7 @@ export const useWalletStore = create<WalletState>((set) => ({
       set({ address: result.address, walletType: result.walletType, isConnecting: false, walletModalOpen: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Connection failed', isConnecting: false })
+      throw err
     }
   },
   connectDev: () => {
