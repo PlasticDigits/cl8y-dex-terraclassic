@@ -80,6 +80,7 @@ describe('SwapPage', () => {
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     vi.mocked(findRoute).mockReturnValue(null)
     vi.mocked(getAllTokens).mockReturnValue([])
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
   })
 
   it('renders without crashing', () => {
@@ -115,11 +116,14 @@ describe('SwapPage', () => {
         },
       },
     ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockReset()
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
     vi.spyOn(indexerClient, 'postRouteSolve').mockResolvedValue({
       token_in: terraA,
       token_out: terraB,
       hops: [],
       router_operations: [],
+      quote_kind: 'indexer_hybrid_lcd',
       estimated_amount_out: '5000',
     })
 

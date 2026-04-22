@@ -50,12 +50,12 @@ Legend: **E** = exists, **P** = partial, **M** = missing, **U** = unclear, **N/A
 | Capability | Status | Evidence | Issue? | Bv2 | Blimit | Bhybrid | Sev | Owner |
 |------------|--------|----------|--------|-----|--------|---------|-----|-------|
 | Hybrid execution (Pattern C) | E | `HybridSwapParams`, `execute_swap` | N | N | N | N | note | contracts |
-| Hybrid route selection | P | `GET /route/solve` pool-only (`hybrid: null`); `POST` merges `hybrid_by_hop` + LCD sim — auto/default path **#101** | Y | N | N | Y | high | backend |
-| Best execution logic | M | Product/indexer gate — **#108** | Y | N | N | Y | high | product |
+| Hybrid route selection | P | `GET hybrid_optimize` + dApp default; `POST hybrid_by_hop`; manual/advanced in Settings — **#101** | N | N | N | P | high | backend |
+| Best execution logic | P | Sequential per-hop indexer optimizer (not global); fuller product gate **#108** | N | N | N | P | medium | product |
 | Fallback routing | P | user can set book leg 0 | N | N | N | P | low | frontend |
 | Router forward `hybrid` | E | `router/src/contract.rs` | N | N | N | N | note | contracts |
 | Simulation includes book | M | L8 | Y | N | N | Y | high | contracts |
-| Indexer hybrid-aware quotes | P | `POST /route/solve` hybrid merge + sim; `GET` pool-only quotes | Y | N | N | Y | high | backend |
+| Indexer hybrid-aware quotes | P | `GET hybrid_optimize` + `POST hybrid_by_hop` + LCD sim | N | N | N | P | high | backend |
 
 ## Infra, security, ops
 
@@ -66,7 +66,7 @@ Legend: **E** = exists, **P** = partial, **M** = missing, **U** = unclear, **N/A
 | Governance scope documented | E | `security-model.md`, audit doc | N | N | N | N | note | docs |
 | Deployment reproducibility | P | optimizer vs CI wasm | Y | Y | N | N | high | infra |
 | Test coverage (contracts) | E | `smartcontracts/tests`, proptest | N | N | N | N | note | testing |
-| Test coverage (hybrid E2E) | P | `hybrid-swap.spec.ts` + related specs; **conditional** `test.skip` (funds/route/pair) — strict default path **#103**, book-leg coverage **#79** | Y | N | N | Y | high | testing |
+| Test coverage (hybrid E2E) | P | `hybrid-swap.spec.ts` (book leg, wasm fill, quote source); conditional skips; stricter gates **#103** / **#79**; multihop hybrid parity optional | N | N | N | P | high | testing |
 | Monitoring / alerting | M | not defined in repo | Y | Y | Y | Y | medium | infra |
 | Runbooks | P | docs scattered | Y | Y | Y | Y | low | docs |
 | Indexer observability | P | `tracing`, no dashboard defs | Y | P | P | P | medium | backend |

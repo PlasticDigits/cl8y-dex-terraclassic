@@ -394,10 +394,21 @@ export interface IndexerRouteHop {
   ask_token: string
 }
 
+/** Mirrors indexer `RouteQuoteKind` (snake_case JSON). */
+export type IndexerRouteQuoteKind =
+  | 'indexer_route_only'
+  | 'indexer_pool_lcd'
+  | 'indexer_hybrid_lcd'
+  | 'indexer_hybrid_lcd_degraded'
+
 export interface IndexerRouteSolveResponse {
   token_in: string
   token_out: string
   hops: IndexerRouteHop[]
+  /** Full path: token_in, then each hop's ask_token (ends at token_out). */
+  intermediate_tokens?: string[]
+  quote_kind?: IndexerRouteQuoteKind
+  hybrid_notes?: string | null
   router_operations: unknown[]
   estimated_amount_out?: string
 }

@@ -316,17 +316,26 @@ export async function getOracleHistory(params?: GetOracleHistoryParams): Promise
   return fetchJson<IndexerOracleHistoryResponse>(`/api/v1/oracle/history${qs ? `?${qs}` : ''}`)
 }
 
+export interface GetRouteSolveOptions {
+  /** Per-hop hybrid split optimization via LCD (requires `amountIn`; indexer uses max 3 hops). */
+  hybridOptimize?: boolean
+  maxMakerFills?: number
+}
+
 /**
- * Multihop route from indexer graph (BFS, max 4 hops).
+ * Multihop route from indexer graph (BFS, max 4 hops by default; **max 3 hops** when `hybridOptimize`).
  * **Limitation:** `token_in` / `token_out` must match indexed CW20 `contract_address` entries; native-only assets without a CW20 row are not routable via this endpoint.
  */
 export async function getRouteSolve(
   tokenIn: string,
   tokenOut: string,
-  amountIn?: string
+  amountIn?: string,
+  options?: GetRouteSolveOptions
 ): Promise<IndexerRouteSolveResponse> {
   const sp = new URLSearchParams({ token_in: tokenIn.trim(), token_out: tokenOut.trim() })
   if (amountIn?.trim()) sp.set('amount_in', amountIn.trim())
+  if (options?.hybridOptimize) sp.set('hybrid_optimize', 'true')
+  if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
   return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`)
 }
 
