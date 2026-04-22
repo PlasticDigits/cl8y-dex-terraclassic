@@ -1,5 +1,11 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { skipIfLcdUnreachable, skipIfNoTxAlert } from './helpers/chain'
+import {
+  skipIfLcdUnreachable,
+  skipIfNoTxAlert,
+  assertTxResultAlert,
+  assertLiquidityCtaNotBlocked,
+  isLocalTerraOptional,
+} from './helpers/chain'
 
 test.describe('Pool with native token wrapping — UI', () => {
   test.beforeEach(async ({ page }) => {
@@ -119,12 +125,23 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     const submitBtn = page.getByRole('button', { name: /Provide Liquidity/i }).last()
     await expect(submitBtn).toBeEnabled({ timeout: 15_000 })
     const s0 = await submitBtn.textContent()
-    if (s0?.includes('Insufficient') || s0?.includes('Connect')) {
-      test.skip(true, 'Provide liquidity CTA blocked; fund dev wallet for wrap-pool tx tests.')
+    if (isLocalTerraOptional()) {
+      if (s0?.includes('Insufficient') || s0?.includes('Connect')) {
+        test.skip(true, 'Provide liquidity CTA blocked; fund dev wallet for wrap-pool tx tests.')
+      }
+    } else {
+      assertLiquidityCtaNotBlocked(
+        s0,
+        'Wrap pool provide (native): CTA blocked after E2E provisioning; verify LocalTerra + deploy + e2e-provision script.'
+      )
     }
     await submitBtn.click()
 
-    await skipIfNoTxAlert(page)
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
+    }
   })
 
   test('E8: provide liquidity with wrapped CW20 directly', async ({ page }) => {
@@ -139,12 +156,23 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     const submitBtn = page.getByRole('button', { name: /Provide Liquidity/i }).last()
     await expect(submitBtn).toBeEnabled({ timeout: 15_000 })
     const s8 = await submitBtn.textContent()
-    if (s8?.includes('Insufficient') || s8?.includes('Connect')) {
-      test.skip(true, 'Provide liquidity CTA blocked; fund dev wallet for wrap-pool tx tests.')
+    if (isLocalTerraOptional()) {
+      if (s8?.includes('Insufficient') || s8?.includes('Connect')) {
+        test.skip(true, 'Provide liquidity CTA blocked; fund dev wallet for wrap-pool tx tests.')
+      }
+    } else {
+      assertLiquidityCtaNotBlocked(
+        s8,
+        'Wrap pool provide (wrapped): CTA blocked after E2E provisioning; verify LocalTerra + deploy + e2e-provision script.'
+      )
     }
     await submitBtn.click()
 
-    await skipIfNoTxAlert(page)
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
+    }
   })
 
   test('E9: withdraw liquidity with auto-unwrap to native', async ({ page }) => {
@@ -182,15 +210,26 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
 
     // If there's insufficient LP it won't be enabled
     const btnText = await submitBtn.textContent()
-    if (btnText?.includes('Insufficient') || btnText?.includes('Connect')) {
-      test.skip()
-      return
+    if (isLocalTerraOptional()) {
+      if (btnText?.includes('Insufficient') || btnText?.includes('Connect')) {
+        test.skip(true, 'Withdraw CTA blocked; need LP balance for wrap-pool withdraw tx.')
+        return
+      }
+    } else {
+      assertLiquidityCtaNotBlocked(
+        btnText,
+        'Wrap pool withdraw (auto-unwrap): CTA blocked; ensure LP balance after prior provides or adjust pair selection.'
+      )
     }
 
     await expect(submitBtn).toBeEnabled({ timeout: 5000 })
     await submitBtn.click()
 
-    await skipIfNoTxAlert(page)
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
+    }
   })
 
   test('E10: withdraw liquidity — receive as wrapped tokens', async ({ page }) => {
@@ -205,14 +244,25 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     const submitBtn = page.getByRole('button', { name: /Withdraw Liquidity/i }).last()
 
     const btnText = await submitBtn.textContent()
-    if (btnText?.includes('Insufficient') || btnText?.includes('Connect')) {
-      test.skip()
-      return
+    if (isLocalTerraOptional()) {
+      if (btnText?.includes('Insufficient') || btnText?.includes('Connect')) {
+        test.skip(true, 'Withdraw CTA blocked; need LP balance for wrap-pool withdraw tx.')
+        return
+      }
+    } else {
+      assertLiquidityCtaNotBlocked(
+        btnText,
+        'Wrap pool withdraw (wrapped): CTA blocked; ensure LP balance for this pair.'
+      )
     }
 
     await expect(submitBtn).toBeEnabled({ timeout: 5000 })
     await submitBtn.click()
 
-    await skipIfNoTxAlert(page)
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
+    }
   })
 })

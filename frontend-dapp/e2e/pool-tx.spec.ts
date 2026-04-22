@@ -1,5 +1,11 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { skipIfLcdUnreachable, skipIfNoTxAlert } from './helpers/chain'
+import {
+  skipIfLcdUnreachable,
+  skipIfNoTxAlert,
+  assertTxResultAlert,
+  assertLiquidityCtaNotBlocked,
+  isLocalTerraOptional,
+} from './helpers/chain'
 
 test.describe('Pool Transactions', () => {
   test('provides liquidity', async ({ page, connectWallet, request }) => {
@@ -18,20 +24,31 @@ test.describe('Pool Transactions', () => {
     const provideBtn = page.getByRole('button', { name: 'Provide Liquidity' }).first()
     await provideBtn.click()
 
-    // Fill amounts
+    // Fill amounts (human decimal strings; leave headroom vs wallet balances after globalSetup mint)
     const inputs = page.locator('input[placeholder="0.00"]')
-    await inputs.nth(0).fill('1000000')
-    await inputs.nth(1).fill('1000000')
+    await inputs.nth(0).fill('10')
+    await inputs.nth(1).fill('10')
 
     // Click Provide Liquidity submit button
     const submitBtn = page.getByRole('button', { name: /Provide Liquidity/i }).last()
     await expect(submitBtn).toBeEnabled({ timeout: 15_000 })
     const submitLabel = await submitBtn.textContent()
-    if (submitLabel?.includes('Insufficient') || submitLabel?.includes('Connect')) {
-      test.skip(true, 'Provide liquidity CTA blocked; fund the dev wallet on local chain for pool-tx.')
+    if (isLocalTerraOptional()) {
+      if (submitLabel?.includes('Insufficient') || submitLabel?.includes('Connect')) {
+        test.skip(true, 'Provide liquidity CTA blocked; fund the dev wallet or run with LocalTerra + deploy.')
+      }
+    } else {
+      assertLiquidityCtaNotBlocked(
+        submitLabel,
+        'Provide liquidity CTA blocked after E2E provisioning; see docs/testing.md (pool-tx) and scripts/e2e-provision-dev-wallet.sh.'
+      )
     }
     await submitBtn.click()
 
-    await skipIfNoTxAlert(page)
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
+    }
   })
 })
