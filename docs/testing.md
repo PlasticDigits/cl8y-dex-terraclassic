@@ -61,12 +61,31 @@ Config: `vitest.config.ts`
 
 ### Integration Tests (Frontend)
 
-Longer-running tests that interact with a running LocalTerra instance (and, where configured, indexer-backed behavior). Separated to avoid slowing down the unit test suite.
+Longer-running tests are kept out of the default `npm run test:run` suite. **Charts + indexer HTTP** coverage uses `vitest.config.integration.ts`: tests call a real indexer (`VITE_INDEXER_URL`, default `http://127.0.0.1:3001`) with PostgreSQL migrations applied. They are **not** skipped when the stack is down — the run fails so CI catches broken wiring. E2E and other flows may still use LocalTerra where documented.
 
-```bash
-cd frontend-dapp
-npx vitest run --config vitest.config.integration.ts
-```
+**Charts integration (local)**
+
+1. Start PostgreSQL (for example `docker compose up -d postgres` from the repo root).
+2. Create a database (once): `CREATE DATABASE cl8y_charts_int;` (name can match your `DATABASE_URL`).
+3. Run migrations and seed minimal pair + candles:
+
+   ```bash
+   export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/cl8y_charts_int
+   cd indexer && sqlx migrate run && psql "$DATABASE_URL" -f scripts/seed-charts-integration.sql
+   ```
+
+   The seeded pair address is `terra1paircontractabc` (kept in sync with `frontend-dapp/src/test/chartsIntegrationConstants.ts`).
+
+4. Start the indexer API (same `DATABASE_URL` plus required env from `indexer/.env.example`: at minimum `FACTORY_ADDRESS`, `CORS_ORIGINS`, `LCD_URLS`).
+
+5. Run Vitest integration:
+
+   ```bash
+   cd frontend-dapp
+   VITE_INDEXER_URL=http://127.0.0.1:3001 npm run test:integration
+   ```
+
+**Note:** `lightweight-charts` is stubbed under jsdom via `src/test/lightweightChartsJsdomMock.ts` so Node-based Vitest stays stable; the real chart library runs in the browser (manual QA / Playwright).
 
 Config: `vitest.config.integration.ts`
 
@@ -137,6 +156,7 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
 1. `cargo fmt --check` + `cargo clippy` + contract tests via `cargo llvm-cov test` (LCOV artifact) + WASM builds
 2. `tsc --noEmit` + `npm run lint` + `npm run test:run`
+3. **Frontend charts integration:** PostgreSQL service → `sqlx migrate run` → `seed-charts-integration.sql` → release indexer binary → `npm run test:integration` against `http://127.0.0.1:3001`
 
 See [the workflow file](../.github/workflows/test.yml) for details.
 

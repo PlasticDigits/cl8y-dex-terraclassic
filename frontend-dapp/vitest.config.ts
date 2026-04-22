@@ -7,16 +7,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './src/test/setup.ts',
+    setupFiles: ['./src/test/lightweightChartsJsdomMock.ts', './src/test/setup.ts'],
     env: {
       VITE_NETWORK: 'local',
     },
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    exclude: [
-      'node_modules/',
-      'dist/',
-      'src/**/*.integration.test.{ts,tsx}',
-    ],
+    exclude: ['node_modules/', 'dist/', 'src/**/*.integration.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -1,9 +1,11 @@
 import '@testing-library/jest-dom'
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { lwChartTestDouble } from './lightweightChartsJsdomMock'
 
 afterEach(() => {
   cleanup()
+  lwChartTestDouble.reset()
 })
 
 if (typeof window !== 'undefined') {

@@ -103,6 +103,90 @@ jobs:
       - name: Unit tests
         run: npm run test:run
 
+  frontend-charts-integration:
+    name: Frontend charts integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/cl8y_charts_int
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: indexer
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --version 0.8.6 --no-default-features --features rustls,postgres --locked
+
+      - name: Create database and run migrations
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE cl8y_charts_int;" || true
+          cd indexer && sqlx migrate run
+
+      - name: Seed charts integration fixtures
+        run: psql "$DATABASE_URL" -f indexer/scripts/seed-charts-integration.sql
+
+      - name: Build indexer (release)
+        run: cargo build --release
+        working-directory: indexer
+
+      - name: Start indexer HTTP API
+        working-directory: indexer
+        run: |
+          export DATABASE_URL=postgres://postgres:postgres@localhost:5432/cl8y_charts_int
+          export FACTORY_ADDRESS=terra1jv65es0zkfhad9khmjyqjfue58jl390jsattf
+          export CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+          export LCD_URLS=https://terra-classic-lcd.publicnode.com
+          export POLL_INTERVAL_MS=3600000
+          export API_PORT=3001
+          export API_BIND=127.0.0.1
+          nohup ./target/release/cl8y-dex-indexer > /tmp/indexer-charts.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:3001/api/v1/overview > /dev/null; then
+              echo "indexer ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "--- indexer log ---"
+          cat /tmp/indexer-charts.log
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend-dapp
+
+      - name: Vitest charts integration
+        run: npm run test:integration
+        working-directory: frontend-dapp
+        env:
+          VITE_INDEXER_URL: http://127.0.0.1:3001
+
   indexer:
     name: Indexer
     runs-on: ubuntu-latest

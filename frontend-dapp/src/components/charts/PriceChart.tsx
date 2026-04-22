@@ -110,7 +110,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
 
     seriesRef.current.setData(data)
     chartRef.current?.timeScale().fitContent()
-  }, [candlesQuery.data])
+  }, [candlesQuery.data, pairAddress, interval])
 
   return (
     <div className="shell-panel-strong">
