@@ -17,6 +17,7 @@ import {
   findRouteWithNativeSupport,
   simulateNativeSwap,
   executeNativeSwap,
+  type SwapOperation,
 } from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
@@ -26,6 +27,7 @@ import {
   isNativeDenom,
   type HybridSwapParams,
   type IndexerRouteSolveResponse,
+  type IndexerRouteQuoteKind,
 } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui'
@@ -33,6 +35,33 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
+import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
+
+/** Wallet-side simulation result with optional indexer-routing metadata. */
+interface SwapSimData {
+  return_amount: string
+  spread_amount: string
+  commission_amount: string
+  quoteDisclosure: string
+  indexerQuoteKind?: IndexerRouteQuoteKind
+  indexerOperations?: SwapOperation[]
+  indexerIntermediateTokens?: string[]
+}
+
+function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | undefined): string {
+  switch (kind) {
+    case 'indexer_hybrid_lcd_degraded':
+      return 'Indexer hybrid route (LCD) — one or more hops fell back to pool-only on the indexer.'
+    case 'indexer_hybrid_lcd':
+      return 'Indexer-optimized hybrid splits · quoted via your wallet LCD simulation (matches submit shape).'
+    case 'indexer_pool_lcd':
+      return 'Indexer route (pool-only legs) · quoted via your wallet LCD simulation.'
+    case 'indexer_route_only':
+      return 'Indexer-solved route · no aggregate router estimate (simulation unavailable).'
+    default:
+      return 'Quoted via your wallet (chain simulation).'
+  }
+}
 
 export default function SwapPage() {
   const address = useWalletStore((s) => s.address)
@@ -101,7 +130,18 @@ export default function SwapPage() {
     const n = parseFloat(t)
     return !Number.isNaN(n) && n > 0
   }, [isDirect, useHybridBook, fromToken, bookInputHuman])
-  const hasRoute = isWrapOrUnwrap || nativeRouteInfo !== null || route !== null
+
+  /** CW20-only paths may be solvable via indexer hybrid graph even when the local pair list BFS misses (e.g. hop cap). */
+  const indexerCw20Eligible =
+    !!fromToken &&
+    !!toToken &&
+    fromToken.startsWith('terra1') &&
+    toToken.startsWith('terra1') &&
+    !isWrapOrUnwrap &&
+    !nativeRouteInfo
+
+  const hasRoute =
+    isWrapOrUnwrap || nativeRouteInfo !== null || route !== null || indexerCw20Eligible
 
   const checkIndexerRoute = useCallback(async () => {
     if (!fromToken || !toToken) return
@@ -230,19 +270,29 @@ export default function SwapPage() {
       bookInputHuman,
       hybridMaxMakers,
     ],
-    queryFn: async () => {
+    queryFn: async (): Promise<SwapSimData> => {
       if (!inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
 
       if (isWrapOrUnwrap) {
-        return { return_amount: rawInputAmount, spread_amount: '0', commission_amount: '0' }
+        return {
+          return_amount: rawInputAmount,
+          spread_amount: '0',
+          commission_amount: '0',
+          quoteDisclosure: 'Wrap / unwrap (1:1).',
+        }
       }
 
       if (nativeRouteInfo) {
         const result = await simulateNativeSwap(rawInputAmount, fromToken, toToken, pairs)
-        return { return_amount: result.amount, spread_amount: '0', commission_amount: '0' }
+        return {
+          return_amount: result.amount,
+          spread_amount: '0',
+          commission_amount: '0',
+          quoteDisclosure: 'Native / wrapped route · wallet LCD simulation (pool-only ops).',
+        }
       }
 
-      if (!route) throw new Error('No route found')
+      // Advanced: manual limit-book split on a direct pair (overrides indexer hybrid for this quote).
       if (isDirect && directPair) {
         if (useHybridBook && fromToken.startsWith('terra1')) {
           const payDec = getDecimals(tokenAssetInfo(fromToken))
@@ -267,19 +317,74 @@ export default function SwapPage() {
                   return_amount: idx.estimated_amount_out,
                   spread_amount: '0',
                   commission_amount: '0',
+                  quoteDisclosure:
+                    'Manual hybrid split (Settings) · indexer merged ops + router LCD estimate.',
+                  indexerQuoteKind: idx.quote_kind,
                 }
               }
             } catch {
-              /* indexer optional; fall back to pool-only pair sim */
+              /* fall through */
             }
           }
         }
+      }
+
+      // Default CW20↔CW20: indexer hybrid optimization (≤3 hops) + wallet `simulate_swap_operations`.
+      if (
+        fromToken.startsWith('terra1') &&
+        toToken.startsWith('terra1') &&
+        rawInputAmount !== '0'
+      ) {
+        try {
+          const idx = await getRouteSolve(fromToken, toToken, rawInputAmount, {
+            hybridOptimize: true,
+            maxMakerFills: hybridMaxMakers,
+          })
+          const tin = idx.token_in.trim().toLowerCase()
+          const tout = idx.token_out.trim().toLowerCase()
+          if (tin === fromToken.trim().toLowerCase() && tout === toToken.trim().toLowerCase()) {
+            const ops = swapOperationsFromIndexerResponse(
+              idx.router_operations as unknown[],
+              idx.hops.length
+            )
+            const result = await simulateMultiHopSwap(rawInputAmount, ops)
+            const intermediates =
+              idx.intermediate_tokens?.length === idx.hops.length + 1
+                ? idx.intermediate_tokens
+                : [idx.token_in, ...idx.hops.map((h) => h.ask_token)]
+            return {
+              return_amount: result.amount,
+              spread_amount: '0',
+              commission_amount: '0',
+              quoteDisclosure: quoteDisclosureForIndexerKind(idx.quote_kind),
+              indexerQuoteKind: idx.quote_kind,
+              indexerOperations: ops,
+              indexerIntermediateTokens: intermediates,
+            }
+          }
+        } catch {
+          /* pool-only fallback */
+        }
+      }
+
+      if (!route) throw new Error('No route found')
+      if (isDirect && directPair) {
         const offerInfo = tokenAssetInfo(fromToken)
-        return simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount)
+        const r = await simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount)
+        return {
+          ...r,
+          quoteDisclosure: 'Direct pool · on-chain pair simulation (pool-only).',
+        }
       }
       if (isMultiHop && route) {
         const result = await simulateMultiHopSwap(rawInputAmount, route)
-        return { return_amount: result.amount, spread_amount: '0', commission_amount: '0' }
+        return {
+          return_amount: result.amount,
+          spread_amount: '0',
+          commission_amount: '0',
+          quoteDisclosure:
+            'Client-discovered multihop (pair graph) · pool-only · wallet LCD simulation.',
+        }
       }
       throw new Error('No route found')
     },
@@ -302,6 +407,21 @@ export default function SwapPage() {
           pairs,
           maxSpread,
           minReceived ?? undefined,
+          deadline
+        )
+      }
+
+      const idxOps = simQuery.data?.indexerOperations
+      if (idxOps && idxOps.length > 0) {
+        const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
+        return executeMultiHopSwap(
+          address,
+          fromToken,
+          rawInputAmount,
+          idxOps,
+          maxSpread,
+          minReceived ?? undefined,
+          undefined,
           deadline
         )
       }
@@ -513,7 +633,7 @@ export default function SwapPage() {
             </div>
             {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
               <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
-                <p className="label-neo mb-2">Direct swap: limit book leg</p>
+                <p className="label-neo mb-2">Advanced — direct swap: limit book leg</p>
                 <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--ink-subtle)' }}>
                   {pairInfoMenuLabel(directPair, { variant: 'full' })}
                 </p>
@@ -729,6 +849,25 @@ export default function SwapPage() {
         </div>
 
         <div className="mb-4 space-y-2">
+          {simQuery.data?.quoteDisclosure && (
+            <div className="card-neo text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+              <span className="uppercase tracking-wide font-semibold" style={{ color: 'var(--ink-subtle)' }}>
+                Quote source:{' '}
+              </span>
+              {simQuery.data.quoteDisclosure}
+            </div>
+          )}
+          {simQuery.data?.indexerIntermediateTokens && simQuery.data.indexerIntermediateTokens.length >= 2 && (
+            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+              <span className="uppercase tracking-wide font-medium">Route (indexer): </span>
+              {simQuery.data.indexerIntermediateTokens.map((t, i) => (
+                <span key={`${t}-${i}`}>
+                  {i > 0 && ' → '}
+                  {getTokenDisplaySymbol(t)}
+                </span>
+              ))}
+            </div>
+          )}
           {isWrapOrUnwrap && (
             <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
               This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
@@ -885,7 +1024,9 @@ export default function SwapPage() {
           </div>
         )}
 
-        {showHybridBookSubmitWarning && (
+        {(showHybridBookSubmitWarning ||
+          simQuery.data?.indexerQuoteKind === 'indexer_hybrid_lcd' ||
+          simQuery.data?.indexerQuoteKind === 'indexer_hybrid_lcd_degraded') && (
           <div className="alert-error mb-3 text-xs" role="alert">
             <p className="font-semibold mb-1">Limit book leg</p>
             <p>
