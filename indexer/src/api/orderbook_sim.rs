@@ -1,3 +1,14 @@
+//! **Simulated AMM orderbook** for APIs that need depth quotes without replaying on-chain FIFO levels.
+//!
+//! [`simulate_orderbook`] walks the **constant-product curve** using pool reserves from the LCD
+//! (`pool` smart query). That yields synthetic bid/ask ladders for integrations such as CG/CMC —
+//! **not** the pair contract’s **limit order book** (resting orders, price-time priority).
+//!
+//! Integration tests often combine this module with the Wiremock LCD stub in
+//! `tests/common/lcd_mock.rs`, which only mocks HTTP — it does not implement orderbook logic.
+//!
+//! See GitLab issue #105 for a repo-wide catalog of stubs and test stand-ins.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
