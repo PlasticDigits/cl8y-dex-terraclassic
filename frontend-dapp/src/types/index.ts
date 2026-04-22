@@ -280,6 +280,14 @@ export interface IndexerLimitBookShallowResponse {
   orders: IndexerShallowLimitOrder[]
 }
 
+/** `GET /api/v1/pairs/{addr}/limit-book` (paginated on-chain book via indexer → LCD) */
+export interface IndexerLimitBookPageResponse {
+  side: string
+  orders: IndexerShallowLimitOrder[]
+  has_more: boolean
+  next_after_order_id: number | null
+}
+
 /** Pair `is_paused` CosmWasm query */
 export interface PairPausedResponse {
   paused: boolean
