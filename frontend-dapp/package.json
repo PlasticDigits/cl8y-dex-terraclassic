@@ -47,6 +47,7 @@
     "react": "^19.1.1",
     "react-blockies": "^1.4.1",
     "react-dom": "^19.1.1",
+    "react-resizable-panels": "^2.1.9",
     "react-router-dom": "^7.9.5",
     "zustand": "^5.0.8"
   },

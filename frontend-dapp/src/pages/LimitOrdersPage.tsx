@@ -5,7 +5,7 @@ import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { placeLimitOrder, cancelLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
-import { getPairLimitBookShallow, getPairLimitPlacements } from '@/services/indexer/client'
+import { getPairLimitBookPage, getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
@@ -62,15 +62,15 @@ export default function LimitOrdersPage() {
   })
 
   const bookBidQuery = useQuery({
-    queryKey: ['limitBookShallow', pairAddr, 'bid'],
-    queryFn: () => getPairLimitBookShallow(pairAddr, 'bid', 10),
+    queryKey: ['limitBookPagePreview', pairAddr, 'bid'],
+    queryFn: () => getPairLimitBookPage(pairAddr, 'bid', { limit: 20 }),
     enabled: pairAddr.startsWith('terra1'),
     staleTime: 10_000,
   })
 
   const bookAskQuery = useQuery({
-    queryKey: ['limitBookShallow', pairAddr, 'ask'],
-    queryFn: () => getPairLimitBookShallow(pairAddr, 'ask', 10),
+    queryKey: ['limitBookPagePreview', pairAddr, 'ask'],
+    queryFn: () => getPairLimitBookPage(pairAddr, 'ask', { limit: 20 }),
     enabled: pairAddr.startsWith('terra1'),
     staleTime: 10_000,
   })
@@ -108,7 +108,7 @@ export default function LimitOrdersPage() {
       setAmountHuman('')
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
-      queryClient.invalidateQueries({ queryKey: ['limitBookShallow', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
       setLastIndexedOrderId(null)
       const addr = pairAddr
       const wallet = address
@@ -145,7 +145,7 @@ export default function LimitOrdersPage() {
       setCancelOrderId('')
       setLastIndexedOrderId(null)
       queryClient.invalidateQueries({ queryKey: ['limitCancellations'] })
-      queryClient.invalidateQueries({ queryKey: ['limitBookShallow', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
     },
     onError: () => sounds.playError(),
   })
@@ -237,11 +237,11 @@ export default function LimitOrdersPage() {
 
               {selectedPair && (
                 <div className="card-neo !p-4 space-y-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide">On-chain book (indexer → LCD)</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wide">On-chain order book (indexer → LCD)</h2>
                   {(bookBidQuery.isLoading || bookAskQuery.isLoading) && <Spinner />}
                   {(bookBidQuery.isError || bookAskQuery.isError) && (
                     <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-                      Book preview unavailable (indexer or LCD).
+                      Book unavailable (indexer or LCD).
                     </p>
                   )}
                   {!bookBidQuery.isLoading && !bookBidQuery.isError && bookBidQuery.data && (
@@ -250,7 +250,7 @@ export default function LimitOrdersPage() {
                         className="text-xs font-medium uppercase tracking-wide mb-1"
                         style={{ color: 'var(--ink-dim)' }}
                       >
-                        Bids (shallow)
+                        Bids
                       </div>
                       <ul className="text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
                         {bookBidQuery.data.orders.length === 0 && <li className="opacity-70">(empty)</li>}
@@ -268,7 +268,7 @@ export default function LimitOrdersPage() {
                         className="text-xs font-medium uppercase tracking-wide mb-1"
                         style={{ color: 'var(--ink-dim)' }}
                       >
-                        Asks (shallow)
+                        Asks
                       </div>
                       <ul className="text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
                         {bookAskQuery.data.orders.length === 0 && <li className="opacity-70">(empty)</li>}

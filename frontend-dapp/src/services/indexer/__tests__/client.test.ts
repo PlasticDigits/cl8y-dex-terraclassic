@@ -109,4 +109,26 @@ describe('indexer client fetchJson', () => {
     expect(vi.mocked(fetch).mock.calls[3][0]).toBe(`${client.INDEXER_URL}/api/v1/pairs/${pair}/limit-cancellations`)
     expect(vi.mocked(fetch).mock.calls[4][0]).toContain(`/api/v1/pairs/${pair}/limit-orders/42/fills?limit=20`)
   })
+
+  it('builds paginated limit-book URL', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          side: 'ask',
+          orders: [],
+          has_more: false,
+          next_after_order_id: null,
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    const pair = 'terra1pairaddr000000000000000000000000000'
+    await client.getPairLimitBookPage(pair, 'ask', { limit: 50, afterOrderId: 42 })
+    const url = vi.mocked(fetch).mock.calls[0][0] as string
+    expect(url).toContain(`/api/v1/pairs/${pair}/limit-book?`)
+    expect(url).toContain('side=ask')
+    expect(url).toContain('limit=50')
+    expect(url).toContain('after_order_id=42')
+  })
 })
