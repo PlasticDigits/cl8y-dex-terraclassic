@@ -52,6 +52,31 @@ test.describe('Hybrid swap UI (LocalTerra)', () => {
     const doc = alert.getByRole('link', { name: /docs\/limit-orders\.md/i })
     await expect(doc).toHaveAttribute('href', /limit-orders\.md/)
   })
+
+  test('shows quote source disclosure after amount for dual-CW20 route', async ({ page, connectWallet, request }) => {
+    await skipIfLcdUnreachable(request)
+    await connectWallet
+    await page.waitForLoadState('networkidle')
+
+    const pairs = await reloadAndCaptureFactoryPairsPage(page)
+    const hit = firstDualCwPair(pairs)
+    if (!hit) {
+      test.skip(true, 'No dual-CW20 pair on first factory page.')
+    }
+
+    const { pair } = hit
+    const t0 = assetInfoLabel(pair.asset_infos[0])
+    const t1 = assetInfoLabel(pair.asset_infos[1])
+
+    await page.getByLabel('Select token you pay').click()
+    await page.getByTestId(`token-option-${t0}`).click()
+    await page.getByLabel('Select token you receive').click()
+    await page.getByTestId(`token-option-${t1}`).click()
+
+    await page.getByPlaceholder('0.00').first().fill('0.001')
+
+    await expect(page.getByText(/^Quote source:/i)).toBeVisible({ timeout: 120_000 })
+  })
 })
 
 test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
