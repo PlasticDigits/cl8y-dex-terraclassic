@@ -59,10 +59,12 @@ describe('useWalletStore', () => {
     expect(connectTerraWallet).toHaveBeenCalledWith(WalletName.STATION, WalletType.EXTENSION)
   })
 
-  it('connect - failed connection sets error, clears isConnecting', async () => {
+  it('connect - failed connection sets error, clears isConnecting, rethrows', async () => {
     vi.mocked(connectTerraWallet).mockRejectedValueOnce(new Error('User rejected'))
 
-    await useWalletStore.getState().connect(WalletName.STATION, WalletType.EXTENSION)
+    await expect(useWalletStore.getState().connect(WalletName.STATION, WalletType.EXTENSION)).rejects.toThrow(
+      'User rejected'
+    )
 
     const state = useWalletStore.getState()
     expect(state.address).toBeNull()
