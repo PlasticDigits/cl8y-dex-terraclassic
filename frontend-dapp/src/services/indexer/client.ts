@@ -21,6 +21,7 @@ import type {
   IndexerLimitCancellation,
   IndexerOrderBookHeadResponse,
   IndexerLimitBookShallowResponse,
+  IndexerLimitBookPageResponse,
 } from '@/types'
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://127.0.0.1:3001'
@@ -216,6 +217,23 @@ export async function getPairLimitBookShallow(
 ): Promise<IndexerLimitBookShallowResponse> {
   const sp = new URLSearchParams({ side, depth: String(depth) })
   return fetchJson<IndexerLimitBookShallowResponse>(`/api/v1/pairs/${pairAddr}/limit-book-shallow?${sp}`)
+}
+
+export interface GetPairLimitBookPageParams {
+  limit?: number
+  afterOrderId?: number
+}
+
+/** Paginated on-chain book (default limit 50, max 100 per request). */
+export async function getPairLimitBookPage(
+  pairAddr: string,
+  side: 'bid' | 'ask',
+  params?: GetPairLimitBookPageParams
+): Promise<IndexerLimitBookPageResponse> {
+  const sp = new URLSearchParams({ side })
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.afterOrderId != null) sp.set('after_order_id', String(params.afterOrderId))
+  return fetchJson<IndexerLimitBookPageResponse>(`/api/v1/pairs/${pairAddr}/limit-book?${sp}`)
 }
 
 /** Get global DEX overview stats. */

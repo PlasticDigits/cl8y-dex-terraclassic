@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, internal_err, AppState};
+use super::{build_asset_map, internal_err, limit_book_lcd, AppState};
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
     candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
 };
 use crate::lcd::LcdError;
+
+pub use limit_book_lcd::LimitBookOrderItem;
 
 pub const VALID_INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
@@ -20,6 +22,13 @@ const LIMIT_BOOK_SHALLOW_DEPTH_MAX: i64 = 20;
 
 fn lcd_err(e: LcdError) -> (StatusCode, String) {
     (StatusCode::BAD_GATEWAY, format!("LCD query failed: {e}"))
+}
+
+fn limit_book_lcd_err(e: limit_book_lcd::LimitBookLcdError) -> (StatusCode, String) {
+    match e {
+        limit_book_lcd::LimitBookLcdError::Lcd(le) => lcd_err(le),
+        limit_book_lcd::LimitBookLcdError::BadRequest(m) => (StatusCode::BAD_REQUEST, m),
+    }
 }
 
 fn parse_book_side(raw: &str) -> Result<&'static str, (StatusCode, String)> {
@@ -31,31 +40,6 @@ fn parse_book_side(raw: &str) -> Result<&'static str, (StatusCode, String)> {
             "Invalid side: use bid or ask".to_string(),
         )),
     }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-struct ChainLimitOrderRow {
-    order_id: u64,
-    owner: String,
-    side: serde_json::Value,
-    price: String,
-    remaining: String,
-    #[serde(default)]
-    expires_at: Option<u64>,
-    #[allow(dead_code)]
-    prev: Option<u64>,
-    next: Option<u64>,
-}
-
-fn chain_side_label(v: &serde_json::Value) -> String {
-    v.as_str()
-        .map(std::string::ToString::to_string)
-        .or_else(|| {
-            v.as_object()
-                .and_then(|m| m.keys().next().map(std::string::ToString::to_string))
-        })
-        .unwrap_or_else(|| "unknown".to_string())
 }
 
 #[derive(Serialize, ToSchema)]
@@ -864,20 +848,9 @@ pub struct LimitBookShallowQuery {
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct ShallowLimitOrderItem {
-    pub order_id: u64,
-    pub owner: String,
-    pub side: String,
-    pub price: String,
-    pub remaining: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<u64>,
-}
-
-#[derive(Serialize, ToSchema)]
 pub struct LimitBookShallowResponse {
     pub side: String,
-    pub orders: Vec<ShallowLimitOrderItem>,
+    pub orders: Vec<LimitBookOrderItem>,
 }
 
 #[utoipa::path(
@@ -909,39 +882,82 @@ pub async fn get_pair_limit_book_shallow(
     let side_label = parse_book_side(&q.side)?;
     let depth = q.depth.unwrap_or(10).clamp(1, LIMIT_BOOK_SHALLOW_DEPTH_MAX);
 
-    let head: Option<u64> = state
-        .lcd
-        .query_contract(&addr, &json!({ "order_book_head": { "side": side_label } }))
-        .await
-        .map_err(lcd_err)?;
-
-    let mut orders = Vec::new();
-    let mut current = head;
-    let mut steps = 0i64;
-    while steps < depth {
-        let Some(oid) = current else {
-            break;
-        };
-        let row: ChainLimitOrderRow = state
-            .lcd
-            .query_contract(&addr, &json!({ "limit_order": { "order_id": oid } }))
+    let (orders, _, _) =
+        limit_book_lcd::fetch_limit_book_page(&state.lcd, &addr, side_label, depth, None)
             .await
-            .map_err(lcd_err)?;
-        orders.push(ShallowLimitOrderItem {
-            order_id: row.order_id,
-            owner: row.owner,
-            side: chain_side_label(&row.side),
-            price: row.price,
-            remaining: row.remaining,
-            expires_at: row.expires_at,
-        });
-        current = row.next;
-        steps += 1;
-    }
+            .map_err(limit_book_lcd_err)?;
 
     Ok(Json(LimitBookShallowResponse {
         side: side_label.to_string(),
         orders,
+    }))
+}
+
+#[derive(Deserialize, IntoParams, ToSchema)]
+pub struct LimitBookPagedQuery {
+    /// Book side: `bid` or `ask`
+    pub side: String,
+    /// Max orders in this page (default 50, max 100)
+    pub limit: Option<i64>,
+    /// Keyset cursor: `order_id` from `next_after_order_id` of the previous page
+    pub after_order_id: Option<u64>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LimitBookPagedResponse {
+    pub side: String,
+    pub orders: Vec<LimitBookOrderItem>,
+    pub has_more: bool,
+    pub next_after_order_id: Option<u64>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/limit-book",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        LimitBookPagedQuery,
+    ),
+    responses(
+        (status = 200, description = "Paginated on-chain book via LCD proxy", body = LimitBookPagedResponse),
+        (status = 400, description = "Invalid side, limit, or cursor"),
+        (status = 404, description = "Pair not found"),
+        (status = 502, description = "LCD error"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_limit_book(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<LimitBookPagedQuery>,
+) -> Result<Json<LimitBookPagedResponse>, (StatusCode, String)> {
+    let _pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let side_label = parse_book_side(&q.side)?;
+    let page_limit = q
+        .limit
+        .unwrap_or(limit_book_lcd::LIMIT_BOOK_PAGE_DEFAULT)
+        .clamp(1, limit_book_lcd::LIMIT_BOOK_PAGE_MAX);
+
+    let (orders, has_more, next_after_order_id) = limit_book_lcd::fetch_limit_book_page(
+        &state.lcd,
+        &addr,
+        side_label,
+        page_limit,
+        q.after_order_id,
+    )
+    .await
+    .map_err(limit_book_lcd_err)?;
+
+    Ok(Json(LimitBookPagedResponse {
+        side: side_label.to_string(),
+        orders,
+        has_more,
+        next_after_order_id,
     }))
 }
 

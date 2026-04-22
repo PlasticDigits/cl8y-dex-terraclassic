@@ -57,6 +57,13 @@ test.describe('Navigation', () => {
     await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
   })
 
+  test('navigates to Trade page', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('link', { name: 'Trade' }).click()
+    await expect(page).toHaveURL(/\/trade/)
+    await expect(page.getByRole('heading', { name: 'Trade' })).toBeVisible()
+  })
+
   test('navigates to Fee Tiers page', async ({ page }) => {
     await page.goto('/')
     await clickDesktopMoreNavItem(page, 'Fee Tiers')

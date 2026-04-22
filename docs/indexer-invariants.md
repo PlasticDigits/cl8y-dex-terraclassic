@@ -32,7 +32,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | Route simulation (GET) | Optional `estimated_amount_out` when `amount_in` is set **and** `ROUTER_ADDRESS` env is configured | LCD `simulate_swap_operations` with pool-only ops | Same; requires live LCD in production |
 | Pair liquidity history | `GET /api/v1/pairs/{addr}/liquidity-events` — `limit`/`before` capped like trades | Unknown pair → **404** | [`api_pairs.rs`](../indexer/tests/api_pairs.rs) |
 | Limit placements / cancellations | `GET /api/v1/pairs/{addr}/limit-placements`, `.../limit-cancellations` | Unknown pair → **404** | Same |
-| On-chain book (LCD proxy) | `GET /api/v1/pairs/{addr}/order-book-head`, `.../limit-book-shallow` | Unknown pair → **404**; LCD failure → **502**; `depth` clamped (max 20) | [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`limit-orders.md`](./limit-orders.md) |
+| On-chain book (LCD proxy) | `GET /api/v1/pairs/{addr}/order-book-head`, `.../limit-book` (paginated), `.../limit-book-shallow` (legacy preview) | Unknown pair → **404**; LCD failure → **502**; `limit-book` `limit` clamped (max 100); `limit-book-shallow` `depth` clamped (max 20); bad book cursor / side → **400** | [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs), [`limit-orders.md`](./limit-orders.md) |
 | Hooks OpenAPI | `GET /api/v1/hooks` documented under Swagger **Hooks** tag | Same error handling as other read routes | [`api_hooks.rs`](../indexer/tests/api_hooks.rs) |
 
 ## Indexing invariants
