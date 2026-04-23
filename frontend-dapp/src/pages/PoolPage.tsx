@@ -3,16 +3,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
-import { getTokenBalance, verifyPairInFactory } from '@/services/terraclassic/queries'
+import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { executeTerraContract, executeTerraContractMulti } from '@/services/terraclassic/transactions'
+import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import {
   FEE_DISCOUNT_CONTRACT_ADDRESS,
   FACTORY_CONTRACT_ADDRESS,
   TREASURY_CONTRACT_ADDRESS,
   WRAP_MAPPER_CONTRACT_ADDRESS,
 } from '@/utils/constants'
-import type { PairInfo, AssetInfo } from '@/types'
+import { FACTORY_PAIRS_MAX_FOR_POOL_LIST, getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
+import type { PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
 import type { IndexerPairSort } from '@/types'
 import { getPairs, getTokens, INDEXER_URL } from '@/services/indexer/client'
@@ -46,7 +48,18 @@ const ORDER_OPTIONS: MenuSelectOption[] = [
   { value: 'desc', label: 'Descending' },
 ]
 
-const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairInfo; volumeQuote24h?: string }) {
+const POOL_DATA_SOURCES_DOC =
+  'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#liquidity-pools-list-indexer-vs-factory'
+
+const PoolCard = memo(function PoolCard({
+  pair,
+  volumeQuote24h,
+  listBadges,
+}: {
+  pair: PairInfo
+  volumeQuote24h?: string
+  listBadges: PairListBadges
+}) {
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState<'add' | 'remove' | null>(null)
@@ -67,14 +80,6 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
   const nativeEquivB = useMemo(() => getNativeEquivalent(tokenB), [tokenB])
   const hasNativeOptionA = !!nativeEquivA
   const hasNativeOptionB = !!nativeEquivB
-
-  const verifyQuery = useQuery({
-    queryKey: ['pairVerify', pair.contract_addr],
-    queryFn: () =>
-      verifyPairInFactory(pair.contract_addr, FACTORY_CONTRACT_ADDRESS, pair.asset_infos as [AssetInfo, AssetInfo]),
-    enabled: !!FACTORY_CONTRACT_ADDRESS,
-    staleTime: Infinity,
-  })
 
   const poolQuery = useQuery({
     queryKey: ['pool', pair.contract_addr],
@@ -334,7 +339,19 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
               24h vol (quote, indexed): {formatNum(volumeQuote24h)}
             </p>
           )}
-          {verifyQuery.data === false && (
+          {listBadges.isInFactoryRouterGraph ? (
+            <span
+              className="text-xs font-semibold px-2 py-0.5 rounded-none border"
+              style={{
+                color: 'var(--cyan)',
+                borderColor: 'rgba(34, 211, 238, 0.4)',
+                background: 'color-mix(in srgb, var(--cyan) 8%, transparent)',
+              }}
+              title="Pair contract is registered in the factory — included in the swap router’s on-chain token graph."
+            >
+              In router (factory)
+            </span>
+          ) : (
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded-none border"
               style={{
@@ -342,8 +359,9 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
                 borderColor: 'var(--color-negative)',
                 background: 'color-mix(in srgb, var(--color-negative) 10%, transparent)',
               }}
+              title="Not found in the factory’s pair list (indexer row only; not used for on-chain path finding until registered)."
             >
-              Unverified
+              Indexer only
             </span>
           )}
         </div>
@@ -780,6 +798,19 @@ export default function PoolPage() {
   const [sort, setSort] = useState<IndexerPairSort>('symbol')
   const [order, setOrder] = useState<'asc' | 'desc'>('asc')
   const [page, setPage] = useState(0)
+  const [routerKnownOnly, setRouterKnownOnly] = useState(false)
+
+  const factoryPairsQuery = useQuery({
+    queryKey: ['factoryPairsForPoolList', FACTORY_PAIRS_MAX_FOR_POOL_LIST] as const,
+    queryFn: () => getAllPairsPaginated(FACTORY_PAIRS_MAX_FOR_POOL_LIST),
+    staleTime: 60_000,
+    enabled: !!FACTORY_CONTRACT_ADDRESS,
+  })
+
+  const factoryPairAddresses = useMemo(() => {
+    const rows = factoryPairsQuery.data?.pairs ?? []
+    return new Set(rows.map((p) => p.contract_addr))
+  }, [factoryPairsQuery.data?.pairs])
 
   const pairsQuery = useQuery({
     queryKey: ['indexer-pairs', submittedQ, sort, order, page],
@@ -802,10 +833,18 @@ export default function PoolPage() {
   })
 
   const total = pairsQuery.data?.total ?? 0
-  const indexerPairs = pairsQuery.data?.items ?? []
+  const indexerPairs = useMemo(() => pairsQuery.data?.items ?? [], [pairsQuery.data?.items])
+  const visibleIndexerPairs = useMemo(
+    () => (routerKnownOnly ? indexerPairs.filter((ip) => factoryPairAddresses.has(ip.pair_address)) : indexerPairs),
+    [indexerPairs, routerKnownOnly, factoryPairAddresses]
+  )
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const canPrev = page > 0
   const canNext = (page + 1) * PAGE_SIZE < total
+
+  const factoryCount = factoryPairsQuery.data?.pairs.length
+  const showIndexerFactoryDrift =
+    factoryPairsQuery.isSuccess && pairsQuery.isSuccess && factoryCount != null && factoryCount !== total
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -815,13 +854,57 @@ export default function PoolPage() {
           <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
             Browse pairs, compare fees, and add or remove liquidity.
           </p>
+          <p className="text-xs mt-2 max-w-prose" style={{ color: 'var(--ink-dim)' }}>
+            <span className="font-semibold" style={{ color: 'var(--ink-subtle)' }}>
+              List source:{' '}
+            </span>
+            Count and sort order come from the{' '}
+            <abbr
+              title="Off-chain API used for pool metadata, 24h volume, and (elsewhere) route hints."
+              className="no-underline border-b border-dotted border-white/20 cursor-help"
+            >
+              indexer
+            </abbr>
+            , not on-chain factory enumeration. Rows are tagged against the factory pair list (same set the swap router
+            uses).{' '}
+            <a
+              href={POOL_DATA_SOURCES_DOC}
+              target="_blank"
+              rel="noreferrer"
+              className="underline font-medium"
+              style={{ color: 'var(--cyan)' }}
+            >
+              Data sources (docs)
+            </a>
+            .
+          </p>
+          {showIndexerFactoryDrift && (
+            <p className="text-xs mt-2 font-medium" style={{ color: 'var(--ink-subtle)' }} role="status">
+              Note: indexer reports {total.toLocaleString()} pair(s) while the factory currently lists {factoryCount}{' '}
+              pair contract(s) — expect overlap but not a 1:1 count (indexing lag, allowlists, or cap on factory fetch).
+            </p>
+          )}
         </div>
         <div className="text-sm uppercase tracking-wide font-medium text-right" style={{ color: 'var(--ink-dim)' }}>
-          <span className="block">{total.toLocaleString()} pair(s)</span>
+          <span className="block">{total.toLocaleString()} pair(s) (indexer total)</span>
           {indexerTokensQuery.data != null && (
-            <span className="block text-xs font-normal mt-0.5 normal-case tracking-normal">
+            <span
+              className="block text-xs font-normal mt-0.5 normal-case tracking-normal"
+              title="Token metadata the indexer has recorded (for labels, volume, etc.); not the same as factory pair count."
+            >
               {indexerTokensQuery.data.length} indexed tokens
             </span>
+          )}
+          {factoryPairsQuery.isSuccess && (
+            <span
+              className="block text-xs font-normal mt-0.5 normal-case tracking-normal"
+              title="Pair contracts returned by factory `pairs` queries (up to the configured cap); used for router badges and filter."
+            >
+              {factoryCount?.toLocaleString() ?? '—'} on-chain (factory, router graph)
+            </span>
+          )}
+          {factoryPairsQuery.isError && (
+            <span className="block text-xs font-normal normal-case text-red-400 mt-0.5">Factory list unavailable</span>
           )}
         </div>
       </div>
@@ -894,6 +977,21 @@ export default function PoolPage() {
             }}
           />
         </div>
+        <div className="flex items-center min-h-[2.5rem]">
+          <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--ink-dim)' }}>
+            <input
+              type="checkbox"
+              id="pool-filter-router"
+              className="accent-[var(--cyan)]"
+              checked={routerKnownOnly}
+              onChange={(e) => {
+                setRouterKnownOnly(e.target.checked)
+                setPage(0)
+              }}
+            />
+            <span>Router-known (factory) only on this page</span>
+          </label>
+        </div>
       </div>
 
       {pairsQuery.isLoading && (
@@ -917,9 +1015,20 @@ export default function PoolPage() {
         </div>
       )}
 
+      {!pairsQuery.isLoading && indexerPairs.length > 0 && visibleIndexerPairs.length === 0 && !pairsQuery.isError && (
+        <div className="shell-panel-strong py-8 text-center" style={{ color: 'var(--ink-dim)' }}>
+          No pools on this page are in the factory router set. Try the next page or turn off the filter.
+        </div>
+      )}
+
       <div className="space-y-4">
-        {indexerPairs.map((ip) => (
-          <PoolCard key={ip.pair_address} pair={indexerPairToPairInfo(ip)} volumeQuote24h={ip.volume_quote_24h} />
+        {visibleIndexerPairs.map((ip) => (
+          <PoolCard
+            key={ip.pair_address}
+            pair={indexerPairToPairInfo(ip)}
+            volumeQuote24h={ip.volume_quote_24h}
+            listBadges={getPairListBadges({ pairAddress: ip.pair_address, factoryPairAddresses })}
+          />
         ))}
       </div>
 

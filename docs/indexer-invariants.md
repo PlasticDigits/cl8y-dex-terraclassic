@@ -84,6 +84,10 @@ Block timestamps come from the LCD transaction response (`tx_responses[0].timest
 - Run a **reliable LCD** close to your chain; monitor logs for the warning strings and the Prometheus counter `indexer_block_time_fallbacks_total` when metrics are enabled (`METRICS_BIND` non-empty; see [`docs/operator-secrets.md`](./operator-secrets.md)).
 - After prolonged LCD issues, consider **re-indexing** from a known height (see [runbook: reorg / replay / dedup](./runbooks/indexer-reorg-replay-dedup.md)).
 
+## Dapp read model (pools list)
+
+The Liquidity pool browser (`/pool`) **lists and sorts** pairs from the indexer API; it **tags** each row against the on-chain factory pair set used for the swap router graph. Counts and badges are documented in [Frontend guide — Liquidity pools list (indexer vs factory)](./frontend.md#liquidity-pools-list-indexer-vs-factory) (see [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112)).
+
 ## Maintenance
 
 When adding a new query parameter that influences SQL or ordering:

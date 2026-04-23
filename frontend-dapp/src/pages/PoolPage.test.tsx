@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import PoolPage from './PoolPage'
+import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 
@@ -47,7 +48,6 @@ const getTokenBalanceMock = vi.fn()
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn().mockResolvedValue({}),
   getTokenBalance: (...args: unknown[]) => getTokenBalanceMock(...args),
-  verifyPairInFactory: vi.fn().mockResolvedValue(true),
 }))
 
 vi.mock('@/services/terraclassic/pair', () => ({
@@ -91,11 +91,21 @@ vi.mock('@/hooks/useWallet', () => ({
   useWalletStore: (fn: (s: { address: string | null }) => unknown) => fn({ address: addr }),
 }))
 
+const mockIndexerPair = (pairAddr: string): IndexerPair => ({
+  pair_address: pairAddr,
+  asset_0: { symbol: 'A', contract_addr: 'tokenA', denom: null, decimals: 6 },
+  asset_1: { symbol: 'B', contract_addr: 'tokenB', denom: null, decimals: 6 },
+  lp_token: 'lp1',
+  fee_bps: 30,
+  is_active: true,
+})
+
 describe('PoolPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(indexerClient.getTokens).mockResolvedValue([])
     vi.mocked(indexerClient.getPairs).mockResolvedValue(mockGetPairs)
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     getTokenBalanceMock.mockImplementation(async (wallet: string) => {
       if (wallet !== addr) return '0'
       return '2000000'
@@ -148,5 +158,81 @@ describe('PoolPage', () => {
     const submit = screen.getByRole('button', { name: /Insufficient balance/i })
     expect(submit).toBeDisabled()
     expect(screen.getAllByText(/Exceeds wallet balance/i).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('explains indexer-sourced list and shows factory vs indexer counts when data loads', async () => {
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          asset_infos: [{ token: { contract_addr: 'tokenA' } }, { token: { contract_addr: 'tokenB' } }],
+          contract_addr: 'onchainPair1',
+          liquidity_token: 'lp',
+        },
+      ],
+    })
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({
+      items: [mockIndexerPair('onchainPair1'), mockIndexerPair('indexerOnly')],
+      total: 2,
+      limit: 20,
+      offset: 0,
+    })
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(screen.getByText(/2 pair\(s\) \(indexer total\)/i)).toBeInTheDocument())
+    expect(screen.getByText(/List source:/i)).toBeInTheDocument()
+    const docsLink = screen.getByText(/Data sources \(docs\)/i).closest('a')
+    expect(docsLink).toHaveAttribute(
+      'href',
+      'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#liquidity-pools-list-indexer-vs-factory'
+    )
+    await waitFor(() => expect(screen.getByText(/1 on-chain \(factory, router graph\)/i)).toBeInTheDocument())
+    expect(
+      await screen.findByText(/indexer reports 2 pair\(s\) while the factory currently lists 1/i)
+    ).toBeInTheDocument()
+  })
+
+  it('shows In router (factory) vs Indexer only badges from the factory set (no per-card verify)', async () => {
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          asset_infos: [{ token: { contract_addr: 't1' } }, { token: { contract_addr: 't2' } }],
+          contract_addr: 'inFactory',
+          liquidity_token: 'lp',
+        },
+      ],
+    })
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({
+      items: [mockIndexerPair('inFactory'), mockIndexerPair('notInFactory')],
+      total: 2,
+      limit: 20,
+      offset: 0,
+    })
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    expect(await screen.findByText('In router (factory)')).toBeInTheDocument()
+    expect(await screen.findByText('Indexer only')).toBeInTheDocument()
+  })
+
+  it('filters the current page to factory pairs when the filter is on', async () => {
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          asset_infos: [{ token: { contract_addr: 't1' } }, { token: { contract_addr: 't2' } }],
+          contract_addr: 'inFactory',
+          liquidity_token: 'lp',
+        },
+      ],
+    })
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({
+      items: [mockIndexerPair('inFactory'), mockIndexerPair('notInFactory')],
+      total: 2,
+      limit: 20,
+      offset: 0,
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await screen.findByText('In router (factory)')
+    const filter = screen.getByRole('checkbox', { name: /Router-known \(factory\) only on this page/i })
+    await user.click(filter)
+    expect(screen.getAllByText('In router (factory)').length).toBe(1)
+    expect(screen.queryByText('Indexer only')).not.toBeInTheDocument()
   })
 })
