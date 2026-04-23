@@ -36,6 +36,7 @@ import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/uti
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
+import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
@@ -46,6 +47,10 @@ interface SwapSimData {
   indexerQuoteKind?: IndexerRouteQuoteKind
   indexerOperations?: SwapOperation[]
   indexerIntermediateTokens?: string[]
+  /**
+   * When true, the receive line is a pool-only sim while a positive book leg is configured — submitted tx is still hybrid; fill may differ. See `docs/limit-orders.md` (GitLab #111).
+   */
+  receiveQuoteIsPoolOnlyWithConfiguredBookLeg?: boolean
 }
 
 function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | undefined): string {
@@ -140,8 +145,7 @@ export default function SwapPage() {
     !isWrapOrUnwrap &&
     !nativeRouteInfo
 
-  const hasRoute =
-    isWrapOrUnwrap || nativeRouteInfo !== null || route !== null || indexerCw20Eligible
+  const hasRoute = isWrapOrUnwrap || nativeRouteInfo !== null || route !== null || indexerCw20Eligible
 
   const checkIndexerRoute = useCallback(async () => {
     if (!fromToken || !toToken) return
@@ -317,9 +321,9 @@ export default function SwapPage() {
                   return_amount: idx.estimated_amount_out,
                   spread_amount: '0',
                   commission_amount: '0',
-                  quoteDisclosure:
-                    'Manual hybrid split (Settings) · indexer merged ops + router LCD estimate.',
+                  quoteDisclosure: 'Manual hybrid split (Settings) · indexer merged ops + router LCD estimate.',
                   indexerQuoteKind: idx.quote_kind,
+                  receiveQuoteIsPoolOnlyWithConfiguredBookLeg: false,
                 }
               }
             } catch {
@@ -330,11 +334,7 @@ export default function SwapPage() {
       }
 
       // Default CW20↔CW20: indexer hybrid optimization (≤3 hops) + wallet `simulate_swap_operations`.
-      if (
-        fromToken.startsWith('terra1') &&
-        toToken.startsWith('terra1') &&
-        rawInputAmount !== '0'
-      ) {
+      if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && rawInputAmount !== '0') {
         try {
           const idx = await getRouteSolve(fromToken, toToken, rawInputAmount, {
             hybridOptimize: true,
@@ -343,10 +343,7 @@ export default function SwapPage() {
           const tin = idx.token_in.trim().toLowerCase()
           const tout = idx.token_out.trim().toLowerCase()
           if (tin === fromToken.trim().toLowerCase() && tout === toToken.trim().toLowerCase()) {
-            const ops = swapOperationsFromIndexerResponse(
-              idx.router_operations as unknown[],
-              idx.hops.length
-            )
+            const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
             const result = await simulateMultiHopSwap(rawInputAmount, ops)
             const intermediates =
               idx.intermediate_tokens?.length === idx.hops.length + 1
@@ -371,9 +368,20 @@ export default function SwapPage() {
       if (isDirect && directPair) {
         const offerInfo = tokenAssetInfo(fromToken)
         const r = await simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount)
+        const hybridSplit = getDirectHybridBookSplit({
+          isDirect: true,
+          useHybridBook,
+          fromToken,
+          bookInputHuman,
+          rawInputAmount,
+          hybridMaxMakers,
+        })
         return {
           ...r,
           quoteDisclosure: 'Direct pool · on-chain pair simulation (pool-only).',
+          receiveQuoteIsPoolOnlyWithConfiguredBookLeg: !!(
+            hybridSplit?.willSubmitHybrid && !hybridSplit?.bookExceedsPay
+          ),
         }
       }
       if (isMultiHop && route) {
@@ -382,8 +390,7 @@ export default function SwapPage() {
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
-          quoteDisclosure:
-            'Client-discovered multihop (pair graph) · pool-only · wallet LCD simulation.',
+          quoteDisclosure: 'Client-discovered multihop (pair graph) · pool-only · wallet LCD simulation.',
         }
       }
       throw new Error('No route found')
@@ -490,6 +497,24 @@ export default function SwapPage() {
   const minReceived = simQuery.data
     ? Math.floor(parseFloat(simQuery.data.return_amount) * (1 - slippageTolerance / 100)).toString()
     : null
+
+  const directHybridBookSplit = useMemo(
+    () =>
+      getDirectHybridBookSplit({
+        isDirect,
+        useHybridBook,
+        fromToken,
+        bookInputHuman,
+        rawInputAmount,
+        hybridMaxMakers,
+      }),
+    [isDirect, useHybridBook, fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers]
+  )
+
+  const indexerHybridExec = useMemo(
+    () => getIndexerHybridExecutionSummary(simQuery.data?.indexerQuoteKind),
+    [simQuery.data?.indexerQuoteKind]
+  )
 
   const insufficientBalance =
     !!inputAmount &&
@@ -845,10 +870,71 @@ export default function SwapPage() {
                 <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
               )}
             </div>
+            {simQuery.data?.receiveQuoteIsPoolOnlyWithConfiguredBookLeg && (
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+                Shown amount is a pool-only simulation. You still submit a hybrid (book leg); final receive can differ.
+              </p>
+            )}
           </div>
         </div>
 
         <div className="mb-4 space-y-2">
+          {simQuery.data && (indexerHybridExec.show || directHybridBookSplit) && (
+            <div
+              data-testid="swap-execution-summary"
+              className="card-neo text-[11px] sm:text-xs leading-relaxed space-y-2"
+              style={{ color: 'var(--ink-dim)' }}
+            >
+              {indexerHybridExec.show && (
+                <div>
+                  <p
+                    className="uppercase tracking-wide font-semibold mb-0.5"
+                    style={{ color: 'var(--ink-subtle)' }}
+                  >{`Execution: ${indexerHybridExec.title}`}</p>
+                  <p>{indexerHybridExec.line}</p>
+                </div>
+              )}
+              {directHybridBookSplit && (
+                <div>
+                  <p className="uppercase tracking-wide font-semibold mb-0.5" style={{ color: 'var(--ink-subtle)' }}>
+                    {indexerHybridExec.show ? 'Settings — direct pay split' : 'Execution'}
+                  </p>
+                  {directHybridBookSplit.bookExceedsPay && (
+                    <p className="font-medium" style={{ color: 'var(--color-negative)' }}>
+                      Book leg is larger than your pay amount.
+                    </p>
+                  )}
+                  {!directHybridBookSplit.bookExceedsPay && directHybridBookSplit.willSubmitHybrid && (
+                    <>
+                      <p style={{ color: 'var(--ink)' }}>
+                        <span className="font-semibold">Hybrid (pool + limit book)</span> — pool{' '}
+                        {directHybridBookSplit.poolHuman} · book {directHybridBookSplit.bookHuman}{' '}
+                        {getTokenDisplaySymbol(fromToken)}
+                      </p>
+                      <p className="text-[10px] font-mono" style={{ color: 'var(--ink-subtle)' }}>
+                        {directHybridBookSplit.poolRaw} (pool raw) · {directHybridBookSplit.bookRaw} (book raw)
+                      </p>
+                    </>
+                  )}
+                  {!directHybridBookSplit.bookExceedsPay && !directHybridBookSplit.willSubmitHybrid && (
+                    <>
+                      {BigInt(directHybridBookSplit.bookRaw) > 0n ? (
+                        <p style={{ color: 'var(--color-warning, #f59e0b)' }}>
+                          Book leg is set, but the hybrid path will not be submitted. Set{' '}
+                          <strong>max distinct makers</strong> to at least 1.
+                        </p>
+                      ) : (
+                        <p style={{ color: 'var(--ink)' }}>
+                          <span className="font-semibold">Pool only</span> — add a book leg in Settings to use the
+                          on-chain book for part of the pay.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {simQuery.data?.quoteDisclosure && (
             <div className="card-neo text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
               <span className="uppercase tracking-wide font-semibold" style={{ color: 'var(--ink-subtle)' }}>

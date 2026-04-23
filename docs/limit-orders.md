@@ -2,6 +2,21 @@
 
 This document is the implementation reference for the hybrid AMM + FIFO limit book. Canonical message shapes live in [`smartcontracts/packages/dex-common/src/pair.rs`](../smartcontracts/packages/dex-common/src/pair.rs).
 
+## Swap page: hybrid vs pool-only estimates
+
+<a id="swap-ui-hybrid-vs-pool-only-estimates"></a>
+
+The Swap UI must show **before submit** whether execution is **hybrid (pool + limit book)** vs **pool-only** when a book leg is configured, and it must not hide the fact that a **pool `Simulation` quote** can disagree with a **submitted hybrid** (see L8 in [contracts-security-audit.md](./contracts-security-audit.md)). Implementation: [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) and the pure split helper [`frontend-dapp/src/utils/swapDisclosure.ts`](../frontend-dapp/src/utils/swapDisclosure.ts). Product/QA: [GitLab #111](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/111).
+
+**Invariants**
+
+- **Pool `Simulation` / pool-only multihop sim** does not include the on-chain book; the pair’s `Simulation` query is reserves-only.
+- **Direct CW20 + “limit book leg” in Settings:** `pool_input` / `book_input` must sum to the pay amount; the same split is computed in one place for UI, simulation (`postRouteSolve` when used), and `swap` submit (`getDirectHybridBookSplit` vs [`HybridSwapParams`](../smartcontracts/packages/dex-common/src/pair.rs) fields).
+- **When the receive line is still pool-only but a book leg is active:** the UI sets `receiveQuoteIsPoolOnlyWithConfiguredBookLeg` and shows copy under “You receive” (hybrid fill may differ).
+- **Indexer routes with `indexer_hybrid_lcd` / `indexer_hybrid_lcd_degraded`:** the main panel shows an **“Indexer hybrid”** execution line (not only quote disclosure / the alert block).
+
+**Not duplicated elsewhere:** if you change pay split rules, update `getDirectHybridBookSplit` and the `swap` mutation in `SwapPage` together. For merge/CI follow-up on this repo, the **babysit** Cursor agent skill (keep a PR merge-ready) is the intended loop.
+
 ## Exchange API “orderbook” vs on-chain limit book
 
 CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorderbook) and [`GET /cmc/orderbook/:market_pair`](./CG_CMC_COMPLIANCE.md#get-cmcorderbookmarket_pair) return an **AMM-simulated** level-2 book (walking the bonding curve). That is **not** the FIFO limit book stored on pairs.
