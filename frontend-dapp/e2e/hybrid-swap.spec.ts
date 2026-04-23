@@ -51,6 +51,11 @@ test.describe('Hybrid swap UI (LocalTerra)', () => {
     await expect(alert).toContainText(/limit book/i)
     const doc = alert.getByRole('link', { name: /docs\/limit-orders\.md/i })
     await expect(doc).toHaveAttribute('href', /limit-orders\.md/)
+
+    const execution = page.getByTestId('swap-execution-summary')
+    await expect(execution).toBeVisible({ timeout: 15_000 })
+    await expect(execution).toContainText(/Indexer hybrid/i)
+    await expect(execution).toContainText(/pool \+ limit book/i)
   })
 
   test('shows quote source disclosure after amount for dual-CW20 route', async ({ page, connectWallet, request }) => {
