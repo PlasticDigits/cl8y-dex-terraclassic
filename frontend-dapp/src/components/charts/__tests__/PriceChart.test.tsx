@@ -16,6 +16,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
   return {
     ...actual,
     getCandles: vi.fn(),
+    getPairStats: vi.fn(),
   }
 })
 
@@ -36,10 +37,23 @@ function candle(overrides: Partial<IndexerCandle> = {}): IndexerCandle {
 const pairA = 'terra1pair00000000000000000000000000000aa'
 const pairB = 'terra1pair00000000000000000000000000000bb'
 
+const emptyStats = {
+  volume_base: '0',
+  volume_quote: '0',
+  trade_count: 0,
+  high: null,
+  low: null,
+  open_price: null,
+  close_price: null,
+  price_change_pct: null,
+} as const
+
 describe('PriceChart', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getCandles).mockReset()
     vi.mocked(indexerClient.getCandles).mockResolvedValue([candle()])
+    vi.mocked(indexerClient.getPairStats).mockReset()
+    vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
   })
 
   it('shows loading then renders chart chrome when data resolves', async () => {
@@ -58,12 +72,47 @@ describe('PriceChart', () => {
     await waitFor(() => expect(screen.getByText(/failed to load chart data/i)).toBeInTheDocument())
   })
 
-  it('hides chart container while loading and shows no error for empty candle list', async () => {
+  it('shows accessible empty state when getCandles returns an empty list', async () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument())
     expect(screen.queryByText(/failed to load chart data/i)).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /price chart/i })).toBeInTheDocument()
+    expect(screen.getByText(/no chart data for this interval yet/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', {
+        name: /no price chart data for this interval/i,
+      })
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('price-chart-lightweight-canvas')).not.toBeInTheDocument()
+    await waitFor(() => expect(indexerClient.getPairStats).toHaveBeenCalledWith(pairA))
+  })
+
+  it('shows optional 24h close from getPairStats when candles are empty', async () => {
+    vi.mocked(indexerClient.getCandles).mockResolvedValue([])
+    vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+      ...emptyStats,
+      close_price: '1.234567',
+    })
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.getByText(/1\.234567/)).toBeInTheDocument())
+  })
+
+  it('shows empty state when all candles lack open/close', async () => {
+    vi.mocked(indexerClient.getCandles).mockResolvedValue([
+      {
+        open_time: '2024-01-01T12:00:00.000Z',
+        open: '',
+        high: '1',
+        low: '1',
+        close: '',
+        volume_base: '0',
+        volume_quote: '0',
+        trade_count: 0,
+      },
+    ])
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.getByText(/no chart data for this interval yet/i)).toBeInTheDocument())
   })
 
   it('requests candles with default interval 1h', async () => {
