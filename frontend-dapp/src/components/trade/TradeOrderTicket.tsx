@@ -11,6 +11,11 @@ import { assetInfoLabel, tokenAssetInfo, type PairInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
+import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
+import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
+import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
+import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
+import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 
 /**
  * Limit place / cancel for the trade workspace (pair is chosen by parent).
@@ -32,9 +37,16 @@ export function TradeOrderTicket({
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
   const [price, setPrice] = useState('1')
-  const [amountHuman, setAmountHuman] = useState('')
-  const [maxSteps, setMaxSteps] = useState(32)
-  const [expiresUnix, setExpiresUnix] = useState('')
+  const {
+    maxSteps,
+    setMaxSteps,
+    expiresAt,
+    setExpiresAt,
+    amountHuman,
+    setAmountHuman,
+    limitAdvancedOpen,
+    setLimitAdvancedOpen,
+  } = useLimitOrderForm()
   const [cancelOrderId, setCancelOrderId] = useState('')
   const [lastIndexedOrderId, setLastIndexedOrderId] = useState<number | null>(null)
 
@@ -44,6 +56,7 @@ export function TradeOrderTicket({
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const escrowToken = side === 'bid' ? token1 : token0
   const escrowDecimals = escrowToken ? getDecimals(tokenAssetInfo(escrowToken)) : 6
+  const escrowBalanceQuery = useLimitOrderEscrowBalance(address, escrowToken)
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr],
@@ -75,16 +88,7 @@ export function TradeOrderTicket({
       await executeTerraContract(address, escrowToken, {
         increase_allowance: { spender: selectedPair.contract_addr, amount: raw },
       })
-      return placeLimitOrder(
-        address,
-        escrowToken,
-        selectedPair.contract_addr,
-        raw,
-        side,
-        price,
-        maxSteps,
-        expiresUnix.trim() ? Number(expiresUnix.trim()) : null
-      )
+      return placeLimitOrder(address, escrowToken, selectedPair.contract_addr, raw, side, price, maxSteps, expiresAt)
     },
     onSuccess: async () => {
       sounds.playSuccess()
@@ -205,35 +209,27 @@ export function TradeOrderTicket({
             onChange={(e) => setPrice(e.target.value)}
           />
         </div>
-        <div>
-          <label className="label-neo">Amount ({getTokenDisplaySymbol(escrowToken || '—')})</label>
-          <input
-            className="input-neo w-full text-sm"
-            value={amountHuman}
-            onChange={(e) => setAmountHuman(e.target.value)}
-            placeholder="0.0"
-          />
-        </div>
-        <div>
-          <label className="label-neo">Max adjust steps</label>
-          <input
-            type="number"
-            className="input-neo w-full text-sm"
-            min={1}
-            max={256}
-            value={maxSteps}
-            onChange={(e) => setMaxSteps(Number(e.target.value) || 32)}
-          />
-        </div>
-        <div>
-          <label className="label-neo">Expires (Unix sec, optional)</label>
-          <input
-            className="input-neo w-full font-mono text-sm"
-            value={expiresUnix}
-            onChange={(e) => setExpiresUnix(e.target.value)}
-            placeholder="Empty = no expiry"
-          />
-        </div>
+        <LimitOrderEscrowAmountField
+          compact
+          escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
+          escrowDecimals={escrowDecimals}
+          amountHuman={amountHuman}
+          onAmountChange={setAmountHuman}
+          balanceQuery={escrowBalanceQuery}
+          onMax={setAmountHuman}
+          walletConnected={isWalletConnected}
+        />
+        <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
+        <LimitOrderAdvancedLimitSettings
+          compact
+          open={limitAdvancedOpen}
+          onOpenChange={setLimitAdvancedOpen}
+          maxSteps={maxSteps}
+          onMaxStepsChange={setMaxSteps}
+          expiresAt={expiresAt}
+          onExpiresAtChange={setExpiresAt}
+          idPrefix="trade-ticket"
+        />
         <button
           type="button"
           className="btn-primary btn-cta w-full !text-xs"
