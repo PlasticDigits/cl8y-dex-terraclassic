@@ -57,8 +57,28 @@ The frontend uses TerraSwap-compatible message names:
 |-----------------|---------------------------------------------------|
 | `/`             | Swap interface — select tokens, enter amount, swap|
 | `/pool`         | View pools, provide/withdraw liquidity            |
-| `/pool/create`  | Create a new token pair via the Factory            |
+| `/create`       | Create a new token pair via the Factory           |
+| `/charts`       | Pairs overview and per-pair charts (indexer)      |
+| `/trade`        | Trade UI — order book, **price chart**, tape, limits |
+| `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
+| `/limits`       | Limit order placements and lifecycle              |
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
+
+### Trade page — price chart invariants
+
+The **price chart** on `/trade` and `/charts` is rendered with **TradingView [lightweight-charts](https://github.com/tradingview/lightweight-charts)** (open-source canvas charting). It is **not** the hosted TradingView terminal/widget product—naming in code review and issues should keep that distinction clear.
+
+| Invariant | Behavior |
+|-----------|----------|
+| Successful empty candles | `GET /api/v1/pairs/{addr}/candles` may return `[]` or rows that all fail OHLC validation; the UI **must not** show a blank panel. Use the empty state in `PriceChart` + `PriceChartEmptyState`. |
+| Single candle | After mapping/filtering, **one** valid OHLC point is enough for lightweight-charts to draw one candlestick; no empty-state for that case. |
+| Loading vs empty | While React Query is loading, show the chart loading row; empty state applies only when the request **succeeded** and there are zero valid points. |
+| Reference line | When the chart is empty, an optional **24h close** from `getPairStats` (`close_price`) may display; query is enabled only for that state so normal pairs are not blocked. |
+| Accessibility | The empty panel uses `role="img"` and a descriptive `aria-label` so screen readers do not see a silent canvas. |
+
+Implementation: [`frontend-dapp/src/components/charts/PriceChart.tsx`](../frontend-dapp/src/components/charts/PriceChart.tsx), [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts) (pure mapping). Tracked in GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113).
+
+**Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
 ## Fee Discount Service
 

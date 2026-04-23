@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getCandles } from '@/services/indexer/client'
-import type { IndexerCandle } from '@/types'
+import { getCandles, getPairStats } from '@/services/indexer/client'
 import { Spinner } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
-import { CandlestickSeries } from 'lightweight-charts'
-import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts'
+import { PriceChartEmptyState } from './PriceChartEmptyState'
+import { PriceChartLightweightCanvas } from './PriceChartLightweightCanvas'
+import { indexerCandlesToChartPoints } from './priceChartCandles'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'] as const
 
@@ -15,9 +15,6 @@ interface PriceChartProps {
 }
 
 export default function PriceChart({ pairAddress, defaultInterval = '1h' }: PriceChartProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<IChartApi | null>(null)
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [interval, setInterval_] = useState(defaultInterval)
 
   const candlesQuery = useQuery({
@@ -27,90 +24,18 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
     enabled: !!pairAddress,
   })
 
-  useEffect(() => {
-    let chart: IChartApi | null = null
+  const chartPoints = useMemo(() => indexerCandlesToChartPoints(candlesQuery.data), [candlesQuery.data])
 
-    async function initChart() {
-      if (!containerRef.current) return
+  const chartDataResolved = !candlesQuery.isLoading && !candlesQuery.isError && candlesQuery.isSuccess
+  const showEmptyState = chartDataResolved && chartPoints.length === 0
 
-      const lc = await import('lightweight-charts')
-      chart = lc.createChart(containerRef.current, {
-        layout: {
-          background: { color: 'transparent' },
-          textColor: '#9ca3af',
-        },
-        grid: {
-          vertLines: { color: 'rgba(255,255,255,0.04)' },
-          horzLines: { color: 'rgba(255,255,255,0.04)' },
-        },
-        crosshair: {
-          mode: 0,
-        },
-        rightPriceScale: {
-          borderColor: 'rgba(255,255,255,0.1)',
-        },
-        timeScale: {
-          borderColor: 'rgba(255,255,255,0.1)',
-          timeVisible: true,
-          secondsVisible: false,
-        },
-        width: containerRef.current.clientWidth,
-        height: 400,
-      })
-
-      const positive =
-        getComputedStyle(document.documentElement).getPropertyValue('--color-positive').trim() || '#22c55e'
-      const negative =
-        getComputedStyle(document.documentElement).getPropertyValue('--color-negative').trim() || '#ef4444'
-      seriesRef.current = chart.addSeries(CandlestickSeries, {
-        upColor: positive,
-        downColor: negative,
-        borderDownColor: negative,
-        borderUpColor: positive,
-        wickDownColor: negative,
-        wickUpColor: positive,
-      })
-
-      chartRef.current = chart
-
-      const resizeObserver = new ResizeObserver(() => {
-        if (containerRef.current && chart) {
-          chart.applyOptions({ width: containerRef.current.clientWidth })
-        }
-      })
-      resizeObserver.observe(containerRef.current)
-
-      return () => resizeObserver.disconnect()
-    }
-
-    initChart()
-
-    return () => {
-      if (chart) {
-        chart.remove()
-        chartRef.current = null
-        seriesRef.current = null
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!seriesRef.current || !candlesQuery.data) return
-
-    const data = candlesQuery.data
-      .filter((c: IndexerCandle) => c.open && c.close)
-      .map((c: IndexerCandle) => ({
-        time: Math.floor(new Date(c.open_time).getTime() / 1000) as Time,
-        open: parseFloat(c.open),
-        high: parseFloat(c.high),
-        low: parseFloat(c.low),
-        close: parseFloat(c.close),
-      }))
-      .sort((a, b) => (a.time as number) - (b.time as number))
-
-    seriesRef.current.setData(data)
-    chartRef.current?.timeScale().fitContent()
-  }, [candlesQuery.data, pairAddress, interval])
+  const statsQuery = useQuery({
+    queryKey: ['indexer-pair-stats', pairAddress, 'price-chart-empty'],
+    queryFn: () => getPairStats(pairAddress),
+    enabled: !!pairAddress && showEmptyState,
+    staleTime: 60_000,
+    retry: false,
+  })
 
   return (
     <div className="shell-panel-strong">
@@ -136,18 +61,20 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
       </div>
 
       {candlesQuery.isLoading && (
-        <div className="flex items-center justify-center h-[400px] gap-3" style={{ color: 'var(--ink-subtle)' }}>
+        <div className="flex items-center justify-center min-h-[400px] gap-3" style={{ color: 'var(--ink-subtle)' }}>
           <Spinner /> Loading chart...
         </div>
       )}
 
       {candlesQuery.isError && (
-        <div className="flex items-center justify-center h-[400px] text-red-400 text-sm uppercase tracking-wide font-semibold">
+        <div className="flex items-center justify-center min-h-[400px] text-red-400 text-sm uppercase tracking-wide font-semibold">
           Failed to load chart data
         </div>
       )}
 
-      <div ref={containerRef} className={candlesQuery.isLoading || candlesQuery.isError ? 'hidden' : ''} />
+      {chartDataResolved && chartPoints.length > 0 && <PriceChartLightweightCanvas candlePoints={chartPoints} />}
+
+      {showEmptyState && <PriceChartEmptyState pairStats={statsQuery.data} statsLoading={statsQuery.isLoading} />}
     </div>
   )
 }

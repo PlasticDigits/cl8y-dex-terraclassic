@@ -36,6 +36,10 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | On-chain book (LCD proxy) | `GET /api/v1/pairs/{addr}/order-book-head`, `.../limit-book` (paginated), `.../limit-book-shallow` (legacy preview) | Unknown pair → **404**; LCD failure → **502**; `limit-book` `limit` clamped (max 100); `limit-book-shallow` `depth` clamped (max 20); bad book cursor / side → **400** | [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs), [`limit-orders.md`](./limit-orders.md) |
 | Hooks OpenAPI | `GET /api/v1/hooks` documented under Swagger **Hooks** tag | Same error handling as other read routes | [`api_hooks.rs`](../indexer/tests/api_hooks.rs) |
 
+## Frontend expectations (read path)
+
+The indexer may legitimately return **empty candle arrays** for a pair/interval with no buckets yet. The dApp must treat that as **success**, not a silent chart failure. UI invariants and lightweight-charts vs TradingView widget naming are documented under [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants) (GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113)).
+
 ## Indexing invariants
 
 | Invariant | Enforcement | Unhappy path | Tests |
