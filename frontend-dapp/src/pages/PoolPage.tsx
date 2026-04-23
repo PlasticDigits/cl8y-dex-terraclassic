@@ -31,6 +31,7 @@ import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/utils/provideLiquidityEstimate'
 
 const POOL_SORT_OPTIONS: MenuSelectOption[] = [
   { value: 'symbol', label: 'Name (A–Z)' },
@@ -107,6 +108,43 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
     refetchInterval: 15_000,
   })
 
+  const balanceInfoA: AssetInfo = useMemo(
+    () =>
+      hasNativeOptionA && useNativeA && nativeEquivA
+        ? { native_token: { denom: nativeEquivA } }
+        : tokenAssetInfo(tokenA),
+    [hasNativeOptionA, useNativeA, nativeEquivA, tokenA]
+  )
+  const balanceInfoB: AssetInfo = useMemo(
+    () =>
+      hasNativeOptionB && useNativeB && nativeEquivB
+        ? { native_token: { denom: nativeEquivB } }
+        : tokenAssetInfo(tokenB),
+    [hasNativeOptionB, useNativeB, nativeEquivB, tokenB]
+  )
+
+  const balanceKeyA = useMemo(() => assetInfoLabel(balanceInfoA), [balanceInfoA])
+  const balanceKeyB = useMemo(() => assetInfoLabel(balanceInfoB), [balanceInfoB])
+
+  const balanceAQuery = useQuery({
+    queryKey: ['tokenBalance', address, balanceKeyA],
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getTokenBalance(address, balanceInfoA)
+    },
+    enabled: !!address && expanded === 'add',
+    refetchInterval: 15_000,
+  })
+  const balanceBQuery = useQuery({
+    queryKey: ['tokenBalance', address, balanceKeyB],
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getTokenBalance(address, balanceInfoB)
+    },
+    enabled: !!address && expanded === 'add',
+    refetchInterval: 15_000,
+  })
+
   const LP_DECIMALS = 6
   const lpBalance = lpBalanceQuery.data ?? '0'
   const lpBalanceDisplay = lpBalance === '0' ? '0' : formatTokenAmount(lpBalance, LP_DECIMALS)
@@ -115,6 +153,35 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
 
   const decimalsA = getDecimals(pair.asset_infos[0])
   const decimalsB = getDecimals(pair.asset_infos[1])
+
+  const rawAddA = amountA ? toRawAmount(amountA, decimalsA) : '0'
+  const rawAddB = amountB ? toRawAmount(amountB, decimalsB) : '0'
+
+  const insufficientAddA =
+    !!address &&
+    !!amountA &&
+    !balanceAQuery.isLoading &&
+    !balanceAQuery.isError &&
+    balanceAQuery.data != null &&
+    rawAddA !== '0' &&
+    BigInt(rawAddA) > BigInt(balanceAQuery.data)
+
+  const insufficientAddB =
+    !!address &&
+    !!amountB &&
+    !balanceBQuery.isLoading &&
+    !balanceBQuery.isError &&
+    balanceBQuery.data != null &&
+    rawAddB !== '0' &&
+    BigInt(rawAddB) > BigInt(balanceBQuery.data)
+
+  const insufficientAdd = insufficientAddA || insufficientAddB
+
+  const estimatedUserLp =
+    poolQuery.data && amountA && amountB ? estimateProvideLiquidityUserLp(rawAddA, rawAddB, poolQuery.data) : null
+
+  const ratioBalanced =
+    poolQuery.data && amountA && amountB ? isProportionalAddAmounts(rawAddA, rawAddB, poolQuery.data) : null
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -192,7 +259,7 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
       setAmountA('')
       setAmountB('')
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
-      queryClient.invalidateQueries({ queryKey: ['lpBalance'] })
+      queryClient.invalidateQueries({ queryKey: ['lpBalance', address, pair.liquidity_token] })
       queryClient.invalidateQueries({ queryKey: ['pool', pair.contract_addr] })
     },
     onError: () => sounds.playError(),
@@ -379,7 +446,76 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
               }}
               placeholder="0.00"
               className="input-neo"
+              aria-label="Asset A amount"
             />
+            {address && (
+              <div
+                className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-xs min-h-[1.5rem]"
+                style={{ color: 'var(--ink-subtle)' }}
+                aria-label={`Balance and actions for ${displayA.displayLabel}`}
+              >
+                <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                  <span className="shrink-0">Balance:</span>
+                  {balanceAQuery.isLoading ? (
+                    <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
+                      <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
+                      <span className="sr-only">Loading balance for asset A</span>
+                    </span>
+                  ) : balanceAQuery.isError ? (
+                    <span className="font-mono" title="Could not load balance">
+                      —
+                    </span>
+                  ) : (
+                    <span className="font-mono truncate">
+                      {formatTokenAmount(balanceAQuery.data ?? '0', decimalsA)}
+                    </span>
+                  )}
+                </span>
+                <span className="ml-auto flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={
+                      balanceAQuery.isLoading ||
+                      balanceAQuery.isError ||
+                      !balanceAQuery.data ||
+                      balanceAQuery.data === '0'
+                    }
+                    onClick={() => {
+                      sounds.playButtonPress()
+                      if (!balanceAQuery.data) return
+                      const half = (BigInt(balanceAQuery.data) / 2n).toString()
+                      setAmountA(fromRawAmount(half, decimalsA))
+                    }}
+                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                    style={{ color: 'var(--cyan)' }}
+                  >
+                    50%
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      balanceAQuery.isLoading ||
+                      balanceAQuery.isError ||
+                      !balanceAQuery.data ||
+                      balanceAQuery.data === '0'
+                    }
+                    onClick={() => {
+                      sounds.playButtonPress()
+                      if (balanceAQuery.data) setAmountA(fromRawAmount(balanceAQuery.data, decimalsA))
+                    }}
+                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                    style={{ color: 'var(--cyan)' }}
+                  >
+                    Max
+                  </button>
+                </span>
+              </div>
+            )}
+            {insufficientAddA && (
+              <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
+                Exceeds wallet balance
+              </p>
+            )}
           </div>
           <div>
             <label className="label-neo">
@@ -412,19 +548,111 @@ const PoolCard = memo(function PoolCard({ pair, volumeQuote24h }: { pair: PairIn
               }}
               placeholder="0.00"
               className="input-neo"
+              aria-label="Asset B amount"
             />
+            {address && (
+              <div
+                className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-xs min-h-[1.5rem]"
+                style={{ color: 'var(--ink-subtle)' }}
+                aria-label={`Balance and actions for ${displayB.displayLabel}`}
+              >
+                <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                  <span className="shrink-0">Balance:</span>
+                  {balanceBQuery.isLoading ? (
+                    <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
+                      <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
+                      <span className="sr-only">Loading balance for asset B</span>
+                    </span>
+                  ) : balanceBQuery.isError ? (
+                    <span className="font-mono" title="Could not load balance">
+                      —
+                    </span>
+                  ) : (
+                    <span className="font-mono truncate">
+                      {formatTokenAmount(balanceBQuery.data ?? '0', decimalsB)}
+                    </span>
+                  )}
+                </span>
+                <span className="ml-auto flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={
+                      balanceBQuery.isLoading ||
+                      balanceBQuery.isError ||
+                      !balanceBQuery.data ||
+                      balanceBQuery.data === '0'
+                    }
+                    onClick={() => {
+                      sounds.playButtonPress()
+                      if (!balanceBQuery.data) return
+                      const half = (BigInt(balanceBQuery.data) / 2n).toString()
+                      setAmountB(fromRawAmount(half, decimalsB))
+                    }}
+                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                    style={{ color: 'var(--cyan)' }}
+                  >
+                    50%
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      balanceBQuery.isLoading ||
+                      balanceBQuery.isError ||
+                      !balanceBQuery.data ||
+                      balanceBQuery.data === '0'
+                    }
+                    onClick={() => {
+                      sounds.playButtonPress()
+                      if (balanceBQuery.data) setAmountB(fromRawAmount(balanceBQuery.data, decimalsB))
+                    }}
+                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                    style={{ color: 'var(--cyan)' }}
+                  >
+                    Max
+                  </button>
+                </span>
+              </div>
+            )}
+            {insufficientAddB && (
+              <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
+                Exceeds wallet balance
+              </p>
+            )}
           </div>
+          {poolQuery.data && amountA && amountB && (
+            <p className="text-sm" style={{ color: 'var(--ink-dim)' }} aria-live="polite" aria-atomic>
+              {estimatedUserLp == null ? (
+                <span>Estimated LP: — (amount too small or empty pool below minimum)</span>
+              ) : (
+                <span>Estimated LP: ~{formatTokenAmount(estimatedUserLp.toString(), LP_DECIMALS)} LP</span>
+              )}
+            </p>
+          )}
+          {poolQuery.data && amountA && amountB && ratioBalanced === false && (
+            <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
+              Amounts are not in the current pool price ratio. The contract mints LP from the smaller side; extra tokens
+              on the larger side are effectively donated to the pool.
+            </p>
+          )}
           <button
             onClick={() => {
               sounds.playButtonPress()
               addMutation.mutate()
             }}
-            disabled={!address || !amountA || !amountB || addMutation.isPending}
+            disabled={!address || !amountA || !amountB || addMutation.isPending || insufficientAdd}
             className={`w-full py-2.5 font-semibold text-sm ${
-              !address || !amountA || !amountB || addMutation.isPending ? 'btn-disabled !w-full' : 'btn-primary !w-full'
+              !address || !amountA || !amountB || addMutation.isPending || insufficientAdd
+                ? 'btn-disabled !w-full'
+                : 'btn-primary !w-full'
             }`}
           >
-            {!address ? 'Connect Wallet' : addMutation.isPending ? 'Providing Liquidity...' : 'Provide Liquidity'}
+            {!address
+              ? 'Connect Wallet'
+              : insufficientAdd
+                ? 'Insufficient balance'
+                : addMutation.isPending
+                  ? 'Providing Liquidity...'
+                  : 'Provide Liquidity'}
           </button>
           {addMutation.isError && (
             <TxResultAlert type="error" message={addMutation.error?.message ?? 'Failed to provide liquidity'} />
