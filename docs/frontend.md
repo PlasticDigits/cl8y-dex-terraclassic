@@ -60,6 +60,28 @@ The frontend uses TerraSwap-compatible message names:
 | `/pool/create`  | Create a new token pair via the Factory            |
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
 
+### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}
+
+The pool list (`/pool`) is **sourced and sorted** by the [indexer](./indexer-invariants.md) `GET /api/v1/pairs` API. That order is **not** the on-chain factory’s `pairs` cursor order.
+
+**Invariants (dApp):**
+
+| Invariant | Meaning |
+|-----------|---------|
+| “N pair(s) (indexer total)” | Total from the indexer (pagination + sort params). |
+| “M on-chain (factory, router graph)” | Number of `PairInfo` rows returned by paginating the factory’s `pairs` query (capped; see `FACTORY_PAIRS_MAX_FOR_POOL_LIST` in `pairListBadges.ts`). This is the same set the Swap page loads for `findRoute` / BFS. |
+| Row badge **In router (factory)** | The pair’s `pair_address` is in that factory-derived `Set` — **O(1)** per row; **no** per-card `pair` query to the factory. |
+| Row badge **Indexer only** | Address not in the factory list for this page session (e.g. indexing ahead of factory registration, de-listed pair still in indexer, or address outside the factory fetch cap). |
+| “Indexer only” filter | Restricts the **current page** of indexer results to rows that appear in the factory set. |
+
+**Drift line:** If indexer total and factory list length differ, the page shows a short **status** note (indexing lag, caps, or allowlist effects).
+
+**Query strategy:** One React Query for `getAllPairsPaginated(FACTORY_PAIRS_MAX_FOR_POOL_LIST)` (stale time 60s), shared conceptually with Swap’s on-chain graph but **separate** query key (`factoryPairsForPoolList`) to avoid clashing with Swap’s default `maxPairs` limit.
+
+**Code:** `frontend-dapp/src/utils/pairListBadges.ts`, `frontend-dapp/src/pages/PoolPage.tsx`. Issue: [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
+
+**Agent workflow (optional):** For reviewable follow-up PRs or merge-ready checks in Cursor, use the **split to PRs** and **babysit** skills from your [Cursor skills](https://docs.cursor.com/context/skills) path (e.g. `~/.cursor/skills-cursor/` on a developer machine).
+
 ## Fee Discount Service
 
 The `feeDiscount.ts` service in `src/services/` handles all interactions with the fee-discount contract:

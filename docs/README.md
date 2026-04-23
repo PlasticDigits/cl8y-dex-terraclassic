@@ -15,7 +15,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Contract Reference](./contracts-terraclassic.md) — Factory, Pair, Router message schemas
 
 ## Frontend
-- [Frontend Guide](./frontend.md) — tech stack, project structure, wallet integration
+- [Frontend Guide](./frontend.md) — tech stack, project structure, wallet integration, [pool list: indexer vs factory](./frontend.md#liquidity-pools-list-indexer-vs-factory)
 
 ## Development
 - [Local Development](./local-development.md) — Docker setup, deploy scripts, Makefile
