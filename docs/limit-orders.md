@@ -123,6 +123,16 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 
 The **indexer** persists `pool_return_amount`, `book_return_amount`, and `limit_book_offer_consumed` on `swap_events`, stores each `limit_order_fill` in `limit_order_fills`, and indexes wasm `place_limit_order` / `cancel_limit_order` into **`limit_order_placements`** and **`limit_order_cancellations`**. HTTP: **`GET /api/v1/pairs/{addr}/trades`** includes hybrid fields and optional **`effective_fee_bps`** when present; **`GET /api/v1/pairs/{addr}/limit-fills`** and **`GET /api/v1/pairs/{addr}/limit-orders/{order_id}/fills`** expose per-maker fills; **`GET /api/v1/pairs/{addr}/limit-placements`** and **`.../limit-cancellations`** list lifecycle events; **`GET /api/v1/pairs/{addr}/order-book-head`**, **`.../limit-book`**, and **`.../limit-book-shallow`** proxy on-chain book state (see [ADR 0002](./adr/0002-limit-book-surfacing.md)).
 
+## dApp: retail form (wires, invariants)
+
+Implementation: [`LimitOrdersPage`](../frontend-dapp/src/pages/LimitOrdersPage.tsx), shared components under [`frontend-dapp/src/components/trade/`](../frontend-dapp/src/components/trade/) ([issue #110](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/110)). Pure helpers: [`limitOrderExpiry.ts`](../frontend-dapp/src/utils/limitOrderExpiry.ts).
+
+- **`expires_at`:** the UI may use local `datetime-local`, “24h / 7d / no expiry” presets, or (Advanced) a raw **Unix second** value; all map to the same `expires_at` field described under [Expiry (`expires_at`)](#expiry-expires_at). If both friendly controls and raw seconds are set, they must agree — they are one logical value in state.
+- **`max_adjust_steps`:** the retail default is **32**; “max adjust” / “book insert walk” (labels vary) cap the on-chain book-head insert path — see [Messages (CosmWasm)](#messages-cosmwasm) and [Ordering](#ordering-composite-key-fifo) context. The UI may expose a larger numeric or preset; still bounded by the pair’s hard cap in `pair.rs` (UI clamp 256 in [`limitOrderExpiry.ts`](../frontend-dapp/src/utils/limitOrderExpiry.ts) constants).
+- **Escrow `amount`:** the CW20 `send` amount uses the same balance query and **Max** affordance as the swap form so users see spendable balance before `increase_allowance` + `place_limit_order`.
+
+**Docs / work splits:** when splitting large follow-up changes into reviewable pieces, the **split-to-prs** skill in the Cursor *skills* family is the intended workflow (small branches, one concern per change).
+
 ## Example JSON (logical shapes)
 
 `Cw20HookMsg::PlaceLimitOrder` (inside CW20 `send.msg`):
