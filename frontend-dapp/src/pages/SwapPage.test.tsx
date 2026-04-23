@@ -139,5 +139,9 @@ describe('SwapPage', () => {
     expect(alert).toHaveTextContent(/integrator semantics/i)
     const docLink = within(alert).getByRole('link', { name: /docs\/limit-orders\.md/i })
     expect(docLink.getAttribute('href')).toContain('docs/limit-orders.md')
+
+    const execution = await screen.findByTestId('swap-execution-summary')
+    expect(execution).toHaveTextContent(/Execution:\s*Indexer hybrid/i)
+    expect(execution).toHaveTextContent(/Hybrid \(pool \+ limit book\)/i)
   })
 })
