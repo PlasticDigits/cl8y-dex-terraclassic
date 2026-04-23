@@ -92,6 +92,26 @@ test.describe('Pool Page', () => {
     })
   })
 
+  test.describe('Provide Liquidity (connected)', () => {
+    test('shows per-asset Balance row in add-LP panel', async ({ page, connectWallet }) => {
+      await connectWallet
+      await page.goto('/pool')
+
+      await expect(async () => {
+        await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
+      }).toPass({ timeout: 90_000 })
+
+      await page
+        .getByRole('button', { name: /Provide Liquidity/i })
+        .first()
+        .click()
+
+      const balRows = page.getByText(/^Balance:/i)
+      await expect(balRows.first()).toBeVisible()
+      await expect(balRows.nth(1)).toBeVisible()
+    })
+  })
+
   test.describe('Withdraw Liquidity form', () => {
     test('opens withdraw form on button click', async ({ page }) => {
       await page.goto('/pool')
