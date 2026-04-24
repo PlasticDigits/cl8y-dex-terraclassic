@@ -42,6 +42,27 @@ The dApp connects to Terra Classic wallets using the Station browser extension o
 - **Signing:** all transactions use the connected wallet's signer. The dApp never handles private keys.
 - **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
 
+### Terra Classic gas limits (router `execute_swap_operations`) {#terra-classic-gas-limits}
+
+The dApp does **not** LCD-simulate every swap before broadcast. Instead, `executeTerraContract` / `executeTerraContractMulti` in [`frontend-dapp/src/services/terraclassic/transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) set **Cosmos `Fee.gas`** from typed constants in [`frontend-dapp/src/utils/constants.ts`](../frontend-dapp/src/utils/constants.ts). **Underestimating gas causes on-chain `out of gas` after the wallet signs** (users still pay fees for failed txs).
+
+**Formula (pool-only `execute_swap_operations`, no hybrid hop):** for `hops = max(operations.length, 1)`,
+
+`gasWanted = max( round(SWAP_GAS_PER_HOP × hops × SWAP_GAS_BUFFER) + hops × SWAP_MULTIHOP_GAS_PADDING_PER_HOP, hops × EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP )`
+
+Hybrid hops use `max(..., HYBRID_SWAP_GAS_LIMIT × hops)` in `transactions.ts`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| Buffer tracks chain variance | `SWAP_GAS_BUFFER` must cover wasm execution variance on columbus-5 / LocalTerra; raising it increases **LUNC fee** (`GAS_PRICE_ULUNA × gas`) proportionally — trade off vs reliability. |
+| Floor guards multi-hop | `EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP` prevents totals from collapsing when buffer × base is still too small for some hop shapes. |
+| Padding absorbs rounding | Per-hop padding exists so totals do not sit exactly on prior “just barely enough” values (historical 2-hop near-miss: ~1,320,097 used vs 1,320,000 wanted). |
+| Pool-only regression | Single-hop pool swap `gasWanted` must exceed **753,321** gas used in repro [GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115) (710k was too low). |
+
+**Operational alignment:** local/mainnet helper scripts use `terrad … --gas-adjustment 1.3` (see `scripts/deploy-dex-local.sh`). The frontend buffer should stay in the same **ballpark** as those CLI defaults so manual ops and the dApp do not diverge wildly.
+
+**Third-party / agent context:** see repository [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) for a short playbook when changing gas constants or debugging `out of gas`.
+
 ## Contract Message Format
 
 The frontend uses TerraSwap-compatible message names:
