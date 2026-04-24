@@ -15,12 +15,13 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Contract Reference](./contracts-terraclassic.md) — Factory, Pair, Router message schemas
 
 ## Frontend
-- [Frontend Guide](./frontend.md) — tech stack, project structure, wallet integration, [pool list: indexer vs factory](./frontend.md#liquidity-pools-list-indexer-vs-factory)
+- [Frontend Guide](./frontend.md) — tech stack, project structure, wallet integration, [Terra Classic swap gas limits](./frontend.md#terra-classic-gas-limits), [pool list: indexer vs factory](./frontend.md#liquidity-pools-list-indexer-vs-factory)
 
 ## Development
 - [Local Development](./local-development.md) — Docker setup, deploy scripts, Makefile
 - [Testing](./testing.md) — test philosophy, running unit/integration/E2E tests (includes indexer Postgres setup and [shared-DB parallelism](./testing.md#shared-postgres-and-test-parallelism))
 - **Cursor:** the **Babysit PR** skill (in Cursor *Skills*) is useful for keeping topic branches merge-ready (CI, comments). Example frontend fix: [GitLab #113](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113) / [price chart invariants](./frontend.md#trade-page--price-chart-invariants).
+- **Agent players (3rd party):** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic swap gas tuning and doc crosslinks ([glab#115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)).
 
 ## Deployment
 - [Deployment Guide](./deployment-guide.md) — mainnet and testnet deployment steps

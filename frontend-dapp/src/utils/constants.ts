@@ -30,8 +30,12 @@ export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 
 export const GAS_PRICE_ULUNA = import.meta.env.VITE_GAS_PRICE_ULUNA || '28.325'
 export const SWAP_GAS_PER_HOP = 600000
-/** Multiplier on (per-hop base × hop count) before floor/padding. */
-export const SWAP_GAS_BUFFER = 1.1
+/**
+ * Multiplier on (per-hop base × hop count) before floor/padding.
+ * Keep this in line with operational `--gas-adjustment` (~1.3) used in `deploy-dex-local.sh` / `terrad`:
+ * Terra Classic wasm gas can exceed a naive 1.1× headroom (see GitLab #115: pool-only swap used ~753k gas vs 710k wanted).
+ */
+export const SWAP_GAS_BUFFER = 1.2
 /**
  * Minimum gas attributed per hop for `execute_swap_operations` (total floor = hops × this).
  * Guards against underestimates when buffer × base is still too low for some pairs.
