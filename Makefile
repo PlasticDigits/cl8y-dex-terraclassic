@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local
 
 # Infrastructure
 start:
@@ -24,6 +24,10 @@ logs:
 
 logs-terra:
 	docker compose logs -f localterra
+
+swarm-local:
+	@chmod +x scripts/localnet-trading-swarm.sh
+	./scripts/localnet-trading-swarm.sh
 
 wait-healthy:
 	@echo "Waiting for LocalTerra..."
@@ -68,7 +72,7 @@ stop-qa:
 	./scripts/qa/stop-qa.sh
 
 help:
-	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-healthy"
+	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-healthy | swarm-local"
 	@echo "QA server:       make start-qa (alias qa-start) | stop-qa | qa-tunnel-help"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | lint-frontend"

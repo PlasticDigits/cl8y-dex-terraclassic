@@ -1,0 +1,60 @@
+{
+  "meanInterTxSeconds": 20,
+  "profiles": [
+    {
+      "id": "router_bias",
+      "weights": {
+        "router_multihop": 0.38,
+        "pair_swap": 0.18,
+        "hybrid_swap": 0.2,
+        "limit_order": 0.12,
+        "add_liquidity": 0.08,
+        "remove_liquidity": 0.04
+      }
+    },
+    {
+      "id": "hybrid_bias",
+      "weights": {
+        "hybrid_swap": 0.42,
+        "pair_swap": 0.2,
+        "router_multihop": 0.14,
+        "limit_order": 0.12,
+        "add_liquidity": 0.08,
+        "remove_liquidity": 0.04
+      }
+    },
+    {
+      "id": "limit_bias",
+      "weights": {
+        "limit_order": 0.35,
+        "pair_swap": 0.22,
+        "hybrid_swap": 0.15,
+        "router_multihop": 0.12,
+        "add_liquidity": 0.1,
+        "remove_liquidity": 0.06
+      }
+    },
+    {
+      "id": "lp_bias",
+      "weights": {
+        "add_liquidity": 0.28,
+        "remove_liquidity": 0.18,
+        "pair_swap": 0.2,
+        "router_multihop": 0.14,
+        "hybrid_swap": 0.12,
+        "limit_order": 0.08
+      }
+    },
+    {
+      "id": "balanced",
+      "weights": {
+        "router_multihop": 0.22,
+        "pair_swap": 0.2,
+        "hybrid_swap": 0.2,
+        "limit_order": 0.14,
+        "add_liquidity": 0.14,
+        "remove_liquidity": 0.1
+      }
+    }
+  ]
+}

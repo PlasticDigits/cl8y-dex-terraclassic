@@ -39,6 +39,20 @@ VITE_NETWORK=local npm run dev
 | `make clippy`         | Run clippy with `-D warnings`                  |
 | `make build-optimized` | Produce optimized WASM via workspace-optimizer |
 | `make deploy-local`   | Deploy to LocalTerra                           |
+| `make swarm-local`    | Run the **localnet-only** trading bot swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)) — requires LocalTerra + `deploy-dex-local` first |
+
+### Trading swarm (UI load / localnet only)
+
+**Warning:** for **LocalTerra / local development only** — not for testnet, mainnet, or public RPCs. The process refuses wrong `chain_id` and non-local `VITE_NETWORK`.
+
+After `docker compose up -d localterra` and `bash scripts/deploy-dex-local.sh`:
+
+```bash
+make swarm-local
+# equivalent: ./scripts/localnet-trading-swarm.sh
+```
+
+Details, invariants, `--dry-run`, `--stats`, and env vars: [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md). Agent-oriented notes: [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md).
 
 ## Docker Setup
 
