@@ -14,9 +14,8 @@ import {
   WRAP_MAPPER_CONTRACT_ADDRESS,
 } from '@/utils/constants'
 import { FACTORY_PAIRS_MAX_FOR_POOL_LIST, getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
-import type { PairInfo } from '@/types'
+import type { AssetInfo, IndexerPairSort, PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
-import type { IndexerPairSort } from '@/types'
 import { getPairs, getTokens, INDEXER_URL } from '@/services/indexer/client'
 import {
   Spinner,
