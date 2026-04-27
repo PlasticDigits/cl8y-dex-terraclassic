@@ -2,14 +2,20 @@ import { MnemonicWallet } from '@goblinhunt/cosmes/wallet'
 import { NETWORKS, DEFAULT_NETWORK, DEV_MODE } from '@/utils/constants'
 import { registerConnectedWallet } from './wallet'
 
-const DEFAULT_DEV_MNEMONIC =
-  'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius'
-
-export const DEV_TERRA_ADDRESS = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
-
 const GAS_PRICE = {
   amount: '28.325',
   denom: 'uluna',
+}
+
+function requireDevMnemonic(): string {
+  const m = import.meta.env.VITE_DEV_MNEMONIC
+  if (typeof m === 'string' && m.trim().length > 0) {
+    return m.trim()
+  }
+  throw new Error(
+    'VITE_DEV_MNEMONIC is required for the dev wallet. Add it to .env.development or .env.local (see .env.example). ' +
+      'For LocalTerra, use the same value as TEST_MNEMONIC in docker/init-chain.sh (GitLab #118).'
+  )
 }
 
 export function createDevTerraWallet(): MnemonicWallet {
@@ -17,7 +23,7 @@ export function createDevTerraWallet(): MnemonicWallet {
     throw new Error('Dev wallet is only available in dev mode (VITE_DEV_MODE=true)')
   }
 
-  const mnemonic = import.meta.env.VITE_DEV_MNEMONIC || DEFAULT_DEV_MNEMONIC
+  const mnemonic = requireDevMnemonic()
   const networkConfig = NETWORKS[DEFAULT_NETWORK].terra
   const wallet = new MnemonicWallet({
     mnemonic,

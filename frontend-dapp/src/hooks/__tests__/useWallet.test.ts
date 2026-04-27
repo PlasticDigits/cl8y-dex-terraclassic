@@ -7,8 +7,7 @@ vi.mock('@/services/terraclassic/wallet', () => ({
   registerConnectedWallet: vi.fn(),
 }))
 vi.mock('@/services/terraclassic/devWallet', () => ({
-  createDevTerraWallet: vi.fn(() => ({ address: 'terra1dev...' })),
-  DEV_TERRA_ADDRESS: 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v',
+  createDevTerraWallet: vi.fn(() => ({ address: 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v' })),
 }))
 vi.mock('@/utils/constants', () => ({
   DEV_MODE: true,
@@ -73,7 +72,7 @@ describe('useWalletStore', () => {
     expect(state.error).toBe('User rejected')
   })
 
-  it('connectDev - sets address to DEV_TERRA_ADDRESS, walletType to simulated', () => {
+  it('connectDev - sets address from createDevTerraWallet, walletType to simulated', () => {
     useWalletStore.getState().connectDev()
 
     const state = useWalletStore.getState()

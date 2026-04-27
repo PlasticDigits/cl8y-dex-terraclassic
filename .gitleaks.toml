@@ -1,6 +1,21 @@
 [extend]
 useDefault = true
 
+# BIP39-like sequences (12+ lowercase 3–8 letter words in quotes) are not covered by generic gitleaks rules.
+# Scope to app source; tests are allowlisted because they may contain long quoted fixtures. GitLab #118.
+[[rules]]
+id = "bip39-like-phrase-frontend-src"
+description = "Quoted BIP39-like multi-word line in frontend app source"
+regex = '''['\"]([a-z]{3,8}(?:\s[a-z]{3,8}){11,})['\"]'''
+path = '''(?i)(frontend-dapp|frontend)/src/.*\.(ts|tsx)$'''
+[rules.allowlist]
+paths = [
+  '''.*\.test\.ts$''',
+  '''.*\.test\.tsx$''',
+  '''.*\.spec\.ts$''',
+  '''.*\.spec\.tsx$''',
+]
+
 [allowlist]
 description = "Allow Terra Classic addresses and crypto type names"
 regexTarget = "secret"

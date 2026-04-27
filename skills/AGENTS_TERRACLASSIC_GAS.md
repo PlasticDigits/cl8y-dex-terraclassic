@@ -8,6 +8,7 @@ Use this when debugging **`out of gas`** on swap txs, tuning gas constants, or r
 |------------|---------|
 | [docs/frontend.md § Terra Classic gas limits](../docs/frontend.md#terra-classic-gas-limits) | Invariants, formula, regression anchor ([GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)) |
 | [docs/frontend.md § Production build — source maps](../docs/frontend.md#vite-production-sourcemaps) · [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md) | Vite prod must not ship public source maps ([GitLab #117](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/117)) — separate from gas tuning |
+| [docs/frontend.md § Simulated (dev) wallet / bundle secrets](../docs/frontend.md#simulated-dev-wallet-and-vite_dev_mnemonic) · [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md) | No mnemonic literals in `src/`; `VITE_DEV_MNEMONIC` only in dev env ([GitLab #118](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/118)) |
 | `frontend-dapp/src/utils/constants.ts` | `SWAP_GAS_PER_HOP`, `SWAP_GAS_BUFFER`, floors, padding |
 | `frontend-dapp/src/services/terraclassic/transactions.ts` | `getGasLimitForTx`, hybrid vs pool-only branches |
 | `frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts` | Expected `Fee.gasLimit` values — **update when constants change** |

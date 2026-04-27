@@ -25,6 +25,7 @@ cd scripts
 # 4. Start the frontend
 cd ../../frontend-dapp
 npm ci
+# If you use the Simulated Wallet (VITE_DEV_MODE=true), set VITE_DEV_MNEMONIC so it matches docker/init-chain.sh. After `./deploy-dex-local.sh` from the deploy guide, that value is in `.env.development` (see docs/frontend.md, GitLab #118).
 VITE_NETWORK=local npm run dev
 ```
 

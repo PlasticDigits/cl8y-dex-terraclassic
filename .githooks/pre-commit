@@ -45,8 +45,8 @@ fi
 # --- Secrets ---
 echo ""
 if command -v gitleaks >/dev/null 2>&1; then
-  echo ">> gitleaks protect --staged"
-  if ! gitleaks protect --staged; then
+  echo ">> gitleaks protect --staged -c .gitleaks.toml"
+  if ! gitleaks protect --staged -c .gitleaks.toml; then
     echo "FAIL: gitleaks detected secrets"
     CHECKS_PASSED=false
   fi

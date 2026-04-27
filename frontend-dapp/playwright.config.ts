@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
+import { getLocalTerraTestMnemonic } from './e2e/localterra-mnemonic'
+
+const devMnemonic = getLocalTerraTestMnemonic()
 
 export default defineConfig({
   testDir: './e2e',
@@ -20,6 +23,10 @@ export default defineConfig({
     port: 3000,
     reuseExistingServer: true,
     timeout: 60_000,
+    env: {
+      ...process.env,
+      VITE_DEV_MNEMONIC: devMnemonic,
+    },
   },
   projects: [
     {

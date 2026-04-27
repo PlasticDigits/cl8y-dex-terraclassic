@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -48,66 +48,78 @@ function cspDevHosts(): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => ({
-  plugins: [react(), cspDevHosts()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      buffer: 'buffer',
-      process: 'process/browser',
-      util: 'util',
-      stream: 'stream-browserify',
+export default defineConfig(({ mode, command }) => {
+  if (command === 'build' && mode === 'production') {
+    const env = loadEnv(mode, path.join(__dirname), 'VITE_')
+    if (env.VITE_DEV_MNEMONIC?.trim()) {
+      throw new Error(
+        'VITE_DEV_MNEMONIC must not be set for production builds — it would be inlined into the client bundle. ' +
+          'Remove it from .env, .env.local, .env.production, and your shell (GitLab #118).'
+      )
+    }
+  }
+
+  return {
+    plugins: [react(), cspDevHosts()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        buffer: 'buffer',
+        process: 'process/browser',
+        util: 'util',
+        stream: 'stream-browserify',
+      },
     },
-  },
-  define: {
-    global: 'globalThis',
-    'process.env': '{}',
-    __GIT_SHA__: JSON.stringify(gitSha),
-    __APP_VERSION__: JSON.stringify('v0.1.0'),
-  },
-  build: {
-    outDir: 'dist',
-    // Production bundles must not ship browser-facing source maps (GitLab #117).
-    // Non-production `vite build --mode …` keeps maps for staging/debug pipelines.
-    sourcemap: mode !== 'production',
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (
-            id.includes('node_modules/react') ||
-            id.includes('node_modules/react-dom') ||
-            id.includes('node_modules/scheduler')
-          ) {
-            return 'vendor-react'
-          }
-          if (
-            id.includes('@goblinhunt/cosmes') ||
-            id.includes('cosmjs') ||
-            id.includes('bip39') ||
-            id.includes('bip32')
-          ) {
-            return 'wallet-terra'
-          }
-          if (id.includes('@tanstack') || id.includes('zustand')) {
-            return 'vendor-state'
-          }
-          if (id.includes('secp256k1') || id.includes('noble') || id.includes('scure') || id.includes('elliptic')) {
-            return 'crypto'
-          }
+    define: {
+      global: 'globalThis',
+      'process.env': '{}',
+      __GIT_SHA__: JSON.stringify(gitSha),
+      __APP_VERSION__: JSON.stringify('v0.1.0'),
+    },
+    build: {
+      outDir: 'dist',
+      // Production bundles must not ship browser-facing source maps (GitLab #117).
+      // Non-production `vite build --mode …` keeps maps for staging/debug pipelines.
+      sourcemap: mode !== 'production',
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (
+              id.includes('node_modules/react') ||
+              id.includes('node_modules/react-dom') ||
+              id.includes('node_modules/scheduler')
+            ) {
+              return 'vendor-react'
+            }
+            if (
+              id.includes('@goblinhunt/cosmes') ||
+              id.includes('cosmjs') ||
+              id.includes('bip39') ||
+              id.includes('bip32')
+            ) {
+              return 'wallet-terra'
+            }
+            if (id.includes('@tanstack') || id.includes('zustand')) {
+              return 'vendor-state'
+            }
+            if (id.includes('secp256k1') || id.includes('noble') || id.includes('scure') || id.includes('elliptic')) {
+              return 'crypto'
+            }
+          },
+        },
+      },
+      chunkSizeWarningLimit: 6000,
+    },
+    server: {
+      port: 3000,
+      open: true,
+    },
+    optimizeDeps: {
+      esbuildOptions: {
+        define: {
+          global: 'globalThis',
         },
       },
     },
-    chunkSizeWarningLimit: 6000,
-  },
-  server: {
-    port: 3000,
-    open: true,
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: 'globalThis',
-      },
-    },
-  },
-}))
+  }
+})
