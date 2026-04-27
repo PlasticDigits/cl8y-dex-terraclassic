@@ -728,6 +728,12 @@ echo ""
 echo "=============================================="
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Must match TEST_MNEMONIC in docker/init-chain.sh (Simulated Wallet / local QA; GitLab #118).
+TEST_MNEMONIC_DEV_WALLET="$(sed -n 's/^TEST_MNEMONIC="\(.*\)"/\1/p' "$REPO_ROOT/docker/init-chain.sh" | head -1)"
+if [ -z "$TEST_MNEMONIC_DEV_WALLET" ]; then
+  echo "ERROR: could not read TEST_MNEMONIC from $REPO_ROOT/docker/init-chain.sh (required for VITE_DEV_MNEMONIC)."
+  exit 1
+fi
 
 echo ""
 echo "[Phase 6.1] Writing frontend-dapp/.env.local..."
@@ -753,6 +759,13 @@ VITE_UNPAIRED_TOKEN_NEON=${UNPAIRED_ADDRESSES[2]}
 VITE_INDEXER_URL=http://127.0.0.1:${API_PORT:-3001}
 ENVEOF
 echo "  Written to frontend-dapp/.env.local"
+
+# Dev-only: Vite does not load .env.development for `vite build` (production), so the mnemonic is not a prod-bundle risk.
+cat > "$REPO_ROOT/frontend-dapp/.env.development" <<DEVMNEF
+# LocalTerra test account (same as TEST_MNEMONIC in docker/init-chain.sh). GitLab #118.
+VITE_DEV_MNEMONIC="${TEST_MNEMONIC_DEV_WALLET}"
+DEVMNEF
+echo "  Written to frontend-dapp/.env.development (VITE_DEV_MNEMONIC for Simulated Wallet)"
 
 echo ""
 echo "[Phase 6.2] Writing indexer/.env..."

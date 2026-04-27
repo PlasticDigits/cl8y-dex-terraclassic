@@ -16,4 +16,20 @@ describe('vite.config production source maps', () => {
     const loaded = await loadConfigFromFile({ command: 'build', mode: 'staging' }, viteConfigPath)
     expect(loaded?.config.build?.sourcemap).toBe(true)
   })
+
+  it('rejects production build when VITE_DEV_MNEMONIC is set (GitLab #118)', async () => {
+    const prev = process.env.VITE_DEV_MNEMONIC
+    process.env.VITE_DEV_MNEMONIC = 'insecure-inline-for-test'
+    try {
+      await expect(loadConfigFromFile({ command: 'build', mode: 'production' }, viteConfigPath)).rejects.toThrow(
+        /VITE_DEV_MNEMONIC must not be set/
+      )
+    } finally {
+      if (prev === undefined) {
+        delete process.env.VITE_DEV_MNEMONIC
+      } else {
+        process.env.VITE_DEV_MNEMONIC = prev
+      }
+    }
+  })
 })
