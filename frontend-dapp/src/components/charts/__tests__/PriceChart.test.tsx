@@ -63,7 +63,7 @@ describe('PriceChart', () => {
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     expect(screen.getByText(/loading chart/i)).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument())
-    expect(screen.getByRole('heading', { name: /price chart/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /price \(usd\)/i })).toBeInTheDocument()
   })
 
   it('shows error banner when getCandles rejects', async () => {
@@ -77,7 +77,7 @@ describe('PriceChart', () => {
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument())
     expect(screen.queryByText(/failed to load chart data/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /price chart/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /price \(usd\)/i })).toBeInTheDocument()
     expect(screen.getByText(/no chart data for this interval yet/i)).toBeInTheDocument()
     expect(
       screen.getByRole('img', {
@@ -145,7 +145,7 @@ describe('PriceChart', () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([candle({ open: '1.5', close: '1.6' })])
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => {
-      const setData = lwChartTestDouble.seriesSpies.at(-1)?.setData
+      const setData = lwChartTestDouble.seriesSpies[0]?.setData
       expect(setData).toHaveBeenCalled()
       const rows = setData?.mock.calls.at(-1)?.[0] as { open: number; close: number }[]
       expect(rows?.[0]).toMatchObject({ open: 1.5, close: 1.6 })
@@ -160,15 +160,15 @@ describe('PriceChart', () => {
     )
     const { rerender } = renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() =>
-      expect(lwChartTestDouble.seriesSpies.at(-1)?.setData).toHaveBeenCalledWith(
+      expect(lwChartTestDouble.seriesSpies[0]?.setData).toHaveBeenCalledWith(
         expect.arrayContaining([expect.objectContaining({ open: 1 })])
       )
     )
     rerender(<PriceChart pairAddress={pairB} />)
-    await waitFor(() =>
-      expect(lwChartTestDouble.seriesSpies.at(-1)?.setData).toHaveBeenLastCalledWith(
-        expect.arrayContaining([expect.objectContaining({ open: 2 })])
-      )
-    )
+    await waitFor(() => {
+      const spies = lwChartTestDouble.seriesSpies
+      const candleSetData = spies.length >= 4 ? spies.at(-2)?.setData : spies[0]?.setData
+      expect(candleSetData).toHaveBeenLastCalledWith(expect.arrayContaining([expect.objectContaining({ open: 2 })]))
+    })
   })
 })
