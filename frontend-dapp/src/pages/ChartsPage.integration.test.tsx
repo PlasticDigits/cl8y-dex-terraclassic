@@ -58,7 +58,7 @@ describe('ChartsPage integration (live indexer)', () => {
       timeout: 60_000,
     })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('heading', { name: /price chart/i })).toBeInTheDocument(), {
+    await waitFor(() => expect(screen.getByRole('heading', { name: /price \(usd\)/i })).toBeInTheDocument(), {
       timeout: 60_000,
     })
   })

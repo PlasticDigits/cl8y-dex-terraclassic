@@ -31,3 +31,9 @@ infra/
 
 # QA indexer pid (make start-qa)
 .indexer-qa.pid
+
+# Multi-process swarm (make swarm-launch)
+scripts/bots/run/
+
+__pycache__/
+screenshots/

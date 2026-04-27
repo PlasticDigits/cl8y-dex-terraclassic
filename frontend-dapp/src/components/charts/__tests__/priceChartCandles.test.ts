@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { indexerCandlesToChartPoints } from '../priceChartCandles'
+import { indexerCandlesToChartPoints, indexerCandlesToVolumeHistogramPoints } from '../priceChartCandles'
 import type { IndexerCandle } from '@/types'
 
 function row(overrides: Partial<IndexerCandle> = {}): IndexerCandle {
@@ -33,5 +33,23 @@ describe('indexerCandlesToChartPoints', () => {
     expect(pts).toHaveLength(2)
     expect(pts[0].open).toBe(1)
     expect(pts[1].open).toBe(2)
+  })
+})
+
+describe('indexerCandlesToVolumeHistogramPoints', () => {
+  it('maps quote volume and colors from open vs close', () => {
+    const pts = indexerCandlesToVolumeHistogramPoints(
+      [
+        row({ open: '1', close: '1.1', volume_quote: '50' }),
+        row({ open_time: '2024-01-02T12:00:00.000Z', open: '2', close: '1.5', volume_quote: '12' }),
+      ],
+      '#00ff00',
+      '#ff0000'
+    )
+    expect(pts).toHaveLength(2)
+    expect(pts[0].value).toBe(50)
+    expect(pts[0].color).toBe('#00ff00')
+    expect(pts[1].value).toBe(12)
+    expect(pts[1].color).toBe('#ff0000')
   })
 })

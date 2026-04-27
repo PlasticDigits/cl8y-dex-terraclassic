@@ -19,14 +19,21 @@ export const lwChartTestDouble = {
 
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(() => {
-    const setData = vi.fn()
-    seriesSpies.push({ setData })
+    const volumePane = { setHeight: vi.fn(), setStretchFactor: vi.fn() }
     return {
       remove: vi.fn(),
-      addSeries: vi.fn(() => ({ setData })),
+      addPane: vi.fn(() => volumePane),
+      panes: vi.fn(() => [{ setHeight: vi.fn(), setStretchFactor: vi.fn() }, volumePane]),
+      addSeries: vi.fn(() => {
+        const setData = vi.fn()
+        seriesSpies.push({ setData })
+        return { setData }
+      }),
       timeScale: () => ({ fitContent: vi.fn() }),
       applyOptions: vi.fn(),
+      priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
     }
   }),
   CandlestickSeries: {},
+  HistogramSeries: {},
 }))
