@@ -1,0 +1,30 @@
+{
+  "name": "@cl8y-dex/localnet-trading-swarm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LocalTerra-only trading bot swarm for frontend load testing (GitLab #119)",
+  "bin": {
+    "localnet-trading-swarm": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --import tsx src/cli.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "@goblinhunt/cosmes": "0.0.71-ghunt.21",
+    "@scure/bip39": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.0",
+    "vitest": "^4.0.18"
+  }
+}

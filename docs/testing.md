@@ -121,6 +121,21 @@ pnpm exec playwright test e2e/pool-tx.spec.ts
 
 **Optional chain (skip instead of fail):** set `REQUIRE_LOCALTERRA=0` so global setup and strict LCD/pool assertions are relaxed — for jobs that intentionally omit LocalTerra. Default is strict (unset or any value other than `0`).
 
+### Trading swarm for UI load (localnet)
+
+The [`@cl8y-dex/localnet-trading-swarm`](../packages/localnet-trading-swarm) package drives **five** concurrent bot wallets against LocalTerra to stress the dApp (swap, hybrid, router multi-hop, limit orders, LP flows) and optional indexer-backed views. It is **not** run in CI by default; manual QA runs it after `deploy-dex-local.sh`.
+
+```bash
+# From repo root (requires LocalTerra + frontend-dapp/.env.local)
+./scripts/localnet-trading-swarm.sh
+# Optional: validate wiring without txs
+./scripts/localnet-trading-swarm.sh -- --dry-run
+# Optional: JSON stats on SIGINT (mean inter-tx gap per bot ~20s target)
+./scripts/localnet-trading-swarm.sh -- --stats
+```
+
+Contract message shapes align with [`docs/contracts-terraclassic.md`](./contracts-terraclassic.md), [`docs/limit-orders.md`](./limit-orders.md), and frontend Terra services. Full invariants: [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md); agent playbook: [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md). Issue: [GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119).
+
 ### Fee Discount Contract Tests
 
 The fee-discount contract has unit tests covering:
