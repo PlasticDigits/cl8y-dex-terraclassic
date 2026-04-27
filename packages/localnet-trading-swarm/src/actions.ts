@@ -155,7 +155,7 @@ export async function runAction(
       const inner = {
         execute_swap_operations: {
           operations: route.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
-          max_spread: '0.5',
+          max_spread: '1',
           minimum_receive: undefined,
           to: undefined,
           deadline: undefined,
@@ -189,7 +189,7 @@ export async function runAction(
       const swapInner = {
         swap: {
           belief_price: undefined,
-          max_spread: '0.5',
+          max_spread: '1',
           to: undefined,
           deadline: undefined,
           trader: undefined,
@@ -236,7 +236,7 @@ export async function runAction(
       const swapInner = {
         swap: {
           belief_price: undefined,
-          max_spread: '0.5',
+          max_spread: '1',
           to: undefined,
           deadline: undefined,
           trader: undefined,

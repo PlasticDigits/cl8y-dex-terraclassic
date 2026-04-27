@@ -65,7 +65,8 @@ Stop: **Ctrl+C** (SIGINT). The process exits after printing optional stats.
 |----------|---------|
 | `SWARM_REPO_ROOT` | Repo root (auto-detected via `docker-compose.yml` + `frontend-dapp/`). |
 | `SWARM_BOT_MNEMONIC` | Optional mnemonic; five wallets use HD indices `0…4`, `coinType=330`. |
-| `SWARM_ULUNA_TOPUP` / `SWARM_UUSD_TOPUP` / `SWARM_CW20_MINT_TOPUP` / `SWARM_MIN_CW20_BALANCE` / `SWARM_MINT_SLEEP_MS` | Funding tuning (see `src/funding.ts`). |
+| `SWARM_ULUNA_TOPUP` / `SWARM_UUSD_TOPUP` / `SWARM_CW20_MINT_TOPUP` / `SWARM_MIN_CW20_BALANCE` / `SWARM_MINT_SLEEP_MS` | Funding tuning (see `src/funding.ts`). Defaults for `uluna`/`uusd` are conservative for genesis `test1` on LocalTerra. |
+| `SWARM_FUNDING_TX_SLEEP_MS` | Pause after **each** `terrad tx` from `test1` (default **2000** ms) so account sequence does not race under `--broadcast-mode sync`. |
 | `VITE_*` | Read from `frontend-dapp/.env.local`; **process environment overrides** the file (same as CI / shell exports). |
 
 ## Logs
