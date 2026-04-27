@@ -48,7 +48,7 @@ function cspDevHosts(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react(), cspDevHosts()],
   resolve: {
     alias: {
@@ -67,7 +67,9 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Production bundles must not ship browser-facing source maps (GitLab #117).
+    // Non-production `vite build --mode …` keeps maps for staging/debug pipelines.
+    sourcemap: mode !== 'production',
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -108,4 +110,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

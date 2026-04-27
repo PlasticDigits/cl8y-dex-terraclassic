@@ -7,6 +7,7 @@ Use this when debugging **`out of gas`** on swap txs, tuning gas constants, or r
 | Doc / code | Purpose |
 |------------|---------|
 | [docs/frontend.md § Terra Classic gas limits](../docs/frontend.md#terra-classic-gas-limits) | Invariants, formula, regression anchor ([GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)) |
+| [docs/frontend.md § Production build — source maps](../docs/frontend.md#vite-production-sourcemaps) · [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md) | Vite prod must not ship public source maps ([GitLab #117](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/117)) — separate from gas tuning |
 | `frontend-dapp/src/utils/constants.ts` | `SWAP_GAS_PER_HOP`, `SWAP_GAS_BUFFER`, floors, padding |
 | `frontend-dapp/src/services/terraclassic/transactions.ts` | `getGasLimitForTx`, hybrid vs pool-only branches |
 | `frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts` | Expected `Fee.gasLimit` values — **update when constants change** |
