@@ -10,14 +10,18 @@ export interface FundingOptions {
   uusdTopup: string
   cw20MintTopup: string
   minCw20Balance: string
+  /** Pause after each `terrad tx` so `test1` account sequence advances before the next broadcast (`sync` returns before inclusion). */
+  sleepMsBetweenFundingTx: number
   sleepMsBetweenMint: number
 }
 
 export const defaultFundingOptions = (): FundingOptions => ({
-  ulunaTopup: process.env.SWARM_ULUNA_TOPUP ?? '5000000000000000',
-  uusdTopup: process.env.SWARM_UUSD_TOPUP ?? '50000000000000000',
+  /** Defaults sized for typical LocalTerra genesis `test1` balances (~1e14 uluna / ~1e13 uusd); override with SWARM_* env if needed. */
+  ulunaTopup: process.env.SWARM_ULUNA_TOPUP ?? '2000000000000',
+  uusdTopup: process.env.SWARM_UUSD_TOPUP ?? '1000000000000',
   cw20MintTopup: process.env.SWARM_CW20_MINT_TOPUP ?? '10000000000000000',
   minCw20Balance: process.env.SWARM_MIN_CW20_BALANCE ?? '1000000000000',
+  sleepMsBetweenFundingTx: Number(process.env.SWARM_FUNDING_TX_SLEEP_MS ?? '2000'),
   sleepMsBetweenMint: Number(process.env.SWARM_MINT_SLEEP_MS ?? '500'),
 })
 
@@ -51,6 +55,10 @@ function terradTx(v: LocalnetValidation, args: string[]): void {
   execFileSync('docker', full, { stdio: ['ignore', 'pipe', 'inherit'] })
 }
 
+async function pauseFunding(ms: number): Promise<void> {
+  if (ms > 0) await new Promise((r) => setTimeout(r, ms))
+}
+
 async function cw20Balance(
   lcdBase: string,
   token: string,
@@ -77,7 +85,9 @@ export async function fundBotWallets(opts: {
 
   for (const addr of botAddresses) {
     terradTx(v, ['bank', 'send', 'test1', addr, `${funding.ulunaTopup}uluna`])
+    await pauseFunding(funding.sleepMsBetweenFundingTx)
     terradTx(v, ['bank', 'send', 'test1', addr, `${funding.uusdTopup}uusd`])
+    await pauseFunding(funding.sleepMsBetweenFundingTx)
   }
 
   const minB = BigInt(funding.minCw20Balance)
@@ -92,6 +102,7 @@ export async function fundBotWallets(opts: {
         token,
         JSON.stringify({ mint: { recipient: addr, amount: funding.cw20MintTopup } }),
       ])
+      await pauseFunding(funding.sleepMsBetweenFundingTx)
       if (funding.sleepMsBetweenMint > 0) {
         await new Promise((r) => setTimeout(r, funding.sleepMsBetweenMint))
       }
