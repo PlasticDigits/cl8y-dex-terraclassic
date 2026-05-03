@@ -105,7 +105,11 @@ Options:
 
 async fn run_server() -> anyhow::Result<()> {
     let config = load_config_or_exit();
-    tracing::info!("Starting CL8Y DEX indexer (RUN_MODE={:?})", config.run_mode);
+    tracing::info!(
+        "Starting CL8Y DEX indexer (RUN_MODE={:?}, DEPLOY_ENV={:?})",
+        config.run_mode,
+        config.deploy_env
+    );
     tracing::info!("LCD endpoints: {:?}", config.lcd_urls);
     tracing::info!("Factory: {}", config.factory_address);
 

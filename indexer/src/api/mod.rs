@@ -396,15 +396,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         api_router
     };
 
-    let router = if config.metrics_enabled {
-        Router::new()
-            .route("/metrics", get(prometheus_metrics))
-            .merge(api_router)
-    } else {
-        api_router
-    };
-
-    router
+    api_router
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .layer(CompressionLayer::new())
@@ -413,6 +405,11 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             Duration::from_secs(30),
         ))
         .with_state(state)
+}
+
+/// Prometheus scrape endpoint — **only** mounted on the dedicated metrics listener (see `Config::metrics_listen`).
+pub fn build_metrics_router() -> Router {
+    Router::new().route("/metrics", get(prometheus_metrics))
 }
 
 pub async fn serve(
@@ -436,11 +433,26 @@ pub async fn serve(
     tracing::info!("API server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await?;
+
+    if let Some(metrics_sa) = config.metrics_listen {
+        tracing::info!("Prometheus metrics listening on {}", metrics_sa);
+        let metrics_listener = tokio::net::TcpListener::bind(metrics_sa).await?;
+        let metrics_app = build_metrics_router();
+
+        let api_srv = axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        );
+        let metrics_srv = axum::serve(metrics_listener, metrics_app.into_make_service());
+
+        tokio::try_join!(api_srv, metrics_srv).map(|_| ())?;
+    } else {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await?;
+    }
 
     Ok(())
 }
