@@ -91,6 +91,11 @@ pub fn execute(
         ExecuteMsg::SetDiscountRegistryAll { registry } => {
             execute_set_discount_registry_all(deps, info, registry)
         }
+        ExecuteMsg::SetDiscountRegistryBatch {
+            registry,
+            start_after,
+            limit,
+        } => execute_set_discount_registry_batch(deps, info, registry, start_after, limit),
         ExecuteMsg::SetPairPaused { pair, paused } => {
             execute_set_pair_paused(deps, info, pair, paused)
         }
@@ -361,12 +366,76 @@ fn execute_set_discount_registry_all(
     }
 
     let registry_str = registry.unwrap_or_else(|| "none".to_string());
+    let pairs_updated = messages.len();
 
     Ok(Response::new()
         .add_messages(messages)
         .add_attribute("action", "set_discount_registry_all")
         .add_attribute("registry", registry_str)
-        .add_attribute("pairs_updated", count.to_string()))
+        .add_attribute("pairs_updated", pairs_updated.to_string()))
+}
+
+/// Set or clear the fee discount registry on registered pairs **in bounded chunks** (`PAIR_INDEX` order).
+///
+/// Governance only. Scans contiguous indices upwards from `(start_after + 1)` (or `0` when
+/// `start_after` is absent) and attaches at most `calc_limit(limit)` Wasm messages.
+fn execute_set_discount_registry_batch(
+    deps: DepsMut,
+    info: MessageInfo,
+    registry: Option<String>,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+
+    let batch_limit = calc_limit(limit);
+    let count = PAIR_COUNT.load(deps.storage)?;
+
+    let start_idx = start_after.map_or(0u64, |s| s.saturating_add(1));
+    let registry_str = registry.clone().unwrap_or_else(|| "none".to_string());
+
+    if start_idx >= count {
+        return Ok(Response::new()
+            .add_attribute("action", "set_discount_registry_batch")
+            .add_attribute("registry", registry_str)
+            .add_attribute("pairs_updated", "0")
+            .add_attribute("has_more", "false"));
+    }
+
+    let mut idx = start_idx;
+    let mut messages = Vec::new();
+
+    while idx < count && messages.len() < batch_limit {
+        if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+            messages.push(WasmMsg::Execute {
+                contract_addr: pair_info.contract_addr.to_string(),
+                msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetDiscountRegistry {
+                    registry: registry.clone(),
+                })?,
+                funds: vec![],
+            });
+        }
+        idx += 1;
+    }
+
+    let has_more = idx < count;
+    let next_start_after = has_more.then_some(idx.saturating_sub(1));
+    let last_scanned = idx.saturating_sub(1);
+    let pairs_updated = messages.len();
+
+    let mut resp = Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "set_discount_registry_batch")
+        .add_attribute("registry", registry_str)
+        .add_attribute("pairs_updated", pairs_updated.to_string())
+        .add_attribute("has_more", has_more.to_string())
+        .add_attribute("scanned_through_index", last_scanned.to_string());
+
+    if let Some(n) = next_start_after {
+        resp = resp.add_attribute("next_start_after", n.to_string());
+    }
+
+    Ok(resp)
 }
 
 /// Emergency pause/unpause a specific pair. Governance only.

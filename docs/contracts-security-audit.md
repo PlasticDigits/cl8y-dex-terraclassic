@@ -19,7 +19,7 @@ This document is the **in-repo security audit and invariant matrix** for the Cos
 
 | Crate / path                                       | Role                                                                                                              |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `cl8y-dex-factory`                                 | Pair creation, whitelist, governance-only pair config (fees, hooks, discount registry, pause, sweep).             |
+| `cl8y-dex-factory`                                 | Pair creation, whitelist, governance-only pair config (fees, hooks, discount registry, pause, sweep). **Discount registry rollout:** bounded `SetDiscountRegistryBatch` for large pair counts vs unbounded-all message fan-out ([contracts-terraclassic.md § rollout](./contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123), [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)).             |
 | `cl8y-dex-pair`                                    | Constant-product AMM, reserves, fees, TWAP observations, post-swap hooks, pause/sweep, **FIFO limit book** + Pattern C hybrid swaps. |
 | `cl8y-dex-router`                                  | Multi-hop swaps, `SwapState` + reply chain, `trader` forwarding for discounts, optional unwrap via `wrap_mapper`. |
 | `cl8y-dex-fee-discount`                            | Tiered discounts, EOA registration, trusted routers, lazy deregistration.                                         |

@@ -156,7 +156,8 @@ The integration test harness in `smartcontracts/tests/` deploys the full contrac
 - Swap without registration: verify full fee applied
 - Balance drop: transfer CL8Y away, swap, verify discount revoked and deregistration fired
 - Router trusted forwarding: swap via Router passes trader address correctly
-- Factory `SetDiscountRegistryAll`: verify all pairs receive the registry address
+- Factory `SetDiscountRegistryAll`: verify all pairs receive the registry address (small deployments only)
+- Factory `SetDiscountRegistryBatch`: verify cursor `next_start_after` + `has_more` advance until complete ([GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), covered in `factory_coverage_tests`)
 - Blacklist (Tier 255): verify wallet receives zero discount
 
 ## Coverage

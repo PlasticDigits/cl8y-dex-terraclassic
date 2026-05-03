@@ -69,8 +69,7 @@ fn wasm_attr_last(events: &[cosmwasm_std::Event], key: &str) -> Option<String> {
     events
         .iter()
         .flat_map(|e| e.attributes.iter())
-        .filter(|a| a.key == key)
-        .last()
+        .rfind(|a| a.key == key)
         .map(|a| a.value.clone())
 }
 
