@@ -55,7 +55,8 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `SetPairFee`               | `pair: String`, `fee_bps: u16`                     | Governance  |
 | `SetPairHooks`             | `pair: String`, `hooks: Vec<String>`               | Governance  |
 | `SetDiscountRegistry`      | `pair: String`, `registry: Option<String>`         | Governance  |
-| `SetDiscountRegistryAll`   | `registry: Option<String>`                         | Governance  |
+| `SetDiscountRegistryAll` | `registry: Option<String>`                         | Governance ([gas note](#factory-discount-registry-rollout-invariants-glab-123)) |
+| `SetDiscountRegistryBatch` | `registry: Option<String>`, `start_after?: u64`, `limit?: u32` | Governance — paginated rollout; see [invariants](#factory-discount-registry-rollout-invariants-glab-123) |
 | `UpdateConfig`             | `governance?`, `treasury?`, `default_fee_bps?`     | Governance  |
 
 ### QueryMsg
@@ -78,7 +79,26 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 
 **Invariant:** For each index `i` in `0..pair_count`, `pair_index[i].contract_addr` has a `true` entry in `pair_addr_reg`. Maintained when pairs register in `reply_instantiate_pair`. Legacy factory instances on wasm **1.0.0** must migrate once to **1.1.0** so `pair_addr_reg` is backfilled from `pair_index` ([GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)).
 
-**Gas / iteration:** Messages that touch **every** pair (`SetDiscountRegistryAll`, propagating governance to LP admins on governance change, etc.) still iterate `pair_index` by design. Indexers or LCD clients listing pairs should paginate rather than relying on unbounded queries.
+**Gas / iteration:** Per-pair governance messages use **O(1)** `pair_addr_reg` where applicable ([#122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)). For **broadcasting** discount-registry updates to **all** pairs at once, use **`SetDiscountRegistryBatch`** ([#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)) so each transaction carries a bounded Wasm message list; `SetDiscountRegistryAll` remains a single-tx option only for small pair counts. Other full-registry passes (e.g. propagating governance to LP admins on governance change) still iterate `pair_index` by design where no batched API exists. Indexers or LCD clients listing pairs should paginate rather than relying on unbounded queries.
+
+### Factory discount registry rollout (invariants, [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123))
+
+`SetDiscountRegistryAll` attaches **one** `WasmMsg::Execute(SetDiscountRegistry …)` **per indexed pair**. With many pairs, the serialized response risks block gas limits and operator failure.
+
+**`SetDiscountRegistryBatch`** emits at most **`limit`** such messages per transaction (omit `limit` ⇒ default **`10`**; hard cap **`30`**, same as other factory queries — see `dex_common::pagination`).
+
+| Field / attribute | Semantics |
+|-------------------|-----------|
+| `start_after` | Optional **exclusive** cursor on the numeric `PAIR_INDEX` key. `null` / absent means “before index `0`”. The next index scanned is `start_after + 1` (or `0` when absent). |
+| Response attrs | `pairs_updated` (messages emitted this TX), `has_more` (`true` until all indices `< PAIR_COUNT` are scanned past in order), **`next_start_after`** (omit when finished — replay this value as `start_after` on the next TX when `has_more` is true), `scanned_through_index` (last numeric index inspected this TX). |
+
+**Invariants:**
+
+1. Indices are contiguous from `0` to `PAIR_COUNT - 1` for normally created pairs (append-only registry).
+2. If `PAIR_COUNT` grows **during** a multi-step rollout, repeat batches until **`has_more` is false**, then optionally rerun from `start_after: null` once more if new tail pairs must receive the registry (those indices were not scanned in earlier steps).
+3. Failed/missing loads for an index slot are skipped (same as “all”), but contiguous indices remain the enumeration order — tooling should rely on **`has_more` / `next_start_after`**, not on `PAIR_COUNT` alone.
+
+Canonical doc for agent automation: [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md).
 
 ---
 
