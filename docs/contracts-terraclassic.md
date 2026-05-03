@@ -49,7 +49,7 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 
 | Variant                    | Fields                                             | Auth        |
 |----------------------------|----------------------------------------------------|-------------|
-| `CreatePair`               | `asset_infos: [AssetInfo; 2]`                      | Anyone      |
+| `CreatePair`               | `asset_infos: [AssetInfo; 2]`                      | Anyone ([one create flow per block](./security-model.md#createpair-rate-limit-and-pending-state); see [#121](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/121)) |
 | `AddWhitelistedCodeId`     | `code_id: u64`                                     | Governance  |
 | `RemoveWhitelistedCodeId`  | `code_id: u64`                                     | Governance  |
 | `SetPairFee`               | `pair: String`, `fee_bps: u16`                     | Governance  |

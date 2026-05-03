@@ -339,6 +339,8 @@ mod helpers {
             )
             .unwrap();
 
+        app.update_block(|b| b.height += 1);
+
         TestEnv {
             factory,
             token_a,
@@ -838,6 +840,109 @@ mod factory_tests {
         assert!(err.root_cause().to_string().contains("Pair already exists"));
     }
 
+    /// Second `CreatePair` in the same block must fail (`PAIR_CREATION_BLOCK` gate).
+    /// Advancing the block allows the next pair.
+    #[test]
+    fn test_create_pair_one_per_block_then_next_block_ok() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000);
+        let token_a = create_cw20_token(&mut app, cw20_code_id, &user, "Token A", "TKNA", initial);
+        let token_b = create_cw20_token(&mut app, cw20_code_id, &user, "Token B", "TKNB", initial);
+        let token_c = create_cw20_token(&mut app, cw20_code_id, &user, "Token C", "TKNC", initial);
+        let token_d = create_cw20_token(&mut app, cw20_code_id, &user, "Token D", "TKND", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let resp_ab = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_ab = extract_pair_address(&resp_ab.events);
+
+        let err_cd = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_c), asset_info_token(&token_d)],
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err_cd
+                .root_cause()
+                .to_string()
+                .contains("Only one CreatePair may run per block"),
+            "unexpected err: {:?}",
+            err_cd.root_cause()
+        );
+
+        app.update_block(|b| b.height += 1);
+
+        let resp_cd = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_c), asset_info_token(&token_d)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_cd = extract_pair_address(&resp_cd.events);
+
+        let info_ab: dex_common::types::PairInfo = app
+            .wrap()
+            .query_wasm_smart(pair_ab.to_string(), &dex_common::pair::QueryMsg::Pair {})
+            .unwrap();
+        let info_cd: dex_common::types::PairInfo = app
+            .wrap()
+            .query_wasm_smart(pair_cd.to_string(), &dex_common::pair::QueryMsg::Pair {})
+            .unwrap();
+
+        let ab_assets = [asset_info_token(&token_a), asset_info_token(&token_b)];
+        let cd_assets = [asset_info_token(&token_c), asset_info_token(&token_d)];
+        assert_eq!(
+            dex_common::types::pair_key(&ab_assets),
+            dex_common::types::pair_key(&info_ab.asset_infos)
+        );
+        assert_eq!(
+            dex_common::types::pair_key(&cd_assets),
+            dex_common::types::pair_key(&info_cd.asset_infos)
+        );
+    }
+
     #[test]
     fn test_add_remove_whitelist() {
         let mut app = App::default();
@@ -999,6 +1104,9 @@ mod factory_tests {
             .collect();
 
         for i in 0..3 {
+            if i > 0 {
+                app.update_block(|b| b.height += 1);
+            }
             app.execute_contract(
                 user.clone(),
                 factory.clone(),
@@ -9222,6 +9330,9 @@ mod new_feature_tests {
 
         let mut pairs = vec![];
         for i in 0..5 {
+            if i > 0 {
+                app.update_block(|b| b.height += 1);
+            }
             let resp = app
                 .execute_contract(
                     user.clone(),
@@ -10601,6 +10712,7 @@ mod router_hop_tests {
         let pair_bc = extract_pair_address(&resp.events);
 
         // Create pair C-D
+        app.update_block(|b| b.height += 1);
         let resp = app
             .execute_contract(
                 env.user.clone(),
@@ -10821,6 +10933,7 @@ mod router_hop_tests {
             .unwrap();
         let pair_bc = extract_pair_address(&resp.events);
 
+        app.update_block(|b| b.height += 1);
         let resp = app
             .execute_contract(
                 env.user.clone(),
@@ -11330,6 +11443,8 @@ mod wrap_router_tests {
             &[],
         )
         .unwrap();
+
+        app.update_block(|b| b.height += 1);
 
         WrapEnv {
             factory,
