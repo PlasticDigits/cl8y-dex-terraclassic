@@ -89,6 +89,10 @@ Block timestamps come from the LCD transaction response (`tx_responses[0].timest
 
 The Liquidity pool browser (`/pool`) **lists and sorts** pairs from the indexer API; it **tags** each row against the on-chain factory pair set used for the swap router graph. Counts and badges are documented in [Frontend guide — Liquidity pools list (indexer vs factory)](./frontend.md#liquidity-pools-list-indexer-vs-factory) (see [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112)).
 
+### Factory LCD: pair enumeration vs governance gas (agents)
+
+When the indexer (or any tool) syncs pairs from the factory via LCD, use **paginated** `Pairs` / `GetPairCount` and **avoid** assuming unbounded factory queries are cheap on-chain—the factory keeps a sequential `pair_index` specifically for discovery-style iteration, including resolving `start_after` in pagination (see [Smart contract reference — Factory storage & upgrades](./contracts-terraclassic.md#factory-storage--upgrades)). That design is separate from **per-pair governance** messages (`SetPairFee`, `SweepPair`, etc.), which must use an **O(1)** reverse map (`pair_addr_reg`) so gas stays bounded at high pair counts ([GitLab **#122**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)). Third-party agents should follow the same split: iterate for **listing** only; never reintroduce linear “is this pair registered?” scans in contract code paths that validate a single address—see [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md).
+
 ## Maintenance
 
 When adding a new query parameter that influences SQL or ordering:
