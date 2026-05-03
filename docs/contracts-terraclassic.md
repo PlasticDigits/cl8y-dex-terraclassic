@@ -68,6 +68,8 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `GetWhitelistedCodeIds`  | `start_after?`, `limit?`               | `CodeIdsResponse`  |
 | `GetPairCount`           | —                                      | `PairCountResponse`|
 
+**`CreatePair`** rejects if either asset CW20 declares `decimals` greater than **`MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`** (see `dex_common::pair`, default **18**). This aligns with empty-pool `provide_liquidity` guards ([issue #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)).
+
 ---
 
 ## Pair
@@ -81,6 +83,8 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `treasury`         | `Addr`           | Fee recipient                     |
 | `factory`          | `Addr`           | Factory address (for auth)        |
 | `lp_token_code_id` | `u64`           | Code ID for LP token instantiation|
+
+Liquidity-share tokens use CW20 **`decimals = LP_TOKEN_DECIMALS`** (18). `MINIMUM_LIQUIDITY` (first-mint permanent lock) counts **LP smallest units**, not pool asset decimals. On **first** `provide_liquidity` both reserve CW20s must have **`decimals ≤ MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`** (same cap as **`CreatePair`**; [!124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)).
 
 ### ExecuteMsg
 

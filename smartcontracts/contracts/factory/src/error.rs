@@ -21,4 +21,12 @@ pub enum ContractError {
     InvalidCodeId {},
     #[error("Native tokens are not supported; use CW20 wrapped tokens instead")]
     NativeTokenNotSupported {},
+    #[error(
+        "Pair asset CW20 decimals must be ≤ {max}; got token_a={decimals_a}, token_b={decimals_b}"
+    )]
+    PairAssetDecimalsTooHigh {
+        decimals_a: u8,
+        decimals_b: u8,
+        max: u8,
+    },
 }

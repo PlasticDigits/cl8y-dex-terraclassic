@@ -2060,6 +2060,7 @@ mod fee_discount_tests {
 #[cfg(test)]
 mod pair_coverage_tests {
     use super::helpers::*;
+    use crate::adversarial_token;
     use cosmwasm_std::{to_json_binary, Addr, Decimal, Uint128};
     use cw_multi_test::{App, Executor};
 
@@ -3199,6 +3200,250 @@ mod pair_coverage_tests {
             .root_cause()
             .to_string()
             .contains("Insufficient liquidity"));
+    }
+
+    #[test]
+    fn test_lp_token_instantiated_with_lp_token_decimals_constant() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let info: cw20::TokenInfoResponse = app
+            .wrap()
+            .query_wasm_smart(env.lp_token.to_string(), &cw20::Cw20QueryMsg::TokenInfo {})
+            .unwrap();
+        assert_eq!(info.decimals, dex_common::pair::LP_TOKEN_DECIMALS);
+        assert_eq!(info.decimals, 18);
+    }
+
+    #[test]
+    fn test_create_pair_rejects_cw20_above_bootstrap_decimal_cap() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let adversarial_code_id = app.store_code(adversarial_token::adversarial_cw20_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+        let initial_amount = Uint128::new(1_000_000_000_000);
+
+        // cw20-mintable caps decimals at 18 — use adversarial CW20 shim to model a whitelisted CW20 (>18 decimals).
+        let token_19 = app
+            .instantiate_contract(
+                adversarial_code_id,
+                user.clone(),
+                &adversarial_token::InstantiateMsg {
+                    name: "HighDecimals".to_string(),
+                    symbol: "HD19".to_string(),
+                    decimals: 19,
+                    initial_balances: vec![cw20::Cw20Coin {
+                        address: user.to_string(),
+                        amount: initial_amount,
+                    }],
+                    mint: None,
+                    mode: adversarial_token::AdversarialMode::Honest,
+                },
+                &[],
+                "HighDecimals",
+                None,
+            )
+            .unwrap();
+        let token_6 =
+            create_cw20_token(&mut app, cw20_code_id, &user, "Six", "SIX", initial_amount);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id, adversarial_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let err = app
+            .execute_contract(
+                user.clone(),
+                factory,
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_19), asset_info_token(&token_6)],
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Pair asset CW20 decimals must be ≤"),
+            "{err}",
+        );
+    }
+
+    #[test]
+    fn test_create_pair_accepts_bootstrap_decimal_cap_boundary() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+        let initial_amount = Uint128::new(1_000_000_000_000);
+
+        let t_a = create_cw20_token_with_decimals(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "EighteenA",
+            "E18A",
+            dex_common::pair::MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
+            initial_amount,
+        );
+        let t_b = create_cw20_token_with_decimals(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "EighteenB",
+            "E18B",
+            dex_common::pair::MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
+            initial_amount,
+        );
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let resp = app
+            .execute_contract(
+                user,
+                factory,
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&t_a), asset_info_token(&t_b)],
+                },
+                &[],
+            )
+            .unwrap();
+        extract_pair_address(&resp.events);
+    }
+
+    #[test]
+    fn test_empty_pool_provide_rejects_asset_decimals_above_bootstrap_cap() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let fake_factory = Addr::unchecked("factory");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let adversarial_code_id = app.store_code(adversarial_token::adversarial_cw20_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let initial_amount = Uint128::new(1_000_000_000_000);
+
+        let token_19 = app
+            .instantiate_contract(
+                adversarial_code_id,
+                user.clone(),
+                &adversarial_token::InstantiateMsg {
+                    name: "HighDecimals".to_string(),
+                    symbol: "HD19".to_string(),
+                    decimals: 19,
+                    initial_balances: vec![cw20::Cw20Coin {
+                        address: user.to_string(),
+                        amount: initial_amount,
+                    }],
+                    mint: None,
+                    mode: adversarial_token::AdversarialMode::Honest,
+                },
+                &[],
+                "HighDecimals",
+                None,
+            )
+            .unwrap();
+        let token_6 =
+            create_cw20_token(&mut app, cw20_code_id, &user, "Six", "SIX", initial_amount);
+
+        let pair = app
+            .instantiate_contract(
+                pair_code_id,
+                governance.clone(),
+                &dex_common::pair::PairInstantiateMsg {
+                    asset_infos: [asset_info_token(&token_19), asset_info_token(&token_6)],
+                    fee_bps: 30,
+                    treasury: treasury.clone(),
+                    factory: fake_factory,
+                    lp_token_code_id: cw20_code_id,
+                    token_symbols: None,
+                    governance: governance.to_string(),
+                },
+                &[],
+                "pair-bootstrap-decimals-test",
+                Some(governance.to_string()),
+            )
+            .unwrap();
+
+        for tok in [&token_19, &token_6] {
+            app.execute_contract(
+                user.clone(),
+                tok.clone(),
+                &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                    spender: pair.to_string(),
+                    amount: Uint128::new(1_000_000),
+                    expires: None,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+
+        let err = app
+            .execute_contract(
+                user.clone(),
+                pair.clone(),
+                &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                    assets: [
+                        dex_common::types::Asset {
+                            info: asset_info_token(&token_19),
+                            amount: Uint128::new(1_000),
+                        },
+                        dex_common::types::Asset {
+                            info: asset_info_token(&token_6),
+                            amount: Uint128::new(1_000),
+                        },
+                    ],
+                    slippage_tolerance: None,
+                    receiver: None,
+                    deadline: None,
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Pair asset CW20 decimals must be ≤"),
+            "{err}",
+        );
     }
 }
 

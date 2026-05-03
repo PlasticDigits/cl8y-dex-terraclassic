@@ -75,4 +75,13 @@ pub enum ContractError {
 
     #[error("Limit order amount too small after maker fee")]
     LimitOrderMakerFeeExceedsAmount {},
+
+    #[error(
+        "Pair asset CW20 decimals must be ≤ {max}; got token0={decimals0}, token1={decimals1}"
+    )]
+    PairAssetDecimalsTooHigh {
+        decimals0: u8,
+        decimals1: u8,
+        max: u8,
+    },
 }
