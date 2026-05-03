@@ -44,9 +44,25 @@ pub enum ExecuteMsg {
         pair: String,
         registry: Option<String>,
     },
-    /// Set the fee discount registry for all pairs. Governance only.
+    /// Set the fee discount registry for all pairs in one transaction (governance only).
+    ///
+    /// **Gas / size caution:** emits one Wasm execute submessage per registered pair.
+    /// For factories with large `PAIR_COUNT`, prefer [`SetDiscountRegistryBatch`](ExecuteMsg::SetDiscountRegistryBatch) (see GitLab [#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)).
     SetDiscountRegistryAll {
         registry: Option<String>,
+    },
+    /// Paginated/chunked rollout of the same registry update across indexed pairs (`PAIR_INDEX`).
+    ///
+    /// - `start_after`: exclusive numeric index cursor into `PAIR_INDEX` (`None` ⇒ start before `0`,
+    ///   i.e. first index handled is `0`).
+    /// - `limit`: max pair messages emitted this execution; omit for default clamp (see [`crate::pagination`]).
+    ///
+    /// **Invariants:** New pairs append at indices `< PAIR_COUNT`. If pairs are registered between
+    /// batches, rerun until the response reports no further work (`has_more = false`).
+    SetDiscountRegistryBatch {
+        registry: Option<String>,
+        start_after: Option<u64>,
+        limit: Option<u32>,
     },
     /// Emergency pause/unpause a pair. Only governance can call this.
     SetPairPaused {

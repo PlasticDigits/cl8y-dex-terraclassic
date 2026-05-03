@@ -250,6 +250,29 @@ mod helpers {
         Addr::unchecked(pair_addr)
     }
 
+    /// First wasm event whose `action` attribute matches `action`, then read `key`.
+    pub fn wasm_attr_for_action(
+        events: &[cosmwasm_std::Event],
+        action: &str,
+        key: &str,
+    ) -> Option<String> {
+        for e in events.iter().filter(|e| e.ty == "wasm") {
+            if !e
+                .attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == action)
+            {
+                continue;
+            }
+            return e
+                .attributes
+                .iter()
+                .find(|a| a.key == key)
+                .map(|a| a.value.clone());
+        }
+        None
+    }
+
     pub fn asset_info_token(addr: &Addr) -> AssetInfo {
         AssetInfo::Token {
             contract_addr: addr.to_string(),
@@ -751,6 +774,7 @@ mod factory_tests {
                 )
                 .unwrap();
             pair_addrs.push(extract_pair_address(&resp.events));
+            app.update_block(|b| b.height += 1);
         }
 
         let last_pair = pair_addrs.last().unwrap();
@@ -3496,6 +3520,177 @@ mod factory_coverage_tests {
             &[],
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_set_discount_registry_batch_paginates_cursor() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let token_c = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token C",
+            "TKNC",
+            Uint128::new(1_000_000),
+        );
+
+        let resp_bc = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let _pair_bc = extract_pair_address(&resp_bc.events);
+
+        let fee_discount_code_id = app.store_code(fee_discount_contract());
+        let cl8y_token = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "CL8Y",
+            "CL8Y",
+            Uint128::new(1_000_000),
+        );
+
+        let fee_discount = app
+            .instantiate_contract(
+                fee_discount_code_id,
+                env.governance.clone(),
+                &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                    governance: env.governance.to_string(),
+                    cl8y_token: cl8y_token.to_string(),
+                },
+                &[],
+                "fee_discount",
+                None,
+            )
+            .unwrap();
+
+        let r1 = app
+            .execute_contract(
+                env.governance.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetDiscountRegistryBatch {
+                    registry: Some(fee_discount.to_string()),
+                    start_after: None,
+                    limit: Some(1),
+                },
+                &[],
+            )
+            .unwrap();
+
+        assert_eq!(
+            wasm_attr_for_action(&r1.events, "set_discount_registry_batch", "pairs_updated")
+                .as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            wasm_attr_for_action(&r1.events, "set_discount_registry_batch", "has_more").as_deref(),
+            Some("true")
+        );
+        let next = wasm_attr_for_action(
+            &r1.events,
+            "set_discount_registry_batch",
+            "next_start_after",
+        )
+        .expect("next_start_after");
+        assert_eq!(next, "0");
+
+        let r2 = app
+            .execute_contract(
+                env.governance.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetDiscountRegistryBatch {
+                    registry: Some(fee_discount.to_string()),
+                    start_after: Some(next.parse().unwrap()),
+                    limit: Some(1),
+                },
+                &[],
+            )
+            .unwrap();
+
+        assert_eq!(
+            wasm_attr_for_action(&r2.events, "set_discount_registry_batch", "pairs_updated")
+                .as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            wasm_attr_for_action(&r2.events, "set_discount_registry_batch", "has_more").as_deref(),
+            Some("false")
+        );
+        assert!(wasm_attr_for_action(
+            &r2.events,
+            "set_discount_registry_batch",
+            "next_start_after"
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn test_set_discount_registry_batch_noop_when_cursor_past_end() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let r = app
+            .execute_contract(
+                env.governance.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetDiscountRegistryBatch {
+                    registry: None,
+                    start_after: Some(100),
+                    limit: Some(5),
+                },
+                &[],
+            )
+            .unwrap();
+
+        assert_eq!(
+            wasm_attr_for_action(&r.events, "set_discount_registry_batch", "pairs_updated")
+                .as_deref(),
+            Some("0")
+        );
+        assert_eq!(
+            wasm_attr_for_action(&r.events, "set_discount_registry_batch", "has_more").as_deref(),
+            Some("false")
+        );
+    }
+
+    #[test]
+    fn test_set_discount_registry_batch_unauthorized() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let random = Addr::unchecked("random");
+        let err = app
+            .execute_contract(
+                random,
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetDiscountRegistryBatch {
+                    registry: None,
+                    start_after: None,
+                    limit: Some(1),
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(err.root_cause().to_string().contains("Unauthorized"));
     }
 
     #[test]
