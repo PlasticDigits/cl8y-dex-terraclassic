@@ -47,6 +47,20 @@ pub const HEAD_ASK: Item<Option<u64>> = Item::new("head_ask");
 pub const PENDING_ESCROW_TOKEN0: Item<Uint128> = Item::new("escrow_t0");
 pub const PENDING_ESCROW_TOKEN1: Item<Uint128> = Item::new("escrow_t1");
 
+/// Refund owed when a limit order was removed from the book for expiry during a match walk.
+/// `PENDING_ESCROW_TOKEN0` / `PENDING_ESCROW_TOKEN1` still include `remaining` until
+/// `ClaimExpiredLimitOrder` transfers funds and subtracts pending.
+#[cw_serde]
+pub struct ExpiredLimitRefund {
+    pub owner: Addr,
+    pub side: LimitOrderSide,
+    pub remaining: Uint128,
+    #[serde(default)]
+    pub expires_at: Option<u64>,
+}
+
+pub const EXPIRED_LIMIT_CLAIMS: Map<u64, ExpiredLimitRefund> = Map::new("exp_limit_cl");
+
 #[cw_serde]
 pub struct LimitOrder {
     pub owner: Addr,

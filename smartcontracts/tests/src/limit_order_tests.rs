@@ -7,9 +7,9 @@ use super::helpers::*;
 
 use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::pair::{
-    Cw20HookMsg, ExecuteMsg, HybridReverseSimulationResponse, HybridSimulationResponse,
-    HybridSwapParams, LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg,
-    ReverseSimulationResponse, SimulationResponse, MAX_MAKER_FILLS_HARD_CAP,
+    Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
+    HybridSimulationResponse, HybridSwapParams, LimitOrderResponse, LimitOrderSide, PausedResponse,
+    QueryMsg, ReverseSimulationResponse, SimulationResponse, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -839,7 +839,7 @@ fn place_limit_order_expiry_not_future_rejected() {
 }
 
 #[test]
-fn expired_bid_skipped_on_hybrid_swap_without_maker_credit() {
+fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     let taker = cosmwasm_std::Addr::unchecked("taker_exp");
@@ -860,6 +860,7 @@ fn expired_bid_skipped_on_hybrid_swap_without_maker_credit() {
     );
 
     let exp = app.block_info().time.seconds() + 120;
+    let escrow_sent = Uint128::new(10_000);
     let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
         side: LimitOrderSide::Bid,
         price: Decimal::one(),
@@ -874,38 +875,233 @@ fn expired_bid_skipped_on_hybrid_swap_without_maker_credit() {
             env.token_b.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.pair.to_string(),
-                amount: Uint128::new(10_000),
+                amount: escrow_sent,
                 msg,
             },
             &[],
         )
         .unwrap();
     let order_id = parse_limit_order_placed(&res.events);
+    let maker_fee = escrow_sent.multiply_ratio(15u128, 10_000u128);
+    let remaining_after_fee = escrow_sent.checked_sub(maker_fee).unwrap();
+
+    let user_b_before_walk = query_cw20_balance(&app, &env.token_b, &env.user);
 
     app.update_block(|b| {
         b.time = b.time.plus_seconds(10_000);
     });
 
-    swap_a_to_b_hybrid(
-        &mut app,
-        &env.pair,
-        &taker,
-        &env.token_a,
-        Uint128::new(5_000),
-        Some(HybridSwapParams {
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
             pool_input: Uint128::zero(),
             book_input: Uint128::new(5_000),
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        trader: None,
+    })
+    .unwrap();
+    let hybrid_res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(5_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let parked_ev = hybrid_res.events.iter().find(|e| {
+        e.attributes
+            .iter()
+            .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+    });
+    assert!(
+        parked_ev.is_some(),
+        "expired bid walk should emit limit_order_expired_parked"
     );
 
-    let res: Result<LimitOrderResponse, _> = app
+    let claim_row: Option<ExpiredLimitRefundResponse> = app
         .wrap()
-        .query_wasm_smart(env.pair.to_string(), &QueryMsg::LimitOrder { order_id });
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::ExpiredLimitRefund { order_id },
+        )
+        .unwrap();
+    let row = claim_row.expect("claim row");
+    assert_eq!(row.order_id, order_id);
+    assert_eq!(row.owner, env.user);
+    assert_eq!(row.side, LimitOrderSide::Bid);
+    assert_eq!(row.remaining, remaining_after_fee);
+    assert_eq!(row.expires_at, Some(exp));
+
     assert!(
-        res.is_err(),
-        "expired order should be unlinked, not queryable"
+        app.wrap()
+            .query_wasm_smart::<LimitOrderResponse>(
+                env.pair.to_string(),
+                &QueryMsg::LimitOrder { order_id },
+            )
+            .is_err(),
+        "parked order should not appear in LimitOrder query"
+    );
+
+    let user_b_after_walk = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        user_b_after_walk, user_b_before_walk,
+        "maker must not receive token1 until ClaimExpiredLimitOrder"
+    );
+
+    assert!(
+        app.execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrder { order_id },
+            &[],
+        )
+        .is_err(),
+        "cancel after park must fail — no active order row; prevents double CW20 return"
+    );
+
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+        &[],
+    )
+    .unwrap();
+
+    let user_b_after_claim = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        user_b_after_claim.checked_sub(user_b_after_walk).unwrap(),
+        remaining_after_fee
+    );
+
+    let empty: Option<ExpiredLimitRefundResponse> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::ExpiredLimitRefund { order_id },
+        )
+        .unwrap();
+    assert!(empty.is_none());
+}
+
+/// Invariant L6: `ClaimExpiredLimitOrder` works while paused (unlike `CancelLimitOrder`).
+#[test]
+fn claim_expired_limit_order_allowed_while_pair_paused() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp2");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 60;
+    let escrow_sent = Uint128::new(10_000);
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
+        side: LimitOrderSide::Bid,
+        price: Decimal::one(),
+        hint_after_order_id: None,
+        max_adjust_steps: 32,
+        expires_at: Some(exp),
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: escrow_sent,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+    let order_id = parse_limit_order_placed(&res.events);
+    let maker_fee = escrow_sent.multiply_ratio(15u128, 10_000u128);
+    let remaining_after_fee = escrow_sent.checked_sub(maker_fee).unwrap();
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(120);
+    });
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(1_000),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker,
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(1_000),
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap();
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairPaused {
+            pair: env.pair.to_string(),
+            paused: true,
+        },
+        &[],
+    )
+    .unwrap();
+
+    assert!(app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrder { order_id },
+            &[],
+        )
+        .is_err());
+
+    let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+        &[],
+    )
+    .unwrap();
+    let bal_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        bal_after.checked_sub(bal_before).unwrap(),
+        remaining_after_fee
     );
 }
 

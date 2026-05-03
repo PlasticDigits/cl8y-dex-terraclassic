@@ -15,6 +15,7 @@ Use this when debugging **`out of gas`** on swap txs, tuning gas constants, or r
 | `frontend-dapp/src/utils/constants.ts` | `SWAP_GAS_PER_HOP`, `SWAP_GAS_BUFFER`, floors, padding |
 | `frontend-dapp/src/services/terraclassic/transactions.ts` | `getGasLimitForTx`, hybrid vs pool-only branches |
 | `frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts` | Expected `Fee.gasLimit` values — **update when constants change** |
+| [docs/limit-orders.md § Expiry](../docs/limit-orders.md#expiry-expires_at) · GitLab [**#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120) | Makers may need a follow-up **`ClaimExpiredLimitOrder`** tx after `limit_order_expired_parked` (same ballpark as cancel; not a hop in a router multihop swap) |
 
 ## Rules of thumb
 

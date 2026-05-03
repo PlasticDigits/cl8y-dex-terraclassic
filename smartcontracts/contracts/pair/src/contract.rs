@@ -7,15 +7,15 @@ use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::error::ContractError;
 use crate::msg::{
-    Cw20HookMsg, ExecuteMsg, FeeConfigResponse, HooksResponse, InstantiateMsg, LimitOrderResponse,
-    ObserveResponse, OracleInfoResponse, PoolResponse, QueryMsg, ReverseSimulationResponse,
-    SimulationResponse,
+    Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, FeeConfigResponse, HooksResponse,
+    InstantiateMsg, LimitOrderResponse, ObserveResponse, OracleInfoResponse, PoolResponse,
+    QueryMsg, ReverseSimulationResponse, SimulationResponse,
 };
 use crate::orderbook;
 use crate::state::{
-    OracleState, PairInfoState, DISCOUNT_REGISTRY, FEE_CONFIG, HOOKS, OBSERVATIONS, ORACLE_STATE,
-    ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1, RESERVES,
-    TOTAL_LP_SUPPLY,
+    OracleState, PairInfoState, DISCOUNT_REGISTRY, EXPIRED_LIMIT_CLAIMS, FEE_CONFIG, HOOKS,
+    OBSERVATIONS, ORACLE_STATE, ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0,
+    PENDING_ESCROW_TOKEN1, RESERVES, TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
@@ -520,6 +520,9 @@ pub fn execute(
         ExecuteMsg::CancelLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
             execute_cancel_limit_order(deps, env, info, order_id)
+        }
+        ExecuteMsg::ClaimExpiredLimitOrder { order_id } => {
+            execute_claim_expired_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::UpdateLimitOrderPrice {
             order_id,
@@ -1149,6 +1152,72 @@ fn execute_update_limit_order_price(
         .add_attribute("action", "update_limit_order_price")
         .add_attribute("order_id", order_id.to_string())
         .add_attribute("price", price.to_string()))
+}
+
+fn execute_claim_expired_limit_order(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    order_id: u64,
+) -> Result<Response, ContractError> {
+    let row = EXPIRED_LIMIT_CLAIMS
+        .may_load(deps.storage, order_id)?
+        .ok_or(ContractError::NoExpiredLimitClaim { order_id })?;
+    if row.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let token_a = token_addr(&pair_info.asset_infos[0]);
+    let token_b = token_addr(&pair_info.asset_infos[1]);
+
+    let refund_msg = match row.side {
+        LimitOrderSide::Bid => {
+            let mut esc = PENDING_ESCROW_TOKEN1
+                .may_load(deps.storage)?
+                .unwrap_or(Uint128::zero());
+            esc =
+                esc.checked_sub(row.remaining)
+                    .map_err(|_| ContractError::InvariantViolation {
+                        reason: "pending escrow token1 underflow on claim expired".into(),
+                    })?;
+            PENDING_ESCROW_TOKEN1.save(deps.storage, &esc)?;
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: token_b.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: row.owner.to_string(),
+                    amount: row.remaining,
+                })?,
+                funds: vec![],
+            })
+        }
+        LimitOrderSide::Ask => {
+            let mut esc = PENDING_ESCROW_TOKEN0
+                .may_load(deps.storage)?
+                .unwrap_or(Uint128::zero());
+            esc =
+                esc.checked_sub(row.remaining)
+                    .map_err(|_| ContractError::InvariantViolation {
+                        reason: "pending escrow token0 underflow on claim expired".into(),
+                    })?;
+            PENDING_ESCROW_TOKEN0.save(deps.storage, &esc)?;
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: token_a.to_string(),
+                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: row.owner.to_string(),
+                    amount: row.remaining,
+                })?,
+                funds: vec![],
+            })
+        }
+    };
+
+    EXPIRED_LIMIT_CLAIMS.remove(deps.storage, order_id);
+
+    Ok(Response::new()
+        .add_message(refund_msg)
+        .add_attribute("action", "claim_expired_limit_order")
+        .add_attribute("order_id", order_id.to_string())
+        .add_attribute("owner", row.owner.as_str()))
 }
 
 fn execute_cancel_limit_order(
@@ -1798,6 +1867,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         ),
         QueryMsg::IsPaused {} => to_json_binary(&query_is_paused(deps)?),
         QueryMsg::LimitOrder { order_id } => to_json_binary(&query_limit_order(deps, order_id)?),
+        QueryMsg::ExpiredLimitRefund { order_id } => {
+            to_json_binary(&query_expired_limit_refund(deps, order_id)?)
+        }
         QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
         QueryMsg::HybridSimulation {
             offer_asset,
@@ -1816,6 +1888,21 @@ fn query_is_paused(deps: Deps) -> StdResult<dex_common::pair::PausedResponse> {
 
 fn query_limit_order(deps: Deps, order_id: u64) -> StdResult<LimitOrderResponse> {
     orderbook::load_order_response(deps.storage, order_id)
+}
+
+fn query_expired_limit_refund(
+    deps: Deps,
+    order_id: u64,
+) -> StdResult<Option<ExpiredLimitRefundResponse>> {
+    Ok(EXPIRED_LIMIT_CLAIMS
+        .may_load(deps.storage, order_id)?
+        .map(|r| ExpiredLimitRefundResponse {
+            order_id,
+            owner: r.owner,
+            side: r.side,
+            remaining: r.remaining,
+            expires_at: r.expires_at,
+        }))
 }
 
 fn query_order_book_head(deps: Deps, side: LimitOrderSide) -> StdResult<Option<u64>> {

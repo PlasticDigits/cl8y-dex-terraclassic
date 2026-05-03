@@ -21,7 +21,7 @@ The Swap UI must show **before submit** whether execution is **hybrid (pool + li
 
 CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorderbook) and [`GET /cmc/orderbook/:market_pair`](./CG_CMC_COMPLIANCE.md#get-cmcorderbookmarket_pair) return an **AMM-simulated** level-2 book (walking the bonding curve). That is **not** the FIFO limit book stored on pairs.
 
-**Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. The **indexer also proxies** those reads for integrators and the dApp (see [ADR 0002: Limit book surfacing](./adr/0002-limit-book-surfacing.md)):
+**Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. After an expiry park, `LimitOrder` returns an error — use **`ExpiredLimitRefund { order_id }`** (`null` if already claimed). The **indexer also proxies** those reads for integrators and the dApp (see [ADR 0002: Limit book surfacing](./adr/0002-limit-book-surfacing.md)):
 
 - **`GET /api/v1/pairs/{addr}/order-book-head?side=bid|ask`** — JSON `{ "head_order_id": <u64> | null }` from LCD `OrderBookHead`.
 - **`GET /api/v1/pairs/{addr}/limit-book?side=bid|ask&limit=L&after_order_id=OPTIONAL`** — **paginated** walk from head or keyset cursor along `next` (default `limit` 50, max 100 per HTTP response). Response includes `orders`, `has_more`, and `next_after_order_id` (pass the latter as `after_order_id` for the next page). LCD errors → **502**; invalid cursor / side mismatch → **400**.
@@ -42,7 +42,8 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 - **`Cw20HookMsg::PlaceLimitOrder`:** `side`, `price`, `hint_after_order_id`, `max_adjust_steps`, optional **`expires_at`** (Unix seconds; `null` = no expiry). If set, it must be **strictly greater** than the block time at placement.
 - **Fees:** Total limit-book fee rate matches the pair’s **effective** swap commission (`fee_bps` after the optional fee-discount registry). The pair charges **half** to the maker at placement (from the escrowed CW20, sent to `treasury`; the resting order’s `remaining` is reduced) and **half** on each book fill (taker leg), same notional bases as before (bids: token1 `cost`; asks: token0 fill). See [`docs/integrators.md`](./integrators.md).
 - **`hint_after_order_id`:** reserved for future indexer-assisted insertion. The **current implementation ignores this field** and always walks from the book head (same as `find_insert_bid` / `find_insert_ask` in the pair crate). Clients may send `null`; wire compatibility is preserved.
-- **`ExecuteMsg::CancelLimitOrder`:** `order_id`. Only the stored **owner** may cancel.
+- **`ExecuteMsg::CancelLimitOrder`:** `order_id`. Only the stored **owner** may cancel. Applies only while the order row exists in on-chain `LimitOrder` storage (not after an expiry park — use claim below).
+- **`ExecuteMsg::ClaimExpiredLimitOrder`:** `order_id`. Owner-only. After a match walk **parks** an expired order (see **Expiry** below), escrow is refunded here — same token routing as cancel. Query **`ExpiredLimitRefund { order_id }`** for a pending row (`null` if none). **Allowed while the pair is paused** (unlike cancel).
 - **`ExecuteMsg::UpdateLimitOrderPrice`:** `order_id`, `price`, `hint_after_order_id`, `max_adjust_steps`. Owner-only; re-links the order in the FIFO book at a new price **without** charging the maker placement fee again (same `order_id` and `remaining`).
 
 ### Router
@@ -56,12 +57,16 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 
 ### Pause (governance)
 
-- When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders) and **`CancelLimitOrder` is blocked** — resting limit escrow stays locked until governance unpauses (see [contracts-security-audit.md](./contracts-security-audit.md) **L6**).
+- When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders) and **`CancelLimitOrder` is blocked** — active resting limits stay locked until governance unpauses (see [contracts-security-audit.md](./contracts-security-audit.md) **L6**).
+- **`ClaimExpiredLimitOrder`** remains **available while paused** so makers can recover escrow for orders that were already moved to **`EXPIRED_LIMIT_CLAIMS`** when a prior (pre-pause) match walk handled expiry.
 - **`IsPaused` query:** `{ "is_paused": {} }` → `{ "paused": bool }` so frontends can show accurate pause copy without guessing from failed transactions.
 
 ### Expiry (`expires_at`)
 
-- If **`expires_at`** is set and a swap’s match walk reaches that order when **`block_time >= expires_at`**, the order is **unlinked**, pending escrow is decremented for its remaining size, and **no** CW20 transfer to the maker is performed in that transaction. Tokens stay in the pair contract and follow normal **sweep** rules (excess over reserves + pending). **Cancel** still refunds the maker while the order exists and is unexpired.
+- If **`expires_at`** is set and a hybrid (or future) match walk reaches that order when **`block_time >= expires_at`**, the contract **does not** match it. The order is **removed from the DLL**, a row is stored in **`EXPIRED_LIMIT_CLAIMS`**, and **`PENDING_ESCROW_*` is left unchanged** until the maker calls **`ClaimExpiredLimitOrder`** (which CW20-transfers and then decrements pending — same economics as cancel).
+- The taker transaction emits a wasm event **`limit_order_expired_parked`** (`action`, `order_id`, `maker`, `side`, `remaining`). **No** CW20 is sent to the maker in that taker tx — this keeps `balance − reserves − pending_escrow` aligned and fixes the stranded-funds / mis-sweep issue described in GitLab [**#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120).
+- **`CancelLimitOrder`** only operates on **`ORDERS`**; it cannot fire after a park, so there is **no** path to refund the same escrow twice.
+- While an order is still live on the book but past `expires_at`, the owner may **`CancelLimitOrder`** if the pair is unpaused — useful before any taker walks the book.
 
 ### Post-swap hooks and hybrid
 
@@ -105,7 +110,9 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `expires_at` | Same tx when set |
 | `action` = `update_limit_order_price` | Owner changed limit price in place |
 | `action` = `cancel_limit_order` | Cancel |
+| `action` = `claim_expired_limit_order` | Expired-limit refund (after park) |
 | `limit_order_cancelled`, `owner` | Same tx |
+| `action` = `limit_order_expired_parked` | Expired order removed from book into claim queue (wasm event; taker tx) |
 | `action` = `swap` | Any swap |
 | `book_return_amount`, `pool_return_amount`, `return_amount` | Hybrid breakdown |
 | `limit_book_offer_consumed` | When the book leg consumed offer token |

@@ -28,3 +28,4 @@ Use this skill when working on **localnet-only** scripted trading volume for UI 
 
 - Dev wallet / mnemonic bundle safety: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)  
 - Gas limits for swap shapes: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
+- Expired limit orders + hybrid walks (`ClaimExpiredLimitOrder`, `ExpiredLimitRefund`): [`docs/limit-orders.md`](../docs/limit-orders.md), GitLab [**#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120) — automation that places `expires_at` limits should monitor claimable rows and submit claims when indexers show `limit_order_expired_parked` or a non-null `ExpiredLimitRefund` query.

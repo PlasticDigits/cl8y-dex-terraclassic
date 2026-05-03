@@ -21,7 +21,12 @@
 //! - **Escrow:** Bids lock **token1**; asks lock **token0**. Pending amounts
 //!   live in `PENDING_ESCROW_TOKEN0` / `PENDING_ESCROW_TOKEN1` and are
 //!   excluded from `RESERVES` and from sweepable “excess” (see `execute_sweep`).
-//! - **Cancel:** Only the stored `owner` may cancel and receive the refund.
+//!   Orders parked when `expires_at` is reached during a match walk are tracked in
+//!   `EXPIRED_LIMIT_CLAIMS` until `ClaimExpiredLimitOrder`; until then their `remaining`
+//!   stays in pending escrow (see `docs/limit-orders.md`, GitLab #120).
+//! - **Cancel:** Only the stored `owner` may cancel an **active** book row and receive
+//!   the refund. **ClaimExpiredLimitOrder** refunds rows moved to `EXPIRED_LIMIT_CLAIMS`;
+//!   cancel does not apply there, preventing a double CW20 return.
 //! - **Bounded work:** Placement insert position is found by a linear walk
 //!   from the book head capped by `max_adjust_steps` (see `orderbook`).
 //!   Hybrid swaps cap distinct makers per tx via `max_maker_fills`.
