@@ -26,6 +26,16 @@ The Factory maintains a whitelist of CW20 code IDs. When `CreatePair` is called 
 
 **Rationale:** this prevents pairs from being created with malicious CW20 contracts that could manipulate balances, re-enter, or steal funds.
 
+## `CreatePair` rate limit and pending state
+
+`CreatePair` is **permissionless** (any address may call it, subject to whitelist checks). The factory keeps a single `PENDING_PAIR` slot while a pair `Instantiate` submessage is in flight inside **that** transaction.
+
+**Cosmos atomicity:** each transaction runs to completion—including submessages and `reply` handlers—before the next transaction runs on the same contract. A second wallet submitting `CreatePair` in the same block therefore **does not** interleave between the first call’s `execute` and `reply`; the cross-transaction `PENDING_PAIR` overwrite described in hypothetical race analysis does **not** apply on standard Terra Classic / Cosmos SDK execution.
+
+**Per-block gate (product invariant):** the factory still records `PAIR_CREATION_BLOCK` and rejects a second `CreatePair` that would start another instantiate flow in the **same** block height. That limits pairing spam and encodes “one pending create path per block” for operators and automation. Scripts that create multiple pairs must use one pair per block (e.g. wait for the next block) or sequence heights explicitly.
+
+See also: GitLab [#121](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/121), [`docs/contracts-security-audit.md`](./contracts-security-audit.md) (invariant **F1**), and factory `lib.rs` / `state.rs` in `smartcontracts/contracts/factory/`.
+
 ## Native Token Rejection
 
 The `AssetInfo` enum includes a `NativeToken` variant for TerraSwap wire compatibility, but all contracts reject it at runtime with a clear error message. This prevents accidental use of native tokens until CW20 wrapping support is added.

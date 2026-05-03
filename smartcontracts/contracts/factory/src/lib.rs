@@ -14,6 +14,23 @@
 //! All admin operations require `info.sender == config.governance`.
 //! `CreatePair` is permissionless but validates both tokens against the
 //! code ID whitelist.
+//!
+//! ## `CreatePair` concurrency (Terra / CosmWasm)
+//!
+//! Each Cosmos transaction runs **atomically**: the factory `execute` entry,
+//! any submessages (pair `WasmMsg::Instantiate`), and their `reply` handlers
+//! for that transaction finish before another transaction touching the same
+//! contract runs. So two different `CreatePair` transactions do **not**
+//! interleave mid-flight—the hypothetical “overwrite `PENDING_PAIR` before the
+//! first reply” race from a second tx in the same block does **not** apply on
+//! standard Cosmos blockchains.
+//!
+//! The factory still enforces **at most one `CreatePair` instantiate flow per
+//! block height** via [`PAIR_CREATION_BLOCK`](crate::state::PAIR_CREATION_BLOCK).
+//! That is a deliberate rate limit and documents the “single pending slot”
+//! invariant for reviewers and third-party agents. Integrators that batch more
+//! than one new pair in the same block must advance the block (or split across
+//! heights).
 
 pub mod contract;
 pub mod error;
