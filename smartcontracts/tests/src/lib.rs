@@ -693,6 +693,87 @@ mod factory_tests {
         assert_eq!(fee_config.fee_config.treasury, env.treasury);
     }
 
+    /// Regression for GitLab #122: governance paths must not linear-scan `PAIR_INDEX`
+    /// for membership checks at scale (reverse map keeps lookup bounded).
+    #[test]
+    fn test_factory_many_pairs_governance_fee_update_uses_registry_lookup() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let hub = create_cw20_token(&mut app, cw20_code_id, &user, "Hub Token", "HUB", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let mut pair_addrs: Vec<Addr> = Vec::new();
+        const NUM_PAIRS: usize = 35;
+        for i in 0..NUM_PAIRS {
+            let sat = create_cw20_token(
+                &mut app,
+                cw20_code_id,
+                &user,
+                &format!("Satellite {}", i),
+                &format!("SAT{}", i),
+                initial,
+            );
+            let resp = app
+                .execute_contract(
+                    user.clone(),
+                    factory.clone(),
+                    &dex_common::factory::ExecuteMsg::CreatePair {
+                        asset_infos: [asset_info_token(&hub), asset_info_token(&sat)],
+                    },
+                    &[],
+                )
+                .unwrap();
+            pair_addrs.push(extract_pair_address(&resp.events));
+        }
+
+        let last_pair = pair_addrs.last().unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairFee {
+                pair: last_pair.to_string(),
+                fee_bps: 29,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let fee_config: dex_common::pair::FeeConfigResponse = app
+            .wrap()
+            .query_wasm_smart(
+                last_pair.to_string(),
+                &dex_common::pair::QueryMsg::GetFeeConfig {},
+            )
+            .unwrap();
+        assert_eq!(fee_config.fee_config.fee_bps, 29);
+    }
+
     #[test]
     fn test_create_pair_native_token_rejected() {
         let mut app = App::default();

@@ -7,7 +7,9 @@
 //!   token contracts from being used in pairs.
 //! - Provides governance-gated admin operations: fee updates, hook
 //!   registration, discount registry configuration, pause, and sweep.
-//! - Stores a sequential pair index for paginated enumeration.
+//! - Stores a sequential pair index for paginated enumeration (discovery).
+//! - Maintains `PAIR_ADDR_REGISTERED` (`state.rs`) so pair-address membership
+//!   checks for governance messages are **O(1)** in storage reads (see GitLab #122).
 //!
 //! ## Auth model
 //!
