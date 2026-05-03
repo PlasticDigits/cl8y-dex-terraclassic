@@ -21,14 +21,14 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Local Development](./local-development.md) — Docker setup, deploy scripts, Makefile
 - [Testing](./testing.md) — test philosophy, running unit/integration/E2E tests (includes indexer Postgres setup and [shared-DB parallelism](./testing.md#shared-postgres-and-test-parallelism))
 - **Cursor:** the **Babysit PR** skill (in Cursor *Skills*) is useful for keeping topic branches merge-ready (CI, comments). Example frontend fix: [GitLab #113](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113) / [price chart invariants](./frontend.md#trade-page--price-chart-invariants).
-- **Agent players (3rd party):** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic swap gas tuning and doc crosslinks ([glab#115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) — localnet trading swarm ([glab#119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)).
+- **Agent players (3rd party):** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic swap gas tuning and doc crosslinks ([glab#115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) — localnet trading swarm ([glab#119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)); indexer `/metrics` bind policy: [glab#125](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125) / [`indexer-invariants.md`](./indexer-invariants.md).
 
 ## Deployment
 - [Deployment Guide](./deployment-guide.md) — mainnet and testnet deployment steps
 
 ## Operations & runbooks
 - [Environment matrix](./environment-matrix.md) — local, testnet, mainnet chain IDs and indexer expectations
-- [Operator secrets](./operator-secrets.md) — DB, LCD, keys, `RUN_MODE`, optional Prometheus
+- [Operator secrets](./operator-secrets.md) — DB, LCD, keys, `RUN_MODE`, `DEPLOY_ENV`, optional Prometheus (`METRICS_BIND` dedicated listener; [glab#125](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125))
 - [Runbook: indexer reorg, replay, dedup, backfill](./runbooks/indexer-reorg-replay-dedup.md)
 - [Runbook: Wasm admin migration](./runbooks/wasm-admin-migration.md)
 - [Incident template (DEX + indexer)](./templates/incident-dex-indexer.md)

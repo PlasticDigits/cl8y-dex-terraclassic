@@ -11,6 +11,8 @@ Use this skill when working on **localnet-only** scripted trading volume for UI 
 | [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | Prior art for factory `pairs` → unique CW20 → `Mint` |
 | [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh) | Writes `frontend-dapp/.env.local`, seeds pair liquidity |
 | [`docs/local-development.md`](../docs/local-development.md) | Local stack prerequisites |
+| [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) | API/indexer invariants (incl. `/metrics` on dedicated listener — GitLab [**#125**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125)) |
+| [`docs/operator-secrets.md`](../docs/operator-secrets.md) | `METRICS_BIND`, `DEPLOY_ENV`, secrets |
 | [`docs/testing.md`](../docs/testing.md) | “Trading swarm for UI load” subsection |
 
 ## Rules of thumb
