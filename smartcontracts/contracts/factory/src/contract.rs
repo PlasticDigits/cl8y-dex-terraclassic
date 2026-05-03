@@ -11,8 +11,8 @@ use crate::msg::{
     PairsResponse, QueryMsg,
 };
 use crate::state::{
-    Config, CONFIG, PAIRS, PAIR_COUNT, PAIR_INDEX, PENDING_PAIR, REPLY_INSTANTIATE_PAIR,
-    WHITELISTED_CODE_IDS,
+    Config, CONFIG, PAIRS, PAIR_COUNT, PAIR_CREATION_BLOCK, PAIR_INDEX, PENDING_PAIR,
+    REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
 };
 use dex_common::pagination::calc_limit;
 use dex_common::pair::PairInstantiateMsg;
@@ -116,6 +116,10 @@ fn ensure_governance(deps: &DepsMut, info: &MessageInfo) -> Result<(), ContractE
 /// Both tokens must be CW20 (native rejected), both must have whitelisted
 /// code IDs, and the pair must not already exist. The pair contract address
 /// is captured in the `reply` handler after instantiation succeeds.
+///
+/// **Per-block gate:** at most one `CreatePair` may enter the pending/instantiate
+/// path per `env.block.height`. This is an explicit rate limit and defense-in-depth
+/// against mistaken assumptions about concurrent pending state (see `lib.rs`).
 fn execute_create_pair(
     deps: DepsMut,
     env: Env,
@@ -167,6 +171,15 @@ fn execute_create_pair(
     let sym_b = truncate(&token_info_b.symbol);
 
     let config = CONFIG.load(deps.storage)?;
+
+    let height = env.block.height;
+    if PAIR_CREATION_BLOCK
+        .may_load(deps.storage)?
+        .is_some_and(|h| h == height)
+    {
+        return Err(ContractError::OnePairCreationPerBlock {});
+    }
+    PAIR_CREATION_BLOCK.save(deps.storage, &height)?;
 
     PENDING_PAIR.save(deps.storage, &asset_infos)?;
 

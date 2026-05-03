@@ -20,6 +20,7 @@ Use this skill when working on **localnet-only** scripted trading volume for UI 
 3. **Funding:** Prefer the built-in idempotent path (`test1` bank sends + CW20 `Mint` over **all** factory tokens). Do not shrink mint coverage to “only CL8Y/LUNC_C/USTC_C” unless product explicitly changes #119.
 4. **Liquidity guards** in `liquidityGuards.ts` are heuristics aligned with default `deploy-dex-local` reserves; if you change seed liquidity in the deploy script, revisit constants and the README table together.
 5. **CI:** package tests are `cd packages/localnet-trading-swarm && npm ci && npm run test:run` (no chain).
+6. **Factory `create_pair`:** on-chain, **at most one** `CreatePair` may start per block height (see [`docs/security-model.md`](../docs/security-model.md#createpair-rate-limit-and-pending-state), GitLab [#121](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/121)). Loops that create many pools must **advance the block** between creations.
 
 ## Cross-links
 

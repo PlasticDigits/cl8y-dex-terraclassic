@@ -21,4 +21,6 @@ pub enum ContractError {
     InvalidCodeId {},
     #[error("Native tokens are not supported; use CW20 wrapped tokens instead")]
     NativeTokenNotSupported {},
+    #[error("Only one CreatePair may run per block; retry next block")]
+    OnePairCreationPerBlock {},
 }
