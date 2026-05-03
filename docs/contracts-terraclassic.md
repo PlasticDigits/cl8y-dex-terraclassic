@@ -68,6 +68,18 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `GetWhitelistedCodeIds`  | `start_after?`, `limit?`               | `CodeIdsResponse`  |
 | `GetPairCount`           | —                                      | `PairCountResponse`|
 
+### Factory storage & upgrades
+
+| Storage | Role |
+|---------|------|
+| `pairs` | Canonical asset-key → `PairInfo` |
+| `pair_count` / `pair_index` | Sequential registry for paginated `Pairs` queries (**intentionally** iterated for discovery pagination) |
+| `pair_addr_reg` | Pair contract `Addr` → `true`; **O(1)** membership for governance paths that validate a single pair address |
+
+**Invariant:** For each index `i` in `0..pair_count`, `pair_index[i].contract_addr` has a `true` entry in `pair_addr_reg`. Maintained when pairs register in `reply_instantiate_pair`. Legacy factory instances on wasm **1.0.0** must migrate once to **1.1.0** so `pair_addr_reg` is backfilled from `pair_index` ([GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)).
+
+**Gas / iteration:** Messages that touch **every** pair (`SetDiscountRegistryAll`, propagating governance to LP admins on governance change, etc.) still iterate `pair_index` by design. Indexers or LCD clients listing pairs should paginate rather than relying on unbounded queries.
+
 ---
 
 ## Pair
