@@ -33,4 +33,8 @@ pub const PAIR_INDEX: Map<u64, PairInfo> = Map::new("pair_index");
 /// Temporary storage for the asset pair being created, read in the reply handler.
 pub const PENDING_PAIR: Item<[AssetInfo; 2]> = Item::new("pending_pair");
 
+/// Block height of the last `CreatePair` that proceeded past validation and entered
+/// the instantiate/reply flow. Enforces at most one such creation per block.
+pub const PAIR_CREATION_BLOCK: Item<u64> = Item::new("pair_creation_block");
+
 pub const REPLY_INSTANTIATE_PAIR: u64 = 1;
