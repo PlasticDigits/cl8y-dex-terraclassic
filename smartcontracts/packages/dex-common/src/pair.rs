@@ -46,6 +46,18 @@ pub enum LimitOrderSide {
     Ask,
 }
 
+/// Claimable refund for an order parked on expiry (see `ClaimExpiredLimitOrder`).
+#[cw_serde]
+pub struct ExpiredLimitRefundResponse {
+    pub order_id: u64,
+    pub owner: Addr,
+    pub side: LimitOrderSide,
+    /// Same units as `LimitOrderResponse::remaining`: token1 for bids, token0 for asks.
+    pub remaining: Uint128,
+    #[serde(default)]
+    pub expires_at: Option<u64>,
+}
+
 /// Resting limit order returned by queries.
 #[cw_serde]
 pub struct LimitOrderResponse {
@@ -132,6 +144,13 @@ pub enum ExecuteMsg {
     },
     /// Cancel a resting limit order and refund remaining escrow to `owner`.
     CancelLimitOrder {
+        order_id: u64,
+    },
+    /// Claim escrow for an order removed from the book because it had **expired** when a taker’s
+    /// match walk processed that price level. The refund row is stored until claimed (`ExpiredLimitRefund`
+    /// query). Owner-only. **Allowed while the pair is paused** (unlike `CancelLimitOrder`) so makers
+    /// can recover parked expired escrow without an unpause.
+    ClaimExpiredLimitOrder {
         order_id: u64,
     },
     /// Change the limit price of an existing order (same `order_id`, same
@@ -222,6 +241,9 @@ pub enum QueryMsg {
     /// Limit order by id (if it exists).
     #[returns(LimitOrderResponse)]
     LimitOrder { order_id: u64 },
+    /// Refund row for an order removed from the book due to expiry during a match walk (`None` if none).
+    #[returns(Option<ExpiredLimitRefundResponse>)]
+    ExpiredLimitRefund { order_id: u64 },
     /// Head order id for bid or ask list (empty book = none).
     #[returns(Option<u64>)]
     OrderBookHead { side: LimitOrderSide },

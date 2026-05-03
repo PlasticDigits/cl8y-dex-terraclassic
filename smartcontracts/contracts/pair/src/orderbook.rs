@@ -17,8 +17,8 @@ use dex_common::pair::{LimitOrderResponse, LimitOrderSide};
 
 use crate::error::ContractError;
 use crate::state::{
-    LimitOrder, HEAD_ASK, HEAD_BID, ORDERS, ORDER_NEXT_ID, PENDING_ESCROW_TOKEN0,
-    PENDING_ESCROW_TOKEN1,
+    ExpiredLimitRefund, LimitOrder, EXPIRED_LIMIT_CLAIMS, HEAD_ASK, HEAD_BID, ORDERS,
+    ORDER_NEXT_ID, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1,
 };
 
 use dex_common::pair::{MAX_ADJUST_STEPS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP};
@@ -519,6 +519,58 @@ fn limit_order_fill_event(
         .add_attribute("commission_amount", commission_amount)
 }
 
+fn limit_order_expired_parked_event(
+    pair_contract: &str,
+    order_id: u64,
+    maker: &Addr,
+    side: LimitOrderSide,
+    remaining: Uint128,
+) -> Event {
+    Event::new("wasm")
+        .add_attribute("contract_address", pair_contract)
+        .add_attribute("action", "limit_order_expired_parked")
+        .add_attribute("order_id", order_id.to_string())
+        .add_attribute("maker", maker.as_str())
+        .add_attribute("side", side_str(&side))
+        .add_attribute("remaining", remaining)
+}
+
+/// Remove an expired order from the price-time list, record it for `ClaimExpiredLimitOrder`,
+/// and leave `PENDING_ESCROW_*` unchanged (tokens remain counted until claim transfers out).
+pub fn park_expired_limit_order_for_claim(
+    storage: &mut dyn Storage,
+    order_id: u64,
+    now: u64,
+    pair_contract: &str,
+) -> Result<Event, ContractError> {
+    let order = ORDERS.load(storage, order_id)?;
+    if order.expires_at.is_none_or(|e| now < e) {
+        return Err(ContractError::InvariantViolation {
+            reason: "park_expired_limit_order_for_claim on non-expired order".into(),
+        });
+    }
+    if EXPIRED_LIMIT_CLAIMS.may_load(storage, order_id)?.is_some() {
+        return Err(ContractError::InvariantViolation {
+            reason: "expired limit claim already exists for order id".into(),
+        });
+    }
+    let removed = unlink_order(storage, order_id)?;
+    let row = ExpiredLimitRefund {
+        owner: removed.owner.clone(),
+        side: removed.side.clone(),
+        remaining: removed.remaining,
+        expires_at: removed.expires_at,
+    };
+    EXPIRED_LIMIT_CLAIMS.save(storage, order_id, &row)?;
+    Ok(limit_order_expired_parked_event(
+        pair_contract,
+        order_id,
+        &removed.owner,
+        removed.side,
+        removed.remaining,
+    ))
+}
+
 /// Match bids while taker sells token0 for token1. `token0_budget` is filled from the taker.
 #[allow(clippy::too_many_arguments)]
 pub fn match_bids(
@@ -561,8 +613,8 @@ pub fn match_bids(
         let next_ptr = order.next;
 
         if order.expires_at.is_some_and(|e| now >= e) {
-            escrow_sub_pending_token1(storage, order.remaining)?;
-            unlink_order(storage, oid)?;
+            let ev = park_expired_limit_order_for_claim(storage, oid, now, pair_contract)?;
+            fill_events.push(ev);
             cur = next_ptr;
             continue;
         }
@@ -737,8 +789,8 @@ pub fn match_asks(
         let next_ptr = order.next;
 
         if order.expires_at.is_some_and(|e| now >= e) {
-            escrow_sub_pending_token0(storage, order.remaining)?;
-            unlink_order(storage, oid)?;
+            let ev = park_expired_limit_order_for_claim(storage, oid, now, pair_contract)?;
+            fill_events.push(ev);
             cur = next_ptr;
             continue;
         }
@@ -1194,6 +1246,38 @@ mod tests {
         );
         let lo2 = load_order_response(storage, id2).unwrap();
         assert!(lo2.prev.is_none());
+    }
+
+    #[test]
+    fn park_expired_bid_unlinks_and_records_claim_without_pending_delta() {
+        use crate::state::EXPIRED_LIMIT_CLAIMS;
+
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let exp = 100u64;
+        let id = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(1000),
+            o.clone(),
+            None,
+            32,
+            Some(exp),
+        )
+        .unwrap();
+        let pending_before = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
+        let ev = park_expired_limit_order_for_claim(storage, id, exp, "pair").unwrap();
+        assert!(ev
+            .attributes
+            .iter()
+            .any(|a| a.key == "action" && a.value == "limit_order_expired_parked"));
+        assert!(ORDERS.may_load(storage, id).unwrap().is_none());
+        let row = EXPIRED_LIMIT_CLAIMS.load(storage, id).unwrap();
+        assert_eq!(row.remaining, Uint128::new(1000));
+        assert_eq!(row.owner, o);
+        let pending_after = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
+        assert_eq!(pending_before, pending_after);
     }
 }
 

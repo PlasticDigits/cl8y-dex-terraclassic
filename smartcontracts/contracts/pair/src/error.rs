@@ -75,4 +75,7 @@ pub enum ContractError {
 
     #[error("Limit order amount too small after maker fee")]
     LimitOrderMakerFeeExceedsAmount {},
+
+    #[error("No claimable expired-limit refund for order id {order_id}")]
+    NoExpiredLimitClaim { order_id: u64 },
 }
