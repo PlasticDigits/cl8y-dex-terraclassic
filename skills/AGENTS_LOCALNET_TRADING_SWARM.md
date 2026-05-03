@@ -20,12 +20,14 @@ Use this skill when working on **localnet-only** scripted trading volume for UI 
 1. **Never** point the swarm at public RPC/LCD or mainnet/testnet — it exits unless LCD reports `localterra` and optional `VITE_NETWORK=local`.
 2. **Do not** commit `SWARM_BOT_MNEMONIC` or generated mnemonics; CI and gitleaks expectations match other wallet docs ([`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)).
 3. **Funding:** Prefer the built-in idempotent path (`test1` bank sends + CW20 `Mint` over **all** factory tokens). Do not shrink mint coverage to “only CL8Y/LUNC_C/USTC_C” unless product explicitly changes #119.
-4. **Liquidity guards** in `liquidityGuards.ts` are heuristics aligned with default `deploy-dex-local` reserves; if you change seed liquidity in the deploy script, revisit constants and the README table together.
-5. **CI:** package tests are `cd packages/localnet-trading-swarm && npm ci && npm run test:run` (no chain).
-6. **Factory `create_pair`:** on-chain, **at most one** `CreatePair` may start per block height (see [`docs/security-model.md`](../docs/security-model.md#createpair-rate-limit-and-pending-state), GitLab [#121](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/121)). Loops that create many pools must **advance the block** between creations.
+4. **LP decimals / bootstrap:** On-chain LP share CW20 metadata uses **18 decimals** (`LP_TOKEN_DECIMALS`); factory **`CreatePair`** and empty-pool first mint reject either asset CW20 with **`decimals > 18`** — see [**#124**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124), `dex_common::pair`, and [`docs/contracts-terraclassic.md`](../docs/contracts-terraclassic.md).
+5. **Liquidity guards** in `liquidityGuards.ts` are heuristics aligned with default `deploy-dex-local` reserves; if you change seed liquidity in the deploy script, revisit constants and the README table together.
+6. **CI:** package tests are `cd packages/localnet-trading-swarm && npm ci && npm run test:run` (no chain).
+7. **Factory `create_pair`:** on-chain, **at most one** `CreatePair` may start per block height (see [`docs/security-model.md`](../docs/security-model.md#createpair-rate-limit-and-pending-state), GitLab [#121](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/121)). Loops that create many pools must **advance the block** between creations.
 
 ## Cross-links
 
 - Dev wallet / mnemonic bundle safety: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)  
 - Gas limits for swap shapes: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
+- Pair LP decimals (18) and bootstrap `decimals ≤ 18` gate: [**#124**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124), [`docs/contracts-terraclassic.md`](../docs/contracts-terraclassic.md), [`dex_common::pair`](../smartcontracts/packages/dex-common/src/pair.rs)
 - Expired limit orders + hybrid walks (`ClaimExpiredLimitOrder`, `ExpiredLimitRefund`): [`docs/limit-orders.md`](../docs/limit-orders.md), GitLab [**#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120) — automation that places `expires_at` limits should monitor claimable rows and submit claims when indexers show `limit_order_expired_parked` or a non-null `ExpiredLimitRefund` query.

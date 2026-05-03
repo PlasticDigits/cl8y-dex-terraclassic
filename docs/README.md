@@ -12,7 +12,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Indexer Invariants & API Security](./indexer-invariants.md) — HTTP/indexing invariants, caps, caches, test mapping
 
 ## Smart Contracts
-- [Contract Reference](./contracts-terraclassic.md) — Factory, Pair, Router message schemas
+- [Contract Reference](./contracts-terraclassic.md) — Factory, Pair, Router message schemas. **LP CW20 shares** use **18** `decimals`; **`CreatePair` / empty-pool liquidity** rejects either asset CW20 with **`decimals > 18`** ([gitlab #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)).
 
 ## Frontend
 - [Frontend Guide](./frontend.md) — tech stack, project structure, wallet integration, [Terra Classic swap gas limits](./frontend.md#terra-classic-gas-limits), [pool list: indexer vs factory](./frontend.md#liquidity-pools-list-indexer-vs-factory)
@@ -21,7 +21,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Local Development](./local-development.md) — Docker setup, deploy scripts, Makefile
 - [Testing](./testing.md) — test philosophy, running unit/integration/E2E tests (includes indexer Postgres setup and [shared-DB parallelism](./testing.md#shared-postgres-and-test-parallelism))
 - **Cursor:** the **Babysit PR** skill (in Cursor *Skills*) is useful for keeping topic branches merge-ready (CI, comments). Example frontend fix: [GitLab #113](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113) / [price chart invariants](./frontend.md#trade-page--price-chart-invariants).
-- **Agent players (3rd party):** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic swap gas tuning and doc crosslinks ([GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115), factory discount-registry batch [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) — localnet trading swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)); indexer `/metrics` bind policy: [GitLab #125](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125) / [`indexer-invariants.md`](./indexer-invariants.md).
+- **Agent players (3rd party):** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic swap gas tuning and doc crosslinks ([GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115), factory discount-registry batch [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) — localnet trading swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119), LP/bootstrap decimals [GitLab #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)); indexer `/metrics` bind policy: [GitLab #125](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125) / [`indexer-invariants.md`](./indexer-invariants.md).
 
 ## Deployment
 - [Deployment Guide](./deployment-guide.md) — mainnet and testnet deployment steps

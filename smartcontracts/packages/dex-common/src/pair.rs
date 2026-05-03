@@ -13,6 +13,14 @@ use crate::types::{Asset, AssetInfo, FeeConfig};
 pub const MAX_ADJUST_STEPS_HARD_CAP: u32 = 256;
 pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 256;
 
+/// Decimals configured on CW20 mintable LP tokens instantiated by pairs (gitlab #124).
+pub const LP_TOKEN_DECIMALS: u8 = 18;
+
+/// Maximum CW20 `decimals` allowed on either pool asset when bootstrapping empty reserves
+/// (`provide_liquidity` first mint) or when creating a pair via the factory. Higher decimals are
+/// rejected because realistic deposits can overflow `Uint128` in `amount_a * amount_b`.
+pub const MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP: u8 = 18;
+
 /// Pattern C: explicit split between constant-product pool and limit book.
 /// `pool_input + book_input` must equal the CW20 `amount` on the swap hook.
 #[cw_serde]

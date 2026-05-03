@@ -15,7 +15,7 @@ use crate::state::{
     PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
 };
 use dex_common::pagination::calc_limit;
-use dex_common::pair::PairInstantiateMsg;
+use dex_common::pair::{PairInstantiateMsg, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP};
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
@@ -170,6 +170,15 @@ fn execute_create_pair(
     let token_info_b: cw20::TokenInfoResponse = deps
         .querier
         .query_wasm_smart(token_b_addr.to_string(), &cw20::Cw20QueryMsg::TokenInfo {})?;
+
+    let max_bd = MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP;
+    if token_info_a.decimals > max_bd || token_info_b.decimals > max_bd {
+        return Err(ContractError::PairAssetDecimalsTooHigh {
+            decimals_a: token_info_a.decimals,
+            decimals_b: token_info_b.decimals,
+            max: max_bd,
+        });
+    }
 
     let truncate = |s: &str| -> String { s.chars().take(6).collect::<String>().to_uppercase() };
     let sym_a = truncate(&token_info_a.symbol);

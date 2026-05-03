@@ -78,4 +78,13 @@ pub enum ContractError {
 
     #[error("No claimable expired-limit refund for order id {order_id}")]
     NoExpiredLimitClaim { order_id: u64 },
+
+    #[error(
+        "Pair asset CW20 decimals must be ≤ {max}; got token0={decimals0}, token1={decimals1}"
+    )]
+    PairAssetDecimalsTooHigh {
+        decimals0: u8,
+        decimals1: u8,
+        max: u8,
+    },
 }
