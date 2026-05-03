@@ -14,7 +14,7 @@ Spec and acceptance criteria: [GitLab #119](https://gitlab.com/PlasticDigits/cl8
 
 ## Liquidity / sizing invariants (bots vs `deploy-dex-local.sh`)
 
-On-chain truth for first LP mint remains `MINIMUM_LIQUIDITY` (1000 micro-units locked forever) on the pair contract; the dApp mirrors this as `PAIR_MINIMUM_LIQUIDITY` in `frontend-dapp/src/utils/provideLiquidityEstimate.ts`.
+On-chain truth for first LP mint remains `MINIMUM_LIQUIDITY` (**1000** smallest units of the **LP** CW20, which uses **18** `decimals`; see [**#124**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)) locked forever on the pair contract; the dApp mirrors this as `PAIR_MINIMUM_LIQUIDITY` in `frontend-dapp/src/utils/provideLiquidityEstimate.ts`.
 
 This package encodes **conservative heuristics** in `src/liquidityGuards.ts` so bots prefer pools that already have deep reserves from `scripts/deploy-dex-local.sh`:
 

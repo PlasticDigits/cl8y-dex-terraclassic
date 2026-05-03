@@ -3,7 +3,7 @@ use cosmwasm_std::{
     Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
+use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::error::ContractError;
 use crate::msg::{
@@ -24,11 +24,12 @@ use dex_common::oracle::{
 };
 use dex_common::pair::{
     HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams, LimitOrderSide,
+    LP_TOKEN_DECIMALS, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
 };
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.4.0";
+const CONTRACT_VERSION: &str = "1.5.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -116,6 +117,31 @@ fn token_addr(info: &AssetInfo) -> &str {
         AssetInfo::Token { contract_addr } => contract_addr.as_str(),
         AssetInfo::NativeToken { .. } => unreachable!("native tokens not supported"),
     }
+}
+
+/// First LP mint uses `Uint128 amount_a × amount_b`. CW20 decimals above
+/// [`MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`] are rejected (#124).
+fn assert_pair_assets_decimals_allow_initial_mint(
+    deps: Deps,
+    asset_infos: &[AssetInfo; 2],
+) -> Result<(), ContractError> {
+    let max = MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP;
+    let info0: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
+        token_addr(&asset_infos[0]).to_string(),
+        &Cw20QueryMsg::TokenInfo {},
+    )?;
+    let info1: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
+        token_addr(&asset_infos[1]).to_string(),
+        &Cw20QueryMsg::TokenInfo {},
+    )?;
+    if info0.decimals > max || info1.decimals > max {
+        return Err(ContractError::PairAssetDecimalsTooHigh {
+            decimals0: info0.decimals,
+            decimals1: info1.decimals,
+            max,
+        });
+    }
+    Ok(())
 }
 
 /// Revert if the current block time exceeds the user-supplied deadline.
@@ -416,7 +442,7 @@ pub fn instantiate(
     let instantiate_lp_msg = cw20_mintable::msg::InstantiateMsg {
         name: lp_name,
         symbol: lp_symbol,
-        decimals: 6,
+        decimals: LP_TOKEN_DECIMALS,
         initial_balances: vec![],
         mint: Some(MinterResponse {
             minter: env.contract.address.to_string(),
@@ -1218,6 +1244,7 @@ fn execute_cancel_limit_order(
 ///
 /// **First deposit:** LP = `sqrt(amount_a × amount_b)` with `MINIMUM_LIQUIDITY`
 /// permanently burned to prevent share-inflation griefing.
+/// Both CW20 `decimals` must be ≤ [`MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`] (see `#124`).
 ///
 /// **Subsequent deposits:** LP = `min(a × supply / reserve_a, b × supply / reserve_b)`.
 /// The smaller ratio is used, so excess tokens beyond the current pool ratio
@@ -1247,6 +1274,10 @@ fn execute_provide_liquidity(
     oracle_update(deps.storage, env.block.time.seconds(), reserve_a, reserve_b)?;
 
     let is_first_deposit = reserve_a.is_zero() && reserve_b.is_zero();
+
+    if is_first_deposit {
+        assert_pair_assets_decimals_allow_initial_mint(deps.as_ref(), &pair_info.asset_infos)?;
+    }
 
     let lp_tokens_total = if is_first_deposit {
         let product = amount_a.checked_mul(amount_b)?;

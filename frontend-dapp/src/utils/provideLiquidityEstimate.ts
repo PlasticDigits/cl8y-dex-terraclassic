@@ -1,8 +1,9 @@
 import type { PoolResponse } from '@/types'
 
 /**
- * First LP mint on an empty pool permanently locks this many micro-units of LP in the
- * pair contract. Matches `MINIMUM_LIQUIDITY` in `smartcontracts/contracts/pair/src/contract.rs`.
+ * First LP mint on an empty pool permanently locks this many LP **smallest units** (`MINIMUM_LIQUIDITY`
+ * on the pair). The LP CW20 exposes **18** `decimals`; this constant is unchanged in raw units.
+ * Mirrors `smartcontracts/contracts/pair/src/contract.rs`; see [**#124**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124).
  */
 export const PAIR_MINIMUM_LIQUIDITY = 1000n
 

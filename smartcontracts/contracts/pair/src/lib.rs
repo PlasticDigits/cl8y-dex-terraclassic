@@ -15,6 +15,10 @@
 //!   Direct CW20 transfers do not affect tracked reserves.
 //! - **MINIMUM_LIQUIDITY:** The first 1000 LP tokens are permanently
 //!   burned to prevent share-inflation attacks on the first depositor.
+//! - **Bootstrap decimals gate (#124):** The first liquidity mint is rejected
+//!   unless both reserve CW20 tokens have `decimals` ≤
+//!   `dex_common::pair::MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`. LP share tokens use
+//!   `dex_common::pair::LP_TOKEN_DECIMALS`.
 //!
 //! ## Limit book and escrow (FIFO hybrid)
 //!
