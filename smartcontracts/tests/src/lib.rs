@@ -697,6 +697,8 @@ mod factory_tests {
 
     /// Regression for GitLab #122: governance paths must not linear-scan `PAIR_INDEX`
     /// for membership checks at scale (reverse map keeps lookup bounded).
+    ///
+    /// Each `CreatePair` advances block height — factory allows only one pending creation per height.
     #[test]
     fn test_factory_many_pairs_governance_fee_update_uses_registry_lookup() {
         let mut app = App::default();
@@ -751,6 +753,7 @@ mod factory_tests {
                 )
                 .unwrap();
             pair_addrs.push(extract_pair_address(&resp.events));
+            app.update_block(|b| b.height += 1);
         }
 
         let last_pair = pair_addrs.last().unwrap();
