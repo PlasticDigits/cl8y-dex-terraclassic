@@ -11,15 +11,15 @@ use crate::msg::{
     PairsResponse, QueryMsg,
 };
 use crate::state::{
-    Config, CONFIG, PAIRS, PAIR_COUNT, PAIR_CREATION_BLOCK, PAIR_INDEX, PENDING_PAIR,
-    REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
+    Config, CONFIG, PAIRS, PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_CREATION_BLOCK, PAIR_INDEX,
+    PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
 };
 use dex_common::pagination::calc_limit;
 use dex_common::pair::PairInstantiateMsg;
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.0.0";
+const CONTRACT_VERSION: &str = "1.1.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -236,20 +236,13 @@ fn execute_remove_whitelisted_code_id(
         .add_attribute("code_id", code_id.to_string()))
 }
 
-/// Verify that a pair contract address exists in the factory's registry.
-/// Linear scan over `PAIR_INDEX` — acceptable for governance operations
-/// which are infrequent, but would need indexing for high pair counts.
+/// Verify that a pair contract address exists in the factory's registry (O(1) storage read).
 fn assert_pair_in_registry(
     deps: &DepsMut,
     pair_addr: &cosmwasm_std::Addr,
 ) -> Result<(), ContractError> {
-    let count = PAIR_COUNT.load(deps.storage)?;
-    for idx in 0..count {
-        if let Ok(info) = PAIR_INDEX.load(deps.storage, idx) {
-            if info.contract_addr == *pair_addr {
-                return Ok(());
-            }
-        }
+    if PAIR_ADDR_REGISTERED.has(deps.storage, pair_addr.clone()) {
+        return Ok(());
     }
     Err(ContractError::PairNotInRegistry {
         pair: pair_addr.to_string(),
@@ -604,8 +597,8 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 }
 
 /// Handle the reply from a successful Pair contract instantiation.
-/// Queries the new pair for its `PairInfo`, stores it in `PAIRS` and
-/// `PAIR_INDEX`, and increments `PAIR_COUNT`.
+/// Queries the new pair for its `PairInfo`, stores it in `PAIRS`,
+/// `PAIR_INDEX`, and `PAIR_ADDR_REGISTERED`, and increments `PAIR_COUNT`.
 fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, ContractError> {
     let contract_addr = parse_reply_contract_address(msg)?;
     let pair_addr = deps.api.addr_validate(&contract_addr)?;
@@ -617,11 +610,18 @@ fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, Contrac
         .querier
         .query_wasm_smart(pair_addr.to_string(), &dex_common::pair::QueryMsg::Pair {})?;
 
+    if pair_info_resp.contract_addr != pair_addr {
+        return Err(ContractError::Std(StdError::generic_err(
+            "pair query contract_addr does not match instantiate reply address",
+        )));
+    }
+
     let key = pair_key(&asset_infos);
     PAIRS.save(deps.storage, &key, &pair_info_resp)?;
 
     let count = PAIR_COUNT.load(deps.storage)?;
     PAIR_INDEX.save(deps.storage, count, &pair_info_resp)?;
+    PAIR_ADDR_REGISTERED.save(deps.storage, pair_info_resp.contract_addr.clone(), &true)?;
     PAIR_COUNT.save(deps.storage, &(count + 1))?;
 
     Ok(Response::new()
@@ -681,7 +681,62 @@ pub fn migrate(
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
         .map_err(ContractError::Std)?;
 
+    let count = PAIR_COUNT.load(deps.storage)?;
+    for idx in 0..count {
+        let info = PAIR_INDEX.load(deps.storage, idx)?;
+        PAIR_ADDR_REGISTERED.save(deps.storage, info.contract_addr, &true)?;
+    }
+
     Ok(Response::new()
         .add_attribute("action", "migrate")
         .add_attribute("version", CONTRACT_VERSION))
+}
+
+#[cfg(test)]
+mod pair_addr_registry_tests {
+    use super::*;
+    use crate::msg::MigrateMsg;
+    use crate::state::{PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_INDEX};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+    use cosmwasm_std::Addr;
+    use cw2::{get_contract_version, set_contract_version};
+    use dex_common::types::{AssetInfo, PairInfo};
+
+    fn sample_pair_info(contract: &str, lp: &str) -> PairInfo {
+        PairInfo {
+            asset_infos: [
+                AssetInfo::Token {
+                    contract_addr: format!("token_a_{contract}"),
+                },
+                AssetInfo::Token {
+                    contract_addr: format!("token_b_{contract}"),
+                },
+            ],
+            contract_addr: Addr::unchecked(contract),
+            liquidity_token: Addr::unchecked(lp),
+        }
+    }
+
+    #[test]
+    fn migrate_from_1_0_0_backfills_pair_addr_registered() {
+        let mut deps = mock_dependencies();
+        set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.0.0").unwrap();
+
+        PAIR_COUNT.save(deps.as_mut().storage, &2u64).unwrap();
+        PAIR_INDEX
+            .save(deps.as_mut().storage, 0, &sample_pair_info("pair0", "lp0"))
+            .unwrap();
+        PAIR_INDEX
+            .save(deps.as_mut().storage, 1, &sample_pair_info("pair1", "lp1"))
+            .unwrap();
+
+        migrate(deps.as_mut(), mock_env(), MigrateMsg {}).unwrap();
+
+        assert!(PAIR_ADDR_REGISTERED.has(deps.as_ref().storage, Addr::unchecked("pair0")));
+        assert!(PAIR_ADDR_REGISTERED.has(deps.as_ref().storage, Addr::unchecked("pair1")));
+
+        let ver = get_contract_version(deps.as_ref().storage).unwrap();
+        assert_eq!(ver.contract, CONTRACT_NAME);
+        assert_eq!(ver.version.as_str(), CONTRACT_VERSION);
+    }
 }

@@ -30,6 +30,12 @@ pub const PAIR_COUNT: Item<u64> = Item::new("pair_count");
 /// Sequential index -> PairInfo for paginated enumeration.
 pub const PAIR_INDEX: Map<u64, PairInfo> = Map::new("pair_index");
 
+/// Pair contract address → membership marker for O(1) registry checks.
+/// **Invariant:** For every entry in `PAIR_INDEX` at indices `0..PAIR_COUNT`,
+/// `PAIR_ADDR_REGISTERED` contains `contract_addr → true`. Maintained in
+/// `reply_instantiate_pair`; legacy deployments backfill via migrate (`1.0.0` → `1.1.0`).
+pub const PAIR_ADDR_REGISTERED: Map<Addr, bool> = Map::new("pair_addr_reg");
+
 /// Temporary storage for the asset pair being created, read in the reply handler.
 pub const PENDING_PAIR: Item<[AssetInfo; 2]> = Item::new("pending_pair");
 
