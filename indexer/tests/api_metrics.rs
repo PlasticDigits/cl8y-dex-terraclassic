@@ -3,7 +3,7 @@
 mod common;
 
 use axum_test::TestServer;
-use cl8y_dex_indexer::api::{build_router, AppState};
+use cl8y_dex_indexer::api::{build_metrics_router, build_router, AppState};
 use cl8y_dex_indexer::config::Config;
 use cl8y_dex_indexer::lcd::LcdClient;
 use sqlx::postgres::PgPoolOptions;
@@ -35,18 +35,16 @@ fn test_app(config: Config) -> axum::Router {
 }
 
 #[tokio::test]
-async fn prometheus_metrics_not_exposed_by_default() {
+async fn prometheus_metrics_not_exposed_on_api_router() {
     let mut config = common::test_config();
-    config.metrics_enabled = false;
+    config.metrics_listen = None;
     let server = TestServer::new(test_app(config));
     server.get("/metrics").await.assert_status_not_found();
 }
 
 #[tokio::test]
-async fn prometheus_metrics_when_enabled() {
-    let mut config = common::test_config();
-    config.metrics_enabled = true;
-    let server = TestServer::new(test_app(config));
+async fn prometheus_metrics_on_dedicated_router() {
+    let server = TestServer::new(build_metrics_router());
     let resp = server.get("/metrics").await;
     resp.assert_status_ok();
     let text = resp.text();

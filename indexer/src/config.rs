@@ -1,4 +1,5 @@
 use std::env;
+use std::net::SocketAddr;
 
 use thiserror::Error;
 
@@ -17,6 +18,47 @@ impl RunMode {
             Ok("prod") | Ok("production") => RunMode::Prod,
             _ => RunMode::Dev,
         }
+    }
+}
+
+/// Deployment environment for ops toggles (distinct from `RUN_MODE` LCD strictness).
+/// `METRICS_BIND` may use `0.0.0.0` / `::` only in **non-production** deploy profiles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeployEnv {
+    Dev,
+    Qa,
+    Production,
+}
+
+impl DeployEnv {
+    fn from_env(run_mode: RunMode) -> Self {
+        match env::var("DEPLOY_ENV")
+            .ok()
+            .map(|s| s.to_ascii_lowercase())
+            .as_deref()
+        {
+            Some("production" | "prod") => DeployEnv::Production,
+            Some("qa" | "staging") => DeployEnv::Qa,
+            Some("dev" | "development") => DeployEnv::Dev,
+            Some(other) => {
+                tracing::warn!(
+                    "Unknown DEPLOY_ENV={other} (expected dev, qa, or production); using default"
+                );
+                Self::default_for_run_mode(run_mode)
+            }
+            None => Self::default_for_run_mode(run_mode),
+        }
+    }
+
+    fn default_for_run_mode(run_mode: RunMode) -> Self {
+        match run_mode {
+            RunMode::Prod => DeployEnv::Production,
+            RunMode::Dev => DeployEnv::Dev,
+        }
+    }
+
+    fn allows_public_metrics_bind(self) -> bool {
+        matches!(self, DeployEnv::Dev | DeployEnv::Qa)
     }
 }
 
@@ -41,6 +83,12 @@ pub enum ConfigError {
     ProdRequiresCustomLcdUrls,
     #[error("RUN_MODE=prod requires {0} to be non-empty")]
     ProdEmpty(&'static str),
+    #[error(
+        "METRICS_BIND must not use 0.0.0.0 or :: in DEPLOY_ENV=production (use loopback or set DEPLOY_ENV=qa for scrapers on test setups; see docs/operator-secrets.md)"
+    )]
+    MetricsPublicBindNotAllowedInProduction,
+    #[error("METRICS_BIND must be a valid host:port (or a legacy non-empty flag without ':' to bind 127.0.0.1:METRICS_PORT): {0}")]
+    InvalidMetricsBind(String),
     #[error("{0}")]
     Missing(&'static str),
 }
@@ -48,6 +96,7 @@ pub enum ConfigError {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub run_mode: RunMode,
+    pub deploy_env: DeployEnv,
     pub database_url: String,
     pub lcd_urls: Vec<String>,
     pub factory_address: String,
@@ -64,8 +113,8 @@ pub struct Config {
     pub ustc_denom: Option<String>,
     /// Router contract for `SimulateSwapOperations` in route solver (optional).
     pub router_address: Option<String>,
-    /// When `true`, expose `GET /metrics` (Prometheus) on the API server.
-    pub metrics_enabled: bool,
+    /// When set, Prometheus `GET /metrics` is served on this **dedicated** address (not the public API port).
+    pub metrics_listen: Option<SocketAddr>,
 }
 
 impl Config {
@@ -73,6 +122,7 @@ impl Config {
         dotenvy::dotenv().ok();
 
         let run_mode = RunMode::from_env();
+        let deploy_env = DeployEnv::from_env(run_mode);
 
         let lcd_raw = env::var("LCD_URLS").unwrap_or_else(|_| DEFAULT_LCD_URLS.to_string());
         let lcd_urls: Vec<String> = lcd_raw
@@ -114,12 +164,11 @@ impl Config {
             }
         }
 
-        let metrics_enabled = env::var("METRICS_BIND")
-            .map(|s| !s.trim().is_empty())
-            .unwrap_or(false);
+        let metrics_listen = parse_metrics_listen(deploy_env)?;
 
         Ok(Self {
             run_mode,
+            deploy_env,
             database_url,
             lcd_urls,
             factory_address,
@@ -153,9 +202,40 @@ impl Config {
                 .unwrap_or(30000),
             ustc_denom: env::var("USTC_DENOM").ok(),
             router_address: env::var("ROUTER_ADDRESS").ok().filter(|s| !s.is_empty()),
-            metrics_enabled,
+            metrics_listen,
         })
     }
+}
+
+fn parse_metrics_listen(deploy_env: DeployEnv) -> Result<Option<SocketAddr>, ConfigError> {
+    let raw = match env::var("METRICS_BIND") {
+        Ok(s) => s,
+        Err(_) => return Ok(None),
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    let port: u16 = env::var("METRICS_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(9095);
+
+    let addr: SocketAddr = if trimmed.contains(':') {
+        trimmed
+            .parse()
+            .map_err(|_| ConfigError::InvalidMetricsBind(trimmed.to_string()))?
+    } else {
+        // Legacy: any non-empty token without ':' → loopback on METRICS_PORT (secure default).
+        SocketAddr::from(([127, 0, 0, 1], port))
+    };
+
+    if !deploy_env.allows_public_metrics_bind() && addr.ip().is_unspecified() {
+        return Err(ConfigError::MetricsPublicBindNotAllowedInProduction);
+    }
+
+    Ok(Some(addr))
 }
 
 #[cfg(test)]
@@ -166,11 +246,13 @@ mod tests {
     fn clear_config_env() {
         for key in [
             "RUN_MODE",
+            "DEPLOY_ENV",
             "LCD_URLS",
             "DATABASE_URL",
             "FACTORY_ADDRESS",
             "CORS_ORIGINS",
             "METRICS_BIND",
+            "METRICS_PORT",
         ] {
             env::remove_var(key);
         }
@@ -230,13 +312,99 @@ mod tests {
 
     #[test]
     #[serial]
-    fn metrics_enabled_when_metrics_bind_non_empty() {
+    fn production_rejects_ipv6_unspecified_metrics_bind() {
+        clear_config_env();
+        env::set_var("RUN_MODE", "prod");
+        env::set_var("LCD_URLS", "https://lcd.example.com");
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "https://app.example.com");
+        env::set_var("METRICS_BIND", "[::]:9095");
+        let err = Config::from_env().unwrap_err();
+        assert!(matches!(
+            err,
+            ConfigError::MetricsPublicBindNotAllowedInProduction
+        ));
+    }
+
+    #[test]
+    #[serial]
+    fn metrics_legacy_flag_binds_loopback() {
         clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
         env::set_var("METRICS_BIND", "1");
         let c = Config::from_env().expect("config");
-        assert!(c.metrics_enabled);
+        assert_eq!(
+            c.metrics_listen,
+            Some(SocketAddr::from(([127, 0, 0, 1], 9095)))
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn production_rejects_inaddr_any_metrics_bind() {
+        clear_config_env();
+        env::set_var("RUN_MODE", "prod");
+        env::set_var("LCD_URLS", "https://lcd.example.com");
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "https://app.example.com");
+        env::set_var("METRICS_BIND", "0.0.0.0:9095");
+        let err = Config::from_env().unwrap_err();
+        assert!(matches!(
+            err,
+            ConfigError::MetricsPublicBindNotAllowedInProduction
+        ));
+    }
+
+    #[test]
+    #[serial]
+    fn production_accepts_loopback_metrics_bind() {
+        clear_config_env();
+        env::set_var("RUN_MODE", "prod");
+        env::set_var("LCD_URLS", "https://lcd.example.com");
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "https://app.example.com");
+        env::set_var("METRICS_BIND", "127.0.0.1:9095");
+        let c = Config::from_env().expect("config");
+        assert_eq!(
+            c.metrics_listen,
+            Some(SocketAddr::from(([127, 0, 0, 1], 9095)))
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn dev_allows_inaddr_any_metrics_bind() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("METRICS_BIND", "0.0.0.0:9095");
+        let c = Config::from_env().expect("config");
+        assert_eq!(c.deploy_env, DeployEnv::Dev);
+        assert_eq!(
+            c.metrics_listen,
+            Some(SocketAddr::from(([0, 0, 0, 0], 9095)))
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn prod_run_mode_with_deploy_env_qa_allows_inaddr_any() {
+        clear_config_env();
+        env::set_var("RUN_MODE", "prod");
+        env::set_var("DEPLOY_ENV", "qa");
+        env::set_var("LCD_URLS", "https://lcd.example.com");
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "https://app.example.com");
+        env::set_var("METRICS_BIND", "0.0.0.0:9095");
+        let c = Config::from_env().expect("config");
+        assert_eq!(c.deploy_env, DeployEnv::Qa);
+        assert!(c.metrics_listen.is_some());
     }
 }

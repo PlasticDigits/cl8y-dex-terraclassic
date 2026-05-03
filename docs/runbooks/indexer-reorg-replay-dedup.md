@@ -19,7 +19,7 @@ This runbook is for **operators** running [`indexer/`](../../indexer/). It compl
 3. **Choose recovery:**
    - **Restore Postgres** from a snapshot taken **before** the reorg window, **or** delete rows for affected heights and dependent aggregates (operationally heavy; script with care).
 4. **Reset cursor:** Set `last_indexed_height` in `indexer_state` to **at least one block before** the fork point (or use `START_BLOCK` / empty DB strategy per your deployment).
-5. **Restart** the indexer and monitor logs (`tracing`); optional `GET /metrics` if `METRICS_BIND` is enabled ([`docs/operator-secrets.md`](../operator-secrets.md)).
+5. **Restart** the indexer and monitor logs (`tracing`); optional `GET /metrics` on the **dedicated** metrics address if `METRICS_BIND` is set ([`docs/operator-secrets.md`](../operator-secrets.md), GitLab [#125](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125)).
 
 ## Backfill
 
