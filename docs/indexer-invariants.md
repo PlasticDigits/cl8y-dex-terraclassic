@@ -23,6 +23,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | Hooks errors | Same `internal_err()` as rest of API | No raw DB text | Code path in [`hooks.rs`](../indexer/src/api/hooks.rs) |
 | CORS | Allowlist from `CORS_ORIGINS` | Disallowed `Origin` → no `ACA-O` | `security.rs` |
 | Abuse: rate limit | `tower_governor` when `RATE_LIMIT_RPS > 0` | Sustained burst → **429** | `security.rs` |
+| Prometheus `/metrics` | Served only on **`METRICS_BIND`** (dedicated TCP listener), never on the public API listener; **`0.0.0.0` / `::` forbidden** when `DEPLOY_ENV` is production (default under `RUN_MODE=prod`) | Misconfiguration → indexer refuses to start | `config::tests` in [`config.rs`](../indexer/src/config.rs); GitLab [**#125**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125); [`operator-secrets.md`](./operator-secrets.md) |
 | Abuse: slow handlers | `TimeoutLayer` 30s | **408** Request Timeout | Documented; no slow-query test |
 | Abuse: response size | `CompressionLayer` | Reduces bandwidth cost | Operational |
 | LCD amplification | Orderbook responses cached 30s per `(pair, depth)` | Repeated CG/CMC orderbook hits reuse cache | [`orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs), [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs) (wiremock LCD) |
@@ -81,7 +82,7 @@ Block timestamps come from the LCD transaction response (`tx_responses[0].timest
 
 **Risk:** Event times and candle bucket boundaries can **diverge** from true chain time—**OHLC intervals may skew** relative to block time. Mitigations:
 
-- Run a **reliable LCD** close to your chain; monitor logs for the warning strings and the Prometheus counter `indexer_block_time_fallbacks_total` when metrics are enabled (`METRICS_BIND` non-empty; see [`docs/operator-secrets.md`](./operator-secrets.md)).
+- Run a **reliable LCD** close to your chain; monitor logs for the warning strings and the Prometheus counter `indexer_block_time_fallbacks_total` when metrics are enabled (`METRICS_BIND` non-empty; scrape the **metrics** listener, not the API port — see [`docs/operator-secrets.md`](./operator-secrets.md) and GitLab [**#125**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125)).
 - After prolonged LCD issues, consider **re-indexing** from a known height (see [runbook: reorg / replay / dedup](./runbooks/indexer-reorg-replay-dedup.md)).
 
 ## Dapp read model (pools list)

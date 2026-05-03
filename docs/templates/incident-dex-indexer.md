@@ -29,7 +29,7 @@
 - [ ] **Process:** Indexer running?
 - [ ] **DB:** `DATABASE_URL` reachable; migrations applied?
 - [ ] **LCD:** Matches chain; `RUN_MODE=prod` uses correct `LCD_URLS`?
-- [ ] **Metrics:** If `METRICS_BIND` set, scrape `GET /metrics` — `indexer_block_process_errors_total`, `indexer_block_time_fallbacks_total`.
+- [ ] **Metrics:** If `METRICS_BIND` set, scrape `GET /metrics` on the **metrics** listener (`METRICS_BIND` host:port), not the API port — `indexer_block_process_errors_total`, `indexer_block_time_fallbacks_total` ([`docs/operator-secrets.md`](../operator-secrets.md), GitLab [#125](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/125)).
 - [ ] **Logs:** `tracing` errors from LCD or parser?
 
 ## Mitigation

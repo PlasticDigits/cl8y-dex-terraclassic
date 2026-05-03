@@ -1,4 +1,5 @@
-//! Prometheus metrics (optional `GET /metrics` when `METRICS_BIND` is non-empty).
+//! Prometheus metrics (optional `GET /metrics` on the **dedicated** `METRICS_BIND` listener when non-empty).
+//! Production deploys forbid `0.0.0.0` / `::` on that listener; see [`Config`](crate::config::Config) and `docs/operator-secrets.md`.
 
 use std::sync::OnceLock;
 
