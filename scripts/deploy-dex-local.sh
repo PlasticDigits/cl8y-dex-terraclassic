@@ -1,5 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
+
+# CW20 labels: avoid ${SYM,,} — needs bash 4+, fails under /bin/sh, and ./script with #!/bin/bash uses
+# system /bin/bash (often 3.2 on macOS), not necessarily the newer `bash` from PATH (e.g. Homebrew 5.x).
+to_lower() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
 
 CHAIN_ID="localterra"
 # Host-facing URLs (curl from host, Vite, indexer): match docker published ports (remap when QA_SHARED_HOST).
@@ -370,7 +376,7 @@ for i in "${!TOKEN_NAMES[@]}"; do
     echo "[10.$((i+1))] Instantiating $NAME ($SYM)..."
     INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
     TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$INIT_MSG" \
-        --label "test-token-${SYM,,}" \
+        --label "test-token-$(to_lower "$SYM")" \
         --admin "$TEST_ADDRESS" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     ADDR=$(get_contract_address "$TX_HASH")
@@ -394,7 +400,7 @@ for i in "${!NOWHITELIST_NAMES[@]}"; do
     echo "[10b.$((i+1))] Instantiating $NAME ($SYM) — NOT whitelisted..."
     INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
     TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID_NOWHITELIST" "$INIT_MSG" \
-        --label "test-token-${SYM,,}" \
+        --label "test-token-$(to_lower "$SYM")" \
         --admin "$TEST_ADDRESS" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     ADDR=$(get_contract_address "$TX_HASH")
@@ -418,7 +424,7 @@ for i in "${!UNPAIRED_NAMES[@]}"; do
     echo "[10c.$((i+1))] Instantiating $NAME ($SYM)..."
     INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
     TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$INIT_MSG" \
-        --label "test-token-${SYM,,}" \
+        --label "test-token-$(to_lower "$SYM")" \
         --admin "$TEST_ADDRESS" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     ADDR=$(get_contract_address "$TX_HASH")
