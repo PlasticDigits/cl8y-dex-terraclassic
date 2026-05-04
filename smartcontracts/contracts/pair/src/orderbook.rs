@@ -544,7 +544,9 @@ pub fn park_expired_limit_order_for_claim(
     pair_contract: &str,
 ) -> Result<Event, ContractError> {
     let order = ORDERS.load(storage, order_id)?;
-    if order.expires_at.is_none_or(|e| now < e) {
+    // `is_none_or` needs Rust 1.82+; `workspace-optimizer:0.16.1` uses 1.81.
+    #[allow(clippy::unnecessary_map_or)]
+    if order.expires_at.map_or(true, |e| now < e) {
         return Err(ContractError::InvariantViolation {
             reason: "park_expired_limit_order_for_claim on non-expired order".into(),
         });
