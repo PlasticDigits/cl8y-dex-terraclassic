@@ -242,6 +242,18 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(450000))
   })
 
+  it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for top-level place_limit_order', async () => {
+    const fee = await getFeeForMsg({
+      place_limit_order: {
+        side: 'bid',
+        price: '1',
+        hint_after_order_id: null,
+        max_adjust_steps: 32,
+      },
+    })
+    expect(fee.gasLimit).toBe(BigInt(950000))
+  })
+
   it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for send with inner place_limit_order', async () => {
     const inner = btoa(
       JSON.stringify({

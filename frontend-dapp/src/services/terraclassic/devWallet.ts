@@ -1,11 +1,6 @@
 import { MnemonicWallet } from '@goblinhunt/cosmes/wallet'
-import { NETWORKS, DEFAULT_NETWORK, DEV_MODE } from '@/utils/constants'
+import { NETWORKS, DEFAULT_NETWORK, DEV_MODE, effectiveGasPriceUluna } from '@/utils/constants'
 import { registerConnectedWallet } from './wallet'
-
-const GAS_PRICE = {
-  amount: '28.325',
-  denom: 'uluna',
-}
 
 function requireDevMnemonic(): string {
   const m = import.meta.env.VITE_DEV_MNEMONIC
@@ -30,7 +25,7 @@ export function createDevTerraWallet(): MnemonicWallet {
     bech32Prefix: 'terra',
     chainId: networkConfig.chainId,
     rpc: networkConfig.rpc,
-    gasPrice: GAS_PRICE,
+    gasPrice: { amount: String(effectiveGasPriceUluna()), denom: 'uluna' },
     coinType: 330,
     index: 0,
   })

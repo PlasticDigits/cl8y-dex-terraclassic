@@ -1,4 +1,4 @@
-import { GAS_PRICE_ULUNA } from '@/utils/constants'
+import { effectiveGasPriceUluna } from '@/utils/constants'
 import {
   ConnectedWallet,
   CosmostationController,
@@ -76,7 +76,7 @@ const TERRA_CLASSIC_CHAIN_ID = networkConfig.chainId
 const WC_PROJECT_ID = import.meta.env.VITE_WC_PROJECT_ID || '2ce7811b869be33ffad28cff05c93c15'
 
 const GAS_PRICE = {
-  amount: GAS_PRICE_ULUNA,
+  amount: String(effectiveGasPriceUluna()),
   denom: 'uluna',
 }
 

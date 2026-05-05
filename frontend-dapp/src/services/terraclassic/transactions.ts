@@ -4,11 +4,11 @@ import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 import { getConnectedWallet } from './wallet'
 import {
   EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP,
-  GAS_PRICE_ULUNA,
   SWAP_GAS_BUFFER,
   SWAP_GAS_PER_HOP,
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
   WRAP_GAS_LIMIT,
+  effectiveGasPriceUluna,
 } from '@/utils/constants'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
@@ -21,7 +21,7 @@ const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
 const CREATE_PAIR_GAS_LIMIT = 800000
 
 function estimateTerraClassicFee(gasLimit: number): Fee {
-  const feeAmount = Math.ceil(parseFloat(GAS_PRICE_ULUNA) * gasLimit)
+  const feeAmount = Math.ceil(effectiveGasPriceUluna() * gasLimit)
 
   return new Fee({
     amount: [
@@ -71,6 +71,9 @@ function gasLimitForExecuteSwapOperations(hops: number): number {
 function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('wrap_deposit' in executeMsg) {
     return WRAP_GAS_LIMIT
+  }
+  if ('place_limit_order' in executeMsg) {
+    return PLACE_LIMIT_ORDER_GAS_LIMIT
   }
   if ('cancel_limit_order' in executeMsg) {
     return CANCEL_LIMIT_ORDER_GAS_LIMIT

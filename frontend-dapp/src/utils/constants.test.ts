@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   isValidTerraAddress,
   GAS_PRICE_ULUNA,
@@ -26,6 +26,26 @@ describe('GAS_PRICE_ULUNA', () => {
   it('has a default value', () => {
     expect(GAS_PRICE_ULUNA).toBeDefined()
     expect(parseFloat(GAS_PRICE_ULUNA)).toBeGreaterThan(0)
+  })
+})
+
+describe('effectiveGasPriceUluna (GitLab #127)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('floors a too-low VITE_GAS_PRICE_ULUNA so allowance+limit txs meet minimum fees', async () => {
+    vi.stubEnv('VITE_GAS_PRICE_ULUNA', '0.015')
+    vi.resetModules()
+    const { effectiveGasPriceUluna, MIN_GAS_PRICE_ULUNA } = await import('./constants')
+    expect(effectiveGasPriceUluna()).toBe(MIN_GAS_PRICE_ULUNA)
+  })
+
+  it('preserves values above the floor', async () => {
+    vi.stubEnv('VITE_GAS_PRICE_ULUNA', '50')
+    vi.resetModules()
+    const { effectiveGasPriceUluna } = await import('./constants')
+    expect(effectiveGasPriceUluna()).toBe(50)
   })
 })
 

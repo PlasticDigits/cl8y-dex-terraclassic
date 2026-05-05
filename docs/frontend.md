@@ -82,10 +82,12 @@ Hybrid hops use `max(..., HYBRID_SWAP_GAS_LIMIT × hops)` in `transactions.ts`.
 
 | Invariant | Meaning |
 |-----------|---------|
-| Buffer tracks chain variance | `SWAP_GAS_BUFFER` must cover wasm execution variance on columbus-5 / LocalTerra; raising it increases **LUNC fee** (`GAS_PRICE_ULUNA × gas`) proportionally — trade off vs reliability. |
+| Buffer tracks chain variance | `SWAP_GAS_BUFFER` must cover wasm execution variance on columbus-5 / LocalTerra; raising it increases **LUNC fee** (`effectiveGasPriceUluna() × gas`) proportionally — trade off vs reliability. |
 | Floor guards multi-hop | `EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP` prevents totals from collapsing when buffer × base is still too small for some hop shapes. |
 | Padding absorbs rounding | Per-hop padding exists so totals do not sit exactly on prior “just barely enough” values (historical 2-hop near-miss: ~1,320,097 used vs 1,320,000 wanted). |
 | Pool-only regression | Single-hop pool swap `gasWanted` must exceed **753,321** gas used in repro [GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115) (710k was too low). |
+| **Min uluna gas price (fee amount)** | `effectiveGasPriceUluna()` in [`constants.ts`](../frontend-dapp/src/utils/constants.ts) floors a low `VITE_GAS_PRICE_ULUNA` at **`MIN_GAS_PRICE_ULUNA` (28.325)**, matching Station `gasPriceStep` / Columbus-5 norms. Without this, **insufficient fee** errors occur at broadcast: high `gas_wanted` but **Fee.amount** computed with a tiny gas price (repro stack: **`increase_allowance`** on `/trade` or `/limits` before the CW20 **`send`** + `place_limit_order` tx — [GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). |
+| Limit / bid placement sequence | Place Limit / Place Bid uses **`increase_allowance`** (uses `BASE_GAS_LIMIT`) then **`placeLimitOrder`** ([`pair.ts`](../frontend-dapp/src/services/terraclassic/pair.ts): CW20 `send` with base64 `place_limit_order`, gas `PLACE_LIMIT_ORDER_GAS_LIMIT`). Both steps use the same fee helper; the allowance tx is the usual first failure when fee math is wrong. |
 
 **Operational alignment:** local/mainnet helper scripts use `terrad … --gas-adjustment 1.3` (see `scripts/deploy-dex-local.sh`). The frontend buffer should stay in the same **ballpark** as those CLI defaults so manual ops and the dApp do not diverge wildly.
 

@@ -28,7 +28,23 @@ export const UNWRAP_GAS_LIMIT = 400000
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 
-export const GAS_PRICE_ULUNA = import.meta.env.VITE_GAS_PRICE_ULUNA || '28.325'
+/** Matches Station `gasPriceStep` / Terra Classic norms; used as a floor so fee math cannot underpay at broadcast (GitLab #127). */
+export const MIN_GAS_PRICE_ULUNA = 28.325
+
+const DEFAULT_GAS_PRICE_ULUNA = String(MIN_GAS_PRICE_ULUNA)
+
+export const GAS_PRICE_ULUNA = import.meta.env.VITE_GAS_PRICE_ULUNA || DEFAULT_GAS_PRICE_ULUNA
+
+/**
+ * Gas price (uluna per gas unit) used for `Fee.amount` and wallet `gasPrice`.
+ * Never below {@link MIN_GAS_PRICE_ULUNA}: a too-low `VITE_GAS_PRICE_ULUNA` causes **insufficient fees**
+ * while `gas_wanted` is still high (e.g. `increase_allowance` before limit placement).
+ */
+export function effectiveGasPriceUluna(): number {
+  const parsed = parseFloat(GAS_PRICE_ULUNA)
+  const base = Number.isFinite(parsed) && parsed > 0 ? parsed : MIN_GAS_PRICE_ULUNA
+  return Math.max(base, MIN_GAS_PRICE_ULUNA)
+}
 export const SWAP_GAS_PER_HOP = 600000
 /**
  * Multiplier on (per-hop base × hop count) before floor/padding.
