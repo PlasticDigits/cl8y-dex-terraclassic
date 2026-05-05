@@ -1,3 +1,4 @@
+import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtension'
 import { effectiveGasPriceUluna } from '@/utils/constants'
 import {
   ConnectedWallet,
@@ -49,23 +50,7 @@ function getTerraChainSuggestion(): Record<string, unknown> {
 
 async function suggestChainToExtension(walletName: WalletName): Promise<void> {
   const chainInfo = getTerraChainSuggestion()
-
-  type KeplrLike = { experimentalSuggestChain: (info: Record<string, unknown>) => Promise<void> }
-
-  const w = window as unknown as Record<string, unknown>
-  let ext: KeplrLike | undefined
-  switch (walletName) {
-    case WalletName.KEPLR:
-      ext = w.keplr as KeplrLike | undefined
-      break
-    case WalletName.LEAP:
-      ext = w.leap as KeplrLike | undefined
-      break
-    case WalletName.COSMOSTATION:
-      ext = (w.cosmostation as { providers: { keplr: KeplrLike } } | undefined)?.providers.keplr
-      break
-  }
-
+  const ext = getKeplrLikeExtension(walletName)
   if (ext?.experimentalSuggestChain) {
     await ext.experimentalSuggestChain(chainInfo)
   }
@@ -153,8 +138,22 @@ export async function connectTerraWallet(
     })
 
     const SUGGEST_CHAIN_WALLETS: WalletName[] = [WalletName.KEPLR, WalletName.LEAP, WalletName.COSMOSTATION]
-    if (SUGGEST_CHAIN_WALLETS.includes(walletName) && walletType === WalletType.EXTENSION) {
-      await suggestChainToExtension(walletName)
+    const suggestStationLocalGasSteps =
+      walletName === WalletName.STATION && walletType === WalletType.EXTENSION && DEFAULT_NETWORK === 'local'
+
+    if (walletType === WalletType.EXTENSION) {
+      if (suggestStationLocalGasSteps) {
+        try {
+          await suggestChainToExtension(walletName)
+        } catch (err: unknown) {
+          console.warn(
+            '[Wallet] Station experimentalSuggestChain failed; approve the chain update in Station or LocalTerra fees may stay too low (GitLab #127):',
+            err
+          )
+        }
+      } else if (SUGGEST_CHAIN_WALLETS.includes(walletName)) {
+        await suggestChainToExtension(walletName)
+      }
     }
 
     let wallets: Map<string, ConnectedWallet>
@@ -397,18 +396,4 @@ export async function getCurrentTerraAddress(): Promise<string | null> {
 export async function isTerraWalletConnected(): Promise<boolean> {
   const address = await getCurrentTerraAddress()
   return address !== null
-}
-
-declare global {
-  interface Window {
-    station?: {
-      connect: () => Promise<void>
-      disconnect: () => Promise<void>
-    }
-    keplr?: {
-      enable: (chainId: string) => Promise<void>
-      experimentalSuggestChain: (chainInfo: Record<string, unknown>) => Promise<void>
-      getOfflineSigner: (chainId: string) => unknown
-    }
-  }
 }

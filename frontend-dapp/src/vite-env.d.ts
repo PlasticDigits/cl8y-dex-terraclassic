@@ -15,6 +15,21 @@ interface Window {
   station?: {
     connect: () => Promise<void>
     disconnect: () => Promise<void>
+    /** Keplr-compatible API; supports `experimentalSuggestChain` for LocalTerra gas steps (GitLab #127). */
+    keplr?: {
+      enable: (chainIds: string | string[]) => Promise<void>
+      experimentalSuggestChain?: (chainInfo: Record<string, unknown>) => Promise<void>
+      getKey: (chainId: string) => Promise<{
+        name: string
+        bech32Address: string
+        pubKey: Uint8Array
+        isNanoLedger: boolean
+      }>
+      getOfflineSigner: (chainId: string) => unknown
+      defaultOptions?: { sign?: { preferNoSetFee?: boolean; preferNoSetMemo?: boolean } }
+      signAmino?: (...args: unknown[]) => Promise<unknown>
+      signDirect?: (...args: unknown[]) => Promise<unknown>
+    }
   }
   keplr?: {
     enable: (chainId: string) => Promise<void>

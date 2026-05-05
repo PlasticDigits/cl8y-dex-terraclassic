@@ -41,6 +41,8 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 
 The indexer may legitimately return **empty candle arrays** for a pair/interval with no buckets yet. The dApp must treat that as **success**, not a silent chart failure. UI invariants and lightweight-charts vs TradingView widget naming are documented under [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants) (GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113)).
 
+When validating LocalTerra flows with the **Station browser extension**, fee broadcast quirks are **frontend/wallet** concerns ( **`experimentalSuggestChain` + min gas price** — [`docs/frontend.md` § Terra Classic gas limits](./frontend.md#terra-classic-gas-limits), GitLab [**#127**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)); the indexer only observes txs once included on-chain.
+
 ## Indexing invariants
 
 | Invariant | Enforcement | Unhappy path | Tests |
