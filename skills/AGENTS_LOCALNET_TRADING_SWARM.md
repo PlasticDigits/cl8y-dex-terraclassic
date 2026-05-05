@@ -27,6 +27,7 @@ Use this skill when working on **localnet-only** scripted trading volume for UI 
 
 ## Cross-links
 
+- Limit escrow balance preflight (avoid doomed `increase_allowance` + failed `place_limit_order` gas): [**#130**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/130), [`limitOrderEscrowBalanceGate.ts`](../frontend-dapp/src/utils/limitOrderEscrowBalanceGate.ts), [`docs/limit-orders.md` § dApp retail form](../docs/limit-orders.md#dapp-retail-form-wires-invariants)
 - Dev wallet / mnemonic bundle safety: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)  
 - Gas limits for swap shapes: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) (includes **min uluna gas price** / limit-order **insufficient fee** / **Station `experimentalSuggestChain` pre+post connect** / **cosmes `KeplrExtension` per-sign `preferNoSetFee` patch** / **verify Station + Keplr** — [GitLab **#127**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127))
 - Pair LP decimals (18) and bootstrap `decimals ≤ 18` gate: [**#124**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124), [`docs/contracts-terraclassic.md`](../docs/contracts-terraclassic.md), [`dex_common::pair`](../smartcontracts/packages/dex-common/src/pair.rs)

@@ -10,6 +10,7 @@ import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
@@ -18,6 +19,7 @@ import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
+import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 
 export default function LimitOrdersPage() {
   const address = useWalletStore((s) => s.address)
@@ -90,6 +92,16 @@ export default function LimitOrdersPage() {
 
   const isPaused = pausedQuery.data?.paused === true
 
+  const placeEscrowGate = useMemo(
+    () =>
+      evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, {
+        data: escrowBalanceQuery.data,
+        isLoading: escrowBalanceQuery.isLoading,
+        isError: escrowBalanceQuery.isError,
+      }),
+    [amountHuman, escrowDecimals, escrowBalanceQuery.data, escrowBalanceQuery.isLoading, escrowBalanceQuery.isError]
+  )
+
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
     return placementsQuery.data.filter((r) => r.owner === address)
@@ -100,6 +112,11 @@ export default function LimitOrdersPage() {
       if (!address) throw new Error('Connect wallet')
       if (!selectedPair) throw new Error('Select a pair')
       if (!escrowToken.startsWith('terra1')) throw new Error('Escrow token must be CW20')
+      const gate = evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, escrowBalanceQuery)
+      if (!gate.canPlaceLimit) {
+        if (!gate.userMessage) throw new Error('Enter amount')
+        throw new Error(gate.userMessage)
+      }
       const raw = toRawAmount(amountHuman, escrowDecimals)
       if (raw === '0') throw new Error('Enter amount')
       await executeTerraContract(address, escrowToken, {
@@ -329,7 +346,13 @@ export default function LimitOrdersPage() {
                 <button
                   type="button"
                   className="btn-primary btn-cta w-full"
-                  disabled={!isWalletConnected || placeMutation.isPending || !selectedPair || isPaused}
+                  disabled={
+                    !isWalletConnected ||
+                    placeMutation.isPending ||
+                    !selectedPair ||
+                    isPaused ||
+                    !placeEscrowGate.canPlaceLimit
+                  }
                   onClick={() => {
                     if (!isWalletConnected) openWalletModal()
                     else placeMutation.mutate()
@@ -337,6 +360,7 @@ export default function LimitOrdersPage() {
                 >
                   {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
                 </button>
+                <LimitOrderEscrowPlaceGuardMessage gate={placeEscrowGate} data-testid="limits-page-escrow-guard" />
                 {placeMutation.isError && (
                   <TxResultAlert type="error" message={(placeMutation.error as Error).message} />
                 )}
