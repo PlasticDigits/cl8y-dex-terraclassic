@@ -186,3 +186,78 @@ index d372281..e88620d 100644
      }
      this.wc.cacheSession(wc);
      return { wallets, wc: this.wc };
+diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
+index 8f3c2a1..9e4b3d2 100644
+--- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
++++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
+@@ -2,6 +2,11 @@ import { RpcClient, Tx, } from "../../../client/index.js";
+ import { WalletType } from "../../constants/WalletType.js";
+ import { ConnectedWallet, } from "../ConnectedWallet.js";
+ import { WalletError } from "../WalletError.js";
++/** Per-request sign options — Station LocalTerra may ignore defaultOptions alone (GitLab #127). */
++const EXTENSION_SIGN_OPTIONS = {
++    preferNoSetFee: true,
++    preferNoSetMemo: true,
++};
+ export class KeplrExtension extends ConnectedWallet {
+     constructor(walletName, label, ext, chainId, pubKey, address, rpc, gasPrice, useAmino) {
+         super(walletName, WalletType.EXTENSION, label, chainId, pubKey, address, rpc, gasPrice);
+@@ -43,11 +48,11 @@ export class KeplrExtension extends ConnectedWallet {
+         };
+         let txRaw;
+         if (this.useAmino) {
+-            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
++            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params), EXTENSION_SIGN_OPTIONS));
+             txRaw = tx.toSignedAmino(signed, signature.signature);
+         }
+         else {
+-            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params)));
++            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params), EXTENSION_SIGN_OPTIONS));
+             txRaw = tx.toSignedDirect(signed, signature.signature);
+         }
+         return RpcClient.broadcastTx(this.rpc, txRaw);
+diff --git a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
+index 7a8b9c0..1d2e3f4 100644
+--- a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
++++ b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
+@@ -23,6 +23,15 @@ import {
+ import { WalletError } from "../WalletError";
+ import { AddChainInfo } from "cosmes/wallet/walletconnect/WalletConnectV2";
+ 
++/**
++ * Pass on every `signAmino` / `signDirect` call. Station on LocalTerra can ignore
++ * `defaultOptions.sign` alone and rebuild fees from a stale gas step (GitLab #127).
++ */
++const EXTENSION_SIGN_OPTIONS = {
++  preferNoSetFee: true,
++  preferNoSetMemo: true,
++} as const;
++
+ export class KeplrExtension extends ConnectedWallet {
+   private readonly ext: Keplr;
+   private readonly useAmino: boolean;
+@@ -99,12 +108,22 @@ export class KeplrExtension extends ConnectedWallet {
+     let txRaw: TxRaw;
+     if (this.useAmino) {
+       const { signed, signature } = await WalletError.wrap(
+-        this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params))
++        this.ext.signAmino(
++          this.chainId,
++          this.address,
++          tx.toStdSignDoc(params),
++          EXTENSION_SIGN_OPTIONS
++        )
+       );
+       txRaw = tx.toSignedAmino(signed, signature.signature);
+     } else {
+       const { signed, signature } = await WalletError.wrap(
+-        this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params))
++        this.ext.signDirect(
++          this.chainId,
++          this.address,
++          tx.toSignDoc(params),
++          EXTENSION_SIGN_OPTIONS
++        )
+       );
+       txRaw = tx.toSignedDirect(signed, signature.signature);
+     }

@@ -318,6 +318,19 @@ export async function connectTerraWallet(
 
     connectedWallets.set(TERRA_CLASSIC_CHAIN_ID, wallet)
 
+    // Second suggest after enable + wallet init — some Station builds only refresh
+    // LocalTerra gas steps reliably post-connect (GitLab #127).
+    if (suggestStationLocalGasSteps) {
+      try {
+        await suggestChainToExtension(walletName)
+      } catch (err: unknown) {
+        console.warn(
+          '[Wallet] Post-connect Station experimentalSuggestChain failed; fees may still be low (GitLab #127):',
+          err
+        )
+      }
+    }
+
     const walletTypeStr = WALLET_TYPE_STRINGS[walletName] ?? 'keplr'
 
     return {
