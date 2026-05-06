@@ -10,6 +10,7 @@ import {
   WRAP_GAS_LIMIT,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
+import { humanizeCosmwasmLimitOrderMissingMessage } from '@/utils/limitOrderCancelUserMessage'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching uses more gas than pool-only swaps. */
@@ -170,8 +171,8 @@ export async function executeTerraContract(
     const { txResponse } = await wallet.pollTx(txHash)
 
     if (txResponse.code !== 0) {
-      const errorMsg =
-        txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const errorMsg = humanizeCosmwasmLimitOrderMissingMessage(raw) ?? raw
       throw new Error(`Transaction failed: ${errorMsg}`)
     }
 
@@ -222,8 +223,8 @@ export async function executeTerraContractMulti(
     const { txResponse } = await wallet.pollTx(txHash)
 
     if (txResponse.code !== 0) {
-      const errorMsg =
-        txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const errorMsg = humanizeCosmwasmLimitOrderMissingMessage(raw) ?? raw
       throw new Error(`Transaction failed: ${errorMsg}`)
     }
 

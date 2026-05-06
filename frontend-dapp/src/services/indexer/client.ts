@@ -177,7 +177,7 @@ export async function getPairOrderLimitFills(
   return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${pairAddr}/limit-orders/${orderId}/fills?${sp}`)
 }
 
-/** Indexed `place_limit_order` events for a pair. */
+/** Indexed `place_limit_order` events excluding rows with an indexed `cancel_limit_order` for the same pair + `order_id` (GitLab #135). */
 export async function getPairLimitPlacements(
   pairAddr: string,
   params?: GetPairSubresourceParams

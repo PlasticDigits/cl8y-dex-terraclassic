@@ -573,7 +573,7 @@ pub struct LimitPlacementResponse {
         LimitFillsQuery,
     ),
     responses(
-        (status = 200, description = "Indexed place_limit_order events", body = Vec<LimitPlacementResponse>),
+        (status = 200, description = "Indexed place_limit_order events for orders not present in limit-cancellations (same pair + order_id); full history via .../limit-cancellations", body = Vec<LimitPlacementResponse>),
         (status = 404, description = "Pair not found"),
         (status = 500, description = "Internal server error"),
     ),
