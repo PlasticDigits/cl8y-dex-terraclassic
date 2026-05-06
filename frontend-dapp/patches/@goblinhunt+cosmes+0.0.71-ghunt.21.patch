@@ -33,7 +33,7 @@ index 641a1e0..37c6857 100644
          this.wc.cacheSession(wc);
          return { wallets, wc: this.wc };
 diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
-index 021a61a..51cd705 100644
+index 021a61a..c8f1271 100644
 --- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
 +++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
 @@ -49,17 +49,22 @@ export class StationController extends WalletController {
@@ -66,6 +66,18 @@ index 021a61a..51cd705 100644
          }
          this.wc.cacheSession(wc);
          return { wallets, wc: this.wc };
+@@ -84,8 +84,10 @@ export class StationController extends WalletController {
+                 const key = new Secp256k1PubKey({
+                     key: pubKey,
+                     chainId,
+                 });
+-                wallets.set(chainId, new StationExtension(this.id, name, ext, chainId, key, bech32Address, rpc, gasPrice, isNanoLedger));
++                // GitLab #127: Station's Keplr shim can rebuild Fee.amount from stale gas steps on signDirect for LocalTerra.
++                const useAminoSigning = isNanoLedger || chainId === "localterra";
++                wallets.set(chainId, new StationExtension(this.id, name, ext, chainId, key, bech32Address, rpc, gasPrice, useAminoSigning));
+             }
+             catch (err) {
+                 if (err instanceof Error) {
 diff --git a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/luncdash/LUNCDashController.ts b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/luncdash/LUNCDashController.ts
 index 707d1df..fb101ac 100644
 --- a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/luncdash/LUNCDashController.ts
