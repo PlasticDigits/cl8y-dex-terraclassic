@@ -41,7 +41,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 
 The indexer may legitimately return **empty candle arrays** for a pair/interval with no buckets yet. The dApp must treat that as **success**, not a silent chart failure. UI invariants and lightweight-charts vs TradingView widget naming are documented under [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants) (GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113)).
 
-When validating LocalTerra flows with **browser wallets**, fee broadcast quirks are **frontend/wallet** concerns — test **both Station and Terra Classic Keplr** when checking gas/fee fixes (**`experimentalSuggestChain`**, **per-sign `preferNoSetFee` in patched cosmes `KeplrExtension`**, **min gas price** — [`docs/frontend.md` § Terra Classic gas limits](./frontend.md#terra-classic-gas-limits), GitLab [**#127**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)); the indexer only observes txs once included on-chain.
+When validating LocalTerra flows with **browser wallets**, fee broadcast quirks are **frontend/wallet** concerns — test **both Station and Terra Classic Keplr** when checking gas/fee fixes (**`experimentalSuggestChain`**, **per-sign `preferNoSetFee` in patched cosmes `KeplrExtension`**, **Station `localterra` → amino signing** in patched **`StationController`**, **min gas price** — [`docs/frontend.md` § Terra Classic gas limits](./frontend.md#terra-classic-gas-limits), GitLab [**#127**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)); the indexer only observes txs once included on-chain.
 
 ## Indexing invariants
 
