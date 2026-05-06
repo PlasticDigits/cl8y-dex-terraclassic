@@ -7,8 +7,8 @@ type Props = {
 }
 
 /**
- * Inline status for limit placement when escrow balance blocks or warns before submit.
- * Pair with `evaluateLimitOrderEscrowPlaceGate` from `@/utils/limitOrderEscrowBalanceGate`.
+ * Inline status for limit placement when escrow balance, native gas balance, or load state blocks
+ * before submit. Pair with `evaluateLimitOrderEscrowPlaceGate` and `evaluateLimitOrderNativeGasPlaceGate`.
  */
 export function LimitOrderEscrowPlaceGuardMessage({ gate, 'data-testid': testId }: Props) {
   if (!gate.userMessage) return null

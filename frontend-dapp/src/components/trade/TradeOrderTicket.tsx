@@ -3,18 +3,23 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { placeLimitOrder, cancelLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
-import { executeTerraContract } from '@/services/terraclassic/transactions'
+import {
+  executeTerraContract,
+  estimateLimitOrderPlaceSequenceUlunaFeesTotal,
+} from '@/services/terraclassic/transactions'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo, type PairInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
+import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
+import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
@@ -60,6 +65,8 @@ export function TradeOrderTicket({
   const escrowToken = side === 'bid' ? token1 : token0
   const escrowDecimals = escrowToken ? getDecimals(tokenAssetInfo(escrowToken)) : 6
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, escrowToken)
+  const nativeUlunaQuery = useNativeUlunaBalance(address)
+  const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr],
@@ -86,6 +93,31 @@ export function TradeOrderTicket({
     [amountHuman, escrowDecimals, escrowBalanceQuery.data, escrowBalanceQuery.isLoading, escrowBalanceQuery.isError]
   )
 
+  const placeNativeGasGate = useMemo(
+    () =>
+      evaluateLimitOrderNativeGasPlaceGate(
+        amountHuman,
+        escrowDecimals,
+        {
+          data: nativeUlunaQuery.data,
+          isLoading: nativeUlunaQuery.isLoading,
+          isError: nativeUlunaQuery.isError,
+        },
+        limitPlaceMinUlunaFees
+      ),
+    [
+      amountHuman,
+      escrowDecimals,
+      nativeUlunaQuery.data,
+      nativeUlunaQuery.isLoading,
+      nativeUlunaQuery.isError,
+      limitPlaceMinUlunaFees,
+    ]
+  )
+
+  const placeLimitCombinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
+  const placeLimitInlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
+
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
     return placementsQuery.data.filter((r) => r.owner === address)
@@ -96,10 +128,20 @@ export function TradeOrderTicket({
       if (!address) throw new Error('Connect wallet')
       if (!selectedPair) throw new Error('Select a pair')
       if (!escrowToken.startsWith('terra1')) throw new Error('Escrow token must be CW20')
-      const gate = evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, escrowBalanceQuery)
-      if (!gate.canPlaceLimit) {
-        if (!gate.userMessage) throw new Error('Enter amount')
-        throw new Error(gate.userMessage)
+      const escrowGate = evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, escrowBalanceQuery)
+      if (!escrowGate.canPlaceLimit) {
+        if (!escrowGate.userMessage) throw new Error('Enter amount')
+        throw new Error(escrowGate.userMessage)
+      }
+      const nativeGate = evaluateLimitOrderNativeGasPlaceGate(
+        amountHuman,
+        escrowDecimals,
+        nativeUlunaQuery,
+        limitPlaceMinUlunaFees
+      )
+      if (!nativeGate.canPlaceLimit) {
+        if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
+        throw new Error(nativeGate.userMessage)
       }
       const raw = toRawAmount(amountHuman, escrowDecimals)
       if (raw === '0') throw new Error('Enter amount')
@@ -251,9 +293,7 @@ export function TradeOrderTicket({
         <button
           type="button"
           className="btn-primary btn-cta w-full !text-xs"
-          disabled={
-            !isWalletConnected || placeMutation.isPending || !selectedPair || isPaused || !placeEscrowGate.canPlaceLimit
-          }
+          disabled={!isWalletConnected || placeMutation.isPending || !selectedPair || isPaused || !placeLimitCombinedOk}
           onClick={() => {
             if (!isWalletConnected) openWalletModal()
             else placeMutation.mutate()
@@ -261,7 +301,7 @@ export function TradeOrderTicket({
         >
           {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
         </button>
-        <LimitOrderEscrowPlaceGuardMessage gate={placeEscrowGate} data-testid="trade-limit-escrow-guard" />
+        <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
         {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
         {placeMutation.isSuccess && (
           <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />

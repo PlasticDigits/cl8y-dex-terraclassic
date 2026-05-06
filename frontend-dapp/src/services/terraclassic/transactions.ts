@@ -20,8 +20,13 @@ const ADD_LIQUIDITY_GAS_LIMIT = 500000
 const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
 const CREATE_PAIR_GAS_LIMIT = 800000
 
+/** Uluna in `Fee.amount` for one message at `gasLimit` (same math as {@link estimateTerraClassicFee}). */
+function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
+  return BigInt(Math.ceil(effectiveGasPriceUluna() * gasLimit))
+}
+
 function estimateTerraClassicFee(gasLimit: number): Fee {
-  const feeAmount = Math.ceil(effectiveGasPriceUluna() * gasLimit)
+  const feeAmount = Number(estimateFeeUlunaAmountForGasLimit(gasLimit))
 
   return new Fee({
     amount: [
@@ -108,6 +113,18 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     return BASE_GAS_LIMIT
   }
   return BASE_GAS_LIMIT
+}
+
+/**
+ * Minimum native fee (uluna) for the two-step CW20 limit place path: `increase_allowance` then
+ * `send` → `place_limit_order`. Used for UI preflight so tx1 is not broadcast if the wallet cannot
+ * pay tx2 ([GitLab #132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132)).
+ * Must stay aligned with {@link getGasLimitForTx} for those message shapes.
+ */
+export function estimateLimitOrderPlaceSequenceUlunaFeesTotal(): bigint {
+  const allowanceGas = getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
+  const placeGas = getGasLimitForTx({ place_limit_order: {} })
+  return estimateFeeUlunaAmountForGasLimit(allowanceGas) + estimateFeeUlunaAmountForGasLimit(placeGas)
 }
 
 /**
