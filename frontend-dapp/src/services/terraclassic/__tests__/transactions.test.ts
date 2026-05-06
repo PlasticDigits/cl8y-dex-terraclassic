@@ -86,6 +86,23 @@ describe('executeTerraContract', () => {
     await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow('out of gas')
   })
 
+  it('humanizes max spread assertion errors from chain logs', async () => {
+    mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
+    mockBroadcastTx.mockResolvedValueOnce('FAILHASH')
+    mockPollTx.mockResolvedValueOnce({
+      txResponse: {
+        code: 1,
+        rawLog:
+          'failed to execute message; message index: 0: dispatch: submessages: Max spread assertion: actual spread (0.969444373510098454) exceeds max allowed (0.01): execute wasm contract failed',
+        logs: [],
+      },
+    })
+
+    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow(
+      'Trade rejected: price impact exceeds your slippage tolerance'
+    )
+  })
+
   it('wraps user-rejected errors', async () => {
     mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
     mockBroadcastTx.mockRejectedValueOnce(new Error('User rejected the request'))

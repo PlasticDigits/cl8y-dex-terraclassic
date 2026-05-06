@@ -217,6 +217,8 @@ The Swap page displays the effective fee after discount. When a connected wallet
 - The discount percentage from the trader's tier
 - The effective fee after discount (e.g., 0.15% for a 50% discount)
 
+**Price impact & max spread (GitLab [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)):** Multihop and indexer quotes use the router LCD `simulate_swap_operations` response, which only includes the final **amount**. The Swap page runs an additional **per-hop pair simulation** preflight (factory resolve + `simulation` / `hybrid_simulation`) so **price impact** reflects the worst hop under the same formula as pair `assert_max_spread`, and the submit button is disabled when any hop would exceed the user’s **Slippage tolerance** (`max_spread`). Failed txs that still surface `Max spread assertion` from the chain are mapped to short retail copy in [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts). Full invariants: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
+
 ### Tiers Page
 
 The `/tiers` page allows users to:

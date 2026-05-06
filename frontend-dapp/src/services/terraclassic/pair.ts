@@ -3,6 +3,7 @@ import { executeTerraContract } from './transactions'
 import type {
   Asset,
   AssetInfo,
+  HybridSimulationResponse,
   HybridSwapParams,
   PairInfo,
   PairPausedResponse,
@@ -32,6 +33,26 @@ export async function simulateSwap(
   const offerAsset: Asset = { info: offerAssetInfo, amount: offerAmount }
   return queryContract<SimulationResponse>(pairAddress, {
     simulation: { offer_asset: offerAsset },
+  })
+}
+
+export async function simulateHybridSwap(
+  pairAddress: string,
+  offerAssetInfo: AssetInfo,
+  offerAmount: string,
+  hybrid: HybridSwapParams
+): Promise<HybridSimulationResponse> {
+  const offerAsset: Asset = { info: offerAssetInfo, amount: offerAmount }
+  return queryContract<HybridSimulationResponse>(pairAddress, {
+    hybrid_simulation: {
+      offer_asset: offerAsset,
+      hybrid: {
+        pool_input: hybrid.pool_input,
+        book_input: hybrid.book_input,
+        max_maker_fills: hybrid.max_maker_fills,
+        book_start_hint: hybrid.book_start_hint ?? undefined,
+      },
+    },
   })
 }
 

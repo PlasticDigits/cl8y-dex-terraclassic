@@ -10,6 +10,7 @@ import {
   WRAP_GAS_LIMIT,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
+import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching uses more gas than pool-only swaps. */
@@ -253,6 +254,11 @@ function handleTransactionError(error: unknown): Error {
       errorMessage.includes('network')
     ) {
       return new Error(`Network error: ${errorMessage}. Please check your internet connection and try again.`)
+    }
+
+    const human = tryHumanizeTerraTxMessage(errorMessage)
+    if (human) {
+      return new Error(human)
     }
 
     return new Error(`Transaction failed: ${errorMessage}`)

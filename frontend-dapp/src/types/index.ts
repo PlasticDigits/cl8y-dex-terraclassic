@@ -49,6 +49,15 @@ export interface HybridSwapParams {
   book_start_hint?: number | null
 }
 
+/** Pair `hybrid_simulation` query — aligns with `dex_common::pair::HybridSimulationResponse`. */
+export interface HybridSimulationResponse {
+  return_amount: string
+  spread_amount: string
+  commission_amount: string
+  book_return_amount: string
+  pool_return_amount: string
+}
+
 /** Helper: extract contract_addr from a CW20 AssetInfo, or return denom for native */
 export function assetInfoLabel(info: AssetInfo): string {
   if ('token' in info) return info.token.contract_addr

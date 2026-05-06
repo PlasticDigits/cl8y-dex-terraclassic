@@ -14,7 +14,7 @@ Use when changing **Vite build output**, **source maps**, or reviewing PRs that 
 
 1. **Default `npm run build`** must not emit browser-served `*.js.map` for the production bundle (verify with a smoke build and `find dist -name '*.js.map'`).
 2. **Staging-only maps** belong behind `vite build --mode <non-production>` or explicit env gates — not unconditional `sourcemap: true`.
-3. **Gas / swap work** is unrelated; use [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) for `out of gas` and fee constants.
+3. **Gas / swap work** is unrelated; use [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) for `out of gas` and fee constants. **Swap max-spread / price-impact UX** (LCD preflight, error copy) lives in [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) ([GitLab **#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)).
 
 ## Related (local dev only)
 

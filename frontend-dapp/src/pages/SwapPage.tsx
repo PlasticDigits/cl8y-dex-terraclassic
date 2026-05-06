@@ -5,6 +5,7 @@ import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
+import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
@@ -51,6 +52,8 @@ interface SwapSimData {
    * When true, the receive line is a pool-only sim while a positive book leg is configured — submitted tx is still hybrid; fill may differ. See `docs/limit-orders.md` (GitLab #111).
    */
   receiveQuoteIsPoolOnlyWithConfiguredBookLeg?: boolean
+  /** Per-hop pair simulations for router/indexer/native multihop quotes (router sim omits spread). See `docs/swap-max-spread-ux.md` (GitLab #134). */
+  routePreflight?: SwapRoutePreflightSpread
 }
 
 function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | undefined): string {
@@ -273,9 +276,12 @@ export default function SwapPage() {
       useHybridBook,
       bookInputHuman,
       hybridMaxMakers,
+      slippageTolerance,
     ],
     queryFn: async (): Promise<SwapSimData> => {
       if (!inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
+
+      const maxSpreadStr = (slippageTolerance / 100).toString()
 
       if (isWrapOrUnwrap) {
         return {
@@ -288,11 +294,16 @@ export default function SwapPage() {
 
       if (nativeRouteInfo) {
         const result = await simulateNativeSwap(rawInputAmount, fromToken, toToken, pairs)
+        let routePreflight: SwapRoutePreflightSpread | undefined
+        if (nativeRouteInfo.operations.length > 0) {
+          routePreflight = await preflightSwapRouteSpread(nativeRouteInfo.operations, rawInputAmount, maxSpreadStr)
+        }
         return {
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
           quoteDisclosure: 'Native / wrapped route · wallet LCD simulation (pool-only ops).',
+          routePreflight,
         }
       }
 
@@ -317,6 +328,9 @@ export default function SwapPage() {
                 },
               ])
               if (idx.estimated_amount_out?.trim()) {
+                const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
+                const routePreflight =
+                  ops.length > 0 ? await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr) : undefined
                 return {
                   return_amount: idx.estimated_amount_out,
                   spread_amount: '0',
@@ -324,6 +338,8 @@ export default function SwapPage() {
                   quoteDisclosure: 'Manual hybrid split (Settings) · indexer merged ops + router LCD estimate.',
                   indexerQuoteKind: idx.quote_kind,
                   receiveQuoteIsPoolOnlyWithConfiguredBookLeg: false,
+                  indexerOperations: ops.length > 0 ? ops : undefined,
+                  routePreflight,
                 }
               }
             } catch {
@@ -345,6 +361,7 @@ export default function SwapPage() {
           if (tin === fromToken.trim().toLowerCase() && tout === toToken.trim().toLowerCase()) {
             const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
             const result = await simulateMultiHopSwap(rawInputAmount, ops)
+            const routePreflight = await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr)
             const intermediates =
               idx.intermediate_tokens?.length === idx.hops.length + 1
                 ? idx.intermediate_tokens
@@ -357,6 +374,7 @@ export default function SwapPage() {
               indexerQuoteKind: idx.quote_kind,
               indexerOperations: ops,
               indexerIntermediateTokens: intermediates,
+              routePreflight,
             }
           }
         } catch {
@@ -386,11 +404,13 @@ export default function SwapPage() {
       }
       if (isMultiHop && route) {
         const result = await simulateMultiHopSwap(rawInputAmount, route)
+        const routePreflight = await preflightSwapRouteSpread(route, rawInputAmount, maxSpreadStr)
         return {
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
           quoteDisclosure: 'Client-discovered multihop (pair graph) · pool-only · wallet LCD simulation.',
+          routePreflight,
         }
       }
       throw new Error('No route found')
@@ -484,14 +504,16 @@ export default function SwapPage() {
   const commissionAmount = simQuery.data?.commission_amount ?? ''
 
   const priceImpact = simQuery.data
-    ? (() => {
-        const total =
-          parseFloat(simQuery.data.return_amount) +
-          parseFloat(simQuery.data.commission_amount) +
-          parseFloat(simQuery.data.spread_amount)
-        if (total === 0) return '0'
-        return ((parseFloat(simQuery.data.spread_amount) / total) * 100).toFixed(2)
-      })()
+    ? simQuery.data.routePreflight != null
+      ? simQuery.data.routePreflight.worstSpreadPercent
+      : (() => {
+          const total =
+            parseFloat(simQuery.data.return_amount) +
+            parseFloat(simQuery.data.commission_amount) +
+            parseFloat(simQuery.data.spread_amount)
+          if (total === 0) return '0'
+          return ((parseFloat(simQuery.data.spread_amount) / total) * 100).toFixed(2)
+        })()
     : null
 
   const minReceived = simQuery.data
@@ -541,6 +563,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (insufficientBalance) {
     buttonText = 'Insufficient Balance'
+    buttonDisabled = true
+  } else if (simQuery.data?.routePreflight?.anyHopExceedsMaxSpread) {
+    buttonText = 'Price impact too high for this trade'
     buttonDisabled = true
   } else if (simQuery.isLoading) {
     buttonText = 'Calculating...'
@@ -1110,6 +1135,34 @@ export default function SwapPage() {
           </div>
         )}
 
+        {simQuery.data?.routePreflight && (
+          <div className="card-neo mb-3 text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+            <span className="uppercase tracking-wide font-semibold" style={{ color: 'var(--ink-subtle)' }}>
+              Route spread check:{' '}
+            </span>
+            Worst hop ≈ {simQuery.data.routePreflight.worstSpreadPercent}% of gross on that hop (pair simulation,
+            matches on-chain max spread logic). See{' '}
+            <a
+              href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/swap-max-spread-ux.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-mono text-[10px]"
+            >
+              docs/swap-max-spread-ux.md
+            </a>
+            .
+          </div>
+        )}
+        {simQuery.data?.routePreflight?.anyHopExceedsMaxSpread && (
+          <div className="alert-error mb-3 text-xs" role="alert">
+            <p className="font-semibold mb-1">Insufficient liquidity for this trade size</p>
+            <p>
+              At least one hop in the route has price impact above your slippage tolerance ({slippageTolerance}% max
+              spread). Try a smaller amount, another route, or increase slippage in Settings (higher slippage increases
+              execution risk).
+            </p>
+          </div>
+        )}
         {(showHybridBookSubmitWarning ||
           simQuery.data?.indexerQuoteKind === 'indexer_hybrid_lcd' ||
           simQuery.data?.indexerQuoteKind === 'indexer_hybrid_lcd_degraded') && (
