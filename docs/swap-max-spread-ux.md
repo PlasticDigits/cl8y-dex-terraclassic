@@ -2,7 +2,7 @@
 
 This document describes how the retail **Swap** page surfaces **price impact** and **max spread** checks so users are not surprised by thin-liquidity failures or unreadable chain errors.
 
-**Related:** GitLab issue [**#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134) · pair `assert_max_spread` in [`smartcontracts/contracts/pair/src/contract.rs`](../../smartcontracts/contracts/pair/src/contract.rs) · frontend [`SwapPage.tsx`](../../frontend-dapp/src/pages/SwapPage.tsx) · math [`swapMaxSpread.ts`](../../frontend-dapp/src/utils/swapMaxSpread.ts) · LCD preflight [`swapRoutePreflight.ts`](../../frontend-dapp/src/services/terraclassic/swapRoutePreflight.ts) · tx copy [`humanizeTerraTxError.ts`](../../frontend-dapp/src/utils/humanizeTerraTxError.ts)
+**Related:** GitLab issue [**#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134) · pair `assert_max_spread` in [`smartcontracts/contracts/pair/src/contract.rs`](../../smartcontracts/contracts/pair/src/contract.rs) · frontend [`SwapPage.tsx`](../../frontend-dapp/src/pages/SwapPage.tsx) · math [`swapMaxSpread.ts`](../../frontend-dapp/src/utils/swapMaxSpread.ts) · LCD preflight [`swapRoutePreflight.ts`](../../frontend-dapp/src/services/terraclassic/swapRoutePreflight.ts) · tx copy [`humanizeTerraTxError.ts`](../../frontend-dapp/src/utils/humanizeTerraTxError.ts) · indexer + route LCD context: [`docs/indexer-invariants.md`](./indexer-invariants.md#frontend-expectations-read-path)
 
 ## Invariants (on-chain, pair, no `belief_price`)
 
