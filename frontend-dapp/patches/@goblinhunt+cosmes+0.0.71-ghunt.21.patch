@@ -66,14 +66,15 @@ index 021a61a..c8f1271 100644
          }
          this.wc.cacheSession(wc);
          return { wallets, wc: this.wc };
-@@ -84,8 +84,10 @@ export class StationController extends WalletController {
+@@ -84,8 +84,11 @@ export class StationController extends WalletController {
                  const key = new Secp256k1PubKey({
                      key: pubKey,
                      chainId,
                  });
 -                wallets.set(chainId, new StationExtension(this.id, name, ext, chainId, key, bech32Address, rpc, gasPrice, isNanoLedger));
 +                // GitLab #127: Station's Keplr shim can rebuild Fee.amount from stale gas steps on signDirect for LocalTerra.
-+                const useAminoSigning = isNanoLedger || chainId === "localterra";
++                const isLocalTerraChain = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
++                const useAminoSigning = isNanoLedger || isLocalTerraChain;
 +                wallets.set(chainId, new StationExtension(this.id, name, ext, chainId, key, bech32Address, rpc, gasPrice, useAminoSigning));
              }
              catch (err) {
