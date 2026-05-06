@@ -11,6 +11,7 @@ import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
+import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
@@ -145,8 +146,8 @@ export default function LimitOrdersPage() {
             setCancelOrderId(String(maxId))
             break
           }
-        } catch {
-          /* indexer may be down in local dev */
+        } catch (err) {
+          warnIndexerPlacementPollFailed(err)
         }
       }
     },

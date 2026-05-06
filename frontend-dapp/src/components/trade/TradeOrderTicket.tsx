@@ -10,6 +10,7 @@ import { TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo, type PairInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
+import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
@@ -128,8 +129,8 @@ export function TradeOrderTicket({
             setCancelOrderId(String(maxId))
             break
           }
-        } catch {
-          /* indexer optional in local dev */
+        } catch (err) {
+          warnIndexerPlacementPollFailed(err)
         }
       }
     },

@@ -78,7 +78,7 @@ Longer-running tests are kept out of the default `npm run test:run` suite. **Cha
 
    The seeded pair address is `terra1paircontractabc` (kept in sync with `frontend-dapp/src/test/chartsIntegrationConstants.ts`).
 
-4. Start the indexer API (same `DATABASE_URL` plus required env from `indexer/.env.example`: at minimum `FACTORY_ADDRESS`, `CORS_ORIGINS`, `LCD_URLS`).
+4. Start the indexer API (same `DATABASE_URL` plus required env from `indexer/.env.example`: at minimum `FACTORY_ADDRESS`, **`CORS_ORIGINS`** (for browser integration tests / local Vite, include both `http://localhost:5173` and `http://127.0.0.1:5173` — [GitLab **#131**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131)), `LCD_URLS`).
 
 5. Run Vitest integration:
 

@@ -37,6 +37,10 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | On-chain book (LCD proxy) | `GET /api/v1/pairs/{addr}/order-book-head`, `.../limit-book` (paginated), `.../limit-book-shallow` (legacy preview) | Unknown pair → **404**; LCD failure → **502**; `limit-book` `limit` clamped (max 100); `limit-book-shallow` `depth` clamped (max 20); bad book cursor / side → **400** | [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs), [`limit-orders.md`](./limit-orders.md) |
 | Hooks OpenAPI | `GET /api/v1/hooks` documented under Swagger **Hooks** tag | Same error handling as other read routes | [`api_hooks.rs`](../indexer/tests/api_hooks.rs) |
 
+### Local dev CORS: `localhost` vs `127.0.0.1`
+
+The browser sends `Origin` using the hostname from the address bar. `http://localhost:5173` and `http://127.0.0.1:5173` are different origins; if `CORS_ORIGINS` lists only one of them, fetches from the other fail CORS even when the indexer returns **200**. Include both spellings (and Vite preview ports if used) in dev — see [`indexer/.env.example`](../indexer/.env.example), [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh), and [GitLab **#131**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131). After placing a limit, the dApp polls `limit-placements`; failures are logged as **`[limit-place] indexer poll failed:`** via [`warnIndexerPlacementPollFailed`](../frontend-dapp/src/utils/warnIndexerPlacementPollFailed.ts).
+
 ## Frontend expectations (read path)
 
 The indexer may legitimately return **empty candle arrays** for a pair/interval with no buckets yet. The dApp must treat that as **success**, not a silent chart failure. UI invariants and lightweight-charts vs TradingView widget naming are documented under [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants) (GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113)).
