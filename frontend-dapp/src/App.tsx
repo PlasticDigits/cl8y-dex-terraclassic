@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { Component, Suspense, lazy } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import Layout from './components/common/Layout'
@@ -39,8 +39,26 @@ interface ErrorBoundaryState {
   error: Error | null
 }
 
-class ErrorBoundary extends Component<{ children: ReactNode; isRoute?: boolean }, ErrorBoundaryState> {
-  constructor(props: { children: ReactNode; isRoute?: boolean }) {
+type ErrorBoundaryResetKey = string | number | boolean | null | undefined
+
+function errorBoundaryResetKeysEqual(
+  a: readonly ErrorBoundaryResetKey[] | undefined,
+  b: readonly ErrorBoundaryResetKey[] | undefined
+): boolean {
+  if (!a?.length && !b?.length) return true
+  if (!a || !b || a.length !== b.length) return false
+  return a.every((v, i) => v === b[i])
+}
+
+interface ErrorBoundaryProps {
+  children: ReactNode
+  isRoute?: boolean
+  /** When any entry changes, a route-level boundary clears so navigation can recover (GitLab #126). */
+  resetKeys?: readonly ErrorBoundaryResetKey[]
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false, error: null }
   }
@@ -51,6 +69,14 @@ class ErrorBoundary extends Component<{ children: ReactNode; isRoute?: boolean }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Unhandled error:', error, errorInfo)
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    const { resetKeys } = this.props
+    if (!this.state.hasError || !resetKeys?.length) return
+    if (!errorBoundaryResetKeysEqual(prevProps.resetKeys, resetKeys)) {
+      this.setState({ hasError: false, error: null })
+    }
   }
 
   render() {
@@ -102,6 +128,17 @@ class ErrorBoundary extends Component<{ children: ReactNode; isRoute?: boolean }
     }
     return this.props.children
   }
+}
+
+function TraderRouteShell() {
+  const { address } = useParams<{ address?: string }>()
+  return (
+    <ErrorBoundary isRoute resetKeys={[address ?? '']}>
+      <Suspense fallback={<PageFallback />}>
+        <TraderPage />
+      </Suspense>
+    </ErrorBoundary>
+  )
 }
 
 export default function App() {
@@ -161,26 +198,8 @@ export default function App() {
                   </ErrorBoundary>
                 }
               />
-              <Route
-                path="/trader"
-                element={
-                  <ErrorBoundary isRoute>
-                    <Suspense fallback={<PageFallback />}>
-                      <TraderPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/trader/:address"
-                element={
-                  <ErrorBoundary isRoute>
-                    <Suspense fallback={<PageFallback />}>
-                      <TraderPage />
-                    </Suspense>
-                  </ErrorBoundary>
-                }
-              />
+              <Route path="/trader" element={<TraderRouteShell />} />
+              <Route path="/trader/:address" element={<TraderRouteShell />} />
               <Route
                 path="/limits"
                 element={

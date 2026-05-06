@@ -120,10 +120,23 @@ The frontend uses TerraSwap-compatible message names:
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/create`       | Create a new token pair via the Factory           |
 | `/charts`       | Pairs overview and per-pair charts (indexer)      |
+| `/trader`       | Trader profile lookup (indexer); optional `/:address` |
 | `/trade`        | Trade UI — order book, **price chart**, tape, limits |
 | `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
 | `/limits`       | Limit order placements and lifecycle              |
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
+
+### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
+
+Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.ts`](../frontend-dapp/src/services/indexer/client.ts)). Before the UI renders stats, the response is normalized by [`traderProfilePayload.ts`](../frontend-dapp/src/services/indexer/traderProfilePayload.ts) so **arrays, `null` bodies, or partial objects** from a buggy proxy or indexer never reach the page as a “truthy” trader object (which previously could crash the route tree and strand users behind the route error UI — [GitLab #126](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Parse or fail | `getTrader` runs `parseIndexerTraderPayload` on raw JSON; invalid shapes throw and become a **React Query error**, not a render-time exception. |
+| Route error boundary reset | `/trader` routes use `resetKeys` tied to `useParams().address` so switching between `/trader` and `/trader/:addr` (or between addresses) **clears a prior route error** without a full page reload ([`App.tsx`](../frontend-dapp/src/App.tsx) `TraderRouteShell`). |
+| Deduped React in Vite | [`vite.config.ts`](../frontend-dapp/vite.config.ts) sets `resolve.dedupe` for `react` / `react-dom` to avoid rare **dual-React** dev bundles that surface as `useContext`/`Invalid hook call` when lazy chunks load. |
+
+**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
 
 ### Trade page — price chart invariants
 

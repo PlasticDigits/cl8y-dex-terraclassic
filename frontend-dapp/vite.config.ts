@@ -62,6 +62,7 @@ export default defineConfig(({ mode, command }) => {
   return {
     plugins: [react(), cspDevHosts()],
     resolve: {
+      dedupe: ['react', 'react-dom'],
       alias: {
         '@': path.resolve(__dirname, './src'),
         buffer: 'buffer',

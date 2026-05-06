@@ -1,3 +1,4 @@
+import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePayload'
 import type {
   IndexerPair,
   IndexerPairsListResponse,
@@ -243,7 +244,8 @@ export async function getOverview(): Promise<IndexerOverview> {
 
 /** Get trader profile. */
 export async function getTrader(address: string): Promise<IndexerTrader> {
-  return fetchJson<IndexerTrader>(`/api/v1/traders/${address}`)
+  const raw = await fetchJson<unknown>(`/api/v1/traders/${address}`)
+  return parseIndexerTraderPayload(raw)
 }
 
 /** Get trader's historical trades. */
