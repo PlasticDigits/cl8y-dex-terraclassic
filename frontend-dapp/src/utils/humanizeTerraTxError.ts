@@ -1,7 +1,9 @@
 /**
  * Map noisy chain / LCD errors to short retail copy before surfacing in the UI.
- * Raw logs stay in `console.error` upstream ([GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)).
+ * Raw logs stay in `console.error` upstream ([GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [GitLab #135](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/135)).
  */
+
+import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUserMessage'
 
 /** Strip repeated `Transaction failed:` prefixes from nested throws. */
 export function stripNestedTransactionFailedPrefixes(message: string): string {
@@ -19,6 +21,10 @@ export function stripNestedTransactionFailedPrefixes(message: string): string {
  */
 export function tryHumanizeTerraTxMessage(message: string): string | null {
   const inner = stripNestedTransactionFailedPrefixes(message)
+  const limitOrder = humanizeCosmwasmLimitOrderMissingMessage(inner)
+  if (limitOrder) {
+    return limitOrder
+  }
   if (/Max spread assertion/i.test(inner)) {
     return (
       'Trade rejected: price impact exceeds your slippage tolerance on at least one pool hop. ' +

@@ -248,6 +248,17 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
     .expect("insert cancellation");
 
     sqlx::query(
+        "INSERT INTO limit_order_placements
+         (pair_id, block_height, block_timestamp, tx_hash, order_id, owner, side, price)
+         VALUES ($1, 1002, NOW(), 'txplace1', 8, $2, 'ask', 2.0)",
+    )
+    .bind(pair_id)
+    .bind(&trader_address)
+    .execute(pool)
+    .await
+    .expect("insert active placement");
+
+    sqlx::query(
         "INSERT INTO candles (pair_id, interval, open_time, open, high, low, close, volume_base, volume_quote, trade_count)
          VALUES ($1, '1h', NOW() - interval '1 hour', 0.94, 0.96, 0.93, 0.95, 5000, 4750, 5)",
     )

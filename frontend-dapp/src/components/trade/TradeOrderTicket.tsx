@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
+import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { placeLimitOrder, cancelLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
 import {
@@ -15,6 +16,7 @@ import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
+import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
@@ -24,6 +26,7 @@ import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrow
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import type { IndexerLimitCancellation } from '@/types'
 
 /**
  * Limit place / cancel for the trade workspace (pair is chosen by parent).
@@ -74,6 +77,8 @@ export function TradeOrderTicket({
     enabled: pairAddr.startsWith('terra1'),
   })
 
+  const cancellationsQuery = usePairLimitCancellations(pairAddr)
+
   const pausedQuery = useQuery({
     queryKey: ['pairPaused', pairAddr],
     queryFn: () => getPairPaused(pairAddr),
@@ -122,6 +127,12 @@ export function TradeOrderTicket({
     if (!address || !placementsQuery.data) return []
     return placementsQuery.data.filter((r) => r.owner === address)
   }, [address, placementsQuery.data])
+
+  const parsedCancelOrderId = parseInt(cancelOrderId, 10)
+  const cancelIdIndexedAsCancelled =
+    Number.isFinite(parsedCancelOrderId) &&
+    parsedCancelOrderId >= 1 &&
+    orderIdHasIndexedCancellation(cancellationsQuery.data ?? [], parsedCancelOrderId)
 
   const placeMutation = useMutation({
     mutationFn: async () => {
@@ -185,13 +196,18 @@ export function TradeOrderTicket({
       if (!pairAddr.startsWith('terra1')) throw new Error('Select a pair')
       const id = parseInt(cancelOrderId, 10)
       if (!Number.isFinite(id) || id < 1) throw new Error('Invalid order id')
+      const cancels = queryClient.getQueryData<IndexerLimitCancellation[]>(['limitCancellations', pairAddr]) ?? []
+      if (orderIdHasIndexedCancellation(cancels, id)) {
+        throw new Error('This order has already been cancelled.')
+      }
       return cancelLimitOrder(address, pairAddr, id)
     },
     onSuccess: () => {
       sounds.playSuccess()
       setCancelOrderId('')
       setLastIndexedOrderId(null)
-      queryClient.invalidateQueries({ queryKey: ['limitCancellations'] })
+      queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
+      queryClient.invalidateQueries({ queryKey: ['limitCancellations', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
     },
     onError: () => sounds.playError(),
@@ -324,7 +340,9 @@ export function TradeOrderTicket({
         <button
           type="button"
           className="btn-primary btn-cta w-full !text-xs"
-          disabled={!isWalletConnected || cancelMutation.isPending || !pairAddr || isPaused}
+          disabled={
+            !isWalletConnected || cancelMutation.isPending || !pairAddr || isPaused || cancelIdIndexedAsCancelled
+          }
           onClick={() => {
             if (!isWalletConnected) openWalletModal()
             else cancelMutation.mutate()
@@ -332,6 +350,11 @@ export function TradeOrderTicket({
         >
           {!isWalletConnected ? 'Connect Wallet' : cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
         </button>
+        {cancelIdIndexedAsCancelled && (
+          <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
+            This order id already has an indexed cancellation.
+          </p>
+        )}
         {cancelMutation.isError && <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />}
         {cancelMutation.isSuccess && (
           <TxResultAlert type="success" message="Cancel submitted." txHash={cancelMutation.data} />
@@ -341,7 +364,7 @@ export function TradeOrderTicket({
       {pairAddr && address && (
         <div className="text-[10px] font-mono space-y-1 border-t border-white/10 pt-3 max-h-28 overflow-y-auto">
           <div className="uppercase tracking-wide font-semibold mb-1" style={{ color: 'var(--ink-dim)' }}>
-            Your placements
+            Your active placements
           </div>
           {placementsQuery.isLoading && <Spinner />}
           {!placementsQuery.isLoading &&

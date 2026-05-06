@@ -1,3 +1,10 @@
+//! Limit order **placement** and **cancellation** rows from wasm events.
+//!
+//! **Invariant (GitLab #135):** `list_placements_for_pair` omits any `(pair_id, order_id)` that
+//! appears in `limit_order_cancellations`, so HTTP `GET .../limit-placements` reflects orders that
+//! are still plausible to cancel from an indexer perspective (full history remains queryable via
+//! `.../limit-cancellations`).
+
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
@@ -96,8 +103,13 @@ pub async fn list_placements_for_pair(
     match before_id {
         Some(bid) => {
             sqlx::query_as::<_, PlacementRow>(
-                "SELECT * FROM limit_order_placements WHERE pair_id = $1 AND id < $3
-                 ORDER BY id DESC LIMIT $2",
+                "SELECT p.* FROM limit_order_placements p
+                 WHERE p.pair_id = $1 AND p.id < $3
+                   AND NOT EXISTS (
+                     SELECT 1 FROM limit_order_cancellations c
+                     WHERE c.pair_id = p.pair_id AND c.order_id = p.order_id
+                   )
+                 ORDER BY p.id DESC LIMIT $2",
             )
             .bind(pair_id)
             .bind(limit)
@@ -107,8 +119,13 @@ pub async fn list_placements_for_pair(
         }
         None => {
             sqlx::query_as::<_, PlacementRow>(
-                "SELECT * FROM limit_order_placements WHERE pair_id = $1
-                 ORDER BY id DESC LIMIT $2",
+                "SELECT p.* FROM limit_order_placements p
+                 WHERE p.pair_id = $1
+                   AND NOT EXISTS (
+                     SELECT 1 FROM limit_order_cancellations c
+                     WHERE c.pair_id = p.pair_id AND c.order_id = p.order_id
+                   )
+                 ORDER BY p.id DESC LIMIT $2",
             )
             .bind(pair_id)
             .bind(limit)

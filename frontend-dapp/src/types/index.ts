@@ -243,7 +243,7 @@ export interface IndexerLiquidityEvent {
   lp_amount: string
 }
 
-/** `GET /api/v1/pairs/{addr}/limit-placements` */
+/** `GET /api/v1/pairs/{addr}/limit-placements` — placements without a matching indexed cancel (same pair + order_id); see GitLab #135. */
 export interface IndexerLimitPlacement {
   id: number
   pair_address: string

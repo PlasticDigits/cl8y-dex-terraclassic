@@ -171,8 +171,8 @@ export async function executeTerraContract(
     const { txResponse } = await wallet.pollTx(txHash)
 
     if (txResponse.code !== 0) {
-      const errorMsg =
-        txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const errorMsg = tryHumanizeTerraTxMessage(raw) ?? raw
       throw new Error(`Transaction failed: ${errorMsg}`)
     }
 
@@ -223,8 +223,8 @@ export async function executeTerraContractMulti(
     const { txResponse } = await wallet.pollTx(txHash)
 
     if (txResponse.code !== 0) {
-      const errorMsg =
-        txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const errorMsg = tryHumanizeTerraTxMessage(raw) ?? raw
       throw new Error(`Transaction failed: ${errorMsg}`)
     }
 
@@ -241,9 +241,9 @@ function handleTransactionError(error: unknown): Error {
 
     if (
       errorMessage.includes('User rejected') ||
-      errorMessage.includes('rejected') ||
+      errorMessage.includes('user rejected') ||
       errorMessage.includes('User denied') ||
-      errorMessage.includes('user rejected')
+      errorMessage.includes('user denied')
     ) {
       return new Error('Transaction rejected by user')
     }
