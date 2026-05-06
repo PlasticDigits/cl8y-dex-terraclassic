@@ -3,7 +3,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
 import NetworkBadge from '@/components/wallet/NetworkBadge'
 import { ThemeSegmentedControl, type ThemeMode } from '@/components/common/ThemeSegmentedControl'
-import { MORE_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/components/common/navItems'
+import {
+  getHeaderMoreMenuItems,
+  HEADER_FULL_NAV_MIN_WIDTH_PX,
+  MORE_NAV_ITEMS,
+  PRIMARY_NAV_ITEMS,
+} from '@/components/common/navItems'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSyncMobileNavStack } from '@/hooks/useSyncMobileNavStack'
 import { sounds } from '@/lib/sounds'
 
@@ -18,6 +24,8 @@ export default function Layout() {
   const location = useLocation()
   const mobileNavRef = useRef<HTMLElement>(null)
   useSyncMobileNavStack(mobileNavRef)
+
+  const fullDesktopHeader = useMediaQuery(`(min-width: ${HEADER_FULL_NAV_MIN_WIDTH_PX}px)`)
 
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
@@ -50,7 +58,17 @@ export default function Layout() {
     setIsMobileMoreOpen(false)
   }, [location.pathname])
 
-  const isMoreRoute = useMemo(
+  const headerMoreMenuItems = useMemo(() => getHeaderMoreMenuItems(fullDesktopHeader), [fullDesktopHeader])
+
+  const isHeaderMoreRouteActive = useMemo(
+    () =>
+      headerMoreMenuItems.some((item) =>
+        item.end === false ? location.pathname.startsWith(item.path) : location.pathname === item.path
+      ),
+    [location.pathname, headerMoreMenuItems]
+  )
+
+  const isMobileMoreSheetRoute = useMemo(
     () =>
       MORE_NAV_ITEMS.some((item) =>
         item.end === false ? location.pathname.startsWith(item.path) : location.pathname === item.path
@@ -91,7 +109,7 @@ export default function Layout() {
           </NavLink>
 
           <nav className="app-desktop-nav" aria-label="Primary">
-            {PRIMARY_NAV_ITEMS.map((item) => (
+            {(fullDesktopHeader ? PRIMARY_NAV_ITEMS : PRIMARY_NAV_ITEMS.slice(0, 1)).map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -108,7 +126,7 @@ export default function Layout() {
             <div className="app-more-wrap">
               <button
                 type="button"
-                className={`app-more-trigger${isMoreRoute ? ' app-nav-link-active' : ''}`}
+                className={`app-more-trigger${isHeaderMoreRouteActive ? ' app-nav-link-active' : ''}`}
                 aria-haspopup="menu"
                 aria-expanded={isMoreMenuOpen}
                 onClick={() => {
@@ -124,7 +142,7 @@ export default function Layout() {
 
               {isMoreMenuOpen && (
                 <div role="menu" className="app-menu">
-                  {MORE_NAV_ITEMS.map((item) => (
+                  {headerMoreMenuItems.map((item) => (
                     <NavLink
                       key={item.path}
                       to={item.path}
@@ -188,7 +206,7 @@ export default function Layout() {
         ))}
         <button
           type="button"
-          className={`app-mobile-more${isMoreRoute ? ' app-mobile-more-active' : ''}`}
+          className={`app-mobile-more${isMobileMoreSheetRoute ? ' app-mobile-more-active' : ''}`}
           aria-haspopup="menu"
           aria-expanded={isMobileMoreOpen}
           onClick={() => {

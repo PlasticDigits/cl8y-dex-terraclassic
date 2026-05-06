@@ -103,6 +103,8 @@ npx playwright test --ui      # interactive UI
 
 Config: `playwright.config.ts`
 
+**Header / tablet compact nav:** `e2e/navigation.spec.ts` asserts no horizontal overlap for the **Swap + More** row at 773×743 and other tablet widths, and the full primary row at 1280px. Invariants: [docs/frontend.md § Responsive shell & header navigation](./frontend.md#responsive-header-navigation) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
+
 **Local stack for strict on-chain tests (default CI path):**
 
 1. `docker compose up -d localterra`

@@ -19,3 +19,7 @@ Use when changing **Vite build output**, **source maps**, or reviewing PRs that 
 ## Related (local dev only)
 
 - **Indexer CORS vs Vite hostname** affects browser `fetch` to `VITE_INDEXER_URL` (e.g. limit-order cancel-ID polling). Not a production-build concern, but agents touching env templates should know: [GitLab **#131**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131), [`docs/frontend.md` § Local dev indexer CORS](../docs/frontend.md#local-dev-indexer-cors), [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md).
+
+## Related (layout / navigation)
+
+- **Header breakpoints & tablet More overflow:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
