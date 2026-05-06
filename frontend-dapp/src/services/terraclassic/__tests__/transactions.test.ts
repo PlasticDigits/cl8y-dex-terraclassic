@@ -33,7 +33,11 @@ vi.mock('@goblinhunt/cosmes/protobufs', () => ({
 }))
 
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { executeTerraContract, executeTerraContractMulti } from '../transactions'
+import {
+  executeTerraContract,
+  executeTerraContractMulti,
+  estimateLimitOrderPlaceSequenceUlunaFeesTotal,
+} from '../transactions'
 
 const mockedGetWallet = vi.mocked(getConnectedWallet)
 
@@ -330,6 +334,14 @@ describe('gas limit selection (tested indirectly)', () => {
       },
     })
     expect(fee.gasLimit).toBe(BigInt(2400000))
+  })
+})
+
+describe('estimateLimitOrderPlaceSequenceUlunaFeesTotal', () => {
+  it('sums fee uluna for increase_allowance + place_limit_order gas limits at effective gas price', () => {
+    const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal()
+    // 200k × 28.325 + 950k × 28.325 = 32_573_750 uluna (GitLab #132 repro ballpark)
+    expect(total).toBe(32_573_750n)
   })
 })
 

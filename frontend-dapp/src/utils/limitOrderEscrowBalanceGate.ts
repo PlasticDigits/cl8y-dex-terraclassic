@@ -32,6 +32,8 @@ export type LimitOrderEscrowPlaceGateResult = {
  * **Invariants**
  *
  * 1. **No on-chain txs** unless `canPlaceLimit` is true (callers should also disable the button).
+ *    For CW20 limit placement, combine with the native LUNC gate from [GitLab #132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132)
+ *    (`limitOrderNativeGasBalanceGate.ts`).
  * 2. **BigInt compare** on raw micro-units — same basis as `toRawAmount` / `increase_allowance` amount.
  * 3. While balance is **loading** or **unreadable**, the gate is closed (conservative — avoids the
  *    “allowance succeeds, `transfer_from` fails” gas burn from [GitLab #130](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/130)).
