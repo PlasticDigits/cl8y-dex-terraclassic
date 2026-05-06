@@ -11,6 +11,7 @@ Spec and acceptance criteria: [GitLab #119](https://gitlab.com/PlasticDigits/cl8
 3. **Infra:** `docker compose ps -q localterra` must return a container ID; funding uses `docker exec … terrad` like `scripts/deploy-dex-local.sh` / `scripts/e2e-provision-dev-wallet.sh`.
 4. **No committed secrets:** Bot keys are **not** stored in git. Default: generate a fresh 12-word mnemonic at startup and print it **once** on stderr (set `SWARM_BOT_MNEMONIC` to reproduce the same five addresses via indices `0…4`). This differs from the public `TEST_MNEMONIC` in `docker/init-chain.sh`, which is a **dev-only** test vector for the simulated wallet / Playwright (see `docs/frontend.md`, GitLab #118).
 5. **CW20 funding:** Every CW20 that appears in **any** factory pair is enumerated (paginated `pairs` query) and bots receive idempotent `Mint` top-ups when below a floor — same pattern as `scripts/e2e-provision-dev-wallet.sh`, not only the “primary” `VITE_*` token trio.
+6. **Router swap `Fee.gas`:** `src/gas.ts` mirrors the dApp’s `execute_swap_operations` formula (same `SWAP_GAS_BUFFER` as [`frontend-dapp/src/utils/constants.ts`](../frontend-dapp/src/utils/constants.ts); [GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)). Change both together.
 
 ## Liquidity / sizing invariants (bots vs `deploy-dex-local.sh`)
 
