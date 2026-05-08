@@ -83,7 +83,11 @@ describe('executeTerraContract', () => {
       txResponse: { code: 5, rawLog: 'out of gas', logs: [] },
     })
 
-    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow('out of gas')
+    // 'out of gas' rawLog is now humanized via tryHumanizeTerraTxMessage (GitLab #134).
+    // Assertion updated from raw 'out of gas' to the humanized retail copy.
+    await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow(
+      'Transaction needed more gas than estimated'
+    )
   })
 
   it('humanizes max spread assertion errors from chain logs', async () => {

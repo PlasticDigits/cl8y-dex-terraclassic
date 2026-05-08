@@ -31,5 +31,35 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
       'Try a smaller amount, pick a deeper pool route, or raise slippage tolerance in Settings (higher slippage increases execution risk).'
     )
   }
+  if (/assert_not_paused|contract is paused/i.test(inner)) {
+    return (
+      'This pool is currently paused by the operator. Try again later or pick a different pair.'
+    )
+  }
+  if (/\bUnauthorized\b/i.test(inner)) {
+    return (
+      'You do not have permission for this action.'
+    )
+  }
+  if (/insufficient funds/i.test(inner)) {
+    return (
+      'Insufficient LUNC for transaction fees. Top up your wallet and try again.'
+    )
+  }
+  if (/out of gas/i.test(inner)) {
+    return (
+      'Transaction needed more gas than estimated. Try again — gas usage can vary slightly between blocks.'
+    )
+  }
+  if (/assert_deadline|deadline exceeded/i.test(inner)) {
+    return (
+      'Transaction took too long to confirm and the deadline was reached. Try again.'
+    )
+  }
+  if (/InvariantViolation/i.test(inner)) {
+    return (
+      'Pool state inconsistency detected. Refresh the page and try again. If this keeps happening, the pool may need operator attention.'
+    )
+  }
   return null
 }
