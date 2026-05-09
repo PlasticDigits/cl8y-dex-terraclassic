@@ -1,23 +1,31 @@
 # Agent playbook: Price (USD) chart (lightweight-charts)
 
-Use when changing **`PriceChart`**, **`PriceChartLightweightCanvas`**, candle mapping in **`priceChartCandles.ts`**, **price-scale / Y-axis** behavior, or Vitest coverage under **`frontend-dapp/src/components/charts/`**.
+Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, **`PriceChartOverlayMenu.tsx`**, **`chartHeadlinePrice.ts`**, **`priceChartCandles.ts`**, **`priceChartIndicators.ts`**, **`priceChartPriceScale.ts`**, candle mapping or **USD Y-axis** behavior, Vitest stubs in **`lightweightChartsJsdomMock.ts`**, or tests/docs tied to GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#149**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149), [**#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151).
 
 ## Canonical references
 
 | Doc / code | Purpose |
 |------------|---------|
-| [docs/frontend.md § Trade page — price chart invariants](../docs/frontend.md#trade-page-price-chart-invariants) | Empty-state rules, lightweight-charts vs hosted TradingView, **USD Y-axis invariants** ([GitLab **#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)) |
-| `frontend-dapp/src/components/charts/priceChartPriceScale.ts` | Pure helpers: visible-range min `low`, clamp autoscale so the price pane never scales below **0** or below the **lowest visible candle** |
-| `frontend-dapp/src/components/charts/PriceChartLightweightCanvas.tsx` | `autoscaleInfoProvider` on the candlestick series |
+| [docs/frontend.md § Trade page — price chart invariants](../docs/frontend.md#trade-page-price-chart-invariants) | Empty-state rules, volume quote/base fallback, indicators, fullscreen, **USD Y-axis invariants** |
+| `frontend-dapp/src/components/charts/chartHeadlinePrice.ts` | **Last** headline: tape USD vs last candle close ([#149](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149)) |
+| `frontend-dapp/src/components/charts/priceChartPriceScale.ts` | Pure helpers: visible-range min `low`, clamp autoscale so the price pane never scales below **0** or below the **lowest visible candle** ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)) |
+| `frontend-dapp/src/components/charts/PriceChartLightweightCanvas.tsx` | Multi-pane lightweight-charts: `autoscaleInfoProvider` on candles; optional MA lines (pane 0); volume histogram (pane 1); RSI (pane 2) |
+| `frontend-dapp/src/components/charts/priceChartIndicators.ts` | Pure SMA / RSI math |
 | `frontend-dapp/src/components/charts/__tests__/priceChartPriceScale.test.ts` | Regression tests for scale clamp |
+| `frontend-dapp/src/test/lightweightChartsJsdomMock.ts` | Vitest double for `createChart` / series APIs |
 
 ## Invariants (summary)
 
-1. **Non-negative USD scale:** The right price scale for the candlestick pane must not show labels **below zero** when autoscaling ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)).
-2. **Respect visible lows:** After default autoscale runs, raise `priceRange.minValue` to at least `max(0, min(low) over logically visible bars)` so padding does not invent “negative price” dead space below the candles.
-3. **Volume pane** uses a separate pane/series; this playbook applies to the **USD OHLC** series only.
+1. **Naming:** Use **TradingView lightweight-charts** or **lightweight-charts** — not the hosted **TradingView Widget** product ([docs/frontend.md](../docs/frontend.md)).
+2. **Non-negative USD scale:** The candlestick pane’s right price scale must not show autoscale **below zero** or invent dead space **below the lowest visible candle low** ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)).
+3. **Volume bars:** Histogram uses **quote** volume first; if `volume_quote` is zero, **base** volume is used so local indexers still draw bars ([#150](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150)).
+4. **Indicators:** MA / RSI toggles **recreate** the chart (`useEffect` deps on overlay flags) — expect zoom reset ([#150](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150)).
+5. **Fullscreen:** Uses **`requestFullscreen`** on the chart card root; listen for **`fullscreenchange`** for aria / button label.
+6. **Headline price:** **Last** beside the title prefers indexer tape USD (`tapeLastPriceUsd` prop), else last candle close ([#149](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149)).
+7. **Tests:** Extend **`lightweightChartsJsdomMock`** when adding series APIs (`createPriceLine`, `priceScale`, etc.). Prefer **`data-testid`** over canvas assertions in Vitest.
 
 ## Related
 
-- Trade grid / responsive layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
+- Trade page grid / breakpoints: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Local indexer + wallet QA: [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md), [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
+- QA / Playwright workers: [`.cursor/rules/playwright-workers.mdc`](../.cursor/rules/playwright-workers.mdc)

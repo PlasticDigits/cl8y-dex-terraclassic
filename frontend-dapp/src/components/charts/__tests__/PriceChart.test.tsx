@@ -51,6 +51,7 @@ const emptyStats = {
 
 describe('PriceChart', () => {
   beforeEach(() => {
+    lwChartTestDouble.reset()
     vi.mocked(indexerClient.getCandles).mockReset()
     vi.mocked(indexerClient.getCandles).mockResolvedValue([candle()])
     vi.mocked(indexerClient.getPairStats).mockReset()
@@ -71,6 +72,14 @@ describe('PriceChart', () => {
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toBeInTheDocument())
     expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(2.5, 6))
+  })
+
+  it('renders chart toolbar with indicators menu and fullscreen control', async () => {
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument())
+    expect(screen.getByTestId('price-chart-indicators-trigger')).toBeInTheDocument()
+    expect(screen.getByTestId('price-chart-fullscreen')).toBeInTheDocument()
+    expect(screen.getByText(/volume \(quote, else base\)/i)).toBeInTheDocument()
   })
 
   it('shows loading then renders chart chrome when data resolves', async () => {

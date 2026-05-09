@@ -31,7 +31,10 @@ export function indexerCandlesToChartPoints(data: IndexerCandle[] | undefined): 
   }))
 }
 
-/** Quote-side volume per candle, colored by bar direction (same times as OHLC series). */
+/**
+ * Quote-side volume per candle, colored by bar direction (same times as OHLC series).
+ * Uses **quote** volume when non-zero; otherwise **base** volume so local / thin markets still show bars.
+ */
 export function indexerCandlesToVolumeHistogramPoints(
   data: IndexerCandle[] | undefined,
   upColor: string,
@@ -40,9 +43,12 @@ export function indexerCandlesToVolumeHistogramPoints(
   return sortedValidCandles(data).map((c) => {
     const open = parseFloat(c.open)
     const close = parseFloat(c.close)
+    const vq = Math.max(0, parseFloat(c.volume_quote) || 0)
+    const vb = Math.max(0, parseFloat(c.volume_base) || 0)
+    const value = vq > 0 ? vq : vb
     return {
       time: Math.floor(new Date(c.open_time).getTime() / 1000) as Time,
-      value: Math.max(0, parseFloat(c.volume_quote) || 0),
+      value,
       color: close >= open ? upColor : downColor,
     }
   })

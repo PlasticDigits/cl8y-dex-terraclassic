@@ -84,6 +84,7 @@ describe('TradePage', () => {
     vi.mocked(indexerClient.getPair).mockResolvedValue(mockIndexerPair)
     vi.mocked(indexerClient.getTrades).mockResolvedValue([])
     vi.mocked(indexerClient.getPairLimitBookPage).mockResolvedValue({
+      side: 'bid',
       orders: [],
       has_more: false,
       next_after_order_id: null,

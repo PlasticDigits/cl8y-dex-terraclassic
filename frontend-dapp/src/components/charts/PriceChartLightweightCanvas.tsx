@@ -1,29 +1,57 @@
 import { useEffect, useRef } from 'react'
-import { CandlestickSeries, HistogramSeries } from 'lightweight-charts'
 import type { HistogramData, IChartApi, ISeriesApi, Time } from 'lightweight-charts'
 import type { ChartCandlePoint } from './priceChartCandles'
+import type { IndicatorLinePoint } from './priceChartIndicators'
+import { rsiPaneHeightPx, volumePaneHeightPx } from './priceChartPaneHeights'
 import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from './priceChartPriceScale'
 
-/** Short fixed strip at the bottom of the chart (px); scales slightly with chart height. */
-function volumePaneHeightPx(totalChartHeight: number): number {
-  return Math.min(52, Math.max(32, Math.round(totalChartHeight * 0.042)))
-}
-
-interface PriceChartLightweightCanvasProps {
+export interface PriceChartLightweightCanvasProps {
   candlePoints: ChartCandlePoint[]
   volumePoints: HistogramData<Time>[]
+  sma7Points: IndicatorLinePoint[]
+  sma25Points: IndicatorLinePoint[]
+  rsiPoints: IndicatorLinePoint[]
+  showSma7: boolean
+  showSma25: boolean
+  showRsi: boolean
 }
 
-/** Mounts TradingView lightweight-charts only when there is at least one valid OHLC point. */
-export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: PriceChartLightweightCanvasProps) {
+/** TradingView lightweight-charts (open-source); not the hosted TradingView widget product. */
+export function PriceChartLightweightCanvas({
+  candlePoints,
+  volumePoints,
+  sma7Points,
+  sma25Points,
+  rsiPoints,
+  showSma7,
+  showSma25,
+  showRsi,
+}: PriceChartLightweightCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const sma7SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const sma25SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
+  const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+
   const candlePointsRef = useRef(candlePoints)
   const volumePointsRef = useRef(volumePoints)
+  const sma7PointsRef = useRef(sma7Points)
+  const sma25PointsRef = useRef(sma25Points)
+  const rsiPointsRef = useRef(rsiPoints)
+  const showSma7Ref = useRef(showSma7)
+  const showSma25Ref = useRef(showSma25)
+  const showRsiRef = useRef(showRsi)
+
   candlePointsRef.current = candlePoints
   volumePointsRef.current = volumePoints
+  sma7PointsRef.current = sma7Points
+  sma25PointsRef.current = sma25Points
+  rsiPointsRef.current = rsiPoints
+  showSma7Ref.current = showSma7
+  showSma25Ref.current = showSma25
+  showRsiRef.current = showRsi
 
   useEffect(() => {
     let chart: IChartApi | null = null
@@ -33,6 +61,8 @@ export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: Pric
       if (!containerRef.current) return
 
       const lc = await import('lightweight-charts')
+      if (!containerRef.current) return
+      const { CandlestickSeries, HistogramSeries, LineSeries } = lc
       const h = Math.max(320, containerRef.current.clientHeight)
       chart = lc.createChart(containerRef.current, {
         layout: {
@@ -68,7 +98,7 @@ export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: Pric
       const negative =
         getComputedStyle(document.documentElement).getPropertyValue('--color-negative').trim() || '#ef4444'
 
-      seriesRef.current = chart.addSeries(
+      candleSeriesRef.current = chart.addSeries(
         CandlestickSeries,
         {
           upColor: positive,
@@ -86,10 +116,42 @@ export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: Pric
         },
         0
       )
-      seriesRef.current.setData(candlePointsRef.current)
+      candleSeriesRef.current.setData(candlePointsRef.current)
 
-      const volumePane = chart.addPane()
-      volumePane.setHeight(volumePaneHeightPx(h))
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--focus-ring').trim() || '#38bdf8'
+
+      if (showSma7Ref.current) {
+        sma7SeriesRef.current = chart.addSeries(
+          LineSeries,
+          {
+            color: '#38bdf8',
+            lineWidth: 2,
+            title: 'MA 7',
+            priceLineVisible: false,
+            lastValueVisible: true,
+          },
+          0
+        )
+        sma7SeriesRef.current.setData(sma7PointsRef.current)
+      }
+
+      if (showSma25Ref.current) {
+        sma25SeriesRef.current = chart.addSeries(
+          LineSeries,
+          {
+            color: '#fbbf24',
+            lineWidth: 2,
+            title: 'MA 25',
+            priceLineVisible: false,
+            lastValueVisible: true,
+          },
+          0
+        )
+        sma25SeriesRef.current.setData(sma25PointsRef.current)
+      }
+
+      chart.addPane()
+      chart.panes()[1]?.setHeight(volumePaneHeightPx(h))
 
       volumeSeriesRef.current = chart.addSeries(
         HistogramSeries,
@@ -104,6 +166,43 @@ export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: Pric
       )
       volumeSeriesRef.current.setData(volumePointsRef.current)
 
+      if (showRsiRef.current) {
+        chart.addPane()
+        chart.panes()[2]?.setHeight(rsiPaneHeightPx(h))
+
+        rsiSeriesRef.current = chart.addSeries(
+          LineSeries,
+          {
+            color: accent || '#a78bfa',
+            lineWidth: 2,
+            title: 'RSI 14',
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceFormat: { type: 'price', precision: 1, minMove: 0.1 },
+          },
+          2
+        )
+        rsiSeriesRef.current.setData(rsiPointsRef.current)
+        rsiSeriesRef.current.priceScale().setAutoScale(false)
+        rsiSeriesRef.current.priceScale().setVisibleRange({ from: 0, to: 100 })
+        rsiSeriesRef.current.createPriceLine({
+          price: 70,
+          color: 'rgba(248, 113, 113, 0.55)',
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: '70',
+        })
+        rsiSeriesRef.current.createPriceLine({
+          price: 30,
+          color: 'rgba(74, 222, 128, 0.55)',
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: '30',
+        })
+      }
+
       chart.timeScale().fitContent()
 
       chartRef.current = chart
@@ -116,6 +215,9 @@ export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: Pric
           height: nextH,
         })
         chart.panes()[1]?.setHeight(volumePaneHeightPx(nextH))
+        if (showRsiRef.current) {
+          chart.panes()[2]?.setHeight(rsiPaneHeightPx(nextH))
+        }
       }
 
       const resizeObserver = new ResizeObserver(() => applySize())
@@ -127,26 +229,32 @@ export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: Pric
 
     return () => {
       cleanupResize?.()
+      candleSeriesRef.current = null
+      sma7SeriesRef.current = null
+      sma25SeriesRef.current = null
+      volumeSeriesRef.current = null
+      rsiSeriesRef.current = null
       if (chart) {
         chart.remove()
         chartRef.current = null
-        seriesRef.current = null
-        volumeSeriesRef.current = null
       }
     }
-  }, [])
+  }, [showSma7, showSma25, showRsi])
 
   useEffect(() => {
-    if (!seriesRef.current || !volumeSeriesRef.current) return
-    seriesRef.current.setData(candlePoints)
+    if (!candleSeriesRef.current || !volumeSeriesRef.current) return
+    candleSeriesRef.current.setData(candlePoints)
     volumeSeriesRef.current.setData(volumePoints)
+    if (sma7SeriesRef.current) sma7SeriesRef.current.setData(sma7Points)
+    if (sma25SeriesRef.current) sma25SeriesRef.current.setData(sma25Points)
+    if (rsiSeriesRef.current) rsiSeriesRef.current.setData(rsiPoints)
     chartRef.current?.timeScale().fitContent()
-  }, [candlePoints, volumePoints])
+  }, [candlePoints, volumePoints, sma7Points, sma25Points, rsiPoints])
 
   return (
     <div
       ref={containerRef}
-      className="w-full min-h-[min(52vh,560px)] h-[min(52vh,560px)]"
+      className="w-full h-full min-h-[320px]"
       data-testid="price-chart-lightweight-canvas"
       aria-hidden
     />
