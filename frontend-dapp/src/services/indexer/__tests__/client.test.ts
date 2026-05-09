@@ -132,6 +132,14 @@ describe('indexer client fetchJson', () => {
     expect(vi.mocked(fetch).mock.calls[4][0]).toContain(`/api/v1/pairs/${pair}/limit-orders/42/fills?limit=20`)
   })
 
+  it('adds status query param to limit-placements when provided', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+    const client = await loadModule()
+    const pair = 'terra1pair000000000000000000000000000000'
+    await client.getPairLimitPlacements(pair, { status: 'parked_expired', limit: 20 })
+    expect(vi.mocked(fetch).mock.calls[0][0]).toContain(`${pair}/limit-placements?limit=20&status=parked_expired`)
+  })
+
   it('builds paginated limit-book URL', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(

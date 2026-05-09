@@ -143,6 +143,11 @@ export interface GetPairSubresourceParams {
   before?: number
 }
 
+/** Query params for {@link getPairLimitPlacements} (`?status=` matches indexer — GitLab #142). */
+export interface GetPairLimitPlacementsParams extends GetPairSubresourceParams {
+  status?: string
+}
+
 /** Add/remove liquidity history for a pair. */
 export async function getPairLiquidityEvents(
   pairAddr: string,
@@ -177,14 +182,15 @@ export async function getPairOrderLimitFills(
   return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${pairAddr}/limit-orders/${orderId}/fills?${sp}`)
 }
 
-/** Indexed `place_limit_order` events excluding rows with an indexed `cancel_limit_order` for the same pair + `order_id` (GitLab #135). */
+/** Indexed `place_limit_order` events excluding rows with an indexed `cancel_limit_order` for the same pair + `order_id` (GitLab #135). Default **`active` + `parked_expired`** (GitLab #142). */
 export async function getPairLimitPlacements(
   pairAddr: string,
-  params?: GetPairSubresourceParams
+  params?: GetPairLimitPlacementsParams
 ): Promise<IndexerLimitPlacement[]> {
   const sp = new URLSearchParams()
   if (params?.limit != null) sp.set('limit', String(params.limit))
   if (params?.before != null) sp.set('before', String(params.before))
+  if (params?.status != null && params.status.trim() !== '') sp.set('status', params.status.trim())
   const qs = sp.toString()
   return fetchJson<IndexerLimitPlacement[]>(`/api/v1/pairs/${pairAddr}/limit-placements${qs ? `?${qs}` : ''}`)
 }

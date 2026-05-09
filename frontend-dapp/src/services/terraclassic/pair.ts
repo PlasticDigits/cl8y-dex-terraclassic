@@ -149,6 +149,17 @@ export async function cancelLimitOrder(walletAddress: string, pairAddress: strin
   })
 }
 
+/** Owner-only refund after indexer `lifecycle_status: parked_expired` (pair `ClaimExpiredLimitOrder`). Allowed while pair is paused (L6). */
+export async function claimExpiredLimitOrder(
+  walletAddress: string,
+  pairAddress: string,
+  orderId: number
+): Promise<string> {
+  return executeTerraContract(walletAddress, pairAddress, {
+    claim_expired_limit_order: { order_id: orderId },
+  })
+}
+
 export async function provideLiquidity(
   walletAddress: string,
   pairAddress: string,
