@@ -61,6 +61,7 @@ export function PriceChartLightweightCanvas({
       if (!containerRef.current) return
 
       const lc = await import('lightweight-charts')
+      if (!containerRef.current) return
       const { CandlestickSeries, HistogramSeries, LineSeries } = lc
       const h = Math.max(320, containerRef.current.clientHeight)
       chart = lc.createChart(containerRef.current, {
