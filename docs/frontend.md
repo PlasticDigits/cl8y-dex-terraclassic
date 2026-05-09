@@ -195,7 +195,7 @@ Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.
 
 **Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
 
-### Trade page — price chart invariants
+### Trade page — price chart invariants {#trade-page-price-chart-invariants}
 
 The **price chart** on `/trade` and `/charts` is rendered with **TradingView [lightweight-charts](https://github.com/tradingview/lightweight-charts)** (open-source canvas charting). It is **not** the hosted TradingView terminal/widget product—naming in code review and issues should keep that distinction clear.
 
@@ -206,8 +206,11 @@ The **price chart** on `/trade` and `/charts` is rendered with **TradingView [li
 | Loading vs empty | While React Query is loading, show the chart loading row; empty state applies only when the request **succeeded** and there are zero valid points. |
 | Reference line | When the chart is empty, an optional **24h close** from `getPairStats` (`close_price`) may display; query is enabled only for that state so normal pairs are not blocked. |
 | Accessibility | The empty panel uses `role="img"` and a descriptive `aria-label` so screen readers do not see a silent canvas. |
+| **USD price scale (Y-axis)** | Spot **Price (USD)** is non-negative. The candlestick pane’s autoscale **must not** extend the right price scale below **zero** or below the **lowest visible candle `low`** (whichever is higher). Implemented via `autoscaleInfoProvider` + [`priceChartPriceScale.ts`](../frontend-dapp/src/components/charts/priceChartPriceScale.ts) ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
 
-Implementation: [`frontend-dapp/src/components/charts/PriceChart.tsx`](../frontend-dapp/src/components/charts/PriceChart.tsx), [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts) (pure mapping). Tracked in GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113).
+Implementation: [`frontend-dapp/src/components/charts/PriceChart.tsx`](../frontend-dapp/src/components/charts/PriceChart.tsx), [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts) (pure mapping), [`PriceChartLightweightCanvas.tsx`](../frontend-dapp/src/components/charts/PriceChartLightweightCanvas.tsx) (lightweight-charts mount). Introduced in GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113); Y-axis clamp in [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md).
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 

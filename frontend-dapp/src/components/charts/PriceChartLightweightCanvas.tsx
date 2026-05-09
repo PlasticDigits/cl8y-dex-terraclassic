@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { CandlestickSeries, HistogramSeries } from 'lightweight-charts'
 import type { HistogramData, IChartApi, ISeriesApi, Time } from 'lightweight-charts'
 import type { ChartCandlePoint } from './priceChartCandles'
+import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from './priceChartPriceScale'
 
 /** Short fixed strip at the bottom of the chart (px); scales slightly with chart height. */
 function volumePaneHeightPx(totalChartHeight: number): number {
@@ -76,6 +77,12 @@ export function PriceChartLightweightCanvas({ candlePoints, volumePoints }: Pric
           borderUpColor: positive,
           wickDownColor: negative,
           wickUpColor: positive,
+          autoscaleInfoProvider: (original) => {
+            const raw = original()
+            const logical = chart!.timeScale().getVisibleLogicalRange()
+            const visibleMinLow = minLowInVisibleLogicalRange(candlePointsRef.current, logical)
+            return clampUsdPriceChartAutoscale(raw, visibleMinLow)
+          },
         },
         0
       )
