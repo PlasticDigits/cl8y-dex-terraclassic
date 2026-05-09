@@ -4,6 +4,35 @@ import { Component, Suspense, lazy } from 'react'
 import type { ReactNode, ErrorInfo } from 'react'
 import Layout from './components/common/Layout'
 import { Spinner } from './components/ui'
+import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
+
+function errorBoundaryFriendlyCopy(error: Error | null): ReactNode {
+  const rawMsg = error?.message?.trim() ?? ''
+  const friendly = rawMsg ? humanizeUserFacingError(rawMsg) : 'An unexpected error occurred'
+  return (
+    <>
+      <p className="text-sm mb-6" style={{ color: 'var(--ink-dim)' }}>
+        {friendly}
+      </p>
+      {rawMsg ? (
+        <details className="mb-6 text-left text-xs max-w-full" style={{ color: 'var(--ink-subtle)' }}>
+          <summary
+            className="cursor-pointer select-none uppercase tracking-wide font-medium mb-2 list-none [&::-webkit-details-marker]:hidden"
+            style={{ color: 'var(--ink-dim)' }}
+          >
+            Technical details
+          </summary>
+          <pre
+            className="whitespace-pre-wrap break-words font-mono text-[11px] p-2 rounded max-h-40 overflow-auto shell-panel"
+            style={{ color: 'var(--ink)' }}
+          >
+            {rawMsg}
+          </pre>
+        </details>
+      ) : null}
+    </>
+  )
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -91,9 +120,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               >
                 Something went wrong
               </h2>
-              <p className="text-sm mb-6" style={{ color: 'var(--ink-dim)' }}>
-                {this.state.error?.message || 'An unexpected error occurred'}
-              </p>
+              {errorBoundaryFriendlyCopy(this.state.error)}
               <button onClick={() => this.setState({ hasError: false, error: null })} className="btn-primary btn-cta">
                 Try Again
               </button>
@@ -110,9 +137,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             >
               Something went wrong
             </h2>
-            <p className="text-sm mb-6" style={{ color: 'var(--ink-dim)' }}>
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
+            {errorBoundaryFriendlyCopy(this.state.error)}
             <button
               onClick={() => {
                 this.setState({ hasError: false, error: null })

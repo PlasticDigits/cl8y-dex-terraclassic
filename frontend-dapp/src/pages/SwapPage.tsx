@@ -38,6 +38,7 @@ import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/ut
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
+import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
@@ -161,7 +162,9 @@ export default function SwapPage() {
     setIndexerRouteResult(null)
     if (!fromToken.startsWith('terra1') || !toToken.startsWith('terra1')) {
       setIndexerRouteError(
-        'Indexer route solver only accepts CW20 contract addresses in the asset table. Native-only denoms are not routable via this endpoint.'
+        humanizeUserFacingError(
+          'Indexer route solver only accepts CW20 contract addresses in the asset table. Native-only denoms are not routable via this endpoint.'
+        )
       )
       return
     }
@@ -170,7 +173,7 @@ export default function SwapPage() {
       const res = await getRouteSolve(fromToken, toToken)
       setIndexerRouteResult(res)
     } catch (e) {
-      setIndexerRouteError(e instanceof Error ? e.message : String(e))
+      setIndexerRouteError(humanizeUserFacingErrorFromUnknown(e))
     } finally {
       setIndexerRouteLoading(false)
     }

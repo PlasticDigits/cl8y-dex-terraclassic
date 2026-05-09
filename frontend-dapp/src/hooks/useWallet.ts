@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { connectTerraWallet, disconnectTerraWallet, registerConnectedWallet } from '@/services/terraclassic/wallet'
 import { createDevTerraWallet } from '@/services/terraclassic/devWallet'
 import { DEV_MODE } from '@/utils/constants'
+import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 
 const WALLET_STORAGE_KEY = 'cl8y_wallet_connection'
@@ -42,7 +43,8 @@ export const useWalletStore = create<WalletState>((set) => ({
       }
       set({ address: result.address, walletType: result.walletType, isConnecting: false, walletModalOpen: false })
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Connection failed', isConnecting: false })
+      const raw = err instanceof Error ? err.message : 'Connection failed'
+      set({ error: humanizeUserFacingError(raw), isConnecting: false })
       throw err
     }
   },

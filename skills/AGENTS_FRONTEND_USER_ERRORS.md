@@ -1,0 +1,25 @@
+# Agent playbook: retail error humanization (frontend)
+
+Use when surfacing **wallet**, **fetch/indexer**, or **mutation** failures in the React dApp, or when reviewing UX that currently prints **`error.message`** verbatim ([GitLab **#145**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).
+
+## Canonical references
+
+| Doc / code | Purpose |
+|------------|---------|
+| [docs/frontend.md § User-facing errors](../docs/frontend.md#user-facing-errors-humanization) | Invariant table, component funnel |
+| [`frontend-dapp/src/utils/humanizeUserFacingError.ts`](../frontend-dapp/src/utils/humanizeUserFacingError.ts) | **`humanizeUserFacingError`**, **`humanizeUserFacingErrorFromUnknown`**, **`getErrorMessage`** |
+| [`frontend-dapp/src/utils/humanizeOffChainError.ts`](../frontend-dapp/src/utils/humanizeOffChainError.ts) | Wallet / transport try-match helpers + **`sanitizeOpaqueErrorMessage`** |
+| [`frontend-dapp/src/utils/humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) | On-chain / LCD patterns ([GitLab **#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)) |
+| [`frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts`](../frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts) | Regression strings |
+
+## Rules of thumb
+
+1. **Prefer the funnel** — apply **`humanizeUserFacingError`** (string) or **`humanizeUserFacingErrorFromUnknown`** (`unknown`) before rendering inline alerts that are not already covered by **`RetryError`** or **`TxResultAlert`**.
+2. **`RetryError`** and **`TxResultAlert` (`error`)** already humanize — pass **raw** `Error.message` / `getErrorMessage(query.error)`; do not pre-humanize unless you need a different prefix strategy.
+3. **Wallet modal** — `useWalletStore.connect` stores **humanized** text in **`error`**; keep **`console.error`** in wallet services if you need the raw trace.
+4. **New patterns** — add try-match branches to **`humanizeOffChainError.ts`** (off-chain) or **`humanizeTerraTxError.ts`** (chain), then extend **`humanizeUserFacingError.test.ts`**.
+
+## Related
+
+- **Contract-side copy / max spread:** [GitLab **#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md).
+- **Connect modal raw errors (same surface):** [GitLab **#139**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139).

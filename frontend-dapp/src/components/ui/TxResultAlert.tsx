@@ -1,4 +1,5 @@
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
+import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
 
 export interface TxResultAlertProps {
   type: 'success' | 'error'
@@ -10,10 +11,11 @@ export function TxResultAlert({ type, message, txHash }: TxResultAlertProps) {
   const baseClass = type === 'success' ? 'alert-success' : 'alert-error'
   const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
   const txLabel = txHash ? shortenTxHashForDisplay(txHash) : ''
+  const displayMessage = type === 'error' ? humanizeUserFacingError(message) : message
 
   return (
     <div className={`${baseClass} min-w-0 max-w-full break-words`}>
-      {message}
+      {displayMessage}
       {type === 'success' && txHash != null && (
         <>
           {' '}

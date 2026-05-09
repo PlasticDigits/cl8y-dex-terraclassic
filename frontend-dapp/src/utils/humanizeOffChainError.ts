@@ -1,0 +1,81 @@
+/**
+ * Classifiers for wallet extensions, fetch/indexer transport, and other off-chain errors.
+ * Contract / LCD copy stays in `humanizeTerraTxError.ts` ([GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)).
+ * Surfaces covered here: [GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145).
+ */
+
+function norm(s: string): string {
+  return s.trim()
+}
+
+/** Wallet extension / WalletConnect — match substrings so prefixed SDK messages still classify. */
+export function tryHumanizeWalletLikeMessage(message: string): string | null {
+  const m = norm(message)
+  if (!m) return null
+
+  if (/walletconnect succeeded but/i.test(m)) {
+    return 'WalletConnect finished connecting, but the wallet session did not complete. Close this and try again, or choose another wallet.'
+  }
+
+  if (/user rejected|rejected the request|request rejected|signing rejected|reject(ed)?\s+sign/i.test(m)) {
+    return 'Wallet action was declined in the extension or mobile wallet. Nothing was submitted on-chain.'
+  }
+
+  if (/extension is not installed|not installed|install\s+(\w+\s+)?extension|no\s+\w+\s+wallet\s+found/i.test(m)) {
+    return 'Wallet extension was not found. Install it for this browser, refresh the page, then try again.'
+  }
+
+  if (/unsupported\s+chain|wrong\s+network|chain\s+id\s+mismatch/i.test(m)) {
+    return 'This wallet is not connected to Terra Classic for this app. Switch network in the wallet, then reconnect.'
+  }
+
+  return null
+}
+
+/** Browser `fetch`, indexer HTTP wrapper strings, and coarse transport failures. */
+export function tryHumanizeFetchLikeMessage(message: string): string | null {
+  const m = norm(message)
+  if (!m) return null
+
+  if (/failed to fetch|networkerror when attempting to fetch|load failed|net::err_/i.test(m)) {
+    return 'Network request failed. Check your connection, VPN, or whether the indexer/API is reachable, then retry.'
+  }
+
+  if (/aborterror|\baborted\b|the operation was aborted|signal is aborted without reason/i.test(m)) {
+    return 'The request was cancelled or timed out. Try again.'
+  }
+
+  if (/cors|blocked by cors|not allowed by access-control-allow-origin/i.test(m)) {
+    return 'Browser blocked the request (CORS). Confirm Vite origin matches indexer `CORS_ORIGINS` (see docs).'
+  }
+
+  if (/Indexer API error:/i.test(m) && !/Indexer API error:\s*404\b/i.test(m)) {
+    return 'Market data service returned an error. Wait a moment and retry, or check indexer status.'
+  }
+
+  if (/Indexer API error:\s*404\b/i.test(m)) {
+    return 'Market data for this request was not found. The pair or route may not be indexed yet.'
+  }
+
+  return null
+}
+
+/**
+ * Last-resort scrub before showing unknown errors: drop obvious stack traces and cap length.
+ * Preserves short, already-retail messages unchanged.
+ */
+export function sanitizeOpaqueErrorMessage(message: string): string {
+  let s = norm(message)
+  if (!s) return 'Something went wrong. Please try again.'
+
+  const lines = s.split('\n')
+  if (lines.length > 1 && /\s+at\s+/.test(s)) {
+    s = lines[0].trim()
+  }
+
+  const max = 240
+  if (s.length > max) {
+    return `${s.slice(0, max - 1)}…`
+  }
+  return s
+}

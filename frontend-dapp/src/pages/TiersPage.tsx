@@ -9,6 +9,7 @@ import { sounds } from '@/lib/sounds'
 import { formatTokenAmountAbbrev } from '@/utils/formatAmount'
 import { lookupByCW20 } from '@/utils/tokenRegistry'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
+import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 
 const CL8Y_DECIMALS = lookupByCW20(CL8Y_TOKEN_ADDRESS)?.decimals ?? 18
 
@@ -254,7 +255,9 @@ export default function TiersPage() {
           </div>
           {(registerMutation.isError || deregisterMutation.isError) && (
             <div className="mt-3 alert-error !text-xs">
-              {registerMutation.error?.message || deregisterMutation.error?.message}
+              {humanizeUserFacingErrorFromUnknown(
+                registerMutation.isError ? registerMutation.error : deregisterMutation.error
+              )}
             </div>
           )}
         </div>
