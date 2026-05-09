@@ -105,6 +105,7 @@ Hybrid hops use `max(..., HYBRID_SWAP_GAS_LIMIT × hops)` in `transactions.ts`.
 | Limit cancel | **`cancelLimitOrder`** → `CANCEL_LIMIT_ORDER_GAS_LIMIT` ([`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts)). |
 | Limit parked-expired claim ([GitLab #141](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/141)) | **`claimExpiredLimitOrder`** → `CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT` (same envelope as cancel until profiling says otherwise). |
 | Limit place — native balance vs **two** fees ([GitLab #132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132)) | The UI must not broadcast `increase_allowance` unless bank **uluna** ≥ `estimateLimitOrderPlaceSequenceUlunaFeesTotal()` (same model as two separate `Fee.amount` values). See [`limitOrderNativeGasBalanceGate.ts`](../frontend-dapp/src/utils/limitOrderNativeGasBalanceGate.ts), [`docs/limit-orders.md` § dApp retail form](./limit-orders.md#dapp-retail-form-wires-invariants). |
+| Pool add — CW20/CW20 path, native balance vs **three** fees ([GitLab #147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)) | `provideLiquidity` (`pair.ts`) sends **three** txs: `increase_allowance` ×2 then `provide_liquidity`. The UI must not broadcast the first unless bank **uluna** ≥ `estimateProvideLiquidityCw20SequenceUlunaFeesTotal()` (three `Fee.amount` sums). Native/wrap paths use `executeTerraContractMulti` (one fee). See [`provideLiquidityNativeGasBalanceGate.ts`](../frontend-dapp/src/utils/provideLiquidityNativeGasBalanceGate.ts), [`docs/frontend.md` § Pool page](./frontend.md#pool-page--provide-liquidity-ui-invariants). |
 
 **Operational alignment:** local/mainnet helper scripts use `terrad … --gas-adjustment 1.3` (see `scripts/deploy-dex-local.sh`). **`SWAP_GAS_BUFFER` is set to 1.3** so the dApp matches that default rather than a looser multiplier.
 
@@ -256,6 +257,8 @@ The **Provide Liquidity** card mirrors on-chain `provide_liquidity` math for the
 
 **Wallet balance queries** use the same React Query key prefix as the Swap page: `['tokenBalance', address, <asset id>]`, where the asset id is the CW20 `terra1…` address or, when “Use native (auto-wrap)” is checked, the bank **denom** string (e.g. `uluna`), via `getTokenBalance` in `src/services/terraclassic/queries.ts`.
 
+**CW20/CW20 add liquidity — native LUNC vs three fees ([GitLab #147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)):** when neither asset uses “Use native (auto-wrap)”, `provideLiquidity` runs **three** sequential transactions (`increase_allowance` on token A and B, then `provide_liquidity`). Before the first broadcast, bank **uluna** must cover **`estimateProvideLiquidityCw20SequenceUlunaFeesTotal()`** (same gas limits and `effectiveGasPriceUluna()` as [`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts)); gate: [`provideLiquidityNativeGasBalanceGate.ts`](../frontend-dapp/src/utils/provideLiquidityNativeGasBalanceGate.ts), [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx). The native multi-msg path uses `executeTerraContractMulti` (single combined fee).
+
 **Ratio warning:** if the two typed amounts are not in the current pool price ratio, the contract still executes, but the **smaller** LP term sets the mint; the excess on the other side is effectively donated to the pool (same as Astroport/TerraSwap behavior).
 
 E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is pinned in [`.cursor/rules/playwright-workers.mdc`](../.cursor/rules/playwright-workers.mdc) (5 workers) to keep the Vite `webServer` stable.
@@ -263,6 +266,7 @@ E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is 
 | GitLab | Role |
 |--------|------|
 | [#109](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/109) | Add-LP balances, Max / 50%, LP estimate, tests |
+| [#147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147) | CW20/CW20 add LP: native LUNC preflight for three sequential txs (`provideLiquidityNativeGasBalanceGate.ts`) |
 | [#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112) | Pool list: indexer vs factory, router badges, filter |
 
 ### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}

@@ -37,6 +37,7 @@ import {
   executeTerraContract,
   executeTerraContractMulti,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
+  estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
 } from '../transactions'
 
 const mockedGetWallet = vi.mocked(getConnectedWallet)
@@ -368,6 +369,14 @@ describe('estimateLimitOrderPlaceSequenceUlunaFeesTotal', () => {
     const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal()
     // 200k × 28.325 + 950k × 28.325 = 32_573_750 uluna (GitLab #132 repro ballpark)
     expect(total).toBe(32_573_750n)
+  })
+})
+
+describe('estimateProvideLiquidityCw20SequenceUlunaFeesTotal', () => {
+  it('sums fee uluna for two increase_allowance + provide_liquidity gas limits at effective gas price', () => {
+    const total = estimateProvideLiquidityCw20SequenceUlunaFeesTotal()
+    // 2×(200k × 28.325) + 500k × 28.325 = 25_492_500 uluna (GitLab #147)
+    expect(total).toBe(25_492_500n)
   })
 })
 

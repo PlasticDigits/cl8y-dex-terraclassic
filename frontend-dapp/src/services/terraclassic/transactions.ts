@@ -133,6 +133,18 @@ export function estimateLimitOrderPlaceSequenceUlunaFeesTotal(): bigint {
 }
 
 /**
+ * Minimum native fee (uluna) for the three-step CW20/CW20 provide path in `provideLiquidity` (`pair.ts`):
+ * two `increase_allowance` txs then `provide_liquidity`. Used so the first allowance is not broadcast if the
+ * wallet cannot pay the remaining fees ([GitLab #147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)).
+ * Must stay aligned with {@link getGasLimitForTx} for those message shapes.
+ */
+export function estimateProvideLiquidityCw20SequenceUlunaFeesTotal(): bigint {
+  const allowanceGas = getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
+  const provideGas = getGasLimitForTx({ provide_liquidity: {} })
+  return estimateFeeUlunaAmountForGasLimit(allowanceGas) * 2n + estimateFeeUlunaAmountForGasLimit(provideGas)
+}
+
+/**
  * Execute a contract on Terra Classic.
  * @param walletAddress - The sender address
  * @param contractAddress - The contract to execute

@@ -106,10 +106,15 @@ describe('PoolPage', () => {
     vi.mocked(indexerClient.getTokens).mockResolvedValue([])
     vi.mocked(indexerClient.getPairs).mockResolvedValue(mockGetPairs)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
-    getTokenBalanceMock.mockImplementation(async (wallet: string) => {
-      if (wallet !== addr) return '0'
-      return '2000000'
-    })
+    getTokenBalanceMock.mockImplementation(
+      async (wallet: string, balanceInfo?: { native_token?: { denom: string } }) => {
+        if (wallet !== addr) return '0'
+        if (balanceInfo?.native_token?.denom === 'uluna') {
+          return '50000000000000'
+        }
+        return '2000000'
+      }
+    )
   })
 
   it('renders without crashing', () => {
@@ -158,6 +163,31 @@ describe('PoolPage', () => {
     const submit = screen.getByRole('button', { name: /Insufficient balance/i })
     expect(submit).toBeDisabled()
     expect(screen.getAllByText(/Exceeds wallet balance/i).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('disables provide when LUNC is below the three-tx CW20 path gas floor (GitLab #147)', async () => {
+    const user = userEvent.setup()
+    getTokenBalanceMock.mockImplementation(
+      async (wallet: string, balanceInfo?: { native_token?: { denom: string } }) => {
+        if (wallet !== addr) return '0'
+        if (balanceInfo?.native_token?.denom === 'uluna') {
+          return '1000000'
+        }
+        return '2000000'
+      }
+    )
+
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+
+    const aInput = await screen.findByLabelText('Asset A amount')
+    const bInput = screen.getByLabelText('Asset B amount')
+    await user.type(aInput, '1')
+    await user.type(bInput, '2')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/allowance A \+ allowance B \+ provide liquidity/)
+    expect(screen.getByRole('button', { name: /Not enough LUNC for gas/i })).toBeDisabled()
   })
 
   it('explains indexer-sourced list and shows factory vs indexer counts when data loads', async () => {

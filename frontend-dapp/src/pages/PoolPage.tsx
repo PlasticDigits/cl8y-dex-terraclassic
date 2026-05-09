@@ -1,11 +1,16 @@
 import { useState, memo, useMemo, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
+import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
-import { executeTerraContract, executeTerraContractMulti } from '@/services/terraclassic/transactions'
+import {
+  executeTerraContract,
+  executeTerraContractMulti,
+  estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
+} from '@/services/terraclassic/transactions'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import {
   FEE_DISCOUNT_CONTRACT_ADDRESS,
@@ -33,6 +38,7 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/utils/provideLiquidityEstimate'
+import { evaluateProvideLiquidityCw20NativeGasGate } from '@/utils/provideLiquidityNativeGasBalanceGate'
 
 const POOL_SORT_OPTIONS: MenuSelectOption[] = [
   { value: 'symbol', label: 'Name (A–Z)' },
@@ -150,6 +156,8 @@ const PoolCard = memo(function PoolCard({
     refetchInterval: 15_000,
   })
 
+  const nativeUlunaQuery = useNativeUlunaBalance(address)
+
   const LP_DECIMALS = 6
   const lpBalance = lpBalanceQuery.data ?? '0'
   const lpBalanceDisplay = lpBalance === '0' ? '0' : formatTokenAmount(lpBalance, LP_DECIMALS)
@@ -182,6 +190,40 @@ const PoolCard = memo(function PoolCard({
 
   const insufficientAdd = insufficientAddA || insufficientAddB
 
+  const needsWrapA = hasNativeOptionA && useNativeA
+  const needsWrapB = hasNativeOptionB && useNativeB
+
+  const provideCw20MinUlunaFees = useMemo(() => estimateProvideLiquidityCw20SequenceUlunaFeesTotal(), [])
+
+  const provideLiquidityNativeGasGate = useMemo(() => {
+    if (needsWrapA || needsWrapB) {
+      return { canAddLiquidity: true, userMessage: null as string | null, tone: 'none' as const }
+    }
+    return evaluateProvideLiquidityCw20NativeGasGate(
+      amountA,
+      amountB,
+      decimalsA,
+      decimalsB,
+      {
+        data: nativeUlunaQuery.data,
+        isLoading: nativeUlunaQuery.isLoading,
+        isError: nativeUlunaQuery.isError,
+      },
+      provideCw20MinUlunaFees
+    )
+  }, [
+    needsWrapA,
+    needsWrapB,
+    amountA,
+    amountB,
+    decimalsA,
+    decimalsB,
+    nativeUlunaQuery.data,
+    nativeUlunaQuery.isLoading,
+    nativeUlunaQuery.isError,
+    provideCw20MinUlunaFees,
+  ])
+
   const estimatedUserLp =
     poolQuery.data && amountA && amountB ? estimateProvideLiquidityUserLp(rawAddA, rawAddB, poolQuery.data) : null
 
@@ -194,8 +236,19 @@ const PoolCard = memo(function PoolCard({
       const rawA = toRawAmount(amountA, decimalsA)
       const rawB = toRawAmount(amountB, decimalsB)
 
-      const needsWrapA = hasNativeOptionA && useNativeA
-      const needsWrapB = hasNativeOptionB && useNativeB
+      if (!needsWrapA && !needsWrapB) {
+        const gasGate = evaluateProvideLiquidityCw20NativeGasGate(
+          amountA,
+          amountB,
+          decimalsA,
+          decimalsB,
+          nativeUlunaQuery,
+          provideCw20MinUlunaFees
+        )
+        if (!gasGate.canAddLiquidity) {
+          throw new Error(gasGate.userMessage ?? 'Insufficient LUNC for gas')
+        }
+      }
 
       if (needsWrapA || needsWrapB) {
         const msgs: Array<{
@@ -652,14 +705,37 @@ const PoolCard = memo(function PoolCard({
               on the larger side are effectively donated to the pool.
             </p>
           )}
+          {provideLiquidityNativeGasGate.userMessage && (
+            <p
+              className="text-xs font-semibold"
+              style={{
+                color: provideLiquidityNativeGasGate.tone === 'warning' ? 'var(--ink-dim)' : 'var(--red, #ef4444)',
+              }}
+              role="alert"
+            >
+              {provideLiquidityNativeGasGate.userMessage}
+            </p>
+          )}
           <button
             onClick={() => {
               sounds.playButtonPress()
               addMutation.mutate()
             }}
-            disabled={!address || !amountA || !amountB || addMutation.isPending || insufficientAdd}
+            disabled={
+              !address ||
+              !amountA ||
+              !amountB ||
+              addMutation.isPending ||
+              insufficientAdd ||
+              !provideLiquidityNativeGasGate.canAddLiquidity
+            }
             className={`w-full py-2.5 font-semibold text-sm ${
-              !address || !amountA || !amountB || addMutation.isPending || insufficientAdd
+              !address ||
+              !amountA ||
+              !amountB ||
+              addMutation.isPending ||
+              insufficientAdd ||
+              !provideLiquidityNativeGasGate.canAddLiquidity
                 ? 'btn-disabled !w-full'
                 : 'btn-primary !w-full'
             }`}
@@ -668,9 +744,13 @@ const PoolCard = memo(function PoolCard({
               ? 'Connect Wallet'
               : insufficientAdd
                 ? 'Insufficient balance'
-                : addMutation.isPending
-                  ? 'Providing Liquidity...'
-                  : 'Provide Liquidity'}
+                : !provideLiquidityNativeGasGate.canAddLiquidity && provideLiquidityNativeGasGate.tone === 'warning'
+                  ? 'Checking gas balance…'
+                  : !provideLiquidityNativeGasGate.canAddLiquidity
+                    ? 'Not enough LUNC for gas'
+                    : addMutation.isPending
+                      ? 'Providing Liquidity...'
+                      : 'Provide Liquidity'}
           </button>
           {addMutation.isError && (
             <TxResultAlert type="error" message={addMutation.error?.message ?? 'Failed to provide liquidity'} />
