@@ -547,6 +547,26 @@ pub async fn get_pair_liquidity_events(
     Ok(Json(result))
 }
 
+fn parse_placement_lifecycle_filter(
+    raw: Option<&str>,
+) -> Result<limit_order_lifecycle::PlacementLifecycleFilter, (StatusCode, String)> {
+    match raw.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(limit_order_lifecycle::PlacementLifecycleFilter::DefaultOpen),
+        Some("active") => Ok(limit_order_lifecycle::PlacementLifecycleFilter::ActiveOnly),
+        Some("parked_expired") => {
+            Ok(limit_order_lifecycle::PlacementLifecycleFilter::ParkedExpiredOnly)
+        }
+        Some("refunded") => Ok(limit_order_lifecycle::PlacementLifecycleFilter::RefundedOnly),
+        Some("all") => Ok(limit_order_lifecycle::PlacementLifecycleFilter::All),
+        Some(other) => Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Invalid status '{other}'. Use active, parked_expired, refunded, or all"
+            ),
+        )),
+    }
+}
+
 #[derive(Serialize, ToSchema)]
 pub struct LimitPlacementResponse {
     pub id: i64,
@@ -555,6 +575,8 @@ pub struct LimitPlacementResponse {
     pub block_timestamp: String,
     pub tx_hash: String,
     pub order_id: i64,
+    /// `active` — on the book or not yet expired; `parked_expired` — expired during a match walk, claimable; `refunded` — maker claimed escrow.
+    pub lifecycle_status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -563,6 +585,31 @@ pub struct LimitPlacementResponse {
     pub price: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
+    /// Escrow remaining when parked (from `limit_order_expired_parked`); preserved after refund for UX.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining_escrow: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parked_block_height: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parked_block_timestamp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parked_tx_hash: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refunded_block_height: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refunded_block_timestamp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refunded_tx_hash: Option<String>,
+}
+
+#[derive(Deserialize, IntoParams, utoipa::ToSchema)]
+pub struct LimitPlacementsQuery {
+    /// Max results (capped at 200)
+    pub limit: Option<i64>,
+    /// Cursor: return rows with id < before
+    pub before: Option<i64>,
+    /// Filter by lifecycle: omit for **`active` + `parked_expired`** (excludes terminal refunds); `active`, `parked_expired`, `refunded`, or `all`.
+    pub status: Option<String>,
 }
 
 #[utoipa::path(
@@ -570,10 +617,11 @@ pub struct LimitPlacementResponse {
     path = "/api/v1/pairs/{addr}/limit-placements",
     params(
         ("addr" = String, Path, description = "Pair contract address"),
-        LimitFillsQuery,
+        LimitPlacementsQuery,
     ),
     responses(
-        (status = 200, description = "Indexed place_limit_order events for orders not present in limit-cancellations (same pair + order_id); full history via .../limit-cancellations", body = Vec<LimitPlacementResponse>),
+        (status = 200, description = "Indexed limit placements with lifecycle status (GitLab #142); excludes cancelled `(pair, order_id)` rows when matched in limit_order_cancellations", body = Vec<LimitPlacementResponse>),
+        (status = 400, description = "Invalid query parameters"),
         (status = 404, description = "Pair not found"),
         (status = 500, description = "Internal server error"),
     ),
@@ -582,7 +630,7 @@ pub struct LimitPlacementResponse {
 pub async fn get_pair_limit_placements(
     State(state): State<AppState>,
     Path(addr): Path<String>,
-    Query(q): Query<LimitFillsQuery>,
+    Query(q): Query<LimitPlacementsQuery>,
 ) -> Result<Json<Vec<LimitPlacementResponse>>, (StatusCode, String)> {
     let pair = db_pairs::get_pair_by_address(&state.pool, &addr)
         .await
@@ -590,10 +638,16 @@ pub async fn get_pair_limit_placements(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
     let limit = q.limit.unwrap_or(50).min(200);
-    let rows =
-        limit_order_lifecycle::list_placements_for_pair(&state.pool, pair.id, limit, q.before)
-            .await
-            .map_err(internal_err)?;
+    let lifecycle = parse_placement_lifecycle_filter(q.status.as_deref())?;
+    let rows = limit_order_lifecycle::list_placements_for_pair(
+        &state.pool,
+        pair.id,
+        limit,
+        q.before,
+        lifecycle,
+    )
+    .await
+    .map_err(internal_err)?;
 
     let result: Vec<LimitPlacementResponse> = rows
         .iter()
@@ -604,10 +658,21 @@ pub async fn get_pair_limit_placements(
             block_timestamp: r.block_timestamp.to_rfc3339(),
             tx_hash: r.tx_hash.clone(),
             order_id: r.order_id,
+            lifecycle_status: r.lifecycle_status.clone(),
             owner: r.owner.clone(),
             side: r.side.clone(),
             price: r.price.as_ref().map(|p| p.normalized().to_string()),
             expires_at: r.expires_at,
+            remaining_escrow: r
+                .remaining_escrow
+                .as_ref()
+                .map(|x| x.normalized().to_string()),
+            parked_block_height: r.parked_block_height,
+            parked_block_timestamp: r.parked_block_timestamp.map(|t| t.to_rfc3339()),
+            parked_tx_hash: r.parked_tx_hash.clone(),
+            refunded_block_height: r.refunded_block_height,
+            refunded_block_timestamp: r.refunded_block_timestamp.map(|t| t.to_rfc3339()),
+            refunded_tx_hash: r.refunded_tx_hash.clone(),
         })
         .collect();
 

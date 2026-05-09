@@ -327,6 +327,7 @@ async fn get_pair_limit_placements_and_cancellations() {
     let p: Vec<Value> = resp.json();
     assert_eq!(p.len(), 1);
     assert_eq!(p[0]["order_id"], 8);
+    assert_eq!(p[0]["lifecycle_status"], "active");
 
     let resp = server
         .get(&format!(

@@ -82,6 +82,19 @@ struct ParsedLimitOrderCancellation {
     owner: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct ParsedLimitOrderExpiredParked {
+    pair_address: String,
+    order_id: i64,
+    remaining: BigDecimal,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedClaimExpiredLimitOrder {
+    pair_address: String,
+    order_id: i64,
+}
+
 pub async fn process_block_txs(
     pool: &PgPool,
     lcd: &LcdClient,
@@ -157,6 +170,34 @@ pub async fn process_block_txs(
             {
                 tracing::warn!(
                     "Failed to process limit order cancel in tx {} for pair {}: {}",
+                    tx.txhash,
+                    c.pair_address,
+                    e
+                );
+            }
+        }
+
+        let parked = parse_limit_order_expired_parked(tx);
+        for p in &parked {
+            if let Err(e) =
+                process_limit_order_expired_parked(pool, lcd, p, height, block_time, &tx.txhash).await
+            {
+                tracing::warn!(
+                    "Failed to process limit_order_expired_parked in tx {} for pair {}: {}",
+                    tx.txhash,
+                    p.pair_address,
+                    e
+                );
+            }
+        }
+
+        let claims = parse_claim_expired_limit_orders(tx);
+        for c in &claims {
+            if let Err(e) =
+                process_claim_expired_limit_order(pool, lcd, c, height, block_time, &tx.txhash).await
+            {
+                tracing::warn!(
+                    "Failed to process claim_expired_limit_order in tx {} for pair {}: {}",
                     tx.txhash,
                     c.pair_address,
                     e
@@ -668,6 +709,137 @@ async fn process_limit_order_cancellation(
     Ok(())
 }
 
+fn parse_limit_order_expired_parked(tx: &TxResponse) -> Vec<ParsedLimitOrderExpiredParked> {
+    let mut out = Vec::new();
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+        let attrs = &event.attributes;
+        if wasm_attr_last(attrs, "action") != Some("limit_order_expired_parked") {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr(attrs) else {
+            continue;
+        };
+        let Some(order_id) = wasm_attr_last(attrs, "order_id")
+            .and_then(|s| s.parse::<i64>().ok())
+        else {
+            continue;
+        };
+        let Some(rem_s) = wasm_attr_last(attrs, "remaining") else {
+            continue;
+        };
+        let Some(remaining) = BigDecimal::from_str(rem_s).ok() else {
+            continue;
+        };
+        out.push(ParsedLimitOrderExpiredParked {
+            pair_address: contract.to_string(),
+            order_id,
+            remaining,
+        });
+    }
+    out
+}
+
+fn parse_claim_expired_limit_orders(tx: &TxResponse) -> Vec<ParsedClaimExpiredLimitOrder> {
+    let mut out = Vec::new();
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    for event in &events {
+        if event.event_type != "wasm" {
+            continue;
+        }
+        let attrs = &event.attributes;
+        if wasm_attr_last(attrs, "action") != Some("claim_expired_limit_order") {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr(attrs) else {
+            continue;
+        };
+        let Some(order_id) = wasm_attr_last(attrs, "order_id")
+            .and_then(|s| s.parse::<i64>().ok())
+        else {
+            continue;
+        };
+        out.push(ParsedClaimExpiredLimitOrder {
+            pair_address: contract.to_string(),
+            order_id,
+        });
+    }
+    out
+}
+
+async fn process_limit_order_expired_parked(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    p: &ParsedLimitOrderExpiredParked,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+) -> Result<(), BoxError> {
+    let pair = match pairs::get_pair_by_address(pool, &p.pair_address).await? {
+        Some(pair) => pair,
+        None => match pair_discovery::discover_new_pair(pool, lcd, &p.pair_address).await {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("Could not discover pair {}: {}", p.pair_address, e);
+                return Ok(());
+            }
+        },
+    };
+
+    limit_order_lifecycle::apply_parked_expired(
+        pool,
+        pair.id,
+        p.order_id,
+        height,
+        block_time,
+        tx_hash,
+        &p.remaining,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn process_claim_expired_limit_order(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    c: &ParsedClaimExpiredLimitOrder,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+) -> Result<(), BoxError> {
+    let pair = match pairs::get_pair_by_address(pool, &c.pair_address).await? {
+        Some(pair) => pair,
+        None => match pair_discovery::discover_new_pair(pool, lcd, &c.pair_address).await {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("Could not discover pair {}: {}", c.pair_address, e);
+                return Ok(());
+            }
+        },
+    };
+
+    limit_order_lifecycle::apply_claim_refund(pool, pair.id, c.order_id, height, block_time, tx_hash)
+        .await?;
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 struct ParsedLiquidityEvent {
     pair_address: String,
@@ -1009,6 +1181,37 @@ mod tests {
         assert_eq!(c.len(), 1);
         assert_eq!(c[0].order_id, 99);
         assert_eq!(c[0].owner.as_deref(), Some("terra1maker"));
+    }
+
+    #[test]
+    fn parse_limit_order_expired_parked_event() {
+        let tx = wasm_tx(vec![
+            ("contract_address", "terra1pair"),
+            ("action", "limit_order_expired_parked"),
+            ("order_id", "42"),
+            ("maker", "terra1mk"),
+            ("side", "bid"),
+            ("remaining", "999000"),
+        ]);
+        let evs = parse_limit_order_expired_parked(&tx);
+        assert_eq!(evs.len(), 1);
+        assert_eq!(evs[0].pair_address, "terra1pair");
+        assert_eq!(evs[0].order_id, 42);
+        assert_eq!(evs[0].remaining.to_string(), "999000");
+    }
+
+    #[test]
+    fn parse_claim_expired_limit_order_event() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "claim_expired_limit_order"),
+            ("order_id", "42"),
+            ("owner", "terra1mk"),
+        ]);
+        let evs = parse_claim_expired_limit_orders(&tx);
+        assert_eq!(evs.len(), 1);
+        assert_eq!(evs[0].pair_address, "terra1pair");
+        assert_eq!(evs[0].order_id, 42);
     }
 
     #[test]

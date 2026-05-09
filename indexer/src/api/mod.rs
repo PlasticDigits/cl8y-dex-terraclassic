@@ -211,6 +211,7 @@ pub async fn find_pair_by_ticker(
         pairs::LiquidityEventsQuery,
         pairs::LiquidityEventResponse,
         pairs::LimitPlacementResponse,
+        pairs::LimitPlacementsQuery,
         pairs::LimitCancellationResponse,
         pairs::LimitFillResponse,
         pairs::OrderBookHeadQuery,
