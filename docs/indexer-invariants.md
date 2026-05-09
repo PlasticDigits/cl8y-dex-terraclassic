@@ -43,7 +43,7 @@ The browser sends `Origin` using the hostname from the address bar. `http://loca
 
 ## Frontend expectations (read path)
 
-The indexer may legitimately return **empty candle arrays** for a pair/interval with no buckets yet. The dApp must treat that as **success**, not a silent chart failure. UI invariants and lightweight-charts vs TradingView widget naming are documented under [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants) (GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113)).
+The indexer may legitimately return **empty candle arrays** for a pair/interval with no buckets yet. The dApp must treat that as **success**, not a silent chart failure. UI invariants and lightweight-charts vs TradingView widget naming are documented under [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants) (GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150)).
 
 When validating LocalTerra flows with **browser wallets**, fee broadcast quirks are **frontend/wallet** concerns — test **both Station and Terra Classic Keplr** when checking gas/fee fixes (**`experimentalSuggestChain`**, **per-sign `preferNoSetFee` in patched cosmes `KeplrExtension`**, **Station LocalTerra (`chainId` case-insensitive) or Ledger → amino signing** in patched **`StationController`**, **min gas price** — [`docs/frontend.md` § Terra Classic gas limits](./frontend.md#terra-classic-gas-limits), GitLab [**#127**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)); the indexer only observes txs once included on-chain.
 

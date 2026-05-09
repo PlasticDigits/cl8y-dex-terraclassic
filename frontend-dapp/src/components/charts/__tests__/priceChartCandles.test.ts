@@ -52,4 +52,13 @@ describe('indexerCandlesToVolumeHistogramPoints', () => {
     expect(pts[1].value).toBe(12)
     expect(pts[1].color).toBe('#ff0000')
   })
+
+  it('falls back to base volume when quote is zero', () => {
+    const pts = indexerCandlesToVolumeHistogramPoints(
+      [row({ open: '1', close: '1.1', volume_quote: '0', volume_base: '42' })],
+      '#00ff00',
+      '#ff0000'
+    )
+    expect(pts[0]?.value).toBe(42)
+  })
 })

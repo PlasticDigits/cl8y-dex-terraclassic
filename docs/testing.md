@@ -89,7 +89,7 @@ Longer-running tests are kept out of the default `npm run test:run` suite. **Cha
    VITE_INDEXER_URL=http://127.0.0.1:3001 npm run test:integration
    ```
 
-**Note:** `lightweight-charts` is stubbed under jsdom via `src/test/lightweightChartsJsdomMock.ts` so Node-based Vitest stays stable; the real chart library runs in the browser (manual QA / Playwright).
+**Note:** `lightweight-charts` is stubbed under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines) so Node-based Vitest stays stable; the real chart library runs in the browser (manual QA / Playwright).
 
 Config: `vitest.config.integration.ts`
 

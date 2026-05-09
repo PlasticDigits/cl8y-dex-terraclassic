@@ -21,4 +21,4 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 
 - User-facing error strings (`getErrorMessage`, `RetryError`): [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)
 - Responsive header / nav: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
-- Price chart (USD scale, lightweight-charts): [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md); [`docs/frontend.md`](../docs/frontend.md) § *Trade page — price chart invariants* ([GitLab **#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151))
+- Price chart (lightweight-charts overlays, USD scale, volume): [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md); [`docs/frontend.md`](../docs/frontend.md) § *Trade page — price chart invariants* ([GitLab **#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151))
