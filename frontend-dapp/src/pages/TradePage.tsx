@@ -12,6 +12,7 @@ import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import type { IndexerPair } from '@/types'
 
 function TradeResizeHandleVertical() {
@@ -129,10 +130,7 @@ export default function TradePage() {
         <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
           {indexerPairQuery.isLoading && <Skeleton height="12rem" />}
           {indexerPairQuery.isError && !indexerDown && (
-            <RetryError
-              message={(indexerPairQuery.error as Error).message}
-              onRetry={() => indexerPairQuery.refetch()}
-            />
+            <RetryError message={getErrorMessage(indexerPairQuery.error)} onRetry={() => indexerPairQuery.refetch()} />
           )}
           {activePair && (
             <div className="card-neo !p-2 flex-1 min-h-0">
@@ -170,7 +168,7 @@ export default function TradePage() {
                   {indexerPairQuery.isLoading && <Skeleton height="100%" />}
                   {indexerPairQuery.isError && !indexerDown && (
                     <RetryError
-                      message={(indexerPairQuery.error as Error).message}
+                      message={getErrorMessage(indexerPairQuery.error)}
                       onRetry={() => indexerPairQuery.refetch()}
                     />
                   )}

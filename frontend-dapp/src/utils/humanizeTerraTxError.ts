@@ -1,6 +1,7 @@
 /**
  * Map noisy chain / LCD errors to short retail copy before surfacing in the UI.
  * Raw logs stay in `console.error` upstream ([GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [GitLab #135](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/135)).
+ * Wallet / fetch / indexer transport copy is classified in `humanizeOffChainError.ts` and composed via `humanizeUserFacingError.ts` ([GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).
  */
 
 import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUserMessage'

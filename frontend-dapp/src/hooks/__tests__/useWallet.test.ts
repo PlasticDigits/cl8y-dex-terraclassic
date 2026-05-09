@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
+import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
 
 vi.mock('@/services/terraclassic/wallet', () => ({
   connectTerraWallet: vi.fn(),
@@ -69,7 +70,7 @@ describe('useWalletStore', () => {
     expect(state.address).toBeNull()
     expect(state.walletType).toBeNull()
     expect(state.isConnecting).toBe(false)
-    expect(state.error).toBe('User rejected')
+    expect(state.error).toBe(humanizeUserFacingError('User rejected'))
   })
 
   it('connectDev - sets address from createDevTerraWallet, walletType to simulated', () => {

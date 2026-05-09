@@ -70,6 +70,19 @@ When `VITE_DEV_MODE=true`, the UI can offer a **Simulated Wallet** (no browser e
 **Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md).
 - **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
 
+### User-facing errors (wallet, fetch, indexer, tx) {#user-facing-errors-humanization}
+
+Friendly failure copy should flow through **`humanizeUserFacingError`** ([`frontend-dapp/src/utils/humanizeUserFacingError.ts`](../frontend-dapp/src/utils/humanizeUserFacingError.ts)): it applies **`tryHumanizeTerraTxMessage`** first (on-chain / LCD patterns from [GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)), then wallet and transport classifiers in [`humanizeOffChainError.ts`](../frontend-dapp/src/utils/humanizeOffChainError.ts) ([GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Single funnel | Call **`humanizeUserFacingError`** / **`humanizeUserFacingErrorFromUnknown`** at leaf call sites, or rely on components that already apply it: **`RetryError`**, **`TxResultAlert`** (`type === 'error'` only), and the **`useWalletStore.connect`** catch (wallet modal). |
+| Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block with the raw message. |
+| Success strings | **`TxResultAlert`** must not rewrite **`type === 'success'`** messages. |
+| Regression tests | [`frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts`](../frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts). |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
+
 ### Terra Classic gas limits (router `execute_swap_operations`) {#terra-classic-gas-limits}
 
 The dApp does **not** LCD-simulate every swap before broadcast. Instead, `executeTerraContract` / `executeTerraContractMulti` in [`frontend-dapp/src/services/terraclassic/transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) set **Cosmos `Fee.gas`** from typed constants in [`frontend-dapp/src/utils/constants.ts`](../frontend-dapp/src/utils/constants.ts). **Underestimating gas causes on-chain `out of gas` after the wallet signs** (users still pay fees for failed txs).
