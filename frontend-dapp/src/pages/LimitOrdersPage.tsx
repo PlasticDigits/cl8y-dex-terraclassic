@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
@@ -36,6 +36,8 @@ export default function LimitOrdersPage() {
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
   const queryClient = useQueryClient()
+  const limitOrdersPriceInputId = useId()
+  const limitOrdersCancelOrderInputId = useId()
 
   const [pairAddr, setPairAddr] = useState('')
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
@@ -378,8 +380,11 @@ export default function LimitOrdersPage() {
                   </label>
                 </div>
                 <div>
-                  <label className="label-neo">Price (token1 per token0)</label>
+                  <label className="label-neo" htmlFor={limitOrdersPriceInputId}>
+                    Price (token1 per token0)
+                  </label>
                   <input
+                    id={limitOrdersPriceInputId}
                     className="input-neo w-full font-mono"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
@@ -434,8 +439,11 @@ export default function LimitOrdersPage() {
               <div className="card-neo !p-4 space-y-4">
                 <h2 className="text-sm font-semibold uppercase tracking-wide">Cancel limit</h2>
                 <div>
-                  <label className="label-neo">Order ID</label>
+                  <label className="label-neo" htmlFor={limitOrdersCancelOrderInputId}>
+                    Order ID
+                  </label>
                   <input
+                    id={limitOrdersCancelOrderInputId}
                     className="input-neo w-full font-mono"
                     value={cancelOrderId}
                     onChange={(e) => setCancelOrderId(e.target.value)}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { createPair, getWhitelistedCodeIds } from '@/services/terraclassic/factory'
@@ -31,6 +31,8 @@ function useCodeIdCheck(tokenAddr: string) {
 
 export default function CreatePairPage() {
   const address = useWalletStore((s) => s.address)
+  const tokenAInputId = useId()
+  const tokenBInputId = useId()
   const [tokenA, setTokenA] = useState('')
   const [tokenB, setTokenB] = useState('')
 
@@ -71,8 +73,11 @@ export default function CreatePairPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="label-neo">Token A Contract Address</label>
+              <label className="label-neo" htmlFor={tokenAInputId}>
+                Token A Contract Address
+              </label>
               <input
+                id={tokenAInputId}
                 type="text"
                 value={tokenA}
                 onChange={(e) => setTokenA(e.target.value)}
@@ -95,8 +100,11 @@ export default function CreatePairPage() {
             </div>
 
             <div>
-              <label className="label-neo">Token B Contract Address</label>
+              <label className="label-neo" htmlFor={tokenBInputId}>
+                Token B Contract Address
+              </label>
               <input
+                id={tokenBInputId}
                 type="text"
                 value={tokenB}
                 onChange={(e) => setTokenB(e.target.value)}

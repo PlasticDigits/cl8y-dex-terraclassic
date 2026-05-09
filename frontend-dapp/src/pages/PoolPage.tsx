@@ -1,4 +1,4 @@
-import { useState, memo, useMemo } from 'react'
+import { useState, memo, useMemo, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
@@ -69,6 +69,7 @@ const PoolCard = memo(function PoolCard({
   const [useNativeA, setUseNativeA] = useState(false)
   const [useNativeB, setUseNativeB] = useState(false)
   const [receiveWrapped, setReceiveWrapped] = useState(true)
+  const lpTokenAmountInputId = useId()
 
   const tokenA = assetInfoLabel(pair.asset_infos[0])
   const tokenB = assetInfoLabel(pair.asset_infos[1])
@@ -684,7 +685,9 @@ const PoolCard = memo(function PoolCard({
         <div className="card-neo space-y-3 animate-fade-in-up">
           <div>
             <div className="flex items-center justify-between">
-              <label className="label-neo">LP Token Amount</label>
+              <label className="label-neo" htmlFor={lpTokenAmountInputId}>
+                LP Token Amount
+              </label>
               {address && (
                 <span className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
                   Balance:{' '}
@@ -708,6 +711,7 @@ const PoolCard = memo(function PoolCard({
               )}
             </div>
             <input
+              id={lpTokenAmountInputId}
               type="text"
               inputMode="decimal"
               value={lpAmount}

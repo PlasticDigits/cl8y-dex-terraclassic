@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
@@ -78,6 +78,11 @@ export default function SwapPage() {
   const isWalletConnected = !!address && !!wallet
   const { slippageTolerance, setSlippageTolerance, deadlineSeconds } = useDexStore()
   const queryClient = useQueryClient()
+
+  const swapCustomSlippagePctInputId = useId()
+  const swapHybridBookLegAmountInputId = useId()
+  const swapHybridMaxMakersInputId = useId()
+  const swapYouPayAmountInputId = useId()
 
   const [inputAmount, setInputAmount] = useState('')
   const [fromToken, setFromToken] = useState<string>('')
@@ -649,7 +654,11 @@ export default function SwapPage() {
                   </button>
                 ))}
                 <div className="relative flex-1">
+                  <label htmlFor={swapCustomSlippagePctInputId} className="sr-only">
+                    Custom slippage tolerance (percent)
+                  </label>
                   <input
+                    id={swapCustomSlippagePctInputId}
                     type="text"
                     value={customSlippage}
                     onChange={(e) => handleCustomSlippage(e.target.value)}
@@ -698,10 +707,11 @@ export default function SwapPage() {
                 {useHybridBook && (
                   <div className="space-y-2">
                     <div>
-                      <label className="label-neo text-[10px]">
+                      <label className="label-neo text-[10px]" htmlFor={swapHybridBookLegAmountInputId}>
                         Book leg amount ({getTokenDisplaySymbol(fromToken)})
                       </label>
                       <input
+                        id={swapHybridBookLegAmountInputId}
                         className="input-neo !text-xs w-full"
                         value={bookInputHuman}
                         onChange={(e) => setBookInputHuman(e.target.value)}
@@ -709,8 +719,11 @@ export default function SwapPage() {
                       />
                     </div>
                     <div>
-                      <label className="label-neo text-[10px]">Max distinct makers</label>
+                      <label className="label-neo text-[10px]" htmlFor={swapHybridMaxMakersInputId}>
+                        Max distinct makers
+                      </label>
                       <input
+                        id={swapHybridMaxMakersInputId}
                         type="number"
                         className="input-neo !text-xs w-full"
                         min={1}
@@ -768,7 +781,9 @@ export default function SwapPage() {
         <div className="swap-io-stack relative mb-4">
           <div className="card-neo swap-io-card-pay !p-4 sm:!p-5">
             <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-              <span className="label-neo !mb-0 sm:pt-1">You Pay</span>
+              <label htmlFor={swapYouPayAmountInputId} className="label-neo !mb-0 sm:pt-1">
+                You Pay
+              </label>
               <TokenSelect
                 value={fromToken}
                 tokens={allTokens}
@@ -783,6 +798,7 @@ export default function SwapPage() {
               />
             </div>
             <input
+              id={swapYouPayAmountInputId}
               type="text"
               inputMode="decimal"
               value={inputAmount}

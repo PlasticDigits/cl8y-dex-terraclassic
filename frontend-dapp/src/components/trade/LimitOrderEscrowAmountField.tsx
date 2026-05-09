@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { sounds } from '@/lib/sounds'
 import { Spinner } from '@/components/ui'
@@ -28,10 +29,14 @@ export function LimitOrderEscrowAmountField({
   walletConnected,
   compact,
 }: Props) {
+  const amountInputId = useId()
   return (
     <div>
-      <label className={compact ? 'label-neo text-[10px]' : 'label-neo'}>Amount ({escrowLabel})</label>
+      <label className={compact ? 'label-neo text-[10px]' : 'label-neo'} htmlFor={amountInputId}>
+        Amount ({escrowLabel})
+      </label>
       <input
+        id={amountInputId}
         className={compact ? 'input-neo w-full text-sm' : 'input-neo w-full'}
         value={amountHuman}
         onChange={(e) => onAmountChange(e.target.value)}

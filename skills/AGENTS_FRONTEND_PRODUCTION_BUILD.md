@@ -23,3 +23,7 @@ Use when changing **Vite build output**, **source maps**, or reviewing PRs that 
 ## Related (layout / navigation)
 
 - **Header breakpoints & tablet More overflow:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
+
+## Related (form accessibility)
+
+- **Programmatic labels for inputs:** [`docs/frontend.md` § Form inputs — programmatic labels](../docs/frontend.md#form-inputs-programmatic-labels), [`AGENTS_FRONTEND_A11Y_FORM_LABELS.md`](./AGENTS_FRONTEND_A11Y_FORM_LABELS.md) ([GitLab **#143**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/143)).

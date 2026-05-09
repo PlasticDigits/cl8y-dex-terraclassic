@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -31,6 +31,7 @@ export default function TraderPage() {
   const { address: paramAddr } = useParams<{ address?: string }>()
   const navigate = useNavigate()
   const walletAddr = useWalletStore((s) => s.address)
+  const traderWalletSearchInputId = useId()
   const [searchInput, setSearchInput] = useState('')
 
   const traderAddr = paramAddr || ''
@@ -85,7 +86,11 @@ export default function TraderPage() {
       {/* Search / My Profile */}
       <div className="shell-panel flex flex-col sm:flex-row gap-2">
         <div className="flex gap-2 flex-1">
+          <label htmlFor={traderWalletSearchInputId} className="sr-only">
+            Trader wallet address
+          </label>
           <input
+            id={traderWalletSearchInputId}
             type="text"
             className="input-neo flex-1"
             placeholder="Paste a trader wallet address"

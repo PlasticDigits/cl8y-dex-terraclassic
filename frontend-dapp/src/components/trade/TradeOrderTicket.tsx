@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useId } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
@@ -45,6 +45,8 @@ export function TradeOrderTicket({
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
   const queryClient = useQueryClient()
+  const limitPriceInputId = useId()
+  const cancelLimitOrderInputId = useId()
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
   const [price, setPrice] = useState('1')
@@ -278,8 +280,11 @@ export function TradeOrderTicket({
           </label>
         </div>
         <div>
-          <label className="label-neo">Price (token1 per token0)</label>
+          <label className="label-neo" htmlFor={limitPriceInputId}>
+            Price (token1 per token0)
+          </label>
           <input
+            id={limitPriceInputId}
             className="input-neo w-full font-mono text-sm"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
@@ -331,12 +336,18 @@ export function TradeOrderTicket({
 
       <div className="space-y-3 border-t border-white/10 pt-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide">Cancel limit</h3>
-        <input
-          className="input-neo w-full font-mono text-sm"
-          value={cancelOrderId}
-          onChange={(e) => setCancelOrderId(e.target.value)}
-          placeholder="Order ID"
-        />
+        <div>
+          <label className="label-neo" htmlFor={cancelLimitOrderInputId}>
+            Order ID
+          </label>
+          <input
+            id={cancelLimitOrderInputId}
+            className="input-neo w-full font-mono text-sm"
+            value={cancelOrderId}
+            onChange={(e) => setCancelOrderId(e.target.value)}
+            placeholder="Order ID"
+          />
+        </div>
         <button
           type="button"
           className="btn-primary btn-cta w-full !text-xs"
