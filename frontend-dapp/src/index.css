@@ -571,18 +571,19 @@
     padding-bottom: 110px;
   }
 
+  .app-top-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    width: 100%;
+  }
+
   .app-header-shell,
   .app-main-shell,
   .app-footer-shell {
     position: relative;
     width: 100%;
     margin: 0;
-  }
-
-  .app-header-shell {
-    position: sticky;
-    top: 0;
-    z-index: 40;
   }
 
   .app-header {
@@ -600,6 +601,108 @@
     box-shadow:
       0 24px 80px rgba(0, 0, 0, 0.34),
       inset 0 1px 0 rgba(255, 244, 222, 0.15);
+  }
+
+  .app-env-ribbon {
+    width: min(100% - 24px, 1180px);
+    margin: 6px auto 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 8px 14px;
+    border-radius: 16px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--line);
+  }
+
+  .app-env-ribbon-label {
+    flex-shrink: 0;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+  }
+
+  .app-env-ribbon-detail {
+    flex: 1 1 200px;
+    min-width: 0;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--ink-dim);
+  }
+
+  .app-env-ribbon--local {
+    background: rgba(52, 211, 153, 0.08);
+    border-color: rgba(52, 211, 153, 0.22);
+    color: var(--mint-soft);
+  }
+
+  .app-env-ribbon--local .app-env-ribbon-label {
+    background: rgba(52, 211, 153, 0.16);
+    color: var(--mint-soft);
+  }
+
+  .app-env-ribbon--testnet {
+    background: rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.28);
+    color: #fcd34d;
+  }
+
+  .app-env-ribbon--testnet .app-env-ribbon-label {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fef3c7;
+  }
+
+  .app-env-ribbon--mainnet {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.28);
+    color: #fecaca;
+  }
+
+  .app-env-ribbon--mainnet .app-env-ribbon-label {
+    background: rgba(248, 113, 113, 0.2);
+    color: #fff;
+  }
+
+  .app-mobile-legal-strip {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--control-surface);
+  }
+
+  .app-mobile-legal-strip .app-legal-footer-notice {
+    font-size: 0.68rem;
+    color: var(--ink-dim);
+  }
+
+  .app-footer-copy {
+    flex: 1 1 280px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .app-footer-title {
+    margin: 0;
+  }
+
+  .app-legal-footer-notice {
+    margin: 0;
+    max-width: 72ch;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    font-weight: 500;
+    color: var(--ink-subtle);
   }
 
   .app-brand {
@@ -893,7 +996,7 @@
     margin: 0 auto;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
     padding: 18px 20px;
@@ -1023,6 +1126,55 @@
     justify-content: space-between;
     padding: 20px 24px 16px;
     border-bottom: 1px solid rgba(255, 220, 184, 0.08);
+  }
+
+  .app-modal-header--blocking {
+    justify-content: flex-start;
+  }
+
+  .app-modal-panel--risk {
+    max-width: min(96vw, 480px);
+  }
+
+  .app-risk-modal-body {
+    padding: 0 22px 22px;
+  }
+
+  .app-risk-modal-lead {
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  .app-risk-modal-list {
+    margin: 0 0 12px;
+    padding-left: 1.1rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--ink-dim);
+  }
+
+  .app-risk-modal-meta {
+    margin: 0 0 14px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--ink-subtle);
+  }
+
+  .app-risk-modal-confirm {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--ink-dim);
+    cursor: pointer;
+  }
+
+  .app-risk-modal-confirm input {
+    margin-top: 3px;
+    flex-shrink: 0;
   }
 
   .wallet-option-card {
@@ -1412,6 +1564,10 @@ input[type='number'] {
 
   .app-main,
   .app-footer {
+    width: min(100% - 16px, 560px);
+  }
+
+  .app-env-ribbon {
     width: min(100% - 16px, 560px);
   }
 

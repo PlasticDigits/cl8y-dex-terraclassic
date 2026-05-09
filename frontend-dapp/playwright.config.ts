@@ -26,6 +26,8 @@ export default defineConfig({
     env: {
       ...process.env,
       VITE_DEV_MNEMONIC: devMnemonic,
+      /** Suppress blocking first-visit risk modal during Playwright (GitLab #138). */
+      VITE_PLAYWRIGHT_E2E: 'true',
     },
   },
   projects: [

@@ -2,6 +2,9 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
 import NetworkBadge from '@/components/wallet/NetworkBadge'
+import EnvironmentRibbon from '@/components/legal/EnvironmentRibbon'
+import LegalFooterNotice from '@/components/legal/LegalFooterNotice'
+import RiskAcknowledgementModal from '@/components/legal/RiskAcknowledgementModal'
 import { ThemeSegmentedControl, type ThemeMode } from '@/components/common/ThemeSegmentedControl'
 import {
   getHeaderMoreMenuItems,
@@ -26,6 +29,7 @@ export default function Layout() {
   useSyncMobileNavStack(mobileNavRef)
 
   const fullDesktopHeader = useMediaQuery(`(min-width: ${HEADER_FULL_NAV_MIN_WIDTH_PX}px)`)
+  const showMobileLegalStrip = useMediaQuery('(max-width: 767px)')
 
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
@@ -78,6 +82,7 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
+      <RiskAcknowledgementModal />
       {(isMoreMenuOpen || isMobileMoreOpen) && (
         <button
           type="button"
@@ -90,84 +95,88 @@ export default function Layout() {
         />
       )}
 
-      <header className="app-header-shell">
-        <div className="app-header">
-          <NavLink
-            to="/"
-            className="app-brand"
-            onClick={() => {
-              sounds.playButtonPress()
-            }}
-          >
-            <span className="app-brand-mark">
-              <img src="/assets/cl8y-dex-glass-logo.svg" alt="CL8Y DEX" className="app-brand-logo" />
-            </span>
-            <span className="app-brand-copy">
-              <span className="app-brand-kicker">Terra Classic ecosystem</span>
-              <strong className="app-brand-title">CL8Y DEX</strong>
-            </span>
-          </NavLink>
+      <div className="app-top-sticky">
+        <header className="app-header-shell">
+          <div className="app-header">
+            <NavLink
+              to="/"
+              className="app-brand"
+              onClick={() => {
+                sounds.playButtonPress()
+              }}
+            >
+              <span className="app-brand-mark">
+                <img src="/assets/cl8y-dex-glass-logo.svg" alt="CL8Y DEX" className="app-brand-logo" />
+              </span>
+              <span className="app-brand-copy">
+                <span className="app-brand-kicker">Terra Classic ecosystem</span>
+                <strong className="app-brand-title">CL8Y DEX</strong>
+              </span>
+            </NavLink>
 
-          <nav className="app-desktop-nav" aria-label="Primary">
-            {(fullDesktopHeader ? PRIMARY_NAV_ITEMS : PRIMARY_NAV_ITEMS.slice(0, 1)).map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.end !== false}
-                onClick={() => {
-                  sounds.playButtonPress()
-                }}
-                className={({ isActive }) => `app-nav-link${isActive ? ' app-nav-link-active' : ''}`}
-              >
-                <span className="app-nav-link-label">{item.label}</span>
-              </NavLink>
-            ))}
+            <nav className="app-desktop-nav" aria-label="Primary">
+              {(fullDesktopHeader ? PRIMARY_NAV_ITEMS : PRIMARY_NAV_ITEMS.slice(0, 1)).map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.end !== false}
+                  onClick={() => {
+                    sounds.playButtonPress()
+                  }}
+                  className={({ isActive }) => `app-nav-link${isActive ? ' app-nav-link-active' : ''}`}
+                >
+                  <span className="app-nav-link-label">{item.label}</span>
+                </NavLink>
+              ))}
 
-            <div className="app-more-wrap">
-              <button
-                type="button"
-                className={`app-more-trigger${isHeaderMoreRouteActive ? ' app-nav-link-active' : ''}`}
-                aria-haspopup="menu"
-                aria-expanded={isMoreMenuOpen}
-                onClick={() => {
-                  sounds.playButtonPress()
-                  setIsMoreMenuOpen((current) => !current)
-                }}
-              >
-                <span className="app-nav-link-label">More</span>
-                <span aria-hidden="true" className="text-xs">
-                  {isMoreMenuOpen ? '▲' : '▼'}
-                </span>
-              </button>
+              <div className="app-more-wrap">
+                <button
+                  type="button"
+                  className={`app-more-trigger${isHeaderMoreRouteActive ? ' app-nav-link-active' : ''}`}
+                  aria-haspopup="menu"
+                  aria-expanded={isMoreMenuOpen}
+                  onClick={() => {
+                    sounds.playButtonPress()
+                    setIsMoreMenuOpen((current) => !current)
+                  }}
+                >
+                  <span className="app-nav-link-label">More</span>
+                  <span aria-hidden="true" className="text-xs">
+                    {isMoreMenuOpen ? '▲' : '▼'}
+                  </span>
+                </button>
 
-              {isMoreMenuOpen && (
-                <div role="menu" className="app-menu">
-                  {headerMoreMenuItems.map((item) => (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.end !== false}
-                      role="menuitem"
-                      onClick={() => {
-                        sounds.playButtonPress()
-                        setIsMoreMenuOpen(false)
-                      }}
-                      className={({ isActive }) => `app-menu-link${isActive ? ' app-nav-link-active' : ''}`}
-                    >
-                      {item.label}
-                    </NavLink>
-                  ))}
-                </div>
-              )}
+                {isMoreMenuOpen && (
+                  <div role="menu" className="app-menu">
+                    {headerMoreMenuItems.map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        end={item.end !== false}
+                        role="menuitem"
+                        onClick={() => {
+                          sounds.playButtonPress()
+                          setIsMoreMenuOpen(false)
+                        }}
+                        className={({ isActive }) => `app-menu-link${isActive ? ' app-nav-link-active' : ''}`}
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </nav>
+
+            <div className="app-header-controls">
+              <NetworkBadge />
+              <WalletButton />
             </div>
-          </nav>
-
-          <div className="app-header-controls">
-            <NetworkBadge />
-            <WalletButton />
           </div>
-        </div>
-      </header>
+        </header>
+
+        <EnvironmentRibbon />
+      </div>
 
       <main className="app-main-shell">
         <div className="app-main">
@@ -175,12 +184,20 @@ export default function Layout() {
           <div className="app-main-content">
             <Outlet />
           </div>
+          {showMobileLegalStrip ? (
+            <div className="app-mobile-legal-strip">
+              <LegalFooterNotice />
+            </div>
+          ) : null}
         </div>
       </main>
 
       <footer className="app-footer-shell">
         <div className="app-footer">
-          <p>CL8Y DEX · Terra Classic</p>
+          <div className="app-footer-copy">
+            <p className="app-footer-title">CL8Y DEX · Terra Classic</p>
+            <LegalFooterNotice />
+          </div>
           <ThemeSegmentedControl
             theme={theme}
             onSelect={setThemeAndPersist}

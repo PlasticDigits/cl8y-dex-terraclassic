@@ -23,6 +23,7 @@ Use when changing **Vite build output**, **source maps**, or reviewing PRs that 
 ## Related (layout / navigation)
 
 - **Header breakpoints & tablet More overflow:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
+- **Risk / NFA / first-visit modal:** [`docs/frontend.md` § Risk surfacing, NFA copy, and first-visit acknowledgement](../docs/frontend.md#legal-risk-surfacing), [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
 
 ## Related (form accessibility)
 

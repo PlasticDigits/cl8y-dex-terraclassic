@@ -22,4 +22,6 @@ regexTarget = "secret"
 regexes = [
   '''terra1[a-z0-9]{38,}''',
   '''Secp256k1PubKey''',
+  # localStorage key for first-visit risk acknowledgement (GitLab #138); not a credential.
+  '''cl8y-dex-risk-ack''',
 ]

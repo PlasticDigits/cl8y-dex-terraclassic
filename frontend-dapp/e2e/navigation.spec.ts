@@ -79,6 +79,12 @@ test.describe('Navigation', () => {
     await expect(page.getByRole('link', { name: 'CL8Y DEX' })).toBeVisible()
   })
 
+  test('shows persistent environment strip and NFA footer copy (GitLab #138)', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('status', { name: /Environment:/i })).toBeVisible()
+    await expect(page.getByText(/Nothing here is financial/i)).toBeVisible()
+  })
+
   test('navigates to Swap page by default', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Swap' })).toBeVisible()

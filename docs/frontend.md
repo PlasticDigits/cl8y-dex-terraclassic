@@ -20,7 +20,7 @@ frontend-dapp/
 │   └── fixtures/         # Test fixtures (dev wallet, etc.)
 ├── public/               # Static assets
 ├── src/
-│   ├── components/       # Reusable UI components
+│   ├── components/       # Reusable UI components (incl. `components/legal` — GitLab #138)
 │   ├── hooks/            # Custom React hooks (useSwap, usePool, etc.)
 │   ├── pages/            # Route-level page components (Swap, Pool, Tiers)
 │   ├── services/         # Chain interaction, contract queries
@@ -54,6 +54,26 @@ The dApp connects to Terra Classic wallets using the Station browser extension o
 
 - **Network detection:** the `VITE_NETWORK` env var controls which chain the dApp targets (`mainnet`, `testnet`, `local`).
 - **Signing:** all transactions use the connected wallet's signer. The dApp never handles private keys in production; the Simulated Wallet (dev only) is an exception and is described below.
+
+### Risk surfacing, NFA copy, and first-visit acknowledgement {#legal-risk-surfacing}
+
+Pre-launch legal / UX requirements are tracked in [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138). Implementation overview:
+
+| Surface | Location |
+|---------|----------|
+| Environment strip | [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx) under the sticky header stack — **local**, **testnet**, and **mainnet** builds all show chain context (not only the `LOCAL`-style header badge). |
+| NFA + risk summary | [`legalCopy.ts`](../frontend-dapp/src/components/legal/legalCopy.ts) — reused by the modal and [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) in the **desktop footer** and, on narrow viewports only, a second instance inside [`Layout`](../frontend-dapp/src/components/common/Layout.tsx) (`.app-mobile-legal-strip`) because the footer chrome is hidden below 768px. |
+| First-visit gate | [`RiskAcknowledgementModal`](../frontend-dapp/src/components/legal/RiskAcknowledgementModal.tsx) — blocking `Modal` (`dismissible={false}`) until the user checks the confirmation and clicks **Continue**; persisted in `localStorage` via [`riskAcknowledgement.ts`](../frontend-dapp/src/utils/riskAcknowledgement.ts). |
+| Playwright | `VITE_PLAYWRIGHT_E2E=true` on the Playwright `webServer` env ([`playwright.config.ts`](../frontend-dapp/playwright.config.ts)) skips the gate so E2E is not blocked; do not set this on user-facing production builds. |
+
+| Invariant | Meaning |
+|-----------|---------|
+| Ack version gate | `RISK_ACK_VERSION` in [`riskAcknowledgement.ts`](../frontend-dapp/src/utils/riskAcknowledgement.ts) must be bumped when risk or NFA copy changes materially so users see the updated gate. |
+| Blocking modal | First-visit modal must remain **non-dismissible** by backdrop, Escape, or header close (only the explicit CTA after checkbox). Regression: [`Modal.test.tsx`](../frontend-dapp/src/components/ui/__tests__/Modal.test.tsx), [`RiskAcknowledgementModal.test.tsx`](../frontend-dapp/src/components/legal/__tests__/RiskAcknowledgementModal.test.tsx). |
+| E2E vs prod | **`VITE_PLAYWRIGHT_E2E`** is **only** for automated browser tests; production and manual QA should leave it unset so the modal and copy behave as users will see them. |
+| Storage key | `cl8y-dex-risk-ack` — changing the key resets acknowledgement for all users; avoid unless migrating storage intentionally. |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md).
 
 ### Simulated (dev) wallet and `VITE_DEV_MNEMONIC` {#simulated-dev-wallet-and-vite_dev_mnemonic}
 

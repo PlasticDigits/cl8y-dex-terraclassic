@@ -5,6 +5,11 @@ declare module '*.json' {
   export default value
 }
 
+interface ImportMetaEnv {
+  /** When `"true"`, skips the blocking first-visit risk acknowledgement (Playwright webServer only — GitLab #138). */
+  readonly VITE_PLAYWRIGHT_E2E?: string
+}
+
 declare module 'react-blockies'
 
 declare const __GIT_SHA__: string
