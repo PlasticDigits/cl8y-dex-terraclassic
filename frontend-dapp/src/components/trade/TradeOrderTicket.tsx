@@ -26,6 +26,7 @@ import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrow
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
 import type { IndexerLimitCancellation } from '@/types'
 
 /**
@@ -255,7 +256,10 @@ export function TradeOrderTicket({
 
       {selectedPair && isPaused && (
         <div className="alert-error text-xs space-y-2" role="status">
-          <p>Pair is paused — limit place/cancel blocked until governance unpauses.</p>
+          <p>
+            Pair is paused — limit place/cancel blocked until governance unpauses. Claim refund stays available for
+            parked expired rows (GitLab #141).
+          </p>
           <a
             className="underline text-[10px]"
             href={`${DOCS_GITLAB_BASE}/contracts-security-audit.md`}
@@ -373,18 +377,16 @@ export function TradeOrderTicket({
       </div>
 
       {pairAddr && address && (
-        <div className="text-[10px] font-mono space-y-1 border-t border-white/10 pt-3 max-h-28 overflow-y-auto">
-          <div className="uppercase tracking-wide font-semibold mb-1" style={{ color: 'var(--ink-dim)' }}>
-            Your active placements
-          </div>
-          {placementsQuery.isLoading && <Spinner />}
-          {!placementsQuery.isLoading &&
-            myPlacements.map((r) => (
-              <div key={r.id}>
-                #{r.order_id} · {r.side ?? '?'} · {r.price ?? '?'}
-              </div>
-            ))}
-        </div>
+        <LimitOrderMyPlacementsPanel
+          variant="compact"
+          pairAddr={pairAddr}
+          pair={selectedPair}
+          walletAddress={address}
+          rows={myPlacements}
+          isLoading={placementsQuery.isLoading}
+          isWalletConnected={isWalletConnected}
+          openWalletModal={openWalletModal}
+        />
       )}
     </div>
   )

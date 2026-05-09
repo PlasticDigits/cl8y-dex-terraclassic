@@ -19,6 +19,7 @@ import {
   swap,
   provideLiquidity,
   withdrawLiquidity,
+  claimExpiredLimitOrder,
 } from '../pair'
 import type {
   AssetInfo,
@@ -345,6 +346,19 @@ describe('provideLiquidity', () => {
     )
 
     expect(mockedExecute).toHaveBeenCalledTimes(5)
+  })
+})
+
+describe('claimExpiredLimitOrder', () => {
+  it('calls executeTerraContract with claim_expired_limit_order on the pair', async () => {
+    mockedExecute.mockResolvedValueOnce('txhash_claim')
+
+    const result = await claimExpiredLimitOrder(WALLET_ADDR, PAIR_ADDR, 99)
+
+    expect(result).toBe('txhash_claim')
+    expect(mockedExecute).toHaveBeenCalledWith(WALLET_ADDR, PAIR_ADDR, {
+      claim_expired_limit_order: { order_id: 99 },
+    })
   })
 })
 

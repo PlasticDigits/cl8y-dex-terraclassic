@@ -243,7 +243,7 @@ export interface IndexerLiquidityEvent {
   lp_amount: string
 }
 
-/** `GET /api/v1/pairs/{addr}/limit-placements` — placements without a matching indexed cancel (same pair + order_id); see GitLab #135. */
+/** `GET /api/v1/pairs/{addr}/limit-placements` — placements without a matching indexed cancel (same pair + order_id); see GitLab #135. Lifecycle fields: GitLab #142 / #141. */
 export interface IndexerLimitPlacement {
   id: number
   pair_address: string
@@ -251,10 +251,20 @@ export interface IndexerLimitPlacement {
   block_timestamp: string
   tx_hash: string
   order_id: number
+  /** Indexer default listing includes `active` + `parked_expired`; omitted on legacy indexer responses → treat as `active`. */
+  lifecycle_status?: string | null
   owner?: string | null
   side?: string | null
   price?: string | null
   expires_at?: number | null
+  /** Raw escrow remaining when parked (`limit_order_expired_parked`); preserved after refund for UX. */
+  remaining_escrow?: string | null
+  parked_block_height?: number | null
+  parked_block_timestamp?: string | null
+  parked_tx_hash?: string | null
+  refunded_block_height?: number | null
+  refunded_block_timestamp?: string | null
+  refunded_tx_hash?: string | null
 }
 
 /** `GET /api/v1/pairs/{addr}/limit-cancellations` */

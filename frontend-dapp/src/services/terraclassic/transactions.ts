@@ -17,6 +17,7 @@ const SWAP_GAS_LIMIT = 600000
 const HYBRID_SWAP_GAS_LIMIT = 1200000
 const PLACE_LIMIT_ORDER_GAS_LIMIT = 950000
 const CANCEL_LIMIT_ORDER_GAS_LIMIT = 450000
+const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
 const ADD_LIQUIDITY_GAS_LIMIT = 500000
 const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
 const CREATE_PAIR_GAS_LIMIT = 800000
@@ -83,6 +84,9 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   }
   if ('cancel_limit_order' in executeMsg) {
     return CANCEL_LIMIT_ORDER_GAS_LIMIT
+  }
+  if ('claim_expired_limit_order' in executeMsg) {
+    return CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT
   }
   if ('execute_swap_operations' in executeMsg) {
     return gasLimitForSwapOperationsMsg(executeMsg)

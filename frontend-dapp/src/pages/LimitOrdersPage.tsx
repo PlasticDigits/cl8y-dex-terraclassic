@@ -28,6 +28,7 @@ import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrow
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
 import type { IndexerLimitCancellation } from '@/types'
 
 export default function LimitOrdersPage() {
@@ -295,7 +296,8 @@ export default function LimitOrdersPage() {
                 <div className="alert-error text-sm space-y-2" role="status">
                   <p>
                     This pair is paused by governance. New limit orders and cancel are unavailable until the pair is
-                    unpaused (invariant L6 — resting escrow stays locked).
+                    unpaused (invariant L6 — resting escrow stays locked). You can still submit Claim refund for limits
+                    the indexer shows as parked expired (maker recovery path — GitLab #141).
                   </p>
                   <p className="text-xs opacity-90">
                     <a
@@ -482,20 +484,16 @@ export default function LimitOrdersPage() {
 
               {pairAddr && address && (
                 <div className="card-neo !p-4 space-y-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide">Your active placements (indexer)</h2>
-                  {placementsQuery.isLoading && <Spinner />}
-                  {!placementsQuery.isLoading && myPlacements.length === 0 && (
-                    <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-                      No indexed placements for this wallet on this pair (or pair code predates owner attrs).
-                    </p>
-                  )}
-                  <ul className="text-xs font-mono space-y-1 max-h-40 overflow-y-auto">
-                    {myPlacements.map((r) => (
-                      <li key={r.id}>
-                        order #{r.order_id} · {r.side ?? '?'} · {r.price ?? '?'} · {r.block_timestamp.slice(0, 19)}
-                      </li>
-                    ))}
-                  </ul>
+                  <LimitOrderMyPlacementsPanel
+                    variant="page"
+                    pairAddr={pairAddr}
+                    pair={selectedPair}
+                    walletAddress={address}
+                    rows={myPlacements}
+                    isLoading={placementsQuery.isLoading}
+                    isWalletConnected={isWalletConnected}
+                    openWalletModal={openWalletModal}
+                  />
                 </div>
               )}
             </div>

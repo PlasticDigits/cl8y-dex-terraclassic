@@ -5,6 +5,7 @@
  */
 
 import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUserMessage'
+import { humanizeExpiredLimitClaimMessage } from './limitClaimUserMessage'
 
 /** Strip repeated `Transaction failed:` prefixes from nested throws. */
 export function stripNestedTransactionFailedPrefixes(message: string): string {
@@ -25,6 +26,10 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   const limitOrder = humanizeCosmwasmLimitOrderMissingMessage(inner)
   if (limitOrder) {
     return limitOrder
+  }
+  const claim = humanizeExpiredLimitClaimMessage(inner)
+  if (claim) {
+    return claim
   }
   if (/Max spread assertion/i.test(inner)) {
     return (

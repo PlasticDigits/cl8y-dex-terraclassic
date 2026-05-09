@@ -263,6 +263,11 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(450000))
   })
 
+  it('uses CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT for claim_expired_limit_order', async () => {
+    const fee = await getFeeForMsg({ claim_expired_limit_order: { order_id: 2 } })
+    expect(fee.gasLimit).toBe(BigInt(450000))
+  })
+
   it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for top-level place_limit_order', async () => {
     const fee = await getFeeForMsg({
       place_limit_order: {
