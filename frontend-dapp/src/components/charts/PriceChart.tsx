@@ -6,15 +6,18 @@ import { sounds } from '@/lib/sounds'
 import { PriceChartEmptyState } from './PriceChartEmptyState'
 import { PriceChartLightweightCanvas } from './PriceChartLightweightCanvas'
 import { indexerCandlesToChartPoints, indexerCandlesToVolumeHistogramPoints } from './priceChartCandles'
+import { resolveTradeChartHeadlineUsd } from './chartHeadlinePrice'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'] as const
 
 interface PriceChartProps {
   pairAddress: string
   defaultInterval?: string
+  /** Latest trade price in USD from indexer tape (newest-first); preferred over candle close for headline */
+  tapeLastPriceUsd?: string | null
 }
 
-export default function PriceChart({ pairAddress, defaultInterval = '1h' }: PriceChartProps) {
+export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLastPriceUsd }: PriceChartProps) {
   const [interval, setInterval_] = useState(defaultInterval)
 
   const candlesQuery = useQuery({
@@ -25,6 +28,11 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
   })
 
   const chartPoints = useMemo(() => indexerCandlesToChartPoints(candlesQuery.data), [candlesQuery.data])
+
+  const headlineUsd = useMemo(
+    () => resolveTradeChartHeadlineUsd(tapeLastPriceUsd, chartPoints),
+    [tapeLastPriceUsd, chartPoints]
+  )
 
   const volumePoints = useMemo(() => {
     if (typeof document === 'undefined') {
@@ -49,11 +57,27 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h' }: Pric
 
   return (
     <div className="shell-panel-strong flex flex-col min-h-0">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
-          Price (USD)
-        </h3>
-        <div className="flex gap-1" role="group" aria-label="Chart interval">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
+            Price (USD)
+          </h3>
+          {headlineUsd != null && (
+            <div
+              className="flex items-baseline gap-2"
+              data-testid="trade-chart-headline-price"
+              title="Last trade price (USD) from the tape when available; otherwise last candle close for this interval."
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+                Last
+              </span>
+              <span className="text-lg font-semibold tabular-nums font-heading" style={{ color: 'var(--ink)' }}>
+                {headlineUsd}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-1 shrink-0" role="group" aria-label="Chart interval">
           {INTERVALS.map((iv) => (
             <button
               key={iv}

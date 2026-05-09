@@ -73,9 +73,18 @@ export function OrderBookPanel({ pairAddress }: { pairAddress: string }) {
 
   return (
     <div className="flex flex-col gap-2 h-full min-h-0">
-      <h2 className="text-xs font-semibold uppercase tracking-wide shrink-0" style={{ color: 'var(--ink)' }}>
-        Order book
-      </h2>
+      <div className="shrink-0 space-y-1">
+        <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink)' }}>
+          Order book
+        </h2>
+        <p
+          className="text-[10px] leading-snug max-w-md"
+          style={{ color: 'var(--ink-dim)' }}
+          title="Shows open resting limit orders only. Swaps against AMM pool liquidity appear in Recent trades, not in this book."
+        >
+          Shows open limit orders — pool liquidity not included.
+        </p>
+      </div>
       <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
         <BookSideColumn title="Bids" pairAddress={pairAddress} side="bid" />
         <BookSideColumn title="Asks" pairAddress={pairAddress} side="ask" />

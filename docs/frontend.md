@@ -207,7 +207,19 @@ The **price chart** on `/trade` and `/charts` is rendered with **TradingView [li
 | Reference line | When the chart is empty, an optional **24h close** from `getPairStats` (`close_price`) may display; query is enabled only for that state so normal pairs are not blocked. |
 | Accessibility | The empty panel uses `role="img"` and a descriptive `aria-label` so screen readers do not see a silent canvas. |
 
-Implementation: [`frontend-dapp/src/components/charts/PriceChart.tsx`](../frontend-dapp/src/components/charts/PriceChart.tsx), [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts) (pure mapping). Tracked in GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113).
+**Last price headline (non-axis):** Beside the **Price (USD)** title, the chart shows a **Last** value when resolvable: **latest tape price (USD)** from the indexer when the parent passes `tapeLastPriceUsd` (e.g. newest row from `getTrades`, which is `ORDER BY id DESC`), otherwise the **last candle’s close** for the selected interval. Implementation: `resolveTradeChartHeadlineUsd` in [`chartHeadlinePrice.ts`](../frontend-dapp/src/components/charts/chartHeadlinePrice.ts), `PriceChart` + `data-testid="trade-chart-headline-price"`. Tracked in [GitLab **#149**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149). Candlestick OHLC mapping remains in [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts) ([GitLab **#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113)).
+
+### Trade page — market context (tape, hybrid tag, limit-only book) {#trade-page-market-context}
+
+Readability for traders used to centralized exchanges ([GitLab **#149**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Recent trades columns** | Headers **Pair** (pay → receive), **Amount in** / **Amount out** (offer / ask token amounts), plus **Price**, **Tx**. Column `<th>` elements carry `title` tooltips for the offer/ask semantics. Component: [`TradesTable.tsx`](../frontend-dapp/src/components/ui/TradesTable.tsx). |
+| **`hybrid` badge** | Uppercase styling on the badge text; native **`title`** explains hybrid **AMM + limit order** execution and points integrators to **`docs/integrators.md`** for fee attribution across events. |
+| **Order book scope** | Under **Order book**, copy clarifies **open limit orders only** — **pool / AMM liquidity does not appear** in the book (swaps still appear in the tape). Component: [`OrderBookPanel.tsx`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx). |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) (layout + this section for labeling).
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 

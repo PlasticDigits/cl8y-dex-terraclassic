@@ -29,6 +29,13 @@ describe('TradesTable', () => {
     expect(screen.getByText('No trades')).toBeInTheDocument()
   })
 
+  it('renders column headers for tape (GitLab #149)', () => {
+    render(<TradesTable trades={mockTrades} formatTimeFn={formatTimeFn} />)
+    expect(screen.getByRole('columnheader', { name: /pair/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^amount in$/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^amount out$/i })).toBeInTheDocument()
+  })
+
   it('renders trade rows', () => {
     render(<TradesTable trades={mockTrades} formatTimeFn={formatTimeFn} />)
     expect(screen.getByText('CL8Y → LUNC')).toBeInTheDocument()
@@ -48,7 +55,7 @@ describe('TradesTable', () => {
     })
   })
 
-  it('shows hybrid badge with integrator tooltip when trade has pool/book split fields', () => {
+  it('shows hybrid badge with CEX-readable tooltip when trade has pool/book split fields', () => {
     const hybridTrade: IndexerTrade = {
       ...mockTrade,
       id: 2,
@@ -56,8 +63,8 @@ describe('TradesTable', () => {
       book_return_amount: '400',
     }
     render(<TradesTable trades={[hybridTrade]} formatTimeFn={formatTimeFn} />)
-    const badge = screen.getByTitle(/Hybrid swap:/i)
+    const badge = screen.getByTitle(/Executed via hybrid AMM \+ limit order routing/i)
     expect(badge).toHaveTextContent('hybrid')
-    expect(badge.getAttribute('title')).toMatch(/AfterSwap/)
+    expect(badge.getAttribute('title')).toMatch(/integrators\.md/)
   })
 })

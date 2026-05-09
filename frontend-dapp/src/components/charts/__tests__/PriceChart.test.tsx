@@ -6,6 +6,7 @@ import PriceChart from '../PriceChart'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerCandle } from '@/types'
 import { lwChartTestDouble } from '@/test/lightweightChartsJsdomMock'
+import { formatNum } from '@/utils/formatAmount'
 
 vi.mock('@/lib/sounds', () => ({
   sounds: { playButtonPress: vi.fn() },
@@ -54,6 +55,22 @@ describe('PriceChart', () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([candle()])
     vi.mocked(indexerClient.getPairStats).mockReset()
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
+  })
+
+  it('shows headline last price from tape when tapeLastPriceUsd is provided', async () => {
+    renderWithProviders(<PriceChart pairAddress={pairA} tapeLastPriceUsd="3.14159265" />)
+    await waitFor(() => expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument())
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(/Last/)
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum('3.14159265', 6))
+  })
+
+  it('shows headline from last candle close when tape is omitted', async () => {
+    vi.mocked(indexerClient.getCandles).mockResolvedValue([
+      candle({ open_time: '2024-01-02T12:00:00.000Z', open: '2', close: '2.5' }),
+    ])
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toBeInTheDocument())
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(2.5, 6))
   })
 
   it('shows loading then renders chart chrome when data resolves', async () => {
