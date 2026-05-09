@@ -170,6 +170,31 @@
     filter: brightness(1.03);
   }
 
+  /* WCAG 2.4.7 — keyboard-only focus ring (matches .input-neo; GitLab #144) */
+  .btn-primary:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-button),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .btn-primary.btn-cta:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 244, 224, 0.2),
+      0 0 0 1px rgba(255, 220, 184, 0.12),
+      0 20px 32px rgba(234, 88, 12, 0.28),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .btn-primary.btn-cta:hover:focus-visible {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 244, 224, 0.2),
+      0 0 0 1px rgba(255, 220, 184, 0.16),
+      0 24px 36px rgba(234, 88, 12, 0.32),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
   .btn-muted {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-150;
     border: 1px solid var(--line);
@@ -185,6 +210,13 @@
     background: var(--control-surface-hover);
     color: var(--ink);
     transform: translateY(-1px);
+  }
+
+  .btn-muted:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-button-muted),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .btn-cta {
@@ -227,7 +259,7 @@
     color: var(--ink-subtle);
   }
 
-  .input-neo:focus {
+  .input-neo:focus-visible {
     outline: none;
     border-color: rgba(255, 214, 153, 0.28);
     box-shadow:
@@ -247,7 +279,7 @@
     background-position: right 12px center;
   }
 
-  .select-neo:focus {
+  .select-neo:focus-visible {
     outline: none;
     border-color: rgba(255, 214, 153, 0.28);
     box-shadow:
@@ -278,11 +310,12 @@
     cursor: not-allowed;
   }
 
-  .token-select-trigger:focus {
+  .token-select-trigger:focus-visible {
     outline: none;
     border-color: rgba(255, 214, 153, 0.28);
     box-shadow:
       inset 0 1px 0 rgba(255, 248, 235, 0.08),
+      0 10px 24px rgba(16, 10, 8, 0.12),
       0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
@@ -453,6 +486,13 @@
     border-bottom-color: rgba(167, 108, 71, 0.2);
   }
 
+  /* Large pay amount field — unfilled shell; ring on keyboard focus only (GitLab #144). */
+  .swap-io-amount-input:focus-visible {
+    outline: none;
+    border-radius: 12px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
   .tab-neo {
     @apply px-4 py-2 text-sm font-medium uppercase tracking-wide transition-colors;
     border: 1px solid rgba(255, 220, 184, 0.08);
@@ -477,6 +517,20 @@
     border-color: rgba(255, 221, 186, 0.12);
     color: var(--ink);
     background: rgba(255, 255, 255, 0.06);
+  }
+
+  .tab-neo:focus-visible {
+    outline: none;
+    border-color: rgba(255, 221, 186, 0.18);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .tab-neo.tab-neo-active:focus-visible {
+    border-color: rgba(255, 221, 186, 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 247, 233, 0.18),
+      0 12px 26px rgba(21, 12, 10, 0.16),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .badge-neo {
@@ -668,6 +722,32 @@
     transform: translateY(-1px);
   }
 
+  .app-nav-link:focus-visible,
+  .app-more-trigger:focus-visible,
+  .app-mobile-link:focus-visible,
+  .app-mobile-more:focus-visible,
+  .app-footer-theme-button:focus-visible,
+  .network-badge:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-button-muted),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .wallet-trigger:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-button),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .wallet-trigger-connected:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-button-muted),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
   .app-nav-link-active,
   .app-footer-theme-button-active,
   .app-mobile-link-active,
@@ -679,6 +759,18 @@
     box-shadow:
       inset 0 1px 0 rgba(255, 247, 233, 0.18),
       0 12px 26px rgba(21, 12, 10, 0.16);
+  }
+
+  .app-nav-link-active:focus-visible,
+  .app-footer-theme-button-active:focus-visible,
+  .app-mobile-link-active:focus-visible,
+  .app-mobile-more-active:focus-visible,
+  .network-badge-active:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 247, 233, 0.18),
+      0 12px 26px rgba(21, 12, 10, 0.16),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .app-nav-link-label {
@@ -727,6 +819,12 @@
     width: 100%;
     font: inherit;
     cursor: var(--cursor-pointer);
+  }
+
+  .app-menu-link:focus-visible,
+  .wallet-menu-item:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .wallet-trigger {
@@ -946,6 +1044,12 @@
     background: var(--control-surface-hover);
     border-color: rgba(255, 220, 184, 0.16);
     transform: translateY(-1px);
+  }
+
+  .wallet-option-card:focus-visible {
+    outline: none;
+    border-color: rgba(255, 214, 153, 0.28);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .wallet-option-card-dev {
