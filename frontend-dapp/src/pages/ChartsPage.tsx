@@ -359,7 +359,7 @@ export default function ChartsPage() {
       </div>
 
       {/* Price Chart */}
-      {activePairAddr && <PriceChart pairAddress={activePairAddr} />}
+      {activePairAddr && <PriceChart pairAddress={activePairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />}
 
       {/* 24h Stats */}
       {stats && activePair && (

@@ -134,7 +134,7 @@ export default function TradePage() {
           )}
           {activePair && (
             <div className="card-neo !p-2 flex-1 min-h-0">
-              <PriceChart pairAddress={pairAddr} />
+              <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
             </div>
           )}
         </div>
@@ -172,7 +172,7 @@ export default function TradePage() {
                       onRetry={() => indexerPairQuery.refetch()}
                     />
                   )}
-                  {activePair && <PriceChart pairAddress={pairAddr} />}
+                  {activePair && <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />}
                   {!pairAddr.startsWith('terra1') && (
                     <p className="text-sm p-4" style={{ color: 'var(--ink-dim)' }}>
                       Select a pair for the chart.

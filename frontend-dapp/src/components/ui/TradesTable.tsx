@@ -26,14 +26,26 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
             <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
               Time
             </th>
-            <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
-              Direction
+            <th
+              scope="col"
+              className="text-left py-2 px-2 font-medium uppercase tracking-wider"
+              title="Assets swapped in this fill (pay → receive)"
+            >
+              Pair
             </th>
-            <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
-              Offer
+            <th
+              scope="col"
+              className="text-right py-2 px-2 font-medium uppercase tracking-wider"
+              title="Amount of the asset paid in (offer side)"
+            >
+              Amount in
             </th>
-            <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
-              Return
+            <th
+              scope="col"
+              className="text-right py-2 px-2 font-medium uppercase tracking-wider"
+              title="Amount of the asset received out (ask side)"
+            >
+              Amount out
             </th>
             <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
               Price
@@ -63,7 +75,7 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
                   {hybrid ? (
                     <span
                       className="ml-1 inline-flex items-center rounded border border-white/20 px-1 py-px text-[10px] font-normal uppercase tracking-wide text-white/70"
-                      title="Hybrid swap: both the AMM pool and the on-chain limit book contributed. On-chain AfterSwap hooks report pool-leg commission only; book fees appear on limit_order_fill events. See docs/integrators.md."
+                      title="Executed via hybrid AMM + limit order routing. Fee lines may split across pool hooks and limit_order_fill events — see docs/integrators.md."
                     >
                       hybrid
                     </span>
