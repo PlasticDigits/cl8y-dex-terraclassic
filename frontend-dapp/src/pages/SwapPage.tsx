@@ -810,7 +810,7 @@ export default function SwapPage() {
                 }
               }}
               placeholder="0.00"
-              className="w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent focus:outline-none"
+              className="swap-io-amount-input w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent"
               style={{ color: 'var(--ink)' }}
             />
             {isWalletConnected && (
