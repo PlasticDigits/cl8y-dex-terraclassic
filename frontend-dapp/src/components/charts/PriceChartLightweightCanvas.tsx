@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { HistogramData, IChartApi, ISeriesApi, Time } from 'lightweight-charts'
+import type { AutoscaleInfo, HistogramData, IChartApi, ISeriesApi, Time } from 'lightweight-charts'
 import type { ChartCandlePoint } from './priceChartCandles'
 import type { IndicatorLinePoint } from './priceChartIndicators'
 import { rsiPaneHeightPx, volumePaneHeightPx } from './priceChartPaneHeights'
@@ -107,7 +107,7 @@ export function PriceChartLightweightCanvas({
           borderUpColor: positive,
           wickDownColor: negative,
           wickUpColor: positive,
-          autoscaleInfoProvider: (original) => {
+          autoscaleInfoProvider: (original: () => AutoscaleInfo | null) => {
             const raw = original()
             const logical = chart!.timeScale().getVisibleLogicalRange()
             const visibleMinLow = minLowInVisibleLogicalRange(candlePointsRef.current, logical)
