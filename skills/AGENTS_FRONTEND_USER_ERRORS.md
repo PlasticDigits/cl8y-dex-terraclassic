@@ -21,5 +21,6 @@ Use when surfacing **wallet**, **fetch/indexer**, or **mutation** failures in th
 
 ## Related
 
+- **Trade page** sub-desktop grid + `trade-sub-lg-workspace`: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)).
 - **Contract-side copy / max spread:** [GitLab **#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md).
 - **Connect modal raw errors (same surface):** [GitLab **#139**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139).
