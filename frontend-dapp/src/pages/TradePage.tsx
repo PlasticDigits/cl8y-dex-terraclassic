@@ -114,22 +114,33 @@ export default function TradePage() {
         )}
       </div>
 
-      {/* Mobile / small: stacked */}
-      <div className="lg:hidden space-y-3">
-        <div className="min-h-[280px]">
+      {/*
+        Sub-desktop layout: single column <768px; tablet 768–1023px uses a 2-col top row
+        (chart | order ticket) with order book + tape below — see docs/frontend.md § Trade page
+        responsive layout (GitLab #146).
+      */}
+      <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
+        <div className="min-h-[280px] md:col-span-2 md:row-start-2">
           <OrderBookPanel pairAddress={pairAddr} />
         </div>
-        <TradeOrderTicket pairAddr={pairAddr} pairs={pairs} pairsLoading={pairsQuery.isLoading} />
-        {indexerPairQuery.isLoading && <Skeleton height="12rem" />}
-        {indexerPairQuery.isError && !indexerDown && (
-          <RetryError message={(indexerPairQuery.error as Error).message} onRetry={() => indexerPairQuery.refetch()} />
-        )}
-        {activePair && (
-          <div className="card-neo !p-2">
-            <PriceChart pairAddress={pairAddr} />
-          </div>
-        )}
-        <div className="card-neo !p-3">
+        <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">
+          <TradeOrderTicket pairAddr={pairAddr} pairs={pairs} pairsLoading={pairsQuery.isLoading} />
+        </div>
+        <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
+          {indexerPairQuery.isLoading && <Skeleton height="12rem" />}
+          {indexerPairQuery.isError && !indexerDown && (
+            <RetryError
+              message={(indexerPairQuery.error as Error).message}
+              onRetry={() => indexerPairQuery.refetch()}
+            />
+          )}
+          {activePair && (
+            <div className="card-neo !p-2 flex-1 min-h-0">
+              <PriceChart pairAddress={pairAddr} />
+            </div>
+          )}
+        </div>
+        <div className="card-neo !p-3 md:col-span-2 md:row-start-3">
           <h2 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--ink-dim)' }}>
             Recent trades
           </h2>
