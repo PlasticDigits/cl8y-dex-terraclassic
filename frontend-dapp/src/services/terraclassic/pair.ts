@@ -1,5 +1,5 @@
 import { queryContract } from './queries'
-import { executeTerraContract } from './transactions'
+import { executeTerraContract, executeTerraContractMulti } from './transactions'
 import type {
   Asset,
   AssetInfo,
@@ -188,16 +188,17 @@ export async function provideLiquidity(
     return txHash
   } catch (error) {
     try {
-      await executeTerraContract(walletAddress, tokenA, {
-        decrease_allowance: { spender: pairAddress, amount: amountA },
-      })
-    } catch {
-      /* best effort cleanup */
-    }
-    try {
-      await executeTerraContract(walletAddress, tokenB, {
-        decrease_allowance: { spender: pairAddress, amount: amountB },
-      })
+      /** Single tx (one prompt / one fee) vs two sequential `decrease_allowance` broadcasts ([GitLab #147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)). */
+      await executeTerraContractMulti(walletAddress, [
+        {
+          contract: tokenA,
+          msg: { decrease_allowance: { spender: pairAddress, amount: amountA } },
+        },
+        {
+          contract: tokenB,
+          msg: { decrease_allowance: { spender: pairAddress, amount: amountB } },
+        },
+      ])
     } catch {
       /* best effort cleanup */
     }

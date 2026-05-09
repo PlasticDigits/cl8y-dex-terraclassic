@@ -235,6 +235,11 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(200000))
   })
 
+  it('uses BASE_GAS_LIMIT for decrease_allowance', async () => {
+    const fee = await getFeeForMsg({ decrease_allowance: {} })
+    expect(fee.gasLimit).toBe(BigInt(200000))
+  })
+
   it('uses BASE_GAS_LIMIT for unknown messages', async () => {
     const fee = await getFeeForMsg({ unknown_action: {} })
     expect(fee.gasLimit).toBe(BigInt(200000))

@@ -114,7 +114,7 @@ function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
       }
     }
     return SWAP_GAS_LIMIT
-  } else if ('increase_allowance' in executeMsg) {
+  } else if ('increase_allowance' in executeMsg || 'decrease_allowance' in executeMsg) {
     return BASE_GAS_LIMIT
   }
   return BASE_GAS_LIMIT

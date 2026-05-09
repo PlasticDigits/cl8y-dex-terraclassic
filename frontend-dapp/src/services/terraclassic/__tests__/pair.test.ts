@@ -6,10 +6,11 @@ vi.mock('@/services/terraclassic/queries', () => ({
 
 vi.mock('@/services/terraclassic/transactions', () => ({
   executeTerraContract: vi.fn(),
+  executeTerraContractMulti: vi.fn(),
 }))
 
 import { queryContract } from '@/services/terraclassic/queries'
-import { executeTerraContract } from '@/services/terraclassic/transactions'
+import { executeTerraContract, executeTerraContractMulti } from '@/services/terraclassic/transactions'
 import {
   getPairInfo,
   getPool,
@@ -32,6 +33,7 @@ import type {
 
 const mockedQuery = vi.mocked(queryContract)
 const mockedExecute = vi.mocked(executeTerraContract)
+const mockedExecuteMulti = vi.mocked(executeTerraContractMulti)
 
 const PAIR_ADDR = 'terra1paircontract'
 const WALLET_ADDR = 'terra1walletaddr'
@@ -307,45 +309,48 @@ describe('provideLiquidity', () => {
     })
   })
 
-  it('rolls back allowances on provide_liquidity failure', async () => {
+  it('rolls back allowances on provide_liquidity failure via one multi-msg tx', async () => {
     const provideError = new Error('provide_liquidity failed')
 
     mockedExecute
       .mockResolvedValueOnce('allowance_a')
       .mockResolvedValueOnce('allowance_b')
       .mockRejectedValueOnce(provideError)
-      .mockResolvedValueOnce('decrease_a')
-      .mockResolvedValueOnce('decrease_b')
+    mockedExecuteMulti.mockResolvedValueOnce('rollback_multi')
 
     await expect(provideLiquidity(WALLET_ADDR, PAIR_ADDR, TOKEN_A, TOKEN_B, '1000', '2000')).rejects.toThrow(
       'provide_liquidity failed'
     )
 
-    expect(mockedExecute).toHaveBeenCalledTimes(5)
-
-    expect(mockedExecute).toHaveBeenNthCalledWith(4, WALLET_ADDR, TOKEN_A, {
-      decrease_allowance: { spender: PAIR_ADDR, amount: '1000' },
-    })
-    expect(mockedExecute).toHaveBeenNthCalledWith(5, WALLET_ADDR, TOKEN_B, {
-      decrease_allowance: { spender: PAIR_ADDR, amount: '2000' },
-    })
+    expect(mockedExecute).toHaveBeenCalledTimes(3)
+    expect(mockedExecuteMulti).toHaveBeenCalledTimes(1)
+    expect(mockedExecuteMulti).toHaveBeenCalledWith(WALLET_ADDR, [
+      {
+        contract: TOKEN_A,
+        msg: { decrease_allowance: { spender: PAIR_ADDR, amount: '1000' } },
+      },
+      {
+        contract: TOKEN_B,
+        msg: { decrease_allowance: { spender: PAIR_ADDR, amount: '2000' } },
+      },
+    ])
   })
 
-  it('still throws even if rollback decrease_allowance calls fail', async () => {
+  it('still throws original error if rollback multi-tx fails', async () => {
     const provideError = new Error('provide_liquidity failed')
 
     mockedExecute
       .mockResolvedValueOnce('allowance_a')
       .mockResolvedValueOnce('allowance_b')
       .mockRejectedValueOnce(provideError)
-      .mockRejectedValueOnce(new Error('decrease_a failed'))
-      .mockRejectedValueOnce(new Error('decrease_b failed'))
+    mockedExecuteMulti.mockRejectedValueOnce(new Error('rollback multi failed'))
 
     await expect(provideLiquidity(WALLET_ADDR, PAIR_ADDR, TOKEN_A, TOKEN_B, '1000', '2000')).rejects.toThrow(
       'provide_liquidity failed'
     )
 
-    expect(mockedExecute).toHaveBeenCalledTimes(5)
+    expect(mockedExecute).toHaveBeenCalledTimes(3)
+    expect(mockedExecuteMulti).toHaveBeenCalledTimes(1)
   })
 })
 
