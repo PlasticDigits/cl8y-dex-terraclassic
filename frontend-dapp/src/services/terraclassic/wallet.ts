@@ -1,4 +1,5 @@
 import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtension'
+import { isBrowserWalletExtensionDetected } from '@/services/terraclassic/walletExtensionInstall'
 import { effectiveGasPriceUluna } from '@/utils/constants'
 import {
   ConnectedWallet,
@@ -110,11 +111,11 @@ function getChainInfo() {
 }
 
 export function isStationInstalled(): boolean {
-  return typeof window !== 'undefined' && 'station' in window
+  return isBrowserWalletExtensionDetected(WalletName.STATION)
 }
 
 export function isKeplrInstalled(): boolean {
-  return typeof window !== 'undefined' && !!window.keplr
+  return isBrowserWalletExtensionDetected(WalletName.KEPLR)
 }
 
 export async function connectTerraWallet(

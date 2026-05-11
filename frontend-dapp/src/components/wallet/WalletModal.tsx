@@ -1,8 +1,10 @@
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 import { useWalletStore } from '@/hooks/useWallet'
+import { useWalletExtensionInstallSnapshot } from '@/hooks/useWalletExtensionInstallSnapshot'
 import { DEV_MODE } from '@/utils/constants'
 import { Modal } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import { WALLET_EXTENSION_INSTALL_URL } from '@/services/terraclassic/walletExtensionInstall'
 
 interface WalletOption {
   name: string
@@ -41,6 +43,7 @@ interface WalletModalProps {
 
 export default function WalletModal({ onClose }: WalletModalProps) {
   const { connect, connectDev, isConnecting, error } = useWalletStore()
+  const extensionInstall = useWalletExtensionInstallSnapshot()
 
   async function handleConnect(option: WalletOption) {
     sounds.playButtonPress()
@@ -78,20 +81,60 @@ export default function WalletModal({ onClose }: WalletModalProps) {
             </button>
           )}
 
-          {WALLET_OPTIONS.map((option) => (
-            <button
-              key={option.name}
-              onClick={() => void handleConnect(option)}
-              onMouseEnter={() => sounds.playHover()}
-              disabled={isConnecting}
-              className="wallet-option-card disabled:opacity-50"
-            >
-              <span className="font-medium uppercase tracking-wide text-sm" style={{ color: 'var(--ink)' }}>
-                {option.name}
-              </span>
-              <span className="wallet-option-badge">{option.connectionLabel}</span>
-            </button>
-          ))}
+          {WALLET_OPTIONS.map((option) => {
+            const isExtension = option.walletType === WalletType.EXTENSION
+            const installed = !isExtension || (extensionInstall.get(option.walletName) ?? false)
+            const installUrl = isExtension ? WALLET_EXTENSION_INSTALL_URL[option.walletName] : undefined
+
+            return (
+              <div key={option.name} className="wallet-option-row">
+                <button
+                  type="button"
+                  onClick={() => void handleConnect(option)}
+                  onMouseEnter={() => sounds.playHover()}
+                  disabled={isConnecting}
+                  className={
+                    isExtension && !installed
+                      ? 'wallet-option-card wallet-option-card-unavailable disabled:opacity-50'
+                      : 'wallet-option-card disabled:opacity-50'
+                  }
+                  aria-label={
+                    isExtension
+                      ? `${option.name}, ${installed ? 'extension detected' : 'extension not detected'}`
+                      : option.name
+                  }
+                >
+                  <span className="flex min-w-0 flex-col items-start gap-1 text-left">
+                    <span className="font-medium uppercase tracking-wide text-sm" style={{ color: 'var(--ink)' }}>
+                      {option.name}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                    <span className="wallet-option-badge">{option.connectionLabel}</span>
+                    {isExtension ? (
+                      installed ? (
+                        <span className="wallet-option-badge wallet-option-badge-ready">Ready</span>
+                      ) : (
+                        <span className="wallet-option-badge wallet-option-badge-missing">Not installed</span>
+                      )
+                    ) : null}
+                  </span>
+                </button>
+                {isExtension && !installed && installUrl ? (
+                  <a
+                    className="wallet-option-install-cta"
+                    href={installUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseEnter={() => sounds.playHover()}
+                  >
+                    Install
+                  </a>
+                ) : null}
+              </div>
+            )
+          })}
         </div>
 
         {isConnecting && (

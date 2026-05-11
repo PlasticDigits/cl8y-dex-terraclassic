@@ -1223,6 +1223,70 @@
     color: var(--ink-subtle);
   }
 
+  .wallet-option-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .wallet-option-row > .wallet-option-card {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .wallet-option-card-unavailable {
+    opacity: 0.72;
+    border-color: rgba(255, 220, 184, 0.06);
+    background: color-mix(in srgb, var(--control-surface) 88%, transparent);
+  }
+
+  .wallet-option-card-unavailable:hover {
+    opacity: 0.88;
+    transform: none;
+  }
+
+  .wallet-option-badge-ready {
+    border-color: rgba(34, 197, 94, 0.28);
+    color: rgba(134, 239, 172, 0.95);
+  }
+
+  .wallet-option-badge-missing {
+    border-color: rgba(248, 113, 113, 0.22);
+    color: rgba(252, 165, 165, 0.92);
+  }
+
+  .wallet-option-install-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 214, 153, 0.22);
+    color: var(--ink);
+    background: color-mix(in srgb, var(--control-surface-hover) 55%, transparent);
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  .wallet-option-install-cta:hover {
+    background: var(--control-surface-hover);
+    border-color: rgba(255, 214, 153, 0.32);
+  }
+
+  .wallet-option-install-cta:focus-visible {
+    outline: none;
+    border-color: rgba(255, 214, 153, 0.38);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
   .wallet-option-badge-dev {
     border-color: rgba(251, 191, 36, 0.24);
     color: #ffd28d;

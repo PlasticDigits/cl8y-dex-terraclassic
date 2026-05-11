@@ -55,6 +55,20 @@ The dApp connects to Terra Classic wallets using the Station browser extension o
 - **Network detection:** the `VITE_NETWORK` env var controls which chain the dApp targets (`mainnet`, `testnet`, `local`).
 - **Signing:** all transactions use the connected wallet's signer. The dApp never handles private keys in production; the Simulated Wallet (dev only) is an exception and is described below.
 
+### Connect modal: extension install detection {#connect-modal-extension-install}
+
+Browser **extension** wallets are labeled **Ready** vs **Not installed** before connect, using the same `window` signals as [`getKeplrLikeExtension`](../frontend-dapp/src/services/terraclassic/keplrLikeExtension.ts) plus **`'station' in window`** for Station ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)). **WalletConnect** rows are unchanged (no extension install check). Implementation: [`walletExtensionInstall.ts`](../frontend-dapp/src/services/terraclassic/walletExtensionInstall.ts), [`WalletModal.tsx`](../frontend-dapp/src/components/wallet/WalletModal.tsx), [`useWalletExtensionInstallSnapshot.ts`](../frontend-dapp/src/hooks/useWalletExtensionInstallSnapshot.ts).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Align with `getKeplrLikeExtension` | **Leap** / **Cosmostation** detection must stay in sync with [`keplrLikeExtension.ts`](../frontend-dapp/src/services/terraclassic/keplrLikeExtension.ts); if that mapping changes, update **`isBrowserWalletExtensionDetected`** and the Vitest suite in [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). |
+| Station vs Station shim | **Station** uses **`'station' in window`** (extension injected), not only `station.keplr`, so the row does not depend on the Keplr-shaped shim being present. |
+| WalletConnect | **`WalletType.WALLETCONNECT`** options must **not** show **Not installed**; they are always offered as QR / mobile flows. |
+| Re-check after install | The modal subscribes via **`useSyncExternalStore`** to **`window` `focus`** and **`visibilitychange`** so returning from a store install refreshes badges without a full page reload. |
+| Regression tests | [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). |
+
+**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet flows + local QA).
+
 ### Risk surfacing, NFA copy, and first-visit acknowledgement {#legal-risk-surfacing}
 
 Pre-launch legal / UX requirements are tracked in [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138). Implementation overview:
