@@ -156,8 +156,8 @@ pub enum ExecuteMsg {
     },
     /// Claim escrow for an order removed from the book because it had **expired** when a taker’s
     /// match walk processed that price level. The refund row is stored until claimed (`ExpiredLimitRefund`
-    /// query). Owner-only. **Allowed while the pair is paused** (unlike `CancelLimitOrder`) so makers
-    /// can recover parked expired escrow without an unpause.
+    /// query). Owner-only. **Blocked while the pair is paused** (same `assert_not_paused` gate as
+    /// `CancelLimitOrder` — emergency pause freezes all maker withdrawal paths; GitLab #120).
     ClaimExpiredLimitOrder {
         order_id: u64,
     },
@@ -242,7 +242,7 @@ pub enum QueryMsg {
     #[returns(OracleInfoResponse)]
     OracleInfo {},
 
-    /// Whether the pair is paused (no swap, no new limits, no cancel per L6).
+    /// Whether the pair is paused (no swap, no new limits, no cancel / claim / price update per L6).
     #[returns(PausedResponse)]
     IsPaused {},
 

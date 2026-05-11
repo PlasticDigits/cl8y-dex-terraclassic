@@ -548,6 +548,7 @@ pub fn execute(
             execute_cancel_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::ClaimExpiredLimitOrder { order_id } => {
+            assert_not_paused(deps.storage)?;
             execute_claim_expired_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::UpdateLimitOrderPrice {
@@ -1180,6 +1181,9 @@ fn execute_update_limit_order_price(
         .add_attribute("price", price.to_string()))
 }
 
+/// Refunds a row in `EXPIRED_LIMIT_CLAIMS` to `owner` (same CW20 routing as cancel).
+/// **Pause:** rejected at the `execute` dispatcher via `assert_not_paused` so maker withdrawals
+/// (including parked-expiry refunds) stay frozen while the pair is paused (GitLab #120).
 fn execute_claim_expired_limit_order(
     deps: DepsMut,
     _env: Env,

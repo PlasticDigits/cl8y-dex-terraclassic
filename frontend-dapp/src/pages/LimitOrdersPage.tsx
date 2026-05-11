@@ -295,9 +295,9 @@ export default function LimitOrdersPage() {
               {selectedPair && isPaused && (
                 <div className="alert-error text-sm space-y-2" role="status">
                   <p>
-                    This pair is paused by governance. New limit orders and cancel are unavailable until the pair is
-                    unpaused (invariant L6 — resting escrow stays locked). You can still submit Claim refund for limits
-                    the indexer shows as parked expired (maker recovery path — GitLab #141).
+                    This pair is paused by governance. New limit orders, cancel, and parked-expiry Claim refund are
+                    unavailable until the pair is unpaused (invariant L6 / GitLab #120 — all maker withdrawals frozen).
+                    Escrow remains in the pair contract until unpause.
                   </p>
                   <p className="text-xs opacity-90">
                     <a
@@ -492,6 +492,7 @@ export default function LimitOrdersPage() {
                     rows={myPlacements}
                     isLoading={placementsQuery.isLoading}
                     isWalletConnected={isWalletConnected}
+                    isPairPaused={isPaused}
                     openWalletModal={openWalletModal}
                   />
                 </div>

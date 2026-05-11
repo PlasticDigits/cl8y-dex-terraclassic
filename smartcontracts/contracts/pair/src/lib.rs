@@ -28,9 +28,9 @@
 //!   Orders parked when `expires_at` is reached during a match walk are tracked in
 //!   `EXPIRED_LIMIT_CLAIMS` until `ClaimExpiredLimitOrder`; until then their `remaining`
 //!   stays in pending escrow (see `docs/limit-orders.md`, GitLab #120).
-//! - **Cancel:** Only the stored `owner` may cancel an **active** book row and receive
-//!   the refund. **ClaimExpiredLimitOrder** refunds rows moved to `EXPIRED_LIMIT_CLAIMS`;
-//!   cancel does not apply there, preventing a double CW20 return.
+//! - **Cancel / claim:** Only the stored `owner` may cancel an **active** book row or claim a parked
+//!   **`EXPIRED_LIMIT_CLAIMS`** row; cancel does not apply after a park, preventing double CW20 return.
+//!   **`ClaimExpiredLimitOrder`** is pause-gated like cancel (GitLab #120).
 //! - **Bounded work:** Placement insert position is found by a linear walk
 //!   from the book head capped by `max_adjust_steps` (see `orderbook`).
 //!   Hybrid swaps cap distinct makers per tx via `max_maker_fills`.

@@ -20,6 +20,8 @@ export interface LimitOrderMyPlacementsPanelProps {
   rows: IndexerLimitPlacement[]
   isLoading: boolean
   isWalletConnected: boolean
+  /** When true, on-chain claim is rejected — disable Claim refund (L6 / GitLab #120). */
+  isPairPaused: boolean
   openWalletModal: () => void
 }
 
@@ -31,6 +33,7 @@ export function LimitOrderMyPlacementsPanel({
   rows,
   isLoading,
   isWalletConnected,
+  isPairPaused,
   openWalletModal,
 }: LimitOrderMyPlacementsPanelProps) {
   const queryClient = useQueryClient()
@@ -113,6 +116,7 @@ export function LimitOrderMyPlacementsPanel({
                   const sym = escrowAddr.startsWith('terra1') ? getTokenDisplaySymbol(escrowAddr) : 'escrow'
                   const rem = formatRemainingEscrowHuman(r, pair)
                   const claiming = claimMutation.isPending && claimMutation.variables === r.order_id
+                  const claimDisabled = !isWalletConnected || claiming || isPairPaused
                   return (
                     <li
                       key={r.id}
@@ -134,13 +138,19 @@ export function LimitOrderMyPlacementsPanel({
                             ? 'btn-primary btn-cta w-full !text-[10px] !py-1'
                             : 'btn-primary btn-cta w-full !text-xs !py-2'
                         }
-                        disabled={!isWalletConnected || claiming}
+                        disabled={claimDisabled}
                         onClick={() => {
                           if (!isWalletConnected) openWalletModal()
-                          else claimMutation.mutate(r.order_id)
+                          else if (!isPairPaused) claimMutation.mutate(r.order_id)
                         }}
                       >
-                        {!isWalletConnected ? 'Connect wallet to claim' : claiming ? 'Claiming…' : 'Claim refund'}
+                        {!isWalletConnected
+                          ? 'Connect wallet to claim'
+                          : isPairPaused
+                            ? 'Unavailable (pair paused)'
+                            : claiming
+                              ? 'Claiming…'
+                              : 'Claim refund'}
                       </button>
                     </li>
                   )

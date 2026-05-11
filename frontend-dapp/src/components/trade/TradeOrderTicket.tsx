@@ -257,8 +257,8 @@ export function TradeOrderTicket({
       {selectedPair && isPaused && (
         <div className="alert-error text-xs space-y-2" role="status">
           <p>
-            Pair is paused — limit place/cancel blocked until governance unpauses. Claim refund stays available for
-            parked expired rows (GitLab #141).
+            Pair is paused — limit place, cancel, and parked-expiry claim are blocked until governance unpauses (L6 /
+            GitLab #120).
           </p>
           <a
             className="underline text-[10px]"
@@ -385,6 +385,7 @@ export function TradeOrderTicket({
           rows={myPlacements}
           isLoading={placementsQuery.isLoading}
           isWalletConnected={isWalletConnected}
+          isPairPaused={isPaused}
           openWalletModal={openWalletModal}
         />
       )}

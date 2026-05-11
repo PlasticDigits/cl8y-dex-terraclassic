@@ -149,7 +149,7 @@ export async function cancelLimitOrder(walletAddress: string, pairAddress: strin
   })
 }
 
-/** Owner-only refund after indexer `lifecycle_status: parked_expired` (pair `ClaimExpiredLimitOrder`). Allowed while pair is paused (L6). */
+/** Owner-only refund after indexer `lifecycle_status: parked_expired` (pair `ClaimExpiredLimitOrder`). Blocked while pair is paused (L6 / GitLab #120). */
 export async function claimExpiredLimitOrder(
   walletAddress: string,
   pairAddress: string,

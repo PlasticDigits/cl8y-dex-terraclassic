@@ -21,7 +21,7 @@ Use when wiring or QA’ing **maker recovery** after `limit_order_expired_parked
 
 ## Rules of thumb
 
-1. **Paused pairs (L6):** **`ClaimExpiredLimitOrder`** must stay available in the UI when **`is_paused`** — do not reuse the cancel button’s pause gate for **Claim refund**.
+1. **Paused pairs (L6 / GitLab [#120](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120)):** **`ClaimExpiredLimitOrder`** is **blocked on-chain** while **`is_paused`**. The dApp disables **Claim refund** under pause — **do not** present a claim button that would burn gas on a guaranteed `Paused` revert; mirror the cancel button’s pause awareness.
 2. **Escrow decimals:** **`remaining_escrow`** is shown in **bid → token1**, **ask → token0** units (same as cancel/refund paths).
 3. **Invalidations:** after a successful claim tx, invalidate **`limitPlacements`**, limit book previews, and **`tokenBalance`** so balances and rows refresh.
-4. **Automation / bots:** poll **`parked_expired`** (indexer or LCD **`ExpiredLimitRefund`**) before broadcasting claim — see [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) cross-links.
+4. **Automation / bots:** poll **`parked_expired`** (indexer or LCD **`ExpiredLimitRefund`**) and confirm the pair is **not** paused before broadcasting claim — see [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) cross-links.

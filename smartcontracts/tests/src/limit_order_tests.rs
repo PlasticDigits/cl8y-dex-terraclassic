@@ -993,9 +993,9 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
     assert!(empty.is_none());
 }
 
-/// Invariant L6: `ClaimExpiredLimitOrder` works while paused (unlike `CancelLimitOrder`).
+/// Invariant L6: `ClaimExpiredLimitOrder` is blocked while paused (same gate as cancel); succeeds after unpause.
 #[test]
-fn claim_expired_limit_order_allowed_while_pair_paused() {
+fn claim_expired_limit_order_blocked_while_pair_paused_then_succeeds_after_unpause() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     let taker = cosmwasm_std::Addr::unchecked("taker_exp2");
@@ -1089,6 +1089,32 @@ fn claim_expired_limit_order_allowed_while_pair_paused() {
             &[],
         )
         .is_err());
+
+    let claim_while_paused = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+            &[],
+        )
+        .unwrap_err();
+    let pause_msg = format!("{:?}", claim_while_paused.root_cause());
+    assert!(
+        pause_msg.contains("Paused"),
+        "expected Paused error, got {}",
+        pause_msg
+    );
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairPaused {
+            pair: env.pair.to_string(),
+            paused: false,
+        },
+        &[],
+    )
+    .unwrap();
 
     let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
     app.execute_contract(
@@ -1391,7 +1417,8 @@ fn hybrid_max_maker_zero_with_book_rejected() {
 }
 
 /// GitLab #87 / invariant L6: pause blocks pool swap, new limit placement, and cancel; `IsPaused` query
-/// reflects paused state; after unpause, cancel refunds bid escrow.
+/// reflects paused state; after unpause, cancel refunds bid escrow. (Parked-expiry **`ClaimExpiredLimitOrder`**
+/// is pause-gated too — GitLab #120 — see `claim_expired_limit_order_blocked_while_pair_paused_then_succeeds_after_unpause`.)
 #[test]
 fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
     let mut app = App::default();
