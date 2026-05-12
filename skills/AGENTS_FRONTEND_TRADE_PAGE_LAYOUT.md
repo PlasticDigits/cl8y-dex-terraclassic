@@ -8,6 +8,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 |------------|---------|
 | [docs/frontend.md § Trade page — responsive layout (sub-desktop)](../docs/frontend.md#trade-page-responsive-layout) | Breakpoint invariants for phone vs tablet vs desktop trade workspace ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)) |
 | [docs/frontend.md § Trade page — market context (tape, hybrid tag, limit-only book)](../docs/frontend.md#trade-page-market-context) | Last price headline, tape column labels, hybrid tooltip, order book scope ([GitLab **#149**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149)) |
+| [docs/frontend.md § Limit place — Bid / Ask side control](../docs/frontend.md#limit-place-bid-ask-side) | Order ticket **Bid / Ask** control: radiogroup buttons, test ids, keyboard model ([GitLab **#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)); agent skill: [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md) |
 | [docs/frontend.md § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation) | Same viewport bands for **header** density (`Layout.tsx`, `HEADER_FULL_NAV_MIN_WIDTH_PX` — [GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)) |
 | `frontend-dapp/src/pages/TradePage.tsx` | `lg:hidden` grid vs `hidden lg:block` resizable `PanelGroup` |
 
@@ -21,6 +22,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 
 ## Related
 
+- Limit **Bid / Ask** side control (order ticket): [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md)
 - User-facing error strings (`getErrorMessage`, `RetryError`): [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)
 - Responsive header / nav: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
 - Price chart (lightweight-charts overlays, USD scale, volume): [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md); [`docs/frontend.md`](../docs/frontend.md) § *Trade page — price chart invariants* ([GitLab **#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151))
