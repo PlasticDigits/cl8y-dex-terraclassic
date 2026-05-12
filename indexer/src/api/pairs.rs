@@ -260,13 +260,17 @@ pub async fn get_pair(
     }))
 }
 
+/// When `from` / `to` are omitted, candles are filtered to this many days before `to`.
+/// 90 days avoids empty charts for LocalTerra / QA data whose block timestamps sit outside a short window.
+const DEFAULT_CANDLE_LOOKBACK_DAYS: i64 = 90;
+
 #[derive(Deserialize, IntoParams)]
 pub struct CandleQuery {
     /// Candle interval: 1m, 5m, 15m, 1h, 4h, 1d, 1w
     pub interval: Option<String>,
-    /// Start time (RFC 3339)
+    /// Start time (RFC 3339). Omitted: `to` minus [`DEFAULT_CANDLE_LOOKBACK_DAYS`] (see `get_pair_candles`).
     pub from: Option<String>,
-    /// End time (RFC 3339)
+    /// End time (RFC 3339). Omitted: current UTC.
     pub to: Option<String>,
     /// Max results (capped at 1000)
     pub limit: Option<i64>,
@@ -329,7 +333,7 @@ pub async fn get_pair_candles(
                 .ok()
                 .map(|d| d.with_timezone(&Utc))
         })
-        .unwrap_or_else(|| now - chrono::Duration::days(7));
+        .unwrap_or_else(|| now - chrono::Duration::days(DEFAULT_CANDLE_LOOKBACK_DAYS));
     let to =
         q.to.and_then(|s| {
             DateTime::parse_from_rfc3339(&s)
@@ -560,9 +564,7 @@ fn parse_placement_lifecycle_filter(
         Some("all") => Ok(limit_order_lifecycle::PlacementLifecycleFilter::All),
         Some(other) => Err((
             StatusCode::BAD_REQUEST,
-            format!(
-                "Invalid status '{other}'. Use active, parked_expired, refunded, or all"
-            ),
+            format!("Invalid status '{other}'. Use active, parked_expired, refunded, or all"),
         )),
     }
 }
