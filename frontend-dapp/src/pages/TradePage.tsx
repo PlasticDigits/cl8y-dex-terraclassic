@@ -133,7 +133,7 @@ export default function TradePage() {
             <RetryError message={getErrorMessage(indexerPairQuery.error)} onRetry={() => indexerPairQuery.refetch()} />
           )}
           {activePair && (
-            <div className="card-neo !p-2 flex-1 min-h-0">
+            <div className="card-neo !p-2 flex-1 min-h-0 flex flex-col">
               <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
             </div>
           )}
@@ -164,7 +164,7 @@ export default function TradePage() {
           <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
             <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
               <Panel defaultSize={58} minSize={30} className="min-h-0">
-                <div className="h-full min-h-[200px] card-neo !p-2 overflow-hidden">
+                <div className="h-full min-h-[200px] card-neo !p-2 overflow-hidden flex flex-col min-h-0">
                   {indexerPairQuery.isLoading && <Skeleton height="100%" />}
                   {indexerPairQuery.isError && !indexerDown && (
                     <RetryError

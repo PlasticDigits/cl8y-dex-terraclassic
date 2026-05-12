@@ -90,7 +90,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
   return (
     <div
       ref={panelRef}
-      className={`shell-panel-strong flex flex-col min-h-0 !overflow-visible ${fsActive ? 'min-h-[100dvh] justify-stretch' : ''}`}
+      className={`shell-panel-strong flex flex-col min-h-0 h-full !overflow-visible ${fsActive ? 'min-h-[100dvh] justify-stretch' : ''}`}
     >
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -182,10 +182,8 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
 
       {chartDataResolved && chartPoints.length > 0 && (
         <div
-          className={`relative w-full flex-1 min-h-0 ${
-            fsActive
-              ? 'min-h-[calc(100dvh-11rem)] h-[calc(100dvh-11rem)]'
-              : 'min-h-[min(52vh,560px)] h-[min(52vh,560px)]'
+          className={`relative w-full flex-1 min-h-0 flex flex-col ${
+            fsActive ? 'min-h-[calc(100dvh-11rem)] h-[calc(100dvh-11rem)]' : 'min-h-[min(52vh,280px)]'
           }`}
         >
           <PriceChartLightweightCanvas

@@ -17,6 +17,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 2. **Prefer CSS grid placement** (`md:col-start-*`, `md:row-start-*`) over duplicating chart/ticket markup — one source of truth for queries and loading states.
 3. If you add a **fourth** layout tier or JS-driven breakpoints, update **`docs/frontend.md`** invariants and extend **`trade-page-responsive.spec.ts`** so iPad portrait (`~820×1180`) and a narrow phone width stay covered.
 4. **Playwright** must scope layout assertions under **`[data-testid="trade-sub-lg-workspace"]`** — the `hidden lg:block` desktop workspace duplicates chart/order-book headings in the DOM.
+5. **`PriceChart` embeds:** Chart card wrappers on **`TradePage`** must stay **`flex flex-col min-h-0`** (and **`h-full`** in the desktop chart `Panel`) so the candle pane is not clipped by **`overflow-hidden`** when the panel is shorter than header + old fixed chart height ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)).
 
 ## Related
 
