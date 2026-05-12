@@ -1,14 +1,16 @@
 import type { LimitOrderEscrowPlaceGateResult } from '@/utils/limitOrderEscrowBalanceGate'
+import type { LimitOrderPricePlaceGateResult } from '@/utils/limitOrderPricePlaceGate'
 
 type Props = {
-  gate: LimitOrderEscrowPlaceGateResult
+  gate: LimitOrderEscrowPlaceGateResult | LimitOrderPricePlaceGateResult
   /** Optional hook for Playwright / RTL */
   'data-testid'?: string
 }
 
 /**
- * Inline status for limit placement when escrow balance, native gas balance, or load state blocks
- * before submit. Pair with `evaluateLimitOrderEscrowPlaceGate` and `evaluateLimitOrderNativeGasPlaceGate`.
+ * Inline status for limit placement when escrow balance, native gas balance, price vs tape reference,
+ * or load state blocks before submit. Pair with `evaluateLimitOrderEscrowPlaceGate`,
+ * `evaluateLimitOrderNativeGasPlaceGate`, and `evaluateLimitOrderPricePlaceGate`.
  */
 export function LimitOrderEscrowPlaceGuardMessage({ gate, 'data-testid': testId }: Props) {
   if (!gate.userMessage) return null

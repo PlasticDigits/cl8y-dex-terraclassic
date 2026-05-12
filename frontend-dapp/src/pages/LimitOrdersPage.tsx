@@ -9,10 +9,10 @@ import {
   executeTerraContract,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { getPairLimitBookPage, getPairLimitPlacements } from '@/services/indexer/client'
+import { getPairLimitBookPage, getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
-import { assetInfoLabel, tokenAssetInfo } from '@/types'
+import { assetInfoLabel, tokenAssetInfo, type IndexerLimitCancellation, type IndexerPair } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
@@ -29,7 +29,8 @@ import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
-import type { IndexerLimitCancellation } from '@/types'
+import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
+import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 
 export default function LimitOrdersPage() {
   const address = useWalletStore((s) => s.address)
@@ -93,6 +94,26 @@ export default function LimitOrdersPage() {
     staleTime: 15_000,
   })
 
+  const indexerPairQuery = useQuery({
+    queryKey: ['indexer-pair-limit-orders', pairAddr],
+    queryFn: () => getPair(pairAddr),
+    enabled: pairAddr.startsWith('terra1'),
+    staleTime: 60_000,
+    retry: false,
+  })
+
+  const tradesForLimitQuery = useQuery({
+    queryKey: ['pair-trades-limit-orders', pairAddr],
+    queryFn: () => getTrades(pairAddr, 40),
+    enabled: pairAddr.startsWith('terra1'),
+    refetchInterval: 15_000,
+    retry: false,
+  })
+
+  const indexerPair: IndexerPair | undefined = indexerPairQuery.data
+  const latestTrade = tradesForLimitQuery.data?.[0]
+  const tapeHeadlineUsd = latestTrade?.price
+
   const bookBidQuery = useQuery({
     queryKey: ['limitBookPagePreview', pairAddr, 'bid'],
     queryFn: () => getPairLimitBookPage(pairAddr, 'bid', { limit: 20 }),
@@ -141,9 +162,19 @@ export default function LimitOrdersPage() {
     ]
   )
 
-  const placeLimitCombinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
+  const placePriceGate = useMemo(
+    () => evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null),
+    [side, price, latestTrade, indexerPair]
+  )
 
-  const placeLimitInlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
+  const placeLimitCombinedOk =
+    placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit && placePriceGate.canPlaceLimit
+
+  const placeLimitInlineGate = !placePriceGate.canPlaceLimit
+    ? placePriceGate
+    : placeEscrowGate.userMessage
+      ? placeEscrowGate
+      : placeNativeGasGate
 
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
@@ -175,6 +206,10 @@ export default function LimitOrdersPage() {
       if (!nativeGate.canPlaceLimit) {
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
         throw new Error(nativeGate.userMessage)
+      }
+      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null)
+      if (!priceGate.canPlaceLimit) {
+        throw new Error(priceGate.userMessage ?? 'Invalid limit price for this side.')
       }
       const raw = toRawAmount(amountHuman, escrowDecimals)
       if (raw === '0') throw new Error('Enter amount')
@@ -370,7 +405,7 @@ export default function LimitOrdersPage() {
               )}
 
               <div className="card-neo !p-4 space-y-4">
-                <h2 className="text-sm font-semibold uppercase tracking-wide">Place limit</h2>
+                <LimitOrderPlaceLimitHeading />
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <input type="radio" name="side" checked={side === 'bid'} onChange={() => setSide('bid')} />
@@ -381,17 +416,17 @@ export default function LimitOrdersPage() {
                     Ask (escrow {getTokenDisplaySymbol(token0 || 'token0')})
                   </label>
                 </div>
-                <div>
-                  <label className="label-neo" htmlFor={limitOrdersPriceInputId}>
-                    Price (token1 per token0)
-                  </label>
-                  <input
-                    id={limitOrdersPriceInputId}
-                    className="input-neo w-full font-mono"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                  />
-                </div>
+                <LimitOrderPriceInputWithContext
+                  side={side}
+                  price={price}
+                  onPriceChange={setPrice}
+                  inputId={limitOrdersPriceInputId}
+                  activePair={indexerPair}
+                  latestTrade={latestTrade}
+                  tapeHeadlineUsd={tapeHeadlineUsd}
+                  token0Label={getTokenDisplaySymbol(token0 || 'token0')}
+                  token1Label={getTokenDisplaySymbol(token1 || 'token1')}
+                />
                 <LimitOrderEscrowAmountField
                   escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
                   escrowDecimals={escrowDecimals}
