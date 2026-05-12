@@ -22,10 +22,11 @@ import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
-import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
-import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
+import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
+import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
 import type { IndexerLimitCancellation, IndexerPair, IndexerTrade } from '@/types'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
@@ -296,16 +297,14 @@ export function TradeOrderTicket({
 
       <div className="space-y-3 border-t border-white/10 pt-3">
         <LimitOrderPlaceLimitHeading compact />
-        <div className="flex flex-wrap gap-3 text-xs">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="trade-side" checked={side === 'bid'} onChange={() => setSide('bid')} />
-            Bid ({getTokenDisplaySymbol(token1 || 'token1')})
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="trade-side" checked={side === 'ask'} onChange={() => setSide('ask')} />
-            Ask ({getTokenDisplaySymbol(token0 || 'token0')})
-          </label>
-        </div>
+        <LimitOrderBidAskSideSelector
+          idPrefix="trade-ticket"
+          compact
+          side={side}
+          onSideChange={setSide}
+          bidLabel={`Bid (${getTokenDisplaySymbol(token1 || 'token1')})`}
+          askLabel={`Ask (${getTokenDisplaySymbol(token0 || 'token0')})`}
+        />
         <LimitOrderPriceInputWithContext
           side={side}
           price={price}
