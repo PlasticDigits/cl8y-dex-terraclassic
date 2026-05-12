@@ -122,7 +122,7 @@ export default function TradePage() {
       */}
       <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
         <div className="min-h-[280px] md:col-span-2 md:row-start-2">
-          <OrderBookPanel pairAddress={pairAddr} />
+          <OrderBookPanel pairAddress={pairAddr} pair={activePair} />
         </div>
         <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">
           <TradeOrderTicket
@@ -165,7 +165,7 @@ export default function TradePage() {
       <div className="hidden lg:block h-[min(85vh,920px)] min-h-[440px]">
         <PanelGroup direction="horizontal" className="h-full gap-0">
           <Panel defaultSize={24} minSize={18} className="min-w-0">
-            <OrderBookPanel pairAddress={pairAddr} />
+            <OrderBookPanel pairAddress={pairAddr} pair={activePair} />
           </Panel>
           <TradeResizeHandleVertical />
           <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
