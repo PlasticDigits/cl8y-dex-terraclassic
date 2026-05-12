@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useId } from 'react'
+import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
@@ -40,6 +41,61 @@ import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/
 import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
+
+function TicketSection({
+  eyebrow,
+  title,
+  children,
+  tone = 'default',
+}: {
+  eyebrow?: string
+  title: string
+  children: ReactNode
+  tone?: 'default' | 'action' | 'manage'
+}) {
+  const borderColor =
+    tone === 'action' ? 'rgba(251, 146, 60, 0.22)' : tone === 'manage' ? 'rgba(148, 163, 184, 0.16)' : 'var(--line)'
+  return (
+    <section
+      className="rounded-2xl border p-3 space-y-3"
+      style={{
+        borderColor,
+        background:
+          tone === 'action'
+            ? 'linear-gradient(180deg, rgba(251, 146, 60, 0.07), rgba(255, 255, 255, 0.02))'
+            : 'rgba(255, 255, 255, 0.025)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {eyebrow && (
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--ink-subtle)' }}>
+              {eyebrow}
+            </p>
+          )}
+          <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink)' }}>
+            {title}
+          </h3>
+        </div>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function TicketStat({ label, value, tone }: { label: string; value: ReactNode; tone?: 'bid' | 'ask' }) {
+  const color = tone === 'bid' ? 'var(--color-positive)' : tone === 'ask' ? 'var(--color-negative)' : 'var(--ink)'
+  return (
+    <div className="rounded-xl border border-white/10 px-2.5 py-2" style={{ background: 'rgba(255,255,255,0.025)' }}>
+      <div className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-subtle)' }}>
+        {label}
+      </div>
+      <div className="mt-0.5 font-mono text-[11px] tabular-nums truncate" style={{ color }}>
+        {value}
+      </div>
+    </div>
+  )
+}
 
 /**
  * Trade workspace order ticket: **Market** (taker swap + slippage + hybrid quote) and **Limit** (resting book),
@@ -290,209 +346,259 @@ export function TradeOrderTicket({
     )
   }
 
+  const token0Display = indexerPair?.asset_0.symbol ?? getTokenDisplaySymbol(token0 || 'token0')
+  const token1Display = indexerPair?.asset_1.symbol ?? getTokenDisplaySymbol(token1 || 'token1')
+  const sideAction =
+    side === 'bid'
+      ? { verb: 'Buy', receive: token0Display, pay: token1Display, tone: 'bid' as const }
+      : { verb: 'Sell', receive: token1Display, pay: token0Display, tone: 'ask' as const }
+  const walletLabel = isWalletConnected && address ? `${address.slice(0, 8)}…${address.slice(-6)}` : 'Connect wallet'
+  const bestBidLabel = bestBookLoading ? '…' : (bestBid ?? '—')
+  const bestAskLabel = bestBookLoading ? '…' : (bestAsk ?? '—')
+
   return (
-    <div className="flex flex-col gap-3 h-full min-h-0 overflow-y-auto card-neo !p-4">
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide">Order ticket</h3>
-        {!pairAddr.startsWith('terra1') && (
-          <p className="text-[10px] mt-1" style={{ color: 'var(--ink-dim)' }}>
-            Select a trading pair from the bar above.
-          </p>
+    <div className="flex flex-col h-full min-h-0 overflow-y-auto card-neo !p-0">
+      <div
+        className="p-4 border-b border-white/10"
+        style={{
+          background:
+            'radial-gradient(circle at 20% 0%, rgba(251, 146, 60, 0.18), transparent 34%), rgba(255,255,255,0.025)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--ink-subtle)' }}>
+              Order ticket
+            </p>
+            <h3 className="mt-1 text-base font-semibold font-heading truncate" style={{ color: 'var(--ink)' }}>
+              {selectedPair ? `${sideAction.verb} ${sideAction.receive}` : 'Select a pair'}
+            </h3>
+            <p className="mt-1 text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+              {selectedPair
+                ? `${sideAction.pay} funds the order. Resting limits appear in the book; market orders take available liquidity.`
+                : 'Choose a trading pair from the selector to place orders.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!isWalletConnected) openWalletModal()
+            }}
+            className="shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide"
+            style={{
+              color: isWalletConnected ? 'var(--color-positive)' : 'var(--ink-subtle)',
+              borderColor: isWalletConnected ? 'rgba(34,197,94,0.35)' : 'var(--line)',
+            }}
+            title={isWalletConnected ? `Connected wallet ${address}` : 'Wallet is not connected'}
+          >
+            {walletLabel}
+          </button>
+        </div>
+
+        {selectedPair && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <TicketStat label="Base" value={token0Display} />
+            <TicketStat label="Quote" value={token1Display} />
+          </div>
         )}
       </div>
 
-      {selectedPair && (
-        <div className="text-[10px] uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
-          Token0: {token0.slice(0, 14)}… · Token1: {token1.slice(0, 14)}…
-        </div>
-      )}
+      <div className="flex flex-col gap-3 p-4">
+        {selectedPair && isPaused && (
+          <div className="alert-error text-xs space-y-2" role="status">
+            <p>
+              Pair is paused — swaps, limit place, cancel, and parked-expiry claim are blocked until governance unpauses
+              (L6 / GitLab #120).
+            </p>
+            <a
+              className="underline text-[10px]"
+              href={`${DOCS_GITLAB_BASE}/contracts-security-audit.md`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              L6 (audit)
+            </a>
+          </div>
+        )}
 
-      {selectedPair && isPaused && (
-        <div className="alert-error text-xs space-y-2" role="status">
-          <p>
-            Pair is paused — swaps, limit place, cancel, and parked-expiry claim are blocked until governance unpauses
-            (L6 / GitLab #120).
-          </p>
-          <a
-            className="underline text-[10px]"
-            href={`${DOCS_GITLAB_BASE}/contracts-security-audit.md`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            L6 (audit)
-          </a>
-        </div>
-      )}
-
-      {selectedPair && pairAddr.startsWith('terra1') && (
-        <div className="flex gap-2" role="tablist" aria-label="Order type">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={orderTab === 'limit'}
-            data-testid="trade-order-tab-limit"
-            className={`tab-neo !text-xs !px-3 !py-1.5 ${orderTab === 'limit' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
-            onClick={() => {
-              sounds.playButtonPress()
-              setOrderTab('limit')
-            }}
-          >
-            Limit
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={orderTab === 'market'}
-            data-testid="trade-order-tab-market"
-            className={`tab-neo !text-xs !px-3 !py-1.5 ${orderTab === 'market' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
-            onClick={() => {
-              sounds.playButtonPress()
-              setOrderTab('market')
-            }}
-          >
-            Market
-          </button>
-        </div>
-      )}
-
-      <div className="space-y-2 border-t border-white/10 pt-3">
-        <h3 className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
-          Side
-        </h3>
-        <LimitOrderBidAskSideSelector
-          idPrefix="trade-ticket"
-          compact
-          side={side}
-          onSideChange={setSide}
-          bidLabel={`Bid (${getTokenDisplaySymbol(token1 || 'token1')})`}
-          askLabel={`Ask (${getTokenDisplaySymbol(token0 || 'token0')})`}
-        />
         {selectedPair && pairAddr.startsWith('terra1') && (
-          <p className="text-[10px] font-mono leading-snug" style={{ color: 'var(--ink-subtle)' }}>
-            Book head — best bid: {bestBookLoading ? '…' : (bestBid ?? '—')} · best ask:{' '}
-            {bestBookLoading ? '…' : (bestAsk ?? '—')} ({getTokenDisplaySymbol(token1 || 'q')} per{' '}
-            {getTokenDisplaySymbol(token0 || 'b')})
-          </p>
+          <div
+            className="grid grid-cols-2 gap-1 rounded-2xl border border-white/10 p-1"
+            style={{ background: 'rgba(255,255,255,0.025)' }}
+            role="tablist"
+            aria-label="Order type"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={orderTab === 'limit'}
+              data-testid="trade-order-tab-limit"
+              className={`tab-neo !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'limit' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+              onClick={() => {
+                sounds.playButtonPress()
+                setOrderTab('limit')
+              }}
+            >
+              Limit
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={orderTab === 'market'}
+              data-testid="trade-order-tab-market"
+              className={`tab-neo !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'market' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+              onClick={() => {
+                sounds.playButtonPress()
+                setOrderTab('market')
+              }}
+            >
+              Market
+            </button>
+          </div>
         )}
-      </div>
 
-      {orderTab === 'market' && selectedPair && (
-        <TradeMarketOrderPanel pairAddr={pairAddr} selectedPair={selectedPair} side={side} isPaused={isPaused} />
-      )}
-
-      {orderTab === 'limit' && (
-        <div className="space-y-3 border-t border-white/10 pt-3">
-          <LimitOrderPlaceLimitHeading compact />
-          <LimitOrderPriceInputWithContext
-            side={side}
-            price={price}
-            onPriceChange={setPrice}
-            inputId={limitPriceInputId}
-            activePair={indexerPair}
-            latestTrade={latestTrade}
-            tapeHeadlineUsd={tapeHeadlineUsd}
-            token0Label={getTokenDisplaySymbol(token0 || 'token0')}
-            token1Label={getTokenDisplaySymbol(token1 || 'token1')}
-            compact
-          />
-          <LimitOrderEscrowAmountField
-            compact
-            escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
-            escrowDecimals={escrowDecimals}
-            amountHuman={amountHuman}
-            onAmountChange={setAmountHuman}
-            balanceQuery={escrowBalanceQuery}
-            onMax={setAmountHuman}
-            walletConnected={isWalletConnected}
-          />
-          <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
-          <LimitOrderAdvancedLimitSettings
-            compact
-            open={limitAdvancedOpen}
-            onOpenChange={setLimitAdvancedOpen}
-            maxSteps={maxSteps}
-            onMaxStepsChange={setMaxSteps}
-            expiresAt={expiresAt}
-            onExpiresAtChange={setExpiresAt}
+        <TicketSection eyebrow={orderTab === 'limit' ? 'Maker side' : 'Taker side'} title="Choose direction">
+          <LimitOrderBidAskSideSelector
             idPrefix="trade-ticket"
+            compact
+            side={side}
+            onSideChange={setSide}
+            bidLabel={`Buy ${token0Display}`}
+            askLabel={`Sell ${token0Display}`}
           />
+          {selectedPair && pairAddr.startsWith('terra1') && (
+            <div className="grid grid-cols-2 gap-2">
+              <TicketStat label="Best bid" value={bestBidLabel} tone="bid" />
+              <TicketStat label="Best ask" value={bestAskLabel} tone="ask" />
+            </div>
+          )}
+          <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+            Prices are quoted in {token1Display} per {token0Display}. Buy limits should sit below the reference; sell
+            limits above it.
+          </p>
+        </TicketSection>
+
+        {orderTab === 'market' && selectedPair && (
+          <TicketSection eyebrow="Take liquidity" title={`${sideAction.verb} now`} tone="action">
+            <TradeMarketOrderPanel pairAddr={pairAddr} selectedPair={selectedPair} side={side} isPaused={isPaused} />
+          </TicketSection>
+        )}
+
+        {orderTab === 'limit' && (
+          <TicketSection eyebrow="Resting order" title={`${sideAction.verb} at your price`} tone="action">
+            <LimitOrderPlaceLimitHeading compact />
+            <LimitOrderPriceInputWithContext
+              side={side}
+              price={price}
+              onPriceChange={setPrice}
+              inputId={limitPriceInputId}
+              activePair={indexerPair}
+              latestTrade={latestTrade}
+              tapeHeadlineUsd={tapeHeadlineUsd}
+              token0Label={token0Display}
+              token1Label={token1Display}
+              compact
+            />
+            <LimitOrderEscrowAmountField
+              compact
+              escrowLabel={sideAction.pay}
+              escrowDecimals={escrowDecimals}
+              amountHuman={amountHuman}
+              onAmountChange={setAmountHuman}
+              balanceQuery={escrowBalanceQuery}
+              onMax={setAmountHuman}
+              walletConnected={isWalletConnected}
+            />
+            <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
+            <LimitOrderAdvancedLimitSettings
+              compact
+              open={limitAdvancedOpen}
+              onOpenChange={setLimitAdvancedOpen}
+              maxSteps={maxSteps}
+              onMaxStepsChange={setMaxSteps}
+              expiresAt={expiresAt}
+              onExpiresAtChange={setExpiresAt}
+              idPrefix="trade-ticket"
+            />
+            <button
+              type="button"
+              data-testid="trade-limit-submit"
+              className="btn-primary btn-cta w-full !text-xs"
+              disabled={
+                placeMutation.isPending || !selectedPair || isPaused || (isWalletConnected && !placeLimitCombinedOk)
+              }
+              onClick={() => {
+                if (!isWalletConnected) openWalletModal()
+                else placeMutation.mutate()
+              }}
+            >
+              {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
+            </button>
+            <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
+            {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
+            {placeMutation.isSuccess && (
+              <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
+            )}
+            {lastIndexedOrderId != null && (
+              <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
+                Last indexed: #{lastIndexedOrderId}
+              </p>
+            )}
+          </TicketSection>
+        )}
+
+        <TicketSection eyebrow="Manage" title="Cancel resting limit" tone="manage">
+          <div>
+            <label className="label-neo" htmlFor={cancelLimitOrderInputId}>
+              Order ID
+            </label>
+            <input
+              id={cancelLimitOrderInputId}
+              className="input-neo w-full font-mono text-sm"
+              value={cancelOrderId}
+              onChange={(e) => setCancelOrderId(e.target.value)}
+              placeholder="Order ID"
+            />
+          </div>
           <button
             type="button"
+            data-testid="trade-cancel-submit"
             className="btn-primary btn-cta w-full !text-xs"
             disabled={
-              !isWalletConnected || placeMutation.isPending || !selectedPair || isPaused || !placeLimitCombinedOk
+              cancelMutation.isPending || !pairAddr || isPaused || (isWalletConnected && cancelIdIndexedAsCancelled)
             }
             onClick={() => {
               if (!isWalletConnected) openWalletModal()
-              else placeMutation.mutate()
+              else cancelMutation.mutate()
             }}
           >
-            {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
+            {!isWalletConnected ? 'Connect Wallet' : cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
           </button>
-          <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
-          {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
-          {placeMutation.isSuccess && (
-            <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
-          )}
-          {lastIndexedOrderId != null && (
-            <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
-              Last indexed: #{lastIndexedOrderId}
+          {cancelIdIndexedAsCancelled && (
+            <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
+              This order id already has an indexed cancellation.
             </p>
           )}
-        </div>
-      )}
+          {cancelMutation.isError && <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />}
+          {cancelMutation.isSuccess && (
+            <TxResultAlert type="success" message="Cancel submitted." txHash={cancelMutation.data} />
+          )}
+        </TicketSection>
 
-      <div className="space-y-3 border-t border-white/10 pt-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide">Cancel limit</h3>
-        <div>
-          <label className="label-neo" htmlFor={cancelLimitOrderInputId}>
-            Order ID
-          </label>
-          <input
-            id={cancelLimitOrderInputId}
-            className="input-neo w-full font-mono text-sm"
-            value={cancelOrderId}
-            onChange={(e) => setCancelOrderId(e.target.value)}
-            placeholder="Order ID"
+        {pairAddr && address && (
+          <LimitOrderMyPlacementsPanel
+            variant="compact"
+            pairAddr={pairAddr}
+            pair={selectedPair}
+            walletAddress={address}
+            rows={myPlacements}
+            isLoading={placementsQuery.isLoading}
+            isWalletConnected={isWalletConnected}
+            isPairPaused={isPaused}
+            openWalletModal={openWalletModal}
           />
-        </div>
-        <button
-          type="button"
-          className="btn-primary btn-cta w-full !text-xs"
-          disabled={
-            !isWalletConnected || cancelMutation.isPending || !pairAddr || isPaused || cancelIdIndexedAsCancelled
-          }
-          onClick={() => {
-            if (!isWalletConnected) openWalletModal()
-            else cancelMutation.mutate()
-          }}
-        >
-          {!isWalletConnected ? 'Connect Wallet' : cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
-        </button>
-        {cancelIdIndexedAsCancelled && (
-          <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
-            This order id already has an indexed cancellation.
-          </p>
-        )}
-        {cancelMutation.isError && <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />}
-        {cancelMutation.isSuccess && (
-          <TxResultAlert type="success" message="Cancel submitted." txHash={cancelMutation.data} />
         )}
       </div>
-
-      {pairAddr && address && (
-        <LimitOrderMyPlacementsPanel
-          variant="compact"
-          pairAddr={pairAddr}
-          pair={selectedPair}
-          walletAddress={address}
-          rows={myPlacements}
-          isLoading={placementsQuery.isLoading}
-          isWalletConnected={isWalletConnected}
-          isPairPaused={isPaused}
-          openWalletModal={openWalletModal}
-        />
-      )}
     </div>
   )
 }

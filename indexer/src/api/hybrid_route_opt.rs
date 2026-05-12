@@ -188,7 +188,8 @@ pub async fn optimize_multihop_hybrid(
     let mut running = amount_in;
 
     for hop in hops {
-        let (hybrid, next_in) = optimize_one_hop(lcd, hop, running, max_maker_fills, &mut meta).await?;
+        let (hybrid, next_in) =
+            optimize_one_hop(lcd, hop, running, max_maker_fills, &mut meta).await?;
         out_vec.push(hybrid);
         running = next_in;
     }

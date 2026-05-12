@@ -188,9 +188,7 @@ pub async fn list_placements_for_pair(
             "AND p.lifecycle_status IN ('active', 'parked_expired')"
         }
         PlacementLifecycleFilter::ActiveOnly => "AND p.lifecycle_status = 'active'",
-        PlacementLifecycleFilter::ParkedExpiredOnly => {
-            "AND p.lifecycle_status = 'parked_expired'"
-        }
+        PlacementLifecycleFilter::ParkedExpiredOnly => "AND p.lifecycle_status = 'parked_expired'",
         PlacementLifecycleFilter::RefundedOnly => "AND p.lifecycle_status = 'refunded'",
         PlacementLifecycleFilter::All => "",
     };

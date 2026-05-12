@@ -180,7 +180,8 @@ pub async fn process_block_txs(
         let parked = parse_limit_order_expired_parked(tx);
         for p in &parked {
             if let Err(e) =
-                process_limit_order_expired_parked(pool, lcd, p, height, block_time, &tx.txhash).await
+                process_limit_order_expired_parked(pool, lcd, p, height, block_time, &tx.txhash)
+                    .await
             {
                 tracing::warn!(
                     "Failed to process limit_order_expired_parked in tx {} for pair {}: {}",
@@ -194,7 +195,8 @@ pub async fn process_block_txs(
         let claims = parse_claim_expired_limit_orders(tx);
         for c in &claims {
             if let Err(e) =
-                process_claim_expired_limit_order(pool, lcd, c, height, block_time, &tx.txhash).await
+                process_claim_expired_limit_order(pool, lcd, c, height, block_time, &tx.txhash)
+                    .await
             {
                 tracing::warn!(
                     "Failed to process claim_expired_limit_order in tx {} for pair {}: {}",
@@ -730,8 +732,7 @@ fn parse_limit_order_expired_parked(tx: &TxResponse) -> Vec<ParsedLimitOrderExpi
         let Some(contract) = wasm_contract_addr(attrs) else {
             continue;
         };
-        let Some(order_id) = wasm_attr_last(attrs, "order_id")
-            .and_then(|s| s.parse::<i64>().ok())
+        let Some(order_id) = wasm_attr_last(attrs, "order_id").and_then(|s| s.parse::<i64>().ok())
         else {
             continue;
         };
@@ -771,8 +772,7 @@ fn parse_claim_expired_limit_orders(tx: &TxResponse) -> Vec<ParsedClaimExpiredLi
         let Some(contract) = wasm_contract_addr(attrs) else {
             continue;
         };
-        let Some(order_id) = wasm_attr_last(attrs, "order_id")
-            .and_then(|s| s.parse::<i64>().ok())
+        let Some(order_id) = wasm_attr_last(attrs, "order_id").and_then(|s| s.parse::<i64>().ok())
         else {
             continue;
         };
@@ -835,8 +835,10 @@ async fn process_claim_expired_limit_order(
         },
     };
 
-    limit_order_lifecycle::apply_claim_refund(pool, pair.id, c.order_id, height, block_time, tx_hash)
-        .await?;
+    limit_order_lifecycle::apply_claim_refund(
+        pool, pair.id, c.order_id, height, block_time, tx_hash,
+    )
+    .await?;
     Ok(())
 }
 

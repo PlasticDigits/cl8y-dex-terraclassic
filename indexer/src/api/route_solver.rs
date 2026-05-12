@@ -373,11 +373,15 @@ async fn maybe_simulate(
     }
 }
 
-fn quote_kind_after_sim(
-    estimated: &Option<String>,
-    base: RouteQuoteKind,
-) -> RouteQuoteKind {
-    if estimated.is_none() && matches!(base, RouteQuoteKind::IndexerPoolLcd | RouteQuoteKind::IndexerHybridLcd | RouteQuoteKind::IndexerHybridLcdDegraded) {
+fn quote_kind_after_sim(estimated: &Option<String>, base: RouteQuoteKind) -> RouteQuoteKind {
+    if estimated.is_none()
+        && matches!(
+            base,
+            RouteQuoteKind::IndexerPoolLcd
+                | RouteQuoteKind::IndexerHybridLcd
+                | RouteQuoteKind::IndexerHybridLcdDegraded
+        )
+    {
         return RouteQuoteKind::IndexerRouteOnly;
     }
     base
@@ -431,11 +435,7 @@ fn cache_put(key: String, body: serde_json::Value) {
         let now = Instant::now();
         g.retain(|_, v| now.duration_since(v.at) <= ROUTE_CACHE_TTL);
         if g.len() >= ROUTE_CACHE_MAX_ENTRIES {
-            if let Some(oldest_k) = g
-                .iter()
-                .min_by_key(|(_, v)| v.at)
-                .map(|(k, _)| k.clone())
-            {
+            if let Some(oldest_k) = g.iter().min_by_key(|(_, v)| v.at).map(|(k, _)| k.clone()) {
                 g.remove(&oldest_k);
             }
         }
@@ -462,14 +462,22 @@ pub async fn solve_route(
     let hybrid_opt = q.hybrid_optimize.unwrap_or(false);
 
     if hybrid_opt {
-        let Some(amount_raw) = q.amount_in.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) else {
+        let Some(amount_raw) = q
+            .amount_in
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        else {
             return Err((
                 StatusCode::BAD_REQUEST,
                 "amount_in is required when hybrid_optimize=true".to_string(),
             ));
         };
         let Ok(amount_u) = amount_raw.parse::<u128>() else {
-            return Err((StatusCode::BAD_REQUEST, "amount_in must be a non-negative integer".to_string()));
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "amount_in must be a non-negative integer".to_string(),
+            ));
         };
         if amount_u == 0 {
             return Err((
@@ -485,7 +493,8 @@ pub async fn solve_route(
             return Ok(Json(cached));
         }
 
-        let resolved = resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, 3).await?;
+        let resolved =
+            resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, 3).await?;
         let hops_desc: Vec<HopDescriptor> = resolved
             .hops
             .iter()
@@ -497,10 +506,7 @@ pub async fn solve_route(
             .collect();
 
         let (hybrid_plan, meta) = hybrid_route_opt::optimize_multihop_hybrid(
-            &state.lcd,
-            &hops_desc,
-            amount_u,
-            max_makers,
+            &state.lcd, &hops_desc, amount_u, max_makers,
         )
         .await
         .map_err(|e| {

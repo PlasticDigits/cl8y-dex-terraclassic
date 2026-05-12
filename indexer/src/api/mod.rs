@@ -4,12 +4,12 @@
 mod cg;
 mod cmc;
 pub mod hooks;
+mod hybrid_route_opt;
 mod limit_book_lcd;
 mod oracle;
 pub mod orderbook_sim;
 mod overview;
 mod pairs;
-mod hybrid_route_opt;
 mod route_solver;
 mod tokens;
 mod traders;

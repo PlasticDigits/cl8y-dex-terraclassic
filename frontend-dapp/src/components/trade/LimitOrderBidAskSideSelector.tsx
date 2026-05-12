@@ -67,13 +67,13 @@ export function LimitOrderBidAskSideSelector({
     [focusBid, onSideChange]
   )
 
-  const tabNeo = compact ? 'tab-neo px-3 py-1.5 text-xs' : 'tab-neo px-4 py-2 text-sm'
+  const tabNeo = compact ? 'tab-neo px-3 py-1.5 text-xs justify-center' : 'tab-neo px-4 py-2 text-sm'
 
   return (
     <div
       role="radiogroup"
       aria-labelledby={legendId}
-      className="flex flex-wrap gap-2"
+      className={compact ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'}
       data-testid={`${idPrefix}-side-radiogroup`}
     >
       <span id={legendId} className="sr-only">

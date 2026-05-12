@@ -111,4 +111,14 @@ describe('TradePage', () => {
     const limitTabs = await screen.findAllByTestId('trade-order-tab-limit')
     expect(limitTabs.length).toBeGreaterThanOrEqual(1)
   })
+
+  it('keeps disconnected ticket wallet CTAs actionable', async () => {
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    const placeButtons = await screen.findAllByTestId('trade-limit-submit')
+    expect(placeButtons.some((button) => !button.hasAttribute('disabled'))).toBe(true)
+
+    const cancelButtons = await screen.findAllByTestId('trade-cancel-submit')
+    expect(cancelButtons.some((button) => !button.hasAttribute('disabled'))).toBe(true)
+  })
 })

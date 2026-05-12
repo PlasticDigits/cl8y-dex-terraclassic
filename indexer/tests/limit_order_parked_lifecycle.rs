@@ -196,9 +196,7 @@ async fn park_event_then_claim_updates_db_and_api_filters() {
     resp.assert_status_ok();
     let body: Vec<Value> = resp.json();
     assert!(
-        !body
-            .iter()
-            .any(|r| r["order_id"].as_i64() == Some(900)),
+        !body.iter().any(|r| r["order_id"].as_i64() == Some(900)),
         "default feed excludes refunded"
     );
 
