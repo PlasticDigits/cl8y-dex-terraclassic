@@ -29,7 +29,7 @@ swarm-local:
 	@chmod +x scripts/bots/swarm.py
 	python3 scripts/bots/swarm.py
 
-# 25 processes (5 types × 5 replicas), each with slightly different interval/size; see scripts/bots/launch-swarm.sh
+# 30 processes (5 swap types × 5 replicas + 5 limit makers); see scripts/bots/launch-swarm.sh
 swarm-launch:
 	@chmod +x scripts/bots/launch-swarm.sh
 	./scripts/bots/launch-swarm.sh

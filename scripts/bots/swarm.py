@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
-Continuous LocalTerra swap bot swarm.
+Continuous LocalTerra swap bot swarm (+ optional resting limit orders).
 
 - Inter-arrival times are exponential (Poisson process): sleep ~ Exp(rate=1/mean_seconds).
-- Several bot *types* (different swap direction / amount policy / pair selection).
-- Each type runs BOTS_REPLICAS_PER_TYPE concurrent workers (default 5) with slightly
-  different mean intervals and amount multipliers.
+- Swap bot *types* (offer0/offer1/heavy/light/directed) only hit **AMM swaps** via CW20 `send`
+  (Recent trades move; **order book** stays empty).
+- `launch-swarm.sh` also starts **five** `--worker limit N` processes that place **resting**
+  `place_limit_order` bids/asks so `/trade` order book panels are populated for QA.
 
-Requires: docker, Python 3.10+ (stdlib only). LocalTerra container must be running.
+Requires: docker, Python 3.10+ (stdlib `decimal` + asyncio). LocalTerra container must be running.
 Prerequisites: `make start` + `make deploy-local` (or equivalent) so factory + pairs exist.
 
 Environment (optional overrides):
   FACTORY_ADDRESS / VITE_FACTORY_ADDRESS — factory contract (required)
   TERRA_LCD_URL — REST LCD (default http://127.0.0.1:1317)
   BOTS_MEAN_INTERVAL_SEC — base mean wait between swaps per worker (default 45)
+  BOTS_LIMIT_MEAN_INTERVAL_SEC — mean wait for **limit** workers (default 120)
   BOTS_REPLICAS_PER_TYPE — workers per type (default 5)
   BOTS_DIRECTED_SYMBOLS — comma symbols for "directed" bot pair, default OPAL,AMBER
   BOTS_DRY_RUN — set to 1 to log actions without broadcasting txs
@@ -33,6 +35,7 @@ import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from decimal import Decimal, getcontext
 from typing import Any
 
 
@@ -264,7 +267,145 @@ def _amount_from_reserves(reserve: int, mult: float, jitter: float) -> int:
     return min(base, int(reserve * 0.05))
 
 
-BOT_TYPES = ("offer0", "offer1", "heavy", "light", "directed")
+def _collect_pair_metas(lcd: str, factory: str) -> list[PairMeta]:
+    addrs = _iter_factory_pairs(lcd, factory)
+    metas: list[PairMeta] = []
+    for pa in addrs:
+        meta = _load_pair_meta(lcd, pa)
+        if meta:
+            metas.append(meta)
+    return metas
+
+
+def _decimal_price_str(price: Decimal) -> str:
+    """CosmWasm `Decimal` string: positive, no scientific notation."""
+    getcontext().prec = 48
+    if price <= 0:
+        return "0.000001"
+    q = price.quantize(Decimal("1E-18"))
+    s = format(q, "f").rstrip("0").rstrip(".")
+    return s if s else "0.000001"
+
+
+async def place_limit_cw20_send(
+    container: str,
+    token: str,
+    pair: str,
+    amount: int,
+    side: str,
+    price_str: str,
+    dry_run: bool,
+) -> None:
+    if amount < 1:
+        return
+    inner: dict[str, Any] = {
+        "place_limit_order": {
+            "side": side,
+            "price": price_str,
+            "hint_after_order_id": None,
+            "max_adjust_steps": 64,
+        }
+    }
+    hook = _b64_json(inner)
+    exec_msg = json.dumps(
+        {"send": {"contract": pair, "amount": str(amount), "msg": hook}},
+        separators=(",", ":"),
+    )
+    base = [
+        "wasm",
+        "execute",
+        token,
+        exec_msg,
+        "--from",
+        "test1",
+        "--keyring-backend",
+        "test",
+        "--chain-id",
+        "localterra",
+        "--gas",
+        "auto",
+        "--gas-adjustment",
+        "1.3",
+        "--fees",
+        "500000000uluna",
+        "--node",
+        "http://127.0.0.1:26657",
+        "--broadcast-mode",
+        "sync",
+        "-y",
+        "--output",
+        "json",
+    ]
+    if dry_run:
+        print(f"[dry-run] terrad limit {side} token={token[:18]}… pair={pair[:18]}… amt={amount} price={price_str}")
+        return
+    code, out = await _terrad_tx(container, base)
+    if code != 0:
+        print(f"[warn] terrad limit exit {code}: {out[:500]}")
+
+
+async def limit_order_worker_loop(
+    name: str,
+    replica_idx: int,
+    metas: list[PairMeta],
+    lcd: str,
+    container: str,
+    mean_base: float,
+    dry: bool,
+) -> None:
+    """Place resting bids (token1) and asks (token0) off the pool mid price (token1 per token0)."""
+    rng = random.Random(abs(hash(name)) % (2**31))
+    env_amt = _env("BOTS_WORKER_AMOUNT_MULT")
+    amt_mult = float(env_amt) if env_amt else (0.62 + 0.09 * replica_idx)
+    min_escrow = int(_env("BOTS_LIMIT_MIN_ESCROW", "50000000") or "50000000")
+
+    while True:
+        wait = rng.expovariate(1.0 / mean_base)
+        await asyncio.sleep(min(max(wait, 1.0), 600.0))
+
+        m = rng.choice(metas)
+        fresh = _load_pair_meta(lcd, m.pair_addr)
+        if not fresh:
+            continue
+        m = fresh
+        if m.reserve0 < 1 or m.reserve1 < 1:
+            continue
+
+        r0 = Decimal(m.reserve0)
+        r1 = Decimal(m.reserve1)
+        mid = r1 / r0
+        if mid <= 0:
+            continue
+
+        side = rng.choice(["bid", "ask"])
+        if side == "bid":
+            factor = Decimal("0.82") + Decimal(str(rng.random() * 0.13))
+            price = mid * factor
+            escrow_tok = m.token1
+            res = m.reserve1
+        else:
+            factor = Decimal("1.05") + Decimal(str(rng.random() * 0.18))
+            price = mid * factor
+            escrow_tok = m.token0
+            res = m.reserve0
+
+        price_str = _decimal_price_str(price)
+        jitter = 0.85 + rng.random() * 0.3
+        amt = _amount_from_reserves(res, amt_mult, jitter)
+        amt = max(amt, min_escrow)
+
+        try:
+            await place_limit_cw20_send(container, escrow_tok, m.pair_addr, amt, side, price_str, dry)
+            print(
+                f"[{name}] limit {side} pair={m.sym0}/{m.sym1} price={price_str} amt={amt}",
+                flush=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[{name}] error: {exc}", file=sys.stderr)
+
+
+SWAP_BOT_TYPES = ("offer0", "offer1", "heavy", "light", "directed")
+WORKER_TYPES = SWAP_BOT_TYPES + ("limit",)
 
 
 async def worker_loop(
@@ -335,10 +476,32 @@ async def worker_loop(
             print(f"[{name}] error: {exc}", file=sys.stderr)
 
 
+async def main_async_limit_only(replica_idx: int) -> None:
+    """Single-process limit bot (`--worker limit N`)."""
+    lcd = _lcd_base()
+    factory = _factory_addr()
+    container = _docker_localterra_id()
+    mean_base = float(_env("BOTS_LIMIT_MEAN_INTERVAL_SEC", "120") or "120")
+    dry = (_env("BOTS_DRY_RUN", "0") or "0") == "1"
+    metas = _collect_pair_metas(lcd, factory)
+    if len(metas) < 1:
+        print("ERROR: could not load any CW20/CW20 pair metadata from LCD.", file=sys.stderr)
+        sys.exit(1)
+    name = f"limit-{replica_idx}"
+    print(f"[{name}] limit-order worker mean={mean_base}s dry_run={dry}", flush=True)
+    await limit_order_worker_loop(name, replica_idx, metas, lcd, container, mean_base, dry)
+
+
 async def main_async_single(bot_type: str, replica_idx: int) -> None:
     """Run one worker process (used by launch-swarm.sh)."""
-    if bot_type not in BOT_TYPES:
-        print(f"ERROR: unknown bot type {bot_type!r}. Expected one of {BOT_TYPES}.", file=sys.stderr)
+    if bot_type == "limit":
+        await main_async_limit_only(replica_idx)
+        return
+    if bot_type not in SWAP_BOT_TYPES:
+        print(
+            f"ERROR: unknown bot type {bot_type!r}. Expected one of {WORKER_TYPES}.",
+            file=sys.stderr,
+        )
         sys.exit(2)
     lcd = _lcd_base()
     factory = _factory_addr()
@@ -350,16 +513,7 @@ async def main_async_single(bot_type: str, replica_idx: int) -> None:
     parts = [p.strip().upper() for p in sym_raw.split(",") if p.strip()]
     directed_syms = (parts[0], parts[1]) if len(parts) >= 2 else ("OPAL", "AMBER")
 
-    addrs = _iter_factory_pairs(lcd, factory)
-    if not addrs:
-        print("ERROR: factory returned no pairs.", file=sys.stderr)
-        sys.exit(1)
-
-    metas: list[PairMeta] = []
-    for pa in addrs:
-        meta = _load_pair_meta(lcd, pa)
-        if meta:
-            metas.append(meta)
+    metas = _collect_pair_metas(lcd, factory)
     if len(metas) < 1:
         print("ERROR: could not load any CW20/CW20 pair metadata from LCD.", file=sys.stderr)
         sys.exit(1)
@@ -389,11 +543,7 @@ async def main_async() -> None:
         print("ERROR: factory returned no pairs.", file=sys.stderr)
         sys.exit(1)
 
-    metas: list[PairMeta] = []
-    for pa in addrs:
-        meta = _load_pair_meta(lcd, pa)
-        if meta:
-            metas.append(meta)
+    metas = _collect_pair_metas(lcd, factory)
 
     if len(metas) < 1:
         print("ERROR: could not load any CW20/CW20 pair metadata from LCD.", file=sys.stderr)
@@ -408,13 +558,13 @@ async def main_async() -> None:
 
     print(
         f"Swarm: {len(metas)} pairs, LCD={lcd}, mean_interval≈{mean_base}s, "
-        f"{replicas} replicas × {len(BOT_TYPES)} types, dry_run={dry}"
+        f"{replicas} replicas × {len(SWAP_BOT_TYPES)} swap types, dry_run={dry}"
     )
     if directed:
         print(f"Directed pair: {directed.sym0}/{directed.sym1} -> {directed.pair_addr}")
 
     tasks: list[asyncio.Task[None]] = []
-    for btype in BOT_TYPES:
+    for btype in SWAP_BOT_TYPES:
         for i in range(replicas):
             tag = f"{btype}-{i}"
             tasks.append(
@@ -428,12 +578,12 @@ async def main_async() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="LocalTerra Poisson swap swarm")
+    parser = argparse.ArgumentParser(description="LocalTerra Poisson swap + optional limit-order swarm")
     parser.add_argument(
         "--worker",
         nargs=2,
         metavar=("TYPE", "REPLICA"),
-        help="Run a single bot worker in this process, e.g. --worker offer0 0",
+        help="Run a single bot worker, e.g. --worker offer0 0 or --worker limit 0",
     )
     args = parser.parse_args()
     try:
