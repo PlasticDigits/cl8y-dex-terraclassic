@@ -242,6 +242,7 @@ The **price chart** on `/trade` and `/charts` is rendered with **TradingView [li
 | Reference line | When the chart is empty, an optional **24h close** from `getPairStats` (`close_price`) may display; query is enabled only for that state so normal pairs are not blocked. |
 | Accessibility | The empty panel uses `role="img"` and a descriptive `aria-label` so screen readers do not see a silent canvas. |
 | **USD price scale (Y-axis)** | Spot **Price (USD)** is non-negative. The candlestick pane’s autoscale **must not** extend the right price scale below **zero** or below the **lowest visible candle `low`** (whichever is higher). Implemented via `autoscaleInfoProvider` + [`priceChartPriceScale.ts`](../frontend-dapp/src/components/charts/priceChartPriceScale.ts) ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
+| **Chart viewport (layout)** | The plot region must **shrink inside** resizable `/trade` panels: `PriceChart` is **`h-full flex flex-col min-h-0`**; the candle mount uses **`flex-1 min-h-0`** with **`min-h-[min(52vh,280px)]`** (no fixed `560px` height). `TradePage` chart cards use **`flex flex-col min-h-0`** so the canvas is not clipped by **`overflow-hidden`** on first paint. `PriceChartLightweightCanvas` reapplies width/height after layout via a **double `requestAnimationFrame`** ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
 | Volume histogram | **Pane 1** is a histogram of **quote** volume per candle (`volume_quote`). When quote volume is zero (common on thin local indexers), the UI uses **base** volume (`volume_base`) so bars remain visible—see [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts). Sub-label **“Volume (quote, else base)”** documents this in the chart header. |
 | Indicators | Optional **MA 7**, **MA 25** (line overlays on pane 0) and **RSI 14** (separate pane, scale 0–100 with 70/30 guides) are toggled from the **Indicators** menu; toggling recreates the chart instance (zoom resets). Pure math lives in [`priceChartIndicators.ts`](../frontend-dapp/src/components/charts/priceChartIndicators.ts) ([GitLab **#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150)). |
 | Fullscreen | **Expand** uses the Fullscreen API on the chart card (`PriceChart` root); **Exit** restores normal layout. |
@@ -261,12 +262,27 @@ Readability for traders used to centralized exchanges ([GitLab **#149**](https:/
 | **Recent trades columns** | Headers **Pair** (pay → receive), **Amount in** / **Amount out** (offer / ask token amounts), plus **Price**, **Tx**. Column `<th>` elements carry `title` tooltips for the offer/ask semantics. Component: [`TradesTable.tsx`](../frontend-dapp/src/components/ui/TradesTable.tsx). |
 | **`hybrid` badge** | Uppercase styling on the badge text; native **`title`** explains hybrid **AMM + limit order** execution and points integrators to **`docs/integrators.md`** for fee attribution across events. |
 | **Order ticket — type tabs** | **Limit** vs **Market** tabs on `/trade` (`TradeOrderTicket`). Market uses global slippage (`useDexStore`), optional **hybrid** Pattern C routing (indexer `POST /route/solve` when available, else pair `hybrid_simulation`), shows expected receive + min after slippage ([GitLab **#152**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)). |
-| **Order ticket — post-only limit preflight** | Before `place_limit_order`, the UI compares the typed price to the **book head** from `GET .../limit-book?limit=1` (best bid / best ask). Bids with price **≥ best ask** and asks with price **≤ best bid** are blocked with inline copy — pure client guard; the pair still inserts by book walk on-chain. Helpers: [`limitOrderNonCrossing.ts`](../frontend-dapp/src/utils/limitOrderNonCrossing.ts), hook [`useTradeBestBookPrices.ts`](../frontend-dapp/src/hooks/useTradeBestBookPrices.ts). |
-| **Order ticket — dual-denom price** | Limit price label uses token **symbols**; shows **inverse** (token0 per token1). When **token1** looks like USTC and the indexer oracle returns `price_usd`, shows an approximate **USD per token0** hint ([GitLab **#152**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)). Pure helper [`tradeLimitPriceDisplay.ts`](../frontend-dapp/src/utils/tradeLimitPriceDisplay.ts). |
+| **Order ticket — post-only limit preflight** | Before `place_limit_order`, the UI compares the typed price to the **book head** from `GET .../limit-book?limit=1` (best bid / best ask). Bids with price **≥ best ask** and asks with price **≤ best bid** are blocked with inline copy — pure client guard; the pair still inserts by book walk on-chain. Helpers: [`limitOrderNonCrossing.ts`](../frontend-dapp/src/utils/limitOrderNonCrossing.ts), hook [`useTradeBestBookPrices.ts`](../frontend-dapp/src/hooks/useTradeBestBookPrices.ts). Complements the **tape-reference** gate in [§ Trade page — limit order price field](#trade-page-limit-order-price) ([GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154)). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) (layout + this section for labeling).
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
+
+### Trade page — limit order price field (reference, deviation, USD anchor) {#trade-page-limit-order-price}
+
+Retail safety for typed **token1 per token0** limits ([GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Reference rate** | **Current (last trade)** is the newest indexed swap on the pair, converted to **human** token1/token0 using `offer_asset` / `ask_asset` symbols and **decimals** from `GET /api/v1/pairs/{addr}` — same ordering as on-chain limits (`docs/limit-orders.md` § Ordering). |
+| **% deviation** | Signed \((\text{typed} - \text{ref}) / \text{ref}\); **red** when the direction is invalid for the side; **amber** when \(\lvert \text{pct} \rvert \geq 50\) in an otherwise valid direction. |
+| **Headline-scaled USD** | `anchorUsdForLimitPrice` scales the chart **tape headline** linearly with typed price vs reference so the line matches the headline when the typed price equals the reference (same `tapeLastPriceUsd` prop as `PriceChart`). This is an **anchor estimate**, not a fresh oracle quote per token. |
+| **Submit gate** | **Bid:** `typed price >= reference` → disabled submit + error copy (buy limit must be **below** reference). **Ask:** `typed price <= reference` → disabled submit. When there is **no** resolvable reference (no tape row or symbol mismatch), placement is **not** blocked by this gate. |
+| **Tooltip** | **Place limit** label ships with an **ⓘ** control (`title` + `sr-only`) explaining buy-below / sell-above semantics. |
+
+Implementation: [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts), [`limitOrderPricePlaceGate.ts`](../frontend-dapp/src/utils/limitOrderPricePlaceGate.ts), [`LimitOrderPriceField.tsx`](../frontend-dapp/src/components/trade/LimitOrderPriceField.tsx) (`LimitOrderPlaceLimitHeading`, `LimitOrderPriceInputWithContext`), wired from [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) + [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) and [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx). `LimitOrderEscrowPlaceGuardMessage` accepts the price gate result for inline errors.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
 
 ### Trade page — responsive layout (sub-desktop) {#trade-page-responsive-layout}
 
@@ -279,10 +295,26 @@ Below **`lg` (`min-width: 1024px`)**, [`TradePage.tsx`](../frontend-dapp/src/pag
 | **`≥1024px` (`lg:`)** | Unchanged: horizontal `PanelGroup` (book \| chart+tape \| ticket) with resize handles. |
 | **No `useMediaQuery` on TradePage** | Breakpoints are **Tailwind-only** for this page; keep header `matchMedia` logic in `Layout.tsx` / `navItems.ts` only unless a future interaction requires JS alignment. |
 | **`data-testid="trade-sub-lg-workspace"`** | Marks the sub-desktop grid root so Playwright (and agents) can scope headings — the desktop panel tree also contains an order book + chart and would otherwise duplicate roles. |
+| **Price chart card (flex chain)** | Where `PriceChart` sits inside **`overflow-hidden`** or `Panel` chrome, the immediate wrapper is **`h-full … flex flex-col min-h-0`** (desktop chart cell; sub-lg chart **`card-neo`**). Keeps the candle canvas from being clipped when header + minimum plot height exceed the panel ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
 
 Regression coverage: [`frontend-dapp/e2e/trade-page-responsive.spec.ts`](../frontend-dapp/e2e/trade-page-responsive.spec.ts).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
+
+### Limit place — Bid / Ask side control (trade + limits page) {#limit-place-bid-ask-side}
+
+On-chain semantics are unchanged: **Bid escrows token1; Ask escrows token0** (pair asset ordering — see [`pair.ts`](../frontend-dapp/src/services/terraclassic/pair.ts) and contract docs).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Control type** | Limit **side** is a WAI-ARIA **`radiogroup`** with two **`role="radio"`** `<button type="button">` controls (neo **tab** styling), not native `<input type="radio">`, so the active side updates in the same React commit as `onSideChange` without browser-native controlled-radio timing quirks ([GitLab **#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)). |
+| **Roving tabindex** | The selected side has **`tabIndex={0}`**; the other **`tabIndex={-1}`** (one tab stop for the group). **ArrowRight / ArrowDown** move selection and focus toward Ask; **ArrowLeft / ArrowUp** toward Bid; **End** selects Ask; **Home** selects Bid (from the Ask control). |
+| **`data-testid`s** | **`{idPrefix}-side-radiogroup`**, **`{idPrefix}-side-bid`**, **`{idPrefix}-side-ask`**. **`/trade`** uses **`idPrefix="trade-ticket"`** ([`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx)); **`/limits`** uses **`idPrefix="limit-orders"`** ([`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)). |
+| **Focus visibility** | Buttons use **`tab-neo*`** classes, which define **`:focus-visible`** rings aligned with [Keyboard focus visibility (WCAG 2.4.7)](#keyboard-focus-visible-wcag-247). |
+
+**Implementation:** [`LimitOrderBidAskSideSelector.tsx`](../frontend-dapp/src/components/trade/LimitOrderBidAskSideSelector.tsx).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md).
 
 ### Pool page — provide liquidity (UI invariants)
 

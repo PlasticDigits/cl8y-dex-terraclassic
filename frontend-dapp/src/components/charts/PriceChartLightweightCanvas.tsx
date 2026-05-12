@@ -223,6 +223,10 @@ export function PriceChartLightweightCanvas({
       const resizeObserver = new ResizeObserver(() => applySize())
       resizeObserver.observe(containerRef.current)
       cleanupResize = () => resizeObserver.disconnect()
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => applySize())
+      })
     }
 
     void initChart()

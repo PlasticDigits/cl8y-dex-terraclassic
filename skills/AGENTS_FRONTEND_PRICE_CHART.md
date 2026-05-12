@@ -6,7 +6,7 @@ Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, *
 
 | Doc / code | Purpose |
 |------------|---------|
-| [docs/frontend.md § Trade page — price chart invariants](../docs/frontend.md#trade-page-price-chart-invariants) | Empty-state rules, volume quote/base fallback, indicators, fullscreen, **USD Y-axis invariants** |
+| [docs/frontend.md § Trade page — price chart invariants](../docs/frontend.md#trade-page-price-chart-invariants) | Empty-state rules, volume quote/base fallback, indicators, fullscreen, **USD Y-axis**, **viewport / flex** ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)) |
 | `frontend-dapp/src/components/charts/chartHeadlinePrice.ts` | **Last** headline: tape USD vs last candle close ([#149](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149)) |
 | `frontend-dapp/src/components/charts/priceChartPriceScale.ts` | Pure helpers: visible-range min `low`, clamp autoscale so the price pane never scales below **0** or below the **lowest visible candle** ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)) |
 | `frontend-dapp/src/components/charts/PriceChartLightweightCanvas.tsx` | Multi-pane lightweight-charts: `autoscaleInfoProvider` on candles; optional MA lines (pane 0); volume histogram (pane 1); RSI (pane 2) |
@@ -23,6 +23,8 @@ Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, *
 5. **Fullscreen:** Uses **`requestFullscreen`** on the chart card root; listen for **`fullscreenchange`** for aria / button label.
 6. **Headline price:** **Last** beside the title prefers indexer tape USD (`tapeLastPriceUsd` prop), else last candle close ([#149](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149)).
 7. **Tests:** Extend **`lightweightChartsJsdomMock`** when adding series APIs (`createPriceLine`, `priceScale`, etc.). Prefer **`data-testid`** over canvas assertions in Vitest.
+8. **Plot height in `/trade`:** `PriceChart` is **`h-full flex flex-col min-h-0`**; the plot uses **`flex-1 min-h-0`** with **`min-h-[min(52vh,280px)]`** (not a fixed tall block) so parents with **`overflow-hidden`** do not clip the canvas ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)).
+9. **Post-layout sizing:** After `createChart`, **`PriceChartLightweightCanvas`** calls **`applySize`** on a **double `requestAnimationFrame`** so width/height match the container after flex/grid layout ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)).
 
 ## Related
 

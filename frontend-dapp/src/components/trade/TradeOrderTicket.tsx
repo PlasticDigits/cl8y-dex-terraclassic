@@ -8,13 +8,21 @@ import {
   executeTerraContract,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { getPairLimitPlacements, getOraclePrice } from '@/services/indexer/client'
+import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
-import { assetInfoLabel, tokenAssetInfo, type IndexerLimitCancellation, type IndexerPair, type PairInfo } from '@/types'
+import {
+  assetInfoLabel,
+  tokenAssetInfo,
+  type IndexerLimitCancellation,
+  type IndexerPair,
+  type IndexerTrade,
+  type PairInfo,
+} from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
+import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
@@ -22,14 +30,15 @@ import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
-import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
-import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
+import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
+import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
+import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
-import { inverseLimitPriceHuman, limitPriceUsdHint } from '@/utils/tradeLimitPriceDisplay'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
 
 /**
@@ -41,11 +50,15 @@ export function TradeOrderTicket({
   pairs,
   pairsLoading,
   indexerPair,
+  latestTrade,
+  tapeHeadlineUsd,
 }: {
   pairAddr: string
   pairs: PairInfo[]
   pairsLoading: boolean
   indexerPair?: IndexerPair | null
+  latestTrade?: IndexerTrade | null
+  tapeHeadlineUsd?: string | null
 }) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
@@ -100,27 +113,16 @@ export function TradeOrderTicket({
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr)
 
-  const ustcOracleQuery = useQuery({
-    queryKey: ['indexer-oracle-price-ticket'],
-    queryFn: getOraclePrice,
-    staleTime: 60_000,
-  })
-
   const crossingBlocker = useMemo(
     () => describeLimitCrossingBlocker(side, price, bestBid, bestAsk),
     [side, price, bestBid, bestAsk]
   )
 
-  const inversePriceLine = useMemo(() => inverseLimitPriceHuman(price), [price])
-  const usdHintLine = useMemo(
-    () =>
-      limitPriceUsdHint(
-        price,
-        indexerPair?.asset_1.symbol,
-        ustcOracleQuery.data?.price_usd != null ? String(ustcOracleQuery.data.price_usd) : null
-      ),
-    [price, indexerPair?.asset_1.symbol, ustcOracleQuery.data?.price_usd]
+  const placePriceGate = useMemo(
+    () => evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null),
+    [side, price, latestTrade, indexerPair]
   )
+
   const placeEscrowGate = useMemo(
     () =>
       evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, {
@@ -153,13 +155,21 @@ export function TradeOrderTicket({
     ]
   )
 
-  const placeLimitCombinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit && !crossingBlocker
+  const placeLimitCombinedOk =
+    placeEscrowGate.canPlaceLimit &&
+    placeNativeGasGate.canPlaceLimit &&
+    placePriceGate.canPlaceLimit &&
+    !crossingBlocker
+
   const placeLimitInlineGate = useMemo(() => {
     if (crossingBlocker) {
       return { canPlaceLimit: false, userMessage: crossingBlocker, tone: 'warning' as const }
     }
+    if (!placePriceGate.canPlaceLimit) {
+      return placePriceGate
+    }
     return placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
-  }, [crossingBlocker, placeEscrowGate, placeNativeGasGate])
+  }, [crossingBlocker, placePriceGate, placeEscrowGate, placeNativeGasGate])
 
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
@@ -193,6 +203,10 @@ export function TradeOrderTicket({
       if (!nativeGate.canPlaceLimit) {
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
         throw new Error(nativeGate.userMessage)
+      }
+      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null)
+      if (!priceGate.canPlaceLimit) {
+        throw new Error(priceGate.userMessage ?? 'Invalid limit price for this side.')
       }
       const raw = toRawAmount(amountHuman, escrowDecimals)
       if (raw === '0') throw new Error('Enter amount')
@@ -345,16 +359,14 @@ export function TradeOrderTicket({
         <h3 className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
           Side
         </h3>
-        <div className="flex flex-wrap gap-3 text-xs">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="trade-side" checked={side === 'bid'} onChange={() => setSide('bid')} />
-            Bid ({getTokenDisplaySymbol(token1 || 'token1')})
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="trade-side" checked={side === 'ask'} onChange={() => setSide('ask')} />
-            Ask ({getTokenDisplaySymbol(token0 || 'token0')})
-          </label>
-        </div>
+        <LimitOrderBidAskSideSelector
+          idPrefix="trade-ticket"
+          compact
+          side={side}
+          onSideChange={setSide}
+          bidLabel={`Bid (${getTokenDisplaySymbol(token1 || 'token1')})`}
+          askLabel={`Ask (${getTokenDisplaySymbol(token0 || 'token0')})`}
+        />
         {selectedPair && pairAddr.startsWith('terra1') && (
           <p className="text-[10px] font-mono leading-snug" style={{ color: 'var(--ink-subtle)' }}>
             Book head — best bid: {bestBookLoading ? '…' : (bestBid ?? '—')} · best ask:{' '}
@@ -370,29 +382,19 @@ export function TradeOrderTicket({
 
       {orderTab === 'limit' && (
         <div className="space-y-3 border-t border-white/10 pt-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide">Place limit</h3>
-          <div>
-            <label className="label-neo" htmlFor={limitPriceInputId}>
-              Price ({getTokenDisplaySymbol(token1 || 'token1')} per {getTokenDisplaySymbol(token0 || 'token0')})
-            </label>
-            <input
-              id={limitPriceInputId}
-              className="input-neo w-full font-mono text-sm"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-            {inversePriceLine && (
-              <p className="text-[10px] mt-1 font-mono" style={{ color: 'var(--ink-subtle)' }}>
-                ≈ {inversePriceLine} {getTokenDisplaySymbol(token0 || 'token0')} per{' '}
-                {getTokenDisplaySymbol(token1 || 'token1')}
-              </p>
-            )}
-            {usdHintLine && (
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--ink-dim)' }}>
-                {usdHintLine}
-              </p>
-            )}
-          </div>
+          <LimitOrderPlaceLimitHeading compact />
+          <LimitOrderPriceInputWithContext
+            side={side}
+            price={price}
+            onPriceChange={setPrice}
+            inputId={limitPriceInputId}
+            activePair={indexerPair}
+            latestTrade={latestTrade}
+            tapeHeadlineUsd={tapeHeadlineUsd}
+            token0Label={getTokenDisplaySymbol(token0 || 'token0')}
+            token1Label={getTokenDisplaySymbol(token1 || 'token1')}
+            compact
+          />
           <LimitOrderEscrowAmountField
             compact
             escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
