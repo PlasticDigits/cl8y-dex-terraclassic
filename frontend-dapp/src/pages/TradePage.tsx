@@ -125,7 +125,14 @@ export default function TradePage() {
           <OrderBookPanel pairAddress={pairAddr} />
         </div>
         <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">
-          <TradeOrderTicket pairAddr={pairAddr} pairs={pairs} pairsLoading={pairsQuery.isLoading} />
+          <TradeOrderTicket
+            pairAddr={pairAddr}
+            pairs={pairs}
+            pairsLoading={pairsQuery.isLoading}
+            indexerPair={activePair}
+            latestTrade={tradesQuery.data?.[0]}
+            tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
+          />
         </div>
         <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
           {indexerPairQuery.isLoading && <Skeleton height="12rem" />}
@@ -206,7 +213,14 @@ export default function TradePage() {
           </Panel>
           <TradeResizeHandleVertical />
           <Panel defaultSize={24} minSize={18} className="min-w-0 min-h-0">
-            <TradeOrderTicket pairAddr={pairAddr} pairs={pairs} pairsLoading={pairsQuery.isLoading} />
+            <TradeOrderTicket
+              pairAddr={pairAddr}
+              pairs={pairs}
+              pairsLoading={pairsQuery.isLoading}
+              indexerPair={activePair}
+              latestTrade={tradesQuery.data?.[0]}
+              tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
+            />
           </Panel>
         </PanelGroup>
       </div>

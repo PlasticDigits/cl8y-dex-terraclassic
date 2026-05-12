@@ -27,7 +27,9 @@ import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
-import type { IndexerLimitCancellation } from '@/types'
+import type { IndexerLimitCancellation, IndexerPair, IndexerTrade } from '@/types'
+import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
+import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 
 /**
  * Limit place / cancel for the trade workspace (pair is chosen by parent).
@@ -36,10 +38,16 @@ export function TradeOrderTicket({
   pairAddr,
   pairs,
   pairsLoading,
+  indexerPair,
+  latestTrade,
+  tapeHeadlineUsd,
 }: {
   pairAddr: string
   pairs: PairInfo[]
   pairsLoading: boolean
+  indexerPair?: IndexerPair
+  latestTrade?: IndexerTrade | null
+  tapeHeadlineUsd?: string | null
 }) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
@@ -123,8 +131,19 @@ export function TradeOrderTicket({
     ]
   )
 
-  const placeLimitCombinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
-  const placeLimitInlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
+  const placePriceGate = useMemo(
+    () => evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null),
+    [side, price, latestTrade, indexerPair]
+  )
+
+  const placeLimitCombinedOk =
+    placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit && placePriceGate.canPlaceLimit
+
+  const placeLimitInlineGate = !placePriceGate.canPlaceLimit
+    ? placePriceGate
+    : placeEscrowGate.userMessage
+      ? placeEscrowGate
+      : placeNativeGasGate
 
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
@@ -156,6 +175,10 @@ export function TradeOrderTicket({
       if (!nativeGate.canPlaceLimit) {
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
         throw new Error(nativeGate.userMessage)
+      }
+      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null)
+      if (!priceGate.canPlaceLimit) {
+        throw new Error(priceGate.userMessage ?? 'Invalid limit price for this side.')
       }
       const raw = toRawAmount(amountHuman, escrowDecimals)
       if (raw === '0') throw new Error('Enter amount')
@@ -272,7 +295,7 @@ export function TradeOrderTicket({
       )}
 
       <div className="space-y-3 border-t border-white/10 pt-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide">Place limit</h3>
+        <LimitOrderPlaceLimitHeading compact />
         <div className="flex flex-wrap gap-3 text-xs">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="radio" name="trade-side" checked={side === 'bid'} onChange={() => setSide('bid')} />
@@ -283,17 +306,18 @@ export function TradeOrderTicket({
             Ask ({getTokenDisplaySymbol(token0 || 'token0')})
           </label>
         </div>
-        <div>
-          <label className="label-neo" htmlFor={limitPriceInputId}>
-            Price (token1 per token0)
-          </label>
-          <input
-            id={limitPriceInputId}
-            className="input-neo w-full font-mono text-sm"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </div>
+        <LimitOrderPriceInputWithContext
+          side={side}
+          price={price}
+          onPriceChange={setPrice}
+          inputId={limitPriceInputId}
+          activePair={indexerPair}
+          latestTrade={latestTrade}
+          tapeHeadlineUsd={tapeHeadlineUsd}
+          token0Label={getTokenDisplaySymbol(token0 || 'token0')}
+          token1Label={getTokenDisplaySymbol(token1 || 'token1')}
+          compact
+        />
         <LimitOrderEscrowAmountField
           compact
           escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
