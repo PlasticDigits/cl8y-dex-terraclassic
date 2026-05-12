@@ -5,9 +5,13 @@ export const LIMIT_ORDER_NATIVE_GAS_MSG_LOADING = 'Loading LUNC balance…'
 export const LIMIT_ORDER_NATIVE_GAS_MSG_UNAVAILABLE =
   'Cannot verify LUNC balance. Wait and retry, or check your connection.'
 
-export function limitOrderNativeGasInsufficientMessage(requiredUluna: bigint): string {
+export function twoStepCw20NativeGasInsufficientMessage(requiredUluna: bigint, secondStepLabel: string): string {
   const approx = formatTokenAmount(requiredUluna.toString(), 6, 5)
-  return `Not enough LUNC for both transactions. You need at least ~${approx} LUNC for gas (allowance + place order).`
+  return `Not enough LUNC for both transactions. You need at least ~${approx} LUNC for gas (allowance + ${secondStepLabel}).`
+}
+
+export function limitOrderNativeGasInsufficientMessage(requiredUluna: bigint): string {
+  return twoStepCw20NativeGasInsufficientMessage(requiredUluna, 'place order')
 }
 
 /**
@@ -62,6 +66,56 @@ export function evaluateLimitOrderNativeGasPlaceGate(
     return {
       canPlaceLimit: false,
       userMessage: limitOrderNativeGasInsufficientMessage(requiredUluna),
+      tone: 'error',
+    }
+  }
+
+  return { canPlaceLimit: true, userMessage: null, tone: 'none' }
+}
+
+/**
+ * Same fee envelope pattern as limit placement: `increase_allowance` then CW20 `send` → pair hook,
+ * but the second tx is a **swap** (pool-only or hybrid Pattern C).
+ */
+export function evaluateMarketSwapNativeGasPlaceGate(
+  amountHuman: string,
+  escrowDecimals: number,
+  q: EscrowBalanceQueryLike,
+  requiredUluna: bigint,
+  secondStepLabel: string
+): LimitOrderEscrowPlaceGateResult {
+  const raw = toRawAmount(amountHuman.trim(), escrowDecimals)
+  if (raw === '0') {
+    return { canPlaceLimit: true, userMessage: null, tone: 'none' }
+  }
+
+  if (q.isLoading) {
+    return { canPlaceLimit: false, userMessage: LIMIT_ORDER_NATIVE_GAS_MSG_LOADING, tone: 'warning' }
+  }
+
+  if (q.isError || q.data === undefined) {
+    return {
+      canPlaceLimit: false,
+      userMessage: LIMIT_ORDER_NATIVE_GAS_MSG_UNAVAILABLE,
+      tone: 'error',
+    }
+  }
+
+  let bal: bigint
+  try {
+    bal = BigInt(q.data)
+  } catch {
+    return {
+      canPlaceLimit: false,
+      userMessage: LIMIT_ORDER_NATIVE_GAS_MSG_UNAVAILABLE,
+      tone: 'error',
+    }
+  }
+
+  if (bal < requiredUluna) {
+    return {
+      canPlaceLimit: false,
+      userMessage: twoStepCw20NativeGasInsufficientMessage(requiredUluna, secondStepLabel),
       tone: 'error',
     }
   }

@@ -133,6 +133,21 @@ export function estimateLimitOrderPlaceSequenceUlunaFeesTotal(): bigint {
 }
 
 /**
+ * CW20 `increase_allowance` then CW20 `send` → pair `swap` (GitLab #152 trade ticket market path).
+ * Must stay aligned with {@link getGasLimitForTx} for `send` → `swap` with optional `hybrid`.
+ */
+export function estimateMarketPairSwapSequenceUlunaFeesTotal(usesHybrid: boolean): bigint {
+  const allowanceGas = getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
+  const swapInner = usesHybrid
+    ? { swap: { hybrid: { pool_input: '0', book_input: '0', max_maker_fills: 1 } } }
+    : { swap: {} }
+  const swapGas = getGasLimitForTx({
+    send: { contract: '', amount: '', msg: btoa(JSON.stringify(swapInner)) },
+  })
+  return estimateFeeUlunaAmountForGasLimit(allowanceGas) + estimateFeeUlunaAmountForGasLimit(swapGas)
+}
+
+/**
  * Minimum native fee (uluna) for the three-step CW20/CW20 provide path in `provideLiquidity` (`pair.ts`):
  * two `increase_allowance` txs then `provide_liquidity`. Used so the first allowance is not broadcast if the
  * wallet cannot pay the remaining fees ([GitLab #147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)).

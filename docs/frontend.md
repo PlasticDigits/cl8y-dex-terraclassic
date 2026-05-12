@@ -171,7 +171,7 @@ The frontend uses TerraSwap-compatible message names:
 | `/create`       | Create a new token pair via the Factory           |
 | `/charts`       | Pairs overview and per-pair charts (indexer)      |
 | `/trader`       | Trader profile lookup (indexer); optional `/:address` |
-| `/trade`        | Trade UI — order book, **price chart**, tape, limits |
+| `/trade`        | Trade UI — order book, **price chart**, tape, **limit + market** tickets ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)) |
 | `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
 | `/limits`       | Limit order placements and lifecycle              |
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
@@ -260,7 +260,9 @@ Readability for traders used to centralized exchanges ([GitLab **#149**](https:/
 |-----------|---------|
 | **Recent trades columns** | Headers **Pair** (pay → receive), **Amount in** / **Amount out** (offer / ask token amounts), plus **Price**, **Tx**. Column `<th>` elements carry `title` tooltips for the offer/ask semantics. Component: [`TradesTable.tsx`](../frontend-dapp/src/components/ui/TradesTable.tsx). |
 | **`hybrid` badge** | Uppercase styling on the badge text; native **`title`** explains hybrid **AMM + limit order** execution and points integrators to **`docs/integrators.md`** for fee attribution across events. |
-| **Order book scope** | Under **Order book**, copy clarifies **open limit orders only** — **pool / AMM liquidity does not appear** in the book (swaps still appear in the tape). Component: [`OrderBookPanel.tsx`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx). |
+| **Order ticket — type tabs** | **Limit** vs **Market** tabs on `/trade` (`TradeOrderTicket`). Market uses global slippage (`useDexStore`), optional **hybrid** Pattern C routing (indexer `POST /route/solve` when available, else pair `hybrid_simulation`), shows expected receive + min after slippage ([GitLab **#152**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)). |
+| **Order ticket — post-only limit preflight** | Before `place_limit_order`, the UI compares the typed price to the **book head** from `GET .../limit-book?limit=1` (best bid / best ask). Bids with price **≥ best ask** and asks with price **≤ best bid** are blocked with inline copy — pure client guard; the pair still inserts by book walk on-chain. Helpers: [`limitOrderNonCrossing.ts`](../frontend-dapp/src/utils/limitOrderNonCrossing.ts), hook [`useTradeBestBookPrices.ts`](../frontend-dapp/src/hooks/useTradeBestBookPrices.ts). |
+| **Order ticket — dual-denom price** | Limit price label uses token **symbols**; shows **inverse** (token0 per token1). When **token1** looks like USTC and the indexer oracle returns `price_usd`, shows an approximate **USD per token0** hint ([GitLab **#152**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)). Pure helper [`tradeLimitPriceDisplay.ts`](../frontend-dapp/src/utils/tradeLimitPriceDisplay.ts). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) (layout + this section for labeling).
 

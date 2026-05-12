@@ -38,6 +38,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getPairLimitCancellations: vi.fn(),
     getCandles: vi.fn(),
     getPairStats: vi.fn(),
+    getOraclePrice: vi.fn(),
   }
 })
 
@@ -93,6 +94,7 @@ describe('TradePage', () => {
     vi.mocked(indexerClient.getPairLimitCancellations).mockResolvedValue([])
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({ price_usd: '0.02', sources: [] })
   })
 
   it('sub-desktop workspace uses md two-column grid for tablet portrait (GitLab #146)', async () => {
@@ -100,5 +102,13 @@ describe('TradePage', () => {
     const workspace = await screen.findByTestId('trade-sub-lg-workspace')
     expect(workspace.className).toContain('md:grid-cols-2')
     expect(workspace.className).toContain('lg:hidden')
+  })
+
+  it('order ticket exposes Limit and Market tabs (GitLab #152)', async () => {
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    const marketTabs = await screen.findAllByTestId('trade-order-tab-market')
+    expect(marketTabs.length).toBeGreaterThanOrEqual(1)
+    const limitTabs = await screen.findAllByTestId('trade-order-tab-limit')
+    expect(limitTabs.length).toBeGreaterThanOrEqual(1)
   })
 })

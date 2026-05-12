@@ -37,6 +37,7 @@ import {
   executeTerraContract,
   executeTerraContractMulti,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
+  estimateMarketPairSwapSequenceUlunaFeesTotal,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
 } from '../transactions'
 
@@ -374,6 +375,18 @@ describe('estimateLimitOrderPlaceSequenceUlunaFeesTotal', () => {
     const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal()
     // 200k × 28.325 + 950k × 28.325 = 32_573_750 uluna (GitLab #132 repro ballpark)
     expect(total).toBe(32_573_750n)
+  })
+})
+
+describe('estimateMarketPairSwapSequenceUlunaFeesTotal', () => {
+  it('sums allowance + pool-only pair swap gas when hybrid is off', () => {
+    const total = estimateMarketPairSwapSequenceUlunaFeesTotal(false)
+    expect(total).toBe(22_660_000n)
+  })
+
+  it('sums allowance + hybrid pair swap gas when hybrid is on', () => {
+    const total = estimateMarketPairSwapSequenceUlunaFeesTotal(true)
+    expect(total).toBe(39_655_000n)
   })
 })
 

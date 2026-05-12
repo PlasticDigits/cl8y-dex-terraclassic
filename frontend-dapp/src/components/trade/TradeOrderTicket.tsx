@@ -8,10 +8,10 @@ import {
   executeTerraContract,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { getPairLimitPlacements } from '@/services/indexer/client'
+import { getPairLimitPlacements, getOraclePrice } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
-import { assetInfoLabel, tokenAssetInfo, type PairInfo } from '@/types'
+import { assetInfoLabel, tokenAssetInfo, type IndexerLimitCancellation, type IndexerPair, type PairInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
@@ -27,19 +27,25 @@ import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
-import type { IndexerLimitCancellation } from '@/types'
+import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
+import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
+import { inverseLimitPriceHuman, limitPriceUsdHint } from '@/utils/tradeLimitPriceDisplay'
+import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
 
 /**
- * Limit place / cancel for the trade workspace (pair is chosen by parent).
+ * Trade workspace order ticket: **Market** (taker swap + slippage + hybrid quote) and **Limit** (resting book),
+ * plus cancel + “my placements” ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)).
  */
 export function TradeOrderTicket({
   pairAddr,
   pairs,
   pairsLoading,
+  indexerPair,
 }: {
   pairAddr: string
   pairs: PairInfo[]
   pairsLoading: boolean
+  indexerPair?: IndexerPair | null
 }) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
@@ -50,6 +56,7 @@ export function TradeOrderTicket({
   const cancelLimitOrderInputId = useId()
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
+  const [orderTab, setOrderTab] = useState<'limit' | 'market'>('limit')
   const [price, setPrice] = useState('1')
   const {
     maxSteps,
@@ -91,6 +98,29 @@ export function TradeOrderTicket({
 
   const isPaused = pausedQuery.data?.paused === true
 
+  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr)
+
+  const ustcOracleQuery = useQuery({
+    queryKey: ['indexer-oracle-price-ticket'],
+    queryFn: getOraclePrice,
+    staleTime: 60_000,
+  })
+
+  const crossingBlocker = useMemo(
+    () => describeLimitCrossingBlocker(side, price, bestBid, bestAsk),
+    [side, price, bestBid, bestAsk]
+  )
+
+  const inversePriceLine = useMemo(() => inverseLimitPriceHuman(price), [price])
+  const usdHintLine = useMemo(
+    () =>
+      limitPriceUsdHint(
+        price,
+        indexerPair?.asset_1.symbol,
+        ustcOracleQuery.data?.price_usd != null ? String(ustcOracleQuery.data.price_usd) : null
+      ),
+    [price, indexerPair?.asset_1.symbol, ustcOracleQuery.data?.price_usd]
+  )
   const placeEscrowGate = useMemo(
     () =>
       evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, {
@@ -123,8 +153,13 @@ export function TradeOrderTicket({
     ]
   )
 
-  const placeLimitCombinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
-  const placeLimitInlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
+  const placeLimitCombinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit && !crossingBlocker
+  const placeLimitInlineGate = useMemo(() => {
+    if (crossingBlocker) {
+      return { canPlaceLimit: false, userMessage: crossingBlocker, tone: 'warning' as const }
+    }
+    return placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
+  }, [crossingBlocker, placeEscrowGate, placeNativeGasGate])
 
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
@@ -142,6 +177,8 @@ export function TradeOrderTicket({
       if (!address) throw new Error('Connect wallet')
       if (!selectedPair) throw new Error('Select a pair')
       if (!escrowToken.startsWith('terra1')) throw new Error('Escrow token must be CW20')
+      const cross = describeLimitCrossingBlocker(side, price, bestBid, bestAsk)
+      if (cross) throw new Error(cross)
       const escrowGate = evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, escrowBalanceQuery)
       if (!escrowGate.canPlaceLimit) {
         if (!escrowGate.userMessage) throw new Error('Enter amount')
@@ -170,6 +207,7 @@ export function TradeOrderTicket({
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddr] })
       setLastIndexedOrderId(null)
       const addr = pairAddr
       const walletAddr = address
@@ -212,6 +250,7 @@ export function TradeOrderTicket({
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['limitCancellations', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddr] })
     },
     onError: () => sounds.playError(),
   })
@@ -257,8 +296,8 @@ export function TradeOrderTicket({
       {selectedPair && isPaused && (
         <div className="alert-error text-xs space-y-2" role="status">
           <p>
-            Pair is paused — limit place, cancel, and parked-expiry claim are blocked until governance unpauses (L6 /
-            GitLab #120).
+            Pair is paused — swaps, limit place, cancel, and parked-expiry claim are blocked until governance unpauses
+            (L6 / GitLab #120).
           </p>
           <a
             className="underline text-[10px]"
@@ -271,8 +310,41 @@ export function TradeOrderTicket({
         </div>
       )}
 
-      <div className="space-y-3 border-t border-white/10 pt-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide">Place limit</h3>
+      {selectedPair && pairAddr.startsWith('terra1') && (
+        <div className="flex gap-2" role="tablist" aria-label="Order type">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={orderTab === 'limit'}
+            data-testid="trade-order-tab-limit"
+            className={`tab-neo !text-xs !px-3 !py-1.5 ${orderTab === 'limit' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+            onClick={() => {
+              sounds.playButtonPress()
+              setOrderTab('limit')
+            }}
+          >
+            Limit
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={orderTab === 'market'}
+            data-testid="trade-order-tab-market"
+            className={`tab-neo !text-xs !px-3 !py-1.5 ${orderTab === 'market' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+            onClick={() => {
+              sounds.playButtonPress()
+              setOrderTab('market')
+            }}
+          >
+            Market
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-2 border-t border-white/10 pt-3">
+        <h3 className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+          Side
+        </h3>
         <div className="flex flex-wrap gap-3 text-xs">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="radio" name="trade-side" checked={side === 'bid'} onChange={() => setSide('bid')} />
@@ -283,60 +355,90 @@ export function TradeOrderTicket({
             Ask ({getTokenDisplaySymbol(token0 || 'token0')})
           </label>
         </div>
-        <div>
-          <label className="label-neo" htmlFor={limitPriceInputId}>
-            Price (token1 per token0)
-          </label>
-          <input
-            id={limitPriceInputId}
-            className="input-neo w-full font-mono text-sm"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </div>
-        <LimitOrderEscrowAmountField
-          compact
-          escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
-          escrowDecimals={escrowDecimals}
-          amountHuman={amountHuman}
-          onAmountChange={setAmountHuman}
-          balanceQuery={escrowBalanceQuery}
-          onMax={setAmountHuman}
-          walletConnected={isWalletConnected}
-        />
-        <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
-        <LimitOrderAdvancedLimitSettings
-          compact
-          open={limitAdvancedOpen}
-          onOpenChange={setLimitAdvancedOpen}
-          maxSteps={maxSteps}
-          onMaxStepsChange={setMaxSteps}
-          expiresAt={expiresAt}
-          onExpiresAtChange={setExpiresAt}
-          idPrefix="trade-ticket"
-        />
-        <button
-          type="button"
-          className="btn-primary btn-cta w-full !text-xs"
-          disabled={!isWalletConnected || placeMutation.isPending || !selectedPair || isPaused || !placeLimitCombinedOk}
-          onClick={() => {
-            if (!isWalletConnected) openWalletModal()
-            else placeMutation.mutate()
-          }}
-        >
-          {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
-        </button>
-        <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
-        {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
-        {placeMutation.isSuccess && (
-          <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
-        )}
-        {lastIndexedOrderId != null && (
-          <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
-            Last indexed: #{lastIndexedOrderId}
+        {selectedPair && pairAddr.startsWith('terra1') && (
+          <p className="text-[10px] font-mono leading-snug" style={{ color: 'var(--ink-subtle)' }}>
+            Book head — best bid: {bestBookLoading ? '…' : (bestBid ?? '—')} · best ask:{' '}
+            {bestBookLoading ? '…' : (bestAsk ?? '—')} ({getTokenDisplaySymbol(token1 || 'q')} per{' '}
+            {getTokenDisplaySymbol(token0 || 'b')})
           </p>
         )}
       </div>
+
+      {orderTab === 'market' && selectedPair && (
+        <TradeMarketOrderPanel pairAddr={pairAddr} selectedPair={selectedPair} side={side} isPaused={isPaused} />
+      )}
+
+      {orderTab === 'limit' && (
+        <div className="space-y-3 border-t border-white/10 pt-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide">Place limit</h3>
+          <div>
+            <label className="label-neo" htmlFor={limitPriceInputId}>
+              Price ({getTokenDisplaySymbol(token1 || 'token1')} per {getTokenDisplaySymbol(token0 || 'token0')})
+            </label>
+            <input
+              id={limitPriceInputId}
+              className="input-neo w-full font-mono text-sm"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+            {inversePriceLine && (
+              <p className="text-[10px] mt-1 font-mono" style={{ color: 'var(--ink-subtle)' }}>
+                ≈ {inversePriceLine} {getTokenDisplaySymbol(token0 || 'token0')} per{' '}
+                {getTokenDisplaySymbol(token1 || 'token1')}
+              </p>
+            )}
+            {usdHintLine && (
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--ink-dim)' }}>
+                {usdHintLine}
+              </p>
+            )}
+          </div>
+          <LimitOrderEscrowAmountField
+            compact
+            escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
+            escrowDecimals={escrowDecimals}
+            amountHuman={amountHuman}
+            onAmountChange={setAmountHuman}
+            balanceQuery={escrowBalanceQuery}
+            onMax={setAmountHuman}
+            walletConnected={isWalletConnected}
+          />
+          <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
+          <LimitOrderAdvancedLimitSettings
+            compact
+            open={limitAdvancedOpen}
+            onOpenChange={setLimitAdvancedOpen}
+            maxSteps={maxSteps}
+            onMaxStepsChange={setMaxSteps}
+            expiresAt={expiresAt}
+            onExpiresAtChange={setExpiresAt}
+            idPrefix="trade-ticket"
+          />
+          <button
+            type="button"
+            className="btn-primary btn-cta w-full !text-xs"
+            disabled={
+              !isWalletConnected || placeMutation.isPending || !selectedPair || isPaused || !placeLimitCombinedOk
+            }
+            onClick={() => {
+              if (!isWalletConnected) openWalletModal()
+              else placeMutation.mutate()
+            }}
+          >
+            {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
+          </button>
+          <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
+          {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
+          {placeMutation.isSuccess && (
+            <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
+          )}
+          {lastIndexedOrderId != null && (
+            <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
+              Last indexed: #{lastIndexedOrderId}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-3 border-t border-white/10 pt-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide">Cancel limit</h3>

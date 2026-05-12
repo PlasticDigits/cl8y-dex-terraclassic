@@ -86,7 +86,7 @@ export default function TradePage() {
           Trade
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
-          Order book, chart, tape, and limit orders — indexer book reads proxy LCD (paginated depth).
+          Order book, chart, tape, and **limit + market** tickets — indexer book reads proxy LCD (paginated depth).
         </p>
       </div>
 
@@ -125,7 +125,12 @@ export default function TradePage() {
           <OrderBookPanel pairAddress={pairAddr} />
         </div>
         <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">
-          <TradeOrderTicket pairAddr={pairAddr} pairs={pairs} pairsLoading={pairsQuery.isLoading} />
+          <TradeOrderTicket
+            pairAddr={pairAddr}
+            pairs={pairs}
+            pairsLoading={pairsQuery.isLoading}
+            indexerPair={activePair}
+          />
         </div>
         <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
           {indexerPairQuery.isLoading && <Skeleton height="12rem" />}
@@ -206,7 +211,12 @@ export default function TradePage() {
           </Panel>
           <TradeResizeHandleVertical />
           <Panel defaultSize={24} minSize={18} className="min-w-0 min-h-0">
-            <TradeOrderTicket pairAddr={pairAddr} pairs={pairs} pairsLoading={pairsQuery.isLoading} />
+            <TradeOrderTicket
+              pairAddr={pairAddr}
+              pairs={pairs}
+              pairsLoading={pairsQuery.isLoading}
+              indexerPair={activePair}
+            />
           </Panel>
         </PanelGroup>
       </div>
