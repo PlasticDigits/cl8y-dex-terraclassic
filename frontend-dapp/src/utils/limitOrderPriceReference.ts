@@ -1,4 +1,5 @@
-import type { IndexerPair, IndexerTrade } from '@/types'
+import type { IndexerPair, IndexerTrade, PairInfo, PoolResponse } from '@/types'
+import { lookupByAssetInfo } from '@/utils/tokenRegistry'
 
 /**
  * Latest indexed swap ratio as **human** token1 per token0 (same convention as on-chain limits and `docs/limit-orders.md`).
@@ -44,6 +45,99 @@ function bigRatioToNumber(num: bigint, den: bigint): number {
   if (!Number.isFinite(n) || !Number.isFinite(d)) return Number.NaN
   if (d === 0) return Number.NaN
   return n / d
+}
+
+/** Where the limit-order reference token1/token0 rate came from (GitLab #166). */
+export type LimitOrderPriceRefSource = 'tape' | 'pool'
+
+/**
+ * Decimals for pair asset0 / asset1: indexer row when present, else CW20/native registry only.
+ * Returns null if decimals cannot be determined without guessing (unknown CW20 not in registry).
+ */
+export function pairDecimalsForLimitPriceRef(
+  indexerPair: Pick<IndexerPair, 'asset_0' | 'asset_1'> | null | undefined,
+  pairInfo: PairInfo | null | undefined
+): { d0: number; d1: number } | null {
+  if (indexerPair) {
+    return { d0: indexerPair.asset_0.decimals, d1: indexerPair.asset_1.decimals }
+  }
+  if (!pairInfo) return null
+  const r0 = lookupByAssetInfo(pairInfo.asset_infos[0])
+  const r1 = lookupByAssetInfo(pairInfo.asset_infos[1])
+  if (r0 == null || r1 == null) return null
+  return { d0: r0.decimals, d1: r1.decimals }
+}
+
+/**
+ * Constant-product **spot** token1 per token0 from pair `pool` reserves (human-scale).
+ * Matches pair ordering: `assets[0]` = token0, `assets[1]` = token1.
+ */
+export function poolReservesToToken1PerToken0Human(
+  pool: Pick<PoolResponse, 'assets'>,
+  decimals0: number,
+  decimals1: number
+): number | null {
+  const [a0, a1] = pool.assets
+  let r0: bigint
+  let r1: bigint
+  try {
+    r0 = BigInt(String(a0.amount).split('.')[0] || '0')
+    r1 = BigInt(String(a1.amount).split('.')[0] || '0')
+  } catch {
+    return null
+  }
+  if (r0 <= 0n || r1 <= 0n) return null
+  const num = r1 * 10n ** BigInt(decimals0)
+  const den = r0 * 10n ** BigInt(decimals1)
+  if (den === 0n) return null
+  const n = Number(num)
+  const d = Number(den)
+  if (!Number.isFinite(n) || !Number.isFinite(d) || d === 0) return null
+  const x = n / d
+  return x > 0 && Number.isFinite(x) ? x : null
+}
+
+export type ResolveLimitOrderPriceRefResult = {
+  refToken1PerToken0: number | null
+  refSource: LimitOrderPriceRefSource | null
+}
+
+/**
+ * Prefer indexed **last trade**; when missing or unparseable, fall back to on-chain **pool** spot
+ * so bid/ask direction checks still run when the indexer is down (GitLab #166).
+ */
+export function resolveLimitOrderPriceRef(input: {
+  latestTrade: IndexerTrade | null | undefined
+  indexerPair: Pick<IndexerPair, 'asset_0' | 'asset_1'> | null | undefined
+  pool: Pick<PoolResponse, 'assets'> | null | undefined
+  pairInfo: PairInfo | null | undefined
+}): ResolveLimitOrderPriceRefResult {
+  const { latestTrade, indexerPair, pool, pairInfo } = input
+  if (latestTrade && indexerPair) {
+    const t = tradeToToken1PerToken0Human(latestTrade, indexerPair)
+    if (t != null && t > 0 && Number.isFinite(t)) {
+      return { refToken1PerToken0: t, refSource: 'tape' }
+    }
+  }
+  const dec = pairDecimalsForLimitPriceRef(indexerPair, pairInfo)
+  if (!pool || !dec) {
+    return { refToken1PerToken0: null, refSource: null }
+  }
+  const p = poolReservesToToken1PerToken0Human(pool, dec.d0, dec.d1)
+  if (p == null) {
+    return { refToken1PerToken0: null, refSource: null }
+  }
+  return { refToken1PerToken0: p, refSource: 'pool' }
+}
+
+/** True when an indexed trade row yields a finite positive reference without using the pool. */
+export function hasResolvableTapeRef(
+  latestTrade: IndexerTrade | null | undefined,
+  indexerPair: Pick<IndexerPair, 'asset_0' | 'asset_1'> | null | undefined
+): boolean {
+  if (!latestTrade || !indexerPair) return false
+  const t = tradeToToken1PerToken0Human(latestTrade, indexerPair)
+  return t != null && t > 0 && Number.isFinite(t)
 }
 
 export function parsePositivePriceHuman(s: string): number | null {

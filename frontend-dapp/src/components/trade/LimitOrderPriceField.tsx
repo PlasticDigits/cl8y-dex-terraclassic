@@ -1,12 +1,11 @@
 import { useId } from 'react'
-import type { IndexerPair, IndexerTrade } from '@/types'
 import { formatNum } from '@/utils/formatAmount'
 import {
   anchorUsdForLimitPrice,
   isLimitPriceDirectionInvalid,
   limitPriceDeviationPercent,
+  type LimitOrderPriceRefSource,
   parsePositivePriceHuman,
-  tradeToToken1PerToken0Human,
 } from '@/utils/limitOrderPriceReference'
 
 const LIMIT_ORDER_TOOLTIP =
@@ -45,8 +44,10 @@ export type LimitOrderPriceInputWithContextProps = {
   price: string
   onPriceChange: (v: string) => void
   inputId: string
-  activePair: IndexerPair | null | undefined
-  latestTrade: IndexerTrade | null | undefined
+  /** Resolved token1/token0 reference (indexed tape and/or on-chain pool — see GitLab #166). */
+  refToken1PerToken0: number | null
+  /** Which source produced `refToken1PerToken0`, for display only. */
+  refSource: LimitOrderPriceRefSource | null
   /** Same value the parent passes to `PriceChart` as `tapeLastPriceUsd` (newest trade `price` string). */
   tapeHeadlineUsd: string | null | undefined
   token0Label: string
@@ -59,14 +60,13 @@ export function LimitOrderPriceInputWithContext({
   price,
   onPriceChange,
   inputId,
-  activePair,
-  latestTrade,
+  refToken1PerToken0: ref,
+  refSource,
   tapeHeadlineUsd,
   token0Label,
   token1Label,
   compact,
 }: LimitOrderPriceInputWithContextProps) {
-  const ref = activePair && latestTrade ? tradeToToken1PerToken0Human(latestTrade, activePair) : null
   const limit = parsePositivePriceHuman(price)
   const dev = ref != null && limit != null ? limitPriceDeviationPercent(limit, ref) : null
   const invalid = ref != null && limit != null && side ? isLimitPriceDirectionInvalid(side, limit, ref) : false
@@ -126,7 +126,9 @@ export function LimitOrderPriceInputWithContext({
         >
           <p>
             <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-              Current (last trade):{' '}
+              {ref != null
+                ? `Current (${refSource === 'pool' ? 'AMM pool spot' : 'last trade'}): `
+                : 'Current reference: '}
             </span>
             {refLine}
           </p>

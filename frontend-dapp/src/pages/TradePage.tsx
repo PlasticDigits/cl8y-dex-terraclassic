@@ -93,7 +93,16 @@ export default function TradePage() {
       {indexerDown && (
         <div className="alert-warning text-sm" role="alert">
           Indexer unavailable at <code className="font-mono text-[11px]">{INDEXER_URL}</code> — chart and tape may be
-          limited. Order book and tickets still use chain where applicable.
+          limited. Limit **price** checks still use on-chain **AMM pool** reserves when tape is missing (see{' '}
+          <a
+            className="underline hover:opacity-80"
+            href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitLab #166
+          </a>
+          ); order book depth still depends on indexer → LCD.
         </div>
       )}
 
