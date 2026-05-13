@@ -47,7 +47,24 @@ export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowM
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={btnClass} onClick={() => onChange(null)} style={{ color: 'var(--ink-dim)' }}>
+        <button
+          type="button"
+          className={btnClass}
+          data-active={value === null}
+          aria-pressed={value === null}
+          title="Order rests indefinitely until filled or cancelled."
+          onClick={() => onChange(null)}
+          style={
+            value === null
+              ? {
+                  color: 'var(--ink)',
+                  borderColor: 'var(--accent)',
+                  background: 'var(--accent-surface)',
+                  boxShadow: 'inset 0 0 0 1px var(--accent)',
+                }
+              : { color: 'var(--ink-dim)' }
+          }
+        >
           No expiry
         </button>
         <button type="button" className={btnClass} onClick={() => onChange(limitOrderExpiryFromPreset24h(nowMs()))}>
@@ -57,6 +74,11 @@ export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowM
           7d
         </button>
       </div>
+      {value === null && (
+        <p className={hintClass} style={{ color: 'var(--ink-dim)' }}>
+          Order rests indefinitely until filled or cancelled.
+        </p>
+      )}
       <input
         id={`${idPrefix}-expiry-dt`}
         type="datetime-local"
@@ -72,6 +94,16 @@ export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowM
           onChange(sec)
         }}
       />
+      {value !== null && value <= Math.floor(nowMs() / 1000) && (
+        <p
+          className={hintClass}
+          role="alert"
+          data-testid="expiry-past-error"
+          style={{ color: 'var(--danger, #ff6b6b)' }}
+        >
+          Expiry must be in the future.
+        </p>
+      )}
     </div>
   )
 }
