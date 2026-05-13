@@ -168,14 +168,26 @@ export default function LimitOrdersPage() {
     [side, price, latestTrade, indexerPair]
   )
 
-  const placeLimitCombinedOk =
-    placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit && placePriceGate.canPlaceLimit
+  const expiryPastBlocker = useMemo(() => {
+    if (expiresAt === null) return null
+    const nowSec = Math.floor(Date.now() / 1000)
+    if (expiresAt <= nowSec) return 'Expiry must be in the future.'
+    return null
+  }, [expiresAt])
 
-  const placeLimitInlineGate = !placePriceGate.canPlaceLimit
-    ? placePriceGate
-    : placeEscrowGate.userMessage
-      ? placeEscrowGate
-      : placeNativeGasGate
+  const placeLimitCombinedOk =
+    placeEscrowGate.canPlaceLimit &&
+    placeNativeGasGate.canPlaceLimit &&
+    placePriceGate.canPlaceLimit &&
+    !expiryPastBlocker
+
+  const placeLimitInlineGate = expiryPastBlocker
+    ? { canPlaceLimit: false, userMessage: expiryPastBlocker, tone: 'warning' as const }
+    : !placePriceGate.canPlaceLimit
+      ? placePriceGate
+      : placeEscrowGate.userMessage
+        ? placeEscrowGate
+        : placeNativeGasGate
 
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []

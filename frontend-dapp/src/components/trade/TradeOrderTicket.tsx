@@ -211,13 +211,24 @@ export function TradeOrderTicket({
     ]
   )
 
+  const expiryPastBlocker = useMemo(() => {
+    if (expiresAt === null) return null
+    const nowSec = Math.floor(Date.now() / 1000)
+    if (expiresAt <= nowSec) return 'Expiry must be in the future.'
+    return null
+  }, [expiresAt])
+
   const placeLimitCombinedOk =
     placeEscrowGate.canPlaceLimit &&
     placeNativeGasGate.canPlaceLimit &&
     placePriceGate.canPlaceLimit &&
-    !crossingBlocker
+    !crossingBlocker &&
+    !expiryPastBlocker
 
   const placeLimitInlineGate = useMemo(() => {
+    if (expiryPastBlocker) {
+      return { canPlaceLimit: false, userMessage: expiryPastBlocker, tone: 'warning' as const }
+    }
     if (crossingBlocker) {
       return { canPlaceLimit: false, userMessage: crossingBlocker, tone: 'warning' as const }
     }
@@ -225,7 +236,7 @@ export function TradeOrderTicket({
       return placePriceGate
     }
     return placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
-  }, [crossingBlocker, placePriceGate, placeEscrowGate, placeNativeGasGate])
+  }, [expiryPastBlocker, crossingBlocker, placePriceGate, placeEscrowGate, placeNativeGasGate])
 
   const myPlacements = useMemo(() => {
     if (!address || !placementsQuery.data) return []
