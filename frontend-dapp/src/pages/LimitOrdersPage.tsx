@@ -31,11 +31,13 @@ import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrow
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
+import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubmitSummary'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 
 export default function LimitOrdersPage() {
@@ -84,6 +86,9 @@ export default function LimitOrdersPage() {
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
+
+  const { effectiveFeeBps, makerPlacementFeeBps, feeLoading: limitFeeLoading, feeError: limitFeeError } =
+    useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr],
@@ -432,6 +437,18 @@ export default function LimitOrdersPage() {
                   onExpiresAtChange={setExpiresAt}
                   idPrefix="limit-orders-page"
                 />
+                {selectedPair && pairAddr.startsWith('terra1') && (
+                  <LimitOrderPreSubmitSummary
+                    placeSequenceMinUluna={limitPlaceMinUlunaFees}
+                    refToken1PerToken0={refToken1PerToken0}
+                    typedPrice={price}
+                    effectiveFeeBps={effectiveFeeBps}
+                    makerPlacementFeeBps={makerPlacementFeeBps}
+                    feeLoading={limitFeeLoading}
+                    feeError={limitFeeError}
+                    data-testid="limits-page-pre-submit-summary"
+                  />
+                )}
                 <button
                   type="button"
                   className="btn-primary btn-cta w-full"

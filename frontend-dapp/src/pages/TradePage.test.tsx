@@ -48,6 +48,10 @@ vi.mock('@/services/terraclassic/pair', () => ({
   cancelLimitOrder: vi.fn(),
 }))
 
+vi.mock('@/services/terraclassic/settings', () => ({
+  getPairFeeConfig: vi.fn().mockResolvedValue({ fee_bps: 30, treasury: 'terra1treasury0000000000000000000001' }),
+}))
+
 vi.mock('@/services/terraclassic/wallet', () => ({
   getConnectedWallet: vi.fn().mockReturnValue(null),
 }))
@@ -110,6 +114,14 @@ describe('TradePage', () => {
     expect(marketTabs.length).toBeGreaterThanOrEqual(1)
     const limitTabs = await screen.findAllByTestId('trade-order-tab-limit')
     expect(limitTabs.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('limit tab shows pre-submit summary before Place limit (GitLab #157)', async () => {
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    const summaries = await screen.findAllByTestId('trade-limit-pre-submit-summary')
+    expect(summaries.length).toBeGreaterThanOrEqual(1)
+    expect(summaries[0].textContent).toMatch(/no taker slippage/i)
+    expect(summaries[0].textContent).toMatch(/Maker placement fee/i)
   })
 
   it('keeps disconnected ticket wallet CTAs actionable', async () => {
