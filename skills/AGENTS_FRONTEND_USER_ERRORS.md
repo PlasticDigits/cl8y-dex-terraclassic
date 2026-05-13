@@ -11,6 +11,7 @@ Use when surfacing **wallet**, **fetch/indexer**, or **mutation** failures in th
 | [`frontend-dapp/src/utils/humanizeOffChainError.ts`](../frontend-dapp/src/utils/humanizeOffChainError.ts) | Wallet / transport try-match helpers + **`sanitizeOpaqueErrorMessage`** |
 | [`frontend-dapp/src/utils/humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) | On-chain / LCD patterns ([GitLab **#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)) |
 | [`frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts`](../frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts) | Regression strings |
+| [`frontend-dapp/src/utils/indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts) | Trade page **indexer-down** banner sentences ([GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)); invariants: [docs/frontend.md § Trade page — indexer outage banner](../docs/frontend.md#trade-page-indexer-outage-banner) |
 
 ## Rules of thumb
 
@@ -21,6 +22,6 @@ Use when surfacing **wallet**, **fetch/indexer**, or **mutation** failures in th
 
 ## Related
 
-- **Trade page** sub-desktop grid + `trade-sub-lg-workspace`: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)).
+- **Trade page** sub-desktop grid + `trade-sub-lg-workspace`: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)); indexer outage messaging vs. book panels: [docs/frontend.md § Trade page — indexer outage banner](../docs/frontend.md#trade-page-indexer-outage-banner) ([GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)).
 - **Contract-side copy / max spread:** [GitLab **#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md).
 - **Connect modal raw errors (same surface):** [GitLab **#139**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139).

@@ -12,6 +12,7 @@ import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { TRADE_INDEXER_OUTAGE_BANNER_LEAD, TRADE_INDEXER_OUTAGE_BANNER_TAIL } from '@/utils/indexerTradeOutageCopy'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import type { IndexerPair } from '@/types'
 
@@ -91,9 +92,9 @@ export default function TradePage() {
       </div>
 
       {indexerDown && (
-        <div className="alert-warning text-sm" role="alert">
-          Indexer unavailable at <code className="font-mono text-[11px]">{INDEXER_URL}</code> — chart and tape may be
-          limited. Order book and tickets still use chain where applicable.
+        <div className="alert-warning text-sm" role="alert" data-testid="trade-indexer-outage-banner">
+          Indexer unavailable at <code className="font-mono text-[11px]">{INDEXER_URL}</code>.{' '}
+          {TRADE_INDEXER_OUTAGE_BANNER_LEAD}; {TRADE_INDEXER_OUTAGE_BANNER_TAIL}
         </div>
       )}
 

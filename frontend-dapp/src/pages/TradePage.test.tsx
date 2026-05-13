@@ -121,4 +121,14 @@ describe('TradePage', () => {
     const cancelButtons = await screen.findAllByTestId('trade-cancel-submit')
     expect(cancelButtons.some((button) => !button.hasAttribute('disabled'))).toBe(true)
   })
+
+  it('shows accurate indexer outage banner when pair fetch fails (GitLab #164)', async () => {
+    vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    const banner = await screen.findByTestId('trade-indexer-outage-banner')
+    expect(banner.textContent).toContain('Indexer unavailable')
+    expect(banner.textContent).not.toMatch(/still use chain/i)
+    expect(banner.textContent).toMatch(/order book|chart|tape/i)
+  })
 })
