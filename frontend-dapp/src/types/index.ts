@@ -461,6 +461,8 @@ export interface IndexerPosition {
   trade_count: number
 }
 
+export type { LimitBookTicketDraft } from './limitBookTicketDraft'
+
 export function isNativeDenom(tokenId: string): boolean {
   return tokenId === 'uluna' || tokenId === 'uusd'
 }
