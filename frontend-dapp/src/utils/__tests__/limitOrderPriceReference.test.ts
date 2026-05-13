@@ -4,9 +4,11 @@ import {
   isLimitPriceDirectionInvalid,
   limitPriceDeviationPercent,
   parsePositivePriceHuman,
+  poolReservesToToken1PerToken0Human,
+  resolveLimitOrderPriceRef,
   tradeToToken1PerToken0Human,
 } from '../limitOrderPriceReference'
-import type { IndexerPair, IndexerTrade } from '@/types'
+import type { IndexerPair, IndexerTrade, PairInfo, PoolResponse } from '@/types'
 
 const pair: Pick<IndexerPair, 'asset_0' | 'asset_1'> = {
   asset_0: { symbol: 'EMBER', contract_addr: 't0', denom: null, decimals: 6 },
@@ -110,5 +112,69 @@ describe('parsePositivePriceHuman', () => {
     expect(parsePositivePriceHuman('0')).toBeNull()
     expect(parsePositivePriceHuman('-1')).toBeNull()
     expect(parsePositivePriceHuman('abc')).toBeNull()
+  })
+})
+
+describe('poolReservesToToken1PerToken0Human', () => {
+  it('matches trade-implied spot for equal-decimal reserves', () => {
+    const pool = {
+      assets: [
+        { info: { token: { contract_addr: 'a' } }, amount: '1000000' },
+        { info: { token: { contract_addr: 'b' } }, amount: '888000' },
+      ],
+    } as PoolResponse
+    expect(poolReservesToToken1PerToken0Human(pool, 6, 6)).toBeCloseTo(0.888, 6)
+  })
+})
+
+describe('resolveLimitOrderPriceRef', () => {
+  const pairInfo: PairInfo = {
+    contract_addr: 'pair1',
+    liquidity_token: 'lp',
+    asset_infos: [{ token: { contract_addr: 't0' } }, { token: { contract_addr: 't1' } }],
+  }
+
+  it('prefers tape when valid', () => {
+    const tradeRow: IndexerTrade = {
+      id: 1,
+      pair_address: 'p',
+      block_height: 1,
+      block_timestamp: '',
+      tx_hash: 'h',
+      sender: 's',
+      offer_asset: 'EMBER',
+      ask_asset: 'CORAL',
+      offer_amount: '1000000',
+      return_amount: '888000',
+      price: '0.888',
+    }
+    const r = resolveLimitOrderPriceRef({
+      latestTrade: tradeRow,
+      indexerPair: {
+        asset_0: { symbol: 'EMBER', contract_addr: 't0', denom: null, decimals: 6 },
+        asset_1: { symbol: 'CORAL', contract_addr: 't1', denom: null, decimals: 6 },
+      },
+      pool: null,
+      pairInfo,
+    })
+    expect(r.refSource).toBe('tape')
+    expect(r.refToken1PerToken0).toBeCloseTo(0.888, 5)
+  })
+
+  it('falls back to pool when tape missing', () => {
+    const pool = {
+      assets: [
+        { info: { token: { contract_addr: 't0' } }, amount: '2000000' },
+        { info: { token: { contract_addr: 't1' } }, amount: '1776000' },
+      ],
+    } as PoolResponse
+    const r = resolveLimitOrderPriceRef({
+      latestTrade: null,
+      indexerPair: pair,
+      pool,
+      pairInfo,
+    })
+    expect(r.refSource).toBe('pool')
+    expect(r.refToken1PerToken0).toBeCloseTo(0.888, 5)
   })
 })

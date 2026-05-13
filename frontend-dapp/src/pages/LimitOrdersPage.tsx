@@ -21,6 +21,7 @@ import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
+import { useLimitOrderPriceRefBundle } from '@/hooks/useLimitOrderPriceRefBundle'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
@@ -115,6 +116,13 @@ export default function LimitOrdersPage() {
   const latestTrade = tradesForLimitQuery.data?.[0]
   const tapeHeadlineUsd = latestTrade?.price
 
+  const { refToken1PerToken0, refSource, refResolutionLoading, refResolutionError } = useLimitOrderPriceRefBundle({
+    pairAddr,
+    selectedPair,
+    indexerPair,
+    latestTrade,
+  })
+
   const bookBidQuery = useQuery({
     queryKey: ['limitBookPagePreview', pairAddr, 'bid'],
     queryFn: () => getPairLimitBookPage(pairAddr, 'bid', { limit: 20 }),
@@ -164,8 +172,12 @@ export default function LimitOrdersPage() {
   )
 
   const placePriceGate = useMemo(
-    () => evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null),
-    [side, price, latestTrade, indexerPair]
+    () =>
+      evaluateLimitOrderPricePlaceGate(side, price, refToken1PerToken0, {
+        refResolutionLoading,
+        refResolutionError,
+      }),
+    [side, price, refToken1PerToken0, refResolutionLoading, refResolutionError]
   )
 
   const expiryPastBlocker = useMemo(() => {
@@ -220,7 +232,10 @@ export default function LimitOrdersPage() {
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
         throw new Error(nativeGate.userMessage)
       }
-      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null)
+      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, refToken1PerToken0, {
+        refResolutionLoading,
+        refResolutionError,
+      })
       if (!priceGate.canPlaceLimit) {
         throw new Error(priceGate.userMessage ?? 'Invalid limit price for this side.')
       }
@@ -237,6 +252,7 @@ export default function LimitOrdersPage() {
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['limitOrderPricePoolRef', pairAddr] })
       setLastIndexedOrderId(null)
       const addr = pairAddr
       const wallet = address
@@ -431,8 +447,8 @@ export default function LimitOrdersPage() {
                   price={price}
                   onPriceChange={setPrice}
                   inputId={limitOrdersPriceInputId}
-                  activePair={indexerPair}
-                  latestTrade={latestTrade}
+                  refToken1PerToken0={refToken1PerToken0}
+                  refSource={refSource}
                   tapeHeadlineUsd={tapeHeadlineUsd}
                   token0Label={getTokenDisplaySymbol(token0 || 'token0')}
                   token1Label={getTokenDisplaySymbol(token1 || 'token1')}

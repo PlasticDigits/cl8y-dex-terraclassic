@@ -8,6 +8,11 @@ describe('indexerTradeOutageCopy', () => {
     expect(combined).not.toContain('where applicable')
   })
 
+  it('mentions limit reference pool fallback when tape is missing (GitLab #166)', () => {
+    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/#166|166/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/pool|LCD/i)
+  })
+
   it('names degraded trade surfaces (indexer dependency)', () => {
     expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/order book|chart|tape|swap|limit/i)
     expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/unavailable|degraded/i)

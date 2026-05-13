@@ -24,6 +24,7 @@ import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
+import { useLimitOrderPriceRefBundle } from '@/hooks/useLimitOrderPriceRefBundle'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
@@ -142,6 +143,13 @@ export function TradeOrderTicket({
 
   const selectedPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
 
+  const { refToken1PerToken0, refSource, refResolutionLoading, refResolutionError } = useLimitOrderPriceRefBundle({
+    pairAddr,
+    selectedPair,
+    indexerPair,
+    latestTrade,
+  })
+
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const escrowToken = side === 'bid' ? token1 : token0
@@ -175,8 +183,12 @@ export function TradeOrderTicket({
   )
 
   const placePriceGate = useMemo(
-    () => evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null),
-    [side, price, latestTrade, indexerPair]
+    () =>
+      evaluateLimitOrderPricePlaceGate(side, price, refToken1PerToken0, {
+        refResolutionLoading,
+        refResolutionError,
+      }),
+    [side, price, refToken1PerToken0, refResolutionLoading, refResolutionError]
   )
 
   const placeEscrowGate = useMemo(
@@ -271,7 +283,10 @@ export function TradeOrderTicket({
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
         throw new Error(nativeGate.userMessage)
       }
-      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, latestTrade ?? null, indexerPair ?? null)
+      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, refToken1PerToken0, {
+        refResolutionLoading,
+        refResolutionError,
+      })
       if (!priceGate.canPlaceLimit) {
         throw new Error(priceGate.userMessage ?? 'Invalid limit price for this side.')
       }
@@ -289,6 +304,7 @@ export function TradeOrderTicket({
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['limitOrderPricePoolRef', pairAddr] })
       setLastIndexedOrderId(null)
       const addr = pairAddr
       const walletAddr = address
@@ -503,8 +519,8 @@ export function TradeOrderTicket({
               price={price}
               onPriceChange={setPrice}
               inputId={limitPriceInputId}
-              activePair={indexerPair}
-              latestTrade={latestTrade}
+              refToken1PerToken0={refToken1PerToken0}
+              refSource={refSource}
               tapeHeadlineUsd={tapeHeadlineUsd}
               token0Label={token0Display}
               token1Label={token1Display}
