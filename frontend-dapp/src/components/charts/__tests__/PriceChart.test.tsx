@@ -178,6 +178,23 @@ describe('PriceChart', () => {
     })
   })
 
+  it('adds a line series when MA 7 is toggled on after the chart loads', async () => {
+    const user = userEvent.setup()
+    const candles = Array.from({ length: 20 }, (_, i) =>
+      candle({
+        open_time: new Date(Date.UTC(2024, 0, 1, i, 0, 0)).toISOString(),
+        open: String(1 + i * 0.01),
+        close: String(1 + i * 0.01 + 0.002),
+      })
+    )
+    vi.mocked(indexerClient.getCandles).mockResolvedValue(candles)
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(lwChartTestDouble.seriesSpies.length).toBeGreaterThanOrEqual(2))
+    await user.click(screen.getByTestId('price-chart-indicators-trigger'))
+    await user.click(screen.getByRole('checkbox', { name: /ma 7/i }))
+    await waitFor(() => expect(lwChartTestDouble.seriesSpies.length).toBe(3))
+  })
+
   it('calls setData again when the pair changes and new candles arrive', async () => {
     vi.mocked(indexerClient.getCandles).mockImplementation((addr: string) =>
       addr === pairA

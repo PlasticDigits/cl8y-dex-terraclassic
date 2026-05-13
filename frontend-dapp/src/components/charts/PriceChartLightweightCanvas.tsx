@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AutoscaleInfo, HistogramData, IChartApi, ISeriesApi, Time } from 'lightweight-charts'
 import type { ChartCandlePoint } from './priceChartCandles'
 import type { IndicatorLinePoint } from './priceChartIndicators'
 import { rsiPaneHeightPx, volumePaneHeightPx } from './priceChartPaneHeights'
 import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from './priceChartPriceScale'
+import { syncPriceChartIndicatorOverlays, type IndicatorSeriesRefs } from './priceChartLightweightIndicatorSync'
 
 export interface PriceChartLightweightCanvasProps {
   candlePoints: ChartCandlePoint[]
@@ -29,11 +30,11 @@ export function PriceChartLightweightCanvas({
 }: PriceChartLightweightCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
+  const lcRef = useRef<Awaited<typeof import('lightweight-charts')> | null>(null)
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
-  const sma7SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
-  const sma25SeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
-  const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+
+  const indicatorRefs = useRef<IndicatorSeriesRefs>({ sma7: null, sma25: null, rsi: null })
 
   const candlePointsRef = useRef(candlePoints)
   const volumePointsRef = useRef(volumePoints)
@@ -53,7 +54,11 @@ export function PriceChartLightweightCanvas({
   showSma25Ref.current = showSma25
   showRsiRef.current = showRsi
 
+  const applyLayoutRef = useRef<(() => void) | null>(null)
+  const [chartModelReady, setChartModelReady] = useState(false)
+
   useEffect(() => {
+    let cancelled = false
     let chart: IChartApi | null = null
     let cleanupResize: (() => void) | undefined
 
@@ -61,8 +66,10 @@ export function PriceChartLightweightCanvas({
       if (!containerRef.current) return
 
       const lc = await import('lightweight-charts')
-      if (!containerRef.current) return
-      const { CandlestickSeries, HistogramSeries, LineSeries } = lc
+      if (cancelled || !containerRef.current) return
+
+      lcRef.current = lc
+      const { CandlestickSeries, HistogramSeries } = lc
       const h = Math.max(320, containerRef.current.clientHeight)
       chart = lc.createChart(containerRef.current, {
         layout: {
@@ -118,38 +125,6 @@ export function PriceChartLightweightCanvas({
       )
       candleSeriesRef.current.setData(candlePointsRef.current)
 
-      const accent = getComputedStyle(document.documentElement).getPropertyValue('--focus-ring').trim() || '#38bdf8'
-
-      if (showSma7Ref.current) {
-        sma7SeriesRef.current = chart.addSeries(
-          LineSeries,
-          {
-            color: '#38bdf8',
-            lineWidth: 2,
-            title: 'MA 7',
-            priceLineVisible: false,
-            lastValueVisible: true,
-          },
-          0
-        )
-        sma7SeriesRef.current.setData(sma7PointsRef.current)
-      }
-
-      if (showSma25Ref.current) {
-        sma25SeriesRef.current = chart.addSeries(
-          LineSeries,
-          {
-            color: '#fbbf24',
-            lineWidth: 2,
-            title: 'MA 25',
-            priceLineVisible: false,
-            lastValueVisible: true,
-          },
-          0
-        )
-        sma25SeriesRef.current.setData(sma25PointsRef.current)
-      }
-
       chart.addPane()
       chart.panes()[1]?.setHeight(volumePaneHeightPx(h))
 
@@ -166,43 +141,6 @@ export function PriceChartLightweightCanvas({
       )
       volumeSeriesRef.current.setData(volumePointsRef.current)
 
-      if (showRsiRef.current) {
-        chart.addPane()
-        chart.panes()[2]?.setHeight(rsiPaneHeightPx(h))
-
-        rsiSeriesRef.current = chart.addSeries(
-          LineSeries,
-          {
-            color: accent || '#a78bfa',
-            lineWidth: 2,
-            title: 'RSI 14',
-            priceLineVisible: false,
-            lastValueVisible: true,
-            priceFormat: { type: 'price', precision: 1, minMove: 0.1 },
-          },
-          2
-        )
-        rsiSeriesRef.current.setData(rsiPointsRef.current)
-        rsiSeriesRef.current.priceScale().setAutoScale(false)
-        rsiSeriesRef.current.priceScale().setVisibleRange({ from: 0, to: 100 })
-        rsiSeriesRef.current.createPriceLine({
-          price: 70,
-          color: 'rgba(248, 113, 113, 0.55)',
-          lineWidth: 1,
-          lineStyle: 2,
-          axisLabelVisible: true,
-          title: '70',
-        })
-        rsiSeriesRef.current.createPriceLine({
-          price: 30,
-          color: 'rgba(74, 222, 128, 0.55)',
-          lineWidth: 1,
-          lineStyle: 2,
-          axisLabelVisible: true,
-          title: '30',
-        })
-      }
-
       chart.timeScale().fitContent()
 
       chartRef.current = chart
@@ -215,10 +153,11 @@ export function PriceChartLightweightCanvas({
           height: nextH,
         })
         chart.panes()[1]?.setHeight(volumePaneHeightPx(nextH))
-        if (showRsiRef.current) {
+        if (showRsiRef.current && chart.panes()[2]) {
           chart.panes()[2]?.setHeight(rsiPaneHeightPx(nextH))
         }
       }
+      applyLayoutRef.current = applySize
 
       const resizeObserver = new ResizeObserver(() => applySize())
       resizeObserver.observe(containerRef.current)
@@ -227,31 +166,55 @@ export function PriceChartLightweightCanvas({
       requestAnimationFrame(() => {
         requestAnimationFrame(() => applySize())
       })
+
+      if (!cancelled) setChartModelReady(true)
     }
 
     void initChart()
 
     return () => {
+      cancelled = true
+      setChartModelReady(false)
       cleanupResize?.()
+      applyLayoutRef.current = null
       candleSeriesRef.current = null
-      sma7SeriesRef.current = null
-      sma25SeriesRef.current = null
       volumeSeriesRef.current = null
-      rsiSeriesRef.current = null
+      indicatorRefs.current = { sma7: null, sma25: null, rsi: null }
+      lcRef.current = null
       if (chart) {
         chart.remove()
+        chart = null
         chartRef.current = null
       }
     }
-  }, [showSma7, showSma25, showRsi])
+  }, [])
+
+  useEffect(() => {
+    if (!chartModelReady || !chartRef.current || !lcRef.current || !containerRef.current) return
+    const chart = chartRef.current
+    const lc = lcRef.current
+    const h = Math.max(320, containerRef.current.clientHeight)
+
+    syncPriceChartIndicatorOverlays(chart, lc, indicatorRefs.current, {
+      showSma7,
+      showSma25,
+      showRsi,
+      sma7Points,
+      sma25Points,
+      rsiPoints,
+      chartHeightPx: h,
+    })
+    applyLayoutRef.current?.()
+    chart.timeScale().fitContent()
+  }, [chartModelReady, showSma7, showSma25, showRsi, sma7Points, sma25Points, rsiPoints])
 
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return
     candleSeriesRef.current.setData(candlePoints)
     volumeSeriesRef.current.setData(volumePoints)
-    if (sma7SeriesRef.current) sma7SeriesRef.current.setData(sma7Points)
-    if (sma25SeriesRef.current) sma25SeriesRef.current.setData(sma25Points)
-    if (rsiSeriesRef.current) rsiSeriesRef.current.setData(rsiPoints)
+    if (indicatorRefs.current.sma7) indicatorRefs.current.sma7.setData(sma7Points)
+    if (indicatorRefs.current.sma25) indicatorRefs.current.sma25.setData(sma25Points)
+    if (indicatorRefs.current.rsi) indicatorRefs.current.rsi.setData(rsiPoints)
     chartRef.current?.timeScale().fitContent()
   }, [candlePoints, volumePoints, sma7Points, sma25Points, rsiPoints])
 
