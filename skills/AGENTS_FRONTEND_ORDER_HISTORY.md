@@ -19,7 +19,7 @@ Invariants and caps: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 
 ## Frontend
 
-- **Limits page** ([`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)): [`WalletIndexerHistoryPanel`](../frontend-dapp/src/components/trade/WalletIndexerHistoryPanel.tsx) — all three sections; invalidates query key `wallet-indexer-history` after place/cancel success.
+- **Limits page** ([`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)): [`WalletIndexerHistoryPanel`](../frontend-dapp/src/components/trade/WalletIndexerHistoryPanel.tsx) — all three sections; invalidates query key `wallet-indexer-history` after place and after any cancel via [`useLimitOrderCancelMutation`](../frontend-dapp/src/hooks/useLimitOrderCancelMutation.ts) (book row **×**, **Cancel all mine**, or manual cancel — [GitLab **#162**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
 - **Trade page** ([`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx)): same panel with `sections={['swaps']}` only.
 - Client helpers: [`client.ts`](../frontend-dapp/src/services/indexer/client.ts) — `getTraderTrades`, `getTraderLimitFills`, `getTraderLimitCancellations`, `fetchTraderHistoryCsv`, `downloadTextAsFile`.
 
