@@ -114,6 +114,108 @@ async fn leaderboard_limit_capped() {
 }
 
 #[tokio::test]
+async fn get_trader_trades_pair_filter_returns_subset() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/trades?pair={}",
+            seed.trader_address, seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert!(!body.is_empty());
+    for trade in &body {
+        assert_eq!(trade["sender"], seed.trader_address);
+        assert_eq!(trade["pair_address"], seed.pair_address);
+    }
+}
+
+#[tokio::test]
+async fn get_trader_trades_unknown_pair_returns_404() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/trades?pair=terra1nosuchpairxxxxxxxx",
+            seed.trader_address
+        ))
+        .await;
+    resp.assert_status_not_found();
+}
+
+#[tokio::test]
+async fn get_trader_trades_csv_returns_text_csv() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/trades?format=csv&limit=3",
+            seed.trader_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let content_type = resp.header("content-type");
+    let ct = content_type.to_str().unwrap_or("");
+    assert!(ct.contains("text/csv"), "unexpected content-type: {ct}");
+    let body = resp.text();
+    assert!(body.contains("id,pair_address,block_height"));
+    assert!(body.contains("tx_hash"));
+}
+
+#[tokio::test]
+async fn get_trader_limit_fills_returns_maker_rows() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/limit-fills?pair={}",
+            seed.trader_address, seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert_eq!(body.len(), 2);
+    for row in &body {
+        assert_eq!(row["maker"], seed.trader_address);
+        assert_eq!(row["pair_address"], seed.pair_address);
+    }
+}
+
+#[tokio::test]
+async fn get_trader_limit_cancellations_returns_owner_rows() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/limit-cancellations?pair={}",
+            seed.trader_address, seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert_eq!(body.len(), 1);
+    assert_eq!(body[0]["owner"], seed.trader_address);
+    assert_eq!(body[0]["order_id"], 7);
+}
+
+#[tokio::test]
 async fn get_trader_positions_returns_rows() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;

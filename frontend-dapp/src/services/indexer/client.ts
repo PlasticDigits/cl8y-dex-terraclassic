@@ -254,11 +254,87 @@ export async function getTrader(address: string): Promise<IndexerTrader> {
   return parseIndexerTraderPayload(raw)
 }
 
-/** Get trader's historical trades. */
-export async function getTraderTrades(address: string, limit = 50, before?: number): Promise<IndexerTrade[]> {
+/** Get trader's historical swaps (indexed `swap_events` where sender matches). Optional `pair` scopes to one pair. */
+export async function getTraderTrades(
+  address: string,
+  opts?: { limit?: number; before?: number; pair?: string }
+): Promise<IndexerTrade[]> {
+  const limit = opts?.limit ?? 50
   const params = new URLSearchParams({ limit: limit.toString() })
-  if (before) params.set('before', before.toString())
+  if (opts?.before != null) params.set('before', String(opts.before))
+  if (opts?.pair?.trim()) params.set('pair', opts.pair.trim())
   return fetchJson<IndexerTrade[]>(`/api/v1/traders/${address}/trades?${params}`)
+}
+
+/** Per-wallet limit fills (indexed maker) — optional `pair` scopes to one pair contract. */
+export async function getTraderLimitFills(
+  address: string,
+  opts?: GetPairSubresourceParams & { pair?: string }
+): Promise<IndexerLimitFill[]> {
+  const sp = new URLSearchParams()
+  if (opts?.limit != null) sp.set('limit', String(opts.limit))
+  if (opts?.before != null) sp.set('before', String(opts.before))
+  if (opts?.pair?.trim()) sp.set('pair', opts.pair.trim())
+  const qs = sp.toString()
+  return fetchJson<IndexerLimitFill[]>(`/api/v1/traders/${address}/limit-fills${qs ? `?${qs}` : ''}`)
+}
+
+/** Per-wallet indexed limit cancellations (owner attribute) — optional `pair` filter. */
+export async function getTraderLimitCancellations(
+  address: string,
+  opts?: GetPairSubresourceParams & { pair?: string }
+): Promise<IndexerLimitCancellation[]> {
+  const sp = new URLSearchParams()
+  if (opts?.limit != null) sp.set('limit', String(opts.limit))
+  if (opts?.before != null) sp.set('before', String(opts.before))
+  if (opts?.pair?.trim()) sp.set('pair', opts.pair.trim())
+  const qs = sp.toString()
+  return fetchJson<IndexerLimitCancellation[]>(`/api/v1/traders/${address}/limit-cancellations${qs ? `?${qs}` : ''}`)
+}
+
+export type TraderHistoryCsvResource = 'trades' | 'limit-fills' | 'limit-cancellations'
+
+/** Download CSV from trader history endpoints (`format=csv`). */
+export async function fetchTraderHistoryCsv(
+  resource: TraderHistoryCsvResource,
+  address: string,
+  opts?: { limit?: number; pair?: string }
+): Promise<string> {
+  const sp = new URLSearchParams({ format: 'csv' })
+  if (opts?.limit != null) sp.set('limit', String(opts.limit))
+  if (
+    opts?.pair?.trim() &&
+    (resource === 'trades' || resource === 'limit-fills' || resource === 'limit-cancellations')
+  ) {
+    sp.set('pair', opts.pair.trim())
+  }
+  const path =
+    resource === 'trades' ? `/api/v1/traders/${address}/trades?${sp}` : `/api/v1/traders/${address}/${resource}?${sp}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  try {
+    const resp = await fetch(`${INDEXER_URL}${path}`, { signal: controller.signal })
+    if (!resp.ok) {
+      throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
+    }
+    return await resp.text()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Trigger a browser download of CSV text (UTF-8). */
+export function downloadTextAsFile(filename: string, text: string, mime = 'text/csv;charset=utf-8') {
+  const blob = new Blob([text], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 /** Get trader leaderboard. */

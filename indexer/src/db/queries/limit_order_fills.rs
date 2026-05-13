@@ -136,3 +136,62 @@ pub async fn list_fills_for_order(
     .fetch_all(pool)
     .await
 }
+
+pub async fn list_fills_for_maker(
+    pool: &PgPool,
+    maker: &str,
+    pair_id: Option<i32>,
+    limit: i64,
+    before_id: Option<i64>,
+) -> Result<Vec<LimitOrderFillRow>, sqlx::Error> {
+    match (before_id, pair_id) {
+        (Some(bid), Some(pid)) => {
+            sqlx::query_as::<_, LimitOrderFillRow>(
+                "SELECT * FROM limit_order_fills
+                 WHERE maker = $1 AND pair_id = $4 AND id < $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(maker)
+            .bind(limit)
+            .bind(bid)
+            .bind(pid)
+            .fetch_all(pool)
+            .await
+        }
+        (None, Some(pid)) => {
+            sqlx::query_as::<_, LimitOrderFillRow>(
+                "SELECT * FROM limit_order_fills
+                 WHERE maker = $1 AND pair_id = $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(maker)
+            .bind(limit)
+            .bind(pid)
+            .fetch_all(pool)
+            .await
+        }
+        (Some(bid), None) => {
+            sqlx::query_as::<_, LimitOrderFillRow>(
+                "SELECT * FROM limit_order_fills
+                 WHERE maker = $1 AND id < $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(maker)
+            .bind(limit)
+            .bind(bid)
+            .fetch_all(pool)
+            .await
+        }
+        (None, None) => {
+            sqlx::query_as::<_, LimitOrderFillRow>(
+                "SELECT * FROM limit_order_fills
+                 WHERE maker = $1
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(maker)
+            .bind(limit)
+            .fetch_all(pool)
+            .await
+        }
+    }
+}

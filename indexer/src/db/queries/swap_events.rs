@@ -126,11 +126,37 @@ pub async fn get_trades_for_pair(
 pub async fn get_trades_for_trader(
     pool: &PgPool,
     sender: &str,
+    pair_id: Option<i32>,
     limit: i64,
     before_id: Option<i64>,
 ) -> Result<Vec<SwapEventRow>, sqlx::Error> {
-    match before_id {
-        Some(bid) => {
+    match (before_id, pair_id) {
+        (Some(bid), Some(pid)) => {
+            sqlx::query_as::<_, SwapEventRow>(
+                "SELECT * FROM swap_events
+                 WHERE sender = $1 AND pair_id = $4 AND id < $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(sender)
+            .bind(limit)
+            .bind(bid)
+            .bind(pid)
+            .fetch_all(pool)
+            .await
+        }
+        (None, Some(pid)) => {
+            sqlx::query_as::<_, SwapEventRow>(
+                "SELECT * FROM swap_events
+                 WHERE sender = $1 AND pair_id = $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(sender)
+            .bind(limit)
+            .bind(pid)
+            .fetch_all(pool)
+            .await
+        }
+        (Some(bid), None) => {
             sqlx::query_as::<_, SwapEventRow>(
                 "SELECT * FROM swap_events WHERE sender = $1 AND id < $3
                  ORDER BY id DESC LIMIT $2",
@@ -141,7 +167,7 @@ pub async fn get_trades_for_trader(
             .fetch_all(pool)
             .await
         }
-        None => {
+        (None, None) => {
             sqlx::query_as::<_, SwapEventRow>(
                 "SELECT * FROM swap_events WHERE sender = $1
                  ORDER BY id DESC LIMIT $2",

@@ -173,8 +173,12 @@ The frontend uses TerraSwap-compatible message names:
 | `/trader`       | Trader profile lookup (indexer); optional `/:address` |
 | `/trade`        | Trade UI — order book, **price chart**, tape, **limit + market** tickets ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)) |
 | `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
-| `/limits`       | Limit order placements and lifecycle              |
+| `/limits`       | Limit order placements, lifecycle, and **wallet history** (fills, cancels, swaps on pair + CSV) — [GitLab **#163**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/163) |
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
+
+### Wallet swap and limit history (indexer) {#wallet-swap-limit-history}
+
+When a wallet is connected, **`/limits`** shows indexed **limit fills** (maker), **cancellations** (owner attribute when present on-chain), and **AMM swaps** for the **selected pair** via trader-scoped indexer routes. **`/trade`** shows the same **swap** slice for the active pair. Rows include **timestamps**, **tx hashes** (with explorer links in the table), and **fees** where the indexer stores them (`commission_amount` / `effective_fee_bps` on swaps; `commission_amount` on limit fills). **CSV export** uses `GET .../trades?format=csv`, `.../limit-fills?format=csv`, and `.../limit-cancellations?format=csv` on the **`/api/v1/traders/{addr}/...`** paths (see [`docs/indexer-invariants.md`](./indexer-invariants.md)). Third-party agents: [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md).
 
 ### Form inputs — programmatic labels {#form-inputs-programmatic-labels}
 

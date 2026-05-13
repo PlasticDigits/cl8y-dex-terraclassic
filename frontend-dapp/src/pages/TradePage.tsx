@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useWalletStore } from '@/hooks/useWallet'
+import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { useQuery } from '@tanstack/react-query'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
@@ -27,6 +29,8 @@ export default function TradePage() {
   const { pairAddr: routePair } = useParams<{ pairAddr?: string }>()
   const navigate = useNavigate()
   const [pairAddr, setPairAddr] = useState(routePair ?? '')
+
+  const address = useWalletStore((s) => s.address)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -224,6 +228,12 @@ export default function TradePage() {
           </Panel>
         </PanelGroup>
       </div>
+
+      {address && pairAddr.startsWith('terra1') && (
+        <div className="mt-3">
+          <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} sections={['swaps']} />
+        </div>
+      )}
     </div>
   )
 }

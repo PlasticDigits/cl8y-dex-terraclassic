@@ -210,6 +210,9 @@ export interface IndexerTrade {
   book_return_amount?: string
   limit_book_offer_consumed?: string
   effective_fee_bps?: number
+  /** Indexed swap commission (raw units) when present — GitLab #163. */
+  commission_amount?: string
+  spread_amount?: string
 }
 
 /** `GET /api/v1/pairs/{addr}/limit-fills` */

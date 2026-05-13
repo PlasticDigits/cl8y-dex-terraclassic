@@ -27,6 +27,8 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 - **`GET /api/v1/pairs/{addr}/limit-book?side=bid|ask&limit=L&after_order_id=OPTIONAL`** — **paginated** walk from head or keyset cursor along `next` (default `limit` 50, max 100 per HTTP response). Response includes `orders`, `has_more`, and `next_after_order_id` (pass the latter as `after_order_id` for the next page). LCD errors → **502**; invalid cursor / side mismatch → **400**.
 - **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid|ask&depth=N`** — legacy small preview walk (default depth 10, max 20); prefer `limit-book` for full depth.
 
+**Trader-scoped history (fills, cancellations, swaps on a pair, CSV):** [GitLab **#163**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/163) — `GET /api/v1/traders/{addr}/limit-fills`, `.../limit-cancellations`, `.../trades` with optional `pair=` and `format=csv`. Invariants: [`indexer-invariants.md`](./indexer-invariants.md); dApp: [`frontend.md` § Wallet swap and limit history](./frontend.md#wallet-swap-limit-history), [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md).
+
 For multihop routing the indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (default pool-only `hybrid: null`; optional **`hybrid_optimize`** for server-chosen splits, max 3 hops — [**#101**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/101)) and **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001).
 
 ## Messages (CosmWasm)

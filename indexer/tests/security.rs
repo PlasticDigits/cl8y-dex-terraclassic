@@ -357,6 +357,22 @@ async fn rate_limit_returns_429_when_exceeded() {
 }
 
 #[tokio::test]
+async fn trader_trades_invalid_format_returns_400() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/trades?format=xml",
+            seed.trader_address
+        ))
+        .await;
+    resp.assert_status_bad_request();
+}
+
+#[tokio::test]
 async fn openapi_spec_available() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
