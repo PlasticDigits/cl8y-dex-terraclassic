@@ -23,6 +23,8 @@ export interface LimitOrderMyPlacementsPanelProps {
   /** When true, on-chain claim is rejected — disable Claim refund (L6 / GitLab #120). */
   isPairPaused: boolean
   openWalletModal: () => void
+  /** When set, the active row for this `order_id` is visually emphasized (trade ticket “View order” — GitLab #161). */
+  highlightOrderId?: number | null
 }
 
 export function LimitOrderMyPlacementsPanel({
@@ -35,6 +37,7 @@ export function LimitOrderMyPlacementsPanel({
   isWalletConnected,
   isPairPaused,
   openWalletModal,
+  highlightOrderId = null,
 }: LimitOrderMyPlacementsPanelProps) {
   const queryClient = useQueryClient()
   const { active, parkedExpired } = partitionLimitPlacementsByLifecycle(rows)
@@ -89,7 +92,11 @@ export function LimitOrderMyPlacementsPanel({
                   <li
                     key={r.id}
                     data-testid={`${dtPrefix}-placement-active-${r.order_id}`}
-                    className={`rounded-md border border-white/10 bg-white/[0.03] px-2 py-1.5 ${rowClass}`}
+                    className={`rounded-md border px-2 py-1.5 ${rowClass} transition-shadow duration-300 ${
+                      highlightOrderId != null && r.order_id === highlightOrderId
+                        ? 'border-amber-400/70 bg-amber-500/[0.12] shadow-[0_0_0_2px_rgba(251,191,36,0.45)]'
+                        : 'border-white/10 bg-white/[0.03]'
+                    }`}
                   >
                     <span className="text-emerald-400/90 mr-1">●</span>
                     order #{r.order_id} · {r.side ?? '?'} · {r.price ?? '?'} · placed {r.block_timestamp.slice(0, 19)}

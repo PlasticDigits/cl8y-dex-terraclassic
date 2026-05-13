@@ -13,7 +13,6 @@ import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
-import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
@@ -81,7 +80,6 @@ export default function TradePage() {
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = indexerPairQuery.isError && isIndexerUnavailableError(indexerPairQuery.error)
 
-  const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet

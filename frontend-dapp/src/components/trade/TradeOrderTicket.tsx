@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useId } from 'react'
+import { useMemo, useState, useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -17,6 +17,7 @@ import { TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair, type IndexerTrade, type PairInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
+import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
 import { useLimitOrderPriceRefBundle } from '@/hooks/useLimitOrderPriceRefBundle'
@@ -139,6 +140,8 @@ function TradeOrderTicketContent({
   const queryClient = useQueryClient()
   const limitPriceInputId = useId()
   const cancelLimitOrderInputId = useId()
+  const placementsAnchorRef = useRef<HTMLDivElement>(null)
+  const [highlightPlacementOrderId, setHighlightPlacementOrderId] = useState<number | null>(null)
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
   const [orderTab, setOrderTab] = useState<'limit' | 'market'>('limit')
@@ -357,6 +360,46 @@ function TradeOrderTicketContent({
         setLastIndexedOrderId(null)
       },
     })
+  }
+
+  const focusLimitPriceField = () => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(limitPriceInputId)
+      if (el instanceof HTMLInputElement) {
+        el.focus()
+        el.select()
+      }
+    })
+  }
+
+  /** Scroll to **My limits** or the active row for the last indexed `order_id` ([GitLab #161](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161)). */
+  const onViewPlacedLimitOrder = () => {
+    sounds.playButtonPress()
+    const oid = lastIndexedOrderId
+    if (oid != null) {
+      const row = document.querySelector<HTMLElement>(`[data-testid="trade-placement-active-${oid}"]`)
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        setHighlightPlacementOrderId(oid)
+        window.setTimeout(() => setHighlightPlacementOrderId(null), 2600)
+        return
+      }
+    }
+    placementsAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  const onPlaceAnotherLimit = () => {
+    sounds.playButtonPress()
+    placeMutation.reset()
+    setAmountHuman('')
+    setPrice('1')
+    setExpiresAt(null)
+    setMaxSteps(LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT)
+    setLimitAdvancedOpen(false)
+    setLastIndexedOrderId(null)
+    setCancelOrderId('')
+    setHighlightPlacementOrderId(null)
+    focusLimitPriceField()
   }
 
   useEffect(() => {
@@ -582,6 +625,37 @@ function TradeOrderTicketContent({
             {placeMutation.isSuccess && (
               <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
             )}
+            {placeMutation.isSuccess && (
+              <div className="space-y-2" data-testid="trade-limit-post-place-actions">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="trade-limit-view-order-btn"
+                    className="btn-primary btn-cta flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
+                    onClick={onViewPlacedLimitOrder}
+                  >
+                    View order
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="trade-limit-place-another-btn"
+                    className="btn-muted flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
+                    onClick={onPlaceAnotherLimit}
+                  >
+                    Place another
+                  </button>
+                </div>
+                {lastIndexedOrderId == null && (
+                  <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+                    If your new row is not listed yet, the indexer is still catching up — tap{' '}
+                    <span className="font-medium" style={{ color: 'var(--ink)' }}>
+                      View order
+                    </span>{' '}
+                    again after a moment to jump to the highlighted line in <strong>My limits</strong> below.
+                  </p>
+                )}
+              </div>
+            )}
             {lastIndexedOrderId != null && (
               <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
                 Last indexed: #{lastIndexedOrderId}
@@ -629,17 +703,25 @@ function TradeOrderTicketContent({
         </TicketSection>
 
         {pairAddr && address && (
-          <LimitOrderMyPlacementsPanel
-            variant="compact"
-            pairAddr={pairAddr}
-            pair={selectedPair}
-            walletAddress={address}
-            rows={myPlacements}
-            isLoading={placementsQuery.isLoading}
-            isWalletConnected={isWalletConnected}
-            isPairPaused={isPaused}
-            openWalletModal={openWalletModal}
-          />
+          <div
+            ref={placementsAnchorRef}
+            data-testid="trade-ticket-placements-anchor"
+            className="scroll-mt-4 outline-none"
+            tabIndex={-1}
+          >
+            <LimitOrderMyPlacementsPanel
+              variant="compact"
+              pairAddr={pairAddr}
+              pair={selectedPair}
+              walletAddress={address}
+              rows={myPlacements}
+              isLoading={placementsQuery.isLoading}
+              isWalletConnected={isWalletConnected}
+              isPairPaused={isPaused}
+              openWalletModal={openWalletModal}
+              highlightOrderId={highlightPlacementOrderId}
+            />
+          </div>
         )}
       </div>
     </div>

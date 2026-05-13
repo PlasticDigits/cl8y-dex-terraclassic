@@ -31,4 +31,4 @@ Invariants and caps: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 ## Related skills
 
 - [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) — LocalTerra smoke flows.
-- [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — trade workspace layout.
+- [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — trade workspace layout; post-place **View order** / **Place another** on `/trade` ([GitLab **#161**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161)).

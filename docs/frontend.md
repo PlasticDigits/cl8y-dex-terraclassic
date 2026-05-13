@@ -149,7 +149,7 @@ Hybrid hops use `max(..., HYBRID_SWAP_GAS_LIMIT × hops)` in `transactions.ts`.
 
 The dApp reads **`VITE_INDEXER_URL`** (see [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)) for browser `fetch` to the indexer API. **CORS is enforced on the `Origin` header**, which comes from the URL you open in the browser (`localhost` vs `127.0.0.1` are different origins). **`CORS_ORIGINS` on the indexer must list every origin you use for Vite** (typically both `http://localhost:5173` and `http://127.0.0.1:5173`, plus preview ports if applicable — [`indexer/.env.example`](../indexer/.env.example), [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh)). If they diverge, responses can show **200** in the Network panel while the browser still blocks the body (failed CORS).
 
-After a successful **Place limit**, the UI polls **`GET .../limit-placements`** to auto-fill the cancel **Order ID**. Poll failures are logged as **`[limit-place] indexer poll failed:`** ([`warnIndexerPlacementPollFailed`](../frontend-dapp/src/utils/warnIndexerPlacementPollFailed.ts); [GitLab **#131**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131)). Operational detail: [`docs/indexer-invariants.md` § Local dev CORS](./indexer-invariants.md#local-dev-cors-localhost-vs-127001).
+After a successful **Place limit**, the UI polls **`GET .../limit-placements`** to auto-fill the cancel **Order ID**. Poll failures are logged as **`[limit-place] indexer poll failed:`** ([`warnIndexerPlacementPollFailed`](../frontend-dapp/src/utils/warnIndexerPlacementPollFailed.ts); [GitLab **#131**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131)). On **`/trade`**, the ticket also surfaces **View order** / **Place another** next steps after a successful submit ([GitLab **#161**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161); [§ Trade page — limit place success affordances](#trade-page-limit-place-success-affordances)). Operational detail: [`docs/indexer-invariants.md` § Local dev CORS](./indexer-invariants.md#local-dev-cors-localhost-vs-127001).
 
 **Third-party / agent context:** [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (local stack); indexer matrix: [`docs/environment-matrix.md`](./environment-matrix.md).
 
@@ -316,6 +316,21 @@ Retail safety for typed **token1 per token0** limits ([GitLab **#154**](https://
 Implementation: [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) (`resolveLimitOrderPriceRef`, pool spot helpers), [`useLimitOrderPriceRefBundle.ts`](../frontend-dapp/src/hooks/useLimitOrderPriceRefBundle.ts) (tape + `getPool` wiring for [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) and [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)), [`limitOrderPricePlaceGate.ts`](../frontend-dapp/src/utils/limitOrderPricePlaceGate.ts), [`LimitOrderPriceField.tsx`](../frontend-dapp/src/components/trade/LimitOrderPriceField.tsx) (`LimitOrderPlaceLimitHeading`, `LimitOrderPriceInputWithContext`), plus [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) for pair context. `LimitOrderEscrowPlaceGuardMessage` accepts the price gate result for inline errors.
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+
+### Trade page — limit place success affordances {#trade-page-limit-place-success-affordances}
+
+After **Place limit** succeeds on **`/trade`**, the order ticket shows **next-step** controls so traders are not left at a dead end ([GitLab **#161**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **View order** | Scrolls the compact **My limits (indexer)** list into view. When the post-place poll has resolved an **`order_id`**, the UI scrolls to the matching row (`data-testid="trade-placement-active-{order_id}"`) and applies a short **highlight** ring on that `<li>`. If the row is not in the DOM yet, the scroll target is the placements anchor (`data-testid="trade-ticket-placements-anchor"`). |
+| **Place another** | Clears the success mutation state, resets limit fields to the same defaults as a fresh ticket (**price `1`**, empty amount, **`expires_at` unset**, **`max_adjust_steps` default**), clears the cancel **Order ID** line, clears the “last indexed” helper, and **focuses + selects** the limit price input (`useId()`-scoped `htmlFor` / `id` on [`LimitOrderPriceInputWithContext`](../frontend-dapp/src/components/trade/LimitOrderPriceField.tsx)). |
+| **Indexer lag copy** | While **`lastIndexedOrderId`** is still **null** after success, helper copy explains that the indexer may lag and that **View order** can be tapped again once the row appears. |
+| **Stable test ids** | `trade-limit-post-place-actions`, `trade-limit-view-order-btn`, `trade-limit-place-another-btn` — use in Playwright when extending funded limit flows. |
+
+Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), [`LimitOrderMyPlacementsPanel.tsx`](../frontend-dapp/src/components/trade/LimitOrderMyPlacementsPanel.tsx) (`highlightOrderId`).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
 
 ### Trade page — responsive layout (sub-desktop) {#trade-page-responsive-layout}
 
