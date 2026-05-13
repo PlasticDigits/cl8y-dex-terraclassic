@@ -93,11 +93,12 @@ describe('ChartsPage (component)', () => {
     expect(screen.getByText(/VITE_INDEXER_URL/i)).toBeInTheDocument()
   })
 
-  it('passes active pair into getCandles via PriceChart', async () => {
-    renderWithProviders(<ChartsPage />)
+  it('passes active pair into getCandles via PriceChart and wraps it in a bounded-height container (GitLab #151 /charts follow-up)', async () => {
+    const { container } = renderWithProviders(<ChartsPage />)
     await waitFor(() =>
       expect(indexerClient.getCandles).toHaveBeenCalledWith(mockPair.pair_address, expect.any(String))
     )
+    expect(container.innerHTML).toContain('h-[min(70vh,720px)]')
   })
 
   it('shows empty pairs copy when indexer returns no pairs', async () => {
