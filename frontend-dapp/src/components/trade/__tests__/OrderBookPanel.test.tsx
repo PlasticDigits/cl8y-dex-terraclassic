@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import { renderWithProviders } from '@/test-utils'
 import { getPairLimitBookPage } from '@/services/indexer/client'
-import type { IndexerPair } from '@/types'
+import type { IndexerPair, PairInfo } from '@/types'
 import { OrderBookPanel } from '../OrderBookPanel'
 
 vi.mock('@/services/indexer/client', async (importOriginal) => {
@@ -10,6 +10,8 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
   return {
     ...actual,
     getPairLimitBookPage: vi.fn(),
+    getPairLimitCancellations: vi.fn().mockResolvedValue([]),
+    getPairLimitPlacements: vi.fn().mockResolvedValue([]),
   }
 })
 
@@ -43,7 +45,7 @@ describe('OrderBookPanel', () => {
 
     expect(await screen.findByText('CORAL/EMBER')).toBeInTheDocument()
     expect(await screen.findByText('0.8264153')).toBeInTheDocument()
-    expect(screen.getAllByText('Price CORAL/EMBER').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText(/Order \/ price CORAL\/EMBER/).length).toBeGreaterThanOrEqual(2)
     expect(screen.getByText('Size CORAL')).toBeInTheDocument()
     expect(screen.getByText('Size EMBER')).toBeInTheDocument()
 
@@ -57,5 +59,42 @@ describe('OrderBookPanel', () => {
     expect(asks).toBeTruthy()
     expect(within(asks as HTMLElement).getByText('1.162145')).toBeInTheDocument()
     expect(within(asks as HTMLElement).getAllByText('104.6').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('shows per-row Edit / cancel for the connected wallet owner (GitLab #162)', async () => {
+    const cancelMut = {
+      mutate: vi.fn(),
+      mutateAsync: vi.fn().mockResolvedValue('txhash'),
+      isPending: false,
+      variables: undefined as number | undefined,
+      isError: false,
+      error: null,
+      isSuccess: false,
+      data: undefined as string | undefined,
+      reset: vi.fn(),
+    }
+    const onPrefill = vi.fn()
+    const factoryPair: PairInfo = {
+      contract_addr: pair.pair_address,
+      liquidity_token: 'terra1lp',
+      asset_infos: [{ token: { contract_addr: 'terra1ember' } }, { token: { contract_addr: 'terra1coral' } }],
+    }
+
+    renderWithProviders(
+      <OrderBookPanel
+        pairAddress={pair.pair_address}
+        pair={pair}
+        walletAddress="terra1maker"
+        isWalletConnected
+        isPairPaused={false}
+        cancelLimitOrderMutation={cancelMut as never}
+        onPrefillLimitTicket={onPrefill}
+        factoryPair={factoryPair}
+      />
+    )
+
+    expect(await screen.findByTestId('trade-book-edit-bid-7')).toBeInTheDocument()
+    expect(screen.getByTestId('trade-book-cancel-bid-7')).toBeInTheDocument()
+    expect(screen.getByTestId('trade-book-cancel-all-mine')).toBeInTheDocument()
   })
 })

@@ -4,10 +4,14 @@ import { useQuery } from '@tanstack/react-query'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPair, getTrades, INDEXER_URL } from '@/services/indexer/client'
+import { getPairPaused } from '@/services/terraclassic/pair'
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { MenuSelect, TradesTable, RetryError, Skeleton } from '@/components/ui'
 import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
+import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
@@ -15,6 +19,7 @@ import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { TRADE_INDEXER_OUTAGE_BANNER_LEAD, TRADE_INDEXER_OUTAGE_BANNER_TAIL } from '@/utils/indexerTradeOutageCopy'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import type { IndexerPair } from '@/types'
+import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 
 function TradeResizeHandleVertical() {
   return <PanelResizeHandle className="w-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0" />
@@ -72,6 +77,41 @@ export default function TradePage() {
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = indexerPairQuery.isError && isIndexerUnavailableError(indexerPairQuery.error)
 
+  const address = useWalletStore((s) => s.address)
+  const openWalletModal = useWalletStore((s) => s.openWalletModal)
+  const wallet = getConnectedWallet()
+  const isWalletConnected = !!address && !!wallet
+
+  const pausedQuery = useQuery({
+    queryKey: ['pairPaused', pairAddr],
+    queryFn: () => getPairPaused(pairAddr),
+    enabled: pairAddr.startsWith('terra1'),
+    staleTime: 15_000,
+  })
+  const isPairPaused = pausedQuery.data?.paused === true
+
+  const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
+
+  const factoryPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
+
+  const [limitBookDraftKey, setLimitBookDraftKey] = useState(0)
+  const [limitBookDraft, setLimitBookDraft] = useState<LimitBookTicketDraft | null>(null)
+
+  const pushLimitBookDraft = (draft: LimitBookTicketDraft) => {
+    setLimitBookDraft(draft)
+    setLimitBookDraftKey((k) => k + 1)
+  }
+
+  const orderBookPanelProps = {
+    walletAddress: address ?? undefined,
+    isWalletConnected,
+    isPairPaused,
+    openWalletModal,
+    cancelLimitOrderMutation: limitCancelMutation,
+    onPrefillLimitTicket: pushLimitBookDraft,
+    factoryPair,
+  }
+
   const onPairChange = (addr: string) => {
     sounds.playButtonPress()
     setPairAddr(addr)
@@ -123,7 +163,7 @@ export default function TradePage() {
       */}
       <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
         <div className="min-h-[280px] md:col-span-2 md:row-start-2">
-          <OrderBookPanel pairAddress={pairAddr} pair={activePair} />
+          <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
         </div>
         <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">
           <TradeOrderTicket
@@ -133,6 +173,10 @@ export default function TradePage() {
             indexerPair={activePair}
             latestTrade={tradesQuery.data?.[0]}
             tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
+            cancelLimitOrderMutation={limitCancelMutation}
+            limitBookDraftKey={limitBookDraftKey}
+            limitBookDraft={limitBookDraft}
+            onLimitBookDraftConsumed={() => setLimitBookDraft(null)}
           />
         </div>
         <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
@@ -166,7 +210,7 @@ export default function TradePage() {
       <div className="hidden lg:block h-[min(85vh,920px)] min-h-[440px]">
         <PanelGroup direction="horizontal" className="h-full gap-0">
           <Panel defaultSize={24} minSize={18} className="min-w-0">
-            <OrderBookPanel pairAddress={pairAddr} pair={activePair} />
+            <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
           </Panel>
           <TradeResizeHandleVertical />
           <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
@@ -221,6 +265,10 @@ export default function TradePage() {
               indexerPair={activePair}
               latestTrade={tradesQuery.data?.[0]}
               tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
+              cancelLimitOrderMutation={limitCancelMutation}
+              limitBookDraftKey={limitBookDraftKey}
+              limitBookDraft={limitBookDraft}
+              onLimitBookDraftConsumed={() => setLimitBookDraft(null)}
             />
           </Panel>
         </PanelGroup>

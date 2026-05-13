@@ -1,10 +1,12 @@
 import { useMemo, useState, useEffect, useId } from 'react'
 import type { ReactNode } from 'react'
+import type { UseMutationResult } from '@tanstack/react-query'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { placeLimitOrder, cancelLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
+import { placeLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
 import {
   executeTerraContract,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
@@ -12,14 +14,7 @@ import {
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
-import {
-  assetInfoLabel,
-  tokenAssetInfo,
-  type IndexerLimitCancellation,
-  type IndexerPair,
-  type IndexerTrade,
-  type PairInfo,
-} from '@/types'
+import { assetInfoLabel, tokenAssetInfo, type IndexerPair, type IndexerTrade, type PairInfo } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
@@ -42,6 +37,7 @@ import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/
 import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
+import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 
 function TicketSection({
   eyebrow,
@@ -98,25 +94,44 @@ function TicketStat({ label, value, tone }: { label: string; value: ReactNode; t
   )
 }
 
-/**
- * Trade workspace order ticket: **Market** (taker swap + slippage + hybrid quote) and **Limit** (resting book),
- * plus cancel + “my placements” ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)).
- */
-export function TradeOrderTicket({
-  pairAddr,
-  pairs,
-  pairsLoading,
-  indexerPair,
-  latestTrade,
-  tapeHeadlineUsd,
-}: {
+export type TradeOrderTicketProps = {
   pairAddr: string
   pairs: PairInfo[]
   pairsLoading: boolean
   indexerPair?: IndexerPair | null
   latestTrade?: IndexerTrade | null
   tapeHeadlineUsd?: string | null
-}) {
+  /**
+   * When set (e.g. from `TradePage` with `OrderBookPanel`), book rows and ticket share one cancel mutation
+   * ([GitLab #162](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
+   */
+  cancelLimitOrderMutation?: UseMutationResult<string, Error, number, unknown>
+  /** Incrementing key so the ticket applies a book-driven prefill even when fields match the prior draft. */
+  limitBookDraftKey?: number
+  limitBookDraft?: LimitBookTicketDraft | null
+  onLimitBookDraftConsumed?: () => void
+}
+
+type TradeOrderTicketContentProps = TradeOrderTicketProps & {
+  cancelLimitOrderMutation: UseMutationResult<string, Error, number, unknown>
+}
+
+/**
+ * Trade workspace order ticket: **Market** (taker swap + slippage + hybrid quote) and **Limit** (resting book),
+ * plus cancel + “my placements” ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)).
+ */
+function TradeOrderTicketContent({
+  pairAddr,
+  pairs,
+  pairsLoading,
+  indexerPair,
+  latestTrade,
+  tapeHeadlineUsd,
+  cancelLimitOrderMutation,
+  limitBookDraftKey = 0,
+  limitBookDraft,
+  onLimitBookDraftConsumed,
+}: TradeOrderTicketContentProps) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const wallet = getConnectedWallet()
@@ -328,29 +343,21 @@ export function TradeOrderTicket({
     onError: () => sounds.playError(),
   })
 
-  const cancelMutation = useMutation({
-    mutationFn: async () => {
-      if (!address) throw new Error('Connect wallet')
-      if (!pairAddr.startsWith('terra1')) throw new Error('Select a pair')
-      const id = parseInt(cancelOrderId, 10)
-      if (!Number.isFinite(id) || id < 1) throw new Error('Invalid order id')
-      const cancels = queryClient.getQueryData<IndexerLimitCancellation[]>(['limitCancellations', pairAddr]) ?? []
-      if (orderIdHasIndexedCancellation(cancels, id)) {
-        throw new Error('This order has already been cancelled.')
-      }
-      return cancelLimitOrder(address, pairAddr, id)
-    },
-    onSuccess: () => {
-      sounds.playSuccess()
-      setCancelOrderId('')
-      setLastIndexedOrderId(null)
-      queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
-      queryClient.invalidateQueries({ queryKey: ['limitCancellations', pairAddr] })
-      queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
-      queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddr] })
-    },
-    onError: () => sounds.playError(),
-  })
+  const cancelMutation = cancelLimitOrderMutation
+
+  const submitCancelFromForm = () => {
+    if (!isWalletConnected) {
+      openWalletModal()
+      return
+    }
+    const id = parseInt(cancelOrderId, 10)
+    cancelMutation.mutate(id, {
+      onSuccess: () => {
+        setCancelOrderId('')
+        setLastIndexedOrderId(null)
+      },
+    })
+  }
 
   useEffect(() => {
     pairs.forEach((p) => {
@@ -364,6 +371,15 @@ export function TradeOrderTicket({
   useEffect(() => {
     setLastIndexedOrderId(null)
   }, [pairAddr])
+
+  useEffect(() => {
+    if (!limitBookDraft || limitBookDraftKey < 1) return
+    setOrderTab('limit')
+    setSide(limitBookDraft.side)
+    setPrice(limitBookDraft.price)
+    setAmountHuman(limitBookDraft.amountHuman)
+    onLimitBookDraftConsumed?.()
+  }, [limitBookDraftKey, limitBookDraft, onLimitBookDraftConsumed, setAmountHuman])
 
   if (pairsLoading) {
     return (
@@ -596,7 +612,7 @@ export function TradeOrderTicket({
             }
             onClick={() => {
               if (!isWalletConnected) openWalletModal()
-              else cancelMutation.mutate()
+              else submitCancelFromForm()
             }}
           >
             {!isWalletConnected ? 'Connect Wallet' : cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
@@ -628,4 +644,19 @@ export function TradeOrderTicket({
       </div>
     </div>
   )
+}
+
+function TradeOrderTicketWithLocalCancel(props: Omit<TradeOrderTicketProps, 'cancelLimitOrderMutation'>) {
+  const address = useWalletStore((s) => s.address)
+  const cancelLimitOrderMutation = useLimitOrderCancelMutation(props.pairAddr, address ?? undefined)
+  return <TradeOrderTicketContent {...props} cancelLimitOrderMutation={cancelLimitOrderMutation} />
+}
+
+export function TradeOrderTicket(props: TradeOrderTicketProps) {
+  if (props.cancelLimitOrderMutation) {
+    return <TradeOrderTicketContent {...(props as TradeOrderTicketContentProps)} />
+  }
+  const { cancelLimitOrderMutation, ...rest } = props
+  void cancelLimitOrderMutation
+  return <TradeOrderTicketWithLocalCancel {...rest} />
 }
