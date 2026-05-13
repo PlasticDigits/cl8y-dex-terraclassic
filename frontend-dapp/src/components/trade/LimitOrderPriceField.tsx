@@ -9,7 +9,7 @@ import {
 } from '@/utils/limitOrderPriceReference'
 
 const LIMIT_ORDER_TOOLTIP =
-  'A limit order lets you set the price you are willing to buy or sell at. Buy limits should be set below the current reference; sell limits above. Prices use token1 per token0 (pair ordering).'
+  'A limit order rests on the book until other traders fill it over time — it does not execute immediately like a market swap, so there is no taker slippage or min-received line. You set the price you are willing to buy or sell at (token1 per token0). Buy limits should be below the current reference; sell limits above.'
 
 export function LimitOrderPlaceLimitHeading({ compact }: { compact?: boolean }) {
   const tipId = useId()

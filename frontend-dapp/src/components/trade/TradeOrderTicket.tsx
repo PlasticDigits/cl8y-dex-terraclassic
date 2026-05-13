@@ -34,7 +34,9 @@ import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrow
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
+import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubmitSummary'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
+import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
 import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
@@ -175,6 +177,9 @@ function TradeOrderTicketContent({
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, escrowToken)
   const nativeUlunaQuery = useNativeUlunaBalance(address)
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
+
+  const { effectiveFeeBps, makerPlacementFeeBps, feeLoading: limitFeeLoading, feeError: limitFeeError } =
+    useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr],
@@ -606,6 +611,19 @@ function TradeOrderTicketContent({
               onExpiresAtChange={setExpiresAt}
               idPrefix="trade-ticket"
             />
+            {selectedPair && pairAddr.startsWith('terra1') && (
+              <LimitOrderPreSubmitSummary
+                compact
+                placeSequenceMinUluna={limitPlaceMinUlunaFees}
+                refToken1PerToken0={refToken1PerToken0}
+                typedPrice={price}
+                effectiveFeeBps={effectiveFeeBps}
+                makerPlacementFeeBps={makerPlacementFeeBps}
+                feeLoading={limitFeeLoading}
+                feeError={limitFeeError}
+                data-testid="trade-limit-pre-submit-summary"
+              />
+            )}
             <button
               type="button"
               data-testid="trade-limit-submit"

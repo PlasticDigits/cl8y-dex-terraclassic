@@ -330,7 +330,22 @@ Retail safety for typed **token1 per token0** limits ([GitLab **#154**](https://
 
 Implementation: [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) (`resolveLimitOrderPriceRef`, pool spot helpers), [`useLimitOrderPriceRefBundle.ts`](../frontend-dapp/src/hooks/useLimitOrderPriceRefBundle.ts) (tape + `getPool` wiring for [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) and [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)), [`limitOrderPricePlaceGate.ts`](../frontend-dapp/src/utils/limitOrderPricePlaceGate.ts), [`LimitOrderPriceField.tsx`](../frontend-dapp/src/components/trade/LimitOrderPriceField.tsx) (`LimitOrderPlaceLimitHeading`, `LimitOrderPriceInputWithContext`), plus [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) for pair context. `LimitOrderEscrowPlaceGuardMessage` accepts the price gate result for inline errors.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+### Trade page — limit order pre-submit summary (resting semantics, fees) {#trade-page-limit-order-pre-submit-summary}
+
+Before **Place limit**, the ticket and standalone **`/limits`** form show a **pre-sign summary** so traders are not comparing resting limits to market-style quote lines ([GitLab **#157**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Not immediate** | Copy states that the order **rests** until others fill it; it is **not** a taker swap “now”. |
+| **No taker slippage / impact / min received** | The summary explicitly contrasts limits with **market** execution (those lines appear on the **Market** tab / hybrid swap quote, not on the resting limit path). |
+| **% vs reference** | Same signed deviation as under the price field: \((\text{typed} - \text{ref}) / \text{ref} \times 100\) from [`limitPriceDeviationPercent`](../frontend-dapp/src/utils/limitOrderPriceReference.ts), using the resolved tape or pool reference. |
+| **Maker placement fee** | **`floor(effective_fee_bps / 2)`** bps of escrow at placement, where **`effective_fee_bps`** = pair `fee_bps` after the fee-discount registry (`get_discount` × `get_fee_config`), matching on-chain `maker_placement_fee_bps` ([`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs)). The UI labels the other half as charged to **takers on each fill** (see [`docs/limit-orders.md` § Place / cancel limit](./limit-orders.md#place--cancel-limit)). |
+| **Est. network fee** | Minimum **uluna** for **`increase_allowance` + `place_limit_order`** via [`estimateLimitOrderPlaceSequenceUlunaFeesTotal`](../frontend-dapp/src/services/terraclassic/transactions.ts) — informational; wallet extensions may still adjust `gas_wanted`. |
+| **`data-testid`s** | **`trade-limit-pre-submit-summary`** on `/trade`; **`limits-page-pre-submit-summary`** on `/limits`. |
+
+Implementation: [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx), [`useLimitOrderMakerFeeRates.ts`](../frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts), [`limitOrderFeeSummary.ts`](../frontend-dapp/src/utils/limitOrderFeeSummary.ts); wired in [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) and [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) (cross-links #157 with price reference + this summary).
 
 ### Trade page — limit place success affordances {#trade-page-limit-place-success-affordances}
 
