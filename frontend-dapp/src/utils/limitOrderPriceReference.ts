@@ -182,3 +182,26 @@ export function anchorUsdForLimitPrice(
   if (!Number.isFinite(h) || h <= 0) return null
   return (limitHuman / refToken1PerToken0) * h
 }
+
+/**
+ * Headline-scaled **USD notional** for the typed **escrow** amount on a limit order:
+ * **Ask** escrows **token0** → `amount × headlineUsd` (same token0 USD anchor as {@link anchorUsdForLimitPrice} at the reference).
+ * **Bid** escrows **token1** → `amount × (headlineUsd / refToken1PerToken0)`.
+ *
+ * Returns **null** when the tape headline is missing/invalid or no positive reference — same practical coverage as
+ * the limit price “Headline-scaled USD” line ([GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)).
+ */
+export function escrowAmountUsdAnchorNotional(
+  amountHuman: number,
+  escrowIsToken0: boolean,
+  refToken1PerToken0: number | null,
+  tapeHeadlineUsd: string | null | undefined
+): number | null {
+  if (!(amountHuman > 0) || !Number.isFinite(amountHuman)) return null
+  const h = parseFloat(String(tapeHeadlineUsd ?? '').trim())
+  if (!Number.isFinite(h) || h <= 0) return null
+  const ref = refToken1PerToken0
+  if (ref == null || !(ref > 0) || !Number.isFinite(ref)) return null
+  if (escrowIsToken0) return amountHuman * h
+  return amountHuman * (h / ref)
+}

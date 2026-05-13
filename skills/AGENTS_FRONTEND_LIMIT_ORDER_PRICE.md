@@ -1,15 +1,16 @@
 # Agent playbook: Limit order price field (trade + standalone page)
 
-Use when changing **limit price** UX on `/trade` or `/limit-orders`: reference line from tape **or AMM pool**, % deviation, headline-scaled USD, submit validation, or the **Place limit** tooltip.
+Use when changing **limit price** UX on `/trade` or `/limit-orders`: reference line from tape **or AMM pool**, % deviation, headline-scaled USD, submit validation, **escrow headline USD** ([`escrowAmountUsdAnchorNotional`](../frontend-dapp/src/utils/limitOrderPriceReference.ts); [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)), or the **Place limit** tooltip.
 
 ## Canonical references
 
 | Doc / code | Purpose |
 |------------|---------|
 | [docs/frontend.md § Trade page — limit order price field](../docs/frontend.md#trade-page-limit-order-price) | Invariants (reference, pool fallback, deviation, USD anchor, submit gate, tooltip) — [GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154), [**#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166) |
+| [docs/frontend.md § Limit place — escrow amount](../docs/frontend.md#limit-place-escrow-amount) | Escrow **Amount** headline USD + Bid/Ask amount reset / MAX re-apply — [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155) |
 | [docs/frontend.md § Trade page — limit order pre-submit summary](../docs/frontend.md#trade-page-limit-order-pre-submit-summary) | Resting-order copy, deviation recap, maker placement bps, min LUNC for place sequence — [GitLab **#157**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157) |
 | [docs/limit-orders.md § dApp: retail form](../docs/limit-orders.md#dapp-retail-form-wires-invariants) | Cross-link to #154 / #166 bullet, **#157** pre-submit summary bullet, and pure helpers list |
-| [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) | `tradeToToken1PerToken0Human`, `resolveLimitOrderPriceRef`, `poolReservesToToken1PerToken0Human`, `pairDecimalsForLimitPriceRef`, deviation %, `anchorUsdForLimitPrice`, direction checks |
+| [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) | `tradeToToken1PerToken0Human`, `resolveLimitOrderPriceRef`, `poolReservesToToken1PerToken0Human`, `pairDecimalsForLimitPriceRef`, deviation %, `anchorUsdForLimitPrice`, **`escrowAmountUsdAnchorNotional`** (#155), direction checks |
 | [`limitOrderFeeSummary.ts`](../frontend-dapp/src/utils/limitOrderFeeSummary.ts) | `effectiveSwapFeeBps`, `makerPlacementFeeBps` (integer match to pair discount + `floor(effective/2)` placement leg — #157) |
 | [`useLimitOrderMakerFeeRates.ts`](../frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts) | React Query: `getPairFeeConfig` + `getTraderDiscount` for effective / maker placement bps in the pre-submit card |
 | [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) | Pre-sign card: resting vs taker semantics, deviation, maker fee, est. network fee |
@@ -22,7 +23,7 @@ Use when changing **limit price** UX on `/trade` or `/limit-orders`: reference l
 ## Rules of thumb
 
 1. **Keep reference math in `limitOrderPriceReference.ts`** — UI components should not re-derive BigInt ratios inline.
-2. **Tape headline string** passed to `anchorUsdForLimitPrice` must stay aligned with `PriceChart`’s `tapeLastPriceUsd` (usually `trades[0].price` from `getTrades`). Pool-only refs may leave headline USD as **—** until tape returns.
+2. **Tape headline string** passed to `anchorUsdForLimitPrice` must stay aligned with `PriceChart`’s `tapeLastPriceUsd` (usually `trades[0].price` from `getTrades`). Pool-only refs may leave headline USD as **—** until tape returns. The **escrow amount** USD line ([**#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)) consumes the **same** `tapeHeadlineUsd` + `refToken1PerToken0` tuple — do not fork a second oracle.
 3. When changing submit rules, update **both** `evaluateLimitOrderPricePlaceGate` and the `placeMutation` throw path, plus Vitest under `utils/__tests__/limitOrderPrice*.test.ts`.
 4. If copy or thresholds for “extreme deviation” change, update `docs/frontend.md` and this skill together.
 5. **#166 invariant:** never allow a **positive** typed limit to submit without a resolved reference (tape or pool), unless product explicitly changes that contract.

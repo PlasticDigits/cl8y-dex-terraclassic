@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useId } from 'react'
+import { useMemo, useState, useEffect, useId, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
@@ -13,7 +13,7 @@ import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/c
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
-import { getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { formatNum, fromRawAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
@@ -33,6 +33,7 @@ import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
 import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubmitSummary'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
+import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
@@ -58,7 +59,12 @@ export default function LimitOrdersPage() {
     expiresAt,
     setExpiresAt,
     amountHuman,
-    setAmountHuman,
+    escrowAmountSource,
+    onLimitAmountInputChange,
+    onLimitAmountMax,
+    resetLimitEscrowAmount,
+    setLimitEscrowAmountFromDraft,
+    setLimitEscrowAmountFromMaxReapply,
     limitAdvancedOpen,
     setLimitAdvancedOpen,
   } = useLimitOrderForm()
@@ -87,8 +93,12 @@ export default function LimitOrdersPage() {
 
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
 
-  const { effectiveFeeBps, makerPlacementFeeBps, feeLoading: limitFeeLoading, feeError: limitFeeError } =
-    useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
+  const {
+    effectiveFeeBps,
+    makerPlacementFeeBps,
+    feeLoading: limitFeeLoading,
+    feeError: limitFeeError,
+  } = useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr],
@@ -132,6 +142,41 @@ export default function LimitOrdersPage() {
     latestTrade,
   })
 
+  const escrowUsdNotionalApprox = useMemo(() => {
+    const amt = parsePositivePriceHuman(amountHuman)
+    if (amt == null) return null
+    const usd = escrowAmountUsdAnchorNotional(amt, side === 'ask', refToken1PerToken0, tapeHeadlineUsd)
+    if (usd == null || !Number.isFinite(usd)) return null
+    return `$${formatNum(usd, 4)}`
+  }, [amountHuman, side, refToken1PerToken0, tapeHeadlineUsd])
+
+  const handleSideChange = useCallback(
+    (next: 'bid' | 'ask') => {
+      if (next === side) return
+      setSide(next)
+      if (escrowAmountSource === 'max') {
+        setLimitEscrowAmountFromMaxReapply('')
+      } else {
+        resetLimitEscrowAmount()
+      }
+    },
+    [side, escrowAmountSource, setLimitEscrowAmountFromMaxReapply, resetLimitEscrowAmount]
+  )
+
+  useEffect(() => {
+    if (escrowAmountSource !== 'max') return
+    if (escrowBalanceQuery.isLoading || escrowBalanceQuery.isError || !escrowBalanceQuery.data) return
+    const human = fromRawAmount(escrowBalanceQuery.data, escrowDecimals)
+    setLimitEscrowAmountFromMaxReapply(human)
+  }, [
+    escrowAmountSource,
+    escrowBalanceQuery.isLoading,
+    escrowBalanceQuery.isError,
+    escrowBalanceQuery.data,
+    escrowDecimals,
+    setLimitEscrowAmountFromMaxReapply,
+  ])
+
   const isPaused = pausedQuery.data?.paused === true
 
   const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
@@ -139,7 +184,7 @@ export default function LimitOrdersPage() {
   const onPrefillLimitTicketFromBook = (draft: LimitBookTicketDraft) => {
     setSide(draft.side)
     setPrice(draft.price)
-    setAmountHuman(draft.amountHuman)
+    setLimitEscrowAmountFromDraft(draft.amountHuman)
   }
 
   const placeEscrowGate = useMemo(
@@ -251,7 +296,7 @@ export default function LimitOrdersPage() {
     },
     onSuccess: async () => {
       sounds.playSuccess()
-      setAmountHuman('')
+      resetLimitEscrowAmount()
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
@@ -403,7 +448,7 @@ export default function LimitOrdersPage() {
                 <LimitOrderBidAskSideSelector
                   idPrefix="limit-orders"
                   side={side}
-                  onSideChange={setSide}
+                  onSideChange={handleSideChange}
                   bidLabel={`Bid (escrow ${getTokenDisplaySymbol(token1 || 'token1')})`}
                   askLabel={`Ask (escrow ${getTokenDisplaySymbol(token0 || 'token0')})`}
                 />
@@ -422,10 +467,11 @@ export default function LimitOrdersPage() {
                   escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
                   escrowDecimals={escrowDecimals}
                   amountHuman={amountHuman}
-                  onAmountChange={setAmountHuman}
+                  onAmountChange={onLimitAmountInputChange}
                   balanceQuery={escrowBalanceQuery}
-                  onMax={setAmountHuman}
+                  onMax={onLimitAmountMax}
                   walletConnected={isWalletConnected}
+                  escrowUsdNotionalApprox={escrowUsdNotionalApprox}
                 />
                 <LimitOrderExpiryField value={expiresAt} onChange={setExpiresAt} idPrefix="limit-orders-page" />
                 <LimitOrderAdvancedLimitSettings

@@ -14,6 +14,11 @@ type Props = {
   onMax: (human: string) => void
   walletConnected: boolean
   compact?: boolean
+  /**
+   * When set (limit place only), show a headline-scaled USD line under the input when the amount is non-empty.
+   * `null` means headline/ref unavailable — display an em dash (same coverage as limit price USD anchor; GitLab #155).
+   */
+  escrowUsdNotionalApprox?: string | null
 }
 
 /**
@@ -28,8 +33,10 @@ export function LimitOrderEscrowAmountField({
   onMax,
   walletConnected,
   compact,
+  escrowUsdNotionalApprox,
 }: Props) {
   const amountInputId = useId()
+  const showUsd = escrowUsdNotionalApprox !== undefined && amountHuman.trim() !== ''
   return (
     <div>
       <label className={compact ? 'label-neo text-[10px]' : 'label-neo'} htmlFor={amountInputId}>
@@ -41,7 +48,20 @@ export function LimitOrderEscrowAmountField({
         value={amountHuman}
         onChange={(e) => onAmountChange(e.target.value)}
         placeholder="0.0"
+        data-testid="limit-order-escrow-amount-input"
       />
+      {showUsd && (
+        <p
+          className={(compact ? 'text-[10px] ' : 'text-xs ') + 'mt-1 tabular-nums'}
+          style={{ color: 'var(--ink-dim)' }}
+          data-testid="limit-order-escrow-usd-notional"
+        >
+          <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
+            Headline USD (escrow):{' '}
+          </span>
+          {escrowUsdNotionalApprox != null ? <span>≈ {escrowUsdNotionalApprox}</span> : <span>—</span>}
+        </p>
+      )}
       {walletConnected && (
         <div
           className={

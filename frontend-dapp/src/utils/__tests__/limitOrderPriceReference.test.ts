@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   anchorUsdForLimitPrice,
+  escrowAmountUsdAnchorNotional,
   isLimitPriceDirectionInvalid,
   limitPriceDeviationPercent,
   parsePositivePriceHuman,
@@ -100,6 +101,21 @@ describe('anchorUsdForLimitPrice', () => {
   it('returns null without headline', () => {
     expect(anchorUsdForLimitPrice(1, 1, null)).toBeNull()
     expect(anchorUsdForLimitPrice(1, 1, '')).toBeNull()
+  })
+})
+
+describe('escrowAmountUsdAnchorNotional', () => {
+  it('values token0 escrow as amount × headline (ask side)', () => {
+    expect(escrowAmountUsdAnchorNotional(5, true, 0.888, '1.23')).toBeCloseTo(6.15, 6)
+  })
+
+  it('values token1 escrow using headline / ref (bid side)', () => {
+    expect(escrowAmountUsdAnchorNotional(5, false, 0.888, '1.23')).toBeCloseTo(5 * (1.23 / 0.888), 6)
+  })
+
+  it('returns null without headline or ref', () => {
+    expect(escrowAmountUsdAnchorNotional(5, false, 0.888, null)).toBeNull()
+    expect(escrowAmountUsdAnchorNotional(5, true, null, '1')).toBeNull()
   })
 })
 

@@ -394,6 +394,22 @@ On-chain semantics are unchanged: **Bid escrows token1; Ask escrows token0** (pa
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md).
 
+### Limit place — escrow amount (headline USD, side switch) {#limit-place-escrow-amount}
+
+Retail sizing for the **Amount** field on **`/trade`** and **`/limits`** ([GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Headline USD (escrow)** | When the amount is non-empty, the ticket shows **Headline USD (escrow): ≈ $…** using the same tape headline + reference as the limit price USD anchor ([`escrowAmountUsdAnchorNotional`](../frontend-dapp/src/utils/limitOrderPriceReference.ts)): **Ask** escrows **token0** → `amount × tapeHeadlineUsd`; **Bid** escrows **token1** → `amount × (tapeHeadlineUsd / refToken1PerToken0)`. |
+| **Missing headline / ref** | When headline `price` is absent or invalid, the line shows **—** (same coverage as “Headline-scaled USD” under the price field; pool-only ref without tape). |
+| **Side switch clears manual amounts** | **Bid ↔ Ask** clears a **manually typed** amount so the field never keeps the prior token’s numeric string. |
+| **MAX reapplies on side switch** | If the amount was set via **Max**, switching sides clears until the new escrow balance loads, then **re-applies** full balance for the new escrow token. |
+| **`data-testid`s** | `limit-order-escrow-amount-input`, `limit-order-escrow-usd-notional` — scope Playwright to the limit form. |
+
+Implementation: [`useLimitOrderForm.ts`](../frontend-dapp/src/hooks/useLimitOrderForm.ts) (`LimitEscrowAmountSource`, `onLimitAmountInputChange`, `onLimitAmountMax`, `resetLimitEscrowAmount`, `setLimitEscrowAmountFromDraft`, `setLimitEscrowAmountFromMaxReapply`), [`LimitOrderEscrowAmountField.tsx`](../frontend-dapp/src/components/trade/LimitOrderEscrowAmountField.tsx), [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md), [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+
 ### Pool page — provide liquidity (UI invariants)
 
 The **Provide Liquidity** card mirrors on-chain `provide_liquidity` math for the **Estimated LP** line (see `docs/contracts-terraclassic.md` and `smartcontracts/contracts/pair/src/contract.rs`):
