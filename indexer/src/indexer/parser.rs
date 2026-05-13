@@ -1,6 +1,9 @@
 //! Tx log parsing for swaps, liquidity, and hooks.
 //!
-//! **Invariants:** duplicate wasm attribute keys use the last value (`wasm_attr_last`).
+//! **Invariants:** duplicate wasm attribute keys use the last value (`wasm_attr_last`) where a
+//! single logical value is intended. **Lifecycle wasm** (`limit_order_expired_parked`,
+//! `claim_expired_limit_order`) may share one `wasm` event with other actions when LCD output
+//! flattens attribute streams — those parsers scan **every** `action` occurrence (GitLab #141).
 //! Parsing must not panic on adversarial attribute lists (see stress tests in `#[cfg(test)]`).
 //! Full matrix: `docs/indexer-invariants.md`.
 
@@ -33,6 +36,93 @@ fn wasm_attr_last<'a>(attributes: &'a [Attribute], key: &str) -> Option<&'a str>
 fn wasm_contract_addr(attributes: &[Attribute]) -> Option<&str> {
     wasm_attr_last(attributes, "_contract_address")
         .or_else(|| wasm_attr_last(attributes, "contract_address"))
+}
+
+fn is_wasm_contract_addr_key(key: &str) -> bool {
+    key == "_contract_address" || key == "contract_address"
+}
+
+/// Last `_contract_address` / `contract_address` **before** `idx` (exclusive), document order.
+///
+/// Some LCD/REST paths flatten multiple logical CosmWasm wasm emissions into **one** `wasm`
+/// event attribute stream. Per-logical-event contract scoping is then recovered by scanning
+/// backward from each `action` occurrence (GitLab #141).
+fn wasm_contract_addr_before(attrs: &[Attribute], idx: usize) -> Option<&str> {
+    attrs[..idx]
+        .iter()
+        .rev()
+        .find(|a| is_wasm_contract_addr_key(a.key.as_str()))
+        .map(|a| a.value.as_str())
+}
+
+/// Key/value pairs after `action_pos` until the next logical boundary (`action` or contract addr).
+fn wasm_kv_map_after_action(attrs: &[Attribute], action_pos: usize) -> std::collections::HashMap<&str, &str> {
+    let mut m = std::collections::HashMap::new();
+    let mut i = action_pos.saturating_add(1);
+    while i < attrs.len() {
+        let k = attrs[i].key.as_str();
+        if k == "action" || is_wasm_contract_addr_key(k) {
+            break;
+        }
+        m.insert(k, attrs[i].value.as_str());
+        i += 1;
+    }
+    m
+}
+
+fn parse_limit_order_expired_parked_from_wasm_attrs(attrs: &[Attribute]) -> Vec<ParsedLimitOrderExpiredParked> {
+    let mut out = Vec::new();
+    for (i, a) in attrs.iter().enumerate() {
+        if a.key != "action" || a.value != "limit_order_expired_parked" {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            continue;
+        };
+        let seg = wasm_kv_map_after_action(attrs, i);
+        let Some(order_id_s) = seg.get("order_id").copied() else {
+            continue;
+        };
+        let Ok(order_id) = order_id_s.parse::<i64>() else {
+            continue;
+        };
+        let Some(rem_s) = seg.get("remaining").copied() else {
+            continue;
+        };
+        let Some(remaining) = BigDecimal::from_str(rem_s).ok() else {
+            continue;
+        };
+        out.push(ParsedLimitOrderExpiredParked {
+            pair_address: contract.to_string(),
+            order_id,
+            remaining,
+        });
+    }
+    out
+}
+
+fn parse_claim_expired_limit_orders_from_wasm_attrs(attrs: &[Attribute]) -> Vec<ParsedClaimExpiredLimitOrder> {
+    let mut out = Vec::new();
+    for (i, a) in attrs.iter().enumerate() {
+        if a.key != "action" || a.value != "claim_expired_limit_order" {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            continue;
+        };
+        let seg = wasm_kv_map_after_action(attrs, i);
+        let Some(order_id_s) = seg.get("order_id").copied() else {
+            continue;
+        };
+        let Ok(order_id) = order_id_s.parse::<i64>() else {
+            continue;
+        };
+        out.push(ParsedClaimExpiredLimitOrder {
+            pair_address: contract.to_string(),
+            order_id,
+        });
+    }
+    out
 }
 
 /// Parsed wasm `swap` event; same shape as persisted via [`crate::db::queries::swap_events::insert_swap`].
@@ -712,7 +802,6 @@ async fn process_limit_order_cancellation(
 }
 
 fn parse_limit_order_expired_parked(tx: &TxResponse) -> Vec<ParsedLimitOrderExpiredParked> {
-    let mut out = Vec::new();
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
         logs.iter().flat_map(|l| l.events.iter()).collect()
     } else if let Some(evts) = &tx.events {
@@ -721,38 +810,17 @@ fn parse_limit_order_expired_parked(tx: &TxResponse) -> Vec<ParsedLimitOrderExpi
         Vec::new()
     };
 
+    let mut out = Vec::new();
     for event in &events {
         if event.event_type != "wasm" {
             continue;
         }
-        let attrs = &event.attributes;
-        if wasm_attr_last(attrs, "action") != Some("limit_order_expired_parked") {
-            continue;
-        }
-        let Some(contract) = wasm_contract_addr(attrs) else {
-            continue;
-        };
-        let Some(order_id) = wasm_attr_last(attrs, "order_id").and_then(|s| s.parse::<i64>().ok())
-        else {
-            continue;
-        };
-        let Some(rem_s) = wasm_attr_last(attrs, "remaining") else {
-            continue;
-        };
-        let Some(remaining) = BigDecimal::from_str(rem_s).ok() else {
-            continue;
-        };
-        out.push(ParsedLimitOrderExpiredParked {
-            pair_address: contract.to_string(),
-            order_id,
-            remaining,
-        });
+        out.extend(parse_limit_order_expired_parked_from_wasm_attrs(&event.attributes));
     }
     out
 }
 
 fn parse_claim_expired_limit_orders(tx: &TxResponse) -> Vec<ParsedClaimExpiredLimitOrder> {
-    let mut out = Vec::new();
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
         logs.iter().flat_map(|l| l.events.iter()).collect()
     } else if let Some(evts) = &tx.events {
@@ -761,25 +829,12 @@ fn parse_claim_expired_limit_orders(tx: &TxResponse) -> Vec<ParsedClaimExpiredLi
         Vec::new()
     };
 
+    let mut out = Vec::new();
     for event in &events {
         if event.event_type != "wasm" {
             continue;
         }
-        let attrs = &event.attributes;
-        if wasm_attr_last(attrs, "action") != Some("claim_expired_limit_order") {
-            continue;
-        }
-        let Some(contract) = wasm_contract_addr(attrs) else {
-            continue;
-        };
-        let Some(order_id) = wasm_attr_last(attrs, "order_id").and_then(|s| s.parse::<i64>().ok())
-        else {
-            continue;
-        };
-        out.push(ParsedClaimExpiredLimitOrder {
-            pair_address: contract.to_string(),
-            order_id,
-        });
+        out.extend(parse_claim_expired_limit_orders_from_wasm_attrs(&event.attributes));
     }
     out
 }
@@ -1202,6 +1257,34 @@ mod tests {
         assert_eq!(evs[0].remaining.to_string(), "999000");
     }
 
+    /// Flattened wasm stream: `action=swap` is **last**; older parsers using `wasm_attr_last` on the
+    /// whole slice missed `limit_order_expired_parked` (GitLab #141 / QA note on #141).
+    #[test]
+    fn parse_limit_order_expired_parked_finds_parked_before_swap_in_merged_wasm_attrs() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "limit_order_expired_parked"),
+            ("order_id", "1"),
+            ("maker", "terra1mk"),
+            ("side", "bid"),
+            ("remaining", "9910"),
+            ("action", "swap"),
+            ("sender", "terra1taker"),
+            ("offer_amount", "5000"),
+            ("return_amount", "100"),
+            ("offer_asset", "tokena"),
+            ("ask_asset", "tokenb"),
+        ]);
+        let evs = parse_limit_order_expired_parked(&tx);
+        assert_eq!(evs.len(), 1);
+        assert_eq!(evs[0].pair_address, "terra1pair");
+        assert_eq!(evs[0].order_id, 1);
+        assert_eq!(evs[0].remaining.to_string(), "9910");
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(swaps[0].pair_address, "terra1pair");
+    }
+
     #[test]
     fn parse_claim_expired_limit_order_event() {
         let tx = wasm_tx(vec![
@@ -1214,6 +1297,26 @@ mod tests {
         assert_eq!(evs.len(), 1);
         assert_eq!(evs[0].pair_address, "terra1pair");
         assert_eq!(evs[0].order_id, 42);
+    }
+
+    #[test]
+    fn parse_claim_expired_limit_order_finds_claim_before_swap_in_merged_wasm_attrs() {
+        let tx = wasm_tx(vec![
+            ("contract_address", "terra1pair"),
+            ("action", "claim_expired_limit_order"),
+            ("order_id", "7"),
+            ("owner", "terra1mk"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "10"),
+            ("return_amount", "9"),
+            ("offer_asset", "a"),
+            ("ask_asset", "b"),
+        ]);
+        let claims = parse_claim_expired_limit_orders(&tx);
+        assert_eq!(claims.len(), 1);
+        assert_eq!(claims[0].order_id, 7);
+        assert_eq!(claims[0].pair_address, "terra1pair");
     }
 
     #[test]
@@ -1341,6 +1444,8 @@ mod tests {
             let _ = parse_liquidity_events(&tx);
             let _ = parse_hook_events(&tx);
             let _ = parse_limit_order_fills(&tx);
+            let _ = parse_limit_order_expired_parked(&tx);
+            let _ = parse_claim_expired_limit_orders(&tx);
         }
     }
 }
