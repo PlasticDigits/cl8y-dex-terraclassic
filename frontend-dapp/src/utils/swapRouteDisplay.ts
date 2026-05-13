@@ -1,0 +1,109 @@
+import { assetInfoLabel } from '@/types'
+import type { SwapOperation } from '@/services/terraclassic/router'
+
+/** Router / indexer multihop: token contract addresses in execution order (inclusive of ends). */
+export function tokenPathFromSwapOperations(operations: SwapOperation[]): string[] {
+  if (operations.length === 0) return []
+  const out: string[] = [assetInfoLabel(operations[0].terra_swap.offer_asset_info)]
+  for (const op of operations) {
+    out.push(assetInfoLabel(op.terra_swap.ask_asset_info))
+  }
+  return out
+}
+
+export interface NativeRouteForDisplay {
+  operations: SwapOperation[]
+  needsWrapInput: boolean
+  needsUnwrapOutput: boolean
+}
+
+/**
+ * Token path for native / wrapped swaps (matches legacy Swap page arrow semantics).
+ * @param displaySymbol maps denom or CW20 address to a short UI label
+ */
+export function tokenPathForNativeSupportedRoute(
+  fromToken: string,
+  toToken: string,
+  info: NativeRouteForDisplay,
+  displaySymbol: (id: string) => string
+): string[] {
+  const parts: string[] = []
+  if (info.needsWrapInput) parts.push(displaySymbol(fromToken))
+  for (const op of info.operations) {
+    parts.push(displaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info)))
+  }
+  const last = info.operations[info.operations.length - 1]
+  parts.push(displaySymbol(assetInfoLabel(last.terra_swap.ask_asset_info)))
+  if (info.needsUnwrapOutput) parts.push(displaySymbol(toToken))
+  return parts
+}
+
+export interface SwapRouteDisplayArgs {
+  fromToken: string
+  toToken: string
+  isWrapOrUnwrap: boolean
+  nativeRouteInfo: NativeRouteForDisplay | null
+  /** Active quote: indexer-solved path token addresses (in order), when present. */
+  indexerIntermediateTokens?: string[]
+  /** Operations used when submitting via router (indexer-shaped). */
+  indexerOperations?: SwapOperation[]
+  /** Client BFS route when indexer ops are not used for submit. */
+  clientRoute: SwapOperation[] | null
+  isMultiHop: boolean
+  isDirect: boolean
+  displaySymbol: (id: string) => string
+}
+
+/**
+ * Single execution-aligned route line for the Swap page trade summary.
+ *
+ * **Invariant (GitLab #158):** At most one route is shown; when the indexer supplies
+ * `router_operations` used for submit, that path wins over the client `findRoute` graph
+ * so users never see two identical arrows labeled differently.
+ */
+export function computeSwapRouteDisplay(args: SwapRouteDisplayArgs): string | null {
+  const {
+    fromToken,
+    toToken,
+    isWrapOrUnwrap,
+    nativeRouteInfo,
+    indexerIntermediateTokens,
+    indexerOperations,
+    clientRoute,
+    isMultiHop,
+    isDirect,
+    displaySymbol,
+  } = args
+
+  if (!fromToken || !toToken) return null
+
+  if (isWrapOrUnwrap) {
+    return `${displaySymbol(fromToken)} → ${displaySymbol(toToken)}`
+  }
+
+  if (nativeRouteInfo && nativeRouteInfo.operations.length > 0) {
+    return tokenPathForNativeSupportedRoute(fromToken, toToken, nativeRouteInfo, displaySymbol).join(' → ')
+  }
+
+  const idxOps = indexerOperations
+  if (idxOps && idxOps.length > 0) {
+    if (indexerIntermediateTokens && indexerIntermediateTokens.length >= 2) {
+      return indexerIntermediateTokens.map((t) => displaySymbol(t)).join(' → ')
+    }
+    return tokenPathFromSwapOperations(idxOps)
+      .map((t) => displaySymbol(t))
+      .join(' → ')
+  }
+
+  if (isMultiHop && clientRoute && clientRoute.length > 0) {
+    return tokenPathFromSwapOperations(clientRoute)
+      .map((t) => displaySymbol(t))
+      .join(' → ')
+  }
+
+  if (isDirect) {
+    return `${displaySymbol(fromToken)} → ${displaySymbol(toToken)}`
+  }
+
+  return null
+}

@@ -38,6 +38,7 @@ import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/ut
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
+import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 
 /** Wallet-side simulation result with optional indexer-routing metadata. */
@@ -45,7 +46,6 @@ interface SwapSimData {
   return_amount: string
   spread_amount: string
   commission_amount: string
-  quoteDisclosure: string
   indexerQuoteKind?: IndexerRouteQuoteKind
   indexerOperations?: SwapOperation[]
   indexerIntermediateTokens?: string[]
@@ -55,21 +55,6 @@ interface SwapSimData {
   receiveQuoteIsPoolOnlyWithConfiguredBookLeg?: boolean
   /** Per-hop pair simulations for router/indexer/native multihop quotes (router sim omits spread). See `docs/swap-max-spread-ux.md` (GitLab #134). */
   routePreflight?: SwapRoutePreflightSpread
-}
-
-function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | undefined): string {
-  switch (kind) {
-    case 'indexer_hybrid_lcd_degraded':
-      return 'Indexer hybrid route (LCD) — one or more hops fell back to pool-only on the indexer.'
-    case 'indexer_hybrid_lcd':
-      return 'Indexer-optimized hybrid splits · quoted via your wallet LCD simulation (matches submit shape).'
-    case 'indexer_pool_lcd':
-      return 'Indexer route (pool-only legs) · quoted via your wallet LCD simulation.'
-    case 'indexer_route_only':
-      return 'Indexer-solved route · no aggregate router estimate (simulation unavailable).'
-    default:
-      return 'Quoted via your wallet (chain simulation).'
-  }
 }
 
 export default function SwapPage() {
@@ -296,7 +281,6 @@ export default function SwapPage() {
           return_amount: rawInputAmount,
           spread_amount: '0',
           commission_amount: '0',
-          quoteDisclosure: 'Wrap / unwrap (1:1).',
         }
       }
 
@@ -310,7 +294,6 @@ export default function SwapPage() {
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
-          quoteDisclosure: 'Native / wrapped route · wallet LCD simulation (pool-only ops).',
           routePreflight,
         }
       }
@@ -343,7 +326,6 @@ export default function SwapPage() {
                   return_amount: idx.estimated_amount_out,
                   spread_amount: '0',
                   commission_amount: '0',
-                  quoteDisclosure: 'Manual hybrid split (Settings) · indexer merged ops + router LCD estimate.',
                   indexerQuoteKind: idx.quote_kind,
                   receiveQuoteIsPoolOnlyWithConfiguredBookLeg: false,
                   indexerOperations: ops.length > 0 ? ops : undefined,
@@ -378,7 +360,6 @@ export default function SwapPage() {
               return_amount: result.amount,
               spread_amount: '0',
               commission_amount: '0',
-              quoteDisclosure: quoteDisclosureForIndexerKind(idx.quote_kind),
               indexerQuoteKind: idx.quote_kind,
               indexerOperations: ops,
               indexerIntermediateTokens: intermediates,
@@ -404,7 +385,6 @@ export default function SwapPage() {
         })
         return {
           ...r,
-          quoteDisclosure: 'Direct pool · on-chain pair simulation (pool-only).',
           receiveQuoteIsPoolOnlyWithConfiguredBookLeg: !!(
             hybridSplit?.willSubmitHybrid && !hybridSplit?.bookExceedsPay
           ),
@@ -417,7 +397,6 @@ export default function SwapPage() {
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
-          quoteDisclosure: 'Client-discovered multihop (pair graph) · pool-only · wallet LCD simulation.',
           routePreflight,
         }
       }
@@ -544,6 +523,34 @@ export default function SwapPage() {
   const indexerHybridExec = useMemo(
     () => getIndexerHybridExecutionSummary(simQuery.data?.indexerQuoteKind),
     [simQuery.data?.indexerQuoteKind]
+  )
+
+  /** One execution-aligned path for the trade summary (GitLab #158 — never duplicate indexer vs client labels). */
+  const swapRouteLine = useMemo(
+    () =>
+      computeSwapRouteDisplay({
+        fromToken,
+        toToken,
+        isWrapOrUnwrap: !!isWrapOrUnwrap,
+        nativeRouteInfo: nativeRouteInfo,
+        indexerIntermediateTokens: simQuery.data?.indexerIntermediateTokens,
+        indexerOperations: simQuery.data?.indexerOperations,
+        clientRoute: route,
+        isMultiHop,
+        isDirect,
+        displaySymbol: getTokenDisplaySymbol,
+      }),
+    [
+      fromToken,
+      toToken,
+      isWrapOrUnwrap,
+      nativeRouteInfo,
+      simQuery.data?.indexerIntermediateTokens,
+      simQuery.data?.indexerOperations,
+      route,
+      isMultiHop,
+      isDirect,
+    ]
   )
 
   const insufficientBalance =
@@ -979,74 +986,6 @@ export default function SwapPage() {
               )}
             </div>
           )}
-          {simQuery.data?.quoteDisclosure && (
-            <div className="card-neo text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-              <span className="uppercase tracking-wide font-semibold" style={{ color: 'var(--ink-subtle)' }}>
-                Quote source:{' '}
-              </span>
-              {simQuery.data.quoteDisclosure}
-            </div>
-          )}
-          {simQuery.data?.indexerIntermediateTokens && simQuery.data.indexerIntermediateTokens.length >= 2 && (
-            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-              <span className="uppercase tracking-wide font-medium">Route (indexer): </span>
-              {simQuery.data.indexerIntermediateTokens.map((t, i) => (
-                <span key={`${t}-${i}`}>
-                  {i > 0 && ' → '}
-                  {getTokenDisplaySymbol(t)}
-                </span>
-              ))}
-            </div>
-          )}
-          {isWrapOrUnwrap && (
-            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-              This swap will {wrapUnwrapType === 'wrap' ? 'wrap' : 'unwrap'} your {getTokenDisplaySymbol(fromToken)}{' '}
-              (1:1)
-            </div>
-          )}
-          {nativeRouteInfo && (
-            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-              <span className="uppercase tracking-wide font-medium">Route: </span>
-              {nativeRouteInfo.needsWrapInput && <span>{getTokenDisplaySymbol(fromToken)} → </span>}
-              {nativeRouteInfo.operations.map((op, i) => (
-                <span key={i}>
-                  {i > 0 && ' → '}
-                  {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
-                </span>
-              ))}
-              {' → '}
-              {getTokenDisplaySymbol(
-                assetInfoLabel(
-                  nativeRouteInfo.operations[nativeRouteInfo.operations.length - 1].terra_swap.ask_asset_info
-                )
-              )}
-              {nativeRouteInfo.needsUnwrapOutput && <span> → {getTokenDisplaySymbol(toToken)}</span>}
-              {(nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
-                <div className="mt-1">
-                  This swap will{' '}
-                  {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
-                    ? 'wrap and unwrap'
-                    : nativeRouteInfo.needsWrapInput
-                      ? 'wrap'
-                      : 'unwrap'}{' '}
-                  your tokens
-                </div>
-              )}
-            </div>
-          )}
-          {isMultiHop && route && (
-            <div className="card-neo text-xs break-words leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-              <span className="uppercase tracking-wide font-medium">Route: </span>
-              {route.map((op, i) => (
-                <span key={i}>
-                  {i > 0 && ' → '}
-                  {getTokenDisplaySymbol(assetInfoLabel(op.terra_swap.offer_asset_info))}
-                </span>
-              ))}
-              {' → '}
-              {getTokenDisplaySymbol(toToken)}
-            </div>
-          )}
           {fromToken && toToken && !hasRoute && (
             <div className="alert-error !text-xs">No route found between these tokens</div>
           )}
@@ -1096,6 +1035,37 @@ export default function SwapPage() {
                 <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
                   Hold CL8Y to reduce swap fees &rarr;
                 </a>
+              </div>
+            )}
+            {swapRouteLine && (
+              <div
+                data-testid="swap-route-summary"
+                className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between col-span-2"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <span className="uppercase text-xs tracking-wide font-medium shrink-0">Route</span>
+                <div className="font-mono text-xs sm:text-right break-words min-w-0">
+                  <span>{swapRouteLine}</span>
+                  {isWrapOrUnwrap && (
+                    <span className="block mt-0.5 text-[10px] font-sans" style={{ color: 'var(--ink-subtle)' }}>
+                      {wrapUnwrapType === 'wrap' ? 'Wrap (1:1)' : 'Unwrap (1:1)'}
+                    </span>
+                  )}
+                  {nativeRouteInfo && (nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
+                    <span
+                      className="block mt-0.5 text-[10px] font-sans leading-snug"
+                      style={{ color: 'var(--ink-subtle)' }}
+                    >
+                      This swap will{' '}
+                      {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
+                        ? 'wrap and unwrap'
+                        : nativeRouteInfo.needsWrapInput
+                          ? 'wrap'
+                          : 'unwrap'}{' '}
+                      your tokens
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             {priceImpact !== null && (
