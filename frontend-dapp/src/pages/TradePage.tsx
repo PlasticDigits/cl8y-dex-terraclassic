@@ -78,6 +78,7 @@ export default function TradePage() {
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = indexerPairQuery.isError && isIndexerUnavailableError(indexerPairQuery.error)
 
+  const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
