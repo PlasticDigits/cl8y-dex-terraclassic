@@ -447,6 +447,8 @@ The Swap page displays the effective fee after discount. When a connected wallet
 
 **Price impact & max spread (GitLab [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)):** Multihop and indexer quotes use the router LCD `simulate_swap_operations` response, which only includes the final **amount**. The Swap page runs an additional **per-hop pair simulation** preflight (factory resolve + `simulation` / `hybrid_simulation`) so **price impact** reflects the worst hop under the same formula as pair `assert_max_spread`, and the submit button is disabled when any hop would exceed the user’s **Slippage tolerance** (`max_spread`). Failed txs that still surface `Max spread assertion` from the chain are mapped to short retail copy in [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts). Full invariants: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
 
+**Route preview (GitLab [#158](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/158)):** The **Route** line lives in the same trade-summary card as **Price impact** and **Min received** (no separate “quote source” strip, no paired `Route (indexer)` / `Route` labels). The displayed token path follows the same precedence as submit: indexer-shaped `router_operations` when present, otherwise the client BFS route, native wrap path, or a direct `from → to`. Code: [`swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts). Agent checklist: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md).
+
 ### Tiers Page
 
 The `/tiers` page allows users to:
