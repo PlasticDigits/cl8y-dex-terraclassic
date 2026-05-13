@@ -299,9 +299,22 @@ CEX-style controls on the **Bids / Asks** depth tables on `/trade` ([GitLab **#1
 | **Paused pair** | Row **Edit** / **×** and **Cancel all mine** stay disabled when `get_pair_paused` is true (L6 / GitLab #120), matching the ticket. |
 | **`data-testid`s** | `trade-book-edit-{bid\|ask}-{order_id}`, `trade-book-cancel-{bid\|ask}-{order_id}`, `trade-book-cancel-all-mine`. |
 
-Implementation: [`useLimitOrderCancelMutation.ts`](../frontend-dapp/src/hooks/useLimitOrderCancelMutation.ts), [`OrderBookPanel.tsx`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx), [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx), [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx). Types: [`limitBookTicketDraft.ts`](../frontend-dapp/src/types/limitBookTicketDraft.ts).
+Implementation: [`useLimitOrderCancelMutation.ts`](../frontend-dapp/src/hooks/useLimitOrderCancelMutation.ts) (invalidates `limitBookPagePreview` and `wallet-indexer-history` alongside book queries), [`OrderBookPanel.tsx`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx), [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx), [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx). Types: [`limitBookTicketDraft.ts`](../frontend-dapp/src/types/limitBookTicketDraft.ts).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](../skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
+
+### Limit orders page (`/limits`) — order book row actions {#limits-page-order-book-row-actions}
+
+The standalone **Limit Orders** route reuses the same [`OrderBookPanel`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx) and [`useLimitOrderCancelMutation`](../frontend-dapp/src/hooks/useLimitOrderCancelMutation.ts) wiring as `/trade` ([GitLab **#162**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)) so traders are not forced to scroll to **Cancel limit** and type an **Order ID** after finding it elsewhere.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **One cancel mutation** | [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx) calls `useLimitOrderCancelMutation(pairAddr, address)` once; row **×**, **Cancel all mine**, and the manual cancel form all call `mutate(orderId)` on that instance. |
+| **Edit → ticket** | **Edit** on a wallet-owned row runs the same `LimitBookTicketDraft` prefill as `/trade` (side, price, remaining size into the place form below the book). |
+| **`data-testid`s** | Same as [§ Trade page — order book row actions](#trade-book-row-actions) (`trade-book-*`) because the component is shared; scope Playwright to the `/limits` route when asserting. |
+| **Manual cancel form** | Kept for integrators and edge cases; helper copy points users to row actions first. |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](../skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md).
 
 ### Trade page — limit order price field (reference, deviation, USD anchor) {#trade-page-limit-order-price}
 

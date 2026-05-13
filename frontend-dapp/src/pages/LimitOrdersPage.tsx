@@ -4,15 +4,15 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { placeLimitOrder, cancelLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
+import { placeLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
 import {
   executeTerraContract,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { getPairLimitBookPage, getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
+import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
-import { assetInfoLabel, tokenAssetInfo, type IndexerLimitCancellation, type IndexerPair } from '@/types'
+import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
 import { getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
@@ -34,6 +34,9 @@ import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlac
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
+import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
+import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 
 export default function LimitOrdersPage() {
   const address = useWalletStore((s) => s.address)
@@ -124,21 +127,15 @@ export default function LimitOrdersPage() {
     latestTrade,
   })
 
-  const bookBidQuery = useQuery({
-    queryKey: ['limitBookPagePreview', pairAddr, 'bid'],
-    queryFn: () => getPairLimitBookPage(pairAddr, 'bid', { limit: 20 }),
-    enabled: pairAddr.startsWith('terra1'),
-    staleTime: 10_000,
-  })
-
-  const bookAskQuery = useQuery({
-    queryKey: ['limitBookPagePreview', pairAddr, 'ask'],
-    queryFn: () => getPairLimitBookPage(pairAddr, 'ask', { limit: 20 }),
-    enabled: pairAddr.startsWith('terra1'),
-    staleTime: 10_000,
-  })
-
   const isPaused = pausedQuery.data?.paused === true
+
+  const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
+
+  const onPrefillLimitTicketFromBook = (draft: LimitBookTicketDraft) => {
+    setSide(draft.side)
+    setPrice(draft.price)
+    setAmountHuman(draft.amountHuman)
+  }
 
   const placeEscrowGate = useMemo(
     () =>
@@ -252,6 +249,7 @@ export default function LimitOrdersPage() {
       setAmountHuman('')
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
+      queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitOrderPricePoolRef', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['wallet-indexer-history'] })
@@ -278,29 +276,20 @@ export default function LimitOrdersPage() {
     onError: () => sounds.playError(),
   })
 
-  const cancelMutation = useMutation({
-    mutationFn: async () => {
-      if (!address) throw new Error('Connect wallet')
-      if (!pairAddr.startsWith('terra1')) throw new Error('Select a pair')
-      const id = parseInt(cancelOrderId, 10)
-      if (!Number.isFinite(id) || id < 1) throw new Error('Invalid order id')
-      const cancels = queryClient.getQueryData<IndexerLimitCancellation[]>(['limitCancellations', pairAddr]) ?? []
-      if (orderIdHasIndexedCancellation(cancels, id)) {
-        throw new Error('This order has already been cancelled.')
-      }
-      return cancelLimitOrder(address, pairAddr, id)
-    },
-    onSuccess: () => {
-      sounds.playSuccess()
-      setCancelOrderId('')
-      setLastIndexedOrderId(null)
-      queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
-      queryClient.invalidateQueries({ queryKey: ['limitCancellations', pairAddr] })
-      queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
-      queryClient.invalidateQueries({ queryKey: ['wallet-indexer-history'] })
-    },
-    onError: () => sounds.playError(),
-  })
+  const submitCancelFromForm = () => {
+    if (!isWalletConnected) {
+      openWalletModal()
+      return
+    }
+    const id = parseInt(cancelOrderId, 10)
+    if (!Number.isFinite(id) || id < 1) return
+    limitCancelMutation.mutate(id, {
+      onSuccess: () => {
+        setCancelOrderId('')
+        setLastIndexedOrderId(null)
+      },
+    })
+  }
 
   useEffect(() => {
     pairs.forEach((p) => {
@@ -389,50 +378,18 @@ export default function LimitOrdersPage() {
               )}
 
               {selectedPair && (
-                <div className="card-neo !p-4 space-y-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide">On-chain order book (indexer → LCD)</h2>
-                  {(bookBidQuery.isLoading || bookAskQuery.isLoading) && <Spinner />}
-                  {(bookBidQuery.isError || bookAskQuery.isError) && (
-                    <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-                      Book unavailable (indexer or LCD).
-                    </p>
-                  )}
-                  {!bookBidQuery.isLoading && !bookBidQuery.isError && bookBidQuery.data && (
-                    <div>
-                      <div
-                        className="text-xs font-medium uppercase tracking-wide mb-1"
-                        style={{ color: 'var(--ink-dim)' }}
-                      >
-                        Bids
-                      </div>
-                      <ul className="text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
-                        {bookBidQuery.data.orders.length === 0 && <li className="opacity-70">(empty)</li>}
-                        {bookBidQuery.data.orders.map((o) => (
-                          <li key={`bid-${o.order_id}`}>
-                            #{o.order_id} · {o.price} · rem {o.remaining}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {!bookAskQuery.isLoading && !bookAskQuery.isError && bookAskQuery.data && (
-                    <div>
-                      <div
-                        className="text-xs font-medium uppercase tracking-wide mb-1"
-                        style={{ color: 'var(--ink-dim)' }}
-                      >
-                        Asks
-                      </div>
-                      <ul className="text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
-                        {bookAskQuery.data.orders.length === 0 && <li className="opacity-70">(empty)</li>}
-                        {bookAskQuery.data.orders.map((o) => (
-                          <li key={`ask-${o.order_id}`}>
-                            #{o.order_id} · {o.price} · rem {o.remaining}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                <div className="card-neo !p-3 min-h-[22rem] flex flex-col">
+                  <OrderBookPanel
+                    pairAddress={pairAddr}
+                    pair={indexerPair}
+                    walletAddress={address ?? undefined}
+                    isWalletConnected={isWalletConnected}
+                    isPairPaused={isPaused}
+                    openWalletModal={openWalletModal}
+                    cancelLimitOrderMutation={limitCancelMutation}
+                    onPrefillLimitTicket={onPrefillLimitTicketFromBook}
+                    factoryPair={selectedPair}
+                  />
                 </div>
               )}
 
@@ -504,6 +461,11 @@ export default function LimitOrdersPage() {
 
               <div className="card-neo !p-4 space-y-4">
                 <h2 className="text-sm font-semibold uppercase tracking-wide">Cancel limit</h2>
+                <p className="text-[11px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+                  For your resting orders, use <strong>Edit</strong> / <strong>×</strong> on the order book above, or
+                  enter an order id here ([GitLab
+                  #162](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
+                </p>
                 <div>
                   <label className="label-neo" htmlFor={limitOrdersCancelOrderInputId}>
                     Order ID
@@ -521,28 +483,36 @@ export default function LimitOrdersPage() {
                   className="btn-primary btn-cta w-full"
                   disabled={
                     !isWalletConnected ||
-                    cancelMutation.isPending ||
+                    limitCancelMutation.isPending ||
                     !pairAddr ||
                     isPaused ||
                     cancelIdIndexedAsCancelled
                   }
                   onClick={() => {
                     if (!isWalletConnected) openWalletModal()
-                    else cancelMutation.mutate()
+                    else submitCancelFromForm()
                   }}
                 >
-                  {!isWalletConnected ? 'Connect Wallet' : cancelMutation.isPending ? 'Cancelling…' : 'Cancel limit'}
+                  {!isWalletConnected
+                    ? 'Connect Wallet'
+                    : limitCancelMutation.isPending
+                      ? 'Cancelling…'
+                      : 'Cancel limit'}
                 </button>
                 {cancelIdIndexedAsCancelled && (
                   <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
                     This order id already has an indexed cancellation.
                   </p>
                 )}
-                {cancelMutation.isError && (
-                  <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />
+                {limitCancelMutation.isError && (
+                  <TxResultAlert type="error" message={(limitCancelMutation.error as Error).message} />
                 )}
-                {cancelMutation.isSuccess && (
-                  <TxResultAlert type="success" message="Cancel transaction submitted." txHash={cancelMutation.data} />
+                {limitCancelMutation.isSuccess && (
+                  <TxResultAlert
+                    type="success"
+                    message="Cancel transaction submitted."
+                    txHash={limitCancelMutation.data}
+                  />
                 )}
               </div>
 

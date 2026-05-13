@@ -27,7 +27,9 @@ export function useLimitOrderCancelMutation(pairAddr: string, walletAddress: str
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['limitCancellations', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['wallet-indexer-history'] })
     },
     onError: () => sounds.playError(),
   })
