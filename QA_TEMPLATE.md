@@ -56,20 +56,9 @@
 | 1.2.9 | Keplr create pair | Create pair → Sign | Success | | |
 | 1.2.10 | Keplr fee tier register | Register → Sign | Success | | |
 
-### 1.3 Leap Wallet (Extension)
+### 1.3 Leap Wallet
 
-| # | Test Case | Steps | Expected Result | Status | Notes |
-|---|-----------|-------|-----------------|--------|-------|
-| 1.3.1 | Connect Leap | Click wallet button → Select Leap | Wallet connects, address shown | | |
-| 1.3.2 | Leap not installed | Disable Leap → Select Leap | "Not installed" error | | |
-| 1.3.3 | Leap reject connection | Select Leap → Reject | Appropriate error message | | |
-| 1.3.4 | Leap disconnect | Connected → Disconnect | Clean disconnect | | |
-| 1.3.5 | Leap swap tx signing | Initiate swap → Sign in Leap | Success | | |
-| 1.3.6 | Leap swap tx rejection | Initiate swap → Reject | Rejection message | | |
-| 1.3.7 | Leap provide liquidity | Provide → Sign all | Success | | |
-| 1.3.8 | Leap withdraw liquidity | Withdraw → Sign | Success | | |
-| 1.3.9 | Leap create pair | Create → Sign | Success | | |
-| 1.3.10 | Leap fee tier register | Register → Sign | Success | | |
+> **Removed from product (GitLab [#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)):** Leap Wallet was sunset by the vendor; the former install URL returned 404. The dApp no longer lists Leap or offers an **Install** CTA for it. **Skip** all historical Leap-only rows from older QA runs; use **Keplr** or **Cosmostation** for Keplr-compatible extension coverage instead.
 
 ### 1.4 Cosmostation Wallet (Extension)
 

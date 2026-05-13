@@ -16,7 +16,6 @@ interface WalletOption {
 const WALLET_OPTIONS: WalletOption[] = [
   { name: 'Station', walletName: WalletName.STATION, walletType: WalletType.EXTENSION, connectionLabel: 'Extension' },
   { name: 'Keplr', walletName: WalletName.KEPLR, walletType: WalletType.EXTENSION, connectionLabel: 'Extension' },
-  { name: 'Leap', walletName: WalletName.LEAP, walletType: WalletType.EXTENSION, connectionLabel: 'Extension' },
   {
     name: 'Cosmostation',
     walletName: WalletName.COSMOSTATION,

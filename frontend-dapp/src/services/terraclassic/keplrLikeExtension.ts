@@ -16,7 +16,6 @@ export function getKeplrLikeExtension(walletName: WalletName): KeplrExperimental
   }
   const w = window as unknown as {
     keplr?: KeplrExperimentalSuggest
-    leap?: KeplrExperimentalSuggest
     cosmostation?: { providers?: { keplr?: KeplrExperimentalSuggest } }
     station?: { keplr?: KeplrExperimentalSuggest }
   }
@@ -25,8 +24,6 @@ export function getKeplrLikeExtension(walletName: WalletName): KeplrExperimental
       return w.station?.keplr
     case WalletName.KEPLR:
       return w.keplr
-    case WalletName.LEAP:
-      return w.leap
     case WalletName.COSMOSTATION:
       return w.cosmostation?.providers?.keplr
     default:

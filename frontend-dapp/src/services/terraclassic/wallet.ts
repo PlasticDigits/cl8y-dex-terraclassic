@@ -6,7 +6,6 @@ import {
   CosmostationController,
   GalaxyStationController,
   KeplrController,
-  LeapController,
   LUNCDashController,
   StationController,
   WalletController,
@@ -66,11 +65,13 @@ const GAS_PRICE = {
   denom: 'uluna',
 }
 
+/** Persisted in Zustand / analytics; excludes sunset wallets (GitLab #159: Leap). */
+export type TerraWalletBackend = 'station' | 'keplr' | 'luncdash' | 'galaxy' | 'cosmostation'
+
 const STATION_CONTROLLER = new StationController()
 const KEPLR_CONTROLLER = new KeplrController(WC_PROJECT_ID)
 const LUNCDASH_CONTROLLER = new LUNCDashController()
 const GALAXY_CONTROLLER = new GalaxyStationController(WC_PROJECT_ID)
-const LEAP_CONTROLLER = new LeapController(WC_PROJECT_ID)
 const COSMOSTATION_CONTROLLER = new CosmostationController(WC_PROJECT_ID)
 
 const CONTROLLERS: Partial<Record<WalletName, WalletController>> = {
@@ -78,7 +79,6 @@ const CONTROLLERS: Partial<Record<WalletName, WalletController>> = {
   [WalletName.KEPLR]: KEPLR_CONTROLLER,
   [WalletName.LUNCDASH]: LUNCDASH_CONTROLLER,
   [WalletName.GALAXYSTATION]: GALAXY_CONTROLLER,
-  [WalletName.LEAP]: LEAP_CONTROLLER,
   [WalletName.COSMOSTATION]: COSMOSTATION_CONTROLLER,
 }
 
@@ -87,16 +87,14 @@ const WALLET_DISPLAY_NAMES: Record<string, string> = {
   [WalletName.KEPLR]: 'Keplr',
   [WalletName.LUNCDASH]: 'LuncDash',
   [WalletName.GALAXYSTATION]: 'Galaxy',
-  [WalletName.LEAP]: 'Leap',
   [WalletName.COSMOSTATION]: 'Cosmostation',
 }
 
-const WALLET_TYPE_STRINGS: Record<string, 'station' | 'keplr' | 'luncdash' | 'galaxy' | 'leap' | 'cosmostation'> = {
+const WALLET_TYPE_STRINGS: Record<string, TerraWalletBackend> = {
   [WalletName.STATION]: 'station',
   [WalletName.KEPLR]: 'keplr',
   [WalletName.LUNCDASH]: 'luncdash',
   [WalletName.GALAXYSTATION]: 'galaxy',
-  [WalletName.LEAP]: 'leap',
   [WalletName.COSMOSTATION]: 'cosmostation',
 }
 
@@ -123,7 +121,7 @@ export async function connectTerraWallet(
   walletType: WalletType = WalletType.EXTENSION
 ): Promise<{
   address: string
-  walletType: 'station' | 'keplr' | 'luncdash' | 'galaxy' | 'leap' | 'cosmostation'
+  walletType: TerraWalletBackend
   connectionType: WalletType
 }> {
   const controller = CONTROLLERS[walletName]
@@ -138,7 +136,7 @@ export async function connectTerraWallet(
       gasPrice: chainInfo.gasPrice,
     })
 
-    const SUGGEST_CHAIN_WALLETS: WalletName[] = [WalletName.KEPLR, WalletName.LEAP, WalletName.COSMOSTATION]
+    const SUGGEST_CHAIN_WALLETS: WalletName[] = [WalletName.KEPLR, WalletName.COSMOSTATION]
     const suggestStationLocalGasSteps =
       walletName === WalletName.STATION && walletType === WalletType.EXTENSION && DEFAULT_NETWORK === 'local'
 
@@ -332,7 +330,7 @@ export async function connectTerraWallet(
       }
     }
 
-    const walletTypeStr = WALLET_TYPE_STRINGS[walletName] ?? 'keplr'
+    const walletTypeStr: TerraWalletBackend = WALLET_TYPE_STRINGS[walletName] ?? 'keplr'
 
     return {
       address: wallet.address,

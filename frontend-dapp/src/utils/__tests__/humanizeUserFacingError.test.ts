@@ -16,7 +16,7 @@ describe('tryHumanizeWalletLikeMessage', () => {
   })
 
   it('maps missing extension', () => {
-    expect(tryHumanizeWalletLikeMessage('Failed to connect Leap: Leap extension is not installed')).toMatch(/not found/)
+    expect(tryHumanizeWalletLikeMessage('Failed to connect Keplr: Keplr extension is not installed')).toMatch(/not found/)
   })
 
   it('maps WalletConnect partial success', () => {

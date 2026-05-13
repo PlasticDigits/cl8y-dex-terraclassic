@@ -8,8 +8,9 @@ import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtensio
  * **Invariants (must stay aligned with `getKeplrLikeExtension`):**
  * - **Station:** `'station' in window` — same signal as legacy `isStationInstalled` (extension injected; shim may still fail at connect).
  * - **Keplr:** `window.keplr` truthy.
- * - **Leap / Cosmostation:** same objects `getKeplrLikeExtension` reads (`window.leap`, `window.cosmostation?.providers?.keplr`).
+ * - **Cosmostation:** same object `getKeplrLikeExtension` reads (`window.cosmostation?.providers?.keplr`).
  * - **WalletConnect-only names** (e.g. LuncDash, Galaxy Station): returns `true` so the modal does not treat them as missing extensions.
+ * - **Leap:** not offered in the UI ([GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)); do not add an install URL or modal row while the vendor page is sunset.
  */
 export function isBrowserWalletExtensionDetected(walletName: WalletName): boolean {
   if (typeof window === 'undefined') {
@@ -21,7 +22,6 @@ export function isBrowserWalletExtensionDetected(walletName: WalletName): boolea
       return 'station' in window
     case WalletName.KEPLR:
       return !!(window as unknown as { keplr?: unknown }).keplr
-    case WalletName.LEAP:
     case WalletName.COSMOSTATION:
       return !!getKeplrLikeExtension(walletName)
     case WalletName.LUNCDASH:
@@ -36,6 +36,5 @@ export function isBrowserWalletExtensionDetected(walletName: WalletName): boolea
 export const WALLET_EXTENSION_INSTALL_URL: Partial<Record<WalletName, string>> = {
   [WalletName.STATION]: 'https://setup.money/',
   [WalletName.KEPLR]: 'https://www.keplr.app/download',
-  [WalletName.LEAP]: 'https://www.leapwallet.io/download',
   [WalletName.COSMOSTATION]: 'https://wallet.cosmostation.io/',
 }

@@ -9,6 +9,7 @@ Use when changing wallet list UI, extension detection in the modal, **Install** 
 | [docs/frontend.md § Connect modal: extension install detection](../docs/frontend.md#connect-modal-extension-install) | Invariants: detection signals, **Ready** pill, no **Not installed** pill, truncation, focus/visibility refresh |
 | [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139) | Original install-detection UX |
 | [GitLab #160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160) | Layout: long names vs badges; removed redundant **Not installed** pill |
+| [GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159) | **Leap** removed from the wallet list (vendor sunset / dead install URL) |
 | `frontend-dapp/src/components/wallet/WalletModal.tsx` | Row markup, **Install** CTA, **Ready** badge |
 | `frontend-dapp/src/services/terraclassic/walletExtensionInstall.ts` | `isBrowserWalletExtensionDetected`, `WALLET_EXTENSION_INSTALL_URL` |
 

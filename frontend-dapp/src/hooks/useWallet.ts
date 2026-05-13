@@ -104,11 +104,31 @@ async function attemptAutoReconnect(): Promise<void> {
     !parsed ||
     typeof parsed !== 'object' ||
     typeof parsed.walletName !== 'string' ||
-    typeof parsed.walletType !== 'string' ||
-    !VALID_WALLET_NAMES.has(parsed.walletName) ||
-    !VALID_WALLET_TYPES.has(parsed.walletType)
+    typeof parsed.walletType !== 'string'
   ) {
-    localStorage.removeItem(WALLET_STORAGE_KEY)
+    try {
+      localStorage.removeItem(WALLET_STORAGE_KEY)
+    } catch {
+      /* */
+    }
+    return
+  }
+
+  if (parsed.walletName === WalletName.LEAP) {
+    try {
+      localStorage.removeItem(WALLET_STORAGE_KEY)
+    } catch {
+      /* */
+    }
+    return
+  }
+
+  if (!VALID_WALLET_NAMES.has(parsed.walletName) || !VALID_WALLET_TYPES.has(parsed.walletType)) {
+    try {
+      localStorage.removeItem(WALLET_STORAGE_KEY)
+    } catch {
+      /* */
+    }
     return
   }
 

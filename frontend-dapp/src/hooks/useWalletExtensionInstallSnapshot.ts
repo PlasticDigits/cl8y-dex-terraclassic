@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { WalletName } from '@goblinhunt/cosmes/wallet'
 import { isBrowserWalletExtensionDetected } from '@/services/terraclassic/walletExtensionInstall'
 
-const EXTENSION_WALLETS: WalletName[] = [WalletName.STATION, WalletName.KEPLR, WalletName.LEAP, WalletName.COSMOSTATION]
+const EXTENSION_WALLETS: WalletName[] = [WalletName.STATION, WalletName.KEPLR, WalletName.COSMOSTATION]
 
 function readSnapshot(): Map<WalletName, boolean> {
   const m = new Map<WalletName, boolean>()

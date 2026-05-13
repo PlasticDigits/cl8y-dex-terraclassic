@@ -28,13 +28,6 @@ describe('walletExtensionInstall (GitLab #139 connect modal)', () => {
     expect(isBrowserWalletExtensionDetected(WalletName.KEPLR)).toBe(true)
   })
 
-  it('Leap: uses leap global', async () => {
-    const leap = { experimentalSuggestChain: vi.fn() }
-    vi.stubGlobal('window', { leap } as unknown as Window & typeof globalThis)
-    const { isBrowserWalletExtensionDetected } = await import('../walletExtensionInstall')
-    expect(isBrowserWalletExtensionDetected(WalletName.LEAP)).toBe(true)
-  })
-
   it('Cosmostation: true when providers.keplr present', async () => {
     vi.stubGlobal('window', { cosmostation: { providers: { keplr: {} } } } as unknown as Window & typeof globalThis)
     const { isBrowserWalletExtensionDetected } = await import('../walletExtensionInstall')
@@ -51,7 +44,6 @@ describe('walletExtensionInstall (GitLab #139 connect modal)', () => {
     const { WALLET_EXTENSION_INSTALL_URL } = await import('../walletExtensionInstall')
     expect(WALLET_EXTENSION_INSTALL_URL[WalletName.STATION]).toMatch(/^https:/)
     expect(WALLET_EXTENSION_INSTALL_URL[WalletName.KEPLR]).toMatch(/^https:/)
-    expect(WALLET_EXTENSION_INSTALL_URL[WalletName.LEAP]).toMatch(/^https:/)
     expect(WALLET_EXTENSION_INSTALL_URL[WalletName.COSMOSTATION]).toMatch(/^https:/)
   })
 })

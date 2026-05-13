@@ -24,7 +24,7 @@ const mockSnapshot = vi.mocked(useWalletExtensionInstallSnapshot)
 
 function extensionSnapshot(partial: Partial<Record<WalletName, boolean>>): Map<WalletName, boolean> {
   const m = new Map<WalletName, boolean>()
-  for (const id of [WalletName.STATION, WalletName.KEPLR, WalletName.LEAP, WalletName.COSMOSTATION]) {
+  for (const id of [WalletName.STATION, WalletName.KEPLR, WalletName.COSMOSTATION]) {
     m.set(id, partial[id] ?? false)
   }
   return m
