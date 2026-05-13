@@ -239,10 +239,11 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
 
     sqlx::query(
         "INSERT INTO limit_order_cancellations
-         (pair_id, block_height, block_timestamp, tx_hash, order_id)
-         VALUES ($1, 1001, NOW(), 'txcancel0', 7)",
+         (pair_id, block_height, block_timestamp, tx_hash, order_id, owner)
+         VALUES ($1, 1001, NOW(), 'txcancel0', 7, $2)",
     )
     .bind(pair_id)
+    .bind(&trader_address)
     .execute(pool)
     .await
     .expect("insert cancellation");

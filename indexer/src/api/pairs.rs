@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
@@ -398,6 +400,46 @@ pub struct TradeResponse {
     pub limit_book_offer_consumed: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub effective_fee_bps: Option<i16>,
+    /// Swap commission attributed on-chain when indexed (CSV / reconciliation).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commission_amount: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spread_amount: Option<String>,
+}
+
+/// Map an indexed swap row to [`TradeResponse`] (pair + asset symbols).
+pub fn trade_response_from_swap_row(
+    pair_address: &str,
+    t: &swap_events::SwapEventRow,
+    asset_map: &HashMap<i32, AssetRow>,
+) -> TradeResponse {
+    let offer_sym = asset_map
+        .get(&t.offer_asset_id)
+        .map(|a| a.symbol.clone())
+        .unwrap_or_default();
+    let ask_sym = asset_map
+        .get(&t.ask_asset_id)
+        .map(|a| a.symbol.clone())
+        .unwrap_or_default();
+    TradeResponse {
+        id: t.id,
+        pair_address: pair_address.to_string(),
+        block_height: t.block_height,
+        block_timestamp: t.block_timestamp.to_rfc3339(),
+        tx_hash: t.tx_hash.clone(),
+        sender: t.sender.clone(),
+        offer_asset: offer_sym,
+        ask_asset: ask_sym,
+        offer_amount: t.offer_amount.normalized().to_string(),
+        return_amount: t.return_amount.normalized().to_string(),
+        price: t.price.normalized().to_string(),
+        pool_return_amount: opt_bd_string(&t.pool_return_amount),
+        book_return_amount: opt_bd_string(&t.book_return_amount),
+        limit_book_offer_consumed: opt_bd_string(&t.limit_book_offer_consumed),
+        effective_fee_bps: t.effective_fee_bps,
+        commission_amount: opt_bd_string(&t.commission_amount),
+        spread_amount: opt_bd_string(&t.spread_amount),
+    }
 }
 
 /// Indexed per-maker fill from wasm `limit_order_fill` events.
@@ -451,33 +493,7 @@ pub async fn get_pair_trades(
 
     let result: Vec<TradeResponse> = trades
         .iter()
-        .map(|t| {
-            let offer_sym = asset_map
-                .get(&t.offer_asset_id)
-                .map(|a| a.symbol.clone())
-                .unwrap_or_default();
-            let ask_sym = asset_map
-                .get(&t.ask_asset_id)
-                .map(|a| a.symbol.clone())
-                .unwrap_or_default();
-            TradeResponse {
-                id: t.id,
-                pair_address: addr.clone(),
-                block_height: t.block_height,
-                block_timestamp: t.block_timestamp.to_rfc3339(),
-                tx_hash: t.tx_hash.clone(),
-                sender: t.sender.clone(),
-                offer_asset: offer_sym,
-                ask_asset: ask_sym,
-                offer_amount: t.offer_amount.to_string(),
-                return_amount: t.return_amount.to_string(),
-                price: t.price.to_string(),
-                pool_return_amount: opt_bd_string(&t.pool_return_amount),
-                book_return_amount: opt_bd_string(&t.book_return_amount),
-                limit_book_offer_consumed: opt_bd_string(&t.limit_book_offer_consumed),
-                effective_fee_bps: t.effective_fee_bps,
-            }
-        })
+        .map(|t| trade_response_from_swap_row(&addr, t, &asset_map))
         .collect();
 
     Ok(Json(result))

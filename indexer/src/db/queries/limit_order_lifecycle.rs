@@ -262,3 +262,63 @@ pub async fn list_cancellations_for_pair(
         }
     }
 }
+
+/// All indexed cancellations for a wallet (`owner` attribute on the wasm event when present).
+pub async fn list_cancellations_for_owner(
+    pool: &PgPool,
+    owner: &str,
+    pair_id: Option<i32>,
+    limit: i64,
+    before_id: Option<i64>,
+) -> Result<Vec<CancellationRow>, sqlx::Error> {
+    match (before_id, pair_id) {
+        (Some(bid), Some(pid)) => {
+            sqlx::query_as::<_, CancellationRow>(
+                "SELECT * FROM limit_order_cancellations
+                 WHERE owner = $1 AND pair_id = $4 AND id < $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(owner)
+            .bind(limit)
+            .bind(bid)
+            .bind(pid)
+            .fetch_all(pool)
+            .await
+        }
+        (None, Some(pid)) => {
+            sqlx::query_as::<_, CancellationRow>(
+                "SELECT * FROM limit_order_cancellations
+                 WHERE owner = $1 AND pair_id = $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(owner)
+            .bind(limit)
+            .bind(pid)
+            .fetch_all(pool)
+            .await
+        }
+        (Some(bid), None) => {
+            sqlx::query_as::<_, CancellationRow>(
+                "SELECT * FROM limit_order_cancellations
+                 WHERE owner = $1 AND id < $3
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(owner)
+            .bind(limit)
+            .bind(bid)
+            .fetch_all(pool)
+            .await
+        }
+        (None, None) => {
+            sqlx::query_as::<_, CancellationRow>(
+                "SELECT * FROM limit_order_cancellations
+                 WHERE owner = $1
+                 ORDER BY id DESC LIMIT $2",
+            )
+            .bind(owner)
+            .bind(limit)
+            .fetch_all(pool)
+            .await
+        }
+    }
+}

@@ -33,6 +33,7 @@ import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
+import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 
 export default function LimitOrdersPage() {
   const address = useWalletStore((s) => s.address)
@@ -253,6 +254,7 @@ export default function LimitOrdersPage() {
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitOrderPricePoolRef', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['wallet-indexer-history'] })
       setLastIndexedOrderId(null)
       const addr = pairAddr
       const wallet = address
@@ -295,6 +297,7 @@ export default function LimitOrdersPage() {
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['limitCancellations', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
+      queryClient.invalidateQueries({ queryKey: ['wallet-indexer-history'] })
     },
     onError: () => sounds.playError(),
   })
@@ -558,6 +561,8 @@ export default function LimitOrdersPage() {
                   />
                 </div>
               )}
+
+              {pairAddr && address && <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} />}
             </div>
           )}
         </div>

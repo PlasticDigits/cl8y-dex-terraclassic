@@ -11,6 +11,7 @@ pub mod orderbook_sim;
 mod overview;
 mod pairs;
 mod route_solver;
+mod text_csv;
 mod tokens;
 mod traders;
 
@@ -179,6 +180,8 @@ pub async fn find_pair_by_ticker(
         tokens::get_token_pairs,
         traders::get_trader_profile,
         traders::get_trader_trades,
+        traders::get_trader_limit_fills,
+        traders::get_trader_limit_cancellations,
         traders::get_trader_positions,
         traders::leaderboard,
         overview::get_overview,
@@ -227,6 +230,8 @@ pub async fn find_pair_by_ticker(
         tokens::TokenResponse,
         tokens::TokenDetailResponse,
         tokens::VolumeStatResponse,
+        traders::TraderTradesQuery,
+        traders::TraderHistoryQuery,
         traders::TraderResponse,
         traders::PositionResponse,
         overview::OverviewResponse,
@@ -351,6 +356,14 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/traders/{addr}/trades",
             get(traders::get_trader_trades),
+        )
+        .route(
+            "/api/v1/traders/{addr}/limit-fills",
+            get(traders::get_trader_limit_fills),
+        )
+        .route(
+            "/api/v1/traders/{addr}/limit-cancellations",
+            get(traders::get_trader_limit_cancellations),
         )
         .route(
             "/api/v1/traders/{addr}/positions",

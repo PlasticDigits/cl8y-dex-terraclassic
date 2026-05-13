@@ -46,7 +46,7 @@ export default function TraderPage() {
 
   const tradesQuery = useQuery({
     queryKey: ['trader-trades', traderAddr],
-    queryFn: () => getTraderTrades(traderAddr, 100),
+    queryFn: () => getTraderTrades(traderAddr, { limit: 100 }),
     enabled: !!traderAddr,
     refetchInterval: 15_000,
   })
