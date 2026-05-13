@@ -35,8 +35,6 @@ export default function TradePage() {
   const navigate = useNavigate()
   const [pairAddr, setPairAddr] = useState(routePair ?? '')
 
-  const address = useWalletStore((s) => s.address)
-
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
     queryFn: () => getAllPairsPaginated(),

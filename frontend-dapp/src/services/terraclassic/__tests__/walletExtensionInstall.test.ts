@@ -41,7 +41,7 @@ describe('walletExtensionInstall (GitLab #139 connect modal)', () => {
     expect(isBrowserWalletExtensionDetected(WalletName.COSMOSTATION)).toBe(true)
   })
 
-  it('WalletConnect wallets always report detected (no “not installed” row)', async () => {
+  it('WalletConnect wallets always report detected (no extension-missing treatment)', async () => {
     const { isBrowserWalletExtensionDetected } = await import('../walletExtensionInstall')
     expect(isBrowserWalletExtensionDetected(WalletName.LUNCDASH)).toBe(true)
     expect(isBrowserWalletExtensionDetected(WalletName.GALAXYSTATION)).toBe(true)

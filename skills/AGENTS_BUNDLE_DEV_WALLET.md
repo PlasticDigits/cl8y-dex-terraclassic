@@ -6,7 +6,7 @@ Use this when working on the simulated (dev) wallet, Vite env inlining, or anyth
 
 | Doc / code | Purpose |
 |------------|---------|
-| [docs/frontend.md § Connect modal: extension install detection](../docs/frontend.md#connect-modal-extension-install) | Invariants for **Ready** / **Not installed** badges and install links ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)) |
+| [docs/frontend.md § Connect modal: extension install detection](../docs/frontend.md#connect-modal-extension-install) | **Ready** when detected; dimmed row + **Install** when not — no **Not installed** pill ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139), [#160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)) |
 | [docs/frontend.md § Simulated (dev) wallet and VITE_DEV_MNEMONIC](../docs/frontend.md#simulated-dev-wallet-and-vite_dev_mnemonic) | Invariants, env layout, `deploy-dex-local.sh` (GitLab [#118](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/118)) |
 | `frontend-dapp/src/services/terraclassic/devWallet.ts` | No default mnemonic; requires `VITE_DEV_MNEMONIC` in dev only |
 | `docker/init-chain.sh` | Canonical `TEST_MNEMONIC` for LocalTerra (public test vector, not a production secret) |
@@ -26,4 +26,4 @@ Use this when working on the simulated (dev) wallet, Vite env inlining, or anyth
 - Gas / swap limits: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
 - Localnet trading swarm (separate bot mnemonics, never commit seeds): [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) · [GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)
 - **Trader profile + Station QA:** after connecting a real wallet, exercise **`/trader`** and **`/trader/<addr>`** with the indexer up; invalid indexer JSON is rejected at parse time and route errors reset when the address segment changes ([docs/frontend.md § Trader profile](../docs/frontend.md#trader-profile-indexer), [GitLab #126](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)).
-- **Connect modal install badges:** [docs/frontend.md § Connect modal: extension install detection](../docs/frontend.md#connect-modal-extension-install) · [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)
+- **Connect modal (extension detection + layout):** [docs/frontend.md § Connect modal: extension install detection](../docs/frontend.md#connect-modal-extension-install) · [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) · [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139) · [GitLab #160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)

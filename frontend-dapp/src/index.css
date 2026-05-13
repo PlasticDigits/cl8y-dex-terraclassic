@@ -1250,11 +1250,6 @@
     color: rgba(134, 239, 172, 0.95);
   }
 
-  .wallet-option-badge-missing {
-    border-color: rgba(248, 113, 113, 0.22);
-    color: rgba(252, 165, 165, 0.92);
-  }
-
   .wallet-option-install-cta {
     display: inline-flex;
     align-items: center;
