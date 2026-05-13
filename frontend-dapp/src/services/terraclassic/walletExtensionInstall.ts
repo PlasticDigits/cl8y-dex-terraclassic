@@ -3,13 +3,13 @@ import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtensio
 
 /**
  * Detects whether a browser extension for this wallet name is injected on `window`.
- * Used by the connect modal so users can see **installed vs not installed** before clicking ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)).
+ * Used by the connect modal for **Ready** when detected, dimmed row + **Install** link when not ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139), [#160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)).
  *
  * **Invariants (must stay aligned with `getKeplrLikeExtension`):**
  * - **Station:** `'station' in window` — same signal as legacy `isStationInstalled` (extension injected; shim may still fail at connect).
  * - **Keplr:** `window.keplr` truthy.
  * - **Leap / Cosmostation:** same objects `getKeplrLikeExtension` reads (`window.leap`, `window.cosmostation?.providers?.keplr`).
- * - **WalletConnect-only names** (e.g. LuncDash, Galaxy Station): returns `true` so the UI does not label them “not installed”.
+ * - **WalletConnect-only names** (e.g. LuncDash, Galaxy Station): returns `true` so the modal does not treat them as missing extensions.
  */
 export function isBrowserWalletExtensionDetected(walletName: WalletName): boolean {
   if (typeof window === 'undefined') {

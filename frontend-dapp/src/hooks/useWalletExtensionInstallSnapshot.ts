@@ -59,7 +59,7 @@ function getServerSnapshot(): Map<WalletName, boolean> {
 
 /**
  * Live map of extension install detection for modal rows. Re-reads on window focus / visibility
- * so returning from an install flow updates badges without a full reload.
+ * so returning from an install flow updates **Ready** / row state without a full reload.
  */
 export function useWalletExtensionInstallSnapshot(): Map<WalletName, boolean> {
   return useSyncExternalStore(subscribe, getCachedSnapshot, getServerSnapshot)

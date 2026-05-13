@@ -104,19 +104,19 @@ export default function WalletModal({ onClose }: WalletModalProps) {
                       : option.name
                   }
                 >
-                  <span className="flex min-w-0 flex-col items-start gap-1 text-left">
-                    <span className="font-medium uppercase tracking-wide text-sm" style={{ color: 'var(--ink)' }}>
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left">
+                    <span
+                      className="max-w-full truncate font-medium uppercase tracking-wide text-sm"
+                      style={{ color: 'var(--ink)' }}
+                      title={option.name}
+                    >
                       {option.name}
                     </span>
                   </span>
                   <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
                     <span className="wallet-option-badge">{option.connectionLabel}</span>
-                    {isExtension ? (
-                      installed ? (
-                        <span className="wallet-option-badge wallet-option-badge-ready">Ready</span>
-                      ) : (
-                        <span className="wallet-option-badge wallet-option-badge-missing">Not installed</span>
-                      )
+                    {isExtension && installed ? (
+                      <span className="wallet-option-badge wallet-option-badge-ready">Ready</span>
                     ) : null}
                   </span>
                 </button>

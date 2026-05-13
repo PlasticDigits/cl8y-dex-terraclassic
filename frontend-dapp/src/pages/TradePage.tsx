@@ -13,7 +13,6 @@ import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
-import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
@@ -35,8 +34,6 @@ export default function TradePage() {
   const { pairAddr: routePair } = useParams<{ pairAddr?: string }>()
   const navigate = useNavigate()
   const [pairAddr, setPairAddr] = useState(routePair ?? '')
-
-  const address = useWalletStore((s) => s.address)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
