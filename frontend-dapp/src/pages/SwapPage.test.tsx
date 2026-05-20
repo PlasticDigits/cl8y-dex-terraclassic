@@ -83,15 +83,23 @@ describe('SwapPage', () => {
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
   })
 
-  it('renders without crashing', () => {
+  it('renders without crashing', async () => {
     renderWithProviders(<SwapPage />)
-    expect(screen.getByText(/swap/i)).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: /^swap$/i })).toBeInTheDocument()
   })
 
-  it('shows loading tokens state when no pairs loaded', () => {
+  it('shows loading pairs state while factory pairs fetch is pending', async () => {
+    let resolvePairs!: (value: { pairs: [] }) => void
+    vi.mocked(getAllPairsPaginated).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePairs = resolve
+        })
+    )
     renderWithProviders(<SwapPage />)
-    const loadingElements = screen.queryAllByText(/loading tokens/i)
-    expect(loadingElements.length).toBeGreaterThan(0)
+    expect(screen.getByText(/loading pairs/i)).toBeInTheDocument()
+    resolvePairs({ pairs: [] })
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
   })
 
   it('shows hybrid book warning with doc link before swap when book leg > 0', async () => {
@@ -128,7 +136,7 @@ describe('SwapPage', () => {
     })
 
     renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading tokens/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
     await user.click(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i }))

@@ -39,6 +39,8 @@ import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/utils/provideLiquidityEstimate'
 import { evaluateProvideLiquidityCw20NativeGasGate } from '@/utils/provideLiquidityNativeGasBalanceGate'
+import { isLcdConnectivityError, LCD_CONNECTIVITY_OUTAGE_MESSAGE } from '@/utils/lcdConnectivity'
+import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 
 const POOL_SORT_OPTIONS: MenuSelectOption[] = [
   { value: 'symbol', label: 'Name (A–Z)' },
@@ -461,6 +463,14 @@ const PoolCard = memo(function PoolCard({
         <div className="flex items-center gap-2 text-xs mb-4" style={{ color: 'var(--ink-subtle)' }}>
           <Spinner size="sm" /> Loading pool...
         </div>
+      )}
+      {poolQuery.isError && (
+        <RetryError
+          message={
+            isLcdConnectivityError(poolQuery.error) ? LCD_CONNECTIVITY_OUTAGE_MESSAGE : getErrorMessage(poolQuery.error)
+          }
+          onRetry={() => void poolQuery.refetch()}
+        />
       )}
 
       <div className="flex gap-2 mb-3">

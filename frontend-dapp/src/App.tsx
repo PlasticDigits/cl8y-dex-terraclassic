@@ -5,6 +5,7 @@ import type { ReactNode, ErrorInfo } from 'react'
 import Layout from './components/common/Layout'
 import { Spinner } from './components/ui'
 import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
+import { isLcdConnectivityError } from '@/utils/lcdConnectivity'
 
 function errorBoundaryFriendlyCopy(error: Error | null): ReactNode {
   const rawMsg = error?.message?.trim() ?? ''
@@ -37,9 +38,14 @@ function errorBoundaryFriendlyCopy(error: Error | null): ReactNode {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: (failureCount, error) => {
+        if (isLcdConnectivityError(error)) return failureCount < 3
+        return failureCount < 2
+      },
+      retryDelay: (attemptIndex) => Math.min(2_000 * 2 ** attemptIndex, 12_000),
       staleTime: 10_000,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     },
   },
 })

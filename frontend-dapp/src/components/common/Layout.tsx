@@ -15,6 +15,8 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSyncMobileNavStack } from '@/hooks/useSyncMobileNavStack'
 import { sounds } from '@/lib/sounds'
+import { LcdConnectivityBanner } from '@/components/common/LcdConnectivityBanner'
+import { useLcdConnectivityRecovery } from '@/hooks/useLcdConnectivityRecovery'
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'dark'
@@ -24,6 +26,7 @@ function getInitialTheme(): ThemeMode {
 }
 
 export default function Layout() {
+  const { isLcdUnreachable, isProbePending, retryAll } = useLcdConnectivityRecovery()
   const location = useLocation()
   const mobileNavRef = useRef<HTMLElement>(null)
   useSyncMobileNavStack(mobileNavRef)
@@ -190,6 +193,7 @@ export default function Layout() {
         <div className="app-main">
           <div aria-hidden="true" className="app-hero-glow" />
           <div className="app-main-content">
+            {isLcdUnreachable ? <LcdConnectivityBanner onRetry={retryAll} isProbing={isProbePending} /> : null}
             <Outlet />
           </div>
           {showMobileLegalStrip ? (

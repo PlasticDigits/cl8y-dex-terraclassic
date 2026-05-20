@@ -106,6 +106,23 @@ When `VITE_DEV_MODE=true`, the UI can offer a **Simulated Wallet** (no browser e
 **Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md).
 - **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
 
+### LCD / RPC connectivity (W11-C2) {#lcd-rpc-connectivity}
+
+When the Terra **LCD** endpoint is down, halted, or unreachable, trading routes must not show an **infinite** loading skeleton. Traders see explicit outage copy, a **Retry** control, and **automatic recovery** when the node returns — without requiring a tab switch or full reload ([GitLab **#171**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/171)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Classify transport failures | **`isLcdConnectivityError`** in [`lcdConnectivity.ts`](../frontend-dapp/src/utils/lcdConnectivity.ts) recognizes LCD timeouts, `Failed to fetch`, HTTP 5xx query failures, and related transport strings — not business logic (e.g. insufficient funds). |
+| Global banner | [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) renders [`LcdConnectivityBanner`](../frontend-dapp/src/components/common/LcdConnectivityBanner.tsx) (`data-testid="lcd-connectivity-banner"`) when the LCD health probe fails. Copy: **`LCD_CONNECTIVITY_OUTAGE_MESSAGE`**. |
+| Recovery polling | [`useLcdConnectivityRecovery`](../frontend-dapp/src/hooks/useLcdConnectivityRecovery.ts) probes `GET …/node_info` every **5s** (`LCD_CONNECTIVITY_RECOVERY_POLL_MS`). On **unreachable → reachable**, it **`invalidateQueries()`** so all React Query caches refetch. |
+| Blocking queries | Factory pair lists on **Swap**, **Trade**, and **Limits** use [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx): loading fallback → **`RetryError`** on LCD failure (never a silent empty form). **Pool** cards surface **`RetryError`** on per-pair `pool` query failure. |
+| Query defaults | [`App.tsx`](../frontend-dapp/src/App.tsx) `QueryClient`: LCD errors retry up to **3** times with exponential backoff; **`refetchOnReconnect: true`**. |
+| Humanization funnel | Banner and gate use **`LCD_CONNECTIVITY_OUTAGE_MESSAGE`** or **`RetryError`** (which humanizes via [`humanizeUserFacingError`](../frontend-dapp/src/utils/humanizeUserFacingError.ts)); do not pre-humanize raw throws. |
+
+Regression: [`lcdConnectivity.test.ts`](../frontend-dapp/src/utils/__tests__/lcdConnectivity.test.ts).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](../skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md); error copy funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
+
 ### User-facing errors (wallet, fetch, indexer, tx) {#user-facing-errors-humanization}
 
 Friendly failure copy should flow through **`humanizeUserFacingError`** ([`frontend-dapp/src/utils/humanizeUserFacingError.ts`](../frontend-dapp/src/utils/humanizeUserFacingError.ts)): it applies **`tryHumanizeTerraTxMessage`** first (on-chain / LCD patterns from [GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)), then wallet and transport classifiers in [`humanizeOffChainError.ts`](../frontend-dapp/src/utils/humanizeOffChainError.ts) ([GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).

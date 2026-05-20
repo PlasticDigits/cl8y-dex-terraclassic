@@ -12,6 +12,7 @@ import {
 import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
+import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
 import { formatNum, fromRawAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
@@ -369,13 +370,14 @@ export default function LimitOrdersPage() {
             </p>
           </div>
 
-          {pairsQuery.isLoading && (
-            <div className="flex items-center gap-2 py-8 justify-center">
-              <Spinner />
-            </div>
-          )}
-
-          {!pairsQuery.isLoading && (
+          <LcdQueryGate
+            query={pairsQuery}
+            loadingFallback={
+              <div className="flex items-center gap-2 py-8 justify-center">
+                <Spinner />
+              </div>
+            }
+          >
             <div className="space-y-6">
               <div>
                 <label className="label-neo" htmlFor="limit-pair">
@@ -597,7 +599,7 @@ export default function LimitOrdersPage() {
 
               {pairAddr && address && <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} />}
             </div>
-          )}
+          </LcdQueryGate>
         </div>
       </div>
     </div>

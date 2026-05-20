@@ -9,6 +9,7 @@ import { getPair, getTrades, INDEXER_URL } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { MenuSelect, TradesTable, RetryError, Skeleton } from '@/components/ui'
+import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
@@ -143,8 +144,7 @@ export default function TradePage() {
         <label className="label-neo mb-1 block" htmlFor="trade-pair-select">
           Pair
         </label>
-        {pairsQuery.isLoading && <Skeleton height="2.5rem" width="100%" />}
-        {!pairsQuery.isLoading && (
+        <LcdQueryGate query={pairsQuery} loadingFallback={<Skeleton height="2.5rem" width="100%" />}>
           <MenuSelect
             id="trade-pair-select"
             className="relative w-full max-w-xl"
@@ -154,7 +154,7 @@ export default function TradePage() {
             emptyLabel="No pairs on factory"
             onChange={onPairChange}
           />
-        )}
+        </LcdQueryGate>
       </div>
 
       {/*

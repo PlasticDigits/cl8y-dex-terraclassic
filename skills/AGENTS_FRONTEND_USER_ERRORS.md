@@ -22,6 +22,7 @@ Use when surfacing **wallet**, **fetch/indexer**, or **mutation** failures in th
 
 ## Related
 
+- **LCD / RPC outage (frozen spinner, auto-reconnect):** [GitLab **#171**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/171), [docs/frontend.md § LCD / RPC connectivity](../docs/frontend.md#lcd-rpc-connectivity), [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md).
 - **Trade page** sub-desktop grid + `trade-sub-lg-workspace`: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)); indexer outage messaging vs. book panels: [docs/frontend.md § Trade page — indexer outage banner](../docs/frontend.md#trade-page-indexer-outage-banner) ([GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)).
 - **Contract-side copy / max spread:** [GitLab **#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md).
 - **Connect modal raw errors (same surface):** [GitLab **#139**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139); supported extension list / no Leap: [docs/frontend.md § Connect modal: extension install detection](../docs/frontend.md#connect-modal-extension-install) ([GitLab **#159**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)).
