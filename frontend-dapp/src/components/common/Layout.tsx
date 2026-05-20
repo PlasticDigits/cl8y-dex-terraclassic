@@ -169,6 +169,14 @@ export default function Layout() {
             </nav>
 
             <div className="app-header-controls">
+              {!showMobileLegalStrip ? (
+                <ThemeSegmentedControl
+                  theme={theme}
+                  onSelect={setThemeAndPersist}
+                  groupClassName="app-header-theme-group"
+                  labelStyle="short"
+                />
+              ) : null}
               <NetworkBadge />
               <WalletButton />
             </div>
@@ -198,12 +206,6 @@ export default function Layout() {
             <p className="app-footer-title">CL8Y DEX · Terra Classic</p>
             <LegalFooterNotice />
           </div>
-          <ThemeSegmentedControl
-            theme={theme}
-            onSelect={setThemeAndPersist}
-            groupClassName="app-footer-theme-group"
-            labelStyle="short"
-          />
         </div>
       </footer>
 

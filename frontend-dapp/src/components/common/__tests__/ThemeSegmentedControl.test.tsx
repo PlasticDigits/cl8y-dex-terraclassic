@@ -12,7 +12,7 @@ describe('ThemeSegmentedControl', () => {
       <ThemeSegmentedControl
         theme="dark"
         onSelect={onSelect}
-        groupClassName="app-footer-theme-group"
+        groupClassName="app-header-theme-group"
         labelStyle="short"
       />
     )
@@ -24,7 +24,7 @@ describe('ThemeSegmentedControl', () => {
       <ThemeSegmentedControl
         theme="light"
         onSelect={onSelect}
-        groupClassName="app-footer-theme-group"
+        groupClassName="app-header-theme-group"
         labelStyle="short"
       />
     )

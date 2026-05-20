@@ -203,6 +203,7 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 | Invariant | Meaning |
 |-----------|---------|
 | Mobile bottom nav | Viewports **`max-width: 767px`**: `.app-desktop-nav` is hidden; primary links use `.app-mobile-nav-shell` + **More** sheet (`MORE_NAV_ITEMS` only — theme toggle stays in that sheet). |
+| Theme toggle placement | **Desktop/tablet (`min-width: 768px`)**: dark/light control in **sticky header** (`.app-header-controls`, `.app-header-theme-group`) — reachable without scrolling long routes ([GitLab **#170**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/170)). **Mobile**: same control in the **More** sheet only (footer chrome hidden). |
 | Tablet compact header | Viewports **`768px`–`1023px`**: header shows **Swap** inline plus **More**; Pool, Limits, Trade, and Charts appear **inside** the header More menu ahead of Trader / Protocol / Fee Tiers / Create Pair (`getHeaderMoreMenuItems(false)` in [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)). |
 | Full desktop header | Viewports **`min-width: 1024px`**: all `PRIMARY_NAV_ITEMS` inline; header More lists **`MORE_NAV_ITEMS` only** (same as pre–#136 wide layout). |
 | Mobile vs header “More” active state | The bottom-tab **More** button highlights only for **`MORE_NAV_ITEMS`** routes; the header **More** trigger uses the expanded tablet list when compact so Pool/Charts/etc. still show an active affordance. |

@@ -1010,8 +1010,10 @@
     font-size: 0.72rem;
   }
 
+  .app-header-theme-group,
   .app-footer-theme-group {
     display: inline-flex;
+    flex-shrink: 0;
     gap: 8px;
   }
 

@@ -4,7 +4,7 @@ type ThemeSegmentedControlProps = {
   theme: ThemeMode
   onSelect: (mode: ThemeMode) => void
   groupClassName: string
-  /** Footer uses short labels; mobile sheet uses longer labels for clarity. */
+  /** Header uses short labels; mobile More sheet uses longer labels for clarity. */
   labelStyle: 'short' | 'long'
 }
 

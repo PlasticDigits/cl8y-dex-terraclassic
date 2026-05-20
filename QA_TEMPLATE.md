@@ -489,7 +489,7 @@
 | 9.2.3 | Nav icons + labels | View nav items | Each has icon and label | | |
 | 9.2.4 | Active nav highlight | Navigate to page | Current page nav item highlighted | | |
 | 9.2.5 | Footer content | View footer | "CL8Y DEX · Terra Classic" text | | |
-| 9.2.6 | Footer theme toggle | View footer | Dark/Light theme toggle present | | |
+| 9.2.6 | Header theme toggle (desktop) | View header at ≥768px width | Dark/Light theme toggle in sticky header (not footer) | | |
 
 ---
 
@@ -503,7 +503,7 @@
 | 10.1.2 | Dark mode | Toggle to dark | Dark theme applied across all pages | | |
 | 10.1.3 | Light mode | Toggle to light | Light theme applied across all pages | | |
 | 10.1.4 | Theme persistence | Set theme → Reload | Theme persists via localStorage (cl8y-dex-theme) | | |
-| 10.1.5 | Theme toggle | Click toggle in footer | Theme switches immediately | | |
+| 10.1.5 | Theme toggle | Click toggle in header (desktop) or More sheet (mobile) | Theme switches immediately (`data-theme` on `<html>`) | | |
 | 10.1.6 | Dark mode readability | Browse all pages in dark mode | All text readable, no invisible elements | | |
 | 10.1.7 | Light mode readability | Browse all pages in light mode | All text readable, no invisible elements | | |
 

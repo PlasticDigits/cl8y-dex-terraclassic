@@ -9,6 +9,7 @@ Use when changing **`Layout.tsx`**, **primary / More nav items**, **`HEADER_FULL
 | [docs/frontend.md § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation) | Breakpoint invariants, mobile vs tablet vs desktop behavior ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)) |
 | [docs/frontend.md § Trade page — responsive layout (sub-desktop)](../docs/frontend.md#trade-page-responsive-layout) | Trade workspace grid below `lg:` — chart + ticket row on tablet ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)); playbook [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) |
 | [docs/frontend.md § Keyboard focus visibility (WCAG 2.4.7)](../docs/frontend.md#keyboard-focus-visible-wcag-247) | `:focus-visible` rings on `.app-nav-link`, `.wallet-trigger`, More/menu triggers ([GitLab **#144**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/144)) |
+| [docs/frontend.md § Responsive shell — theme toggle](#responsive-header-navigation) | Header vs mobile More sheet placement ([GitLab **#170**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/170)); playbook [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md) |
 | `frontend-dapp/src/components/common/navItems.ts` | `PRIMARY_NAV_ITEMS`, `MORE_NAV_ITEMS`, `getHeaderMoreMenuItems`, `HEADER_FULL_NAV_MIN_WIDTH_PX` |
 | `frontend-dapp/src/hooks/useMediaQuery.ts` | Subscribes to `matchMedia` for the full-desktop header breakpoint |
 | `frontend-dapp/src/index.css` | `.app-desktop-nav` vs `.app-mobile-nav-shell` visibility (`max-width: 767px`) |
@@ -21,6 +22,7 @@ Use when changing **`Layout.tsx`**, **primary / More nav items**, **`HEADER_FULL
 
 ## Related
 
+- Theme toggle (header vs mobile More): [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md)
 - Trade page tablet grid (`/trade`): [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Keyboard focus rings / WCAG 2.4.7: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - Production build / source maps: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)

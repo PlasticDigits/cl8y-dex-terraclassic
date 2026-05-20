@@ -122,6 +122,27 @@ test.describe('Navigation', () => {
     await page.goto('/')
     await expect(page.getByText(/CL8Y DEX.*Terra Classic/i)).toBeVisible()
   })
+
+  test('theme toggle lives in sticky header on desktop (GitLab #170)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/pool')
+    await page.waitForLoadState('networkidle')
+
+    const header = page.locator('header.app-header-shell')
+    const themeGroup = header.locator('.app-header-theme-group')
+    await expect(themeGroup).toBeVisible()
+    await expect(themeGroup.getByRole('button', { name: 'Dark' })).toBeVisible()
+    await expect(page.locator('footer .app-footer-theme-group')).toHaveCount(0)
+
+    const stickyTop = await page.locator('.app-top-sticky').boundingBox()
+    const themeBox = await themeGroup.boundingBox()
+    expect(stickyTop).not.toBeNull()
+    expect(themeBox).not.toBeNull()
+    expect(themeBox!.y + themeBox!.height).toBeLessThanOrEqual(stickyTop!.y + stickyTop!.height + 2)
+
+    await themeGroup.getByRole('button', { name: 'Light' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  })
 })
 
 test.describe('Mobile navigation', () => {
