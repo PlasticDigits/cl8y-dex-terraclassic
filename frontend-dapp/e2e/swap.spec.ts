@@ -40,6 +40,21 @@ test.describe('Swap Page', () => {
       await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible()
     })
 
+    test('Settings surfaces MEV / submission posture disclosure (GitLab #168)', async ({ page }) => {
+      await page.goto('/')
+      await page.waitForLoadState('networkidle')
+      await expect(page.getByTestId('swap-mev-posture-notice')).toHaveCount(0)
+      await page.getByRole('button', { name: 'Settings' }).click()
+      const notice = page.getByTestId('swap-mev-posture-notice')
+      await expect(notice).toBeVisible()
+      await expect(notice).toContainText(/public.*mempool/i)
+      await expect(notice).toContainText(/does not offer/i)
+      await expect(notice.getByRole('link', { name: /docs\/frontend\.md#swap-mev-posture/i })).toHaveAttribute(
+        'href',
+        /swap-mev-posture/
+      )
+    })
+
     test('has a swap direction toggle button', async ({ page }) => {
       await page.goto('/')
       await page.waitForLoadState('networkidle')

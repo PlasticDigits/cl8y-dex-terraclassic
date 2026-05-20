@@ -498,6 +498,22 @@ The Swap page displays the effective fee after discount. When a connected wallet
 
 **Route preview (GitLab [#158](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/158)):** The **Route** line lives in the same trade-summary card as **Price impact** and **Min received** (no separate “quote source” strip, no paired `Route (indexer)` / `Route` labels). The displayed token path follows the same precedence as submit: indexer-shaped `router_operations` when present, otherwise the client BFS route, native wrap path, or a direct `from → to`. Code: [`swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts). Agent checklist: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md).
 
+### Swap page — MEV / submission posture {#swap-mev-posture}
+
+Retail traders must understand how swaps reach the chain ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), W10-C3). The **Settings** panel on `/` includes an informational card (**Transaction submission (MEV)**) alongside slippage, the direct **limit book leg** controls, and **Indexer route check**.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Public mempool default** | All swaps are signed in the connected wallet and broadcast to the **public** Terra Classic mempool via the wallet’s normal RPC path. The dApp does **not** submit through a private relay, bundle, or Flashbots-style channel. |
+| **No cosmetic MEV toggle** | There is **no** MEV-protection checkbox in this build. Do not add a disabled toggle that implies protection exists elsewhere — use disclosure copy until a real protected path is wired end-to-end. |
+| **Slippage is the on-chain guard** | **Slippage tolerance** (`max_spread` on pair/router messages) is the primary contract-level protection against sandwich / front-running losses; the notice references the active Settings value. High slippage also shows the existing **front-running risk** warning above the MEV card. |
+| **Settings visibility** | The notice renders only when **Settings** is expanded (`data-testid="swap-mev-posture-notice"`), same surface as routing tools in the issue repro. |
+| **Copy single source** | Strings live in [`mevPosture.ts`](../frontend-dapp/src/utils/mevPosture.ts); UI in [`MevPostureNotice.tsx`](../frontend-dapp/src/components/swap/MevPostureNotice.tsx). |
+
+Related: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md) (price impact / max spread) · [`docs/limit-orders.md`](./limit-orders.md) (hybrid routing disclosure — GitLab #111).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_MEV_POSTURE.md`](../skills/AGENTS_FRONTEND_MEV_POSTURE.md).
+
 ### Tiers Page
 
 The `/tiers` page allows users to:
