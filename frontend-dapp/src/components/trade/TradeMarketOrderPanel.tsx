@@ -24,6 +24,7 @@ import {
   type PairInfo,
 } from '@/types'
 import { getDecimals, toRawAmount, fromRawAmount, formatTokenAmount } from '@/utils/formatAmount'
+import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
@@ -68,9 +69,16 @@ function computeHybridParams(
     return { hybrid: undefined, willSubmitHybrid: false }
   }
   const dec = getDecimals(tokenAssetInfo(fromToken))
-  const bookRawStr = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), dec) : rawTotal
-  const total = BigInt(rawTotal)
-  const book = BigInt(bookRawStr)
+  const bookHuman = bookInputHuman.trim()
+  if (bookHuman && !isDecimalAmountDraft(bookHuman)) {
+    return { hybrid: undefined, willSubmitHybrid: false }
+  }
+  const bookRawStr = bookHuman ? toRawAmount(bookHuman, dec) : rawTotal
+  const total = tryParseBigInt(rawTotal)
+  const book = tryParseBigInt(bookRawStr)
+  if (total === null || book === null) {
+    return { hybrid: undefined, willSubmitHybrid: false }
+  }
   if (book <= 0n) return { hybrid: undefined, willSubmitHybrid: false }
   if (book > total) return { hybrid: undefined, willSubmitHybrid: false }
   const pool = total - book
@@ -409,9 +417,14 @@ export function TradeMarketOrderPanel({
             </label>
             <input
               id={bookLegInputId}
+              type="text"
+              inputMode="decimal"
               className="input-neo !text-xs w-full font-mono"
               value={bookInputHuman}
-              onChange={(e) => setBookInputHuman(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                if (isDecimalAmountDraft(v)) setBookInputHuman(v)
+              }}
               placeholder="Leave empty for 100% book leg"
             />
           </div>

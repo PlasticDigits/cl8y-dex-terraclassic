@@ -136,6 +136,20 @@ Friendly failure copy should flow through **`humanizeUserFacingError`** ([`front
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
+### Decimal amount inputs {#decimal-amount-inputs}
+
+Retail **human amount** fields (Swap **You Pay**, Settings **book leg amount**, Trade market **book leg override**, etc.) must not pass invalid keystrokes into **`toRawAmount`** / **`BigInt()`** — users must never see raw JS errors such as `Cannot convert … to a BigInt` ([GitLab **#169**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169), W10-C4 locale / number format).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Draft regex | Only **`''`**, digits, and at most one **`.`** are accepted in controlled inputs — use **`isDecimalAmountDraft`** from [`decimalAmountInput.ts`](../frontend-dapp/src/utils/decimalAmountInput.ts) (same rule as Swap **You Pay**). |
+| Reject at `onChange` | Invalid characters are **not** stored; no toast, modal, or query error for typos. |
+| Locale commas | **`,`** is not auto-normalized to **`.`** in these fields; European decimal commas are rejected at the field (product uses `.` only). |
+| Downstream safety | **`getDirectHybridBookSplit`** / trade hybrid helpers return **`null`** (no throw) when the book draft is invalid; raw chain integers use **`tryParseBigInt`**. |
+| Regression tests | [`decimalAmountInput.test.ts`](../frontend-dapp/src/utils/decimalAmountInput.test.ts), [`swapDisclosure.test.ts`](../frontend-dapp/src/utils/swapDisclosure.test.ts), [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx). |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md`](../skills/AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md).
+
 ### Terra Classic gas limits (router `execute_swap_operations`) {#terra-classic-gas-limits}
 
 The dApp does **not** LCD-simulate every swap before broadcast. Instead, `executeTerraContract` / `executeTerraContractMulti` in [`frontend-dapp/src/services/terraclassic/transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) set **Cosmos `Fee.gas`** from typed constants in [`frontend-dapp/src/utils/constants.ts`](../frontend-dapp/src/utils/constants.ts). **Underestimating gas causes on-chain `out of gas` after the wallet signs** (users still pay fees for failed txs).

@@ -36,6 +36,7 @@ import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
@@ -741,9 +742,14 @@ export default function SwapPage() {
                         </label>
                         <input
                           id={swapHybridBookLegAmountInputId}
+                          type="text"
+                          inputMode="decimal"
                           className="input-neo !text-xs w-full"
                           value={bookInputHuman}
-                          onChange={(e) => setBookInputHuman(e.target.value)}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            if (isDecimalAmountDraft(v)) setBookInputHuman(v)
+                          }}
                           placeholder="0.0"
                         />
                       </div>

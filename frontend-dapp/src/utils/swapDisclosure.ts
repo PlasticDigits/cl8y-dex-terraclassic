@@ -1,4 +1,5 @@
 import { tokenAssetInfo, type IndexerRouteQuoteKind } from '@/types'
+import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { fromRawAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
 
 /** Same pool/book split as `SwapPage` / `swap` mutation for direct CW20 + Settings “limit book leg”. */
@@ -31,9 +32,14 @@ export function getDirectHybridBookSplit(input: {
   }
   const pay = tokenAssetInfo(input.fromToken)
   const dec = getDecimals(pay)
-  const bookRaw = input.bookInputHuman.trim() ? toRawAmount(input.bookInputHuman.trim(), dec) : '0'
-  const total = BigInt(input.rawInputAmount || '0')
-  const book = BigInt(bookRaw)
+  const bookHuman = input.bookInputHuman.trim()
+  if (bookHuman && !isDecimalAmountDraft(bookHuman)) {
+    return null
+  }
+  const bookRaw = bookHuman ? toRawAmount(bookHuman, dec) : '0'
+  const total = tryParseBigInt(input.rawInputAmount || '0')
+  const book = tryParseBigInt(bookRaw)
+  if (total === null || book === null) return null
   if (book > total) {
     return {
       totalRaw: input.rawInputAmount,

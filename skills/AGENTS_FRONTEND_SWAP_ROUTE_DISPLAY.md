@@ -19,6 +19,7 @@ Use this skill when changing **Swap** (`/`) quote UX, **route preview** copy, or
 
 ## Docs cross-links
 
+- **Hybrid book leg amount input (no raw `BigInt` errors):** [GitLab **#169**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169), [`AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md`](./AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md).
 - [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) — frontend invariant **#5** (route preview) and price-impact context (**#134**).
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md#frontend-expectations-read-path) — indexer `router_operations` vs LCD spread preflight.
 - [`docs/frontend.md`](../docs/frontend.md#swap-page-integration) — Swap page integration section.

@@ -53,6 +53,19 @@ describe('getDirectHybridBookSplit', () => {
     expect(s!.bookExceedsPay).toBe(false)
   })
 
+  it('returns null for invalid book leg draft (no BigInt throw)', () => {
+    expect(
+      getDirectHybridBookSplit({
+        isDirect: true,
+        useHybridBook: true,
+        fromToken: CW,
+        bookInputHuman: '4^0',
+        rawInputAmount: '1000000',
+        hybridMaxMakers: 8,
+      })
+    ).toBeNull()
+  })
+
   it('marks bookExceedsPay when book > total', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,

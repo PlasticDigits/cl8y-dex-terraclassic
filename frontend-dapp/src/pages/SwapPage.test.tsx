@@ -152,4 +152,39 @@ describe('SwapPage', () => {
     expect(execution).toHaveTextContent(/Execution:\s*Indexer hybrid/i)
     expect(execution).toHaveTextContent(/Hybrid \(pool \+ limit book\)/i)
   })
+
+  it('rejects invalid characters in book leg amount without surfacing BigInt errors', async () => {
+    const user = userEvent.setup()
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+    ] as never)
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i }))
+    const bookInput = screen.getByPlaceholderText('0.0')
+    await user.type(bookInput, '1^2')
+    expect(bookInput).toHaveValue('12')
+    expect(screen.queryByText(/Cannot convert/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Something went wrong/i)).not.toBeInTheDocument()
+  })
 })
