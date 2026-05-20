@@ -88,6 +88,22 @@ describe('SwapPage', () => {
     expect(await screen.findByRole('heading', { name: /^swap$/i })).toBeInTheDocument()
   })
 
+  it('shows MEV posture disclosure in Settings (GitLab #168)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await screen.findByRole('heading', { name: /^swap$/i })
+    expect(screen.queryByTestId('swap-mev-posture-notice')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const notice = screen.getByTestId('swap-mev-posture-notice')
+    expect(notice).toHaveTextContent(/public.*mempool/i)
+    expect(notice).toHaveTextContent(/does not offer/i)
+    expect(notice).toHaveTextContent(/slippage tolerance/i)
+    expect(within(notice).getByRole('link', { name: /docs\/frontend\.md#swap-mev-posture/i })).toHaveAttribute(
+      'href',
+      expect.stringContaining('swap-mev-posture')
+    )
+  })
+
   it('shows loading pairs state while factory pairs fetch is pending', async () => {
     let resolvePairs!: (value: { pairs: [] }) => void
     vi.mocked(getAllPairsPaginated).mockImplementation(

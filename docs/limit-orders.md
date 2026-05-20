@@ -8,6 +8,8 @@ This document is the implementation reference for the hybrid AMM + FIFO limit bo
 
 The Swap UI must show **before submit** whether execution is **hybrid (pool + limit book)** vs **pool-only** when a book leg is configured, and it must not hide the fact that a **pool `Simulation` quote** can disagree with a **submitted hybrid** (see L8 in [contracts-security-audit.md](./contracts-security-audit.md)). Implementation: [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) and the pure split helper [`frontend-dapp/src/utils/swapDisclosure.ts`](../frontend-dapp/src/utils/swapDisclosure.ts). Product/QA: [GitLab #111](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/111).
 
+**MEV / mempool posture** (separate from hybrid routing): Swap **Settings** discloses that txs use the **public mempool** and that **slippage** is the on-chain sandwich guard — no MEV-protection toggle in this build. See [`docs/frontend.md#swap-mev-posture`](./frontend.md#swap-mev-posture) · [GitLab #168](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168) · [`skills/AGENTS_FRONTEND_MEV_POSTURE.md`](../skills/AGENTS_FRONTEND_MEV_POSTURE.md).
+
 **Invariants**
 
 - **Pool `Simulation` / pool-only multihop sim** does not include the on-chain book; the pair’s `Simulation` query is reserves-only.

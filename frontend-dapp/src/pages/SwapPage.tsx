@@ -42,6 +42,7 @@ import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOpera
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
+import { MevPostureNotice } from '@/components/swap/MevPostureNotice'
 
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
@@ -716,6 +717,7 @@ export default function SwapPage() {
                   </p>
                 )}
               </div>
+              <MevPostureNotice slippageTolerancePct={slippageTolerance} />
               {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
                 <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
                   <p className="label-neo mb-2">Advanced — direct swap: limit book leg</p>
