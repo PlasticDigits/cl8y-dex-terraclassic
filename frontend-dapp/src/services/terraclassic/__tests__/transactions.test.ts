@@ -125,6 +125,35 @@ describe('executeTerraContract', () => {
     await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow('Network error')
   })
 
+  it('rejects when broadcastTx does not settle within the timeout ([GitLab #173])', async () => {
+    vi.useFakeTimers()
+    mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
+    mockBroadcastTx.mockReturnValueOnce(new Promise(() => {}))
+
+    const pending = executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
+    const assertion = expect(pending).rejects.toThrow(
+      'Could not broadcast the transaction. Check your connection and try again.'
+    )
+    await vi.advanceTimersByTimeAsync(30_000)
+    await assertion
+    vi.useRealTimers()
+  })
+
+  it('rejects when pollTx does not settle within the timeout ([GitLab #173])', async () => {
+    vi.useFakeTimers()
+    mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
+    mockBroadcastTx.mockResolvedValueOnce('POLLTIMEOUT')
+    mockPollTx.mockReturnValueOnce(new Promise(() => {}))
+
+    const pending = executeTerraContract('terra1sender', 'terra1contract', { swap: {} })
+    const assertion = expect(pending).rejects.toThrow(
+      'Transaction confirmation timed out. Check your connection and try again.'
+    )
+    await vi.advanceTimersByTimeAsync(90_000)
+    await assertion
+    vi.useRealTimers()
+  })
+
   it('wraps unknown string errors', async () => {
     mockedGetWallet.mockReturnValueOnce(mockConnectedWallet as never)
     mockBroadcastTx.mockRejectedValueOnce('something went wrong')

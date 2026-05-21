@@ -11,6 +11,13 @@ import {
   effectiveGasPriceUluna,
 } from '@/utils/constants'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
+import {
+  TERRA_TX_BROADCAST_TIMEOUT_MESSAGE,
+  TERRA_TX_BROADCAST_TIMEOUT_MS,
+  TERRA_TX_POLL_TIMEOUT_MESSAGE,
+  TERRA_TX_POLL_TIMEOUT_MS,
+} from '@/utils/terraTxTimeout'
+import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
 const BASE_GAS_LIMIT = 200000
 const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching uses more gas than pool-only swaps. */
@@ -198,8 +205,16 @@ export async function executeTerraContract(
     const gasLimit = getGasLimitForTx(executeMsg)
     const fee = estimateTerraClassicFee(gasLimit)
 
-    const txHash = await wallet.broadcastTx(unsignedTx, fee)
-    const { txResponse } = await wallet.pollTx(txHash)
+    const txHash = await withPromiseTimeout(
+      wallet.broadcastTx(unsignedTx, fee),
+      TERRA_TX_BROADCAST_TIMEOUT_MS,
+      TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+    )
+    const { txResponse } = await withPromiseTimeout(
+      wallet.pollTx(txHash),
+      TERRA_TX_POLL_TIMEOUT_MS,
+      TERRA_TX_POLL_TIMEOUT_MESSAGE
+    )
 
     if (txResponse.code !== 0) {
       const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
@@ -250,8 +265,16 @@ export async function executeTerraContractMulti(
     const totalGas = messages.reduce((sum, m) => sum + getGasLimitForTx(m.msg), 0)
     const fee = estimateTerraClassicFee(totalGas)
 
-    const txHash = await wallet.broadcastTx(unsignedTx, fee)
-    const { txResponse } = await wallet.pollTx(txHash)
+    const txHash = await withPromiseTimeout(
+      wallet.broadcastTx(unsignedTx, fee),
+      TERRA_TX_BROADCAST_TIMEOUT_MS,
+      TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+    )
+    const { txResponse } = await withPromiseTimeout(
+      wallet.pollTx(txHash),
+      TERRA_TX_POLL_TIMEOUT_MS,
+      TERRA_TX_POLL_TIMEOUT_MESSAGE
+    )
 
     if (txResponse.code !== 0) {
       const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
@@ -269,6 +292,10 @@ export async function executeTerraContractMulti(
 function handleTransactionError(error: unknown): Error {
   if (error instanceof Error) {
     const errorMessage = error.message
+
+    if (errorMessage === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || errorMessage === TERRA_TX_POLL_TIMEOUT_MESSAGE) {
+      return error
+    }
 
     if (
       errorMessage.includes('User rejected') ||

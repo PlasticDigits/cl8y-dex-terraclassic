@@ -123,6 +123,25 @@ Regression: [`lcdConnectivity.test.ts`](../frontend-dapp/src/utils/__tests__/lcd
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](../skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md); error copy funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
+### Transaction broadcast / confirmation timeout (W11-C3) {#terra-tx-broadcast-timeout}
+
+Wallet **`broadcastTx`** and LCD **`pollTx`** must not hang indefinitely when the browser or wallet RPC is offline or stalled. After bounded waits, mutations fail with retail copy and the submit control re-enables via React Query **`isPending`** clearing ([GitLab **#173**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/173)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Broadcast cap | **`executeTerraContract`** / **`executeTerraContractMulti`** wrap **`wallet.broadcastTx`** with **`withPromiseTimeout`** and **`TERRA_TX_BROADCAST_TIMEOUT_MS`** (default **30s**, override **`VITE_TERRA_TX_BROADCAST_TIMEOUT_MS`**). |
+| Poll cap | **`wallet.pollTx`** uses **`TERRA_TX_POLL_TIMEOUT_MS`** (default **90s**, override **`VITE_TERRA_TX_POLL_TIMEOUT_MS`**) so slow LocalTerra blocks can still confirm while offline hangs still surface. |
+| Broadcast copy | Timeout message: **`TERRA_TX_BROADCAST_TIMEOUT_MESSAGE`** — *"Could not broadcast the transaction. Check your connection and try again."* |
+| Poll copy | Timeout message: **`TERRA_TX_POLL_TIMEOUT_MESSAGE`** — *"Transaction confirmation timed out. Check your connection and try again."* |
+| Pass-through errors | **`handleTransactionError`** returns timeout messages unchanged (no `Transaction failed:` prefix); **`TxResultAlert`** still humanizes via the standard funnel. |
+| All on-chain submits | Applies to limit place/cancel, swaps, pool add/withdraw, and any path using **`transactions.ts`** — not only `/trade`. |
+
+Implementation: [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.ts), [`withPromiseTimeout.ts`](../frontend-dapp/src/utils/withPromiseTimeout.ts), [`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts).
+
+Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](../skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md).
+
 ### User-facing errors (wallet, fetch, indexer, tx) {#user-facing-errors-humanization}
 
 Friendly failure copy should flow through **`humanizeUserFacingError`** ([`frontend-dapp/src/utils/humanizeUserFacingError.ts`](../frontend-dapp/src/utils/humanizeUserFacingError.ts)): it applies **`tryHumanizeTerraTxMessage`** first (on-chain / LCD patterns from [GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)), then wallet and transport classifiers in [`humanizeOffChainError.ts`](../frontend-dapp/src/utils/humanizeOffChainError.ts) ([GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).
