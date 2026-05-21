@@ -5,7 +5,7 @@ import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHisto
 import { useQuery } from '@tanstack/react-query'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { getPair, getTrades, INDEXER_URL } from '@/services/indexer/client'
+import { getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { MenuSelect, TradesTable, RetryError, Skeleton } from '@/components/ui'
@@ -18,7 +18,11 @@ import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
-import { TRADE_INDEXER_OUTAGE_BANNER_LEAD, TRADE_INDEXER_OUTAGE_BANNER_TAIL } from '@/utils/indexerTradeOutageCopy'
+import {
+  TRADE_INDEXER_OUTAGE_BANNER_LEAD,
+  TRADE_INDEXER_OUTAGE_BANNER_TAIL,
+  TRADE_INDEXER_OUTAGE_BANNER_TITLE,
+} from '@/utils/indexerTradeOutageCopy'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import type { IndexerPair } from '@/types'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
@@ -135,8 +139,8 @@ export default function TradePage() {
 
       {indexerDown && (
         <div className="alert-warning text-sm" role="alert" data-testid="trade-indexer-outage-banner">
-          Indexer unavailable at <code className="font-mono text-[11px]">{INDEXER_URL}</code>.{' '}
-          {TRADE_INDEXER_OUTAGE_BANNER_LEAD}; {TRADE_INDEXER_OUTAGE_BANNER_TAIL}
+          <span className="font-semibold">{TRADE_INDEXER_OUTAGE_BANNER_TITLE}</span> {TRADE_INDEXER_OUTAGE_BANNER_LEAD}{' '}
+          {TRADE_INDEXER_OUTAGE_BANNER_TAIL}
         </div>
       )}
 
