@@ -1,20 +1,28 @@
 import { describe, it, expect } from 'vitest'
-import { TRADE_INDEXER_OUTAGE_BANNER_LEAD, TRADE_INDEXER_OUTAGE_BANNER_TAIL } from '../indexerTradeOutageCopy'
+import {
+  TRADE_INDEXER_OUTAGE_BANNER_LEAD,
+  TRADE_INDEXER_OUTAGE_BANNER_TAIL,
+  TRADE_INDEXER_OUTAGE_BANNER_TITLE,
+} from '../indexerTradeOutageCopy'
 
 describe('indexerTradeOutageCopy', () => {
+  const combined = `${TRADE_INDEXER_OUTAGE_BANNER_TITLE} ${TRADE_INDEXER_OUTAGE_BANNER_LEAD} ${TRADE_INDEXER_OUTAGE_BANNER_TAIL}`
+
   it('does not claim order book still works via chain only (GitLab #164)', () => {
-    const combined = `${TRADE_INDEXER_OUTAGE_BANNER_LEAD} ${TRADE_INDEXER_OUTAGE_BANNER_TAIL}`.toLowerCase()
-    expect(combined).not.toContain('still use chain')
-    expect(combined).not.toContain('where applicable')
+    expect(combined.toLowerCase()).not.toContain('still use chain')
+    expect(combined.toLowerCase()).not.toContain('where applicable')
   })
 
   it('mentions limit reference pool fallback when tape is missing (GitLab #166)', () => {
     expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/#166|166/i)
-    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/pool|LCD/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/pool|wallet/i)
   })
 
-  it('names degraded trade surfaces (indexer dependency)', () => {
+  it('names degraded trade surfaces without exposing env URLs (GitLab #174)', () => {
+    expect(TRADE_INDEXER_OUTAGE_BANNER_TITLE).toMatch(/market data service/i)
     expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/order book|chart|tape|swap|limit/i)
-    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/unavailable|degraded/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/limited|recovers/i)
+    expect(combined).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
+    expect(combined.toLowerCase()).not.toContain('indexer unavailable at')
   })
 })

@@ -9,9 +9,14 @@
  *
  * **GitLab #166:** limit *reference price* for the place gate may use on-chain pool
  * reserves (LCD) when tape is missing; the banner tail states this explicitly.
+ *
+ * **GitLab #174:** retail copy must not expose `VITE_INDEXER_URL`, hostnames, or
+ * “indexer” jargon — use “market data service” and plain-language recovery hints.
  */
+export const TRADE_INDEXER_OUTAGE_BANNER_TITLE = 'Market data service unavailable.'
+
 export const TRADE_INDEXER_OUTAGE_BANNER_LEAD =
-  'Chart, tape, order book depth, and most swap/limit ticket features need a reachable indexer'
+  'Chart, tape, order book depth, and most swap/limit ticket features may be limited until the service recovers.'
 
 export const TRADE_INDEXER_OUTAGE_BANNER_TAIL =
-  'Expect those surfaces to be unavailable or degraded until the indexer is back or VITE_INDEXER_URL is corrected. Limit price reference (buy-below / sell-above) can fall back to AMM pool reserves via your wallet LCD when indexed tape is missing ([GitLab #166](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)).'
+  'Limit price reference (buy-below / sell-above) can still use on-chain pool reserves via your wallet when recent trade history is missing ([GitLab #166](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)).'

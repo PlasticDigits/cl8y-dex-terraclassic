@@ -139,8 +139,8 @@ describe('TradePage', () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
     const banner = await screen.findByTestId('trade-indexer-outage-banner')
-    expect(banner.textContent).toContain('Indexer unavailable')
-    expect(banner.textContent).not.toMatch(/still use chain/i)
+    expect(banner.textContent).toMatch(/market data service unavailable/i)
+    expect(banner.textContent).not.toMatch(/still use chain|VITE_INDEXER_URL|127\.0\.0\.1/i)
     expect(banner.textContent).toMatch(/order book|chart|tape/i)
   })
 })
