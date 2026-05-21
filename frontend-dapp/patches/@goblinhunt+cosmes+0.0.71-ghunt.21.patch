@@ -203,7 +203,9 @@ diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExte
 index 8f3c2a1..c4a8f12 100644
 --- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
 +++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
-@@ -2,6 +2,32 @@ import { RpcClient, Tx, } from "../../../client/index.js";
+@@ -1,7 +1,57 @@
+ import { RpcClient, Tx, } from "../../../client/index.js";
++import { CosmosTxV1beta1AuthInfo as ProtoAuthInfo, } from "../../../protobufs/index.js";
  import { WalletType } from "../../constants/WalletType.js";
  import { ConnectedWallet, } from "../ConnectedWallet.js";
  import { WalletError } from "../WalletError.js";
@@ -212,31 +214,54 @@ index 8f3c2a1..c4a8f12 100644
 +    preferNoSetFee: true,
 +    preferNoSetMemo: true,
 +};
++const EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX = "Wallet signed a fee far below what this dApp submitted (GitLab #127).";
++function extensionSignedFeeUndershootError(expectedUluna, signedUluna) {
++    return new Error(`${EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX} On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run \`cd frontend-dapp && npm ci\` so the cosmes patch is applied, then retry. Expected at least ~${expectedUluna} uluna; wallet returned ~${signedUluna} uluna.`);
++}
 +/** Reject broadcast when a wallet rewrites fees far below the dApp `Fee` (Station LocalTerra repro: ~3000 uluna). */
 +function ulunaFromAminoFee(fee) {
 +    const coin = fee?.amount?.find((c) => c.denom === "uluna");
 +    return coin?.amount ? BigInt(coin.amount) : 0n;
 +}
++function ulunaFromDirectSignedAuthInfoBytes(authInfoBytes) {
++    if (!authInfoBytes?.length)
++        return 0n;
++    const auth = ProtoAuthInfo.fromBinary(authInfoBytes);
++    const coin = auth.fee?.amount?.find((c) => c.denom === "uluna");
++    return coin?.amount ? BigInt(coin.amount) : 0n;
++}
 +function assertExtensionSignedFeeMeetsExpected(signedDoc, expectedFee, chainId) {
 +    const isLocalTerra = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
-+    if (!isLocalTerra || !signedDoc?.fee)
++    if (!isLocalTerra)
 +        return;
 +    const expectedCoin = expectedFee?.amount?.find((c) => c.denom === "uluna");
 +    const expectedUluna = expectedCoin?.amount ? BigInt(expectedCoin.amount) : 0n;
 +    if (expectedUluna <= 0n)
 +        return;
++    if (!signedDoc?.fee)
++        throw extensionSignedFeeUndershootError(expectedUluna, 0n);
 +    const signedUluna = ulunaFromAminoFee(signedDoc.fee);
-+    if (signedUluna > 0n && signedUluna < expectedUluna / 2n) {
-+        throw new Error("Wallet signed a fee far below what this dApp submitted (GitLab #127). " +
-+            "On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. " +
-+            "Run `cd frontend-dapp && npm ci` so the cosmes patch is applied, then retry. " +
-+            `Expected at least ~${expectedUluna} uluna; wallet returned ~${signedUluna} uluna.`);
-+    }
++    if (signedUluna >= expectedUluna / 2n)
++        return;
++    throw extensionSignedFeeUndershootError(expectedUluna, signedUluna);
++}
++function assertExtensionSignedDirectFeeMeetsExpected(signed, expectedFee, chainId) {
++    const isLocalTerra = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
++    if (!isLocalTerra)
++        return;
++    const expectedCoin = expectedFee?.amount?.find((c) => c.denom === "uluna");
++    const expectedUluna = expectedCoin?.amount ? BigInt(expectedCoin.amount) : 0n;
++    if (expectedUluna <= 0n)
++        return;
++    const signedUluna = ulunaFromDirectSignedAuthInfoBytes(signed.authInfoBytes);
++    if (signedUluna >= expectedUluna / 2n)
++        return;
++    throw extensionSignedFeeUndershootError(expectedUluna, signedUluna);
 +}
  export class KeplrExtension extends ConnectedWallet {
      constructor(walletName, label, ext, chainId, pubKey, address, rpc, gasPrice, useAmino) {
          super(walletName, WalletType.EXTENSION, label, chainId, pubKey, address, rpc, gasPrice);
-@@ -43,11 +69,12 @@ export class KeplrExtension extends ConnectedWallet {
+@@ -43,11 +93,13 @@
          };
          let txRaw;
          if (this.useAmino) {
@@ -248,6 +273,7 @@ index 8f3c2a1..c4a8f12 100644
          else {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params)));
 +            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params), EXTENSION_SIGN_OPTIONS));
++            assertExtensionSignedDirectFeeMeetsExpected(signed, fee, this.chainId);
              txRaw = tx.toSignedDirect(signed, signature.signature);
          }
          return RpcClient.broadcastTx(this.rpc, txRaw);

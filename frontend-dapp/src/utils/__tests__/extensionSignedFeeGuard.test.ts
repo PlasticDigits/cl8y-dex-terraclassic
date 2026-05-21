@@ -33,6 +33,26 @@ describe('extensionSignedFeeGuard (GitLab #127)', () => {
     ).toBeNull()
   })
 
+  it('flags missing signed fee on LocalTerra', () => {
+    const msg = extensionSignedFeeUndershootMessage(
+      {},
+      { amount: [{ denom: 'uluna', amount: '5665000' }] },
+      'localterra'
+    )
+    expect(msg).toMatch(/GitLab #127/)
+    expect(msg).toMatch(/returned ~0 uluna/)
+  })
+
+  it('flags zero uluna signed fee on LocalTerra', () => {
+    const msg = extensionSignedFeeUndershootMessage(
+      { fee: { amount: [{ denom: 'uluna', amount: '0' }] } },
+      { amount: [{ denom: 'uluna', amount: '5665000' }] },
+      'localterra'
+    )
+    expect(msg).toMatch(/GitLab #127/)
+    expect(msg).toMatch(/returned ~0 uluna/)
+  })
+
   it('skips validation on mainnet chain id', () => {
     expect(
       extensionSignedFeeUndershootMessage(

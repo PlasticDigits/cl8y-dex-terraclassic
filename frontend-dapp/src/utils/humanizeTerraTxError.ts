@@ -4,6 +4,7 @@
  * Wallet / fetch / indexer transport copy is classified in `humanizeOffChainError.ts` and composed via `humanizeUserFacingError.ts` ([GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).
  */
 
+import { EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX } from './extensionSignedFeeGuard'
 import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUserMessage'
 import { humanizeExpiredLimitClaimMessage } from './limitClaimUserMessage'
 
@@ -38,34 +39,31 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
     )
   }
   if (/assert_not_paused|contract is paused/i.test(inner)) {
-    return (
-      'This pool is currently paused by the operator. Try again later or pick a different pair.'
-    )
+    return 'This pool is currently paused by the operator. Try again later or pick a different pair.'
   }
   if (/\bUnauthorized\b/i.test(inner)) {
-    return (
-      'You do not have permission for this action.'
-    )
+    return 'You do not have permission for this action.'
+  }
+  if (inner.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX)) {
+    return inner
+  }
+  if (/insufficient fees/i.test(inner)) {
+    const got3000 = /got:\s*"?3000uluna"?/i.test(inner)
+    return got3000
+      ? 'Insufficient LUNC for transaction fees (wallet signed ~3000 uluna on LocalTerra). Disconnect Station, reconnect, approve any LocalTerra chain update, run `cd frontend-dapp && npm ci`, then retry Place limit/bid.'
+      : 'Insufficient LUNC for transaction fees. Top up your wallet and try again.'
   }
   if (/insufficient funds/i.test(inner)) {
-    return (
-      'Insufficient LUNC for transaction fees. Top up your wallet and try again.'
-    )
+    return 'Insufficient LUNC for transaction fees. Top up your wallet and try again.'
   }
   if (/out of gas/i.test(inner)) {
-    return (
-      'Transaction needed more gas than estimated. Try again — gas usage can vary slightly between blocks.'
-    )
+    return 'Transaction needed more gas than estimated. Try again — gas usage can vary slightly between blocks.'
   }
   if (/assert_deadline|deadline exceeded/i.test(inner)) {
-    return (
-      'Transaction took too long to confirm and the deadline was reached. Try again.'
-    )
+    return 'Transaction took too long to confirm and the deadline was reached. Try again.'
   }
   if (/InvariantViolation/i.test(inner)) {
-    return (
-      'Pool state inconsistency detected. Refresh the page and try again. If this keeps happening, the pool may need operator attention.'
-    )
+    return 'Pool state inconsistency detected. Refresh the page and try again. If this keeps happening, the pool may need operator attention.'
   }
   return null
 }

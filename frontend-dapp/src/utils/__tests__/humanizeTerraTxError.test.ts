@@ -8,7 +8,7 @@ describe('stripNestedTransactionFailedPrefixes', () => {
 
   it('strips repeated prefixes', () => {
     expect(
-      stripNestedTransactionFailedPrefixes('Transaction failed: Transaction failed: Transaction failed: out of gas'),
+      stripNestedTransactionFailedPrefixes('Transaction failed: Transaction failed: Transaction failed: out of gas')
     ).toBe('out of gas')
   })
 
@@ -63,9 +63,27 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
     })
 
     it('does not false-match on substring "authoriz" inside other words', () => {
-      const raw = 'failed to execute message; message index: 0: pre-authorization not found: execute wasm contract failed'
+      const raw =
+        'failed to execute message; message index: 0: pre-authorization not found: execute wasm contract failed'
       const out = tryHumanizeTerraTxMessage(raw)
       expect(out).toBeNull()
+    })
+  })
+
+  describe('insufficient fees (GitLab #127)', () => {
+    it('humanizes LocalTerra Station 3000 uluna repro', () => {
+      const raw = 'insufficient fees; got: "3000uluna", required: "5665000uluna" (gas) [+ ""(tax)]: insufficient fee'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).not.toBeNull()
+      expect(out).toContain('3000 uluna')
+      expect(out).toContain('npm ci')
+    })
+
+    it('humanizes generic insufficient fees', () => {
+      const raw = 'broadcast failed: insufficient fees for gas'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).not.toBeNull()
+      expect(out).toContain('LUNC')
     })
   })
 
