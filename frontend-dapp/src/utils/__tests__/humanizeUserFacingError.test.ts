@@ -16,7 +16,9 @@ describe('tryHumanizeWalletLikeMessage', () => {
   })
 
   it('maps missing extension', () => {
-    expect(tryHumanizeWalletLikeMessage('Failed to connect Keplr: Keplr extension is not installed')).toMatch(/not found/)
+    expect(tryHumanizeWalletLikeMessage('Failed to connect Keplr: Keplr extension is not installed')).toMatch(
+      /not found/
+    )
   })
 
   it('maps WalletConnect partial success', () => {
@@ -27,6 +29,14 @@ describe('tryHumanizeWalletLikeMessage', () => {
 })
 
 describe('tryHumanizeFetchLikeMessage', () => {
+  it('maps dynamic import chunk failures before generic fetch', () => {
+    expect(
+      tryHumanizeFetchLikeMessage(
+        'TypeError: Failed to fetch dynamically imported module: http://localhost:3000/src/pages/SwapPage.tsx'
+      )
+    ).toMatch(/could not load/)
+  })
+
   it('maps Failed to fetch', () => {
     expect(tryHumanizeFetchLikeMessage('TypeError: Failed to fetch')).toMatch(/Network request failed/)
   })

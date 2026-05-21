@@ -37,6 +37,10 @@ export function tryHumanizeFetchLikeMessage(message: string): string | null {
   const m = norm(message)
   if (!m) return null
 
+  if (/dynamically imported module|importing a module script failed|chunkloaderror|loading chunk \d+ failed/i.test(m)) {
+    return 'This page could not load. You may be offline or the app was updated — check your connection and try again.'
+  }
+
   if (/failed to fetch|networkerror when attempting to fetch|load failed|net::err_/i.test(m)) {
     return 'Network request failed. Check your connection, VPN, or whether the indexer/API is reachable, then retry.'
   }
