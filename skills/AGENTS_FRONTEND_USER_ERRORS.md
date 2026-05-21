@@ -22,6 +22,7 @@ Use when surfacing **wallet**, **fetch/indexer**, or **mutation** failures in th
 
 ## Related
 
+- **Lazy route chunks (offline navigation, Try Again re-import):** [GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172), [docs/frontend.md § Lazy route chunks](../docs/frontend.md#lazy-route-chunks), [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md).
 - **Decimal amount inputs (block invalid keys before `BigInt`):** [GitLab **#169**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169), [docs/frontend.md § Decimal amount inputs](../docs/frontend.md#decimal-amount-inputs), [`AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md`](./AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md).
 - **LCD / RPC outage (frozen spinner, auto-reconnect):** [GitLab **#171**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/171), [docs/frontend.md § LCD / RPC connectivity](../docs/frontend.md#lcd-rpc-connectivity), [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md).
 - **Wallet broadcast / tx poll hang (offline submit):** [GitLab **#173**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/173), [docs/frontend.md § Transaction broadcast / confirmation timeout](../docs/frontend.md#terra-tx-broadcast-timeout), [`AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](./AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md).

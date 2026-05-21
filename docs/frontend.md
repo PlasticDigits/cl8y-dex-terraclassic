@@ -123,6 +123,23 @@ Regression: [`lcdConnectivity.test.ts`](../frontend-dapp/src/utils/__tests__/lcd
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](../skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md); error copy funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
+### Lazy route chunks (offline navigation) {#lazy-route-chunks}
+
+When the app is already loaded and the trader navigates to a route whose JS chunk is not cached (e.g. **Charts**, **Pool**), going offline must not strand them behind a full-screen crash with a broken **Try Again** ([GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172), W11-C3).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Route-scoped shell | Every lazy page uses [`LazyRoute`](../frontend-dapp/src/components/common/LazyRoute.tsx): route-level [`ErrorBoundary`](../frontend-dapp/src/components/common/ErrorBoundary.tsx) (`isRoute`, `data-testid="route-error-boundary"`) inside [`Layout`](../frontend-dapp/src/components/common/Layout.tsx) — header/nav stay visible. |
+| Retry re-imports | **Try Again** calls `onRetry`, which bumps `loadAttempt` so `React.lazy(loader)` and `<Page key={loadAttempt} />` run a fresh `import()` (not just `setState` on the boundary). |
+| Chunk classifier | [`isChunkLoadError`](../frontend-dapp/src/utils/chunkLoadError.ts) / [`humanizeOffChainError`](../frontend-dapp/src/utils/humanizeOffChainError.ts) recognize `Failed to fetch dynamically imported module`, `Loading chunk N failed`, etc. |
+| Retail copy | Chunk failures show headline **`Page unavailable`** and humanized body copy (offline / stale deploy); technical details scrub dev-server URLs via [`sanitizeChunkLoadTechnicalDetail`](../frontend-dapp/src/utils/chunkLoadError.ts). |
+| App-level fallback | Root [`ErrorBoundary`](../frontend-dapp/src/App.tsx) still wraps the tree; chunk errors at app depth offer **Reload App** (`location.reload()`). |
+| Trader `resetKeys` | `/trader/:address` passes `resetKeys` so navigation clears a prior route error ([GitLab **#126**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)). |
+
+Regression: [`chunkLoadError.test.ts`](../frontend-dapp/src/utils/__tests__/chunkLoadError.test.ts), [`LazyRoute.test.tsx`](../frontend-dapp/src/components/common/__tests__/LazyRoute.test.tsx).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](../skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md).
+
 ### Transaction broadcast / confirmation timeout (W11-C3) {#terra-tx-broadcast-timeout}
 
 Wallet **`broadcastTx`** and LCD **`pollTx`** must not hang indefinitely when the browser or wallet RPC is offline or stalled. After bounded waits, mutations fail with retail copy and the submit control re-enables via React Query **`isPending`** clearing ([GitLab **#173**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/173)).
@@ -142,6 +159,7 @@ Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](../skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md).
 
+
 ### User-facing errors (wallet, fetch, indexer, tx) {#user-facing-errors-humanization}
 
 Friendly failure copy should flow through **`humanizeUserFacingError`** ([`frontend-dapp/src/utils/humanizeUserFacingError.ts`](../frontend-dapp/src/utils/humanizeUserFacingError.ts)): it applies **`tryHumanizeTerraTxMessage`** first (on-chain / LCD patterns from [GitLab #134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134)), then wallet and transport classifiers in [`humanizeOffChainError.ts`](../frontend-dapp/src/utils/humanizeOffChainError.ts) ([GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).
@@ -149,7 +167,7 @@ Friendly failure copy should flow through **`humanizeUserFacingError`** ([`front
 | Invariant | Meaning |
 |-----------|---------|
 | Single funnel | Call **`humanizeUserFacingError`** / **`humanizeUserFacingErrorFromUnknown`** at leaf call sites, or rely on components that already apply it: **`RetryError`**, **`TxResultAlert`** (`type === 'error'` only), and the **`useWalletStore.connect`** catch (wallet modal). |
-| Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block with the raw message. |
+| Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block (chunk failures scrub dev URLs — see [§ Lazy route chunks](#lazy-route-chunks)). |
 | Success strings | **`TxResultAlert`** must not rewrite **`type === 'success'`** messages. |
 | Regression tests | [`frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts`](../frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts). |
 
