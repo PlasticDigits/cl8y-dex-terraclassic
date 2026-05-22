@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
@@ -28,6 +28,8 @@ import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import { getInvalidTradePairRouteParam, isTradePairRouteParam } from '@/utils/tradePairRoute'
 import type { IndexerPair } from '@/types'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 
 const TRADE_PAIR_SELECT_ID = 'trade-pair-select'
 
@@ -119,10 +121,29 @@ export default function TradePage() {
   const [limitBookDraftKey, setLimitBookDraftKey] = useState(0)
   const [limitBookDraft, setLimitBookDraft] = useState<LimitBookTicketDraft | null>(null)
 
-  const pushLimitBookDraft = (draft: LimitBookTicketDraft) => {
+  const pushLimitBookDraft = useCallback((draft: LimitBookTicketDraft) => {
     setLimitBookDraft(draft)
     setLimitBookDraftKey((k) => k + 1)
-  }
+  }, [])
+
+  const onLimitBookDraftConsumed = useCallback(() => setLimitBookDraft(null), [])
+
+  const isTradeDesktopLayout = useMediaQuery(TRADE_DESKTOP_LAYOUT_MEDIA_QUERY)
+
+  const tradeOrderTicket = (
+    <TradeOrderTicket
+      pairAddr={pairAddr}
+      pairs={pairs}
+      pairsLoading={pairsQuery.isLoading}
+      indexerPair={activePair}
+      latestTrade={tradesQuery.data?.[0]}
+      tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
+      cancelLimitOrderMutation={limitCancelMutation}
+      limitBookDraftKey={limitBookDraftKey}
+      limitBookDraft={limitBookDraft}
+      onLimitBookDraftConsumed={onLimitBookDraftConsumed}
+    />
+  )
 
   const orderBookPanelProps = {
     walletAddress: address ?? undefined,
@@ -189,115 +210,104 @@ export default function TradePage() {
       {/*
         Sub-desktop layout: single column <768px; tablet 768–1023px uses a 2-col top row
         (chart | order ticket) with order book + tape below — see docs/frontend.md § Trade page
-        responsive layout (GitLab #146).
+        responsive layout (GitLab #146). Only one TradeOrderTicket mounts at a time (GitLab #178).
       */}
-      <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
-        <div className="min-h-[280px] md:col-span-2 md:row-start-2">
-          <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
-        </div>
-        <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">
-          <TradeOrderTicket
-            pairAddr={pairAddr}
-            pairs={pairs}
-            pairsLoading={pairsQuery.isLoading}
-            indexerPair={activePair}
-            latestTrade={tradesQuery.data?.[0]}
-            tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
-            cancelLimitOrderMutation={limitCancelMutation}
-            limitBookDraftKey={limitBookDraftKey}
-            limitBookDraft={limitBookDraft}
-            onLimitBookDraftConsumed={() => setLimitBookDraft(null)}
-          />
-        </div>
-        <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
-          {pairRouteReady && indexerPairQuery.isLoading && <Skeleton height="12rem" />}
-          {pairRouteReady && indexerPairQuery.isError && !indexerDown && (
-            <RetryError message={getErrorMessage(indexerPairQuery.error)} onRetry={() => indexerPairQuery.refetch()} />
-          )}
-          {activePair && (
-            <div className="card-neo !p-2 flex-1 min-h-0 flex flex-col">
-              <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
-            </div>
-          )}
-        </div>
-        <div className="card-neo !p-3 md:col-span-2 md:row-start-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--ink-dim)' }}>
-            Recent trades
-          </h2>
-          {pairRouteReady && tradesQuery.isLoading && <Skeleton height="6rem" />}
-          {tradesQuery.data && (
-            <TradesTable
-              trades={tradesQuery.data}
-              formatTimeFn={formatTime}
-              activePair={activePair}
-              ariaLabel="Recent trades"
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Desktop: resizable panels */}
-      <div className="hidden lg:block h-[min(85vh,920px)] min-h-[440px]">
-        <PanelGroup direction="horizontal" className="h-full gap-0">
-          <Panel defaultSize={24} minSize={18} className="min-w-0">
+      {!isTradeDesktopLayout && (
+        <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
+          <div className="min-h-[280px] md:col-span-2 md:row-start-2">
             <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
-          </Panel>
-          <TradeResizeHandleVertical />
-          <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
-            <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
-              <Panel defaultSize={58} minSize={30} className="min-h-0">
-                <div className="h-full min-h-[200px] card-neo !p-2 overflow-hidden flex flex-col min-h-0">
-                  {pairRouteReady && indexerPairQuery.isLoading && <Skeleton height="100%" />}
-                  {pairRouteReady && indexerPairQuery.isError && !indexerDown && (
-                    <RetryError
-                      message={getErrorMessage(indexerPairQuery.error)}
-                      onRetry={() => indexerPairQuery.refetch()}
-                    />
-                  )}
-                  {activePair && <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />}
-                </div>
-              </Panel>
-              <TradeResizeHandleHorizontal />
-              <Panel defaultSize={42} minSize={22} className="min-h-0">
-                <div className="h-full flex flex-col min-h-0 card-neo !p-3">
-                  <h2
-                    className="text-xs font-semibold uppercase tracking-wide mb-2 shrink-0"
-                    style={{ color: 'var(--ink-dim)' }}
-                  >
-                    Recent trades
-                  </h2>
-                  <div className="flex-1 min-h-0 overflow-y-auto">
-                    {pairRouteReady && tradesQuery.isLoading && <Skeleton height="5rem" />}
-                    {tradesQuery.data && (
-                      <TradesTable
-                        trades={tradesQuery.data}
-                        formatTimeFn={formatTime}
-                        activePair={activePair}
-                        ariaLabel="Recent trades"
+          </div>
+          <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">{tradeOrderTicket}</div>
+          <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
+            {pairRouteReady && indexerPairQuery.isLoading && <Skeleton height="12rem" />}
+            {pairRouteReady && indexerPairQuery.isError && !indexerDown && (
+              <RetryError
+                message={getErrorMessage(indexerPairQuery.error)}
+                onRetry={() => indexerPairQuery.refetch()}
+              />
+            )}
+            {activePair && (
+              <div className="card-neo !p-2 flex-1 min-h-0 flex flex-col">
+                <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
+              </div>
+            )}
+          </div>
+          <div className="card-neo !p-3 md:col-span-2 md:row-start-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--ink-dim)' }}>
+              Recent trades
+            </h2>
+            {pairRouteReady && tradesQuery.isLoading && <Skeleton height="6rem" />}
+            {tradesQuery.data && (
+              <TradesTable
+                trades={tradesQuery.data}
+                formatTimeFn={formatTime}
+                activePair={activePair}
+                ariaLabel="Recent trades"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {isTradeDesktopLayout && (
+        <div className="hidden lg:block h-[min(85vh,920px)] min-h-[440px]" data-testid="trade-desktop-workspace">
+          <PanelGroup direction="horizontal" className="h-full gap-0">
+            <Panel defaultSize={24} minSize={18} className="min-w-0">
+              <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
+            </Panel>
+            <TradeResizeHandleVertical />
+            <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
+              <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
+                <Panel defaultSize={58} minSize={30} className="min-h-0">
+                  <div className="h-full min-h-[200px] card-neo !p-2 overflow-hidden flex flex-col min-h-0">
+                    {pairRouteReady && indexerPairQuery.isLoading && <Skeleton height="100%" />}
+                    {pairRouteReady && indexerPairQuery.isError && !indexerDown && (
+                      <RetryError
+                        message={getErrorMessage(indexerPairQuery.error)}
+                        onRetry={() => indexerPairQuery.refetch()}
                       />
                     )}
+                    {activePair && (
+                      <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
+                    )}
+                    {!pairRouteReady && (
+                      <p className="text-sm p-4" style={{ color: 'var(--ink-dim)' }}>
+                        Select a pair for the chart.
+                      </p>
+                    )}
                   </div>
-                </div>
-              </Panel>
-            </PanelGroup>
-          </Panel>
-          <TradeResizeHandleVertical />
-          <Panel defaultSize={24} minSize={18} className="min-w-0 min-h-0">
-            <TradeOrderTicket
-              pairAddr={pairAddr}
-              pairs={pairs}
-              pairsLoading={pairsQuery.isLoading}
-              indexerPair={activePair}
-              latestTrade={tradesQuery.data?.[0]}
-              tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
-              cancelLimitOrderMutation={limitCancelMutation}
-              limitBookDraftKey={limitBookDraftKey}
-              limitBookDraft={limitBookDraft}
-              onLimitBookDraftConsumed={() => setLimitBookDraft(null)}
-            />
-          </Panel>
-        </PanelGroup>
-      </div>
+                </Panel>
+                <TradeResizeHandleHorizontal />
+                <Panel defaultSize={42} minSize={22} className="min-h-0">
+                  <div className="h-full flex flex-col min-h-0 card-neo !p-3">
+                    <h2
+                      className="text-xs font-semibold uppercase tracking-wide mb-2 shrink-0"
+                      style={{ color: 'var(--ink-dim)' }}
+                    >
+                      Recent trades
+                    </h2>
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                      {pairRouteReady && tradesQuery.isLoading && <Skeleton height="5rem" />}
+                      {tradesQuery.data && (
+                        <TradesTable
+                          trades={tradesQuery.data}
+                          formatTimeFn={formatTime}
+                          activePair={activePair}
+                          ariaLabel="Recent trades"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </Panel>
+              </PanelGroup>
+            </Panel>
+            <TradeResizeHandleVertical />
+            <Panel defaultSize={24} minSize={18} className="min-w-0 min-h-0">
+              {tradeOrderTicket}
+            </Panel>
+          </PanelGroup>
+        </div>
+      )}
 
       {address && pairRouteReady && (
         <div className="mt-3">
