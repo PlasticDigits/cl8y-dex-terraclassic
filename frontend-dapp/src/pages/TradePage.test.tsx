@@ -223,4 +223,24 @@ describe('TradePage', () => {
       expect(pairSelect).toHaveFocus()
     })
   })
+
+  it('chart Retry refetches indexer pair after 404 (GitLab #177)', async () => {
+    const invalidPair = "terra1damThat'scrazy"
+    vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 404 Not Found'))
+    const user = userEvent.setup()
+    renderWithProviders(<TradePage />, { route: `/trade/${encodeURIComponent(invalidPair)}` })
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('trade-chart-retry-error').length).toBeGreaterThan(0)
+    })
+    const retryBtn = screen.getAllByTestId('retry-error-button')[0]
+    const callsAfterError = vi.mocked(indexerClient.getPair).mock.calls.length
+    expect(callsAfterError).toBeGreaterThanOrEqual(1)
+
+    await user.click(retryBtn)
+
+    await waitFor(() => {
+      expect(vi.mocked(indexerClient.getPair).mock.calls.length).toBeGreaterThan(callsAfterError)
+    })
+  })
 })

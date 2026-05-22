@@ -15,6 +15,7 @@ import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
 import { InvalidPairLinkNotice } from '@/components/trade/InvalidPairLinkNotice'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
@@ -100,6 +101,10 @@ export default function TradePage() {
 
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = indexerPairQuery.isError && isIndexerUnavailableError(indexerPairQuery.error)
+  const indexerPairRetry = useQueryManualRetry(['indexer-pair-trade', pairAddr], indexerPairQuery)
+  const showIndexerPairSkeleton =
+    indexerPairQuery.isLoading || (indexerPairQuery.isError && indexerPairRetry.isRetrying)
+  const showIndexerPairRetryError = indexerPairQuery.isError && !indexerDown && !indexerPairRetry.isRetrying
 
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
@@ -219,11 +224,13 @@ export default function TradePage() {
           </div>
           <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">{tradeOrderTicket}</div>
           <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
-            {pairRouteReady && indexerPairQuery.isLoading && <Skeleton height="12rem" />}
-            {pairRouteReady && indexerPairQuery.isError && !indexerDown && (
+            {pairRouteReady && showIndexerPairSkeleton && <Skeleton height="12rem" />}
+            {pairRouteReady && showIndexerPairRetryError && (
               <RetryError
+                data-testid="trade-chart-retry-error"
                 message={getErrorMessage(indexerPairQuery.error)}
-                onRetry={() => indexerPairQuery.refetch()}
+                isRetrying={indexerPairRetry.isRetrying}
+                onRetry={indexerPairRetry.retry}
               />
             )}
             {activePair && (
@@ -260,11 +267,13 @@ export default function TradePage() {
               <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
                 <Panel defaultSize={58} minSize={30} className="min-h-0">
                   <div className="h-full min-h-[200px] card-neo !p-2 overflow-hidden flex flex-col min-h-0">
-                    {pairRouteReady && indexerPairQuery.isLoading && <Skeleton height="100%" />}
-                    {pairRouteReady && indexerPairQuery.isError && !indexerDown && (
+                    {pairRouteReady && showIndexerPairSkeleton && <Skeleton height="100%" />}
+                    {pairRouteReady && showIndexerPairRetryError && (
                       <RetryError
+                        data-testid="trade-chart-retry-error"
                         message={getErrorMessage(indexerPairQuery.error)}
-                        onRetry={() => indexerPairQuery.refetch()}
+                        isRetrying={indexerPairRetry.isRetrying}
+                        onRetry={indexerPairRetry.retry}
                       />
                     )}
                     {activePair && (

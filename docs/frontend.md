@@ -344,6 +344,19 @@ Readability for traders used to centralized exchanges ([GitLab **#149**](https:/
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
+### Trade page — chart pair fetch retry {#trade-page-chart-retry}
+
+When **`getPair`** fails for the active `/trade/:pairAddr` route (e.g. indexer **404** for an unknown or malformed `terra1…` deep link), the chart panel shows **`RetryError`** with humanized copy — not the global outage banner ([GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Manual retry must refetch** | Do not rely on bare **`query.refetch()`** alone for reads with **`staleTime: 60_000`**; use **`useQueryManualRetry`** ([`useQueryManualRetry.ts`](../frontend-dapp/src/hooks/useQueryManualRetry.ts)): **`invalidateQueries`** on the exact key, then **`refetch({ cancelRefetch: false })`**. |
+| **Loading feedback** | While retrying, hide **`RetryError`** and show the chart **`Skeleton`** (`isFetching` after an error). **`RetryError`** may show **Retrying…** when the panel stays mounted. |
+| **404 vs outage** | **`isIndexerUnavailableError`** treats **404** as a logical miss (chart retry panel), not **`trade-indexer-outage-banner`**. |
+| **Regression** | [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (404 + Retry), [`useQueryManualRetry.test.tsx`](../frontend-dapp/src/hooks/__tests__/useQueryManualRetry.test.tsx). |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_QUERY_RETRY.md`](../skills/AGENTS_FRONTEND_QUERY_RETRY.md).
+
 ### Trade page — indexer outage banner {#trade-page-indexer-outage-banner}
 
 When the **`getPair`** query on `/trade` fails with an **indexer transport / non-OK** error (`isIndexerUnavailableError` in [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts)), the page shows a warning **above** the workspace (`data-testid="trade-indexer-outage-banner"`).
