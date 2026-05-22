@@ -7,10 +7,15 @@ vi.mock('@/services/terraclassic/queries', () => ({
 vi.mock('@/services/terraclassic/transactions', () => ({
   executeTerraContract: vi.fn(),
   executeTerraContractMulti: vi.fn(),
+  executeCw20AllowanceThen: vi.fn(),
 }))
 
 import { queryContract } from '@/services/terraclassic/queries'
-import { executeTerraContract, executeTerraContractMulti } from '@/services/terraclassic/transactions'
+import {
+  executeTerraContract,
+  executeTerraContractMulti,
+  executeCw20AllowanceThen,
+} from '@/services/terraclassic/transactions'
 import {
   getPairInfo,
   getPool,
@@ -18,6 +23,7 @@ import {
   simulateSwap,
   reverseSimulateSwap,
   swap,
+  placeLimitOrderWithAllowance,
   provideLiquidity,
   withdrawLiquidity,
   claimExpiredLimitOrder,
@@ -34,6 +40,7 @@ import type {
 const mockedQuery = vi.mocked(queryContract)
 const mockedExecute = vi.mocked(executeTerraContract)
 const mockedExecuteMulti = vi.mocked(executeTerraContractMulti)
+const mockedAllowanceThen = vi.mocked(executeCw20AllowanceThen)
 
 const PAIR_ADDR = 'terra1paircontract'
 const WALLET_ADDR = 'terra1walletaddr'
@@ -148,6 +155,18 @@ describe('reverseSimulateSwap', () => {
       },
     })
     expect(result).toEqual(revSimResp)
+  })
+})
+
+describe('placeLimitOrderWithAllowance', () => {
+  it('routes through executeCw20AllowanceThen (GitLab #127)', async () => {
+    mockedAllowanceThen.mockImplementationOnce(async (_w, _t, _s, _a, run) => run())
+    mockedExecute.mockResolvedValueOnce('txhash_limit')
+
+    const result = await placeLimitOrderWithAllowance(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '500000', 'bid', '1.5', 3, null)
+
+    expect(result).toBe('txhash_limit')
+    expect(mockedAllowanceThen).toHaveBeenCalledWith(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '500000', expect.any(Function))
   })
 })
 

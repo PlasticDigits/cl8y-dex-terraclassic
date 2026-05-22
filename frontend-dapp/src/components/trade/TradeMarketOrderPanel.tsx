@@ -9,7 +9,7 @@ import { simulateSwap, simulateHybridSwap, swap } from '@/services/terraclassic/
 import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
 import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
 import {
-  executeTerraContract,
+  executeCw20AllowanceThen,
   estimateMarketPairSwapSequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
 import { postRouteSolve } from '@/services/indexer/client'
@@ -306,24 +306,23 @@ export function TradeMarketOrderPanel({
       const maxSpread = maxSpreadStr
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
       const idxOps = simQuery.data?.indexerOperations
-      await executeTerraContract(address, fromToken, {
-        increase_allowance: { spender: selectedPair.contract_addr, amount: raw },
-      })
-      if (idxOps && idxOps.length > 0) {
-        return executeMultiHopSwap(
-          address,
-          fromToken,
-          raw,
-          idxOps,
-          maxSpread,
-          minReceived ?? undefined,
-          undefined,
-          deadline
-        )
-      }
-      return swap(address, fromToken, selectedPair.contract_addr, raw, undefined, maxSpread, undefined, {
-        hybrid,
-        deadline,
+      return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, raw, async () => {
+        if (idxOps && idxOps.length > 0) {
+          return executeMultiHopSwap(
+            address,
+            fromToken,
+            raw,
+            idxOps,
+            maxSpread,
+            minReceived ?? undefined,
+            undefined,
+            deadline
+          )
+        }
+        return swap(address, fromToken, selectedPair.contract_addr, raw, undefined, maxSpread, undefined, {
+          hybrid,
+          deadline,
+        })
       })
     },
     onSuccess: () => {

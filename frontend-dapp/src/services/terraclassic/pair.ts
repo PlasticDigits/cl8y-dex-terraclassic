@@ -1,5 +1,5 @@
 import { queryContract } from './queries'
-import { executeTerraContract, executeTerraContractMulti } from './transactions'
+import { executeCw20AllowanceThen, executeTerraContract, executeTerraContractMulti } from './transactions'
 import type {
   Asset,
   AssetInfo,
@@ -141,6 +141,25 @@ export async function placeLimitOrder(
       msg,
     },
   })
+}
+
+/**
+ * Retail limit/bid path: `increase_allowance` then CW20 `send` → `place_limit_order`.
+ * Uses the same broadcast stack as all other txs ([GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)).
+ */
+export async function placeLimitOrderWithAllowance(
+  walletAddress: string,
+  escrowTokenAddress: string,
+  pairAddress: string,
+  amount: string,
+  side: 'bid' | 'ask',
+  price: string,
+  maxAdjustSteps: number,
+  expiresAt?: number | null
+): Promise<string> {
+  return executeCw20AllowanceThen(walletAddress, escrowTokenAddress, pairAddress, amount, () =>
+    placeLimitOrder(walletAddress, escrowTokenAddress, pairAddress, amount, side, price, maxAdjustSteps, expiresAt)
+  )
 }
 
 export async function cancelLimitOrder(walletAddress: string, pairAddress: string, orderId: number): Promise<string> {

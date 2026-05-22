@@ -1,0 +1,110 @@
+import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
+import type { ConnectedWallet } from '@goblinhunt/cosmes/wallet'
+import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
+import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
+import {
+  TERRA_TX_BROADCAST_TIMEOUT_MESSAGE,
+  TERRA_TX_BROADCAST_TIMEOUT_MS,
+  TERRA_TX_POLL_TIMEOUT_MESSAGE,
+  TERRA_TX_POLL_TIMEOUT_MS,
+} from '@/utils/terraTxTimeout'
+import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
+import { buildTerraClassicFee, getGasLimitForTx, totalGasLimitForExecuteMsgs } from './terraGas'
+
+export type TerraExecuteContractEntry = {
+  contract: string
+  msg: Record<string, unknown>
+  coins?: Array<{ denom: string; amount: string }>
+}
+
+function handleBroadcastError(error: unknown): Error {
+  if (error instanceof Error) {
+    const errorMessage = error.message
+
+    if (errorMessage === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || errorMessage === TERRA_TX_POLL_TIMEOUT_MESSAGE) {
+      return error
+    }
+
+    if (
+      errorMessage.includes('User rejected') ||
+      errorMessage.includes('user rejected') ||
+      errorMessage.includes('User denied') ||
+      errorMessage.includes('user denied')
+    ) {
+      return new Error('Transaction rejected by user')
+    }
+
+    if (
+      errorMessage.includes('Failed to fetch') ||
+      errorMessage.includes('NetworkError') ||
+      errorMessage.includes('network')
+    ) {
+      return new Error(`Network error: ${errorMessage}. Please check your internet connection and try again.`)
+    }
+
+    const human = tryHumanizeTerraTxMessage(errorMessage)
+    if (human) {
+      return new Error(human)
+    }
+
+    return new Error(`Transaction failed: ${errorMessage}`)
+  }
+
+  return new Error(`Transaction failed: ${String(error)}`)
+}
+
+/**
+ * Canonical Terra Classic broadcast path: build msgs + fee, sign/broadcast, poll, map errors.
+ * All `executeTerraContract*` entry points use this (GitLab #127).
+ */
+export async function broadcastTerraExecuteContracts(
+  wallet: ConnectedWallet,
+  walletAddress: string,
+  entries: TerraExecuteContractEntry[]
+): Promise<string> {
+  if (entries.length === 0) {
+    throw new Error('No messages to broadcast')
+  }
+
+  const msgs = entries.map(
+    (entry) =>
+      new MsgExecuteContract({
+        sender: walletAddress,
+        contract: entry.contract,
+        msg: entry.msg,
+        funds: entry.coins && entry.coins.length > 0 ? entry.coins : [],
+      })
+  )
+
+  const unsignedTx: UnsignedTx = {
+    msgs,
+    memo: '',
+  }
+
+  const gasLimit = entries.length === 1 ? getGasLimitForTx(entries[0].msg) : totalGasLimitForExecuteMsgs(entries)
+  const fee = buildTerraClassicFee(gasLimit)
+
+  try {
+    const txHash = await withPromiseTimeout(
+      wallet.broadcastTx(unsignedTx, fee),
+      TERRA_TX_BROADCAST_TIMEOUT_MS,
+      TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+    )
+    const { txResponse } = await withPromiseTimeout(
+      wallet.pollTx(txHash),
+      TERRA_TX_POLL_TIMEOUT_MS,
+      TERRA_TX_POLL_TIMEOUT_MESSAGE
+    )
+
+    if (txResponse.code !== 0) {
+      const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+      const errorMsg = tryHumanizeTerraTxMessage(raw) ?? raw
+      throw new Error(`Transaction failed: ${errorMsg}`)
+    }
+
+    return txHash
+  } catch (error: unknown) {
+    console.error('Terra Classic transaction error:', error)
+    throw handleBroadcastError(error)
+  }
+}

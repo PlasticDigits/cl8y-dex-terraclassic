@@ -3,6 +3,7 @@ import { WalletName } from '@goblinhunt/cosmes/wallet'
 /** Keplr-compatible `experimentalSuggestChain` surface (Station shim + Keplr family). */
 export type KeplrExperimentalSuggest = {
   experimentalSuggestChain?: (chainInfo: Record<string, unknown>) => Promise<void>
+  defaultOptions?: { sign?: { preferNoSetFee?: boolean; preferNoSetMemo?: boolean } }
 }
 
 /**

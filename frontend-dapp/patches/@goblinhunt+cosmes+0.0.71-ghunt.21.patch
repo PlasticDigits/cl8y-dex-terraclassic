@@ -261,13 +261,25 @@ index 8f3c2a1..c4a8f12 100644
  export class KeplrExtension extends ConnectedWallet {
      constructor(walletName, label, ext, chainId, pubKey, address, rpc, gasPrice, useAmino) {
          super(walletName, WalletType.EXTENSION, label, chainId, pubKey, address, rpc, gasPrice);
-@@ -43,11 +93,13 @@
+@@ -43,11 +105,25 @@
          };
          let txRaw;
          if (this.useAmino) {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
-+            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params), EXTENSION_SIGN_OPTIONS));
-+            assertExtensionSignedFeeMeetsExpected(signed, fee, this.chainId);
++            const stdDoc = tx.toStdSignDoc(params);
++            let signed;
++            let signature;
++            for (let attempt = 0; attempt < 2; attempt++) {
++                ({ signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS)));
++                try {
++                    assertExtensionSignedFeeMeetsExpected(signed, fee, this.chainId);
++                    break;
++                }
++                catch (err) {
++                    if (attempt === 1)
++                        throw err;
++                }
++            }
              txRaw = tx.toSignedAmino(signed, signature.signature);
          }
          else {

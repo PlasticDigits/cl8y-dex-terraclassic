@@ -17,6 +17,7 @@ describe('cosmes patch-package (GitLab #127)', () => {
     expect(src).toContain('assertExtensionSignedFeeMeetsExpected')
     expect(src).toContain('assertExtensionSignedDirectFeeMeetsExpected')
     expect(src).toContain('EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX')
+    expect(src).toContain('for (let attempt = 0; attempt < 2; attempt++)')
   })
 
   it('StationController uses amino signing for LocalTerra (case-insensitive)', () => {

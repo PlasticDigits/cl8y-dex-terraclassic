@@ -36,6 +36,7 @@ import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import {
   executeTerraContract,
   executeTerraContractMulti,
+  executeCw20AllowanceThen,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateMarketPairSwapSequenceUlunaFeesTotal,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
@@ -396,6 +397,32 @@ describe('gas limit selection (tested indirectly)', () => {
       },
     })
     expect(fee.gasLimit).toBe(BigInt(2400000))
+  })
+})
+
+describe('executeCw20AllowanceThen', () => {
+  beforeEach(() => {
+    mockedGetWallet.mockReturnValue(mockConnectedWallet as never)
+    mockBroadcastTx.mockResolvedValue('ALLOWHASH')
+    mockPollTx.mockResolvedValue({
+      txResponse: { code: 0, rawLog: '', logs: [] },
+    })
+  })
+
+  it('broadcasts increase_allowance then runs the follow-up action', async () => {
+    const followUp = vi.fn().mockResolvedValue('PLACEHASH')
+
+    const result = await executeCw20AllowanceThen('terra1sender', 'terra1token', 'terra1pair', '1000', followUp)
+
+    expect(result).toBe('PLACEHASH')
+    expect(mockBroadcastTx).toHaveBeenCalledTimes(1)
+    expect(followUp).toHaveBeenCalledTimes(1)
+    expect(MockMsgExecuteContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contract: 'terra1token',
+        msg: { increase_allowance: { spender: 'terra1pair', amount: '1000' } },
+      })
+    )
   })
 })
 

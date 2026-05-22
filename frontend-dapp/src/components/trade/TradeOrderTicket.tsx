@@ -6,11 +6,8 @@ import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { placeLimitOrder, getPairPaused } from '@/services/terraclassic/pair'
-import {
-  executeTerraContract,
-  estimateLimitOrderPlaceSequenceUlunaFeesTotal,
-} from '@/services/terraclassic/transactions'
+import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
+import { estimateLimitOrderPlaceSequenceUlunaFeesTotal } from '@/services/terraclassic/transactions'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
@@ -360,10 +357,16 @@ function TradeOrderTicketContent({
       }
       const raw = toRawAmount(amountHuman, escrowDecimals)
       if (raw === '0') throw new Error('Enter amount')
-      await executeTerraContract(address, escrowToken, {
-        increase_allowance: { spender: selectedPair.contract_addr, amount: raw },
-      })
-      return placeLimitOrder(address, escrowToken, selectedPair.contract_addr, raw, side, price, maxSteps, expiresAt)
+      return placeLimitOrderWithAllowance(
+        address,
+        escrowToken,
+        selectedPair.contract_addr,
+        raw,
+        side,
+        price,
+        maxSteps,
+        expiresAt
+      )
     },
     onSuccess: async () => {
       sounds.playSuccess()

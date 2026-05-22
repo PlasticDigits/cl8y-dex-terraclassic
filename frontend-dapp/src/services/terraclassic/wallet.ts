@@ -142,6 +142,15 @@ export async function connectTerraWallet(
 
     if (walletType === WalletType.EXTENSION) {
       if (suggestStationLocalGasSteps) {
+        const stationKeplr = getKeplrLikeExtension(walletName)
+        if (stationKeplr) {
+          stationKeplr.defaultOptions = {
+            sign: {
+              preferNoSetFee: true,
+              preferNoSetMemo: true,
+            },
+          }
+        }
         try {
           await suggestChainToExtension(walletName)
         } catch (err: unknown) {
