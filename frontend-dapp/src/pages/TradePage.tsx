@@ -202,7 +202,7 @@ export default function TradePage() {
         <LcdQueryGate query={pairsQuery} loadingFallback={<Skeleton height="2.5rem" width="100%" />}>
           <MenuSelect
             id={TRADE_PAIR_SELECT_ID}
-            className="relative w-full max-w-xl"
+            className="relative w-full max-w-xl shrink-0"
             aria-label="Trading pair"
             value={pairAddr}
             options={pairMenuOptions}

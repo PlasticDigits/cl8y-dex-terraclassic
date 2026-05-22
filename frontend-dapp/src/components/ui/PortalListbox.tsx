@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, type CSSProperties, type RefObject } from 'react'
 import { getMobileBottomNavInsetPx } from '@/lib/mobileBottomNav'
-
-const VIEWPORT_PAD = 8
-const MIN_MENU_HEIGHT = 120
+import { computePortalListboxStyle } from './portalListboxPosition'
 
 export type UsePortalListboxArgs = {
   open: boolean
@@ -21,6 +19,9 @@ export type UsePortalListboxArgs = {
  * for MenuSelect and TokenSelect. Flips above the anchor when space below is tight
  * so the menu does not collide with fixed footers or the mobile tab bar
  * ({@link getMobileBottomNavInsetPx}); clamps horizontally.
+ *
+ * Position is computed synchronously during render when open so the first painted
+ * frame already uses `position: fixed` coords (avoids CLS from a late setState pass).
  */
 export function usePortalListbox({
   open,
@@ -31,64 +32,38 @@ export function usePortalListbox({
   preferredMaxHeight = 280,
   gap = 8,
 }: UsePortalListboxArgs): CSSProperties | null {
-  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties | null>(null)
+  const [positionEpoch, bumpPosition] = useReducer((n: number) => n + 1, 0)
 
-  const updatePosition = useCallback(() => {
+  const readStyle = useCallback((): CSSProperties | null => {
+    if (!open || !canShow) return null
     const el = anchorRef.current
-    if (!el) return
+    if (!el) return null
+    return computePortalListboxStyle({
+      anchor: el.getBoundingClientRect(),
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        bottomInset: getMobileBottomNavInsetPx(),
+      },
+      preferredMaxHeight,
+      gap,
+    })
+  }, [open, canShow, anchorRef, preferredMaxHeight, gap])
 
-    const r = el.getBoundingClientRect()
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-
-    const width = Math.min(r.width, vw - 2 * VIEWPORT_PAD)
-    let left = r.left + (r.width - width) / 2
-    left = Math.min(Math.max(VIEWPORT_PAD, left), vw - VIEWPORT_PAD - width)
-
-    const bottomBar = getMobileBottomNavInsetPx()
-    const spaceBelow = vh - r.bottom - gap - VIEWPORT_PAD - bottomBar
-    const spaceAbove = r.top - gap - VIEWPORT_PAD
-
-    const maxBelow = Math.min(preferredMaxHeight, Math.max(MIN_MENU_HEIGHT, spaceBelow))
-    const maxAbove = Math.min(preferredMaxHeight, Math.max(MIN_MENU_HEIGHT, spaceAbove))
-
-    const preferBelow = spaceBelow >= MIN_MENU_HEIGHT || spaceBelow >= spaceAbove
-
-    if (preferBelow) {
-      setDropdownStyle({
-        position: 'fixed',
-        top: r.bottom + gap,
-        left,
-        width,
-        maxHeight: maxBelow,
-        bottom: 'auto',
-      })
-    } else {
-      setDropdownStyle({
-        position: 'fixed',
-        top: 'auto',
-        left,
-        width,
-        maxHeight: maxAbove,
-        bottom: vh - r.top + gap,
-      })
-    }
-  }, [anchorRef, gap, preferredMaxHeight])
+  const dropdownStyle = useMemo(() => readStyle(), [readStyle, positionEpoch])
 
   useLayoutEffect(() => {
-    if (!open || !canShow) {
-      setDropdownStyle(null)
-      return
-    }
-    updatePosition()
+    if (!open || !canShow) return
+    bumpPosition()
     const w = window
-    w.addEventListener('scroll', updatePosition, true)
-    w.addEventListener('resize', updatePosition)
+    const onMove = () => bumpPosition()
+    w.addEventListener('scroll', onMove, true)
+    w.addEventListener('resize', onMove)
     return () => {
-      w.removeEventListener('scroll', updatePosition, true)
-      w.removeEventListener('resize', updatePosition)
+      w.removeEventListener('scroll', onMove, true)
+      w.removeEventListener('resize', onMove)
     }
-  }, [open, canShow, updatePosition])
+  }, [open, canShow])
 
   useEffect(() => {
     if (!open || !canShow) return
@@ -109,5 +84,5 @@ export function usePortalListbox({
     }
   }, [open, canShow, onClose, anchorRef, dropdownRef])
 
-  return open && canShow ? dropdownStyle : null
+  return dropdownStyle
 }

@@ -13,6 +13,7 @@ Use when changing **interactive styling** in [`frontend-dapp/src/index.css`](../
 ## Invariants
 
 1. **`:focus-visible`, not bare `:focus`** for drawn rings — keyboard users see the indicator; mouse clicks should not leave a persistent ring where the platform supports `:focus-visible` (see `.input-neo`, `.select-neo`, `.token-select-trigger`).
+2. **Token select triggers** reserve a transparent `0 0 0 2px` focus ring in the default `box-shadow`; `:focus-visible` only changes ring color so opening the control does not shift layout ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181), [`AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md)).
 2. **Ring token** — visible rings use `color-mix(in srgb, var(--focus-ring) 28%, transparent)` (and matching border tweaks where inputs already had them), aligned with `.input-neo:focus-visible`.
 3. **Shell controls** — `.app-nav-link`, `.app-more-trigger`, mobile/footer/menu triggers, `.wallet-trigger` (+ connected variant), `.network-badge`, `.wallet-option-card`, `.tab-neo*`, and `.btn-primary` / `.btn-muted` / `.btn-cta` composites each have explicit `:focus-visible` rules; **active** nav/badge states stack the **active** `box-shadow` with the same outer ring.
 4. **Swap amount field** — the large **You Pay** input uses class **`swap-io-amount-input`** (not `focus:outline-none` alone); styles live next to `.swap-io-stack` in `index.css`.

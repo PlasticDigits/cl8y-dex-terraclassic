@@ -80,6 +80,8 @@
 
   html {
     background: var(--bg-0);
+    /* Reserve scrollbar width so opening portaled menus does not shift centered layout (GitLab #181). */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -292,6 +294,12 @@
     color: var(--ink);
   }
 
+  /* Anchor wrapper: reserve trigger height so open/close does not reflow siblings (GitLab #181). */
+  .token-select-root {
+    contain: layout;
+    min-height: 48px;
+  }
+
   .token-select-trigger {
     @apply w-full flex items-center gap-2 pl-3 sm:pl-4 pr-10 sm:pr-11 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors;
     position: relative;
@@ -300,9 +308,15 @@
     background: var(--control-surface);
     color: var(--ink);
     min-height: 48px;
+    /* Transparent focus ring slot — focus-visible only swaps color, not footprint (GitLab #181). */
     box-shadow:
       inset 0 1px 0 rgba(255, 248, 235, 0.08),
-      0 10px 24px rgba(16, 10, 8, 0.12);
+      0 10px 24px rgba(16, 10, 8, 0.12),
+      0 0 0 2px transparent;
+  }
+
+  .token-select-trigger:focus {
+    outline: none;
   }
 
   .token-select-trigger:disabled {
@@ -335,6 +349,8 @@
   /* Position (fixed + coords) from portal listbox — above sticky header (40), nav menus (45), mobile tab bar (50). */
   .token-select-dropdown {
     @apply max-h-60 overflow-y-auto p-2 m-0 list-none;
+    position: fixed;
+    margin: 0;
     border: 1px solid var(--line);
     border-radius: 18px;
     background: var(--menu-bg);

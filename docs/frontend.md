@@ -289,10 +289,26 @@ Interactive controls must expose a **visible keyboard focus indicator** when foc
 |-----------|---------|
 | Token alignment | Custom rings use **`var(--focus-ring)`** via `color-mix(in srgb, var(--focus-ring) 28%, transparent)` (same family as `.input-neo:focus-visible` in [`index.css`](../frontend-dapp/src/index.css)). |
 | Inputs / triggers | `.input-neo`, `.select-neo`, `.token-select-trigger` use **`:focus-visible`** so mouse focus does not mimic keyboard emphasis where the UA supports it. |
+| Focus ring footprint | `.token-select-trigger` reserves a **transparent** `0 0 0 2px` ring in the default `box-shadow` stack; `:focus-visible` only changes ring **color**, not size ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). |
 | Shell & CTAs | `.btn-primary` / `.btn-muted` / `.btn-cta`, `.app-nav-link` (and related triggers), `.wallet-trigger` (+ `.wallet-trigger-connected`), `.network-badge`, `.tab-neo` / `.tab-neo-active`, `.wallet-option-card`, and dropdown `.app-menu-link` / `.wallet-menu-item` define explicit `:focus-visible` rings; **active** nav rows compose the active `box-shadow` **plus** the outer ring. |
 | Swap amount | The prominent pay amount `<input>` uses class **`swap-io-amount-input`** — do **not** strip focus with `focus:outline-none` without replacing it; ring styles sit beside `.swap-io-stack` in `index.css`. |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_FOCUS.md`](../skills/AGENTS_FRONTEND_A11Y_FOCUS.md).
+
+### Portal listboxes (`MenuSelect` / `TokenSelect`) — layout stability {#portal-listbox-layout-stability}
+
+Custom pair/token pickers use a **portaled** `<ul role="listbox">` positioned with **`position: fixed`** (not in-document flow) so opening a menu does not push chart, order book, or ticket columns ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181), W13-C2).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Fixed menu** | [`computePortalListboxStyle`](../frontend-dapp/src/components/ui/portalListboxPosition.ts) + [`usePortalListbox`](../frontend-dapp/src/components/ui/PortalListbox.tsx) set coords on the **first open frame** (sync read of anchor `getBoundingClientRect()` during render; scroll/resize bump a reducer). `.token-select-dropdown` also declares `position: fixed` in CSS as a safety net. |
+| **Stable trigger** | Wrapper `.token-select-root` uses `contain: layout` and `min-height: 48px` matching `.token-select-trigger`. Trade `#trade-pair-select` sits in `shrink-0` `max-w-xl` shell so flex rows do not compress the control when the menu opens. |
+| **Scrollbar gutter** | `html { scrollbar-gutter: stable; }` avoids horizontal reflow when overlay scrollbars would otherwise appear/disappear. |
+| **CLS budget** | Lighthouse CLS on `/trade` after opening the pair menu should stay **&lt; 0.1**; surrounding content must not jump (eyeball + Lighthouse). |
+
+**Regression tests:** [`frontend-dapp/e2e/trade-pair-select-cls.spec.ts`](../frontend-dapp/e2e/trade-pair-select-cls.spec.ts) (bounding-box deltas); unit tests in [`portalListboxPosition.test.ts`](../frontend-dapp/src/components/ui/__tests__/portalListboxPosition.test.ts).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
 
 ### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
 

@@ -67,7 +67,10 @@ export function TokenSelect({
   const selectedLogo = value ? logoPropsForToken(value) : null
 
   return (
-    <div ref={rootRef} className="relative w-full sm:w-auto sm:min-w-[170px] sm:max-w-[220px] sm:shrink-0">
+    <div
+      ref={rootRef}
+      className="token-select-root relative w-full sm:w-auto sm:min-w-[170px] sm:max-w-[220px] sm:shrink-0"
+    >
       <button
         type="button"
         disabled={disabled || options.length === 0}

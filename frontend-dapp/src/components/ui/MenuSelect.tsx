@@ -57,7 +57,7 @@ export function MenuSelect({
   })
 
   return (
-    <div ref={rootRef} className={className ?? 'relative w-full'}>
+    <div ref={rootRef} className={`token-select-root ${className ?? 'relative w-full'}`}>
       <button
         type="button"
         id={id}
