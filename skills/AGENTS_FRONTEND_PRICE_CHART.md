@@ -1,6 +1,6 @@
 # Agent playbook: Price (USD) chart (lightweight-charts)
 
-Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, **`priceChartLightweightIndicatorSync.ts`**, **`PriceChartOverlayMenu.tsx`**, **`chartHeadlinePrice.ts`**, **`priceChartCandles.ts`**, **`priceChartIndicators.ts`**, **`priceChartPriceScale.ts`**, candle mapping or **USD Y-axis** behavior, Vitest stubs in **`lightweightChartsJsdomMock.ts`**, or tests/docs tied to GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#149**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149), [**#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151).
+Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, **`priceChartLightweightIndicatorSync.ts`**, **`PriceChartOverlayMenu.tsx`**, **`chartHeadlinePrice.ts`**, **`priceChartCandles.ts`**, **`priceChartIndicators.ts`**, **`priceChartPriceScale.ts`**, candle mapping or **USD Y-axis** behavior, Vitest stubs in **`lightweightChartsJsdomMock.ts`**, or tests/docs tied to GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#149**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/149), [**#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151), [**#180**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/180) (pair switch must not wait on parent `getPair`).
 
 ## Canonical references
 
@@ -29,5 +29,6 @@ Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, *
 ## Related
 
 - Trade page grid / breakpoints: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
+- Pair switch latency (parent mounts chart on `pairAddr`, not `getPair`): [`AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md`](./AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md) ([GitLab **#180**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/180))
 - Local indexer + wallet QA: [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md), [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
 - QA / Playwright workers: [`.cursor/rules/playwright-workers.mdc`](../.cursor/rules/playwright-workers.mdc)

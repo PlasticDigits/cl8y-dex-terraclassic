@@ -344,6 +344,22 @@ Readability for traders used to centralized exchanges ([GitLab **#149**](https:/
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
+### Trade page — pair switch latency {#trade-page-pair-switch-latency}
+
+Pair selector changes must feel responsive on `/trade` ([GitLab **#180**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/180), W13-C2). Prior behavior waited for **`getPair`** before mounting **`PriceChart`**, serializing candle loads (~8–10s on local indexers) with no loading affordance.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Parallel fetch** | When `pairAddr` is valid, mount **`PriceChart`** immediately. **`getCandles`**, **`getTrades`**, and **`limitBookPage`** queries start in parallel with **`getPair`** — do not gate the chart on `indexerPairQuery.data`. |
+| **Loading status** | While any workspace query for the active pair is in flight (`useIsFetching` + [`isTradePairWorkspaceQuery`](../frontend-dapp/src/utils/tradePairWorkspaceFetching.ts)), render [`TradePairSwitchStatus`](../frontend-dapp/src/components/trade/TradePairSwitchStatus.tsx) (`data-testid="trade-pair-switch-loading"`). The chart panel still shows **Loading chart…** from `PriceChart`. |
+| **Prefetch** | [`prefetchTradePairWorkspace`](../frontend-dapp/src/utils/tradePairPrefetch.ts) warms pair metadata, candles (default `1h`), tape, and both book sides on route change, pair `onChange`, and `MenuSelect` **`onOptionIntent`** (hover/focus another row). |
+| **No stale pair on switch** | Do **not** use `placeholderData: keepPreviousData` on pair-keyed indexer reads — wrong symbols/tape after a switch. |
+| **404 retry unchanged** | [`TradeChartSlot`](../frontend-dapp/src/pages/TradePage.tsx) still shows **`RetryError`** when `getPair` fails logically; see [§ Trade page — chart pair fetch retry](#trade-page-chart-retry) ([#177](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)). |
+
+**Verify (manual):** switch pairs with DevTools Network + stopwatch — loading banner appears immediately; chart/book/tape settle within ~1–2s on `localterra`; Lighthouse INP on `#trade-pair-select` under 200ms when other work is warm.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md`](../skills/AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md); layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
+
 ### Trade page — chart pair fetch retry {#trade-page-chart-retry}
 
 When **`getPair`** fails for the active `/trade/:pairAddr` route (e.g. indexer **404** for an unknown or malformed `terra1…` deep link), the chart panel shows **`RetryError`** with humanized copy — not the global outage banner ([GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)).

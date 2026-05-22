@@ -18,6 +18,8 @@ export interface MenuSelectProps {
   className?: string
   /** Shown on the trigger when there are no options. */
   emptyLabel?: string
+  /** Fired when the user hovers or focuses a list option — use to prefetch pair data before click (GitLab #180). */
+  onOptionIntent?: (value: string) => void
 }
 
 /**
@@ -33,6 +35,7 @@ export function MenuSelect({
   'aria-label': ariaLabel,
   className,
   emptyLabel = 'No options',
+  onOptionIntent,
 }: MenuSelectProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -97,6 +100,8 @@ export function MenuSelect({
                     role="option"
                     aria-selected={isSelected}
                     className={`token-select-option ${isSelected ? 'token-select-option-active' : ''}`}
+                    onPointerEnter={() => onOptionIntent?.(opt.value)}
+                    onFocus={() => onOptionIntent?.(opt.value)}
                     onClick={() => {
                       onChange(opt.value)
                       close()
