@@ -449,6 +449,23 @@ Regression coverage: [`frontend-dapp/e2e/trade-page-responsive.spec.ts`](../fron
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
 
+### Trade page — invalid pair deep link {#trade-page-invalid-pair-link}
+
+When `/trade/:pairAddr` contains a segment that is **not** a valid Terra pair contract address ([`isValidTerraAddress`](../frontend-dapp/src/utils/constants.ts) via [`tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts)), the UI must **not** leave the garbage string in the URL, show it in the pair selector, or block the empty-route auto-pick of the first factory pair behind a truthy invalid param ([GitLab **#176**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/176)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **URL cleanup** | On invalid segment, `navigate('/trade', { replace: true })` so share links do not keep non-`terra1` garbage in the address bar. |
+| **Notice + CTA** | [`InvalidPairLinkNotice`](../frontend-dapp/src/components/trade/InvalidPairLinkNotice.tsx) renders **`role="alert"`** with title **Invalid pair link**, quotes the bad segment (truncated when long), and a **Select a trading pair** button that scrolls to and focuses `#trade-pair-select`. |
+| **Selector value** | `pairAddr` state stays **empty** until the user picks a pair or a valid deep link loads — `MenuSelect` must not display the raw invalid segment as the trigger label. |
+| **Queries disabled** | Indexer / LCD pair queries use **`isTradePairRouteParam(pairAddr)`** (not bare `startsWith('terra1')`) so malformed `terra1…` prefixes do not fire API calls. |
+| **Auto-pick guard** | Default redirect to the first factory pair runs only when **`pairAddr` is empty**, pairs exist, and the invalid-link notice is **not** showing (user must dismiss or pick via CTA). |
+| **`data-testid`s** | `trade-invalid-pair-link-notice`, `trade-invalid-pair-link-value`, `trade-invalid-pair-link-cta`. |
+
+Copy constants: [`tradeInvalidPairLinkCopy.ts`](../frontend-dapp/src/utils/tradeInvalidPairLinkCopy.ts). Regression: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), [`tradePairRoute.test.ts`](../frontend-dapp/src/utils/__tests__/tradePairRoute.test.ts).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_INVALID_PAIR_LINK.md`](../skills/AGENTS_FRONTEND_TRADE_INVALID_PAIR_LINK.md).
+
 ### Limit place — Bid / Ask side control (trade + limits page) {#limit-place-bid-ask-side}
 
 On-chain semantics are unchanged: **Bid escrows token1; Ask escrows token0** (pair asset ordering — see [`pair.ts`](../frontend-dapp/src/services/terraclassic/pair.ts) and contract docs).

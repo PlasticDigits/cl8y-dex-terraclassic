@@ -1,13 +1,16 @@
 import '@/test/lightweightChartsJsdomMock'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import TradePage from './TradePage'
 import { renderWithProviders } from '@/test-utils'
 import * as factory from '@/services/terraclassic/factory'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 
-const PAIR = 'terra1pair00000000000000000000000000000001'
+const PAIR = 'terra1pair0000000000000000000000000000000001'
 
 const mockIndexerPair: IndexerPair = {
   pair_address: PAIR,
@@ -142,5 +145,43 @@ describe('TradePage', () => {
     expect(banner.textContent).toMatch(/market data service unavailable/i)
     expect(banner.textContent).not.toMatch(/still use chain|VITE_INDEXER_URL|127\.0\.0\.1/i)
     expect(banner.textContent).toMatch(/order book|chart|tape/i)
+  })
+
+  it('shows invalid pair link notice and clears garbage URL for non-terra1 deep links (GitLab #176)', async () => {
+    vi.mocked(indexerClient.getPair).mockClear()
+    vi.mocked(indexerClient.getTrades).mockClear()
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter(
+      [
+        { path: '/trade', element: <TradePage /> },
+        { path: '/trade/:pairAddr', element: <TradePage /> },
+      ],
+      { initialEntries: ['/trade/lilwayne%20babyyy'] }
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    const notice = await screen.findByTestId('trade-invalid-pair-link-notice')
+    expect(notice.textContent).toMatch(/invalid pair link/i)
+    expect(screen.getByTestId('trade-invalid-pair-link-value').textContent).toMatch(/lilwayne babyyy/i)
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/trade')
+    })
+
+    const pairSelect = await screen.findByLabelText('Trading pair')
+    expect(pairSelect.textContent).not.toMatch(/lilwayne/i)
+
+    expect(indexerClient.getPair).not.toHaveBeenCalled()
+    expect(indexerClient.getTrades).not.toHaveBeenCalled()
+
+    await user.click(screen.getByTestId('trade-invalid-pair-link-cta'))
+    await waitFor(() => {
+      expect(pairSelect).toHaveFocus()
+    })
   })
 })
