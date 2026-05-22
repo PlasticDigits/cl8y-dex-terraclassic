@@ -21,5 +21,6 @@ Use when reproducing or fixing **offline lazy-load** crashes, broken **Try Again
 
 ## Related
 
+- **Trade hard-reload skeleton / LCP:** [GitLab **#179**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179), [docs/frontend.md § Trade page — initial load](../docs/frontend.md#trade-page-initial-load), [`AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md`](./AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md).
 - **LCD outage (queries, not chunks):** [GitLab **#171**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/171), [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md).
 - **Trader route error reset on address change:** [GitLab **#126**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126), [docs/frontend.md § Trader profile](../docs/frontend.md#trader-profile-indexer).
