@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-
 import Layout from './components/common/Layout'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { LazyRoute } from './components/common/LazyRoute'
+import { TradePageRouteFallback } from './components/trade/TradePageRouteFallback'
 import { isLcdConnectivityError } from '@/utils/lcdConnectivity'
 
 const queryClient = new QueryClient({
@@ -40,8 +41,14 @@ export default function App() {
               <Route path="/trader" element={<TraderRouteShell />} />
               <Route path="/trader/:address" element={<TraderRouteShell />} />
               <Route path="/limits" element={<LazyRoute loader={() => import('./pages/LimitOrdersPage')} />} />
-              <Route path="/trade" element={<LazyRoute loader={() => import('./pages/TradePage')} />} />
-              <Route path="/trade/:pairAddr" element={<LazyRoute loader={() => import('./pages/TradePage')} />} />
+              <Route
+                path="/trade"
+                element={<LazyRoute loader={() => import('./pages/TradePage')} fallback={<TradePageRouteFallback />} />}
+              />
+              <Route
+                path="/trade/:pairAddr"
+                element={<LazyRoute loader={() => import('./pages/TradePage')} fallback={<TradePageRouteFallback />} />}
+              />
               <Route path="/protocol" element={<LazyRoute loader={() => import('./pages/ProtocolPage')} />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

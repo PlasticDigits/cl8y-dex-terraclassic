@@ -135,10 +135,29 @@ When the app is already loaded and the trader navigates to a route whose JS chun
 | Retail copy | Chunk failures show headline **`Page unavailable`** and humanized body copy (offline / stale deploy); technical details scrub dev-server URLs via [`sanitizeChunkLoadTechnicalDetail`](../frontend-dapp/src/utils/chunkLoadError.ts). |
 | App-level fallback | Root [`ErrorBoundary`](../frontend-dapp/src/App.tsx) still wraps the tree; chunk errors at app depth offer **Reload App** (`location.reload()`). |
 | Trader `resetKeys` | `/trader/:address` passes `resetKeys` so navigation clears a prior route error ([GitLab **#126**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)). |
+| Trade route fallback | `/trade` and `/trade/:pairAddr` pass `fallback={<TradePageRouteFallback />}` so the Suspense boundary paints a workspace skeleton, not only the generic spinner — see [§ Trade page — initial load / LCP](#trade-page-initial-load). |
 
 Regression: [`chunkLoadError.test.ts`](../frontend-dapp/src/utils/__tests__/chunkLoadError.test.ts), [`LazyRoute.test.tsx`](../frontend-dapp/src/components/common/__tests__/LazyRoute.test.tsx).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](../skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md).
+
+### Trade page — initial load / LCP (W13-C1) {#trade-page-initial-load}
+
+Hard reload on `/trade` must not show a blank white viewport until all assets finish. A **trade workspace skeleton** should paint within ~200ms; **LCP** should be main trading chrome (skeleton or chart/book), not [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) ([GitLab **#179**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| HTML bootstrap | [`index.html`](../frontend-dapp/index.html) injects `#trade-bootstrap-shell` when `location.pathname` matches `/trade` **before** the Vite bundle executes — themed via the same `data-theme` bootstrap as the app. |
+| Route Suspense fallback | [`TradePageRouteFallback`](../frontend-dapp/src/components/trade/TradePageRouteFallback.tsx) wraps [`TradePageWorkspaceSkeleton`](../frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx) (`data-testid="trade-workspace-skeleton"`, `min-height` ≥ ~72vh) for lazy chunk load on `/trade`. |
+| Factory pair gate | [`TradePage`](../frontend-dapp/src/pages/TradePage.tsx) shows the same workspace skeleton while `allPairs` is loading (`pairsQuery.isLoading`) instead of an empty book/chart grid. |
+| Legal footer deferral | [`Layout`](../frontend-dapp/src/components/common/Layout.tsx) renders [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) only after [`ROUTE_CONTENT_READY_EVENT`](../frontend-dapp/src/utils/routeContentReady.ts) (fired from [`RouteContentReadyMarker`](../frontend-dapp/src/components/common/RouteContentReadyMarker.tsx) when the lazy page mounts), with a 12s failsafe. |
+| Per-panel loading | After pairs resolve, chart/tape/book panels keep their existing **`Skeleton`** / **`Spinner`** states — do not remove them when extending this work. |
+
+Regression: [`TradePageWorkspaceSkeleton.test.tsx`](../frontend-dapp/src/components/trade/__tests__/TradePageWorkspaceSkeleton.test.tsx), [`routeContentReady.test.ts`](../frontend-dapp/src/utils/__tests__/routeContentReady.test.ts), E2E [`trade-page-initial-load.spec.ts`](../frontend-dapp/e2e/trade-page-initial-load.spec.ts).
+
+**Verify (manual):** hard reload `/trade/:pairAddr` → skeleton visible immediately; Lighthouse **LCP** &lt; 4s and LCP element is not `.app-legal-footer-notice`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md`](../skills/AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md).
 
 ### Transaction broadcast / confirmation timeout (W11-C3) {#terra-tx-broadcast-timeout}
 

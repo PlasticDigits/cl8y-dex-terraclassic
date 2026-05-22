@@ -12,6 +12,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 | [docs/frontend.md § Trade page — invalid pair deep link](../docs/frontend.md#trade-page-invalid-pair-link) | Non-`terra1` or malformed `/trade/:pairAddr` → URL cleanup, alert + pair-selector CTA ([GitLab **#176**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/176)) |
 | [docs/frontend.md § Trade page — pair switch latency](../docs/frontend.md#trade-page-pair-switch-latency) | Parallel chart/book fetch, loading status, prefetch on selector intent ([GitLab **#180**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/180)) |
 | [docs/frontend.md § Portal listboxes — layout stability](../docs/frontend.md#portal-listbox-layout-stability) | `#trade-pair-select` opens a fixed portaled menu without shifting chart/book/ticket ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)) |
+| [docs/frontend.md § Trade page — initial load / LCP](../docs/frontend.md#trade-page-initial-load) | Hard-reload skeleton, HTML bootstrap, legal footer deferral, Lighthouse LCP ([GitLab **#179**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179)) |
 | [docs/frontend.md § Trade page — limit place success affordances](../docs/frontend.md#trade-page-limit-place-success-affordances) | After successful **Place limit** on `/trade`: **View order** + **Place another** CTAs, scroll/highlight wiring to **My limits** ([GitLab **#161**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161)) |
 | [docs/frontend.md § Trade page — order book row actions](../docs/frontend.md#trade-book-row-actions) | Bids/asks **#id** column, per-row **Edit** / cancel, **Cancel all mine**, shared `useLimitOrderCancelMutation`; **one** `TradeOrderTicket` mount via `TRADE_DESKTOP_LAYOUT_MEDIA_QUERY` ([GitLab **#178**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178), **#162**) |
 | [docs/frontend.md § Trade page — limit order price field](../docs/frontend.md#trade-page-limit-order-price) | Tape reference, % deviation, headline-scaled USD, bid/ask submit gate, tooltip ([GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154)) |
@@ -29,6 +30,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 
 ## Related
 
+- **Hard reload / LCP / workspace skeleton:** [GitLab **#179**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179), [`AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md`](./AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md).
 - **Chart `getPair` Retry after indexer 404:** [GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177), [docs/frontend.md § Trade page — chart pair fetch retry](../docs/frontend.md#trade-page-chart-retry), [`AGENTS_FRONTEND_QUERY_RETRY.md`](./AGENTS_FRONTEND_QUERY_RETRY.md).
 
 - Limit **Bid / Ask** side control (order ticket): [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md)

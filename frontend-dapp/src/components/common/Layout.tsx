@@ -17,6 +17,7 @@ import { useSyncMobileNavStack } from '@/hooks/useSyncMobileNavStack'
 import { sounds } from '@/lib/sounds'
 import { LcdConnectivityBanner } from '@/components/common/LcdConnectivityBanner'
 import { useLcdConnectivityRecovery } from '@/hooks/useLcdConnectivityRecovery'
+import { ROUTE_CONTENT_READY_EVENT } from '@/utils/routeContentReady'
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'dark'
@@ -37,6 +38,8 @@ export default function Layout() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false)
+  /** Defer legal notice until route page mounts so it is not the LCP element (GitLab #179). */
+  const [routeContentReady, setRouteContentReady] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -63,6 +66,17 @@ export default function Layout() {
   useEffect(() => {
     setIsMoreMenuOpen(false)
     setIsMobileMoreOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    setRouteContentReady(false)
+    const onReady = () => setRouteContentReady(true)
+    window.addEventListener(ROUTE_CONTENT_READY_EVENT, onReady)
+    const failsafe = window.setTimeout(() => setRouteContentReady(true), 12_000)
+    return () => {
+      window.removeEventListener(ROUTE_CONTENT_READY_EVENT, onReady)
+      window.clearTimeout(failsafe)
+    }
   }, [location.pathname])
 
   const headerMoreMenuItems = useMemo(() => getHeaderMoreMenuItems(fullDesktopHeader), [fullDesktopHeader])
@@ -196,7 +210,7 @@ export default function Layout() {
             {isLcdUnreachable ? <LcdConnectivityBanner onRetry={retryAll} isProbing={isProbePending} /> : null}
             <Outlet />
           </div>
-          {showMobileLegalStrip ? (
+          {showMobileLegalStrip && routeContentReady ? (
             <div className="app-mobile-legal-strip">
               <LegalFooterNotice />
             </div>
@@ -208,7 +222,7 @@ export default function Layout() {
         <div className="app-footer">
           <div className="app-footer-copy">
             <p className="app-footer-title">CL8Y DEX · Terra Classic</p>
-            <LegalFooterNotice />
+            {routeContentReady ? <LegalFooterNotice /> : null}
           </div>
         </div>
       </footer>

@@ -15,6 +15,7 @@ import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
 import { InvalidPairLinkNotice } from '@/components/trade/InvalidPairLinkNotice'
 import { TradePairSwitchStatus } from '@/components/trade/TradePairSwitchStatus'
+import { TradePageWorkspaceSkeleton } from '@/components/trade/TradePageWorkspaceSkeleton'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
@@ -195,6 +196,7 @@ export default function TradePage() {
   const onLimitBookDraftConsumed = useCallback(() => setLimitBookDraft(null), [])
 
   const isTradeDesktopLayout = useMediaQuery(TRADE_DESKTOP_LAYOUT_MEDIA_QUERY)
+  const showWorkspaceSkeleton = pairsQuery.isLoading
 
   const chartSlotProps = {
     pairRouteReady,
@@ -296,14 +298,15 @@ export default function TradePage() {
         </LcdQueryGate>
       </div>
 
-      {showPairSwitchLoading && <TradePairSwitchStatus pairLabel={activePairMenuLabel} />}
+      {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}
+      {!showWorkspaceSkeleton && showPairSwitchLoading && <TradePairSwitchStatus pairLabel={activePairMenuLabel} />}
 
       {/*
         Sub-desktop layout: single column <768px; tablet 768–1023px uses a 2-col top row
         (chart | order ticket) with order book + tape below — see docs/frontend.md § Trade page
         responsive layout (GitLab #146). Only one TradeOrderTicket mounts at a time (GitLab #178).
       */}
-      {!isTradeDesktopLayout && (
+      {!showWorkspaceSkeleton && !isTradeDesktopLayout && (
         <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
           <div className="min-h-[280px] md:col-span-2 md:row-start-2">
             <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
@@ -329,7 +332,7 @@ export default function TradePage() {
         </div>
       )}
 
-      {isTradeDesktopLayout && (
+      {!showWorkspaceSkeleton && isTradeDesktopLayout && (
         <div className="hidden lg:block h-[min(85vh,920px)] min-h-[440px]" data-testid="trade-desktop-workspace">
           <PanelGroup direction="horizontal" className="h-full gap-0">
             <Panel defaultSize={24} minSize={18} className="min-w-0">
