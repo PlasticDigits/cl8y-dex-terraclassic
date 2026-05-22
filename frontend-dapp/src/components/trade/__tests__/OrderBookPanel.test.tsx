@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { getPairLimitBookPage } from '@/services/indexer/client'
 import type { IndexerPair, PairInfo } from '@/types'
@@ -96,5 +97,35 @@ describe('OrderBookPanel', () => {
     expect(await screen.findByTestId('trade-book-edit-bid-7')).toBeInTheDocument()
     expect(screen.getByTestId('trade-book-cancel-bid-7')).toBeInTheDocument()
     expect(screen.getByTestId('trade-book-cancel-all-mine')).toBeInTheDocument()
+  })
+
+  it('Edit invokes onPrefillLimitTicket with side, price, and remaining size (GitLab #178)', async () => {
+    const user = userEvent.setup()
+    const onPrefill = vi.fn()
+    const factoryPair: PairInfo = {
+      contract_addr: pair.pair_address,
+      liquidity_token: 'terra1lp',
+      asset_infos: [{ token: { contract_addr: 'terra1ember' } }, { token: { contract_addr: 'terra1coral' } }],
+    }
+
+    renderWithProviders(
+      <OrderBookPanel
+        pairAddress={pair.pair_address}
+        pair={pair}
+        walletAddress="terra1maker"
+        isWalletConnected
+        cancelLimitOrderMutation={{ mutate: vi.fn(), isPending: false } as never}
+        onPrefillLimitTicket={onPrefill}
+        factoryPair={factoryPair}
+      />
+    )
+
+    await user.click(await screen.findByTestId('trade-book-edit-bid-7'))
+    expect(onPrefill).toHaveBeenCalledTimes(1)
+    expect(onPrefill).toHaveBeenCalledWith({
+      side: 'bid',
+      price: '0.826415278294723875',
+      amountHuman: '139.163969',
+    })
   })
 })

@@ -143,6 +143,7 @@ function BookRow({
               style={{ color: 'var(--ink)' }}
               disabled={isPairPaused || pendingThis}
               title="Load this size and price into the limit ticket (cancel the old order separately, or replace after cancel)."
+              aria-label={`Edit order ${order.order_id} — load price and size into limit ticket`}
               onClick={onEditClick}
             >
               Edit

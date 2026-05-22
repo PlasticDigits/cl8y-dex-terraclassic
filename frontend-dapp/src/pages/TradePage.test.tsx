@@ -6,11 +6,29 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import TradePage from './TradePage'
 import { renderWithProviders } from '@/test-utils'
+import { useWalletStore } from '@/hooks/useWallet'
+import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 import * as factory from '@/services/terraclassic/factory'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 
 const PAIR = 'terra1pair0000000000000000000000000000000001'
+const MAKER = 'terra1maker000000000000000000000000000001'
+
+function mockTradeDesktopLayout(matchesDesktop: boolean) {
+  window.matchMedia = vi.fn((query: string) => ({
+    matches: query === TRADE_DESKTOP_LAYOUT_MEDIA_QUERY ? matchesDesktop : false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: (_: string, cb: () => void) => {
+      if (query === TRADE_DESKTOP_LAYOUT_MEDIA_QUERY) cb()
+    },
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia
+}
 
 const mockIndexerPair: IndexerPair = {
   pair_address: PAIR,
@@ -56,8 +74,10 @@ vi.mock('@/services/terraclassic/settings', () => ({
 }))
 
 vi.mock('@/services/terraclassic/wallet', () => ({
-  getConnectedWallet: vi.fn().mockReturnValue(null),
+  getConnectedWallet: vi.fn(),
 }))
+
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
 
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn().mockResolvedValue({}),
@@ -77,6 +97,9 @@ const emptyStats = {
 
 describe('TradePage', () => {
   beforeEach(() => {
+    mockTradeDesktopLayout(false)
+    vi.mocked(getConnectedWallet).mockReturnValue(null)
+    useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
       pairs: [
         {
@@ -113,28 +136,44 @@ describe('TradePage', () => {
 
   it('order ticket exposes Limit and Market tabs (GitLab #152)', async () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
-    const marketTabs = await screen.findAllByTestId('trade-order-tab-market')
-    expect(marketTabs.length).toBeGreaterThanOrEqual(1)
-    const limitTabs = await screen.findAllByTestId('trade-order-tab-limit')
-    expect(limitTabs.length).toBeGreaterThanOrEqual(1)
+    expect(await screen.findByTestId('trade-order-tab-market')).toBeInTheDocument()
+    expect(screen.getByTestId('trade-order-tab-limit')).toBeInTheDocument()
   })
 
   it('limit tab shows pre-submit summary before Place limit (GitLab #157)', async () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
-    const summaries = await screen.findAllByTestId('trade-limit-pre-submit-summary')
-    expect(summaries.length).toBeGreaterThanOrEqual(1)
-    expect(summaries[0].textContent).toMatch(/no taker slippage/i)
-    expect(summaries[0].textContent).toMatch(/Maker placement fee/i)
+    const summary = await screen.findByTestId('trade-limit-pre-submit-summary')
+    expect(summary.textContent).toMatch(/no taker slippage/i)
+    expect(summary.textContent).toMatch(/Maker placement fee/i)
   })
 
   it('keeps disconnected ticket wallet CTAs actionable', async () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
-    const placeButtons = await screen.findAllByTestId('trade-limit-submit')
-    expect(placeButtons.some((button) => !button.hasAttribute('disabled'))).toBe(true)
+    expect(await screen.findByTestId('trade-limit-submit')).not.toHaveAttribute('disabled')
+    expect(screen.getByTestId('trade-cancel-submit')).not.toHaveAttribute('disabled')
+  })
 
-    const cancelButtons = await screen.findAllByTestId('trade-cancel-submit')
-    expect(cancelButtons.some((button) => !button.hasAttribute('disabled'))).toBe(true)
+  it('book Edit prefills the visible desktop limit ticket (GitLab #178)', async () => {
+    const user = userEvent.setup()
+    mockTradeDesktopLayout(true)
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders: side === 'bid' ? [{ order_id: 7, owner: MAKER, side, price: '2.5', remaining: '1000000' }] : [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await screen.findByTestId('trade-desktop-workspace')
+    await user.click(await screen.findByTestId('trade-book-edit-bid-7'))
+
+    const priceInput = await screen.findByTestId('limit-order-price-input')
+    expect(priceInput).toHaveValue('2.5')
+    expect(screen.getByTestId('trade-order-tab-limit')).toHaveAttribute('aria-selected', 'true')
   })
 
   it('shows accurate indexer outage banner when pair fetch fails (GitLab #164)', async () => {
