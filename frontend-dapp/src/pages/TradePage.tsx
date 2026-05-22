@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
-import { useQuery } from '@tanstack/react-query'
+import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPair, getTrades } from '@/services/indexer/client'
@@ -14,6 +14,7 @@ import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
 import { InvalidPairLinkNotice } from '@/components/trade/InvalidPairLinkNotice'
+import { TradePairSwitchStatus } from '@/components/trade/TradePairSwitchStatus'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
@@ -27,6 +28,8 @@ import {
 } from '@/utils/indexerTradeOutageCopy'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import { getInvalidTradePairRouteParam, isTradePairRouteParam } from '@/utils/tradePairRoute'
+import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
+import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
 import type { IndexerPair } from '@/types'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -42,9 +45,55 @@ function TradeResizeHandleHorizontal() {
   return <PanelResizeHandle className="h-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0" />
 }
 
+type TradeChartSlotProps = {
+  pairRouteReady: boolean
+  pairAddr: string
+  showRetryError: boolean
+  retryMessage: string
+  isRetrying: boolean
+  onRetry: () => void
+  tapeLastPriceUsd?: string | null
+  /** When false, chart fills the parent card without an extra wrapper (desktop panel). */
+  wrapInCard?: boolean
+}
+
+/** Chart mounts on `pairAddr` immediately; candles load in parallel with `getPair` (GitLab #180). */
+function TradeChartSlot({
+  pairRouteReady,
+  pairAddr,
+  showRetryError,
+  retryMessage,
+  isRetrying,
+  onRetry,
+  tapeLastPriceUsd,
+  wrapInCard = true,
+}: TradeChartSlotProps) {
+  if (!pairRouteReady) {
+    return (
+      <p className="text-sm p-4" style={{ color: 'var(--ink-dim)' }}>
+        Select a pair for the chart.
+      </p>
+    )
+  }
+  if (showRetryError) {
+    return (
+      <RetryError
+        data-testid="trade-chart-retry-error"
+        message={retryMessage}
+        isRetrying={isRetrying}
+        onRetry={onRetry}
+      />
+    )
+  }
+  const chart = <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tapeLastPriceUsd} />
+  if (!wrapInCard) return chart
+  return <div className="card-neo !p-2 flex-1 min-h-0 flex flex-col">{chart}</div>
+}
+
 export default function TradePage() {
   const { pairAddr: routePair } = useParams<{ pairAddr?: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const invalidRoutePair = useMemo(() => getInvalidTradePairRouteParam(routePair), [routePair])
   const [invalidLinkNotice, setInvalidLinkNotice] = useState<string | null>(null)
   const [pairAddr, setPairAddr] = useState(() => (isTradePairRouteParam(routePair) ? routePair : ''))
@@ -58,6 +107,10 @@ export default function TradePage() {
   const pairs = useMemo(() => pairsQuery.data?.pairs ?? [], [pairsQuery.data])
   const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs, { variant: 'full' }), [pairs])
   const pairRouteReady = isTradePairRouteParam(pairAddr)
+  const activePairMenuLabel = useMemo(
+    () => pairMenuOptions.find((o) => o.value === pairAddr)?.label,
+    [pairMenuOptions, pairAddr]
+  )
 
   useEffect(() => {
     if (invalidRoutePair) {
@@ -83,6 +136,11 @@ export default function TradePage() {
     }
   }, [pairAddr, pairs, navigate, invalidLinkNotice])
 
+  useEffect(() => {
+    if (!pairRouteReady) return
+    prefetchTradePairWorkspace(queryClient, pairAddr)
+  }, [pairRouteReady, pairAddr, queryClient])
+
   const indexerPairQuery = useQuery({
     queryKey: ['indexer-pair-trade', pairAddr],
     queryFn: () => getPair(pairAddr),
@@ -102,9 +160,12 @@ export default function TradePage() {
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = indexerPairQuery.isError && isIndexerUnavailableError(indexerPairQuery.error)
   const indexerPairRetry = useQueryManualRetry(['indexer-pair-trade', pairAddr], indexerPairQuery)
-  const showIndexerPairSkeleton =
-    indexerPairQuery.isLoading || (indexerPairQuery.isError && indexerPairRetry.isRetrying)
   const showIndexerPairRetryError = indexerPairQuery.isError && !indexerDown && !indexerPairRetry.isRetrying
+
+  const tradeWorkspaceFetchingCount = useIsFetching({
+    predicate: (query) => pairRouteReady && isTradePairWorkspaceQuery(query, pairAddr),
+  })
+  const showPairSwitchLoading = pairRouteReady && tradeWorkspaceFetchingCount > 0
 
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
@@ -135,6 +196,16 @@ export default function TradePage() {
 
   const isTradeDesktopLayout = useMediaQuery(TRADE_DESKTOP_LAYOUT_MEDIA_QUERY)
 
+  const chartSlotProps = {
+    pairRouteReady,
+    pairAddr,
+    showRetryError: showIndexerPairRetryError,
+    retryMessage: getErrorMessage(indexerPairQuery.error),
+    isRetrying: indexerPairRetry.isRetrying,
+    onRetry: indexerPairRetry.retry,
+    tapeLastPriceUsd: tradesQuery.data?.[0]?.price,
+  }
+
   const tradeOrderTicket = (
     <TradeOrderTicket
       pairAddr={pairAddr}
@@ -160,14 +231,26 @@ export default function TradePage() {
     factoryPair,
   }
 
-  const onPairChange = (addr: string) => {
-    sounds.playButtonPress()
-    setInvalidLinkNotice(null)
-    setPairAddr(addr)
-    if (isTradePairRouteParam(addr)) {
-      navigate(`/trade/${addr}`)
-    }
-  }
+  const onPairPrefetchIntent = useCallback(
+    (addr: string) => {
+      if (!isTradePairRouteParam(addr) || addr === pairAddr) return
+      prefetchTradePairWorkspace(queryClient, addr)
+    },
+    [pairAddr, queryClient]
+  )
+
+  const onPairChange = useCallback(
+    (addr: string) => {
+      sounds.playButtonPress()
+      setInvalidLinkNotice(null)
+      if (isTradePairRouteParam(addr)) {
+        prefetchTradePairWorkspace(queryClient, addr)
+        setPairAddr(addr)
+        navigate(`/trade/${addr}`)
+      }
+    },
+    [navigate, queryClient]
+  )
 
   return (
     <div className="space-y-3">
@@ -208,9 +291,12 @@ export default function TradePage() {
             options={pairMenuOptions}
             emptyLabel="No pairs on factory"
             onChange={onPairChange}
+            onOptionIntent={onPairPrefetchIntent}
           />
         </LcdQueryGate>
       </div>
+
+      {showPairSwitchLoading && <TradePairSwitchStatus pairLabel={activePairMenuLabel} />}
 
       {/*
         Sub-desktop layout: single column <768px; tablet 768–1023px uses a 2-col top row
@@ -224,20 +310,7 @@ export default function TradePage() {
           </div>
           <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">{tradeOrderTicket}</div>
           <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
-            {pairRouteReady && showIndexerPairSkeleton && <Skeleton height="12rem" />}
-            {pairRouteReady && showIndexerPairRetryError && (
-              <RetryError
-                data-testid="trade-chart-retry-error"
-                message={getErrorMessage(indexerPairQuery.error)}
-                isRetrying={indexerPairRetry.isRetrying}
-                onRetry={indexerPairRetry.retry}
-              />
-            )}
-            {activePair && (
-              <div className="card-neo !p-2 flex-1 min-h-0 flex flex-col">
-                <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
-              </div>
-            )}
+            <TradeChartSlot {...chartSlotProps} />
           </div>
           <div className="card-neo !p-3 md:col-span-2 md:row-start-3">
             <h2 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--ink-dim)' }}>
@@ -267,23 +340,7 @@ export default function TradePage() {
               <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
                 <Panel defaultSize={58} minSize={30} className="min-h-0">
                   <div className="h-full min-h-[200px] card-neo !p-2 overflow-hidden flex flex-col min-h-0">
-                    {pairRouteReady && showIndexerPairSkeleton && <Skeleton height="100%" />}
-                    {pairRouteReady && showIndexerPairRetryError && (
-                      <RetryError
-                        data-testid="trade-chart-retry-error"
-                        message={getErrorMessage(indexerPairQuery.error)}
-                        isRetrying={indexerPairRetry.isRetrying}
-                        onRetry={indexerPairRetry.retry}
-                      />
-                    )}
-                    {activePair && (
-                      <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
-                    )}
-                    {!pairRouteReady && (
-                      <p className="text-sm p-4" style={{ color: 'var(--ink-dim)' }}>
-                        Select a pair for the chart.
-                      </p>
-                    )}
+                    <TradeChartSlot {...chartSlotProps} wrapInCard={false} />
                   </div>
                 </Panel>
                 <TradeResizeHandleHorizontal />

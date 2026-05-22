@@ -224,6 +224,46 @@ describe('TradePage', () => {
     })
   })
 
+  it('mounts chart and fetches candles before getPair resolves (GitLab #180)', async () => {
+    let resolvePair!: (value: IndexerPair) => void
+    vi.mocked(indexerClient.getPair).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePair = resolve
+        })
+    )
+    vi.mocked(indexerClient.getCandles).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve([]), 500))
+    )
+
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    await waitFor(() => {
+      expect(vi.mocked(indexerClient.getCandles)).toHaveBeenCalledWith(PAIR, '1h')
+    })
+    expect(await screen.findByText(/Loading chart/i)).toBeInTheDocument()
+
+    resolvePair(mockIndexerPair)
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading chart/i)).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows pair switch loading status while workspace queries are in flight (GitLab #180)', async () => {
+    vi.mocked(indexerClient.getCandles).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve([]), 300))
+    )
+    vi.mocked(indexerClient.getTrades).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve([]), 300))
+    )
+
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    expect(await screen.findByTestId('trade-pair-switch-loading')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByTestId('trade-pair-switch-loading')).not.toBeInTheDocument()
+    })
+  })
+
   it('chart Retry refetches indexer pair after 404 (GitLab #177)', async () => {
     const invalidPair = "terra1damThat'scrazy"
     vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 404 Not Found'))
