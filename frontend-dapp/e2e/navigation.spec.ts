@@ -118,6 +118,27 @@ test.describe('Navigation', () => {
     await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
   })
 
+  test('desktop primary tabs change URL without reload (GitLab #182)', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/')
+    await page.waitForLoadState('domcontentloaded')
+
+    const desktopNav = page.locator('header.app-header-shell nav.app-desktop-nav')
+    await expect(desktopNav.getByRole('link', { name: 'Pool' })).toBeVisible()
+
+    await desktopNav.getByRole('link', { name: 'Pool' }).click()
+    await expect(page).toHaveURL(/\/pool/)
+
+    await desktopNav.getByRole('link', { name: 'Trade' }).click()
+    await expect(page).toHaveURL(/\/trade/)
+
+    await desktopNav.getByRole('link', { name: 'Charts' }).click()
+    await expect(page).toHaveURL(/\/charts/)
+
+    await desktopNav.getByRole('link', { name: 'Swap' }).click()
+    await expect(page).toHaveURL(/\/(\?.*)?$/)
+  })
+
   test('navigates to Trade page', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('link', { name: 'Trade' }).click()

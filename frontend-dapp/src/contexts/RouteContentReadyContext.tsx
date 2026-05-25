@@ -7,9 +7,10 @@ import { RouteContentReadyContext } from './routeContentReadyContextState'
  * Tracks which pathname has mounted route content so Layout can defer legal footer LCP (#179)
  * while keeping NFA visible immediately after navigation (#138).
  *
- * Clears readiness synchronously when `pathname` changes so a stale ready path cannot
- * satisfy the next route before `RouteContentReadyMarker` runs (child effects run
- * before parent effects; window events were dropped — see GitLab #138).
+ * `routeContentReady` is true only when `readyForPath === pathname`, so a stale ready
+ * path never satisfies a new route before `RouteContentReadyMarker` runs (child effects
+ * run before parent effects; window events were dropped — see GitLab #138). Avoid
+ * render-phase `setState` here — it can interfere with React Router navigation (#182).
  */
 export function RouteContentReadyProvider({
   children,
@@ -20,15 +21,8 @@ export function RouteContentReadyProvider({
 }) {
   const { pathname } = useLocation()
   const [readyForPath, setReadyForPath] = useState<string | null>(null)
-  const [prevPathname, setPrevPathname] = useState(pathname)
 
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname)
-    if (readyForPath !== null) {
-      setReadyForPath(null)
-    }
-  }
-
+  /** Stale `readyForPath` never satisfies a new pathname (no render-phase setState — GitLab #182). */
   const routeContentReady = readyForPath === pathname
 
   const markRouteContentReady = useCallback((path: string) => {
