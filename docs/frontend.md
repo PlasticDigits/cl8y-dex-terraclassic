@@ -71,6 +71,20 @@ Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExt
 
 **Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX).
 
+### Connected wallet chip — native LUNC balance {#connected-wallet-chip-lunc-balance}
+
+When a wallet is connected, the header chip must show **bank uluna** as human **LUNC** without opening the menu ([GitLab **#140**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140), W3-C1 visual checklist). CW20 escrow balances on trade/swap/pool forms are separate; this surface is the **native gas / buying-power** line retailers expect in the shell.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Query reuse** | [`useNativeUlunaBalance`](../frontend-dapp/src/hooks/useNativeUlunaBalance.ts) — React Query key `['tokenBalance', address, 'uluna']`, same LCD path as swap/pool (`getTokenBalance` + `native_token.denom`). |
+| **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with the **full** bech32 address. |
+| **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
+| **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
+| **Out of scope (#140 B)** | Copy address, explorer link, switch wallet, network text on chip, Esc on wallet menu — track as sibling issues; do not block LUNC on those landing first. |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md).
+
 ### Risk surfacing, NFA copy, and first-visit acknowledgement {#legal-risk-surfacing}
 
 Pre-launch legal / UX requirements are tracked in [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138). Implementation overview:

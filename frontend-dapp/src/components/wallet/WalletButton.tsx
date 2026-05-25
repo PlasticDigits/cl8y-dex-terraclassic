@@ -6,6 +6,7 @@ import { sounds } from '@/lib/sounds'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { DEFAULT_NETWORK, NETWORKS } from '@/utils/constants'
 import { getTerraChainLogoPath } from '@/utils/networkDisplay'
+import { WalletLuncBalance } from './WalletLuncBalance'
 import WalletModal from './WalletModal'
 
 export default function WalletButton() {
@@ -25,16 +26,20 @@ export default function WalletButton() {
           aria-expanded={showDropdown}
           className="wallet-trigger wallet-trigger-connected"
         >
-          <div className="text-left hidden sm:block">
+          <div className="text-left hidden sm:block min-w-0 max-w-[9.5rem]">
             <p className="text-[10px] uppercase tracking-[0.12em]" style={{ color: 'var(--ink-subtle)' }}>
               Wallet
             </p>
-            <p className="text-xs" style={{ color: 'var(--ink)' }}>
+            <WalletLuncBalance address={address} className="block max-w-full" />
+            <p className="text-[10px] font-mono truncate" style={{ color: 'var(--ink-dim)' }}>
               {shortenAddress(address, 6, 6)}
             </p>
           </div>
-          <div className="sm:hidden text-xs font-mono font-medium" style={{ color: 'var(--ink)' }}>
-            {shortenAddress(address, 4, 4)}
+          <div className="sm:hidden text-right min-w-0 max-w-[5.5rem]">
+            <WalletLuncBalance address={address} className="block max-w-full" />
+            <p className="text-xs font-mono font-medium truncate" style={{ color: 'var(--ink)' }}>
+              {shortenAddress(address, 4, 4)}
+            </p>
           </div>
           <div className="wallet-trigger-icon">
             <img src={chainLogoPath} alt="Terra Classic" className="h-full w-full object-contain" />
@@ -45,9 +50,10 @@ export default function WalletButton() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
             <div role="menu" className="wallet-menu animate-fade-in-up" style={{ animationDuration: '0.2s' }}>
-              <div className="sm:hidden px-3 py-2">
-                <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
-                  {shortenAddress(address, 8, 8)}
+              <div className="px-3 py-2 border-b border-white/10 space-y-1 min-w-0">
+                <WalletLuncBalance address={address} />
+                <p className="text-xs font-mono break-all" style={{ color: 'var(--ink-subtle)' }}>
+                  {address}
                 </p>
               </div>
               <Link

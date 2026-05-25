@@ -23,6 +23,7 @@ Use when changing **`Layout.tsx`**, **primary / More nav items**, **`HEADER_FULL
 
 ## Related
 
+- Connected wallet chip (LUNC balance, dropdown): [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md) ([GitLab **#140**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140))
 - Theme toggle (header vs mobile More): [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md)
 - Trade page tablet grid (`/trade`): [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Keyboard focus rings / WCAG 2.4.7: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
