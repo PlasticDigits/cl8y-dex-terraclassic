@@ -1,3 +1,124 @@
+diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
+index bcfd177..cca2429 100644
+--- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
++++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
+@@ -1,7 +1,88 @@
+ import { RpcClient, Tx, } from "../../../client/index.js";
++import { CosmosTxV1beta1AuthInfo as ProtoAuthInfo, } from "../../../protobufs/index.js";
+ import { WalletType } from "../../constants/WalletType.js";
+ import { ConnectedWallet, } from "../ConnectedWallet.js";
+ import { WalletError } from "../WalletError.js";
++/** Per-request sign options — Station LocalTerra may ignore defaultOptions alone (GitLab #127). */
++const EXTENSION_SIGN_OPTIONS = {
++    preferNoSetFee: true,
++    preferNoSetMemo: true,
++};
++const EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX = "Wallet signed a fee far below what this dApp submitted (GitLab #127).";
++const EXTENSION_SIGNED_FEE_MIN_PERCENT = 95n;
++function extensionSignedFeeUndershootError(expectedUluna, expectedGas, signedUluna, signedGas) {
++    const gasNote = expectedGas > 0n && signedGas > 0n && signedGas < expectedGas
++        ? ` Expected gas at least ~${expectedGas}; wallet returned ~${signedGas}.`
++        : "";
++    return new Error(`${EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX} On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run \`cd frontend-dapp && npm ci\` so the cosmes patch is applied, then retry. Expected at least ~${expectedUluna} uluna; wallet returned ~${signedUluna} uluna.${gasNote}`);
++}
++function meetsMinSignedRatio(signed, expected) {
++    if (expected <= 0n)
++        return true;
++    if (signed <= 0n)
++        return false;
++    return signed * 100n >= expected * EXTENSION_SIGNED_FEE_MIN_PERCENT;
++}
++/** Reject broadcast when a wallet rewrites fees/gas far below the dApp `Fee` (Station LocalTerra repro: ~3000 uluna; #134 ~23 vs ~36 LUNC). */
++function ulunaFromAminoFee(fee) {
++    const coin = fee?.amount?.find((c) => c.denom === "uluna");
++    return coin?.amount ? BigInt(coin.amount) : 0n;
++}
++function gasFromAminoFee(fee) {
++    const g = fee?.gas;
++    if (g == null || g === "")
++        return 0n;
++    try {
++        return BigInt(g);
++    }
++    catch {
++        return 0n;
++    }
++}
++function gasLimitFromProtobufFee(fee) {
++    return fee?.gasLimit ? BigInt(fee.gasLimit) : 0n;
++}
++function ulunaFromDirectSignedAuthInfoBytes(authInfoBytes) {
++    if (!authInfoBytes?.length)
++        return 0n;
++    const auth = ProtoAuthInfo.fromBinary(authInfoBytes);
++    const coin = auth.fee?.amount?.find((c) => c.denom === "uluna");
++    return coin?.amount ? BigInt(coin.amount) : 0n;
++}
++function gasFromDirectSignedAuthInfoBytes(authInfoBytes) {
++    if (!authInfoBytes?.length)
++        return 0n;
++    const auth = ProtoAuthInfo.fromBinary(authInfoBytes);
++    return auth.fee?.gasLimit ? BigInt(auth.fee.gasLimit) : 0n;
++}
++function assertExtensionSignedFeeMeetsExpected(signedDoc, expectedFee, chainId) {
++    const isLocalTerra = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
++    if (!isLocalTerra)
++        return;
++    const expectedUluna = ulunaFromAminoFee(expectedFee);
++    const expectedGas = gasLimitFromProtobufFee(expectedFee);
++    if (expectedUluna <= 0n && expectedGas <= 0n)
++        return;
++    if (!signedDoc?.fee)
++        throw extensionSignedFeeUndershootError(expectedUluna, expectedGas, 0n, 0n);
++    const signedUluna = ulunaFromAminoFee(signedDoc.fee);
++    const signedGas = gasFromAminoFee(signedDoc.fee);
++    if (!meetsMinSignedRatio(signedGas, expectedGas) || !meetsMinSignedRatio(signedUluna, expectedUluna))
++        throw extensionSignedFeeUndershootError(expectedUluna, expectedGas, signedUluna, signedGas);
++}
++function assertExtensionSignedDirectFeeMeetsExpected(signed, expectedFee, chainId) {
++    const isLocalTerra = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
++    if (!isLocalTerra)
++        return;
++    const expectedUluna = ulunaFromAminoFee(expectedFee);
++    const expectedGas = gasLimitFromProtobufFee(expectedFee);
++    if (expectedUluna <= 0n && expectedGas <= 0n)
++        return;
++    const signedUluna = ulunaFromDirectSignedAuthInfoBytes(signed.authInfoBytes);
++    const signedGas = gasFromDirectSignedAuthInfoBytes(signed.authInfoBytes);
++    if (!meetsMinSignedRatio(signedGas, expectedGas) || !meetsMinSignedRatio(signedUluna, expectedUluna))
++        throw extensionSignedFeeUndershootError(expectedUluna, expectedGas, signedUluna, signedGas);
++}
+ export class KeplrExtension extends ConnectedWallet {
+     constructor(walletName, label, ext, chainId, pubKey, address, rpc, gasPrice, useAmino) {
+         super(walletName, WalletType.EXTENSION, label, chainId, pubKey, address, rpc, gasPrice);
+@@ -43,11 +124,25 @@ export class KeplrExtension extends ConnectedWallet {
+         };
+         let txRaw;
+         if (this.useAmino) {
+-            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
++            const stdDoc = tx.toStdSignDoc(params);
++            let signed;
++            let signature;
++            for (let attempt = 0; attempt < 2; attempt++) {
++                ({ signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS)));
++                try {
++                    assertExtensionSignedFeeMeetsExpected(signed, fee, this.chainId);
++                    break;
++                }
++                catch (err) {
++                    if (attempt === 1)
++                        throw err;
++                }
++            }
+             txRaw = tx.toSignedAmino(signed, signature.signature);
+         }
+         else {
+-            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params)));
++            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params), EXTENSION_SIGN_OPTIONS));
++            assertExtensionSignedDirectFeeMeetsExpected(signed, fee, this.chainId);
+             txRaw = tx.toSignedDirect(signed, signature.signature);
+         }
+         return RpcClient.broadcastTx(this.rpc, txRaw);
 diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/luncdash/LUNCDashController.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/luncdash/LUNCDashController.js
 index 641a1e0..37c6857 100644
 --- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/luncdash/LUNCDashController.js
@@ -33,7 +154,7 @@ index 641a1e0..37c6857 100644
          this.wc.cacheSession(wc);
          return { wallets, wc: this.wc };
 diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
-index 021a61a..c8f1271 100644
+index 021a61a..bbf719c 100644
 --- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
 +++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
 @@ -49,17 +49,22 @@ export class StationController extends WalletController {
@@ -66,8 +187,7 @@ index 021a61a..c8f1271 100644
          }
          this.wc.cacheSession(wc);
          return { wallets, wc: this.wc };
-@@ -84,8 +84,11 @@ export class StationController extends WalletController {
-                 const key = new Secp256k1PubKey({
+@@ -79,7 +84,10 @@ export class StationController extends WalletController {
                      key: pubKey,
                      chainId,
                  });
@@ -79,6 +199,51 @@ index 021a61a..c8f1271 100644
              }
              catch (err) {
                  if (err instanceof Error) {
+diff --git a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
+index eb54188..845a813 100644
+--- a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
++++ b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
+@@ -23,6 +23,15 @@ import {
+ import { WalletError } from "../WalletError";
+ import { AddChainInfo } from "cosmes/wallet/walletconnect/WalletConnectV2";
+ 
++/**
++ * Pass on every `signAmino` / `signDirect` call. Station on LocalTerra can ignore
++ * `defaultOptions.sign` alone and rebuild fees from a stale gas step (GitLab #127).
++ */
++const EXTENSION_SIGN_OPTIONS = {
++  preferNoSetFee: true,
++  preferNoSetMemo: true,
++} as const;
++
+ export class KeplrExtension extends ConnectedWallet {
+   private readonly ext: Keplr;
+   private readonly useAmino: boolean;
+@@ -99,12 +108,22 @@ export class KeplrExtension extends ConnectedWallet {
+     let txRaw: TxRaw;
+     if (this.useAmino) {
+       const { signed, signature } = await WalletError.wrap(
+-        this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params))
++        this.ext.signAmino(
++          this.chainId,
++          this.address,
++          tx.toStdSignDoc(params),
++          EXTENSION_SIGN_OPTIONS
++        )
+       );
+       txRaw = tx.toSignedAmino(signed, signature.signature);
+     } else {
+       const { signed, signature } = await WalletError.wrap(
+-        this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params))
++        this.ext.signDirect(
++          this.chainId,
++          this.address,
++          tx.toSignDoc(params),
++          EXTENSION_SIGN_OPTIONS
++        )
+       );
+       txRaw = tx.toSignedDirect(signed, signature.signature);
+     }
 diff --git a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/luncdash/LUNCDashController.ts b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/luncdash/LUNCDashController.ts
 index 707d1df..fb101ac 100644
 --- a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/luncdash/LUNCDashController.ts
@@ -199,138 +364,3 @@ index d372281..e88620d 100644
      }
      this.wc.cacheSession(wc);
      return { wallets, wc: this.wc };
-diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
-index 8f3c2a1..c4a8f12 100644
---- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
-+++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
-@@ -1,7 +1,57 @@
- import { RpcClient, Tx, } from "../../../client/index.js";
-+import { CosmosTxV1beta1AuthInfo as ProtoAuthInfo, } from "../../../protobufs/index.js";
- import { WalletType } from "../../constants/WalletType.js";
- import { ConnectedWallet, } from "../ConnectedWallet.js";
- import { WalletError } from "../WalletError.js";
-+/** Per-request sign options — Station LocalTerra may ignore defaultOptions alone (GitLab #127). */
-+const EXTENSION_SIGN_OPTIONS = {
-+    preferNoSetFee: true,
-+    preferNoSetMemo: true,
-+};
-+const EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX = "Wallet signed a fee far below what this dApp submitted (GitLab #127).";
-+function extensionSignedFeeUndershootError(expectedUluna, signedUluna) {
-+    return new Error(`${EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX} On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run \`cd frontend-dapp && npm ci\` so the cosmes patch is applied, then retry. Expected at least ~${expectedUluna} uluna; wallet returned ~${signedUluna} uluna.`);
-+}
-+/** Reject broadcast when a wallet rewrites fees far below the dApp `Fee` (Station LocalTerra repro: ~3000 uluna). */
-+function ulunaFromAminoFee(fee) {
-+    const coin = fee?.amount?.find((c) => c.denom === "uluna");
-+    return coin?.amount ? BigInt(coin.amount) : 0n;
-+}
-+function ulunaFromDirectSignedAuthInfoBytes(authInfoBytes) {
-+    if (!authInfoBytes?.length)
-+        return 0n;
-+    const auth = ProtoAuthInfo.fromBinary(authInfoBytes);
-+    const coin = auth.fee?.amount?.find((c) => c.denom === "uluna");
-+    return coin?.amount ? BigInt(coin.amount) : 0n;
-+}
-+function assertExtensionSignedFeeMeetsExpected(signedDoc, expectedFee, chainId) {
-+    const isLocalTerra = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
-+    if (!isLocalTerra)
-+        return;
-+    const expectedCoin = expectedFee?.amount?.find((c) => c.denom === "uluna");
-+    const expectedUluna = expectedCoin?.amount ? BigInt(expectedCoin.amount) : 0n;
-+    if (expectedUluna <= 0n)
-+        return;
-+    if (!signedDoc?.fee)
-+        throw extensionSignedFeeUndershootError(expectedUluna, 0n);
-+    const signedUluna = ulunaFromAminoFee(signedDoc.fee);
-+    if (signedUluna >= expectedUluna / 2n)
-+        return;
-+    throw extensionSignedFeeUndershootError(expectedUluna, signedUluna);
-+}
-+function assertExtensionSignedDirectFeeMeetsExpected(signed, expectedFee, chainId) {
-+    const isLocalTerra = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
-+    if (!isLocalTerra)
-+        return;
-+    const expectedCoin = expectedFee?.amount?.find((c) => c.denom === "uluna");
-+    const expectedUluna = expectedCoin?.amount ? BigInt(expectedCoin.amount) : 0n;
-+    if (expectedUluna <= 0n)
-+        return;
-+    const signedUluna = ulunaFromDirectSignedAuthInfoBytes(signed.authInfoBytes);
-+    if (signedUluna >= expectedUluna / 2n)
-+        return;
-+    throw extensionSignedFeeUndershootError(expectedUluna, signedUluna);
-+}
- export class KeplrExtension extends ConnectedWallet {
-     constructor(walletName, label, ext, chainId, pubKey, address, rpc, gasPrice, useAmino) {
-         super(walletName, WalletType.EXTENSION, label, chainId, pubKey, address, rpc, gasPrice);
-@@ -43,11 +105,25 @@
-         };
-         let txRaw;
-         if (this.useAmino) {
--            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
-+            const stdDoc = tx.toStdSignDoc(params);
-+            let signed;
-+            let signature;
-+            for (let attempt = 0; attempt < 2; attempt++) {
-+                ({ signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS)));
-+                try {
-+                    assertExtensionSignedFeeMeetsExpected(signed, fee, this.chainId);
-+                    break;
-+                }
-+                catch (err) {
-+                    if (attempt === 1)
-+                        throw err;
-+                }
-+            }
-             txRaw = tx.toSignedAmino(signed, signature.signature);
-         }
-         else {
--            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params)));
-+            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params), EXTENSION_SIGN_OPTIONS));
-+            assertExtensionSignedDirectFeeMeetsExpected(signed, fee, this.chainId);
-             txRaw = tx.toSignedDirect(signed, signature.signature);
-         }
-         return RpcClient.broadcastTx(this.rpc, txRaw);
-diff --git a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
-index 7a8b9c0..1d2e3f4 100644
---- a/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
-+++ b/node_modules/@goblinhunt/cosmes/src/wallet/wallets/keplr/KeplrExtension.ts
-@@ -23,6 +23,15 @@ import {
- import { WalletError } from "../WalletError";
- import { AddChainInfo } from "cosmes/wallet/walletconnect/WalletConnectV2";
- 
-+/**
-+ * Pass on every `signAmino` / `signDirect` call. Station on LocalTerra can ignore
-+ * `defaultOptions.sign` alone and rebuild fees from a stale gas step (GitLab #127).
-+ */
-+const EXTENSION_SIGN_OPTIONS = {
-+  preferNoSetFee: true,
-+  preferNoSetMemo: true,
-+} as const;
-+
- export class KeplrExtension extends ConnectedWallet {
-   private readonly ext: Keplr;
-   private readonly useAmino: boolean;
-@@ -99,12 +108,22 @@ export class KeplrExtension extends ConnectedWallet {
-     let txRaw: TxRaw;
-     if (this.useAmino) {
-       const { signed, signature } = await WalletError.wrap(
--        this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params))
-+        this.ext.signAmino(
-+          this.chainId,
-+          this.address,
-+          tx.toStdSignDoc(params),
-+          EXTENSION_SIGN_OPTIONS
-+        )
-       );
-       txRaw = tx.toSignedAmino(signed, signature.signature);
-     } else {
-       const { signed, signature } = await WalletError.wrap(
--        this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params))
-+        this.ext.signDirect(
-+          this.chainId,
-+          this.address,
-+          tx.toSignDoc(params),
-+          EXTENSION_SIGN_OPTIONS
-+        )
-       );
-       txRaw = tx.toSignedDirect(signed, signature.signature);
-     }

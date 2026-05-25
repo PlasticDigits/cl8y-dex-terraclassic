@@ -98,8 +98,8 @@ export async function broadcastTerraExecuteContracts(
 
     if (txResponse.code !== 0) {
       const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
-      const errorMsg = tryHumanizeTerraTxMessage(raw) ?? raw
-      throw new Error(`Transaction failed: ${errorMsg}`)
+      const human = tryHumanizeTerraTxMessage(raw)
+      throw new Error(human ?? `Transaction failed: ${raw}`)
     }
 
     return txHash

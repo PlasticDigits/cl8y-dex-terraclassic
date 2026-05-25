@@ -9,6 +9,7 @@ import {
 } from '@/utils/constants'
 
 export const BASE_GAS_LIMIT = 200000
+/** Legacy per-hop base; pool-only broadcast uses {@link gasLimitForExecuteSwapOperations}(1) (830k, GitLab #115 / #134). */
 export const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching uses more gas than pool-only swaps. */
 export const HYBRID_SWAP_GAS_LIMIT = 1200000
@@ -64,7 +65,7 @@ function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
 }
 
 /** Buffered estimate + per-hop padding, floored at min gas per hop (see constants). */
-function gasLimitForExecuteSwapOperations(hops: number): number {
+export function gasLimitForExecuteSwapOperations(hops: number): number {
   const hopCount = Math.max(hops, 1)
   const scaled = Math.round(SWAP_GAS_PER_HOP * hopCount * SWAP_GAS_BUFFER)
   const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
@@ -92,7 +93,7 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('execute_swap_operations' in executeMsg) {
     return gasLimitForSwapOperationsMsg(executeMsg)
   } else if ('swap' in executeMsg) {
-    return SWAP_GAS_LIMIT
+    return innerSwapUsesHybrid(executeMsg) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
   } else if ('provide_liquidity' in executeMsg) {
     return ADD_LIQUIDITY_GAS_LIMIT
   } else if ('withdraw_liquidity' in executeMsg) {
@@ -106,7 +107,7 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         const inner = JSON.parse(atob(sendMsg.msg)) as Record<string, unknown>
         if ('place_limit_order' in inner) return PLACE_LIMIT_ORDER_GAS_LIMIT
         if ('swap' in inner) {
-          return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : SWAP_GAS_LIMIT
+          return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
         if ('execute_swap_operations' in inner) return gasLimitForSwapOperationsMsg(inner)
