@@ -83,9 +83,24 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
 | **Copy affordance** | Use [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) for wallet/address copy ([#183](#copy-button-primitive)); dropdown wiring is [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185). |
 | **Menu dismiss + Escape** | Connected dropdown uses the same semantic backdrop as shell nav: `type="button"` + `aria-label="Close wallet menu"` + class **`app-menu-dismiss`** ([`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)). **`Escape`** closes the wallet menu via a `window` listener while open; [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) still owns More-menu Esc ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
-| **Out of scope (#140 B)** | Sibling issues: [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). |
+| **Out of scope (#140 B)** | Sibling issues: [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). Chip network label + mobile layout: [#186](#connected-wallet-chip-network-mobile) — done. |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md).
+
+### Connected wallet chip — network label & mobile layout {#connected-wallet-chip-network-mobile}
+
+The connected header trigger must expose **which chain** the build targets, not only a chain icon ([GitLab **#186**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186)). Copy / explorer / switch-wallet affordances from [#140](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140) scope **B** remain dropdown-first on narrow widths until [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Single source of truth** | [`getNetworkBadgeCopy`](../frontend-dapp/src/utils/networkDisplay.ts) supplies `shortLabel` / `fullLabel` / `chainId` (same as footer [`NetworkBadge`](../frontend-dapp/src/components/wallet/NetworkBadge.tsx) and [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx)). |
+| **Desktop trigger (`sm+`)** | [`WalletChipNetworkIndicator`](../frontend-dapp/src/components/wallet/WalletChipNetworkIndicator.tsx) renders chain logo + visible **`shortLabel`** (`data-testid="wallet-network-short-label"`) beside balance/address columns in [`WalletButton`](../frontend-dapp/src/components/wallet/WalletButton.tsx). |
+| **Mobile trigger (`<sm`)** | Chip keeps **`WalletLuncBalance`** + truncated `4+4` address; network **text** is hidden on the trigger (icon + `title` tooltip only) to preserve header width. Persistent environment strip ([`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx)) still shows the active network. |
+| **Menu vs chip (#140 W2–C3)** | **Balance** and **address** are on the chip at all breakpoints; **copy**, **explorer**, and **switch/disconnect** are reached by opening the wallet menu (dropdown siblings [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)). Do not assume desktop-only chip chrome for QA. |
+| **Accessibility** | Connected trigger `aria-label` includes network short label (e.g. `Connected wallet on Local`). |
+| **Regression tests** | Vitest: [`WalletButton.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletButton.test.tsx). Playwright: `e2e/navigation.spec.ts` — desktop label, mobile LUNC-without-label, tablet **More ↔ wallet** non-overlap. |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](../skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md).
 
 ### Copy to clipboard — `CopyButton` primitive {#copy-button-primitive}
 

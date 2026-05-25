@@ -225,6 +225,36 @@ test.describe('Mobile navigation', () => {
   })
 })
 
+test.describe('Connected wallet chip network (GitLab #186)', () => {
+  test('shows network shortLabel on desktop trigger at 1280px', async ({ page, connectWallet }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await connectWallet
+    const wallet = headerConnectedWalletButton(page)
+    await expect(wallet.getByTestId('wallet-network-short-label')).toBeVisible()
+    await expect(wallet.getByTestId('wallet-network-short-label')).toHaveText('Local')
+  })
+
+  test('mobile chip keeps LUNC on trigger and hides network text label', async ({ page, connectWallet }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await connectWallet
+    await expect(page.getByTestId('wallet-lunc-balance').first()).toBeVisible()
+    await expect(headerConnectedWalletButton(page).getByTestId('wallet-network-short-label')).toBeHidden()
+  })
+
+  test('connected wallet chip does not overlap header More at tablet width', async ({ page, connectWallet }) => {
+    await page.setViewportSize({ width: 773, height: 743 })
+    await connectWallet
+    const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+    const more = nav.getByRole('button', { name: 'More' })
+    const wallet = headerConnectedWalletButton(page)
+    const moreBox = await more.boundingBox()
+    const walletBox = await wallet.boundingBox()
+    expect(moreBox, 'More button box').toBeTruthy()
+    expect(walletBox, 'wallet chip box').toBeTruthy()
+    expect(moreBox!.x + moreBox!.width).toBeLessThanOrEqual(walletBox!.x + 2)
+  })
+})
+
 test.describe('Wallet Connection', () => {
   test('shows connect control in header when disconnected', async ({ page }) => {
     await page.goto('/')

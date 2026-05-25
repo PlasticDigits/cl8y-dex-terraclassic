@@ -5,7 +5,8 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { DEFAULT_NETWORK, NETWORKS } from '@/utils/constants'
-import { getTerraChainLogoPath } from '@/utils/networkDisplay'
+import { getNetworkBadgeCopy, getTerraChainLogoPath } from '@/utils/networkDisplay'
+import { WalletChipNetworkIndicator } from './WalletChipNetworkIndicator'
 import { WalletLuncBalance } from './WalletLuncBalance'
 import WalletModal from './WalletModal'
 
@@ -13,6 +14,7 @@ export default function WalletButton() {
   const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen } = useWalletStore()
   const [showDropdown, setShowDropdown] = useState(false)
   const chainLogoPath = getTerraChainLogoPath(NETWORKS[DEFAULT_NETWORK].terra.chainId)
+  const { shortLabel: networkShortLabel } = getNetworkBadgeCopy()
 
   const closeWalletMenu = () => setShowDropdown(false)
 
@@ -39,6 +41,7 @@ export default function WalletButton() {
           }}
           aria-haspopup="true"
           aria-expanded={showDropdown}
+          aria-label={`Connected wallet on ${networkShortLabel}`}
           className="wallet-trigger wallet-trigger-connected"
         >
           <div className="text-left hidden sm:block min-w-0 max-w-[9.5rem]">
@@ -56,9 +59,7 @@ export default function WalletButton() {
               {shortenAddress(address, 4, 4)}
             </p>
           </div>
-          <div className="wallet-trigger-icon">
-            <img src={chainLogoPath} alt="Terra Classic" className="h-full w-full object-contain" />
-          </div>
+          <WalletChipNetworkIndicator />
         </button>
 
         {showDropdown && (
