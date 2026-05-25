@@ -22,7 +22,7 @@ import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
-import { isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import {
   TRADE_INDEXER_OUTAGE_BANNER_LEAD,
   TRADE_INDEXER_OUTAGE_BANNER_TAIL,
@@ -33,7 +33,9 @@ import {
   getInvalidTradePairRouteParam,
   getUnknownTradePairRouteParam,
   isKnownFactoryTradePair,
+  isPendingTradePairRouteResolution,
   isTradePairRouteParam,
+  shouldShowTradeWorkspace,
 } from '@/utils/tradePairRoute'
 import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
 import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
@@ -115,14 +117,21 @@ export default function TradePage() {
   const pairs = useMemo(() => pairsQuery.data?.pairs ?? [], [pairsQuery.data])
   const factoryPairsResolved = pairsQuery.isSuccess
   const unknownRoutePair = useMemo(
-    () =>
-      invalidRoutePair
-        ? null
-        : getUnknownTradePairRouteParam(routePair, pairs, factoryPairsResolved),
+    () => (invalidRoutePair ? null : getUnknownTradePairRouteParam(routePair, pairs, factoryPairsResolved)),
     [invalidRoutePair, routePair, pairs, factoryPairsResolved]
+  )
+  const pendingDeepLinkPair = useMemo(
+    () => isPendingTradePairRouteResolution(routePair, invalidRoutePair, factoryPairsResolved),
+    [routePair, invalidRoutePair, factoryPairsResolved]
   )
   const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs, { variant: 'full' }), [pairs])
   const pairRouteReady = isTradePairRouteParam(pairAddr)
+  const showTradeWorkspace = shouldShowTradeWorkspace({
+    pairRouteReady,
+    invalidLinkNotice,
+    unknownPairNotice,
+    pendingDeepLinkPair,
+  })
   const activePairMenuLabel = useMemo(
     () => pairMenuOptions.find((o) => o.value === pairAddr)?.label,
     [pairMenuOptions, pairAddr]
@@ -170,15 +179,7 @@ export default function TradePage() {
       setPairAddr(first)
       navigate(`/trade/${first}`, { replace: true })
     }
-  }, [
-    pairAddr,
-    pairs,
-    navigate,
-    invalidRoutePair,
-    unknownRoutePair,
-    invalidLinkNotice,
-    unknownPairNotice,
-  ])
+  }, [pairAddr, pairs, navigate, invalidRoutePair, unknownRoutePair, invalidLinkNotice, unknownPairNotice])
 
   useEffect(() => {
     if (!pairRouteReady) return
@@ -203,6 +204,24 @@ export default function TradePage() {
 
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = indexerPairQuery.isError && isIndexerUnavailableError(indexerPairQuery.error)
+
+  useEffect(() => {
+    if (!factoryPairsResolved || !routePair || invalidRoutePair) return
+    if (isKnownFactoryTradePair(routePair, pairs)) return
+    if (!indexerPairQuery.isError || !isIndexerPairNotFoundError(indexerPairQuery.error)) return
+    setUnknownPairNotice(routePair)
+    setInvalidLinkNotice(null)
+    setPairAddr('')
+    navigate('/trade', { replace: true })
+  }, [
+    factoryPairsResolved,
+    routePair,
+    invalidRoutePair,
+    pairs,
+    indexerPairQuery.isError,
+    indexerPairQuery.error,
+    navigate,
+  ])
   const indexerPairRetry = useQueryManualRetry(['indexer-pair-trade', pairAddr], indexerPairQuery)
   const showIndexerPairRetryError = indexerPairQuery.isError && !indexerDown && !indexerPairRetry.isRetrying
 
@@ -351,14 +370,16 @@ export default function TradePage() {
       </div>
 
       {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}
-      {!showWorkspaceSkeleton && showPairSwitchLoading && <TradePairSwitchStatus pairLabel={activePairMenuLabel} />}
+      {!showWorkspaceSkeleton && showTradeWorkspace && showPairSwitchLoading && (
+        <TradePairSwitchStatus pairLabel={activePairMenuLabel} />
+      )}
 
       {/*
         Sub-desktop layout: single column <768px; tablet 768–1023px uses a 2-col top row
         (chart | order ticket) with order book + tape below — see docs/frontend.md § Trade page
         responsive layout (GitLab #146). Only one TradeOrderTicket mounts at a time (GitLab #178).
       */}
-      {!showWorkspaceSkeleton && !isTradeDesktopLayout && (
+      {!showWorkspaceSkeleton && showTradeWorkspace && !isTradeDesktopLayout && (
         <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
           <div className="min-h-[280px] md:col-span-2 md:row-start-2">
             <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
@@ -384,7 +405,7 @@ export default function TradePage() {
         </div>
       )}
 
-      {!showWorkspaceSkeleton && isTradeDesktopLayout && (
+      {!showWorkspaceSkeleton && showTradeWorkspace && isTradeDesktopLayout && (
         <div className="hidden lg:block h-[min(85vh,920px)] min-h-[440px]" data-testid="trade-desktop-workspace">
           <PanelGroup direction="horizontal" className="h-full gap-0">
             <Panel defaultSize={24} minSize={18} className="min-w-0">
@@ -430,7 +451,7 @@ export default function TradePage() {
         </div>
       )}
 
-      {address && pairRouteReady && (
+      {address && showTradeWorkspace && (
         <div className="mt-3">
           <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} sections={['swaps']} />
         </div>

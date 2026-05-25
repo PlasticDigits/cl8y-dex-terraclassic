@@ -3,7 +3,9 @@ import {
   getInvalidTradePairRouteParam,
   getUnknownTradePairRouteParam,
   isKnownFactoryTradePair,
+  isPendingTradePairRouteResolution,
   isTradePairRouteParam,
+  shouldShowTradeWorkspace,
 } from '@/utils/tradePairRoute'
 
 const VALID = 'terra1pair0000000000000000000000000000000001'
@@ -38,5 +40,38 @@ describe('tradePairRoute', () => {
     expect(getUnknownTradePairRouteParam(VALID, pairs, true)).toBeNull()
     expect(getUnknownTradePairRouteParam(UNKNOWN_FORMAT, pairs, false)).toBeNull()
     expect(getUnknownTradePairRouteParam("terra1damThat'scrazy", pairs, true)).toBeNull()
+  })
+
+  it('detects pending deep-link resolution before factory list loads (GitLab #175)', () => {
+    expect(isPendingTradePairRouteResolution(UNKNOWN_FORMAT, null, false)).toBe(true)
+    expect(isPendingTradePairRouteResolution(UNKNOWN_FORMAT, null, true)).toBe(false)
+    expect(isPendingTradePairRouteResolution('lilwayne babyyy', 'lilwayne babyyy', false)).toBe(false)
+  })
+
+  it('gates trade workspace when pair link errors are active (GitLab #175)', () => {
+    expect(
+      shouldShowTradeWorkspace({
+        pairRouteReady: true,
+        invalidLinkNotice: null,
+        unknownPairNotice: null,
+        pendingDeepLinkPair: false,
+      })
+    ).toBe(true)
+    expect(
+      shouldShowTradeWorkspace({
+        pairRouteReady: true,
+        invalidLinkNotice: null,
+        unknownPairNotice: UNKNOWN_FORMAT,
+        pendingDeepLinkPair: false,
+      })
+    ).toBe(false)
+    expect(
+      shouldShowTradeWorkspace({
+        pairRouteReady: false,
+        invalidLinkNotice: null,
+        unknownPairNotice: null,
+        pendingDeepLinkPair: true,
+      })
+    ).toBe(false)
   })
 })

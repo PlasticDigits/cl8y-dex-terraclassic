@@ -648,6 +648,8 @@ When `/trade/:pairAddr` passes [`isValidTerraAddress`](../frontend-dapp/src/util
 | **Auto-pick guard** | Blocked while `unknownPairNotice` is set (mirror invalid-link notice). |
 | **vs #176** | Charset-invalid `terra1…` (e.g. `terra1damThat'scrazy`) uses **Invalid pair link** ([#176](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/176)), not this notice. |
 | **vs #177** | Chart **RetryError** after **404** applies only when `pairAddr` is a **known** factory pair (indexer lag/outage), not unknown deep links. |
+| **Workspace gate** | Book/chart/ticket mount only when [`shouldShowTradeWorkspace`](../frontend-dapp/src/utils/tradePairRoute.ts) is true — not while a valid-format deep link awaits factory resolution (`isPendingTradePairRouteResolution`) or while invalid/unknown notices are visible. Prevents an empty workspace when `getPair` has no data ([#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175) follow-up). |
+| **Indexer 404 fallback** | If `getPair` returns **404** for a route segment that is **not** on the factory list (race/stale state), sync **`PairNotFoundLinkNotice`** and clear `pairAddr` via `isIndexerPairNotFoundError` — do not treat as indexer outage. |
 | **`data-testid`s** | `trade-pair-not-found-link-notice`, `trade-pair-not-found-link-value`, `trade-pair-not-found-link-cta`. |
 
 Copy: [`tradeUnknownPairLinkCopy.ts`](../frontend-dapp/src/utils/tradeUnknownPairLinkCopy.ts). Regression: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), [`tradePairRoute.test.ts`](../frontend-dapp/src/utils/__tests__/tradePairRoute.test.ts).

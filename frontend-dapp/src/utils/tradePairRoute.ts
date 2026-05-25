@@ -34,3 +34,27 @@ export function getUnknownTradePairRouteParam(
   if (isKnownFactoryTradePair(raw, pairs)) return null
   return raw
 }
+
+/**
+ * Valid-format `/trade/:pairAddr` deep link while the factory pair list is still loading.
+ * Avoid rendering an empty trade workspace before unknown-pair detection can run.
+ */
+export function isPendingTradePairRouteResolution(
+  routePair: string | undefined,
+  invalidRoutePair: string | null,
+  factoryPairsResolved: boolean
+): boolean {
+  const raw = routePair?.trim()
+  if (!raw || invalidRoutePair || !isValidTerraAddress(raw)) return false
+  return !factoryPairsResolved
+}
+
+/** Whether book/chart/ticket workspace should mount (pair selected and no link-error notices). */
+export function shouldShowTradeWorkspace(opts: {
+  pairRouteReady: boolean
+  invalidLinkNotice: string | null
+  unknownPairNotice: string | null
+  pendingDeepLinkPair: boolean
+}): boolean {
+  return opts.pairRouteReady && !opts.invalidLinkNotice && !opts.unknownPairNotice && !opts.pendingDeepLinkPair
+}

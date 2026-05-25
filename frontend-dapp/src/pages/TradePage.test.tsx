@@ -301,6 +301,62 @@ describe('TradePage', () => {
     await waitFor(() => {
       expect(pairSelect).toHaveFocus()
     })
+
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-desktop-workspace')).not.toBeInTheDocument()
+  })
+
+  it('does not render empty trade workspace while unknown deep link resolves (GitLab #175)', async () => {
+    const unknownPair = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    let resolveFactory!: (value: Awaited<ReturnType<typeof factory.getAllPairsPaginated>>) => void
+    vi.mocked(factory.getAllPairsPaginated).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFactory = resolve
+        })
+    )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter(
+      [
+        { path: '/trade', element: <TradePage /> },
+        { path: '/trade/:pairAddr', element: <TradePage /> },
+      ],
+      { initialEntries: [`/trade/${unknownPair}`] }
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-pair-not-found-link-notice')).not.toBeInTheDocument()
+
+    resolveFactory({
+      pairs: [
+        {
+          contract_addr: PAIR,
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [
+            { token: { contract_addr: 'terra1aaa0000000000000000000000000000001' } },
+            { token: { contract_addr: 'terra1bbb0000000000000000000000000000002' } },
+          ],
+        },
+      ],
+    })
+
+    await screen.findByTestId('trade-pair-not-found-link-notice')
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+  })
+
+  it('keeps trade workspace for known factory pair when indexer pair 404s (GitLab #177)', async () => {
+    vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 404 Not Found'))
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('trade-sub-lg-workspace')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('trade-pair-not-found-link-notice')).not.toBeInTheDocument()
   })
 
   it('rejects charset-invalid terra1 deep links without indexer calls (GitLab #176 / #175)', async () => {

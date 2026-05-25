@@ -8,7 +8,8 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 |------------|---------|
 | [docs/frontend.md § invalid pair deep link](../docs/frontend.md#trade-page-invalid-pair-link) | Charset-invalid `terra1…` invariants |
 | [docs/frontend.md § unknown pair deep link](../docs/frontend.md#trade-page-unknown-pair-link) | Valid-format but not on factory ([#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175)) |
-| [`frontend-dapp/src/utils/tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts) | `isTradePairRouteParam`, `getInvalidTradePairRouteParam`, `getUnknownTradePairRouteParam`, `isKnownFactoryTradePair` |
+| [`frontend-dapp/src/utils/tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts) | `isTradePairRouteParam`, `getInvalidTradePairRouteParam`, `getUnknownTradePairRouteParam`, `isKnownFactoryTradePair`, `isPendingTradePairRouteResolution`, `shouldShowTradeWorkspace` |
+| [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts) | `isIndexerPairNotFoundError` (404) vs `isIndexerUnavailableError` (outage) |
 | [`InvalidPairLinkNotice.tsx`](../frontend-dapp/src/components/trade/InvalidPairLinkNotice.tsx) | Invalid charset / format |
 | [`PairNotFoundLinkNotice.tsx`](../frontend-dapp/src/components/trade/PairNotFoundLinkNotice.tsx) | Pair not on factory |
 | [`tradeInvalidPairLinkCopy.ts`](../frontend-dapp/src/utils/tradeInvalidPairLinkCopy.ts) / [`tradeUnknownPairLinkCopy.ts`](../frontend-dapp/src/utils/tradeUnknownPairLinkCopy.ts) | Retail strings |
@@ -27,6 +28,8 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 2. **Do not set `pairAddr` until known** — avoids indexer 404 loops and ambiguous “not indexed yet” copy for regex-valid garbage (e.g. `terra1` + 38× `x`).
 3. **Same URL/selector hygiene** as invalid links: `navigate('/trade', { replace: true })`, empty `MenuSelect` value, block auto-pick while notice is visible.
 4. Manual repro: `http://localhost:3000/trade/terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` with LocalTerra + factory pairs loaded.
+5. **Do not mount trade workspace** while `isPendingTradePairRouteResolution` or link notices are active — use `shouldShowTradeWorkspace` so book/chart/ticket never render empty when `getPair` has no pair ([#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175) follow-up).
+6. **Indexer 404 fallback** — `isIndexerPairNotFoundError` + factory check: unknown segment that slipped through must show **Pair not found**, not indexer outage or blank workspace.
 
 ## Regression tests
 
