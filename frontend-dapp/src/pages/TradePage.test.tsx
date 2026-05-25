@@ -264,11 +264,73 @@ describe('TradePage', () => {
     })
   })
 
-  it('chart Retry refetches indexer pair after 404 (GitLab #177)', async () => {
+  it('shows pair-not-found notice for valid-format deep links absent from factory (GitLab #175)', async () => {
+    const unknownPair = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    vi.mocked(indexerClient.getPair).mockClear()
+    vi.mocked(indexerClient.getTrades).mockClear()
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter(
+      [
+        { path: '/trade', element: <TradePage /> },
+        { path: '/trade/:pairAddr', element: <TradePage /> },
+      ],
+      { initialEntries: [`/trade/${unknownPair}`] }
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    const notice = await screen.findByTestId('trade-pair-not-found-link-notice')
+    expect(notice.textContent).toMatch(/pair not found/i)
+    expect(screen.getByTestId('trade-pair-not-found-link-value').textContent).toContain(unknownPair.slice(0, 12))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/trade')
+    })
+
+    const pairSelect = await screen.findByLabelText('Trading pair')
+    expect(pairSelect.textContent).not.toContain(unknownPair)
+
+    expect(indexerClient.getPair).not.toHaveBeenCalled()
+    expect(indexerClient.getTrades).not.toHaveBeenCalled()
+
+    await user.click(screen.getByTestId('trade-pair-not-found-link-cta'))
+    await waitFor(() => {
+      expect(pairSelect).toHaveFocus()
+    })
+  })
+
+  it('rejects charset-invalid terra1 deep links without indexer calls (GitLab #176 / #175)', async () => {
     const invalidPair = "terra1damThat'scrazy"
+    vi.mocked(indexerClient.getPair).mockClear()
+    vi.mocked(indexerClient.getTrades).mockClear()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter(
+      [
+        { path: '/trade', element: <TradePage /> },
+        { path: '/trade/:pairAddr', element: <TradePage /> },
+      ],
+      { initialEntries: [`/trade/${encodeURIComponent(invalidPair)}`] }
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    await screen.findByTestId('trade-invalid-pair-link-notice')
+    expect(screen.queryByTestId('trade-pair-not-found-link-notice')).not.toBeInTheDocument()
+    expect(indexerClient.getPair).not.toHaveBeenCalled()
+    expect(indexerClient.getTrades).not.toHaveBeenCalled()
+  })
+
+  it('chart Retry refetches indexer pair after 404 (GitLab #177)', async () => {
     vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 404 Not Found'))
     const user = userEvent.setup()
-    renderWithProviders(<TradePage />, { route: `/trade/${encodeURIComponent(invalidPair)}` })
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
     await waitFor(() => {
       expect(screen.getAllByTestId('trade-chart-retry-error').length).toBeGreaterThan(0)

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { getInvalidTradePairRouteParam, isTradePairRouteParam } from '@/utils/tradePairRoute'
+import {
+  getInvalidTradePairRouteParam,
+  getUnknownTradePairRouteParam,
+  isKnownFactoryTradePair,
+  isTradePairRouteParam,
+} from '@/utils/tradePairRoute'
 
 const VALID = 'terra1pair0000000000000000000000000000000001'
+const UNKNOWN_FORMAT = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
 describe('tradePairRoute', () => {
   it('accepts valid terra1 pair addresses', () => {
@@ -22,5 +28,15 @@ describe('tradePairRoute', () => {
   it('returns null when route param is absent', () => {
     expect(isTradePairRouteParam(undefined)).toBe(false)
     expect(getInvalidTradePairRouteParam(undefined)).toBeNull()
+  })
+
+  it('flags valid-format addresses missing from the factory list (GitLab #175)', () => {
+    const pairs = [{ contract_addr: VALID }]
+    expect(isKnownFactoryTradePair(VALID, pairs)).toBe(true)
+    expect(isKnownFactoryTradePair(UNKNOWN_FORMAT, pairs)).toBe(false)
+    expect(getUnknownTradePairRouteParam(UNKNOWN_FORMAT, pairs, true)).toBe(UNKNOWN_FORMAT)
+    expect(getUnknownTradePairRouteParam(VALID, pairs, true)).toBeNull()
+    expect(getUnknownTradePairRouteParam(UNKNOWN_FORMAT, pairs, false)).toBeNull()
+    expect(getUnknownTradePairRouteParam("terra1damThat'scrazy", pairs, true)).toBeNull()
   })
 })
