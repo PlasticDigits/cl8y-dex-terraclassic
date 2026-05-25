@@ -41,4 +41,12 @@ describe('TxResultAlert', () => {
     render(<TxResultAlert type="error" message="Bad" txHash={LONG_TX} />)
     expect(screen.queryByText(/TX:/)).not.toBeInTheDocument()
   })
+
+  it('humanizes Max spread chain errors for retail display (GitLab #134)', () => {
+    const raw =
+      'Transaction failed: failed to execute message; message index: 0: Max spread assertion: actual spread (0.969) exceeds max allowed (0.01): execute wasm contract failed'
+    render(<TxResultAlert type="error" message={raw} />)
+    expect(screen.getByText(/Trade rejected: price impact/)).toBeInTheDocument()
+    expect(screen.queryByText(/execute wasm contract failed/)).not.toBeInTheDocument()
+  })
 })

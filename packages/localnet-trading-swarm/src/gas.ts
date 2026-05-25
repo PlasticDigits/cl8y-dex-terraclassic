@@ -51,7 +51,9 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
     return gasLimitForSwapOperationsMsg(executeMsg)
   }
   if ('swap' in executeMsg) {
-    return innerSwapUsesHybrid(executeMsg as Record<string, unknown>) ? HYBRID_SWAP_GAS_LIMIT : SWAP_GAS_LIMIT
+    return innerSwapUsesHybrid(executeMsg as Record<string, unknown>)
+      ? HYBRID_SWAP_GAS_LIMIT
+      : gasLimitForExecuteSwapOperations(1)
   }
   if ('provide_liquidity' in executeMsg) {
     return ADD_LIQUIDITY_GAS_LIMIT
@@ -66,7 +68,7 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
         const inner = JSON.parse(Buffer.from(sendMsg.msg, 'base64').toString('utf8')) as Record<string, unknown>
         if ('place_limit_order' in inner) return PLACE_LIMIT_ORDER_GAS_LIMIT
         if ('swap' in inner) {
-          return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : SWAP_GAS_LIMIT
+          return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
         if ('execute_swap_operations' in inner) return gasLimitForSwapOperationsMsg(inner)

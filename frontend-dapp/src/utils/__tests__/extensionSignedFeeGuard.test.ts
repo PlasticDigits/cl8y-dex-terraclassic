@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { extensionSignedFeeUndershootMessage, isLocalTerraChainId, ulunaFromAminoFee } from '../extensionSignedFeeGuard'
+import {
+  extensionSignedFeeUndershootMessage,
+  gasFromAminoFee,
+  isLocalTerraChainId,
+  ulunaFromAminoFee,
+} from '../extensionSignedFeeGuard'
 
 describe('extensionSignedFeeGuard (GitLab #127)', () => {
   it('detects LocalTerra chain ids case-insensitively', () => {
@@ -23,14 +28,29 @@ describe('extensionSignedFeeGuard (GitLab #127)', () => {
     expect(msg).toMatch(/3000/)
   })
 
-  it('allows signed fee within half of expected', () => {
+  it('parses gas from amino fee', () => {
+    expect(gasFromAminoFee({ gas: '830000' })).toBe(830000n)
+  })
+
+  it('allows signed fee and gas at or above 95% of expected', () => {
     expect(
       extensionSignedFeeUndershootMessage(
-        { fee: { amount: [{ denom: 'uluna', amount: '5665000' }] } },
-        { amount: [{ denom: 'uluna', amount: '5665000' }] },
+        { fee: { amount: [{ denom: 'uluna', amount: '5665000' }], gas: '200000' } },
+        { amount: [{ denom: 'uluna', amount: '5665000' }], gas: '200000' },
         'localterra'
       )
     ).toBeNull()
+  })
+
+  it('flags Station-style partial fee rewrite (~23 LUNC vs ~36 LUNC, GitLab #134)', () => {
+    const msg = extensionSignedFeeUndershootMessage(
+      { fee: { amount: [{ denom: 'uluna', amount: '23000000' }], gas: '600000' } },
+      { amount: [{ denom: 'uluna', amount: '36000000' }], gas: '830000' },
+      'localterra'
+    )
+    expect(msg).toMatch(/GitLab #127/)
+    expect(msg).toMatch(/830000/)
+    expect(msg).toMatch(/600000/)
   })
 
   it('flags missing signed fee on LocalTerra', () => {
