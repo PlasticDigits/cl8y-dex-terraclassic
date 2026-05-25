@@ -16,7 +16,13 @@ Use when changing **`WalletButton.tsx`**, **`WalletLuncBalance.tsx`**, connected
 1. **LUNC only in the chip today:** native gas is always **bank `uluna`** (6 decimals, symbol **LUNC**). Do not show CW20 “LUNC-C” here — that is escrow on limit/swap forms.
 2. **Reuse `useNativeUlunaBalance`:** do not add a parallel LCD query; invalidate via existing `['tokenBalance']` prefixes after txs.
 3. **Visible without opening the menu:** desktop (`sm+`) and mobile chip triggers must include **`WalletLuncBalance`**; the dropdown header repeats balance + full address for copy-friendly QA.
-4. **Siblings (out of #140 scope B):** copy address, explorer link, switch wallet, network text on chip, Esc on wallet menu — track separate issues; do not block LUNC on missing `CopyButton` / `getExplorerAddressUrl`.
+4. **Siblings (GitLab #140 scope B — filed separately):**
+   - [#183](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183) `CopyButton` primitive
+   - [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) `getExplorerAddressUrl`
+   - [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown copy / explorer / switch wallet
+   - [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) network shortLabel + mobile chip layout
+   - [#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) Esc + semantic menu dismisser
+   - [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) `AddressRow` cross-cutting umbrella
 
 ## Cross-links
 

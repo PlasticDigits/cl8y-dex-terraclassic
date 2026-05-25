@@ -81,7 +81,7 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with the **full** bech32 address. |
 | **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
-| **Out of scope (#140 B)** | Copy address, explorer link, switch wallet, network text on chip, Esc on wallet menu — track as sibling issues; do not block LUNC on those landing first. |
+| **Out of scope (#140 B)** | Sibling issues: [#183](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183) CopyButton, [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) explorer address URL, [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile, [#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) Esc/dismisser, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md).
 
