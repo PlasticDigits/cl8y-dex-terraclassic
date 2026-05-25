@@ -55,9 +55,11 @@ export function PriceChartLightweightCanvas({
   showRsiRef.current = showRsi
 
   const applyLayoutRef = useRef<(() => void) | null>(null)
+  const chartInitIdRef = useRef(0)
   const [chartModelReady, setChartModelReady] = useState(false)
 
   useEffect(() => {
+    const initId = ++chartInitIdRef.current
     let cancelled = false
     let chart: IChartApi | null = null
     let cleanupResize: (() => void) | undefined
@@ -66,7 +68,7 @@ export function PriceChartLightweightCanvas({
       if (!containerRef.current) return
 
       const lc = await import('lightweight-charts')
-      if (cancelled || !containerRef.current) return
+      if (cancelled || initId !== chartInitIdRef.current || !containerRef.current) return
 
       lcRef.current = lc
       const { CandlestickSeries, HistogramSeries } = lc
@@ -167,14 +169,25 @@ export function PriceChartLightweightCanvas({
         requestAnimationFrame(() => applySize())
       })
 
-      if (!cancelled) setChartModelReady(true)
+      if (!cancelled && initId === chartInitIdRef.current) {
+        setChartModelReady(true)
+      } else if (chart) {
+        cleanupResize?.()
+        cleanupResize = undefined
+        chart.remove()
+        chart = null
+        chartRef.current = null
+        candleSeriesRef.current = null
+        volumeSeriesRef.current = null
+        applyLayoutRef.current = null
+      }
     }
 
     void initChart()
 
     return () => {
       cancelled = true
-      setChartModelReady(false)
+      if (initId === chartInitIdRef.current) setChartModelReady(false)
       cleanupResize?.()
       applyLayoutRef.current = null
       candleSeriesRef.current = null

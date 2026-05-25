@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { getCandles, getPairStats } from '@/services/indexer/client'
 import { Spinner } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
@@ -53,6 +53,8 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
     queryFn: () => getCandles(pairAddress, interval),
     refetchInterval: 30_000,
     enabled: !!pairAddress,
+    /** Keep plot mounted while switching intervals — avoids async lightweight-charts re-init races (GitLab #148). */
+    placeholderData: keepPreviousData,
   })
 
   const chartPoints = useMemo(() => indexerCandlesToChartPoints(candlesQuery.data), [candlesQuery.data])
@@ -76,8 +78,11 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
   const sma25Points = useMemo(() => chartPointsToSmaLine(chartPoints, 25), [chartPoints])
   const rsiPoints = useMemo(() => chartPointsToRsiLine(chartPoints, 14), [chartPoints])
 
-  const chartDataResolved = !candlesQuery.isLoading && !candlesQuery.isError && candlesQuery.isSuccess
-  const showEmptyState = chartDataResolved && chartPoints.length === 0
+  const hasCandlePayload = candlesQuery.data !== undefined
+  const showInitialLoading = candlesQuery.isLoading && !hasCandlePayload
+  const intervalRefetching = candlesQuery.isFetching && hasCandlePayload && chartPoints.length > 0
+  const chartDataResolved = !candlesQuery.isError && hasCandlePayload
+  const showEmptyState = chartDataResolved && chartPoints.length === 0 && !candlesQuery.isFetching
 
   const statsQuery = useQuery({
     queryKey: ['indexer-pair-stats', pairAddress, 'price-chart-empty'],
@@ -168,7 +173,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
         </div>
       </div>
 
-      {candlesQuery.isLoading && (
+      {showInitialLoading && (
         <div className="flex items-center justify-center min-h-[400px] gap-3" style={{ color: 'var(--ink-subtle)' }}>
           <Spinner /> Loading chart...
         </div>
@@ -196,6 +201,22 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
             showSma25={showSma25}
             showRsi={showRsi}
           />
+          {intervalRefetching && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-black/35 pointer-events-none"
+              data-testid="price-chart-interval-loading"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              <Spinner />
+              <span
+                className="text-[10px] font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--ink-subtle)' }}
+              >
+                Updating interval…
+              </span>
+            </div>
+          )}
         </div>
       )}
 

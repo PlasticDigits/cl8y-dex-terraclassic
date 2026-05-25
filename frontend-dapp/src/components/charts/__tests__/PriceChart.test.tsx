@@ -5,6 +5,7 @@ import { renderWithProviders } from '@/test-utils'
 import PriceChart from '../PriceChart'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerCandle } from '@/types'
+import { createChart } from 'lightweight-charts'
 import { lwChartTestDouble } from '@/test/lightweightChartsJsdomMock'
 import { formatNum } from '@/utils/formatAmount'
 
@@ -52,6 +53,7 @@ const emptyStats = {
 describe('PriceChart', () => {
   beforeEach(() => {
     lwChartTestDouble.reset()
+    vi.mocked(createChart).mockClear()
     vi.mocked(indexerClient.getCandles).mockReset()
     vi.mocked(indexerClient.getCandles).mockResolvedValue([candle()])
     vi.mocked(indexerClient.getPairStats).mockReset()
@@ -153,6 +155,38 @@ describe('PriceChart', () => {
     await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairA, '1h'))
     await user.click(screen.getByRole('button', { name: '1d' }))
     await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairA, '1d'))
+  })
+
+  it('reuses one chart instance across many interval switches (GitLab #148)', async () => {
+    const user = userEvent.setup()
+    const intervalClose: Record<string, string> = {
+      '1m': '1.01',
+      '5m': '1.05',
+      '15m': '1.15',
+      '1h': '1.6',
+      '4h': '1.64',
+      '1d': '1.7',
+      '1w': '1.77',
+    }
+    vi.mocked(indexerClient.getCandles).mockImplementation((_addr, iv) =>
+      Promise.resolve([candle({ close: intervalClose[iv] ?? '9' })])
+    )
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.getByTestId('price-chart-lightweight-canvas')).toBeInTheDocument())
+    expect(vi.mocked(createChart)).toHaveBeenCalledTimes(1)
+
+    const sequence = ['1m', '5m', '15m', '1h', '4h', '1d', '1w', '1m', '5m', '15m', '1h'] as const
+    for (const iv of sequence) {
+      await user.click(screen.getByRole('button', { name: iv }))
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairA, iv))
+    }
+
+    expect(vi.mocked(createChart)).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      const rows = lwChartTestDouble.seriesSpies[0]?.setData?.mock.calls.at(-1)?.[0] as { close: number }[]
+      expect(rows?.[0]?.close).toBe(1.6)
+    })
+    expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument()
   })
 
   it('refetches when pairAddress prop changes', async () => {
