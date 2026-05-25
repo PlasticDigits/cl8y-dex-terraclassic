@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -13,6 +13,21 @@ export default function WalletButton() {
   const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen } = useWalletStore()
   const [showDropdown, setShowDropdown] = useState(false)
   const chainLogoPath = getTerraChainLogoPath(NETWORKS[DEFAULT_NETWORK].terra.chainId)
+
+  const closeWalletMenu = () => setShowDropdown(false)
+
+  useEffect(() => {
+    if (!showDropdown) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeWalletMenu()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showDropdown])
 
   if (address) {
     return (
@@ -48,7 +63,12 @@ export default function WalletButton() {
 
         {showDropdown && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+            <button
+              type="button"
+              aria-label="Close wallet menu"
+              className="app-menu-dismiss"
+              onClick={closeWalletMenu}
+            />
             <div role="menu" className="wallet-menu animate-fade-in-up" style={{ animationDuration: '0.2s' }}>
               <div className="px-3 py-2 border-b border-white/10 space-y-1 min-w-0">
                 <WalletLuncBalance address={address} />
@@ -61,7 +81,7 @@ export default function WalletButton() {
                 to={`/trader/${address}`}
                 onClick={() => {
                   sounds.playButtonPress()
-                  setShowDropdown(false)
+                  closeWalletMenu()
                 }}
                 className="wallet-menu-item"
                 style={{ color: 'var(--ink-dim)' }}
@@ -81,7 +101,7 @@ export default function WalletButton() {
                 onClick={() => {
                   sounds.playButtonPress()
                   void disconnect()
-                  setShowDropdown(false)
+                  closeWalletMenu()
                 }}
                 className="wallet-menu-item"
                 style={{ color: 'var(--ink-dim)' }}

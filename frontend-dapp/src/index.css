@@ -1111,6 +1111,12 @@
     border: 0;
     background: var(--overlay);
     backdrop-filter: blur(2px);
+    cursor: var(--cursor-pointer);
+  }
+
+  .app-menu-dismiss:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .app-hero-glow {

@@ -63,3 +63,58 @@ describe('WalletButton connected LUNC (GitLab #140)', () => {
     expect(screen.getAllByTestId('wallet-lunc-balance-mock').length).toBeGreaterThanOrEqual(2)
   })
 })
+
+describe('WalletButton menu dismiss (GitLab #187)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseWalletStore.mockReturnValue({
+      address: ADDR,
+      isConnecting: false,
+      disconnect: vi.fn(),
+      walletModalOpen: false,
+      setWalletModalOpen: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+  })
+
+  const openWalletMenu = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { expanded: false }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+  }
+
+  it('renders a semantic dismiss control when the menu is open', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await openWalletMenu(user)
+    expect(screen.getByRole('button', { name: 'Close wallet menu' })).toBeInTheDocument()
+  })
+
+  it('closes the menu when the dismiss control is clicked', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await openWalletMenu(user)
+    await user.click(screen.getByRole('button', { name: 'Close wallet menu' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { expanded: false })).toBeInTheDocument()
+  })
+
+  it('closes the menu on Escape without leaving the chip expanded', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await openWalletMenu(user)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { expanded: false })).toBeInTheDocument()
+  })
+})
