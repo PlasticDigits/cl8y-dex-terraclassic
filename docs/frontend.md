@@ -81,9 +81,25 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with the **full** bech32 address. |
 | **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
-| **Out of scope (#140 B)** | Sibling issues: [#183](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183) CopyButton, [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile, [#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) Esc/dismisser, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). |
+| **Copy affordance** | Use [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) for wallet/address copy ([#183](#copy-button-primitive)); dropdown wiring is [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185). |
+| **Out of scope (#140 B)** | Sibling issues: [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile, [#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) Esc/dismisser, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md).
+
+### Copy to clipboard — `CopyButton` primitive {#copy-button-primitive}
+
+Reusable one-click clipboard control for addresses, contract IDs, and tx hashes ([GitLab **#183**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183)). First consumer: wallet dropdown copy ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)); do not add ad-hoc `navigator.clipboard` calls in feature code.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Single API path** | [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) wraps `writeText`; UI uses [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) only. |
+| **Accessible control** | Button has explicit **`aria-label`**; success/failure is announced in a **`sr-only`** region with **`aria-live="polite"`** and **`aria-atomic="true"`**. |
+| **Retail copy** | Strings live in [`copyButtonCopy.ts`](../frontend-dapp/src/utils/copyButtonCopy.ts); failures use a permission-safe message, not raw `DOMException` text. |
+| **Trim before write** | Whitespace-only `text` fails without calling the clipboard API. |
+| **Feedback window** | Success/error live text clears after **2s** so repeat copies stay screen-reader friendly. |
+| **Regression tests** | [`copyToClipboard.test.ts`](../frontend-dapp/src/utils/__tests__/copyToClipboard.test.ts), [`CopyButton.test.tsx`](../frontend-dapp/src/components/ui/__tests__/CopyButton.test.tsx) (mock `navigator.clipboard`). |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md).
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 

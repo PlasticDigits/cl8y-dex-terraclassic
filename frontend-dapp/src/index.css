@@ -934,9 +934,27 @@
   }
 
   .app-menu-link:focus-visible,
-  .wallet-menu-item:focus-visible {
+  .wallet-menu-item:focus-visible,
+  .copy-button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .copy-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink-dim);
+    cursor: var(--cursor-pointer);
+  }
+
+  .copy-button:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--control-surface-hover) 60%, transparent);
   }
 
   .wallet-trigger {
