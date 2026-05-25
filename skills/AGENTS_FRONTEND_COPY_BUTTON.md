@@ -16,7 +16,7 @@ Use when adding **copy address / contract / tx hash** affordances anywhere in th
 1. **Do not** call `navigator.clipboard` directly in pages or wallet components — import **`CopyButton`** or **`copyToClipboard`**.
 2. **Always** pass a specific **`ariaLabel`** (e.g. `"Copy wallet address"`, not `"Copy"`).
 3. **Empty/whitespace** `text` must fail gracefully (handler returns failure message; no throw).
-4. **Wallet chip** dropdown copy is [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185); explorer URLs are [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md).
+4. **Wallet chip** **Copy address** row uses **`menuLabel`** ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [docs § Connected wallet dropdown](../docs/frontend.md#connected-wallet-dropdown)); explorer menu row uses [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md).
 5. **Address surfaces:** prefer [`AddressRow`](./AGENTS_FRONTEND_ADDRESS_ROW.md) (copy + shorten + explorer) over bare `CopyButton` in pages ([#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)).
 6. **Future surfaces:** pair chips, `TxResultAlert` tx hash copy — extend `AddressRow` or add a sibling row primitive.
 

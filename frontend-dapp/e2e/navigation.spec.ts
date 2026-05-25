@@ -283,6 +283,16 @@ test.describe('Wallet Connection', () => {
     await expect(headerConnectButton(page)).toBeVisible()
   })
 
+  test('connected dropdown: copy, explorer, switch wallet (GitLab #185)', async ({ page, connectWallet }) => {
+    await connectWallet
+    await headerConnectedWalletButton(page).click()
+    await expect(page.getByTestId('wallet-menu-copy-address')).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'View on explorer' })).toBeVisible()
+    await page.getByRole('menuitem', { name: 'Switch wallet' }).click()
+    await expect(page.getByRole('heading', { name: /Connect Wallet/i })).toBeVisible()
+    await expect(headerConnectButton(page)).toBeVisible()
+  })
+
   test('wallet modal can be closed with X button', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')

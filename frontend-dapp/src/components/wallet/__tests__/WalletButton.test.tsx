@@ -128,3 +128,52 @@ describe('WalletButton menu dismiss (GitLab #187)', () => {
     expect(screen.getByRole('button', { expanded: false })).toBeInTheDocument()
   })
 })
+
+describe('WalletButton dropdown affordances (GitLab #185)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseWalletStore.mockReturnValue({
+      address: ADDR,
+      isConnecting: false,
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      walletModalOpen: false,
+      setWalletModalOpen: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+  })
+
+  it('shows copy, explorer, and switch wallet rows when the menu is open', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await user.click(screen.getByRole('button', { expanded: false }))
+    expect(screen.getByTestId('wallet-menu-copy-address')).toHaveTextContent('Copy address')
+    expect(screen.getByRole('menuitem', { name: 'View on explorer' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Switch wallet' })).toBeInTheDocument()
+  })
+
+  it('opens connect modal after Switch wallet', async () => {
+    const disconnect = vi.fn().mockResolvedValue(undefined)
+    const setWalletModalOpen = vi.fn()
+    mockUseWalletStore.mockReturnValue({
+      address: ADDR,
+      isConnecting: false,
+      disconnect,
+      walletModalOpen: false,
+      setWalletModalOpen,
+    } as ReturnType<typeof useWalletStore>)
+
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await user.click(screen.getByRole('button', { expanded: false }))
+    await user.click(screen.getByRole('menuitem', { name: 'Switch wallet' }))
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(setWalletModalOpen).toHaveBeenCalledWith(true))
+  })
+})
