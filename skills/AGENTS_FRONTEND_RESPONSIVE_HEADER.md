@@ -19,6 +19,7 @@ Use when changing **`Layout.tsx`**, **primary / More nav items**, **`HEADER_FULL
 1. **Do not** duplicate route lists in `Layout.tsx`; extend `navItems.ts` and keep **one** source of truth for what appears under header More at each tier.
 2. **Tablet compact** (`768px`–`1023px`): folding Pool/Limits/Trade/Charts into header More is intentional — preserve reachable CTAs and overlap coverage in E2E.
 3. **Mobile More sheet** must stay **`MORE_NAV_ITEMS` only**; primary tabs remain on the bottom bar — do not merge primary links into the mobile sheet without revisiting UX and tests.
+4. **Header brand** — logo + **`CL8Y DEX`** title only; do **not** reintroduce a “Terra Classic ecosystem” (or similar) kicker in the sticky header — it crowded the nav row and regressed [#136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136). Network branding belongs in footer / `NetworkBadge`, not a second header line.
 
 ## Related
 

@@ -762,14 +762,6 @@
     }
   }
 
-  .app-brand-kicker {
-    color: var(--ink-subtle);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
   .app-brand-title {
     color: var(--ink);
     font-size: 1.02rem;

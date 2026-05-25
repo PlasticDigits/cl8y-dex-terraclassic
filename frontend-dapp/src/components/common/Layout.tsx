@@ -126,7 +126,6 @@ export default function Layout() {
                 <img src="/assets/cl8y-dex-glass-logo.svg" alt="CL8Y DEX" className="app-brand-logo" />
               </span>
               <span className="app-brand-copy">
-                <span className="app-brand-kicker">Terra Classic ecosystem</span>
                 <strong className="app-brand-title">CL8Y DEX</strong>
               </span>
             </NavLink>

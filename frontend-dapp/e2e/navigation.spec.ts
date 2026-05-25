@@ -77,6 +77,7 @@ test.describe('Navigation', () => {
     await page.goto('/')
     await expect(page).toHaveTitle(/CL8Y DEX/)
     await expect(page.getByRole('link', { name: 'CL8Y DEX' })).toBeVisible()
+    await expect(page.getByText(/Terra Classic ecosystem/i)).toHaveCount(0)
   })
 
   test('shows persistent environment strip and NFA footer copy (GitLab #138)', async ({ page }) => {

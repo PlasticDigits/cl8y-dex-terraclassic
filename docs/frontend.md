@@ -295,6 +295,7 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 | Tablet compact header | Viewports **`768px`–`1023px`**: header shows **Swap** inline plus **More**; Pool, Limits, Trade, and Charts appear **inside** the header More menu ahead of Trader / Protocol / Fee Tiers / Create Pair (`getHeaderMoreMenuItems(false)` in [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)). |
 | Full desktop header | Viewports **`min-width: 1024px`**: all `PRIMARY_NAV_ITEMS` inline; header More lists **`MORE_NAV_ITEMS` only** (same as pre–#136 wide layout). |
 | Mobile vs header “More” active state | The bottom-tab **More** button highlights only for **`MORE_NAV_ITEMS`** routes; the header **More** trigger uses the expanded tablet list when compact so Pool/Charts/etc. still show an active affordance. |
+| Header brand copy | Sticky header brand is **logo + “CL8Y DEX” title only** — no secondary kicker line (removed [GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136) regression fix; Terra Classic context stays in footer **`CL8Y DEX · Terra Classic`**). Below **`1024px`**, `.app-brand-copy` stays hidden ([GitLab **#52**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/52)). |
 
 Constants: `HEADER_FULL_NAV_MIN_WIDTH_PX` (`1024`) and row label tuples `DESKTOP_HEADER_NAV_ROW_LABELS` / `TABLET_COMPACT_HEADER_NAV_ROW_LABELS` for Playwright overlap checks (`frontend-dapp/e2e/navigation.spec.ts`).
 
