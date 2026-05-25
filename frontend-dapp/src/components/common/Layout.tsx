@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { AppShellNavLink } from '@/components/common/AppShellNavLink'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
 import NetworkBadge from '@/components/wallet/NetworkBadge'
@@ -121,17 +122,11 @@ export default function Layout() {
 
             <nav className="app-desktop-nav" aria-label="Primary">
               {(fullDesktopHeader ? PRIMARY_NAV_ITEMS : PRIMARY_NAV_ITEMS.slice(0, 1)).map((item) => (
-                <NavLink
+                <AppShellNavLink
                   key={item.path}
-                  to={item.path}
-                  end={item.end !== false}
-                  onClick={() => {
-                    sounds.playButtonPress()
-                  }}
+                  item={item}
                   className={({ isActive }) => `app-nav-link${isActive ? ' app-nav-link-active' : ''}`}
-                >
-                  <span className="app-nav-link-label">{item.label}</span>
-                </NavLink>
+                />
               ))}
 
               <div className="app-more-wrap">
@@ -154,19 +149,14 @@ export default function Layout() {
                 {isMoreMenuOpen && (
                   <div role="menu" className="app-menu">
                     {headerMoreMenuItems.map((item) => (
-                      <NavLink
+                      <AppShellNavLink
                         key={item.path}
-                        to={item.path}
-                        end={item.end !== false}
+                        item={item}
                         role="menuitem"
-                        onClick={() => {
-                          sounds.playButtonPress()
-                          setIsMoreMenuOpen(false)
-                        }}
+                        onAfterPress={() => setIsMoreMenuOpen(false)}
                         className={({ isActive }) => `app-menu-link${isActive ? ' app-nav-link-active' : ''}`}
-                      >
-                        {item.label}
-                      </NavLink>
+                        labelClassName=""
+                      />
                     ))}
                   </div>
                 )}
@@ -219,17 +209,12 @@ export default function Layout() {
 
       <nav ref={mobileNavRef} className="app-mobile-nav-shell" aria-label="Primary">
         {PRIMARY_NAV_ITEMS.map((item) => (
-          <NavLink
+          <AppShellNavLink
             key={item.path}
-            to={item.path}
-            end={item.end !== false}
-            onClick={() => {
-              sounds.playButtonPress()
-            }}
+            item={item}
             className={({ isActive }) => `app-mobile-link${isActive ? ' app-mobile-link-active' : ''}`}
-          >
-            {item.label}
-          </NavLink>
+            labelClassName=""
+          />
         ))}
         <button
           type="button"
@@ -248,18 +233,13 @@ export default function Layout() {
       {isMobileMoreOpen && (
         <section className="app-mobile-more-sheet" aria-label="More pages">
           {MORE_NAV_ITEMS.map((item) => (
-            <NavLink
+            <AppShellNavLink
               key={item.path}
-              to={item.path}
-              end={item.end !== false}
-              onClick={() => {
-                sounds.playButtonPress()
-                setIsMobileMoreOpen(false)
-              }}
+              item={item}
+              onAfterPress={() => setIsMobileMoreOpen(false)}
               className={({ isActive }) => `app-menu-link${isActive ? ' app-nav-link-active' : ''}`}
-            >
-              {item.label}
-            </NavLink>
+              labelClassName=""
+            />
           ))}
           <ThemeSegmentedControl
             theme={theme}
