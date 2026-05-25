@@ -14,6 +14,7 @@ import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
 import { InvalidPairLinkNotice } from '@/components/trade/InvalidPairLinkNotice'
+import { PairNotFoundLinkNotice } from '@/components/trade/PairNotFoundLinkNotice'
 import { TradePairSwitchStatus } from '@/components/trade/TradePairSwitchStatus'
 import { TradePageWorkspaceSkeleton } from '@/components/trade/TradePageWorkspaceSkeleton'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
@@ -28,7 +29,12 @@ import {
   TRADE_INDEXER_OUTAGE_BANNER_TITLE,
 } from '@/utils/indexerTradeOutageCopy'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
-import { getInvalidTradePairRouteParam, isTradePairRouteParam } from '@/utils/tradePairRoute'
+import {
+  getInvalidTradePairRouteParam,
+  getUnknownTradePairRouteParam,
+  isKnownFactoryTradePair,
+  isTradePairRouteParam,
+} from '@/utils/tradePairRoute'
 import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
 import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
 import type { IndexerPair } from '@/types'
@@ -97,7 +103,8 @@ export default function TradePage() {
   const queryClient = useQueryClient()
   const invalidRoutePair = useMemo(() => getInvalidTradePairRouteParam(routePair), [routePair])
   const [invalidLinkNotice, setInvalidLinkNotice] = useState<string | null>(null)
-  const [pairAddr, setPairAddr] = useState(() => (isTradePairRouteParam(routePair) ? routePair : ''))
+  const [unknownPairNotice, setUnknownPairNotice] = useState<string | null>(null)
+  const [pairAddr, setPairAddr] = useState('')
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -106,6 +113,14 @@ export default function TradePage() {
   })
 
   const pairs = useMemo(() => pairsQuery.data?.pairs ?? [], [pairsQuery.data])
+  const factoryPairsResolved = pairsQuery.isSuccess
+  const unknownRoutePair = useMemo(
+    () =>
+      invalidRoutePair
+        ? null
+        : getUnknownTradePairRouteParam(routePair, pairs, factoryPairsResolved),
+    [invalidRoutePair, routePair, pairs, factoryPairsResolved]
+  )
   const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs, { variant: 'full' }), [pairs])
   const pairRouteReady = isTradePairRouteParam(pairAddr)
   const activePairMenuLabel = useMemo(
@@ -116,26 +131,54 @@ export default function TradePage() {
   useEffect(() => {
     if (invalidRoutePair) {
       setInvalidLinkNotice(invalidRoutePair)
+      setUnknownPairNotice(null)
       setPairAddr('')
       if (routePair) {
         navigate('/trade', { replace: true })
       }
       return
     }
-    if (isTradePairRouteParam(routePair)) {
+    if (unknownRoutePair) {
+      setUnknownPairNotice(unknownRoutePair)
+      setInvalidLinkNotice(null)
+      setPairAddr('')
+      if (routePair) {
+        navigate('/trade', { replace: true })
+      }
+      return
+    }
+    if (isKnownFactoryTradePair(routePair, pairs)) {
       setPairAddr(routePair)
       setInvalidLinkNotice(null)
+      setUnknownPairNotice(null)
     }
-  }, [invalidRoutePair, routePair, navigate])
+  }, [invalidRoutePair, unknownRoutePair, routePair, pairs, navigate])
 
   useEffect(() => {
-    if (pairAddr || pairs.length === 0 || invalidLinkNotice) return
+    if (
+      pairAddr ||
+      pairs.length === 0 ||
+      invalidRoutePair ||
+      unknownRoutePair ||
+      invalidLinkNotice ||
+      unknownPairNotice
+    ) {
+      return
+    }
     const first = pairs[0]?.contract_addr
     if (first) {
       setPairAddr(first)
       navigate(`/trade/${first}`, { replace: true })
     }
-  }, [pairAddr, pairs, navigate, invalidLinkNotice])
+  }, [
+    pairAddr,
+    pairs,
+    navigate,
+    invalidRoutePair,
+    unknownRoutePair,
+    invalidLinkNotice,
+    unknownPairNotice,
+  ])
 
   useEffect(() => {
     if (!pairRouteReady) return
@@ -245,6 +288,7 @@ export default function TradePage() {
     (addr: string) => {
       sounds.playButtonPress()
       setInvalidLinkNotice(null)
+      setUnknownPairNotice(null)
       if (isTradePairRouteParam(addr)) {
         prefetchTradePairWorkspace(queryClient, addr)
         setPairAddr(addr)
@@ -270,6 +314,14 @@ export default function TradePage() {
           invalidParam={invalidLinkNotice}
           pairSelectId={TRADE_PAIR_SELECT_ID}
           onDismiss={() => setInvalidLinkNotice(null)}
+        />
+      )}
+
+      {unknownPairNotice && (
+        <PairNotFoundLinkNotice
+          unknownParam={unknownPairNotice}
+          pairSelectId={TRADE_PAIR_SELECT_ID}
+          onDismiss={() => setUnknownPairNotice(null)}
         />
       )}
 

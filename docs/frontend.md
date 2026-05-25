@@ -550,6 +550,25 @@ Copy constants: [`tradeInvalidPairLinkCopy.ts`](../frontend-dapp/src/utils/trade
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_INVALID_PAIR_LINK.md`](../skills/AGENTS_FRONTEND_TRADE_INVALID_PAIR_LINK.md).
 
+### Trade page — unknown pair deep link (valid `terra1…`, not on factory) {#trade-page-unknown-pair-link}
+
+When `/trade/:pairAddr` passes [`isValidTerraAddress`](../frontend-dapp/src/utils/constants.ts) but the address is **not** in the paginated factory pair list ([`getUnknownTradePairRouteParam`](../frontend-dapp/src/utils/tradePairRoute.ts)), the UI must treat it as **pair not found** — not as a valid selection and not as an open-ended “not indexed yet” indexer miss ([GitLab **#175**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175)). **No bech32 checksum** on URL segments (users may paste lowercase); factory membership is the gate before any indexer/LCD pair workspace fetch.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Factory gate** | After `allPairs` succeeds, unknown detection compares `routePair` to `pairs[].contract_addr` only — do not set `pairAddr` until the segment is known. |
+| **URL cleanup** | Same as [invalid pair deep link](#trade-page-invalid-pair-link): `navigate('/trade', { replace: true })`. |
+| **Notice + CTA** | [`PairNotFoundLinkNotice`](../frontend-dapp/src/components/trade/PairNotFoundLinkNotice.tsx) — title **Pair not found**, quotes the segment, CTA focuses `#trade-pair-select`. |
+| **Queries disabled** | Indexer / LCD workspace queries stay off while `pairAddr` is empty (no 404 storm for regex-valid garbage). |
+| **Auto-pick guard** | Blocked while `unknownPairNotice` is set (mirror invalid-link notice). |
+| **vs #176** | Charset-invalid `terra1…` (e.g. `terra1damThat'scrazy`) uses **Invalid pair link** ([#176](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/176)), not this notice. |
+| **vs #177** | Chart **RetryError** after **404** applies only when `pairAddr` is a **known** factory pair (indexer lag/outage), not unknown deep links. |
+| **`data-testid`s** | `trade-pair-not-found-link-notice`, `trade-pair-not-found-link-value`, `trade-pair-not-found-link-cta`. |
+
+Copy: [`tradeUnknownPairLinkCopy.ts`](../frontend-dapp/src/utils/tradeUnknownPairLinkCopy.ts). Regression: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), [`tradePairRoute.test.ts`](../frontend-dapp/src/utils/__tests__/tradePairRoute.test.ts).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_INVALID_PAIR_LINK.md`](../skills/AGENTS_FRONTEND_TRADE_INVALID_PAIR_LINK.md) (§ Unknown pair).
+
 ### Limit place — Bid / Ask side control (trade + limits page) {#limit-place-bid-ask-side}
 
 On-chain semantics are unchanged: **Bid escrows token1; Ask escrows token0** (pair asset ordering — see [`pair.ts`](../frontend-dapp/src/services/terraclassic/pair.ts) and contract docs).

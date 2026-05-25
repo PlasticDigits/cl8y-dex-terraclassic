@@ -11,3 +11,26 @@ export function getInvalidTradePairRouteParam(routePair: string | undefined): st
   if (!raw || isValidTerraAddress(raw)) return null
   return raw
 }
+
+/** Whether `addr` is listed on the factory pair menu (after LCD pair list has resolved). */
+export function isKnownFactoryTradePair(
+  addr: string | undefined,
+  pairs: readonly { contract_addr: string }[]
+): boolean {
+  return !!addr && isValidTerraAddress(addr) && pairs.some((p) => p.contract_addr === addr)
+}
+
+/**
+ * Valid-format `terra1…` deep link that is not in the factory pair list.
+ * Requires the factory query to have finished successfully so we do not flash a false positive while loading.
+ */
+export function getUnknownTradePairRouteParam(
+  routePair: string | undefined,
+  pairs: readonly { contract_addr: string }[],
+  factoryPairsResolved: boolean
+): string | null {
+  const raw = routePair?.trim()
+  if (!factoryPairsResolved || !raw || !isValidTerraAddress(raw)) return null
+  if (isKnownFactoryTradePair(raw, pairs)) return null
+  return raw
+}
