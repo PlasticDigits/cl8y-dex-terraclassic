@@ -35,7 +35,8 @@ import {
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
-import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
+import { AddressRow } from '@/components/ui/AddressRow'
+import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/utils/provideLiquidityEstimate'
 import { evaluateProvideLiquidityCw20NativeGasGate } from '@/utils/provideLiquidityNativeGasBalanceGate'
@@ -813,8 +814,16 @@ const PoolCard = memo(function PoolCard({
               className="input-neo"
             />
           </div>
-          <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
-            LP Token: <span className="font-mono">{shortenAddress(pair.liquidity_token)}</span>
+          <p className="text-xs flex flex-wrap items-center gap-1" style={{ color: 'var(--ink-subtle)' }}>
+            LP Token:{' '}
+            <AddressRow
+              address={pair.liquidity_token}
+              startChars={8}
+              endChars={6}
+              copyAriaLabel="Copy LP token address"
+              explorerAriaLabel="View LP token address on explorer"
+              data-testid="pool-lp-token-address-row"
+            />
           </p>
           {insufficientLp && (
             <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }}>

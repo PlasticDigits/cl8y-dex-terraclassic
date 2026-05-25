@@ -17,10 +17,12 @@ Use when adding **copy address / contract / tx hash** affordances anywhere in th
 2. **Always** pass a specific **`ariaLabel`** (e.g. `"Copy wallet address"`, not `"Copy"`).
 3. **Empty/whitespace** `text` must fail gracefully (handler returns failure message; no throw).
 4. **Wallet chip** dropdown copy is [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185); explorer URLs are [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md).
-5. **Future surfaces:** trader profile, pool/LP addresses, pair chips, `TxResultAlert` tx hash — reuse this primitive.
+5. **Address surfaces:** prefer [`AddressRow`](./AGENTS_FRONTEND_ADDRESS_ROW.md) (copy + shorten + explorer) over bare `CopyButton` in pages ([#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)).
+6. **Future surfaces:** pair chips, `TxResultAlert` tx hash copy — extend `AddressRow` or add a sibling row primitive.
 
 ## Cross-links
 
+- Address row (copy + explorer): [`AGENTS_FRONTEND_ADDRESS_ROW.md`](./AGENTS_FRONTEND_ADDRESS_ROW.md) ([GitLab **#188**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188))
 - Connected wallet chip: [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md) ([GitLab **#140**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140))
 - Terra explorer URLs: [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md) ([GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184))
 - Retail error funnel (unrelated): [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)

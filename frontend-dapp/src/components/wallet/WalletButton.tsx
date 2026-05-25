@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
+import { AddressRow } from '@/components/ui/AddressRow'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { DEFAULT_NETWORK, NETWORKS } from '@/utils/constants'
 import { getTerraChainLogoPath } from '@/utils/networkDisplay'
@@ -72,9 +73,14 @@ export default function WalletButton() {
             <div role="menu" className="wallet-menu animate-fade-in-up" style={{ animationDuration: '0.2s' }}>
               <div className="px-3 py-2 border-b border-white/10 space-y-1 min-w-0">
                 <WalletLuncBalance address={address} />
-                <p className="text-xs font-mono break-all" style={{ color: 'var(--ink-subtle)' }}>
-                  {address}
-                </p>
+                <AddressRow
+                  address={address}
+                  showFull
+                  className="text-xs"
+                  copyAriaLabel="Copy wallet address"
+                  explorerAriaLabel="View wallet address on explorer"
+                  data-testid="wallet-menu-address-row"
+                />
               </div>
               <Link
                 role="menuitem"

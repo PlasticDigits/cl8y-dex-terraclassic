@@ -11,7 +11,7 @@ import { sounds } from '@/lib/sounds'
 import { isValidTerraAddress } from '@/utils/constants'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { formatNum } from '@/utils/formatAmount'
-import { shortenAddress } from '@/utils/tokenDisplay'
+import { AddressRow } from '@/components/ui/AddressRow'
 import { formatDateTime } from '@/utils/formatDate'
 import type { IndexerPosition } from '@/types'
 
@@ -166,8 +166,15 @@ export default function TraderPage() {
           <div className="shell-panel">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
               <div>
-                <p className="text-sm font-mono" style={{ color: 'var(--ink)' }}>
-                  {shortenAddress(trader.address, 12, 6)}
+                <p className="text-sm flex flex-wrap items-center gap-1" style={{ color: 'var(--ink)' }}>
+                  <AddressRow
+                    address={trader.address}
+                    startChars={12}
+                    endChars={6}
+                    copyAriaLabel="Copy trader address"
+                    explorerAriaLabel="View trader address on explorer"
+                    data-testid="trader-profile-address-row"
+                  />
                   {isOwnProfile && (
                     <span className="badge-neo badge-neo-accent ml-2" style={{ color: 'var(--accent)' }}>
                       You

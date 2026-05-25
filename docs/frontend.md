@@ -82,10 +82,11 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
 | **Copy affordance** | Use [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) for wallet/address copy ([#183](#copy-button-primitive)); dropdown wiring is [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185). |
+| **Address row** | Connected menu uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) for full bech32 + copy + explorer ([#188](#addressrow-primitive)); chip trigger shortening is [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186). |
 | **Menu dismiss + Escape** | Connected dropdown uses the same semantic backdrop as shell nav: `type="button"` + `aria-label="Close wallet menu"` + class **`app-menu-dismiss`** ([`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)). **`Escape`** closes the wallet menu via a `window` listener while open; [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) still owns More-menu Esc ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
-| **Out of scope (#140 B)** | Sibling issues: [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). |
+| **Out of scope (#140 B)** | Sibling issues: [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) extra dropdown menu items, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile. Remaining AddressRow surfaces: pair chips, `TxResultAlert` tx copy — [#188](#addressrow-primitive). Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
 
 ### Copy to clipboard — `CopyButton` primitive {#copy-button-primitive}
 
@@ -100,7 +101,24 @@ Reusable one-click clipboard control for addresses, contract IDs, and tx hashes 
 | **Feedback window** | Success/error live text clears after **2s** so repeat copies stay screen-reader friendly. |
 | **Regression tests** | [`copyToClipboard.test.ts`](../frontend-dapp/src/utils/__tests__/copyToClipboard.test.ts), [`CopyButton.test.tsx`](../frontend-dapp/src/components/ui/__tests__/CopyButton.test.tsx) (mock `navigator.clipboard`). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
+
+### Address display — `AddressRow` primitive {#addressrow-primitive}
+
+Reusable **shortened or full address + copy + explorer** row for bech32 and contract IDs ([GitLab **#188**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)). Composes [#183](#copy-button-primitive) `CopyButton` and [#184](#terra-classic-block-explorer-urls) `getExplorerAddressUrl`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Single component** | [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) — do not duplicate shorten/copy/explorer markup in feature pages. |
+| **Shorten defaults** | `shortenAddress(address, 8, 6)` when `showFull` is false; override with `startChars` / `endChars` when design needs a different chip (e.g. trader header 12/6). |
+| **Full text mode** | `showFull` shows the entire string with `break-all` (wallet dropdown menu). |
+| **Explorer** | Label and icon link share `getExplorerAddressUrl`; both omitted when the helper returns `null`. |
+| **Aria** | Pass explicit `copyAriaLabel` / `explorerAriaLabel` per surface (wallet, LP token, trader). |
+| **Regression tests** | [`AddressRow.test.tsx`](../frontend-dapp/src/components/ui/__tests__/AddressRow.test.tsx). |
+
+**First consumers:** wallet menu (`wallet-menu-address-row`), pool LP token line (`pool-lp-token-address-row`), trader profile header (`trader-profile-address-row`).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
@@ -118,7 +136,7 @@ Network-aware explorer links for transactions and accounts live in [`terraExplor
 | **Local dev LCD** | `local` uses REST paths on [`NETWORKS.local.terra.lcd`](../frontend-dapp/src/utils/constants.ts) (default `http://localhost:1317`), mirroring tx vs account resources. |
 | **Regression tests** | [`terraExplorer.test.ts`](../frontend-dapp/src/utils/__tests__/terraExplorer.test.ts) — one case per network for **tx** and **address**. |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md) · [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md) (tx links only).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md) (tx links only).
 
 ### Risk surfacing, NFA copy, and first-visit acknowledgement {#legal-risk-surfacing}
 

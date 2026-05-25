@@ -23,10 +23,11 @@ Use when changing **`WalletButton.tsx`**, **`WalletLuncBalance.tsx`**, connected
    - [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown copy / explorer / switch wallet (wire `CopyButton` + `getExplorerAddressUrl` here)
    - [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) network shortLabel + mobile chip layout
    - [#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) Esc + semantic menu dismisser — **done** (see invariants below)
-   - [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) `AddressRow` cross-cutting umbrella
+   - [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) `AddressRow` — **done** for dropdown full address; see [`AGENTS_FRONTEND_ADDRESS_ROW.md`](./AGENTS_FRONTEND_ADDRESS_ROW.md)
 
 ## Cross-links
 
+- Address row primitive: [`AGENTS_FRONTEND_ADDRESS_ROW.md`](./AGENTS_FRONTEND_ADDRESS_ROW.md) ([GitLab **#188**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188))
 - Clipboard primitive: [`AGENTS_FRONTEND_COPY_BUTTON.md`](./AGENTS_FRONTEND_COPY_BUTTON.md) ([GitLab **#183**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183))
 - Explorer URL helpers: [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md)
 - Connect modal: [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md)

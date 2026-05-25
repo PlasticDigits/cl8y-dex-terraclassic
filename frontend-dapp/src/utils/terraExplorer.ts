@@ -49,7 +49,7 @@ export function getExplorerTxUrl(txHash: string): string | null {
 
 /**
  * Full URL to view an account on the block explorer for the active `VITE_NETWORK` build.
- * Used by wallet chip “View on explorer” ([#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184)).
+ * Used by [`AddressRow`](../components/ui/AddressRow.tsx) and wallet explorer ([#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184), [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)).
  */
 export function getExplorerAddressUrl(address: string): string | null {
   const { chainId } = NETWORKS[DEFAULT_NETWORK].terra
