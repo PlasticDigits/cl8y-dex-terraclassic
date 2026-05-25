@@ -62,6 +62,16 @@ describe('WalletButton connected LUNC (GitLab #140)', () => {
     expect(screen.getByText(ADDR)).toBeInTheDocument()
     expect(screen.getAllByTestId('wallet-lunc-balance-mock').length).toBeGreaterThanOrEqual(2)
   })
+
+  it('shows network shortLabel on the connected trigger (GitLab #186)', () => {
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    expect(screen.getByTestId('wallet-network-short-label')).toHaveTextContent('Local')
+    expect(screen.getByRole('button', { name: /Connected wallet on Local/i })).toBeInTheDocument()
+  })
 })
 
 describe('WalletButton menu dismiss (GitLab #187)', () => {

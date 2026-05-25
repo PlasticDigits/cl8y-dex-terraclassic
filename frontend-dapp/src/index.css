@@ -1004,6 +1004,25 @@
     background: rgba(255, 255, 255, 0.12);
   }
 
+  .wallet-chip-network {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .wallet-chip-network-label {
+    max-width: 4.5rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .network-badge {
     justify-content: flex-start;
     font-size: 0.88rem;
