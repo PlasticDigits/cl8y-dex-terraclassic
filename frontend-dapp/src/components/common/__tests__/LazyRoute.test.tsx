@@ -3,10 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { RouteContentReadyProvider } from '@/contexts/RouteContentReadyContext'
 import { LazyRoute } from '../LazyRoute'
 
 function renderLazyRoute(ui: ReactElement) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>)
+  return render(
+    <MemoryRouter>
+      <RouteContentReadyProvider onReadyChange={() => {}}>{ui}</RouteContentReadyProvider>
+    </MemoryRouter>
+  )
 }
 
 describe('LazyRoute', () => {

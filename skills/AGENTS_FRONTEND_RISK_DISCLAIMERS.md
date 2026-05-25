@@ -11,6 +11,8 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 | `frontend-dapp/src/components/legal/legalCopy.ts` | Single source for bullets and NFA strings shared by modal + footer |
 | `frontend-dapp/src/components/ui/Modal.tsx` | `dismissible` prop for blocking dialogs |
 | `frontend-dapp/playwright.config.ts` | Sets `VITE_PLAYWRIGHT_E2E=true` on `webServer` so E2E is not blocked |
+| `frontend-dapp/src/contexts/RouteContentReadyContext.tsx` | Pathname-scoped ready gate for deferred NFA footer (fixes missed `window` events on nav — [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)) |
+| `frontend-dapp/src/components/common/RouteContentReadyMarker.tsx` | Calls `useMarkRouteContentReady()` when lazy route content mounts |
 
 ## Rules of thumb
 
@@ -18,6 +20,7 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 2. **Bump `RISK_ACK_VERSION`** when changing disclaimer meaningfully so returning browsers re-run the gate.
 3. **Keep `VITE_PLAYWRIGHT_E2E` off** for real builds and manual QA; it exists only to unblock Playwright against the same dev server command.
 4. **Edit copy in one place** (`legalCopy.ts`) unless you intentionally split mobile vs desktop tone. **Mobile footer:** when the shell hides the desktop footer (`max-width: 767px`), `Layout` mounts a second `LegalFooterNotice` in `.app-mobile-legal-strip` so NFA copy still appears on phones.
+5. **Do not** coordinate legal footer visibility with `window` custom events from `RouteContentReadyMarker`; use **`RouteContentReadyProvider`** so navigation clears readiness synchronously before child effects run (regression: `RouteContentReadyContext.test.tsx`, E2E “NFA footer copy promptly after route changes”).
 
 ## Related
 

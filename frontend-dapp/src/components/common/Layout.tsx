@@ -17,7 +17,7 @@ import { useSyncMobileNavStack } from '@/hooks/useSyncMobileNavStack'
 import { sounds } from '@/lib/sounds'
 import { LcdConnectivityBanner } from '@/components/common/LcdConnectivityBanner'
 import { useLcdConnectivityRecovery } from '@/hooks/useLcdConnectivityRecovery'
-import { ROUTE_CONTENT_READY_EVENT } from '@/utils/routeContentReady'
+import { RouteContentReadyProvider } from '@/contexts/RouteContentReadyContext'
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'dark'
@@ -66,17 +66,6 @@ export default function Layout() {
   useEffect(() => {
     setIsMoreMenuOpen(false)
     setIsMobileMoreOpen(false)
-  }, [location.pathname])
-
-  useEffect(() => {
-    setRouteContentReady(false)
-    const onReady = () => setRouteContentReady(true)
-    window.addEventListener(ROUTE_CONTENT_READY_EVENT, onReady)
-    const failsafe = window.setTimeout(() => setRouteContentReady(true), 12_000)
-    return () => {
-      window.removeEventListener(ROUTE_CONTENT_READY_EVENT, onReady)
-      window.clearTimeout(failsafe)
-    }
   }, [location.pathname])
 
   const headerMoreMenuItems = useMemo(() => getHeaderMoreMenuItems(fullDesktopHeader), [fullDesktopHeader])
@@ -207,7 +196,9 @@ export default function Layout() {
           <div aria-hidden="true" className="app-hero-glow" />
           <div className="app-main-content">
             {isLcdUnreachable ? <LcdConnectivityBanner onRetry={retryAll} isProbing={isProbePending} /> : null}
-            <Outlet />
+            <RouteContentReadyProvider onReadyChange={setRouteContentReady}>
+              <Outlet />
+            </RouteContentReadyProvider>
           </div>
           {showMobileLegalStrip && routeContentReady ? (
             <div className="app-mobile-legal-strip">

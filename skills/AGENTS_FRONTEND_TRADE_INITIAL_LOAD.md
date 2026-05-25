@@ -10,7 +10,7 @@ Use when fixing **blank white flash** on hard reload of `/trade`, **missing load
 | [`index.html`](../frontend-dapp/index.html) | Pre-React `#trade-bootstrap-shell` for `/trade` paths |
 | [`TradePageWorkspaceSkeleton.tsx`](../frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx) | Shared skeleton (`data-testid="trade-workspace-skeleton"`) |
 | [`TradePageRouteFallback.tsx`](../frontend-dapp/src/components/trade/TradePageRouteFallback.tsx) | `/trade` Suspense fallback wired in [`App.tsx`](../frontend-dapp/src/App.tsx) |
-| [`routeContentReady.ts`](../frontend-dapp/src/utils/routeContentReady.ts) | `ROUTE_CONTENT_READY_EVENT` — defers legal footer in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) |
+| [`RouteContentReadyContext.tsx`](../frontend-dapp/src/contexts/RouteContentReadyContext.tsx) | Pathname-scoped ready gate — defers legal footer in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) ([GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138) nav race) |
 | [`LazyRoute.tsx`](../frontend-dapp/src/components/common/LazyRoute.tsx) | Optional `fallback` prop + `RouteContentReadyMarker` |
 
 ## Rules of thumb

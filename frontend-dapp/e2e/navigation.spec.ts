@@ -86,6 +86,26 @@ test.describe('Navigation', () => {
     await expect(page.getByText(/Nothing here is financial/i)).toBeVisible()
   })
 
+  test('shows NFA footer copy promptly after route changes (GitLab #138)', async ({ page }) => {
+    const nfa = page.getByText(/Nothing here is financial/i)
+    await page.goto('/')
+    await expect(nfa).toBeVisible()
+
+    await page.getByRole('link', { name: 'Pool' }).click()
+    await expect(page).toHaveURL(/\/pool/)
+    await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
+    await expect(nfa).toBeVisible({ timeout: 3_000 })
+
+    await clickDesktopMoreNavItem(page, 'Fee Tiers')
+    await expect(page).toHaveURL(/\/tiers/)
+    await expect(nfa).toBeVisible({ timeout: 3_000 })
+
+    await page.getByRole('link', { name: 'Trade' }).click()
+    await expect(page).toHaveURL(/\/trade/)
+    await expect(page.getByRole('heading', { name: 'Trade', exact: true })).toBeVisible()
+    await expect(nfa).toBeVisible({ timeout: 3_000 })
+  })
+
   test('navigates to Swap page by default', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Swap' })).toBeVisible()
