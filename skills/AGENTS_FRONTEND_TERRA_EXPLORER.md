@@ -22,5 +22,5 @@ Use when adding or changing **“View on explorer”** links for **transactions*
 ## Cross-links
 
 - Address row (address explorer consumer): [`AGENTS_FRONTEND_ADDRESS_ROW.md`](./AGENTS_FRONTEND_ADDRESS_ROW.md) · [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)
-- Wallet chip dropdown (consumer): [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md) · [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)
+- Wallet chip dropdown (consumer): [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md) · [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [docs § Connected wallet dropdown](../docs/frontend.md#connected-wallet-dropdown)
 - Order history tx column: [`AGENTS_FRONTEND_ORDER_HISTORY.md`](./AGENTS_FRONTEND_ORDER_HISTORY.md) (`getExplorerTxUrl` only)

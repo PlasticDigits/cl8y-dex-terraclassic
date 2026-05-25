@@ -57,4 +57,21 @@ describe('CopyButton', () => {
     render(<CopyButton text="hash" ariaLabel="Copy transaction hash" data-testid="copy-tx" />)
     expect(screen.getByTestId('copy-tx')).toHaveAttribute('aria-label', 'Copy transaction hash')
   })
+
+  it('renders wallet menu row when menuLabel is set (GitLab #185)', async () => {
+    const user = userEvent.setup()
+    render(
+      <CopyButton
+        text="terra1menu"
+        ariaLabel="Copy wallet address"
+        menuLabel="Copy address"
+        data-testid="wallet-menu-copy"
+      />
+    )
+    const item = screen.getByTestId('wallet-menu-copy')
+    expect(item).toHaveAttribute('role', 'menuitem')
+    expect(item).toHaveTextContent('Copy address')
+    await user.click(item)
+    expect(mockCopyToClipboard).toHaveBeenCalledWith('terra1menu')
+  })
 })

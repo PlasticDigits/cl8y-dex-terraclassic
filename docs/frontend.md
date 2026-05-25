@@ -81,16 +81,28 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with the **full** bech32 address. |
 | **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
-| **Copy affordance** | Use [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) for wallet/address copy ([#183](#copy-button-primitive)); dropdown wiring is [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185). |
-| **Address row** | Connected menu uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) for full bech32 + copy + explorer ([#188](#addressrow-primitive)); chip trigger shortening is [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186). |
+| **Address row** | Connected menu header uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) for full bech32 + inline copy + explorer icon ([#188](#addressrow-primitive)). |
 | **Menu dismiss + Escape** | Connected dropdown uses the same semantic backdrop as shell nav: `type="button"` + `aria-label="Close wallet menu"` + class **`app-menu-dismiss`** ([`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)). **`Escape`** closes the wallet menu via a `window` listener while open; [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) still owns More-menu Esc ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
-| **Out of scope (#140 B)** | Sibling issues: [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) extra dropdown menu items, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile. Remaining AddressRow surfaces: pair chips, `TxResultAlert` tx copy — [#188](#addressrow-primitive). Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). |
+| **Out of scope (#140 B)** | Sibling issues: [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile. Remaining AddressRow surfaces: pair chips, `TxResultAlert` tx copy — [#188](#addressrow-primitive). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
 
+### Connected wallet dropdown menu items {#connected-wallet-dropdown}
+
+Labeled menu rows for retailers who expect explicit actions in the wallet chip menu ([GitLab **#185**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185), [#140](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140) scope **B**). Implemented in [`WalletDropdownMenuItems.tsx`](../frontend-dapp/src/components/wallet/WalletDropdownMenuItems.tsx), inserted by [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx) after the `AddressRow` header.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Menu order** | Header (`WalletLuncBalance` + `AddressRow`) → **Copy address** → **View on explorer** (if URL) → **Switch wallet** → **Trader profile** → **Disconnect**. |
+| **Copy address** | [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) with `menuLabel="Copy address"` ([#183](#copy-button-primitive)); full bech32 written to clipboard. |
+| **View on explorer** | [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) ([#184](#terra-classic-block-explorer-urls)); omit the row when helper returns `null`. |
+| **Switch wallet** | `disconnect()` then `setWalletModalOpen(true)`; connect modal portals while connected (no full-page flow). |
+| **`data-testid`** | `wallet-menu-copy-address`, `wallet-menu-view-explorer`, `wallet-menu-switch-wallet`. |
+| **Regression tests** | [`WalletDropdownMenuItems.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletDropdownMenuItems.test.tsx), [`WalletButton.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletButton.test.tsx), wallet block in [`navigation.spec.ts`](../frontend-dapp/e2e/navigation.spec.ts). |
+
 ### Copy to clipboard — `CopyButton` primitive {#copy-button-primitive}
 
-Reusable one-click clipboard control for addresses, contract IDs, and tx hashes ([GitLab **#183**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183)). First consumer: wallet dropdown copy ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)); do not add ad-hoc `navigator.clipboard` calls in feature code.
+Reusable one-click clipboard control for addresses, contract IDs, and tx hashes ([GitLab **#183**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183)). Wallet **Copy address** menu row uses optional **`menuLabel`** ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [Connected wallet dropdown](#connected-wallet-dropdown)); do not add ad-hoc `navigator.clipboard` calls in feature code.
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -122,7 +134,7 @@ Reusable **shortened or full address + copy + explorer** row for bech32 and cont
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
-Network-aware explorer links for transactions and accounts live in [`terraExplorer.ts`](../frontend-dapp/src/utils/terraExplorer.ts). Both helpers read **`VITE_NETWORK`** / [`DEFAULT_NETWORK`](../frontend-dapp/src/utils/constants.ts) and resolve public Finder bases from [`chainlist.json`](../frontend-dapp/public/chains/chainlist.json) (`explorerUrl` per `chainId`). Implemented for [GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184); required before wallet chip “View on explorer” ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)).
+Network-aware explorer links for transactions and accounts live in [`terraExplorer.ts`](../frontend-dapp/src/utils/terraExplorer.ts). Both helpers read **`VITE_NETWORK`** / [`DEFAULT_NETWORK`](../frontend-dapp/src/utils/constants.ts) and resolve public Finder bases from [`chainlist.json`](../frontend-dapp/public/chains/chainlist.json) (`explorerUrl` per `chainId`). Implemented for [GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184). Wallet **View on explorer** menu row consumes `getExplorerAddressUrl` ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [Connected wallet dropdown](#connected-wallet-dropdown)).
 
 | Helper | Use | `local` | `mainnet` (`columbus-5`) | `testnet` (`rebel-2`) |
 |--------|-----|---------|---------------------------|------------------------|
