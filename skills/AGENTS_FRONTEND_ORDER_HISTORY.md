@@ -25,10 +25,11 @@ Invariants and caps: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 
 ## UX / a11y
 
-- Tables use **semantic** `<table>`; tx column uses [`getExplorerTxUrl`](../frontend-dapp/src/utils/terraExplorer.ts) when configured.
+- Tables use **semantic** `<table>`; tx column uses [`getExplorerTxUrl`](../frontend-dapp/src/utils/terraExplorer.ts) when configured (address links: [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) — [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md)).
 - Empty states explain **pair scope** (history is filtered to the **selected pair**).
 
 ## Related skills
 
+- [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md) — tx / address explorer URL matrix.
 - [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) — LocalTerra smoke flows.
 - [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — trade workspace layout; post-place **View order** / **Place another** on `/trade` ([GitLab **#161**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161)).

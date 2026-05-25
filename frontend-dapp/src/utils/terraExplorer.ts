@@ -22,11 +22,13 @@ export type ChainlistData = {
 
 const chainlist = chainlistJson as ChainlistData
 
-function explorerTxBaseForChainId(chainId: string): string | null {
+type ExplorerPathSegment = 'tx' | 'address'
+
+function explorerPathBaseForChainId(chainId: string, segment: ExplorerPathSegment): string | null {
   const entry = chainlist.chains.find((c) => String(c.chainId) === chainId)
   if (!entry?.explorerUrl) return null
   const base = entry.explorerUrl.replace(/\/$/, '')
-  return `${base}/tx/`
+  return `${base}/${segment}/`
 }
 
 /**
@@ -40,9 +42,26 @@ export function getExplorerTxUrl(txHash: string): string | null {
     return `${lcd}/cosmos/tx/v1beta1/txs/${txHash}`
   }
 
-  const base = explorerTxBaseForChainId(chainId)
+  const base = explorerPathBaseForChainId(chainId, 'tx')
   if (!base) return null
   return `${base}${txHash}`
+}
+
+/**
+ * Full URL to view an account on the block explorer for the active `VITE_NETWORK` build.
+ * Used by wallet chip “View on explorer” ([#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184)).
+ */
+export function getExplorerAddressUrl(address: string): string | null {
+  const { chainId } = NETWORKS[DEFAULT_NETWORK].terra
+
+  if (DEFAULT_NETWORK === 'local') {
+    const lcd = NETWORKS.local.terra.lcd.replace(/\/$/, '')
+    return `${lcd}/cosmos/auth/v1beta1/accounts/${address}`
+  }
+
+  const base = explorerPathBaseForChainId(chainId, 'address')
+  if (!base) return null
+  return `${base}${address}`
 }
 
 /** Middle-elided hash for alerts, tables, and other compact tx displays. */

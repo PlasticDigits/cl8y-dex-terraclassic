@@ -81,9 +81,27 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with the **full** bech32 address. |
 | **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
-| **Out of scope (#140 B)** | Sibling issues: [#183](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183) CopyButton, [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) explorer address URL, [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile, [#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) Esc/dismisser, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. |
+| **Out of scope (#140 B)** | Sibling issues: [#183](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183) CopyButton, [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) dropdown affordances, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) chip network/mobile, [#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) Esc/dismisser, [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) AddressRow umbrella. Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md).
+
+### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
+
+Network-aware explorer links for transactions and accounts live in [`terraExplorer.ts`](../frontend-dapp/src/utils/terraExplorer.ts). Both helpers read **`VITE_NETWORK`** / [`DEFAULT_NETWORK`](../frontend-dapp/src/utils/constants.ts) and resolve public Finder bases from [`chainlist.json`](../frontend-dapp/public/chains/chainlist.json) (`explorerUrl` per `chainId`). Implemented for [GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184); required before wallet chip “View on explorer” ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)).
+
+| Helper | Use | `local` | `mainnet` (`columbus-5`) | `testnet` (`rebel-2`) |
+|--------|-----|---------|---------------------------|------------------------|
+| [`getExplorerTxUrl`](../frontend-dapp/src/utils/terraExplorer.ts) | Tx hashes in alerts, trade history, swaps table | `{lcd}/cosmos/tx/v1beta1/txs/{hash}` | `https://finder.terraclassic.community/mainnet/tx/{hash}` | `https://finder.terra-classic.hexxagon.io/testnet/tx/{hash}` |
+| [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) | Wallet / contract bech32 “View on explorer” | `{lcd}/cosmos/auth/v1beta1/accounts/{addr}` | `…/mainnet/address/{addr}` | `…/testnet/address/{addr}` |
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Single source** | Do not hardcode Finder hosts in components; extend `chainlist.json` + `explorerPathBaseForChainId` if explorers change. |
+| **Null when unknown** | Missing `explorerUrl` for a chain returns `null` (UI hides the link). |
+| **Local dev LCD** | `local` uses REST paths on [`NETWORKS.local.terra.lcd`](../frontend-dapp/src/utils/constants.ts) (default `http://localhost:1317`), mirroring tx vs account resources. |
+| **Regression tests** | [`terraExplorer.test.ts`](../frontend-dapp/src/utils/__tests__/terraExplorer.test.ts) — one case per network for **tx** and **address**. |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md) · [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md) (tx links only).
 
 ### Risk surfacing, NFA copy, and first-visit acknowledgement {#legal-risk-surfacing}
 
