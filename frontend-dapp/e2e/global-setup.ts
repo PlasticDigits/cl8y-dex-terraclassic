@@ -64,8 +64,15 @@ export default async function globalSetup(): Promise<void> {
   const base = lcdBaseUrlForSetup()
   await waitForLcd(base, 120_000)
 
-  const script = path.join(repoRoot, 'scripts', 'e2e-provision-dev-wallet.sh')
-  execFileSync('bash', [script], {
+  const provision = path.join(repoRoot, 'scripts', 'e2e-provision-dev-wallet.sh')
+  execFileSync('bash', [provision], {
+    stdio: 'inherit',
+    env: { ...process.env, REPO_ROOT: repoRoot },
+    cwd: repoRoot,
+  })
+
+  const hybridSeed = path.join(repoRoot, 'scripts', 'e2e-seed-hybrid-book.sh')
+  execFileSync('bash', [hybridSeed], {
     stdio: 'inherit',
     env: { ...process.env, REPO_ROOT: repoRoot },
     cwd: repoRoot,

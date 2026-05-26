@@ -38,3 +38,27 @@ npx playwright test e2e/pool-tx.spec.ts
 Provisioning targets **`E2E_DEV_MIN_CW20_U128`** (default `1000000000000`, i.e. \(10^{12}\) raw = \(10^6\) tokens at 6 decimals) per factory pair token. Native **uluna** / **uusd** for gas come from LocalTerra genesis (`docker/init-chain.sh`) on the same mnemonic as the simulated wallet.
 
 Workers are fixed at **5** in `playwright.config.ts`; funding runs **once** in global setup to avoid per-worker races.
+
+## Hybrid swap tests (`hybrid-swap.spec.ts`)
+
+On the **default** path (full LocalTerra + deployed contracts), hybrid swap E2E **fail** when the LCD is down, there is no dual-CW20 pair, hybrid Settings controls are missing, the pair is paused, the swap CTA stays blocked after provisioning, or the on-chain tx does not emit `limit_order_fill` / positive `book_return_amount`. This replaces conditional `test.skip` for those environment gaps ([GitLab **#193**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)).
+
+### Prerequisites
+
+Same as pool tx, plus a **resting bid** on the first dual-CW20 factory pair (global setup runs **`scripts/e2e-seed-hybrid-book.sh`** after wallet provisioning). Hybrid swaps paying token0 with a book leg match bid-side liquidity.
+
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `E2E_HYBRID_SEED_BID_ESCROW` | `50000000` | Raw CW20 units escrowed on the seeded bid (token1 of the pair). |
+| `E2E_HYBRID_SEED_BID_PRICE` | `1` | Bid limit price (token1 per token0, CosmWasm `Decimal` string). |
+
+The on-chain spec still places an additional limit in-test so the fill path is exercised end-to-end; the seed guarantees book depth even when that step is skipped in optional mode.
+
+### Single-command hybrid E2E
+
+```bash
+cd frontend-dapp
+pnpm exec playwright test e2e/hybrid-swap.spec.ts
+```
+
+Agent playbook: [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).

@@ -115,7 +115,7 @@ Config: `playwright.config.ts`
 2. From repo root: `bash scripts/deploy-dex-local.sh` (writes `frontend-dapp/.env.local`, deploys contracts, seeds CW20 balances on the dev account `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v`).
 3. `cd frontend-dapp && npx playwright test`
 
-Before tests, **`e2e/global-setup.ts`** waits for the LCD and runs **`scripts/e2e-provision-dev-wallet.sh`**, which **mints factory CW20s** to the dev wallet when any listed token balance is below **`E2E_DEV_MIN_CW20_U128`** (default `1000000000000` raw units). Native gas denoms **uluna** / **uusd** are expected from genesis (`docker/init-chain.sh`), not from the script.
+Before tests, **`e2e/global-setup.ts`** waits for the LCD and runs **`scripts/e2e-provision-dev-wallet.sh`**, which **mints factory CW20s** to the dev wallet when any listed token balance is below **`E2E_DEV_MIN_CW20_U128`** (default `1000000000000` raw units), then **`scripts/e2e-seed-hybrid-book.sh`**, which idempotently places a **resting bid** on the first dual-CW20 pair when the bid book head is empty (GitLab [**#193**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)). Native gas denoms **uluna** / **uusd** are expected from genesis (`docker/init-chain.sh`), not from the provision script.
 
 **Single-file pool tx run (documented in `frontend-dapp/e2e/README.md`):**
 
@@ -124,6 +124,8 @@ cd frontend-dapp
 pnpm exec playwright test e2e/pool-tx.spec.ts
 # or: npx playwright test e2e/pool-tx.spec.ts
 ```
+
+**Hybrid swap E2E (strict tx path, GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)):** `pnpm exec playwright test e2e/hybrid-swap.spec.ts` — requires global-setup seeding (`e2e-provision-dev-wallet.sh` + `e2e-seed-hybrid-book.sh`). See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).
 
 **Optional chain (skip instead of fail):** set `REQUIRE_LOCALTERRA=0` so global setup and strict LCD/pool assertions are relaxed — for jobs that intentionally omit LocalTerra. Default is strict (unset or any value other than `0`).
 

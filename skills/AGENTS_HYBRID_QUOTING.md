@@ -26,8 +26,10 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::
 cd frontend-dapp && npm test -- src/services/terraclassic/__tests__/pair.test.ts
 cd indexer && cargo test api_route_solve
+cd frontend-dapp && pnpm exec playwright test e2e/hybrid-swap.spec.ts   # strict E2E — see AGENTS_E2E_HYBRID_SWAP.md (#193)
 ```
 
 ## Related frontend skills
 
+- [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) — Playwright hybrid tx path without conditional skips ([#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193))
 - [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — route spread preflight uses per-hop `hybrid_simulation` only.

@@ -1,0 +1,44 @@
+# Agent skill: Hybrid swap Playwright E2E (GitLab #193)
+
+## When to use
+
+You are changing **hybrid swap browser tests**, **E2E global setup**, or **LocalTerra seed scripts** that must keep the default CI/local Playwright path from silently skipping when chain prerequisites are missing.
+
+## Invariants (strict default)
+
+| Prerequisite | Enforced by | Failure mode |
+|--------------|-------------|--------------|
+| LCD up + `.env.local` | `e2e/global-setup.ts` | Setup throws before tests |
+| Dev wallet CW20 balances | `scripts/e2e-provision-dev-wallet.sh` | Hybrid swap CTA shows **Insufficient Balance** → test fails |
+| Dual-CW20 factory pair | `requireDualCwPair()` in `e2e/helpers/hybrid-e2e.ts` | Hard fail (not `test.skip`) |
+| Resting bid on first dual pair | `scripts/e2e-seed-hybrid-book.sh` | **No Route** / empty book → fail |
+| Pair not paused | `skipOrFailIfPairPaused()` | Hard fail (L6) |
+| Hybrid tx wasm attrs | `hybrid-swap.spec.ts` on-chain case | Expect `limit_order_fill` + `book_return_amount` > 0 on `swap` |
+
+Set **`REQUIRE_LOCALTERRA=0`** only for jobs that intentionally omit LocalTerra; helpers fall back to documented `test.skip` (same pattern as `pool-tx.spec.ts`).
+
+## Files
+
+| Path | Role |
+|------|------|
+| [`frontend-dapp/e2e/hybrid-swap.spec.ts`](../frontend-dapp/e2e/hybrid-swap.spec.ts) | UI disclosure + funded hybrid tx |
+| [`frontend-dapp/e2e/helpers/hybrid-e2e.ts`](../frontend-dapp/e2e/helpers/hybrid-e2e.ts) | Strict prerequisite helpers |
+| [`scripts/e2e-seed-hybrid-book.sh`](../scripts/e2e-seed-hybrid-book.sh) | Idempotent bid seed (`E2E_HYBRID_SEED_*`) |
+| [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor for dev wallet |
+| [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) | Operator runbook |
+
+## Run after changes
+
+```bash
+docker compose up -d localterra
+bash scripts/deploy-dex-local.sh
+cd frontend-dapp && pnpm exec playwright test e2e/hybrid-swap.spec.ts
+```
+
+## Cross-links
+
+- Product / wasm semantics: [`docs/limit-orders.md`](../docs/limit-orders.md) (hybrid attrs, L8)
+- Testing matrix: [`docs/testing.md`](../docs/testing.md) § E2E Tests
+- Hybrid quoting (L8, not E2E-specific): [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md)
+- Dev wallet funding: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
+- GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)

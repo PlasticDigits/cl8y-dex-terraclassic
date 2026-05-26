@@ -101,6 +101,18 @@ export function txJsonHasWasmAction(txJson: unknown, action: string): boolean {
   return false
 }
 
+/** Last wasm attribute value for `key` on events whose last `action` equals `action`. */
+export function txJsonWasmAttrForAction(txJson: unknown, action: string, key: string): string | undefined {
+  const root = txJson as Record<string, unknown>
+  const tr = (root.tx_response as Record<string, unknown> | undefined) ?? root
+  for (const ev of collectTxEvents(tr)) {
+    if (!isWasmLikeEventType(ev.type)) continue
+    if (wasmAttrLast(ev.attributes ?? [], 'action') !== action) continue
+    return wasmAttrLast(ev.attributes ?? [], key)
+  }
+  return undefined
+}
+
 export async function fetchTxJson(request: APIRequestContext, txHash: string): Promise<unknown | null> {
   const base = lcdBaseUrl()
   const candidates = [txHash, txHash.toUpperCase(), txHash.toLowerCase()]
