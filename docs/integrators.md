@@ -6,15 +6,17 @@ Audience: protocols, indexers, and wallets integrating with CL8Y pair hooks, hyb
 
 On a **hybrid** swap (pool + limit book in one execution), the pair invokes each registered hook with `AfterSwap` after settlement.
 
-| Field | Meaning on hybrid txs |
-|-------|------------------------|
+| Field | Meaning |
+|-------|---------|
 | `return_asset.amount` | **Total** output to the receiver: book leg net **plus** pool leg net (same units as the ask asset). |
-| `commission_amount` | **Pool leg only** — CW20 amount sent to `treasury` from the constant-product leg. |
+| `commission_amount` | **Total protocol commission** in the ask asset: pool leg treasury transfer **plus** book taker fees (sum of per-fill commissions). Matches `HybridSimulation.commission_amount`. |
 | `spread_amount` | **Pool leg only** — TerraSwap-style spread metric from the pool leg. |
 
-Book-side fees are collected inside the book match path (`limit_order_fill` events, treasury transfers in token0/token1 per side). Do **not** treat `commission_amount` in `AfterSwap` as the full protocol fee for the transaction.
+Per-fill book taker fees are also attributed on `limit_order_fill` events (and swap txs emit `book_commission_amount` when the book leg runs). Swap **baseline** attrs keep pool-only `commission_amount` for Terraport/Vyntrex compatibility — see [Vyntrex mapping](#vyntrex--terraport-hybrid-event-mapping-gitlab-189).
 
-Canonical references: [contracts-security-audit.md](./contracts-security-audit.md) (L7), [limit-orders.md](./limit-orders.md) (hooks + book).
+**Breaking change (GitLab [#196](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/196)):** hooks previously received pool-leg `commission_amount` only on hybrid txs; they now receive the total above.
+
+Canonical references: [contracts-security-audit.md](./contracts-security-audit.md) (L7), [limit-orders.md](./limit-orders.md) (hooks + book), [hooks README](../smartcontracts/contracts/hooks/README.md), [skills/AGENTS_HOOK_COMMISSION.md](../skills/AGENTS_HOOK_COMMISSION.md).
 
 ## Limit book fees (maker / taker split)
 
@@ -59,6 +61,7 @@ Hybrid swaps emit **Terraport-compatible baseline attrs** plus CL8Y leg breakdow
 | `return_amount` | `return_amount` | Total ask output to receiver (`pool_return_amount` + `book_return_amount`). |
 | `spread_amount` | `spread_amount` | **Pool leg only** (TerraSwap-style). |
 | `commission_amount` | `commission_amount` | **Pool leg only** (treasury from AMM leg). |
+| *(none)* | `book_commission_amount` | Book taker fees (ask asset); present when book leg > 0 ([#196](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/196)). |
 | *(none)* | `pool_return_amount` | Ask-side net from constant-product leg. |
 | *(none)* | `book_return_amount` | Ask-side net from limit-book leg to taker. |
 | *(none)* | `limit_book_offer_consumed` | Offer-side amount matched against the book (present when book leg > 0). |

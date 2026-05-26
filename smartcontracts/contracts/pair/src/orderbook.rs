@@ -35,8 +35,30 @@ pub fn taker_fee_bps(effective_fee_bps: u16) -> u16 {
     effective_fee_bps - maker_fee_bps(effective_fee_bps)
 }
 
-/// Output token to taker, offer consumed, distinct makers, CW20 transfers, wasm fill events.
-type BookMatchOutput = (Uint128, Uint128, u32, Vec<CosmosMsg>, Vec<Event>);
+/// Result of matching the limit book against a taker budget.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BookMatchResult {
+    /// Net ask-side output to the taker (after taker commission on each fill).
+    pub return_net: Uint128,
+    /// Offer-side amount consumed from the taker budget.
+    pub offer_consumed: Uint128,
+    /// Distinct maker orders filled (excluding expired parks).
+    pub makers_used: u32,
+    /// Sum of taker-side commission sent to treasury (denominated in the ask asset).
+    pub commission_total: Uint128,
+    pub messages: Vec<CosmosMsg>,
+    pub fill_events: Vec<Event>,
+}
+
+/// Read-only book match for hybrid simulation (no storage mutation, no CW20 msgs).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BookSimulateResult {
+    pub return_net: Uint128,
+    pub offer_consumed: Uint128,
+    pub makers_used: u32,
+    /// Taker commission total in the ask asset (same basis as [`BookMatchResult::commission_total`]).
+    pub commission_total: Uint128,
+}
 
 fn escrow_sub_pending_token1(
     storage: &mut dyn Storage,
@@ -587,11 +609,12 @@ pub fn match_bids(
     receiver: &Addr,
     treasury: &Addr,
     effective_fee_bps: u16,
-) -> Result<BookMatchOutput, ContractError> {
+) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token0_left = token0_budget;
     let mut token1_out_total = Uint128::zero();
+    let mut commission_total = Uint128::zero();
     let mut makers_used = 0u32;
     let mut msgs: Vec<CosmosMsg> = Vec::new();
     let mut fill_events: Vec<Event> = Vec::new();
@@ -682,6 +705,7 @@ pub fn match_bids(
             .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = cost.checked_sub(commission)?;
+        commission_total = commission_total.checked_add(commission)?;
 
         // Maker receives fill token0 from contract (taker funds already received by pair)
         msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -740,13 +764,14 @@ pub fn match_bids(
         cur = order.next;
     }
 
-    Ok((
-        token1_out_total,
-        token0_budget.checked_sub(token0_left)?,
+    Ok(BookMatchResult {
+        return_net: token1_out_total,
+        offer_consumed: token0_budget.checked_sub(token0_left)?,
         makers_used,
-        msgs,
+        commission_total,
+        messages: msgs,
         fill_events,
-    ))
+    })
 }
 
 /// Match asks while taker sells token1 for token0. `token1_budget` is from the taker.
@@ -763,11 +788,12 @@ pub fn match_asks(
     receiver: &Addr,
     treasury: &Addr,
     effective_fee_bps: u16,
-) -> Result<BookMatchOutput, ContractError> {
+) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token1_left = token1_budget;
     let mut token0_out_total = Uint128::zero();
+    let mut commission_total = Uint128::zero();
     let mut makers_used = 0u32;
     let mut msgs: Vec<CosmosMsg> = Vec::new();
     let mut fill_events: Vec<Event> = Vec::new();
@@ -857,6 +883,7 @@ pub fn match_asks(
             .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = fill_t0.checked_sub(commission)?;
+        commission_total = commission_total.checked_add(commission)?;
 
         // Pay token1 cost from taker's funds held by contract to maker
         msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -915,13 +942,14 @@ pub fn match_asks(
         cur = order.next;
     }
 
-    Ok((
-        token0_out_total,
-        token1_budget.checked_sub(token1_left)?,
+    Ok(BookMatchResult {
+        return_net: token0_out_total,
+        offer_consumed: token1_budget.checked_sub(token1_left)?,
         makers_used,
-        msgs,
+        commission_total,
+        messages: msgs,
         fill_events,
-    ))
+    })
 }
 
 /// Read-only bid match for hybrid quotes.
@@ -932,11 +960,12 @@ pub fn simulate_match_bids(
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
     effective_fee_bps: u16,
-) -> Result<(Uint128, Uint128, u32), ContractError> {
+) -> Result<BookSimulateResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token0_left = token0_budget;
     let mut token1_out_total = Uint128::zero();
+    let mut commission_total = Uint128::zero();
     let mut makers_used: u32 = 0;
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
@@ -1011,16 +1040,18 @@ pub fn simulate_match_bids(
             .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = cost.checked_sub(commission)?;
+        commission_total = commission_total.checked_add(commission)?;
         order.remaining = order.remaining.checked_sub(cost)?;
         token0_left = token0_left.checked_sub(fill)?;
         token1_out_total = token1_out_total.checked_add(net_to_taker)?;
         cur = order.next;
     }
-    Ok((
-        token1_out_total,
-        token0_budget.checked_sub(token0_left)?,
+    Ok(BookSimulateResult {
+        return_net: token1_out_total,
+        offer_consumed: token0_budget.checked_sub(token0_left)?,
         makers_used,
-    ))
+        commission_total,
+    })
 }
 
 /// Read-only ask match for hybrid quotes.
@@ -1031,11 +1062,12 @@ pub fn simulate_match_asks(
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
     effective_fee_bps: u16,
-) -> Result<(Uint128, Uint128, u32), ContractError> {
+) -> Result<BookSimulateResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token1_left = token1_budget;
     let mut token0_out_total = Uint128::zero();
+    let mut commission_total = Uint128::zero();
     let mut makers_used: u32 = 0;
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
@@ -1109,16 +1141,18 @@ pub fn simulate_match_asks(
             .checked_mul(Uint128::new(taker_bps as u128))?
             .checked_div(Uint128::new(10000))?;
         let net_to_taker = fill_t0.checked_sub(commission)?;
+        commission_total = commission_total.checked_add(commission)?;
         order.remaining = order.remaining.checked_sub(fill_t0)?;
         token1_left = token1_left.checked_sub(cost)?;
         token0_out_total = token0_out_total.checked_add(net_to_taker)?;
         cur = order.next;
     }
-    Ok((
-        token0_out_total,
-        token1_budget.checked_sub(token1_left)?,
+    Ok(BookSimulateResult {
+        return_net: token0_out_total,
+        offer_consumed: token1_budget.checked_sub(token1_left)?,
         makers_used,
-    ))
+        commission_total,
+    })
 }
 
 pub fn load_order_response(storage: &dyn Storage, id: u64) -> StdResult<LimitOrderResponse> {
@@ -1424,7 +1458,7 @@ mod proptest_limits {
                 .unwrap();
             }
             let cap = max_makers.min(MAX_MAKER_FILLS_HARD_CAP);
-            let (_t1_out, _t0_used, makers_used, _msgs, _evs) = match_bids(
+            let result = match_bids(
                 storage,
                 1,
                 Uint128::new(budget),
@@ -1438,7 +1472,7 @@ mod proptest_limits {
                 30,
             )
             .unwrap();
-            prop_assert!(makers_used <= cap);
+            prop_assert!(result.makers_used <= cap);
             assert_escrow_matches_lists(storage);
         }
 
@@ -1465,7 +1499,7 @@ mod proptest_limits {
                 .unwrap();
             }
             let cap = max_makers.min(MAX_MAKER_FILLS_HARD_CAP);
-            let (_t0_out, _t1_used, makers_used, _msgs, _evs) = match_asks(
+            let result = match_asks(
                 storage,
                 1,
                 Uint128::new(budget),
@@ -1479,7 +1513,7 @@ mod proptest_limits {
                 30,
             )
             .unwrap();
-            prop_assert!(makers_used <= cap);
+            prop_assert!(result.makers_used <= cap);
             assert_escrow_matches_lists(storage);
         }
     }

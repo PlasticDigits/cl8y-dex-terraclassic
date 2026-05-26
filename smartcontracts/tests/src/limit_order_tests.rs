@@ -1779,6 +1779,179 @@ fn hybrid_pool_and_book_legs_one_swap() {
     );
 }
 
+/// GitLab #196 — `AfterSwap` / `HybridSimulation` commission is pool + book taker fees (ask asset).
+#[test]
+fn hybrid_hook_commission_includes_pool_and_book() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(200_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_l7_hybrid");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let total_in = Uint128::new(100_000);
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::new(40_000),
+        book_input: Uint128::new(60_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: total_in,
+                },
+                hybrid: hybrid.clone(),
+            },
+        )
+        .unwrap();
+
+    let tre_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+    let res = {
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            to: None,
+            deadline: None,
+            hybrid: Some(hybrid),
+            trader: None,
+        })
+        .unwrap();
+        app.execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap()
+    };
+
+    let pool_commission = wasm_attr_in_action_event(&res.events, "swap", "commission_amount")
+        .expect("pool commission_amount on swap")
+        .parse::<u128>()
+        .unwrap();
+    let book_commission = wasm_attr_in_action_event(&res.events, "swap", "book_commission_amount")
+        .expect("book_commission_amount on hybrid swap")
+        .parse::<u128>()
+        .unwrap();
+
+    assert_eq!(
+        sim.commission_amount.u128(),
+        pool_commission + book_commission,
+        "L7: sim commission should equal pool + book wasm attrs"
+    );
+    assert!(
+        book_commission > 0,
+        "book leg should charge taker commission"
+    );
+
+    let tre_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+    assert_eq!(
+        tre_b_after.checked_sub(tre_b_before).unwrap(),
+        sim.commission_amount,
+        "L7: treasury ask-token delta should match total commission"
+    );
+}
+
+/// GitLab #196 — pool-only swaps: hook/sim commission unchanged (book component zero).
+#[test]
+fn pool_only_hook_commission_unchanged() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let offer = Uint128::new(50_000);
+    let hybrid = dex_common::pair::pool_only_hybrid_params(offer);
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: offer,
+                },
+                hybrid: hybrid.clone(),
+            },
+        )
+        .unwrap();
+
+    let tre_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(hybrid),
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: offer,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let pool_commission = wasm_attr_in_action_event(&res.events, "swap", "commission_amount")
+        .expect("commission_amount")
+        .parse::<u128>()
+        .unwrap();
+    assert_eq!(sim.commission_amount.u128(), pool_commission);
+    assert!(
+        wasm_attr_in_action_event(&res.events, "swap", "book_commission_amount").is_none(),
+        "pool-only swap should not emit book_commission_amount"
+    );
+
+    let tre_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+    assert_eq!(
+        tre_b_after.checked_sub(tre_b_before).unwrap(),
+        sim.commission_amount
+    );
+}
+
 #[test]
 fn match_invalid_book_start_hint_falls_back_to_head() {
     let mut app = App::default();

@@ -832,11 +832,12 @@ fn execute_swap(
     let mut book_messages: Vec<CosmosMsg> = vec![];
     let mut book_fill_events: Vec<Event> = vec![];
     let mut book_return_net = Uint128::zero();
+    let mut book_commission_total = Uint128::zero();
     let mut offer_consumed_by_book = Uint128::zero();
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
-            let (t1_out, t0_used, _mk, msgs, fill_events) = orderbook::match_bids(
+            let book_match = orderbook::match_bids(
                 deps.storage,
                 env.block.time.seconds(),
                 book_leg,
@@ -849,12 +850,13 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_messages = msgs;
-            book_fill_events = fill_events;
-            book_return_net = t1_out;
-            offer_consumed_by_book = t0_used;
+            book_messages = book_match.messages;
+            book_fill_events = book_match.fill_events;
+            book_return_net = book_match.return_net;
+            book_commission_total = book_match.commission_total;
+            offer_consumed_by_book = book_match.offer_consumed;
         } else {
-            let (t0_out, t1_used, _mk, msgs, fill_events) = orderbook::match_asks(
+            let book_match = orderbook::match_asks(
                 deps.storage,
                 env.block.time.seconds(),
                 book_leg,
@@ -867,17 +869,18 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_messages = msgs;
-            book_fill_events = fill_events;
-            book_return_net = t0_out;
-            offer_consumed_by_book = t1_used;
+            book_messages = book_match.messages;
+            book_fill_events = book_match.fill_events;
+            book_return_net = book_match.return_net;
+            book_commission_total = book_match.commission_total;
+            offer_consumed_by_book = book_match.offer_consumed;
         }
     }
 
     let pool_input_amount = pool_leg.checked_add(book_leg.checked_sub(offer_consumed_by_book)?)?;
 
     let mut return_amount = Uint128::zero();
-    let mut commission_amount = Uint128::zero();
+    let mut pool_commission_amount = Uint128::zero();
     let mut spread_amount = Uint128::zero();
     let mut pool_messages: Vec<CosmosMsg> = vec![];
 
@@ -908,11 +911,11 @@ fn execute_swap(
         }
 
         let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
-        commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
-        return_amount = gross_output.checked_sub(commission_amount)?;
+        pool_commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
+        return_amount = gross_output.checked_sub(pool_commission_amount)?;
 
         let commission_remainder =
-            fee_numerator - commission_amount.checked_mul(Uint128::new(10000))?;
+            fee_numerator - pool_commission_amount.checked_mul(Uint128::new(10000))?;
         if commission_remainder >= Uint128::new(10000) {
             return Err(ContractError::InvariantViolation {
                 reason: format!(
@@ -943,12 +946,12 @@ fn execute_swap(
         };
         RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
 
-        if !commission_amount.is_zero() {
+        if !pool_commission_amount.is_zero() {
             pool_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ask_token_addr.to_string(),
                 msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: fee_config.treasury.to_string(),
-                    amount: commission_amount,
+                    amount: pool_commission_amount,
                 })?,
                 funds: vec![],
             }));
@@ -974,9 +977,11 @@ fn execute_swap(
         input_amount,
         return_amount,
         spread_amount,
-        commission_amount,
+        pool_commission_amount,
         book_return_net,
     )?;
+
+    let hook_commission_amount = pool_commission_amount.checked_add(book_commission_total)?;
 
     let hooks = HOOKS.load(deps.storage)?;
     let mut hook_messages: Vec<CosmosMsg> = vec![];
@@ -994,7 +999,7 @@ fn execute_swap(
                     info: ask_asset_info.clone(),
                     amount: total_return,
                 },
-                commission_amount,
+                commission_amount: hook_commission_amount,
                 spread_amount,
             }))?,
             funds: vec![],
@@ -1017,11 +1022,13 @@ fn execute_swap(
         .add_attribute("pool_return_amount", return_amount)
         .add_attribute("book_return_amount", book_return_net)
         .add_attribute("spread_amount", spread_amount)
-        .add_attribute("commission_amount", commission_amount)
+        .add_attribute("commission_amount", pool_commission_amount)
         .add_attribute("effective_fee_bps", effective_fee_bps.to_string());
 
     if book_leg > Uint128::zero() {
-        resp = resp.add_attribute("limit_book_offer_consumed", offer_consumed_by_book);
+        resp = resp
+            .add_attribute("limit_book_offer_consumed", offer_consumed_by_book)
+            .add_attribute("book_commission_amount", book_commission_total);
     }
 
     Ok(resp)
@@ -2034,11 +2041,12 @@ fn simulate_hybrid_swap(
     let token_a_addr = token_addr(&pair_info.asset_infos[0]);
 
     let mut book_return_net = Uint128::zero();
+    let mut book_commission_total = Uint128::zero();
     let mut offer_consumed_by_book = Uint128::zero();
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
-            let (t1_out, t0_used, _mk) = orderbook::simulate_match_bids(
+            let book_sim = orderbook::simulate_match_bids(
                 deps.storage,
                 env.block.time.seconds(),
                 book_leg,
@@ -2046,10 +2054,11 @@ fn simulate_hybrid_swap(
                 book_hint,
                 effective_fee_bps,
             )?;
-            book_return_net = t1_out;
-            offer_consumed_by_book = t0_used;
+            book_return_net = book_sim.return_net;
+            offer_consumed_by_book = book_sim.offer_consumed;
+            book_commission_total = book_sim.commission_total;
         } else {
-            let (t0_out, t1_used, _mk) = orderbook::simulate_match_asks(
+            let book_sim = orderbook::simulate_match_asks(
                 deps.storage,
                 env.block.time.seconds(),
                 book_leg,
@@ -2057,15 +2066,16 @@ fn simulate_hybrid_swap(
                 book_hint,
                 effective_fee_bps,
             )?;
-            book_return_net = t0_out;
-            offer_consumed_by_book = t1_used;
+            book_return_net = book_sim.return_net;
+            offer_consumed_by_book = book_sim.offer_consumed;
+            book_commission_total = book_sim.commission_total;
         }
     }
 
     let pool_input_amount = pool_leg.checked_add(book_leg.checked_sub(offer_consumed_by_book)?)?;
 
     let mut return_amount = Uint128::zero();
-    let mut commission_amount = Uint128::zero();
+    let mut pool_commission_amount = Uint128::zero();
     let mut spread_amount = Uint128::zero();
 
     if pool_input_amount > Uint128::zero() {
@@ -2078,8 +2088,8 @@ fn simulate_hybrid_swap(
         let gross_output = output_reserve.checked_sub(new_output_reserve)?;
 
         let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
-        commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
-        return_amount = gross_output.checked_sub(commission_amount)?;
+        pool_commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
+        return_amount = gross_output.checked_sub(pool_commission_amount)?;
 
         spread_amount = spot_linear_spread_over_gross(
             pool_input_amount,
@@ -2091,6 +2101,7 @@ fn simulate_hybrid_swap(
     }
 
     let total_out = book_return_net.checked_add(return_amount)?;
+    let commission_amount = pool_commission_amount.checked_add(book_commission_total)?;
     Ok(HybridSimulationResponse {
         return_amount: total_out,
         spread_amount,

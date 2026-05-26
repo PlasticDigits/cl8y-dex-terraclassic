@@ -587,7 +587,7 @@ When a swap uses both the constant-product pool and the on-chain limit book in o
 | `limit_book_offer_consumed` | Offer-side amount matched against resting orders (when book leg > 0). |
 | `effective_fee_bps` | Effective swap fee rate (bps) after optional fee-discount registry. |
 
-`return_amount` = `pool_return_amount` + `book_return_amount` (total to receiver). `spread_amount` and `commission_amount` remain **pool-leg-only** metrics, matching TerraSwap semantics on the AMM portion. See [limit-orders.md](./limit-orders.md) and [integrators.md](./integrators.md#vyntrex--terraport-hybrid-event-mapping-gitlab-189).
+`return_amount` = `pool_return_amount` + `book_return_amount` (total to receiver). Swap wasm attrs `spread_amount` and `commission_amount` remain **pool-leg-only** for Terraport baseline; hybrid txs also emit `book_commission_amount` (GitLab [#196](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/196)). Post-swap hook `AfterSwap.commission_amount` is **total** pool + book in the ask asset — see [integrators.md](./integrators.md#hybrid-swaps-and-post-swap-hooks-invariant-l7).
 
 ---
 

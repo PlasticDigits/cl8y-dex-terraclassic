@@ -10,7 +10,11 @@ pub enum HookExecuteMsg {
         sender: Addr,
         offer_asset: Asset,
         return_asset: Asset,
+        /// Total protocol commission in the ask asset: pool leg + book taker fees
+        /// (treasury transfers). Matches [`HybridSimulationResponse::commission_amount`].
+        /// Invariant **L7** — [GitLab #196](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/196).
         commission_amount: Uint128,
+        /// Constant-product spread metric from the pool leg only.
         spread_amount: Uint128,
     },
 }

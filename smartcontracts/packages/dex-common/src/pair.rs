@@ -303,6 +303,8 @@ pub struct HooksResponse {
 pub struct HybridSimulationResponse {
     pub return_amount: Uint128,
     pub spread_amount: Uint128,
+    /// Total protocol commission in the ask asset (pool + book taker fees). Same basis as
+    /// `AfterSwap.commission_amount` in post-swap hooks (invariant **L7**, GitLab #196).
     pub commission_amount: Uint128,
     pub book_return_amount: Uint128,
     pub pool_return_amount: Uint128,
@@ -312,6 +314,8 @@ pub struct HybridSimulationResponse {
 pub struct HybridReverseSimulationResponse {
     pub offer_amount: Uint128,
     pub spread_amount: Uint128,
+    /// Total protocol commission in the ask asset (pool + book taker fees). Same basis as
+    /// `AfterSwap.commission_amount` (invariant **L7**, GitLab #196).
     pub commission_amount: Uint128,
     pub book_return_amount: Uint128,
     pub pool_return_amount: Uint128,

@@ -75,7 +75,7 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 
 ### Post-swap hooks and hybrid
 
-- For hybrid swaps, `AfterSwap.return_asset.amount` is the **total** output (book + pool legs). `commission_amount` and `spread_amount` in the hook payload reflect the **pool leg only**; book-side fees go to `treasury` (maker half at placement + **taker** half per `limit_order_fill`, not the full pair fee in one event). Hooks and indexers must not assume `commission_amount` is the full fee for the transaction. See invariant **L7** in [contracts-security-audit.md](./contracts-security-audit.md) and [integrators.md](./integrators.md).
+- For hybrid swaps, `AfterSwap.return_asset.amount` is the **total** output (book + pool legs). `AfterSwap.commission_amount` is the **total protocol commission** in the ask asset (pool + book taker fees); `spread_amount` is **pool leg only**. Book-side fees are also on `limit_order_fill` events and swap attrs (`book_commission_amount` when book leg > 0). See invariant **L7** in [contracts-security-audit.md](./contracts-security-audit.md), [integrators.md](./integrators.md), and [hooks README](../smartcontracts/contracts/hooks/README.md) (GitLab [#196](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/196)).
 
 ## Ordering (composite key, FIFO)
 
@@ -121,6 +121,7 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `action` = `swap` | Any swap |
 | `book_return_amount`, `pool_return_amount`, `return_amount` | Hybrid breakdown |
 | `limit_book_offer_consumed` | When the book leg consumed offer token |
+| `book_commission_amount` | Book taker commission total (ask asset) when book leg > 0 ([#196](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/196)) |
 | `action` = `limit_order_fill` | One **wasm event per maker fill** (not on the main swap attribute list) |
 | `order_id`, `side` (`bid` / `ask`), `maker`, `price` | Per fill |
 | `token0_amount`, `token1_amount`, `commission_amount` | Raw amounts in pair token0 / token1; `commission_amount` is the **taker** half for that fill (bid: token1; ask: token0) |
