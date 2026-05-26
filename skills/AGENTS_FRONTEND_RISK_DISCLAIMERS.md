@@ -13,6 +13,8 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 | `frontend-dapp/playwright.config.ts` | Sets `VITE_PLAYWRIGHT_E2E=true` on `webServer` so E2E is not blocked |
 | `frontend-dapp/src/contexts/RouteContentReadyContext.tsx` | Pathname-scoped ready gate for deferred NFA footer (fixes missed `window` events on nav — [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)) |
 | `frontend-dapp/src/components/common/RouteContentReadyMarker.tsx` | Calls `useMarkRouteContentReady()` when lazy route content mounts |
+| `frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts` | Patch-package integrity for **`npm run test:unit`** checklist ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138) verification) |
+| `scripts/e2e-seed-hybrid-book.sh` | Playwright global-setup hybrid seed; must accept bare **`u64`** `order_book_head` on re-run ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)) |
 
 ## Rules of thumb
 
@@ -26,3 +28,4 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 
 - **Responsive shell / header:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab #136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
 - **Production build / maps:** [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md).
+- **E2E verification blockers ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)):** [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) (`cosmesPatch127.test.ts`), [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) (`e2e-seed-hybrid-book.sh` idempotency), [`docs/testing.md`](../docs/testing.md) § E2E Tests.

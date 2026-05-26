@@ -67,6 +67,11 @@ decode_smart_payload() {
   fi
 }
 
+# Pair `OrderBookHead` returns `Option<u64>` — LCD payload is a bare number, not `{ head_order_id }`.
+order_book_head_id_from_payload() {
+  jq -r 'if type == "number" then tostring elif type == "object" then (.head_order_id // empty | tostring) else empty end'
+}
+
 Q_PAIRS="$(b64_query '{"pairs":{"start_after":null,"limit":60}}')"
 RAW_PAIRS="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$VITE_FACTORY_ADDRESS/smart/$Q_PAIRS")"
 PAIRS_DOC="$(decode_smart_payload "$RAW_PAIRS")"
@@ -93,7 +98,7 @@ fi
 
 Q_HEAD="$(b64_query '{"order_book_head":{"side":"bid"}}')"
 RAW_HEAD="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$PAIR_ADDR/smart/$Q_HEAD")"
-HEAD_ID="$(decode_smart_payload "$RAW_HEAD" | jq -r '.head_order_id // empty')"
+HEAD_ID="$(decode_smart_payload "$RAW_HEAD" | order_book_head_id_from_payload)"
 if [[ -n "$HEAD_ID" && "$HEAD_ID" != "null" ]]; then
   echo "e2e-seed-hybrid-book: bid book already has head order $HEAD_ID on $PAIR_ADDR; skipping."
   exit 0
