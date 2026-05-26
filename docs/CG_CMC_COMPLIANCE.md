@@ -89,6 +89,32 @@ Returns 24-hour market data for all trading pairs.
 
 **On-chain limit orders:** The depth shown in CG/CMC `orderbook` endpoints is **curve-simulated**, not the FIFO limit book. Resting maker orders on CL8Y pairs are stored and queried on-chain; see [limit-orders.md](./limit-orders.md).
 
+### Consolidated hybrid + pool-only reporting (GitLab #189)
+
+CL8Y v2 pairs may settle swaps through the **pool only** or through a **hybrid** (pool + limit book) in a **single** `swap_events` row. Listing endpoints report **consolidated** volumes — there is **no double-count** with separate `limit_order_fills` rows:
+
+| Field | Semantics |
+|-------|-----------|
+| `base_volume` / `target_volume` (tickers) | 24h totals from `offer_amount` / `return_amount` on indexed swaps (includes hybrid and pool-only). |
+| `base_volume` / `quote_volume` (CMC summary) | Same consolidated totals. |
+| `price` (trades) | `return_amount / offer_amount` for the swap (Terraport-compatible effective price). |
+| `cl8y_extensions` (tickers + CMC summary) | Optional attribution block: `hybrid_trade_count_24h`, `pool_only_trade_count_24h`, `book_leg_volume_quote_24h`, `pool_leg_volume_quote_24h`. Safe for aggregators to ignore. |
+| `pool_leg_volume` / `book_leg_volume` (trades) | Present on hybrid swaps when indexed; sum to the trade's consolidated `target_volume` / `quote_volume`. |
+
+Example ticker extension:
+
+```json
+"cl8y_extensions": {
+  "consolidated": true,
+  "hybrid_trade_count_24h": "12",
+  "pool_only_trade_count_24h": "340",
+  "book_leg_volume_quote_24h": "5500000",
+  "pool_leg_volume_quote_24h": "42000000"
+}
+```
+
+Hybrid best-execution routing for integrators: [`GET /api/v1/route/solve/best`](./integrators.md#route-discovery-and-quotes-l8). Terraport field mapping: [integrators.md § Vyntrex](./integrators.md#vyntrex--terraport-hybrid-event-mapping-gitlab-189).
+
 ### `GET /cg/orderbook`
 
 Returns a simulated order book derived from the AMM constant-product curve.

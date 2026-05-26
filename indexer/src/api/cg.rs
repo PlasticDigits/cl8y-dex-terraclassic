@@ -6,7 +6,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, find_pair_by_ticker, internal_err, orderbook_sim, AppState};
+use super::{build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, orderbook_sim, AppState};
 use crate::db::queries::{pairs as db_pairs, swap_events};
 
 #[derive(Serialize, ToSchema)]
@@ -63,6 +63,8 @@ pub struct CgTickerResponse {
     pub low: String,
     pub pool_id: String,
     pub liquidity_in_usd: String,
+    /// CL8Y consolidated hybrid + pool-only attribution (GitLab #189); safe for aggregators to ignore.
+    pub cl8y_extensions: consolidated_stats::Cl8yConsolidatedExtensions,
 }
 
 #[utoipa::path(
@@ -90,6 +92,9 @@ pub async fn cg_tickers(
         };
 
         let stats = swap_events::get_24h_stats_for_pair(&state.pool, p.id)
+            .await
+            .map_err(internal_err)?;
+        let extensions = consolidated_stats::fetch_consolidated_extensions(&state.pool, p.id)
             .await
             .map_err(internal_err)?;
 
@@ -139,6 +144,7 @@ pub async fn cg_tickers(
                 .unwrap_or_else(|| "0".to_string()),
             pool_id: p.contract_address.clone(),
             liquidity_in_usd: liquidity_usd,
+            cl8y_extensions: extensions,
         });
     }
 
@@ -219,6 +225,12 @@ pub struct CgTradeEntry {
     pub trade_timestamp: i64,
     #[serde(rename = "type")]
     pub trade_type: String,
+    /// Ask-side pool leg output when indexed on a hybrid swap (GitLab #189).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pool_leg_volume: Option<String>,
+    /// Ask-side book leg net output when indexed on a hybrid swap (GitLab #189).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub book_leg_volume: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -260,6 +272,7 @@ pub async fn cg_historical_trades(
 
     for t in &trades {
         let is_buy = t.offer_asset_id == pair.asset_1_id;
+        let (pool_leg_volume, book_leg_volume) = consolidated_stats::hybrid_leg_volumes(t);
         let entry = CgTradeEntry {
             trade_id: t.id,
             price: t.price.to_string(),
@@ -279,6 +292,8 @@ pub async fn cg_historical_trades(
             } else {
                 "sell".to_string()
             },
+            pool_leg_volume,
+            book_leg_volume,
         };
 
         match q.trade_type.as_deref() {

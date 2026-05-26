@@ -77,6 +77,42 @@ pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
     server
 }
 
+/// Hybrid sim always fails; pool `simulation` succeeds — exercises degraded optimizer path (#189).
+pub async fn start_hybrid_degraded_mock() -> MockServer {
+    let responder = |req: &Request| {
+        let q = smart_query_from_request(req);
+        if q.get("hybrid_simulation").is_some() {
+            return ResponseTemplate::new(500).set_body_json(json!({ "message": "hybrid unavailable" }));
+        }
+        if q.get("simulate_swap_operations").is_some() {
+            return ResponseTemplate::new(200)
+                .set_body_json(json!({ "data": { "amount": "424242" } }));
+        }
+        if q.get("simulation").is_some() {
+            let offer = q["simulation"]["offer_asset"]["amount"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            return ResponseTemplate::new(200).set_body_json(json!({
+                "data": {
+                    "return_amount": (offer / 2).to_string(),
+                    "spread_amount": "0",
+                    "commission_amount": "0",
+                }
+            }));
+        }
+        ResponseTemplate::new(200).set_body_json(json!({ "data": null }))
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(responder)
+        .mount(&server)
+        .await;
+    server
+}
+
 /// Smart-query stub: returns `{"data": ...}` for any wasm contract smart GET (router simulate, pool query, etc.).
 pub async fn start_smart_query_data_mock(data: Value) -> MockServer {
     let server = MockServer::start().await;

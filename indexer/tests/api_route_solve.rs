@@ -181,3 +181,71 @@ async fn route_solve_get_hybrid_optimize_two_hops() {
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
     assert!(!ops[1]["terra_swap"]["hybrid"].is_null());
 }
+
+#[serial]
+#[tokio::test]
+async fn route_solve_best_requires_amount_in() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve/best?token_in={}&token_out={}",
+        seed.token_a, seed.token_b
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_bad_request();
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_best_matches_hybrid_optimize() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let best_url = format!(
+        "/api/v1/route/solve/best?token_in={}&token_out={}&amount_in={}",
+        seed.token_a, seed.token_c, "1000000"
+    );
+    let opt_url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in={}&hybrid_optimize=true",
+        seed.token_a, seed.token_c, "1000000"
+    );
+
+    let best: Value = server.get(&best_url).await.json();
+    let opt: Value = server.get(&opt_url).await.json();
+
+    assert_eq!(best["quote_kind"], "indexer_hybrid_lcd");
+    assert_eq!(best["estimated_amount_out"], opt["estimated_amount_out"]);
+    assert_eq!(best["router_operations"], opt["router_operations"]);
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_hybrid_optimize_degraded_falls_back_to_pool_only() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let mock = lcd_mock::start_hybrid_degraded_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve/best?token_in={}&token_out={}&amount_in={}",
+        seed.token_a, seed.token_b, "1000000"
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_ok();
+    let j: Value = resp.json();
+    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd_degraded");
+    assert!(j["router_operations"][0]["terra_swap"]["hybrid"].is_null());
+}

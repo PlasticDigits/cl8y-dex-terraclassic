@@ -43,10 +43,30 @@ The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-
 
 | Method | Role |
 |--------|------|
-| **`GET`** | BFS path discovery (default **max 4 hops**). By default, `router_operations` use **`terra_swap.hybrid: null` on every hop** — pool-only ops for backward-compatible clients. Optional `estimated_amount_out` when `amount_in` and `ROUTER_ADDRESS` are set uses LCD `simulate_swap_operations` on that pool-only shape. With **`hybrid_optimize=true`** (requires `amount_in`), the indexer uses **max 3 hops**, optimizes per-hop splits via pair **`HybridSimulation`**, merges `hybrid` into ops, and returns `intermediate_tokens`, `quote_kind`, and `hybrid_notes` (see invariants doc). |
+| **`GET`** | BFS path discovery (default **max 4 hops**). By default, `router_operations` use **`terra_swap.hybrid: null` on every hop** — pool-only ops for backward-compatible clients. Optional `estimated_amount_out` when `amount_in` and `ROUTER_ADDRESS` are set uses LCD `simulate_swap_operations` on that pool-only shape. With **`hybrid_optimize=true`** (requires `amount_in`), the indexer uses **max 3 hops**, optimizes per-hop splits via pair **`HybridSimulation`**, merges `hybrid` into ops, and returns `intermediate_tokens`, `quote_kind`, and `hybrid_notes` (see invariants doc). Pass **`pool_only=true`** to force pool-only ops even when `amount_in` is set. |
+| **`GET /best`** | **Retail / Vyntrex best-execution path** ([GitLab **#189**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)): same as `hybrid_optimize=true` but **`amount_in` is required** and hybrid optimization always runs (max **3 hops**). Prefer this endpoint for server-chosen book+pool splits. |
 | **`POST`** | Discovery (**max 4 hops**), plus optional **`hybrid_by_hop`**: one entry per hop (`null` = pool-only that hop, or a `HybridSwapParams`-shaped object). The indexer merges these into `router_operations` and, when `amount_in` and `ROUTER_ADDRESS` are configured, runs the **same** LCD `simulate_swap_operations` the chain uses for the merged message — so quotes can include limit-book legs when your splits are valid. |
 
 **Invariant L8:** Pool-only pair queries and router sims **without** `hybrid` do not model the book. For book-inclusive quotes you must set `hybrid` on the router op (or use pair `HybridSimulation` / `HybridReverseSimulation` directly). See [limit-orders.md](./limit-orders.md) and [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md).
+
+## Vyntrex / Terraport hybrid event mapping (GitLab #189)
+
+Hybrid swaps emit **Terraport-compatible baseline attrs** plus CL8Y leg breakdown. Vyntrex can parse baseline fields like Terraport; use the extensions for volume reconciliation.
+
+| Terraport / baseline attr | CL8Y hybrid swap | Notes |
+|---------------------------|------------------|-------|
+| `offer_amount` | `offer_amount` | Total offer consumed (book + pool legs). |
+| `return_amount` | `return_amount` | Total ask output to receiver (`pool_return_amount` + `book_return_amount`). |
+| `spread_amount` | `spread_amount` | **Pool leg only** (TerraSwap-style). |
+| `commission_amount` | `commission_amount` | **Pool leg only** (treasury from AMM leg). |
+| *(none)* | `pool_return_amount` | Ask-side net from constant-product leg. |
+| *(none)* | `book_return_amount` | Ask-side net from limit-book leg to taker. |
+| *(none)* | `limit_book_offer_consumed` | Offer-side amount matched against the book (present when book leg > 0). |
+| *(none)* | `effective_fee_bps` | Pair effective swap fee after discount registry. |
+
+Indexer persistence and `/api/v1/pairs/{addr}/trades` expose the same columns. CG/CMC listing endpoints use **consolidated** totals in standard volume fields; optional `cl8y_extensions` / per-trade `pool_leg_volume` / `book_leg_volume` attribute book vs pool without double-counting — see [CG_CMC_COMPLIANCE.md](./CG_CMC_COMPLIANCE.md#consolidated-hybrid--pool-only-reporting-gitlab-189).
+
+Full Terraport reference: [terraport.md](./terraport.md).
 
 ## Related docs
 

@@ -38,6 +38,15 @@ pub struct PairStats {
     pub price_change_pct: Option<f64>,
 }
 
+/// 24h hybrid vs pool-only attribution for consolidated CG/CMC reporting (GitLab #189).
+#[derive(Debug, Clone, Default)]
+pub struct HybridVolumeBreakdown {
+    pub hybrid_trade_count: i64,
+    pub pool_only_trade_count: i64,
+    pub book_leg_volume_quote: BigDecimal,
+    pub pool_leg_volume_quote: BigDecimal,
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn insert_swap(
     pool: &PgPool,
@@ -270,6 +279,49 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
         open_price: open.map(|r| r.price),
         close_price: close.map(|r| r.price),
         price_change_pct,
+    })
+}
+
+/// Hybrid leg attribution for consolidated listing stats. Totals in [`get_24h_stats_for_pair`]
+/// use `offer_amount` / `return_amount` (Terraport-compatible totals); this query splits book vs
+/// pool legs without double-counting `limit_order_fills` rows.
+pub async fn get_24h_hybrid_breakdown(
+    pool: &PgPool,
+    pair_id: i32,
+) -> Result<HybridVolumeBreakdown, sqlx::Error> {
+    let cutoff = Utc::now() - chrono::Duration::hours(24);
+
+    #[derive(FromRow)]
+    struct Row {
+        hybrid_trade_count: Option<i64>,
+        pool_only_trade_count: Option<i64>,
+        book_leg_volume_quote: Option<BigDecimal>,
+        pool_leg_volume_quote: Option<BigDecimal>,
+    }
+
+    let row = sqlx::query_as::<_, Row>(
+        "SELECT
+           COUNT(*) FILTER (
+             WHERE COALESCE(book_return_amount, 0) > 0
+           ) AS hybrid_trade_count,
+           COUNT(*) FILTER (
+             WHERE book_return_amount IS NULL OR book_return_amount = 0
+           ) AS pool_only_trade_count,
+           COALESCE(SUM(book_return_amount), 0) AS book_leg_volume_quote,
+           COALESCE(SUM(pool_return_amount), 0) AS pool_leg_volume_quote
+         FROM swap_events
+         WHERE pair_id = $1 AND block_timestamp >= $2",
+    )
+    .bind(pair_id)
+    .bind(cutoff)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(HybridVolumeBreakdown {
+        hybrid_trade_count: row.hybrid_trade_count.unwrap_or(0),
+        pool_only_trade_count: row.pool_only_trade_count.unwrap_or(0),
+        book_leg_volume_quote: row.book_leg_volume_quote.unwrap_or_default(),
+        pool_leg_volume_quote: row.pool_leg_volume_quote.unwrap_or_default(),
     })
 }
 

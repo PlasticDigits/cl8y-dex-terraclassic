@@ -3,6 +3,8 @@
 //! - `GET /api/v1/route/solve`: pool-only `hybrid: null` by default; optional `hybrid_optimize=true`
 //!   (requires `amount_in`) runs per-hop hybrid split search via pair `HybridSimulation` (max **3 hops**),
 //!   merges params into `router_operations`, then LCD `simulate_swap_operations` when configured.
+//! - `GET /api/v1/route/solve/best`: **retail / Vyntrex best-execution path** — always runs hybrid
+//!   optimization when `amount_in` is set (same semantics as `hybrid_optimize=true`; see GitLab #189).
 //! - `POST /api/v1/route/solve`: same discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
 
 use std::collections::{HashMap, VecDeque};
@@ -41,6 +43,10 @@ pub struct SolveRouteParams {
     /// When true, requires `amount_in`; runs hybrid split optimization (LCD), **max 3 hops**.
     #[serde(default)]
     pub hybrid_optimize: Option<bool>,
+    /// When true on `GET /api/v1/route/solve`, forces pool-only ops even if `amount_in` is set.
+    /// Ignored when `hybrid_optimize=true` or on `GET /api/v1/route/solve/best`.
+    #[serde(default)]
+    pub pool_only: Option<bool>,
     /// Used when `hybrid_optimize` is true (default **8**).
     #[serde(default)]
     pub max_maker_fills: Option<u32>,
@@ -443,6 +449,132 @@ fn cache_put(key: String, body: serde_json::Value) {
     }
 }
 
+async fn execute_hybrid_route_solve(
+    state: &AppState,
+    token_in: &str,
+    token_out: &str,
+    amount_raw: &str,
+    max_maker_fills: u32,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Ok(amount_u) = amount_raw.parse::<u128>() else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "amount_in must be a non-negative integer".to_string(),
+        ));
+    };
+    if amount_u == 0 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "amount_in must be non-zero for hybrid best execution".to_string(),
+        ));
+    }
+
+    let max_makers = max_maker_fills.max(1);
+    let bucket = amount_cache_key(amount_u);
+    let ck = hybrid_cache_key(token_in, token_out, bucket, max_makers);
+    if let Some(cached) = cache_get(&ck) {
+        return Ok(Json(cached));
+    }
+
+    let resolved =
+        resolve_route_with_max_hops(&state.pool, token_in, token_out, 3).await?;
+    let hops_desc: Vec<HopDescriptor> = resolved
+        .hops
+        .iter()
+        .map(|h| HopDescriptor {
+            pair: h.pair.clone(),
+            offer_token: h.offer_token.clone(),
+            ask_token: h.ask_token.clone(),
+        })
+        .collect();
+
+    let (hybrid_plan, meta) = hybrid_route_opt::optimize_multihop_hybrid(
+        &state.lcd,
+        &hops_desc,
+        amount_u,
+        max_makers,
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!("hybrid optimization LCD error: {}", e);
+        (
+            StatusCode::BAD_GATEWAY,
+            "hybrid optimization failed (LCD)".to_string(),
+        )
+    })?;
+
+    let intermediate_tokens = build_intermediate_tokens(&resolved);
+    let ops = apply_hybrid_by_hop(resolved.ops, &hybrid_plan)?;
+    let estimated = maybe_simulate(state, Some(amount_raw), &ops).await?;
+
+    let mut quote_kind = if meta.degraded {
+        RouteQuoteKind::IndexerHybridLcdDegraded
+    } else if meta.any_book_leg {
+        RouteQuoteKind::IndexerHybridLcd
+    } else {
+        RouteQuoteKind::IndexerPoolLcd
+    };
+    quote_kind = quote_kind_after_sim(&estimated, quote_kind);
+
+    let hybrid_notes = Some(
+        "Sequential per-hop hybrid optimizer (not globally optimal across hops). Quotes use the same LCD snapshot per call; execution may differ.".to_string(),
+    );
+
+    let body = RouteSolveResponse {
+        token_in: resolved.token_in.clone(),
+        token_out: resolved.token_out.clone(),
+        hops: resolved.hops.clone(),
+        intermediate_tokens,
+        quote_kind,
+        hybrid_notes,
+        router_operations: ops,
+        estimated_amount_out: estimated.clone(),
+    };
+
+    let json_body = serde_json::to_value(&body).map_err(internal_err)?;
+    cache_put(ck, json_body.clone());
+    Ok(Json(json_body))
+}
+
+/// Retail / integrator best-execution route: server-chosen hybrid splits (GitLab #189).
+#[utoipa::path(
+    get,
+    path = "/api/v1/route/solve/best",
+    params(SolveRouteParams),
+    responses(
+        (status = 200, description = "Hybrid best-execution route with merged router operations", body = RouteSolveResponse),
+        (status = 400, description = "Missing or invalid amount_in, or unknown token"),
+        (status = 404, description = "No route within 3 hops"),
+        (status = 502, description = "Hybrid optimization LCD failure"),
+    ),
+    tag = "Routing"
+)]
+pub async fn solve_route_best(
+    State(state): State<AppState>,
+    Query(q): Query<SolveRouteParams>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Some(amount_raw) = q
+        .amount_in
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "amount_in is required for GET /api/v1/route/solve/best".to_string(),
+        ));
+    };
+
+    execute_hybrid_route_solve(
+        &state,
+        &q.token_in,
+        &q.token_out,
+        amount_raw,
+        q.max_maker_fills.unwrap_or(8),
+    )
+    .await
+}
+
 /// Multihop route discovery (BFS, max 4 hops unless `hybrid_optimize`). Returns `router_operations`.
 #[utoipa::path(
     get,
@@ -473,81 +605,15 @@ pub async fn solve_route(
                 "amount_in is required when hybrid_optimize=true".to_string(),
             ));
         };
-        let Ok(amount_u) = amount_raw.parse::<u128>() else {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "amount_in must be a non-negative integer".to_string(),
-            ));
-        };
-        if amount_u == 0 {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "amount_in must be non-zero when hybrid_optimize=true".to_string(),
-            ));
-        }
 
-        let max_makers = q.max_maker_fills.unwrap_or(8).max(1);
-        let bucket = amount_cache_key(amount_u);
-        let ck = hybrid_cache_key(&q.token_in, &q.token_out, bucket, max_makers);
-        if let Some(cached) = cache_get(&ck) {
-            return Ok(Json(cached));
-        }
-
-        let resolved =
-            resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, 3).await?;
-        let hops_desc: Vec<HopDescriptor> = resolved
-            .hops
-            .iter()
-            .map(|h| HopDescriptor {
-                pair: h.pair.clone(),
-                offer_token: h.offer_token.clone(),
-                ask_token: h.ask_token.clone(),
-            })
-            .collect();
-
-        let (hybrid_plan, meta) = hybrid_route_opt::optimize_multihop_hybrid(
-            &state.lcd, &hops_desc, amount_u, max_makers,
+        return execute_hybrid_route_solve(
+            &state,
+            &q.token_in,
+            &q.token_out,
+            amount_raw,
+            q.max_maker_fills.unwrap_or(8),
         )
-        .await
-        .map_err(|e| {
-            tracing::warn!("hybrid optimization LCD error: {}", e);
-            (
-                StatusCode::BAD_GATEWAY,
-                "hybrid optimization failed (LCD)".to_string(),
-            )
-        })?;
-
-        let intermediate_tokens = build_intermediate_tokens(&resolved);
-        let ops = apply_hybrid_by_hop(resolved.ops, &hybrid_plan)?;
-        let estimated = maybe_simulate(&state, Some(amount_raw), &ops).await?;
-
-        let mut quote_kind = if meta.degraded {
-            RouteQuoteKind::IndexerHybridLcdDegraded
-        } else if meta.any_book_leg {
-            RouteQuoteKind::IndexerHybridLcd
-        } else {
-            RouteQuoteKind::IndexerPoolLcd
-        };
-        quote_kind = quote_kind_after_sim(&estimated, quote_kind);
-
-        let hybrid_notes = Some(
-            "Sequential per-hop hybrid optimizer (not globally optimal across hops). Quotes use the same LCD snapshot per call; execution may differ.".to_string(),
-        );
-
-        let body = RouteSolveResponse {
-            token_in: resolved.token_in.clone(),
-            token_out: resolved.token_out.clone(),
-            hops: resolved.hops.clone(),
-            intermediate_tokens,
-            quote_kind,
-            hybrid_notes,
-            router_operations: ops,
-            estimated_amount_out: estimated.clone(),
-        };
-
-        let json_body = serde_json::to_value(&body).map_err(internal_err)?;
-        cache_put(ck, json_body.clone());
-        return Ok(Json(json_body));
+        .await;
     }
 
     let resolved = resolve_route(&state.pool, &q.token_in, &q.token_out).await?;

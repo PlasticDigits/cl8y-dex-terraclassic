@@ -571,6 +571,23 @@ TerraSwap base. Their source code is not publicly available. Known operations fr
 | `spread_amount` | Yes | N/A | Yes |
 | `commission_amount` | Yes | `fee_amount` | Yes |
 | `maker_fee_amount` | N/A | N/A | Yes |
+| `pool_return_amount` | N/A | Yes (hybrid) | N/A |
+| `book_return_amount` | N/A | Yes (hybrid) | N/A |
+| `limit_book_offer_consumed` | N/A | Yes (hybrid) | N/A |
+| `effective_fee_bps` | N/A | Yes (hybrid) | N/A |
+
+### CL8Y hybrid extensions (beyond Terraport baseline)
+
+When a swap uses both the constant-product pool and the on-chain limit book in one execution, the pair emits **additional** wasm attributes. Vyntrex and other integrators should treat baseline attrs as Terraport-compatible totals and use the extensions for leg attribution:
+
+| Attribute | Meaning |
+|-----------|---------|
+| `pool_return_amount` | Ask-side net output from the AMM leg only. |
+| `book_return_amount` | Ask-side net output from the limit-book leg to the taker. |
+| `limit_book_offer_consumed` | Offer-side amount matched against resting orders (when book leg > 0). |
+| `effective_fee_bps` | Effective swap fee rate (bps) after optional fee-discount registry. |
+
+`return_amount` = `pool_return_amount` + `book_return_amount` (total to receiver). `spread_amount` and `commission_amount` remain **pool-leg-only** metrics, matching TerraSwap semantics on the AMM portion. See [limit-orders.md](./limit-orders.md) and [integrators.md](./integrators.md#vyntrex--terraport-hybrid-event-mapping-gitlab-189).
 
 ---
 
@@ -585,9 +602,9 @@ Our DEX now uses TerraSwap-compatible message, query, and event formats. Vyntrex
 2. **CW20 `send` wrapping** -- CW20 token swaps use `Cw20HookMsg::Swap { belief_price, max_spread, to, deadline }`.
    LP withdrawals use `Cw20HookMsg::WithdrawLiquidity {}`. Same format as TerraSwap.
 
-3. **Swap event parsing** -- our swap events emit the same attributes: `offer_asset`,
-   `ask_asset`, `offer_amount`, `return_amount`, `spread_amount`, `commission_amount`,
-   `sender`, `receiver`.
+3. **Swap event parsing** -- baseline attrs match Terraport: `offer_asset`, `ask_asset`,
+   `offer_amount`, `return_amount`, `spread_amount`, `commission_amount`, `sender`, `receiver`.
+   Hybrid swaps add CL8Y extensions in [integrators.md](./integrators.md#vyntrex--terraport-hybrid-event-mapping-gitlab-189).
 
 4. **Router operations** -- our router uses `SwapOperation::TerraSwap` and
    `SwapOperation::NativeSwap` (rejected at runtime). Same format as TerraSwap.

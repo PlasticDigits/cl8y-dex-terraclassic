@@ -3,6 +3,7 @@
 
 mod cg;
 mod cmc;
+mod consolidated_stats;
 pub mod hooks;
 mod hybrid_route_opt;
 mod limit_book_lcd;
@@ -160,6 +161,7 @@ pub async fn find_pair_by_ticker(
     ),
     paths(
         route_solver::solve_route,
+        route_solver::solve_route_best,
         route_solver::solve_route_post,
         pairs::list_pairs,
         pairs::get_pair,
@@ -245,6 +247,7 @@ pub async fn find_pair_by_ticker(
         cmc::CmcTickerEntry,
         cmc::CmcOrderbookResponse,
         cmc::CmcTradeEntry,
+        consolidated_stats::Cl8yConsolidatedExtensions,
         oracle::OraclePriceResponse,
         oracle::OracleSourcePrice,
         oracle::OracleHistoryEntry,
@@ -371,6 +374,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
+        .route(
+            "/api/v1/route/solve/best",
+            get(route_solver::solve_route_best),
+        )
         .route(
             "/api/v1/route/solve",
             get(route_solver::solve_route).post(route_solver::solve_route_post),
