@@ -164,6 +164,17 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/pool-tx
 
 **Optional chain (skip instead of fail):** set `PLAYWRIGHT_SKIP_CHAIN=1` (or legacy `REQUIRE_LOCALTERRA=0`) for local UI-only runs (`npm run test:e2e:smoke`). **Do not** set this in CI. Default is strict (unset).
 
+**GitLab [#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138) verification (risk surfacing + E2E blockers):** after LocalTerra + `deploy-dex-local.sh` + indexer on `VITE_INDEXER_URL` (see [`docs/frontend.md` § Risk surfacing](./frontend.md#legal-risk-surfacing)):
+
+```bash
+cd frontend-dapp && npm ci && npm run test:unit
+bash scripts/e2e-seed-hybrid-book.sh && bash scripts/e2e-seed-hybrid-book.sh   # second run must skip
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/navigation.spec.ts -g "NFA footer"
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/navigation.spec.ts -g "navigates to Pool"
+```
+
+Fixes: **`bd763be`** (`cosmesPatch127.test.ts`, `e2e-seed-hybrid-book.sh` bare `u64` head), **`f58cce5`** (`Outlet key={pathname}` shell tab nav). Agent playbooks: [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md), [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md).
+
 ### Trading swarm for UI load (localnet)
 
 The [`@cl8y-dex/localnet-trading-swarm`](../packages/localnet-trading-swarm) package drives **five** concurrent bot wallets against LocalTerra to stress the dApp (swap, hybrid, router multi-hop, limit orders, LP flows) and optional indexer-backed views. It is **not** run in CI by default; manual QA runs it after `deploy-dex-local.sh`.

@@ -28,4 +28,15 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 
 - **Responsive shell / header:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab #136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
 - **Production build / maps:** [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md).
-- **E2E verification blockers ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)):** [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) (`cosmesPatch127.test.ts`), [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) (`e2e-seed-hybrid-book.sh` idempotency), [`docs/testing.md`](../docs/testing.md) § E2E Tests.
+- **E2E verification blockers ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)):** [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) (`cosmesPatch127.test.ts`), [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) (`e2e-seed-hybrid-book.sh` idempotency), [`docs/testing.md`](../docs/testing.md) § E2E Tests — **#138 verification** checklist.
+
+## Verification checklist (#138)
+
+After LocalTerra + `deploy-dex-local.sh` + indexer (`VITE_INDEXER_URL`):
+
+1. `cd frontend-dapp && npm ci && npm run test:unit` — includes `cosmesPatch127.test.ts`
+2. `bash scripts/e2e-seed-hybrid-book.sh` twice — second run skips with existing head order
+3. `npx playwright test e2e/navigation.spec.ts -g "NFA footer"` — both specs pass
+4. `npx playwright test e2e/navigation.spec.ts -g "navigates to Pool"` — Pool heading visible after tab click
+
+Shell tab nav / Outlet remount: [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md) (`f58cce5`).
