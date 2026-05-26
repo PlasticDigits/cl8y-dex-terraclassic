@@ -82,10 +82,14 @@ fi
 
 for TOKEN in "${TOKEN_ADDRS[@]}"; do
   [[ -n "$TOKEN" ]] || continue
+  MIN_FOR_TOKEN="$MIN_RAW_BALANCE"
+  if [[ -n "${VITE_CL8Y_TOKEN_ADDRESS:-}" && "$TOKEN" == "$VITE_CL8Y_TOKEN_ADDRESS" ]]; then
+    MIN_FOR_TOKEN="${E2E_DEV_MIN_CL8Y_U128:-1000000000000000000}"
+  fi
   Q_BAL="$(b64_query "{\"balance\":{\"address\":\"$DEV_ADDR\"}}")"
   RAW_BAL="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$TOKEN/smart/$Q_BAL")"
   BAL="$(decode_pairs_payload "$RAW_BAL" | jq -r '.balance // "0"')"
-  if [[ "$BAL" =~ ^[0-9]+$ ]] && ((10#$BAL >= 10#$MIN_RAW_BALANCE)); then
+  if [[ "$BAL" =~ ^[0-9]+$ ]] && ((10#$BAL >= 10#$MIN_FOR_TOKEN)); then
     continue
   fi
   echo "e2e-provision: minting $MINT_TOPUP units to dev wallet on $TOKEN (balance was $BAL)."

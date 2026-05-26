@@ -14,7 +14,7 @@ You are changing **limit order on-chain browser tests**, **E2E LCD pair selectio
 | UI pause banner absent after selection | `skipOrFailIfPairPaused()` from `hybrid-e2e.ts` | Hard fail (L6) |
 | Place / cancel wasm actions | `limit-orders-tx.spec.ts` LCD poll | Expect `place_limit_order`, `cancel_limit_order` |
 
-Set **`REQUIRE_LOCALTERRA=0`** only for jobs that intentionally omit LocalTerra; helpers fall back to documented `test.skip` (same pattern as `pool-tx.spec.ts` / `hybrid-swap.spec.ts`).
+Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI-only local runs; helpers fall back to documented `test.skip`. Default CI must not set it ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)).
 
 ## Files
 
@@ -42,3 +42,4 @@ cd frontend-dapp && pnpm exec playwright test e2e/limit-orders-tx.spec.ts
 - Hybrid swap E2E (shared pause helper): [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) ([#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193))
 - Dev wallet funding: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
 - GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)
+- Strict chain umbrella: [#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)

@@ -293,17 +293,19 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Start LocalTerra
-        run: |
-          docker compose -f docker-compose.yml up -d localterra
-          sleep 15
+        run: docker compose -f docker-compose.yml up -d localterra
+        working-directory: .
+
+      - name: Wait for LocalTerra
+        run: make wait-healthy
         working-directory: .
 
       - name: Deploy contracts locally
-        run: |
-          bash scripts/deploy-dex-local.sh
+        run: bash scripts/deploy-dex-local.sh
         working-directory: .
 
-      - name: Run E2E tests
+      - name: Run E2E tests (strict on-chain)
         run: npm run test:e2e
         env:
           VITE_NETWORK: local
+          # Default: global setup + tx specs fail on missing LCD/funds/pair (GitLab #201 / #103).

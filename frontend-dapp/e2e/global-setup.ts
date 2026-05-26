@@ -48,7 +48,7 @@ async function waitForLcd(base: string, timeoutMs: number): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<void> {
-  if (process.env.REQUIRE_LOCALTERRA === '0') {
+  if (process.env.PLAYWRIGHT_SKIP_CHAIN === '1' || process.env.REQUIRE_LOCALTERRA === '0') {
     return
   }
 

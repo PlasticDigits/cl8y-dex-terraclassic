@@ -15,7 +15,7 @@ You are changing **hybrid swap browser tests**, **E2E global setup**, or **Local
 | Pair not paused | `skipOrFailIfPairPaused()` | Hard fail (L6) |
 | Hybrid tx wasm attrs | `hybrid-swap.spec.ts` on-chain case | Expect `limit_order_fill` + `book_return_amount` > 0 on `swap` |
 
-Set **`REQUIRE_LOCALTERRA=0`** only for jobs that intentionally omit LocalTerra; helpers fall back to documented `test.skip` (same pattern as `pool-tx.spec.ts`).
+Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI-only local runs; helpers fall back to documented `test.skip`. Default CI path must not set it ([**#201**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)).
 
 ## Files
 
@@ -43,3 +43,4 @@ cd frontend-dapp && pnpm exec playwright test e2e/hybrid-swap.spec.ts
 - Dev wallet funding: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
 - Limit place/cancel tx E2E (unpaused pair pick): [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md) ([#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195))
 - GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)
+- Strict chain umbrella: [#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)

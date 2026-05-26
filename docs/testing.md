@@ -95,15 +95,18 @@ Config: `vitest.config.integration.ts`
 
 ### E2E Tests (Playwright)
 
-Full browser tests against the running dApp + LocalTerra.
+Full browser tests against the running dApp + LocalTerra. **Strict on-chain policy** ([GitLab **#201**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [**#103**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/103)): default CI/local tx specs **fail** when LCD, funds, routes, or pairs are missing — no silent `test.skip` for those gaps.
 
 ```bash
+make test-e2e-tx              # one command: LocalTerra + deploy + strict tx project
 cd frontend-dapp
-npx playwright test           # headless
+npx playwright test           # smoke + tx (strict chain)
+npx playwright test --project=e2e-tx
+PLAYWRIGHT_SKIP_CHAIN=1 npx playwright test --project=e2e-smoke   # UI-only local dev
 npx playwright test --ui      # interactive UI
 ```
 
-Config: `playwright.config.ts`
+Config: `playwright.config.ts` (`e2e-smoke` vs `e2e-tx` projects). Agent playbook: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md).
 
 **Header / tablet compact nav:** `e2e/navigation.spec.ts` asserts no horizontal overlap for the **Swap + More** row at 773×743 and other tablet widths, the full primary row at 1280px, desktop **Swap → Pool → Trade** tab transitions without reload at 1440px ([GitLab **#182**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182)), and that **“Terra Classic ecosystem”** does not appear in the shell (header brand is logo + title only). Invariants: [docs/frontend.md § Responsive shell & header navigation](./frontend.md#responsive-header-navigation) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)); shell nav playbook [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md).
 
@@ -129,7 +132,7 @@ pnpm exec playwright test e2e/pool-tx.spec.ts
 
 **Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `pnpm exec playwright test e2e/limit-orders-tx.spec.ts` — selects the first **unpaused** dual-CW20 pair via LCD `is_paused`, asserts wasm `place_limit_order` and `cancel_limit_order` on indexed txs. Requires `e2e-provision-dev-wallet.sh` (same global setup as pool/hybrid). See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
-**Optional chain (skip instead of fail):** set `REQUIRE_LOCALTERRA=0` so global setup and strict LCD/pool assertions are relaxed — for jobs that intentionally omit LocalTerra. Default is strict (unset or any value other than `0`).
+**Optional chain (skip instead of fail):** set `PLAYWRIGHT_SKIP_CHAIN=1` (or legacy `REQUIRE_LOCALTERRA=0`) for local UI-only runs (`npm run test:e2e:smoke`). **Do not** set this in CI. Default is strict (unset).
 
 ### Trading swarm for UI load (localnet)
 

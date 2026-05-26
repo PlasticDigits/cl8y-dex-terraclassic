@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 
-import { isLocalTerraOptional } from './chain'
+import { isChainOptional } from './chain'
 import { firstUnpausedDualCwPair, type LcdPairInfo } from './lcd'
 import { skipOrFailIfPairPaused } from './hybrid-e2e'
 
@@ -16,7 +16,7 @@ export async function requireLimitTxPair(
 ): Promise<{ pair: LcdPairInfo; index: number }> {
   const hit = await firstUnpausedDualCwPair(request, pairs)
   if (hit) return hit
-  if (isLocalTerraOptional()) {
+  if (isChainOptional()) {
     test.skip(true, detail)
   }
   expect(hit, detail).toBeTruthy()

@@ -3,9 +3,20 @@ import { getLocalTerraTestMnemonic } from './e2e/localterra-mnemonic'
 
 const devMnemonic = getLocalTerraTestMnemonic()
 
+/** UI-only local dev: skip chain global setup and allow documented test.skip (GitLab #201). */
+const chainOptional =
+  process.env.PLAYWRIGHT_SKIP_CHAIN === '1' || process.env.REQUIRE_LOCALTERRA === '0'
+
+const txSpecGlobs = [
+  '**/*-tx.spec.ts',
+  '**/hybrid-swap.spec.ts',
+  '**/wrap-pool.spec.ts',
+  '**/wrap-swap.spec.ts',
+]
+
 export default defineConfig({
   testDir: './e2e',
-  globalSetup: './e2e/global-setup.ts',
+  globalSetup: chainOptional ? undefined : './e2e/global-setup.ts',
   fullyParallel: true,
   workers: 5,
   timeout: 120_000,
@@ -32,7 +43,13 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
+      name: 'e2e-smoke',
+      testIgnore: txSpecGlobs,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'e2e-tx',
+      testMatch: txSpecGlobs,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

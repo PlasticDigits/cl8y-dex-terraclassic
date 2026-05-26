@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint check-fee-discount-tier-docs setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -84,7 +84,7 @@ help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa (alias qa-start) | stop-qa | qa-tunnel-help"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
-	@echo "Frontend:        make dev | build-frontend | test-frontend | lint-frontend"
+	@echo "Frontend:        make dev | build-frontend | test-frontend | test-e2e-tx | lint-frontend"
 	@echo "Indexer:         make indexer-dev"
 	@echo "Docs:            scripts/qa/README.md"
 
@@ -154,6 +154,13 @@ test-frontend:
 
 test-e2e:
 	cd frontend-dapp && npm run test:e2e
+
+# Strict on-chain Playwright (LocalTerra + deploy + global setup). Same as CI e2e job.
+test-e2e-tx: wait-healthy
+	@chmod +x scripts/deploy-dex-local.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh
+	docker compose up -d localterra
+	bash scripts/deploy-dex-local.sh
+	cd frontend-dapp && npm run test:e2e:tx
 
 lint-frontend:
 	cd frontend-dapp && npm run lint

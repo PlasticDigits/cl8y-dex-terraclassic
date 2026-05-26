@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 
-import { isLocalTerraOptional } from './chain'
+import { isChainOptional } from './chain'
 import { firstDualCwPair, type LcdPairInfo } from './lcd'
 
 const DEFAULT_DUAL_PAIR_MSG =
@@ -13,7 +13,7 @@ export function requireDualCwPair(
 ): { pair: LcdPairInfo; index: number } {
   const hit = firstDualCwPair(pairs)
   if (hit) return hit
-  if (isLocalTerraOptional()) {
+  if (isChainOptional()) {
     test.skip(true, detail)
   }
   expect(hit, detail).toBeTruthy()
@@ -27,7 +27,7 @@ const HYBRID_CONTROLS_MSG =
 export async function requireHybridControlsVisible(page: Page, detail = HYBRID_CONTROLS_MSG): Promise<void> {
   const hybridHeading = page.getByText('Direct swap: limit book leg')
   if ((await hybridHeading.count()) > 0) return
-  if (isLocalTerraOptional()) {
+  if (isChainOptional()) {
     test.skip(true, detail)
   }
   expect(await hybridHeading.count(), detail).toBeGreaterThan(0)
@@ -39,7 +39,7 @@ const PAUSED_PAIR_MSG =
 export async function skipOrFailIfPairPaused(page: Page, detail = PAUSED_PAIR_MSG): Promise<void> {
   const paused = page.getByRole('status').filter({ hasText: /paused by governance/i })
   if (!(await paused.isVisible().catch(() => false))) return
-  if (isLocalTerraOptional()) {
+  if (isChainOptional()) {
     test.skip(true, detail)
   }
   expect(await paused.isVisible(), detail).toBe(false)

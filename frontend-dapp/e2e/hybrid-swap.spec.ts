@@ -1,10 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
-import {
-  assertTxResultAlert,
-  isLocalTerraOptional,
-  skipIfLcdUnreachable,
-  skipIfNoTxAlert,
-} from './helpers/chain'
+import { assertTxResultAlert, skipIfLcdUnreachable } from './helpers/chain'
 import {
   assertHybridSwapCtaNotBlocked,
   requireDualCwPair,
@@ -118,11 +113,7 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
     await placeCard.getByPlaceholder('0.0').fill('50')
     await placeCard.getByRole('button', { name: /^Place limit$/i }).click()
-    if (isLocalTerraOptional()) {
-      await skipIfNoTxAlert(page)
-    } else {
-      await assertTxResultAlert(page)
-    }
+    await assertTxResultAlert(page)
 
     await page.goto('/')
     await page.waitForLoadState('networkidle')
@@ -141,15 +132,7 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
 
     const swapAction = swapPanel.getByRole('button').filter({ hasText: /^(Swap|Confirm Swap)/ })
     await expect(swapAction).toBeVisible({ timeout: 60_000 })
-
-    const ctaLabel = await swapAction.textContent()
-    if (isLocalTerraOptional()) {
-      if (ctaLabel?.match(/Insufficient Balance|No Route/i)) {
-        test.skip(true, 'Hybrid swap CTA blocked; fund dev wallet and seed book (scripts/e2e-*.sh).')
-      }
-    } else {
-      assertHybridSwapCtaNotBlocked(ctaLabel)
-    }
+    assertHybridSwapCtaNotBlocked(await swapAction.textContent())
 
     await expect(swapAction).toBeEnabled({ timeout: 30_000 })
     await swapAction.click()
@@ -160,11 +143,7 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     }
 
     const successAlert = swapPanel.locator('.alert-success')
-    if (isLocalTerraOptional()) {
-      await skipIfNoTxAlert(page)
-    } else {
-      await assertTxResultAlert(page)
-    }
+    await assertTxResultAlert(page)
     const txHash = await readTxHashFromAlertLink(page, successAlert)
 
     await expect(async () => {

@@ -1,85 +1,91 @@
 # Playwright E2E
 
-## Pool transaction tests (`pool-tx.spec.ts`)
+Default CI and `make test-e2e-tx` use **strict on-chain** mode: missing LCD, funds, routes, or paused pairs **fail** the job instead of `test.skip` ([GitLab **#201**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), policy [**#103**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/103)).
 
-On the **default** path (full LocalTerra + deployed contracts), pool liquidity tests **fail** if the LCD is down, the submit control is still blocked after provisioning, or no tx result alert appears. This avoids silent `test.skip` masking regressions.
+Agent playbook: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../../skills/AGENTS_E2E_STRICT_CHAIN.md).
 
-### Prerequisites
+## Projects
 
-1. **LocalTerra** — from repo root: `docker compose up -d localterra`
-2. **Contracts + `.env.local`** — `bash scripts/deploy-dex-local.sh` (writes `frontend-dapp/.env.local` and funds genesis dev account `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v` with CW20 balances).
-3. **Optional: indexer** — not required for `pool-tx`; the pool page works with LCD + factory env.
+| Project | Command | Chain |
+|---------|---------|-------|
+| `e2e-tx` | `npm run test:e2e:tx` | **Required** — global setup + strict helpers |
+| `e2e-smoke` | `npm run test:e2e:smoke` | Optional (`PLAYWRIGHT_SKIP_CHAIN=1`) |
+| Both | `npm run test:e2e` | Tx strict; smoke skips when chain off |
 
-### Single-command pool E2E
+## One-command strict tx E2E
 
-From `frontend-dapp`:
-
-```bash
-pnpm exec playwright test e2e/pool-tx.spec.ts
-```
-
-or:
+From repo root:
 
 ```bash
-npx playwright test e2e/pool-tx.spec.ts
+make test-e2e-tx
 ```
 
-`playwright.config.ts` runs **`e2e/global-setup.ts`**, which waits for the LCD and executes **`scripts/e2e-provision-dev-wallet.sh`** to **idempotently mint** factory-listed CW20s to the dev wallet when balances fall below the configured floor (see script env vars).
+Manual equivalent:
 
-### Strict vs optional chain
+```bash
+docker compose up -d localterra
+make wait-healthy
+bash scripts/deploy-dex-local.sh
+cd frontend-dapp && npm run test:e2e:tx
+```
 
-| `REQUIRE_LOCALTERRA` | Behavior |
-|----------------------|----------|
-| unset / `1` / other  | **Strict** — global setup requires LCD + `.env.local` + docker `localterra`; on-chain helpers **fail** instead of skipping when preconditions are missing. |
-| `0`                  | **Optional** — global setup is skipped; `skipIfLcdUnreachable` and pool CTAs fall back to **`test.skip`** where documented (for jobs without a chain). |
+`playwright.config.ts` runs **`e2e/global-setup.ts`** (unless chain is optional), which waits for the LCD and runs:
+
+1. **`scripts/e2e-provision-dev-wallet.sh`** — idempotent CW20 mint (factory tokens + CL8Y ≥ tier-1 for fee-tier tx)
+2. **`scripts/e2e-seed-hybrid-book.sh`** — resting bid on first dual-CW20 pair
+
+## Strict vs optional chain
+
+| Variable | Behavior |
+|----------|----------|
+| unset (default) | **Strict** — global setup required; tx helpers **fail** on missing preconditions |
+| `PLAYWRIGHT_SKIP_CHAIN=1` | **Optional** — no global setup; helpers may `test.skip` (local UI dev only) |
+| `REQUIRE_LOCALTERRA=0` | Legacy alias for `PLAYWRIGHT_SKIP_CHAIN=1` |
+
+**Do not** set `PLAYWRIGHT_SKIP_CHAIN=1` in CI.
 
 ### Minimum balances (raw CW20 units)
 
-Provisioning targets **`E2E_DEV_MIN_CW20_U128`** (default `1000000000000`, i.e. \(10^{12}\) raw = \(10^6\) tokens at 6 decimals) per factory pair token. Native **uluna** / **uusd** for gas come from LocalTerra genesis (`docker/init-chain.sh`) on the same mnemonic as the simulated wallet.
+| Token / use | Env | Default |
+|-------------|-----|---------|
+| Factory pair CW20s | `E2E_DEV_MIN_CW20_U128` | `1000000000000` (\(10^6\) @ 6 decimals) |
+| CL8Y (fee tier Register) | `E2E_DEV_MIN_CL8Y_U128` | `1000000000000000000` (tier 1 min) |
 
-Workers are fixed at **5** in `playwright.config.ts`; funding runs **once** in global setup to avoid per-worker races.
+Native **uluna** / **uusd** for gas come from LocalTerra genesis on the dev mnemonic.
+
+Workers are fixed at **5** in `playwright.config.ts`; funding runs **once** in global setup.
+
+## Pool transaction tests (`pool-tx.spec.ts`)
+
+On the default path, pool liquidity tests **fail** if the LCD is down, the submit control is still blocked after provisioning, or no tx result alert appears.
+
+```bash
+cd frontend-dapp && pnpm exec playwright test e2e/pool-tx.spec.ts --project=e2e-tx
+```
 
 ## Hybrid swap tests (`hybrid-swap.spec.ts`)
 
-On the **default** path (full LocalTerra + deployed contracts), hybrid swap E2E **fail** when the LCD is down, there is no dual-CW20 pair, hybrid Settings controls are missing, the pair is paused, the swap CTA stays blocked after provisioning, or the on-chain tx does not emit `limit_order_fill` / positive `book_return_amount`. This replaces conditional `test.skip` for those environment gaps ([GitLab **#193**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)).
-
-### Prerequisites
-
-Same as pool tx, plus a **resting bid** on the first dual-CW20 factory pair (global setup runs **`scripts/e2e-seed-hybrid-book.sh`** after wallet provisioning). Hybrid swaps paying token0 with a book leg match bid-side liquidity.
+Strict failures for LCD down, missing dual-CW20 pair, paused pair, blocked swap CTA, or missing `limit_order_fill` / `book_return_amount` ([GitLab **#193**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)).
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
-| `E2E_HYBRID_SEED_BID_ESCROW` | `50000000` | Raw CW20 units escrowed on the seeded bid (token1 of the pair). |
-| `E2E_HYBRID_SEED_BID_PRICE` | `1` | Bid limit price (token1 per token0, CosmWasm `Decimal` string). |
+| `E2E_HYBRID_SEED_BID_ESCROW` | `50000000` | Raw CW20 on seeded bid |
+| `E2E_HYBRID_SEED_BID_PRICE` | `1` | Bid limit price |
 
-The on-chain spec still places an additional limit in-test so the fill path is exercised end-to-end; the seed guarantees book depth even when that step is skipped in optional mode.
-
-### Single-command hybrid E2E
-
-```bash
-cd frontend-dapp
-pnpm exec playwright test e2e/hybrid-swap.spec.ts
-```
-
-Agent playbook: [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).
+Playbook: [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../../skills/AGENTS_E2E_HYBRID_SWAP.md).
 
 ## Limit order transaction tests (`limit-orders-tx.spec.ts`)
 
-On the **default** path (full LocalTerra + deployed contracts), limit place/cancel E2E **fail** when the LCD is down, there is no **unpaused** dual-CW20 factory pair, escrow/gas funding is missing, the pair shows the paused banner after selection, or LCD tx JSON lacks `place_limit_order` / `cancel_limit_order` wasm actions. This replaces conditional `test.skip` for paused-first-pair and missing-setup gaps ([GitLab **#195**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)).
+First **unpaused** dual-CW20 pair via LCD `is_paused`; wasm `place_limit_order` / `cancel_limit_order` required ([GitLab **#195**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)).
 
-### Prerequisites
+Playbook: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
-Same as pool tx: LocalTerra, `bash scripts/deploy-dex-local.sh`, and global-setup **`scripts/e2e-provision-dev-wallet.sh`** (CW20 mint floor for bid escrow token1 on the default **bid** side).
+UI smoke (no chain): `e2e/limit-orders.spec.ts` in `e2e-smoke` project.
 
-Pair selection uses the **first unpaused dual-CW20** pair from the factory LCD list (`is_paused` query per pair), not always the first menu row.
+## Wrap / swap tx (`wrap-swap.spec.ts`, `wrap-pool.spec.ts`, `swap-tx.spec.ts`)
 
-### Single-command limit tx E2E
+Native LUNC/USTC and CW20 routes must exist after `deploy-dex-local.sh`; helpers in `e2e/helpers/wrap-e2e.ts` fail in strict mode when tokens or native-wrap pool cards are missing.
 
-```bash
-cd frontend-dapp
-pnpm exec playwright test e2e/limit-orders-tx.spec.ts
-```
+## Fee tier tx (`fee-tier-tx.spec.ts`)
 
-UI smoke (no chain): `e2e/limit-orders.spec.ts`.
-
-Agent playbook: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
+Requires self-service **Register** buttons (tiers 1–9) and dev-wallet CL8Y ≥ tier-1 minimum (provision script).

@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { skipIfLcdUnreachable, skipIfNoTxAlert } from './helpers/chain'
+import { skipIfLcdUnreachable, assertTxResultAlert, assertSwapCtaNotBlocked } from './helpers/chain'
 import { swapYouReceiveAmountDisplay } from './helpers/swap-ui'
 import { expectAtLeastTwoPayTokenOptions } from './helpers/token-select'
 import { headerConnectedWalletButton } from './helpers/wallet-ui'
@@ -30,25 +30,10 @@ test.describe('Swap Transaction', () => {
       expect(await calculating.count()).toBe(0)
     }).toPass({ timeout: 120_000 })
 
-    if (
-      await swapPanel
-        .getByRole('button', { name: /^Insufficient Balance$/ })
-        .isVisible()
-        .catch(() => false)
-    ) {
-      test.skip(true, 'Dev wallet has no spendable balance for this token; fund the local dev account for swap-tx.')
-    }
-    if (
-      await swapPanel
-        .getByRole('button', { name: /^No Route$/ })
-        .isVisible()
-        .catch(() => false)
-    ) {
-      test.skip(true, 'No swap route for the current selection; ensure pools and router are deployed on local chain.')
-    }
-
     const swapAction = swapPanel.getByRole('button').filter({ hasText: /^(Swap|Confirm Swap)/ })
     await expect(swapAction).toBeVisible({ timeout: 60_000 })
+    assertSwapCtaNotBlocked(await swapAction.textContent())
+
     await expect(swapAction).toBeEnabled({ timeout: 30_000 })
 
     await swapAction.click()
@@ -59,6 +44,6 @@ test.describe('Swap Transaction', () => {
       await confirmSwap.click()
     }
 
-    await skipIfNoTxAlert(page)
+    await assertTxResultAlert(page)
   })
 })
