@@ -2077,6 +2077,142 @@ fn router_two_hop_first_leg_hybrid_matches_simulate() {
     );
 }
 
+/// GitLab #192 — 3-hop router path with hybrid on ≥2 legs; sim vs execute parity (L8).
+fn hybrid_params_split(total: Uint128, pool_num: u128, book_num: u128) -> HybridSwapParams {
+    let denom = pool_num + book_num;
+    let pool_input = total.multiply_ratio(pool_num, denom);
+    let book_input = total.checked_sub(pool_input).unwrap();
+    HybridSwapParams {
+        pool_input,
+        book_input,
+        max_maker_fills: 8,
+        book_start_hint: None,
+    }
+}
+
+fn router_simulate_amount(
+    app: &App,
+    router: &Addr,
+    offer_amount: Uint128,
+    operations: &[cl8y_dex_router::msg::SwapOperation],
+) -> Uint128 {
+    let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+        .wrap()
+        .query_wasm_smart(
+            router.to_string(),
+            &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                offer_amount,
+                operations: operations.to_vec(),
+            },
+        )
+        .unwrap();
+    sim.amount
+}
+
+#[test]
+fn router_three_hop_two_legs_hybrid_matches_simulate() {
+    let mut app = App::default();
+    let abcd = setup_router_abcd_env(&mut app);
+    let abc = &abcd.abc;
+    let env = &abc.env;
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(500_000),
+        Decimal::one(),
+    );
+    place_bid(
+        &mut app,
+        &abc.pair_bc,
+        &env.user,
+        &abc.token_c,
+        Uint128::new(500_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_3hop_multi_hybrid");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let offer_a = Uint128::new(100_000);
+    let hop1_hybrid = hybrid_params_split(offer_a, 1, 3);
+
+    let hop1_only = vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+        offer_asset_info: asset_info_token(&env.token_a),
+        ask_asset_info: asset_info_token(&env.token_b),
+        hybrid: Some(hop1_hybrid.clone()),
+    }];
+    let offer_b = router_simulate_amount(&app, &env.router, offer_a, &hop1_only);
+
+    let hop2_hybrid = hybrid_params_split(offer_b, 2, 3);
+    let hops_ab = vec![
+        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_a),
+            ask_asset_info: asset_info_token(&env.token_b),
+            hybrid: Some(hop1_hybrid),
+        },
+        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_b),
+            ask_asset_info: asset_info_token(&abc.token_c),
+            hybrid: Some(hop2_hybrid),
+        },
+    ];
+    let _offer_c = router_simulate_amount(&app, &env.router, offer_a, &hops_ab);
+
+    let operations = vec![
+        hops_ab[0].clone(),
+        hops_ab[1].clone(),
+        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&abc.token_c),
+            ask_asset_info: asset_info_token(&abcd.token_d),
+            hybrid: None,
+        },
+    ];
+
+    let sim_amount = router_simulate_amount(&app, &env.router, offer_a, &operations);
+
+    let d_before = query_cw20_balance(&app, &abcd.token_d, &taker);
+    let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+        operations,
+        max_spread: Decimal::one(),
+        minimum_receive: None,
+        to: None,
+        deadline: None,
+        unwrap_output: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: offer_a,
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    assert!(
+        count_limit_order_fill_events(&res.events) >= 2,
+        "expected book fills on both hybrid legs"
+    );
+    let d_after = query_cw20_balance(&app, &abcd.token_d, &taker);
+    let got_d = d_after.checked_sub(d_before).unwrap();
+    assert_eq!(
+        got_d, sim_amount,
+        "L8: 3-hop router output should match SimulateSwapOperations (hybrid on hops 1 and 2)"
+    );
+}
+
 #[test]
 fn hybrid_reverse_pool_only_template_is_stable() {
     let mut app = App::default();

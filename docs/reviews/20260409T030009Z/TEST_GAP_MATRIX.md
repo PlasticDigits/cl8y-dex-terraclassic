@@ -18,7 +18,8 @@
 | Scenario | Current evidence | Missing coverage | Suggested test type | Issue | Priority |
 |----------|------------------|------------------|----------------------|-------|----------|
 | Hybrid swap consumes book + pool in one tx | `hybrid_pool_and_book_legs_one_swap` in [`limit_order_tests.rs`](../../../smartcontracts/tests/src/limit_order_tests.rs) (L8 sim vs execute) | Playwright hybrid UI + tx when LocalTerra seeded | E2E | DEX-P1-011 | P1 |
-| Multi-hop router with `hybrid` on first hop | `router_two_hop_first_leg_hybrid_matches_simulate` in [`limit_order_tests.rs`](../../../smartcontracts/tests/src/limit_order_tests.rs) | Optional: second hop hybrid variant | cw-multi-test | DEX-P1-008 | P1 |
+| Multi-hop router with `hybrid` on first hop | `router_two_hop_first_leg_hybrid_matches_simulate` in [`limit_order_tests.rs`](../../../smartcontracts/tests/src/limit_order_tests.rs) | — | cw-multi-test | DEX-P1-008 | P1 — **partial** |
+| Multi-hop router ≥3 hops with `hybrid` on ≥2 legs | `router_three_hop_two_legs_hybrid_matches_simulate` in [`limit_order_tests.rs`](../../../smartcontracts/tests/src/limit_order_tests.rs); indexer `route_solve_post_three_hop_multi_leg_hybrid`, `route_solve_get_hybrid_optimize_three_hops` in [`api_route_solve.rs`](../../../indexer/tests/api_route_solve.rs) | E2E multihop hybrid tx on LocalTerra | cw-multi-test + indexer integration | [GitLab **#192**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/192) | P1 — **covered** |
 | Router simulate vs execute (hybrid) | `router_simulate_swap_hybrid_field_ignored` (named in audit L8) | Assert documented in test name search | Unit/integration | covered — **document only** | P3 |
 | Quote = execution (pool-only) | Many swap tests | Regression when fee_bps changes | proptest exists | — | P3 |
 | Limit cancel while paused | Audit L6 | Explicit test in `limit_order_tests` | integration | verify exists — if missing add | P1 |

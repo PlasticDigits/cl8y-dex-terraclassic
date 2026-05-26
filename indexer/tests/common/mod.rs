@@ -282,6 +282,8 @@ pub struct RouteSolveSeed {
     pub token_a: String,
     pub token_b: String,
     pub token_c: String,
+    /// Present when the seed includes a fourth asset and C/D pair (3-hop A→B→C→D).
+    pub token_d: Option<String>,
 }
 
 pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
@@ -334,10 +336,9 @@ pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
         token_a,
         token_b,
         token_c,
+        token_d: None,
     }
 }
-
-/// A→B→C chain (two hops) for multihop hybrid tests.
 pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;
 
@@ -399,6 +400,94 @@ pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
         token_a,
         token_b,
         token_c,
+        token_d: None,
+    }
+}
+
+/// A→B→C→D chain (three hops) for multihop hybrid regression tests (GitLab #192).
+pub async fn seed_route_solve_3hop(pool: &PgPool) -> RouteSolveSeed {
+    clean_db(pool).await;
+
+    let token_a = "terra1routesolveaaa".to_string();
+    let token_b = "terra1routesolvebbb".to_string();
+    let token_c = "terra1routesolveccc".to_string();
+    let token_d = "terra1routesolvedddd".to_string();
+
+    let asset_a_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route A', 'RTEA', 6)
+         RETURNING id",
+    )
+    .bind(&token_a)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset a");
+
+    let asset_b_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route B', 'RTEB', 6)
+         RETURNING id",
+    )
+    .bind(&token_b)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset b");
+
+    let asset_c_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route C', 'RTEC', 6)
+         RETURNING id",
+    )
+    .bind(&token_c)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset c");
+
+    let asset_d_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route D', 'RTED', 6)
+         RETURNING id",
+    )
+    .bind(&token_d)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset d");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairrouteabc', $1, $2, 'terra1lprouteab', 30)",
+    )
+    .bind(asset_a_id)
+    .bind(asset_b_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair ab");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairroutebcd', $1, $2, 'terra1lproutebc', 30)",
+    )
+    .bind(asset_b_id)
+    .bind(asset_c_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair bc");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairroutecde', $1, $2, 'terra1lproutecd', 30)",
+    )
+    .bind(asset_c_id)
+    .bind(asset_d_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair cd");
+
+    RouteSolveSeed {
+        token_a,
+        token_b,
+        token_c,
+        token_d: Some(token_d),
     }
 }
 

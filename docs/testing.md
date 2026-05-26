@@ -166,6 +166,10 @@ The integration test harness in `smartcontracts/tests/` deploys the full contrac
 - Factory `SetDiscountRegistryBatch`: verify cursor `next_start_after` + `has_more` advance until complete ([GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), covered in `factory_coverage_tests`)
 - Blacklist (Tier 255): verify wallet receives zero discount
 
+**Hybrid / limit book (L8 regression):** [`limit_order_tests.rs`](../smartcontracts/tests/src/limit_order_tests.rs) — single-hop hybrid sim vs execute, two-hop router with hybrid on the first leg (`router_two_hop_first_leg_hybrid_matches_simulate`), and **3-hop router with hybrid on ≥2 legs** (`router_three_hop_two_legs_hybrid_matches_simulate`, [GitLab **#192**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/192)). Agent playbook: [`skills/AGENTS_TESTING_MULTIHOP_HYBRID.md`](../skills/AGENTS_TESTING_MULTIHOP_HYBRID.md).
+
+**Indexer route solve (hybrid merge):** integration tests in [`indexer/tests/api_route_solve.rs`](../indexer/tests/api_route_solve.rs) — POST `hybrid_by_hop` merge + LCD mock, GET `hybrid_optimize` on 2- and **3-hop** paths ([GitLab **#192**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/192)). Invariants: [indexer-invariants.md](./indexer-invariants.md).
+
 ## Coverage
 
 ### Frontend (Vitest)

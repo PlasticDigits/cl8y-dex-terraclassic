@@ -595,6 +595,88 @@ mod helpers {
         }
     }
 
+    /// [`setup_router_abc_env`] plus a **C/D** pair with liquidity — for router A→B→C→D (3-hop) tests.
+    pub struct RouterAbcdEnv {
+        pub abc: RouterAbcEnv,
+        pub token_d: Addr,
+        #[allow(dead_code)]
+        pub pair_cd: Addr,
+    }
+
+    pub fn setup_router_abcd_env(app: &mut App) -> RouterAbcdEnv {
+        let abc = setup_router_abc_env(app);
+        app.update_block(|b| b.height += 1);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        app.execute_contract(
+            abc.env.governance.clone(),
+            abc.env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+        let token_d = create_cw20_token(
+            app,
+            cw20_code_id,
+            &abc.env.user,
+            "Token D",
+            "TKND",
+            Uint128::new(1_000_000_000_000),
+        );
+        app.update_block(|b| b.height += 1);
+        let resp = app
+            .execute_contract(
+                abc.env.user.clone(),
+                abc.env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&abc.token_c), asset_info_token(&token_d)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_cd = extract_pair_address(&resp.events);
+        for (token, pair) in [(&abc.token_c, &pair_cd), (&token_d, &pair_cd)] {
+            app.execute_contract(
+                abc.env.user.clone(),
+                token.clone(),
+                &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                    spender: pair.to_string(),
+                    amount: Uint128::new(10_000_000),
+                    expires: None,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+        app.execute_contract(
+            abc.env.user.clone(),
+            pair_cd.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&abc.token_c),
+                        amount: Uint128::new(10_000_000),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_d),
+                        amount: Uint128::new(10_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap();
+        RouterAbcdEnv {
+            abc,
+            token_d,
+            pair_cd,
+        }
+    }
+
     pub fn transfer_tokens(app: &mut App, token: &Addr, from: &Addr, to: &Addr, amount: Uint128) {
         app.execute_contract(
             from.clone(),
