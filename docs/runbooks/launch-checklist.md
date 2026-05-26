@@ -46,7 +46,7 @@ terrad query wasm contract-state smart <fee_discount> '{"is_trusted_router":{"ro
 
 ## Phase 3 — Post-deploy verification (pool-only)
 
-- [ ] **Read-only / light tx checks:** [`scripts/smoke-pool-swap.sh`](../../scripts/smoke-pool-swap.sh) — LCD pool query and optional **Simulation** (no `hybrid` fields).
+- [ ] **Read-only / light tx checks:** [`scripts/smoke-pool-swap.sh`](../../scripts/smoke-pool-swap.sh) — LCD pool query and optional **`hybrid_simulation`** with pool-only params (`book_input: 0`).
 - [ ] **Single-hop swap** on staging with small size; confirm treasury fee and balances.
 - [ ] **Multi-hop** via router (still pool-only per hop) if used in production.
 - [ ] Optional: run repo E2E against staging (`frontend-dapp` Playwright) if your process includes UI gates.

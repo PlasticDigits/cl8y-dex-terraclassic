@@ -423,7 +423,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
-/// Simulates multi-hop output using pool-only `Simulation` or pair `HybridSimulation`.
+/// Simulates multi-hop output via pair `HybridSimulation` (pool-only when `hybrid` is unset).
 /// When `hybrid` is set, legs must sum to the per-hop offer amount.
 fn query_simulate_swap_operations(
     deps: Deps,
@@ -467,38 +467,28 @@ fn query_simulate_swap_operations(
                         },
                     )?;
 
-                current_amount = match hybrid {
-                    None => {
-                        let sim: pair::SimulationResponse = deps.querier.query_wasm_smart(
-                            pair_response.pair.contract_addr.to_string(),
-                            &pair::QueryMsg::Simulation {
-                                offer_asset: Asset {
-                                    info: offer_asset_info.clone(),
-                                    amount: current_amount,
-                                },
-                            },
-                        )?;
-                        sim.return_amount
-                    }
+                let hybrid_params = match hybrid {
+                    None => pair::pool_only_hybrid_params(current_amount),
                     Some(h) => {
                         if h.pool_input.checked_add(h.book_input)? != current_amount {
                             return Err(cosmwasm_std::StdError::generic_err(
                                 "hybrid pool_input + book_input must equal simulated offer amount for this hop",
                             ));
                         }
-                        let sim: pair::HybridSimulationResponse = deps.querier.query_wasm_smart(
-                            pair_response.pair.contract_addr.to_string(),
-                            &pair::QueryMsg::HybridSimulation {
-                                offer_asset: Asset {
-                                    info: offer_asset_info.clone(),
-                                    amount: current_amount,
-                                },
-                                hybrid: h.clone(),
-                            },
-                        )?;
-                        sim.return_amount
+                        h.clone()
                     }
                 };
+                let sim: pair::HybridSimulationResponse = deps.querier.query_wasm_smart(
+                    pair_response.pair.contract_addr.to_string(),
+                    &pair::QueryMsg::HybridSimulation {
+                        offer_asset: Asset {
+                            info: offer_asset_info.clone(),
+                            amount: current_amount,
+                        },
+                        hybrid: hybrid_params,
+                    },
+                )?;
+                current_amount = sim.return_amount;
             }
         }
     }
@@ -508,7 +498,7 @@ fn query_simulate_swap_operations(
     })
 }
 
-/// Reverse-simulates using `ReverseSimulation` or pair `HybridReverseSimulation`.
+/// Reverse-simulates via pair `HybridReverseSimulation` (pool-only when `hybrid` is unset).
 fn query_reverse_simulate_swap_operations(
     deps: Deps,
     ask_amount: Uint128,
@@ -551,34 +541,21 @@ fn query_reverse_simulate_swap_operations(
                         },
                     )?;
 
-                current_amount = match hybrid {
-                    None => {
-                        let sim: pair::ReverseSimulationResponse = deps.querier.query_wasm_smart(
-                            pair_response.pair.contract_addr.to_string(),
-                            &pair::QueryMsg::ReverseSimulation {
-                                ask_asset: Asset {
-                                    info: ask_asset_info.clone(),
-                                    amount: current_amount,
-                                },
-                            },
-                        )?;
-                        sim.offer_amount
-                    }
-                    Some(h) => {
-                        let sim: pair::HybridReverseSimulationResponse =
-                            deps.querier.query_wasm_smart(
-                                pair_response.pair.contract_addr.to_string(),
-                                &pair::QueryMsg::HybridReverseSimulation {
-                                    ask_asset: Asset {
-                                        info: ask_asset_info.clone(),
-                                        amount: current_amount,
-                                    },
-                                    hybrid: h.clone(),
-                                },
-                            )?;
-                        sim.offer_amount
-                    }
+                let hybrid_params = match hybrid {
+                    None => pair::pool_only_hybrid_template(),
+                    Some(h) => h.clone(),
                 };
+                let sim: pair::HybridReverseSimulationResponse = deps.querier.query_wasm_smart(
+                    pair_response.pair.contract_addr.to_string(),
+                    &pair::QueryMsg::HybridReverseSimulation {
+                        ask_asset: Asset {
+                            info: ask_asset_info.clone(),
+                            amount: current_amount,
+                        },
+                        hybrid: hybrid_params,
+                    },
+                )?;
+                current_amount = sim.offer_amount;
             }
         }
     }

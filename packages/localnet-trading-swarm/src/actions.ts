@@ -20,7 +20,7 @@ export interface ActionContext {
   dryRun: boolean
 }
 
-interface SimulationResponse {
+interface HybridSimulationResponse {
   return_amount: string
 }
 
@@ -273,8 +273,16 @@ export async function runAction(
       if (!escrowToken.startsWith('terra1')) return { action: kind, note: 'native_escrow_skip' }
       const amount = pickOfferAmount(pool, escrowInfo)
       if (amount === '0') return { action: kind, note: 'amount_too_small' }
-      const sim = await queryWasmSmart<SimulationResponse>(lcdBase, pair.contract_addr, {
-        simulation: { offer_asset: { info: escrowInfo, amount } },
+      const sim = await queryWasmSmart<HybridSimulationResponse>(lcdBase, pair.contract_addr, {
+        hybrid_simulation: {
+          offer_asset: { info: escrowInfo, amount },
+          hybrid: {
+            pool_input: amount,
+            book_input: '0',
+            max_maker_fills: 1,
+            book_start_hint: undefined,
+          },
+        },
       })
       const ret = BigInt(sim.return_amount ?? '1')
       const priceNum = Number(amount) / Number(ret > 0n ? ret : 1n)

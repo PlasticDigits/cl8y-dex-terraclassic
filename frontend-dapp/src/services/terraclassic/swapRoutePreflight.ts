@@ -1,10 +1,10 @@
 import { getPair } from './factory'
-import { simulateHybridSwap, simulateSwap } from './pair'
+import { simulateHybridSwap } from './pair'
+import { poolOnlyHybridParams } from './poolOnlyHybrid'
 import type { SwapOperation } from './router'
 import type { AssetInfo } from '@/types'
 import {
   hybridSpreadCmpAndTotal,
-  poolOnlySpreadCmpAndTotal,
   spreadPercentOfGross,
   spreadRatioStrictlyExceedsMax,
 } from '@/utils/swapMaxSpread'
@@ -17,7 +17,7 @@ export interface SwapRoutePreflightSpread {
 }
 
 /**
- * Sequential per-hop pair `simulation` / `hybrid_simulation` to recover spread metrics omitted from
+ * Sequential per-hop pair `hybrid_simulation` to recover spread metrics omitted from
  * router `simulate_swap_operations` (which only returns the final amount).
  */
 export async function preflightSwapRouteSpread(
@@ -40,29 +40,18 @@ export async function preflightSwapRouteSpread(
     const pairRow = await getPair(assetTuple)
     const pairAddr = pairRow.contract_addr
 
-    if (ts.hybrid != null) {
-      const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, ts.hybrid)
-      const { spreadCmp, totalGrossOut } = hybridSpreadCmpAndTotal(sim)
-      if (spreadRatioStrictlyExceedsMax(spreadCmp, totalGrossOut, maxSpreadDecimalStr)) {
-        anyExceeds = true
-      }
-      if (totalGrossOut > 0n && spreadCmp * worstPctDen > worstPctNum * totalGrossOut) {
-        worstPctNum = spreadCmp
-        worstPctDen = totalGrossOut
-      }
-      currentOffer = sim.return_amount
-    } else {
-      const sim = await simulateSwap(pairAddr, ts.offer_asset_info, currentOffer)
-      const { spreadCmp, totalGrossOut } = poolOnlySpreadCmpAndTotal(sim)
-      if (spreadRatioStrictlyExceedsMax(spreadCmp, totalGrossOut, maxSpreadDecimalStr)) {
-        anyExceeds = true
-      }
-      if (totalGrossOut > 0n && spreadCmp * worstPctDen > worstPctNum * totalGrossOut) {
-        worstPctNum = spreadCmp
-        worstPctDen = totalGrossOut
-      }
-      currentOffer = sim.return_amount
+    const hybrid =
+      ts.hybrid != null ? ts.hybrid : poolOnlyHybridParams(currentOffer)
+    const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, hybrid)
+    const { spreadCmp, totalGrossOut } = hybridSpreadCmpAndTotal(sim)
+    if (spreadRatioStrictlyExceedsMax(spreadCmp, totalGrossOut, maxSpreadDecimalStr)) {
+      anyExceeds = true
     }
+    if (totalGrossOut > 0n && spreadCmp * worstPctDen > worstPctNum * totalGrossOut) {
+      worstPctNum = spreadCmp
+      worstPctDen = totalGrossOut
+    }
+    currentOffer = sim.return_amount
   }
 
   return {

@@ -1,15 +1,15 @@
 import { queryContract } from './queries'
+import { poolOnlyHybridParams, poolOnlyHybridTemplate } from './poolOnlyHybrid'
 import { executeCw20AllowanceThen, executeTerraContract, executeTerraContractMulti } from './transactions'
 import type {
   Asset,
   AssetInfo,
+  HybridReverseSimulationResponse,
   HybridSimulationResponse,
   HybridSwapParams,
   PairInfo,
   PairPausedResponse,
   PoolResponse,
-  ReverseSimulationResponse,
-  SimulationResponse,
 } from '@/types'
 import { tokenAssetInfo } from '@/types'
 
@@ -25,15 +25,13 @@ export async function getPairPaused(pairAddress: string): Promise<PairPausedResp
   return queryContract<PairPausedResponse>(pairAddress, { is_paused: {} })
 }
 
+/** Pool-only forward quote via `hybrid_simulation` (GitLab #190). */
 export async function simulateSwap(
   pairAddress: string,
   offerAssetInfo: AssetInfo,
   offerAmount: string
-): Promise<SimulationResponse> {
-  const offerAsset: Asset = { info: offerAssetInfo, amount: offerAmount }
-  return queryContract<SimulationResponse>(pairAddress, {
-    simulation: { offer_asset: offerAsset },
-  })
+): Promise<HybridSimulationResponse> {
+  return simulateHybridSwap(pairAddress, offerAssetInfo, offerAmount, poolOnlyHybridParams(offerAmount))
 }
 
 export async function simulateHybridSwap(
@@ -56,14 +54,18 @@ export async function simulateHybridSwap(
   })
 }
 
+/** Pool-only reverse quote via `hybrid_reverse_simulation` (GitLab #190). */
 export async function reverseSimulateSwap(
   pairAddress: string,
   askAssetInfo: AssetInfo,
   askAmount: string
-): Promise<ReverseSimulationResponse> {
+): Promise<HybridReverseSimulationResponse> {
   const askAsset: Asset = { info: askAssetInfo, amount: askAmount }
-  return queryContract<ReverseSimulationResponse>(pairAddress, {
-    reverse_simulation: { ask_asset: askAsset },
+  return queryContract<HybridReverseSimulationResponse>(pairAddress, {
+    hybrid_reverse_simulation: {
+      ask_asset: askAsset,
+      hybrid: poolOnlyHybridTemplate(),
+    },
   })
 }
 

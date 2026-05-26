@@ -35,7 +35,7 @@ Slippage checks run in the pair after the book leg and pool leg are computed. Se
 
 **With `belief_price`:** Expected output is `offer_amount / belief_price` (in ask units). Actual output used in the inequality is `book_return_net + pool_net_to_receiver + pool_commission` (pool commission to treasury counts on the “actual” side).
 
-These are **execution** semantics; accurate quoting for hybrid uses `HybridSimulation` / router ops with `hybrid` set (invariant L8).
+These are **execution** semantics; all quoting uses `HybridSimulation` / `HybridReverseSimulation` (invariant L8; legacy `Simulation` removed in [#190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190)).
 
 ## Route discovery and quotes (L8)
 
@@ -46,7 +46,7 @@ The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-
 | **`GET`** | BFS path discovery (default **max 4 hops**). By default, `router_operations` use **`terra_swap.hybrid: null` on every hop** — pool-only ops for backward-compatible clients. Optional `estimated_amount_out` when `amount_in` and `ROUTER_ADDRESS` are set uses LCD `simulate_swap_operations` on that pool-only shape. With **`hybrid_optimize=true`** (requires `amount_in`), the indexer uses **max 3 hops**, optimizes per-hop splits via pair **`HybridSimulation`**, merges `hybrid` into ops, and returns `intermediate_tokens`, `quote_kind`, and `hybrid_notes` (see invariants doc). |
 | **`POST`** | Discovery (**max 4 hops**), plus optional **`hybrid_by_hop`**: one entry per hop (`null` = pool-only that hop, or a `HybridSwapParams`-shaped object). The indexer merges these into `router_operations` and, when `amount_in` and `ROUTER_ADDRESS` are configured, runs the **same** LCD `simulate_swap_operations` the chain uses for the merged message — so quotes can include limit-book legs when your splits are valid. |
 
-**Invariant L8:** Pool-only pair queries and router sims **without** `hybrid` do not model the book. For book-inclusive quotes you must set `hybrid` on the router op (or use pair `HybridSimulation` / `HybridReverseSimulation` directly). See [limit-orders.md](./limit-orders.md) and [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md).
+**Invariant L8:** Pool-only quotes use `hybrid_simulation` with `book_input = 0` (helpers: `pool_only_hybrid_params`, `pool_only_hybrid_template`). Router ops with `hybrid: null` still get pool-only hybrid quotes on-chain. For book-inclusive quotes set non-zero `book_input` on the router op or pair query. See [limit-orders.md](./limit-orders.md), [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md), and [skills/AGENTS_HYBRID_QUOTING.md](../skills/AGENTS_HYBRID_QUOTING.md).
 
 ## Related docs
 

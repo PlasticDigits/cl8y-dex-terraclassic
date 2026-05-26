@@ -30,11 +30,11 @@ import {
 } from '../pair'
 import type {
   AssetInfo,
+  HybridReverseSimulationResponse,
+  HybridSimulationResponse,
   PairInfo,
   PairPausedResponse,
   PoolResponse,
-  SimulationResponse,
-  ReverseSimulationResponse,
 } from '@/types'
 
 const mockedQuery = vi.mocked(queryContract)
@@ -101,18 +101,26 @@ describe('getPool', () => {
 describe('simulateSwap', () => {
   it('queries a swap simulation with the correct offer asset', async () => {
     const offerInfo: AssetInfo = { token: { contract_addr: TOKEN_A } }
-    const simResp: SimulationResponse = {
+    const simResp: HybridSimulationResponse = {
       return_amount: '990000',
       spread_amount: '5000',
       commission_amount: '5000',
+      book_return_amount: '0',
+      pool_return_amount: '990000',
     }
     mockedQuery.mockResolvedValueOnce(simResp)
 
     const result = await simulateSwap(PAIR_ADDR, offerInfo, '1000000')
 
     expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, {
-      simulation: {
+      hybrid_simulation: {
         offer_asset: { info: offerInfo, amount: '1000000' },
+        hybrid: {
+          pool_input: '1000000',
+          book_input: '0',
+          max_maker_fills: 1,
+          book_start_hint: undefined,
+        },
       },
     })
     expect(result).toEqual(simResp)
@@ -120,18 +128,26 @@ describe('simulateSwap', () => {
 
   it('works with native token asset info', async () => {
     const offerInfo: AssetInfo = { native_token: { denom: 'uluna' } }
-    const simResp: SimulationResponse = {
+    const simResp: HybridSimulationResponse = {
       return_amount: '500',
       spread_amount: '1',
       commission_amount: '2',
+      book_return_amount: '0',
+      pool_return_amount: '500',
     }
     mockedQuery.mockResolvedValueOnce(simResp)
 
     await simulateSwap(PAIR_ADDR, offerInfo, '1000')
 
     expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, {
-      simulation: {
+      hybrid_simulation: {
         offer_asset: { info: offerInfo, amount: '1000' },
+        hybrid: {
+          pool_input: '1000',
+          book_input: '0',
+          max_maker_fills: 1,
+          book_start_hint: undefined,
+        },
       },
     })
   })
@@ -140,18 +156,26 @@ describe('simulateSwap', () => {
 describe('reverseSimulateSwap', () => {
   it('queries a reverse swap simulation with the correct ask asset', async () => {
     const askInfo: AssetInfo = { token: { contract_addr: TOKEN_B } }
-    const revSimResp: ReverseSimulationResponse = {
+    const revSimResp: HybridReverseSimulationResponse = {
       offer_amount: '1010000',
       spread_amount: '5000',
       commission_amount: '5000',
+      book_return_amount: '0',
+      pool_return_amount: '990000',
     }
     mockedQuery.mockResolvedValueOnce(revSimResp)
 
     const result = await reverseSimulateSwap(PAIR_ADDR, askInfo, '990000')
 
     expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, {
-      reverse_simulation: {
+      hybrid_reverse_simulation: {
         ask_asset: { info: askInfo, amount: '990000' },
+        hybrid: {
+          pool_input: '1',
+          book_input: '0',
+          max_maker_fills: 1,
+          book_start_hint: undefined,
+        },
       },
     })
     expect(result).toEqual(revSimResp)

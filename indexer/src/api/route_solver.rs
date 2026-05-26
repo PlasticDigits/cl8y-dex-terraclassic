@@ -66,7 +66,7 @@ pub enum RouteQuoteKind {
     IndexerPoolLcd,
     /// At least one hop uses a limit-book leg after hybrid optimization.
     IndexerHybridLcd,
-    /// Hybrid optimization fell back to pool-only `Simulation` on at least one hop (LCD).
+    /// Hybrid optimization fell back to pool-only `HybridSimulation` (`book_input: 0`) on at least one hop (LCD).
     IndexerHybridLcdDegraded,
 }
 

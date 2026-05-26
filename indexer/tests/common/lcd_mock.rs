@@ -27,7 +27,7 @@ pub fn smart_query_from_request(req: &Request) -> Value {
     serde_json::from_slice(&bytes).expect("valid json query")
 }
 
-/// LCD stub for hybrid route optimization: `HybridSimulation`, pool `Simulation`, router `simulate_swap_operations`.
+/// LCD stub for hybrid route optimization: `HybridSimulation` (including pool-only `book_input: 0`), router `simulate_swap_operations`.
 pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
     let responder = |req: &Request| {
         let q = smart_query_from_request(req);
@@ -51,17 +51,6 @@ pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
                 "commission_amount": "0",
                 "book_return_amount": "0",
                 "pool_return_amount": ret.to_string(),
-            })
-        } else if q.get("simulation").is_some() {
-            let offer = q["simulation"]["offer_asset"]["amount"]
-                .as_str()
-                .unwrap_or("0")
-                .parse::<u128>()
-                .unwrap_or(0);
-            json!({
-                "return_amount": (offer / 2).to_string(),
-                "spread_amount": "0",
-                "commission_amount": "0",
             })
         } else {
             json!(null)

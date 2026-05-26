@@ -27,20 +27,6 @@ export interface PoolResponse {
   total_share: string
 }
 
-/** TerraSwap-compatible simulation response */
-export interface SimulationResponse {
-  return_amount: string
-  spread_amount: string
-  commission_amount: string
-}
-
-/** TerraSwap-compatible reverse simulation response */
-export interface ReverseSimulationResponse {
-  offer_amount: string
-  spread_amount: string
-  commission_amount: string
-}
-
 /** Pattern C hybrid swap params (pair CW20 hook / router terra_swap). Amounts are raw integer strings. */
 export interface HybridSwapParams {
   pool_input: string
@@ -49,9 +35,18 @@ export interface HybridSwapParams {
   book_start_hint?: number | null
 }
 
-/** Pair `hybrid_simulation` query — aligns with `dex_common::pair::HybridSimulationResponse`. */
+/** Pair `hybrid_simulation` / `hybrid_reverse_simulation` (only quote paths; GitLab #190). */
 export interface HybridSimulationResponse {
   return_amount: string
+  spread_amount: string
+  commission_amount: string
+  book_return_amount: string
+  pool_return_amount: string
+}
+
+/** `hybrid_reverse_simulation` — `return_amount` is the required offer (`offer_amount` on chain). */
+export interface HybridReverseSimulationResponse {
+  offer_amount: string
   spread_amount: string
   commission_amount: string
   book_return_amount: string
