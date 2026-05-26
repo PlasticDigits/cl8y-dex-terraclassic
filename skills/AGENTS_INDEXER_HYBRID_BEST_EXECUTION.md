@@ -6,9 +6,10 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 
 | Endpoint | When to use |
 |----------|-------------|
-| `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Default retail / Vyntrex path** — server-chosen hybrid splits (max 3 hops). Requires `amount_in`. |
-| `GET /api/v1/route/solve?hybrid_optimize=true&amount_in=` | Equivalent to `/best`; kept for backward compatibility. |
-| `GET /api/v1/route/solve?pool_only=true&amount_in=` | Explicit pool-only opt-out for legacy integrators. |
+| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — server-chosen hybrid splits (max 3 hops) when `amount_in` is set ([GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)). |
+| `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Alias** for default hybrid GET — requires `amount_in` explicitly ([GitLab **#189**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)). |
+| `GET /api/v1/route/solve?hybrid_optimize=true&amount_in=` | Deprecated explicit opt-in; equivalent to default GET with `amount_in`. |
+| `GET /api/v1/route/solve?pool_only=true&amount_in=` | Explicit pool-only opt-out for legacy integrators (max 4 hops). |
 | `POST /api/v1/route/solve` with `hybrid_by_hop` | Client-supplied splits (max 4 hops). |
 
 Response includes `quote_kind` (`indexer_hybrid_lcd`, `indexer_hybrid_lcd_degraded`, etc.), `hybrid_notes`, and `router_operations` with merged `terra_swap.hybrid` params.
@@ -35,4 +36,4 @@ cd indexer && cargo test api_route_solve api_consolidated_reporting swap_events_
 
 ## Related invariants
 
-[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET best execution, CG/CMC consolidated reporting rows.
+[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET hybrid default ([#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)), GET best execution ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), CG/CMC consolidated reporting rows.

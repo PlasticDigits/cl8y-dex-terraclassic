@@ -32,4 +32,7 @@ The dApp **Trade** and **Limits** pages consume these endpoints (and/or `order-b
 ## Links
 
 - [`docs/limit-orders.md`](../limit-orders.md)
+- [`docs/integrators.md`](../integrators.md#on-chain-limit-book-lcd-proxy) — HTTP integrator reference
+- [`docs/frontend.md`](../frontend.md#trade-page-deep-order-book) — dApp pagination invariants ([GitLab **#194**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/194))
+- [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md) — agent playbook
 - [`docs/contracts-security-audit.md`](../contracts-security-audit.md) (L6 pause semantics)

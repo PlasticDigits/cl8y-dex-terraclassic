@@ -29,6 +29,26 @@ Updating only the **price** of an existing order (`ExecuteMsg::UpdateLimitOrderP
 
 Details and tx attributes: [limit-orders.md](./limit-orders.md).
 
+## On-chain limit book (LCD proxy) {#on-chain-limit-book-lcd-proxy}
+
+Resting **FIFO limit orders** live on each pair contract. The indexer exposes read-only HTTP that **proxies CosmWasm smart queries** on LCD — same JSON shapes as on-chain `OrderBookHead` / `LimitOrder` ([ADR 0002](./adr/0002-limit-book-surfacing.md), [GitLab **#194**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/194)).
+
+| Endpoint | Purpose |
+|----------|---------|
+| **`GET /api/v1/pairs/{addr}/order-book-head?side=bid\|ask`** | Best `order_id` on that side, or `null` if empty. |
+| **`GET /api/v1/pairs/{addr}/limit-book?side=bid\|ask&limit=L&after_order_id=OPTIONAL`** | **Paginated** walk along on-chain `next` pointers. Default **`limit=50`**, max **100** per response. Response: `{ side, orders[], has_more, next_after_order_id }`. Pass **`next_after_order_id`** as **`after_order_id`** for the next page. |
+| **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid\|ask&depth=N`** | Legacy preview (default **10**, max **20**). Prefer **`limit-book`** for pro depth. |
+
+**Errors:** unknown pair → **404**; LCD failure → **502**; invalid cursor / side mismatch → **400**. When **`RATE_LIMIT_RPS > 0`**, sustained abuse → **429** ([indexer-invariants.md](./indexer-invariants.md)).
+
+**LCD cost:** each **`limit-book`** page costs up to **1 + limit** smart queries (head or cursor lookup + one `limit_order` per returned row). No server-side caching of arbitrary deep walks — **clients paginate**.
+
+**Not the AMM book:** CoinGecko/CoinMarketCap **`/cg/orderbook`** and **`/cmc/orderbook`** simulate pool curve depth — not the on-chain limit book ([CG_CMC_COMPLIANCE.md](./CG_CMC_COMPLIANCE.md)).
+
+OpenAPI: served from the indexer Swagger UI (`/swagger-ui/`). Regression tests: [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs).
+
+**dApp reference:** [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md).
+
 ## Slippage: `max_spread` and `belief_price` (hybrid)
 
 Slippage checks run in the pair after the book leg and pool leg are computed. See [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) for the high-level rule.
@@ -45,8 +65,8 @@ The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-
 
 | Method | Role |
 |--------|------|
-| **`GET`** | BFS path discovery (default **max 4 hops**). By default, `router_operations` use **`terra_swap.hybrid: null` on every hop** — pool-only ops for backward-compatible clients. Optional `estimated_amount_out` when `amount_in` and `ROUTER_ADDRESS` are set uses LCD `simulate_swap_operations` on that pool-only shape. With **`hybrid_optimize=true`** (requires `amount_in`), the indexer uses **max 3 hops**, optimizes per-hop splits via pair **`HybridSimulation`**, merges `hybrid` into ops, and returns `intermediate_tokens`, `quote_kind`, and `hybrid_notes` (see invariants doc). Pass **`pool_only=true`** to force pool-only ops even when `amount_in` is set. |
-| **`GET /best`** | **Retail / Vyntrex best-execution path** ([GitLab **#189**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)): same as `hybrid_optimize=true` but **`amount_in` is required** and hybrid optimization always runs (max **3 hops**). Prefer this endpoint for server-chosen book+pool splits. |
+| **`GET`** | BFS path discovery (**default max 3 hops**). When `amount_in` is set, hybrid optimization runs **by default**: per-hop splits via pair **`HybridSimulation`**, merged `hybrid` in `router_operations`, optional `estimated_amount_out` from LCD `simulate_swap_operations` when `ROUTER_ADDRESS` is configured. Returns `intermediate_tokens`, `quote_kind`, and `hybrid_notes`. Legacy integrators may pass **`pool_only=true`** for pool-only ops (**max 4 hops**, `hybrid: null` on every hop). Without `amount_in`, GET returns route discovery only. See GitLab [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191). |
+| **`GET /best`** | **Retail / Vyntrex best-execution alias** ([GitLab **#189**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)): same hybrid engine as default GET with `amount_in`; **`amount_in` is required**. |
 | **`POST`** | Discovery (**max 4 hops**), plus optional **`hybrid_by_hop`**: one entry per hop (`null` = pool-only that hop, or a `HybridSwapParams`-shaped object). The indexer merges these into `router_operations` and, when `amount_in` and `ROUTER_ADDRESS` are configured, runs the **same** LCD `simulate_swap_operations` the chain uses for the merged message — so quotes can include limit-book legs when your splits are valid. |
 
 **Invariant L8:** Pool-only quotes use `hybrid_simulation` with `book_input = 0` (helpers: `pool_only_hybrid_params`, `pool_only_hybrid_template`). Router ops with `hybrid: null` still get pool-only hybrid quotes on-chain. For book-inclusive quotes set non-zero `book_input` on the router op or pair query. See [limit-orders.md](./limit-orders.md), [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md), and [skills/AGENTS_HYBRID_QUOTING.md](../skills/AGENTS_HYBRID_QUOTING.md).

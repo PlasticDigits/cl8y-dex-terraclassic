@@ -1,9 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { getCandles, getPair, getPairLimitBookPage, getTrades } from '@/services/indexer/client'
+import { LIMIT_BOOK_UI_PAGE_SIZE, limitBookPageQueryKey } from '@/utils/limitBookPagination'
 import { isTradePairRouteParam } from '@/utils/tradePairRoute'
 
 const DEFAULT_CHART_INTERVAL = '1h'
-const LIMIT_BOOK_PAGE_SIZE = 45
 const TRADES_LIMIT = 80
 
 /** Warm indexer + chart + book queries before or right after a `/trade` pair switch (GitLab #180). */
@@ -32,10 +32,10 @@ export function prefetchTradePairWorkspace(
 
   for (const side of ['bid', 'ask'] as const) {
     void queryClient.prefetchQuery({
-      queryKey: ['limitBookPage', pairAddr, side],
+      queryKey: limitBookPageQueryKey(pairAddr, side),
       queryFn: () =>
         getPairLimitBookPage(pairAddr, side, {
-          limit: LIMIT_BOOK_PAGE_SIZE,
+          limit: LIMIT_BOOK_UI_PAGE_SIZE,
           afterOrderId: undefined,
         }),
       staleTime: 10_000,

@@ -2,6 +2,40 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
 import { lcdBaseUrl } from './chain'
 
+/** Pair `is_paused` smart-query response (`data` may be JSON or base64 string). */
+export type LcdPairPausedResponse = { paused: boolean }
+
+function decodeSmartDataPayload<T>(raw: { data?: T | string }): T | null {
+  const data = raw.data
+  if (data == null) return null
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(Buffer.from(data, 'base64').toString('utf8')) as T
+    } catch {
+      return null
+    }
+  }
+  return data as T
+}
+
+function b64SmartQuery(msg: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(msg)).toString('base64')
+}
+
+/** LCD `is_paused` on a pair contract. Returns `true` when the query fails (conservative for strict E2E). */
+export async function queryPairPaused(request: APIRequestContext, pairAddr: string): Promise<boolean> {
+  const base = lcdBaseUrl()
+  const q = b64SmartQuery({ is_paused: {} })
+  const res = await request.get(`${base}/cosmwasm/wasm/v1/contract/${pairAddr}/smart/${q}`, {
+    failOnStatusCode: false,
+    timeout: 20_000,
+  })
+  if (!res.ok()) return true
+  const body = (await res.json()) as { data?: LcdPairPausedResponse | string }
+  const decoded = decodeSmartDataPayload<LcdPairPausedResponse>(body)
+  return decoded?.paused === true
+}
+
 /** First page of factory `pairs` query (same shape as LCD `smart` JSON `data`). */
 export type LcdPairAssetInfo =
   | { token: { contract_addr: string }; native_token?: never }
@@ -23,6 +57,21 @@ export function firstDualCwPair(pairs: LcdPairInfo[]): { pair: LcdPairInfo; inde
     const a = assetInfoLabel(p.asset_infos[0])
     const b = assetInfoLabel(p.asset_infos[1])
     if (a.startsWith('terra1') && b.startsWith('terra1')) return { pair: p, index: i }
+  }
+  return null
+}
+
+/** First dual-CW20 factory pair whose `is_paused` query is false (factory list order). */
+export async function firstUnpausedDualCwPair(
+  request: APIRequestContext,
+  pairs: LcdPairInfo[]
+): Promise<{ pair: LcdPairInfo; index: number } | null> {
+  for (let i = 0; i < pairs.length; i++) {
+    const p = pairs[i]
+    const a = assetInfoLabel(p.asset_infos[0])
+    const b = assetInfoLabel(p.asset_infos[1])
+    if (!a.startsWith('terra1') || !b.startsWith('terra1')) continue
+    if (!(await queryPairPaused(request, p.contract_addr))) return { pair: p, index: i }
   }
   return null
 }

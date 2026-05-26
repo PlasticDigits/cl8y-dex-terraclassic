@@ -523,6 +523,26 @@ When the **`getPair`** query on `/trade` fails with an **indexer transport / non
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md); retail error funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
+### Trade page — deep order book pagination {#trade-page-deep-order-book}
+
+CEX-style **full-depth** resting limits on `/trade` and `/limits` ([GitLab **#194**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/194), remainder of **#102** / DEX-P1-001):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Indexer path (primary)** | Depth comes from **`GET /api/v1/pairs/{addr}/limit-book?side=bid\|ask&limit=L&after_order_id=OPTIONAL`** ([ADR 0002](./adr/0002-limit-book-surfacing.md)). The dApp does **not** call LCD for book rows in production UI — there is no silent LCD fallback when the indexer is down ([GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)). |
+| **Legacy shallow** | **`limit-book-shallow`** (max 20) remains for integrators; **`OrderBookPanel`** uses paginated **`limit-book`** only. |
+| **Page size** | UI requests **`LIMIT_BOOK_UI_PAGE_SIZE` (45)** per HTTP page (≤ indexer max **100**). Shared constant: [`limitBookPagination.ts`](../frontend-dapp/src/utils/limitBookPagination.ts). |
+| **Keyset cursor** | React Query **`useInfiniteQuery`** via [`useLimitBookInfinite`](../frontend-dapp/src/hooks/useLimitBookInfinite.ts): first page omits `after_order_id`; **`fetchNextPage`** passes `next_after_order_id` from the prior response. Query key: **`['limitBookPage', pairAddr, side]`**. |
+| **Non-blocking load** | Initial render shows a spinner per side; **Load more depth** fetches the next page **asynchronously** (no synchronous main-thread walk). Cumulative **Total** column recomputes across merged pages in memory. |
+| **Prefetch** | [`prefetchTradePairWorkspace`](../frontend-dapp/src/utils/tradePairPrefetch.ts) warms **page 1** for both sides on pair switch — not the full book. |
+| **Head / preflight** | Best bid/ask for post-only preflight uses **`limit=1`** via [`useTradeBestBookPrices`](../frontend-dapp/src/hooks/useTradeBestBookPrices.ts) — separate query keys (`tradeBestBook`), not the infinite book cache. |
+| **Invalidations** | Place / cancel / claim success invalidates **`limitBookPage`** (and legacy **`limitBookPagePreview`**) for the pair so depth stays fresh. |
+| **Rate limits** | Indexer may return **429** when `RATE_LIMIT_RPS > 0`; the UI shows side-level **Book unavailable** on fetch error — clients should not hammer full-book walks in a tight loop. |
+
+Implementation: [`OrderBookPanel.tsx`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx), [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx). Indexer tests: [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs). Integrator HTTP semantics: [§ On-chain limit book (LCD proxy)](./integrators.md#on-chain-limit-book-lcd-proxy).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md); row actions: [`skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](../skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md).
+
 ### Trade page — order book row actions (cancel, edit, cancel-all) {#trade-book-row-actions}
 
 CEX-style controls on the **Bids / Asks** depth tables on `/trade` ([GitLab **#162**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)):
@@ -530,7 +550,7 @@ CEX-style controls on the **Bids / Asks** depth tables on `/trade` ([GitLab **#1
 | Invariant | Meaning |
 |-----------|---------|
 | **Shared cancel mutation** | `TradePage` constructs one `useLimitOrderCancelMutation(pairAddr, walletAddress)` and passes it to both `OrderBookPanel` and `TradeOrderTicket` so row cancels and the **Manage — Cancel resting limit** form share loading, errors, and query invalidations. |
-| **Order id on every row** | Each row shows **`#order_id`** above the price (LCD / indexer shallow row includes `order_id`). |
+| **Order id on every row** | Each row shows **`#order_id`** above the price (paginated **`limit-book`** row from indexer → LCD). |
 | **Row actions (wallet-owned rows only)** | When `order.owner ===` connected address, **Edit** prefills the limit ticket (`LimitBookTicketDraft`: side, price, `fromRawAmount(remaining)` with the same decimals as the size column) and switches to the **Limit** tab. **×** runs the same cancel path as the ticket after `window.confirm`. There is **no** on-chain “amend”; replace = cancel then place. |
 | **Cancel all mine** | Submits one cancel tx per **active** indexed placement for the wallet on the pair (`GET .../limit-placements` + lifecycle partition), sequentially via `mutateAsync`, with confirm + stop-on-first-error alert. Hidden unless both `cancelLimitOrderMutation` and `onPrefillLimitTicket` are wired (same `/trade` bundle). |
 | **Paused pair** | Row **Edit** / **×** and **Cancel all mine** stay disabled when `get_pair_paused` is true (L6 / GitLab #120), matching the ticket. |

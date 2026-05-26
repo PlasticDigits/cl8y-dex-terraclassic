@@ -1,6 +1,7 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import type { UseMutationResult } from '@tanstack/react-query'
-import { getPairLimitBookPage, getPairLimitPlacements } from '@/services/indexer/client'
+import { getPairLimitPlacements } from '@/services/indexer/client'
+import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { Spinner } from '@/components/ui'
 import type { IndexerPair, IndexerShallowLimitOrder, PairInfo } from '@/types'
@@ -8,8 +9,6 @@ import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import { formatNum, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { partitionLimitPlacementsByLifecycle } from '@/utils/limitPlacementLifecycle'
-
-const PAGE_LIMIT = 45
 
 function rawTotal(orders: IndexerShallowLimitOrder[]): bigint {
   return orders.reduce((acc, order) => {
@@ -196,19 +195,7 @@ function BookSideColumn({
 }) {
   const cancellationsQuery = usePairLimitCancellations(pairAddress)
 
-  const q = useInfiniteQuery({
-    queryKey: ['limitBookPage', pairAddress, side],
-    queryFn: ({ pageParam }) =>
-      getPairLimitBookPage(pairAddress, side, {
-        limit: PAGE_LIMIT,
-        afterOrderId: pageParam,
-      }),
-    initialPageParam: undefined as number | undefined,
-    getNextPageParam: (last) =>
-      last.has_more && last.next_after_order_id != null ? last.next_after_order_id : undefined,
-    enabled: pairAddress.startsWith('terra1'),
-    staleTime: 10_000,
-  })
+  const q = useLimitBookInfinite(pairAddress, side)
 
   const orders = q.data?.pages.flatMap((p) => p.orders) ?? []
   const maxRaw = rawTotal(orders)

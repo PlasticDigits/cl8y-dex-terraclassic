@@ -1,10 +1,8 @@
 //! Multihop route discovery and optional LCD simulation.
 //!
-//! - `GET /api/v1/route/solve`: pool-only `hybrid: null` by default; optional `hybrid_optimize=true`
-//!   (requires `amount_in`) runs per-hop hybrid split search via pair `HybridSimulation` (max **3 hops**),
-//!   merges params into `router_operations`, then LCD `simulate_swap_operations` when configured.
-//! - `GET /api/v1/route/solve/best`: **retail / Vyntrex best-execution path** — always runs hybrid
-//!   optimization when `amount_in` is set (same semantics as `hybrid_optimize=true`; see GitLab #189).
+//! - `GET /api/v1/route/solve`: **hybrid-aware by default** when `amount_in` is set (max **3 hops** per ADR 0001 / GitLab #191).
+//!   Use `pool_only=true` for legacy pool-only ops (max **4 hops**). Without `amount_in`, returns route discovery only.
+//! - `GET /api/v1/route/solve/best`: **retail / Vyntrex best-execution alias** — same hybrid engine as default GET with `amount_in` (GitLab #189).
 //! - `POST /api/v1/route/solve`: same discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
 
 use std::collections::{HashMap, VecDeque};
@@ -29,6 +27,10 @@ pub use hybrid_route_opt::HybridHopJson;
 
 const ROUTE_CACHE_TTL: Duration = Duration::from_secs(12);
 const ROUTE_CACHE_MAX_ENTRIES: usize = 512;
+/// Default GET hop cap (hybrid-aware routing per ADR 0001 / GitLab #191).
+const GET_DEFAULT_MAX_HOPS: usize = 3;
+/// Legacy pool-only GET escape hatch (`pool_only=true`).
+const GET_POOL_ONLY_MAX_HOPS: usize = 4;
 /// Coarse bucketing for hybrid GET cache keys (reduces LCD load).
 const AMOUNT_CACHE_BUCKET: u128 = 1_000_000;
 
@@ -37,17 +39,15 @@ pub struct SolveRouteParams {
     /// CW20 contract address (must match indexed `assets.contract_address`).
     pub token_in: String,
     pub token_out: String,
-    /// Raw integer amount in offer token (optional; triggers router simulation when `ROUTER_ADDRESS` is set).
-    /// Required when `hybrid_optimize=true`.
+    /// Raw integer amount in offer token (optional). When set, GET runs hybrid split optimization by default.
     pub amount_in: Option<String>,
-    /// When true, requires `amount_in`; runs hybrid split optimization (LCD), **max 3 hops**.
+    /// Deprecated alias: `hybrid_optimize=false` or `pool_only=true` for pool-only routing.
     #[serde(default)]
     pub hybrid_optimize: Option<bool>,
-    /// When true on `GET /api/v1/route/solve`, forces pool-only ops even if `amount_in` is set.
-    /// Ignored when `hybrid_optimize=true` or on `GET /api/v1/route/solve/best`.
+    /// Legacy pool-only routing (max **4 hops**, `hybrid: null` on every hop). Migration escape hatch (GitLab #191).
     #[serde(default)]
     pub pool_only: Option<bool>,
-    /// Used when `hybrid_optimize` is true (default **8**).
+    /// Per-hop `max_maker_fills` for hybrid GET (default **8**).
     #[serde(default)]
     pub max_maker_fills: Option<u32>,
 }
@@ -337,7 +337,27 @@ async fn resolve_route(
     token_in: &str,
     token_out: &str,
 ) -> Result<ResolvedRoute, (StatusCode, String)> {
-    resolve_route_with_max_hops(pool, token_in, token_out, 4).await
+    resolve_route_with_max_hops(pool, token_in, token_out, GET_POOL_ONLY_MAX_HOPS).await
+}
+
+fn parse_amount_in(raw: Option<&String>) -> Option<&str> {
+    raw.map(|s| s.trim()).filter(|s| !s.is_empty())
+}
+
+fn get_pool_only_requested(q: &SolveRouteParams) -> bool {
+    q.pool_only.unwrap_or(false) || q.hybrid_optimize == Some(false)
+}
+
+fn get_pool_only_max_hops(q: &SolveRouteParams) -> usize {
+    if get_pool_only_requested(q) {
+        GET_POOL_ONLY_MAX_HOPS
+    } else {
+        GET_DEFAULT_MAX_HOPS
+    }
+}
+
+fn should_run_hybrid_get(q: &SolveRouteParams, amount_raw: Option<&str>) -> bool {
+    !get_pool_only_requested(q) && amount_raw.is_some()
 }
 
 async fn maybe_simulate(
@@ -476,8 +496,13 @@ async fn execute_hybrid_route_solve(
         return Ok(Json(cached));
     }
 
-    let resolved =
-        resolve_route_with_max_hops(&state.pool, token_in, token_out, 3).await?;
+    let resolved = resolve_route_with_max_hops(
+        &state.pool,
+        token_in,
+        token_out,
+        GET_DEFAULT_MAX_HOPS,
+    )
+    .await?;
     let hops_desc: Vec<HopDescriptor> = resolved
         .hops
         .iter()
@@ -575,7 +600,7 @@ pub async fn solve_route_best(
     .await
 }
 
-/// Multihop route discovery (BFS, max 4 hops unless `hybrid_optimize`). Returns `router_operations`.
+/// Multihop route discovery (GET default **3 hops**, hybrid when `amount_in` set; `pool_only=true` → **4 hops** pool-only). Returns `router_operations`.
 #[utoipa::path(
     get,
     path = "/api/v1/route/solve",
@@ -591,33 +616,30 @@ pub async fn solve_route(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let hybrid_opt = q.hybrid_optimize.unwrap_or(false);
+    let amount_raw = parse_amount_in(q.amount_in.as_ref());
 
-    if hybrid_opt {
-        let Some(amount_raw) = q
-            .amount_in
-            .as_ref()
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-        else {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "amount_in is required when hybrid_optimize=true".to_string(),
-            ));
-        };
+    if q.hybrid_optimize == Some(true) && amount_raw.is_none() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "amount_in is required when hybrid_optimize=true".to_string(),
+        ));
+    }
 
+    if should_run_hybrid_get(&q, amount_raw) {
         return execute_hybrid_route_solve(
             &state,
             &q.token_in,
             &q.token_out,
-            amount_raw,
+            amount_raw.expect("checked above"),
             q.max_maker_fills.unwrap_or(8),
         )
         .await;
     }
 
-    let resolved = resolve_route(&state.pool, &q.token_in, &q.token_out).await?;
-    let estimated = maybe_simulate(&state, q.amount_in.as_deref(), &resolved.ops).await?;
+    let max_hops = get_pool_only_max_hops(&q);
+    let resolved =
+        resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, max_hops).await?;
+    let estimated = maybe_simulate(&state, amount_raw, &resolved.ops).await?;
 
     let quote_kind = quote_kind_after_sim(
         &estimated,
