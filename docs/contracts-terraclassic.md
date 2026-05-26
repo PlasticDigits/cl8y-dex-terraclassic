@@ -220,8 +220,8 @@ The fee-discount contract manages tiered swap fee discounts for CL8Y token holde
 
 | Variant                | Fields                                                     | Auth        |
 |------------------------|------------------------------------------------------------|-------------|
-| `AddTier`              | `tier_id: u8`, `min_tokens: Uint128`, `discount_bps: u16` | Governance  |
-| `UpdateTier`           | `tier_id: u8`, `min_tokens?: Uint128`, `discount_bps?: u16`| Governance  |
+| `AddTier`              | `tier_id: u8`, `min_cl8y_balance: Uint128`, `discount_bps: u16`, `governance_only: bool` | Governance  |
+| `UpdateTier`           | `tier_id: u8`, `min_cl8y_balance?: Uint128`, `discount_bps?: u16`, `governance_only?: bool` | Governance  |
 | `RemoveTier`           | `tier_id: u8`                                              | Governance  |
 | `Register`             | `tier_id: u8`                                              | EOA only (self-register) |
 | `RegisterWallet`       | `wallet: String`, `tier_id: u8`                            | Governance  |
@@ -242,21 +242,9 @@ The fee-discount contract manages tiered swap fee discounts for CL8Y token holde
 | `GetRegistration`    | `wallet: String`            | `RegistrationResponse`      |
 | `IsTrustedRouter`    | `router: String`            | `IsTrustedRouterResponse`   |
 
-### Tier Table (default)
+### Tier ladder (canonical)
 
-| Tier | CL8Y Required | Discount | BPS   | Notes                         |
-|------|---------------|----------|-------|-------------------------------|
-| 0    | 0             | 100%     | 10000 | Governance-only (market makers)|
-| 1    | 1             | 2.5%     | 250   | Self-register, EOA only       |
-| 2    | 5             | 10%      | 1000  | Self-register, EOA only       |
-| 3    | 20            | 20%      | 2000  | Self-register, EOA only       |
-| 4    | 75            | 35%      | 3500  | Self-register, EOA only       |
-| 5    | 200           | 50%      | 5000  | Self-register, EOA only       |
-| 6    | 500           | 60%      | 6000  | Self-register, EOA only       |
-| 7    | 1,500         | 75%      | 7500  | Self-register, EOA only       |
-| 8    | 3,500         | 85%      | 8500  | Self-register, EOA only       |
-| 9    | 7,500         | 95%      | 9500  | Self-register, EOA only       |
-| 255  | 0             | 0%       | 0     | Governance-only (blacklist)   |
+Default production tiers (IDs, CL8Y minimums, `min_cl8y_balance` wei, `discount_bps`, `governance_only`) live in **[`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)** only — aligned with `smartcontracts/tests/src/tier_fixtures.rs` and [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh). Do not copy numeric tables here ([GitLab #198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
 
 ### Discount Calculation
 

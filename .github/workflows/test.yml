@@ -8,6 +8,10 @@ on:
       - "frontend-dapp/**"
       - "indexer/**"
       - "packages/localnet-trading-swarm/**"
+      - "docs/**"
+      - "scripts/check_fee_discount_tier_docs.py"
+      - "scripts/deploy-dex-local.sh"
+      - "skills/**"
       - ".github/workflows/**"
   pull_request:
     branches: [main]
@@ -17,9 +21,22 @@ on:
       - "indexer/**"
       - "packages/localnet-trading-swarm/**"
       - "docker-compose.yml"
+      - "docs/**"
+      - "scripts/check_fee_discount_tier_docs.py"
+      - "scripts/deploy-dex-local.sh"
+      - "skills/**"
       - ".github/workflows/**"
 
 jobs:
+  docs-fee-discount-tiers:
+    name: Fee discount tier docs drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check canonical tier alignment
+        run: make check-fee-discount-tier-docs
+
   contracts-terra:
     name: Smart Contracts
     runs-on: ubuntu-latest

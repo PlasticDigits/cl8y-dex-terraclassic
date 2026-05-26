@@ -1,6 +1,6 @@
 # Fee discount registry — canonical tier table
 
-Authoritative **mainnet-style** tier ladder for the CL8Y fee-discount contract. CL8Y uses **18 decimals** (`1 CL8Y = 10^18` smallest units).
+Authoritative **mainnet-style** tier ladder for the CL8Y fee-discount contract. This file is the **only** place in the docs tree with a full numeric tier table ([GitLab #198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). CL8Y uses **18 decimals** (`1 CL8Y = 10^18` smallest units).
 
 Wire format for `add_tier` matches [`ExecuteMsg::AddTier`](../../smartcontracts/contracts/fee-discount/src/msg.rs): `min_cl8y_balance` (string integer in JSON), `discount_bps`, `governance_only`.
 
@@ -36,8 +36,27 @@ terrad tx wasm execute <fee_discount_addr> '{
 
 ## Invariants
 
-- **Self-registration** is only allowed for tiers with `governance_only: false` (see [`docs/security-model.md`](../security-model.md)).
-- **Effective swap fee:** `fee_bps * (10000 - discount_bps) / 10000` on the pair (integer division).
-- **Trusted router:** the router must be registered on the fee-discount contract before `trader` forwarding applies for router-originated swaps.
+| ID | Rule |
+|----|------|
+| I1 | **Single doc table:** do not duplicate tier rows elsewhere under `docs/`; link here instead. |
+| I2 | **Wire field:** `min_cl8y_balance` (string integer in JSON), never `min_tokens`. |
+| I3 | **Self-registration:** only tiers with `governance_only: false` (tiers **1–9**); tiers **0** and **255** are governance-only. |
+| I4 | **Effective swap fee:** `fee_bps * (10000 - discount_bps) / 10000` on the pair (integer division). |
+| I5 | **Balance check:** each `GetDiscount` compares on-chain CL8Y balance to the registered tier minimum; insufficient balance → `discount_bps: 0` and lazy deregistration. |
+| I6 | **Trusted router:** router must be registered before `trader` on router-originated swaps counts for discount lookup. |
+| I7 | **Drift guard:** `make check-fee-discount-tier-docs` keeps this file, `tier_fixtures.rs`, and `deploy-dex-local.sh` identical. |
 
-Related: [`docs/deployment-guide.md`](../deployment-guide.md) §5, [`docs/architecture.md`](../architecture.md) (fee discount overview), integration tiers in `smartcontracts/tests/src/tier_fixtures.rs`.
+## Drift check
+
+```bash
+make check-fee-discount-tier-docs
+```
+
+## Related
+
+- [`docs/deployment-guide.md`](../deployment-guide.md) §5a — deploy steps (no inline tier numbers)
+- [`docs/architecture.md`](../architecture.md) — fee discount flow diagram
+- [`docs/contracts-terraclassic.md`](../contracts-terraclassic.md) — message reference (links here for tiers)
+- [`docs/security-model.md`](../security-model.md) — EOA / trusted router rules
+- [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../../skills/AGENTS_FEE_DISCOUNT_TIERS.md) — third-party agent playbook
+- Integration tiers: `smartcontracts/tests/src/tier_fixtures.rs` (`STANDARD_PRODUCTION_TIERS`)

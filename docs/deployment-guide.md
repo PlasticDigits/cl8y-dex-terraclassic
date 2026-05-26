@@ -69,7 +69,7 @@ terrad tx wasm instantiate <fee_discount_code_id> '{
 
 ### 5a. Add Default Tiers
 
-Use the **authoritative** tier ladder, `min_cl8y_balance` strings, `governance_only` flags, and copy-paste `terrad` examples in **[`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)**. Wire format must match `ExecuteMsg::AddTier` (`min_cl8y_balance`, not `min_tokens`).
+Use the **authoritative** tier ladder, `min_cl8y_balance` strings, `governance_only` flags, and copy-paste `terrad` examples in **[`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)** ([GitLab #198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). Wire format must match `ExecuteMsg::AddTier` (`min_cl8y_balance`, not `min_tokens`). Do not duplicate tier numbers in this guide — run `make check-fee-discount-tier-docs` after edits. Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
 
 After tiers exist, complete **§5b** (trusted router) before expecting router-originated `trader` discounts.
 

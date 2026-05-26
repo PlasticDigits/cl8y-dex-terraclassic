@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e lint check-fee-discount-tier-docs setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -129,6 +129,9 @@ coverage-contracts:
 lint-contracts:
 	cd smartcontracts && cargo fmt --check && cargo clippy -- -D warnings
 
+check-fee-discount-tier-docs:
+	python3 scripts/check_fee_discount_tier_docs.py
+
 # Deployment
 deploy-local: build-optimized
 	./scripts/deploy-dex-local.sh
@@ -171,7 +174,7 @@ dev-full: start wait-healthy build-optimized deploy-local
 # Combined
 test: test-contracts test-frontend
 
-lint: lint-contracts lint-frontend
+lint: lint-contracts lint-frontend check-fee-discount-tier-docs
 
 # Git hooks
 setup-hooks:

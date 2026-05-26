@@ -76,7 +76,7 @@ Only governance can add or remove trusted routers via `AddTrustedRouter` / `Remo
 
 ### Balance Verification and Lazy Deregistration
 
-The `GetDiscount` query checks the trader's CL8Y token balance against their registered tier's `min_tokens` threshold on every swap. If the balance is insufficient:
+The `GetDiscount` query checks the trader's CL8Y token balance against their registered tier's `min_cl8y_balance` threshold on every swap. If the balance is insufficient:
 
 1. The contract returns `discount_bps: 0` for the current swap (no discount applied).
 2. A fire-and-forget deregistration message is dispatched to remove the stale registration.

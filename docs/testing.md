@@ -148,6 +148,8 @@ Contract message shapes align with [`docs/contracts-terraclassic.md`](./contract
 
 ### Fee Discount Contract Tests
 
+Canonical tier numbers: [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md) (GitLab [#198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). Drift check: `make check-fee-discount-tier-docs`. Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
+
 The fee-discount contract has unit tests covering:
 
 - **Tier management:** `AddTier`, `UpdateTier`, `RemoveTier` — validates governance-only access, duplicate tier rejection, and bps bounds (≤10000)
@@ -162,7 +164,7 @@ The fee-discount contract has unit tests covering:
 
 The integration test harness in `smartcontracts/tests/` deploys the full contract suite (Factory, Pair, Router, Fee Discount) to a simulated chain and tests:
 
-- End-to-end swap with discount: register a tier, execute swap, verify reduced commission
+- End-to-end swap with discount: register a tier (from `STANDARD_PRODUCTION_TIERS` / canonical doc), execute swap, verify reduced commission
 - Swap without registration: verify full fee applied
 - Balance drop: transfer CL8Y away, swap, verify discount revoked and deregistration fired
 - Router trusted forwarding: swap via Router passes trader address correctly

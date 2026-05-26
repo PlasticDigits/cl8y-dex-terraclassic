@@ -757,7 +757,7 @@ The `feeDiscount.ts` service in `src/services/` handles all interactions with th
 **Queries:**
 - `getConfig()` — returns governance address and CL8Y token address
 - `getDiscount(trader)` — returns the trader's current discount in basis points
-- `getTier(tierId)` — returns a single tier's details (min tokens, discount bps)
+- `getTier(tierId)` — returns a single tier's details (`min_cl8y_balance`, discount bps); ladder in [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)
 - `getTiers()` — returns all configured tiers
 - `getRegistration(wallet)` — returns the wallet's current tier registration (or null)
 - `isTrustedRouter(router)` — checks if an address is a trusted router
