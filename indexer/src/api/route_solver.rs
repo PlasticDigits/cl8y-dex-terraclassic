@@ -496,13 +496,8 @@ async fn execute_hybrid_route_solve(
         return Ok(Json(cached));
     }
 
-    let resolved = resolve_route_with_max_hops(
-        &state.pool,
-        token_in,
-        token_out,
-        GET_DEFAULT_MAX_HOPS,
-    )
-    .await?;
+    let resolved =
+        resolve_route_with_max_hops(&state.pool, token_in, token_out, GET_DEFAULT_MAX_HOPS).await?;
     let hops_desc: Vec<HopDescriptor> = resolved
         .hops
         .iter()
@@ -513,20 +508,16 @@ async fn execute_hybrid_route_solve(
         })
         .collect();
 
-    let (hybrid_plan, meta) = hybrid_route_opt::optimize_multihop_hybrid(
-        &state.lcd,
-        &hops_desc,
-        amount_u,
-        max_makers,
-    )
-    .await
-    .map_err(|e| {
-        tracing::warn!("hybrid optimization LCD error: {}", e);
-        (
-            StatusCode::BAD_GATEWAY,
-            "hybrid optimization failed (LCD)".to_string(),
-        )
-    })?;
+    let (hybrid_plan, meta) =
+        hybrid_route_opt::optimize_multihop_hybrid(&state.lcd, &hops_desc, amount_u, max_makers)
+            .await
+            .map_err(|e| {
+                tracing::warn!("hybrid optimization LCD error: {}", e);
+                (
+                    StatusCode::BAD_GATEWAY,
+                    "hybrid optimization failed (LCD)".to_string(),
+                )
+            })?;
 
     let intermediate_tokens = build_intermediate_tokens(&resolved);
     let ops = apply_hybrid_by_hop(resolved.ops, &hybrid_plan)?;

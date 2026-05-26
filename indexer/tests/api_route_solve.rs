@@ -365,7 +365,10 @@ async fn route_solve_best_matches_hybrid_optimize() {
     let default_get: Value = server.get(&default_url).await.json();
 
     assert_eq!(best["quote_kind"], "indexer_hybrid_lcd");
-    assert_eq!(best["estimated_amount_out"], default_get["estimated_amount_out"]);
+    assert_eq!(
+        best["estimated_amount_out"],
+        default_get["estimated_amount_out"]
+    );
     assert_eq!(best["router_operations"], default_get["router_operations"]);
 }
 

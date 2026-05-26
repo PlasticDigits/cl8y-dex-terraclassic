@@ -174,7 +174,7 @@ describe('reverseSimulateSwap', () => {
           pool_input: '1',
           book_input: '0',
           max_maker_fills: 1,
-          book_start_hint: undefined,
+          book_start_hint: null,
         },
       },
     })

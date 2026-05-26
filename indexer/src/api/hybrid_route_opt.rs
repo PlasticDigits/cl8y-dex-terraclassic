@@ -130,8 +130,16 @@ async fn optimize_one_hop(
 
     if !any_candidate_ok {
         meta.degraded = true;
-        let out = query_hybrid_sim(lcd, &hop.pair, &hop.offer_token, offer_amount, offer_amount, 0, 1)
-            .await?;
+        let out = query_hybrid_sim(
+            lcd,
+            &hop.pair,
+            &hop.offer_token,
+            offer_amount,
+            offer_amount,
+            0,
+            1,
+        )
+        .await?;
         return Ok((None, out));
     }
 
@@ -148,8 +156,16 @@ async fn optimize_one_hop(
     }
 
     // Prefer explicit pool-only hybrid (book=0) vs null: both are valid; use null for fewer bytes.
-    let out = query_hybrid_sim(lcd, &hop.pair, &hop.offer_token, offer_amount, offer_amount, 0, 1)
-        .await?;
+    let out = query_hybrid_sim(
+        lcd,
+        &hop.pair,
+        &hop.offer_token,
+        offer_amount,
+        offer_amount,
+        0,
+        1,
+    )
+    .await?;
     Ok((None, out))
 }
 

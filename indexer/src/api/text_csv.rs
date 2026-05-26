@@ -84,9 +84,8 @@ pub fn trader_limit_fills_csv(rows: &[LimitFillResponse]) -> String {
 }
 
 pub fn trader_limit_cancellations_csv(rows: &[LimitCancellationResponse]) -> String {
-    let mut out = String::from(
-        "id,pair_address,block_height,block_timestamp,tx_hash,order_id,owner\n",
-    );
+    let mut out =
+        String::from("id,pair_address,block_height,block_timestamp,tx_hash,order_id,owner\n");
     for r in rows {
         let row = join_row(&[
             r.id.to_string(),

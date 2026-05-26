@@ -23,12 +23,14 @@ async fn cg_tickers_include_consolidated_extensions() {
     let ext = &body[0]["cl8y_extensions"];
     assert_eq!(ext["consolidated"], true);
     assert_eq!(ext["hybrid_trade_count_24h"], "1");
-    assert!(ext["pool_only_trade_count_24h"]
-        .as_str()
-        .unwrap()
-        .parse::<i64>()
-        .unwrap()
-        >= 5);
+    assert!(
+        ext["pool_only_trade_count_24h"]
+            .as_str()
+            .unwrap()
+            .parse::<i64>()
+            .unwrap()
+            >= 5
+    );
     assert_eq!(ext["book_leg_volume_quote_24h"], "55");
     assert_eq!(ext["pool_leg_volume_quote_24h"], "40");
 }

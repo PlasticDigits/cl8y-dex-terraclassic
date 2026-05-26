@@ -56,7 +56,10 @@ fn wasm_contract_addr_before(attrs: &[Attribute], idx: usize) -> Option<&str> {
 }
 
 /// Key/value pairs after `action_pos` until the next logical boundary (`action` or contract addr).
-fn wasm_kv_map_after_action(attrs: &[Attribute], action_pos: usize) -> std::collections::HashMap<&str, &str> {
+fn wasm_kv_map_after_action(
+    attrs: &[Attribute],
+    action_pos: usize,
+) -> std::collections::HashMap<&str, &str> {
     let mut m = std::collections::HashMap::new();
     let mut i = action_pos.saturating_add(1);
     while i < attrs.len() {
@@ -70,7 +73,9 @@ fn wasm_kv_map_after_action(attrs: &[Attribute], action_pos: usize) -> std::coll
     m
 }
 
-fn parse_limit_order_expired_parked_from_wasm_attrs(attrs: &[Attribute]) -> Vec<ParsedLimitOrderExpiredParked> {
+fn parse_limit_order_expired_parked_from_wasm_attrs(
+    attrs: &[Attribute],
+) -> Vec<ParsedLimitOrderExpiredParked> {
     let mut out = Vec::new();
     for (i, a) in attrs.iter().enumerate() {
         if a.key != "action" || a.value != "limit_order_expired_parked" {
@@ -101,7 +106,9 @@ fn parse_limit_order_expired_parked_from_wasm_attrs(attrs: &[Attribute]) -> Vec<
     out
 }
 
-fn parse_claim_expired_limit_orders_from_wasm_attrs(attrs: &[Attribute]) -> Vec<ParsedClaimExpiredLimitOrder> {
+fn parse_claim_expired_limit_orders_from_wasm_attrs(
+    attrs: &[Attribute],
+) -> Vec<ParsedClaimExpiredLimitOrder> {
     let mut out = Vec::new();
     for (i, a) in attrs.iter().enumerate() {
         if a.key != "action" || a.value != "claim_expired_limit_order" {
@@ -815,7 +822,9 @@ fn parse_limit_order_expired_parked(tx: &TxResponse) -> Vec<ParsedLimitOrderExpi
         if event.event_type != "wasm" {
             continue;
         }
-        out.extend(parse_limit_order_expired_parked_from_wasm_attrs(&event.attributes));
+        out.extend(parse_limit_order_expired_parked_from_wasm_attrs(
+            &event.attributes,
+        ));
     }
     out
 }
@@ -834,7 +843,9 @@ fn parse_claim_expired_limit_orders(tx: &TxResponse) -> Vec<ParsedClaimExpiredLi
         if event.event_type != "wasm" {
             continue;
         }
-        out.extend(parse_claim_expired_limit_orders_from_wasm_attrs(&event.attributes));
+        out.extend(parse_claim_expired_limit_orders_from_wasm_attrs(
+            &event.attributes,
+        ));
     }
     out
 }

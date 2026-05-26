@@ -1,7 +1,6 @@
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 
 const BASE_GAS_LIMIT = 200_000
-const SWAP_GAS_LIMIT = 600_000
 const HYBRID_SWAP_GAS_LIMIT = 1_200_000
 const PLACE_LIMIT_ORDER_GAS_LIMIT = 950_000
 const ADD_LIQUIDITY_GAS_LIMIT = 500_000

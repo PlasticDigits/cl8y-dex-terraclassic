@@ -38,13 +38,7 @@ pub fn hybrid_leg_volumes(trade: &SwapEventRow) -> (Option<String>, Option<Strin
         return (None, None);
     }
     (
-        trade
-            .pool_return_amount
-            .as_ref()
-            .map(|v| v.to_string()),
-        trade
-            .book_return_amount
-            .as_ref()
-            .map(|v| v.to_string()),
+        trade.pool_return_amount.as_ref().map(|v| v.to_string()),
+        trade.book_return_amount.as_ref().map(|v| v.to_string()),
     )
 }

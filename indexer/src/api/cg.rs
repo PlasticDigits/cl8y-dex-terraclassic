@@ -6,7 +6,9 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, orderbook_sim, AppState};
+use super::{
+    build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, orderbook_sim, AppState,
+};
 use crate::db::queries::{pairs as db_pairs, swap_events};
 
 #[derive(Serialize, ToSchema)]

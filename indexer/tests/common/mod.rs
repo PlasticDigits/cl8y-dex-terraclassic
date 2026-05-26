@@ -10,6 +10,13 @@ use cl8y_dex_indexer::lcd::LcdClient;
 use sqlx::PgPool;
 
 static INIT: Once = Once::new();
+static ENV: Once = Once::new();
+
+fn load_test_env() {
+    ENV.call_once(|| {
+        dotenvy::dotenv().ok();
+    });
+}
 
 fn init_tracing() {
     INIT.call_once(|| {
@@ -22,6 +29,7 @@ fn init_tracing() {
 }
 
 pub fn test_config() -> Config {
+    load_test_env();
     Config {
         run_mode: cl8y_dex_indexer::config::RunMode::Dev,
         database_url: env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {

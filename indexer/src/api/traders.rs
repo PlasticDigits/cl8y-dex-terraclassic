@@ -261,9 +261,10 @@ pub async fn get_trader_limit_fills(
     let use_csv = trader_history_format(q.format.as_deref())?;
     let limit = q.limit.unwrap_or(50).min(200);
     let pair_id = resolve_pair_filter(&state.pool, q.pair.as_deref()).await?;
-    let rows = limit_order_fills::list_fills_for_maker(&state.pool, &addr, pair_id, limit, q.before)
-        .await
-        .map_err(internal_err)?;
+    let rows =
+        limit_order_fills::list_fills_for_maker(&state.pool, &addr, pair_id, limit, q.before)
+            .await
+            .map_err(internal_err)?;
 
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
@@ -325,10 +326,15 @@ pub async fn get_trader_limit_cancellations(
     let use_csv = trader_history_format(q.format.as_deref())?;
     let limit = q.limit.unwrap_or(50).min(200);
     let pair_id = resolve_pair_filter(&state.pool, q.pair.as_deref()).await?;
-    let rows =
-        limit_order_lifecycle::list_cancellations_for_owner(&state.pool, &addr, pair_id, limit, q.before)
-        .await
-        .map_err(internal_err)?;
+    let rows = limit_order_lifecycle::list_cancellations_for_owner(
+        &state.pool,
+        &addr,
+        pair_id,
+        limit,
+        q.before,
+    )
+    .await
+    .map_err(internal_err)?;
 
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
@@ -354,8 +360,7 @@ pub async fn get_trader_limit_cancellations(
     if use_csv {
         let slug = trader_csv_slug(&addr);
         let csv = text_csv::trader_limit_cancellations_csv(&result);
-        let resp =
-            trader_csv_response(&format!("trader-limit-cancellations-{slug}.csv"), csv)?;
+        let resp = trader_csv_response(&format!("trader-limit-cancellations-{slug}.csv"), csv)?;
         Ok(resp.into_response())
     } else {
         Ok(Json(result).into_response())
