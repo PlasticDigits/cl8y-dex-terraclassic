@@ -35,6 +35,8 @@ cargo test router_two_hop_first_leg_hybrid_matches_simulate
 |------|------|------|
 | `route_solve_post_three_hop_multi_leg_hybrid` | [`indexer/tests/api_route_solve.rs`](../indexer/tests/api_route_solve.rs) | `seed_route_solve_3hop` |
 | `route_solve_get_hybrid_optimize_three_hops` | same | `seed_route_solve_3hop` |
+| `route_solve_get_default_hybrid_two_hops` | same | `seed_route_solve_2hop` — default GET with `amount_in` (no `hybrid_optimize`; [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)) |
+| `route_solve_pool_only_escape_hatch` | same | `seed_route_solve` — `pool_only=true` |
 
 **Run (serialized — shared DB):**
 
@@ -57,5 +59,5 @@ LCD stubs: [`indexer/tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock
 Add cases here (not ad-hoc one-offs) when changing:
 
 - Router multi-hop `hybrid` forwarding or simulate loop
-- Indexer `apply_hybrid_by_hop` or `hybrid_optimize` hop cap (currently **3 hops** on GET optimize, **4 hops** on POST discovery)
+- Indexer `apply_hybrid_by_hop` or default GET hybrid hop cap (currently **3 hops** on GET, **4 hops** on POST discovery) — [GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)
 - Frontend/indexer merge of `hybrid_by_hop` for routes with **>2** hybrid legs

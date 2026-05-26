@@ -34,7 +34,7 @@ CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorder
 
 **Trader-scoped history (fills, cancellations, swaps on a pair, CSV):** [GitLab **#163**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/163) — `GET /api/v1/traders/{addr}/limit-fills`, `.../limit-cancellations`, `.../trades` with optional `pair=` and `format=csv`. Invariants: [`indexer-invariants.md`](./indexer-invariants.md); dApp: [`frontend.md` § Wallet swap and limit history](./frontend.md#wallet-swap-limit-history), [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md).
 
-For multihop routing the indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (default pool-only `hybrid: null`; optional **`hybrid_optimize`** for server-chosen splits, max 3 hops — [**#101**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/101)) and **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001).
+For multihop routing the indexer exposes route discovery via [`GET /api/v1/route/solve`](./indexer-invariants.md) (**hybrid-aware by default** when `amount_in` is set, max **3 hops**; legacy **`pool_only=true`** — GitLab [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191), [**#101**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/101)) and **hybrid merge + router quote** via [`POST /api/v1/route/solve`](./indexer-invariants.md) when the client sends `hybrid_by_hop` aligned with the discovered hops (see ADR 0001).
 
 ## Messages (CosmWasm)
 
@@ -92,8 +92,8 @@ When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker
 
 ## Indexer route solver
 
-- **`GET /api/v1/route/solve`** — query params: `token_in`, `token_out` (CW20 addresses indexed in `assets`), optional `amount_in` (raw integer string), optional `hybrid_optimize` / `max_maker_fills` (see [indexer-invariants.md](./indexer-invariants.md)).
-- Returns `hops` (pair + offer/ask tokens per hop), `router_operations` (default `hybrid: null` per hop; merged hybrid params when `hybrid_optimize=true`).
+- **`GET /api/v1/route/solve`** — query params: `token_in`, `token_out` (CW20 addresses indexed in `assets`), optional `amount_in` (raw integer string; triggers **default hybrid optimization**), optional `pool_only` / deprecated `hybrid_optimize` / `max_maker_fills` (see [indexer-invariants.md](./indexer-invariants.md), GitLab [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)).
+- Returns `hops` (pair + offer/ask tokens per hop), `router_operations` (merged hybrid params when `amount_in` is set; `hybrid: null` per hop when `pool_only=true` or no `amount_in`).
 - Optional **`estimated_amount_out`:** set when `amount_in` is provided **and** `ROUTER_ADDRESS` is configured; the indexer calls the router `simulate_swap_operations` query on LCD.
 - **Running indexer integration tests:** route tests live under [`indexer/tests/api_route_solve.rs`](../indexer/tests/api_route_solve.rs). They need Postgres; if multiple tests share one DB, use the serialized commands in [Testing — Shared Postgres and test parallelism](./testing.md#shared-postgres-and-test-parallelism).
 
