@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { getCandles, getPairStats } from '@/services/indexer/client'
 import { Spinner } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
@@ -9,6 +9,7 @@ import { indexerCandlesToChartPoints, indexerCandlesToVolumeHistogramPoints } fr
 import { resolveTradeChartHeadlineUsd } from './chartHeadlinePrice'
 import { chartPointsToRsiLine, chartPointsToSmaLine } from './priceChartIndicators'
 import { PriceChartOverlayMenu } from './PriceChartOverlayMenu'
+import { keepPreviousCandlesForIntervalSwitch } from './priceChartCandlesPlaceholder'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'] as const
 
@@ -53,8 +54,9 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
     queryFn: () => getCandles(pairAddress, interval),
     refetchInterval: 30_000,
     enabled: !!pairAddress,
-    /** Keep plot mounted while switching intervals — avoids async lightweight-charts re-init races (GitLab #148). */
-    placeholderData: keepPreviousData,
+    /** Keep plot mounted on interval switch only — not on pair switch (GitLab #148, #180). */
+    placeholderData: (previousData, previousQuery) =>
+      keepPreviousCandlesForIntervalSwitch(pairAddress, previousData, previousQuery),
   })
 
   const chartPoints = useMemo(() => indexerCandlesToChartPoints(candlesQuery.data), [candlesQuery.data])
@@ -192,6 +194,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
           }`}
         >
           <PriceChartLightweightCanvas
+            key={pairAddress}
             candlePoints={chartPoints}
             volumePoints={volumePoints}
             sma7Points={sma7Points}

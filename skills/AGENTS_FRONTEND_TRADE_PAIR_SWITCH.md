@@ -18,7 +18,7 @@ Use when changing **`TradePage.tsx`**, **`TradePairSwitchStatus.tsx`**, **`trade
 2. **Immediate feedback:** While workspace queries for the active pair are fetching, show **`TradePairSwitchStatus`** (`role="status"`, `aria-live="polite"`). `PriceChart` keeps its own **Loading chart…** spinner.
 3. **Prefetch:** Call `prefetchTradePairWorkspace` on pair route change, on `MenuSelect` `onChange`, and on `onOptionIntent` (pointer/focus on another option) so hover reduces click latency.
 4. **404 / retry unchanged:** When `getPair` fails with a logical miss (404), `TradeChartSlot` still shows **`RetryError`** — do not mount candles over a bad deep link ([#177](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)).
-5. **Do not use `keepPreviousData` for pair-scoped keys** on switch — stale symbols/tape from the prior pair confuse traders.
+5. **Do not use `keepPreviousData` for pair-scoped keys** on switch — stale symbols/tape from the prior pair confuse traders. **`PriceChart`** keeps prior candle rows only when **`pairAddress` is unchanged** (interval refetch); canvas remounts with **`key={pairAddress}`** ([#148](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/148)).
 6. **Regression tests:** Extend `TradePage.test.tsx` when changing fetch order or loading UI.
 
 ## Related

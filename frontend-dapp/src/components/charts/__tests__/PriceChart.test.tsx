@@ -248,4 +248,29 @@ describe('PriceChart', () => {
       expect(candleSetData).toHaveBeenLastCalledWith(expect.arrayContaining([expect.objectContaining({ open: 2 })]))
     })
   })
+
+  it('remounts chart on pair switch and keeps interval switches responsive (GitLab #148 pair QA)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getCandles).mockImplementation((addr: string) =>
+      Promise.resolve([
+        candle({
+          close: addr === pairA ? '1.01' : '2.02',
+          open_time: `2024-01-01T12:00:00.000Z`,
+        }),
+      ])
+    )
+    const { rerender } = renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.getByTestId('price-chart-lightweight-canvas')).toBeInTheDocument())
+    expect(vi.mocked(createChart)).toHaveBeenCalledTimes(1)
+
+    rerender(<PriceChart pairAddress={pairB} />)
+    await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairB, '1h'))
+    await waitFor(() => expect(screen.getByTestId('price-chart-lightweight-canvas')).toBeInTheDocument())
+    expect(vi.mocked(createChart)).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '1d' }))
+    await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairB, '1d'))
+    expect(vi.mocked(createChart)).toHaveBeenCalledTimes(2)
+  })
 })
