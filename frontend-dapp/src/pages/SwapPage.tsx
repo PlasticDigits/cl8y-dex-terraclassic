@@ -346,7 +346,6 @@ export default function SwapPage() {
       if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && rawInputAmount !== '0') {
         try {
           const idx = await getRouteSolve(fromToken, toToken, rawInputAmount, {
-            hybridOptimize: true,
             maxMakerFills: hybridMaxMakers,
           })
           const tin = idx.token_in.trim().toLowerCase()
