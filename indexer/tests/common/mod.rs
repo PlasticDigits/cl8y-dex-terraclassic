@@ -33,7 +33,7 @@ pub fn test_config() -> Config {
     Config {
         run_mode: cl8y_dex_indexer::config::RunMode::Dev,
         database_url: env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://postgres:postgres@localhost:5432/dex_indexer_test".into()
+            "postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer_test".into()
         }),
         lcd_urls: vec!["http://localhost:9999".to_string()],
         factory_address: "terra1factory".to_string(),

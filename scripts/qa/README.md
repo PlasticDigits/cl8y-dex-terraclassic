@@ -71,6 +71,6 @@ Checks Docker, LocalTerra RPC, Postgres, indexer **`/health`**, and the indexer 
 
 ## Troubleshooting
 
-- **Indexer health fails** — Read **`.indexer-qa.log`**; confirm Postgres is up and **`indexer/.env`** **`DATABASE_URL`** matches compose (**`postgres://postgres:postgres@127.0.0.1:5432/dex_indexer`** by default).
+- **Indexer health fails** — Read **`.indexer-qa.log`**; confirm Postgres is up and **`indexer/.env`** **`DATABASE_URL`** matches compose (**`postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer`** by default (override via repo-root `.env` / `scripts/lib/postgres-dev.env`)).
 - **LocalTerra not ready** — `docker compose logs localterra`; on port conflicts set **`QA_SHARED_HOST=1`** or free host ports.
 - **Stale wasm** — `make build-optimized` then re-run deploy ( **`make deploy-local`** ).

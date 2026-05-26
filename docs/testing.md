@@ -50,7 +50,7 @@ When using a **single** shared test database (typical local or CI), prefer seria
 
 ```bash
 cd indexer
-export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:5432/dex_indexer_test}"
+export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer_test}"
 cargo test --tests -j 1 -- --test-threads=1
 ```
 

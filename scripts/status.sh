@@ -77,7 +77,7 @@ else
   log_line "LocalTerra" "down" "(${TERRA_RPC_URL})"
 fi
 
-if docker compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
   log_line "Postgres" "ok" "(compose service postgres)"
 else
   log_line "Postgres" "down" ""

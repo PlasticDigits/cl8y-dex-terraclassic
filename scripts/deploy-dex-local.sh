@@ -776,8 +776,19 @@ echo "  Written to frontend-dapp/.env.development (VITE_DEV_MNEMONIC for Simulat
 
 echo ""
 echo "[Phase 6.2] Writing indexer/.env..."
+set -a
+if [ -f "$REPO_ROOT/.env" ]; then
+  # shellcheck source=/dev/null
+  source "$REPO_ROOT/.env"
+fi
+# shellcheck source=scripts/lib/postgres-dev.env
+source "$REPO_ROOT/scripts/lib/postgres-dev.env"
+set +a
+chmod +x "$REPO_ROOT/scripts/setup-postgres-dev-databases.sh"
+"$REPO_ROOT/scripts/setup-postgres-dev-databases.sh"
 cat > "$REPO_ROOT/indexer/.env" <<ENVEOF
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/dex_indexer
+DATABASE_URL=$DATABASE_URL
+TEST_DATABASE_URL=$TEST_DATABASE_URL
 FACTORY_ADDRESS=$FACTORY_ADDRESS
 ROUTER_ADDRESS=$ROUTER_ADDRESS
 FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS

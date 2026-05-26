@@ -52,10 +52,12 @@ wait-healthy:
 		sleep 2; \
 	done
 	@echo "Waiting for Postgres..."
+	@chmod +x scripts/setup-postgres-dev-databases.sh
 	@for i in $$(seq 1 30); do \
-		if pg_isready -h localhost -U postgres > /dev/null 2>&1 \
-			|| docker compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then \
+		if pg_isready -h localhost -U $${POSTGRES_USER:-cl8y_legal} > /dev/null 2>&1 \
+			|| docker compose exec -T postgres pg_isready -U $${POSTGRES_USER:-cl8y_legal} > /dev/null 2>&1; then \
 			echo "Postgres is ready!"; \
+			./scripts/setup-postgres-dev-databases.sh || true; \
 			break; \
 		fi; \
 		if [ "$$i" -eq 30 ]; then \

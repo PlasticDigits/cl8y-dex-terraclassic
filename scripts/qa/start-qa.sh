@@ -59,7 +59,7 @@ done
 
 echo "==> Waiting for Postgres..."
 for i in $(seq 1 30); do
-  if docker compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+  if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
     echo "Postgres is ready!"
     break
   fi
@@ -89,11 +89,9 @@ fi
 
 INDEXER_BIN="${INDEXER_QA_BIN:-}"
 if [ -n "$INDEXER_BIN" ] && [ -x "$INDEXER_BIN" ]; then
-  nohup env DATABASE_URL="${DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:5432/dex_indexer}" \
-    sh -c "cd \"$REPO_ROOT/indexer\" && exec \"$INDEXER_BIN\"" >>"$LOGFILE" 2>&1 &
+  nohup sh -c "cd \"$REPO_ROOT/indexer\" && set -a && [ -f .env ] && . ./.env && set +a && exec \"$INDEXER_BIN\"" >>"$LOGFILE" 2>&1 &
 else
-  nohup env DATABASE_URL="${DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:5432/dex_indexer}" \
-    sh -c "cd \"$REPO_ROOT/indexer\" && exec cargo run --release" >>"$LOGFILE" 2>&1 &
+  nohup sh -c "cd \"$REPO_ROOT/indexer\" && set -a && [ -f .env ] && . ./.env && set +a && exec cargo run --release" >>"$LOGFILE" 2>&1 &
 fi
 echo $! >"$PIDFILE"
 echo "[start-qa] Indexer pid $(cat "$PIDFILE"); log: $LOGFILE"
