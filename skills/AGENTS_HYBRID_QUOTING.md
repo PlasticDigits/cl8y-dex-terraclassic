@@ -30,7 +30,7 @@ cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_max_
 cd smartcontracts && cargo test -p cl8y-dex-tests test_swap_max_spread
 cd frontend-dapp && npm test -- src/services/terraclassic/__tests__/pair.test.ts
 cd indexer && cargo test api_route_solve
-cd frontend-dapp && pnpm exec playwright test e2e/hybrid-swap.spec.ts   # strict E2E — see AGENTS_E2E_HYBRID_SWAP.md (#193)
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/hybrid-swap.spec.ts --project=e2e-tx   # strict E2E — see AGENTS_E2E_HYBRID_SWAP.md (#193)
 ```
 
 ## Related frontend skills

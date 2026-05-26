@@ -22,6 +22,8 @@ You are changing **CI Playwright wiring**, **`e2e/helpers/chain.ts`**, **global 
 
 ## One-command repro
 
+Node **24** via **nvm** (`.nvmrc`); local commands use [`scripts/with-node.sh`](../scripts/with-node.sh) — not bare system `npm`.
+
 ```bash
 make test-e2e-tx
 ```
@@ -32,13 +34,13 @@ Or manually:
 docker compose up -d localterra
 make wait-healthy
 bash scripts/deploy-dex-local.sh
-cd frontend-dapp && npm run test:e2e:tx
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 ```
 
 UI-only (no chain):
 
 ```bash
-cd frontend-dapp && npm run test:e2e:smoke
+bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm run test:e2e:smoke
 ```
 
 ## Files
@@ -49,7 +51,8 @@ cd frontend-dapp && npm run test:e2e:smoke
 | [`frontend-dapp/e2e/helpers/chain.ts`](../frontend-dapp/e2e/helpers/chain.ts) | `isChainOptional()`, LCD + CTA assertions |
 | [`frontend-dapp/e2e/global-setup.ts`](../frontend-dapp/e2e/global-setup.ts) | LCD wait + provision + hybrid book seed |
 | [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor; CL8Y ≥ tier-1 via `E2E_DEV_MIN_CL8Y_U128` |
-| [`.github/workflows/test.yml`](../.github/workflows/test.yml) | LocalTerra + `make wait-healthy` + deploy + `npm run test:e2e` |
+| [`scripts/with-node.sh`](../scripts/with-node.sh) | Local Node/npm via nvm (`.nvmrc`) |
+| [`.github/workflows/test.yml`](../.github/workflows/test.yml) | LocalTerra + `make wait-healthy` + deploy + Playwright (CI uses `setup-node`) |
 
 ## Cross-links
 
@@ -58,4 +61,5 @@ cd frontend-dapp && npm run test:e2e:smoke
 - Hybrid child: [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) ([#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193))
 - Limit child: [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md) ([#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195))
 - Operator runbook: [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md)
+- Postgres / indexer env: [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md)
 - Testing matrix: [`docs/testing.md`](../docs/testing.md) § E2E Tests

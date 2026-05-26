@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **git** and **gh** CLI installed and authenticated
-- **Node.js 24** (use `nvm use` in the repo root)
+- **nvm** + Node **24** (`nvm use` at repo root, or `bash scripts/with-node.sh -- …`)
 - **Docker** and **Docker Compose**
 - **Rust** (stable) with `wasm32-unknown-unknown` target (for building contracts and running the indexer)
 - A Terra Classic wallet (Station extension) with testnet LUNC

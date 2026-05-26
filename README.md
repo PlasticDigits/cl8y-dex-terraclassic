@@ -89,7 +89,7 @@ The default branch is **`main`** (the only long-lived integration branch). Merge
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Rust](https://rustup.rs/) with `wasm32-unknown-unknown` target
-- [Node.js](https://nodejs.org/) 24+ (see `.nvmrc`)
+- **[nvm](https://github.com/nvm-sh/nvm)** + Node **24** (`nvm install` / `nvm use` — see `.nvmrc`). Makefile and `scripts/with-node.sh` activate it automatically; CI uses `setup-node` instead.
 
 ### Smart Contracts
 
@@ -105,10 +105,13 @@ The indexer has library tests (`cargo test --lib`, no Postgres) and integration 
 
 ### Frontend
 
+From repo root (Node via **nvm**, see `.nvmrc`):
+
 ```bash
-cd frontend-dapp
-npm install
-npm run dev            # Start dev server
-npm run test:run       # Run tests
-npm run lint           # Lint code
+bash scripts/with-node.sh --cwd frontend-dapp -- npm ci
+make dev                 # dev server
+make test-frontend       # unit tests
+make lint-frontend
 ```
+
+Or activate nvm once: `nvm use`, then `cd frontend-dapp` and run `npm` scripts as usual.

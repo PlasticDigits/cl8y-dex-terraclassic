@@ -8,13 +8,13 @@ Agent playbook: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../../skills/AGENTS_E2E_ST
 
 | Project | Command | Chain |
 |---------|---------|-------|
-| `e2e-tx` | `npm run test:e2e:tx` | **Required** — global setup + strict helpers |
-| `e2e-smoke` | `npm run test:e2e:smoke` | Optional (`PLAYWRIGHT_SKIP_CHAIN=1`) |
-| Both | `npm run test:e2e` | Tx strict; smoke skips when chain off |
+| `e2e-tx` | `make test-e2e` / `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx` | **Required** — global setup + strict helpers |
+| `e2e-smoke` | `bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm run test:e2e:smoke` | Optional chain |
+| Both | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e` | Tx strict; smoke skips when chain off |
 
 ## One-command strict tx E2E
 
-From repo root:
+From repo root (Node via **nvm** — `scripts/with-node.sh` / `.nvmrc`):
 
 ```bash
 make test-e2e-tx
@@ -26,7 +26,7 @@ Manual equivalent:
 docker compose up -d localterra
 make wait-healthy
 bash scripts/deploy-dex-local.sh
-cd frontend-dapp && npm run test:e2e:tx
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 ```
 
 `playwright.config.ts` runs **`e2e/global-setup.ts`** (unless chain is optional), which waits for the LCD and runs:
@@ -60,7 +60,7 @@ Workers are fixed at **5** in `playwright.config.ts`; funding runs **once** in g
 On the default path, pool liquidity tests **fail** if the LCD is down, the submit control is still blocked after provisioning, or no tx result alert appears.
 
 ```bash
-cd frontend-dapp && pnpm exec playwright test e2e/pool-tx.spec.ts --project=e2e-tx
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/pool-tx.spec.ts --project=e2e-tx
 ```
 
 ## Hybrid swap tests (`hybrid-swap.spec.ts`)

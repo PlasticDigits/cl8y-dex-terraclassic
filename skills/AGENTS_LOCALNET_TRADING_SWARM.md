@@ -9,7 +9,8 @@ Use this skill when working on **localnet-only** scripted trading volume for UI 
 | [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md) | Invariants, env vars, `--dry-run` / `--stats`, funding model (full factory CW20 enumeration) |
 | [`scripts/localnet-trading-swarm.sh`](../scripts/localnet-trading-swarm.sh) | Repo-root entrypoint (`npm run start` in the package) |
 | [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | Prior art for factory `pairs` → unique CW20 → `Mint` |
-| [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh) | Writes `frontend-dapp/.env.local`, seeds pair liquidity |
+| [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh) | Writes `frontend-dapp/.env.local`, `indexer/.env` (Postgres URLs), seeds pair liquidity |
+| [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) | Local Postgres defaults (`cl8y_legal`), test DB setup, `make reset` |
 | [`docs/local-development.md`](../docs/local-development.md) | Local stack prerequisites |
 | [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) | API/indexer invariants (tracing-only observability — no `/metrics`; GitLab [**#200**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)) |
 | [`docs/operator-secrets.md`](../docs/operator-secrets.md) | Indexer env vars, secrets, log-based monitoring |

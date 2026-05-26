@@ -32,7 +32,7 @@ Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI
 ```bash
 docker compose up -d localterra
 bash scripts/deploy-dex-local.sh
-cd frontend-dapp && pnpm exec playwright test e2e/limit-orders-tx.spec.ts
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx
 ```
 
 ## Cross-links

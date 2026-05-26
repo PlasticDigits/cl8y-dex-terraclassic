@@ -40,9 +40,10 @@ cargo test router_two_hop_first_leg_hybrid_matches_simulate
 
 **Run (serialized — shared DB):**
 
+Requires Postgres + `dex_indexer_test`. After `make deploy-local` or [`./scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh), `indexer/.env` supplies `TEST_DATABASE_URL` automatically. Full setup: [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md).
+
 ```bash
 cd indexer
-export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:5432/dex_indexer_test}"
 cargo test --test api_route_solve three_hop -j 1 -- --test-threads=1
 ```
 
@@ -51,6 +52,7 @@ LCD stubs: [`indexer/tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock
 ## Docs cross-links
 
 - [`docs/testing.md`](../docs/testing.md) — test types and commands; [P2 epic #199](../docs/testing.md#p2-testing-epic-gitlab-199)
+- [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — local Postgres credentials, `make reset`, indexer integration tests
 - [`skills/AGENTS_TESTING_P2_EPIC.md`](./AGENTS_TESTING_P2_EPIC.md) — consolidated P2 coverage map ([#199](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/199))
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — route solve HTTP semantics
 - [`docs/limit-orders.md`](../docs/limit-orders.md) — Pattern C / L8 quoting scope

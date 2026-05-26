@@ -42,6 +42,10 @@ cargo test --lib          # fast, no Postgres
 cargo test --tests        # needs Postgres + migrations
 ```
 
+#### Local Postgres setup (agents)
+
+**Agent playbook:** [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — default user `cl8y_legal`, `make reset` when an old Docker volume still has `postgres:postgres`, `setup-postgres-dev-databases.sh`, and what `deploy-dex-local` writes to `indexer/.env`.
+
 #### Shared Postgres and test parallelism
 
 Integration tests call [`tests/common/mod.rs`](../indexer/tests/common/mod.rs) helpers that **truncate and re-seed** the same database. With default Cargo/Rust test parallelism, multiple integration test **binaries** and multiple **tests per binary** can run concurrently against that DB, which can surface as duplicate unique keys (e.g. on `assets.denom`) or foreign-key violations—not application bugs.
@@ -57,7 +61,7 @@ cargo test --tests -j 1 -- --test-threads=1
 - **`-j 1`** — run one integration test crate at a time (reduces cross-crate contention).
 - **`--test-threads=1`** — run tests inside each binary one at a time (reduces intra-crate contention).
 
-Start Postgres (for example `docker compose up -d postgres` from the repo root) and ensure the target database exists (e.g. `CREATE DATABASE dex_indexer_test;`) before the first run.
+Start Postgres (`docker compose up -d postgres`) and run `./scripts/setup-postgres-dev-databases.sh` (or `make deploy-local`) so `dex_indexer_test` exists before the first run.
 
 See [Indexer invariants](./indexer-invariants.md) for the full matrix and the same note under **Running tests**.
 
@@ -77,9 +81,10 @@ cargo test
 Test React components and hooks with Vitest and jsdom. **CosmWasm / LCD I/O** is typically **stubbed at the service layer** so unit tests stay fast and deterministic. That does **not** replace integration coverage for features that depend on indexer HTTP or chart data: use the **integration** Vitest config (below) or dedicated issues (e.g. GitLab [**#104**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) for charts).
 
 ```bash
-cd frontend-dapp
-npm run test:run          # single run
-npm run test              # watch mode
+make test-frontend        # single run (nvm via scripts/with-node.sh)
+# or:
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run
 ```
 
 Config: `vitest.config.ts`
@@ -124,12 +129,14 @@ Full browser tests against the running dApp + LocalTerra. **Strict on-chain poli
 
 ```bash
 make test-e2e-tx              # one command: LocalTerra + deploy + strict tx project
-cd frontend-dapp
-npx playwright test           # smoke + tx (strict chain)
-npx playwright test --project=e2e-tx
-PLAYWRIGHT_SKIP_CHAIN=1 npx playwright test --project=e2e-smoke   # UI-only local dev
-npx playwright test --ui      # interactive UI
+# Or from repo root with nvm (scripts/with-node.sh — see .nvmrc):
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
+bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm run test:e2e:smoke
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:ui
 ```
+
+After `nvm use` in a shell, you may `cd frontend-dapp` and run the same `npm run test:e2e*` scripts directly.
 
 Config: `playwright.config.ts` (`e2e-smoke` vs `e2e-tx` projects). Agent playbook: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md).
 
@@ -141,21 +148,19 @@ Config: `playwright.config.ts` (`e2e-smoke` vs `e2e-tx` projects). Agent playboo
 
 1. `docker compose up -d localterra`
 2. From repo root: `bash scripts/deploy-dex-local.sh` (writes `frontend-dapp/.env.local`, deploys contracts, seeds CW20 balances on the dev account `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v`).
-3. `cd frontend-dapp && npx playwright test`
+3. `make test-e2e` or `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e`
 
 Before tests, **`e2e/global-setup.ts`** waits for the LCD and runs **`scripts/e2e-provision-dev-wallet.sh`**, which **mints factory CW20s** to the dev wallet when any listed token balance is below **`E2E_DEV_MIN_CW20_U128`** (default `1000000000000` raw units), then **`scripts/e2e-seed-hybrid-book.sh`**, which idempotently places a **resting bid** on the first dual-CW20 pair when the bid book head is empty (GitLab [**#193**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)). Native gas denoms **uluna** / **uusd** are expected from genesis (`docker/init-chain.sh`), not from the provision script.
 
 **Single-file pool tx run (documented in `frontend-dapp/e2e/README.md`):**
 
 ```bash
-cd frontend-dapp
-pnpm exec playwright test e2e/pool-tx.spec.ts
-# or: npx playwright test e2e/pool-tx.spec.ts
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/pool-tx.spec.ts --project=e2e-tx
 ```
 
-**Hybrid swap E2E (strict tx path, GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)):** `pnpm exec playwright test e2e/hybrid-swap.spec.ts` — requires global-setup seeding (`e2e-provision-dev-wallet.sh` + `e2e-seed-hybrid-book.sh`). See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).
+**Hybrid swap E2E (strict tx path, GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/hybrid-swap.spec.ts --project=e2e-tx` — requires global-setup seeding. See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).
 
-**Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `pnpm exec playwright test e2e/limit-orders-tx.spec.ts` — selects the first **unpaused** dual-CW20 pair via LCD `is_paused`, asserts wasm `place_limit_order` and `cancel_limit_order` on indexed txs. Requires `e2e-provision-dev-wallet.sh` (same global setup as pool/hybrid). See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
+**Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx` — first **unpaused** dual-CW20 pair via LCD `is_paused`. See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
 **Optional chain (skip instead of fail):** set `PLAYWRIGHT_SKIP_CHAIN=1` (or legacy `REQUIRE_LOCALTERRA=0`) for local UI-only runs (`npm run test:e2e:smoke`). **Do not** set this in CI. Default is strict (unset).
 

@@ -27,6 +27,8 @@ Use this when adding or extending coverage for hybrid indexing, fee discount on 
 
 ## Commands
 
+Indexer integration tests need Postgres — see [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) (`cl8y_legal`, `indexer/.env`, serialized `-j 1`).
+
 ```bash
 # Indexer hybrid columns (#82) — needs Postgres
 cd indexer && cargo test --test swap_events_hybrid_columns -j 1 -- --test-threads=1
@@ -72,6 +74,7 @@ Add rows here (update `#199` checklist) when:
 
 ## Related playbooks
 
+- [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — local Postgres setup for indexer tests
 - [`AGENTS_TESTING_MULTIHOP_HYBRID.md`](./AGENTS_TESTING_MULTIHOP_HYBRID.md) — L8 multihop (#192)
 - [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) — strict hybrid tx E2E (#193)
 - [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md) — limit place/cancel tx (#195)

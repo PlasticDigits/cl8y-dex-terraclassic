@@ -144,28 +144,30 @@ deploy-testnet:
 deploy-mainnet:
 	cd smartcontracts && ./scripts/deploy.sh mainnet
 
-# Frontend
+# Frontend (Node via nvm — scripts/with-node.sh + .nvmrc)
+WITH_NODE = bash scripts/with-node.sh --cwd frontend-dapp --
+
 dev:
-	cd frontend-dapp && npm run dev
+	$(WITH_NODE) npm run dev
 
 build-frontend:
-	cd frontend-dapp && npm run build
+	$(WITH_NODE) npm run build
 
 test-frontend:
-	cd frontend-dapp && npm run test:run
+	$(WITH_NODE) npm run test:run
 
 test-e2e:
-	cd frontend-dapp && npm run test:e2e
+	$(WITH_NODE) npm run test:e2e
 
 # Strict on-chain Playwright (LocalTerra + deploy + global setup). Same as CI e2e job.
 test-e2e-tx: wait-healthy
-	@chmod +x scripts/deploy-dex-local.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh
+	@chmod +x scripts/deploy-dex-local.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh scripts/with-node.sh
 	docker compose up -d localterra
 	bash scripts/deploy-dex-local.sh
-	cd frontend-dapp && npm run test:e2e:tx
+	$(WITH_NODE) npm run test:e2e:tx
 
 lint-frontend:
-	cd frontend-dapp && npm run lint
+	$(WITH_NODE) npm run lint
 
 # Indexer
 indexer-dev:
@@ -178,7 +180,7 @@ dev-full: start wait-healthy build-optimized deploy-local
 	cd indexer && cargo run &
 	@sleep 5
 	@echo "Starting frontend dev server..."
-	cd frontend-dapp && npm run dev
+	$(WITH_NODE) npm run dev
 
 # Combined
 test: test-contracts test-frontend

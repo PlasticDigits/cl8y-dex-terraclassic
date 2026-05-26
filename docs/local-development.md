@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **Rust** (stable) with `wasm32-unknown-unknown` target
-- **Node.js 24** (see `.nvmrc`)
+- **[nvm](https://github.com/nvm-sh/nvm)** with Node **24** (`nvm use` at repo root — `.nvmrc`). Prefer `make dev` / `scripts/with-node.sh` so the correct Node is always on `PATH`.
 - **Docker** and **Docker Compose** (for LocalTerra)
 - **gh** CLI (for QA scripts)
 
@@ -22,11 +22,11 @@ cargo build --release --target wasm32-unknown-unknown
 cd scripts
 ./deploy-dex-local.sh
 
-# 4. Start the frontend
-cd ../../frontend-dapp
-npm ci
-# If you use the Simulated Wallet (VITE_DEV_MODE=true), set VITE_DEV_MNEMONIC so it matches docker/init-chain.sh. After `./deploy-dex-local.sh` from the deploy guide, that value is in `.env.development` (see docs/frontend.md, GitLab #118).
-VITE_NETWORK=local npm run dev
+# 4. Start the frontend (from repo root — Node via nvm)
+bash scripts/with-node.sh --cwd frontend-dapp -- npm ci
+# Simulated wallet: VITE_DEV_MNEMONIC in `.env.development` after deploy (docs/frontend.md, GitLab #118).
+make dev
+# or: bash scripts/with-node.sh --cwd frontend-dapp -- env VITE_NETWORK=local npm run dev
 ```
 
 ## Makefile Commands
@@ -78,6 +78,20 @@ docker compose logs -f
 docker compose down
 ```
 
+## Postgres (indexer + integration tests)
+
+Docker Compose Postgres defaults to user **`cl8y_legal`** (not `postgres`). Deploy writes `indexer/.env` with `DATABASE_URL` and `TEST_DATABASE_URL`.
+
+```bash
+# Fresh volume after credential changes:
+make reset && make start && make wait-healthy && make deploy-local
+
+# Or ensure databases only:
+./scripts/setup-postgres-dev-databases.sh
+```
+
+Agent playbook (setup, test commands, troubleshooting): [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md). Human docs: [Testing — local Postgres](./testing.md#local-postgres-setup-agents).
+
 ## Troubleshooting
 
 | Problem                           | Fix                                                |
@@ -86,4 +100,5 @@ docker compose down
 | LocalTerra won't start            | Ensure Docker is running, check port 1317/26657    |
 | Contract upload fails             | Check gas settings in deploy script                |
 | Frontend can't connect            | Verify `VITE_NETWORK=local` and LocalTerra is up   |
+| Postgres auth / missing test DB   | See [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md); try `make reset` then redeploy |
 | `node_modules` issues             | Delete `node_modules` and `package-lock.json`, re-run `npm ci` |

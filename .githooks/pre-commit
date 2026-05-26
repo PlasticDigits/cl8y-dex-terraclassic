@@ -22,18 +22,19 @@ if [[ -d smartcontracts ]] && command -v cargo >/dev/null 2>&1; then
   fi
 fi
 
-# --- Frontend (lint-staged: only checks staged files) ---
+# --- Frontend (lint-staged: only checks staged files; Node via nvm) ---
 if [[ -d frontend-dapp/node_modules ]]; then
+  WITH_NODE="bash scripts/with-node.sh --cwd frontend-dapp --"
   echo ""
   echo ">> tsc --noEmit"
-  if ! (cd frontend-dapp && npx tsc --noEmit); then
+  if ! $WITH_NODE npx tsc --noEmit; then
     echo "FAIL: tsc"
     CHECKS_PASSED=false
   fi
 
   echo ""
   echo ">> lint-staged (eslint + prettier on staged files)"
-  if ! (cd frontend-dapp && npx lint-staged); then
+  if ! $WITH_NODE npx lint-staged; then
     echo "FAIL: lint-staged"
     CHECKS_PASSED=false
   fi
