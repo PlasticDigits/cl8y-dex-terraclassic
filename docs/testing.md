@@ -4,6 +4,31 @@
 
 CL8Y DEX tests focus on real contract behavior — no blockchain mocks. Unit tests exercise pure logic, integration tests deploy to a simulated chain environment, and E2E tests drive the actual frontend against LocalTerra.
 
+## P2 testing epic (GitLab #199)
+
+Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./reviews/20260409T030009Z/TEST_GAP_MATRIX.md)). Agent playbook: [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
+
+| Area | Issue | Primary automated test | Notes |
+|------|-------|------------------------|-------|
+| Indexer hybrid attrs on `swap_events` | [#82](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/82) | [`indexer/tests/swap_events_hybrid_columns.rs`](../indexer/tests/swap_events_hybrid_columns.rs) | `book_return_amount`, `limit_book_offer_consumed`, `effective_fee_bps` |
+| Book-leg fee discount | [#83](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/83) | `limit_order_tests::hybrid_book_fill_uses_taker_discounted_effective_fee_bps` | Same `effective_fee_bps` as pool path |
+| Frontend hybrid message shape | [#84](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/84) | [`pair.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/pair.test.ts), [`router.hybrid.test.ts`](../frontend-dapp/src/services/terraclassic/router.hybrid.test.ts) | Direct pair + router `execute_swap_operations` |
+| Pause blocks swap + limits | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `pause_blocks_swap_and_place_cancel_refunds_escrow`; [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) | L6 — see [`contracts-security-audit.md`](./contracts-security-audit.md) |
+| Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | Manual: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) | LCD `pool` + optional `simulation`; run after deploy |
+| Stubs / mocks catalog | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy below + issue #105 | LCD stub vs AMM-sim orderbook |
+| Charts integration | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | CI runs `npm run test:integration` |
+
+**Post-deploy smoke (#86):**
+
+```bash
+export PAIR_ADDR=terra1...          # required
+export OFFER_TOKEN=terra1...        # optional — enables Simulation query
+export TERRA_LCD_URL=http://127.0.0.1:1317
+./scripts/smoke-pool-swap.sh
+```
+
+See also [`docs/deployment-guide.md`](./deployment-guide.md) and [`docs/runbooks/launch-checklist.md`](./runbooks/launch-checklist.md).
+
 ## Test Types
 
 ### Indexer (Rust)
@@ -36,7 +61,7 @@ Start Postgres (for example `docker compose up -d postgres` from the repo root) 
 
 See [Indexer invariants](./indexer-invariants.md) for the full matrix and the same note under **Running tests**.
 
-**Stubs, mocks, and test stand-ins:** intentional test doubles (Wiremock LCD, Vitest `vi.mock`, placeholder addresses, E2E skips, and how they differ from production paths like the AMM **simulated** orderbook) are cataloged in [GitLab issue #105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105). Key indexer spots: `indexer/tests/common/lcd_mock.rs` (LCD HTTP stub only) vs `indexer/src/api/orderbook_sim.rs` (curve-walk depth, not the on-chain FIFO book).
+**Stubs, mocks, and test stand-ins:** intentional test doubles are cataloged in [GitLab issue #105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) and summarized under [P2 testing epic (#199)](./testing.md#p2-testing-epic-gitlab-199). Key indexer spots: `indexer/tests/common/lcd_mock.rs` (LCD HTTP stub only) vs `indexer/src/api/orderbook_sim.rs` (curve-walk depth, not the on-chain FIFO book). Agent playbook: [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
 
 ### Unit Tests (Rust)
 

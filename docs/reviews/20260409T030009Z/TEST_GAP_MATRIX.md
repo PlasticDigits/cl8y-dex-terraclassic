@@ -23,14 +23,14 @@
 | Router simulate vs execute (hybrid) | `router_simulate_swap_hybrid_field_ignored` (named in audit L8) | Assert documented in test name search | Unit/integration | covered — **document only** | P3 |
 | Quote = execution (pool-only) | Many swap tests | Regression when fee_bps changes | proptest exists | — | P3 |
 | Limit cancel while paused | Audit L6 | Explicit test in `limit_order_tests` | integration | verify exists — if missing add | P1 |
-| Indexer parses hybrid swap attributes | Parser unit tests | Swap row has `book_return_amount` when present | integration | DEX-P2-017 | P2 |
-| Fee discount + hybrid book leg | Discount tests + orderbook | Combined: discounted `effective_fee_bps` on match_bids/asks | integration | DEX-P2-018 | P2 |
+| Indexer parses hybrid swap attributes | Parser + `swap_events_hybrid_columns.rs` | — | integration | [GitLab **#82**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/82) / epic [**#199**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/199) | P2 — **covered** |
+| Fee discount + hybrid book leg | `hybrid_book_fill_uses_taker_discounted_effective_fee_bps` | — | integration | [GitLab **#83**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/83) / **#199** | P2 — **covered** |
 | Expired limit during match | `limit-orders.md` behavior | Contract test unlink + no maker transfer | integration | verify `limit_order_tests` | P2 |
-| Frontend hybrid validation (max_maker_fills) | UI state | Unit test for message shape | Vitest | DEX-P2-019 | P2 |
+| Frontend hybrid validation (max_maker_fills) | `pair.test.ts`, `router.hybrid.test.ts`, `routeOperations.test.ts` | — | Vitest | [GitLab **#84**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/84) / **#199** | P2 — **covered** |
 | Gas / size limits for large `max_maker_fills` | Hard cap in dex-common | Boundary test at cap | integration | DEX-P2-020 | P3 |
 | Reorg / duplicate tx | Indexer ON CONFLICT | Chaos test not in repo | manual / future | DEX-P2-016 | P2 |
-| Upgrade / migrate contract | None | Post-migration smoke script | manual | DEX-P2-021 | P2 |
-| Pause / resume swap + limits | `limit_order_tests` pause | E2E banner if added | E2E | DEX-P2-022 | P2 |
+| Upgrade / migrate contract | [`scripts/smoke-pool-swap.sh`](../../../scripts/smoke-pool-swap.sh) | Post-migration smoke script | manual | [GitLab **#86**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) / **#199** | P2 — **covered** (manual gate) |
+| Pause / resume swap + limits | `pause_blocks_swap_and_place_cancel_refunds_escrow`; TradePage pause banner Vitest | E2E banner if added | integration + Vitest | [GitLab **#87**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) / **#199** | P2 — **covered** |
 | Wrap + swap integration | `wrap-swap.spec.ts` | Extend for router path | E2E | — | P3 |
 
 ### Quick grep verification commands (for maintainers)

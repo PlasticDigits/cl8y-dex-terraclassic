@@ -64,10 +64,12 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
 })
 
 vi.mock('@/services/terraclassic/pair', () => ({
-  getPairPaused: vi.fn().mockResolvedValue(false),
+  getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   placeLimitOrder: vi.fn(),
   cancelLimitOrder: vi.fn(),
 }))
+
+import { getPairPaused } from '@/services/terraclassic/pair'
 
 vi.mock('@/services/terraclassic/settings', () => ({
   getPairFeeConfig: vi.fn().mockResolvedValue({ fee_bps: 30, treasury: 'terra1treasury0000000000000000000001' }),
@@ -125,6 +127,7 @@ describe('TradePage', () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
     vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({ price_usd: '0.02', sources: [] })
+    vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
   })
 
   it('sub-desktop workspace uses md two-column grid for tablet portrait (GitLab #146)', async () => {
@@ -381,6 +384,20 @@ describe('TradePage', () => {
     expect(screen.queryByTestId('trade-pair-not-found-link-notice')).not.toBeInTheDocument()
     expect(indexerClient.getPair).not.toHaveBeenCalled()
     expect(indexerClient.getTrades).not.toHaveBeenCalled()
+  })
+
+  it('shows pause banner and disables limit actions when pair is paused (GitLab #87 / #199)', async () => {
+    vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    const banner = await screen.findByText(/Pair is paused — swaps, limit place/i)
+    expect(banner).toHaveTextContent(/governance unpauses/i)
+
+    const placeBtns = screen.getAllByTestId('trade-limit-submit')
+    expect(placeBtns.length).toBeGreaterThan(0)
+    for (const btn of placeBtns) {
+      expect(btn).toBeDisabled()
+    }
   })
 
   it('chart Retry refetches indexer pair after 404 (GitLab #177)', async () => {
