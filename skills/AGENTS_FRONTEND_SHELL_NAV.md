@@ -7,7 +7,8 @@ Use when changing **header / mobile nav links**, **`Layout.tsx` routing UX**, or
 | Doc / code | Purpose |
 |------------|---------|
 | [docs/frontend.md § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation) | Breakpoints + **client-side tab navigation** invariant |
-| [`AppShellNavLink.tsx`](../frontend-dapp/src/components/common/AppShellNavLink.tsx) | Shared `NavLink` + explicit `navigate()` on plain left-click |
+| [`AppShellNavLink.tsx`](../frontend-dapp/src/components/common/AppShellNavLink.tsx) | Shared `Link` + `useMatch` + explicit `navigate()` on plain left-click |
+| [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) | **`Outlet key={location.pathname}`** — lazy route content must remount on tab change ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)) |
 | [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) | `PRIMARY_NAV_ITEMS`, `MORE_NAV_ITEMS`, `getHeaderMoreMenuItems` |
 | [`RouteContentReadyContext.tsx`](../frontend-dapp/src/contexts/RouteContentReadyContext.tsx) | Deferred NFA footer — **no render-phase `setState`** (can break router; #182) |
 | [`navigation.spec.ts`](../frontend-dapp/e2e/navigation.spec.ts) | E2E: Pool/Trade/Swap tab transitions at 1440px desktop |
@@ -15,9 +16,10 @@ Use when changing **header / mobile nav links**, **`Layout.tsx` routing UX**, or
 ## Rules of thumb
 
 1. **Do not** put raw `<NavLink>` in `Layout` for shell tabs — use **`AppShellNavLink`** so Keplr and similar extensions cannot leave history stale while `:active` styles still flash.
-2. **Do not** add render-phase `setState` in `RouteContentReadyProvider` when `pathname` changes; `readyForPath === pathname` already prevents stale footer ready state ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
-3. Keep route lists in **`navItems.ts`** only; extend Playwright when adding primary tabs at full-desktop width.
-4. **Swap route is `/`** (label “Swap”), not `/swap` — catch-all `*` redirects unknown paths to `/`.
+2. **Do not** remove **`key={location.pathname}`** from `<Outlet />` — without it, URL/active nav can update while the prior lazy page (e.g. Swap) stays mounted ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
+3. **Do not** add render-phase `setState` in `RouteContentReadyProvider` when `pathname` changes; `readyForPath === pathname` already prevents stale footer ready state ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
+4. Keep route lists in **`navItems.ts`** only; extend Playwright when adding primary tabs at full-desktop width.
+5. **Swap route is `/`** (label “Swap”), not `/swap` — catch-all `*` redirects unknown paths to `/`.
 
 ## Related
 

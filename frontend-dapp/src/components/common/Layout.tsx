@@ -187,7 +187,8 @@ export default function Layout() {
           <div className="app-main-content">
             {isLcdUnreachable ? <LcdConnectivityBanner onRetry={retryAll} isProbing={isProbePending} /> : null}
             <RouteContentReadyProvider onReadyChange={setRouteContentReady}>
-              <Outlet />
+              {/* Remount matched route on tab change so lazy Outlet content cannot stick on the prior page (GitLab #138, #182). */}
+              <Outlet key={location.pathname} />
             </RouteContentReadyProvider>
           </div>
           {showMobileLegalStrip && routeContentReady ? (

@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import type { NavItem } from '@/components/common/navItems'
 import { sounds } from '@/lib/sounds'
 
@@ -30,22 +30,25 @@ export function AppShellNavLink({
   labelClassName = 'app-nav-link-label',
 }: AppShellNavLinkProps) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const isActive = useMatch({ path: item.path, end: item.end !== false }) != null
 
   return (
-    <NavLink
+    <Link
       to={item.path}
-      end={item.end !== false}
       role={role}
-      className={className}
+      className={className({ isActive })}
       onClick={(event) => {
         sounds.playButtonPress()
         onAfterPress?.()
         if (isModifiedClick(event)) return
         event.preventDefault()
-        navigate(item.path)
+        if (location.pathname !== item.path) {
+          navigate(item.path)
+        }
       }}
     >
       <span className={labelClassName}>{item.label}</span>
-    </NavLink>
+    </Link>
   )
 }
