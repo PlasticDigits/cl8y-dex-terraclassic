@@ -19,6 +19,7 @@ use crate::state::{
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
+use dex_common::max_spread::{self, MaxSpreadInputs};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
 };
@@ -657,10 +658,8 @@ fn spot_linear_spread_over_gross(
 }
 
 /// Validate that the swap's effective spread does not exceed the user's
-/// tolerance. When `belief_price` is provided, spread is computed against
-/// the expected return at that price; otherwise it is computed from the
-/// constant-product spread relative to the gross output. Defaults to 1%
-/// if `max_spread` is not specified.
+/// tolerance. Pool-only swaps use the same path as hybrid (`book_net = 0`).
+/// See [`dex_common::max_spread`] and GitLab #197.
 fn assert_max_spread(
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
@@ -670,43 +669,21 @@ fn assert_max_spread(
     commission_amount: Uint128,
     book_return_net: Uint128,
 ) -> Result<(), ContractError> {
-    let default_spread = Decimal::percent(1);
-    let max_allowed = max_spread.unwrap_or(default_spread);
-
-    if let Some(bp) = belief_price {
-        let expected_return = offer_amount * (Decimal::one() / bp);
-        let actual_return = book_return_net
-            .checked_add(return_amount)?
-            .checked_add(commission_amount)?;
-        let spread = if expected_return > actual_return {
-            expected_return - actual_return
-        } else {
-            Uint128::zero()
-        };
-
-        if expected_return > Uint128::zero()
-            && Decimal::from_ratio(spread, expected_return) > max_allowed
-        {
-            return Err(ContractError::MaxSpreadAssertion {
-                max: max_allowed.to_string(),
-                actual: Decimal::from_ratio(spread, expected_return).to_string(),
-            });
-        }
-    } else {
-        let pool_gross = return_amount.checked_add(commission_amount)?;
-        let total_gross_out = pool_gross.checked_add(book_return_net)?;
-        let spread_cmp = spread_amount.min(pool_gross);
-        if total_gross_out > Uint128::zero()
-            && Decimal::from_ratio(spread_cmp, total_gross_out) > max_allowed
-        {
-            return Err(ContractError::MaxSpreadAssertion {
-                max: max_allowed.to_string(),
-                actual: Decimal::from_ratio(spread_cmp, total_gross_out).to_string(),
-            });
-        }
-    }
-
-    Ok(())
+    max_spread::check_max_spread(
+        belief_price,
+        max_spread,
+        &MaxSpreadInputs {
+            offer_amount,
+            pool_net_return: return_amount,
+            pool_commission: commission_amount,
+            pool_spread: spread_amount,
+            book_net_return: book_return_net,
+        },
+    )
+    .map_err(|v| ContractError::MaxSpreadAssertion {
+        max: v.max_allowed.to_string(),
+        actual: v.actual.to_string(),
+    })
 }
 
 /// Execute a constant-product swap.
@@ -2334,11 +2311,10 @@ pub fn migrate(
 }
 
 #[cfg(test)]
-mod max_spread_tests {
-    use cosmwasm_std::{Decimal, Uint128};
+mod spot_linear_spread_tests {
+    use cosmwasm_std::Uint128;
 
-    use super::{assert_max_spread, spot_linear_spread_over_gross};
-    use crate::error::ContractError;
+    use super::spot_linear_spread_over_gross;
 
     #[test]
     fn spot_linear_spread_matches_floor_ideal_minus_gross() {
@@ -2352,108 +2328,5 @@ mod max_spread_tests {
         let ideal = 100u128 * 500 / 1000;
         assert_eq!(ideal, 50);
         assert_eq!(s, Uint128::new(10));
-    }
-
-    /// When the spot-linear estimate exceeds gross by more than 100% of gross
-    /// (integer rounding), raw `spread_amount` can be larger than
-    /// `return + commission`. `max_spread = 100%` must still accept the swap.
-    #[test]
-    fn max_spread_one_allows_capped_ratio_when_raw_spread_exceeds_gross() {
-        assert_max_spread(
-            None,
-            Some(Decimal::one()),
-            Uint128::new(1),
-            Uint128::new(90),
-            Uint128::new(150),
-            Uint128::new(10),
-            Uint128::zero(),
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn max_spread_half_rejects_at_full_slippage_metric() {
-        let err = assert_max_spread(
-            None,
-            Some(Decimal::percent(50)),
-            Uint128::new(1),
-            Uint128::new(90),
-            Uint128::new(150),
-            Uint128::new(10),
-            Uint128::zero(),
-        )
-        .unwrap_err();
-        assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));
-    }
-
-    /// Hybrid no-belief: denominator includes `book_return_net`.
-    #[test]
-    fn max_spread_no_belief_denominator_includes_book_net() {
-        let book = Uint128::new(50);
-        let pool_gross = Uint128::new(100);
-        let spread = Uint128::new(5);
-        let denom = pool_gross.checked_add(book).unwrap();
-        let exact_max = Decimal::from_ratio(spread.min(pool_gross), denom);
-        assert_max_spread(
-            None,
-            Some(exact_max),
-            Uint128::new(1),
-            Uint128::new(90),
-            spread,
-            Uint128::new(10),
-            book,
-        )
-        .unwrap();
-        let tighter = Decimal::from_ratio(4u128, 150u128);
-        let err = assert_max_spread(
-            None,
-            Some(tighter),
-            Uint128::new(1),
-            Uint128::new(90),
-            spread,
-            Uint128::new(10),
-            book,
-        )
-        .unwrap_err();
-        assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));
-    }
-
-    /// Belief path: `actual_return` includes pool commission.
-    #[test]
-    fn max_spread_belief_counts_pool_commission_in_actual_return() {
-        let offer = Uint128::new(100);
-        let belief_price = Decimal::from_ratio(Uint128::new(1), Uint128::new(2));
-        let expected_return = offer * (Decimal::one() / belief_price);
-        let book_net = Uint128::new(10);
-        let pool_net = Uint128::new(170);
-        let pool_commission = Uint128::new(20);
-        let actual_with_commission = book_net
-            .checked_add(pool_net)
-            .unwrap()
-            .checked_add(pool_commission)
-            .unwrap();
-        assert_eq!(actual_with_commission, expected_return);
-        let max_tight = Decimal::permille(4);
-        assert_max_spread(
-            Some(belief_price),
-            Some(max_tight),
-            offer,
-            pool_net,
-            Uint128::zero(),
-            pool_commission,
-            book_net,
-        )
-        .unwrap();
-        let err = assert_max_spread(
-            Some(belief_price),
-            Some(max_tight),
-            offer,
-            pool_net.checked_sub(Uint128::new(1)).unwrap(),
-            Uint128::zero(),
-            pool_commission,
-            book_net,
-        )
-        .unwrap_err();
-        assert!(matches!(err, ContractError::MaxSpreadAssertion { .. }));
     }
 }

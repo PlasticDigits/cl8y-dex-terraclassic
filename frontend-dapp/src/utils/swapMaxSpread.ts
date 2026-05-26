@@ -1,6 +1,6 @@
 /**
- * Spread / max-spread helpers aligned with pair `assert_max_spread` when `belief_price` is unset
- * (see `smartcontracts/contracts/pair/src/contract.rs`).
+ * Spread / max-spread helpers aligned with pair `assert_max_spread` / [`dex_common::max_spread`](../../smartcontracts/packages/dex-common/src/max_spread.rs) when `belief_price` is unset
+ * (see `smartcontracts/contracts/pair/src/contract.rs`, invariant L9 / GitLab #197).
  *
  * Invariants (GitLab #134):
  * - `spread_cmp = min(spread_amount, pool_gross)` where `pool_gross = pool_return + commission`.

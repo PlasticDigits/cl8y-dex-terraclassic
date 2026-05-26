@@ -1779,6 +1779,233 @@ fn hybrid_pool_and_book_legs_one_swap() {
     );
 }
 
+/// GitLab #197 — hybrid execute enforces unified `max_spread` (pool spread / total gross out).
+#[test]
+fn hybrid_max_spread_exact_tolerance_succeeds() {
+    use dex_common::max_spread::{self, MaxSpreadInputs};
+
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(200_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_max_spread_ok");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let total_in = Uint128::new(100_000);
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::new(40_000),
+        book_input: Uint128::new(60_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: total_in,
+                },
+                hybrid: hybrid.clone(),
+            },
+        )
+        .unwrap();
+    assert!(sim.book_return_amount > Uint128::zero());
+
+    let inputs = MaxSpreadInputs::from_hybrid_simulation(
+        total_in,
+        sim.pool_return_amount,
+        sim.commission_amount,
+        sim.spread_amount,
+        sim.book_return_amount,
+    );
+    let pool_gross = sim
+        .pool_return_amount
+        .checked_add(sim.commission_amount)
+        .unwrap();
+    let spread_cmp = sim.spread_amount.min(pool_gross);
+    let total_gross = pool_gross.checked_add(sim.book_return_amount).unwrap();
+    let exact_max = Decimal::from_ratio(spread_cmp, total_gross);
+    max_spread::check_max_spread(None, Some(exact_max), &inputs).unwrap();
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(exact_max),
+        to: None,
+        deadline: None,
+        hybrid: Some(hybrid),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker.clone(),
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: total_in,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap();
+}
+
+#[test]
+fn hybrid_max_spread_tighter_than_simulation_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(200_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_max_spread_fail");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let total_in = Uint128::new(100_000);
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::new(40_000),
+        book_input: Uint128::new(60_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::zero()),
+        to: None,
+        deadline: None,
+        hybrid: Some(hybrid),
+        trader: None,
+    })
+    .unwrap();
+    let err = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("Max spread assertion"),
+        "hybrid swap should reject when pool spread / total gross exceeds max_spread"
+    );
+}
+
+#[test]
+fn hybrid_belief_price_max_spread_rejects_shortfall_on_total_output() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(200_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_belief_hybrid");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let total_in = Uint128::new(100_000);
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::new(40_000),
+        book_input: Uint128::new(60_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    // Belief implies 2:1 ask output vs offer — actual hybrid output is far lower.
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: Some(Decimal::from_ratio(Uint128::one(), Uint128::new(2))),
+        max_spread: Some(Decimal::permille(1)),
+        to: None,
+        deadline: None,
+        hybrid: Some(hybrid),
+        trader: None,
+    })
+    .unwrap();
+    let err = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("Max spread assertion"),
+        "belief_price path must count book + pool output on hybrid swaps"
+    );
+}
+
 #[test]
 fn match_invalid_book_start_hint_falls_back_to_head() {
     let mut app = App::default();
