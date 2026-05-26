@@ -99,6 +99,49 @@ describe('OrderBookPanel', () => {
     expect(screen.getByTestId('trade-book-cancel-all-mine')).toBeInTheDocument()
   })
 
+  it('loads additional depth on demand without replacing first page (GitLab #194)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getPairLimitBookPage).mockImplementation(async (_pair, side, params) => {
+      if (side === 'ask') {
+        return {
+          side: 'ask',
+          orders: [{ order_id: 9, owner: 'terra1maker', side: 'ask', price: '1.1', remaining: '100000000' }],
+          has_more: false,
+          next_after_order_id: null,
+        }
+      }
+      if (params?.afterOrderId != null) {
+        return {
+          side: 'bid',
+          orders: [{ order_id: 2, owner: 'terra1other', side: 'bid', price: '0.95', remaining: '50000000' }],
+          has_more: false,
+          next_after_order_id: null,
+        }
+      }
+      return {
+        side: 'bid',
+        orders: [{ order_id: 1, owner: 'terra1maker', side: 'bid', price: '1.0', remaining: '100000000' }],
+        has_more: true,
+        next_after_order_id: 1,
+      }
+    })
+
+    renderWithProviders(<OrderBookPanel pairAddress={pair.pair_address} pair={pair} />)
+
+    const bids = screen.getByText('Bids').closest('.card-neo') as HTMLElement
+    expect(await within(bids).findByTitle(/Order #1 ·/)).toBeInTheDocument()
+    expect(within(bids).queryByTitle(/Order #2 ·/)).not.toBeInTheDocument()
+
+    await user.click(within(bids).getByRole('button', { name: /Load more depth/i }))
+    expect(await within(bids).findByTitle(/Order #2 ·/)).toBeInTheDocument()
+    expect(within(bids).getByTitle(/Order #1 ·/)).toBeInTheDocument()
+    expect(getPairLimitBookPage).toHaveBeenCalledWith(
+      pair.pair_address,
+      'bid',
+      expect.objectContaining({ afterOrderId: 1 })
+    )
+  })
+
   it('Edit invokes onPrefillLimitTicket with side, price, and remaining size (GitLab #178)', async () => {
     const user = userEvent.setup()
     const onPrefill = vi.fn()
