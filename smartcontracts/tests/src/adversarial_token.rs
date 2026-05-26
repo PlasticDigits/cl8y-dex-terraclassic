@@ -741,15 +741,16 @@ mod adversarial_tests {
         .unwrap();
 
         let user_b = query_cw20_balance(&app, &env.token_b, &env.user);
-        let sim: dex_common::pair::SimulationResponse = app
+        let sim: dex_common::pair::HybridSimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Simulation {
+                &dex_common::pair::QueryMsg::HybridSimulation {
                     offer_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_a),
                         amount: swap_in,
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(swap_in),
                 },
             )
             .unwrap();

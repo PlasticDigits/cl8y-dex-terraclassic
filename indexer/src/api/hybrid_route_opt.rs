@@ -1,4 +1,4 @@
-//! Per-hop hybrid split search using pair `HybridSimulation` and pool-only `Simulation` fallback.
+//! Per-hop hybrid split search using pair `HybridSimulation` (pool-only fallback uses zero book leg).
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -38,11 +38,6 @@ struct HybridSimResp {
     return_amount: String,
 }
 
-#[derive(Deserialize)]
-struct PoolSimResp {
-    return_amount: String,
-}
-
 const GRID_POINTS: u32 = 17;
 
 fn asset_info_token(contract: &str) -> serde_json::Value {
@@ -78,28 +73,8 @@ async fn query_hybrid_sim(
         .map_err(|e| crate::lcd::LcdError::Deserialize(format!("return_amount: {}", e)))
 }
 
-async fn query_pool_sim(
-    lcd: &LcdClient,
-    pair: &str,
-    offer_token: &str,
-    offer_amount: u128,
-) -> Result<u128, crate::lcd::LcdError> {
-    let q = json!({
-        "simulation": {
-            "offer_asset": {
-                "info": asset_info_token(offer_token),
-                "amount": offer_amount.to_string(),
-            }
-        }
-    });
-    let r: PoolSimResp = lcd.query_contract(pair, &q).await?;
-    r.return_amount
-        .parse::<u128>()
-        .map_err(|e| crate::lcd::LcdError::Deserialize(format!("return_amount: {}", e)))
-}
-
 /// Grid search over `book_input`; picks the split maximizing `return_amount`.
-/// On persistent LCD failure, falls back to pool-only for this hop (`degraded`).
+/// On persistent LCD failure, falls back to pool-only hybrid for this hop (`degraded`).
 async fn optimize_one_hop(
     lcd: &LcdClient,
     hop: &HopDescriptor,
@@ -155,7 +130,8 @@ async fn optimize_one_hop(
 
     if !any_candidate_ok {
         meta.degraded = true;
-        let out = query_pool_sim(lcd, &hop.pair, &hop.offer_token, offer_amount).await?;
+        let out = query_hybrid_sim(lcd, &hop.pair, &hop.offer_token, offer_amount, offer_amount, 0, 1)
+            .await?;
         return Ok((None, out));
     }
 
@@ -172,7 +148,8 @@ async fn optimize_one_hop(
     }
 
     // Prefer explicit pool-only hybrid (book=0) vs null: both are valid; use null for fewer bytes.
-    let out = query_pool_sim(lcd, &hop.pair, &hop.offer_token, offer_amount).await?;
+    let out = query_hybrid_sim(lcd, &hop.pair, &hop.offer_token, offer_amount, offer_amount, 0, 1)
+        .await?;
     Ok((None, out))
 }
 

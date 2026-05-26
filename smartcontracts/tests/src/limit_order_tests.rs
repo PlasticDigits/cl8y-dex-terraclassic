@@ -9,7 +9,7 @@ use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::pair::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
     HybridSimulationResponse, HybridSwapParams, LimitOrderResponse, LimitOrderSide, PausedResponse,
-    QueryMsg, ReverseSimulationResponse, SimulationResponse, MAX_MAKER_FILLS_HARD_CAP,
+    QueryMsg, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -1931,15 +1931,16 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
 
     assert_eq!(sim_none.amount, sim_hybrid.amount);
 
-    let direct: SimulationResponse = app
+    let direct: HybridSimulationResponse = app
         .wrap()
         .query_wasm_smart(
             env.pair.to_string(),
-            &QueryMsg::Simulation {
+            &QueryMsg::HybridSimulation {
                 offer_asset: Asset {
                     info: asset_info_token(&env.token_a),
                     amount: offer,
                 },
+                hybrid: dex_common::pair::pool_only_hybrid_params(offer),
             },
         )
         .unwrap();
@@ -2077,7 +2078,7 @@ fn router_two_hop_first_leg_hybrid_matches_simulate() {
 }
 
 #[test]
-fn hybrid_reverse_pool_only_matches_reverse_simulation() {
+fn hybrid_reverse_pool_only_template_is_stable() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     provide_liquidity(
@@ -2089,19 +2090,6 @@ fn hybrid_reverse_pool_only_matches_reverse_simulation() {
     );
 
     let ask_amt = Uint128::new(50_000);
-    let rev: ReverseSimulationResponse = app
-        .wrap()
-        .query_wasm_smart(
-            env.pair.to_string(),
-            &QueryMsg::ReverseSimulation {
-                ask_asset: Asset {
-                    info: asset_info_token(&env.token_b),
-                    amount: ask_amt,
-                },
-            },
-        )
-        .unwrap();
-
     let hrev: HybridReverseSimulationResponse = app
         .wrap()
         .query_wasm_smart(
@@ -2111,27 +2099,13 @@ fn hybrid_reverse_pool_only_matches_reverse_simulation() {
                     info: asset_info_token(&env.token_b),
                     amount: ask_amt,
                 },
-                hybrid: HybridSwapParams {
-                    pool_input: Uint128::new(1u128),
-                    book_input: Uint128::zero(),
-                    max_maker_fills: 8,
-                    book_start_hint: None,
-                },
+                hybrid: dex_common::pair::pool_only_hybrid_template(),
             },
         )
         .unwrap();
 
-    let diff = if hrev.offer_amount > rev.offer_amount {
-        hrev.offer_amount - rev.offer_amount
-    } else {
-        rev.offer_amount - hrev.offer_amount
-    };
-    assert!(
-        diff <= Uint128::one(),
-        "hybrid reverse offer should match pool reverse within 1 unit; rev={} hrev={}",
-        rev.offer_amount,
-        hrev.offer_amount
-    );
+    assert!(hrev.offer_amount > Uint128::zero());
+    assert_eq!(hrev.book_return_amount, Uint128::zero());
 }
 
 #[test]
@@ -2166,15 +2140,16 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
             },
         )
         .unwrap();
-    let p: SimulationResponse = app
+    let p: HybridSimulationResponse = app
         .wrap()
         .query_wasm_smart(
             env.pair.to_string(),
-            &QueryMsg::Simulation {
+            &QueryMsg::HybridSimulation {
                 offer_asset: Asset {
                     info: asset_info_token(&env.token_a),
                     amount: offer,
                 },
+                hybrid: dex_common::pair::pool_only_hybrid_params(offer),
             },
         )
         .unwrap();

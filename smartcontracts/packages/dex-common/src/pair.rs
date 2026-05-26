@@ -36,6 +36,26 @@ pub struct HybridSwapParams {
     pub book_start_hint: Option<u64>,
 }
 
+/// Pool-only quote/execute shape: entire offer on the AMM, no book leg (invariant L8).
+pub fn pool_only_hybrid_params(offer_amount: Uint128) -> HybridSwapParams {
+    HybridSwapParams {
+        pool_input: offer_amount,
+        book_input: Uint128::zero(),
+        max_maker_fills: 1,
+        book_start_hint: None,
+    }
+}
+
+/// Ratio template for [`QueryMsg::HybridReverseSimulation`] when the offer is pool-only.
+pub fn pool_only_hybrid_template() -> HybridSwapParams {
+    HybridSwapParams {
+        pool_input: Uint128::one(),
+        book_input: Uint128::zero(),
+        max_maker_fills: 1,
+        book_start_hint: None,
+    }
+}
+
 /// Which side of the book the maker is on.
 ///
 /// **Price** is always **token1 per token0** (output token1 per 1 unit of token0), matching pool pricing.
@@ -216,12 +236,6 @@ pub enum QueryMsg {
     /// TerraSwap-compatible: returns pool reserves and total LP share.
     #[returns(PoolResponse)]
     Pool {},
-    /// TerraSwap-compatible: simulate a swap.
-    #[returns(SimulationResponse)]
-    Simulation { offer_asset: Asset },
-    /// TerraSwap-compatible: reverse-simulate a swap.
-    #[returns(ReverseSimulationResponse)]
-    ReverseSimulation { ask_asset: Asset },
     #[returns(FeeConfigResponse)]
     GetFeeConfig {},
     #[returns(HooksResponse)]
@@ -283,22 +297,6 @@ pub struct FeeConfigResponse {
 #[cw_serde]
 pub struct HooksResponse {
     pub hooks: Vec<Addr>,
-}
-
-/// TerraSwap-compatible simulation response.
-#[cw_serde]
-pub struct SimulationResponse {
-    pub return_amount: Uint128,
-    pub spread_amount: Uint128,
-    pub commission_amount: Uint128,
-}
-
-/// TerraSwap-compatible reverse simulation response.
-#[cw_serde]
-pub struct ReverseSimulationResponse {
-    pub offer_amount: Uint128,
-    pub spread_amount: Uint128,
-    pub commission_amount: Uint128,
 }
 
 #[cw_serde]

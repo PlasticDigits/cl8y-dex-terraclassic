@@ -1449,15 +1449,16 @@ mod pair_tests {
             Uint128::new(1_000_000),
         );
 
-        let sim: dex_common::pair::SimulationResponse = app
+        let sim: dex_common::pair::HybridSimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Simulation {
+                &dex_common::pair::QueryMsg::HybridSimulation {
                     offer_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(1_000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
                 },
             )
             .unwrap();
@@ -1479,15 +1480,16 @@ mod pair_tests {
             Uint128::new(1_000_000),
         );
 
-        let rsim: dex_common::pair::ReverseSimulationResponse = app
+        let rsim: dex_common::pair::HybridReverseSimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::ReverseSimulation {
+                &dex_common::pair::QueryMsg::HybridReverseSimulation {
                     ask_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_b),
                         amount: Uint128::new(997),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_template(),
                 },
             )
             .unwrap();
@@ -3008,20 +3010,24 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        let sim: dex_common::pair::SimulationResponse = app
+        let err = app
             .wrap()
-            .query_wasm_smart(
+            .query_wasm_smart::<dex_common::pair::HybridSimulationResponse>(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Simulation {
+                &dex_common::pair::QueryMsg::HybridSimulation {
                     offer_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(1_000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
                 },
             )
-            .unwrap();
-        assert_eq!(sim.return_amount, Uint128::zero());
-        assert_eq!(sim.commission_amount, Uint128::zero());
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("Insufficient liquidity"),
+            "empty pool hybrid sim should fail closed: {}",
+            err
+        );
     }
 
     #[test]
@@ -3318,15 +3324,16 @@ mod pair_coverage_tests {
             Uint128::new(1_000_000),
         );
 
-        let sim: dex_common::pair::SimulationResponse = app
+        let sim: dex_common::pair::HybridSimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Simulation {
+                &dex_common::pair::QueryMsg::HybridSimulation {
                     offer_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(10_000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(10_000)),
                 },
             )
             .unwrap();
@@ -5707,16 +5714,17 @@ mod fuzz_tests {
             let swap_amount = std::cmp::max(1, init * swap_fraction_bps / 10000);
             let pool_before = query_pool(&app, &env.pair);
 
-            let sim: dex_common::pair::SimulationResponse = app
+            let sim: dex_common::pair::HybridSimulationResponse = app
                 .wrap()
                 .query_wasm_smart(
                     env.pair.to_string(),
-                    &dex_common::pair::QueryMsg::Simulation {
-                        offer_asset: dex_common::types::Asset {
+                    &dex_common::pair::QueryMsg::HybridSimulation {
+                    offer_asset: dex_common::types::Asset {
                             info: asset_info_token(&env.token_a),
                             amount: Uint128::new(swap_amount),
                         },
-                    },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                },
                 )
                 .unwrap();
 
@@ -6137,16 +6145,17 @@ mod fuzz_tests {
 
             let swap_amount = std::cmp::max(1, init_a * swap_fraction_bps / 10000);
 
-            let sim: dex_common::pair::SimulationResponse = app
+            let sim: dex_common::pair::HybridSimulationResponse = app
                 .wrap()
                 .query_wasm_smart(
                     env.pair.to_string(),
-                    &dex_common::pair::QueryMsg::Simulation {
-                        offer_asset: dex_common::types::Asset {
+                    &dex_common::pair::QueryMsg::HybridSimulation {
+                    offer_asset: dex_common::types::Asset {
                             info: asset_info_token(&env.token_a),
                             amount: Uint128::new(swap_amount),
                         },
-                    },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                },
                 )
                 .unwrap();
 
@@ -8683,14 +8692,15 @@ mod line_coverage_tests {
             Uint128::new(1_000_000),
         );
 
-        let result: Result<dex_common::pair::ReverseSimulationResponse, _> =
+        let result: Result<dex_common::pair::HybridReverseSimulationResponse, _> =
             app.wrap().query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::ReverseSimulation {
+                &dex_common::pair::QueryMsg::HybridReverseSimulation {
                     ask_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_b),
                         amount: Uint128::new(1000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_template(),
                 },
             );
 
@@ -8714,15 +8724,17 @@ mod line_coverage_tests {
         );
 
         let fake_token = Addr::unchecked("fake_token");
-        let result: Result<dex_common::pair::SimulationResponse, _> = app.wrap().query_wasm_smart(
-            env.pair.to_string(),
-            &dex_common::pair::QueryMsg::Simulation {
-                offer_asset: dex_common::types::Asset {
-                    info: asset_info_token(&fake_token),
-                    amount: Uint128::new(1000),
+        let result: Result<dex_common::pair::HybridSimulationResponse, _> =
+            app.wrap().query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::HybridSimulation {
+                    offer_asset: dex_common::types::Asset {
+                        info: asset_info_token(&fake_token),
+                        amount: Uint128::new(1000),
+                    },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1000)),
                 },
-            },
-        );
+            );
 
         assert!(result.is_err(), "Simulation with wrong asset should fail");
     }
@@ -8741,14 +8753,15 @@ mod line_coverage_tests {
         );
 
         let fake_token = Addr::unchecked("fake_token");
-        let result: Result<dex_common::pair::ReverseSimulationResponse, _> =
+        let result: Result<dex_common::pair::HybridReverseSimulationResponse, _> =
             app.wrap().query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::ReverseSimulation {
+                &dex_common::pair::QueryMsg::HybridReverseSimulation {
                     ask_asset: dex_common::types::Asset {
                         info: asset_info_token(&fake_token),
                         amount: Uint128::new(1000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_template(),
                 },
             );
 
@@ -8999,15 +9012,16 @@ mod line_coverage_tests {
         );
 
         // Reverse sim asking for token A (ask = token A means we need to offer token B)
-        let rsim: dex_common::pair::ReverseSimulationResponse = app
+        let rsim: dex_common::pair::HybridReverseSimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::ReverseSimulation {
+                &dex_common::pair::QueryMsg::HybridReverseSimulation {
                     ask_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(10_000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_template(),
                 },
             )
             .unwrap();
@@ -9360,16 +9374,17 @@ mod additional_fuzz_tests {
             let env1 = setup_full_env(&mut app1);
             provide_liquidity(&mut app1, &env1, &env1.user,
                 Uint128::new(init), Uint128::new(init));
-            let sim: dex_common::pair::SimulationResponse = app1
+            let sim: dex_common::pair::HybridSimulationResponse = app1
                 .wrap()
                 .query_wasm_smart(
                     env1.pair.to_string(),
-                    &dex_common::pair::QueryMsg::Simulation {
-                        offer_asset: dex_common::types::Asset {
+                    &dex_common::pair::QueryMsg::HybridSimulation {
+                    offer_asset: dex_common::types::Asset {
                             info: asset_info_token(&env1.token_a),
                             amount: Uint128::new(swap_amount),
                         },
-                    },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                },
                 )
                 .unwrap();
 
@@ -10745,15 +10760,16 @@ mod fee_treasury_tests {
         );
 
         // Simulate A->B to predict fee
-        let sim_ab: dex_common::pair::SimulationResponse = app
+        let sim_ab: dex_common::pair::HybridSimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Simulation {
+                &dex_common::pair::QueryMsg::HybridSimulation {
                     offer_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(100_000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
                 },
             )
             .unwrap();
@@ -10768,15 +10784,16 @@ mod fee_treasury_tests {
         );
 
         // Now swap B->A from user2
-        let sim_ba: dex_common::pair::SimulationResponse = app
+        let sim_ba: dex_common::pair::HybridSimulationResponse = app
             .wrap()
             .query_wasm_smart(
                 env.pair.to_string(),
-                &dex_common::pair::QueryMsg::Simulation {
+                &dex_common::pair::QueryMsg::HybridSimulation {
                     offer_asset: dex_common::types::Asset {
                         info: asset_info_token(&env.token_b),
                         amount: Uint128::new(100_000),
                     },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
                 },
             )
             .unwrap();

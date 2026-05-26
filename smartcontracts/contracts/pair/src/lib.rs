@@ -34,9 +34,10 @@
 //! - **Bounded work:** Placement insert position is found by a linear walk
 //!   from the book head capped by `max_adjust_steps` (see `orderbook`).
 //!   Hybrid swaps cap distinct makers per tx via `max_maker_fills`.
-//! - **Queries:** `Simulation` / `ReverseSimulation` are **pool-only** and do
-//!   not walk the on-chain limit book. See repository docs (`limit-orders.md`,
-//!   `contracts-security-audit.md` invariant L8).
+//! - **Queries:** `HybridSimulation` / `HybridReverseSimulation` are the only
+//!   swap quote paths. Use [`dex_common::pair::pool_only_hybrid_params`] for
+//!   pool-only quotes (`book_input = 0`). See `docs/limit-orders.md` and
+//!   invariant L8 in `docs/contracts-security-audit.md`.
 //!
 //! ## Auth model
 //!

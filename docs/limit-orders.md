@@ -6,13 +6,13 @@ This document is the implementation reference for the hybrid AMM + FIFO limit bo
 
 <a id="swap-ui-hybrid-vs-pool-only-estimates"></a>
 
-The Swap UI must show **before submit** whether execution is **hybrid (pool + limit book)** vs **pool-only** when a book leg is configured, and it must not hide the fact that a **pool `Simulation` quote** can disagree with a **submitted hybrid** (see L8 in [contracts-security-audit.md](./contracts-security-audit.md)). Implementation: [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) and the pure split helper [`frontend-dapp/src/utils/swapDisclosure.ts`](../frontend-dapp/src/utils/swapDisclosure.ts). Product/QA: [GitLab #111](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/111).
+The Swap UI must show **before submit** whether execution is **hybrid (pool + limit book)** vs **pool-only** when a book leg is configured, and it must not hide the fact that a **pool-only `hybrid_simulation` quote** (`book_input = 0`) can disagree with a **submitted hybrid** that includes a book leg (see L8 in [contracts-security-audit.md](./contracts-security-audit.md)). Implementation: [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) and the pure split helper [`frontend-dapp/src/utils/swapDisclosure.ts`](../frontend-dapp/src/utils/swapDisclosure.ts). Product/QA: [GitLab #111](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/111).
 
 **MEV / mempool posture** (separate from hybrid routing): Swap **Settings** discloses that txs use the **public mempool** and that **slippage** is the on-chain sandwich guard — no MEV-protection toggle in this build. See [`docs/frontend.md#swap-mev-posture`](./frontend.md#swap-mev-posture) · [GitLab #168](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168) · [`skills/AGENTS_FRONTEND_MEV_POSTURE.md`](../skills/AGENTS_FRONTEND_MEV_POSTURE.md).
 
 **Invariants**
 
-- **Pool `Simulation` / pool-only multihop sim** does not include the on-chain book; the pair’s `Simulation` query is reserves-only.
+- **Pool-only quotes** use `HybridSimulation` with `book_input = 0` ([`pool_only_hybrid_params`](../smartcontracts/packages/dex-common/src/pair.rs)); they do not walk the on-chain book.
 - **Direct CW20 + “limit book leg” in Settings:** `pool_input` / `book_input` must sum to the pay amount; the same split is computed in one place for UI, simulation (`postRouteSolve` when used), and `swap` submit (`getDirectHybridBookSplit` vs [`HybridSwapParams`](../smartcontracts/packages/dex-common/src/pair.rs) fields).
 - **When the receive line is still pool-only but a book leg is active:** the UI sets `receiveQuoteIsPoolOnlyWithConfiguredBookLeg` and shows copy under “You receive” (hybrid fill may differ).
 - **Book leg amount input ([GitLab #169](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169)):** Settings **Book leg amount** and Trade market **Book leg override** use the same decimal draft validation as Swap **You Pay** — only digits and one `.`; invalid keys are rejected with no error UI. See [frontend.md § Decimal amount inputs](./frontend.md#decimal-amount-inputs) and [`decimalAmountInput.ts`](../frontend-dapp/src/utils/decimalAmountInput.ts).
@@ -54,11 +54,11 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 ### Router
 
 - Each `SwapOperation::TerraSwap` may include `hybrid: Option<HybridSwapParams>` (same fields as the pair hook). `None` is legacy pool-only.
-- **`SimulateSwapOperations` / `ReverseSimulateSwapOperations`:** when `hybrid` is unset, the router uses each hop’s pool-only `Simulation` / `ReverseSimulation`. When `hybrid` is set, the router queries the pair’s **`HybridSimulation`** / **`HybridReverseSimulation`** (read-only book walk + pool leg), so quotes align with Pattern C for the same on-chain book snapshot. Legacy pool-only `Simulation` remains for integrators that do not pass `hybrid`. See [contracts-security-audit.md](./contracts-security-audit.md) invariant **L8**.
+- **`SimulateSwapOperations` / `ReverseSimulateSwapOperations`:** when `hybrid` is unset on a hop, the router still queries pair **`HybridSimulation`** / **`HybridReverseSimulation`** with pool-only params (same as `pool_only_hybrid_params` / `pool_only_hybrid_template`). When `hybrid` is set, legs must sum to the per-hop offer and the router passes those params through. See [contracts-security-audit.md](./contracts-security-audit.md) invariant **L8** and [GitLab #190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190).
 
-### Pair `Simulation` query
+### Pair quoting (removed legacy queries)
 
-- The pair’s `Simulation` / `ReverseSimulation` queries use **reserves only** (no book). Off-chain tooling must not treat them as hybrid-aware.
+- Legacy `Simulation` / `ReverseSimulation` queries were **removed** ([#190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190)). Integrators must use **`hybrid_simulation`** / **`hybrid_reverse_simulation`** only. Agent playbook: [`skills/AGENTS_HYBRID_QUOTING.md`](../skills/AGENTS_HYBRID_QUOTING.md).
 
 ### Pause (governance)
 

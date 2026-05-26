@@ -263,7 +263,7 @@ export function TradeMarketOrderPanel({
       })
       return {
         ...sim,
-        quoteDisclosure: 'Direct pair · pool simulation (reserves only; book not modeled).',
+        quoteDisclosure: 'Direct pair · hybrid_simulation (pool-only leg; book not in quote).',
         receiveQuoteIsPoolOnlyWithConfiguredBookLeg: !!(hybridSplit?.willSubmitHybrid && !hybridSplit?.bookExceedsPay),
       }
     },

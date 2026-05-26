@@ -9,7 +9,7 @@ use crate::error::ContractError;
 use crate::msg::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, FeeConfigResponse, HooksResponse,
     InstantiateMsg, LimitOrderResponse, ObserveResponse, OracleInfoResponse, PoolResponse,
-    QueryMsg, ReverseSimulationResponse, SimulationResponse,
+    QueryMsg,
 };
 use crate::orderbook;
 use crate::state::{
@@ -1884,12 +1884,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Pair {} => to_json_binary(&query_pair(deps, &env)?),
         QueryMsg::Pool {} => to_json_binary(&query_pool(deps)?),
-        QueryMsg::Simulation { offer_asset } => {
-            to_json_binary(&query_simulation(deps, offer_asset)?)
-        }
-        QueryMsg::ReverseSimulation { ask_asset } => {
-            to_json_binary(&query_reverse_simulation(deps, ask_asset)?)
-        }
         QueryMsg::GetFeeConfig {} => to_json_binary(&query_fee_config(deps)?),
         QueryMsg::GetHooks {} => to_json_binary(&query_hooks(deps)?),
         QueryMsg::Observe { seconds_ago } => to_json_binary(
@@ -2211,114 +2205,6 @@ fn query_hybrid_reverse_simulation(
         commission_amount: sim.commission_amount,
         book_return_amount: sim.book_return_amount,
         pool_return_amount: sim.pool_return_amount,
-    })
-}
-
-/// Constant-product pool simulation only — **does not include** the on-chain limit book
-/// or Pattern C hybrid fills. See `docs/limit-orders.md` and invariant L8 in
-/// `docs/contracts-security-audit.md`.
-fn query_simulation(deps: Deps, offer_asset: Asset) -> StdResult<SimulationResponse> {
-    let pair_info = PAIR_INFO.load(deps.storage)?;
-    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
-    let fee_config = FEE_CONFIG.load(deps.storage)?;
-
-    let (input_reserve, output_reserve) = if offer_asset.info.equal(&pair_info.asset_infos[0]) {
-        (reserve_a, reserve_b)
-    } else if offer_asset.info.equal(&pair_info.asset_infos[1]) {
-        (reserve_b, reserve_a)
-    } else {
-        return Err(cosmwasm_std::StdError::generic_err(
-            "Invalid offer asset: does not match pair assets",
-        ));
-    };
-
-    if input_reserve.is_zero() || output_reserve.is_zero() {
-        return Ok(SimulationResponse {
-            return_amount: Uint128::zero(),
-            spread_amount: Uint128::zero(),
-            commission_amount: Uint128::zero(),
-        });
-    }
-
-    let offer_amount = offer_asset.amount;
-    let k = input_reserve.checked_mul(output_reserve)?;
-    let new_input_reserve = input_reserve.checked_add(offer_amount)?;
-    let new_output_reserve = ceil_div(k, new_input_reserve);
-    let gross_output = output_reserve.checked_sub(new_output_reserve)?;
-
-    let commission_amount = gross_output
-        .checked_mul(Uint128::new(fee_config.fee_bps as u128))?
-        .checked_div(Uint128::new(10000))?;
-    let return_amount = gross_output.checked_sub(commission_amount)?;
-
-    let spread_amount =
-        spot_linear_spread_over_gross(offer_amount, input_reserve, output_reserve, gross_output)?;
-
-    Ok(SimulationResponse {
-        return_amount,
-        spread_amount,
-        commission_amount,
-    })
-}
-
-/// Pool-only reverse simulation; **ignores** limit-book liquidity (same scope as `query_simulation`).
-fn query_reverse_simulation(deps: Deps, ask_asset: Asset) -> StdResult<ReverseSimulationResponse> {
-    let pair_info = PAIR_INFO.load(deps.storage)?;
-    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
-    let fee_config = FEE_CONFIG.load(deps.storage)?;
-
-    let (input_reserve, output_reserve) = if ask_asset.info.equal(&pair_info.asset_infos[1]) {
-        (reserve_a, reserve_b)
-    } else if ask_asset.info.equal(&pair_info.asset_infos[0]) {
-        (reserve_b, reserve_a)
-    } else {
-        return Err(cosmwasm_std::StdError::generic_err(
-            "Invalid ask asset: does not match pair assets",
-        ));
-    };
-
-    if input_reserve.is_zero() || output_reserve.is_zero() {
-        return Ok(ReverseSimulationResponse {
-            offer_amount: Uint128::zero(),
-            spread_amount: Uint128::zero(),
-            commission_amount: Uint128::zero(),
-        });
-    }
-
-    let ask_amount = ask_asset.amount;
-
-    if fee_config.fee_bps >= 10000 {
-        return Err(cosmwasm_std::StdError::generic_err(
-            "Cannot reverse-simulate with 100% fee",
-        ));
-    }
-
-    let fee_denom = 10000u128 - fee_config.fee_bps as u128;
-    let gross_needed = ask_amount
-        .checked_mul(Uint128::new(10000))?
-        .checked_div(Uint128::new(fee_denom))?
-        .checked_add(Uint128::one())?;
-    let commission_amount = gross_needed.checked_sub(ask_amount)?;
-
-    if gross_needed >= output_reserve {
-        return Err(cosmwasm_std::StdError::generic_err(
-            "Insufficient liquidity for reverse simulation",
-        ));
-    }
-
-    let denom = output_reserve.checked_sub(gross_needed)?;
-    let offer_amount = input_reserve
-        .checked_mul(gross_needed)?
-        .checked_div(denom)?
-        .checked_add(Uint128::one())?;
-
-    let spread_amount =
-        spot_linear_spread_over_gross(offer_amount, input_reserve, output_reserve, gross_needed)?;
-
-    Ok(ReverseSimulationResponse {
-        offer_amount,
-        spread_amount,
-        commission_amount,
     })
 }
 
