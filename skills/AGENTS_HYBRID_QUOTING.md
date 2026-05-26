@@ -17,13 +17,17 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 ## Canonical docs
 
 - Invariant **L8:** [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md)
+- Invariant **L9** (`max_spread` pool + hybrid): [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs), [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197), [`docs/integrators.md`](../docs/integrators.md#slippage-max_spread-and-belief_price-hybrid)
 - Product/integrator: [`docs/limit-orders.md`](../docs/limit-orders.md), [`docs/integrators.md`](../docs/integrators.md)
 - ADR: [`docs/adr/0001-hybrid-quoting-and-routing.md`](../docs/adr/0001-hybrid-quoting-and-routing.md)
+- Frontend preflight math: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md)
 
 ## Tests to run after changes
 
 ```bash
-cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::
+cd smartcontracts && cargo test -p dex-common max_spread
+cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_max_spread
+cd smartcontracts && cargo test -p cl8y-dex-tests test_swap_max_spread
 cd frontend-dapp && npm test -- src/services/terraclassic/__tests__/pair.test.ts
 cd indexer && cargo test api_route_solve
 cd frontend-dapp && pnpm exec playwright test e2e/hybrid-swap.spec.ts   # strict E2E — see AGENTS_E2E_HYBRID_SWAP.md (#193)

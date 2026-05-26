@@ -53,6 +53,7 @@ LCD stubs: [`indexer/tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock
 - [`docs/testing.md`](../docs/testing.md) — test types and commands
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — route solve HTTP semantics
 - [`docs/limit-orders.md`](../docs/limit-orders.md) — Pattern C / L8 quoting scope
+- [`skills/AGENTS_MAX_SPREAD_HYBRID.md`](./AGENTS_MAX_SPREAD_HYBRID.md) — L9 slippage on hybrid executes ([#197](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197))
 
 ## When to extend
 

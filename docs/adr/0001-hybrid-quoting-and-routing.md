@@ -16,7 +16,7 @@ Router and pair legacy `Simulation` queries were pool-only while Pattern C execu
 ## Consequences
 
 - CosmWasm queries do not persist book expiry cleanup; simulation skips expired orders without unlinking storage, matching execute only when the visible walk is unchanged.
-- `max_spread` / `belief_price` checks on execute use hybrid **total** gross output (pool gross + book net to taker) for the no-belief denominator; belief path uses full input vs book net + pool gross.
+- `max_spread` / `belief_price` checks on execute use hybrid **total** gross output (pool gross + book net to taker) for the no-belief denominator; belief path uses full input vs book net + pool gross. Shared implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs) (invariant **L9**, GitLab **#197**).
 
 ## Links
 

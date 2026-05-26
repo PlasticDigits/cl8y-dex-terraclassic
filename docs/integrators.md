@@ -51,13 +51,13 @@ OpenAPI: served from the indexer Swagger UI (`/swagger-ui/`). Regression tests: 
 
 ## Slippage: `max_spread` and `belief_price` (hybrid)
 
-Slippage checks run in the pair after the book leg and pool leg are computed. See [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) for the high-level rule.
+Slippage checks run in the pair after the book leg and pool leg are computed. See [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) for the high-level rule. Canonical implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs) (invariant **L9**, [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197)). Pool-only swaps are the special case `book_return_net = 0`.
 
 **Without `belief_price`:** The check compares `max_spread` to a ratio whose numerator is the pool leg’s constant-product spread metric (capped by pool gross output) and whose denominator is **pool gross output plus book net output to the taker** (`pool_net + pool_commission + book_return_net` in ask units). So the book leg scales the denominator even though the spread numerator comes from the pool leg.
 
 **With `belief_price`:** Expected output is `offer_amount / belief_price` (in ask units). Actual output used in the inequality is `book_return_net + pool_net_to_receiver + pool_commission` (pool commission to treasury counts on the “actual” side).
 
-These are **execution** semantics; all quoting uses `HybridSimulation` / `HybridReverseSimulation` (invariant L8; legacy `Simulation` removed in [#190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190)).
+These are **execution** semantics; all quoting uses `HybridSimulation` / `HybridReverseSimulation` (invariant L8; legacy `Simulation` removed in [#190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190)). Frontend preflight mirrors the no-belief formula in [`swapMaxSpread.ts`](../frontend-dapp/src/utils/swapMaxSpread.ts) — see [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
 
 ## Route discovery and quotes (L8)
 
