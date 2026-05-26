@@ -20,9 +20,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use axum::body::Body;
 use axum::http::{header, HeaderValue, Method, StatusCode};
-use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 use sqlx::PgPool;
@@ -271,30 +269,6 @@ async fn health() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"status": "ok"}))
 }
 
-async fn prometheus_metrics() -> Response {
-    match crate::metrics::gather_text() {
-        Ok(body) => Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "text/plain; version=0.0.4")
-            .body(Body::from(body))
-            .unwrap_or_else(|e| {
-                tracing::error!("metrics response build: {}", e);
-                Response::builder()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::empty())
-                    .unwrap()
-            }),
-        Err(e) => {
-            tracing::error!("Prometheus encode error: {}", e);
-            Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .header(header::CONTENT_TYPE, "text/plain")
-                .body(Body::from("Internal metrics error"))
-                .unwrap()
-        }
-    }
-}
-
 pub fn build_router(state: AppState, config: &Config) -> Router {
     let mut origins = Vec::new();
     for o in &config.cors_origins {
@@ -428,11 +402,6 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .with_state(state)
 }
 
-/// Prometheus scrape endpoint — **only** mounted on the dedicated metrics listener (see `Config::metrics_listen`).
-pub fn build_metrics_router() -> Router {
-    Router::new().route("/metrics", get(prometheus_metrics))
-}
-
 pub async fn serve(
     pool: PgPool,
     lcd: LcdClient,
@@ -455,25 +424,11 @@ pub async fn serve(
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
-    if let Some(metrics_sa) = config.metrics_listen {
-        tracing::info!("Prometheus metrics listening on {}", metrics_sa);
-        let metrics_listener = tokio::net::TcpListener::bind(metrics_sa).await?;
-        let metrics_app = build_metrics_router();
-
-        let api_srv = axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        );
-        let metrics_srv = axum::serve(metrics_listener, metrics_app.into_make_service());
-
-        tokio::try_join!(api_srv, metrics_srv).map(|_| ())?;
-    } else {
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await?;
-    }
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }

@@ -96,11 +96,8 @@ pub async fn run_indexer(
                     let txs = tx_resp.tx_responses.unwrap_or_default();
 
                     if !txs.is_empty() {
-                        let (block_time, time_fallback) =
+                        let (block_time, _time_fallback) =
                             parse_block_time(txs[0].timestamp.as_deref());
-                        if time_fallback {
-                            crate::metrics::inc_block_time_fallbacks();
-                        }
 
                         if let Err(e) = parser::process_block_txs(
                             &pool,
@@ -114,11 +111,8 @@ pub async fn run_indexer(
                         .await
                         {
                             tracing::error!("Error processing block {}: {}", height, e);
-                            crate::metrics::inc_block_process_errors();
                         }
                     }
-
-                    crate::metrics::inc_blocks_processed();
 
                     if let Err(e) = state::set_last_indexed_height(&pool, height).await {
                         tracing::error!("Failed to update last_indexed_height: {}", e);
