@@ -41,4 +41,5 @@ cd frontend-dapp && pnpm exec playwright test e2e/hybrid-swap.spec.ts
 - Testing matrix: [`docs/testing.md`](../docs/testing.md) § E2E Tests
 - Hybrid quoting (L8, not E2E-specific): [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md)
 - Dev wallet funding: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
+- Limit place/cancel tx E2E (unpaused pair pick): [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md) ([#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195))
 - GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)

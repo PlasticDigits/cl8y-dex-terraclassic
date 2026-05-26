@@ -1,61 +1,84 @@
 import { test, expect } from './fixtures/dev-wallet'
+import {
+  assertTxResultAlert,
+  isLocalTerraOptional,
+  skipIfLcdUnreachable,
+  skipIfNoTxAlert,
+} from './helpers/chain'
+import {
+  assertLimitPlaceCtaNotBlocked,
+  requireLimitTxPair,
+  selectLimitPairByFactoryIndex,
+} from './helpers/limit-e2e'
+import {
+  fetchTxJson,
+  gotoAndCaptureFactoryPairsPage,
+  readTxHashFromAlertLink,
+  txJsonHasWasmAction,
+} from './helpers/lcd'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Limit orders funded txs', () => {
-  test('place limit shows success with tx hash', async ({ page, connectWallet }) => {
+  test('place limit shows success with tx hash', async ({ page, connectWallet, request }) => {
+    test.setTimeout(240_000)
+    await skipIfLcdUnreachable(request)
     await connectWallet
-    await page.goto('/limits')
-    await page.waitForLoadState('networkidle')
-    const pairTrigger = page.locator('#limit-pair')
-    await expect(pairTrigger).toBeVisible({ timeout: 60_000 })
-    await expect(pairTrigger).toBeEnabled({ timeout: 60_000 })
 
-    await pairTrigger.click()
-    // pairInfosToMenuSelectOptions prepends { value: '', label: 'Select pair…' }; skip that row.
-    const firstRealPair = page.getByRole('option').filter({ hasText: /\// }).first()
-    await expect(firstRealPair).toBeVisible({ timeout: 15_000 })
-    await firstRealPair.click()
-    await expect(pairTrigger).toContainText(/\//, { timeout: 30_000 })
+    const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
+    const { index } = await requireLimitTxPair(request, pairs)
+    await selectLimitPairByFactoryIndex(page, index)
 
-    const paused = page.getByRole('status').filter({ hasText: /paused by governance/i })
-    if (await paused.isVisible().catch(() => false)) {
-      test.skip(true, 'First factory pair is paused; pick another pair manually for local limit-order txs.')
+    const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
+    await placeCard.getByPlaceholder('0.0').fill('1')
+    const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
+    await expect(placeBtn).toBeVisible({ timeout: 60_000 })
+    const placeLabel = await placeBtn.textContent()
+    if (isLocalTerraOptional()) {
+      if (placeLabel?.match(/Insufficient Balance|Connect/i)) {
+        test.skip(true, 'Place limit CTA blocked; fund dev wallet (scripts/e2e-provision-dev-wallet.sh).')
+      }
+    } else {
+      assertLimitPlaceCtaNotBlocked(placeLabel)
     }
+    await expect(placeBtn).toBeEnabled({ timeout: 60_000 })
+    await placeBtn.click()
+
+    const successAlert = placeCard.locator('.alert-success')
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
+    }
+    await expect(successAlert).toContainText(/TX:/i)
+
+    const txHash = await readTxHashFromAlertLink(page, successAlert)
+    await expect(async () => {
+      const json = await fetchTxJson(request, txHash)
+      if (!json) throw new Error('LCD tx not indexed yet')
+      expect(txJsonHasWasmAction(json, 'place_limit_order')).toBe(true)
+    }).toPass({ timeout: 180_000 })
+  })
+
+  test('cancel limit submits after place (indexed order id)', async ({ page, connectWallet, request }) => {
+    test.setTimeout(240_000)
+    await skipIfLcdUnreachable(request)
+    await connectWallet
+
+    const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
+    const { index } = await requireLimitTxPair(request, pairs)
+    await selectLimitPairByFactoryIndex(page, index)
 
     const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
     await placeCard.getByPlaceholder('0.0').fill('1')
     const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
     await expect(placeBtn).toBeEnabled({ timeout: 60_000 })
     await placeBtn.click()
-
-    await expect(placeCard.locator('.alert-success')).toBeVisible({ timeout: 90_000 })
-    await expect(placeCard.locator('.alert-success')).toContainText(/TX:/i)
-  })
-
-  test('cancel limit submits after place (indexed order id)', async ({ page, connectWallet }) => {
-    await connectWallet
-    await page.goto('/limits')
-    await page.waitForLoadState('networkidle')
-    const pairTrigger2 = page.locator('#limit-pair')
-    await expect(pairTrigger2).toBeVisible({ timeout: 60_000 })
-    await expect(pairTrigger2).toBeEnabled({ timeout: 60_000 })
-
-    await pairTrigger2.click()
-    await page.getByRole('option').filter({ hasText: /\// }).first().click()
-    await expect(pairTrigger2).toContainText(/\//, { timeout: 30_000 })
-
-    const paused2 = page.getByRole('status').filter({ hasText: /paused by governance/i })
-    if (await paused2.isVisible().catch(() => false)) {
-      test.skip(true, 'First factory pair is paused; pick another pair manually for local limit-order txs.')
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
     }
-
-    const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
-    await placeCard.getByPlaceholder('0.0').fill('1')
-    const placeBtn2 = placeCard.getByRole('button', { name: /^Place limit$/i })
-    await expect(placeBtn2).toBeEnabled({ timeout: 60_000 })
-    await placeBtn2.click()
-    await expect(placeCard.locator('.alert-success')).toBeVisible({ timeout: 90_000 })
 
     const idLocator = page.getByTestId('last-placed-order-id')
     await expect(idLocator).toBeVisible({ timeout: 45_000 })
@@ -63,7 +86,19 @@ test.describe('Limit orders funded txs', () => {
     const cancelCard = page.locator('.card-neo').filter({ hasText: 'Cancel limit' })
     await cancelCard.getByRole('button', { name: /^Cancel limit$/i }).click()
 
-    await expect(cancelCard.locator('.alert-success')).toBeVisible({ timeout: 90_000 })
-    await expect(cancelCard.locator('.alert-success')).toContainText(/TX:/i)
+    const cancelSuccess = cancelCard.locator('.alert-success')
+    if (isLocalTerraOptional()) {
+      await skipIfNoTxAlert(page)
+    } else {
+      await assertTxResultAlert(page)
+    }
+    await expect(cancelSuccess).toContainText(/TX:/i)
+
+    const cancelHash = await readTxHashFromAlertLink(page, cancelSuccess)
+    await expect(async () => {
+      const json = await fetchTxJson(request, cancelHash)
+      if (!json) throw new Error('LCD tx not indexed yet')
+      expect(txJsonHasWasmAction(json, 'cancel_limit_order')).toBe(true)
+    }).toPass({ timeout: 180_000 })
   })
 })

@@ -62,3 +62,24 @@ pnpm exec playwright test e2e/hybrid-swap.spec.ts
 ```
 
 Agent playbook: [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).
+
+## Limit order transaction tests (`limit-orders-tx.spec.ts`)
+
+On the **default** path (full LocalTerra + deployed contracts), limit place/cancel E2E **fail** when the LCD is down, there is no **unpaused** dual-CW20 factory pair, escrow/gas funding is missing, the pair shows the paused banner after selection, or LCD tx JSON lacks `place_limit_order` / `cancel_limit_order` wasm actions. This replaces conditional `test.skip` for paused-first-pair and missing-setup gaps ([GitLab **#195**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)).
+
+### Prerequisites
+
+Same as pool tx: LocalTerra, `bash scripts/deploy-dex-local.sh`, and global-setup **`scripts/e2e-provision-dev-wallet.sh`** (CW20 mint floor for bid escrow token1 on the default **bid** side).
+
+Pair selection uses the **first unpaused dual-CW20** pair from the factory LCD list (`is_paused` query per pair), not always the first menu row.
+
+### Single-command limit tx E2E
+
+```bash
+cd frontend-dapp
+pnpm exec playwright test e2e/limit-orders-tx.spec.ts
+```
+
+UI smoke (no chain): `e2e/limit-orders.spec.ts`.
+
+Agent playbook: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).

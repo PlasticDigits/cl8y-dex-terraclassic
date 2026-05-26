@@ -127,6 +127,8 @@ pnpm exec playwright test e2e/pool-tx.spec.ts
 
 **Hybrid swap E2E (strict tx path, GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)):** `pnpm exec playwright test e2e/hybrid-swap.spec.ts` — requires global-setup seeding (`e2e-provision-dev-wallet.sh` + `e2e-seed-hybrid-book.sh`). See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).
 
+**Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `pnpm exec playwright test e2e/limit-orders-tx.spec.ts` — selects the first **unpaused** dual-CW20 pair via LCD `is_paused`, asserts wasm `place_limit_order` and `cancel_limit_order` on indexed txs. Requires `e2e-provision-dev-wallet.sh` (same global setup as pool/hybrid). See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
+
 **Optional chain (skip instead of fail):** set `REQUIRE_LOCALTERRA=0` so global setup and strict LCD/pool assertions are relaxed — for jobs that intentionally omit LocalTerra. Default is strict (unset or any value other than `0`).
 
 ### Trading swarm for UI load (localnet)

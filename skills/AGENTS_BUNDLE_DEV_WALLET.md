@@ -17,7 +17,7 @@ Use this when working on the simulated (dev) wallet, Vite env inlining, or anyth
 1. **Never** ship a BIP39 string literal in `frontend-dapp/src` — Vite inlines `VITE_*` at build time; a runtime `if (!dev)` does not remove the string from the bundle.
 2. **Development only:** put `VITE_DEV_MNEMONIC` in **`.env.development`** (gitignored) or shell for `vite` / `npm run dev`. `deploy-dex-local.sh` writes it to `.env.development` from `init-chain.sh`.
 3. **Production `npm run build`:** `vite.config.ts` **fails the build** if `VITE_DEV_MNEMONIC` is set in any file or env that Vite’s `loadEnv` merges for `mode=production` (see GitLab #118).
-4. **E2E / Playwright:** `playwright.config.ts` injects the mnemonic from `docker/init-chain.sh` into the `webServer` process env (not from frontend source).
+4. **E2E / Playwright:** `playwright.config.ts` injects the mnemonic from `docker/init-chain.sh` into the `webServer` process env (not from frontend source). On-chain limit place/cancel: [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md) ([#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)).
 5. **Gitleaks** default rules do not reliably flag multi-word BIP39 phrases; this repo adds a path-scoped custom rule (`bip39-like-phrase-frontend-src`). The pre-commit hook uses `gitleaks protect --staged -c .gitleaks.toml` (blocks new violations). A full `gitleaks detect` over **all git history** may still list old commits that predated the fix; use `gitleaks detect --no-git` for a working-tree-only check. Do not allowlist `frontend-dapp/src` for this pattern without a security review.
 
 ## Cross-links
