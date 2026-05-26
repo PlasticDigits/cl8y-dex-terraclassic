@@ -9,6 +9,9 @@ test.describe('Tablet compact header nav (GitLab #136)', () => {
     { width: 768, height: 1024, label: 'iPad Mini' },
     { width: 820, height: 1180, label: 'iPad Air' },
     { width: 912, height: 1368, label: 'Surface Pro 7' },
+    { width: 1024, height: 800, label: 'small desktop lower bound' },
+    { width: 1050, height: 800, label: 'mid cram band' },
+    { width: 1098, height: 800, label: 'reported cram upper bound' },
   ] as const) {
     test(`Swap + More inline row has no horizontal overlap at ${label} (${width}px)`, async ({ page }) => {
       await page.setViewportSize({ width, height })
@@ -51,6 +54,34 @@ test.describe('Full desktop header nav', () => {
 
     const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
     await expect(nav).toBeVisible()
+
+    const boxes: { x: number; y: number; width: number; height: number }[] = []
+    for (const name of DESKTOP_HEADER_NAV_ROW_LABELS) {
+      const loc = name === 'More' ? nav.getByRole('button', { name: 'More' }) : nav.getByRole('link', { name })
+      const b = await loc.boundingBox()
+      expect(b, `bounding box for ${name}`).toBeTruthy()
+      boxes.push(b!)
+    }
+
+    const epsilon = 2
+    for (let i = 0; i < boxes.length - 1; i++) {
+      const right = boxes[i].x + boxes[i].width
+      const nextLeft = boxes[i + 1].x
+      expect(
+        right,
+        `overlap between ${DESKTOP_HEADER_NAV_ROW_LABELS[i]} and ${DESKTOP_HEADER_NAV_ROW_LABELS[i + 1]}`
+      ).toBeLessThanOrEqual(nextLeft + epsilon)
+    }
+  })
+
+  test('primary links plus More have no horizontal overlap at full-desktop lower bound (1120px)', async ({ page }) => {
+    await page.setViewportSize({ width: 1120, height: 800 })
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+    await expect(nav).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Pool' })).toBeVisible()
 
     const boxes: { x: number; y: number; width: number; height: number }[] = []
     for (const name of DESKTOP_HEADER_NAV_ROW_LABELS) {
@@ -253,6 +284,24 @@ test.describe('Connected wallet chip network (GitLab #186)', () => {
     expect(walletBox, 'wallet chip box').toBeTruthy()
     expect(moreBox!.x + moreBox!.width).toBeLessThanOrEqual(walletBox!.x + 2)
   })
+
+  for (const width of [1024, 1098] as const) {
+    test(`connected wallet chip does not overlap header More at ${width}px (GitLab #136 follow-up)`, async ({
+      page,
+      connectWallet,
+    }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await connectWallet
+      const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+      const more = nav.getByRole('button', { name: 'More' })
+      const wallet = headerConnectedWalletButton(page)
+      const moreBox = await more.boundingBox()
+      const walletBox = await wallet.boundingBox()
+      expect(moreBox, 'More button box').toBeTruthy()
+      expect(walletBox, 'wallet chip box').toBeTruthy()
+      expect(moreBox!.x + moreBox!.width).toBeLessThanOrEqual(walletBox!.x + 2)
+    })
+  }
 })
 
 test.describe('Wallet Connection', () => {

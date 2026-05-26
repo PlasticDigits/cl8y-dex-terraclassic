@@ -775,7 +775,7 @@
     align-items: center;
   }
 
-  /* Tablet compact header (768–1023px): fewer inline links — see Layout + HEADER_FULL_NAV_MIN_WIDTH_PX (GitLab #136). */
+  /* Tablet compact header (768–1119px): fewer inline links — see Layout + HEADER_FULL_NAV_MIN_WIDTH_PX (GitLab #136). */
   .app-desktop-nav {
     justify-content: center;
     gap: 10px;
