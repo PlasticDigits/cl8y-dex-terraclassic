@@ -18,7 +18,9 @@ Use when changing wallet list UI, extension detection in the modal, **Install** 
 1. **Missing extension:** communicate with subdued row + **Install** only — do not add a second “not installed” text badge; it competes for horizontal space with **Extension** / **Ready** on mobile.
 2. **Long wallet names:** keep **`min-w-0`** on the label flex column, **`truncate`** on the name, and **`title={fullName}`** for hover tooltip.
 3. **WalletConnect rows:** never show extension-missing treatment; detection returns “present” for those names by design.
+4. **Before closing #139:** run **`npm run build`** and **`npx vitest run`** in `frontend-dapp` — both are required QA gates ([docs/frontend.md § Connect modal](../docs/frontend.md#connect-modal-extension-install), [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)).
 
 ## Cross-links
 
 - Dev wallet / bundle safety: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
+- Production build / `tsc -b` hygiene: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)

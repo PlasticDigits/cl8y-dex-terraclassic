@@ -8,7 +8,7 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 |------------|---------|
 | [docs/frontend.md § invalid pair deep link](../docs/frontend.md#trade-page-invalid-pair-link) | Charset-invalid `terra1…` invariants |
 | [docs/frontend.md § unknown pair deep link](../docs/frontend.md#trade-page-unknown-pair-link) | Valid-format but not on factory ([#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175)) |
-| [`frontend-dapp/src/utils/tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts) | `isTradePairRouteParam`, `getInvalidTradePairRouteParam`, `getUnknownTradePairRouteParam`, `isKnownFactoryTradePair`, `isPendingTradePairRouteResolution`, `shouldShowTradeWorkspace` |
+| [`frontend-dapp/src/utils/tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts) | `isTradePairRouteParam`, `getInvalidTradePairRouteParam`, `getUnknownTradePairRouteParam`, `isKnownFactoryTradePair` (**type predicate** — narrows `string \| undefined` to `string`), `isPendingTradePairRouteResolution`, `shouldShowTradeWorkspace` |
 | [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts) | `isIndexerPairNotFoundError` (404) vs `isIndexerUnavailableError` (outage) |
 | [`InvalidPairLinkNotice.tsx`](../frontend-dapp/src/components/trade/InvalidPairLinkNotice.tsx) | Invalid charset / format |
 | [`PairNotFoundLinkNotice.tsx`](../frontend-dapp/src/components/trade/PairNotFoundLinkNotice.tsx) | Pair not on factory |

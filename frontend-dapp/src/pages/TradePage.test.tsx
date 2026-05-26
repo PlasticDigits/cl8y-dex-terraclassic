@@ -16,18 +16,21 @@ const PAIR = 'terra1pair0000000000000000000000000000000001'
 const MAKER = 'terra1maker000000000000000000000000000001'
 
 function mockTradeDesktopLayout(matchesDesktop: boolean) {
-  window.matchMedia = vi.fn((query: string) => ({
-    matches: query === TRADE_DESKTOP_LAYOUT_MEDIA_QUERY ? matchesDesktop : false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: (_: string, cb: () => void) => {
-      if (query === TRADE_DESKTOP_LAYOUT_MEDIA_QUERY) cb()
-    },
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  })) as typeof window.matchMedia
+  window.matchMedia = vi.fn((query: string) => {
+    const mql = {
+      matches: query === TRADE_DESKTOP_LAYOUT_MEDIA_QUERY ? matchesDesktop : false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: (_type: string, cb: (e: MediaQueryListEvent) => void) => {
+        if (query === TRADE_DESKTOP_LAYOUT_MEDIA_QUERY) cb({ matches: matchesDesktop } as MediaQueryListEvent)
+      },
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    } as unknown as MediaQueryList
+    return mql
+  })
 }
 
 const mockIndexerPair: IndexerPair = {

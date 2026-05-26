@@ -168,8 +168,8 @@ describe('PriceChart', () => {
       '1d': '1.7',
       '1w': '1.77',
     }
-    vi.mocked(indexerClient.getCandles).mockImplementation((_addr, iv) =>
-      Promise.resolve([candle({ close: intervalClose[iv] ?? '9' })])
+    vi.mocked(indexerClient.getCandles).mockImplementation((_addr: string, iv?: string) =>
+      Promise.resolve([candle({ close: iv !== undefined ? (intervalClose[iv] ?? '9') : '9' })])
     )
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.getByTestId('price-chart-lightweight-canvas')).toBeInTheDocument())

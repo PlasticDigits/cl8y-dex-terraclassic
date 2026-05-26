@@ -16,7 +16,7 @@ export function getInvalidTradePairRouteParam(routePair: string | undefined): st
 export function isKnownFactoryTradePair(
   addr: string | undefined,
   pairs: readonly { contract_addr: string }[]
-): boolean {
+): addr is string {
   return !!addr && isValidTerraAddress(addr) && pairs.some((p) => p.contract_addr === addr)
 }
 

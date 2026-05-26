@@ -46,6 +46,10 @@ frontend-dapp/
 
 Regression coverage: [`frontend-dapp/src/viteConfig.build.test.ts`](../frontend-dapp/src/viteConfig.build.test.ts) (loads `vite.config.ts` via `loadConfigFromFile`).
 
+| Invariant | Meaning |
+|-----------|---------|
+| **`tsc -b` before Vite** | `npm run build` runs **`tsc -b`** then **`vite build`**. The TypeScript project includes **Vitest test files** — mocks and route helpers must satisfy strict checking (e.g. **`MediaQueryList`** event listener signatures in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), optional mock params in [`PriceChart.test.tsx`](../frontend-dapp/src/components/charts/__tests__/PriceChart.test.tsx), type predicates such as **`isKnownFactoryTradePair`** in [`tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts)). QA gate: [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139). |
+
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_PRODUCTION_BUILD.md`](../skills/AGENTS_FRONTEND_PRODUCTION_BUILD.md).
 
 ## Wallet Integration
@@ -68,6 +72,7 @@ Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExt
 | Long labels | Wallet **name** column uses **`min-w-0`**, **`truncate`**, and **`title={name}`** so long names (e.g. **COSMOSTATION**) do not collide with the **Extension** / **Ready** badges on small viewports. |
 | Re-check after install | The modal subscribes via **`useSyncExternalStore`** to **`window` `focus`** and **`visibilitychange`** so returning from a store install refreshes badges without a full page reload. |
 | Regression tests | [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). |
+| **Build gate** | QA checklist item 4: **`npm run build`** and **`npx vitest run`** in `frontend-dapp` must pass on `main` before closing [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139). See [Production build — Vite source maps § `tsc -b`](#vite-production-sourcemaps). |
 
 **Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX).
 
