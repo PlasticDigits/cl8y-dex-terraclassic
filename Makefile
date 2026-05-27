@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes qa-tunnel-help swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -71,10 +71,19 @@ wait-healthy: wait-localterra
 
 # QA server: LocalTerra + deploy + indexer; see scripts/qa/README.md
 start-qa:
-	@chmod +x scripts/qa/start-qa.sh scripts/qa/stop-qa.sh scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
+	@chmod +x scripts/qa/start-qa.sh scripts/qa/stop-qa.sh scripts/qa/reset-qa.sh scripts/qa/lib/print-fresh-volumes-banner.sh scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
 	./scripts/qa/start-qa.sh
 
 qa-start: start-qa
+
+# Wipe LocalTerra + Postgres volumes then run start-qa (post-contract-change QA).
+reset-qa:
+	@chmod +x scripts/qa/reset-qa.sh scripts/qa/start-qa.sh scripts/qa/stop-qa.sh scripts/qa/lib/print-fresh-volumes-banner.sh scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
+	./scripts/qa/reset-qa.sh
+
+test-qa-fresh-volumes:
+	@chmod +x scripts/qa/test-qa-fresh-volumes.sh
+	./scripts/qa/test-qa-fresh-volumes.sh
 
 qa-tunnel-help:
 	@chmod +x scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
@@ -86,7 +95,7 @@ stop-qa:
 
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
-	@echo "QA server:       make start-qa (alias qa-start) | stop-qa | qa-tunnel-help"
+	@echo "QA server:       make start-qa (alias qa-start) | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | stop-qa | qa-tunnel-help"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-e2e-tx | lint-frontend"
 	@echo "Indexer:         make indexer-dev"

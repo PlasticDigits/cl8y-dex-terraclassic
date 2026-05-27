@@ -5,6 +5,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+# shellcheck source=scripts/qa/lib/qa-env.sh
+source "$REPO_ROOT/scripts/qa/lib/qa-env.sh"
+
 PIDFILE="${REPO_ROOT}/.indexer-qa.pid"
 LOGFILE="${REPO_ROOT}/.indexer-qa.log"
 
@@ -20,17 +23,14 @@ printf '%b\n' "${_QA_HI}┃  REMINDER: SSH tunnel + laptop steps print at END; r
 printf '%b\n' "${_QA_HI}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${_QA_RST}"
 echo ""
 
-set -a
-if [ -f "$REPO_ROOT/.env" ]; then
-  # shellcheck source=/dev/null
-  source "$REPO_ROOT/.env"
+qa_load_env
+
+if qa_is_fresh_volumes; then
+  chmod +x "$REPO_ROOT/scripts/qa/lib/print-fresh-volumes-banner.sh" 2>/dev/null || true
+  "$REPO_ROOT/scripts/qa/lib/print-fresh-volumes-banner.sh"
 fi
-# shellcheck source=/dev/null
-source "$REPO_ROOT/scripts/qa/qa-host.env"
-set +a
 
 if [ "${QA_SHARED_HOST:-}" = "1" ]; then
-  export COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml:docker-compose.qa-shared-host.yml}"
   echo "[start-qa] QA_SHARED_HOST=1 — using ${COMPOSE_FILE}"
 fi
 

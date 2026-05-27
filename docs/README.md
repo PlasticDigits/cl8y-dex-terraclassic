@@ -34,6 +34,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Incident template (DEX + indexer)](./templates/incident-dex-indexer.md)
 
 ## QA
+- [QA stack invariants](./qa-invariants.md) — `make start-qa` vs `reset-qa` / `QA_FRESH_VOLUMES` ([GitLab #202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)); agent playbook [`skills/AGENTS_QA_FRESH_VOLUMES.md`](../skills/AGENTS_QA_FRESH_VOLUMES.md)
 - [QA Onboarding](./qa-onboarding.md) — getting started with QA, test flows, device matrix
 - [Bug Report Template](./qa-templates/frontend-bug.md)
 - [Test Pass Template](./qa-templates/qa-test-pass.md)

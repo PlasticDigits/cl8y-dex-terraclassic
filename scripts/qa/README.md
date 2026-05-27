@@ -16,7 +16,19 @@ make start-qa
 make qa-start
 ```
 
-This stops any prior QA indexer and runs **`docker compose down`**, then starts **localterra** + **postgres**, waits for health, runs **`make deploy-local`** (optimizer wasm + **`scripts/deploy-dex-local.sh`**), starts the **indexer** in the background (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), checks indexer **`/health`**, and prints **laptop** steps (same as **`make qa-tunnel-help`**).
+This stops any prior QA indexer and runs **`docker compose down`** (volumes **preserved**), then starts **localterra** + **postgres**, waits for health, runs **`make deploy-local`** (optimizer wasm + **`scripts/deploy-dex-local.sh`**), starts the **indexer** in the background (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), checks indexer **`/health`**, and prints **laptop** steps (same as **`make qa-tunnel-help`**).
+
+### Fresh volumes (empty chain + Postgres)
+
+After **contract or genesis changes**, or when QA sees **stale deployed code** on a reused LocalTerra volume ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), wipe **`localterra-data`** and **`postgres-data`** before bring-up:
+
+```bash
+make reset-qa
+# equivalent:
+QA_FRESH_VOLUMES=1 make start-qa
+```
+
+A **red banner** prints when volumes are removed. Default **`make start-qa`** is unchanged (fast restarts when chain state is still valid). See [`docs/qa-invariants.md`](../../docs/qa-invariants.md) and [GitLab **#202**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202).
 
 ### Shared host with cl8y-bridge-monorepo
 
@@ -60,9 +72,12 @@ Checks Docker, LocalTerra RPC, Postgres, indexer **`/health`**, and the indexer 
 
 | Target              | Purpose                                      |
 | ------------------- | -------------------------------------------- |
-| `make start-qa`     | Full QA bring-up on the server               |
+| `make start-qa`     | Full QA bring-up on the server (keep volumes) |
 | `make qa-start`     | Same as `start-qa`                           |
-| `make stop-qa`      | Stop indexer + compose                       |
+| `make reset-qa`     | Wipe LocalTerra + Postgres volumes, then `start-qa` |
+| `QA_FRESH_VOLUMES=1 make start-qa` | Same as `reset-qa`              |
+| `make stop-qa`      | Stop indexer + compose (volumes kept)      |
+| `make test-qa-fresh-volumes` | Unit checks for fresh-volumes toggle (no Docker) |
 | `make qa-tunnel-help` | Reprint SSH + laptop steps               |
 | `make status`       | Health summary                               |
 | `make compose-ps`   | `docker compose ps` only                     |
@@ -74,3 +89,4 @@ Checks Docker, LocalTerra RPC, Postgres, indexer **`/health`**, and the indexer 
 - **Indexer health fails** — Read **`.indexer-qa.log`**; confirm Postgres is up and **`indexer/.env`** **`DATABASE_URL`** matches compose (**`postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer`** by default (override via repo-root `.env` / `scripts/lib/postgres-dev.env`)).
 - **LocalTerra not ready** — `docker compose logs localterra`; on port conflicts set **`QA_SHARED_HOST=1`** or free host ports.
 - **Stale wasm** — `make build-optimized` then re-run deploy ( **`make deploy-local`** ).
+- **Stale on-chain contracts** (reused LocalTerra volume; wasm redeployed but chain state old) — **`make reset-qa`** or **`QA_FRESH_VOLUMES=1 make start-qa`**; see [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203).

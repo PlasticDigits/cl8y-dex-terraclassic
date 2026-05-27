@@ -131,6 +131,10 @@ page — you should see populated candles for all intervals including 1w.
 | `make indexer-dev`  | Start the indexer                              |
 | `make dev-full`   | Full lifecycle: infra + build + deploy + run    |
 
+### QA server (remote host)
+
+For Yield Omega DEX QA on a shared server, see [`scripts/qa/README.md`](../scripts/qa/README.md). Volume behaviour is documented in [`docs/qa-invariants.md`](./qa-invariants.md) ([#202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)): use **`make start-qa`** for fast restarts; **`make reset-qa`** (or **`QA_FRESH_VOLUMES=1 make start-qa`**) after contract changes or when [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203) stale-contract warnings apply.
+
 ## What to Test
 
 ### Swap Flow

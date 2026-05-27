@@ -57,7 +57,7 @@ printf '%b\n' "${_SRV}  SERVER${_N} = this QA machine (where ${_G}make start-qa$
 printf '%b\n' "${_Y}  Run Playwright/e2e on the ${_SRV}SERVER${_N} when they need the full stack on one host.${_N}"
 printf '%b\n' "  Full doc: ${_G}scripts/qa/README.md${_N}"
 echo ""
-printf '%b\n' "${_W}  Optional in repo-root ${_G}.env${_N}: ${_G}QA_SSH_HOST${_N}, ${_G}QA_SSH_PORT${_N} (if not 22), ${_G}QA_SHARED_HOST${_N} (see README)."
+printf '%b\n' "${_W}  Optional in repo-root ${_G}.env${_N}: ${_G}QA_SSH_HOST${_N}, ${_G}QA_SSH_PORT${_N} (if not 22), ${_G}QA_SHARED_HOST${_N}, ${_G}QA_FRESH_VOLUMES${_N} (or ${_G}make reset-qa${_N}; see README)."
 printf '%b\n' "  SSH/scp user below is ${_G}$(whoami)${_N} (who ran start-qa on the server)."
 echo ""
 

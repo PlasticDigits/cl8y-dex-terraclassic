@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Stop QA indexer (pidfile) then docker compose (LocalTerra + Postgres).
+# When QA_FRESH_VOLUMES is set, also removes named volumes (localterra-data, postgres-data).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -7,18 +8,9 @@ cd "$REPO_ROOT"
 
 PIDFILE="${REPO_ROOT}/.indexer-qa.pid"
 
-set -a
-if [ -f "${REPO_ROOT}/.env" ]; then
-  # shellcheck source=/dev/null
-  source "${REPO_ROOT}/.env"
-fi
-# shellcheck source=/dev/null
-source "${REPO_ROOT}/scripts/qa/qa-host.env"
-set +a
-
-if [ "${QA_SHARED_HOST:-}" = "1" ]; then
-  export COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml:docker-compose.qa-shared-host.yml}"
-fi
+# shellcheck source=scripts/qa/lib/qa-env.sh
+source "$REPO_ROOT/scripts/qa/lib/qa-env.sh"
+qa_load_env
 
 _stop_indexer() {
   if [ ! -f "$PIDFILE" ]; then
@@ -49,6 +41,12 @@ _stop_indexer() {
 
 _stop_indexer
 
-docker compose down
+_vol_args="$(qa_compose_down_volume_args)"
+if [ -n "$_vol_args" ]; then
+  echo "[stop-qa] Removing QA Docker volumes (${_vol_args})..."
+  docker compose down -v
+else
+  docker compose down
+fi
 
 echo "[stop-qa] Done."
