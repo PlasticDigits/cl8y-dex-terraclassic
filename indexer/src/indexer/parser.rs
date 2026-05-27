@@ -4,6 +4,7 @@
 //! single logical value is intended. **Lifecycle wasm** (`limit_order_expired_parked`,
 //! `claim_expired_limit_order`) may share one `wasm` event with other actions when LCD output
 //! flattens attribute streams — those parsers scan **every** `action` occurrence (GitLab #141).
+//! LocalTerra also emits standalone lifecycle rows as **`wasm-wasm`** events (same attribute keys).
 //! Parsing must not panic on adversarial attribute lists (see stress tests in `#[cfg(test)]`).
 //! Full matrix: `docs/indexer-invariants.md`.
 
@@ -42,6 +43,11 @@ fn is_wasm_contract_addr_key(key: &str) -> bool {
     key == "_contract_address" || key == "contract_address"
 }
 
+/// CosmWasm lifecycle rows on LocalTerra LCD: merged into `wasm` or emitted as `wasm-wasm`.
+fn is_wasm_lifecycle_event_type(event_type: &str) -> bool {
+    event_type == "wasm" || event_type == "wasm-wasm"
+}
+
 /// Last `_contract_address` / `contract_address` **before** `idx` (exclusive), document order.
 ///
 /// Some LCD/REST paths flatten multiple logical CosmWasm wasm emissions into **one** `wasm`
@@ -55,7 +61,7 @@ fn wasm_contract_addr_before(attrs: &[Attribute], idx: usize) -> Option<&str> {
         .map(|a| a.value.as_str())
 }
 
-/// Key/value pairs after `action_pos` until the next logical boundary (`action` or contract addr).
+/// Key/value pairs after `action_pos` until the next logical boundary (`action` or `_contract_address`).
 fn wasm_kv_map_after_action(
     attrs: &[Attribute],
     action_pos: usize,
@@ -64,7 +70,7 @@ fn wasm_kv_map_after_action(
     let mut i = action_pos.saturating_add(1);
     while i < attrs.len() {
         let k = attrs[i].key.as_str();
-        if k == "action" || is_wasm_contract_addr_key(k) {
+        if k == "action" || k == "_contract_address" {
             break;
         }
         m.insert(k, attrs[i].value.as_str());
@@ -819,7 +825,7 @@ fn parse_limit_order_expired_parked(tx: &TxResponse) -> Vec<ParsedLimitOrderExpi
 
     let mut out = Vec::new();
     for event in &events {
-        if event.event_type != "wasm" {
+        if !is_wasm_lifecycle_event_type(&event.event_type) {
             continue;
         }
         out.extend(parse_limit_order_expired_parked_from_wasm_attrs(
@@ -840,7 +846,7 @@ fn parse_claim_expired_limit_orders(tx: &TxResponse) -> Vec<ParsedClaimExpiredLi
 
     let mut out = Vec::new();
     for event in &events {
-        if event.event_type != "wasm" {
+        if !is_wasm_lifecycle_event_type(&event.event_type) {
             continue;
         }
         out.extend(parse_claim_expired_limit_orders_from_wasm_attrs(
@@ -1126,6 +1132,26 @@ mod tests {
         }
     }
 
+    fn wasm_wasm_tx(attrs: Vec<(&str, &str)>) -> TxResponse {
+        let attributes: Vec<Attribute> = attrs
+            .into_iter()
+            .map(|(k, v)| Attribute {
+                key: k.to_string(),
+                value: v.to_string(),
+            })
+            .collect();
+        TxResponse {
+            height: "1".into(),
+            txhash: "ABCDHASH".into(),
+            logs: None,
+            timestamp: None,
+            events: Some(vec![Event {
+                event_type: "wasm-wasm".into(),
+                attributes,
+            }]),
+        }
+    }
+
     #[test]
     fn parse_swaps_extracts_swap_event() {
         let tx = wasm_tx(vec![
@@ -1294,6 +1320,25 @@ mod tests {
         let swaps = parse_swaps(&tx);
         assert_eq!(swaps.len(), 1);
         assert_eq!(swaps[0].pair_address, "terra1pair");
+    }
+
+    /// LocalTerra LCD emits lifecycle CosmWasm rows as `wasm-wasm`, not merged `wasm` (GitLab #141 QA).
+    #[test]
+    fn parse_limit_order_expired_parked_from_wasm_wasm_event_type() {
+        let tx = wasm_wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "limit_order_expired_parked"),
+            ("contract_address", "terra1pair"),
+            ("maker", "terra1mk"),
+            ("order_id", "1"),
+            ("remaining", "9910000"),
+            ("side", "bid"),
+        ]);
+        let evs = parse_limit_order_expired_parked(&tx);
+        assert_eq!(evs.len(), 1);
+        assert_eq!(evs[0].pair_address, "terra1pair");
+        assert_eq!(evs[0].order_id, 1);
+        assert_eq!(evs[0].remaining.to_string(), "9910000");
     }
 
     #[test]
