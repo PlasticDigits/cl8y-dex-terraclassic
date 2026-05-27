@@ -531,8 +531,7 @@ export default function LimitOrdersPage() {
                 <h2 className="text-sm font-semibold uppercase tracking-wide">Cancel limit</h2>
                 <p className="text-[11px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
                   For your resting orders, use <strong>Edit</strong> / <strong>×</strong> on the order book above, or
-                  enter an order id here ([GitLab
-                  #162](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
+                  enter an order id below.
                 </p>
                 <div>
                   <label className="label-neo" htmlFor={limitOrdersCancelOrderInputId}>
