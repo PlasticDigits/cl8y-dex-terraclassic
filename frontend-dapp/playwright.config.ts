@@ -4,15 +4,9 @@ import { getLocalTerraTestMnemonic } from './e2e/localterra-mnemonic'
 const devMnemonic = getLocalTerraTestMnemonic()
 
 /** UI-only local dev: skip chain global setup and allow documented test.skip (GitLab #201). */
-const chainOptional =
-  process.env.PLAYWRIGHT_SKIP_CHAIN === '1' || process.env.REQUIRE_LOCALTERRA === '0'
+const chainOptional = process.env.PLAYWRIGHT_SKIP_CHAIN === '1' || process.env.REQUIRE_LOCALTERRA === '0'
 
-const txSpecGlobs = [
-  '**/*-tx.spec.ts',
-  '**/hybrid-swap.spec.ts',
-  '**/wrap-pool.spec.ts',
-  '**/wrap-swap.spec.ts',
-]
+const txSpecGlobs = ['**/*-tx.spec.ts', '**/hybrid-swap.spec.ts', '**/wrap-pool.spec.ts', '**/wrap-swap.spec.ts']
 
 export default defineConfig({
   testDir: './e2e',
@@ -24,7 +18,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     viewport: { width: 1280, height: 720 },
