@@ -9,6 +9,8 @@ const REMOVE_LIQUIDITY_GAS_LIMIT = 600_000
 const SWAP_GAS_BUFFER = 1.3
 const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50_000
 const EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP = 661_000
+/** Keep in sync with `SWAP_GAS_SAFETY_MARGIN` in `frontend-dapp/src/utils/constants.ts`. */
+const SWAP_GAS_SAFETY_MARGIN = 10_000
 
 function countSwapHops(msg: Record<string, unknown>): number {
   const ops = (msg as { execute_swap_operations?: { operations?: unknown[] } }).execute_swap_operations
@@ -33,7 +35,7 @@ function gasLimitForExecuteSwapOperations(hops: number): number {
   const scaled = Math.round(600_000 * hopCount * SWAP_GAS_BUFFER)
   const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
   const floor = hopCount * EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP
-  return Math.max(padded, floor)
+  return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
 }
 
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {

@@ -3,13 +3,14 @@ import {
   EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP,
   SWAP_GAS_BUFFER,
   SWAP_GAS_PER_HOP,
+  SWAP_GAS_SAFETY_MARGIN,
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
   WRAP_GAS_LIMIT,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
 
 export const BASE_GAS_LIMIT = 200000
-/** Legacy per-hop base; pool-only broadcast uses {@link gasLimitForExecuteSwapOperations}(1) (830k, GitLab #115 / #134). */
+/** Legacy per-hop base; pool-only broadcast uses {@link gasLimitForExecuteSwapOperations}(1) (840k, GitLab #115 / #134). */
 export const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching uses more gas than pool-only swaps. */
 export const HYBRID_SWAP_GAS_LIMIT = 1200000
@@ -70,7 +71,7 @@ export function gasLimitForExecuteSwapOperations(hops: number): number {
   const scaled = Math.round(SWAP_GAS_PER_HOP * hopCount * SWAP_GAS_BUFFER)
   const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
   const floor = hopCount * EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP
-  return Math.max(padded, floor)
+  return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
 }
 
 /**

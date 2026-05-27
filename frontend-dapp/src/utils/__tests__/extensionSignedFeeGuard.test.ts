@@ -29,7 +29,7 @@ describe('extensionSignedFeeGuard (GitLab #127)', () => {
   })
 
   it('parses gas from amino fee', () => {
-    expect(gasFromAminoFee({ gas: '830000' })).toBe(830000n)
+    expect(gasFromAminoFee({ gas: '840000' })).toBe(840000n)
   })
 
   it('allows signed fee and gas at or above 95% of expected', () => {
@@ -45,11 +45,11 @@ describe('extensionSignedFeeGuard (GitLab #127)', () => {
   it('flags Station-style partial fee rewrite (~23 LUNC vs ~36 LUNC, GitLab #134)', () => {
     const msg = extensionSignedFeeUndershootMessage(
       { fee: { amount: [{ denom: 'uluna', amount: '23000000' }], gas: '600000' } },
-      { amount: [{ denom: 'uluna', amount: '36000000' }], gas: '830000' },
+      { amount: [{ denom: 'uluna', amount: '36000000' }], gas: '840000' },
       'localterra'
     )
     expect(msg).toMatch(/GitLab #127/)
-    expect(msg).toMatch(/830000/)
+    expect(msg).toMatch(/840000/)
     expect(msg).toMatch(/600000/)
   })
 

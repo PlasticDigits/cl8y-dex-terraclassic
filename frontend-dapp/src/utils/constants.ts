@@ -62,6 +62,11 @@ export const EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP = 661000
  * e.g. QA saw gasUsed 1,320,097 vs wanted 1,320,000 on a 2-hop).
  */
 export const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50000
+/**
+ * Flat headroom on top of buffered + padded swap gas so `gasUsed` cannot exceed `gasWanted`
+ * by a few hundred units at the ceiling (GitLab #115 follow-up: 830,102 used vs 830,000 wanted).
+ */
+export const SWAP_GAS_SAFETY_MARGIN = 10000
 
 type NetworkConfig = {
   terra: {
