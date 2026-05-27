@@ -1,9 +1,14 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { assertTxResultAlert, skipIfLcdUnreachable } from './helpers/chain'
+import { skipIfLcdUnreachable } from './helpers/chain'
 import {
   assertLimitPlaceCtaNotBlocked,
+  fillValidLimitPrice,
+  placeLimitCard,
   requireLimitTxPair,
   selectLimitPairByFactoryIndex,
+  submitPlaceLimitAndExpectTx,
+  submitCancelLimitAndExpectTx,
+  cancelLimitCard,
 } from './helpers/limit-e2e'
 import {
   fetchTxJson,
@@ -24,17 +29,15 @@ test.describe('Limit orders funded txs', () => {
     const { index } = await requireLimitTxPair(request, pairs)
     await selectLimitPairByFactoryIndex(page, index)
 
-    const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
+    const placeCard = placeLimitCard(page)
+    await fillValidLimitPrice(page, 'bid')
     await placeCard.getByPlaceholder('0.0').fill('1')
     const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
     await expect(placeBtn).toBeVisible({ timeout: 60_000 })
     assertLimitPlaceCtaNotBlocked(await placeBtn.textContent())
     await expect(placeBtn).toBeEnabled({ timeout: 60_000 })
-    await placeBtn.click()
-
-    await assertTxResultAlert(page)
+    await submitPlaceLimitAndExpectTx(page)
     const successAlert = placeCard.locator('.alert-success')
-    await expect(successAlert).toContainText(/TX:/i)
 
     const txHash = await readTxHashFromAlertLink(page, successAlert)
     await expect(async () => {
@@ -53,22 +56,22 @@ test.describe('Limit orders funded txs', () => {
     const { index } = await requireLimitTxPair(request, pairs)
     await selectLimitPairByFactoryIndex(page, index)
 
-    const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
+    const placeCard = placeLimitCard(page)
+    await fillValidLimitPrice(page, 'bid')
     await placeCard.getByPlaceholder('0.0').fill('1')
     const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
     await expect(placeBtn).toBeEnabled({ timeout: 60_000 })
-    await placeBtn.click()
-    await assertTxResultAlert(page)
+    await submitPlaceLimitAndExpectTx(page)
 
     const idLocator = page.getByTestId('last-placed-order-id')
     await expect(idLocator).toBeVisible({ timeout: 45_000 })
 
-    const cancelCard = page.locator('.card-neo').filter({ hasText: 'Cancel limit' })
-    await cancelCard.getByRole('button', { name: /^Cancel limit$/i }).click()
+    const cancelCard = cancelLimitCard(page)
+    const cancelBtn = cancelCard.getByRole('button', { name: /^Cancel limit$/i })
+    await expect(cancelBtn).toBeEnabled({ timeout: 30_000 })
+    await submitCancelLimitAndExpectTx(page)
 
     const cancelSuccess = cancelCard.locator('.alert-success')
-    await assertTxResultAlert(page)
-    await expect(cancelSuccess).toContainText(/TX:/i)
 
     const cancelHash = await readTxHashFromAlertLink(page, cancelSuccess)
     await expect(async () => {
