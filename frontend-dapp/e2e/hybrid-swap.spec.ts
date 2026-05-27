@@ -1,11 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { assertTxResultAlert, skipIfLcdUnreachable } from './helpers/chain'
-import {
-  assertHybridSwapCtaNotBlocked,
-  requireDualCwPair,
-  requireHybridControlsVisible,
-  skipOrFailIfPairPaused,
-} from './helpers/hybrid-e2e'
+import { skipIfLcdUnreachable } from './helpers/chain'
+import { assertHybridSwapCtaNotBlocked, requireDualCwPair, requireHybridControlsVisible } from './helpers/hybrid-e2e'
 import {
   assetInfoLabel,
   fetchTxJson,
@@ -16,11 +11,7 @@ import {
   txJsonWasmAttrForAction,
 } from './helpers/lcd'
 
-async function selectDualCwPairTokens(
-  page: import('@playwright/test').Page,
-  t0: string,
-  t1: string
-): Promise<void> {
+async function selectDualCwPairTokens(page: import('@playwright/test').Page, t0: string, t1: string): Promise<void> {
   await page.getByLabel('Select token you pay').click()
   await page.getByTestId(`token-option-${t0}`).click()
   await page.getByLabel('Select token you receive').click()
@@ -105,26 +96,11 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     await skipIfLcdUnreachable(request)
     await connectWallet
 
-    const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
-    const { pair, index } = requireDualCwPair(pairs)
+    const pairs = await gotoAndCaptureFactoryPairsPage(page, '/')
+    const { pair } = requireDualCwPair(pairs)
     const t0 = assetInfoLabel(pair.asset_infos[0])
     const t1 = assetInfoLabel(pair.asset_infos[1])
 
-    await expect(page.locator('#limit-pair')).toBeVisible({ timeout: 60_000 })
-    await skipOrFailIfPairPaused(page)
-
-    await page.locator('#limit-pair').click()
-    await page
-      .getByRole('option')
-      .nth(index + 1)
-      .click()
-
-    const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
-    await placeCard.getByPlaceholder('0.0').fill('50')
-    await placeCard.getByRole('button', { name: /^Place limit$/i }).click()
-    await assertTxResultAlert(page)
-
-    await page.goto('/')
     await page.waitForLoadState('networkidle')
     await expect(page.getByLabel('Select token you pay')).toBeVisible({ timeout: 60_000 })
 
@@ -152,7 +128,8 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     }
 
     const successAlert = swapPanel.locator('.alert-success')
-    await assertTxResultAlert(page)
+    await expect(swapPanel.locator('.alert-success, .alert-error')).toBeVisible({ timeout: 90_000 })
+    await expect(successAlert).toBeVisible({ timeout: 5_000 })
     const txHash = await readTxHashFromAlertLink(page, successAlert)
 
     await expect(async () => {

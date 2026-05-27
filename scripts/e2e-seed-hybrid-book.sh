@@ -39,17 +39,11 @@ if [[ -z "$CONTAINER" ]]; then
   exit 1
 fi
 
+# shellcheck source=scripts/lib/e2e-terrad-tx.sh
+source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
+
 terrad_tx() {
-  docker exec "$CONTAINER" terrad tx "$@" \
-    --from test1 \
-    --keyring-backend test \
-    --chain-id localterra \
-    --gas auto \
-    --gas-adjustment 1.3 \
-    --fees 500000000uluna \
-    --node http://127.0.0.1:26657 \
-    --broadcast-mode sync \
-    -y --output json
+  e2e_terrad_tx "$CONTAINER" "$@"
 }
 
 b64_query() {
