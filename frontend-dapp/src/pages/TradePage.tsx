@@ -384,8 +384,16 @@ export default function TradePage() {
           <div className="min-h-[280px] md:col-span-2 md:row-start-2">
             <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
           </div>
-          <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col">{tradeOrderTicket}</div>
-          <div className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col">
+          <div
+            className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col"
+            data-testid="trade-sub-lg-ticket-col"
+          >
+            {tradeOrderTicket}
+          </div>
+          <div
+            className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col"
+            data-testid="trade-sub-lg-chart-col"
+          >
             <TradeChartSlot {...chartSlotProps} />
           </div>
           <div className="card-neo !p-3 md:col-span-2 md:row-start-3">

@@ -12,26 +12,26 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     await page.waitForLoadState('networkidle')
 
     const workspace = page.getByTestId('trade-sub-lg-workspace')
-    const priceHeading = workspace.getByRole('heading', { name: 'Price (USD)' })
-    const placeLimitHeading = workspace.getByRole('heading', { name: 'Place limit' })
+    const chartCol = workspace.getByTestId('trade-sub-lg-chart-col')
+    const ticketCol = workspace.getByTestId('trade-sub-lg-ticket-col')
     const orderBookHeading = workspace.getByRole('heading', { name: 'Order book' })
 
     await expect(async () => {
+      await expect(chartCol).toBeVisible()
+      await expect(ticketCol).toBeVisible()
       await expect(orderBookHeading).toBeVisible()
-      await expect(priceHeading).toBeVisible()
-      await expect(placeLimitHeading).toBeVisible()
     }).toPass({ timeout: 90_000 })
 
-    const chartBox = await priceHeading.boundingBox()
-    const ticketBox = await placeLimitHeading.boundingBox()
+    const chartBox = await chartCol.boundingBox()
+    const ticketBox = await ticketCol.boundingBox()
     const bookBox = await orderBookHeading.boundingBox()
 
-    expect(chartBox, 'chart heading box').toBeTruthy()
-    expect(ticketBox, 'ticket heading box').toBeTruthy()
+    expect(chartBox, 'chart column box').toBeTruthy()
+    expect(ticketBox, 'ticket column box').toBeTruthy()
     expect(bookBox, 'order book heading box').toBeTruthy()
 
-    expect(chartBox!.x, 'chart should be left of ticket').toBeLessThan(ticketBox!.x)
-    expect(Math.abs(chartBox!.y - ticketBox!.y), 'chart and ticket share a visual row').toBeLessThan(120)
+    expect(chartBox!.x, 'chart column should be left of ticket column').toBeLessThan(ticketBox!.x)
+    expect(Math.abs(chartBox!.y - ticketBox!.y), 'chart and ticket columns share a grid row').toBeLessThan(8)
 
     const rowBottom = Math.max(chartBox!.y + chartBox!.height, ticketBox!.y + ticketBox!.height)
     expect(bookBox!.y, 'order book sits below the chart/ticket row').toBeGreaterThanOrEqual(rowBottom - 48)
