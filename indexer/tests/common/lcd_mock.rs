@@ -66,20 +66,25 @@ pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
     server
 }
 
-/// Hybrid sim always fails; pool `simulation` succeeds — exercises degraded optimizer path (#189).
+/// Grid hybrid sim (`max_maker_fills` > 1) fails; pool-only fallback (`max_maker_fills` = 1, `book_input: 0`) succeeds (#190).
 pub async fn start_hybrid_degraded_mock() -> MockServer {
     let responder = |req: &Request| {
         let q = smart_query_from_request(req);
         if q.get("hybrid_simulation").is_some() {
-            return ResponseTemplate::new(500)
-                .set_body_json(json!({ "message": "hybrid unavailable" }));
-        }
-        if q.get("simulate_swap_operations").is_some() {
-            return ResponseTemplate::new(200)
-                .set_body_json(json!({ "data": { "amount": "424242" } }));
-        }
-        if q.get("simulation").is_some() {
-            let offer = q["simulation"]["offer_asset"]["amount"]
+            let max_fills = q["hybrid_simulation"]["hybrid"]["max_maker_fills"]
+                .as_u64()
+                .unwrap_or(0);
+            if max_fills > 1 {
+                // HTTP 200 with unparsable output — grid treats as candidate failure without LCD cooldown.
+                return ResponseTemplate::new(200).set_body_json(json!({
+                    "data": {
+                        "return_amount": "not-a-uint",
+                        "spread_amount": "0",
+                        "commission_amount": "0",
+                    }
+                }));
+            }
+            let offer = q["hybrid_simulation"]["offer_asset"]["amount"]
                 .as_str()
                 .unwrap_or("0")
                 .parse::<u128>()
@@ -89,8 +94,14 @@ pub async fn start_hybrid_degraded_mock() -> MockServer {
                     "return_amount": (offer / 2).to_string(),
                     "spread_amount": "0",
                     "commission_amount": "0",
+                    "book_return_amount": "0",
+                    "pool_return_amount": (offer / 2).to_string(),
                 }
             }));
+        }
+        if q.get("simulate_swap_operations").is_some() {
+            return ResponseTemplate::new(200)
+                .set_body_json(json!({ "data": { "amount": "424242" } }));
         }
         ResponseTemplate::new(200).set_body_json(json!({ "data": null }))
     };
