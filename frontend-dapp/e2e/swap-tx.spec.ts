@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, assertTxResultAlert, assertSwapCtaNotBlocked } from './helpers/chain'
-import { swapYouReceiveAmountDisplay } from './helpers/swap-ui'
+import { clickSwapSubmit, swapActionPanel, swapYouReceiveAmountDisplay } from './helpers/swap-ui'
 import { expectAtLeastTwoPayTokenOptions } from './helpers/token-select'
 import { headerConnectedWalletButton } from './helpers/wallet-ui'
 
@@ -14,16 +14,15 @@ test.describe('Swap Transaction', () => {
 
     await expectAtLeastTwoPayTokenOptions(page)
 
-    // Enter a small swap amount (in micro units)
-    const input = page.getByPlaceholder('0.00').first()
-    await input.fill('1000000')
+    // Human-decimal amount (placeholder 0.00); keep small after bot-swarm / hybrid routes
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.001')
 
     // Wait for simulation result
     const youReceiveAmount = swapYouReceiveAmountDisplay(page)
     await expect(youReceiveAmount).not.toHaveText('0.00', { timeout: 15000 })
 
-    // Primary swap card is the first shell panel in main (heading "Swap" is inside it)
-    const swapPanel = page.locator('main .shell-panel-strong').first()
+    const swapPanel = swapActionPanel(page)
 
     await expect(async () => {
       const calculating = swapPanel.getByRole('button', { name: /^Calculating/ })
@@ -34,15 +33,7 @@ test.describe('Swap Transaction', () => {
     await expect(swapAction).toBeVisible({ timeout: 60_000 })
     assertSwapCtaNotBlocked(await swapAction.textContent())
 
-    await expect(swapAction).toBeEnabled({ timeout: 30_000 })
-
-    await swapAction.click()
-    // High price impact (>5%) uses a two-step confirm; first click may only reveal "Confirm Swap (...)"
-    await page.waitForTimeout(500)
-    const confirmSwap = swapPanel.getByRole('button').filter({ hasText: /^Confirm Swap/ })
-    if (await confirmSwap.isVisible().catch(() => false)) {
-      await confirmSwap.click()
-    }
+    await clickSwapSubmit(page, swapPanel)
 
     await assertTxResultAlert(page)
   })

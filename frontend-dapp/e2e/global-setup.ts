@@ -77,4 +77,11 @@ export default async function globalSetup(): Promise<void> {
     env: { ...process.env, REPO_ROOT: repoRoot },
     cwd: repoRoot,
   })
+
+  const wrapPairsSeed = path.join(repoRoot, 'scripts', 'e2e-seed-wrap-pairs.sh')
+  execFileSync('bash', [wrapPairsSeed], {
+    stdio: 'inherit',
+    env: { ...process.env, REPO_ROOT: repoRoot },
+    cwd: repoRoot,
+  })
 }

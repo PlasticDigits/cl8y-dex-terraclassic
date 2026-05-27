@@ -1,3 +1,6 @@
+# Stable project name so git worktrees share the same LocalTerra/Postgres stack.
+name: cl8y-dex-terraclassic
+
 services:
   localterra:
     # Pinned digest for reproducible QA; tag reference: ghcr.io/plasticdigits/localterra-cl8y:latest

@@ -79,6 +79,8 @@ fi
 
 if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
   log_line "Postgres" "ok" "(compose service postgres)"
+elif pg_isready -h localhost -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
+  log_line "Postgres" "ok" "(host localhost:5432)"
 else
   log_line "Postgres" "down" ""
 fi
