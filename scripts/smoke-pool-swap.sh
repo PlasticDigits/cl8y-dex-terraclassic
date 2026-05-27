@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Post-deploy **pool-only** sanity checks against a pair (no hybrid / limit-book leg).
 #
-# Read-only path (default): LCD `Pool` query and optional `Simulation` query.
+# Read-only path (default): LCD `Pool` query and optional pool-only `HybridSimulation` query.
 # Requires: curl, jq. Optional: terrad for the same queries if REST layout differs on your node.
 #
 # Env:
 #   TERRA_LCD_URL   REST base (default http://127.0.0.1:1317)
 #   PAIR_ADDR       Pair contract address (required)
-#   OFFER_TOKEN     CW20 address of asset offered (optional; if set, runs Simulation)
+#   OFFER_TOKEN     CW20 address of asset offered (optional; if set, runs hybrid_simulation pool-only)
 #   OFFER_AMOUNT    Amount as string integer (default 1000)
 #
 # Example (LocalTerra after deploy):
@@ -49,14 +49,14 @@ echo "$POOL_JSON" | jq .
 OFFER_TOKEN="${OFFER_TOKEN:-}"
 OFFER_AMOUNT="${OFFER_AMOUNT:-1000}"
 if [[ -n "$OFFER_TOKEN" ]]; then
-  echo "== Simulation (pool-only; offer CW20 ${OFFER_TOKEN}, amount ${OFFER_AMOUNT}) =="
+  echo "== HybridSimulation pool-only (book_input=0; offer CW20 ${OFFER_TOKEN}, amount ${OFFER_AMOUNT}) =="
   SIM_MSG="$(jq -nc \
     --arg addr "$OFFER_TOKEN" \
     --arg amt "$OFFER_AMOUNT" \
-    '{simulation:{offer_asset:{info:{token:{contract_addr:$addr}},amount:$amt}}}')"
+    '{hybrid_simulation:{offer_asset:{info:{token:{contract_addr:$addr}},amount:$amt},hybrid:{pool_input:$amt,book_input:"0",max_maker_fills:1,book_start_hint:null}}}')"
   lcd_smart "$PAIR" "$SIM_MSG" | jq .
 else
-  echo "== Skipping Simulation (set OFFER_TOKEN to run). =="
+  echo "== Skipping HybridSimulation (set OFFER_TOKEN to run). =="
 fi
 
 echo "OK: smoke-pool-swap read-only checks passed."
