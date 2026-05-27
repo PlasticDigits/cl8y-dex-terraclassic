@@ -123,4 +123,16 @@ describe('useWalletStore', () => {
 
     expect(localStorage.getItem(WALLET_STORAGE_KEY)).toBeNull()
   })
+
+  it('clears persisted Leap session on load (GitLab #159)', async () => {
+    vi.resetModules()
+    localStorage.setItem(
+      WALLET_STORAGE_KEY,
+      JSON.stringify({ walletName: WalletName.LEAP, walletType: WalletType.EXTENSION })
+    )
+    await import('../useWallet')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(localStorage.getItem(WALLET_STORAGE_KEY)).toBeNull()
+    expect(connectTerraWallet).not.toHaveBeenCalled()
+  })
 })

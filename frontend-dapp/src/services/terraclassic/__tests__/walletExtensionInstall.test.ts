@@ -46,4 +46,9 @@ describe('walletExtensionInstall (GitLab #139 connect modal)', () => {
     expect(WALLET_EXTENSION_INSTALL_URL[WalletName.KEPLR]).toMatch(/^https:/)
     expect(WALLET_EXTENSION_INSTALL_URL[WalletName.COSMOSTATION]).toMatch(/^https:/)
   })
+
+  it('Leap has no install URL while sunset (GitLab #159)', async () => {
+    const { WALLET_EXTENSION_INSTALL_URL } = await import('../walletExtensionInstall')
+    expect(WALLET_EXTENSION_INSTALL_URL[WalletName.LEAP]).toBeUndefined()
+  })
 })

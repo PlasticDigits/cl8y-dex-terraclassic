@@ -57,4 +57,11 @@ describe('WalletModal (GitLab #160 connect modal badges)', () => {
     const keplr = screen.getByRole('button', { name: /Keplr, extension not detected/i })
     expect(within(keplr).queryByText('Ready')).not.toBeInTheDocument()
   })
+
+  it('does not list Leap (GitLab #159 vendor sunset)', () => {
+    mockSnapshot.mockReturnValue(extensionSnapshot({}))
+    render(<WalletModal onClose={() => {}} />)
+    expect(screen.queryByText(/^leap$/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /leap/i })).not.toBeInTheDocument()
+  })
 })
