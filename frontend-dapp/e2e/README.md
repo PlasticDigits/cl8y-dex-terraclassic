@@ -24,7 +24,7 @@ Manual equivalent:
 
 ```bash
 docker compose up -d localterra
-make wait-healthy
+make wait-localterra
 bash scripts/deploy-dex-local.sh
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 ```

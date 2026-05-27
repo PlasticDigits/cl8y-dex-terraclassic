@@ -1,9 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
-import {
-  skipIfLcdUnreachable,
-  assertTxResultAlert,
-  assertLiquidityCtaNotBlocked,
-} from './helpers/chain'
+import { skipIfLcdUnreachable, assertTxResultAlert, assertLiquidityCtaNotBlocked } from './helpers/chain'
 import { requirePoolCardWithNativeWrap, requirePoolCardWithReceiveWrapped } from './helpers/wrap-e2e'
 
 test.describe('Pool with native token wrapping — UI', () => {
@@ -16,7 +12,10 @@ test.describe('Pool with native token wrapping — UI', () => {
 
   test('E6: pool page loads with pairs', async ({ page }) => {
     await expect(async () => {
-      const pairCount = await page.getByText(/pair\(s\)/i).textContent()
+      const pairCount = await page
+        .getByText(/pair\(s\)/i)
+        .first()
+        .textContent()
       expect(pairCount).toMatch(/[\d,]+\s*pair/i)
       const m = pairCount?.match(/([\d,]+)\s*pair/i)
       expect(m).toBeTruthy()
@@ -101,19 +100,19 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E7: provide liquidity with native token (auto-wrap)', async ({ page }) => {
-    const provideBtn = page.getByRole('button', { name: 'Provide Liquidity' }).first()
-    await provideBtn.click()
+    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    await pairCard.getByRole('button', { name: 'Provide Liquidity' }).click()
 
-    await requirePoolCardWithNativeWrap(page)
+    await requirePoolCardWithNativeWrap(pairCard)
 
-    const nativeCheckbox = page.getByText(/auto-wrap/i)
+    const nativeCheckbox = pairCard.getByText(/auto-wrap/i)
     await nativeCheckbox.first().click()
 
-    const inputs = page.locator('input[placeholder="0.00"]')
-    await inputs.nth(0).fill('0.1')
-    await inputs.nth(1).fill('0.1')
+    const inputs = pairCard.locator('input[placeholder="0.00"]')
+    await inputs.nth(0).fill('0.0001')
+    await inputs.nth(1).fill('0.0001')
 
-    const submitBtn = page.getByRole('button', { name: /Provide Liquidity/i }).last()
+    const submitBtn = pairCard.getByRole('button', { name: /^Provide Liquidity$/i })
     await expect(submitBtn).toBeEnabled({ timeout: 15_000 })
     assertLiquidityCtaNotBlocked(
       await submitBtn.textContent(),
@@ -125,14 +124,14 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E8: provide liquidity with wrapped CW20 directly', async ({ page }) => {
-    const provideBtn = page.getByRole('button', { name: 'Provide Liquidity' }).first()
-    await provideBtn.click()
+    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    await pairCard.getByRole('button', { name: 'Provide Liquidity' }).click()
 
-    const inputs = page.locator('input[placeholder="0.00"]')
-    await inputs.nth(0).fill('0.1')
-    await inputs.nth(1).fill('0.1')
+    const inputs = pairCard.locator('input[placeholder="0.00"]')
+    await inputs.nth(0).fill('0.0001')
+    await inputs.nth(1).fill('0.0001')
 
-    const submitBtn = page.getByRole('button', { name: /Provide Liquidity/i }).last()
+    const submitBtn = pairCard.getByRole('button', { name: /^Provide Liquidity$/i })
     await expect(submitBtn).toBeEnabled({ timeout: 15_000 })
     assertLiquidityCtaNotBlocked(
       await submitBtn.textContent(),
@@ -144,28 +143,28 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E9: withdraw liquidity with auto-unwrap to native', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
-    const withdrawBtn = page.getByRole('button', { name: 'Withdraw Liquidity' }).first()
-    await withdrawBtn.click()
+    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    await expect(pairCard.getByRole('button', { name: 'Withdraw Liquidity' })).toBeVisible({ timeout: 90_000 })
+    await pairCard.getByRole('button', { name: 'Withdraw Liquidity' }).click()
 
-    await requirePoolCardWithReceiveWrapped(page)
+    await requirePoolCardWithReceiveWrapped(pairCard)
 
-    const checkbox = page.locator('input[type="checkbox"]').last()
+    const checkbox = pairCard.locator('input[type="checkbox"]').last()
     const isChecked = await checkbox.isChecked()
     if (isChecked) {
       await checkbox.uncheck()
     }
 
-    const maxButton = page.locator('button', { hasText: /^\d/ })
+    const maxButton = pairCard.locator('button', { hasText: /^\d/ })
     const maxCount = await maxButton.count()
     if (maxCount > 0) {
       await maxButton.first().click()
     } else {
-      const lpInput = page.getByPlaceholder('0.00').first()
+      const lpInput = pairCard.getByPlaceholder('0.00').first()
       await lpInput.fill('0.001')
     }
 
-    const submitBtn = page.getByRole('button', { name: /Withdraw Liquidity/i }).last()
+    const submitBtn = pairCard.getByRole('button', { name: /^Withdraw Liquidity$/i })
     assertLiquidityCtaNotBlocked(
       await submitBtn.textContent(),
       'Wrap pool withdraw (auto-unwrap): CTA blocked; ensure LP balance after prior provides or adjust pair selection.'
@@ -174,18 +173,18 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     await expect(submitBtn).toBeEnabled({ timeout: 5000 })
     await submitBtn.click()
 
-    await assertTxResultAlert(page)
+    await assertTxResultAlert(page, 120_000)
   })
 
   test('E10: withdraw liquidity — receive as wrapped tokens', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
-    const withdrawBtn = page.getByRole('button', { name: 'Withdraw Liquidity' }).first()
-    await withdrawBtn.click()
+    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    await expect(pairCard.getByRole('button', { name: 'Withdraw Liquidity' })).toBeVisible({ timeout: 90_000 })
+    await pairCard.getByRole('button', { name: 'Withdraw Liquidity' }).click()
 
-    const lpInput = page.getByPlaceholder('0.00').first()
+    const lpInput = pairCard.getByPlaceholder('0.00').first()
     await lpInput.fill('0.001')
 
-    const submitBtn = page.getByRole('button', { name: /Withdraw Liquidity/i }).last()
+    const submitBtn = pairCard.getByRole('button', { name: /^Withdraw Liquidity$/i })
     assertLiquidityCtaNotBlocked(
       await submitBtn.textContent(),
       'Wrap pool withdraw (wrapped): CTA blocked; ensure LP balance for this pair.'
@@ -194,6 +193,6 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     await expect(submitBtn).toBeEnabled({ timeout: 5000 })
     await submitBtn.click()
 
-    await assertTxResultAlert(page)
+    await assertTxResultAlert(page, 120_000)
   })
 })

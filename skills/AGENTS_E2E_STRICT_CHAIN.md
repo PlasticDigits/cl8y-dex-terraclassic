@@ -32,7 +32,7 @@ Or manually:
 
 ```bash
 docker compose up -d localterra
-make wait-healthy
+make wait-localterra
 bash scripts/deploy-dex-local.sh
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 ```
@@ -52,7 +52,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 | [`frontend-dapp/e2e/global-setup.ts`](../frontend-dapp/e2e/global-setup.ts) | LCD wait + provision + hybrid book seed |
 | [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor; CL8Y ≥ tier-1 via `E2E_DEV_MIN_CL8Y_U128` |
 | [`scripts/with-node.sh`](../scripts/with-node.sh) | Local Node/npm via nvm (`.nvmrc`) |
-| [`.github/workflows/test.yml`](../.github/workflows/test.yml) | LocalTerra + `make wait-healthy` + deploy + Playwright (CI uses `setup-node`) |
+| [`.github/workflows/test.yml`](../.github/workflows/test.yml) | LocalTerra + `make wait-localterra` + deploy + Playwright (CI uses `setup-node`) |
 
 ## Cross-links
 

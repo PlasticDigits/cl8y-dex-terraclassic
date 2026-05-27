@@ -308,7 +308,7 @@ echo "  Wrap-Mapper Address: $WRAP_MAPPER_ADDRESS"
 
 echo ""
 echo "[9b.5] Creating LUNC-C (Wrapped Luna Classic) CW20 token..."
-LUNC_C_INIT_MSG="{\"name\":\"Wrapped Luna Classic\",\"symbol\":\"LUNC-C\",\"decimals\":6,\"initial_balances\":[],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+LUNC_C_INIT_MSG="{\"name\":\"Wrapped Luna Classic\",\"symbol\":\"LUNC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"100000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
 TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$LUNC_C_INIT_MSG" \
     --label "lunc-c-token" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
@@ -318,7 +318,7 @@ echo "  LUNC-C Address: $LUNC_C_ADDRESS"
 
 echo ""
 echo "[9b.6] Creating USTC-C (Wrapped TerraClassicUSD) CW20 token..."
-USTC_C_INIT_MSG="{\"name\":\"Wrapped TerraClassicUSD\",\"symbol\":\"USTC-C\",\"decimals\":6,\"initial_balances\":[],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+USTC_C_INIT_MSG="{\"name\":\"Wrapped TerraClassicUSD\",\"symbol\":\"USTC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"100000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
 TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$USTC_C_INIT_MSG" \
     --label "ustc-c-token" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
@@ -638,6 +638,53 @@ done
 
 echo ""
 echo "  $UNPAIRED_PAIR_NUM unpaired-token pairs created (ZINC: 0, IRON: 1, NEON: 2)."
+
+# ── Phase 4c: Wrapped-native pairs (wrap / native swap E2E, GitLab #201) ──
+
+echo ""
+echo "[Phase 4c] Creating wrapped-native pairs for wrap E2E"
+echo "----------------------------------------------"
+
+WRAP_PAIR_NUM=0
+for wp in \
+  "$LUNC_C_ADDRESS:LUNC-C:${TOKEN_ADDRESSES[0]}:EMBER:100000000000:100000000000" \
+  "$USTC_C_ADDRESS:USTC-C:${TOKEN_ADDRESSES[1]}:CORAL:100000000000:100000000000"
+do
+  IFS=':' read -r ADDR_A SYM_A ADDR_B SYM_B LIQ_A LIQ_B <<< "$wp"
+  WRAP_PAIR_NUM=$((WRAP_PAIR_NUM + 1))
+  echo ""
+  echo "[14c.$WRAP_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
+
+  CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
+  TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+  echo "  TX: $TX_HASH"
+  sleep 3
+  PAIR_RESULT=$(terrad_query tx "$TX_HASH")
+  PAIR_ADDR=$(echo "$PAIR_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value' | head -1)
+  echo "  Pair Address: $PAIR_ADDR"
+
+  TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
+    "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
+  echo "  Set discount registry: $TX_HASH"
+  sleep 3
+
+  TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \
+    "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_A\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+  echo "  Approved $SYM_A: $TX_HASH"
+  sleep 3
+  TX_HASH=$(terrad_tx wasm execute "$ADDR_B" \
+    "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_B\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
+  echo "  Approved $SYM_B: $TX_HASH"
+  sleep 3
+
+  PROVIDE_MSG="{\"provide_liquidity\":{\"assets\":[{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_A\"}},\"amount\":\"$LIQ_A\"},{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_B\"}},\"amount\":\"$LIQ_B\"}],\"slippage_tolerance\":null,\"receiver\":null,\"deadline\":null}}"
+  TX_HASH=$(terrad_tx wasm execute "$PAIR_ADDR" "$PROVIDE_MSG" | jq -r '.txhash')
+  echo "  Liquidity provided ($LIQ_A / $LIQ_B): $TX_HASH"
+  sleep 3
+done
+
+echo ""
+echo "  $WRAP_PAIR_NUM wrapped-native pairs created."
 
 # ── Phase 5: Test Swaps ─────────────────────────────────────────────────
 

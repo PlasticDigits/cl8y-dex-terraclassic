@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa qa-tunnel-help swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -38,12 +38,12 @@ swarm-stop:
 	@chmod +x scripts/bots/stop-swarm.sh
 	./scripts/bots/stop-swarm.sh
 
-wait-healthy:
+wait-localterra:
 	@echo "Waiting for LocalTerra..."
 	@for i in $$(seq 1 60); do \
 		if curl -sf http://localhost:26657/status > /dev/null 2>&1; then \
 			echo "LocalTerra is ready!"; \
-			break; \
+			exit 0; \
 		fi; \
 		if [ "$$i" -eq 60 ]; then \
 			echo "ERROR: LocalTerra did not start in time."; \
@@ -51,6 +51,8 @@ wait-healthy:
 		fi; \
 		sleep 2; \
 	done
+
+wait-healthy: wait-localterra
 	@echo "Waiting for Postgres..."
 	@chmod +x scripts/setup-postgres-dev-databases.sh
 	@for i in $$(seq 1 30); do \
@@ -83,7 +85,7 @@ stop-qa:
 	./scripts/qa/stop-qa.sh
 
 help:
-	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-healthy | swarm-local | swarm-launch | swarm-stop"
+	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa (alias qa-start) | stop-qa | qa-tunnel-help"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-e2e-tx | lint-frontend"
@@ -160,9 +162,10 @@ test-e2e:
 	$(WITH_NODE) npm run test:e2e
 
 # Strict on-chain Playwright (LocalTerra + deploy + global setup). Same as CI e2e job.
-test-e2e-tx: wait-healthy
-	@chmod +x scripts/deploy-dex-local.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh scripts/with-node.sh
+test-e2e-tx:
+	@chmod +x scripts/deploy-dex-local.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh scripts/e2e-seed-wrap-pairs.sh scripts/with-node.sh
 	docker compose up -d localterra
+	$(MAKE) wait-localterra
 	bash scripts/deploy-dex-local.sh
 	$(WITH_NODE) npm run test:e2e:tx
 

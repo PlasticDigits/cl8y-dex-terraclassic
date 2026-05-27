@@ -76,6 +76,13 @@ fi
 
 for TOKEN in "${TOKEN_ADDRS[@]}"; do
   [[ -n "$TOKEN" ]] || continue
+  # Wrapped natives mint via wrap-mapper only (GitLab #201 wrap-pair seed).
+  if [[ -n "${VITE_LUNC_C_TOKEN_ADDRESS:-}" && "$TOKEN" == "$VITE_LUNC_C_TOKEN_ADDRESS" ]]; then
+    continue
+  fi
+  if [[ -n "${VITE_USTC_C_TOKEN_ADDRESS:-}" && "$TOKEN" == "$VITE_USTC_C_TOKEN_ADDRESS" ]]; then
+    continue
+  fi
   MIN_FOR_TOKEN="$MIN_RAW_BALANCE"
   if [[ -n "${VITE_CL8Y_TOKEN_ADDRESS:-}" && "$TOKEN" == "$VITE_CL8Y_TOKEN_ADDRESS" ]]; then
     MIN_FOR_TOKEN="${E2E_DEV_MIN_CL8Y_U128:-1000000000000000000}"

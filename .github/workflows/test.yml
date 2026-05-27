@@ -297,7 +297,7 @@ jobs:
         working-directory: .
 
       - name: Wait for LocalTerra
-        run: make wait-healthy
+        run: make wait-localterra
         working-directory: .
 
       - name: Deploy contracts locally

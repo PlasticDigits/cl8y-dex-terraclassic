@@ -1,11 +1,7 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, assertTxResultAlert } from './helpers/chain'
-import { swapYouReceiveAmountDisplay } from './helpers/swap-ui'
-import {
-  requireNonNativeCw20PayOption,
-  requireNonNativeCw20ReceiveOption,
-  requireTokenInCombobox,
-} from './helpers/wrap-e2e'
+import { clickSwapSubmit, swapActionPanel, swapYouReceiveAmountDisplay } from './helpers/swap-ui'
+import { requireTokenInCombobox } from './helpers/wrap-e2e'
 import {
   ARIA_SELECT_TOKEN_PAY,
   ARIA_SELECT_TOKEN_RECEIVE,
@@ -14,10 +10,6 @@ import {
   payTokenTrigger,
   waitForPayTokenTriggerEnabled,
 } from './helpers/token-select'
-
-function swapActionPanel(page: import('@playwright/test').Page) {
-  return page.locator('main .shell-panel-strong').first()
-}
 
 test.describe('Swap with native token wrapping — UI', () => {
   test.beforeEach(async ({ page }) => {
@@ -85,10 +77,10 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
 
   test('E1: swap native input — LUNC to CW20', async ({ page }) => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
-    await requireNonNativeCw20ReceiveOption(page)
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'EMBER')
 
-    const input = page.getByPlaceholder('0.00').first()
-    await input.fill('0.1')
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
 
     const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
@@ -97,19 +89,17 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
-    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
-    await expect(swapBtn).toBeEnabled({ timeout: 10000 })
-    await swapBtn.click()
+    await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
   })
 
   test('E2: swap native output — CW20 to native USTC', async ({ page }) => {
-    await requireNonNativeCw20PayOption(page)
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'EMBER')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'USTC-C')
 
-    const input = page.getByPlaceholder('0.00').first()
-    await input.fill('0.1')
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
 
     const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
@@ -118,9 +108,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
-    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
-    await expect(swapBtn).toBeEnabled({ timeout: 10000 })
-    await swapBtn.click()
+    await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
   })
@@ -129,8 +117,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'USTC-C')
 
-    const input = page.getByPlaceholder('0.00').first()
-    await input.fill('0.1')
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
 
     const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
@@ -143,9 +131,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const routeCount = await routeDisplay.count()
     expect(routeCount).toBeGreaterThanOrEqual(0)
 
-    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
-    await expect(swapBtn).toBeEnabled({ timeout: 10000 })
-    await swapBtn.click()
+    await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
   })
@@ -158,12 +144,10 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const wrapNoteCount = await wrapNote.count()
     expect(wrapNoteCount).toBeGreaterThanOrEqual(0)
 
-    const input = page.getByPlaceholder('0.00').first()
-    await input.fill('0.1')
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
 
-    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
-    await expect(swapBtn).toBeEnabled({ timeout: 10000 })
-    await swapBtn.click()
+    await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
   })
@@ -172,12 +156,10 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC-C')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC', 'LUNC-C')
 
-    const input = page.getByPlaceholder('0.00').first()
-    await input.fill('0.1')
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
 
-    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
-    await expect(swapBtn).toBeEnabled({ timeout: 10000 })
-    await swapBtn.click()
+    await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
   })
@@ -185,9 +167,10 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   test('E6: wrapped-to-wrapped swap — LUNC-C to USTC-C (normal CW20)', async ({ page }) => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC-C')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC-C')
+    await expect(page.getByText(/Route:/)).toBeVisible({ timeout: 30_000 })
 
-    const input = page.getByPlaceholder('0.00').first()
-    await input.fill('0.1')
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
 
     const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
@@ -196,9 +179,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
-    const swapBtn = swapActionPanel(page).getByRole('button', { name: /^(Swap|Confirm Swap)/ })
-    await expect(swapBtn).toBeEnabled({ timeout: 10000 })
-    await swapBtn.click()
+    await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
   })
