@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT,
+  LIMIT_ORDER_MAX_ADJUST_STEPS_PRESET_VALUES,
+  clampLimitOrderMaxAdjustSteps,
   limitOrderExpiryFromPreset24h,
   limitOrderExpiryFromPreset7d,
+  limitOrderMaxAdjustStepsForPresetTier,
   localDatetimeInputToUnixSeconds,
   parseRawExpiresUnixInput,
+  resolveLimitOrderMaxAdjustStepsPresetTier,
   unixSecondsToLocalDatetimeInputValue,
 } from '../limitOrderExpiry'
 
@@ -44,5 +49,29 @@ describe('limitOrderExpiry', () => {
     expect(parseRawExpiresUnixInput('0')).toBe(0)
     expect(parseRawExpiresUnixInput('1.5')).toBe('invalid')
     expect(parseRawExpiresUnixInput('nope')).toBe('invalid')
+  })
+})
+
+describe('limitOrderExpiry max_adjust_steps presets (GitLab #204)', () => {
+  it('maps preset tiers to documented step integers', () => {
+    expect(limitOrderMaxAdjustStepsForPresetTier('low')).toBe(16)
+    expect(limitOrderMaxAdjustStepsForPresetTier('medium')).toBe(32)
+    expect(limitOrderMaxAdjustStepsForPresetTier('high')).toBe(128)
+    expect(LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT).toBe(LIMIT_ORDER_MAX_ADJUST_STEPS_PRESET_VALUES.medium)
+  })
+
+  it('resolves active tier from on-chain step integer', () => {
+    expect(resolveLimitOrderMaxAdjustStepsPresetTier(16)).toBe('low')
+    expect(resolveLimitOrderMaxAdjustStepsPresetTier(32)).toBe('medium')
+    expect(resolveLimitOrderMaxAdjustStepsPresetTier(128)).toBe('high')
+    expect(resolveLimitOrderMaxAdjustStepsPresetTier(64)).toBe('custom')
+    expect(resolveLimitOrderMaxAdjustStepsPresetTier(200)).toBe('custom')
+  })
+
+  it('clamps custom steps to 1…256 with safe fallback', () => {
+    expect(clampLimitOrderMaxAdjustSteps(0)).toBe(1)
+    expect(clampLimitOrderMaxAdjustSteps(300)).toBe(256)
+    expect(clampLimitOrderMaxAdjustSteps(Number.NaN)).toBe(LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT)
+    expect(clampLimitOrderMaxAdjustSteps(48)).toBe(48)
   })
 })
