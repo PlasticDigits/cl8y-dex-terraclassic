@@ -14,8 +14,8 @@ describe('indexerTradeOutageCopy', () => {
   })
 
   it('mentions limit reference pool fallback when tape is missing (GitLab #166)', () => {
-    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/#166|166/i)
-    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/pool|wallet/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).toMatch(/pool|wallet|buy-below|sell-above/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_TAIL).not.toMatch(/\[GitLab|\]\(/)
   })
 
   it('names degraded trade surfaces without exposing env URLs (GitLab #174)', () => {

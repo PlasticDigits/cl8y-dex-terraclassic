@@ -19,4 +19,4 @@ export const TRADE_INDEXER_OUTAGE_BANNER_LEAD =
   'Chart, tape, order book depth, and most swap/limit ticket features may be limited until the service recovers.'
 
 export const TRADE_INDEXER_OUTAGE_BANNER_TAIL =
-  'Limit price reference (buy-below / sell-above) can still use on-chain pool reserves via your wallet when recent trade history is missing ([GitLab #166](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)).'
+  'Limit price reference (buy-below / sell-above) can still use on-chain pool reserves via your wallet when recent trade history is missing.'
