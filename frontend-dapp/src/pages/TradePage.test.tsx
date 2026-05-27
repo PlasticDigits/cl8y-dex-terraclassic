@@ -192,6 +192,28 @@ describe('TradePage', () => {
     expect(banner.textContent).toMatch(/order book|chart|tape/i)
   })
 
+  it('shows per-panel outage copy when tape fails while pair metadata is cached (GitLab #165)', async () => {
+    vi.mocked(indexerClient.getTrades).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    expect(await screen.findByTestId('trade-indexer-outage-banner')).toBeInTheDocument()
+    expect(await screen.findByTestId('trade-tape-unavailable')).toHaveTextContent(/recent trades are unavailable/i)
+  })
+
+  it('shows outage copy on book, tape, and chart when indexer transport fails (GitLab #165)', async () => {
+    vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    vi.mocked(indexerClient.getTrades).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    vi.mocked(indexerClient.getCandles).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    vi.mocked(indexerClient.getPairLimitBookPage).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    expect(await screen.findByTestId('trade-indexer-outage-banner')).toBeInTheDocument()
+    expect(await screen.findByTestId('trade-tape-unavailable')).toBeInTheDocument()
+    expect(await screen.findByTestId('trade-chart-unavailable')).toBeInTheDocument()
+    expect(await screen.findByTestId('trade-book-unavailable-bid')).toBeInTheDocument()
+    expect(await screen.findByTestId('trade-book-unavailable-ask')).toBeInTheDocument()
+  })
+
   it('shows invalid pair link notice and clears garbage URL for non-terra1 deep links (GitLab #176)', async () => {
     vi.mocked(indexerClient.getPair).mockClear()
     vi.mocked(indexerClient.getTrades).mockClear()

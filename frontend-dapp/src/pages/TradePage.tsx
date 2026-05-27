@@ -8,7 +8,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { MenuSelect, TradesTable, RetryError, Skeleton } from '@/components/ui'
+import { MenuSelect, RetryError, Skeleton } from '@/components/ui'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
@@ -22,7 +22,7 @@ import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
-import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
 import {
   TRADE_INDEXER_OUTAGE_BANNER_LEAD,
   TRADE_INDEXER_OUTAGE_BANNER_TAIL,
@@ -42,6 +42,8 @@ import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
 import type { IndexerPair } from '@/types'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { TradeRecentTradesSection } from '@/components/trade/TradeRecentTradesSection'
+import { detectTradeIndexerOutage } from '@/utils/tradeIndexerOutage'
 import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 
 const TRADE_PAIR_SELECT_ID = 'trade-pair-select'
@@ -203,7 +205,7 @@ export default function TradePage() {
   })
 
   const activePair: IndexerPair | undefined = indexerPairQuery.data
-  const indexerDown = indexerPairQuery.isError && isIndexerUnavailableError(indexerPairQuery.error)
+  const indexerDown = detectTradeIndexerOutage(indexerPairQuery, tradesQuery)
 
   useEffect(() => {
     if (!factoryPairsResolved || !routePair || invalidRoutePair) return
@@ -384,10 +386,7 @@ export default function TradePage() {
           <div className="min-h-[280px] md:col-span-2 md:row-start-2">
             <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
           </div>
-          <div
-            className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col"
-            data-testid="trade-sub-lg-ticket-col"
-          >
+          <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col" data-testid="trade-sub-lg-ticket-col">
             {tradeOrderTicket}
           </div>
           <div
@@ -397,18 +396,13 @@ export default function TradePage() {
             <TradeChartSlot {...chartSlotProps} />
           </div>
           <div className="card-neo !p-3 md:col-span-2 md:row-start-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--ink-dim)' }}>
-              Recent trades
-            </h2>
-            {pairRouteReady && tradesQuery.isLoading && <Skeleton height="6rem" />}
-            {tradesQuery.data && (
-              <TradesTable
-                trades={tradesQuery.data}
-                formatTimeFn={formatTime}
-                activePair={activePair}
-                ariaLabel="Recent trades"
-              />
-            )}
+            <TradeRecentTradesSection
+              pairRouteReady={pairRouteReady}
+              tradesQuery={tradesQuery}
+              activePair={activePair}
+              formatTimeFn={formatTime}
+              skeletonHeight="6rem"
+            />
           </div>
         </div>
       )}
@@ -430,22 +424,14 @@ export default function TradePage() {
                 <TradeResizeHandleHorizontal />
                 <Panel defaultSize={42} minSize={22} className="min-h-0">
                   <div className="h-full flex flex-col min-h-0 card-neo !p-3">
-                    <h2
-                      className="text-xs font-semibold uppercase tracking-wide mb-2 shrink-0"
-                      style={{ color: 'var(--ink-dim)' }}
-                    >
-                      Recent trades
-                    </h2>
                     <div className="flex-1 min-h-0 overflow-y-auto">
-                      {pairRouteReady && tradesQuery.isLoading && <Skeleton height="5rem" />}
-                      {tradesQuery.data && (
-                        <TradesTable
-                          trades={tradesQuery.data}
-                          formatTimeFn={formatTime}
-                          activePair={activePair}
-                          ariaLabel="Recent trades"
-                        />
-                      )}
+                      <TradeRecentTradesSection
+                        pairRouteReady={pairRouteReady}
+                        tradesQuery={tradesQuery}
+                        activePair={activePair}
+                        formatTimeFn={formatTime}
+                        skeletonHeight="5rem"
+                      />
                     </div>
                   </div>
                 </Panel>

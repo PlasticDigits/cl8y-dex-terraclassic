@@ -10,6 +10,9 @@ import { resolveTradeChartHeadlineUsd } from './chartHeadlinePrice'
 import { chartPointsToRsiLine, chartPointsToSmaLine } from './priceChartIndicators'
 import { PriceChartOverlayMenu } from './PriceChartOverlayMenu'
 import { keepPreviousCandlesForIntervalSwitch } from './priceChartCandlesPlaceholder'
+import { isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { TRADE_PANEL_CHART_UNAVAILABLE } from '@/utils/indexerTradeOutageCopy'
+import { TradeMarketDataUnavailableNotice } from '@/components/trade/TradeMarketDataUnavailableNotice'
 
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'] as const
 
@@ -93,6 +96,8 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
     staleTime: 60_000,
     retry: false,
   })
+
+  const chartIndexerOutage = candlesQuery.isError && isIndexerUnavailableError(candlesQuery.error)
 
   return (
     <div
@@ -181,7 +186,16 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
         </div>
       )}
 
-      {candlesQuery.isError && (
+      {candlesQuery.isError && chartIndexerOutage && (
+        <div className="flex flex-1 items-center justify-center min-h-[min(52vh,280px)] px-3">
+          <TradeMarketDataUnavailableNotice
+            message={TRADE_PANEL_CHART_UNAVAILABLE}
+            data-testid="trade-chart-unavailable"
+          />
+        </div>
+      )}
+
+      {candlesQuery.isError && !chartIndexerOutage && (
         <div className="flex items-center justify-center min-h-[400px] text-red-400 text-sm uppercase tracking-wide font-semibold">
           Failed to load chart data
         </div>

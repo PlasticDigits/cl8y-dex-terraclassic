@@ -94,8 +94,16 @@ describe('PriceChart', () => {
     expect(screen.getByRole('heading', { name: /price \(usd\)/i })).toBeInTheDocument()
   })
 
-  it('shows error banner when getCandles rejects', async () => {
+  it('shows market-data outage notice when getCandles rejects with indexer transport error (GitLab #165)', async () => {
     vi.mocked(indexerClient.getCandles).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.getByTestId('trade-chart-unavailable')).toBeInTheDocument())
+    expect(screen.getByTestId('trade-chart-unavailable')).toHaveTextContent(/price chart is unavailable/i)
+    expect(screen.queryByText(/failed to load chart data/i)).not.toBeInTheDocument()
+  })
+
+  it('shows error banner when getCandles rejects with a non-outage error', async () => {
+    vi.mocked(indexerClient.getCandles).mockRejectedValue(new Error('Unexpected parse failure'))
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.getByText(/failed to load chart data/i)).toBeInTheDocument())
   })

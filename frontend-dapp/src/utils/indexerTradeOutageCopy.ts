@@ -12,6 +12,9 @@
  *
  * **GitLab #174:** retail copy must not expose `VITE_INDEXER_URL`, hostnames, or
  * “indexer” jargon — use “market data service” and plain-language recovery hints.
+ *
+ * **GitLab #165:** each trade workspace panel (book, tape, chart) must explain what
+ * is missing when the market data service is down — never leave sections blank.
  */
 export const TRADE_INDEXER_OUTAGE_BANNER_TITLE = 'Market data service unavailable.'
 
@@ -20,3 +23,9 @@ export const TRADE_INDEXER_OUTAGE_BANNER_LEAD =
 
 export const TRADE_INDEXER_OUTAGE_BANNER_TAIL =
   'Limit price reference (buy-below / sell-above) can still use on-chain pool reserves via your wallet when recent trade history is missing ([GitLab #166](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)).'
+
+export const TRADE_PANEL_BOOK_UNAVAILABLE = 'Order book depth is unavailable while the market data service is down.'
+
+export const TRADE_PANEL_TAPE_UNAVAILABLE = 'Recent trades are unavailable while the market data service is down.'
+
+export const TRADE_PANEL_CHART_UNAVAILABLE = 'Price chart is unavailable while the market data service is down.'

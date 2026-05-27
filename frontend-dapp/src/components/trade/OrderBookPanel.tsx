@@ -9,6 +9,8 @@ import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import { formatNum, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { partitionLimitPlacementsByLifecycle } from '@/utils/limitPlacementLifecycle'
+import { TRADE_PANEL_BOOK_UNAVAILABLE } from '@/utils/indexerTradeOutageCopy'
+import { TradeMarketDataUnavailableNotice } from '@/components/trade/TradeMarketDataUnavailableNotice'
 
 function rawTotal(orders: IndexerShallowLimitOrder[]): bigint {
   return orders.reduce((acc, order) => {
@@ -242,9 +244,10 @@ function BookSideColumn({
         </div>
       )}
       {q.isError && (
-        <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-          Book unavailable (indexer or LCD).
-        </p>
+        <TradeMarketDataUnavailableNotice
+          message={TRADE_PANEL_BOOK_UNAVAILABLE}
+          data-testid={`trade-book-unavailable-${side}`}
+        />
       )}
       {!q.isLoading && !q.isError && (
         <>

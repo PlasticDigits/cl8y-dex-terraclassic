@@ -3,6 +3,9 @@ import {
   TRADE_INDEXER_OUTAGE_BANNER_LEAD,
   TRADE_INDEXER_OUTAGE_BANNER_TAIL,
   TRADE_INDEXER_OUTAGE_BANNER_TITLE,
+  TRADE_PANEL_BOOK_UNAVAILABLE,
+  TRADE_PANEL_CHART_UNAVAILABLE,
+  TRADE_PANEL_TAPE_UNAVAILABLE,
 } from '../indexerTradeOutageCopy'
 
 describe('indexerTradeOutageCopy', () => {
@@ -24,5 +27,13 @@ describe('indexerTradeOutageCopy', () => {
     expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/limited|recovers/i)
     expect(combined).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
     expect(combined.toLowerCase()).not.toContain('indexer unavailable at')
+  })
+
+  it('panel copy explains each trade surface during outage (GitLab #165)', () => {
+    for (const line of [TRADE_PANEL_BOOK_UNAVAILABLE, TRADE_PANEL_TAPE_UNAVAILABLE, TRADE_PANEL_CHART_UNAVAILABLE]) {
+      expect(line).toMatch(/market data service/i)
+      expect(line.toLowerCase()).not.toContain('indexer')
+      expect(line.toLowerCase()).not.toContain('lcd')
+    }
   })
 })
