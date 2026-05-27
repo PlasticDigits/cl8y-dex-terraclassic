@@ -67,7 +67,11 @@ test.describe('Hybrid swap UI (LocalTerra)', () => {
     expect(execText).toMatch(/Indexer hybrid|Hybrid \(pool \+ limit book\)/i)
   })
 
-  test('shows quote source disclosure after amount for dual-CW20 route', async ({ page, connectWallet, request }) => {
+  test('shows single execution-aligned route row for dual-CW20 quote (GitLab #158)', async ({
+    page,
+    connectWallet,
+    request,
+  }) => {
     await skipIfLcdUnreachable(request)
     await connectWallet
     await page.waitForLoadState('networkidle')
@@ -80,7 +84,12 @@ test.describe('Hybrid swap UI (LocalTerra)', () => {
     await selectDualCwPairTokens(page, t0, t1)
     await page.getByPlaceholder('0.00').first().fill('0.001')
 
-    await expect(page.getByText(/^Quote source:/i)).toBeVisible({ timeout: 120_000 })
+    const routeSummary = page.getByTestId('swap-route-summary')
+    await expect(routeSummary).toBeVisible({ timeout: 120_000 })
+    await expect(routeSummary).toContainText(/→/)
+    await expect(page.getByTestId('swap-route-summary')).toHaveCount(1)
+    await expect(page.getByText(/^Quote source:/i)).toHaveCount(0)
+    await expect(page.getByText(/Route \(indexer\)/i)).toHaveCount(0)
   })
 })
 
