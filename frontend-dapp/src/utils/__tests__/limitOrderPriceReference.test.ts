@@ -193,4 +193,22 @@ describe('resolveLimitOrderPriceRef', () => {
     expect(r.refSource).toBe('pool')
     expect(r.refToken1PerToken0).toBeCloseTo(0.888, 5)
   })
+
+  it('uses decimalsOverride for pool when indexer pair row is missing', () => {
+    const pool = {
+      assets: [
+        { info: { token: { contract_addr: 't0' } }, amount: '2000000' },
+        { info: { token: { contract_addr: 't1' } }, amount: '1776000' },
+      ],
+    } as PoolResponse
+    const r = resolveLimitOrderPriceRef({
+      latestTrade: null,
+      indexerPair: null,
+      pool,
+      pairInfo,
+      decimalsOverride: { d0: 6, d1: 6 },
+    })
+    expect(r.refSource).toBe('pool')
+    expect(r.refToken1PerToken0).toBeCloseTo(0.888, 5)
+  })
 })

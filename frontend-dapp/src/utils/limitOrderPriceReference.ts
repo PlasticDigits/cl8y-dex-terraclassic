@@ -1,4 +1,5 @@
-import type { IndexerPair, IndexerTrade, PairInfo, PoolResponse } from '@/types'
+import type { AssetInfo, IndexerPair, IndexerTrade, PairInfo, PoolResponse } from '@/types'
+import { fetchCW20TokenInfo } from '@/utils/tokenDisplay'
 import { lookupByAssetInfo } from '@/utils/tokenRegistry'
 
 /**
@@ -51,8 +52,8 @@ function bigRatioToNumber(num: bigint, den: bigint): number {
 export type LimitOrderPriceRefSource = 'tape' | 'pool'
 
 /**
- * Decimals for pair asset0 / asset1: indexer row when present, else CW20/native registry only.
- * Returns null if decimals cannot be determined without guessing (unknown CW20 not in registry).
+ * Decimals for pair asset0 / asset1: indexer row when present, else token registry.
+ * When both are missing, {@link resolvePairDecimalsForLimitPriceRefFromChain} supplies CW20 `token_info` decimals.
  */
 export function pairDecimalsForLimitPriceRef(
   indexerPair: Pick<IndexerPair, 'asset_0' | 'asset_1'> | null | undefined,
@@ -62,10 +63,37 @@ export function pairDecimalsForLimitPriceRef(
     return { d0: indexerPair.asset_0.decimals, d1: indexerPair.asset_1.decimals }
   }
   if (!pairInfo) return null
-  const r0 = lookupByAssetInfo(pairInfo.asset_infos[0])
-  const r1 = lookupByAssetInfo(pairInfo.asset_infos[1])
+  return pairDecimalsFromRegistry(pairInfo.asset_infos[0], pairInfo.asset_infos[1])
+}
+
+function pairDecimalsFromRegistry(a0: AssetInfo, a1: AssetInfo): { d0: number; d1: number } | null {
+  const r0 = lookupByAssetInfo(a0)
+  const r1 = lookupByAssetInfo(a1)
   if (r0 == null || r1 == null) return null
   return { d0: r0.decimals, d1: r1.decimals }
+}
+
+async function decimalsForAssetInfoFromChain(info: AssetInfo): Promise<number | null> {
+  const reg = lookupByAssetInfo(info)
+  if (reg != null) return reg.decimals
+  if ('token' in info) {
+    const onChain = await fetchCW20TokenInfo(info.token.contract_addr)
+    return onChain?.decimals ?? null
+  }
+  return null
+}
+
+/**
+ * When the indexer pair row is missing, resolve asset decimals from the token registry
+ * or on-chain CW20 `token_info` (GitLab #166 — local deploy tokens such as EMBER/CORAL).
+ */
+export async function resolvePairDecimalsForLimitPriceRefFromChain(
+  pairInfo: PairInfo
+): Promise<{ d0: number; d1: number } | null> {
+  const [a0, a1] = pairInfo.asset_infos
+  const [d0, d1] = await Promise.all([decimalsForAssetInfoFromChain(a0), decimalsForAssetInfoFromChain(a1)])
+  if (d0 == null || d1 == null) return null
+  return { d0, d1 }
 }
 
 /**
@@ -111,15 +139,17 @@ export function resolveLimitOrderPriceRef(input: {
   indexerPair: Pick<IndexerPair, 'asset_0' | 'asset_1'> | null | undefined
   pool: Pick<PoolResponse, 'assets'> | null | undefined
   pairInfo: PairInfo | null | undefined
+  /** When registry lacks CW20 decimals, pass chain-resolved values from {@link resolvePairDecimalsForLimitPriceRefFromChain}. */
+  decimalsOverride?: { d0: number; d1: number } | null
 }): ResolveLimitOrderPriceRefResult {
-  const { latestTrade, indexerPair, pool, pairInfo } = input
+  const { latestTrade, indexerPair, pool, pairInfo, decimalsOverride } = input
   if (latestTrade && indexerPair) {
     const t = tradeToToken1PerToken0Human(latestTrade, indexerPair)
     if (t != null && t > 0 && Number.isFinite(t)) {
       return { refToken1PerToken0: t, refSource: 'tape' }
     }
   }
-  const dec = pairDecimalsForLimitPriceRef(indexerPair, pairInfo)
+  const dec = decimalsOverride ?? pairDecimalsForLimitPriceRef(indexerPair, pairInfo)
   if (!pool || !dec) {
     return { refToken1PerToken0: null, refSource: null }
   }
