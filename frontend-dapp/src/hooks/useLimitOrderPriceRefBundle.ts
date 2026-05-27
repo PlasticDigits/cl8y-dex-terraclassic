@@ -6,6 +6,7 @@ import {
   hasResolvableTapeRef,
   pairDecimalsForLimitPriceRef,
   resolveLimitOrderPriceRef,
+  resolvePairDecimalsForLimitPriceRefFromChain,
 } from '@/utils/limitOrderPriceReference'
 
 /**
@@ -22,10 +23,23 @@ export function useLimitOrderPriceRefBundle(params: {
 
   const tapeRefOk = useMemo(() => hasResolvableTapeRef(latestTrade, indexerPair), [latestTrade, indexerPair])
 
-  const decimalsForPoolRef = useMemo(
+  const registryDecimalsForPoolRef = useMemo(
     () => pairDecimalsForLimitPriceRef(indexerPair ?? null, selectedPair ?? null),
     [indexerPair, selectedPair]
   )
+
+  const needChainDecimals =
+    pairAddr.startsWith('terra1') && !!selectedPair && !tapeRefOk && registryDecimalsForPoolRef == null
+
+  const chainDecimalsQuery = useQuery({
+    queryKey: ['limitOrderPriceChainDecimals', pairAddr, selectedPair?.asset_infos[0], selectedPair?.asset_infos[1]],
+    queryFn: () => resolvePairDecimalsForLimitPriceRefFromChain(selectedPair!),
+    enabled: needChainDecimals,
+    staleTime: 300_000,
+    retry: 1,
+  })
+
+  const decimalsForPoolRef = registryDecimalsForPoolRef ?? chainDecimalsQuery.data ?? null
 
   const poolForLimitPriceRefQuery = useQuery({
     queryKey: ['limitOrderPricePoolRef', pairAddr],
@@ -42,16 +56,26 @@ export function useLimitOrderPriceRefBundle(params: {
         indexerPair: indexerPair ?? null,
         pool: poolForLimitPriceRefQuery.data ?? null,
         pairInfo: selectedPair ?? null,
+        decimalsOverride: decimalsForPoolRef,
       }),
-    [latestTrade, indexerPair, poolForLimitPriceRefQuery.data, selectedPair]
+    [latestTrade, indexerPair, poolForLimitPriceRefQuery.data, selectedPair, decimalsForPoolRef]
   )
 
   const needPoolForLimitRef =
     pairAddr.startsWith('terra1') && !!selectedPair && !tapeRefOk && decimalsForPoolRef != null
 
-  const refResolutionLoading = needPoolForLimitRef && poolForLimitPriceRefQuery.isLoading && refToken1PerToken0 == null
+  const decimalsResolutionLoading = needChainDecimals && chainDecimalsQuery.isLoading && decimalsForPoolRef == null
 
-  const refResolutionError = needPoolForLimitRef && poolForLimitPriceRefQuery.isError && refToken1PerToken0 == null
+  const refResolutionLoading =
+    (decimalsResolutionLoading ||
+      (needPoolForLimitRef && poolForLimitPriceRefQuery.isLoading && refToken1PerToken0 == null)) &&
+    refToken1PerToken0 == null
+
+  const refResolutionError =
+    needPoolForLimitRef &&
+    !decimalsResolutionLoading &&
+    (chainDecimalsQuery.isError || poolForLimitPriceRefQuery.isError) &&
+    refToken1PerToken0 == null
 
   return {
     refToken1PerToken0,
