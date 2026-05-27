@@ -47,3 +47,105 @@ const PLACE_CTA_MSG =
 export function assertLimitPlaceCtaNotBlocked(label: string | null, detail = PLACE_CTA_MSG): void {
   expect(label, detail).not.toMatch(/Insufficient Balance|Connect Wallet|Connect/i)
 }
+
+const LIMIT_PRICE_REF_RE = /Current[^:]*:\s*([\d.]+)/
+
+/**
+ * Fill a limit price that passes the place gate for the given side (GitLab #154 / #195).
+ * Default UI price is "1", which often blocks bids when reference is below 1.
+ */
+export async function fillValidLimitPrice(page: Page, side: 'bid' | 'ask' = 'bid'): Promise<void> {
+  const priceInput = page.getByTestId('limit-order-price-input')
+  await expect(priceInput).toBeVisible({ timeout: 60_000 })
+  const context = page.getByTestId('limit-order-price-context')
+
+  let ref = 0
+  await expect(async () => {
+    const text = (await context.textContent()) ?? ''
+    const match = text.match(LIMIT_PRICE_REF_RE)
+    if (!match) throw new Error('limit price reference not ready')
+    ref = Number.parseFloat(match[1])
+    if (!(ref > 0) || !Number.isFinite(ref)) throw new Error('invalid limit price reference')
+  }).toPass({ timeout: 60_000 })
+
+  const limit = side === 'bid' ? ref * 0.95 : ref * 1.05
+  await priceInput.fill(String(limit))
+}
+
+/** Place-limit card scoped to Limits page / trade ticket. */
+export function placeLimitCard(page: Page) {
+  return page.locator('.card-neo').filter({ hasText: 'Place limit' })
+}
+
+/**
+ * Click Place limit and wait for a success alert with TX hash in the place card.
+ * Retries on LocalTerra account sequence races (bot swarm / concurrent E2E).
+ */
+export async function submitPlaceLimitAndExpectTx(page: Page): Promise<void> {
+  const card = placeLimitCard(page)
+  const placeBtn = card.getByRole('button', { name: /^Place limit$/i })
+  const successAlert = card.locator('.alert-success')
+
+  let attempt = 0
+  await expect(async () => {
+    attempt += 1
+    if (await successAlert.isVisible().catch(() => false)) {
+      await expect(successAlert).toContainText(/TX:/i)
+      return
+    }
+    await expect(placeBtn).toBeEnabled({ timeout: 10_000 })
+    await placeBtn.click()
+    await expect(placeBtn).not.toHaveText(/Placing/i, { timeout: 90_000 })
+
+    try {
+      await expect(successAlert).toContainText(/TX:/i, { timeout: 20_000 })
+      return
+    } catch {
+      const err = card.locator('.alert-error')
+      const msg = (await err.textContent().catch(() => '')) ?? ''
+      if (/account sequence mismatch/i.test(msg)) {
+        await page.waitForTimeout(Math.min(attempt * 1_500, 8_000))
+        throw new Error('retry after account sequence mismatch')
+      }
+      if (msg.trim()) throw new Error(`place limit failed: ${msg.trim()}`)
+      throw new Error('no tx result after place limit click')
+    }
+  }).toPass({ timeout: 180_000 })
+}
+
+export function cancelLimitCard(page: Page) {
+  return page.locator('.card-neo').filter({ hasText: 'Cancel limit' })
+}
+
+/** Click Cancel limit and wait for TX success in the cancel card (retries sequence mismatch). */
+export async function submitCancelLimitAndExpectTx(page: Page): Promise<void> {
+  const card = cancelLimitCard(page)
+  const cancelBtn = card.getByRole('button', { name: /^Cancel limit$/i })
+  const successAlert = card.locator('.alert-success')
+
+  let attempt = 0
+  await expect(async () => {
+    attempt += 1
+    if (await successAlert.isVisible().catch(() => false)) {
+      await expect(successAlert).toContainText(/TX:/i)
+      return
+    }
+    await expect(cancelBtn).toBeEnabled({ timeout: 10_000 })
+    await cancelBtn.click()
+    await expect(cancelBtn).not.toHaveText(/Cancelling/i, { timeout: 90_000 })
+
+    try {
+      await expect(successAlert).toContainText(/TX:/i, { timeout: 20_000 })
+      return
+    } catch {
+      const err = card.locator('.alert-error')
+      const msg = (await err.textContent().catch(() => '')) ?? ''
+      if (/account sequence mismatch/i.test(msg)) {
+        await page.waitForTimeout(Math.min(attempt * 1_500, 8_000))
+        throw new Error('retry after account sequence mismatch')
+      }
+      if (msg.trim()) throw new Error(`cancel limit failed: ${msg.trim()}`)
+      throw new Error('no tx result after cancel limit click')
+    }
+  }).toPass({ timeout: 180_000 })
+}

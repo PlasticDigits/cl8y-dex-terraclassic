@@ -76,7 +76,7 @@ Playbook: [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../../skills/AGENTS_E2E_HYBRID_SW
 
 ## Limit order transaction tests (`limit-orders-tx.spec.ts`)
 
-First **unpaused** dual-CW20 pair via LCD `is_paused`; wasm `place_limit_order` / `cancel_limit_order` required ([GitLab **#195**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)).
+First **unpaused** dual-CW20 pair via LCD `is_paused`; wasm `place_limit_order` / `cancel_limit_order` required ([GitLab **#195**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)). Tests use `fillValidLimitPrice()` so bid/ask prices pass the reference place gate (default UI price `1` is often invalid for bids).
 
 Playbook: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
