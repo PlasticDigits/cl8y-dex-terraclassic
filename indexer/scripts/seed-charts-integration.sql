@@ -1,12 +1,14 @@
 -- Minimal indexer data for frontend charts integration tests (CI / local).
--- Run after `sqlx migrate run` against an empty database.
+-- Run after `sqlx migrate run`. Safe to re-run (idempotent upserts).
 -- Pair address must match CHARTS_INTEGRATION_PAIR_ADDRESS in the frontend test constants.
 
 INSERT INTO assets (denom, is_cw20, name, symbol, decimals)
-VALUES ('uluna', false, 'Luna Classic', 'LUNC', 6);
+VALUES ('uluna', false, 'Luna Classic', 'LUNC', 6)
+ON CONFLICT (denom) WHERE denom IS NOT NULL DO NOTHING;
 
 INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
-VALUES ('terra1ustctoken', true, 'TerraClassicUSD', 'USTC', 6);
+VALUES ('terra1ustctoken', true, 'TerraClassicUSD', 'USTC', 6)
+ON CONFLICT (contract_address) DO NOTHING;
 
 INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps, hooks)
 VALUES (
@@ -16,7 +18,8 @@ VALUES (
   'terra1lptoken',
   30,
   '{}'
-);
+)
+ON CONFLICT (contract_address) DO NOTHING;
 
 INSERT INTO traders (
   address,
@@ -27,7 +30,8 @@ INSERT INTO traders (
   volume_30d,
   registered
 )
-VALUES ('terra1traderxyz', 5, 5000, 500, 2000, 4000, true);
+VALUES ('terra1traderxyz', 5, 5000, 500, 2000, 4000, true)
+ON CONFLICT (address) DO NOTHING;
 
 INSERT INTO swap_events (
   pair_id,
@@ -44,7 +48,7 @@ INSERT INTO swap_events (
 SELECT
   p.id,
   1000,
-  NOW(),
+  TIMESTAMPTZ '2024-06-01 12:00:00+00',
   'charts_int_tx_1',
   'terra1traderxyz',
   a0.id,
@@ -55,7 +59,8 @@ SELECT
 FROM pairs p
 JOIN assets a0 ON a0.denom = 'uluna'
 JOIN assets a1 ON a1.contract_address = 'terra1ustctoken'
-WHERE p.contract_address = 'terra1paircontractabc';
+WHERE p.contract_address = 'terra1paircontractabc'
+ON CONFLICT (tx_hash, pair_id) DO NOTHING;
 
 INSERT INTO candles (
   pair_id,
@@ -72,7 +77,7 @@ INSERT INTO candles (
 SELECT
   id,
   '1h',
-  NOW() - interval '1 hour',
+  TIMESTAMPTZ '2024-06-01 12:00:00+00',
   0.94,
   0.96,
   0.93,
@@ -81,4 +86,5 @@ SELECT
   4750,
   5
 FROM pairs
-WHERE contract_address = 'terra1paircontractabc';
+WHERE contract_address = 'terra1paircontractabc'
+ON CONFLICT (pair_id, interval, open_time) DO NOTHING;

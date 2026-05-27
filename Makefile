@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -101,7 +101,7 @@ help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa (alias qa-start) | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | stop-qa | qa-verify-deploy | qa-tunnel-help"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
-	@echo "Frontend:        make dev | build-frontend | test-frontend | test-e2e-tx | lint-frontend"
+	@echo "Frontend:        make dev | build-frontend | test-frontend | test-charts-integration | test-e2e-tx | lint-frontend"
 	@echo "Indexer:         make indexer-dev"
 	@echo "Docs:            scripts/qa/README.md"
 
@@ -170,6 +170,10 @@ build-frontend:
 
 test-frontend:
 	$(WITH_NODE) npm run test:run
+
+test-charts-integration tests-charts-integration:
+	@chmod +x scripts/test-charts-integration.sh
+	./scripts/test-charts-integration.sh
 
 test-e2e:
 	$(WITH_NODE) npm run test:e2e

@@ -74,6 +74,7 @@ Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 |---------|-------------------|
 | `make wait-healthy` | Waits for Postgres, runs `setup-postgres-dev-databases.sh` |
 | `make deploy-local` | Sources postgres env, ensures DBs, writes `indexer/.env` |
+| `make test-charts-integration` | Ensures target DB, migrates, seeds charts fixtures, runs Vitest integration — GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) |
 | `make reset` | `docker compose down -v` — **wipes volumes**; use when credentials/volume are stale |
 
 ## Troubleshooting
@@ -91,6 +92,6 @@ Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 - [`docs/testing.md`](../docs/testing.md) — test types, shared-DB parallelism
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — integration test matrix
 - [`docs/local-development.md`](../docs/local-development.md) — full local stack
-- [`skills/AGENTS_TESTING_MULTIHOP_HYBRID.md`](./AGENTS_TESTING_MULTIHOP_HYBRID.md) — route-solve Postgres tests
+- [`skills/AGENTS_TESTING_P2_EPIC.md`](./AGENTS_TESTING_P2_EPIC.md) — charts integration (`make test-charts-integration`)
 - [`skills/AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md) — Playwright chain setup (Postgres via deploy)
 - [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) — localnet bots after deploy

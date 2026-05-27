@@ -14,7 +14,7 @@ Use this when adding or extending coverage for hybrid indexing, fee discount on 
 | **Pause** blocks swap + limits + cancel UX | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `limit_order_tests::pause_blocks_swap_and_place_cancel_refunds_escrow` (L6); [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) pause banner + disabled limit CTA | E2E: strict specs skip/fail on paused pair via [`hybrid-e2e.ts`](../frontend-dapp/e2e/helpers/hybrid-e2e.ts) |
 | Post-deploy **smoke** | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | — | [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) after deploy |
 | **Stubs / mocks catalog** | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy in [`docs/testing.md`](../docs/testing.md) | Review stub list when adding new test doubles |
-| **Charts** integration (not jsdom-only) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx); CI job in [`.github/workflows/test.yml`](../.github/workflows/test.yml) | Local stack: [`docs/testing.md` § Integration Tests (Frontend)](../docs/testing.md#integration-tests-frontend) |
+| **Charts** integration (not jsdom-only) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx); CI job in [`.github/workflows/test.yml`](../.github/workflows/test.yml) | Local: `make test-charts-integration` — [`docs/testing.md` § Integration Tests (Frontend)](../docs/testing.md#integration-tests-frontend); GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) |
 
 ## Invariants cross-links
 
@@ -24,6 +24,7 @@ Use this when adding or extending coverage for hybrid indexing, fee discount on 
 | Book leg fee discount | **L4** / fee composition — [`contracts-security-audit.md`](../docs/contracts-security-audit.md) | `#83` |
 | Pause freezes trading | **L6** — [`contracts-security-audit.md`](../docs/contracts-security-audit.md) | `#87`; [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) |
 | Hybrid quote = execute | **L8** — [`AGENTS_TESTING_MULTIHOP_HYBRID.md`](./AGENTS_TESTING_MULTIHOP_HYBRID.md) | Multihop router + indexer (#192) |
+| Charts integration fixture pair | [`docs/testing.md`](../docs/testing.md#integration-tests-frontend) — `CHARTS_INTEGRATION_PAIR_ADDRESS` | `#104` / `#205`; seed SQL + Vitest constant must match |
 
 ## Commands
 
@@ -41,8 +42,10 @@ cargo test pause_blocks_swap_and_place_cancel_refunds_escrow
 # Frontend hybrid msgs + pause banner (#84, #87)
 cd frontend-dapp && npm run test:run -- router.hybrid.test.ts TradePage.test.tsx pair.test.ts
 
-# Charts integration (#104) — indexer + Postgres seed; see docs/testing.md
-cd frontend-dapp && VITE_INDEXER_URL=http://127.0.0.1:3001 npm run test:integration
+# Charts integration (#104, #205) — Postgres seed + indexer on :3001
+make test-charts-integration
+# Override DB or indexer URL when needed:
+# CHARTS_INT_DATABASE_URL=postgres://... VITE_INDEXER_URL=http://127.0.0.1:3001 make test-charts-integration
 
 # Post-deploy smoke (#86) — manual after deploy
 export PAIR_ADDR=terra1... OFFER_TOKEN=terra1...

@@ -97,6 +97,18 @@ Longer-running tests are kept out of the default `npm run test:run` suite. **Cha
 
 **Charts integration (local)**
 
+**Primary path:** from repo root with Postgres and the indexer API on `:3001` running (host Postgres or QA stack):
+
+```bash
+make test-charts-integration
+```
+
+This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integration.sh): ensures the target database exists, applies `sqlx migrate run`, seeds fixtures idempotently, verifies indexer `/health`, then `npm run test:integration` via `scripts/with-node.sh`. Limit-order pool ref tests ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) also need LocalTerra LCD reachable (defaults `http://localhost:1317`; override `VITE_TERRA_LCD_URL` / `VITE_TERRA_RPC_URL` — same as [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)).
+
+**Fixture invariant:** the seeded pair address is `terra1paircontractabc` — must stay in sync with [`frontend-dapp/src/test/chartsIntegrationConstants.ts`](../frontend-dapp/src/test/chartsIntegrationConstants.ts) and [`indexer/scripts/seed-charts-integration.sql`](../indexer/scripts/seed-charts-integration.sql). Override the database with `CHARTS_INT_DATABASE_URL` (defaults to `DATABASE_URL` / `dex_indexer` from [`scripts/lib/postgres-dev.env`](../scripts/lib/postgres-dev.env)); override indexer URL with `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`). See GitLab [**#205**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) and [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
+
+**Manual steps** (when debugging individual phases):
+
 1. Start PostgreSQL (for example `docker compose up -d postgres` from the repo root).
 2. Create a database (once): `CREATE DATABASE cl8y_charts_int;` (name can match your `DATABASE_URL`).
 3. Run migrations and seed minimal pair + candles:
@@ -106,10 +118,6 @@ Longer-running tests are kept out of the default `npm run test:run` suite. **Cha
    cd indexer && sqlx migrate run && psql "$DATABASE_URL" -f scripts/seed-charts-integration.sql
    ```
 
-   The seeded pair address is `terra1paircontractabc` (kept in sync with `frontend-dapp/src/test/chartsIntegrationConstants.ts`).
-
-   **Manual rollback SQL** (not run by `sqlx migrate`): paired `.down.sql` for selected migrations lives under [`indexer/migrations/revert/`](../indexer/migrations/revert/) — e.g. limit-order lifecycle columns ([GitLab **#142**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/142)) ship beside [`20260509160000_limit_order_placement_lifecycle.sql`](../indexer/migrations/20260509160000_limit_order_placement_lifecycle.sql).
-
 4. Start the indexer API (same `DATABASE_URL` plus required env from `indexer/.env.example`: at minimum `FACTORY_ADDRESS`, **`CORS_ORIGINS`** (for browser integration tests / local Vite, include both `http://localhost:5173` and `http://127.0.0.1:5173` — [GitLab **#131**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131)), `LCD_URLS`).
 
 5. Run Vitest integration:
@@ -118,6 +126,8 @@ Longer-running tests are kept out of the default `npm run test:run` suite. **Cha
    cd frontend-dapp
    VITE_INDEXER_URL=http://127.0.0.1:3001 npm run test:integration
    ```
+
+**Manual rollback SQL** (not run by `sqlx migrate`): paired `.down.sql` for selected migrations lives under [`indexer/migrations/revert/`](../indexer/migrations/revert/) — e.g. limit-order lifecycle columns ([GitLab **#142**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/142)) ship beside [`20260509160000_limit_order_placement_lifecycle.sql`](../indexer/migrations/20260509160000_limit_order_placement_lifecycle.sql).
 
 **Note:** `lightweight-charts` is stubbed under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines) so Node-based Vitest stays stable; the real chart library runs in the browser (manual QA / Playwright).
 
@@ -252,7 +262,7 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
 1. `cargo fmt --check` + `cargo clippy` + contract tests via `cargo llvm-cov test` (LCOV artifact) + WASM builds
 2. `tsc --noEmit` + `npm run lint` + `npm run test:run`
-3. **Frontend charts integration:** PostgreSQL service → `sqlx migrate run` → `seed-charts-integration.sql` → release indexer binary → `npm run test:integration` against `http://127.0.0.1:3001`
+3. **Frontend charts integration:** PostgreSQL service → `sqlx migrate run` → `seed-charts-integration.sql` → release indexer binary → `npm run test:integration` against `http://127.0.0.1:3001` (local equivalent: `make test-charts-integration`, GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205))
 
 See [the workflow file](../.github/workflows/test.yml) for details.
 
