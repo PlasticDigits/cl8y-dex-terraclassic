@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes qa-tunnel-help swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-e2e test-e2e-tx lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -93,9 +93,13 @@ stop-qa:
 	@chmod +x scripts/qa/stop-qa.sh
 	./scripts/qa/stop-qa.sh
 
+qa-verify-deploy:
+	@chmod +x scripts/qa/verify-deploy.sh scripts/lib/lcd-smart-query.sh
+	./scripts/qa/verify-deploy.sh
+
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
-	@echo "QA server:       make start-qa (alias qa-start) | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | stop-qa | qa-tunnel-help"
+	@echo "QA server:       make start-qa (alias qa-start) | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | stop-qa | qa-verify-deploy | qa-tunnel-help"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-e2e-tx | lint-frontend"
 	@echo "Indexer:         make indexer-dev"

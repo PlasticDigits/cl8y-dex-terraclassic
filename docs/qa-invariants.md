@@ -1,6 +1,14 @@
 # QA stack invariants
 
-Operator and agent reference for the **QA server** workflow (`scripts/qa/`, `make start-qa`). Implementation: [GitLab **#202**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202). Agent playbook: [`skills/AGENTS_QA_FRESH_VOLUMES.md`](../skills/AGENTS_QA_FRESH_VOLUMES.md).
+Operator and agent reference for the **QA server** workflow (`scripts/qa/`, `make start-qa`). Fresh volumes: [GitLab **#202**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202) — [`skills/AGENTS_QA_FRESH_VOLUMES.md`](../skills/AGENTS_QA_FRESH_VOLUMES.md). Deploy verification: [GitLab **#203**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203) — [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md).
+
+## Deploy verification (invariant Q1)
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q1** Deployed pair accepts current-schema LCD queries (`is_paused`, `expired_limit_refund`) and **`.qa-deploy-stamp`** `git_sha` matches **`HEAD`** | **`make qa-verify-deploy`** (runs inside **`make start-qa`** after **`deploy-local`**) | Non-zero exit; use **`make reset-qa`** |
+
+Fresh wasm on disk does **not** guarantee fresh on-chain behaviour when volumes are reused ([#120](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120)).
 
 ## Volume lifecycle
 
@@ -10,9 +18,10 @@ Operator and agent reference for the **QA server** workflow (`scripts/qa/`, `mak
 | LocalTerra chain state | Reused from prior QA runs | Empty chain (re-init on next up) |
 | Postgres `dex_indexer` data | Reused | Empty DB (init scripts on first up) |
 | `make deploy-local` | Always runs; uploads/instantiates from **current tree** wasm | Same, on **fresh** chain/DB |
+| `make qa-verify-deploy` | Runs after deploy; schema + stamp check (**Q1**) | Same |
 | UX | Yellow SSH-tunnel reminder banner | **Red** fresh-volumes banner before teardown |
 
-**Why it matters:** `deploy-local` redeploys wasm from the working tree but does **not** reset chain state. A reused LocalTerra volume can leave **old contract instances** at prior addresses while the indexer and frontend expect addresses from the latest deploy — invalidating contract walks and E2E ([#120](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120)). Detection/warnings: [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203).
+**Why it matters:** `deploy-local` redeploys wasm from the working tree but does **not** reset chain state. A reused LocalTerra volume can leave **old contract instances** at prior addresses while the indexer and frontend expect addresses from the latest deploy — invalidating contract walks and E2E ([#120](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120)). **`qa-verify-deploy`** fails loud when schema or stamp mismatch ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)).
 
 ## When to use
 
@@ -29,4 +38,5 @@ Compose project name is fixed (`name: cl8y-dex-terraclassic` in `docker-compose.
 
 - [`scripts/qa/README.md`](../scripts/qa/README.md) — server + laptop workflow
 - [`docs/qa-onboarding.md`](./qa-onboarding.md) — human QA onboarding
+- [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md) — post-deploy schema check ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203))
 - [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — dev `make reset` (non-QA compose)

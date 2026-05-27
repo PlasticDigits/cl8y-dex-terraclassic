@@ -16,11 +16,11 @@ make start-qa
 make qa-start
 ```
 
-This stops any prior QA indexer and runs **`docker compose down`** (volumes **preserved**), then starts **localterra** + **postgres**, waits for health, runs **`make deploy-local`** (optimizer wasm + **`scripts/deploy-dex-local.sh`**), starts the **indexer** in the background (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), checks indexer **`/health`**, and prints **laptop** steps (same as **`make qa-tunnel-help`**).
+This stops any prior QA indexer and runs **`docker compose down`** (volumes **preserved**), then starts **localterra** + **postgres**, waits for health, runs **`make deploy-local`** (optimizer wasm + **`scripts/deploy-dex-local.sh`**), runs **`make qa-verify-deploy`** (schema + deploy-stamp check — GitLab [**#203**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), starts the **indexer** in the background (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), checks indexer **`/health`**, and prints **laptop** steps (same as **`make qa-tunnel-help`**).
 
 ### Fresh volumes (empty chain + Postgres)
 
-After **contract or genesis changes**, or when QA sees **stale deployed code** on a reused LocalTerra volume ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), wipe **`localterra-data`** and **`postgres-data`** before bring-up:
+After **contract or genesis changes**, or when **`qa-verify-deploy`** reports **stale deployed contracts** ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), wipe **`localterra-data`** and **`postgres-data`** before bring-up:
 
 ```bash
 make reset-qa
@@ -79,6 +79,7 @@ Checks Docker, LocalTerra RPC, Postgres, indexer **`/health`**, and the indexer 
 | `make stop-qa`      | Stop indexer + compose (volumes kept)      |
 | `make test-qa-fresh-volumes` | Unit checks for fresh-volumes toggle (no Docker) |
 | `make qa-tunnel-help` | Reprint SSH + laptop steps               |
+| `make qa-verify-deploy` | Post-deploy schema + stamp check (also runs inside `start-qa`) |
 | `make status`       | Health summary                               |
 | `make compose-ps`   | `docker compose ps` only                     |
 
@@ -88,5 +89,26 @@ Checks Docker, LocalTerra RPC, Postgres, indexer **`/health`**, and the indexer 
 
 - **Indexer health fails** — Read **`.indexer-qa.log`**; confirm Postgres is up and **`indexer/.env`** **`DATABASE_URL`** matches compose (**`postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer`** by default (override via repo-root `.env` / `scripts/lib/postgres-dev.env`)).
 - **LocalTerra not ready** — `docker compose logs localterra`; on port conflicts set **`QA_SHARED_HOST=1`** or free host ports.
-- **Stale wasm** — `make build-optimized` then re-run deploy ( **`make deploy-local`** ).
-- **Stale on-chain contracts** (reused LocalTerra volume; wasm redeployed but chain state old) — **`make reset-qa`** or **`QA_FRESH_VOLUMES=1 make start-qa`**; see [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203).
+- **Stale wasm on disk** — `make build-optimized` then re-run deploy ( **`make deploy-local`** ).
+- **Stale deployed contracts (reused Docker volumes)** — GitLab [**#203**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203). **`make start-qa`** runs **`make qa-verify-deploy`** after deploy; it queries the deployed pair for **`is_paused`** and **`expired_limit_refund`** and compares **`.qa-deploy-stamp`** (`git_sha`) to **`HEAD`**. Failure exits non-zero with volume-reset instructions.
+
+  | Symptom | Likely cause | Fix |
+  | ------- | ------------ | --- |
+  | `unknown variant` on `is_paused` / `expired_limit_refund` | On-chain pair wasm older than repo tree | **`make reset-qa`** (or below) |
+  | `qa-verify-deploy`: stamp `git_sha` ≠ `HEAD` | Pulled new commits without redeploying | `make deploy-local` or full `make start-qa` |
+  | Live QA walks pass UI but contract queries fail | Laptop **`.env.local`** from an old server deploy | Re-`scp` **`frontend-dapp/.env.local`** after server deploy |
+
+  **Reset chain + Postgres state** (when reuse is unsafe — after contract schema changes or failed verification):
+
+  ```bash
+  make reset-qa
+  # or manually:
+  make stop-qa
+  docker compose down -v
+  docker volume rm cl8y-dex-terraclassic_localterra-data cl8y-dex-terraclassic_postgres-data
+  make start-qa
+  ```
+
+  Agent playbook: [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../../skills/AGENTS_QA_DEPLOY_VERIFY.md). Fresh-volumes toggle: [`skills/AGENTS_QA_FRESH_VOLUMES.md`](../../skills/AGENTS_QA_FRESH_VOLUMES.md) ([#202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)).
+
+  **When volume reuse is safe:** infra-only changes, frontend/indexer-only work, or no pair query/schema changes since last verified deploy on the same **`git_sha`** stamp.

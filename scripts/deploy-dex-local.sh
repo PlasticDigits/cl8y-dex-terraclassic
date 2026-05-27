@@ -850,5 +850,19 @@ ENVEOF
 echo "  Written to indexer/.env"
 
 echo ""
+echo "[Phase 6.3] Writing QA deploy stamp (.qa-deploy-stamp)..."
+DEPLOY_GIT_SHA="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+DEPLOY_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+VERIFY_PAIR="${PAIR_ADDRESSES[0]:-}"
+cat > "$REPO_ROOT/.qa-deploy-stamp" <<STAMPEOF
+# Written by scripts/deploy-dex-local.sh — sourced by scripts/qa/verify-deploy.sh (GitLab #203)
+git_sha=${DEPLOY_GIT_SHA}
+deployed_at=${DEPLOY_AT}
+factory_address=${FACTORY_ADDRESS}
+pair_address=${VERIFY_PAIR}
+STAMPEOF
+echo "  git_sha=${DEPLOY_GIT_SHA} pair=${VERIFY_PAIR}"
+
+echo ""
 echo "Test address: $TEST_ADDRESS"
 echo "  10 tokens, 3 unpaired tokens, 2 non-whitelisted tokens, 23 pairs, $SWAP_COUNT swaps executed"

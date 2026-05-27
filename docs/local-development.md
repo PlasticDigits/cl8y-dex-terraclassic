@@ -101,4 +101,5 @@ Agent playbook (setup, test commands, troubleshooting): [`skills/AGENTS_LOCAL_PO
 | Contract upload fails             | Check gas settings in deploy script                |
 | Frontend can't connect            | Verify `VITE_NETWORK=local` and LocalTerra is up   |
 | Postgres auth / missing test DB   | See [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md); try `make reset` then redeploy |
+| Stale deployed contracts (QA)    | [`scripts/qa/README.md`](../scripts/qa/README.md) § Stale deployed contracts; [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md) ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)) |
 | `node_modules` issues             | Delete `node_modules` and `package-lock.json`, re-run `npm ci` |

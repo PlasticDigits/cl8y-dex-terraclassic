@@ -11,6 +11,8 @@ on:
       - "docs/**"
       - "scripts/check_fee_discount_tier_docs.py"
       - "scripts/deploy-dex-local.sh"
+      - "scripts/qa/**"
+      - "scripts/lib/lcd-smart-query.sh"
       - "skills/**"
       - ".github/workflows/**"
   pull_request:
@@ -24,6 +26,8 @@ on:
       - "docs/**"
       - "scripts/check_fee_discount_tier_docs.py"
       - "scripts/deploy-dex-local.sh"
+      - "scripts/qa/**"
+      - "scripts/lib/lcd-smart-query.sh"
       - "skills/**"
       - ".github/workflows/**"
 
@@ -302,6 +306,10 @@ jobs:
 
       - name: Deploy contracts locally
         run: bash scripts/deploy-dex-local.sh
+        working-directory: .
+
+      - name: Verify deployed contracts (GitLab #203)
+        run: make qa-verify-deploy
         working-directory: .
 
       - name: Run E2E tests (strict on-chain)

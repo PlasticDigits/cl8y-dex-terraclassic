@@ -44,4 +44,5 @@ make start-qa
 ## Cross-links
 
 - Operator README: [`scripts/qa/README.md`](../scripts/qa/README.md)
+- Stale-contract detection: [`AGENTS_QA_DEPLOY_VERIFY.md`](./AGENTS_QA_DEPLOY_VERIFY.md) ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203))
 - Helpers: [`scripts/qa/lib/qa-env.sh`](../scripts/qa/lib/qa-env.sh), [`scripts/qa/reset-qa.sh`](../scripts/qa/reset-qa.sh)

@@ -76,6 +76,10 @@ echo "==> Build optimized wasm + deploy to LocalTerra (deploy-dex-local)..."
 export TERRA_RPC_URL TERRA_LCD_URL DEX_TERRA_RPC_PORT DEX_TERRA_LCD_PORT
 make deploy-local
 
+echo "==> Verifying deployed contracts match current tree (qa-verify-deploy)..."
+chmod +x "$REPO_ROOT/scripts/qa/verify-deploy.sh" "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
+"$REPO_ROOT/scripts/qa/verify-deploy.sh"
+
 echo "==> Starting indexer (release, background)..."
 if [ -f "$PIDFILE" ]; then
   old="$(cat "$PIDFILE" 2>/dev/null || true)"
