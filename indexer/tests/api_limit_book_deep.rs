@@ -63,6 +63,49 @@ fn deep_bid_chain_responder(
     }
 }
 
+/// Same chain as `deep_bid_chain_responder`, but missing keys return HTTP 500 like LocalTerra LCD.
+fn deep_bid_chain_lcd_not_found_responder(
+    total: u64,
+) -> impl Fn(&Request) -> ResponseTemplate + Send + Sync + 'static {
+    move |req: &Request| {
+        let q = smart_query_from_request(req);
+        if q.get("order_book_head").is_some() {
+            if total == 0 {
+                return ResponseTemplate::new(200).set_body_json(json!({ "data": Value::Null }));
+            }
+            return ResponseTemplate::new(200).set_body_json(json!({ "data": json!(1u64) }));
+        }
+        if q.get("limit_order").is_some() {
+            let id = q["limit_order"]["order_id"].as_u64().unwrap();
+            if (1..=total).contains(&id) {
+                let next = if id < total {
+                    json!(id + 1)
+                } else {
+                    Value::Null
+                };
+                return ResponseTemplate::new(200).set_body_json(json!({
+                    "data": {
+                        "order_id": id,
+                        "owner": "terra1maker",
+                        "side": "bid",
+                        "price": "1.0",
+                        "remaining": "100",
+                        "expires_at": null,
+                        "prev": null,
+                        "next": next
+                    }
+                }));
+            }
+            return ResponseTemplate::new(500).set_body_json(json!({
+                "code": 2,
+                "message": "codespace wasm code 9: query wasm contract failed: key not found",
+                "details": []
+            }));
+        }
+        ResponseTemplate::new(200).set_body_json(json!({ "data": Value::Null }))
+    }
+}
+
 /// First page is bid; order 51 is an ask (wrong side) to trigger 400 mid-walk.
 fn broken_side_chain_responder() -> impl Fn(&Request) -> ResponseTemplate + Send + Sync + 'static {
     move |req: &Request| {
@@ -155,6 +198,26 @@ async fn limit_book_paginates_deep_chain() {
 #[serial]
 async fn limit_book_invalid_cursor_400() {
     let mock = mount_smart_mock(deep_bid_chain_responder(10)).await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/pairs/{}/limit-book?side=bid&limit=10&after_order_id=9999",
+        seed.pair_address
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_bad_request();
+}
+
+#[tokio::test]
+#[serial]
+async fn limit_book_invalid_cursor_lcd_not_found_400() {
+    let mock = mount_smart_mock(deep_bid_chain_lcd_not_found_responder(10)).await;
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
 

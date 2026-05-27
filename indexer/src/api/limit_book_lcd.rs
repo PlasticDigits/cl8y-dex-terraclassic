@@ -59,6 +59,32 @@ fn side_matches_book(side_label: &str, row: &ChainLimitOrderRow) -> bool {
     chain_side_label(&row.side).eq_ignore_ascii_case(side_label)
 }
 
+/// LocalTerra / wasmd often return HTTP 500 for missing contract keys instead of `{ "data": null }`.
+fn lcd_query_missing_key(err: &LcdError) -> bool {
+    match err {
+        LcdError::AllEndpointsFailed(msg) => msg.contains("not found"),
+        _ => false,
+    }
+}
+
+async fn fetch_limit_order(
+    lcd: &LcdClient,
+    pair_addr: &str,
+    order_id: u64,
+) -> Result<Option<ChainLimitOrderRow>, LimitBookLcdError> {
+    match lcd
+        .query_contract(
+            pair_addr,
+            &json!({ "limit_order": { "order_id": order_id } }),
+        )
+        .await
+    {
+        Ok(row) => Ok(row),
+        Err(e) if lcd_query_missing_key(&e) => Ok(None),
+        Err(e) => Err(LimitBookLcdError::Lcd(e)),
+    }
+}
+
 fn row_to_item(row: ChainLimitOrderRow) -> LimitBookOrderItem {
     LimitBookOrderItem {
         order_id: row.order_id,
@@ -90,12 +116,7 @@ pub async fn fetch_limit_book_page(
             .await?
         }
         Some(prev_id) => {
-            let row_opt: Option<ChainLimitOrderRow> = lcd
-                .query_contract(
-                    pair_addr,
-                    &json!({ "limit_order": { "order_id": prev_id } }),
-                )
-                .await?;
+            let row_opt = fetch_limit_order(lcd, pair_addr, prev_id).await?;
             let Some(row) = row_opt else {
                 return Err(LimitBookLcdError::BadRequest(format!(
                     "Unknown after_order_id: {prev_id}"
@@ -117,9 +138,7 @@ pub async fn fetch_limit_book_page(
         let Some(oid) = current else {
             break;
         };
-        let row_opt: Option<ChainLimitOrderRow> = lcd
-            .query_contract(pair_addr, &json!({ "limit_order": { "order_id": oid } }))
-            .await?;
+        let row_opt = fetch_limit_order(lcd, pair_addr, oid).await?;
         let Some(row) = row_opt else {
             return Err(LimitBookLcdError::BadRequest(format!(
                 "Broken book link: limit_order {oid} missing"
