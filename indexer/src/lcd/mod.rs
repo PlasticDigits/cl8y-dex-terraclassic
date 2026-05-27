@@ -95,7 +95,11 @@ impl LcdClient {
                         let msg = format!("{} returned {}: {}", full_url, status, body);
                         tracing::warn!("{}", msg);
                         errors.push(msg);
-                        self.mark_failed(idx).await;
+                        // Contract/query rejections (4xx/500) are not endpoint outages — keep trying
+                        // this LCD for subsequent queries (e.g. hybrid sim fails, pool sim succeeds).
+                        if status.as_u16() >= 502 || status.as_u16() == 408 {
+                            self.mark_failed(idx).await;
+                        }
                         continue;
                     }
                     let text = resp.text().await.map_err(LcdError::Request)?;
