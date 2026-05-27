@@ -170,6 +170,21 @@ test.describe('Navigation', () => {
     await expect(page).toHaveURL(/\/(\?.*)?$/)
   })
 
+  test('connected wallet: primary tabs change URL without reload (GitLab #182)', async ({ page, connectWallet }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await connectWallet
+
+    const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+    await nav.getByRole('link', { name: 'Pool' }).click()
+    await expect(page).toHaveURL(/\/pool/)
+
+    await nav.getByRole('link', { name: 'Trade' }).click()
+    await expect(page).toHaveURL(/\/trade/)
+
+    await nav.getByRole('link', { name: 'Swap' }).click()
+    await expect(page).toHaveURL(/\/(\?.*)?$/)
+  })
+
   test('navigates to Trade page', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('link', { name: 'Trade' }).click()
