@@ -6,6 +6,9 @@ use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::error::ContractError;
+use crate::limit_placement::{
+    execute_place_limit_order_ladder, execute_place_limit_orders_batch, save_limit_order_config,
+};
 use crate::msg::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, FeeConfigResponse, HooksResponse,
     InstantiateMsg, LimitOrderResponse, ObserveResponse, OracleInfoResponse, PoolResponse,
@@ -13,9 +16,9 @@ use crate::msg::{
 };
 use crate::orderbook;
 use crate::state::{
-    OracleState, PairInfoState, DISCOUNT_REGISTRY, EXPIRED_LIMIT_CLAIMS, FEE_CONFIG, HOOKS,
-    OBSERVATIONS, ORACLE_STATE, ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0,
-    PENDING_ESCROW_TOKEN1, RESERVES, TOTAL_LP_SUPPLY,
+    LimitOrderConfig, OracleState, PairInfoState, DISCOUNT_REGISTRY, EXPIRED_LIMIT_CLAIMS,
+    FEE_CONFIG, HOOKS, LIMIT_ORDER_CONFIG, OBSERVATIONS, ORACLE_STATE, ORDER_NEXT_ID, PAIR_INFO,
+    PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1, RESERVES, TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
@@ -23,6 +26,7 @@ use dex_common::max_spread::{self, MaxSpreadInputs};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
 };
+use dex_common::pair::clamp_max_batch_rungs;
 use dex_common::pair::{
     HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams, LimitOrderSide,
     LP_TOKEN_DECIMALS, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
@@ -30,7 +34,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.5.0";
+const CONTRACT_VERSION: &str = "1.6.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -38,7 +42,7 @@ const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 const MINIMUM_LIQUIDITY: u128 = 1_000;
 
 /// Fee discount for a wallet placing a limit order (`trader` == `sender` == order owner).
-fn effective_fee_bps_with_discount_msgs(
+pub(crate) fn effective_fee_bps_with_discount_msgs(
     deps: Deps,
     fee_bps: u16,
     discount_registry: Option<Addr>,
@@ -414,6 +418,8 @@ pub fn instantiate(
     PENDING_ESCROW_TOKEN0.save(deps.storage, &Uint128::zero())?;
     PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
 
+    save_limit_order_config(deps.storage, msg.max_batch_rungs)?;
+
     ORACLE_STATE.save(
         deps.storage,
         &OracleState {
@@ -569,6 +575,9 @@ pub fn execute(
                 max_adjust_steps,
             )
         }
+        ExecuteMsg::UpdateLimitOrderConfig { max_batch_rungs } => {
+            execute_update_limit_order_config(deps, info, max_batch_rungs)
+        }
     }
 }
 
@@ -604,24 +613,18 @@ fn execute_receive(
                 hybrid,
             )
         }
-        Cw20HookMsg::PlaceLimitOrder {
-            side,
-            price,
-            hint_after_order_id,
-            max_adjust_steps,
-            expires_at,
-        } => execute_place_limit_order(
+        Cw20HookMsg::PlaceLimitOrderBatch { side, orders } => execute_place_limit_orders_batch(
             deps,
             env,
             info,
             token_sender,
             cw20_msg.amount,
             side,
-            price,
-            hint_after_order_id,
-            max_adjust_steps,
-            expires_at,
+            orders,
         ),
+        Cw20HookMsg::PlaceLimitOrderLadder { ladder } => {
+            execute_place_limit_order_ladder(deps, env, info, token_sender, cw20_msg.amount, ladder)
+        }
         Cw20HookMsg::WithdrawLiquidity { min_assets } => {
             execute_withdraw_liquidity(deps, env, info, token_sender, cw20_msg.amount, min_assets)
         }
@@ -1011,120 +1014,25 @@ fn execute_swap(
     Ok(resp)
 }
 
-#[allow(clippy::too_many_arguments)]
-fn execute_place_limit_order(
+fn execute_update_limit_order_config(
     deps: DepsMut,
-    env: Env,
     info: MessageInfo,
-    owner: Addr,
-    amount: Uint128,
-    side: LimitOrderSide,
-    price: Decimal,
-    hint_after_order_id: Option<u64>,
-    max_adjust_steps: u32,
-    expires_at: Option<u64>,
+    max_batch_rungs: u32,
 ) -> Result<Response, ContractError> {
-    if amount.is_zero() {
-        return Err(ContractError::ZeroAmount {});
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
     }
-    if price.is_zero() {
-        return Err(ContractError::InvalidHybridParams {
-            reason: "limit price must be positive".into(),
+    if max_batch_rungs == 0 {
+        return Err(ContractError::LimitBatchConfigInvalid {
+            reason: "max_batch_rungs must be at least 1".into(),
         });
     }
-    let now = env.block.time.seconds();
-    if let Some(t) = expires_at {
-        if t <= now {
-            return Err(ContractError::InvalidHybridParams {
-                reason: "expires_at must be in the future".into(),
-            });
-        }
-    }
-    let pair_info = PAIR_INFO.load(deps.storage)?;
-    let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
-    let (effective_fee_bps, deregister_msgs) = effective_fee_bps_with_discount_msgs(
-        deps.as_ref(),
-        fee_config.fee_bps,
-        discount_registry,
-        owner.clone(),
-    )?;
-
-    let maker_bps = orderbook::maker_fee_bps(effective_fee_bps);
-    let maker_fee = amount
-        .checked_mul(Uint128::new(maker_bps as u128))?
-        .checked_div(Uint128::new(10000))?;
-    if maker_fee >= amount {
-        return Err(ContractError::LimitOrderMakerFeeExceedsAmount {});
-    }
-    let remaining_for_book = amount.checked_sub(maker_fee)?;
-
-    let token_a = token_addr(&pair_info.asset_infos[0]);
-    let token_b = token_addr(&pair_info.asset_infos[1]);
-    let cw20_addr = info.sender.as_str();
-
-    let side_label = crate::orderbook::side_str(&side);
-    let owner_str = owner.to_string();
-
-    let mut resp = Response::new();
-    for m in deregister_msgs {
-        resp = resp.add_message(m);
-    }
-    if !maker_fee.is_zero() {
-        resp = resp.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: info.sender.to_string(),
-            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: fee_config.treasury.to_string(),
-                amount: maker_fee,
-            })?,
-            funds: vec![],
-        }));
-    }
-
-    let id = match side {
-        LimitOrderSide::Bid => {
-            if cw20_addr != token_b {
-                return Err(ContractError::InvalidToken {});
-            }
-            orderbook::insert_bid(
-                deps.storage,
-                price,
-                remaining_for_book,
-                owner,
-                hint_after_order_id,
-                max_adjust_steps,
-                expires_at,
-            )?
-        }
-        LimitOrderSide::Ask => {
-            if cw20_addr != token_a {
-                return Err(ContractError::InvalidToken {});
-            }
-            orderbook::insert_ask(
-                deps.storage,
-                price,
-                remaining_for_book,
-                owner,
-                hint_after_order_id,
-                max_adjust_steps,
-                expires_at,
-            )?
-        }
-    };
-
-    resp = resp
-        .add_attribute("action", "place_limit_order")
-        .add_attribute("limit_order_placed", id.to_string())
-        .add_attribute("order_id", id.to_string())
-        .add_attribute("side", side_label)
-        .add_attribute("price", price.to_string())
-        .add_attribute("owner", owner_str.as_str())
-        .add_attribute("maker_fee_amount", maker_fee)
-        .add_attribute("effective_fee_bps", effective_fee_bps.to_string());
-    if let Some(t) = expires_at {
-        resp = resp.add_attribute("expires_at", t.to_string());
-    }
-    Ok(resp)
+    save_limit_order_config(deps.storage, max_batch_rungs)?;
+    let clamped = clamp_max_batch_rungs(max_batch_rungs);
+    Ok(Response::new()
+        .add_attribute("action", "update_limit_order_config")
+        .add_attribute("max_batch_rungs", clamped.to_string()))
 }
 
 fn execute_update_limit_order_price(
@@ -1884,6 +1792,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&query_expired_limit_refund(deps, order_id)?)
         }
         QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
+        QueryMsg::LimitOrderConfig {} => to_json_binary(&query_limit_order_config(deps)?),
         QueryMsg::HybridSimulation {
             offer_asset,
             hybrid,
@@ -1920,6 +1829,13 @@ fn query_expired_limit_refund(
 
 fn query_order_book_head(deps: Deps, side: LimitOrderSide) -> StdResult<Option<u64>> {
     orderbook::query_head(deps.storage, side)
+}
+
+fn query_limit_order_config(deps: Deps) -> StdResult<dex_common::pair::LimitOrderConfigResponse> {
+    let cfg = LIMIT_ORDER_CONFIG.load(deps.storage)?;
+    Ok(dex_common::pair::LimitOrderConfigResponse {
+        max_batch_rungs: cfg.max_batch_rungs,
+    })
 }
 
 fn query_pair(deps: Deps, env: &Env) -> StdResult<dex_common::types::PairInfo> {
@@ -2322,6 +2238,14 @@ pub fn migrate(
     }
     if PENDING_ESCROW_TOKEN1.may_load(deps.storage)?.is_none() {
         PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
+    }
+    if LIMIT_ORDER_CONFIG.may_load(deps.storage)?.is_none() {
+        LIMIT_ORDER_CONFIG.save(
+            deps.storage,
+            &LimitOrderConfig {
+                max_batch_rungs: dex_common::pair::DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+            },
+        )?;
     }
 
     Ok(Response::new()

@@ -32,6 +32,7 @@ import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlac
 import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubmitSummary'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
+import { LimitOrderLadderPanel } from '@/components/trade/LimitOrderLadderPanel'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
@@ -68,6 +69,7 @@ export default function LimitOrdersPage() {
   } = useLimitOrderForm()
   const [cancelOrderId, setCancelOrderId] = useState('')
   const [lastIndexedOrderId, setLastIndexedOrderId] = useState<number | null>(null)
+  const [placeMode, setPlaceMode] = useState<'single' | 'ladder'>('single')
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -449,81 +451,123 @@ export default function LimitOrdersPage() {
               )}
 
               <div className="card-neo !p-4 space-y-4">
-                <LimitOrderPlaceLimitHeading />
-                <LimitOrderBidAskSideSelector
-                  idPrefix="limit-orders"
-                  side={side}
-                  onSideChange={handleSideChange}
-                  bidLabel={`Bid (escrow ${getTokenDisplaySymbol(token1 || 'token1')})`}
-                  askLabel={`Ask (escrow ${getTokenDisplaySymbol(token0 || 'token0')})`}
-                />
-                <LimitOrderPriceInputWithContext
-                  side={side}
-                  price={price}
-                  onPriceChange={setPrice}
-                  inputId={limitOrdersPriceInputId}
-                  refToken1PerToken0={refToken1PerToken0}
-                  refSource={refSource}
-                  tapeHeadlineUsd={tapeHeadlineUsd}
-                  token0Label={getTokenDisplaySymbol(token0 || 'token0')}
-                  token1Label={getTokenDisplaySymbol(token1 || 'token1')}
-                />
-                <LimitOrderEscrowAmountField
-                  escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
-                  escrowDecimals={escrowDecimals}
-                  amountHuman={amountHuman}
-                  onAmountChange={onLimitAmountInputChange}
-                  balanceQuery={escrowBalanceQuery}
-                  onMax={onLimitAmountMax}
-                  walletConnected={isWalletConnected}
-                  escrowUsdNotionalApprox={escrowUsdNotionalApprox}
-                />
-                <LimitOrderExpiryField value={expiresAt} onChange={setExpiresAt} idPrefix="limit-orders-page" />
-                <LimitOrderAdvancedLimitSettings
-                  open={limitAdvancedOpen}
-                  onOpenChange={setLimitAdvancedOpen}
-                  maxSteps={maxSteps}
-                  onMaxStepsChange={setMaxSteps}
-                  expiresAt={expiresAt}
-                  onExpiresAtChange={setExpiresAt}
-                  idPrefix="limit-orders-page"
-                />
-                {selectedPair && pairAddr.startsWith('terra1') && (
-                  <LimitOrderPreSubmitSummary
-                    placeSequenceMinUluna={limitPlaceMinUlunaFees}
-                    refToken1PerToken0={refToken1PerToken0}
-                    typedPrice={price}
-                    effectiveFeeBps={effectiveFeeBps}
-                    makerPlacementFeeBps={makerPlacementFeeBps}
-                    feeLoading={limitFeeLoading}
-                    feeError={limitFeeError}
-                    data-testid="limits-page-pre-submit-summary"
+                <div className="flex gap-2" role="tablist" aria-label="Place mode">
+                  <button
+                    type="button"
+                    className={placeMode === 'single' ? 'btn-primary' : 'btn-neo'}
+                    onClick={() => setPlaceMode('single')}
+                  >
+                    Single
+                  </button>
+                  <button
+                    type="button"
+                    className={placeMode === 'ladder' ? 'btn-primary' : 'btn-neo'}
+                    onClick={() => setPlaceMode('ladder')}
+                    data-testid="limit-place-mode-ladder"
+                  >
+                    Ladder
+                  </button>
+                </div>
+                {placeMode === 'ladder' && selectedPair && address && (
+                  <LimitOrderLadderPanel
+                    pairAddress={pairAddr}
+                    walletAddress={address}
+                    escrowToken={escrowToken}
+                    escrowDecimals={escrowDecimals}
+                    token0Symbol={getTokenDisplaySymbol(token0 || 'token0')}
+                    token1Symbol={getTokenDisplaySymbol(token1 || 'token1')}
+                    disabled={!isWalletConnected || isPaused}
+                    onPlaced={(ids) => {
+                      if (ids.length > 0) setLastIndexedOrderId(Math.max(...ids))
+                    }}
                   />
                 )}
-                <button
-                  type="button"
-                  className="btn-primary btn-cta w-full"
-                  disabled={
-                    !isWalletConnected || placeMutation.isPending || !selectedPair || isPaused || !placeLimitCombinedOk
-                  }
-                  onClick={() => {
-                    if (!isWalletConnected) openWalletModal()
-                    else placeMutation.mutate()
-                  }}
-                >
-                  {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
-                </button>
-                <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="limits-page-place-guard" />
-                {placeMutation.isError && (
-                  <TxResultAlert type="error" message={(placeMutation.error as Error).message} />
-                )}
-                {placeMutation.isSuccess && (
-                  <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
-                )}
-                {lastIndexedOrderId != null && (
-                  <p className="text-xs font-mono" data-testid="last-placed-order-id">
-                    Last indexed placement for your wallet: order #{lastIndexedOrderId}
-                  </p>
+                {placeMode === 'single' && (
+                  <>
+                    <LimitOrderPlaceLimitHeading />
+                    <LimitOrderBidAskSideSelector
+                      idPrefix="limit-orders"
+                      side={side}
+                      onSideChange={handleSideChange}
+                      bidLabel={`Bid (escrow ${getTokenDisplaySymbol(token1 || 'token1')})`}
+                      askLabel={`Ask (escrow ${getTokenDisplaySymbol(token0 || 'token0')})`}
+                    />
+                    <LimitOrderPriceInputWithContext
+                      side={side}
+                      price={price}
+                      onPriceChange={setPrice}
+                      inputId={limitOrdersPriceInputId}
+                      refToken1PerToken0={refToken1PerToken0}
+                      refSource={refSource}
+                      tapeHeadlineUsd={tapeHeadlineUsd}
+                      token0Label={getTokenDisplaySymbol(token0 || 'token0')}
+                      token1Label={getTokenDisplaySymbol(token1 || 'token1')}
+                    />
+                    <LimitOrderEscrowAmountField
+                      escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
+                      escrowDecimals={escrowDecimals}
+                      amountHuman={amountHuman}
+                      onAmountChange={onLimitAmountInputChange}
+                      balanceQuery={escrowBalanceQuery}
+                      onMax={onLimitAmountMax}
+                      walletConnected={isWalletConnected}
+                      escrowUsdNotionalApprox={escrowUsdNotionalApprox}
+                    />
+                    <LimitOrderExpiryField value={expiresAt} onChange={setExpiresAt} idPrefix="limit-orders-page" />
+                    <LimitOrderAdvancedLimitSettings
+                      open={limitAdvancedOpen}
+                      onOpenChange={setLimitAdvancedOpen}
+                      maxSteps={maxSteps}
+                      onMaxStepsChange={setMaxSteps}
+                      expiresAt={expiresAt}
+                      onExpiresAtChange={setExpiresAt}
+                      idPrefix="limit-orders-page"
+                    />
+                    {selectedPair && pairAddr.startsWith('terra1') && (
+                      <LimitOrderPreSubmitSummary
+                        placeSequenceMinUluna={limitPlaceMinUlunaFees}
+                        refToken1PerToken0={refToken1PerToken0}
+                        typedPrice={price}
+                        effectiveFeeBps={effectiveFeeBps}
+                        makerPlacementFeeBps={makerPlacementFeeBps}
+                        feeLoading={limitFeeLoading}
+                        feeError={limitFeeError}
+                        data-testid="limits-page-pre-submit-summary"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      className="btn-primary btn-cta w-full"
+                      disabled={
+                        !isWalletConnected ||
+                        placeMutation.isPending ||
+                        !selectedPair ||
+                        isPaused ||
+                        !placeLimitCombinedOk
+                      }
+                      onClick={() => {
+                        if (!isWalletConnected) openWalletModal()
+                        else placeMutation.mutate()
+                      }}
+                    >
+                      {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
+                    </button>
+                    <LimitOrderEscrowPlaceGuardMessage
+                      gate={placeLimitInlineGate}
+                      data-testid="limits-page-place-guard"
+                    />
+                    {placeMutation.isError && (
+                      <TxResultAlert type="error" message={(placeMutation.error as Error).message} />
+                    )}
+                    {placeMutation.isSuccess && (
+                      <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
+                    )}
+                    {lastIndexedOrderId != null && (
+                      <p className="text-xs font-mono" data-testid="last-placed-order-id">
+                        Last indexed placement for your wallet: order #{lastIndexedOrderId}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

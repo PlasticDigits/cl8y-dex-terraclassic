@@ -15,6 +15,10 @@ export const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching uses more gas than pool-only swaps. */
 export const HYBRID_SWAP_GAS_LIMIT = 1200000
 export const PLACE_LIMIT_ORDER_GAS_LIMIT = 950000
+/** Base gas for one CW20 send → `place_limit_order_batch` / ladder (GitLab #206). */
+export const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
+/** Per-rung marginal gas on top of batch base. */
+export const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180000
 export const CANCEL_LIMIT_ORDER_GAS_LIMIT = 450000
 export const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
 export const ADD_LIQUIDITY_GAS_LIMIT = 500000
@@ -24,6 +28,11 @@ export const CREATE_PAIR_GAS_LIMIT = 800000
 /** Uluna in `Fee.amount` for one message at `gasLimit` (same math as {@link buildTerraClassicFee}). */
 export function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
   return BigInt(Math.ceil(effectiveGasPriceUluna() * gasLimit))
+}
+
+export function gasLimitForLimitOrderBatch(rungCount: number): number {
+  const n = Math.max(1, Math.floor(rungCount))
+  return PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT + PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT * n
 }
 
 export function buildTerraClassicFee(gasLimit: number): Fee {
@@ -82,8 +91,11 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('wrap_deposit' in executeMsg) {
     return WRAP_GAS_LIMIT
   }
-  if ('place_limit_order' in executeMsg) {
-    return PLACE_LIMIT_ORDER_GAS_LIMIT
+  if ('place_limit_order_batch' in executeMsg || 'place_limit_order_ladder' in executeMsg) {
+    const batch = executeMsg.place_limit_order_batch as { orders?: unknown[] } | undefined
+    const ladder = executeMsg.place_limit_order_ladder as { ladder?: { count?: number } } | undefined
+    const n = batch?.orders?.length ?? ladder?.ladder?.count ?? 1
+    return gasLimitForLimitOrderBatch(n)
   }
   if ('cancel_limit_order' in executeMsg) {
     return CANCEL_LIMIT_ORDER_GAS_LIMIT
@@ -106,7 +118,14 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     if (sendMsg?.msg) {
       try {
         const inner = JSON.parse(atob(sendMsg.msg)) as Record<string, unknown>
-        if ('place_limit_order' in inner) return PLACE_LIMIT_ORDER_GAS_LIMIT
+        if ('place_limit_order_batch' in inner) {
+          const batch = inner.place_limit_order_batch as { orders?: unknown[] }
+          return gasLimitForLimitOrderBatch(batch.orders?.length ?? 1)
+        }
+        if ('place_limit_order_ladder' in inner) {
+          const ladder = inner.place_limit_order_ladder as { ladder?: { count?: number } }
+          return gasLimitForLimitOrderBatch(ladder.ladder?.count ?? 1)
+        }
         if ('swap' in inner) {
           return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
         }

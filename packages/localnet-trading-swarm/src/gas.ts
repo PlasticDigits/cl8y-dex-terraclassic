@@ -3,6 +3,8 @@ import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 const BASE_GAS_LIMIT = 200_000
 const HYBRID_SWAP_GAS_LIMIT = 1_200_000
 const PLACE_LIMIT_ORDER_GAS_LIMIT = 950_000
+const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400_000
+const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180_000
 const ADD_LIQUIDITY_GAS_LIMIT = 500_000
 const REMOVE_LIQUIDITY_GAS_LIMIT = 600_000
 /** Keep in sync with `SWAP_GAS_BUFFER` in `frontend-dapp/src/utils/constants.ts` (GitLab #115). */
@@ -67,7 +69,12 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
     if (sendMsg?.msg) {
       try {
         const inner = JSON.parse(Buffer.from(sendMsg.msg, 'base64').toString('utf8')) as Record<string, unknown>
-        if ('place_limit_order' in inner) return PLACE_LIMIT_ORDER_GAS_LIMIT
+        if ('place_limit_order_batch' in inner || 'place_limit_order_ladder' in inner) {
+          const batch = inner.place_limit_order_batch as { orders?: unknown[] } | undefined
+          const ladder = inner.place_limit_order_ladder as { ladder?: { count?: number } } | undefined
+          const n = batch?.orders?.length ?? ladder?.ladder?.count ?? 1
+          return PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT + PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT * n
+        }
         if ('swap' in inner) {
           return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
         }

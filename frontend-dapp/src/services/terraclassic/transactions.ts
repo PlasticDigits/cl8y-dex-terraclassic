@@ -1,5 +1,10 @@
 import { getConnectedWallet } from './wallet'
-import { buildTerraClassicFee, estimateFeeUlunaAmountForGasLimit, getGasLimitForTx } from './terraGas'
+import {
+  buildTerraClassicFee,
+  estimateFeeUlunaAmountForGasLimit,
+  gasLimitForLimitOrderBatch,
+  getGasLimitForTx,
+} from './terraGas'
 import { broadcastTerraExecuteContracts, type TerraExecuteContractEntry } from './terraBroadcast'
 
 function requireConnectedWalletForAddress(walletAddress: string) {
@@ -19,10 +24,15 @@ function requireConnectedWalletForAddress(walletAddress: string) {
  * pay tx2 ([GitLab #132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132)).
  * Must stay aligned with {@link getGasLimitForTx} for those message shapes.
  */
-export function estimateLimitOrderPlaceSequenceUlunaFeesTotal(): bigint {
+export function estimateLimitOrderPlaceSequenceUlunaFeesTotal(rungCount = 1): bigint {
   const allowanceGas = getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
-  const placeGas = getGasLimitForTx({ place_limit_order: {} })
+  const placeGas = gasLimitForLimitOrderBatch(rungCount)
   return estimateFeeUlunaAmountForGasLimit(allowanceGas) + estimateFeeUlunaAmountForGasLimit(placeGas)
+}
+
+/** Batch/ladder place: one allowance + one CW20 send (GitLab #206). */
+export function estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount: number): bigint {
+  return estimateLimitOrderPlaceSequenceUlunaFeesTotal(rungCount)
 }
 
 /**

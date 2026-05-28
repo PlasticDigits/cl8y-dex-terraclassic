@@ -442,6 +442,8 @@ mod adversarial_tests {
                     pair_code_id: pair_code,
                     lp_token_code_id: honest_cw20,
                     whitelisted_code_ids: vec![honest_cw20, adv_code],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",

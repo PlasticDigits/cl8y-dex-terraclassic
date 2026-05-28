@@ -5,6 +5,12 @@ use cw20::Cw20ReceiveMsg;
 use crate::oracle::{ObserveResponse, OracleInfoResponse};
 use crate::types::{Asset, AssetInfo, FeeConfig};
 
+pub use crate::limit_placement::{
+    clamp_max_batch_rungs, expand_limit_ladder, LimitLadderDistribution, LimitOrderConfigResponse,
+    LimitOrderLadderSpec, LimitOrderPlacementItem, DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+    MAX_LIMIT_BATCH_RUNGS_HARD_CAP, SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+};
+
 // ---------------------------------------------------------------------------
 // Limit orders (hybrid AMM + FIFO doubly-linked book)
 // ---------------------------------------------------------------------------
@@ -118,6 +124,8 @@ pub struct PairInstantiateMsg {
     pub lp_token_code_id: u64,
     pub token_symbols: Option<[String; 2]>,
     pub governance: String,
+    /// Max rungs per batch/ladder placement (clamped to [`MAX_LIMIT_BATCH_RUNGS_HARD_CAP`]).
+    pub max_batch_rungs: u32,
 }
 
 #[cw_serde]
@@ -189,6 +197,10 @@ pub enum ExecuteMsg {
         hint_after_order_id: Option<u64>,
         max_adjust_steps: u32,
     },
+    /// Update batch/ladder rung cap. Factory (governance) only.
+    UpdateLimitOrderConfig {
+        max_batch_rungs: u32,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
@@ -206,21 +218,13 @@ pub enum Cw20HookMsg {
         /// Pattern C: optional split between limit book and pool (see [`HybridSwapParams`]).
         hybrid: Option<HybridSwapParams>,
     },
-    /// Post a limit order using the escrowed CW20 as the correct side asset (token0 for Ask, token1 for Bid).
-    PlaceLimitOrder {
+    /// Place multiple limits in one CW20 `send` (same side; amounts must sum to `send` amount).
+    PlaceLimitOrderBatch {
         side: LimitOrderSide,
-        /// Minimum token1 per token0 for maker fills.
-        price: Decimal,
-        /// Reserved for future indexer-assisted insertion. **Current pair
-        /// implementations ignore this field** and locate the insert position by
-        /// walking from the book head (capped by `max_adjust_steps`).
-        hint_after_order_id: Option<u64>,
-        /// Max steps when walking the book from the **head** to find the insert position.
-        max_adjust_steps: u32,
-        /// Unix seconds after which the order is no longer matched (must be `> now` if set).
-        #[serde(default)]
-        expires_at: Option<u64>,
+        orders: Vec<LimitOrderPlacementItem>,
     },
+    /// Place a price ladder; expanded on-chain to [`PlaceLimitOrderBatch`].
+    PlaceLimitOrderLadder { ladder: LimitOrderLadderSpec },
     /// Burn LP tokens and receive underlying assets pro-rata.
     /// Optional `min_assets` protects against sandwich attacks by reverting
     /// if either returned amount falls below the specified minimum.
@@ -269,6 +273,10 @@ pub enum QueryMsg {
     /// Head order id for bid or ask list (empty book = none).
     #[returns(Option<u64>)]
     OrderBookHead { side: LimitOrderSide },
+
+    /// Max rungs allowed per batch/ladder placement on this pair.
+    #[returns(LimitOrderConfigResponse)]
+    LimitOrderConfig {},
 
     #[returns(HybridSimulationResponse)]
     HybridSimulation {

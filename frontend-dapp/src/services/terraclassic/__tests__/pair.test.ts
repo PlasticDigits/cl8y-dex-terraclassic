@@ -183,7 +183,7 @@ describe('reverseSimulateSwap', () => {
 })
 
 describe('placeLimitOrderWithAllowance', () => {
-  it('routes through executeCw20AllowanceThen (GitLab #127)', async () => {
+  it('routes through executeCw20AllowanceThen with batch hook (GitLab #127 / #206)', async () => {
     mockedAllowanceThen.mockImplementationOnce(async (_w, _t, _s, _a, run) => run())
     mockedExecute.mockResolvedValueOnce('txhash_limit')
 
@@ -191,6 +191,12 @@ describe('placeLimitOrderWithAllowance', () => {
 
     expect(result).toBe('txhash_limit')
     expect(mockedAllowanceThen).toHaveBeenCalledWith(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '500000', expect.any(Function))
+    const sendMsg = (mockedExecute.mock.calls[0][2] as { send: { msg: string } }).send
+    const decoded = JSON.parse(atob(sendMsg.msg))
+    expect(decoded.place_limit_order_batch).toMatchObject({
+      side: 'bid',
+      orders: [{ price: '1.5', amount: '500000', max_adjust_steps: 3 }],
+    })
   })
 })
 

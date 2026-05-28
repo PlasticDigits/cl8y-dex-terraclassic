@@ -15,11 +15,13 @@ use crate::state::{
     PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
 };
 use dex_common::pagination::calc_limit;
-use dex_common::pair::{PairInstantiateMsg, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP};
+use dex_common::pair::{
+    clamp_max_batch_rungs, PairInstantiateMsg, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
+};
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.1.0";
+const CONTRACT_VERSION: &str = "1.2.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -40,6 +42,8 @@ pub fn instantiate(
         return Err(ContractError::InvalidFee {});
     }
 
+    let default_limit_batch_max_rungs = clamp_max_batch_rungs(msg.default_limit_batch_max_rungs);
+
     CONFIG.save(
         deps.storage,
         &Config {
@@ -48,6 +52,7 @@ pub fn instantiate(
             default_fee_bps: msg.default_fee_bps,
             pair_code_id: msg.pair_code_id,
             lp_token_code_id: msg.lp_token_code_id,
+            default_limit_batch_max_rungs,
         },
     )?;
 
@@ -84,7 +89,18 @@ pub fn execute(
             governance,
             treasury,
             default_fee_bps,
-        } => execute_update_config(deps, info, governance, treasury, default_fee_bps),
+            default_limit_batch_max_rungs,
+        } => execute_update_config(
+            deps,
+            info,
+            governance,
+            treasury,
+            default_fee_bps,
+            default_limit_batch_max_rungs,
+        ),
+        ExecuteMsg::SetPairLimitBatchMax { pair, max_rungs } => {
+            execute_set_pair_limit_batch_max(deps, info, pair, max_rungs)
+        }
         ExecuteMsg::SetDiscountRegistry { pair, registry } => {
             execute_set_discount_registry(deps, info, pair, registry)
         }
@@ -205,6 +221,7 @@ fn execute_create_pair(
         lp_token_code_id: config.lp_token_code_id,
         token_symbols: Some([sym_a.clone(), sym_b.clone()]),
         governance: config.governance.to_string(),
+        max_batch_rungs: config.default_limit_batch_max_rungs,
     };
 
     let sub_msg = SubMsg::reply_on_success(
@@ -505,12 +522,36 @@ fn execute_sweep_pair(
 
 /// Update factory configuration (governance address, treasury, default fee).
 /// Governance only. Fee must be ≤ 10000 bps.
+fn execute_set_pair_limit_batch_max(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+    max_rungs: u32,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    let clamped = clamp_max_batch_rungs(max_rungs);
+    let msg = WasmMsg::Execute {
+        contract_addr: pair_addr.to_string(),
+        msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateLimitOrderConfig {
+            max_batch_rungs: clamped,
+        })?,
+        funds: vec![],
+    };
+    Ok(Response::new()
+        .add_message(msg)
+        .add_attribute("action", "set_pair_limit_batch_max")
+        .add_attribute("pair", pair)
+        .add_attribute("max_batch_rungs", clamped.to_string()))
+}
+
 fn execute_update_config(
     deps: DepsMut,
     info: MessageInfo,
     governance: Option<String>,
     treasury: Option<String>,
     default_fee_bps: Option<u16>,
+    default_limit_batch_max_rungs: Option<u32>,
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
 
@@ -528,6 +569,9 @@ fn execute_update_config(
             return Err(ContractError::InvalidFee {});
         }
         config.default_fee_bps = fee;
+    }
+    if let Some(max_rungs) = default_limit_batch_max_rungs {
+        config.default_limit_batch_max_rungs = clamp_max_batch_rungs(max_rungs);
     }
 
     let new_governance = config.governance.clone();
@@ -579,6 +623,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         governance: c.governance,
         treasury: c.treasury,
         default_fee_bps: c.default_fee_bps,
+        default_limit_batch_max_rungs: c.default_limit_batch_max_rungs,
         pair_code_id: c.pair_code_id,
         lp_token_code_id: c.lp_token_code_id,
     })

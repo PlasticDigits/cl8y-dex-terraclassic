@@ -314,31 +314,27 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(450000))
   })
 
-  it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for top-level place_limit_order', async () => {
+  it('uses batch gas for place_limit_order_batch by rung count', async () => {
     const fee = await getFeeForMsg({
-      place_limit_order: {
+      place_limit_order_batch: {
         side: 'bid',
-        price: '1',
-        hint_after_order_id: null,
-        max_adjust_steps: 32,
+        orders: [{ price: '1', amount: '100', max_adjust_steps: 32 }],
       },
     })
-    expect(fee.gasLimit).toBe(BigInt(950000))
+    expect(fee.gasLimit).toBe(BigInt(580000))
   })
 
-  it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for send with inner place_limit_order', async () => {
+  it('uses batch gas for send with inner place_limit_order_batch', async () => {
     const inner = btoa(
       JSON.stringify({
-        place_limit_order: {
+        place_limit_order_batch: {
           side: 'bid',
-          price: '1',
-          hint_after_order_id: null,
-          max_adjust_steps: 32,
+          orders: [{ price: '1', amount: '100', max_adjust_steps: 32 }],
         },
       })
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBe(BigInt(950000))
+    expect(fee.gasLimit).toBe(BigInt(580000))
   })
 
   it('uses HYBRID_SWAP_GAS_LIMIT for send with inner swap including hybrid', async () => {
@@ -432,10 +428,10 @@ describe('executeCw20AllowanceThen', () => {
 })
 
 describe('estimateLimitOrderPlaceSequenceUlunaFeesTotal', () => {
-  it('sums fee uluna for increase_allowance + place_limit_order gas limits at effective gas price', () => {
-    const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal()
-    // 200k × 28.325 + 950k × 28.325 = 32_573_750 uluna (GitLab #132 repro ballpark)
-    expect(total).toBe(32_573_750n)
+  it('sums fee uluna for increase_allowance + batch place gas at effective gas price', () => {
+    const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal(1)
+    // allowance 200k + batch 580k gas × 28.325 uluna (GitLab #206)
+    expect(total).toBe(22_093_500n)
   })
 })
 

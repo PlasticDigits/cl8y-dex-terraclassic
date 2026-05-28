@@ -1,0 +1,172 @@
+//! Batch / ladder limit order placement types and ladder expansion (GitLab #206).
+
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Decimal, StdError, Uint128};
+
+use crate::pair::LimitOrderSide;
+
+/// Absolute ceiling (gas safety); governance cannot exceed this on-chain.
+pub const MAX_LIMIT_BATCH_RUNGS_HARD_CAP: u32 = 30;
+
+/// Default for new pairs / migrated pairs when config was absent.
+pub const DEFAULT_LIMIT_BATCH_MAX_RUNGS: u32 = 10;
+
+/// Suggested factory default for localnet (governance may change via `UpdateConfig`).
+pub const SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS: u32 = 20;
+
+#[cw_serde]
+pub struct LimitOrderPlacementItem {
+    pub price: Decimal,
+    /// Gross CW20 for this rung (maker fee deducted at placement).
+    pub amount: Uint128,
+    pub max_adjust_steps: u32,
+    #[serde(default)]
+    pub expires_at: Option<u64>,
+}
+
+#[cw_serde]
+pub enum LimitLadderDistribution {
+    Equal,
+}
+
+#[cw_serde]
+pub struct LimitOrderLadderSpec {
+    pub side: LimitOrderSide,
+    pub start_price: Decimal,
+    pub end_price: Decimal,
+    pub count: u32,
+    pub total_amount: Uint128,
+    pub distribution: LimitLadderDistribution,
+    pub max_adjust_steps: u32,
+    #[serde(default)]
+    pub expires_at: Option<u64>,
+}
+
+#[cw_serde]
+pub struct LimitOrderConfigResponse {
+    pub max_batch_rungs: u32,
+}
+
+/// Clamp governance-configured cap to the hard ceiling.
+pub fn clamp_max_batch_rungs(max_rungs: u32) -> u32 {
+    max_rungs.clamp(1, MAX_LIMIT_BATCH_RUNGS_HARD_CAP)
+}
+
+/// Expand a ladder spec into per-rung placement items.
+pub fn expand_limit_ladder(
+    spec: &LimitOrderLadderSpec,
+    max_rungs: u32,
+) -> Result<Vec<LimitOrderPlacementItem>, StdError> {
+    if spec.count < 2 {
+        return Err(StdError::generic_err("ladder count must be at least 2"));
+    }
+    if spec.count > max_rungs {
+        return Err(StdError::generic_err(format!(
+            "ladder count {0} exceeds pair max_batch_rungs {max_rungs}",
+            spec.count
+        )));
+    }
+    if spec.start_price.is_zero() || spec.end_price.is_zero() {
+        return Err(StdError::generic_err("ladder prices must be positive"));
+    }
+    if spec.total_amount.is_zero() {
+        return Err(StdError::generic_err(
+            "ladder total_amount must be positive",
+        ));
+    }
+
+    let count = spec.count;
+    let prices = ladder_prices(spec.start_price, spec.end_price, count)?;
+    let amounts = ladder_amounts_equal(spec.total_amount, count)?;
+
+    Ok(prices
+        .into_iter()
+        .zip(amounts)
+        .map(|(price, amount)| LimitOrderPlacementItem {
+            price,
+            amount,
+            max_adjust_steps: spec.max_adjust_steps,
+            expires_at: spec.expires_at,
+        })
+        .collect())
+}
+
+fn ladder_prices(start: Decimal, end: Decimal, count: u32) -> Result<Vec<Decimal>, StdError> {
+    if count == 1 {
+        return Ok(vec![start]);
+    }
+    let steps = Decimal::from_ratio(count as u128 - 1, 1u128);
+    let delta = end
+        .checked_sub(start)
+        .map_err(|_| StdError::generic_err("ladder price range overflow"))?;
+    let step_size = delta
+        .checked_div(steps)
+        .map_err(|_| StdError::generic_err("ladder price step divide"))?;
+
+    let mut out = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        if i == 0 {
+            out.push(start);
+        } else if i == count - 1 {
+            out.push(end);
+        } else {
+            let offset = step_size
+                .checked_mul(Decimal::from_ratio(i as u128, 1u128))
+                .map_err(|_| StdError::generic_err("ladder price multiply"))?;
+            out.push(
+                start
+                    .checked_add(offset)
+                    .map_err(|_| StdError::generic_err("ladder price add"))?,
+            );
+        }
+    }
+    Ok(out)
+}
+
+fn ladder_amounts_equal(total: Uint128, count: u32) -> Result<Vec<Uint128>, StdError> {
+    let n = count as u128;
+    let base = total.checked_div(Uint128::from(n))?;
+    let mut amounts = vec![base; count as usize];
+    let assigned = base.checked_mul(Uint128::from(n))?;
+    let remainder = total.checked_sub(assigned)?;
+    if !remainder.is_zero() {
+        let last = amounts
+            .last_mut()
+            .ok_or_else(|| StdError::generic_err("empty ladder"))?;
+        *last = last.checked_add(remainder)?;
+    }
+    Ok(amounts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ladder_spec(count: u32, total: u128) -> LimitOrderLadderSpec {
+        LimitOrderLadderSpec {
+            side: LimitOrderSide::Bid,
+            start_price: Decimal::from_ratio(9u128, 10u128),
+            end_price: Decimal::one(),
+            count,
+            total_amount: Uint128::new(total),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+        }
+    }
+
+    #[test]
+    fn expand_equal_ladder_sums_amounts() {
+        let spec = ladder_spec(5, 1000);
+        let items = expand_limit_ladder(&spec, 20).unwrap();
+        assert_eq!(items.len(), 5);
+        let sum: Uint128 = items.iter().map(|i| i.amount).sum();
+        assert_eq!(sum, Uint128::new(1000));
+    }
+
+    #[test]
+    fn expand_rejects_count_over_max() {
+        let spec = ladder_spec(25, 100);
+        assert!(expand_limit_ladder(&spec, 20).is_err());
+    }
+}

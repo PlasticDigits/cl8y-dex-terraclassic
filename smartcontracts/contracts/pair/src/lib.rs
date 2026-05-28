@@ -50,6 +50,7 @@
 
 pub mod contract;
 pub mod error;
+pub mod limit_placement;
 pub mod msg;
 pub mod orderbook;
 pub mod state;

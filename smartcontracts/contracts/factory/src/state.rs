@@ -17,6 +17,13 @@ pub struct Config {
     pub pair_code_id: u64,
     /// Code ID used by Pair contracts to instantiate LP tokens.
     pub lp_token_code_id: u64,
+    /// Default max batch/ladder rungs for newly created pairs.
+    #[serde(default = "default_limit_batch_max_rungs_config")]
+    pub default_limit_batch_max_rungs: u32,
+}
+
+fn default_limit_batch_max_rungs_config() -> u32 {
+    dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

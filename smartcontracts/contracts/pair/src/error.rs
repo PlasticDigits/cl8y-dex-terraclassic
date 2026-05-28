@@ -76,6 +76,21 @@ pub enum ContractError {
     #[error("Limit order amount too small after maker fee")]
     LimitOrderMakerFeeExceedsAmount {},
 
+    #[error("Limit batch exceeds max_batch_rungs ({max}); got {actual} orders")]
+    LimitBatchTooLarge { max: u32, actual: u32 },
+
+    #[error("Limit batch CW20 amount mismatch: expected {expected}, got {actual}")]
+    LimitBatchAmountMismatch { expected: String, actual: String },
+
+    #[error("Limit batch must contain at least one order")]
+    LimitBatchEmpty {},
+
+    #[error("Invalid limit ladder: {reason}")]
+    LimitLadderInvalid { reason: String },
+
+    #[error("Invalid limit batch config: {reason}")]
+    LimitBatchConfigInvalid { reason: String },
+
     #[error("No claimable expired-limit refund for order id {order_id}")]
     NoExpiredLimitClaim { order_id: u64 },
 

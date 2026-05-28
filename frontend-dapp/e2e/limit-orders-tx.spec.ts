@@ -80,4 +80,39 @@ test.describe('Limit orders funded txs', () => {
       expect(txJsonHasWasmAction(json, 'cancel_limit_order')).toBe(true)
     }).toPass({ timeout: 180_000 })
   })
+
+  test('place 5-rung ladder in one tx (batch hook)', async ({ page, connectWallet, request }) => {
+    test.setTimeout(300_000)
+    await skipIfLcdUnreachable(request)
+    await connectWallet
+
+    const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
+    const { index } = await requireLimitTxPair(request, pairs)
+    await selectLimitPairByFactoryIndex(page, index)
+
+    await page.getByTestId('limit-place-mode-ladder').click()
+    const ladderPanel = page.getByTestId('limit-order-ladder-panel')
+    await expect(ladderPanel).toBeVisible({ timeout: 30_000 })
+
+    await ladderPanel.getByTestId('ladder-start-price').fill('0.95')
+    await ladderPanel.getByTestId('ladder-end-price').fill('1.05')
+    await ladderPanel.getByTestId('ladder-rung-count').fill('5')
+    await ladderPanel.getByTestId('ladder-total-amount').fill('5')
+
+    const ladderBtn = ladderPanel.getByTestId('ladder-place-submit')
+    await expect(ladderBtn).toBeEnabled({ timeout: 60_000 })
+    await ladderBtn.click()
+    await expect(ladderBtn).not.toHaveText(/Placing ladder/i, { timeout: 120_000 })
+
+    const successAlert = ladderPanel.locator('.alert-success')
+    await expect(successAlert).toContainText(/TX:/i, { timeout: 60_000 })
+
+    const txHash = await readTxHashFromAlertLink(page, successAlert)
+    await expect(async () => {
+      const json = await fetchTxJson(request, txHash)
+      if (!json) throw new Error('LCD tx not indexed yet')
+      expect(txJsonHasWasmAction(json, 'place_limit_order_batch')).toBe(true)
+      expect(txJsonHasWasmAction(json, 'place_limit_order')).toBe(true)
+    }).toPass({ timeout: 180_000 })
+  })
 })

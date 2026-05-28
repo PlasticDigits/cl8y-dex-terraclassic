@@ -288,12 +288,16 @@ export async function runAction(
       const priceNum = Number(amount) / Number(ret > 0n ? ret : 1n)
       const price = (Number.isFinite(priceNum) && priceNum > 0 ? priceNum : 1).toFixed(6)
       const inner = {
-        place_limit_order: {
+        place_limit_order_batch: {
           side: askSide ? 'ask' : 'bid',
-          price,
-          hint_after_order_id: null,
-          max_adjust_steps: 32,
-          expires_at: Math.floor(Date.now() / 1000) + 86_400,
+          orders: [
+            {
+              price,
+              amount,
+              max_adjust_steps: 32,
+              expires_at: Math.floor(Date.now() / 1000) + 86_400,
+            },
+          ],
         },
       }
       const txHash = await executeWasm(

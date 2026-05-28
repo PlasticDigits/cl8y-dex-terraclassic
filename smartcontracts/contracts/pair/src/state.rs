@@ -4,6 +4,14 @@ use dex_common::oracle::Observation;
 use dex_common::pair::LimitOrderSide;
 use dex_common::types::{AssetInfo, FeeConfig};
 
+/// Governance-configurable cap on batch/ladder placement size (GitLab #206).
+#[cw_serde]
+pub struct LimitOrderConfig {
+    pub max_batch_rungs: u32,
+}
+
+pub const LIMIT_ORDER_CONFIG: Item<LimitOrderConfig> = Item::new("limit_order_cfg");
+
 use cosmwasm_schema::cw_serde;
 
 #[cw_serde]

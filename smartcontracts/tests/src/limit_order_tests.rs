@@ -6,12 +6,35 @@ use cw_multi_test::{App, Executor};
 use super::helpers::*;
 
 use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
+use dex_common::limit_placement::{
+    LimitLadderDistribution, LimitOrderLadderSpec, LimitOrderPlacementItem,
+};
 use dex_common::pair::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
-    HybridSimulationResponse, HybridSwapParams, LimitOrderResponse, LimitOrderSide, PausedResponse,
-    QueryMsg, MAX_MAKER_FILLS_HARD_CAP,
+    HybridSimulationResponse, HybridSwapParams, LimitOrderConfigResponse, LimitOrderResponse,
+    LimitOrderSide, PausedResponse, QueryMsg, MAX_LIMIT_BATCH_RUNGS_HARD_CAP,
+    MAX_MAKER_FILLS_HARD_CAP, SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
 };
 use dex_common::types::Asset;
+
+fn batch_place_msg(
+    side: LimitOrderSide,
+    price: Decimal,
+    amount: Uint128,
+    max_adjust_steps: u32,
+    expires_at: Option<u64>,
+) -> cosmwasm_std::Binary {
+    to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side,
+        orders: vec![LimitOrderPlacementItem {
+            price,
+            amount,
+            max_adjust_steps,
+            expires_at,
+        }],
+    })
+    .unwrap()
+}
 
 fn place_bid_with_steps(
     app: &mut App,
@@ -22,14 +45,7 @@ fn place_bid_with_steps(
     price: Decimal,
     max_adjust_steps: u32,
 ) -> u64 {
-    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price,
-        hint_after_order_id: None,
-        max_adjust_steps,
-        expires_at: None,
-    })
-    .unwrap();
+    let msg = batch_place_msg(LimitOrderSide::Bid, price, amount, max_adjust_steps, None);
     let res = app
         .execute_contract(
             from.clone(),
@@ -79,18 +95,15 @@ fn wasm_attr_in_action_event(
     key: &str,
 ) -> Option<String> {
     for e in events {
-        if !e
-            .attributes
-            .iter()
-            .any(|a| a.key == "action" && a.value == action)
-        {
-            continue;
+        let attrs = &e.attributes;
+        for (i, a) in attrs.iter().enumerate() {
+            if a.key == "action" && a.value == action {
+                return attrs[i..]
+                    .iter()
+                    .find(|x| x.key == key)
+                    .map(|x| x.value.clone());
+            }
         }
-        return e
-            .attributes
-            .iter()
-            .find(|a| a.key == key)
-            .map(|a| a.value.clone());
     }
     None
 }
@@ -114,14 +127,7 @@ fn place_ask(
     amount: Uint128,
     price: Decimal,
 ) -> u64 {
-    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Ask,
-        price,
-        hint_after_order_id: None,
-        max_adjust_steps: 32,
-        expires_at: None,
-    })
-    .unwrap();
+    let msg = batch_place_msg(LimitOrderSide::Ask, price, amount, 32, None);
     let res = app
         .execute_contract(
             from.clone(),
@@ -812,14 +818,13 @@ fn place_limit_order_expiry_not_future_rejected() {
     );
 
     let now = app.block_info().time.seconds();
-    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price: Decimal::one(),
-        hint_after_order_id: None,
-        max_adjust_steps: 32,
-        expires_at: Some(now),
-    })
-    .unwrap();
+    let msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::one(),
+        Uint128::new(10_000),
+        32,
+        Some(now),
+    );
 
     let err = app
         .execute_contract(
@@ -861,14 +866,13 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
 
     let exp = app.block_info().time.seconds() + 120;
     let escrow_sent = Uint128::new(10_000);
-    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price: Decimal::one(),
-        hint_after_order_id: None,
-        max_adjust_steps: 32,
-        expires_at: Some(exp),
-    })
-    .unwrap();
+    let msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::one(),
+        escrow_sent,
+        32,
+        Some(exp),
+    );
     let res = app
         .execute_contract(
             env.user.clone(),
@@ -1016,14 +1020,13 @@ fn claim_expired_limit_order_blocked_while_pair_paused_then_succeeds_after_unpau
 
     let exp = app.block_info().time.seconds() + 60;
     let escrow_sent = Uint128::new(10_000);
-    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price: Decimal::one(),
-        hint_after_order_id: None,
-        max_adjust_steps: 32,
-        expires_at: Some(exp),
-    })
-    .unwrap();
+    let msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::one(),
+        escrow_sent,
+        32,
+        Some(exp),
+    );
     let res = app
         .execute_contract(
             env.user.clone(),
@@ -1182,21 +1185,20 @@ fn limit_order_place_and_cancel_emit_indexer_attrs() {
         Uint128::new(1_000_000),
     );
 
-    let place_msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price: Decimal::one(),
-        hint_after_order_id: None,
-        max_adjust_steps: 32,
-        expires_at: None,
-    })
-    .unwrap();
+    let place_msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::one(),
+        Uint128::new(10_000),
+        32,
+        None,
+    );
     let place_res = app
         .execute_contract(
             env.user.clone(),
             env.token_b.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.pair.to_string(),
-                amount: Uint128::new(80_000),
+                amount: Uint128::new(10_000),
                 msg: place_msg,
             },
             &[],
@@ -1252,14 +1254,13 @@ fn place_limit_order_wrong_escrow_token_rejected() {
     );
 
     // Bid must escrow token_b; sending token_a must fail.
-    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price: Decimal::one(),
-        hint_after_order_id: None,
-        max_adjust_steps: 32,
-        expires_at: None,
-    })
-    .unwrap();
+    let msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::one(),
+        Uint128::new(10_000),
+        32,
+        None,
+    );
     let err = app
         .execute_contract(
             env.user.clone(),
@@ -1485,14 +1486,13 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
         )
         .is_err());
 
-    let place_msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price: Decimal::one(),
-        hint_after_order_id: None,
-        max_adjust_steps: 32,
-        expires_at: None,
-    })
-    .unwrap();
+    let place_msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::one(),
+        Uint128::new(10_000),
+        32,
+        None,
+    );
     assert!(app
         .execute_contract(
             env.user.clone(),
@@ -2250,14 +2250,13 @@ fn place_limit_insert_steps_exceeded() {
         );
     }
 
-    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrder {
-        side: LimitOrderSide::Bid,
-        price: Decimal::from_ratio(5u128, 10u128),
-        hint_after_order_id: None,
-        max_adjust_steps: 5,
-        expires_at: None,
-    })
-    .unwrap();
+    let msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::from_ratio(5u128, 10u128),
+        Uint128::new(10_000),
+        5,
+        None,
+    );
 
     let err = app
         .execute_contract(
@@ -2265,7 +2264,7 @@ fn place_limit_insert_steps_exceeded() {
             env.token_b.clone(),
             &cw20::Cw20ExecuteMsg::Send {
                 contract: env.pair.to_string(),
-                amount: Uint128::new(1_000),
+                amount: Uint128::new(10_000),
                 msg,
             },
             &[],
@@ -2691,4 +2690,183 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
         .unwrap();
     assert_eq!(h.return_amount, p.return_amount);
     assert_eq!(h.book_return_amount, Uint128::zero());
+}
+
+#[test]
+fn place_limit_order_ladder_five_rungs() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let total = Uint128::new(50_000);
+    let ladder = LimitOrderLadderSpec {
+        side: LimitOrderSide::Bid,
+        start_price: Decimal::from_ratio(95u128, 100u128),
+        end_price: Decimal::one(),
+        count: 5,
+        total_amount: total,
+        distribution: LimitLadderDistribution::Equal,
+        max_adjust_steps: 32,
+        expires_at: None,
+    };
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderLadder { ladder }).unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(placed.len(), 5);
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "place_limit_order_batch", "action").as_deref(),
+        Some("place_limit_order_batch")
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "place_limit_order_batch", "batch_count").as_deref(),
+        Some("5")
+    );
+}
+
+#[test]
+fn limit_batch_too_large_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let cfg: LimitOrderConfigResponse = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::LimitOrderConfig {})
+        .unwrap();
+    let max = cfg.max_batch_rungs;
+
+    let mut orders = Vec::new();
+    for i in 0..=max {
+        orders.push(LimitOrderPlacementItem {
+            price: Decimal::from_ratio(90u128 + i as u128, 100u128),
+            amount: Uint128::new(1000),
+            max_adjust_steps: 32,
+            expires_at: None,
+        });
+    }
+    let total: Uint128 = orders.iter().map(|o| o.amount).sum();
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders,
+    })
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let s = err.root_cause().to_string();
+    assert!(
+        s.contains("max_batch_rungs") || s.contains("Limit batch"),
+        "{}",
+        s
+    );
+}
+
+#[test]
+fn governance_set_pair_limit_batch_max_enforced() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairLimitBatchMax {
+            pair: env.pair.to_string(),
+            max_rungs: 2,
+        },
+        &[],
+    )
+    .unwrap();
+
+    let orders = vec![
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(9u128, 10u128),
+            amount: Uint128::new(1000),
+            max_adjust_steps: 32,
+            expires_at: None,
+        },
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(91u128, 100u128),
+            amount: Uint128::new(1000),
+            max_adjust_steps: 32,
+            expires_at: None,
+        },
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(92u128, 100u128),
+            amount: Uint128::new(1000),
+            max_adjust_steps: 32,
+            expires_at: None,
+        },
+    ];
+    let total = Uint128::new(3000);
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders,
+    })
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let s = err.root_cause().to_string();
+    assert!(
+        s.contains("max_batch_rungs") || s.contains("Limit batch"),
+        "{}",
+        s
+    );
 }

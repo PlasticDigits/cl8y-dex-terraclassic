@@ -1,0 +1,216 @@
+import { useMemo, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+
+import { placeLimitOrderLadderWithAllowance } from '@/services/terraclassic/pair'
+import { estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal } from '@/services/terraclassic/transactions'
+import { getPairLimitPlacements } from '@/services/indexer/client'
+import { TxResultAlert } from '@/components/ui'
+import { useLimitOrderConfig } from '@/hooks/useLimitOrderConfig'
+import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
+import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
+import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
+import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
+import {
+  expandLimitLadder,
+  LimitLadderError,
+  sumLadderAmountsRaw,
+  type LimitLadderSpec,
+} from '@/utils/limitOrderLadder'
+import { toRawAmount } from '@/utils/formatAmount'
+import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
+
+export interface LimitOrderLadderPanelProps {
+  pairAddress: string
+  walletAddress: string
+  escrowToken: string
+  escrowDecimals: number
+  token0Symbol: string
+  token1Symbol: string
+  disabled?: boolean
+  onPlaced?: (orderIds: number[]) => void
+}
+
+export function LimitOrderLadderPanel({
+  pairAddress,
+  walletAddress,
+  escrowToken,
+  escrowDecimals,
+  token0Symbol,
+  token1Symbol,
+  disabled,
+  onPlaced,
+}: LimitOrderLadderPanelProps) {
+  const queryClient = useQueryClient()
+  const [side, setSide] = useState<'bid' | 'ask'>('bid')
+  const [startPrice, setStartPrice] = useState('0.95')
+  const [endPrice, setEndPrice] = useState('1.05')
+  const [rungCount, setRungCount] = useState(5)
+  const [totalHuman, setTotalHuman] = useState('100')
+  const { maxSteps, setMaxSteps, expiresAt, setExpiresAt, limitAdvancedOpen, setLimitAdvancedOpen } =
+    useLimitOrderForm()
+
+  const configQuery = useLimitOrderConfig(pairAddress)
+  const maxRungs = configQuery.data?.max_batch_rungs ?? 20
+
+  const preview = useMemo(() => {
+    try {
+      const totalRaw = toRawAmount(totalHuman, escrowDecimals)
+      const spec: LimitLadderSpec = {
+        side,
+        startPrice,
+        endPrice,
+        count: rungCount,
+        totalAmountRaw: totalRaw,
+        distribution: 'equal',
+        maxAdjustSteps: maxSteps,
+        expiresAt: expiresAt ?? null,
+      }
+      return { rungs: expandLimitLadder(spec, maxRungs), error: null as string | null }
+    } catch (e) {
+      const msg = e instanceof LimitLadderError ? e.message : (e as Error).message
+      return { rungs: [] as ReturnType<typeof expandLimitLadder>, error: msg }
+    }
+  }, [side, startPrice, endPrice, rungCount, totalHuman, escrowDecimals, maxSteps, expiresAt, maxRungs])
+
+  const placeMutation = useMutation({
+    mutationFn: async () => {
+      if (preview.error || preview.rungs.length < 2) {
+        throw new Error(preview.error ?? 'Invalid ladder')
+      }
+      const totalRaw = sumLadderAmountsRaw(preview.rungs)
+      const exp = expiresAt ?? undefined
+      return placeLimitOrderLadderWithAllowance(walletAddress, escrowToken, pairAddress, totalRaw, {
+        side,
+        start_price: startPrice,
+        end_price: endPrice,
+        count: rungCount,
+        total_amount: totalRaw,
+        distribution: 'equal',
+        max_adjust_steps: maxSteps,
+        expires_at: exp,
+      })
+    },
+    onSuccess: async (txHash) => {
+      void queryClient.invalidateQueries({ queryKey: ['limitPlacements', pairAddress] })
+      const before = await getPairLimitPlacements(pairAddress, { limit: 100 })
+      const known = new Set(before.map((p) => p.order_id))
+      const found: number[] = []
+      for (let i = 0; i < 24; i++) {
+        await new Promise((r) => setTimeout(r, 500))
+        const next = await getPairLimitPlacements(pairAddress, { limit: 100 })
+        for (const p of next) {
+          if (!known.has(p.order_id)) found.push(p.order_id)
+        }
+        if (found.length >= rungCount) break
+      }
+      if (found.length < rungCount) {
+        warnIndexerPlacementPollFailed({ expected: rungCount, found: found.length, txHash })
+      }
+      onPlaced?.(found)
+    },
+  })
+
+  const gasUluna = estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount)
+
+  return (
+    <div className="space-y-3" data-testid="limit-order-ladder-panel">
+      <LimitOrderBidAskSideSelector
+        idPrefix="ladder"
+        side={side}
+        onSideChange={setSide}
+        bidLabel={`Bid (${token1Symbol})`}
+        askLabel={`Ask (${token0Symbol})`}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block text-sm">
+          <span className="text-muted">Start price</span>
+          <input
+            className="input-neo mt-1 w-full"
+            value={startPrice}
+            onChange={(e) => setStartPrice(e.target.value)}
+            data-testid="ladder-start-price"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="text-muted">End price</span>
+          <input
+            className="input-neo mt-1 w-full"
+            value={endPrice}
+            onChange={(e) => setEndPrice(e.target.value)}
+            data-testid="ladder-end-price"
+          />
+        </label>
+      </div>
+      <label className="block text-sm">
+        <span className="text-muted">Rung count (max {maxRungs} on this pair)</span>
+        <input
+          type="number"
+          min={2}
+          max={maxRungs}
+          className="input-neo mt-1 w-full"
+          value={rungCount}
+          onChange={(e) => setRungCount(Math.min(maxRungs, Math.max(2, Number(e.target.value) || 2)))}
+          data-testid="ladder-rung-count"
+        />
+      </label>
+      <label className="block text-sm">
+        <span className="text-muted">Total escrow ({side === 'bid' ? token1Symbol : token0Symbol})</span>
+        <input
+          className="input-neo mt-1 w-full"
+          value={totalHuman}
+          onChange={(e) => setTotalHuman(e.target.value)}
+          data-testid="ladder-total-amount"
+        />
+      </label>
+      <LimitOrderExpiryField value={expiresAt} onChange={setExpiresAt} idPrefix="ladder" />
+      <LimitOrderAdvancedLimitSettings
+        open={limitAdvancedOpen}
+        onOpenChange={setLimitAdvancedOpen}
+        maxSteps={maxSteps}
+        onMaxStepsChange={setMaxSteps}
+        expiresAt={expiresAt}
+        onExpiresAtChange={setExpiresAt}
+        idPrefix="ladder"
+      />
+      {preview.error && <p className="text-sm text-red-400">{preview.error}</p>}
+      {!preview.error && preview.rungs.length > 0 && (
+        <div className="text-xs text-muted overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="text-left">#</th>
+                <th className="text-left">Price</th>
+                <th className="text-right">Escrow (raw)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {preview.rungs.map((r, i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td>{r.price}</td>
+                  <td className="text-right font-mono">{r.amountRaw}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2">
+            One transaction after allowance · est. min gas ~{(Number(gasUluna) / 1e6).toFixed(4)} LUNC
+          </p>
+        </div>
+      )}
+      <button
+        type="button"
+        className="btn-neo w-full"
+        disabled={disabled || placeMutation.isPending || Boolean(preview.error)}
+        data-testid="ladder-place-submit"
+        onClick={() => placeMutation.mutate()}
+      >
+        {placeMutation.isPending ? 'Placing ladder…' : `Place ${rungCount}-rung ladder`}
+      </button>
+      {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
+      {placeMutation.isSuccess && (
+        <TxResultAlert type="success" message="Ladder submitted." txHash={placeMutation.data} />
+      )}
+    </div>
+  )
+}

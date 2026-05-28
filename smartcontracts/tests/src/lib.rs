@@ -323,6 +323,8 @@ mod helpers {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -719,6 +721,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -829,6 +833,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -915,6 +921,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -983,6 +991,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -1059,6 +1069,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -1153,6 +1165,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -1224,6 +1238,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -1238,6 +1254,7 @@ mod factory_tests {
                 governance: Some(new_governance.to_string()),
                 treasury: Some(new_treasury.to_string()),
                 default_fee_bps: Some(50),
+                default_limit_batch_max_rungs: None,
             },
             &[],
         )
@@ -1278,6 +1295,8 @@ mod factory_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -3565,6 +3584,8 @@ mod pair_coverage_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id, adversarial_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -3631,6 +3652,8 @@ mod pair_coverage_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -3699,6 +3722,8 @@ mod pair_coverage_tests {
                     lp_token_code_id: cw20_code_id,
                     token_symbols: None,
                     governance: governance.to_string(),
+                    max_batch_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "pair-bootstrap-decimals-test",
@@ -3771,6 +3796,7 @@ mod factory_coverage_tests {
                     governance: None,
                     treasury: None,
                     default_fee_bps: Some(100),
+                    default_limit_batch_max_rungs: None,
                 },
                 &[],
             )
@@ -9202,6 +9228,7 @@ mod line_coverage_tests {
                     governance: None,
                     treasury: None,
                     default_fee_bps: Some(10001),
+                    default_limit_batch_max_rungs: None,
                 },
                 &[],
             )
@@ -9928,6 +9955,8 @@ mod new_feature_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -10291,6 +10320,8 @@ mod new_feature_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -10337,6 +10368,7 @@ mod new_feature_tests {
                 governance: Some(new_governance.to_string()),
                 treasury: None,
                 default_fee_bps: None,
+                default_limit_batch_max_rungs: None,
             },
             &[],
         )
@@ -11963,6 +11995,8 @@ mod wrap_router_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -13211,6 +13245,8 @@ mod wrap_integration_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -13643,6 +13679,8 @@ mod wrap_integration_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",
@@ -16172,6 +16210,8 @@ mod ustr_cmm_d8b0afd_tests {
                     pair_code_id,
                     lp_token_code_id: cw20_code_id,
                     whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
                 },
                 &[],
                 "factory",

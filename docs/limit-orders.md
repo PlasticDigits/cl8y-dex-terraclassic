@@ -42,11 +42,14 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 
 - **`hybrid`:** optional [`HybridSwapParams`](../smartcontracts/packages/dex-common/src/pair.rs): `pool_input`, `book_input` (must sum to the CW20 `amount`), `max_maker_fills`, optional `book_start_hint` (order id).
 - **Match walk:** If `book_start_hint` is set and that order id still exists, matching starts from that id; otherwise it starts from the book head (see `orderbook::match_bids` / `match_asks`).
-- **`MAX_ADJUST_STEPS`:** placement uses `PlaceLimitOrder { max_adjust_steps }` to cap the linear walk when finding an insert position from the **book head**. Hard caps: `MAX_ADJUST_STEPS_HARD_CAP` / `MAX_MAKER_FILLS_HARD_CAP` in `dex-common::pair`.
 
-### Place / cancel limit
+### Place / cancel limit (GitLab [#206](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/206))
 
-- **`Cw20HookMsg::PlaceLimitOrder`:** `side`, `price`, `hint_after_order_id`, `max_adjust_steps`, optional **`expires_at`** (Unix seconds; `null` = no expiry). If set, it must be **strictly greater** than the block time at placement.
+- **`Cw20HookMsg::PlaceLimitOrderBatch`:** `side`, `orders[]` each with `price`, `amount` (gross escrow for that rung), `max_adjust_steps`, optional `expires_at`. The CW20 `send` **amount must equal the sum** of per-rung `amount` values. **All-or-nothing** — any validation or insert failure reverts the whole batch.
+- **`Cw20HookMsg::PlaceLimitOrderLadder`:** `ladder` with `start_price`, `end_price`, `count` (≥ 2), `total_amount`, `distribution` (`equal`), shared `max_adjust_steps` / `expires_at`. Expanded on-chain to the same rules as batch.
+- **Rung cap (governance):** each pair stores `max_batch_rungs` (query `limit_order_config`). Factory governance sets defaults via `UpdateConfig { default_limit_batch_max_rungs }` and per-pair caps via `SetPairLimitBatchMax`. Hard ceiling: `MAX_LIMIT_BATCH_RUNGS_HARD_CAP` (30) in `dex-common`.
+- **Retail single order:** use batch with `orders.len() == 1` (dApp path).
+- **`MAX_ADJUST_STEPS`:** each rung uses its own `max_adjust_steps` when walking from the book head. Hard caps: `MAX_ADJUST_STEPS_HARD_CAP` / `MAX_MAKER_FILLS_HARD_CAP` in `dex-common::pair`.
 - **Fees:** Total limit-book fee rate matches the pair’s **effective** swap commission (`fee_bps` after the optional fee-discount registry). The pair charges **half** to the maker at placement (from the escrowed CW20, sent to `treasury`; the resting order’s `remaining` is reduced) and **half** on each book fill (taker leg), same notional bases as before (bids: token1 `cost`; asks: token0 fill). See [`docs/integrators.md`](./integrators.md).
 - **`hint_after_order_id`:** reserved for future indexer-assisted insertion. The **current implementation ignores this field** and always walks from the book head (same as `find_insert_bid` / `find_insert_ask` in the pair crate). Clients may send `null`; wire compatibility is preserved.
 - **`ExecuteMsg::CancelLimitOrder`:** `order_id`. Only the stored **owner** may cancel. Applies only while the order row exists in on-chain `LimitOrder` storage (not after an expiry park — use claim below).

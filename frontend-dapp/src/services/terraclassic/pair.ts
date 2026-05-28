@@ -114,41 +114,105 @@ export async function swap(
   })
 }
 
-/** Bid escrows token1; Ask escrows token0 (pair asset ordering). */
-export async function placeLimitOrder(
+export interface LimitOrderPlacementItemWire {
+  price: string
+  amount: string
+  max_adjust_steps: number
+  expires_at?: number
+}
+
+export interface LimitOrderLadderSpecWire {
+  side: 'bid' | 'ask'
+  start_price: string
+  end_price: string
+  count: number
+  total_amount: string
+  distribution: 'equal'
+  max_adjust_steps: number
+  expires_at?: number
+}
+
+export interface LimitOrderConfigResponse {
+  max_batch_rungs: number
+}
+
+export async function getLimitOrderConfig(pairAddress: string): Promise<LimitOrderConfigResponse> {
+  return queryContract<LimitOrderConfigResponse>(pairAddress, { limit_order_config: {} })
+}
+
+function encodeLimitBatchHook(side: 'bid' | 'ask', orders: LimitOrderPlacementItemWire[]): string {
+  return btoa(
+    JSON.stringify({
+      place_limit_order_batch: { side, orders },
+    })
+  )
+}
+
+/** Single-rung batch placement (GitLab #206). */
+export async function placeLimitOrderBatch(
   walletAddress: string,
   escrowTokenAddress: string,
   pairAddress: string,
-  amount: string,
+  totalAmount: string,
   side: 'bid' | 'ask',
-  price: string,
-  maxAdjustSteps: number,
-  expiresAt?: number | null
+  orders: LimitOrderPlacementItemWire[]
 ): Promise<string> {
-  const msg = btoa(
-    JSON.stringify({
-      place_limit_order: {
-        side,
-        price,
-        hint_after_order_id: null,
-        max_adjust_steps: maxAdjustSteps,
-        expires_at: expiresAt ?? undefined,
-      },
-    })
-  )
+  const msg = encodeLimitBatchHook(side, orders)
   return executeTerraContract(walletAddress, escrowTokenAddress, {
     send: {
       contract: pairAddress,
-      amount,
+      amount: totalAmount,
+      msg,
+    },
+  })
+}
+
+export async function placeLimitOrderLadder(
+  walletAddress: string,
+  escrowTokenAddress: string,
+  pairAddress: string,
+  totalAmount: string,
+  ladder: LimitOrderLadderSpecWire
+): Promise<string> {
+  const msg = btoa(JSON.stringify({ place_limit_order_ladder: { ladder } }))
+  return executeTerraContract(walletAddress, escrowTokenAddress, {
+    send: {
+      contract: pairAddress,
+      amount: totalAmount,
       msg,
     },
   })
 }
 
 /**
- * Retail limit/bid path: `increase_allowance` then CW20 `send` → `place_limit_order`.
- * Uses the same broadcast stack as all other txs ([GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)).
+ * Retail limit path: `increase_allowance` then CW20 `send` → batch/ladder hook.
  */
+export async function placeLimitOrderBatchWithAllowance(
+  walletAddress: string,
+  escrowTokenAddress: string,
+  pairAddress: string,
+  totalAmount: string,
+  side: 'bid' | 'ask',
+  orders: LimitOrderPlacementItemWire[]
+): Promise<string> {
+  return executeCw20AllowanceThen(walletAddress, escrowTokenAddress, pairAddress, totalAmount, () =>
+    placeLimitOrderBatch(walletAddress, escrowTokenAddress, pairAddress, totalAmount, side, orders)
+  )
+}
+
+export async function placeLimitOrderLadderWithAllowance(
+  walletAddress: string,
+  escrowTokenAddress: string,
+  pairAddress: string,
+  totalAmount: string,
+  ladder: LimitOrderLadderSpecWire
+): Promise<string> {
+  return executeCw20AllowanceThen(walletAddress, escrowTokenAddress, pairAddress, totalAmount, () =>
+    placeLimitOrderLadder(walletAddress, escrowTokenAddress, pairAddress, totalAmount, ladder)
+  )
+}
+
+/** Convenience: one order via batch hook with `orders.len() === 1`. */
 export async function placeLimitOrderWithAllowance(
   walletAddress: string,
   escrowTokenAddress: string,
@@ -159,9 +223,14 @@ export async function placeLimitOrderWithAllowance(
   maxAdjustSteps: number,
   expiresAt?: number | null
 ): Promise<string> {
-  return executeCw20AllowanceThen(walletAddress, escrowTokenAddress, pairAddress, amount, () =>
-    placeLimitOrder(walletAddress, escrowTokenAddress, pairAddress, amount, side, price, maxAdjustSteps, expiresAt)
-  )
+  return placeLimitOrderBatchWithAllowance(walletAddress, escrowTokenAddress, pairAddress, amount, side, [
+    {
+      price,
+      amount,
+      max_adjust_steps: maxAdjustSteps,
+      expires_at: expiresAt ?? undefined,
+    },
+  ])
 }
 
 export async function cancelLimitOrder(walletAddress: string, pairAddress: string, orderId: number): Promise<string> {

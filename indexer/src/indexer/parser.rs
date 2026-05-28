@@ -666,6 +666,44 @@ async fn process_limit_order_fill(
     Ok(())
 }
 
+fn parse_limit_order_placements_from_wasm_attrs(
+    attrs: &[Attribute],
+) -> Vec<ParsedLimitOrderPlacement> {
+    let mut out = Vec::new();
+    for (i, a) in attrs.iter().enumerate() {
+        if a.key != "action" || a.value != "place_limit_order" {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            continue;
+        };
+        let seg = wasm_kv_map_after_action(attrs, i);
+        let oid = seg
+            .get("order_id")
+            .and_then(|s| s.parse::<i64>().ok())
+            .or_else(|| {
+                seg.get("limit_order_placed")
+                    .and_then(|s| s.parse::<i64>().ok())
+            });
+        let Some(order_id) = oid else {
+            continue;
+        };
+        let owner = seg.get("owner").map(|x| x.to_string());
+        let side = seg.get("side").map(|x| x.to_string());
+        let price = seg.get("price").and_then(|x| BigDecimal::from_str(x).ok());
+        let expires_at = seg.get("expires_at").and_then(|x| x.parse::<i64>().ok());
+        out.push(ParsedLimitOrderPlacement {
+            pair_address: contract.to_string(),
+            order_id,
+            owner,
+            side,
+            price,
+            expires_at,
+        });
+    }
+    out
+}
+
 fn parse_limit_order_placements(tx: &TxResponse) -> Vec<ParsedLimitOrderPlacement> {
     let mut out = Vec::new();
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
@@ -677,36 +715,12 @@ fn parse_limit_order_placements(tx: &TxResponse) -> Vec<ParsedLimitOrderPlacemen
     };
 
     for event in &events {
-        if event.event_type != "wasm" {
+        if !is_wasm_lifecycle_event_type(&event.event_type) {
             continue;
         }
-        let attrs = &event.attributes;
-        if wasm_attr_last(attrs, "action") != Some("place_limit_order") {
-            continue;
-        }
-        let Some(contract) = wasm_contract_addr(attrs) else {
-            continue;
-        };
-        let oid = wasm_attr_last(attrs, "order_id")
-            .and_then(|s| s.parse::<i64>().ok())
-            .or_else(|| {
-                wasm_attr_last(attrs, "limit_order_placed").and_then(|s| s.parse::<i64>().ok())
-            });
-        let Some(order_id) = oid else {
-            continue;
-        };
-        let owner = wasm_attr_last(attrs, "owner").map(|x| x.to_string());
-        let side = wasm_attr_last(attrs, "side").map(|x| x.to_string());
-        let price = wasm_attr_last(attrs, "price").and_then(|x| BigDecimal::from_str(x).ok());
-        let expires_at = wasm_attr_last(attrs, "expires_at").and_then(|x| x.parse::<i64>().ok());
-        out.push(ParsedLimitOrderPlacement {
-            pair_address: contract.to_string(),
-            order_id,
-            owner,
-            side,
-            price,
-            expires_at,
-        });
+        out.extend(parse_limit_order_placements_from_wasm_attrs(
+            &event.attributes,
+        ));
     }
     out
 }
@@ -1296,6 +1310,89 @@ mod tests {
 
     /// Flattened wasm stream: `action=swap` is **last**; older parsers using `wasm_attr_last` on the
     /// whole slice missed `limit_order_expired_parked` (GitLab #141 / QA note on #141).
+    #[test]
+    fn parse_limit_order_placements_five_rungs_merged_before_swap() {
+        let mut attrs = vec![
+            Attribute {
+                key: "_contract_address".into(),
+                value: "terra1pair".into(),
+            },
+            Attribute {
+                key: "action".into(),
+                value: "place_limit_order_batch".into(),
+            },
+            Attribute {
+                key: "batch_count".into(),
+                value: "5".into(),
+            },
+        ];
+        for id in 1..=5 {
+            attrs.push(Attribute {
+                key: "action".into(),
+                value: "place_limit_order".into(),
+            });
+            attrs.push(Attribute {
+                key: "order_id".into(),
+                value: id.to_string(),
+            });
+            attrs.push(Attribute {
+                key: "side".into(),
+                value: "bid".into(),
+            });
+            attrs.push(Attribute {
+                key: "price".into(),
+                value: "1".into(),
+            });
+            attrs.push(Attribute {
+                key: "owner".into(),
+                value: "terra1maker".into(),
+            });
+        }
+        attrs.push(Attribute {
+            key: "action".into(),
+            value: "swap".into(),
+        });
+        attrs.push(Attribute {
+            key: "sender".into(),
+            value: "terra1taker".into(),
+        });
+        attrs.push(Attribute {
+            key: "offer_amount".into(),
+            value: "100".into(),
+        });
+        attrs.push(Attribute {
+            key: "return_amount".into(),
+            value: "90".into(),
+        });
+        attrs.push(Attribute {
+            key: "offer_asset".into(),
+            value: "tokena".into(),
+        });
+        attrs.push(Attribute {
+            key: "ask_asset".into(),
+            value: "tokenb".into(),
+        });
+        let tx = TxResponse {
+            height: "1".into(),
+            txhash: "ABCDHASH".into(),
+            logs: Some(vec![TxLog {
+                events: vec![Event {
+                    event_type: "wasm".into(),
+                    attributes: attrs,
+                }],
+            }]),
+            timestamp: None,
+            events: None,
+        };
+        let p = parse_limit_order_placements(&tx);
+        assert_eq!(p.len(), 5);
+        assert_eq!(p[0].order_id, 1);
+        assert_eq!(p[4].order_id, 5);
+        assert_eq!(p[0].pair_address, "terra1pair");
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+    }
+
     #[test]
     fn parse_limit_order_expired_parked_finds_parked_before_swap_in_merged_wasm_attrs() {
         let tx = wasm_tx(vec![

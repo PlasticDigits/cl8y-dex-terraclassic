@@ -11,6 +11,13 @@ pub struct InstantiateMsg {
     pub pair_code_id: u64,
     pub lp_token_code_id: u64,
     pub whitelisted_code_ids: Vec<u64>,
+    /// Default max batch/ladder rungs for new pairs (clamped to hard cap on-chain).
+    #[serde(default = "default_limit_batch_max_rungs_instantiate")]
+    pub default_limit_batch_max_rungs: u32,
+}
+
+fn default_limit_batch_max_rungs_instantiate() -> u32 {
+    crate::limit_placement::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS
 }
 
 #[cw_serde]
@@ -38,6 +45,12 @@ pub enum ExecuteMsg {
         governance: Option<String>,
         treasury: Option<String>,
         default_fee_bps: Option<u16>,
+        default_limit_batch_max_rungs: Option<u32>,
+    },
+    /// Set max batch/ladder rungs on one pair. Governance only.
+    SetPairLimitBatchMax {
+        pair: String,
+        max_rungs: u32,
     },
     /// Set the fee discount registry for a specific pair. Governance only.
     SetDiscountRegistry {
@@ -108,6 +121,7 @@ pub struct ConfigResponse {
     pub governance: Addr,
     pub treasury: Addr,
     pub default_fee_bps: u16,
+    pub default_limit_batch_max_rungs: u32,
     pub pair_code_id: u64,
     pub lp_token_code_id: u64,
 }

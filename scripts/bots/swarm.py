@@ -299,11 +299,15 @@ async def place_limit_cw20_send(
     if amount < 1:
         return
     inner: dict[str, Any] = {
-        "place_limit_order": {
+        "place_limit_order_batch": {
             "side": side,
-            "price": price_str,
-            "hint_after_order_id": None,
-            "max_adjust_steps": 64,
+            "orders": [
+                {
+                    "price": price_str,
+                    "amount": str(amount),
+                    "max_adjust_steps": 64,
+                }
+            ],
         }
     }
     hook = _b64_json(inner)
