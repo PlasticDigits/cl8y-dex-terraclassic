@@ -8,6 +8,12 @@ function norm(s: string): string {
   return s.trim()
 }
 
+import {
+  buildWrongNetworkConnectError,
+  isWalletExtensionNotInstalledError,
+  isWalletWrongNetworkError,
+} from './walletNetworkError'
+
 /** Wallet extension / WalletConnect — match substrings so prefixed SDK messages still classify. */
 export function tryHumanizeWalletLikeMessage(message: string): string | null {
   const m = norm(message)
@@ -21,12 +27,26 @@ export function tryHumanizeWalletLikeMessage(message: string): string | null {
     return 'Wallet action was declined in the extension or mobile wallet. Nothing was submitted on-chain.'
   }
 
-  if (/extension is not installed|not installed|install\s+(\w+\s+)?extension|no\s+\w+\s+wallet\s+found/i.test(m)) {
+  if (isWalletWrongNetworkError(m)) {
+    const station = /station/i.test(m)
+    const keplr = /keplr/i.test(m)
+    const label = station ? 'Station' : keplr ? 'Keplr' : 'Your wallet'
+    if (/switch.*network|wrong network|on the wrong network/i.test(m)) {
+      return m.length <= 320 ? m : `${m.slice(0, 319)}…`
+    }
+    return buildWrongNetworkConnectError(label)
+  }
+
+  if (
+    isWalletExtensionNotInstalledError(m) ||
+    /install\s+(\w+\s+)?extension/i.test(m) ||
+    /no\s+keplr\s+wallet\s+found/i.test(m)
+  ) {
     return 'Wallet extension was not found. Install it for this browser, refresh the page, then try again.'
   }
 
   if (/unsupported\s+chain|wrong\s+network|chain\s+id\s+mismatch/i.test(m)) {
-    return 'This wallet is not connected to Terra Classic for this app. Switch network in the wallet, then reconnect.'
+    return buildWrongNetworkConnectError('Your wallet')
   }
 
   return null

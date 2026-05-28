@@ -20,6 +20,18 @@ interface Window {
   station?: {
     connect: () => Promise<void>
     disconnect: () => Promise<void>
+    /** Native Station network registry (required for LocalTerra on new Station — GitLab #207). */
+    addNetwork?: (network: {
+      name: string
+      chainID: string
+      lcd: string
+      prefix?: string
+      coinType?: string
+      baseAsset?: string
+      gasAdjustment?: number
+      gasPrices?: Record<string, number>
+    }) => Promise<boolean>
+    hasNetwork?: (network: { chainID: string; lcd: string }) => Promise<boolean>
     /** Keplr-compatible API; supports `experimentalSuggestChain` for LocalTerra gas steps (GitLab #127). */
     keplr?: {
       enable: (chainIds: string | string[]) => Promise<void>

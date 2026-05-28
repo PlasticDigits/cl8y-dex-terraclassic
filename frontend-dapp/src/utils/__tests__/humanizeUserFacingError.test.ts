@@ -21,6 +21,13 @@ describe('tryHumanizeWalletLikeMessage', () => {
     )
   })
 
+  it('maps Station wrong network, not missing extension (GitLab #207)', () => {
+    const raw = 'Failed to connect Station: The requested chain is not available on Station.'
+    expect(tryHumanizeWalletLikeMessage(raw)).toMatch(/wrong network/i)
+    expect(tryHumanizeWalletLikeMessage(raw)).not.toMatch(/not found/)
+    expect(humanizeUserFacingError(raw)).toMatch(/LocalTerra|localterra/)
+  })
+
   it('maps WalletConnect partial success', () => {
     expect(tryHumanizeWalletLikeMessage('WalletConnect succeeded but session did not propagate')).toMatch(
       /WalletConnect finished/

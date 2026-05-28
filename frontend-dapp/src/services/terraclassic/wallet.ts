@@ -1,6 +1,15 @@
 import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtension'
+import {
+  ensureStationLocalNetworkRegistered,
+  shouldUseStationNativeLocalNetwork,
+} from '@/services/terraclassic/stationNativeNetwork'
 import { isBrowserWalletExtensionDetected } from '@/services/terraclassic/walletExtensionInstall'
 import { effectiveGasPriceUluna } from '@/utils/constants'
+import {
+  buildWrongNetworkConnectError,
+  isWalletExtensionNotInstalledError,
+  isWalletWrongNetworkError,
+} from '@/utils/walletNetworkError'
 import {
   ConnectedWallet,
   CosmostationController,
@@ -137,11 +146,11 @@ export async function connectTerraWallet(
     })
 
     const SUGGEST_CHAIN_WALLETS: WalletName[] = [WalletName.KEPLR, WalletName.COSMOSTATION]
-    const suggestStationLocalGasSteps =
+    const isStationLocalExtension =
       walletName === WalletName.STATION && walletType === WalletType.EXTENSION && DEFAULT_NETWORK === 'local'
 
     if (walletType === WalletType.EXTENSION) {
-      if (suggestStationLocalGasSteps) {
+      if (isStationLocalExtension) {
         const stationKeplr = getKeplrLikeExtension(walletName)
         if (stationKeplr) {
           stationKeplr.defaultOptions = {
@@ -151,13 +160,18 @@ export async function connectTerraWallet(
             },
           }
         }
-        try {
-          await suggestChainToExtension(walletName)
-        } catch (err: unknown) {
-          console.warn(
-            '[Wallet] Station experimentalSuggestChain failed; approve the chain update in Station or LocalTerra fees may stay too low (GitLab #127):',
-            err
-          )
+        // New Station: keplr.experimentalSuggestChain rejects localterra (#207). Register via addNetwork first.
+        if (shouldUseStationNativeLocalNetwork()) {
+          await ensureStationLocalNetworkRegistered(networkConfig.lcd, TERRA_CLASSIC_CHAIN_ID)
+        } else {
+          try {
+            await suggestChainToExtension(walletName)
+          } catch (err: unknown) {
+            console.warn(
+              '[Wallet] Station experimentalSuggestChain failed; approve the chain update in Station or LocalTerra fees may stay too low (GitLab #127):',
+              err
+            )
+          }
         }
       } else if (SUGGEST_CHAIN_WALLETS.includes(walletName)) {
         await suggestChainToExtension(walletName)
@@ -316,19 +330,36 @@ export async function connectTerraWallet(
         )
       }
 
+      if (walletName === WalletName.STATION && walletType === WalletType.EXTENSION) {
+        if (isStationLocalExtension) {
+          throw new Error(
+            'Station could not connect to LocalTerra. Approve adding the LocalTerra network when Station prompts, ' +
+              `ensure the extension is unlocked, and confirm LCD ${networkConfig.lcd} is reachable.`
+          )
+        }
+        throw new Error(buildWrongNetworkConnectError('Station'))
+      }
+      if (walletType === WalletType.EXTENSION && isBrowserWalletExtensionDetected(walletName)) {
+        const label = WALLET_DISPLAY_NAMES[walletName] ?? 'Wallet'
+        throw new Error(buildWrongNetworkConnectError(label))
+      }
       throw new Error('No wallets connected')
     }
 
     const wallet = wallets.get(TERRA_CLASSIC_CHAIN_ID)
     if (!wallet) {
+      if (walletType === WalletType.EXTENSION && isBrowserWalletExtensionDetected(walletName)) {
+        const label = WALLET_DISPLAY_NAMES[walletName] ?? 'Wallet'
+        throw new Error(buildWrongNetworkConnectError(label))
+      }
       throw new Error(`Failed to connect to Terra Classic chain (${TERRA_CLASSIC_CHAIN_ID})`)
     }
 
     connectedWallets.set(TERRA_CLASSIC_CHAIN_ID, wallet)
 
-    // Second suggest after enable + wallet init — some Station builds only refresh
-    // LocalTerra gas steps reliably post-connect (GitLab #127).
-    if (suggestStationLocalGasSteps) {
+    // Second suggest after enable + wallet init — legacy Station only (GitLab #127).
+    // New Station uses addNetwork for localterra; keplr suggestChain is unsupported (#207).
+    if (isStationLocalExtension && !shouldUseStationNativeLocalNetwork()) {
       try {
         await suggestChainToExtension(walletName)
       } catch (err: unknown) {
@@ -349,17 +380,25 @@ export async function connectTerraWallet(
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
+    if (isWalletWrongNetworkError(errorMessage)) {
+      const label = WALLET_DISPLAY_NAMES[walletName] ?? 'Wallet'
+      throw new Error(buildWrongNetworkConnectError(label))
+    }
+
     if (walletName === WalletName.KEPLR) {
-      if (errorMessage.includes('not installed') || errorMessage.includes('Keplr')) {
+      if (isWalletExtensionNotInstalledError(errorMessage) || /keplr extension is not installed/i.test(errorMessage)) {
         throw new Error('Keplr wallet is not installed. Please install the Keplr extension.')
       }
       if (errorMessage.includes('chain') && errorMessage.includes('not found')) {
-        throw new Error('Terra Classic chain not found in Keplr. Please add it manually or refresh the page.')
+        throw new Error(buildWrongNetworkConnectError('Keplr'))
       }
     }
 
     if (walletName === WalletName.STATION) {
-      if (errorMessage.includes('not installed') || errorMessage.includes('Station')) {
+      if (
+        isWalletExtensionNotInstalledError(errorMessage) ||
+        /station extension is not installed/i.test(errorMessage)
+      ) {
         throw new Error('Station wallet is not installed. Please install the Station extension.')
       }
     }
