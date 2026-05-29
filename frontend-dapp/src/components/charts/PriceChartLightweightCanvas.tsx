@@ -5,6 +5,7 @@ import type { IndicatorLinePoint } from './priceChartIndicators'
 import { rsiPaneHeightPx, volumePaneHeightPx } from './priceChartPaneHeights'
 import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from './priceChartPriceScale'
 import { syncPriceChartIndicatorOverlays, type IndicatorSeriesRefs } from './priceChartLightweightIndicatorSync'
+import { loadPriceChartLightweightModule } from './priceChartLightweightModule'
 
 export interface PriceChartLightweightCanvasProps {
   candlePoints: ChartCandlePoint[]
@@ -67,7 +68,7 @@ export function PriceChartLightweightCanvas({
     async function initChart() {
       if (!containerRef.current) return
 
-      const lc = await import('lightweight-charts')
+      const lc = await loadPriceChartLightweightModule()
       if (cancelled || initId !== chartInitIdRef.current || !containerRef.current) return
 
       lcRef.current = lc

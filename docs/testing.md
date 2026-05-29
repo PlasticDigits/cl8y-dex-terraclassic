@@ -98,8 +98,8 @@ TradingView **[lightweight-charts](https://github.com/tradingview/lightweight-ch
 
 | Layer | Config / command | What runs |
 |-------|------------------|-----------|
-| **Fast stub** (default) | `vitest.config.ts` → `npm run test:run` | `lightweightChartsJsdomMock.ts` — React/indexer wiring, `createChart` spies, `setData` payloads |
-| **Real library** | `vitest.config.charts.ts` → `npm run test:charts` | Imports actual `lightweight-charts`; Node `canvas` shim in `src/test/chartsSetup.ts`; files matching `*.charts.test.{ts,tsx}` |
+| **Fast stub** (default) | `vitest.config.ts` → `npm run test:run` | `lightweightChartsJsdomMock.ts` — React/indexer wiring, `createChart` spies, `setData` payloads; canvas lifecycle in `PriceChartLightweightCanvas.test.tsx` ([#225](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/225)) |
+| **Real library** | `vitest.config.charts.ts` → `npm run test:charts` | Imports actual `lightweight-charts`; Node `canvas` shim in `src/test/chartsSetup.ts`; files matching `*.charts.test.{ts,tsx}` (includes post-layout sizing [#225](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/225)) |
 
 ```bash
 make test-frontend-charts   # from repo root

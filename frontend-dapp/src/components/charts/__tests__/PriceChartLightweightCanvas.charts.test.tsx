@@ -155,4 +155,26 @@ describe('PriceChartLightweightCanvas (real lightweight-charts, #211)', () => {
     await waitForRealCanvas()
     expect(() => unmount()).not.toThrow()
   })
+
+  it('applies positive width and height after double requestAnimationFrame (GitLab #225)', async () => {
+    const { container } = renderCanvas()
+    await waitForRealCanvas()
+
+    const chartRoot = container.querySelector('[data-testid="price-chart-lightweight-canvas"]') as HTMLElement
+    expect(chartRoot.clientWidth).toBeGreaterThan(0)
+    expect(chartRoot.clientHeight).toBeGreaterThanOrEqual(320)
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve())
+      })
+    })
+
+    const canvases = chartRoot.querySelectorAll('canvas')
+    expect(canvases.length).toBeGreaterThan(0)
+    for (const canvas of canvases) {
+      expect(canvas.width).toBeGreaterThan(0)
+      expect(canvas.height).toBeGreaterThan(0)
+    }
+  })
 })
