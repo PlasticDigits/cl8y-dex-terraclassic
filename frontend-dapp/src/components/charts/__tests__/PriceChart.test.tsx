@@ -266,6 +266,45 @@ describe('PriceChart', () => {
     })
   })
 
+  it('does not apply stale slower getCandles after switching to a faster pair (GitLab #226)', async () => {
+    let resolveA: (value: IndexerCandle[]) => void = () => {}
+    const pairAPromise = new Promise<IndexerCandle[]>((resolve) => {
+      resolveA = resolve
+    })
+    vi.mocked(indexerClient.getCandles).mockImplementation((addr: string) => {
+      if (addr === pairA) {
+        return pairAPromise
+      }
+      return Promise.resolve([candle({ open: '9', close: '9.99', high: '10', low: '8' })])
+    })
+
+    const { rerender } = renderWithProviders(<PriceChart pairAddress={pairA} />)
+    expect(screen.getByText(/loading chart/i)).toBeInTheDocument()
+
+    rerender(<PriceChart pairAddress={pairB} />)
+    await waitFor(() => expect(screen.getByTestId('price-chart-lightweight-canvas')).toBeInTheDocument())
+    await waitFor(() => {
+      const rows = lwChartTestDouble.seriesSpies[0]?.setData?.mock.calls.at(-1)?.[0] as {
+        open: number
+        close: number
+      }[]
+      expect(rows?.[0]).toMatchObject({ open: 9, close: 9.99 })
+    })
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(9.99, 6))
+
+    resolveA([candle({ open: '1', close: '1.01' })])
+    await new Promise((r) => setTimeout(r, 50))
+
+    const rowsAfterStale = lwChartTestDouble.seriesSpies.at(-2)?.setData?.mock.calls.at(-1)?.[0] as
+      | { open: number }[]
+      | undefined
+    const lastCandleRows = (rowsAfterStale ?? lwChartTestDouble.seriesSpies[0]?.setData?.mock.calls.at(-1)?.[0]) as
+      | { open: number }[]
+      | undefined
+    expect(lastCandleRows?.[0]?.open).toBe(9)
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(9.99, 6))
+  })
+
   it('remounts chart on pair switch and keeps interval switches responsive (GitLab #148 pair QA)', async () => {
     const user = userEvent.setup()
     vi.mocked(indexerClient.getCandles).mockImplementation((addr: string) =>
