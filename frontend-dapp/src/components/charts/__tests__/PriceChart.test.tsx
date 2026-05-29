@@ -91,6 +91,10 @@ describe('PriceChart', () => {
     expect(screen.getByText(/price chart\. interval 1h\./i)).toHaveAttribute('aria-live', 'polite')
     expect(screen.getByRole('button', { name: '15m candle interval' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: '1h candle interval' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('price-chart-tradingview-attribution')).toHaveAttribute(
+      'href',
+      'https://www.tradingview.com/'
+    )
   })
 
   it('shows loading then renders chart chrome when data resolves', async () => {

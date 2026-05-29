@@ -276,6 +276,18 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
               </span>
             </div>
           )}
+          <p className="mt-1 text-right shrink-0">
+            <a
+              href="https://www.tradingview.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] hover:underline"
+              style={{ color: 'var(--ink-dim)' }}
+              data-testid="price-chart-tradingview-attribution"
+            >
+              Charting by TradingView
+            </a>
+          </p>
         </div>
       )}
 

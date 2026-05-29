@@ -78,6 +78,8 @@ export function PriceChartLightweightCanvas({
         layout: {
           background: { color: 'transparent' },
           textColor: '#9ca3af',
+          /** Off-chart link in `PriceChart` satisfies Apache NOTICE; in-chart logo is focusable inside `aria-hidden`. */
+          attributionLogo: false,
           panes: {
             enableResize: false,
             separatorColor: 'rgba(255,255,255,0.32)',

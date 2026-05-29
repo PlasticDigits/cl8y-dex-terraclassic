@@ -273,6 +273,7 @@ describe('PriceChartLightweightCanvas createChart contract (stub, GitLab #227)',
       width?: number
       height?: number
     }
+    expect(opts.layout?.attributionLogo).toBe(false)
     expect(opts.layout?.panes?.enableResize).toBe(false)
     expect(opts.crosshair?.mode).toBe(0)
     expect(opts.width).toBe(640)
