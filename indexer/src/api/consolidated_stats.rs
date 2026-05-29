@@ -14,7 +14,9 @@ pub struct Cl8yConsolidatedExtensions {
     pub consolidated: bool,
     pub hybrid_trade_count_24h: String,
     pub pool_only_trade_count_24h: String,
+    /// Sum of indexed `book_return_amount` over 24h (ask / quote side of the pair).
     pub book_leg_volume_quote_24h: String,
+    /// Sum of indexed `pool_return_amount` over 24h (ask / quote side).
     pub pool_leg_volume_quote_24h: String,
 }
 

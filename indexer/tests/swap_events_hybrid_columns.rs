@@ -136,4 +136,20 @@ async fn hybrid_swap_attrs_round_trip_to_swap_events_columns() {
     );
     assert_eq!(row.offer_amount, BigDecimal::from_str("100").unwrap());
     assert_eq!(row.return_amount, BigDecimal::from_str("95").unwrap());
+
+    let pool = row.pool_return_amount.as_ref().expect("pool leg");
+    let book = row.book_return_amount.as_ref().expect("book leg");
+    assert_eq!(
+        pool + book,
+        row.return_amount,
+        "pool_return_amount + book_return_amount must equal return_amount (L10)"
+    );
+}
+
+#[test]
+fn hybrid_leg_sum_invariant_holds_for_fixture_amounts() {
+    let pool = BigDecimal::from_str("40").unwrap();
+    let book = BigDecimal::from_str("55").unwrap();
+    let total = BigDecimal::from_str("95").unwrap();
+    assert_eq!(pool + book, total);
 }

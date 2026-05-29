@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, internal_err, limit_book_lcd, AppState};
+use super::{build_asset_map, consolidated_stats, internal_err, limit_book_lcd, AppState};
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
     candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
@@ -405,6 +405,12 @@ pub struct TradeResponse {
     pub commission_amount: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub spread_amount: Option<String>,
+    /// Ask-side pool leg net (CG/CMC `pool_leg_volume` alias when hybrid attrs indexed).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pool_leg_volume: Option<String>,
+    /// Ask-side book leg net (CG/CMC `book_leg_volume` alias).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub book_leg_volume: Option<String>,
 }
 
 /// Map an indexed swap row to [`TradeResponse`] (pair + asset symbols).
@@ -421,6 +427,7 @@ pub fn trade_response_from_swap_row(
         .get(&t.ask_asset_id)
         .map(|a| a.symbol.clone())
         .unwrap_or_default();
+    let (pool_leg_volume, book_leg_volume) = consolidated_stats::hybrid_leg_volumes(t);
     TradeResponse {
         id: t.id,
         pair_address: pair_address.to_string(),
@@ -439,6 +446,8 @@ pub fn trade_response_from_swap_row(
         effective_fee_bps: t.effective_fee_bps,
         commission_amount: opt_bd_string(&t.commission_amount),
         spread_amount: opt_bd_string(&t.spread_amount),
+        pool_leg_volume,
+        book_leg_volume,
     }
 }
 

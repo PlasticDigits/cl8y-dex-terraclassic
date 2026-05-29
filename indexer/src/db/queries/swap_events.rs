@@ -282,9 +282,10 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
     })
 }
 
-/// Hybrid leg attribution for consolidated listing stats. Totals in [`get_24h_stats_for_pair`]
-/// use `offer_amount` / `return_amount` (Terraport-compatible totals); this query splits book vs
-/// pool legs without double-counting `limit_order_fills` rows.
+/// Hybrid leg attribution for consolidated listing stats (ask-side: `pool_return_amount` /
+/// `book_return_amount`). Totals in [`get_24h_stats_for_pair`] use `offer_amount` /
+/// `return_amount` (Terraport-compatible totals); this query splits book vs pool legs without
+/// double-counting `limit_order_fills` rows. See [integrators-hybrid-volume.md](../../../docs/integrators-hybrid-volume.md).
 pub async fn get_24h_hybrid_breakdown(
     pool: &PgPool,
     pair_id: i32,

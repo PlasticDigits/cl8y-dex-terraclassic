@@ -589,6 +589,8 @@ When a swap uses both the constant-product pool and the on-chain limit book in o
 
 `return_amount` = `pool_return_amount` + `book_return_amount` (total to receiver). Swap wasm attrs `spread_amount` and `commission_amount` remain **pool-leg-only** for Terraport baseline; hybrid txs also emit `book_commission_amount` (GitLab [#196](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/196)). Post-swap hook `AfterSwap.commission_amount` is **total** pool + book in the ask asset — see [integrators.md](./integrators.md#hybrid-swaps-and-post-swap-hooks-invariant-l7).
 
+**Volume reporting:** Headline 24h volume uses consolidated `offer_amount` / `return_amount` once per swap; do not sum `limit_order_fills` into pair volume. Leg fields are ask-side attribution only — [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) ([GitLab #216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)).
+
 ---
 
 ## Vyntrex Integration Notes

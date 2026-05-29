@@ -27,7 +27,7 @@ fn join_row(cells: &[String]) -> String {
 /// `text/csv` body for [`TradeResponse`] rows (UTF-8, header row).
 pub fn trader_swaps_csv(rows: &[TradeResponse]) -> String {
     let mut out = String::from(
-        "id,pair_address,block_height,block_timestamp,tx_hash,sender,offer_asset,ask_asset,offer_amount,return_amount,price,pool_return_amount,book_return_amount,limit_book_offer_consumed,effective_fee_bps,commission_amount,spread_amount\n",
+        "id,pair_address,block_height,block_timestamp,tx_hash,sender,offer_asset,ask_asset,offer_amount,return_amount,price,pool_return_amount,book_return_amount,pool_leg_volume,book_leg_volume,limit_book_offer_consumed,effective_fee_bps,commission_amount,spread_amount\n",
     );
     for r in rows {
         let row = join_row(&[
@@ -44,6 +44,8 @@ pub fn trader_swaps_csv(rows: &[TradeResponse]) -> String {
             r.price.clone(),
             r.pool_return_amount.clone().unwrap_or_default(),
             r.book_return_amount.clone().unwrap_or_default(),
+            r.pool_leg_volume.clone().unwrap_or_default(),
+            r.book_leg_volume.clone().unwrap_or_default(),
             r.limit_book_offer_consumed.clone().unwrap_or_default(),
             r.effective_fee_bps
                 .map(|x| x.to_string())

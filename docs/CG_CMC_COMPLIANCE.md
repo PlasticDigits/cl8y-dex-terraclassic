@@ -115,6 +115,8 @@ Example ticker extension:
 
 Hybrid best-execution routing for integrators: [`GET /api/v1/route/solve/best`](./integrators.md#route-discovery-and-quotes-l8). Terraport field mapping: [integrators.md § Vyntrex](./integrators.md#vyntrex--terraport-hybrid-event-mapping-gitlab-189).
 
+**Volume reconciliation (required for listings):** [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — headline 24h volume, leg attribution, anti-patterns, and API mapping ([GitLab #216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)). Indexer invariant **L10**: [indexer-invariants.md](./indexer-invariants.md).
+
 ### `GET /cg/orderbook`
 
 Returns a simulated order book derived from the AMM constant-product curve.
@@ -448,8 +450,19 @@ Individual tokens traded on the DEX can also be listed on CG/CMC:
 
 ---
 
+## Listing compliance sign-off
+
+Before submitting exchange listings, confirm:
+
+- [ ] Headline 24h volume uses consolidated `swap_events` / ticker `base_volume` & `target_volume` (not `limit_order_fills` sums).
+- [ ] Hybrid leg fields understood as **ask-side attribution**; `cl8y_extensions` leg sums are not added to standard volume fields.
+- [ ] Team has read [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) and [indexer-invariants.md](./indexer-invariants.md) **L10**.
+
+---
+
 ## Related References
 
+- [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — volume reconciliation guide (#216)
 - **`listing-api` repo** — Existing CoinGecko/CMC token supply API endpoints (implemented)
 - **`krchange-dapp/PROPOSAL_FEAT_001.md`** — CG/CMC/GeckoTerminal compatibility API proposal for KRChange
 - **`ustr-cmm/plans/DEX_PLAN.md` Section 8** — CoinGecko-compatible API specification for UST1 DEX

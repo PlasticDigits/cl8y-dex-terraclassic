@@ -87,7 +87,9 @@ Hybrid swaps emit **Terraport-compatible baseline attrs** plus CL8Y leg breakdow
 | *(none)* | `limit_book_offer_consumed` | Offer-side amount matched against the book (present when book leg > 0). |
 | *(none)* | `effective_fee_bps` | Pair effective swap fee after discount registry. |
 
-Indexer persistence and `/api/v1/pairs/{addr}/trades` expose the same columns. CG/CMC listing endpoints use **consolidated** totals in standard volume fields; optional `cl8y_extensions` / per-trade `pool_leg_volume` / `book_leg_volume` attribute book vs pool without double-counting — see [CG_CMC_COMPLIANCE.md](./CG_CMC_COMPLIANCE.md#consolidated-hybrid--pool-only-reporting-gitlab-189).
+Indexer persistence and `/api/v1/pairs/{addr}/trades` expose the same columns plus CG/CMC aliases `pool_leg_volume` / `book_leg_volume` when hybrid attrs are indexed. CG/CMC listing endpoints use **consolidated** totals in standard volume fields; optional `cl8y_extensions` attribute book vs pool without double-counting — see [CG_CMC_COMPLIANCE.md](./CG_CMC_COMPLIANCE.md#consolidated-hybrid--pool-only-reporting-gitlab-189).
+
+**Volume reconciliation (headline vs legs vs fills):** [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) ([GitLab #216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)). Agent playbook: [skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md](../skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md).
 
 Full Terraport reference: [terraport.md](./terraport.md).
 
@@ -97,3 +99,4 @@ Full Terraport reference: [terraport.md](./terraport.md).
 - [contracts-security-audit.md](./contracts-security-audit.md) — invariant matrix.
 - [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) — hybrid routing and quoting scope.
 - [ADR 0002](./adr/0002-global-best-execution-route-solver.md) — global best execution (#209).
+- [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — consolidated vs leg vs fill volumes (#216).
