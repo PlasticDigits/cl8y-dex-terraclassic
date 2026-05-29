@@ -175,6 +175,27 @@ After `nvm use` in a shell, you may `cd frontend-dapp` and run the same `npm run
 
 Config: `playwright.config.ts` (`e2e-smoke`, `e2e-tx`, `e2e-indexer-outage` projects). Agent playbook: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md).
 
+#### Price chart Playwright smoke (GitLab #228) {#price-chart-playwright-smoke-gitlab-228}
+
+Browser regression for **lightweight-charts** canvas presence and **fullscreen** aria toggles — complements Vitest ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)) and layout-only trade specs ([#146](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)).
+
+| Layer | Spec / helper | What it proves |
+|-------|----------------|----------------|
+| **Strict CI / local** | `e2e/price-chart-smoke.spec.ts` (`e2e-smoke` project) | `/charts` and `/trade` mount `price-chart-lightweight-canvas` + child `canvas`; interval `1h`→`1d` keeps canvas; read-only chart without wallet |
+| **Fullscreen (no indexer)** | Same file, mocked Fullscreen API via `e2e/helpers/price-chart.ts` | `aria-label` **Expand…** / **Exit…**, `aria-pressed`, denied enter does not remove button |
+| **UI-only skip** | `PLAYWRIGHT_SKIP_CHAIN=1` | Entire spec **skipped** (trade workspace + indexer required for toolbar and canvas) |
+| **Outage regression** | `*-indexer-outage.spec.ts` (separate job) | Unchanged — `trade-chart-unavailable` when indexer stopped ([#165](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/165), [#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
+
+```bash
+# After LocalTerra + deploy-dex-local.sh + indexer (see scripts/e2e-start-indexer.sh):
+bash scripts/e2e-start-indexer.sh
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/price-chart-smoke.spec.ts --project=e2e-smoke
+```
+
+CI job **`e2e`** starts Postgres, deploys, builds the indexer, runs **`e2e-start-indexer.sh`**, then **`npm run test:e2e`** ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)).
+
+Chart invariants: [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants). Agent: [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md).
+
 #### Frontend E2E — indexer outage {#frontend-e2e-indexer-outage}
 
 Market-data-down Playwright specs live in project **`e2e-indexer-outage`** (`**/*-indexer-outage.spec.ts`). They require the indexer HTTP API to be **stopped** while LocalTerra/Vite remain up, with **`E2E_INDEXER_OUTAGE=1`**. Default `npm run test:e2e` and the strict **`e2e`** CI job **exclude** this project — avoids flaking the strict chain suite ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)).

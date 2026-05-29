@@ -299,8 +299,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Start LocalTerra
-        run: docker compose -f docker-compose.yml up -d localterra
+      - name: Start LocalTerra and Postgres
+        run: docker compose -f docker-compose.yml up -d localterra postgres
         working-directory: .
 
       - name: Wait for LocalTerra
@@ -313,6 +313,21 @@ jobs:
 
       - name: Verify deployed contracts (GitLab #203)
         run: make qa-verify-deploy
+        working-directory: .
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: indexer
+
+      - name: Build indexer (release)
+        run: cargo build --release
+        working-directory: indexer
+
+      - name: Start indexer for chart / market-data E2E (GitLab #228)
+        run: bash scripts/e2e-start-indexer.sh
         working-directory: .
 
       - name: Run E2E tests (strict on-chain)

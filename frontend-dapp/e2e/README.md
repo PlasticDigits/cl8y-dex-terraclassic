@@ -82,6 +82,21 @@ Playbook: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../../skills/AGENTS_E2E_LIMIT
 
 UI smoke (no chain): `e2e/limit-orders.spec.ts` in `e2e-smoke` project.
 
+## Price chart smoke (`price-chart-smoke.spec.ts`)
+
+Browser checks for **lightweight-charts** canvas mount on `/charts` and `/trade`, interval switch stability, and **fullscreen** `aria-label` toggles with a mocked Fullscreen API ([GitLab **#228**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)). Helpers: `e2e/helpers/price-chart.ts`.
+
+| Mode | Behavior |
+|------|----------|
+| Strict (default CI) | Canvas tests require indexer + deploy (same stack as `trade-page-responsive.spec.ts`) |
+| `PLAYWRIGHT_SKIP_CHAIN=1` | Entire `price-chart-smoke.spec.ts` **skipped** (needs indexer + deploy like other trade E2E) |
+
+```bash
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/price-chart-smoke.spec.ts --project=e2e-smoke
+```
+
+Playbook: [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../../skills/AGENTS_FRONTEND_PRICE_CHART.md); matrix: [`docs/testing.md`](../../docs/testing.md#price-chart-playwright-smoke-gitlab-228).
+
 ## Wrap / swap tx (`wrap-swap.spec.ts`, `wrap-pool.spec.ts`, `swap-tx.spec.ts`)
 
 Native LUNC/USTC and CW20 routes must exist after `deploy-dex-local.sh`; helpers in `e2e/helpers/wrap-e2e.ts` fail in strict mode when tokens or native-wrap pool cards are missing.

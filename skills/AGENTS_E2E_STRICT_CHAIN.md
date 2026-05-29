@@ -20,6 +20,7 @@ You are changing **CI Playwright wiring**, **`e2e/helpers/chain.ts`**, **global 
 | `e2e-smoke` | All except tx globs | UI/navigation without mandatory chain |
 | `e2e-tx` | `*-tx.spec.ts`, `hybrid-swap`, `wrap-pool`, `wrap-swap` | On-chain paths; strict by default |
 | `e2e-indexer-outage` | `*-indexer-outage.spec.ts` | Market-data-down; **separate CI job** — not part of default `npm run test:e2e` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
+| `e2e-smoke` (strict) | `price-chart-smoke.spec.ts` | Canvas mount on `/charts` + `/trade`, fullscreen aria ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)); skipped when `PLAYWRIGHT_SKIP_CHAIN=1` |
 
 ## One-command repro
 
@@ -67,3 +68,4 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 - Postgres / indexer env: [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md)
 - Testing matrix: [`docs/testing.md`](../docs/testing.md) § E2E Tests
 - Indexer outage E2E (separate job): [`docs/testing.md`](../docs/testing.md#frontend-e2e-indexer-outage), [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219))
+- Price chart browser smoke: [`docs/testing.md`](../docs/testing.md#price-chart-playwright-smoke-gitlab-228), [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228))
