@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useId, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
@@ -10,6 +10,11 @@ import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/c
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
+import { MarketDataLoadingStatus } from '@/components/common/MarketDataLoadingStatus'
+import { detectMarketDataOutage } from '@/utils/marketDataOutage'
+import { LIMITS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
+import { TRADE_INDEXER_OUTAGE_BANNER_TAIL } from '@/utils/indexerTradeOutageCopy'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
 import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
@@ -135,6 +140,15 @@ export default function LimitOrdersPage() {
   const indexerPair: IndexerPair | undefined = indexerPairQuery.data
   const latestTrade = tradesForLimitQuery.data?.[0]
   const tapeHeadlineUsd = latestTrade?.price
+
+  const marketDataDown = detectMarketDataOutage(indexerPairQuery, tradesForLimitQuery)
+
+  const limitsWorkspaceFetchingCount = useIsFetching({
+    predicate: (query) =>
+      pairAddr.startsWith('terra1') &&
+      (query.queryKey[0] === 'indexer-pair-limit-orders' || query.queryKey[0] === 'pair-trades-limit-orders'),
+  })
+  const showPairSwitchLoading = pairAddr.startsWith('terra1') && limitsWorkspaceFetchingCount > 0
 
   const { refToken1PerToken0, refSource, refResolutionLoading, refResolutionError } = useLimitOrderPriceRefBundle({
     pairAddr,
@@ -399,6 +413,19 @@ export default function LimitOrdersPage() {
                 <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
                   Token0: {shortenAddress(token0)} · Token1: {shortenAddress(token1)}
                 </div>
+              )}
+
+              {selectedPair && marketDataDown && (
+                <MarketDataServiceOutageBanner
+                  testId="limits-market-data-outage-banner"
+                  title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+                  lead={LIMITS_MARKET_DATA_OUTAGE_LEAD}
+                  tail={TRADE_INDEXER_OUTAGE_BANNER_TAIL}
+                />
+              )}
+
+              {selectedPair && showPairSwitchLoading && (
+                <MarketDataLoadingStatus testId="limits-pair-switch-loading" label="Loading market data…" />
               )}
 
               {selectedPair && isPaused && (

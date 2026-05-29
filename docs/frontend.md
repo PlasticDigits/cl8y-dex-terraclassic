@@ -598,8 +598,9 @@ Retail surfaces that depend on **indexer HTTP** share banner and loading primiti
 | **LCD vs market data** | [`LcdConnectivityBanner`](../frontend-dapp/src/components/common/LcdConnectivityBanner.tsx) / [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx) cover **chain LCD** only — do not label RPC failures as “market data service.” |
 | **Retail copy** | No `VITE_INDEXER_URL`, hostnames, or “indexer unavailable” in user-visible banners ([GitLab **#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174)). Strings: [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); trade panel lines stay in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts). |
 | **Detection** | [`detectMarketDataOutage`](../frontend-dapp/src/utils/marketDataOutage.ts) ORs transport errors across passed queries (trade re-exports as `detectTradeIndexerOutage`). |
-| **Banner UI** | [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) — trade keeps `data-testid="trade-indexer-outage-banner"` and **inline** layout; Charts/Trader/Pool/Protocol use stacked layout + page `data-testid`s (`charts-market-data-outage-banner`, etc.). |
-| **Loading status** | [`MarketDataLoadingStatus`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx); trade pair switch wraps it as [`TradePairSwitchStatus`](../frontend-dapp/src/components/trade/TradePairSwitchStatus.tsx) (`trade-pair-switch-loading`). |
+| **Banner UI** | [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) — trade keeps `data-testid="trade-indexer-outage-banner"` and **inline** layout; Charts/Trader/Pool/Protocol/`/limits` use stacked layout + page `data-testid`s (`charts-market-data-outage-banner`, `limits-market-data-outage-banner`, etc.). |
+| **Loading status** | [`MarketDataLoadingStatus`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx); trade pair switch wraps it as [`TradePairSwitchStatus`](../frontend-dapp/src/components/trade/TradePairSwitchStatus.tsx) (`trade-pair-switch-loading`); `/limits` uses `limits-pair-switch-loading` on the same primitive. |
+| **`/limits` detection** | [`detectMarketDataOutage`](../frontend-dapp/src/utils/marketDataOutage.ts) on `indexer-pair-limit-orders` + `pair-trades-limit-orders` only — **not** placements list transport (logical empty OK). Lead: [`LIMITS_MARKET_DATA_OUTAGE_LEAD`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); limit-reference **tail** reuses trade [#166] string from [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts). Vitest: [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx) ([GitLab **#218**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/218)). |
 | **E2E** | Indexer-stopped specs stay **opt-in** (`E2E_INDEXER_OUTAGE=1`) — see [docs/testing.md § Frontend E2E — indexer outage](./testing.md#frontend-e2e-indexer-outage). Default CI does not stop the indexer mid-suite ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
@@ -655,6 +656,20 @@ CEX-style controls on the **Bids / Asks** depth tables on `/trade` ([GitLab **#1
 Implementation: [`useLimitOrderCancelMutation.ts`](../frontend-dapp/src/hooks/useLimitOrderCancelMutation.ts) (invalidates `limitBookPagePreview` and `wallet-indexer-history` alongside book queries), [`OrderBookPanel.tsx`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx), [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx), [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx). Types: [`limitBookTicketDraft.ts`](../frontend-dapp/src/types/limitBookTicketDraft.ts).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](../skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
+
+### Limit orders page (`/limits`) — market data outage {#limits-page-market-data-outage}
+
+When **`getPair`** or **`getTrades`** on `/limits` fails with **`isIndexerUnavailableError`**, the page shows a stacked [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) above the book (`data-testid="limits-market-data-outage-banner"`). Pair switch shows [`MarketDataLoadingStatus`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx) as `limits-pair-switch-loading` while `indexer-pair-limit-orders` / `pair-trades-limit-orders` fetch ([GitLab **#218**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/218), follow-up to **#215**).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **404 vs outage** | Indexer **404** on `getPair` does **not** show the global banner — same boundary as `/trade` ([#177](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)). |
+| **Shared book panel** | [`OrderBookPanel`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx) keeps `trade-book-unavailable-*` testids on `/limits`; page banner is additional context ([#164](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)). |
+| **Limit reference (#166)** | Banner **tail** matches trade: pool-reserve exception for buy-below / sell-above only — does not restore book depth or placements. |
+| **Place gate** | [`evaluateLimitOrderPricePlaceGate`](../frontend-dapp/src/utils/limitOrderPricePlaceGate.ts) still blocks submit when reference cannot resolve during outage. |
+| **LCD separate** | Factory pair list / escrow balances use LCD — [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx) only; do not conflate with market-data copy ([#171](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/171)). |
+
+**Third-party / agent context:** [§ Market data loading & outage (global)](#market-data-loading-outage), [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md), [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
 
 ### Limit orders page (`/limits`) — order book row actions {#limits-page-order-book-row-actions}
 

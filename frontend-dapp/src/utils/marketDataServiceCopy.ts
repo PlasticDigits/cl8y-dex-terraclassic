@@ -19,3 +19,7 @@ export const POOL_MARKET_DATA_OUTAGE_LEAD =
 
 export const PROTOCOL_MARKET_DATA_OUTAGE_LEAD =
   'Oracle reference pricing and hook activity may be limited until the service recovers.'
+
+/** Standalone `/limits` route — book, tape, placements ([GitLab #218](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/218)). */
+export const LIMITS_MARKET_DATA_OUTAGE_LEAD =
+  'Order book depth, recent trades, and indexed placements may be limited until the service recovers.'

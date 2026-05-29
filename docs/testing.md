@@ -181,9 +181,10 @@ Market-data-down Playwright specs are **opt-in** only ([GitLab **#215**](https:/
 cd frontend-dapp
 E2E_INDEXER_OUTAGE=1 npx playwright test e2e/trade-indexer-outage.spec.ts
 E2E_INDEXER_OUTAGE=1 npx playwright test e2e/charts-indexer-outage.spec.ts
+E2E_INDEXER_OUTAGE=1 npx playwright test e2e/limits-indexer-outage.spec.ts
 ```
 
-Vitest covers Charts/Trader/Pool outage banners with mocked transport errors (`npm run test:run`). Product invariants: [docs/frontend.md § Market data loading & outage](./frontend.md#market-data-loading-outage); agent: [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
+Vitest covers Charts/Trader/Pool/**Limits** outage banners with mocked transport errors (`npm run test:run`; `/limits`: [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx), GitLab **#218**). Product invariants: [docs/frontend.md § Market data loading & outage](./frontend.md#market-data-loading-outage); agent: [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
 
 **Header / tablet compact nav:** `e2e/navigation.spec.ts` asserts no horizontal overlap for the **Swap + More** row at 773×743, **1024–1098px** (follow-up cram band), and other tablet widths; the full primary row at 1280px; desktop **Swap → Pool → Trade** tab transitions without reload at 1440px ([GitLab **#182**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182)); and that **“Terra Classic ecosystem”** does not appear in the shell (header brand is logo + title only). Invariants: [docs/frontend.md § Responsive shell & header navigation](./frontend.md#responsive-header-navigation) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)); shell nav playbook [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md).
 
