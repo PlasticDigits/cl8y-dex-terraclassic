@@ -1,3 +1,8 @@
+/**
+ * Frontend integration Vitest (indexer HTTP, Postgres-backed fixtures in CI).
+ * `lightweight-charts` is stubbed via `lightweightChartsJsdomMock.ts` — not canvas.
+ * Real library: `vitest.config.charts.ts` → `npm run test:charts` (GitLab #211, #230).
+ */
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
