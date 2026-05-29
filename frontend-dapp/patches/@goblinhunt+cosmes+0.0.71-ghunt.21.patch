@@ -91,11 +91,12 @@ index bcfd177..cca2429 100644
  export class KeplrExtension extends ConnectedWallet {
      constructor(walletName, label, ext, chainId, pubKey, address, rpc, gasPrice, useAmino) {
          super(walletName, WalletType.EXTENSION, label, chainId, pubKey, address, rpc, gasPrice);
-@@ -43,11 +124,25 @@ export class KeplrExtension extends ConnectedWallet {
+@@ -43,11 +124,15 @@ export class KeplrExtension extends ConnectedWallet {
          };
          let txRaw;
          if (this.useAmino) {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
+-            txRaw = tx.toSignedAmino(signed, signature.signature);
 +            const stdDoc = tx.toStdSignDoc(params);
 +            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS));
 +            // Single sign only — a second signAmino after approval often yields "User denied, extension popup was closed" (GitLab #208).
