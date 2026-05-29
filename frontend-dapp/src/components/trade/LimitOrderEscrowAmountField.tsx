@@ -1,8 +1,11 @@
-import { useId } from 'react'
+import { useId, useMemo } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { sounds } from '@/lib/sounds'
-import { Spinner } from '@/components/ui'
-import { formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
+import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
+import {
+  computeMaxSpendableHumanAmount,
+  type MaxAmountContext,
+  type NativeSwapMaxHints,
+} from '@/utils/maxSpendableAmount'
 
 type Props = {
   escrowLabel: string
@@ -10,10 +13,15 @@ type Props = {
   amountHuman: string
   onAmountChange: (v: string) => void
   balanceQuery: UseQueryResult<string, Error>
-  /** When balance loads, set amount to full raw balance. */
+  /** When balance loads, set amount to computed max. */
   onMax: (human: string) => void
   walletConnected: boolean
   compact?: boolean
+  maxContext: MaxAmountContext
+  assetIsNativeUluna?: boolean
+  nativeSwapHints?: NativeSwapMaxHints
+  marketUsesHybrid?: boolean
+  limitPlaceRungCount?: number
   /**
    * When set (limit place only), show a headline-scaled USD line under the input when the amount is non-empty.
    * `null` means headline/ref unavailable — display an em dash (same coverage as limit price USD anchor; GitLab #155).
@@ -22,7 +30,7 @@ type Props = {
 }
 
 /**
- * Same pattern as the swap “You Pay” card: show escrow balance + Max.
+ * Escrow amount field with shared balance + Max row ([GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
  */
 export function LimitOrderEscrowAmountField({
   escrowLabel,
@@ -33,10 +41,39 @@ export function LimitOrderEscrowAmountField({
   onMax,
   walletConnected,
   compact,
+  maxContext,
+  assetIsNativeUluna = false,
+  nativeSwapHints,
+  marketUsesHybrid,
+  limitPlaceRungCount,
   escrowUsdNotionalApprox,
 }: Props) {
   const amountInputId = useId()
   const showUsd = escrowUsdNotionalApprox !== undefined && amountHuman.trim() !== ''
+
+  const maxResult = useMemo(() => {
+    if (!balanceQuery.data) {
+      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
+    }
+    return computeMaxSpendableHumanAmount({
+      balanceRaw: balanceQuery.data,
+      decimals: escrowDecimals,
+      assetIsNativeUluna,
+      context: maxContext,
+      nativeSwapHints,
+      marketUsesHybrid,
+      limitPlaceRungCount,
+    })
+  }, [
+    balanceQuery.data,
+    escrowDecimals,
+    assetIsNativeUluna,
+    maxContext,
+    nativeSwapHints,
+    marketUsesHybrid,
+    limitPlaceRungCount,
+  ])
+
   return (
     <div>
       <label className={compact ? 'label-neo text-[10px]' : 'label-neo'} htmlFor={amountInputId}>
@@ -62,41 +99,15 @@ export function LimitOrderEscrowAmountField({
           {escrowUsdNotionalApprox != null ? <span>≈ {escrowUsdNotionalApprox}</span> : <span>—</span>}
         </p>
       )}
-      {walletConnected && (
-        <div
-          className={
-            (compact ? 'text-[10px] ' : 'text-xs ') +
-            'flex flex-wrap items-center justify-between gap-2 mt-1.5 min-h-[1.25rem]'
-          }
-          style={{ color: 'var(--ink-subtle)' }}
-        >
-          <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-            <span className="shrink-0">Balance:</span>
-            {balanceQuery.isLoading ? (
-              <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
-                <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
-                <span className="sr-only">Loading balance</span>
-              </span>
-            ) : balanceQuery.isError ? (
-              <span className="font-mono">—</span>
-            ) : (
-              <span className="font-mono truncate">{formatTokenAmount(balanceQuery.data ?? '0', escrowDecimals)}</span>
-            )}
-          </span>
-          <button
-            type="button"
-            disabled={balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data}
-            onClick={() => {
-              sounds.playButtonPress()
-              if (balanceQuery.data) onMax(fromRawAmount(balanceQuery.data, escrowDecimals))
-            }}
-            className="ml-auto uppercase font-semibold tracking-wide hover:underline shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-            style={{ color: 'var(--cyan)' }}
-          >
-            Max
-          </button>
-        </div>
-      )}
+      <AmountBalanceActions
+        balanceQuery={balanceQuery}
+        decimals={escrowDecimals}
+        walletConnected={walletConnected}
+        compact={compact}
+        spendableRaw={maxResult.spendableRaw}
+        onMax={() => onMax(maxResult.human)}
+        testIdMax="limit-order-escrow-max"
+      />
     </div>
   )
 }

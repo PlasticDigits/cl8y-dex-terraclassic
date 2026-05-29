@@ -39,8 +39,11 @@ import {
   executeCw20AllowanceThen,
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateMarketPairSwapSequenceUlunaFeesTotal,
+  estimateNativeSwapUlunaFeesTotal,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
+  estimateProvideLiquidityNativeWrapUlunaFeesTotal,
 } from '../transactions'
+import { estimateFeeUlunaAmountForGasLimit, getGasLimitForTx } from '../terraGas'
 
 const mockedGetWallet = vi.mocked(getConnectedWallet)
 
@@ -453,6 +456,26 @@ describe('estimateProvideLiquidityCw20SequenceUlunaFeesTotal', () => {
     const total = estimateProvideLiquidityCw20SequenceUlunaFeesTotal()
     // 2×(200k × 28.325) + 500k × 28.325 = 25_492_500 uluna (GitLab #147)
     expect(total).toBe(25_492_500n)
+  })
+})
+
+describe('estimateNativeSwapUlunaFeesTotal (GitLab #213)', () => {
+  it('uses wrap_deposit gas for direct wrap', () => {
+    const total = estimateNativeSwapUlunaFeesTotal({ isDirectWrap: true, needsWrapInput: false })
+    expect(total).toBe(estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ wrap_deposit: {} })))
+  })
+
+  it('sums wrap + router send gas for native input swap', () => {
+    const total = estimateNativeSwapUlunaFeesTotal({ isDirectWrap: false, needsWrapInput: true, hopCount: 1 })
+    expect(total).toBeGreaterThan(estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ wrap_deposit: {} })))
+  })
+})
+
+describe('estimateProvideLiquidityNativeWrapUlunaFeesTotal (GitLab #213)', () => {
+  it('scales with wrap_deposit count in combined tx', () => {
+    const one = estimateProvideLiquidityNativeWrapUlunaFeesTotal(1)
+    const two = estimateProvideLiquidityNativeWrapUlunaFeesTotal(2)
+    expect(two).toBeGreaterThan(one)
   })
 })
 

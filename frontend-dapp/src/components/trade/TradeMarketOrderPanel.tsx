@@ -25,6 +25,8 @@ import {
 } from '@/types'
 import { getDecimals, toRawAmount, fromRawAmount, formatTokenAmount } from '@/utils/formatAmount'
 import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
+import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
+import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
@@ -137,6 +139,19 @@ export function TradeMarketOrderPanel({
   )
 
   const marketGasMin = useMemo(() => estimateMarketPairSwapSequenceUlunaFeesTotal(willSubmitHybrid), [willSubmitHybrid])
+
+  const bookLegMaxResult = useMemo(() => {
+    if (!escrowBalanceQuery.data || rawInputAmount === '0') {
+      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
+    }
+    return computeMaxSpendableHumanAmount({
+      balanceRaw: escrowBalanceQuery.data,
+      decimals: offerDecimals,
+      assetIsNativeUluna: false,
+      context: 'book_leg',
+      payAmountRaw: rawInputAmount,
+    })
+  }, [escrowBalanceQuery.data, offerDecimals, rawInputAmount])
 
   const placeEscrowGate = useMemo(
     () =>
@@ -399,6 +414,9 @@ export function TradeMarketOrderPanel({
         balanceQuery={escrowBalanceQuery}
         onMax={setMarketAmountHuman}
         walletConnected={isWalletConnected}
+        maxContext="market_swap"
+        assetIsNativeUluna={fromToken === 'uluna'}
+        marketUsesHybrid={willSubmitHybrid}
       />
       <label className="flex items-center gap-2 text-[11px] cursor-pointer">
         <input type="checkbox" checked={useHybridBook} onChange={(e) => setUseHybridBook(e.target.checked)} />
@@ -426,6 +444,17 @@ export function TradeMarketOrderPanel({
               }}
               placeholder="Leave empty for 100% book leg"
             />
+            {isWalletConnected && fromToken.startsWith('terra1') && (
+              <AmountBalanceActions
+                balanceQuery={escrowBalanceQuery}
+                decimals={offerDecimals}
+                walletConnected={isWalletConnected}
+                compact
+                spendableRaw={bookLegMaxResult.spendableRaw}
+                onMax={() => setBookInputHuman(bookLegMaxResult.human)}
+                testIdMax="trade-market-book-leg-max"
+              />
+            )}
           </div>
           <div>
             <label className="label-neo text-[10px]" htmlFor={maxMakersInputId}>

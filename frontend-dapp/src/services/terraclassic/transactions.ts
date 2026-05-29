@@ -4,6 +4,7 @@ import {
   estimateFeeUlunaAmountForGasLimit,
   gasLimitForLimitOrderBatch,
   getGasLimitForTx,
+  totalGasLimitForExecuteMsgs,
 } from './terraGas'
 import { broadcastTerraExecuteContracts, type TerraExecuteContractEntry } from './terraBroadcast'
 
@@ -60,6 +61,58 @@ export function estimateProvideLiquidityCw20SequenceUlunaFeesTotal(): bigint {
   const allowanceGas = getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
   const provideGas = getGasLimitForTx({ provide_liquidity: {} })
   return estimateFeeUlunaAmountForGasLimit(allowanceGas) * 2n + estimateFeeUlunaAmountForGasLimit(provideGas)
+}
+
+export type NativeSwapFeeHints = {
+  isDirectWrap: boolean
+  needsWrapInput: boolean
+  hopCount?: number
+}
+
+/**
+ * Minimum native fee (uluna) for native-input swap paths in `executeNativeSwap` ([GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
+ * Single-tx wrap uses one envelope; wrap + router send uses summed gas like `executeTerraContractMulti`.
+ */
+export function estimateNativeSwapUlunaFeesTotal(hints: NativeSwapFeeHints): bigint {
+  if (hints.isDirectWrap) {
+    return estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ wrap_deposit: {} }))
+  }
+
+  const hopCount = Math.max(1, hints.hopCount ?? 1)
+  const swapHookMsg = {
+    execute_swap_operations: {
+      operations: Array.from({ length: hopCount }, () => ({ terra_swap: {} })),
+      max_spread: '0',
+    },
+  }
+  const sendMsg = {
+    send: {
+      contract: '',
+      amount: '',
+      msg: btoa(JSON.stringify(swapHookMsg)),
+    },
+  }
+
+  if (hints.needsWrapInput) {
+    const msgs = [{ msg: { wrap_deposit: {} } }, { msg: sendMsg }]
+    return estimateFeeUlunaAmountForGasLimit(totalGasLimitForExecuteMsgs(msgs))
+  }
+
+  return estimateFeeUlunaAmountForGasLimit(getGasLimitForTx(sendMsg))
+}
+
+/**
+ * Native wrap + provide liquidity combined tx (`PoolPage` multi-msg path, [GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
+ */
+export function estimateProvideLiquidityNativeWrapUlunaFeesTotal(wrapDepositCount: 1 | 2 = 1): bigint {
+  const msgs: Array<{ msg: Record<string, unknown> }> = []
+  for (let i = 0; i < wrapDepositCount; i++) {
+    msgs.push({ msg: { wrap_deposit: {} } })
+  }
+  msgs.push({ msg: { increase_allowance: { spender: '', amount: '' } } })
+  msgs.push({ msg: { increase_allowance: { spender: '', amount: '' } } })
+  msgs.push({ msg: { provide_liquidity: {} } })
+  return estimateFeeUlunaAmountForGasLimit(totalGasLimitForExecuteMsgs(msgs))
 }
 
 /**

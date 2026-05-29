@@ -35,8 +35,10 @@ import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
-import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
+import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
+import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
@@ -235,6 +237,46 @@ export default function SwapPage() {
 
   const needsWrapCheck = isWrapOrUnwrap ? wrapUnwrapType === 'wrap' : (nativeRouteInfo?.needsWrapInput ?? false)
   const wrapDenom = needsWrapCheck ? (isNativeDenom(fromToken) ? fromToken : null) : null
+
+  const payIsNativeUluna = isNativeDenom(fromToken)
+  const payMaxResult = useMemo(() => {
+    if (!balanceQuery.data) {
+      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
+    }
+    return computeMaxSpendableHumanAmount({
+      balanceRaw: balanceQuery.data,
+      decimals: offerDecimals,
+      assetIsNativeUluna: payIsNativeUluna,
+      context: payIsNativeUluna ? 'swap_native' : 'swap_cw20',
+      nativeSwapHints: payIsNativeUluna
+        ? {
+            isDirectWrap: wrapUnwrapType === 'wrap',
+            needsWrapInput: nativeRouteInfo?.needsWrapInput ?? false,
+            hopCount: nativeRouteInfo?.operations?.length,
+          }
+        : undefined,
+    })
+  }, [
+    balanceQuery.data,
+    offerDecimals,
+    payIsNativeUluna,
+    wrapUnwrapType,
+    nativeRouteInfo?.needsWrapInput,
+    nativeRouteInfo?.operations?.length,
+  ])
+
+  const bookLegMaxResult = useMemo(() => {
+    if (!balanceQuery.data || rawInputAmount === '0') {
+      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
+    }
+    return computeMaxSpendableHumanAmount({
+      balanceRaw: balanceQuery.data,
+      decimals: offerDecimals,
+      assetIsNativeUluna: false,
+      context: 'book_leg',
+      payAmountRaw: rawInputAmount,
+    })
+  }, [balanceQuery.data, offerDecimals, rawInputAmount])
 
   const pausedQuery = useQuery({
     queryKey: ['wrapMapperPaused'],
@@ -753,6 +795,17 @@ export default function SwapPage() {
                           }}
                           placeholder="0.0"
                         />
+                        {isWalletConnected && fromToken.startsWith('terra1') && (
+                          <AmountBalanceActions
+                            balanceQuery={balanceQuery}
+                            decimals={offerDecimals}
+                            walletConnected={isWalletConnected}
+                            compact
+                            spendableRaw={bookLegMaxResult.spendableRaw}
+                            onMax={() => setBookInputHuman(bookLegMaxResult.human)}
+                            testIdMax="swap-book-leg-max"
+                          />
+                        )}
                       </div>
                       <div>
                         <label className="label-neo text-[10px]" htmlFor={swapHybridMaxMakersInputId}>
@@ -850,40 +903,15 @@ export default function SwapPage() {
                 style={{ color: 'var(--ink)' }}
               />
               {isWalletConnected && (
-                <div
-                  className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs min-h-[1.5rem]"
-                  style={{ color: 'var(--ink-subtle)' }}
-                >
-                  <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                    <span className="shrink-0">Balance:</span>
-                    {!offerAssetInfo ? (
-                      <span className="font-mono">—</span>
-                    ) : balanceQuery.isLoading ? (
-                      <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
-                        <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
-                        <span className="sr-only">Loading balance</span>
-                      </span>
-                    ) : balanceQuery.isError ? (
-                      <span className="font-mono">—</span>
-                    ) : (
-                      <span className="font-mono truncate">
-                        {formatTokenAmount(balanceQuery.data ?? '0', getDecimals(offerAssetInfo))}
-                      </span>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={!offerAssetInfo || balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data}
-                    onClick={() => {
-                      sounds.playButtonPress()
-                      if (balanceQuery.data) setInputAmount(fromRawAmount(balanceQuery.data, offerDecimals))
-                    }}
-                    className="ml-auto uppercase font-semibold tracking-wide hover:underline shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-                    style={{ color: 'var(--cyan)' }}
-                  >
-                    Max
-                  </button>
-                </div>
+                <AmountBalanceActions
+                  balanceQuery={balanceQuery}
+                  decimals={offerDecimals}
+                  walletConnected={isWalletConnected}
+                  showBalance={!!offerAssetInfo}
+                  spendableRaw={payMaxResult.spendableRaw}
+                  onMax={() => setInputAmount(payMaxResult.human)}
+                  testIdMax="swap-pay-max"
+                />
               )}
             </div>
 
