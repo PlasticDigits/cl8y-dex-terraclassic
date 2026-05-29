@@ -1,22 +1,5 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
-import { getTokenBalance } from '@/services/terraclassic/queries'
-import { tokenAssetInfo } from '@/types'
-
 /**
- * CW20 balance for a connected wallet (shared `tokenBalance` cache key with swap/pool/limit flows).
+ * Generic CW20 wallet balance (GitLab #231).
+ * Single implementation with limit escrow — shared React Query key `['tokenBalance', address, terra1…]`.
  */
-export function useTokenBalance(
-  walletAddress: string | null | undefined,
-  tokenContractAddr: string
-): UseQueryResult<string, Error> {
-  const addr = walletAddress ?? undefined
-  return useQuery({
-    queryKey: ['tokenBalance', addr, tokenContractAddr],
-    queryFn: () => {
-      if (!addr) throw new Error('No wallet')
-      return getTokenBalance(addr, tokenAssetInfo(tokenContractAddr))
-    },
-    enabled: !!addr && tokenContractAddr.startsWith('terra1'),
-    refetchInterval: 15_000,
-  })
-}
+export { useLimitOrderEscrowBalance as useTokenBalance } from '@/hooks/useLimitOrderEscrowBalance'

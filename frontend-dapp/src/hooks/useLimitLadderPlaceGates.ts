@@ -9,8 +9,8 @@ import {
   type LimitOrderEscrowPlaceGateResult,
 } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
+import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
-import { useTokenBalance } from '@/hooks/useTokenBalance'
 
 export type LimitLadderPlaceGates = {
   escrowGate: LimitOrderEscrowPlaceGateResult
@@ -42,7 +42,7 @@ export function useLimitLadderPlaceGates(
   escrowDecimals: number,
   rungCount: number
 ): LimitLadderPlaceGates {
-  const escrowBalanceQuery = useTokenBalance(walletAddress, escrowToken)
+  const escrowBalanceQuery = useLimitOrderEscrowBalance(walletAddress, escrowToken)
   const nativeUlunaQuery = useNativeUlunaBalance(walletAddress)
 
   const batchMinUluna = useMemo(() => estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount), [rungCount])
