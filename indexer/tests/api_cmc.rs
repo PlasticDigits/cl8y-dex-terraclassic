@@ -70,6 +70,28 @@ async fn cmc_trades_returns_trades() {
 }
 
 #[tokio::test]
+async fn cmc_orderbook_returns_openware_array_wrapper() {
+    let mock = common::lcd_mock::start_pool_query_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/cmc/orderbook/LUNC_USTC").await;
+    if resp.status_code().is_success() {
+        let body: Value = resp.json();
+        let arr = body.as_array().expect("Openware orderbook root array");
+        assert_eq!(arr.len(), 1);
+        assert!(arr[0]["timestamp"].is_number());
+        assert!(arr[0]["bids"].is_array());
+        assert!(arr[0]["asks"].is_array());
+    }
+}
+
+#[tokio::test]
 async fn cmc_orderbook_invalid_market_pair_returns_400() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
@@ -90,8 +112,9 @@ async fn cmc_orderbook_depth_capped_when_ok() {
     let resp = server.get("/cmc/orderbook/LUNC_USTC?depth=9999").await;
     if resp.status_code().is_success() {
         let body: Value = resp.json();
-        let bids = body["bids"].as_array().unwrap();
-        let asks = body["asks"].as_array().unwrap();
+        let ob = body.as_array().and_then(|a| a.first()).expect("array wrapper");
+        let bids = ob["bids"].as_array().unwrap();
+        let asks = ob["asks"].as_array().unwrap();
         assert!(bids.len() <= 50);
         assert!(asks.len() <= 50);
     }

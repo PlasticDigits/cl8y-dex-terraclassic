@@ -10,6 +10,33 @@ fn parse_level_price(level: &[String; 2]) -> f64 {
     level[0].parse().expect("price string")
 }
 
+fn assert_numeric_timestamp_ms(body: &Value) {
+    let ts = body["timestamp"]
+        .as_i64()
+        .or_else(|| body["timestamp"].as_u64().map(|u| u as i64))
+        .expect("CG orderbook timestamp must be JSON number");
+    assert!(ts > 1_700_000_000_000, "CG timestamp should be Unix ms: {ts}");
+}
+
+fn cmc_orderbook_entry(body: &Value) -> &Value {
+    body.as_array()
+        .and_then(|a| a.first())
+        .expect("CMC orderbook must be a JSON array with one object (Openware)")
+}
+
+fn assert_numeric_timestamp_s(body: &Value) {
+    let body = cmc_orderbook_entry(body);
+    let ts = body["timestamp"]
+        .as_i64()
+        .or_else(|| body["timestamp"].as_u64().map(|u| u as i64))
+        .expect("CMC orderbook timestamp must be JSON number");
+    assert!(ts > 1_700_000_000, "CMC timestamp should be Unix seconds: {ts}");
+    assert!(
+        ts < 1_700_000_000_000,
+        "CMC orderbook must not use millisecond magnitude: {ts}"
+    );
+}
+
 #[tokio::test]
 async fn cg_orderbook_200_simulated_depth_matches_query() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -32,6 +59,7 @@ async fn cg_orderbook_200_simulated_depth_matches_query() {
     assert_eq!(asks.len(), 25);
     assert!(bids.len() <= 50);
     assert!(asks.len() <= 50);
+    assert_numeric_timestamp_ms(&body);
 }
 
 #[tokio::test]
@@ -126,8 +154,17 @@ async fn cg_and_cmc_orderbook_levels_match_for_same_pair() {
         .await
         .json();
     let cmc: Value = server.get("/cmc/orderbook/LUNC_USTC?depth=15").await.json();
-    assert_eq!(cg["bids"], cmc["bids"]);
-    assert_eq!(cg["asks"], cmc["asks"]);
+    let cmc_ob = cmc_orderbook_entry(&cmc);
+    assert_eq!(cg["bids"], cmc_ob["bids"]);
+    assert_eq!(cg["asks"], cmc_ob["asks"]);
+    assert_numeric_timestamp_ms(&cg);
+    assert_numeric_timestamp_s(&cmc);
+    let cg_ms = cg["timestamp"].as_i64().unwrap();
+    let cmc_s = cmc_ob["timestamp"].as_i64().unwrap();
+    assert!(
+        (cg_ms / 1000 - cmc_s).abs() <= 1,
+        "CG ms and CMC s should be same instant: cg_ms={cg_ms} cmc_s={cmc_s}"
+    );
 }
 
 #[tokio::test]
@@ -144,10 +181,12 @@ async fn cmc_orderbook_200_with_lcd_mock() {
     let resp = server.get("/cmc/orderbook/LUNC_USTC?depth=15").await;
     resp.assert_status_ok();
     let body: Value = resp.json();
-    let bids = body["bids"].as_array().unwrap();
-    let asks = body["asks"].as_array().unwrap();
+    let ob = cmc_orderbook_entry(&body);
+    let bids = ob["bids"].as_array().unwrap();
+    let asks = ob["asks"].as_array().unwrap();
     assert_eq!(bids.len(), 7);
     assert_eq!(asks.len(), 7);
+    assert_numeric_timestamp_s(&body);
 }
 
 #[tokio::test]

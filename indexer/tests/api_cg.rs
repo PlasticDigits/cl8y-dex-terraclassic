@@ -52,6 +52,13 @@ async fn cg_historical_trades_returns_trades() {
     let body: Value = resp.json();
     assert!(body["buy"].is_array());
     assert!(body["sell"].is_array());
+    if let Some(trade) = body["buy"].as_array().and_then(|a| a.first()) {
+        let ts = trade["trade_timestamp"].as_i64().unwrap();
+        assert!(
+            ts > 1_700_000_000 && ts < 1_700_000_000_000,
+            "trade_timestamp must be Unix seconds: {ts}"
+        );
+    }
 }
 
 #[tokio::test]

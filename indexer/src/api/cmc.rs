@@ -4,12 +4,12 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use bigdecimal::ToPrimitive;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
-    build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, orderbook_sim, AppState,
+    build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, listing_timestamps,
+    orderbook_sim, AppState,
 };
 use crate::db::queries::{assets, pairs as db_pairs, swap_events};
 
@@ -228,7 +228,8 @@ pub struct CmcOrderbookQuery {
 
 #[derive(Serialize, ToSchema)]
 pub struct CmcOrderbookResponse {
-    pub timestamp: String,
+    /// Unix timestamp in **seconds** (GitLab #222; same unit as `/cmc/trades`).
+    pub timestamp: i64,
     pub bids: Vec<[String; 2]>,
     pub asks: Vec<[String; 2]>,
 }
@@ -241,7 +242,7 @@ pub struct CmcOrderbookResponse {
         CmcOrderbookQuery,
     ),
     responses(
-        (status = 200, description = "Hybrid-simulated orderbook (AMM curve + resting limits, #220)", body = CmcOrderbookResponse),
+        (status = 200, description = "Hybrid-simulated orderbook (Openware array wrapper; #220)", body = Vec<CmcOrderbookResponse>),
         (status = 400, description = "Invalid market pair format"),
         (status = 404, description = "Pair not found"),
         (status = 500, description = "Internal server error"),
@@ -252,7 +253,7 @@ pub async fn cmc_orderbook(
     State(state): State<AppState>,
     Path(market_pair): Path<String>,
     Query(q): Query<CmcOrderbookQuery>,
-) -> Result<Json<CmcOrderbookResponse>, (StatusCode, String)> {
+) -> Result<Json<Vec<CmcOrderbookResponse>>, (StatusCode, String)> {
     let depth = orderbook_sim::cap_orderbook_depth(q.depth);
     let pair_addr = find_pair_by_ticker(&state, &market_pair).await?;
 
@@ -266,11 +267,12 @@ pub async fn cmc_orderbook(
     .await
     .map_err(internal_err)?;
 
-    Ok(Json(CmcOrderbookResponse {
-        timestamp: Utc::now().to_rfc3339(),
+    let ts = listing_timestamps::ListingOrderbookTimestamps::now();
+    Ok(Json(vec![CmcOrderbookResponse {
+        timestamp: ts.cmc_s,
         bids: ob.bids,
         asks: ob.asks,
-    }))
+    }]))
 }
 
 // ---------- /cmc/trades/:market_pair ----------
