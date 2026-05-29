@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -15,10 +15,15 @@ import WalletModal from './WalletModal'
 export default function WalletButton() {
   const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen } = useWalletStore()
   const [showDropdown, setShowDropdown] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const chainLogoPath = getTerraChainLogoPath(NETWORKS[DEFAULT_NETWORK].terra.chainId)
   const { shortLabel: networkShortLabel } = getNetworkBadgeCopy()
 
-  const closeWalletMenu = () => setShowDropdown(false)
+  const closeWalletMenu = () => {
+    setShowDropdown(false)
+    requestAnimationFrame(() => triggerRef.current?.focus())
+  }
 
   const handleSwitchWallet = () => {
     void disconnect().then(() => setWalletModalOpen(true))
@@ -37,16 +42,28 @@ export default function WalletButton() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [showDropdown])
 
+  useEffect(() => {
+    if (!showDropdown) return
+    const frame = requestAnimationFrame(() => {
+      const menu = menuRef.current
+      const firstItem = menu?.querySelector<HTMLElement>('[role="menuitem"]')
+      ;(firstItem ?? menu)?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [showDropdown])
+
   if (address) {
     return (
       <>
         <div className="wallet-dropdown-wrap">
           <button
+            ref={triggerRef}
+            type="button"
             onClick={() => {
               sounds.playButtonPress()
               setShowDropdown(!showDropdown)
             }}
-            aria-haspopup="true"
+            aria-haspopup="menu"
             aria-expanded={showDropdown}
             aria-label={`Connected wallet on ${networkShortLabel}`}
             className="wallet-trigger wallet-trigger-connected"
@@ -77,7 +94,7 @@ export default function WalletButton() {
                 className="app-menu-dismiss"
                 onClick={closeWalletMenu}
               />
-              <div role="menu" className="wallet-menu animate-fade-in-up" style={{ animationDuration: '0.2s' }}>
+              <div className="wallet-menu animate-fade-in-up" style={{ animationDuration: '0.2s' }}>
                 <div className="px-3 py-2 border-b border-white/10 space-y-1 min-w-0">
                   <WalletLuncBalance address={address} />
                   <AddressRow
@@ -89,51 +106,54 @@ export default function WalletButton() {
                     data-testid="wallet-menu-address-row"
                   />
                 </div>
-                <WalletDropdownMenuItems
-                  address={address}
-                  onClose={closeWalletMenu}
-                  onSwitchWallet={handleSwitchWallet}
-                />
-                <Link
-                  role="menuitem"
-                  to={`/trader/${address}`}
-                  onClick={() => {
-                    sounds.playButtonPress()
-                    closeWalletMenu()
-                  }}
-                  className="wallet-menu-item"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                  Trader profile
-                </Link>
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    sounds.playButtonPress()
-                    void disconnect()
-                    closeWalletMenu()
-                  }}
-                  className="wallet-menu-item"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  Disconnect
-                </button>
+                <div ref={menuRef} role="menu" tabIndex={-1}>
+                  <WalletDropdownMenuItems
+                    address={address}
+                    onClose={closeWalletMenu}
+                    onSwitchWallet={handleSwitchWallet}
+                  />
+                  <Link
+                    role="menuitem"
+                    to={`/trader/${address}`}
+                    onClick={() => {
+                      sounds.playButtonPress()
+                      closeWalletMenu()
+                    }}
+                    className="wallet-menu-item"
+                    style={{ color: 'var(--ink-dim)' }}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    Trader profile
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      sounds.playButtonPress()
+                      void disconnect()
+                      closeWalletMenu()
+                    }}
+                    className="wallet-menu-item"
+                    style={{ color: 'var(--ink-dim)' }}
+                  >
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Disconnect
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -146,11 +166,13 @@ export default function WalletButton() {
   return (
     <>
       <button
+        type="button"
         onClick={() => {
           sounds.playButtonPress()
           setWalletModalOpen(true)
         }}
         disabled={isConnecting}
+        aria-label={isConnecting ? 'Connecting wallet' : 'Connect wallet'}
         className="btn-primary !px-3 !py-2 sm:!px-4 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <span className="flex items-center gap-2">

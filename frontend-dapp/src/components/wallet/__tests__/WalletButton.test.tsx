@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import WalletButton from '../WalletButton'
@@ -126,6 +126,21 @@ describe('WalletButton menu dismiss (GitLab #187)', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { expanded: false })).toBeInTheDocument()
+  })
+
+  it('moves focus into the menu on open and returns to trigger on Escape (GitLab #214)', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    const trigger = screen.getByRole('button', { name: /Connected wallet on Local/i })
+    await user.click(trigger)
+    await waitFor(() => expect(screen.getByTestId('wallet-menu-copy-address')).toHaveFocus())
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    await waitFor(() => expect(trigger).toHaveFocus())
   })
 })
 
