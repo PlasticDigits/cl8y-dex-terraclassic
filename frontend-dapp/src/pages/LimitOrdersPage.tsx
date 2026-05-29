@@ -11,7 +11,7 @@ import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
-import { formatNum, fromRawAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
@@ -21,6 +21,7 @@ import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessa
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { useLimitOrderPriceRefBundle } from '@/hooks/useLimitOrderPriceRefBundle'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
+import { useLimitEscrowMaxReapply } from '@/hooks/useLimitEscrowMaxReapply'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
@@ -163,19 +164,14 @@ export default function LimitOrdersPage() {
     [side, escrowAmountSource, setLimitEscrowAmountFromMaxReapply, resetLimitEscrowAmount]
   )
 
-  useEffect(() => {
-    if (escrowAmountSource !== 'max') return
-    if (escrowBalanceQuery.isLoading || escrowBalanceQuery.isError || !escrowBalanceQuery.data) return
-    const human = fromRawAmount(escrowBalanceQuery.data, escrowDecimals)
-    setLimitEscrowAmountFromMaxReapply(human)
-  }, [
+  useLimitEscrowMaxReapply({
     escrowAmountSource,
-    escrowBalanceQuery.isLoading,
-    escrowBalanceQuery.isError,
-    escrowBalanceQuery.data,
+    balanceQuery: escrowBalanceQuery,
     escrowDecimals,
+    assetIsNativeUluna: escrowToken === 'uluna',
+    limitPlaceRungCount: 1,
     setLimitEscrowAmountFromMaxReapply,
-  ])
+  })
 
   const isPaused = pausedQuery.data?.paused === true
 
@@ -511,6 +507,8 @@ export default function LimitOrdersPage() {
                       balanceQuery={escrowBalanceQuery}
                       onMax={onLimitAmountMax}
                       walletConnected={isWalletConnected}
+                      maxContext="limit_place"
+                      assetIsNativeUluna={escrowToken === 'uluna'}
                       escrowUsdNotionalApprox={escrowUsdNotionalApprox}
                     />
                     <LimitOrderExpiryField value={expiresAt} onChange={setExpiresAt} idPrefix="limit-orders-page" />

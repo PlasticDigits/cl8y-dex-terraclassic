@@ -131,7 +131,8 @@ describe('PoolPage', () => {
     const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
     await user.click(provide[0]!)
 
-    expect(await screen.findAllByLabelText(/Balance and actions for/i)).toHaveLength(2)
+    expect(await screen.findAllByTestId('pool-add-max-a')).toHaveLength(1)
+    expect(await screen.findAllByTestId('pool-add-max-b')).toHaveLength(1)
     const balanceLines = screen.getAllByText(/^Balance:/i)
     expect(balanceLines.length).toBeGreaterThanOrEqual(2)
 

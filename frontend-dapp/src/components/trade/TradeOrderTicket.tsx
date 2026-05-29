@@ -12,7 +12,7 @@ import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair, type IndexerTrade, type PairInfo } from '@/types'
-import { formatNum, fromRawAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
@@ -22,6 +22,7 @@ import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPoll
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
+import { useLimitEscrowMaxReapply } from '@/hooks/useLimitEscrowMaxReapply'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
@@ -201,19 +202,14 @@ function TradeOrderTicketContent({
     [side, escrowAmountSource, setLimitEscrowAmountFromMaxReapply, resetLimitEscrowAmount]
   )
 
-  useEffect(() => {
-    if (escrowAmountSource !== 'max') return
-    if (escrowBalanceQuery.isLoading || escrowBalanceQuery.isError || !escrowBalanceQuery.data) return
-    const human = fromRawAmount(escrowBalanceQuery.data, escrowDecimals)
-    setLimitEscrowAmountFromMaxReapply(human)
-  }, [
+  useLimitEscrowMaxReapply({
     escrowAmountSource,
-    escrowBalanceQuery.isLoading,
-    escrowBalanceQuery.isError,
-    escrowBalanceQuery.data,
+    balanceQuery: escrowBalanceQuery,
     escrowDecimals,
+    assetIsNativeUluna: escrowToken === 'uluna',
+    limitPlaceRungCount: 1,
     setLimitEscrowAmountFromMaxReapply,
-  ])
+  })
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
 
   const {
@@ -647,6 +643,8 @@ function TradeOrderTicketContent({
               balanceQuery={escrowBalanceQuery}
               onMax={onLimitAmountMax}
               walletConnected={isWalletConnected}
+              maxContext="limit_place"
+              assetIsNativeUluna={escrowToken === 'uluna'}
               escrowUsdNotionalApprox={escrowUsdNotionalApprox}
             />
             <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
