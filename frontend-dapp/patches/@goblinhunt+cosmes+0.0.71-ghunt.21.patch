@@ -97,20 +97,10 @@ index bcfd177..cca2429 100644
          if (this.useAmino) {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
 +            const stdDoc = tx.toStdSignDoc(params);
-+            let signed;
-+            let signature;
-+            for (let attempt = 0; attempt < 2; attempt++) {
-+                ({ signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS)));
-+                try {
-+                    assertExtensionSignedFeeMeetsExpected(signed, fee, this.chainId);
-+                    break;
-+                }
-+                catch (err) {
-+                    if (attempt === 1)
-+                        throw err;
-+                }
-+            }
-             txRaw = tx.toSignedAmino(signed, signature.signature);
++            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS));
++            // Single sign only — a second signAmino after approval often yields "User denied, extension popup was closed" (GitLab #208).
++            assertExtensionSignedFeeMeetsExpected(signed, fee, this.chainId);
++            txRaw = tx.toSignedAmino(signed, signature.signature);
          }
          else {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params)));
@@ -192,9 +182,9 @@ index 021a61a..bbf719c 100644
                      chainId,
                  });
 -                wallets.set(chainId, new StationExtension(this.id, name, ext, chainId, key, bech32Address, rpc, gasPrice, isNanoLedger));
-+                // GitLab #127: Station's Keplr shim can rebuild Fee.amount from stale gas steps on signDirect for LocalTerra.
-+                const isLocalTerraChain = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
-+                const useAminoSigning = isNanoLedger || isLocalTerraChain;
++                // GitLab #127 / #208: Station's Keplr shim mishandles signDirect (fee rewrite, false "User denied").
++                // Always use amino for the extension path; Ledger already required amino in upstream cosmes.
++                const useAminoSigning = true;
 +                wallets.set(chainId, new StationExtension(this.id, name, ext, chainId, key, bech32Address, rpc, gasPrice, useAminoSigning));
              }
              catch (err) {

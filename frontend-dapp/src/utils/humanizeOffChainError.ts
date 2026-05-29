@@ -23,6 +23,10 @@ export function tryHumanizeWalletLikeMessage(message: string): string | null {
     return 'WalletConnect finished connecting, but the wallet session did not complete. Close this and try again, or choose another wallet.'
   }
 
+  if (/extension popup was closed/i.test(m) && !/transaction rejected by user/i.test(m)) {
+    return 'Station closed the signing popup before the transaction completed. Disconnect and reconnect Station, approve any Terra Classic network update, then retry.'
+  }
+
   if (/user rejected|rejected the request|request rejected|signing rejected|reject(ed)?\s+sign/i.test(m)) {
     return 'Wallet action was declined in the extension or mobile wallet. Nothing was submitted on-chain.'
   }

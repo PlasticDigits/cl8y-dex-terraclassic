@@ -33,6 +33,12 @@ describe('tryHumanizeWalletLikeMessage', () => {
       /WalletConnect finished/
     )
   })
+
+  it('maps Station false popup-closed denial (GitLab #208)', () => {
+    const raw = 'WalletError: User denied, extension popup was closed.'
+    expect(tryHumanizeWalletLikeMessage(raw)).toMatch(/Station closed the signing popup/)
+    expect(tryHumanizeWalletLikeMessage(raw)).not.toMatch(/declined in the extension/)
+  })
 })
 
 describe('tryHumanizeFetchLikeMessage', () => {

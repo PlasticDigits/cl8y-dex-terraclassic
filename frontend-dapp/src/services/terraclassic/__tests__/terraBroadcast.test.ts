@@ -1,3 +1,4 @@
+import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { broadcastTerraExecuteContracts } from '../terraBroadcast'
 
@@ -34,5 +35,16 @@ describe('broadcastTerraExecuteContracts (GitLab #127)', () => {
       { contract: 'terra1b', msg: { decrease_allowance: { spender: 'terra1p', amount: '2' } } },
     ])
     expect(mockBroadcastTx).toHaveBeenCalledTimes(2)
+  })
+
+  it('maps Station false popup-closed WalletError (GitLab #208)', async () => {
+    mockBroadcastTx.mockRejectedValueOnce(new Error('WalletError: User denied, extension popup was closed.'))
+    await expect(
+      broadcastTerraExecuteContracts(
+        { ...mockWallet, id: WalletName.STATION, type: WalletType.EXTENSION } as never,
+        'terra1sender',
+        [{ contract: 'terra1a', msg: { swap: {} } }]
+      )
+    ).rejects.toThrow(/Station closed the signing popup/)
   })
 })

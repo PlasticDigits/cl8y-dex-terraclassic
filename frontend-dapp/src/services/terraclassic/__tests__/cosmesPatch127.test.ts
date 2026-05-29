@@ -20,13 +20,13 @@ describe('cosmes patch-package (GitLab #127)', () => {
     expect(src).toContain('meetsMinSignedRatio')
     expect(src).toContain('ulunaFromAminoFee')
     expect(src).toContain('ulunaFromDirectSignedAuthInfoBytes')
-    expect(src).toContain('for (let attempt = 0; attempt < 2; attempt++)')
+    expect(src).not.toContain('for (let attempt = 0; attempt < 2; attempt++)')
+    expect(src).toMatch(/GitLab #208|extension popup was closed/)
   })
 
-  it('StationController uses amino signing for LocalTerra (case-insensitive)', () => {
+  it('StationController always uses amino signing for extension (GitLab #208)', () => {
     const src = readCosmes('dist/wallet/wallets/station/StationController.js')
-    expect(src).toContain('isLocalTerraChain')
-    expect(src).toContain('toLowerCase() === "localterra"')
-    expect(src).toContain('useAminoSigning')
+    expect(src).toContain('useAminoSigning = true')
+    expect(src).toMatch(/GitLab #127|#208/)
   })
 })

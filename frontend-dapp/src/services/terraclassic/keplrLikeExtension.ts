@@ -9,7 +9,7 @@ export type KeplrExperimentalSuggest = {
 /**
  * Resolve the browser extension object that implements `experimentalSuggestChain`.
  * Station exposes this under `window.station.keplr` (GitLab #127: LocalTerra fee/gas step refresh).
- * For **signing** behaviour on LocalTerra + Station, see the cosmes patch (`StationController` amino path, `KeplrExtension` `preferNoSetFee`) and [`skills/AGENTS_TERRACLASSIC_GAS.md`](../../../../skills/AGENTS_TERRACLASSIC_GAS.md).
+ * For **signing** behaviour with Station, see the cosmes patch (`StationController` → amino, `KeplrExtension` `preferNoSetFee`), [`stationExtensionConfig.ts`](./stationExtensionConfig.ts), and [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../../../../skills/AGENTS_FRONTEND_STATION_SIGNING.md) ([GitLab #208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)).
  */
 export function getKeplrLikeExtension(walletName: WalletName): KeplrExperimentalSuggest | undefined {
   if (typeof window === 'undefined') {

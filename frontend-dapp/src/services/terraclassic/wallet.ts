@@ -1,8 +1,9 @@
-import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtension'
+import { applyStationKeplrShimSignDefaults } from '@/services/terraclassic/stationExtensionConfig'
 import {
   ensureStationLocalNetworkRegistered,
   shouldUseStationNativeLocalNetwork,
 } from '@/services/terraclassic/stationNativeNetwork'
+import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtension'
 import { isBrowserWalletExtensionDetected } from '@/services/terraclassic/walletExtensionInstall'
 import { effectiveGasPriceUluna } from '@/utils/constants'
 import {
@@ -146,20 +147,14 @@ export async function connectTerraWallet(
     })
 
     const SUGGEST_CHAIN_WALLETS: WalletName[] = [WalletName.KEPLR, WalletName.COSMOSTATION]
-    const isStationLocalExtension =
-      walletName === WalletName.STATION && walletType === WalletType.EXTENSION && DEFAULT_NETWORK === 'local'
+    const isStationExtension = walletName === WalletName.STATION && walletType === WalletType.EXTENSION
+    const isStationLocalExtension = isStationExtension && DEFAULT_NETWORK === 'local'
 
     if (walletType === WalletType.EXTENSION) {
+      if (isStationExtension) {
+        applyStationKeplrShimSignDefaults()
+      }
       if (isStationLocalExtension) {
-        const stationKeplr = getKeplrLikeExtension(walletName)
-        if (stationKeplr) {
-          stationKeplr.defaultOptions = {
-            sign: {
-              preferNoSetFee: true,
-              preferNoSetMemo: true,
-            },
-          }
-        }
         // New Station: keplr.experimentalSuggestChain rejects localterra (#207). Register via addNetwork first.
         if (shouldUseStationNativeLocalNetwork()) {
           await ensureStationLocalNetworkRegistered(networkConfig.lcd, TERRA_CLASSIC_CHAIN_ID)
@@ -173,8 +168,19 @@ export async function connectTerraWallet(
             )
           }
         }
-      } else if (SUGGEST_CHAIN_WALLETS.includes(walletName)) {
-        await suggestChainToExtension(walletName)
+      } else if (SUGGEST_CHAIN_WALLETS.includes(walletName) || isStationExtension) {
+        try {
+          await suggestChainToExtension(walletName)
+        } catch (err: unknown) {
+          if (isStationExtension) {
+            console.warn(
+              '[Wallet] Station experimentalSuggestChain failed; approve the Terra Classic chain update in Station (GitLab #208):',
+              err
+            )
+          } else {
+            throw err
+          }
+        }
       }
     }
 
@@ -357,17 +363,26 @@ export async function connectTerraWallet(
 
     connectedWallets.set(TERRA_CLASSIC_CHAIN_ID, wallet)
 
-    // Second suggest after enable + wallet init — legacy Station only (GitLab #127).
-    // New Station uses addNetwork for localterra; keplr suggestChain is unsupported (#207).
-    if (isStationLocalExtension && !shouldUseStationNativeLocalNetwork()) {
-      try {
-        await suggestChainToExtension(walletName)
-      } catch (err: unknown) {
-        console.warn(
-          '[Wallet] Post-connect Station experimentalSuggestChain failed; fees may still be low (GitLab #127):',
-          err
-        )
+    // Second suggest after enable + wallet init (GitLab #127, #208).
+    // New Station local: addNetwork for localterra; keplr suggestChain unsupported (#207).
+    if (isStationExtension) {
+      if (isStationLocalExtension && !shouldUseStationNativeLocalNetwork()) {
+        try {
+          await suggestChainToExtension(walletName)
+        } catch (err: unknown) {
+          console.warn(
+            '[Wallet] Post-connect Station experimentalSuggestChain failed; fees may still be low (GitLab #127):',
+            err
+          )
+        }
+      } else if (!isStationLocalExtension) {
+        try {
+          await suggestChainToExtension(walletName)
+        } catch (err: unknown) {
+          console.warn('[Wallet] Post-connect Station experimentalSuggestChain failed (GitLab #208):', err)
+        }
       }
+      applyStationKeplrShimSignDefaults()
     }
 
     const walletTypeStr: TerraWalletBackend = WALLET_TYPE_STRINGS[walletName] ?? 'keplr'

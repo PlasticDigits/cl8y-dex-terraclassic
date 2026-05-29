@@ -1,6 +1,8 @@
 import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
 import type { ConnectedWallet } from '@goblinhunt/cosmes/wallet'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
+import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
+import { applyStationKeplrShimSignDefaults } from '@/services/terraclassic/stationExtensionConfig'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 import {
   TERRA_TX_BROADCAST_TIMEOUT_MESSAGE,
@@ -10,6 +12,7 @@ import {
 } from '@/utils/terraTxTimeout'
 import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
 import { buildTerraClassicFee, getGasLimitForTx, totalGasLimitForExecuteMsgs } from './terraGas'
+import { withTerraWalletSignLock } from './terraWalletSignLock'
 
 export type TerraExecuteContractEntry = {
   contract: string
@@ -23,6 +26,12 @@ function handleBroadcastError(error: unknown): Error {
 
     if (errorMessage === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || errorMessage === TERRA_TX_POLL_TIMEOUT_MESSAGE) {
       return error
+    }
+
+    if (/extension popup was closed/i.test(errorMessage) && !/explicitly|you rejected/i.test(errorMessage)) {
+      return new Error(
+        'Station closed the signing popup before the transaction completed. Disconnect and reconnect Station, approve any Terra Classic network update, then retry. If this persists, update the Station extension.'
+      )
     }
 
     if (
@@ -84,11 +93,17 @@ export async function broadcastTerraExecuteContracts(
   const gasLimit = entries.length === 1 ? getGasLimitForTx(entries[0].msg) : totalGasLimitForExecuteMsgs(entries)
   const fee = buildTerraClassicFee(gasLimit)
 
+  if (wallet.id === WalletName.STATION && wallet.type === WalletType.EXTENSION) {
+    applyStationKeplrShimSignDefaults()
+  }
+
   try {
-    const txHash = await withPromiseTimeout(
-      wallet.broadcastTx(unsignedTx, fee),
-      TERRA_TX_BROADCAST_TIMEOUT_MS,
-      TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+    const txHash = await withTerraWalletSignLock(() =>
+      withPromiseTimeout(
+        wallet.broadcastTx(unsignedTx, fee),
+        TERRA_TX_BROADCAST_TIMEOUT_MS,
+        TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+      )
     )
     const { txResponse } = await withPromiseTimeout(
       wallet.pollTx(txHash),
