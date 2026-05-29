@@ -99,7 +99,7 @@ TradingView **[lightweight-charts](https://github.com/tradingview/lightweight-ch
 
 | Layer | Config / command | What runs |
 |-------|------------------|-----------|
-| **Fast stub** (default) | `vitest.config.ts` → `npm run test:run` | `lightweightChartsJsdomMock.ts` — React/indexer wiring, `createChart` spies, `setData` payloads; canvas lifecycle in `PriceChartLightweightCanvas.test.tsx` ([#225](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/225)) |
+| **Fast stub** (default) | `vitest.config.ts` → `npm run test:run` | `lightweightChartsJsdomMock.ts` — React/indexer wiring, `createChart` / `applyOptions` / `addSeries` option capture, `setData` payloads; canvas **contract** + lifecycle in `PriceChartLightweightCanvas.test.tsx` ([#227](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/227), [#225](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/225); stub fidelity epic [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105)) |
 | **Real library** | `vitest.config.charts.ts` → `npm run test:charts` | Imports actual `lightweight-charts`; Node `canvas` shim in `src/test/chartsSetup.ts`; files matching `*.charts.test.{ts,tsx}` (includes post-layout sizing [#225](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/225)) |
 
 ```bash
@@ -152,7 +152,7 @@ This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integrat
 
 **Manual rollback SQL** (not run by `sqlx migrate`): paired `.down.sql` for selected migrations lives under [`indexer/migrations/revert/`](../indexer/migrations/revert/) — e.g. limit-order lifecycle columns ([GitLab **#142**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/142)) ship beside [`20260509160000_limit_order_placement_lifecycle.sql`](../indexer/migrations/20260509160000_limit_order_placement_lifecycle.sql).
 
-**Note:** Default Vitest stubs `lightweight-charts` under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines). **Real-library** chart init, `setData`, indicators, volume fallback, and USD autoscale paths run in `npm run test:charts` ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). Pixel-level zoom/pan and layout regressions remain Playwright / manual QA.
+**Note:** Default Vitest stubs `lightweight-charts` under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines). The stub records `createChart` / `applyOptions` / `addSeries` (pane index, `autoscaleInfoProvider`) for fast **contract** tests ([#227](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/227)); helpers: `lwChartTestDouble.getLastCreateChartOptions()`, `getLastApplyOptions()`, `getCandlestickAutoscaleProvider()`, `addSeriesCalls`. **Real-library** chart init, `setData`, indicators, volume fallback, and USD autoscale paths run in `npm run test:charts` ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). Pixel-level zoom/pan and layout regressions remain Playwright / manual QA.
 
 Config: `vitest.config.integration.ts`
 
