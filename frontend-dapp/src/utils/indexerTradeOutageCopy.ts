@@ -1,3 +1,5 @@
+import { MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
+
 /**
  * User-facing copy when the Trade route detects indexer unavailability
  * (`isIndexerUnavailableError` on the pair metadata query).
@@ -16,7 +18,7 @@
  * **GitLab #165:** each trade workspace panel (book, tape, chart) must explain what
  * is missing when the market data service is down — never leave sections blank.
  */
-export const TRADE_INDEXER_OUTAGE_BANNER_TITLE = 'Market data service unavailable.'
+export const TRADE_INDEXER_OUTAGE_BANNER_TITLE = MARKET_DATA_SERVICE_OUTAGE_TITLE
 
 export const TRADE_INDEXER_OUTAGE_BANNER_LEAD =
   'Chart, tape, order book depth, and most swap/limit ticket features may be limited until the service recovers.'

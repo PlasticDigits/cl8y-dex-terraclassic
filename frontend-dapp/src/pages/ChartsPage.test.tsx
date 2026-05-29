@@ -84,13 +84,13 @@ describe('ChartsPage (component)', () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
   })
 
-  it('shows indexer unavailable when overview and pairs fail', async () => {
+  it('shows retail market-data banner when overview and pairs fail with transport errors (GitLab #215)', async () => {
     vi.mocked(indexerClient.getOverview).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     vi.mocked(indexerClient.getPairs).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     renderWithProviders(<ChartsPage />)
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
-    expect(screen.getByText(/indexer unavailable/i)).toBeInTheDocument()
-    expect(screen.getByText(/VITE_INDEXER_URL/i)).toBeInTheDocument()
+    const banner = await screen.findByTestId('charts-market-data-outage-banner')
+    expect(banner).toHaveTextContent(/market data service unavailable/i)
+    expect(banner.textContent).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
   })
 
   it('passes active pair into getCandles via PriceChart and wraps it in a bounded-height container (GitLab #151 /charts follow-up)', async () => {

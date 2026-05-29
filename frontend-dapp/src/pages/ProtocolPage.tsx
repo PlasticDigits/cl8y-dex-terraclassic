@@ -1,7 +1,10 @@
 import { useState, useDeferredValue } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getHookEvents, getOraclePrice, getOracleHistory, INDEXER_URL } from '@/services/indexer/client'
+import { getHookEvents, getOraclePrice, getOracleHistory } from '@/services/indexer/client'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { StatBox, RetryError, Skeleton } from '@/components/ui'
+import { MARKET_DATA_SERVICE_OUTAGE_TITLE, PROTOCOL_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
+import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import { formatNum } from '@/utils/formatAmount'
 import { formatDateTime } from '@/utils/formatDate'
 import { shortenAddress } from '@/utils/tokenDisplay'
@@ -43,6 +46,7 @@ export default function ProtocolPage() {
 
   const oracle = priceQuery.data
   const history = historyQuery.data?.prices ?? []
+  const marketDataDown = detectMarketDataOutage(priceQuery, historyQuery)
 
   return (
     <div className="space-y-4">
@@ -59,16 +63,16 @@ export default function ProtocolPage() {
         events show burn/tax and other post-swap hooks as recorded by the indexer.
       </p>
 
-      {(priceQuery.isError || historyQuery.isError) && (
-        <div className="alert-warning" role="alert">
-          <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
-            Oracle API unavailable
-          </p>
-          <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-            Configure <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">{INDEXER_URL}</code>{' '}
-            via <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">VITE_INDEXER_URL</code>.
-          </p>
-        </div>
+      {marketDataDown && (
+        <MarketDataServiceOutageBanner
+          testId="protocol-market-data-outage-banner"
+          title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+          lead={PROTOCOL_MARKET_DATA_OUTAGE_LEAD}
+          onRetry={() => {
+            void priceQuery.refetch()
+            void historyQuery.refetch()
+          }}
+        />
       )}
 
       <div className="shell-panel">

@@ -21,7 +21,10 @@ import {
 import { FACTORY_PAIRS_MAX_FOR_POOL_LIST, getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
 import type { AssetInfo, IndexerPairSort, PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
-import { getPairs, getTokens, INDEXER_URL } from '@/services/indexer/client'
+import { getPairs, getTokens } from '@/services/indexer/client'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
+import { isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { MARKET_DATA_SERVICE_OUTAGE_TITLE, POOL_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import {
   Spinner,
   TokenDisplay,
@@ -1104,9 +1107,18 @@ export default function PoolPage() {
         </div>
       )}
 
-      {pairsQuery.isError && (
+      {pairsQuery.isError && isIndexerUnavailableError(pairsQuery.error) && (
+        <MarketDataServiceOutageBanner
+          testId="pool-market-data-outage-banner"
+          title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+          lead={POOL_MARKET_DATA_OUTAGE_LEAD}
+          onRetry={() => void pairsQuery.refetch()}
+        />
+      )}
+
+      {pairsQuery.isError && !isIndexerUnavailableError(pairsQuery.error) && (
         <RetryError
-          message={`Pool data is unavailable right now. Check the indexer connection at ${INDEXER_URL} and try again.`}
+          message="Pool data is unavailable right now. Try again in a moment."
           onRetry={() => void pairsQuery.refetch()}
         />
       )}

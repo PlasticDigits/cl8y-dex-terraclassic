@@ -517,6 +517,22 @@ When **`getPair`** fails for the active `/trade/:pairAddr` route (e.g. indexer *
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_QUERY_RETRY.md`](../skills/AGENTS_FRONTEND_QUERY_RETRY.md).
 
+### Market data loading & outage (global) {#market-data-loading-outage}
+
+Retail surfaces that depend on **indexer HTTP** share banner and loading primitives ([GitLab **#215**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/215)). The `/trade` route remains the reference for panel-level degradation and pair-switch loading — see [§ Trade page — indexer outage banner](#trade-page-indexer-outage-banner) and [§ Trade page — pair switch latency](#trade-page-pair-switch-latency).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **404 vs outage** | Use [`isIndexerUnavailableError`](../frontend-dapp/src/utils/indexerErrors.ts) at query boundaries. **404** → not-found / retry panels, **not** the global market-data banner ([GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)). |
+| **LCD vs market data** | [`LcdConnectivityBanner`](../frontend-dapp/src/components/common/LcdConnectivityBanner.tsx) / [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx) cover **chain LCD** only — do not label RPC failures as “market data service.” |
+| **Retail copy** | No `VITE_INDEXER_URL`, hostnames, or “indexer unavailable” in user-visible banners ([GitLab **#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174)). Strings: [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); trade panel lines stay in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts). |
+| **Detection** | [`detectMarketDataOutage`](../frontend-dapp/src/utils/marketDataOutage.ts) ORs transport errors across passed queries (trade re-exports as `detectTradeIndexerOutage`). |
+| **Banner UI** | [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) — trade keeps `data-testid="trade-indexer-outage-banner"` and **inline** layout; Charts/Trader/Pool/Protocol use stacked layout + page `data-testid`s (`charts-market-data-outage-banner`, etc.). |
+| **Loading status** | [`MarketDataLoadingStatus`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx); trade pair switch wraps it as [`TradePairSwitchStatus`](../frontend-dapp/src/components/trade/TradePairSwitchStatus.tsx) (`trade-pair-switch-loading`). |
+| **E2E** | Indexer-stopped specs stay **opt-in** (`E2E_INDEXER_OUTAGE=1`) — see [docs/testing.md § Frontend E2E — indexer outage](./testing.md#frontend-e2e-indexer-outage). Default CI does not stop the indexer mid-suite ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)). |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
+
 ### Trade page — indexer outage banner {#trade-page-indexer-outage-banner}
 
 When the **`getPair`** query on `/trade` fails with an **indexer transport / non-OK** error (`isIndexerUnavailableError` in [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts)), the page shows a warning **above** the workspace (`data-testid="trade-indexer-outage-banner"`).
@@ -526,9 +542,9 @@ When the **`getPair`** query on `/trade` fails with an **indexer transport / non
 | **No false “chain fallback”** | The banner must **not** claim the order book or tickets still work “on chain” while [`OrderBookPanel`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx) and related flows read depth, tape, candles, or routing through **indexer HTTP** (book pages use [`getPairLimitBookPage`](../frontend-dapp/src/services/indexer/client.ts), which is unreachable when the indexer is down — [GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)). |
 | **Limit reference vs book (#166)** | The banner **tail** may state one **narrow** exception: **limit price** buy-below / sell-above checks can fall back to **AMM pool** reserves via **LCD** when tape is missing ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) — this does **not** restore order-book depth or hybrid routing; see [§ Trade page — limit order price field](#trade-page-limit-order-price). |
 | **No internal URLs in retail copy** | The banner must **not** render `VITE_INDEXER_URL`, hostnames, or “indexer unavailable at …” — use **market data service** wording ([GitLab **#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174)). |
-| **Single source of strings** | Title, lead, and tail live in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts); [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) composes them only. |
+| **Single source of strings** | Shared title from [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); trade lead, tail, and panel lines in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts); [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) composes via [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md); retail error funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
+**Third-party / agent context:** [§ Market data loading & outage (global)](#market-data-loading-outage), [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md), [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md); retail error funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
 ### Trade page — deep order book pagination {#trade-page-deep-order-book}
 

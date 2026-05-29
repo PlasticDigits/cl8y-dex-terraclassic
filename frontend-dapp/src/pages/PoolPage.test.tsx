@@ -265,4 +265,12 @@ describe('PoolPage', () => {
     expect(screen.getAllByText('In router (factory)').length).toBe(1)
     expect(screen.queryByText('Indexer only')).not.toBeInTheDocument()
   })
+
+  it('shows retail market-data banner when pair list fails with transport error (GitLab #215)', async () => {
+    vi.mocked(indexerClient.getPairs).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    const banner = await screen.findByTestId('pool-market-data-outage-banner')
+    expect(banner).toHaveTextContent(/market data service unavailable/i)
+    expect(banner.textContent).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
+  })
 })

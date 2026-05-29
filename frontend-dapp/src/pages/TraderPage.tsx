@@ -2,7 +2,9 @@ import { useState, useId } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
-import { getTrader, getTraderTrades, getTraderPositions, INDEXER_URL } from '@/services/indexer/client'
+import { getTrader, getTraderTrades, getTraderPositions } from '@/services/indexer/client'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
+import { MARKET_DATA_SERVICE_OUTAGE_TITLE, TRADER_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { StatBox } from '@/components/ui/StatBox'
@@ -133,24 +135,12 @@ export default function TraderPage() {
       )}
 
       {traderAddr && traderQuery.isError && isIndexerUnavailableError(traderQuery.error) && (
-        <div className="alert-warning" role="alert">
-          <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
-            Indexer unavailable
-          </p>
-          <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-            Trader profiles are loaded from the indexer at{' '}
-            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">{INDEXER_URL}</code>. Start the
-            indexer or set{' '}
-            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">VITE_INDEXER_URL</code>.
-          </p>
-          <button
-            type="button"
-            className="btn-primary btn-cta !text-xs !px-4 !py-1.5 mt-3"
-            onClick={() => void traderQuery.refetch()}
-          >
-            Retry
-          </button>
-        </div>
+        <MarketDataServiceOutageBanner
+          testId="trader-market-data-outage-banner"
+          title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+          lead={TRADER_MARKET_DATA_OUTAGE_LEAD}
+          onRetry={() => void traderQuery.refetch()}
+        />
       )}
 
       {traderAddr && traderQuery.isError && !isIndexerUnavailableError(traderQuery.error) && (
