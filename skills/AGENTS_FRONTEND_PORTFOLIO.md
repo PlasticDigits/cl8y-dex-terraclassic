@@ -42,7 +42,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 3. **Do not** accept arbitrary `?addr=` on portfolio without `isValidTerraAddress` and explicit product approval; default is **connected wallet only**.
 4. **404 profile ≠ empty portfolio** — still fetch positions/trades/limits when wallet is connected.
 5. Keep **outage** handling aligned with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx) (`isIndexerUnavailableError`, `MarketDataServiceOutageBanner`). LP LCD failures are section-local (`RetryError`), not necessarily full-page outage.
-6. **No unbounded N+1** — use `getTraderLimitPlacements` (preferred) or document caps for any client fan-out ([`portfolioFanOut.ts`](../frontend-dapp/src/utils/portfolioFanOut.ts)).
+6. **No unbounded N+1** — use `getTraderLimitPlacements` (preferred) or document caps for any client fan-out ([`portfolioFanOut.ts`](../frontend-dapp/src/utils/portfolioFanOut.ts)). LP fan-out skips invalid bech32 `lp_token` rows and per-pair LCD failures so one bad indexer pair does not fail the whole section ([`usePortfolioLpBalances.ts`](../frontend-dapp/src/hooks/usePortfolioLpBalances.ts)).
 7. **No signing** on portfolio — cancel/claim stays on `/trade` / `/limits`.
 8. Extend **Vitest** + **Playwright** when changing empty states, nav, or API wiring.
 

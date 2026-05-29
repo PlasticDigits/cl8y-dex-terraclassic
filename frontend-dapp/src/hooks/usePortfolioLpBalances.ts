@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getPairs } from '@/services/indexer/client'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { assetInfoLabel, indexerPairToPairInfo, tokenAssetInfo } from '@/types'
+import { isValidTerraAddress } from '@/utils/constants'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import { PORTFOLIO_LP_CONCURRENCY, PORTFOLIO_LP_MAX_PAIRS } from '@/utils/portfolioFanOut'
 
@@ -12,25 +13,39 @@ export type PortfolioLpRow = {
   balanceRaw: string
 }
 
-async function fetchPortfolioLpRows(walletAddr: string): Promise<{
+export async function fetchPortfolioLpRowsForTest(walletAddr: string): Promise<{
   rows: PortfolioLpRow[]
   pairsScanned: number
   capped: boolean
 }> {
   const list = await getPairs({ limit: PORTFOLIO_LP_MAX_PAIRS, offset: 0 })
-  const pairs = list.items.filter((p) => p.lp_token?.trim())
+  const pairs = list.items.filter(
+    (p) =>
+      p.lp_token?.trim() &&
+      isValidTerraAddress(p.pair_address) &&
+      isValidTerraAddress(p.lp_token.trim())
+  )
   const capped = list.total > PORTFOLIO_LP_MAX_PAIRS
 
   const balances = await mapWithConcurrency(pairs, PORTFOLIO_LP_CONCURRENCY, async (p) => {
-    const pairInfo = indexerPairToPairInfo(p)
+    let pairInfo
+    try {
+      pairInfo = indexerPairToPairInfo(p)
+    } catch {
+      return null
+    }
     const lpToken = pairInfo.liquidity_token
-    if (!lpToken) return null
-    const balanceRaw = await getTokenBalance(walletAddr, tokenAssetInfo(lpToken))
-    return {
-      pairAddress: p.pair_address,
-      label: `${p.asset_0.symbol ?? assetInfoLabel(pairInfo.asset_infos[0])}/${p.asset_1.symbol ?? assetInfoLabel(pairInfo.asset_infos[1])}`,
-      lpToken,
-      balanceRaw,
+    if (!lpToken || !isValidTerraAddress(lpToken)) return null
+    try {
+      const balanceRaw = await getTokenBalance(walletAddr, tokenAssetInfo(lpToken))
+      return {
+        pairAddress: p.pair_address,
+        label: `${p.asset_0.symbol ?? assetInfoLabel(pairInfo.asset_infos[0])}/${p.asset_1.symbol ?? assetInfoLabel(pairInfo.asset_infos[1])}`,
+        lpToken,
+        balanceRaw,
+      }
+    } catch {
+      return null
     }
   })
 
@@ -41,7 +56,7 @@ async function fetchPortfolioLpRows(walletAddr: string): Promise<{
 export function usePortfolioLpBalances(walletAddr: string | null | undefined) {
   return useQuery({
     queryKey: ['portfolio-lp-balances', walletAddr],
-    queryFn: () => fetchPortfolioLpRows(walletAddr!),
+    queryFn: () => fetchPortfolioLpRowsForTest(walletAddr!),
     enabled: !!walletAddr,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
