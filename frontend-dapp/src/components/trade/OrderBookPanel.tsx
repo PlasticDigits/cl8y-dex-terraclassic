@@ -111,60 +111,74 @@ function BookRow({
     })
   }
 
+  const rowLabel = `${rowSide} order ${order.order_id}, price ${formatBookPrice(order.price)}, size ${formatTokenAmount(order.remaining, sizeDecimals, 4)}, cumulative ${formatTokenAmount(cumulative, sizeDecimals, 4)}`
+
   return (
-    <li
-      className="relative grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-mono tabular-nums overflow-hidden"
+    <tr
+      className="relative [&>td]:align-middle"
       title={`Order #${order.order_id} · owner ${order.owner.slice(0, 12)}… · raw remaining ${order.remaining}`}
+      aria-label={rowLabel}
     >
-      <span
-        className="absolute inset-y-0 right-0 pointer-events-none"
-        style={{ width: `${Math.min(depthPct, 100)}%`, background: sideBg }}
-      />
-      <div className="relative min-w-0">
-        <span className="block text-[9px] leading-tight" style={{ color: 'var(--ink-subtle)' }}>
-          #{order.order_id}
-        </span>
-        <span className="font-semibold leading-tight" style={{ color: sideColor }}>
-          {formatBookPrice(order.price)}
-        </span>
-      </div>
-      <span className="relative text-right" style={{ color: 'var(--ink)' }}>
+      <td className="relative rounded-l-lg px-2 py-1.5 text-[11px] font-mono tabular-nums overflow-hidden">
+        <span
+          className="absolute inset-y-0 right-0 pointer-events-none"
+          aria-hidden="true"
+          style={{ width: `${Math.min(depthPct, 100)}%`, background: sideBg }}
+        />
+        <div className="relative min-w-0">
+          <span className="block text-[9px] leading-tight" style={{ color: 'var(--ink-subtle)' }}>
+            #{order.order_id}
+          </span>
+          <span className="font-semibold leading-tight" style={{ color: sideColor }}>
+            {formatBookPrice(order.price)}
+          </span>
+        </div>
+      </td>
+      <td
+        className="relative px-2 py-1.5 text-right text-[11px] font-mono tabular-nums"
+        style={{ color: 'var(--ink)' }}
+      >
         {formatTokenAmount(order.remaining, sizeDecimals, 4)}
-      </span>
-      <span className="relative text-right" style={{ color: 'var(--ink-dim)' }}>
+      </td>
+      <td
+        className="relative px-2 py-1.5 text-right text-[11px] font-mono tabular-nums"
+        style={{ color: 'var(--ink-dim)' }}
+      >
         {formatTokenAmount(cumulative, sizeDecimals, 4)}
-      </span>
-      <div className="relative flex items-center justify-end gap-0.5 shrink-0">
-        {isMine && canUseRowActions && (
-          <>
-            <button
-              type="button"
-              data-testid={`trade-book-edit-${side}-${order.order_id}`}
-              className="rounded-md border border-white/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-white/10 disabled:opacity-40"
-              style={{ color: 'var(--ink)' }}
-              disabled={isPairPaused || pendingThis}
-              title="Load this size and price into the limit ticket (cancel the old order separately, or replace after cancel)."
-              aria-label={`Edit order ${order.order_id} — load price and size into limit ticket`}
-              onClick={onEditClick}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              data-testid={`trade-book-cancel-${side}-${order.order_id}`}
-              className="rounded-md border border-white/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none hover:bg-red-500/15 disabled:opacity-40"
-              style={{ color: 'var(--color-negative)' }}
-              disabled={isPairPaused || alreadyCancelled || pendingThis}
-              title={alreadyCancelled ? 'Already cancelled (indexed)' : 'Cancel this resting order'}
-              aria-label={`Cancel order ${order.order_id}`}
-              onClick={onCancelClick}
-            >
-              ×
-            </button>
-          </>
-        )}
-      </div>
-    </li>
+      </td>
+      <td className="relative rounded-r-lg px-2 py-1.5">
+        <div className="flex items-center justify-end gap-0.5 shrink-0">
+          {isMine && canUseRowActions && (
+            <>
+              <button
+                type="button"
+                data-testid={`trade-book-edit-${side}-${order.order_id}`}
+                className="rounded-md border border-white/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-white/10 disabled:opacity-40"
+                style={{ color: 'var(--ink)' }}
+                disabled={isPairPaused || pendingThis}
+                title="Load this size and price into the limit ticket (cancel the old order separately, or replace after cancel)."
+                aria-label={`Edit order ${order.order_id} — load price and size into limit ticket`}
+                onClick={onEditClick}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                data-testid={`trade-book-cancel-${side}-${order.order_id}`}
+                className="rounded-md border border-white/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none hover:bg-red-500/15 disabled:opacity-40"
+                style={{ color: 'var(--color-negative)' }}
+                disabled={isPairPaused || alreadyCancelled || pendingThis}
+                title={alreadyCancelled ? 'Already cancelled (indexed)' : 'Cancel this resting order'}
+                aria-label={`Cancel order ${order.order_id}`}
+                onClick={onCancelClick}
+              >
+                ×
+              </button>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
   )
 }
 
@@ -251,42 +265,56 @@ function BookSideColumn({
       )}
       {!q.isLoading && !q.isError && (
         <>
-          <div
-            className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-1.5 px-2 pb-1 text-[9px] font-semibold uppercase tracking-wide"
-            style={{ color: 'var(--ink-subtle)' }}
-          >
-            <span>Order / price {priceLabel}</span>
-            <span className="text-right">Size {sizeLabel}</span>
-            <span className="text-right">Total</span>
-            <span className="text-right sr-only">Actions</span>
+          <div className="flex-1 overflow-y-auto min-h-[96px] pr-1">
+            <table className="w-full border-separate border-spacing-y-1" aria-label={`${title} limit orders`}>
+              <thead>
+                <tr className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-subtle)' }}>
+                  <th scope="col" className="px-2 pb-1 text-left font-semibold">
+                    Order / price {priceLabel}
+                  </th>
+                  <th scope="col" className="px-2 pb-1 text-right font-semibold">
+                    Size {sizeLabel}
+                  </th>
+                  <th scope="col" className="px-2 pb-1 text-right font-semibold">
+                    Total
+                  </th>
+                  <th scope="col" className="px-2 pb-1 text-right font-semibold">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="rounded-xl border border-dashed px-3 py-8 text-center text-[11px]"
+                      style={{ borderColor: 'var(--line)', color: 'var(--ink-subtle)' }}
+                    >
+                      {emptyLabel}
+                    </td>
+                  </tr>
+                )}
+                {rows.map(({ order, cumulative }) => (
+                  <BookRow
+                    key={`${side}-${order.order_id}`}
+                    order={order}
+                    side={side}
+                    sizeDecimals={sizeDecimals}
+                    maxRaw={maxRaw}
+                    cumulative={cumulative}
+                    walletAddress={walletAddress}
+                    isPairPaused={isPairPaused}
+                    isWalletConnected={isWalletConnected}
+                    openWalletModal={openWalletModal}
+                    cancelMutation={cancelMutation}
+                    onPrefillLimitTicket={onPrefillLimitTicket}
+                    cancellations={cancellations}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
-          <ul className="space-y-1 flex-1 overflow-y-auto min-h-[96px] pr-1">
-            {orders.length === 0 && (
-              <li
-                className="flex h-full min-h-[96px] items-center justify-center rounded-xl border border-dashed px-3 text-center text-[11px]"
-                style={{ borderColor: 'var(--line)', color: 'var(--ink-subtle)' }}
-              >
-                {emptyLabel}
-              </li>
-            )}
-            {rows.map(({ order, cumulative }) => (
-              <BookRow
-                key={`${side}-${order.order_id}`}
-                order={order}
-                side={side}
-                sizeDecimals={sizeDecimals}
-                maxRaw={maxRaw}
-                cumulative={cumulative}
-                walletAddress={walletAddress}
-                isPairPaused={isPairPaused}
-                isWalletConnected={isWalletConnected}
-                openWalletModal={openWalletModal}
-                cancelMutation={cancelMutation}
-                onPrefillLimitTicket={onPrefillLimitTicket}
-                cancellations={cancellations}
-              />
-            ))}
-          </ul>
           {q.hasNextPage && (
             <button
               type="button"

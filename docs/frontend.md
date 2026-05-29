@@ -410,6 +410,31 @@ Scope and verification checklist: [GitLab **#143**](https://gitlab.com/PlasticDi
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_FORM_LABELS.md`](../skills/AGENTS_FRONTEND_A11Y_FORM_LABELS.md).
 
+### Accessibility CI {#accessibility-ci}
+
+Automated **WCAG 2.1 A + AA** checks on retail-critical routes via **`@axe-core/playwright`** in the **`e2e-smoke`** project ([GitLab **#214**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)). Vitest asserts component-level ARIA contracts on chart, order book, and wallet.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Routes scanned** | `/trade`, `/charts` (full page; chart canvas excluded), header **Connect wallet** dialog, connected **wallet menu** (`include: header`). |
+| **Severity gate** | `assertNoCriticalA11yViolations` fails on **critical** or **serious** axe impacts only. |
+| **Canvas exclusion** | Only `[data-testid="price-chart-lightweight-canvas"] canvas` — never exclude interactive controls. |
+| **Chart AT summary** | `PriceChart` uses `role="region"` + `aria-labelledby` / `aria-describedby`; `sr-only` `aria-live="polite"` announces interval + last price; interval toggles use `aria-label` (`{iv} candle interval`). |
+| **Order book** | Per-side `<table>` with `<th scope="col">`; rows expose `aria-label` with side, order id, price, size. |
+| **Order ticket tabs** | Limit / market: `tablist` + `tab` + `tabpanel` with `aria-controls` / `aria-labelledby`; pair paused → `role="alert"`. |
+| **Wallet menu** | `role="menu"` contains **menuitems only** (balance header outside); focus first menuitem on open, return to trigger on close; `CopyButton` live region inside menuitem. |
+| **Smoke without indexer** | `PLAYWRIGHT_SKIP_CHAIN=1` still runs axe on route shell; chart `region` is required when indexer + LCD are up (CI strict E2E). |
+| **Rule disables** | Forbidden without comment in spec + row in this table. |
+
+**Run locally:**
+
+```bash
+cd frontend-dapp
+PLAYWRIGHT_SKIP_CHAIN=1 npm run test:e2e:smoke -- e2e/a11y-critical-routes.spec.ts
+```
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_CI.md`](../skills/AGENTS_FRONTEND_A11Y_CI.md); chart: [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md); wallet: [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md).
+
 ### Responsive shell & header navigation {#responsive-header-navigation}
 
 Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) with shell styles in [`index.css`](../frontend-dapp/src/index.css). Breakpoints are **CSS-first** for showing the bottom tab bar vs the sticky header row; **header density** for mid-width tablets is driven by `matchMedia` so the **More** menu can absorb overflow without crowding ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
@@ -481,7 +506,7 @@ The **price chart** on `/trade` and `/charts` is rendered with **TradingView [li
 | Loading vs empty | **First** load (no candle payload yet): full-panel **Loading chart…**. **Interval switch** on the **same pair** while refetching: keep `PriceChartLightweightCanvas` mounted (`placeholderData` keeps prior rows only when `queryKey[1]` is unchanged — not on pair switch; see [pair switch latency](#trade-page-pair-switch-latency)), overlay **`data-testid="price-chart-interval-loading"`** — do **not** unmount the plot (async `createChart` races froze the selector after ~5 switches — [GitLab **#148**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/148)). **Pair switch** remounts the canvas (`key={pairAddress}`) and shows **Loading chart…** until the new pair’s candles resolve ([#148](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/148) QA). Empty state applies only when the request **succeeded**, fetch settled, and there are zero valid points. |
 | **Interval / timeframe** | `PriceChartLightweightCanvas` is created **once per mount**; interval changes call **`setData`** on the existing series. Stale async inits are dropped via **`chartInitIdRef`** ([GitLab **#148**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/148)). |
 | Reference line | When the chart is empty, an optional **24h close** from `getPairStats` (`close_price`) may display; query is enabled only for that state so normal pairs are not blocked. |
-| Accessibility | The empty panel uses `role="img"` and a descriptive `aria-label` so screen readers do not see a silent canvas. |
+| Accessibility | Canvas stays `aria-hidden` on `PriceChartLightweightCanvas`. Empty state uses `role="img"` + `aria-label`. When candles render, `PriceChart` exposes `role="region"` and an `aria-live` text summary (interval + last price) — see [§ Accessibility CI](#accessibility-ci) ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)). |
 | **USD price scale (Y-axis)** | Spot **Price (USD)** is non-negative. The candlestick pane’s autoscale **must not** extend the right price scale below **zero** or below the **lowest visible candle `low`** (whichever is higher). Implemented via `autoscaleInfoProvider` + [`priceChartPriceScale.ts`](../frontend-dapp/src/components/charts/priceChartPriceScale.ts) ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
 | **Chart viewport (layout)** | The plot region must **shrink inside** resizable `/trade` panels: `PriceChart` is **`h-full flex flex-col min-h-0`**; the candle mount uses **`flex-1 min-h-0`** with **`min-h-[min(52vh,280px)]`** (no fixed `560px` height). `TradePage` chart cards use **`flex flex-col min-h-0`** so the canvas is not clipped by **`overflow-hidden`** on first paint. `PriceChartLightweightCanvas` reapplies width/height after layout via a **double `requestAnimationFrame`** ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
 | Volume histogram | **Pane 1** is a histogram of **quote** volume per candle (`volume_quote`). When quote volume is zero (common on thin local indexers), the UI uses **base** volume (`volume_base`) so bars remain visible—see [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts). Sub-label **“Volume (quote, else base)”** documents this in the chart header. |

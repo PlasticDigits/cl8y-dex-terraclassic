@@ -146,6 +146,11 @@ function TradeOrderTicketContent({
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
   const [orderTab, setOrderTab] = useState<'limit' | 'market'>('limit')
+  const orderTypeTabBaseId = useId()
+  const limitOrderTabId = `${orderTypeTabBaseId}-limit-tab`
+  const marketOrderTabId = `${orderTypeTabBaseId}-market-tab`
+  const limitOrderPanelId = `${orderTypeTabBaseId}-limit-panel`
+  const marketOrderPanelId = `${orderTypeTabBaseId}-market-panel`
   const [price, setPrice] = useState('1')
   const {
     maxSteps,
@@ -540,7 +545,7 @@ function TradeOrderTicketContent({
 
       <div className="flex flex-col gap-3 p-4">
         {selectedPair && isPaused && (
-          <div className="alert-error text-xs space-y-2" role="status">
+          <div className="alert-error text-xs space-y-2" role="alert">
             <p>
               Pair is paused — swaps, limit place, cancel, and parked-expiry claim are blocked until governance unpauses
               (L6 / GitLab #120).
@@ -565,8 +570,10 @@ function TradeOrderTicketContent({
           >
             <button
               type="button"
+              id={limitOrderTabId}
               role="tab"
               aria-selected={orderTab === 'limit'}
+              aria-controls={limitOrderPanelId}
               data-testid="trade-order-tab-limit"
               className={`tab-neo !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'limit' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
               onClick={() => {
@@ -578,8 +585,10 @@ function TradeOrderTicketContent({
             </button>
             <button
               type="button"
+              id={marketOrderTabId}
               role="tab"
               aria-selected={orderTab === 'market'}
+              aria-controls={marketOrderPanelId}
               data-testid="trade-order-tab-market"
               className={`tab-neo !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'market' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
               onClick={() => {
@@ -614,119 +623,123 @@ function TradeOrderTicketContent({
         </TicketSection>
 
         {orderTab === 'market' && selectedPair && (
-          <TicketSection eyebrow="Take liquidity" title={`${sideAction.verb} now`} tone="action">
-            <TradeMarketOrderPanel pairAddr={pairAddr} selectedPair={selectedPair} side={side} isPaused={isPaused} />
-          </TicketSection>
+          <div role="tabpanel" id={marketOrderPanelId} aria-labelledby={marketOrderTabId}>
+            <TicketSection eyebrow="Take liquidity" title={`${sideAction.verb} now`} tone="action">
+              <TradeMarketOrderPanel pairAddr={pairAddr} selectedPair={selectedPair} side={side} isPaused={isPaused} />
+            </TicketSection>
+          </div>
         )}
 
         {orderTab === 'limit' && (
-          <TicketSection eyebrow="Resting order" title={`${sideAction.verb} at your price`} tone="action">
-            <LimitOrderPlaceLimitHeading compact />
-            <LimitOrderPriceInputWithContext
-              side={side}
-              price={price}
-              onPriceChange={setPrice}
-              inputId={limitPriceInputId}
-              refToken1PerToken0={refToken1PerToken0}
-              refSource={refSource}
-              tapeHeadlineUsd={tapeHeadlineUsd}
-              token0Label={token0Display}
-              token1Label={token1Display}
-              compact
-            />
-            <LimitOrderEscrowAmountField
-              compact
-              escrowLabel={sideAction.pay}
-              escrowDecimals={escrowDecimals}
-              amountHuman={amountHuman}
-              onAmountChange={onLimitAmountInputChange}
-              balanceQuery={escrowBalanceQuery}
-              onMax={onLimitAmountMax}
-              walletConnected={isWalletConnected}
-              maxContext="limit_place"
-              assetIsNativeUluna={escrowToken === 'uluna'}
-              escrowUsdNotionalApprox={escrowUsdNotionalApprox}
-            />
-            <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
-            <LimitOrderAdvancedLimitSettings
-              compact
-              open={limitAdvancedOpen}
-              onOpenChange={setLimitAdvancedOpen}
-              maxSteps={maxSteps}
-              onMaxStepsChange={setMaxSteps}
-              expiresAt={expiresAt}
-              onExpiresAtChange={setExpiresAt}
-              idPrefix="trade-ticket"
-            />
-            {selectedPair && pairAddr.startsWith('terra1') && (
-              <LimitOrderPreSubmitSummary
-                compact
-                placeSequenceMinUluna={limitPlaceMinUlunaFees}
+          <div role="tabpanel" id={limitOrderPanelId} aria-labelledby={limitOrderTabId}>
+            <TicketSection eyebrow="Resting order" title={`${sideAction.verb} at your price`} tone="action">
+              <LimitOrderPlaceLimitHeading compact />
+              <LimitOrderPriceInputWithContext
+                side={side}
+                price={price}
+                onPriceChange={setPrice}
+                inputId={limitPriceInputId}
                 refToken1PerToken0={refToken1PerToken0}
-                typedPrice={price}
-                effectiveFeeBps={effectiveFeeBps}
-                makerPlacementFeeBps={makerPlacementFeeBps}
-                feeLoading={limitFeeLoading}
-                feeError={limitFeeError}
-                data-testid="trade-limit-pre-submit-summary"
+                refSource={refSource}
+                tapeHeadlineUsd={tapeHeadlineUsd}
+                token0Label={token0Display}
+                token1Label={token1Display}
+                compact
               />
-            )}
-            <button
-              type="button"
-              data-testid="trade-limit-submit"
-              className="btn-primary btn-cta w-full !text-xs"
-              disabled={
-                placeMutation.isPending || !selectedPair || isPaused || (isWalletConnected && !placeLimitCombinedOk)
-              }
-              onClick={() => {
-                if (!isWalletConnected) openWalletModal()
-                else placeMutation.mutate()
-              }}
-            >
-              {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
-            </button>
-            <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
-            {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
-            {placeMutation.isSuccess && (
-              <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
-            )}
-            {placeMutation.isSuccess && (
-              <div className="space-y-2" data-testid="trade-limit-post-place-actions">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    data-testid="trade-limit-view-order-btn"
-                    className="btn-primary btn-cta flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
-                    onClick={onViewPlacedLimitOrder}
-                  >
-                    View order
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="trade-limit-place-another-btn"
-                    className="btn-muted flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
-                    onClick={onPlaceAnotherLimit}
-                  >
-                    Place another
-                  </button>
-                </div>
-                {lastIndexedOrderId == null && (
-                  <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-                    If your new row is not listed yet, the indexer is still catching up — tap{' '}
-                    <span className="font-medium" style={{ color: 'var(--ink)' }}>
+              <LimitOrderEscrowAmountField
+                compact
+                escrowLabel={sideAction.pay}
+                escrowDecimals={escrowDecimals}
+                amountHuman={amountHuman}
+                onAmountChange={onLimitAmountInputChange}
+                balanceQuery={escrowBalanceQuery}
+                onMax={onLimitAmountMax}
+                walletConnected={isWalletConnected}
+                maxContext="limit_place"
+                assetIsNativeUluna={escrowToken === 'uluna'}
+                escrowUsdNotionalApprox={escrowUsdNotionalApprox}
+              />
+              <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
+              <LimitOrderAdvancedLimitSettings
+                compact
+                open={limitAdvancedOpen}
+                onOpenChange={setLimitAdvancedOpen}
+                maxSteps={maxSteps}
+                onMaxStepsChange={setMaxSteps}
+                expiresAt={expiresAt}
+                onExpiresAtChange={setExpiresAt}
+                idPrefix="trade-ticket"
+              />
+              {selectedPair && pairAddr.startsWith('terra1') && (
+                <LimitOrderPreSubmitSummary
+                  compact
+                  placeSequenceMinUluna={limitPlaceMinUlunaFees}
+                  refToken1PerToken0={refToken1PerToken0}
+                  typedPrice={price}
+                  effectiveFeeBps={effectiveFeeBps}
+                  makerPlacementFeeBps={makerPlacementFeeBps}
+                  feeLoading={limitFeeLoading}
+                  feeError={limitFeeError}
+                  data-testid="trade-limit-pre-submit-summary"
+                />
+              )}
+              <button
+                type="button"
+                data-testid="trade-limit-submit"
+                className="btn-primary btn-cta w-full !text-xs"
+                disabled={
+                  placeMutation.isPending || !selectedPair || isPaused || (isWalletConnected && !placeLimitCombinedOk)
+                }
+                onClick={() => {
+                  if (!isWalletConnected) openWalletModal()
+                  else placeMutation.mutate()
+                }}
+              >
+                {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
+              </button>
+              <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
+              {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
+              {placeMutation.isSuccess && (
+                <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
+              )}
+              {placeMutation.isSuccess && (
+                <div className="space-y-2" data-testid="trade-limit-post-place-actions">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      data-testid="trade-limit-view-order-btn"
+                      className="btn-primary btn-cta flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
+                      onClick={onViewPlacedLimitOrder}
+                    >
                       View order
-                    </span>{' '}
-                    again after a moment to jump to the highlighted line in <strong>My limits</strong> below.
-                  </p>
-                )}
-              </div>
-            )}
-            {lastIndexedOrderId != null && (
-              <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
-                Last indexed: #{lastIndexedOrderId}
-              </p>
-            )}
-          </TicketSection>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="trade-limit-place-another-btn"
+                      className="btn-muted flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
+                      onClick={onPlaceAnotherLimit}
+                    >
+                      Place another
+                    </button>
+                  </div>
+                  {lastIndexedOrderId == null && (
+                    <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+                      If your new row is not listed yet, the indexer is still catching up — tap{' '}
+                      <span className="font-medium" style={{ color: 'var(--ink)' }}>
+                        View order
+                      </span>{' '}
+                      again after a moment to jump to the highlighted line in <strong>My limits</strong> below.
+                    </p>
+                  )}
+                </div>
+              )}
+              {lastIndexedOrderId != null && (
+                <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
+                  Last indexed: #{lastIndexedOrderId}
+                </p>
+              )}
+            </TicketSection>
+          </div>
         )}
 
         <TicketSection eyebrow="Manage" title="Cancel resting limit" tone="manage">

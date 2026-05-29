@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getCandles, getPairStats } from '@/services/indexer/client'
 import { Spinner } from '@/components/ui'
@@ -25,6 +25,8 @@ interface PriceChartProps {
 
 export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLastPriceUsd }: PriceChartProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const chartHeadingId = useId()
+  const chartLiveSummaryId = useId()
   const [interval, setInterval_] = useState(defaultInterval)
   const [showSma7, setShowSma7] = useState(false)
   const [showSma25, setShowSma25] = useState(false)
@@ -99,16 +101,54 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
 
   const chartIndexerOutage = candlesQuery.isError && isIndexerUnavailableError(candlesQuery.error)
 
+  const chartLiveSummary = useMemo(() => {
+    if (showInitialLoading) {
+      return `Price chart loading. Interval ${interval}.`
+    }
+    if (chartIndexerOutage) {
+      return `Price chart unavailable. Indexer outage. Interval ${interval}.`
+    }
+    if (candlesQuery.isError) {
+      return `Price chart failed to load. Interval ${interval}.`
+    }
+    if (showEmptyState) {
+      return `Price chart empty. No candles for interval ${interval}.`
+    }
+    if (intervalRefetching) {
+      const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD.` : ''
+      return `Price chart updating to interval ${interval}.${pricePart}`
+    }
+    const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD.` : ' Last price unavailable.'
+    const candlePart = chartPoints.length > 0 ? ` ${chartPoints.length} candles on chart.` : ''
+    return `Price chart. Interval ${interval}.${pricePart}${candlePart}`
+  }, [
+    showInitialLoading,
+    chartIndexerOutage,
+    candlesQuery.isError,
+    showEmptyState,
+    intervalRefetching,
+    interval,
+    headlineUsd,
+    chartPoints.length,
+  ])
+
   return (
-    <div
+    <section
       ref={panelRef}
+      role="region"
+      aria-labelledby={chartHeadingId}
+      aria-describedby={chartLiveSummaryId}
       className={`shell-panel-strong flex flex-col min-h-0 h-full !overflow-visible ${fsActive ? 'min-h-[100dvh] justify-stretch' : ''}`}
     >
+      <p id={chartLiveSummaryId} className="sr-only" aria-live="polite" aria-atomic="true">
+        {chartLiveSummary}
+      </p>
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex flex-wrap items-baseline gap-2 sm:gap-4">
               <h3
+                id={chartHeadingId}
                 className="text-sm font-semibold uppercase tracking-wide font-heading"
                 style={{ color: 'var(--ink)' }}
               >
@@ -165,7 +205,9 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
               {INTERVALS.map((iv) => (
                 <button
                   key={iv}
+                  type="button"
                   aria-pressed={interval === iv}
+                  aria-label={`${iv} candle interval`}
                   onClick={() => {
                     sounds.playButtonPress()
                     setInterval_(iv)
@@ -238,6 +280,6 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
       )}
 
       {showEmptyState && <PriceChartEmptyState pairStats={statsQuery.data} statsLoading={statsQuery.isLoading} />}
-    </div>
+    </section>
   )
 }
