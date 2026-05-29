@@ -45,8 +45,12 @@ if ! docker compose up -d localterra postgres; then
 fi
 
 echo "==> Waiting for LocalTerra (${TERRA_RPC_URL})..."
+_qa_localterra_container="$(docker compose ps -q localterra 2>/dev/null | head -1 || true)"
 for i in $(seq 1 60); do
-  if curl -sf "${TERRA_RPC_URL}/status" >/dev/null 2>&1; then
+  if [ -n "$_qa_localterra_container" ] && docker exec "$_qa_localterra_container" curl -m 3 -sf http://127.0.0.1:26657/status >/dev/null 2>&1; then
+    echo "LocalTerra is ready!"
+    break
+  elif curl -m 3 -sf "${TERRA_RPC_URL}/status" >/dev/null 2>&1; then
     echo "LocalTerra is ready!"
     break
   fi

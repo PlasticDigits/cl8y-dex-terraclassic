@@ -666,9 +666,93 @@ async fn process_limit_order_fill(
     Ok(())
 }
 
+fn wasm_attr_values<'a>(attrs: &'a [Attribute], key: &str) -> Vec<&'a str> {
+    attrs
+        .iter()
+        .filter(|a| a.key == key)
+        .map(|a| a.value.as_str())
+        .collect()
+}
+
+/// CosmWasm batch/ladder placement emits **columnar** wasm attrs (all `action`s, then parallel
+/// `order_id` / `price` / … columns). Interleaved per-rung attrs are still supported (unit tests).
+fn parse_limit_order_placements_columnar(
+    attrs: &[Attribute],
+) -> Option<Vec<ParsedLimitOrderPlacement>> {
+    let has_batch = attrs
+        .iter()
+        .any(|a| a.key == "action" && a.value == "place_limit_order_batch");
+    let place_count = attrs
+        .iter()
+        .filter(|a| a.key == "action" && a.value == "place_limit_order")
+        .count();
+    if !has_batch && place_count <= 1 {
+        return None;
+    }
+    let contract = attrs
+        .iter()
+        .find(|a| is_wasm_contract_addr_key(a.key.as_str()))
+        .map(|a| a.value.as_str())?;
+
+    let mut order_ids: Vec<i64> = wasm_attr_values(attrs, "order_id")
+        .iter()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    if order_ids.is_empty() {
+        order_ids = wasm_attr_values(attrs, "limit_order_placed")
+            .iter()
+            .filter_map(|s| s.parse().ok())
+            .collect();
+    }
+    if order_ids.is_empty() {
+        return None;
+    }
+
+    let sides: Vec<String> = wasm_attr_values(attrs, "side")
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+    let owners: Vec<String> = wasm_attr_values(attrs, "owner")
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+    let prices: Vec<BigDecimal> = wasm_attr_values(attrs, "price")
+        .iter()
+        .filter_map(|s| BigDecimal::from_str(s).ok())
+        .collect();
+    let expires_at_list: Vec<i64> = wasm_attr_values(attrs, "expires_at")
+        .iter()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+
+    let n = order_ids.len();
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        out.push(ParsedLimitOrderPlacement {
+            pair_address: contract.to_string(),
+            order_id: order_ids[i],
+            side: sides
+                .get(i)
+                .cloned()
+                .or_else(|| sides.first().cloned()),
+            owner: owners
+                .get(i)
+                .cloned()
+                .or_else(|| owners.first().cloned()),
+            price: prices.get(i).cloned(),
+            expires_at: expires_at_list.get(i).copied(),
+        });
+    }
+    Some(out)
+}
+
 fn parse_limit_order_placements_from_wasm_attrs(
     attrs: &[Attribute],
 ) -> Vec<ParsedLimitOrderPlacement> {
+    if let Some(columnar) = parse_limit_order_placements_columnar(attrs) {
+        return columnar;
+    }
+
     let mut out = Vec::new();
     for (i, a) in attrs.iter().enumerate() {
         if a.key != "action" || a.value != "place_limit_order" {
@@ -1306,6 +1390,79 @@ mod tests {
         assert_eq!(evs[0].pair_address, "terra1pair");
         assert_eq!(evs[0].order_id, 42);
         assert_eq!(evs[0].remaining.to_string(), "999000");
+    }
+
+    /// On-chain batch placement uses **columnar** attrs (CosmWasm 1.x); GitLab #206.
+    #[test]
+    fn parse_limit_order_placements_five_rungs_columnar_attrs() {
+        let mut attrs = vec![Attribute {
+            key: "_contract_address".into(),
+            value: "terra1pair".into(),
+        }];
+        attrs.push(Attribute {
+            key: "action".into(),
+            value: "place_limit_order_batch".into(),
+        });
+        for _ in 0..5 {
+            attrs.push(Attribute {
+                key: "action".into(),
+                value: "place_limit_order".into(),
+            });
+        }
+        attrs.push(Attribute {
+            key: "batch_count".into(),
+            value: "5".into(),
+        });
+        for id in 1..=5 {
+            attrs.push(Attribute {
+                key: "limit_order_placed".into(),
+                value: id.to_string(),
+            });
+        }
+        for id in 1..=5 {
+            attrs.push(Attribute {
+                key: "order_id".into(),
+                value: id.to_string(),
+            });
+        }
+        for _ in 0..5 {
+            attrs.push(Attribute {
+                key: "side".into(),
+                value: "bid".into(),
+            });
+        }
+        for _ in 0..5 {
+            attrs.push(Attribute {
+                key: "owner".into(),
+                value: "terra1maker".into(),
+            });
+        }
+        for price in ["0.95", "0.975", "1", "1.025", "1.05"] {
+            attrs.push(Attribute {
+                key: "price".into(),
+                value: price.into(),
+            });
+        }
+        let tx = TxResponse {
+            height: "1".into(),
+            txhash: "BATCHCOL".into(),
+            logs: Some(vec![TxLog {
+                events: vec![Event {
+                    event_type: "wasm".into(),
+                    attributes: attrs,
+                }],
+            }]),
+            timestamp: None,
+            events: None,
+        };
+        let p = parse_limit_order_placements(&tx);
+        assert_eq!(p.len(), 5);
+        assert_eq!(p[0].order_id, 1);
+        assert_eq!(p[4].order_id, 5);
+        assert_eq!(
+            p[4].price.as_ref().map(|x| x.to_string()),
+            Some("1.05".into())
+        );
     }
 
     /// Flattened wasm stream: `action=swap` is **last**; older parsers using `wasm_attr_last` on the

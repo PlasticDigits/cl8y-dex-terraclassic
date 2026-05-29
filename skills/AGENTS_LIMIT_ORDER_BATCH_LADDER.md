@@ -24,7 +24,7 @@ Use when changing **multi-rung limit placement** on-chain, in the indexer, or in
 2. **CW20 `send` amount** = sum of per-rung gross `amount` fields (before maker fee split on-chain).
 3. **One allowance** covers total escrow for the batch/ladder path.
 4. **Validation errors** revert the whole tx; **`LimitInsertStepsExceeded`** on a rung skips that rung, refunds its escrow, continues; **zero** successful rungs → `LimitBatchNoRungsPlaced`.
-5. **Indexer** scans every `action=place_limit_order` in the wasm stream (including after `place_limit_order_batch`); do not use `wasm_attr_last` for placement parsing ([#141](../docs/limit-orders.md)).
+5. **Indexer** scans every `action=place_limit_order` in the wasm stream (including after `place_limit_order_batch`); do not use `wasm_attr_last` for placement parsing ([#141](../docs/limit-orders.md)). On-chain batch txs emit **columnar** attrs (all `action`s first, then parallel `order_id` / `price` columns); `parse_limit_order_placements_columnar` in [`parser.rs`](../indexer/src/indexer/parser.rs) zips them — interleaved attrs remain supported in tests.
 6. **Gas preflight** for ladder uses `estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount)` — keep aligned with `getGasLimitForTx` for `place_limit_order_batch` / `place_limit_order_ladder` ([#132](./AGENTS_TERRACLASSIC_GAS.md)).
 7. **Retail single** order uses batch with one item ([`placeLimitOrderWithAllowance`](../frontend-dapp/src/services/terraclassic/pair.ts)).
 

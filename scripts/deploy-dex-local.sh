@@ -114,6 +114,12 @@ terrad_query() {
         --output json
 }
 
+# Host-published :26657 can hang when many curl clients leave CLOSE-WAIT on docker-proxy;
+# readiness checks always hit RPC inside the container (GitLab #206 verification).
+localterra_rpc_ready() {
+    docker exec "$CONTAINER_NAME" curl -m 3 -sf "http://127.0.0.1:26657/status" >/dev/null 2>&1
+}
+
 get_code_id() {
     local TX_HASH="$1"
     sleep 3
@@ -144,7 +150,7 @@ echo "----------------------------------------------"
 echo ""
 echo "[1] Waiting for LocalTerra to be ready..."
 for i in $(seq 1 60); do
-    if curl -sf "$NODE/status" > /dev/null 2>&1; then
+    if localterra_rpc_ready; then
         echo "LocalTerra is ready!"
         break
     fi
