@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createChart, CandlestickSeries, HistogramSeries, type AutoscaleInfo, type IChartApi } from 'lightweight-charts'
+import { createChart, CandlestickSeries, HistogramSeries, type IChartApi } from 'lightweight-charts'
 import { syncPriceChartIndicatorOverlays, type IndicatorSeriesRefs } from '../priceChartLightweightIndicatorSync'
-import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from '../priceChartPriceScale'
+import { minLowInVisibleLogicalRange } from '../priceChartPriceScale'
 import {
   chartBundleFromCandles,
   chartBundleFromIndexerRows,
@@ -10,34 +10,15 @@ import {
   volumePointsFromIndexer,
 } from '@/test/chartTestFixtures'
 import { baseRealChartOptions } from '@/test/chartTestOptions'
+import {
+  createRealChartWithUsdAutoscale,
+  invokeUsdAutoscaleWithOriginal,
+  mountChartContainer,
+  setChartCssVars,
+} from '@/test/chartRealLibraryHarness'
 
-function mountChartContainer(width = 640, height = 400): HTMLDivElement {
-  const el = document.createElement('div')
-  el.style.width = `${width}px`
-  el.style.height = `${height}px`
-  document.body.appendChild(el)
-  Object.defineProperty(el, 'clientWidth', { configurable: true, value: width })
-  Object.defineProperty(el, 'clientHeight', { configurable: true, value: height })
-  return el
-}
-
-function wireUsdAutoscale(chart: IChartApi, candlePoints: ReturnType<typeof makeChartCandlePoints>) {
-  const series = chart.addSeries(CandlestickSeries, {
-    autoscaleInfoProvider: (original: () => AutoscaleInfo | null) => {
-      const raw = original()
-      const logical = chart.timeScale().getVisibleLogicalRange()
-      const visibleMinLow = minLowInVisibleLogicalRange(candlePoints, logical)
-      return clampUsdPriceChartAutoscale(raw, visibleMinLow)
-    },
-  })
-  return series
-}
-
-function setChartCssVars() {
-  document.documentElement.style.setProperty('--color-positive', '#22c55e')
-  document.documentElement.style.setProperty('--color-negative', '#ef4444')
-  document.documentElement.style.setProperty('--focus-ring', '#38bdf8')
-}
+/** CI ceiling for large-candle real-library tests (GitLab #229). */
+const LARGE_CANDLE_CI_MAX = 2000
 
 describe('lightweight-charts (real module, Vitest #211)', () => {
   let container: HTMLDivElement | null = null
@@ -51,9 +32,10 @@ describe('lightweight-charts (real module, Vitest #211)', () => {
     container = null
   })
 
-  it('imports the real lightweight-charts package (not vi.mock)', () => {
-    expect(createChart).toBeTypeOf('function')
-    expect(String(createChart)).not.toMatch(/mock/i)
+  it('imports the real lightweight-charts package (not vi.mock)', async () => {
+    const { createChart: realCreate } = await import('lightweight-charts')
+    expect(realCreate).toBeTypeOf('function')
+    expect(String(realCreate)).not.toMatch(/mock/i)
   })
 
   it('createChart mounts with a single candle', () => {
@@ -83,28 +65,6 @@ describe('lightweight-charts (real module, Vitest #211)', () => {
     const canvasCountAfterFirst = container.querySelectorAll('canvas').length
     series.setData(makeChartCandlePoints(8))
     expect(container.querySelectorAll('canvas').length).toBe(canvasCountAfterFirst)
-    chart.remove()
-  })
-
-  it('USD autoscale provider never returns minValue below zero', () => {
-    container = mountChartContainer()
-    const points = makeChartCandlePoints(30)
-    const chart = createChart(container, baseRealChartOptions(640, 400))
-    const series = wireUsdAutoscale(chart, points)
-    series.setData(points)
-    chart.timeScale().fitContent()
-
-    const provider = (
-      series as unknown as {
-        options: () => { autoscaleInfoProvider?: (o: () => AutoscaleInfo | null) => AutoscaleInfo | null }
-      }
-    ).options?.()?.autoscaleInfoProvider
-
-    expect(provider).toBeTypeOf('function')
-    const info = provider!(() => ({
-      priceRange: { minValue: -5, maxValue: 10 },
-    }))
-    expect(info?.priceRange?.minValue).toBeGreaterThanOrEqual(0)
     chart.remove()
   })
 
@@ -200,5 +160,130 @@ describe('lightweight-charts (real module, Vitest #211)', () => {
       chart.remove()
     }
     expect(container.querySelectorAll('canvas').length).toBe(0)
+  })
+})
+
+describe('lightweight-charts large candle datasets (#229)', () => {
+  let container: HTMLDivElement | null = null
+
+  beforeEach(() => {
+    setChartCssVars()
+  })
+
+  afterEach(() => {
+    container?.remove()
+    container = null
+  })
+
+  function assertLargeCandleInit(count: number) {
+    container = mountChartContainer()
+    const chart = createChart(container, baseRealChartOptions(640, 400))
+    const series = chart.addSeries(CandlestickSeries, {})
+    series.setData(makeChartCandlePoints(count))
+    chart.timeScale().fitContent()
+    expect(container.querySelectorAll('canvas').length).toBeGreaterThan(0)
+    chart.remove()
+  }
+
+  it(`initializes ${500} candles within timeout`, () => {
+    assertLargeCandleInit(500)
+  })
+
+  it(`initializes ${1500} candles within timeout`, { timeout: 25_000 }, () => {
+    assertLargeCandleInit(1500)
+  })
+
+  it.runIf(Boolean(process.env.CI))(
+    `CI soak: initializes ${LARGE_CANDLE_CI_MAX} candles (documented ceiling)`,
+    { timeout: 30_000 },
+    () => {
+      assertLargeCandleInit(LARGE_CANDLE_CI_MAX)
+    }
+  )
+
+  it('setData refresh 500→600 does not create a second chart', () => {
+    container = mountChartContainer()
+    const chart = createChart(container, baseRealChartOptions(640, 400))
+    const series = chart.addSeries(CandlestickSeries, {})
+    series.setData(makeChartCandlePoints(500))
+    const canvasCountAfterFirst = container.querySelectorAll('canvas').length
+    series.setData(makeChartCandlePoints(600))
+    expect(container.querySelectorAll('canvas').length).toBe(canvasCountAfterFirst)
+    chart.remove()
+  })
+})
+
+describe('USD autoscale with real visible logical range (#151, #229)', () => {
+  let container: HTMLDivElement | null = null
+  let chart: IChartApi | null = null
+
+  beforeEach(() => {
+    setChartCssVars()
+  })
+
+  afterEach(() => {
+    chart?.remove()
+    chart = null
+    container?.remove()
+    container = null
+  })
+
+  it('never returns minValue below zero when all candles are visible', () => {
+    container = mountChartContainer()
+    const points = makeChartCandlePoints(30)
+    const wired = createRealChartWithUsdAutoscale(container, points)
+    chart = wired.chart
+    wired.series.setData(points)
+    chart.timeScale().fitContent()
+
+    const info = invokeUsdAutoscaleWithOriginal(wired.series, -5, 10)
+    expect(info?.priceRange?.minValue).toBeGreaterThanOrEqual(0)
+  })
+
+  it('clamps to lowest visible candle low after zoom (#151)', () => {
+    container = mountChartContainer()
+    const points = makeChartCandlePoints(80)
+    const wired = createRealChartWithUsdAutoscale(container, points)
+    chart = wired.chart
+    wired.series.setData(points)
+    chart.timeScale().fitContent()
+
+    const zoomFrom = 20
+    const zoomTo = 40
+    chart.timeScale().setVisibleLogicalRange({ from: zoomFrom, to: zoomTo })
+
+    const logical = chart.timeScale().getVisibleLogicalRange()
+    expect(logical).not.toBeNull()
+    const expectedMinLow = minLowInVisibleLogicalRange(points, logical)
+    expect(expectedMinLow).not.toBeNull()
+
+    const info = invokeUsdAutoscaleWithOriginal(wired.series, -100, 200)
+    expect(info?.priceRange?.minValue).toBeGreaterThanOrEqual(0)
+    expect(info?.priceRange?.minValue).toBeGreaterThanOrEqual(expectedMinLow!)
+  })
+
+  it('single candle autoscale never goes below zero', () => {
+    container = mountChartContainer()
+    const points = makeChartCandlePoints(1)
+    const wired = createRealChartWithUsdAutoscale(container, points)
+    chart = wired.chart
+    wired.series.setData(points)
+    chart.timeScale().fitContent()
+
+    const info = invokeUsdAutoscaleWithOriginal(wired.series, -1, 5)
+    expect(info?.priceRange?.minValue).toBeGreaterThanOrEqual(0)
+  })
+
+  it('uses full-series min low when visible logical range is null', () => {
+    container = mountChartContainer()
+    const points = makeChartCandlePoints(10)
+    const wired = createRealChartWithUsdAutoscale(container, points)
+    chart = wired.chart
+    wired.series.setData(points)
+
+    const info = invokeUsdAutoscaleWithOriginal(wired.series, -50, 100)
+    const fullMinLow = minLowInVisibleLogicalRange(points, null)
+    expect(fullMinLow).not.toBeNull()
+    expect(info?.priceRange?.minValue).toBeGreaterThanOrEqual(fullMinLow!)
   })
 })
