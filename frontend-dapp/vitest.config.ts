@@ -15,7 +15,7 @@ export default defineConfig({
       VITE_DEV_MODE: 'true',
     },
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['node_modules/', 'dist/', 'src/**/*.integration.test.{ts,tsx}'],
+    exclude: ['node_modules/', 'dist/', 'src/**/*.integration.test.{ts,tsx}', 'src/**/*.charts.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

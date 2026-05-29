@@ -148,6 +148,9 @@ jobs:
       - name: Unit tests
         run: npm run test:run
 
+      - name: Vitest real lightweight-charts (GitLab #211)
+        run: npm run test:charts
+
   frontend-charts-integration:
     name: Frontend charts integration
     runs-on: ubuntu-latest

@@ -17,6 +17,7 @@ Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./re
 | Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | Manual: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) | LCD `pool` + optional `simulation`; run after deploy |
 | Stubs / mocks catalog | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy below + issue #105 | LCD stub vs AMM-sim orderbook |
 | Charts integration | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | CI runs `npm run test:integration` |
+| Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | Separate from jsdom stub; see below |
 
 **Post-deploy smoke (#86):**
 
@@ -91,6 +92,27 @@ Config: `vitest.config.ts`
 
 **Regression:** Trade/Charts **price chart** empty-candle UX and `getPairStats` fallback are covered in `src/components/charts/__tests__/PriceChart.test.tsx` (see GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113) and [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants)).
 
+#### Real `lightweight-charts` in Vitest (GitLab #211)
+
+TradingView **[lightweight-charts](https://github.com/tradingview/lightweight-charts)** (open-source canvas library — **not** the hosted TradingView widget) has two Vitest layers:
+
+| Layer | Config / command | What runs |
+|-------|------------------|-----------|
+| **Fast stub** (default) | `vitest.config.ts` → `npm run test:run` | `lightweightChartsJsdomMock.ts` — React/indexer wiring, `createChart` spies, `setData` payloads |
+| **Real library** | `vitest.config.charts.ts` → `npm run test:charts` | Imports actual `lightweight-charts`; Node `canvas` shim in `src/test/chartsSetup.ts`; files matching `*.charts.test.{ts,tsx}` |
+
+```bash
+make test-frontend-charts   # from repo root
+# or:
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:charts
+```
+
+**CI:** the `frontend` job runs `npm run test:charts` after unit tests ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)).
+
+**Agent playbook:** [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md). Chart invariants: [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants).
+
+**Do not** load `lightweightChartsJsdomMock.ts` in the charts config. Pure helpers (`priceChartCandles`, `priceChartIndicators`, `priceChartPriceScale`) stay in default unit tests only.
+
 ### Integration Tests (Frontend)
 
 Longer-running tests are kept out of the default `npm run test:run` suite. **Charts + indexer HTTP** coverage uses `vitest.config.integration.ts`: tests call a real indexer (`VITE_INDEXER_URL`, default `http://127.0.0.1:3001`) with PostgreSQL migrations applied. They are **not** skipped when the stack is down — the run fails so CI catches broken wiring. E2E and other flows may still use LocalTerra where documented.
@@ -129,7 +151,7 @@ This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integrat
 
 **Manual rollback SQL** (not run by `sqlx migrate`): paired `.down.sql` for selected migrations lives under [`indexer/migrations/revert/`](../indexer/migrations/revert/) — e.g. limit-order lifecycle columns ([GitLab **#142**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/142)) ship beside [`20260509160000_limit_order_placement_lifecycle.sql`](../indexer/migrations/20260509160000_limit_order_placement_lifecycle.sql).
 
-**Note:** `lightweight-charts` is stubbed under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines) so Node-based Vitest stays stable; the real chart library runs in the browser (manual QA / Playwright).
+**Note:** Default Vitest stubs `lightweight-charts` under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines). **Real-library** chart init, `setData`, indicators, volume fallback, and USD autoscale paths run in `npm run test:charts` ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). Pixel-level zoom/pan and layout regressions remain Playwright / manual QA.
 
 Config: `vitest.config.integration.ts`
 

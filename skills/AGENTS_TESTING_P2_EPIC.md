@@ -42,6 +42,9 @@ cargo test pause_blocks_swap_and_place_cancel_refunds_escrow
 # Frontend hybrid msgs + pause banner (#84, #87)
 cd frontend-dapp && npm run test:run -- router.hybrid.test.ts TradePage.test.tsx pair.test.ts
 
+# Real lightweight-charts Vitest (#211)
+make test-frontend-charts
+
 # Charts integration (#104, #205) — Postgres seed + indexer on :3001
 make test-charts-integration
 # Override DB or indexer URL when needed:
@@ -61,7 +64,8 @@ Full catalog: [GitLab **#105**](https://gitlab.com/PlasticDigits/cl8y-dex-terrac
 | Wiremock LCD | `indexer/tests/common/lcd_mock.rs` | Real Terra LCD |
 | AMM curve-walk depth | `indexer/src/api/orderbook_sim.rs` | On-chain FIFO limit book |
 | Vitest `vi.mock` (Terra services) | `frontend-dapp/src/**/__tests__` | Wallet + LCD I/O |
-| `lightweightChartsJsdomMock.ts` | jsdom unit tests | Browser `lightweight-charts` |
+| `lightweightChartsJsdomMock.ts` | jsdom unit tests (`test:run`) | Browser `lightweight-charts` |
+| `vitest.config.charts.ts` + `chartsSetup.ts` | Real library Vitest ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)) | Same; `npm run test:charts` |
 | E2E `REQUIRE_LOCALTERRA=0` | Playwright global setup | Full LocalTerra stack |
 
 **Rule:** Do not add `#[ignore]` / permanent skips without a linked follow-up issue. Prefer strict fail in default CI when the stack is required.
