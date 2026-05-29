@@ -21,4 +21,22 @@ describe('expandLimitLadder', () => {
     expect(sum).toBe(1000n)
     expect(sumLadderAmountsRaw(rungs)).toBe('1000')
   })
+
+  it('sums equal rungs as integer not string concat (GitLab #233)', () => {
+    const rungs = expandLimitLadder(
+      {
+        side: 'bid',
+        startPrice: '0.95',
+        endPrice: '1.05',
+        count: 5,
+        totalAmountRaw: '100000000',
+        distribution: 'equal',
+        maxAdjustSteps: 32,
+      },
+      20
+    )
+    expect(rungs.every((r) => r.amountRaw === '20000000')).toBe(true)
+    expect(sumLadderAmountsRaw(rungs)).toBe('100000000')
+    expect(sumLadderAmountsRaw(rungs)).not.toBe('02000000020000000200000002000000020000000')
+  })
 })

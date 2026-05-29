@@ -17,14 +17,14 @@ Use when changing **multi-rung limit placement** on-chain, in the indexer, or in
 | [`useLimitLadderPlaceGates.ts`](../frontend-dapp/src/hooks/useLimitLadderPlaceGates.ts) | Escrow + LUNC preflight for total escrow |
 | [`useLimitOrderEscrowBalance.ts`](../frontend-dapp/src/hooks/useLimitOrderEscrowBalance.ts) | CW20 escrow balance (`tokenBalance` query key; ladder gates import this directly) |
 | [`useTokenBalance.ts`](../frontend-dapp/src/hooks/useTokenBalance.ts) | Re-export alias of `useLimitOrderEscrowBalance` ([#231](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/231)) |
-| [`limitOrderLadder.ts`](../frontend-dapp/src/utils/limitOrderLadder.ts) | Client ladder preview (must match `expand_limit_ladder`) |
+| [`limitOrderLadder.ts`](../frontend-dapp/src/utils/limitOrderLadder.ts) | Client ladder preview + `sumLadderAmountsRaw` (must match `expand_limit_ladder`) |
 | [`indexer/parser.rs`](../indexer/src/indexer/parser.rs) | One `limit_order_placements` row per `action=place_limit_order` |
 
 ## Invariants
 
 1. **One side per batch** — bid uses token1 CW20; ask uses token0. Mixed sides → separate txs.
 2. **CW20 `send` amount** = sum of per-rung gross `amount` fields (before maker fee split on-chain).
-3. **One allowance** covers total escrow for the batch/ladder path.
+3. **One allowance** covers total escrow for the batch/ladder path. Aggregate with [`sumLadderAmountsRaw`](../frontend-dapp/src/utils/limitOrderLadder.ts) (`reduce` + `BigInt`, initial `0n`) — **never** string-concatenate rung amounts in reduce (invalid Uint128; [#233](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/233)).
 4. **Validation errors** revert the whole tx; **`LimitInsertStepsExceeded`** on a rung skips that rung, refunds its escrow, continues; **zero** successful rungs → `LimitBatchNoRungsPlaced`.
 5. **Indexer** scans every `action=place_limit_order` in the wasm stream (including after `place_limit_order_batch`); do not use `wasm_attr_last` for placement parsing ([#141](../docs/limit-orders.md)). On-chain batch txs emit **columnar** attrs (all `action`s first, then parallel `order_id` / `price` columns); `parse_limit_order_placements_columnar` in [`parser.rs`](../indexer/src/indexer/parser.rs) zips them — interleaved attrs remain supported in tests.
 6. **Gas preflight** for ladder uses `estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount)` — keep aligned with `getGasLimitForTx` for `place_limit_order_batch` / `place_limit_order_ladder` ([#132](./AGENTS_TERRACLASSIC_GAS.md)).
@@ -39,6 +39,8 @@ cd smartcontracts && cargo test -p cl8y-dex-tests limit_batch place_limit_order_
 
 # Frontend unit
 cd frontend-dapp && npm test -- limitOrderLadder limitOrderBatchGasSummary useLimitLadderPlaceGates useTokenBalance
+# Regression: sumLadderAmountsRaw must not string-concat rungs (#233)
+cd frontend-dapp && npm test -- limitOrderLadder -t "GitLab #233"
 
 # E2E (LocalTerra, 5 workers)
 bash scripts/e2e-provision-dev-wallet.sh
@@ -55,3 +57,4 @@ cd frontend-dapp && npx playwright test e2e/limit-orders-tx.spec.ts --project=e2
 
 - [#206](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/206) — batch / ladder feature + verification checklist
 - [#231](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/231) — missing `useTokenBalance` broke Vite after clean `node_modules` (ladder gates → `useLimitOrderEscrowBalance`)
+- [#233](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/233) — `sumLadderAmountsRaw` string-concat broke `increase_allowance` Uint128; fixed in `515fba3`, regression test + docs crosslink

@@ -83,6 +83,10 @@ export function expandLimitLadder(spec: LimitLadderSpec, maxRungs: number): Ladd
   }))
 }
 
+/**
+ * Sum per-rung raw escrow for CW20 `increase_allowance` / `send` totals.
+ * Must use BigInt addition — string concat in reduce breaks Uint128 (GitLab #233).
+ */
 export function sumLadderAmountsRaw(rungs: LadderRungPreview[]): string {
   return rungs.reduce((acc, r) => acc + BigInt(r.amountRaw), 0n).toString()
 }
