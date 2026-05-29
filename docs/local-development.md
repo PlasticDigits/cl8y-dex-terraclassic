@@ -39,6 +39,7 @@ make dev
 | `make clippy`         | Run clippy with `-D warnings`                  |
 | `make build-optimized` | Produce optimized WASM via workspace-optimizer |
 | `make deploy-local`   | Deploy to LocalTerra                           |
+| `make dev`            | Start Vite (`scripts/dev-frontend-local.sh` — requires `.env.local`) |
 | `make swarm-local`    | Run the **localnet-only** trading bot swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)) — requires LocalTerra + `deploy-dex-local` first |
 
 ### Trading swarm (UI load / localnet only)
@@ -100,6 +101,8 @@ Agent playbook (setup, test commands, troubleshooting): [`skills/AGENTS_LOCAL_PO
 | LocalTerra won't start            | Ensure Docker is running, check port 1317/26657    |
 | Contract upload fails             | Check gas settings in deploy script                |
 | Frontend can't connect            | Verify `VITE_NETWORK=local` and LocalTerra is up   |
+| Trade page shows `not implemented` / `-32701` under Pair | `VITE_FACTORY_ADDRESS` is empty and the app hit a malformed LCD URL (often **publicnode** when `VITE_TERRA_LCD_URL` is also unset). Run **`make deploy-local`** (writes **`frontend-dapp/.env.local`**). Delete or refresh stale **`frontend-dapp/.env`** so it does not override `.env.local`. Restart `npm run dev`. |
+| `no such contract` on factory query | Chain was reset but env still has old addresses — re-run **`make deploy-local`** or **`make reset-qa`**. |
 | Postgres auth / missing test DB   | See [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md); try `make reset` then redeploy |
 | Stale deployed contracts (QA)    | [`scripts/qa/README.md`](../scripts/qa/README.md) § Stale deployed contracts; [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md) ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)) |
 | `node_modules` issues             | Delete `node_modules` and `package-lock.json`, re-run `npm ci` |

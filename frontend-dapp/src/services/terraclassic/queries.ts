@@ -44,8 +44,14 @@ export async function getChainContractInfo(
 }
 
 export async function queryContract<T>(contractAddress: string, queryMsg: Record<string, unknown>): Promise<T> {
+  const addr = contractAddress.trim()
+  if (!addr) {
+    throw new Error(
+      'Contract address is not configured. For local dev, run `make deploy-local` from the repo root (writes frontend-dapp/.env.local).'
+    )
+  }
   const queryBase64 = btoa(JSON.stringify(queryMsg))
-  const url = `${TERRA_LCD_URL}/cosmwasm/wasm/v1/contract/${contractAddress}/smart/${queryBase64}`
+  const url = `${TERRA_LCD_URL}/cosmwasm/wasm/v1/contract/${addr}/smart/${queryBase64}`
   const response = await lcdFetch(url)
   if (!response.ok) {
     let errorDetail = `Query failed: ${response.status}`

@@ -39,6 +39,20 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+describe('getAllPairs — missing factory address', () => {
+  it('throws before LCD when VITE_FACTORY_ADDRESS is unset', async () => {
+    vi.doMock('@/utils/constants', () => ({
+      FACTORY_CONTRACT_ADDRESS: '',
+      FEE_DISCOUNT_CONTRACT_ADDRESS: 'terra1feediscount',
+      TERRA_LCD_URL: 'http://localhost:1317',
+    }))
+    vi.resetModules()
+    const { getAllPairs: getAllPairsFresh } = await import('../factory')
+    await expect(getAllPairsFresh()).rejects.toThrow(/make deploy-local/i)
+    expect(mockedQuery).not.toHaveBeenCalled()
+  })
+})
+
 describe('getAllPairs', () => {
   it('queries pairs without pagination params', async () => {
     const expected = { pairs: [makePairInfo('pair1', TOKEN_A, TOKEN_B)] }

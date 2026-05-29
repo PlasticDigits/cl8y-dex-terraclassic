@@ -163,7 +163,8 @@ deploy-mainnet:
 WITH_NODE = bash scripts/with-node.sh --cwd frontend-dapp --
 
 dev:
-	$(WITH_NODE) npm run dev
+	@chmod +x scripts/dev-frontend-local.sh scripts/with-node.sh
+	./scripts/dev-frontend-local.sh
 
 build-frontend:
 	$(WITH_NODE) npm run build
@@ -208,7 +209,8 @@ dev-full: start wait-healthy build-optimized deploy-local
 	cd indexer && cargo run &
 	@sleep 5
 	@echo "Starting frontend dev server..."
-	$(WITH_NODE) npm run dev
+	@chmod +x scripts/dev-frontend-local.sh scripts/with-node.sh
+	./scripts/dev-frontend-local.sh
 
 # Combined
 test: test-contracts test-frontend
