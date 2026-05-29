@@ -11,6 +11,9 @@ export const CHARTS_MARKET_DATA_OUTAGE_LEAD =
 export const TRADER_MARKET_DATA_OUTAGE_LEAD =
   'Trader profiles, positions, and trade history may be limited until the service recovers.'
 
+export const PORTFOLIO_MARKET_DATA_OUTAGE_LEAD =
+  'Portfolio summary, open positions, and recent swaps may be limited until the service recovers.'
+
 export const POOL_MARKET_DATA_OUTAGE_LEAD =
   'Pool listings and indexer-backed pair metadata may be limited until the service recovers.'
 

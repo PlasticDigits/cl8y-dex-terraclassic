@@ -9,6 +9,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { path: '/pool', label: 'Pool' },
   { path: '/limits', label: 'Limits' },
   { path: '/trade', label: 'Trade' },
+  { path: '/portfolio', label: 'Portfolio' },
   { path: '/charts', label: 'Charts' },
 ]
 

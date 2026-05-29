@@ -386,11 +386,33 @@ The frontend uses TerraSwap-compatible message names:
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/create`       | Create a new token pair via the Factory           |
 | `/charts`       | Pairs overview and per-pair charts (indexer)      |
+| `/portfolio`    | **My Portfolio** — connected wallet summary, open quote positions, recent swaps ([GitLab **#212**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/212)); alias `/my-portfolio` → `/portfolio` |
 | `/trader`       | Trader profile lookup (indexer); optional `/:address` |
 | `/trade`        | Trade UI — order book, **price chart**, tape, **limit + market** tickets ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)) |
 | `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
 | `/limits`       | Limit order placements, lifecycle, and **wallet history** (fills, cancels, swaps on pair + CSV) — [GitLab **#163**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/163) |
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
+
+### My Portfolio (wallet-centric indexer exposure) {#my-portfolio}
+
+Route **`/portfolio`** is the wallet-home surface for indexed trading exposure ([GitLab **#212**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/212)). It uses the connected address from **`useWalletStore`** only (no `?addr=` override). Public lookup of any address remains on **`/trader/:address`**.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Disconnected** | Connect CTA only; **no** indexer calls that require an address. |
+| **Positions API** | `GET /api/v1/traders/{addr}/positions` — returns `[]` for flat/unknown traders; not on-chain balances. |
+| **Profile API** | `GET /api/v1/traders/{addr}` — **404** when the wallet has no indexed trader row; portfolio still shows positions + activity when present. |
+| **LP vs trader** | Open positions are **swap-tracked quote exposure**; LP CW20 balances stay on **`/pool`** — separate sections and copy. |
+| **P&amp;L semantics** | **Realized** indexer P&amp;L only — not mark-to-market unrealized. Link copy points to [`docs/indexer-invariants.md`](./indexer-invariants.md) (position net quote). |
+| **Privacy** | Trader routes are **public**; portfolio does not imply on-chain secrecy. |
+| **Read-only** | No signing on portfolio; pair rows deep-link to **`/trade/{pairAddr}`**. |
+| **Outage UX** | `MarketDataServiceOutageBanner` + `RetryError` parity with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx). |
+| **Nav** | `Portfolio` in `PRIMARY_NAV_ITEMS` ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)); wallet menu **My Portfolio** link. |
+| **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. |
+
+**Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions` path), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md).
 
 ### Wallet swap and limit history (indexer) {#wallet-swap-limit-history}
 

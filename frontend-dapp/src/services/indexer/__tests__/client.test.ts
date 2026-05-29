@@ -161,6 +161,14 @@ describe('indexer client fetchJson', () => {
     expect(vi.mocked(fetch).mock.calls[0][0]).toContain(`${pair}/limit-placements?limit=20&status=parked_expired`)
   })
 
+  it('GET /traders/{addr}/positions uses encoded address path (GitLab #212)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+    const client = await loadModule()
+    const addr = 'terra1trader000000000000000000000000000000'
+    await client.getTraderPositions(addr)
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe(`${client.INDEXER_URL}/api/v1/traders/${addr}/positions`)
+  })
+
   it('builds paginated limit-book URL', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(
