@@ -25,5 +25,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "public/chains/chainlist.json"]
+  "include": ["src", "public/chains/chainlist.json"],
+  "exclude": [
+    "src/test",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.charts.test.ts",
+    "src/**/*.charts.test.tsx"
+  ]
 }
