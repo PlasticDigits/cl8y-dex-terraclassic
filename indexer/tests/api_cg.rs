@@ -116,13 +116,13 @@ async fn cg_orderbook_depth_capped() {
     let resp = server
         .get("/cg/orderbook?ticker_id=LUNC_USTC&depth=9999")
         .await;
-    // LCD may fail (dummy endpoint); if we get 200, depth must be capped at 100.
+    // LCD may fail (dummy endpoint); if we get 200, total depth 100 → at most 50 per side.
     if resp.status_code().is_success() {
         let body: Value = resp.json();
         let bids = body["bids"].as_array().unwrap();
         let asks = body["asks"].as_array().unwrap();
-        assert!(bids.len() <= 100);
-        assert!(asks.len() <= 100);
+        assert!(bids.len() <= 50);
+        assert!(asks.len() <= 50);
     }
 }
 

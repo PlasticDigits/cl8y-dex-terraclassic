@@ -7,7 +7,7 @@
 //! the fee query fails (logged). Wiremock LCD stubs in `tests/common/lcd_mock.rs` mock HTTP only.
 //!
 //! Normative algorithm: [`docs/CG_CMC_COMPLIANCE.md`](../../docs/CG_CMC_COMPLIANCE.md) § AMM Orderbook Simulation.
-//! Invariants: [`docs/indexer-invariants.md`](../../docs/indexer-invariants.md). Closed in GitLab **#210**.
+//! Invariants: [`docs/indexer-invariants.md`](../../docs/indexer-invariants.md). Closed in GitLab **#210**; Openware total-depth split in **#221**.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -22,6 +22,27 @@ use crate::db::queries::pairs;
 use crate::lcd::{FeeConfigResponse, LcdClient, PoolResponse};
 
 const ORDERBOOK_CACHE_TTL: Duration = Duration::from_secs(30);
+
+/// Default / max for CG/CMC `depth` query: **total levels across the book** (Openware / CMC exchange integration).
+pub const ORDERBOOK_DEPTH_DEFAULT: usize = 20;
+pub const ORDERBOOK_DEPTH_MAX: usize = 100;
+
+/// Cap `depth` query param: default [`ORDERBOOK_DEPTH_DEFAULT`], max [`ORDERBOOK_DEPTH_MAX`].
+#[must_use]
+pub fn cap_orderbook_depth(requested: Option<usize>) -> usize {
+    requested
+        .unwrap_or(ORDERBOOK_DEPTH_DEFAULT)
+        .clamp(1, ORDERBOOK_DEPTH_MAX)
+}
+
+/// Ladder steps **per side** from total requested depth (`depth=100` → 50 bids + 50 asks).
+///
+/// Uses integer floor (`total / 2`); odd totals drop the remainder (e.g. `21` → 10+10).
+/// `depth=1` yields one bid and one ask (`max(1, 0)`).
+#[must_use]
+pub fn levels_per_side(total_depth: usize) -> usize {
+    (total_depth / 2).max(1)
+}
 
 /// Maximum fraction of `reserve_0` (base) per level: 10% (`CG_CMC_COMPLIANCE.md`).
 const MAX_STEP_NUMERATOR: u128 = 10;
@@ -256,19 +277,22 @@ pub async fn simulate_orderbook(
             asks: Vec::new(),
         });
     }
-    Ok(walk_amm_book(r0, r1, depth, fee_bps))
+    let per_side = levels_per_side(depth);
+    Ok(walk_amm_book(r0, r1, per_side, fee_bps))
 }
 
 /// Like [`simulate_orderbook`] but caches results per `(pair_addr, depth, fee_bps)` for [`ORDERBOOK_CACHE_TTL`].
+///
+/// `requested_depth` is the **query** `depth` (total across book); cache keys use this value, not per-side count.
 pub async fn simulate_orderbook_cached(
     cache: &OrderbookCache,
     pool: &PgPool,
     lcd: &LcdClient,
     pair_addr: &str,
-    depth: usize,
+    requested_depth: usize,
 ) -> Result<OrderbookData, Box<dyn std::error::Error + Send + Sync>> {
     let now = Instant::now();
-    let prefix = format!("{pair_addr}:{depth}:");
+    let prefix = format!("{pair_addr}:{requested_depth}:");
     {
         let guard = cache.inner.read().await;
         for (key, (data, exp)) in guard.iter() {
@@ -288,7 +312,7 @@ pub async fn simulate_orderbook_cached(
             asks: Vec::new(),
         }
     } else {
-        walk_amm_book(r0, r1, depth, fee_bps)
+        walk_amm_book(r0, r1, levels_per_side(requested_depth), fee_bps)
     };
     let mut guard = cache.inner.write().await;
     guard.insert(key, (data.clone(), now + ORDERBOOK_CACHE_TTL));
@@ -298,6 +322,23 @@ pub async fn simulate_orderbook_cached(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cap_orderbook_depth_defaults_and_caps() {
+        assert_eq!(cap_orderbook_depth(None), 20);
+        assert_eq!(cap_orderbook_depth(Some(9999)), 100);
+        assert_eq!(cap_orderbook_depth(Some(0)), 1);
+    }
+
+    #[test]
+    fn levels_per_side_openware_mapping() {
+        assert_eq!(levels_per_side(100), 50);
+        assert_eq!(levels_per_side(50), 25);
+        assert_eq!(levels_per_side(20), 10);
+        assert_eq!(levels_per_side(21), 10);
+        assert_eq!(levels_per_side(1), 1);
+        assert_eq!(levels_per_side(2), 1);
+    }
 
     #[test]
     fn ceil_div_matches_pair_semantics() {

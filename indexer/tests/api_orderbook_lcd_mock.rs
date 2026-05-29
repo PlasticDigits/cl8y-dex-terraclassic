@@ -28,10 +28,10 @@ async fn cg_orderbook_200_simulated_depth_matches_query() {
     let body: Value = resp.json();
     let bids = body["bids"].as_array().unwrap();
     let asks = body["asks"].as_array().unwrap();
-    assert_eq!(bids.len(), 50);
-    assert_eq!(asks.len(), 50);
-    assert!(bids.len() <= 100);
-    assert!(asks.len() <= 100);
+    assert_eq!(bids.len(), 25);
+    assert_eq!(asks.len(), 25);
+    assert!(bids.len() <= 50);
+    assert!(asks.len() <= 50);
 }
 
 #[tokio::test]
@@ -52,8 +52,8 @@ async fn cg_orderbook_depth_capped_at_100_with_lcd_mock() {
     let body: Value = resp.json();
     let bids = body["bids"].as_array().unwrap();
     let asks = body["asks"].as_array().unwrap();
-    assert_eq!(bids.len(), 100);
-    assert_eq!(asks.len(), 100);
+    assert_eq!(bids.len(), 50);
+    assert_eq!(asks.len(), 50);
 }
 
 #[tokio::test]
@@ -97,8 +97,8 @@ async fn cmc_orderbook_200_with_lcd_mock() {
     let body: Value = resp.json();
     let bids = body["bids"].as_array().unwrap();
     let asks = body["asks"].as_array().unwrap();
-    assert_eq!(bids.len(), 15);
-    assert_eq!(asks.len(), 15);
+    assert_eq!(bids.len(), 7);
+    assert_eq!(asks.len(), 7);
 }
 
 #[tokio::test]
@@ -119,8 +119,8 @@ async fn cg_orderbook_bid_prices_decrease_ask_prices_increase() {
     let body: Value = resp.json();
     let bids = body["bids"].as_array().unwrap();
     let asks = body["asks"].as_array().unwrap();
-    assert_eq!(bids.len(), 20);
-    assert_eq!(asks.len(), 20);
+    assert_eq!(bids.len(), 10);
+    assert_eq!(asks.len(), 10);
 
     let bid_prices: Vec<f64> = bids
         .iter()
@@ -156,4 +156,42 @@ async fn cg_orderbook_with_db_fee_worse_than_zero_fee_baseline() {
         let f: f64 = parse_level_price(&fee.asks[i]);
         assert!(f > z, "fee should worsen ask at {i}");
     }
+}
+
+#[tokio::test]
+async fn cg_orderbook_depth_one_openware_split() {
+    let mock = common::lcd_mock::start_pool_query_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get("/cg/orderbook?ticker_id=LUNC_USTC&depth=1")
+        .await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["bids"].as_array().unwrap().len(), 1);
+    assert_eq!(body["asks"].as_array().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn cg_orderbook_default_depth_is_ten_per_side() {
+    let mock = common::lcd_mock::start_pool_query_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/cg/orderbook?ticker_id=LUNC_USTC").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["bids"].as_array().unwrap().len(), 10);
+    assert_eq!(body["asks"].as_array().unwrap().len(), 10);
 }
