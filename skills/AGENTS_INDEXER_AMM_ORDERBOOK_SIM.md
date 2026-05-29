@@ -2,7 +2,7 @@
 
 Use when changing **`indexer/src/api/orderbook_sim.rs`**, **`indexer/src/api/hybrid_orderbook_sim.rs`**, **`/cg/orderbook`**, **`/cmc/orderbook/*`**, or CG/CMC compliance docs for synthetic depth.
 
-GitLab **#220** (hybrid merge), **#210** (AMM pool leg), **#222** / **#224** (listing compliance: timestamps + CMC array wrapper).
+GitLab **#220** (hybrid merge), **#210** (AMM pool leg), **#222** / **#224** (listing compliance: timestamps), **#223** (CMC orderbook Openware array wrapper).
 
 ## Do not confuse
 
@@ -26,9 +26,9 @@ GitLab **#220** (hybrid merge), **#210** (AMM pool leg), **#222** / **#224** (li
 |----------|-------|------|------|
 | `GET /cg/orderbook` | `timestamp` | JSON number (`i64`) | Unix **milliseconds** |
 | `GET /cmc/orderbook/*` | `timestamp` | JSON number (`i64`) | Unix **seconds** (same as `/cmc/trades`) |
-| `GET /cmc/orderbook/*` | (root) | JSON **array** | One book object per Openware Peatio (**#224**) |
+| `GET /cmc/orderbook/*` | (root) | JSON **array** | Exactly **one** book object per Openware Peatio ([#223](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223), shipped with [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224)) |
 
-Implementation: [`listing_timestamps.rs`](../indexer/src/api/listing_timestamps.rs). **Breaking:** pre-#222 responses used RFC3339 strings; pre-#224 CMC orderbook was a bare object.
+Implementation: [`listing_timestamps.rs`](../indexer/src/api/listing_timestamps.rs), handler `Ok(Json(vec![...]))` in [`cmc.rs`](../indexer/src/api/cmc.rs). **Breaking:** pre-#222 responses used RFC3339 strings; pre-#223/#224 CMC orderbook was a bare `{ timestamp, bids, asks }` object. **Do not** wrap `/cg/orderbook` in an array.
 
 ## Depth query (Openware / CMC — #221)
 

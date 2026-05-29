@@ -242,7 +242,7 @@ pub struct CmcOrderbookResponse {
         CmcOrderbookQuery,
     ),
     responses(
-        (status = 200, description = "Hybrid-simulated orderbook (Openware array wrapper; #220)", body = Vec<CmcOrderbookResponse>),
+        (status = 200, description = "Hybrid-simulated orderbook (Openware array wrapper; #223)", body = Vec<CmcOrderbookResponse>),
         (status = 400, description = "Invalid market pair format"),
         (status = 404, description = "Pair not found"),
         (status = 500, description = "Internal server error"),

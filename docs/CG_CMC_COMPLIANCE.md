@@ -4,7 +4,7 @@ This document describes the CL8Y DEX's self-hosted market data API endpoints tha
 
 **Canonical sources:** Live handlers in [`indexer/src/api/cg.rs`](../indexer/src/api/cg.rs) and [`cmc.rs`](../indexer/src/api/cmc.rs); OpenAPI (utoipa) on the indexer Swagger UI. When this markdown and code disagree, **code wins** until a doc PR lands — verify with `cargo test` in [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs).
 
-**Last verified:** GitLab [**#224**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) (align with Kujira FIN CG + Openware Peatio CMC listing APIs).
+**Last verified:** GitLab [**#224**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) (align with Kujira FIN CG + Openware Peatio CMC listing APIs). CMC orderbook array wrapper: [**#223**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223).
 
 ## Table of Contents
 
@@ -38,7 +38,7 @@ This document describes the CL8Y DEX's self-hosted market data API endpoints tha
 | Summary | [Openware CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap) | `GET /cmc/summary` | Yes | Array of market rows; optional `cl8y_extensions` on summary rows when indexed. |
 | Assets | Openware CMC | `GET /cmc/assets` | Partial | Openware shows array-of-maps; CL8Y returns one **object** keyed by symbol (equivalent data). |
 | Ticker | Openware CMC | `GET /cmc/ticker` | Partial | One **object** keyed by `BASE_QUOTE` (not array-of-maps). |
-| Orderbook | Openware CMC | `GET /cmc/orderbook/:market_pair` | Yes | Root **array** with one book object; `timestamp` = Unix **seconds** (intentional delta: Openware text says ms, CL8Y aligns with `/cmc/trades` seconds — see [#222](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/222)). |
+| Orderbook | Openware CMC | `GET /cmc/orderbook/:market_pair` | Yes | Root **array** with **one** book object ([#223](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223)); `timestamp` = Unix **seconds** (intentional delta: Openware text says ms, CL8Y aligns with `/cmc/trades` seconds — see [#222](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/222)). `/cg/orderbook` remains a **single object** (out of scope for #223). |
 | Trades | Openware CMC | `GET /cmc/trades/:market_pair` | Partial | `timestamp` = Unix **seconds** (Openware example text says ms; CL8Y uses seconds consistently on CMC trade feeds). |
 
 Path prefix: CL8Y serves `/cg/` and `/cmc/` instead of upstream `/api/coingecko/` or `/api/v2/coinmarketcap/` — configure listing forms with your API base + these prefixes.
@@ -354,7 +354,7 @@ Level 2 order book for a specific market pair.
 |-----------|----------|---------|-------------|
 | `depth` | No | 20 | Total levels across the book (split evenly per side; max 100 total). GitLab **#221** |
 
-**Response:** (Openware [array wrapper](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap) — one object per request)
+**Response:** (Openware [array wrapper](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap) — **exactly one** object per request; GitLab **#223**)
 
 ```json
 [
@@ -534,7 +534,7 @@ Before submitting exchange listings, confirm:
 
 ## Compliance verification checklist
 
-Use after deploy or indexer release (GitLab **#224**):
+Use after deploy or indexer release (GitLab **#224**, CMC orderbook array **#223**):
 
 | # | Check | Command / expectation |
 |---|--------|------------------------|
@@ -543,7 +543,7 @@ Use after deploy or indexer release (GitLab **#224**):
 | 3 | `/cg/orderbook` | `timestamp` is number, magnitude ~1.7e12 (ms); bids descending, asks ascending |
 | 4 | `/cg/historical_trades` | `trade_timestamp` seconds (~1.7e9) |
 | 5 | `/cmc/summary` | Array of rows; Openware field names |
-| 6 | `/cmc/orderbook/:pair` | **Array** root; one object; `timestamp` seconds; `depth` total cap 100 |
+| 6 | `/cmc/orderbook/:pair` | `jq 'type'` → `"array"`; `length == 1`; `timestamp` seconds; `depth` total cap 100 ([#223](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223)) |
 | 7 | `/cmc/trades/:pair` | Array of trades; `timestamp` seconds |
 | 8 | Not Pro API v3 | Listing form uses your `/cg` + `/cmc` base URL only |
 | 9 | Simulated book disclosure | Product copy references hybrid-sim vs `limit-book` |
@@ -554,7 +554,7 @@ Use after deploy or indexer release (GitLab **#224**):
 ## Related References
 
 - [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — volume reconciliation guide (#216)
-- [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) — agent playbook for CG/CMC depth (#224)
+- [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) — agent playbook for CG/CMC depth ([#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224), CMC array wrapper [#223](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223))
 - [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md) — indexer integration test matrix
 - [`gaps/GAP_1780023683.md`](../gaps/GAP_1780023683.md) — gap matrix (orderbook sim row)
 - **`listing-api` repo** — Existing CoinGecko/CMC token supply API endpoints (implemented)

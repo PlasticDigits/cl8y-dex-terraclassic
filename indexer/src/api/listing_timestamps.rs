@@ -1,4 +1,5 @@
 //! CoinGecko / CoinMarketCap listing timestamp formats (GitLab **#222**, **#224**).
+//! CMC orderbook root array wrapper: **#223** (`GET /cmc/orderbook/*` only).
 //!
 //! Orderbook endpoints use numeric JSON timestamps (not RFC3339 strings):
 //! - CG `/cg/orderbook` → Unix **milliseconds**

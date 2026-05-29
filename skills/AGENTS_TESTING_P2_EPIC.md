@@ -62,7 +62,7 @@ Full catalog: [GitLab **#105**](https://gitlab.com/PlasticDigits/cl8y-dex-terrac
 | Stand-in | Location | Production analogue |
 |----------|----------|---------------------|
 | Wiremock LCD | `indexer/tests/common/lcd_mock.rs` | Real Terra LCD |
-| Hybrid CG/CMC orderbook | `hybrid_orderbook_sim.rs` + `orderbook_sim.rs` (**#220** pool+limits, **#210** pool leg); playbook [`AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](./AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md); compliance [`docs/CG_CMC_COMPLIANCE.md`](../docs/CG_CMC_COMPLIANCE.md) (**#224**) | Live CEX L2; raw FIFO without pool (`limit-book` API) |
+| Hybrid CG/CMC orderbook | `hybrid_orderbook_sim.rs` + `orderbook_sim.rs` (**#220** pool+limits, **#210** pool leg); playbook [`AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](./AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md); compliance [`docs/CG_CMC_COMPLIANCE.md`](../docs/CG_CMC_COMPLIANCE.md) (**#224**, CMC array **#223**); tests `api_cmc.rs` + `api_orderbook_lcd_mock.rs` | Live CEX L2; raw FIFO without pool (`limit-book` API) |
 | Vitest `vi.mock` (Terra services) | `frontend-dapp/src/**/__tests__` | Wallet + LCD I/O |
 | `lightweightChartsJsdomMock.ts` | jsdom unit tests (`test:run`); records `createChart` / `applyOptions` / `addSeries` (pane index, `autoscaleInfoProvider`) — contract tests [#227](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/227); stub catalog [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Browser `lightweight-charts` |
 | `vitest.config.charts.ts` + `chartsSetup.ts` | Real library Vitest ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)) | Same; `npm run test:charts` |
