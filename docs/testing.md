@@ -17,7 +17,7 @@ Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./re
 | Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | Manual: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) | LCD `pool` + optional `simulation`; run after deploy |
 | Stubs / mocks catalog | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy below + issue #105 | LCD stub vs AMM-sim orderbook |
 | Charts integration | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | CI runs `npm run test:integration` |
-| Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | Separate from jsdom stub; see below |
+| Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | Separate from jsdom stub; large-candle + real visible-range autoscale ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) |
 | Price chart candle parsing + stale pair race | [#226](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/226) | [`priceChartCandles.test.ts`](../frontend-dapp/src/components/charts/__tests__/priceChartCandles.test.ts), [`PriceChart.test.tsx`](../frontend-dapp/src/components/charts/__tests__/PriceChart.test.tsx) | Default `npm run test:run`; no Postgres |
 
 **Post-deploy smoke (#86):**
@@ -110,6 +110,8 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:charts
 
 **CI:** the `frontend` job runs `npm run test:charts` after unit tests ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)).
 
+**Large-candle ceiling ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)):** Real-library tests always cover **500** and **1500** candles (per-test timeouts up to 25s). A **2000**-candle soak runs **only when `CI` is set** (`it.runIf(process.env.CI)`). Do not add 50k-row cases to CI — local-only if ever needed. Default suite timeout remains **15s** in `vitest.config.charts.ts`; autoscale regressions use the chart’s real `getVisibleLogicalRange()` after `setVisibleLogicalRange`, not a synthetic `original()` alone. Harness: [`chartRealLibraryHarness.ts`](../frontend-dapp/src/test/chartRealLibraryHarness.ts).
+
 **Agent playbook:** [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md). Chart invariants: [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants).
 
 **Do not** load `lightweightChartsJsdomMock.ts` in the charts config. Pure helpers (`priceChartCandles`, `priceChartIndicators`, `priceChartPriceScale`) stay in default unit tests only.
@@ -152,7 +154,7 @@ This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integrat
 
 **Manual rollback SQL** (not run by `sqlx migrate`): paired `.down.sql` for selected migrations lives under [`indexer/migrations/revert/`](../indexer/migrations/revert/) — e.g. limit-order lifecycle columns ([GitLab **#142**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/142)) ship beside [`20260509160000_limit_order_placement_lifecycle.sql`](../indexer/migrations/20260509160000_limit_order_placement_lifecycle.sql).
 
-**Note:** Default Vitest stubs `lightweight-charts` under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines). **Real-library** chart init, `setData`, indicators, volume fallback, and USD autoscale paths run in `npm run test:charts` ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). Pixel-level zoom/pan and layout regressions remain Playwright / manual QA.
+**Note:** Default Vitest stubs `lightweight-charts` under jsdom via `src/test/lightweightChartsJsdomMock.ts` (including `LineSeries` for MA/RSI lines). **Real-library** chart init, `setData`, indicators, volume fallback, USD autoscale (including visible-range zoom via real `getVisibleLogicalRange()` — [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)), and large-candle perf guards run in `npm run test:charts` ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). Pure clamp math stays in `priceChartPriceScale.test.ts` ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). Pixel-level zoom/pan and layout regressions remain Playwright / manual QA.
 
 Config: `vitest.config.integration.ts`
 

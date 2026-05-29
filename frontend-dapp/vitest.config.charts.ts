@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
-/** Real TradingView lightweight-charts (open-source) — not the hosted widget. See GitLab #211. */
+/** Real TradingView lightweight-charts (open-source) — not the hosted widget. See GitLab #211, #229. */
 export default defineConfig({
   plugins: [react()],
   test: {
@@ -11,6 +11,7 @@ export default defineConfig({
     setupFiles: ['./src/test/chartsSetup.ts'],
     include: ['src/**/*.charts.test.{ts,tsx}'],
     exclude: ['node_modules/', 'dist/'],
+    /** Default 15s; large-candle / CI soak cases override per-test (see docs/testing.md, #229). */
     testTimeout: 15000,
     fileParallelism: false,
     environmentOptions: {
