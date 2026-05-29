@@ -19,6 +19,7 @@ smartcontracts/lcov.info
 
 # Docker
 infra/
+docker-compose.override.yml
 
 # IDE
 .idea/
