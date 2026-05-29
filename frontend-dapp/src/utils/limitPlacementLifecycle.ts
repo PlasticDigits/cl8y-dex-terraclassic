@@ -11,6 +11,14 @@ export function normalizedLimitPlacementLifecycle(
   return 'active'
 }
 
+/** Short label for portfolio / tables. */
+export function placementLifecycleLabel(row: IndexerLimitPlacement): string {
+  const lc = normalizedLimitPlacementLifecycle(row)
+  if (lc === 'parked_expired') return 'Expired (claimable)'
+  if (lc === 'refunded') return 'Refunded'
+  return 'Active'
+}
+
 export function partitionLimitPlacementsByLifecycle(rows: IndexerLimitPlacement[]): {
   active: IndexerLimitPlacement[]
   parkedExpired: IndexerLimitPlacement[]

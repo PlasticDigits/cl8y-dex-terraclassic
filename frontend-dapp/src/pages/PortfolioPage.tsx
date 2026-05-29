@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
-import { getTrader, getTraderTrades, getTraderPositions } from '@/services/indexer/client'
+import { getTrader, getTraderTrades, getTraderPositions, getTraderLimitPlacements } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, PORTFOLIO_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { RetryError } from '@/components/ui/RetryError'
@@ -9,9 +9,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { TradesTable } from '@/components/ui/TradesTable'
 import { TraderSummaryStats } from '@/components/trader/TraderSummaryStats'
 import { TraderPositionsTable } from '@/components/trader/TraderPositionsTable'
+import { PortfolioOpenLimitsSection } from '@/components/portfolio/PortfolioOpenLimitsSection'
+import { PortfolioLpOverviewSection } from '@/components/portfolio/PortfolioLpOverviewSection'
+import { usePortfolioLpBalances } from '@/hooks/usePortfolioLpBalances'
 import { sounds } from '@/lib/sounds'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { formatDateTime } from '@/utils/formatDate'
+import { PORTFOLIO_OPEN_LIMITS_DEFAULT_LIMIT } from '@/utils/portfolioFanOut'
 
 export default function PortfolioPage() {
   const walletAddr = useWalletStore((s) => s.address)
@@ -33,6 +37,16 @@ export default function PortfolioPage() {
     refetchOnWindowFocus: true,
   })
 
+  const openLimitsQuery = useQuery({
+    queryKey: ['portfolio-open-limits', walletAddr],
+    queryFn: () => getTraderLimitPlacements(walletAddr!, { limit: PORTFOLIO_OPEN_LIMITS_DEFAULT_LIMIT }),
+    enabled: !!walletAddr,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  })
+
+  const lpQuery = usePortfolioLpBalances(walletAddr)
+
   const tradesQuery = useQuery({
     queryKey: ['portfolio-trades', walletAddr],
     queryFn: () => getTraderTrades(walletAddr!, { limit: 100 }),
@@ -50,11 +64,14 @@ export default function PortfolioPage() {
   const indexerOutage =
     (traderQuery.isError && isIndexerUnavailableError(traderQuery.error)) ||
     (positionsQuery.isError && isIndexerUnavailableError(positionsQuery.error)) ||
+    (openLimitsQuery.isError && isIndexerUnavailableError(openLimitsQuery.error)) ||
     (tradesQuery.isError && isIndexerUnavailableError(tradesQuery.error))
 
   const refetchAll = () => {
     void traderQuery.refetch()
     void positionsQuery.refetch()
+    void openLimitsQuery.refetch()
+    void lpQuery.refetch()
     void tradesQuery.refetch()
   }
 
@@ -65,8 +82,8 @@ export default function PortfolioPage() {
           My Portfolio
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
-          Your connected wallet&apos;s indexed trading exposure, realized P&amp;L, and recent swaps — read-only; no
-          signing on this page.
+          Your connected wallet&apos;s indexed trading exposure, open limits, LP balances, realized P&amp;L, and recent
+          swaps — read-only; no signing on this page.
         </p>
       </div>
 
@@ -149,6 +166,22 @@ export default function PortfolioPage() {
             isError={positionsQuery.isError && !isIndexerUnavailableError(positionsQuery.error)}
             onRetry={() => void positionsQuery.refetch()}
             sectionTestId="portfolio-positions-section"
+          />
+
+          <PortfolioOpenLimitsSection
+            placements={openLimitsQuery.data}
+            isLoading={openLimitsQuery.isLoading}
+            isError={openLimitsQuery.isError && !isIndexerUnavailableError(openLimitsQuery.error)}
+            onRetry={() => void openLimitsQuery.refetch()}
+          />
+
+          <PortfolioLpOverviewSection
+            rows={lpQuery.data?.rows}
+            pairsScanned={lpQuery.data?.pairsScanned}
+            capped={lpQuery.data?.capped}
+            isLoading={lpQuery.isLoading}
+            isError={lpQuery.isError}
+            onRetry={() => void lpQuery.refetch()}
           />
 
           <div className="shell-panel-strong" data-testid="portfolio-recent-activity">

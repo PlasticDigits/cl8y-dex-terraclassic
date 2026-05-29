@@ -184,6 +184,7 @@ pub async fn find_pair_by_ticker(
         traders::get_trader_trades,
         traders::get_trader_limit_fills,
         traders::get_trader_limit_cancellations,
+        traders::get_trader_limit_placements,
         traders::get_trader_positions,
         traders::leaderboard,
         overview::get_overview,
@@ -343,6 +344,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/traders/{addr}/limit-cancellations",
             get(traders::get_trader_limit_cancellations),
+        )
+        .route(
+            "/api/v1/traders/{addr}/limit-placements",
+            get(traders::get_trader_limit_placements),
         )
         .route(
             "/api/v1/traders/{addr}/positions",

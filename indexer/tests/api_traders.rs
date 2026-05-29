@@ -216,6 +216,44 @@ async fn get_trader_limit_cancellations_returns_owner_rows() {
 }
 
 #[tokio::test]
+async fn get_trader_limit_placements_returns_owner_rows() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/limit-placements",
+            seed.trader_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Vec<Value> = resp.json();
+    assert_eq!(body.len(), 1);
+    assert_eq!(body[0]["owner"], seed.trader_address);
+    assert_eq!(body[0]["order_id"], 8);
+    assert_eq!(body[0]["pair_address"], seed.pair_address);
+    assert_eq!(body[0]["lifecycle_status"], "active");
+}
+
+#[tokio::test]
+async fn get_trader_limit_placements_bad_status_returns_400() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/traders/{}/limit-placements?status=invalid",
+            seed.trader_address
+        ))
+        .await;
+    resp.assert_status_bad_request();
+}
+
+#[tokio::test]
 async fn get_trader_positions_returns_rows() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;

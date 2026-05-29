@@ -169,6 +169,18 @@ describe('indexer client fetchJson', () => {
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe(`${client.INDEXER_URL}/api/v1/traders/${addr}/positions`)
   })
 
+  it('GET /traders/{addr}/limit-placements supports status and pair filters (GitLab #217)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+    const client = await loadModule()
+    const addr = 'terra1trader000000000000000000000000000000'
+    const pair = 'terra1pair000000000000000000000000000000'
+    await client.getTraderLimitPlacements(addr, { limit: 50, status: 'active', pair })
+    const url = vi.mocked(fetch).mock.calls[0][0] as string
+    expect(url).toBe(
+      `${client.INDEXER_URL}/api/v1/traders/${addr}/limit-placements?limit=50&status=active&pair=${pair}`
+    )
+  })
+
   it('builds paginated limit-book URL', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(

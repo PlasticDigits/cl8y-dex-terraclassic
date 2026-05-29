@@ -241,7 +241,7 @@ export interface IndexerLiquidityEvent {
   lp_amount: string
 }
 
-/** `GET /api/v1/pairs/{addr}/limit-placements` — placements without a matching indexed cancel (same pair + order_id); see GitLab #135. Lifecycle fields: GitLab #142 / #141. */
+/** `GET /api/v1/pairs/{addr}/limit-placements` or `GET /api/v1/traders/{addr}/limit-placements` — placements without a matching indexed cancel; trader route filters by `owner`. See GitLab #135, #217. Lifecycle: #142 / #141. */
 export interface IndexerLimitPlacement {
   id: number
   pair_address: string

@@ -264,6 +264,101 @@ pub async fn list_cancellations_for_pair(
 }
 
 /// All indexed cancellations for a wallet (`owner` attribute on the wasm event when present).
+/// Wallet-scoped placements (`owner` on the wasm event). Omits cancelled `(pair_id, order_id)` rows.
+pub async fn list_placements_for_owner(
+    pool: &PgPool,
+    owner: &str,
+    pair_id: Option<i32>,
+    limit: i64,
+    before_id: Option<i64>,
+    lifecycle: PlacementLifecycleFilter,
+) -> Result<Vec<PlacementRow>, sqlx::Error> {
+    let lifecycle_clause: &'static str = match lifecycle {
+        PlacementLifecycleFilter::DefaultOpen => {
+            "AND p.lifecycle_status IN ('active', 'parked_expired')"
+        }
+        PlacementLifecycleFilter::ActiveOnly => "AND p.lifecycle_status = 'active'",
+        PlacementLifecycleFilter::ParkedExpiredOnly => "AND p.lifecycle_status = 'parked_expired'",
+        PlacementLifecycleFilter::RefundedOnly => "AND p.lifecycle_status = 'refunded'",
+        PlacementLifecycleFilter::All => "",
+    };
+
+    match (before_id, pair_id) {
+        (Some(bid), Some(pid)) => {
+            let sql = format!(
+                "SELECT p.* FROM limit_order_placements p
+                 WHERE p.owner = $1 AND p.pair_id = $4 AND p.id < $3
+                   AND NOT EXISTS (
+                     SELECT 1 FROM limit_order_cancellations c
+                     WHERE c.pair_id = p.pair_id AND c.order_id = p.order_id
+                   )
+                   {lifecycle_clause}
+                 ORDER BY p.id DESC LIMIT $2",
+            );
+            sqlx::query_as::<_, PlacementRow>(&sql)
+                .bind(owner)
+                .bind(limit)
+                .bind(bid)
+                .bind(pid)
+                .fetch_all(pool)
+                .await
+        }
+        (None, Some(pid)) => {
+            let sql = format!(
+                "SELECT p.* FROM limit_order_placements p
+                 WHERE p.owner = $1 AND p.pair_id = $3
+                   AND NOT EXISTS (
+                     SELECT 1 FROM limit_order_cancellations c
+                     WHERE c.pair_id = p.pair_id AND c.order_id = p.order_id
+                   )
+                   {lifecycle_clause}
+                 ORDER BY p.id DESC LIMIT $2",
+            );
+            sqlx::query_as::<_, PlacementRow>(&sql)
+                .bind(owner)
+                .bind(limit)
+                .bind(pid)
+                .fetch_all(pool)
+                .await
+        }
+        (Some(bid), None) => {
+            let sql = format!(
+                "SELECT p.* FROM limit_order_placements p
+                 WHERE p.owner = $1 AND p.id < $3
+                   AND NOT EXISTS (
+                     SELECT 1 FROM limit_order_cancellations c
+                     WHERE c.pair_id = p.pair_id AND c.order_id = p.order_id
+                   )
+                   {lifecycle_clause}
+                 ORDER BY p.id DESC LIMIT $2",
+            );
+            sqlx::query_as::<_, PlacementRow>(&sql)
+                .bind(owner)
+                .bind(limit)
+                .bind(bid)
+                .fetch_all(pool)
+                .await
+        }
+        (None, None) => {
+            let sql = format!(
+                "SELECT p.* FROM limit_order_placements p
+                 WHERE p.owner = $1
+                   AND NOT EXISTS (
+                     SELECT 1 FROM limit_order_cancellations c
+                     WHERE c.pair_id = p.pair_id AND c.order_id = p.order_id
+                   )
+                   {lifecycle_clause}
+                 ORDER BY p.id DESC LIMIT $2",
+            );
+            sqlx::query_as::<_, PlacementRow>(&sql)
+                .bind(owner)
+                .bind(limit)
+                .fetch_all(pool)
+                .await
+        }
+    }
+}
+
 pub async fn list_cancellations_for_owner(
     pool: &PgPool,
     owner: &str,

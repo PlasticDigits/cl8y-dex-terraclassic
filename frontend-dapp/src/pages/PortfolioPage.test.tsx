@@ -24,8 +24,19 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getTrader: vi.fn(),
     getTraderTrades: vi.fn(),
     getTraderPositions: vi.fn(),
+    getTraderLimitPlacements: vi.fn(),
+    getPairs: vi.fn(),
   }
 })
+
+vi.mock('@/hooks/usePortfolioLpBalances', () => ({
+  usePortfolioLpBalances: () => ({
+    data: { rows: [], pairsScanned: 0, capped: false },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}))
 
 const WALLET = 'terra1wallet0000000000000000000000000000000'
 
@@ -77,6 +88,7 @@ describe('PortfolioPage (component)', () => {
     useWalletStore.setState({ address: null, walletType: null })
     vi.mocked(indexerClient.getTraderTrades).mockResolvedValue([])
     vi.mocked(indexerClient.getTraderPositions).mockResolvedValue([])
+    vi.mocked(indexerClient.getTraderLimitPlacements).mockResolvedValue([])
   })
 
   it('shows connect prompt when wallet disconnected (GitLab #212)', () => {
@@ -95,6 +107,14 @@ describe('PortfolioPage (component)', () => {
     await waitFor(() => expect(screen.getByTestId('portfolio-profile-empty')).toBeInTheDocument())
     expect(screen.getByTestId('trader-positions-empty')).toBeInTheDocument()
     expect(indexerClient.getTraderPositions).toHaveBeenCalledWith(WALLET)
+  })
+
+  it('renders open limits section when wallet connected', async () => {
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated' })
+    vi.mocked(indexerClient.getTrader).mockResolvedValue(mockTrader)
+    renderPortfolio()
+    await waitFor(() => expect(screen.getByTestId('portfolio-open-limits-section')).toBeInTheDocument())
+    expect(indexerClient.getTraderLimitPlacements).toHaveBeenCalledWith(WALLET, { limit: 100 })
   })
 
   it('renders positions table and summary when data exists', async () => {

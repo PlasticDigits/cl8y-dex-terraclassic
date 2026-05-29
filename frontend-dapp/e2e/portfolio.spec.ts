@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 
-test.describe('Portfolio page (GitLab #212)', () => {
+test.describe('Portfolio page (GitLab #212, #217)', () => {
   test('disconnected visit shows connect prompt', async ({ page }) => {
     await page.goto('/portfolio')
     await page.waitForLoadState('networkidle')
@@ -13,6 +13,8 @@ test.describe('Portfolio page (GitLab #212)', () => {
     await page.goto('/portfolio')
     await page.waitForLoadState('networkidle')
     await expect(page.getByTestId('portfolio-positions-section')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('portfolio-open-limits-section')).toBeVisible()
+    await expect(page.getByTestId('portfolio-lp-overview-section')).toBeVisible()
     await expect(page.getByTestId('portfolio-recent-activity')).toBeVisible()
   })
 

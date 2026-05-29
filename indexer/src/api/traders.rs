@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{IntoParams, ToSchema};
 
-use super::pairs::{trade_response_from_swap_row, LimitCancellationResponse, LimitFillResponse};
+use super::pairs::{
+    limit_placement_response, parse_placement_lifecycle_filter, trade_response_from_swap_row,
+    LimitCancellationResponse, LimitFillResponse, LimitPlacementResponse,
+};
 use super::{build_asset_map, internal_err, text_csv, AppState};
 use crate::db::queries::{
     limit_order_fills, limit_order_lifecycle, pairs as db_pairs, positions as db_positions,
@@ -177,6 +180,18 @@ pub struct TraderHistoryQuery {
     pub limit: Option<i64>,
     pub before: Option<i64>,
     pub format: Option<String>,
+    /// When set, restrict rows to this pair contract (**404** if unknown).
+    pub pair: Option<String>,
+}
+
+#[derive(Deserialize, IntoParams, utoipa::ToSchema)]
+pub struct TraderLimitPlacementsQuery {
+    /// Max results (capped at 200)
+    pub limit: Option<i64>,
+    /// Cursor: return rows with id < before
+    pub before: Option<i64>,
+    /// Filter by lifecycle: omit for **`active` + `parked_expired`**; `active`, `parked_expired`, `refunded`, or `all`.
+    pub status: Option<String>,
     /// When set, restrict rows to this pair contract (**404** if unknown).
     pub pair: Option<String>,
 }
@@ -373,6 +388,59 @@ pub struct LeaderboardQuery {
     pub sort: Option<String>,
     /// Max results (capped at 200)
     pub limit: Option<i64>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/traders/{addr}/limit-placements",
+    params(
+        ("addr" = String, Path, description = "Trader wallet address (indexed placement owner)"),
+        TraderLimitPlacementsQuery,
+    ),
+    responses(
+        (status = 200, description = "Open limit placements for this wallet across pairs (excludes indexed cancels; GitLab #217)", body = Vec<LimitPlacementResponse>),
+        (status = 400, description = "Invalid status= or bad query"),
+        (status = 404, description = "Unknown pair address (pair= filter)"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Traders"
+)]
+pub async fn get_trader_limit_placements(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<TraderLimitPlacementsQuery>,
+) -> Result<Json<Vec<LimitPlacementResponse>>, (StatusCode, String)> {
+    let limit = q.limit.unwrap_or(50).min(200);
+    let lifecycle = parse_placement_lifecycle_filter(q.status.as_deref())?;
+    let pair_id = resolve_pair_filter(&state.pool, q.pair.as_deref()).await?;
+    let rows = limit_order_lifecycle::list_placements_for_owner(
+        &state.pool,
+        &addr,
+        pair_id,
+        limit,
+        q.before,
+        lifecycle,
+    )
+    .await
+    .map_err(internal_err)?;
+
+    let all_pairs = db_pairs::get_all_pairs(&state.pool)
+        .await
+        .map_err(internal_err)?;
+    let pair_map: HashMap<i32, String> = all_pairs
+        .into_iter()
+        .map(|p| (p.id, p.contract_address))
+        .collect();
+
+    let result: Vec<LimitPlacementResponse> = rows
+        .iter()
+        .map(|r| {
+            let pair_addr = pair_map.get(&r.pair_id).cloned().unwrap_or_default();
+            limit_placement_response(&pair_addr, r)
+        })
+        .collect();
+
+    Ok(Json(result))
 }
 
 #[utoipa::path(

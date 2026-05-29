@@ -567,7 +567,7 @@ pub async fn get_pair_liquidity_events(
     Ok(Json(result))
 }
 
-fn parse_placement_lifecycle_filter(
+pub(crate) fn parse_placement_lifecycle_filter(
     raw: Option<&str>,
 ) -> Result<limit_order_lifecycle::PlacementLifecycleFilter, (StatusCode, String)> {
     match raw.map(str::trim).filter(|s| !s.is_empty()) {
@@ -669,32 +669,39 @@ pub async fn get_pair_limit_placements(
 
     let result: Vec<LimitPlacementResponse> = rows
         .iter()
-        .map(|r| LimitPlacementResponse {
-            id: r.id,
-            pair_address: addr.clone(),
-            block_height: r.block_height,
-            block_timestamp: r.block_timestamp.to_rfc3339(),
-            tx_hash: r.tx_hash.clone(),
-            order_id: r.order_id,
-            lifecycle_status: r.lifecycle_status.clone(),
-            owner: r.owner.clone(),
-            side: r.side.clone(),
-            price: r.price.as_ref().map(|p| p.normalized().to_string()),
-            expires_at: r.expires_at,
-            remaining_escrow: r
-                .remaining_escrow
-                .as_ref()
-                .map(|x| x.normalized().to_string()),
-            parked_block_height: r.parked_block_height,
-            parked_block_timestamp: r.parked_block_timestamp.map(|t| t.to_rfc3339()),
-            parked_tx_hash: r.parked_tx_hash.clone(),
-            refunded_block_height: r.refunded_block_height,
-            refunded_block_timestamp: r.refunded_block_timestamp.map(|t| t.to_rfc3339()),
-            refunded_tx_hash: r.refunded_tx_hash.clone(),
-        })
+        .map(|r| limit_placement_response(&addr, r))
         .collect();
 
     Ok(Json(result))
+}
+
+pub(crate) fn limit_placement_response(
+    pair_address: &str,
+    r: &limit_order_lifecycle::PlacementRow,
+) -> LimitPlacementResponse {
+    LimitPlacementResponse {
+        id: r.id,
+        pair_address: pair_address.to_string(),
+        block_height: r.block_height,
+        block_timestamp: r.block_timestamp.to_rfc3339(),
+        tx_hash: r.tx_hash.clone(),
+        order_id: r.order_id,
+        lifecycle_status: r.lifecycle_status.clone(),
+        owner: r.owner.clone(),
+        side: r.side.clone(),
+        price: r.price.as_ref().map(|p| p.normalized().to_string()),
+        expires_at: r.expires_at,
+        remaining_escrow: r
+            .remaining_escrow
+            .as_ref()
+            .map(|x| x.normalized().to_string()),
+        parked_block_height: r.parked_block_height,
+        parked_block_timestamp: r.parked_block_timestamp.map(|t| t.to_rfc3339()),
+        parked_tx_hash: r.parked_tx_hash.clone(),
+        refunded_block_height: r.refunded_block_height,
+        refunded_block_timestamp: r.refunded_block_timestamp.map(|t| t.to_rfc3339()),
+        refunded_tx_hash: r.refunded_tx_hash.clone(),
+    }
 }
 
 #[derive(Serialize, ToSchema)]

@@ -292,6 +292,20 @@ export async function getTraderLimitCancellations(
   return fetchJson<IndexerLimitCancellation[]>(`/api/v1/traders/${address}/limit-cancellations${qs ? `?${qs}` : ''}`)
 }
 
+/** Wallet-wide open limit placements (indexed owner; GitLab #217). */
+export async function getTraderLimitPlacements(
+  address: string,
+  opts?: GetPairLimitPlacementsParams & { pair?: string }
+): Promise<IndexerLimitPlacement[]> {
+  const sp = new URLSearchParams()
+  if (opts?.limit != null) sp.set('limit', String(opts.limit))
+  if (opts?.before != null) sp.set('before', String(opts.before))
+  if (opts?.status != null && opts.status.trim() !== '') sp.set('status', opts.status.trim())
+  if (opts?.pair?.trim()) sp.set('pair', opts.pair.trim())
+  const qs = sp.toString()
+  return fetchJson<IndexerLimitPlacement[]>(`/api/v1/traders/${address}/limit-placements${qs ? `?${qs}` : ''}`)
+}
+
 export type TraderHistoryCsvResource = 'trades' | 'limit-fills' | 'limit-cancellations'
 
 /** Download CSV from trader history endpoints (`format=csv`). */
