@@ -5,6 +5,7 @@ mod common;
 use axum_test::TestServer;
 use cl8y_dex_indexer::api::orderbook_sim;
 use serde_json::Value;
+use serial_test::serial;
 
 fn parse_level_price(level: &[String; 2]) -> f64 {
     level[0].parse().expect("price string")
@@ -37,6 +38,7 @@ fn assert_numeric_timestamp_s(body: &Value) {
     );
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_200_simulated_depth_matches_query() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -62,6 +64,7 @@ async fn cg_orderbook_200_simulated_depth_matches_query() {
     assert_numeric_timestamp_ms(&body);
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_depth_capped_at_100_with_lcd_mock() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -84,6 +87,7 @@ async fn cg_orderbook_depth_capped_at_100_with_lcd_mock() {
     assert_eq!(asks.len(), 50);
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_second_identical_request_hits_cache_not_lcd() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -110,6 +114,7 @@ async fn cg_orderbook_second_identical_request_hits_cache_not_lcd() {
     );
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_includes_resting_limit_levels_when_mocked() {
     let mock = common::lcd_mock::start_hybrid_orderbook_mock().await;
@@ -138,6 +143,7 @@ async fn cg_orderbook_includes_resting_limit_levels_when_mocked() {
     );
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_and_cmc_orderbook_levels_match_for_same_pair() {
     let mock = common::lcd_mock::start_hybrid_orderbook_mock().await;
@@ -167,6 +173,7 @@ async fn cg_and_cmc_orderbook_levels_match_for_same_pair() {
     );
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_orderbook_200_with_lcd_mock() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -189,6 +196,7 @@ async fn cmc_orderbook_200_with_lcd_mock() {
     assert_numeric_timestamp_s(&body);
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_bid_prices_decrease_ask_prices_increase() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -227,6 +235,7 @@ async fn cg_orderbook_bid_prices_decrease_ask_prices_increase() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_with_db_fee_worse_than_zero_fee_baseline() {
     let r0 = 10_000_000_000u128;
@@ -246,6 +255,7 @@ async fn cg_orderbook_with_db_fee_worse_than_zero_fee_baseline() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_depth_one_openware_split() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -266,6 +276,7 @@ async fn cg_orderbook_depth_one_openware_split() {
     assert_eq!(body["asks"].as_array().unwrap().len(), 1);
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_default_depth_is_ten_per_side() {
     let mock = common::lcd_mock::start_pool_query_mock().await;

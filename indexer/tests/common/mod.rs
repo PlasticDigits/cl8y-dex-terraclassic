@@ -1,6 +1,8 @@
 pub mod lcd_mock;
 
 use std::env;
+use std::fs::OpenOptions;
+use std::os::unix::io::AsRawFd;
 use std::sync::Once;
 
 use axum::Router;
@@ -76,7 +78,22 @@ pub async fn setup_pool() -> PgPool {
     pool
 }
 
-pub async fn clean_db(pool: &PgPool) {
+/// Cross-process lock for shared `dex_indexer_test` (parallel `cargo test` / agents).
+fn acquire_shared_test_db_lock() -> std::fs::File {
+    let path = env::var("TEST_DB_LOCK_FILE")
+        .unwrap_or_else(|_| "/tmp/cl8y-dex-indexer-test.seed.lock".into());
+    let file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&path)
+        .unwrap_or_else(|e| panic!("open test db lock file {path}: {e}"));
+    let fd = file.as_raw_fd();
+    let rc = unsafe { libc::flock(fd, libc::LOCK_EX) };
+    assert_eq!(rc, 0, "flock LOCK_EX on {path}");
+    file
+}
+
+async fn clean_db_tables(pool: &PgPool) {
     sqlx::query("DELETE FROM ustc_prices")
         .execute(pool)
         .await
@@ -119,6 +136,11 @@ pub async fn clean_db(pool: &PgPool) {
     sqlx::query("DELETE FROM assets").execute(pool).await.ok();
 }
 
+pub async fn clean_db(pool: &PgPool) {
+    let _lock = acquire_shared_test_db_lock();
+    clean_db_tables(pool).await;
+}
+
 pub struct SeedData {
     pub asset_0_id: i32,
     pub asset_1_id: i32,
@@ -128,7 +150,8 @@ pub struct SeedData {
 }
 
 pub async fn seed_db(pool: &PgPool) -> SeedData {
-    clean_db(pool).await;
+    let _lock = acquire_shared_test_db_lock();
+    clean_db_tables(pool).await;
 
     let pair_address = "terra1paircontractabc".to_string();
     let trader_address = "terra1traderxyz".to_string();
@@ -283,7 +306,7 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
     }
 }
 
-/// Two CW20 assets connected by one pair, plus a third asset with no pair (no path A↔C).
+/// Two CW20 assets connected by one pair, plus a third asset with no path (no path A↔C).
 pub struct RouteSolveSeed {
     pub token_a: String,
     pub token_b: String,

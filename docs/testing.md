@@ -52,6 +52,8 @@ cargo test --tests        # needs Postgres + migrations
 
 Integration tests call [`tests/common/mod.rs`](../indexer/tests/common/mod.rs) helpers that **truncate and re-seed** the same database. With default Cargo/Rust test parallelism, multiple integration test **binaries** and multiple **tests per binary** can run concurrently against that DB, which can surface as duplicate unique keys (e.g. on `assets.denom`) or foreign-key violations—not application bugs.
 
+`seed_db` / `clean_db` take an exclusive **file lock** (`/tmp/cl8y-dex-indexer-test.seed.lock`, override with `TEST_DB_LOCK_FILE`) so parallel `cargo test` processes on one host do not interleave truncate/insert (GitLab **#210** orderbook verification). Prefer serialized execution anyway:
+
 When using a **single** shared test database (typical local or CI), prefer serialized execution:
 
 ```bash
