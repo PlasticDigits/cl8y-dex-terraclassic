@@ -174,7 +174,7 @@ pub struct CgOrderbookResponse {
     path = "/cg/orderbook",
     params(OrderbookQuery),
     responses(
-        (status = 200, description = "Simulated AMM orderbook", body = CgOrderbookResponse),
+        (status = 200, description = "Hybrid-simulated orderbook (AMM curve + resting limits, #220)", body = CgOrderbookResponse),
         (status = 400, description = "Invalid ticker_id format"),
         (status = 404, description = "Pair not found"),
         (status = 500, description = "Internal server error"),

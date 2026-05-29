@@ -241,7 +241,7 @@ pub struct CmcOrderbookResponse {
         CmcOrderbookQuery,
     ),
     responses(
-        (status = 200, description = "Simulated AMM orderbook", body = CmcOrderbookResponse),
+        (status = 200, description = "Hybrid-simulated orderbook (AMM curve + resting limits, #220)", body = CmcOrderbookResponse),
         (status = 400, description = "Invalid market pair format"),
         (status = 404, description = "Pair not found"),
         (status = 500, description = "Internal server error"),

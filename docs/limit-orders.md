@@ -24,7 +24,7 @@ The Swap UI must show **before submit** whether execution is **hybrid (pool + li
 
 ## Exchange API “orderbook” vs on-chain limit book
 
-CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorderbook) and [`GET /cmc/orderbook/:market_pair`](./CG_CMC_COMPLIANCE.md#get-cmcorderbookmarket_pair) return an **AMM-simulated** level-2 book (walking the bonding curve). That is **not** the FIFO limit book stored on pairs.
+CoinGecko/CoinMarketCap [`GET /cg/orderbook`](./CG_CMC_COMPLIANCE.md#get-cgorderbook) and [`GET /cmc/orderbook/:market_pair`](./CG_CMC_COMPLIANCE.md#get-cmcorderbookmarket_pair) return a **hybrid-simulated** level-2 book: AMM curve-walk levels **plus** merged resting FIFO limits (**#220**). That is still **not** a live CEX L2 feed — use `limit-book` below for the on-chain book walk without pool overlay.
 
 **Resting limits** are on-chain: query the pair contract with `LimitOrder { order_id }` and `OrderBookHead { side }` via LCD or any CosmWasm client. After an expiry park, `LimitOrder` returns an error — use **`ExpiredLimitRefund { order_id }`** (`null` if already claimed). The **indexer also proxies** those reads for integrators and the dApp (see [ADR 0002: Limit book surfacing](./adr/0002-limit-book-surfacing.md)):
 

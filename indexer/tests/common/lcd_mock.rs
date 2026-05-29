@@ -8,7 +8,7 @@
 //! concept from both this stub and the pair contract’s orderbook state.
 //!
 //! See GitLab issue #105 for a repo-wide catalog of stubs and test stand-ins.
-//! Production AMM curve-walk depth: [`orderbook_sim`](cl8y_dex_indexer::api::orderbook_sim) (**#210**).
+//! Production CG/CMC depth: hybrid merge [`hybrid_orderbook_sim`](cl8y_dex_indexer::api::hybrid_orderbook_sim) + pool walk [`orderbook_sim`](cl8y_dex_indexer::api::orderbook_sim) (**#220**, **#210**). Use [`start_hybrid_orderbook_mock`] for limit+pool tests.
 
 use base64::Engine;
 use serde_json::{json, Value};
@@ -168,13 +168,51 @@ pub async fn start_smart_query_data_mock(data: Value) -> MockServer {
     server
 }
 
-/// Starts a mock server that answers any `GET .../cosmwasm/wasm/v1/contract/*/smart/*` with a valid [`PoolResponse`](cl8y_dex_indexer::lcd::PoolResponse)-shaped JSON.
+fn pool_only_orderbook_responder(req: &Request) -> ResponseTemplate {
+    let q = smart_query_from_request(req);
+    let data = if q.get("pool").is_some() {
+        json!({
+            "assets": [
+                {
+                    "info": { "native_token": { "denom": "uluna" } },
+                    "amount": "10000000000"
+                },
+                {
+                    "info": { "token": { "contract_addr": "terra1quote" } },
+                    "amount": "5000000000000"
+                }
+            ],
+            "total_share": "1"
+        })
+    } else if q.get("get_fee_config").is_some() {
+        json!({ "fee_config": { "fee_bps": 30 } })
+    } else if q.get("order_book_head").is_some() {
+        Value::Null
+    } else if q.get("limit_order").is_some() {
+        Value::Null
+    } else {
+        Value::Null
+    };
+    ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+}
+
+/// CG/CMC orderbook LCD stub: pool + fee + **empty** limit book (hybrid merge = pool-only).
 pub async fn start_pool_query_mock() -> MockServer {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "data": {
+        .respond_with(pool_only_orderbook_responder)
+        .mount(&server)
+        .await;
+    server
+}
+
+/// Hybrid orderbook mock: pool reserves + one resting bid and ask for merge tests (**#220**).
+pub async fn start_hybrid_orderbook_mock() -> MockServer {
+    let responder = |req: &Request| {
+        let q = smart_query_from_request(req);
+        let data = if q.get("pool").is_some() {
+            json!({
                 "assets": [
                     {
                         "info": { "native_token": { "denom": "uluna" } },
@@ -186,8 +224,50 @@ pub async fn start_pool_query_mock() -> MockServer {
                     }
                 ],
                 "total_share": "1"
+            })
+        } else if q.get("order_book_head").is_some() {
+            let side = q["order_book_head"]["side"].as_str().unwrap_or("");
+            if side == "bid" {
+                json!(101u64)
+            } else {
+                json!(201u64)
             }
-        })))
+        } else if q.get("limit_order").is_some() {
+            let id = q["limit_order"]["order_id"].as_u64().unwrap();
+            if id == 101 {
+                json!({
+                    "order_id": 101,
+                    "owner": "terra1bid",
+                    "side": "bid",
+                    "price": "999999.5",
+                    "remaining": "2000000000",
+                    "expires_at": null,
+                    "prev": null,
+                    "next": null
+                })
+            } else if id == 201 {
+                json!({
+                    "order_id": 201,
+                    "owner": "terra1ask",
+                    "side": "ask",
+                    "price": "0.0000001",
+                    "remaining": "500000",
+                    "expires_at": null,
+                    "prev": null,
+                    "next": null
+                })
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        };
+        ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(responder)
         .mount(&server)
         .await;
     server

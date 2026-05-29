@@ -69,16 +69,65 @@ async fn cg_orderbook_second_identical_request_hits_cache_not_lcd() {
 
     let url = "/cg/orderbook?ticker_id=LUNC_USTC&depth=20";
     server.get(url).await.assert_status_ok();
+    let lcd_calls_after_first = mock
+        .received_requests()
+        .await
+        .expect("mock server should expose request log")
+        .len();
     server.get(url).await.assert_status_ok();
-
+    let lcd_calls_after_second = mock.received_requests().await.expect("request log").len();
     assert_eq!(
-        mock.received_requests()
-            .await
-            .expect("mock server should expose request log")
-            .len(),
-        1,
-        "orderbook cache should avoid a second LCD smart-query for same pair+depth"
+        lcd_calls_after_first, lcd_calls_after_second,
+        "orderbook cache should avoid extra LCD smart-queries on repeat pair+depth"
     );
+}
+
+#[tokio::test]
+async fn cg_orderbook_includes_resting_limit_levels_when_mocked() {
+    let mock = common::lcd_mock::start_hybrid_orderbook_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get("/cg/orderbook?ticker_id=LUNC_USTC&depth=20")
+        .await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let bids = body["bids"].as_array().unwrap();
+    let asks = body["asks"].as_array().unwrap();
+    assert!(
+        bids.iter().any(|l| l[0].as_str() == Some("999999.5")),
+        "merged book should include synthetic limit bid: {bids:?}"
+    );
+    assert!(
+        asks.iter().any(|l| l[0].as_str() == Some("0.0000001")),
+        "merged book should include synthetic limit ask: {asks:?}"
+    );
+}
+
+#[tokio::test]
+async fn cg_and_cmc_orderbook_levels_match_for_same_pair() {
+    let mock = common::lcd_mock::start_hybrid_orderbook_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let cg: Value = server
+        .get("/cg/orderbook?ticker_id=LUNC_USTC&depth=15")
+        .await
+        .json();
+    let cmc: Value = server.get("/cmc/orderbook/LUNC_USTC?depth=15").await.json();
+    assert_eq!(cg["bids"], cmc["bids"]);
+    assert_eq!(cg["asks"], cmc["asks"]);
 }
 
 #[tokio::test]
