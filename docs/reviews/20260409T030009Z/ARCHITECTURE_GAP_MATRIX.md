@@ -51,7 +51,7 @@ Legend: **E** = exists, **P** = partial, **M** = missing, **U** = unclear, **N/A
 |------------|--------|----------|--------|-----|--------|---------|-----|-------|
 | Hybrid execution (Pattern C) | E | `HybridSwapParams`, `execute_swap` | N | N | N | N | note | contracts |
 | Hybrid route selection | P | `GET hybrid_optimize` + dApp default; `POST hybrid_by_hop`; manual/advanced in Settings — **#101** | N | N | N | P | high | backend |
-| Best execution logic | P | Sequential per-hop indexer optimizer (not global); fuller product gate **#108** | N | N | N | P | medium | product |
+| Best execution logic | P | **Global v1** on GET with `amount_in` (top-5 paths + joint hybrid; [#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)); bounded optimality — not all on-chain paths | Y | Y | N | P | medium | product |
 | Fallback routing | P | user can set book leg 0 | N | N | N | P | low | frontend |
 | Router forward `hybrid` | E | `router/src/contract.rs` | N | N | N | N | note | contracts |
 | Simulation includes book | M | L8 | Y | N | N | Y | high | contracts |
