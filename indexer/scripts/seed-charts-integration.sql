@@ -1,6 +1,10 @@
 -- Minimal indexer data for frontend charts integration tests (CI / local).
 -- Run after `sqlx migrate run`. Safe to re-run (idempotent upserts).
 -- Pair address must match CHARTS_INTEGRATION_PAIR_ADDRESS in the frontend test constants.
+--
+-- Candle `open_time` must fall inside the indexer default API window when `from`/`to` are omitted
+-- (see indexer `DEFAULT_CANDLE_LOOKBACK_DAYS` = 90 in `indexer/src/api/pairs.rs` and `docs/indexer-invariants.md`).
+-- Fixture candles are refreshed to the current UTC hour on each seed run.
 
 INSERT INTO assets (denom, is_cw20, name, symbol, decimals)
 VALUES ('uluna', false, 'Luna Classic', 'LUNC', 6)
@@ -62,6 +66,13 @@ JOIN assets a1 ON a1.contract_address = 'terra1ustctoken'
 WHERE p.contract_address = 'terra1paircontractabc'
 ON CONFLICT (tx_hash, pair_id) DO NOTHING;
 
+-- Replace prior fixture candles so re-seeds stay inside the 90-day default API window.
+DELETE FROM candles c
+USING pairs p
+WHERE c.pair_id = p.id
+  AND p.contract_address = 'terra1paircontractabc'
+  AND c.interval = '1h';
+
 INSERT INTO candles (
   pair_id,
   interval,
@@ -77,7 +88,7 @@ INSERT INTO candles (
 SELECT
   id,
   '1h',
-  TIMESTAMPTZ '2024-06-01 12:00:00+00',
+  date_trunc('hour', (NOW() AT TIME ZONE 'UTC')),
   0.94,
   0.96,
   0.93,
@@ -86,5 +97,4 @@ SELECT
   4750,
   5
 FROM pairs
-WHERE contract_address = 'terra1paircontractabc'
-ON CONFLICT (pair_id, interval, open_time) DO NOTHING;
+WHERE contract_address = 'terra1paircontractabc';

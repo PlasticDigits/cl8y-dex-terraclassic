@@ -147,7 +147,15 @@ make test-charts-integration
 
 This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integration.sh): ensures the target database exists, applies `sqlx migrate run`, seeds fixtures idempotently, verifies indexer `/health`, then `npm run test:integration` via `scripts/with-node.sh`. Limit-order pool ref tests ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) also need LocalTerra LCD reachable (defaults `http://localhost:1317`; override `VITE_TERRA_LCD_URL` / `VITE_TERRA_RPC_URL` — same as [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)).
 
-**Fixture invariant:** the seeded pair address is `terra1paircontractabc` — must stay in sync with [`frontend-dapp/src/test/chartsIntegrationConstants.ts`](../frontend-dapp/src/test/chartsIntegrationConstants.ts) and [`indexer/scripts/seed-charts-integration.sql`](../indexer/scripts/seed-charts-integration.sql). Override the database with `CHARTS_INT_DATABASE_URL` (defaults to `DATABASE_URL` / `dex_indexer` from [`scripts/lib/postgres-dev.env`](../scripts/lib/postgres-dev.env)); override indexer URL with `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`). See GitLab [**#205**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) and [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
+**Fixture invariants**
+
+| Invariant | Where |
+|-----------|--------|
+| Charts pair address `terra1paircontractabc` | [`chartsIntegrationConstants.ts`](../frontend-dapp/src/test/chartsIntegrationConstants.ts) ↔ [`seed-charts-integration.sql`](../indexer/scripts/seed-charts-integration.sql) |
+| Fixture candle `open_time` inside indexer default API window (90-day lookback when `from`/`to` omitted) | Seed SQL refreshes to current UTC hour on each run; see [`docs/indexer-invariants.md`](indexer-invariants.md) |
+| Limit-order pool-ref pair (EMBER/CORAL) | Resolved from factory via LCD when LocalTerra is up; see [`limitOrderIntegrationConstants.ts`](../frontend-dapp/src/test/limitOrderIntegrationConstants.ts) and GitLab **#166** |
+
+Override the database with `CHARTS_INT_DATABASE_URL` (defaults to `DATABASE_URL` / `dex_indexer` from [`scripts/lib/postgres-dev.env`](../scripts/lib/postgres-dev.env)); override indexer URL with `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`). **Charts** tests (5) need Postgres + indexer only. **Limit-order** tests (2) run when the script resolves the factory pair into `VITE_LIMIT_ORDER_INTEGRATION_*`; otherwise Vitest skips them — full **7/7** needs LocalTerra LCD (`http://127.0.0.1:1317`) after `make deploy-local`. See GitLab [**#205**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) and [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
 
 **Manual steps** (when debugging individual phases):
 

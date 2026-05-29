@@ -26,6 +26,8 @@ Use this when adding or extending coverage for hybrid indexing, fee discount on 
 | Pause freezes trading | **L6** — [`contracts-security-audit.md`](../docs/contracts-security-audit.md) | `#87`; [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) |
 | Hybrid quote = execute | **L8** — [`AGENTS_TESTING_MULTIHOP_HYBRID.md`](./AGENTS_TESTING_MULTIHOP_HYBRID.md) | Multihop router + indexer (#192) |
 | Charts integration fixture pair | [`docs/testing.md`](../docs/testing.md#integration-tests-frontend) — `CHARTS_INTEGRATION_PAIR_ADDRESS` | `#104` / `#205`; seed SQL + Vitest constant must match |
+| Charts fixture candle window | Seed SQL + indexer `DEFAULT_CANDLE_LOOKBACK_DAYS` (90d) | [`docs/indexer-invariants.md`](../docs/indexer-invariants.md); re-seed moves `open_time` to current hour |
+| Limit-order integration pair | [`limitOrderIntegrationConstants.ts`](../frontend-dapp/src/test/limitOrderIntegrationConstants.ts); `make test-charts-integration` queries factory | `#166`; needs LocalTerra + `make deploy-local` for 7/7 |
 | Charts Vitest layers (HTTP vs canvas) | [`docs/testing.md`](../docs/testing.md#integration-tests-frontend) — matrix ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230)) | `#104` integration stub; `#211` / `#229` real library |
 
 ## Commands
