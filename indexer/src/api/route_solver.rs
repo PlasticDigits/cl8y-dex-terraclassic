@@ -1,9 +1,9 @@
 //! Multihop route discovery and optional LCD simulation.
 //!
-//! - `GET /api/v1/route/solve`: **hybrid-aware by default** when `amount_in` is set (max **3 hops** per ADR 0001 / GitLab #191).
+//! - `GET /api/v1/route/solve`: **global best execution** when `amount_in` is set (top-K paths + joint hybrid, max **3 hops**; GitLab #209).
 //!   Use `pool_only=true` for legacy pool-only ops (max **4 hops**). Without `amount_in`, returns route discovery only.
-//! - `GET /api/v1/route/solve/best`: **retail / Vyntrex best-execution alias** — same hybrid engine as default GET with `amount_in` (GitLab #189).
-//! - `POST /api/v1/route/solve`: same discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
+//! - `GET /api/v1/route/solve/best`: **retail / Vyntrex best-execution alias** — same engine as default GET with `amount_in` (GitLab #189).
+//! - `POST /api/v1/route/solve`: BFS discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Mutex, OnceLock};
@@ -18,7 +18,7 @@ use utoipa::{IntoParams, ToSchema};
 
 use sqlx::PgPool;
 
-use crate::api::hybrid_route_opt::{self, HopDescriptor};
+use crate::api::hybrid_route_opt;
 use crate::api::internal_err;
 use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
@@ -28,7 +28,7 @@ pub use hybrid_route_opt::HybridHopJson;
 const ROUTE_CACHE_TTL: Duration = Duration::from_secs(12);
 const ROUTE_CACHE_MAX_ENTRIES: usize = 512;
 /// Default GET hop cap (hybrid-aware routing per ADR 0001 / GitLab #191).
-const GET_DEFAULT_MAX_HOPS: usize = 3;
+pub(crate) const GET_DEFAULT_MAX_HOPS: usize = 3;
 /// Legacy pool-only GET escape hatch (`pool_only=true`).
 const GET_POOL_ONLY_MAX_HOPS: usize = 4;
 /// Coarse bucketing for hybrid GET cache keys (reduces LCD load).
@@ -76,14 +76,16 @@ pub enum RouteQuoteKind {
     IndexerHybridLcdDegraded,
 }
 
-struct ResolvedRoute {
-    token_in: String,
-    token_out: String,
-    hops: Vec<RouteHop>,
-    ops: Vec<serde_json::Value>,
+pub(crate) struct ResolvedRoute {
+    pub token_in: String,
+    pub token_out: String,
+    pub hops: Vec<RouteHop>,
+    pub ops: Vec<serde_json::Value>,
 }
 
-fn build_id_to_addr_map(all: &[assets::AssetRow]) -> (HashMap<i32, String>, HashMap<String, i32>) {
+pub(crate) fn build_id_to_addr_map(
+    all: &[assets::AssetRow],
+) -> (HashMap<i32, String>, HashMap<String, i32>) {
     let mut id_to_addr = HashMap::new();
     let mut addr_to_id = HashMap::new();
     for a in all {
@@ -96,7 +98,7 @@ fn build_id_to_addr_map(all: &[assets::AssetRow]) -> (HashMap<i32, String>, Hash
     (id_to_addr, addr_to_id)
 }
 
-fn resolve_id(addr_to_id: &HashMap<String, i32>, token: &str) -> Option<i32> {
+pub(crate) fn resolve_id(addr_to_id: &HashMap<String, i32>, token: &str) -> Option<i32> {
     let t = token.trim();
     if let Some(id) = addr_to_id.get(t) {
         return Some(*id);
@@ -205,9 +207,18 @@ pub struct RouteSolveResponse {
     pub router_operations: Vec<serde_json::Value>,
     /// From `SimulateSwapOperations` when `amount_in` and `ROUTER_ADDRESS` are set.
     pub estimated_amount_out: Option<String>,
+    /// Present on global best-execution GET responses (GitLab #209).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub solver_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paths_considered: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub optimality_scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lcd_hybrid_queries: Option<u32>,
 }
 
-fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
+pub(crate) fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
     let mut v = vec![resolved.token_in.clone()];
     for h in &resolved.hops {
         v.push(h.ask_token.clone());
@@ -215,7 +226,7 @@ fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
     v
 }
 
-fn build_hops_and_ops(
+pub(crate) fn build_hops_and_ops(
     hops_raw: &[(String, i32, i32)],
     id_to_addr: &HashMap<i32, String>,
 ) -> Result<(Vec<RouteHop>, Vec<serde_json::Value>), (StatusCode, String)> {
@@ -251,7 +262,7 @@ fn build_hops_and_ops(
     Ok((hops, ops))
 }
 
-fn apply_hybrid_by_hop(
+pub(crate) fn apply_hybrid_by_hop(
     mut ops: Vec<serde_json::Value>,
     hybrid_by_hop: &[Option<HybridHopJson>],
 ) -> Result<Vec<serde_json::Value>, (StatusCode, String)> {
@@ -360,7 +371,7 @@ fn should_run_hybrid_get(q: &SolveRouteParams, amount_raw: Option<&str>) -> bool
     !get_pool_only_requested(q) && amount_raw.is_some()
 }
 
-async fn maybe_simulate(
+pub(crate) async fn maybe_simulate(
     state: &AppState,
     amount_in: Option<&str>,
     ops: &[serde_json::Value],
@@ -399,7 +410,7 @@ async fn maybe_simulate(
     }
 }
 
-fn quote_kind_after_sim(estimated: &Option<String>, base: RouteQuoteKind) -> RouteQuoteKind {
+pub(crate) fn quote_kind_after_sim(estimated: &Option<String>, base: RouteQuoteKind) -> RouteQuoteKind {
     if estimated.is_none()
         && matches!(
             base,
@@ -438,7 +449,8 @@ fn hybrid_cache_key(
     max_maker_fills: u32,
 ) -> String {
     format!(
-        "{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}",
+        crate::api::best_execution::SOLVER_VERSION,
         token_in.trim().to_lowercase(),
         token_out.trim().to_lowercase(),
         amount_bucket,
@@ -496,56 +508,15 @@ async fn execute_hybrid_route_solve(
         return Ok(Json(cached));
     }
 
-    let resolved =
-        resolve_route_with_max_hops(&state.pool, token_in, token_out, GET_DEFAULT_MAX_HOPS).await?;
-    let hops_desc: Vec<HopDescriptor> = resolved
-        .hops
-        .iter()
-        .map(|h| HopDescriptor {
-            pair: h.pair.clone(),
-            offer_token: h.offer_token.clone(),
-            ask_token: h.ask_token.clone(),
-        })
-        .collect();
-
-    let (hybrid_plan, meta) =
-        hybrid_route_opt::optimize_multihop_hybrid(&state.lcd, &hops_desc, amount_u, max_makers)
-            .await
-            .map_err(|e| {
-                tracing::warn!("hybrid optimization LCD error: {}", e);
-                (
-                    StatusCode::BAD_GATEWAY,
-                    "hybrid optimization failed (LCD)".to_string(),
-                )
-            })?;
-
-    let intermediate_tokens = build_intermediate_tokens(&resolved);
-    let ops = apply_hybrid_by_hop(resolved.ops, &hybrid_plan)?;
-    let estimated = maybe_simulate(state, Some(amount_raw), &ops).await?;
-
-    let mut quote_kind = if meta.degraded {
-        RouteQuoteKind::IndexerHybridLcdDegraded
-    } else if meta.any_book_leg {
-        RouteQuoteKind::IndexerHybridLcd
-    } else {
-        RouteQuoteKind::IndexerPoolLcd
-    };
-    quote_kind = quote_kind_after_sim(&estimated, quote_kind);
-
-    let hybrid_notes = Some(
-        "Sequential per-hop hybrid optimizer (not globally optimal across hops). Quotes use the same LCD snapshot per call; execution may differ.".to_string(),
-    );
-
-    let body = RouteSolveResponse {
-        token_in: resolved.token_in.clone(),
-        token_out: resolved.token_out.clone(),
-        hops: resolved.hops.clone(),
-        intermediate_tokens,
-        quote_kind,
-        hybrid_notes,
-        router_operations: ops,
-        estimated_amount_out: estimated.clone(),
-    };
+    let (body, _meta) = crate::api::best_execution::solve_global_best_execution(
+        state,
+        token_in,
+        token_out,
+        amount_u,
+        amount_raw,
+        max_makers,
+    )
+    .await?;
 
     let json_body = serde_json::to_value(&body).map_err(internal_err)?;
     cache_put(ck, json_body.clone());
@@ -651,6 +622,10 @@ pub async fn solve_route(
         hops: resolved.hops,
         router_operations: resolved.ops,
         estimated_amount_out: estimated,
+        solver_version: None,
+        paths_considered: None,
+        optimality_scope: None,
+        lcd_hybrid_queries: None,
     };
 
     Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
@@ -706,6 +681,10 @@ pub async fn solve_route_post(
         hybrid_notes: None,
         router_operations: ops,
         estimated_amount_out: estimated,
+        solver_version: None,
+        paths_considered: None,
+        optimality_scope: None,
+        lcd_hybrid_queries: None,
     };
 
     Ok(Json(serde_json::to_value(out).map_err(internal_err)?))

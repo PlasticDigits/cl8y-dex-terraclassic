@@ -1,4 +1,4 @@
-# Indexer hybrid best execution + consolidated listing (GitLab #189)
+# Indexer hybrid best execution + consolidated listing (GitLab #189, #209)
 
 Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail route clients against the CL8Y indexer.
 
@@ -6,13 +6,24 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 
 | Endpoint | When to use |
 |----------|-------------|
-| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — server-chosen hybrid splits (max 3 hops) when `amount_in` is set ([GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)). |
-| `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Alias** for default hybrid GET — requires `amount_in` explicitly ([GitLab **#189**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)). |
+| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — **global best execution** (`solver_version`: `global_v1`): top-5 paths by hop count, joint hybrid splits, max **3 hops** when `amount_in` is set ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)). |
+| `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Alias** — requires `amount_in` ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)). |
 | `GET /api/v1/route/solve?hybrid_optimize=true&amount_in=` | Deprecated explicit opt-in; equivalent to default GET with `amount_in`. |
-| `GET /api/v1/route/solve?pool_only=true&amount_in=` | Explicit pool-only opt-out for legacy integrators (max 4 hops). |
-| `POST /api/v1/route/solve` with `hybrid_by_hop` | Client-supplied splits (max 4 hops). |
+| `GET /api/v1/route/solve?pool_only=true&amount_in=` | Pool-only opt-out (max 4 hops, no global solver). |
+| `POST /api/v1/route/solve` with `hybrid_by_hop` | **Override** splits (max 4 hops, first BFS path); not the global optimizer. |
 
-Response includes `quote_kind` (`indexer_hybrid_lcd`, `indexer_hybrid_lcd_degraded`, etc.), `hybrid_notes`, and `router_operations` with merged `terra_swap.hybrid` params.
+### Response fields (#209)
+
+| Field | Meaning |
+|-------|---------|
+| `solver_version` | e.g. `global_v1` |
+| `paths_considered` | Simple paths evaluated (≤ 5) |
+| `optimality_scope` | Human-readable bound (not unbounded “global optimal”) |
+| `lcd_hybrid_queries` | Approximate pair-level `HybridSimulation` call count |
+| `hybrid_notes` | Degradation + liability boundary |
+| `quote_kind` | `indexer_hybrid_lcd`, `indexer_hybrid_lcd_degraded`, etc. |
+
+Read `optimality_scope` before marketing “best price” — optimality is **within documented search bounds** only ([ADR 0002](../docs/adr/0002-global-best-execution-route-solver.md)).
 
 ## Terraport-compatible swap events
 
@@ -31,9 +42,11 @@ Full spec: [docs/CG_CMC_COMPLIANCE.md](../docs/CG_CMC_COMPLIANCE.md#consolidated
 ## Tests to run after changes
 
 ```bash
-cd indexer && cargo test api_route_solve api_consolidated_reporting swap_events_hybrid_columns -- --test-threads=1
+cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
+
+Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route_solve_global_response_metadata_contract`.
 
 ## Related invariants
 
-[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET hybrid default ([#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)), GET best execution ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), CG/CMC consolidated reporting rows.
+[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), CG/CMC consolidated reporting rows.

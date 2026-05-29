@@ -394,3 +394,58 @@ async fn route_solve_hybrid_optimize_degraded_falls_back_to_pool_only() {
     assert_eq!(j["quote_kind"], "indexer_hybrid_lcd_degraded");
     assert!(j["router_operations"][0]["terra_swap"]["hybrid"].is_null());
 }
+
+#[serial]
+#[tokio::test]
+async fn route_solve_global_picks_best_path_not_shortest() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_multi_path(&pool).await;
+    let mock = lcd_mock::start_multi_path_router_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_ok();
+    let j: Value = resp.json();
+    assert_eq!(j["solver_version"], "global_v1");
+    assert_eq!(j["paths_considered"], 2);
+    assert_eq!(j["hops"].as_array().unwrap().len(), 2, "2-hop path beats 1-hop");
+    assert_eq!(j["estimated_amount_out"], "9000000");
+    assert!(
+        j["optimality_scope"]
+            .as_str()
+            .unwrap_or("")
+            .contains("top-5"),
+        "optimality_scope must describe search bounds"
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_global_response_metadata_contract() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve/best?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+    let j: Value = server.get(&url).await.json();
+    assert_eq!(j["solver_version"], "global_v1");
+    assert!(j["paths_considered"].as_u64().unwrap_or(0) >= 1);
+    assert!(!j["hybrid_notes"].as_str().unwrap_or("").is_empty());
+    assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);
+}

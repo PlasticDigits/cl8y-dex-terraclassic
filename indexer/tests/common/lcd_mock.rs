@@ -114,6 +114,47 @@ pub async fn start_hybrid_degraded_mock() -> MockServer {
     server
 }
 
+/// Router sim returns lower out for 1-hop routes than 2-hop (multi-path global solver #209).
+pub async fn start_multi_path_router_mock() -> MockServer {
+    let responder = |req: &Request| {
+        let q = smart_query_from_request(req);
+        let data = if let Some(sim) = q.get("simulate_swap_operations") {
+            let ops = sim["operations"].as_array().map(|a| a.len()).unwrap_or(1);
+            let amount = if ops <= 1 { "1000000" } else { "9000000" };
+            json!({ "amount": amount })
+        } else if q.get("hybrid_simulation").is_some() {
+            let book = q["hybrid_simulation"]["hybrid"]["book_input"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            let offer = q["hybrid_simulation"]["offer_asset"]["amount"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            let ret = offer.saturating_add(book / 2);
+            json!({
+                "return_amount": ret.to_string(),
+                "spread_amount": "0",
+                "commission_amount": "0",
+                "book_return_amount": "0",
+                "pool_return_amount": ret.to_string(),
+            })
+        } else {
+            json!(null)
+        };
+        ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(responder)
+        .mount(&server)
+        .await;
+    server
+}
+
 /// Smart-query stub: returns `{"data": ...}` for any wasm contract smart GET (router simulate, pool query, etc.).
 pub async fn start_smart_query_data_mock(data: Value) -> MockServer {
     let server = MockServer::start().await;
