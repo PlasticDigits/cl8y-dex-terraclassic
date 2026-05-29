@@ -1,7 +1,8 @@
-//! **AMM-simulated orderbook** for CoinGecko / CoinMarketCap depth endpoints.
+//! **Hybrid-simulated orderbook** for CoinGecko / CoinMarketCap depth endpoints (GitLab **#220**).
 //!
-//! [`walk_amm_book`] walks the **constant-product pool curve** with pair-style [`ceil_div`]
-//! and pool swap fees — **not** the on-chain **FIFO limit order book** (see [`limit-book`](../../docs/limit-orders.md)).
+//! [`simulate_orderbook_cached`] merges [`walk_amm_book`] (constant-product curve + pool fees) with
+//! resting **FIFO limit** levels from LCD when [`hybrid_orderbook_enabled`] is true (default).
+//! Pure AMM walk remains in [`walk_amm_book`] for unit tests and pool-only rollback (`ORDERBOOK_HYBRID=0`).
 //!
 //! LCD integration: live `pool` reserves + `get_fee_config`; indexer `pairs.fee_bps` is used only when
 //! the fee query fails (logged). Wiremock LCD stubs in `tests/common/lcd_mock.rs` mock HTTP only.
@@ -18,6 +19,8 @@ use sqlx::PgPool;
 use tokio::sync::RwLock;
 use tracing::warn;
 
+use crate::api::hybrid_orderbook_sim::build_hybrid_book;
+use crate::api::limit_book_lcd::{fetch_limit_book_page, LimitBookLcdError};
 use crate::db::queries::pairs;
 use crate::lcd::{FeeConfigResponse, LcdClient, PoolResponse};
 
@@ -262,28 +265,97 @@ async fn fetch_reserves(
     }
 }
 
-/// Simulate an AMM orderbook from LCD pool reserves and on-chain fee config.
+/// When true (default), CG/CMC orderbook merges pool curve levels with resting limits (**#220**).
+#[must_use]
+pub fn hybrid_orderbook_enabled() -> bool {
+    match std::env::var("ORDERBOOK_HYBRID").as_deref() {
+        Ok("0") | Ok("false") | Ok("FALSE") | Ok("no") | Ok("NO") => false,
+        _ => true,
+    }
+}
+
+async fn fetch_limit_side(
+    lcd: &LcdClient,
+    pair_addr: &str,
+    side: &'static str,
+    depth: usize,
+) -> Result<Vec<super::limit_book_lcd::LimitBookOrderItem>, LimitBookLcdError> {
+    let page_limit = (depth as i64).min(super::limit_book_lcd::LIMIT_BOOK_PAGE_MAX);
+    let (orders, _, _) = fetch_limit_book_page(lcd, pair_addr, side, page_limit, None).await?;
+    Ok(orders)
+}
+
+fn limit_book_cache_suffix(
+    bid_limits: &[super::limit_book_lcd::LimitBookOrderItem],
+    ask_limits: &[super::limit_book_lcd::LimitBookOrderItem],
+) -> String {
+    if !hybrid_orderbook_enabled() {
+        return "pool".to_string();
+    }
+    let bid_head = bid_limits.first().map(|o| o.order_id);
+    let ask_head = ask_limits.first().map(|o| o.order_id);
+    format!("b{bid_head:?}:a{ask_head:?}")
+}
+
+async fn build_orderbook_data(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    pair_addr: &str,
+    requested_depth: usize,
+) -> Result<(OrderbookData, String), Box<dyn std::error::Error + Send + Sync>> {
+    let per_side = levels_per_side(requested_depth);
+    let fee_bps = resolve_fee_bps(pool, lcd, pair_addr).await;
+    let (r0, r1) = fetch_reserves(lcd, pair_addr).await?;
+    if r0 == 0 || r1 == 0 {
+        return Ok((
+            OrderbookData {
+                bids: Vec::new(),
+                asks: Vec::new(),
+            },
+            "empty".to_string(),
+        ));
+    }
+    let pool_book = walk_amm_book(r0, r1, per_side, fee_bps);
+    if !hybrid_orderbook_enabled() {
+        return Ok((pool_book, "pool".to_string()));
+    }
+
+    let bid_limits = fetch_limit_side(lcd, pair_addr, "bid", per_side)
+        .await
+        .unwrap_or_else(|e| {
+            warn!(pair = pair_addr, error = %e, "limit book bid fetch failed; pool-only bids");
+            Vec::new()
+        });
+    let ask_limits = fetch_limit_side(lcd, pair_addr, "ask", per_side)
+        .await
+        .unwrap_or_else(|e| {
+            warn!(pair = pair_addr, error = %e, "limit book ask fetch failed; pool-only asks");
+            Vec::new()
+        });
+    let suffix = limit_book_cache_suffix(&bid_limits, &ask_limits);
+    Ok((
+        build_hybrid_book(pool_book, &bid_limits, &ask_limits, per_side),
+        suffix,
+    ))
+}
+
+/// Simulate orderbook from LCD pool reserves (+ optional limit merge).
+///
+/// `requested_depth` is the **query** total depth (Openware split per side via [`levels_per_side`]).
 pub async fn simulate_orderbook(
     pool: &PgPool,
     lcd: &LcdClient,
     pair_addr: &str,
-    depth: usize,
+    requested_depth: usize,
 ) -> Result<OrderbookData, Box<dyn std::error::Error + Send + Sync>> {
-    let fee_bps = resolve_fee_bps(pool, lcd, pair_addr).await;
-    let (r0, r1) = fetch_reserves(lcd, pair_addr).await?;
-    if r0 == 0 || r1 == 0 {
-        return Ok(OrderbookData {
-            bids: Vec::new(),
-            asks: Vec::new(),
-        });
-    }
-    let per_side = levels_per_side(depth);
-    Ok(walk_amm_book(r0, r1, per_side, fee_bps))
+    build_orderbook_data(pool, lcd, pair_addr, requested_depth)
+        .await
+        .map(|(data, _)| data)
 }
 
-/// Like [`simulate_orderbook`] but caches results per `(pair_addr, depth, fee_bps)` for [`ORDERBOOK_CACHE_TTL`].
+/// Cached orderbook per `(pair, requested_depth, fee_bps, book_heads)` for [`ORDERBOOK_CACHE_TTL`].
 ///
-/// `requested_depth` is the **query** `depth` (total across book); cache keys use this value, not per-side count.
+/// Cache keys use the **query** `depth` total, not per-side ladder count (**#221**).
 pub async fn simulate_orderbook_cached(
     cache: &OrderbookCache,
     pool: &PgPool,
@@ -292,7 +364,8 @@ pub async fn simulate_orderbook_cached(
     requested_depth: usize,
 ) -> Result<OrderbookData, Box<dyn std::error::Error + Send + Sync>> {
     let now = Instant::now();
-    let prefix = format!("{pair_addr}:{requested_depth}:");
+    let fee_bps = resolve_fee_bps(pool, lcd, pair_addr).await;
+    let prefix = format!("{pair_addr}:{requested_depth}:{fee_bps}:");
     {
         let guard = cache.inner.read().await;
         for (key, (data, exp)) in guard.iter() {
@@ -302,18 +375,9 @@ pub async fn simulate_orderbook_cached(
         }
     }
 
-    let fee_bps = resolve_fee_bps(pool, lcd, pair_addr).await;
-    let key = format!("{prefix}{fee_bps}");
-
-    let (r0, r1) = fetch_reserves(lcd, pair_addr).await?;
-    let data = if r0 == 0 || r1 == 0 {
-        OrderbookData {
-            bids: Vec::new(),
-            asks: Vec::new(),
-        }
-    } else {
-        walk_amm_book(r0, r1, levels_per_side(requested_depth), fee_bps)
-    };
+    let (data, book_suffix) =
+        build_orderbook_data(pool, lcd, pair_addr, requested_depth).await?;
+    let key = format!("{prefix}{book_suffix}");
     let mut guard = cache.inner.write().await;
     guard.insert(key, (data.clone(), now + ORDERBOOK_CACHE_TTL));
     Ok(data)

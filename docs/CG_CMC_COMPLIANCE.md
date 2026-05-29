@@ -87,7 +87,7 @@ Returns 24-hour market data for all trading pairs.
 - `bid` and `ask` are simulated from the last trade price since AMMs don't have a traditional order book. The spread is set to 0.2% (0.1% each side).
 - `liquidity_in_usd` is `"0"` unless a USD price oracle is configured.
 
-**On-chain limit orders:** The depth shown in CG/CMC `orderbook` endpoints is **curve-simulated**, not the FIFO limit book. Resting maker orders on CL8Y pairs are stored and queried on-chain; see [limit-orders.md](./limit-orders.md).
+**On-chain limit orders:** CG/CMC `orderbook` depth is **hybrid-simulated** (AMM curve walk + resting FIFO limits merged for listing). It is **not** a live CEX L2 feed or guaranteed fill quote. Resting maker orders are also available via indexer `limit-book` and on-chain queries — see [limit-orders.md](./limit-orders.md) (GitLab **#220**).
 
 ### Consolidated hybrid + pool-only reporting (GitLab #189)
 
@@ -119,7 +119,7 @@ Hybrid best-execution routing for integrators: [`GET /api/v1/route/solve/best`](
 
 ### `GET /cg/orderbook`
 
-Returns a simulated order book derived from the AMM constant-product curve.
+Returns a **hybrid-simulated** order book: constant-product pool levels plus resting on-chain limit orders (merged, price-sorted, capped at `depth`). Set env `ORDERBOOK_HYBRID=0` for pool-only rollback.
 
 **Query Parameters:**
 
@@ -152,7 +152,7 @@ Returns a simulated order book derived from the AMM constant-product curve.
 | `bids` | array | `[[price, quantity], ...]` — buy orders sorted high to low |
 | `asks` | array | `[[price, quantity], ...]` — sell orders sorted low to high |
 
-See [AMM Orderbook Simulation](#amm-orderbook-simulation) for how levels are computed.
+See [Hybrid Orderbook Simulation](#hybrid-orderbook-simulation) (pool + limits) and [AMM Orderbook Simulation](#amm-orderbook-simulation) (pool leg only).
 
 ### `GET /cg/historical_trades`
 
@@ -379,9 +379,34 @@ If GeckoTerminal does not support Terra Classic natively, the `/cg/` endpoints a
 
 ---
 
+## Hybrid Orderbook Simulation
+
+GitLab **#220**. `/cg/orderbook` and `/cmc/orderbook/*` return **hybrid-simulated** depth:
+
+1. **Pool leg** — constant-product curve walk ([`orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs), **#210**).
+2. **Limit leg** — up to `levels_per_side(depth)` resting orders per side from LCD (`order_book_head` + `limit_order` pagination, same caps as [`limit-book`](./limit-orders.md)).
+3. **Merge** — concatenate pool + limit levels, **sort** (bids: price descending; asks: ascending), **sum quantities** at identical price strings, **truncate** to `levels_per_side(depth)` per side (**#221** total-depth split).
+
+**Disclosure:** Listing crawlers must treat levels as **indicative simulation** — execution may require on-chain hybrid swap or limit matching; not all displayed size is immediately marketable at the printed price.
+
+**Rollback:** `ORDERBOOK_HYBRID=0` (or `false`) disables limit merge (pool-only, pre-#220 behavior).
+
+**Cache:** 30s per `(pair, depth, fee_bps, bid_head, ask_head)` — see [`indexer-invariants.md`](./indexer-invariants.md).
+
+Implementation: [`hybrid_orderbook_sim.rs`](../indexer/src/api/hybrid_orderbook_sim.rs), wired from [`orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs). Agent playbook: [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md).
+
+### Listing QA (hybrid orderbook)
+
+- [ ] `/cg/orderbook` and `/cmc/orderbook/*` for a pair with resting limits include limit prices in the merged ladder.
+- [ ] Pair with empty limit book matches pool-only depth (modulo merge sort).
+- [ ] `depth` capped at 100; repeat requests within 30s do not amplify LCD (cache).
+- [ ] Product copy states **hybrid-simulated**, not live CEX L2.
+
+---
+
 ## AMM Orderbook Simulation
 
-Constant-product AMMs (x × y = k) do not have a traditional FIFO order book. `/cg/orderbook` and `/cmc/orderbook/*` return **AMM-simulated** depth by walking the pool curve — **not** resting limit orders ([`limit-orders.md`](./limit-orders.md), indexer `limit-book`). Implementation: [`indexer/src/api/orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs) (GitLab **#210**, depth split **#221**). Invariants: [`indexer-invariants.md`](./indexer-invariants.md).
+The **pool leg** of hybrid orderbook depth. Constant-product AMMs (x × y = k) do not have a traditional FIFO book; the curve walk below supplies pool levels only. Full CG/CMC responses also merge resting limits when hybrid mode is on (**#220**). On-chain FIFO book: [`limit-orders.md`](./limit-orders.md), indexer `limit-book`. Pool math: [`orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs) (**#210**, Openware total-depth split **#221**). Invariants: [`indexer-invariants.md`](./indexer-invariants.md).
 
 **Conventions:** `asset_0` = **base**, `asset_1` = **quote**. Levels are `[price, quantity]` decimal strings (smallest on-chain units). `price` = quote per base after pool fee.
 

@@ -9,6 +9,7 @@ mod best_execution;
 mod hybrid_route_opt;
 mod limit_book_lcd;
 mod oracle;
+pub mod hybrid_orderbook_sim;
 pub mod orderbook_sim;
 mod overview;
 mod pairs;
