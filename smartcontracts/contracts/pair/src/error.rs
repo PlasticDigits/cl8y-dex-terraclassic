@@ -85,6 +85,9 @@ pub enum ContractError {
     #[error("Limit batch must contain at least one order")]
     LimitBatchEmpty {},
 
+    #[error("Limit batch placed no rungs ({skipped} skipped due to book-walk cap)")]
+    LimitBatchNoRungsPlaced { skipped: u32 },
+
     #[error("Invalid limit ladder: {reason}")]
     LimitLadderInvalid { reason: String },
 

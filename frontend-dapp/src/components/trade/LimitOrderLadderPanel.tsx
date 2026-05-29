@@ -2,14 +2,18 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { placeLimitOrderLadderWithAllowance } from '@/services/terraclassic/pair'
-import { estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal } from '@/services/terraclassic/transactions'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { TxResultAlert } from '@/components/ui'
 import { useLimitOrderConfig } from '@/hooks/useLimitOrderConfig'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
+import { useLimitLadderPlaceGates } from '@/hooks/useLimitLadderPlaceGates'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
+import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
+import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
+import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
+import { formatLimitBatchGasSavingsLine } from '@/utils/limitOrderBatchGasSummary'
 import {
   expandLimitLadder,
   LimitLadderError,
@@ -52,6 +56,8 @@ export function LimitOrderLadderPanel({
   const configQuery = useLimitOrderConfig(pairAddress)
   const maxRungs = configQuery.data?.max_batch_rungs ?? 20
 
+  const placeGates = useLimitLadderPlaceGates(walletAddress, escrowToken, totalHuman, escrowDecimals, rungCount)
+
   const preview = useMemo(() => {
     try {
       const totalRaw = toRawAmount(totalHuman, escrowDecimals)
@@ -76,6 +82,19 @@ export function LimitOrderLadderPanel({
     mutationFn: async () => {
       if (preview.error || preview.rungs.length < 2) {
         throw new Error(preview.error ?? 'Invalid ladder')
+      }
+      const escrowGate = evaluateLimitOrderEscrowPlaceGate(totalHuman, escrowDecimals, placeGates.escrowBalanceQuery)
+      if (!escrowGate.canPlaceLimit) {
+        throw new Error(escrowGate.userMessage ?? 'Insufficient balance')
+      }
+      const nativeGate = evaluateLimitOrderNativeGasPlaceGate(
+        totalHuman,
+        escrowDecimals,
+        placeGates.nativeUlunaQuery,
+        placeGates.batchMinUluna
+      )
+      if (!nativeGate.canPlaceLimit) {
+        throw new Error(nativeGate.userMessage ?? 'Insufficient LUNC for gas')
       }
       const totalRaw = sumLadderAmountsRaw(preview.rungs)
       const exp = expiresAt ?? undefined
@@ -110,7 +129,13 @@ export function LimitOrderLadderPanel({
     },
   })
 
-  const gasUluna = estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount)
+  const gasSummaryLine = formatLimitBatchGasSavingsLine(
+    rungCount,
+    placeGates.batchMinUluna,
+    placeGates.gasSavingsUlunaVsSeparate
+  )
+
+  const submitDisabled = disabled || placeMutation.isPending || Boolean(preview.error) || !placeGates.canPlace
 
   return (
     <div className="space-y-3" data-testid="limit-order-ladder-panel">
@@ -193,15 +218,16 @@ export function LimitOrderLadderPanel({
               ))}
             </tbody>
           </table>
-          <p className="mt-2">
-            One transaction after allowance · est. min gas ~{(Number(gasUluna) / 1e6).toFixed(4)} LUNC
+          <p className="mt-2" data-testid="ladder-gas-summary">
+            {gasSummaryLine}
           </p>
         </div>
       )}
+      <LimitOrderEscrowPlaceGuardMessage gate={placeGates.inlineGate} data-testid="ladder-place-guard" />
       <button
         type="button"
         className="btn-neo w-full"
-        disabled={disabled || placeMutation.isPending || Boolean(preview.error)}
+        disabled={submitDisabled}
         data-testid="ladder-place-submit"
         onClick={() => placeMutation.mutate()}
       >

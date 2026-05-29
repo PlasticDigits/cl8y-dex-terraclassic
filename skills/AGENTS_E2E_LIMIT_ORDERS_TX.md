@@ -13,6 +13,7 @@ You are changing **limit order on-chain browser tests**, **E2E LCD pair selectio
 | Unpaused dual-CW20 pair exists | `requireLimitTxPair()` + LCD `is_paused` in `e2e/helpers/lcd.ts` | Hard fail (not `test.skip`) |
 | UI pause banner absent after selection | `skipOrFailIfPairPaused()` from `hybrid-e2e.ts` | Hard fail (L6) |
 | Place / cancel wasm actions | `limit-orders-tx.spec.ts` LCD poll | Expect `place_limit_order`, `cancel_limit_order` |
+| 5-rung ladder (one tx) | `limit-orders-tx.spec.ts` ladder test | Expect `place_limit_order_batch` + `place_limit_order` |
 
 Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI-only local runs; helpers fall back to documented `test.skip`. Default CI must not set it ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)).
 
@@ -42,4 +43,5 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-o
 - Hybrid swap E2E (shared pause helper): [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) ([#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193))
 - Dev wallet funding: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
 - GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)
+- Batch / ladder limits [#206](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/206): [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md)
 - Strict chain umbrella: [#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)

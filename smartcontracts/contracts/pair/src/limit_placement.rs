@@ -121,6 +121,8 @@ pub fn execute_place_limit_orders_batch(
 
     let mut total_maker_fee = Uint128::zero();
     let mut placed: Vec<(u64, Uint128, Decimal)> = Vec::with_capacity(orders.len());
+    let mut skipped_count: u32 = 0;
+    let mut placed_amount_sum = Uint128::zero();
 
     for item in &orders {
         validate_placement_item(item, now)?;
@@ -132,9 +134,8 @@ pub fn execute_place_limit_orders_batch(
             return Err(ContractError::LimitOrderMakerFeeExceedsAmount {});
         }
         let remaining_for_book = item.amount.checked_sub(maker_fee)?;
-        total_maker_fee = total_maker_fee.checked_add(maker_fee)?;
 
-        let id = match side {
+        let insert_result = match side {
             LimitOrderSide::Bid => orderbook::insert_bid(
                 deps.storage,
                 item.price,
@@ -143,7 +144,7 @@ pub fn execute_place_limit_orders_batch(
                 None,
                 item.max_adjust_steps,
                 item.expires_at,
-            )?,
+            ),
             LimitOrderSide::Ask => orderbook::insert_ask(
                 deps.storage,
                 item.price,
@@ -152,9 +153,38 @@ pub fn execute_place_limit_orders_batch(
                 None,
                 item.max_adjust_steps,
                 item.expires_at,
-            )?,
+            ),
         };
-        placed.push((id, maker_fee, item.price));
+
+        match insert_result {
+            Ok(id) => {
+                total_maker_fee = total_maker_fee.checked_add(maker_fee)?;
+                placed_amount_sum = placed_amount_sum.checked_add(item.amount)?;
+                placed.push((id, maker_fee, item.price));
+            }
+            Err(ContractError::LimitInsertStepsExceeded { .. }) => {
+                skipped_count += 1;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+
+    if placed.is_empty() {
+        return Err(ContractError::LimitBatchNoRungsPlaced {
+            skipped: skipped_count,
+        });
+    }
+
+    let refund = send_amount.checked_sub(placed_amount_sum)?;
+    if !refund.is_zero() {
+        resp = resp.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: info.sender.to_string(),
+            msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: owner.to_string(),
+                amount: refund,
+            })?,
+            funds: vec![],
+        }));
     }
 
     if !total_maker_fee.is_zero() {
@@ -171,6 +201,8 @@ pub fn execute_place_limit_orders_batch(
     resp = resp
         .add_attribute("action", "place_limit_order_batch")
         .add_attribute("batch_count", placed.len().to_string())
+        .add_attribute("batch_skipped_count", skipped_count.to_string())
+        .add_attribute("batch_refund_amount", refund)
         .add_attribute("side", side_label)
         .add_attribute("total_maker_fee_amount", total_maker_fee)
         .add_attribute("effective_fee_bps", effective_fee_bps.to_string());

@@ -2748,6 +2748,97 @@ fn place_limit_order_ladder_five_rungs() {
 }
 
 #[test]
+fn limit_batch_partial_success_skips_book_walk_failures() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    for _ in 0..10 {
+        place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(1_000),
+            Decimal::one(),
+        );
+    }
+
+    let orders = vec![
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(99u128, 100u128),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+        },
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(5u128, 10u128),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 5,
+            expires_at: None,
+        },
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(98u128, 100u128),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+        },
+    ];
+    let total = Uint128::new(3_000);
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders,
+    })
+    .unwrap();
+
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(placed.len(), 2, "expected two rungs placed, one skipped");
+    assert_eq!(
+        wasm_attr_in_action_event(
+            &res.events,
+            "place_limit_order_batch",
+            "batch_skipped_count"
+        )
+        .as_deref(),
+        Some("1")
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(
+            &res.events,
+            "place_limit_order_batch",
+            "batch_refund_amount"
+        )
+        .as_deref(),
+        Some("1000")
+    );
+}
+
+#[test]
 fn limit_batch_too_large_rejected() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
