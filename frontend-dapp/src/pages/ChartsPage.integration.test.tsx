@@ -1,3 +1,13 @@
+/**
+ * Charts **indexer HTTP** integration — live Postgres-backed API via `VITE_INDEXER_URL`.
+ *
+ * Scope: indexer client + React data path only. `lightweight-charts` is **stubbed**
+ * (`vitest.config.integration.ts` → `lightweightChartsJsdomMock.ts`); this file does
+ * **not** validate canvas render, autoscale, or large-candle perf.
+ *
+ * Real-library chart tests: `npm run test:charts` / `make test-frontend-charts`
+ * (CI job `frontend-charts-vitest`). See GitLab #211, #229, #230.
+ */
 import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import ChartsPage from './ChartsPage'

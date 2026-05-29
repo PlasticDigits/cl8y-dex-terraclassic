@@ -148,8 +148,37 @@ jobs:
       - name: Unit tests
         run: npm run test:run
 
-      - name: Vitest real lightweight-charts (GitLab #211)
+  frontend-charts-vitest:
+    name: Frontend charts Vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-dapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install canvas native dependencies (GitLab #230)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libcairo2-dev \
+            libgif-dev \
+            libjpeg-dev \
+            libpango1.0-dev \
+            librsvg2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Vitest real lightweight-charts (GitLab #211, #230)
         run: npm run test:charts
+        env:
+          CI: true
 
   frontend-charts-integration:
     name: Frontend charts integration

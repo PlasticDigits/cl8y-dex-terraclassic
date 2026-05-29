@@ -16,8 +16,8 @@ Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./re
 | Pause blocks swap + limits | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `pause_blocks_swap_and_place_cancel_refunds_escrow`; [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) | L6 — see [`contracts-security-audit.md`](./contracts-security-audit.md) |
 | Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | Manual: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) | LCD `pool` + optional `simulation`; run after deploy |
 | Stubs / mocks catalog | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy below + issue #105 | LCD stub vs AMM-sim orderbook |
-| Charts integration | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | CI runs `npm run test:integration` |
-| Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | Separate from jsdom stub; large-candle + real visible-range autoscale ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) |
+| Charts integration (indexer HTTP) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | CI job `frontend-charts-integration`; **stubbed** `lightweight-charts` — not canvas |
+| Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | CI job `frontend-charts-vitest` (isolated from unit job); large-candle + real visible-range autoscale ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) |
 | Price chart candle parsing + stale pair race | [#226](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/226) | [`priceChartCandles.test.ts`](../frontend-dapp/src/components/charts/__tests__/priceChartCandles.test.ts), [`PriceChart.test.tsx`](../frontend-dapp/src/components/charts/__tests__/PriceChart.test.tsx) | Default `npm run test:run`; no Postgres |
 
 **Post-deploy smoke (#86):**
@@ -108,7 +108,13 @@ make test-frontend-charts   # from repo root
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:charts
 ```
 
-**CI:** the `frontend` job runs `npm run test:charts` after unit tests ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)).
+**CI:** dedicated job **`frontend-charts-vitest`** runs `npm run test:charts` with Node `canvas` OS deps (`libcairo`, etc.) — isolated from the fast `frontend` unit job so native binding failures do not block 600+ jsdom tests ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230), [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). The job is **required** (not optional/skip silently).
+
+**Local `canvas` deps (Ubuntu/Debian):** if `npm run test:charts` fails loading the native module, install the same packages as CI:
+
+```bash
+sudo apt-get install -y build-essential libcairo2-dev libgif-dev libjpeg-dev libpango1.0-dev librsvg2-dev
+```
 
 **Large-candle ceiling ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)):** Real-library tests always cover **500** and **1500** candles (per-test timeouts up to 25s). A **2000**-candle soak runs **only when `CI` is set** (`it.runIf(process.env.CI)`). Do not add 50k-row cases to CI — local-only if ever needed. Default suite timeout remains **15s** in `vitest.config.charts.ts`; autoscale regressions use the chart’s real `getVisibleLogicalRange()` after `setVisibleLogicalRange`, not a synthetic `original()` alone. Harness: [`chartRealLibraryHarness.ts`](../frontend-dapp/src/test/chartRealLibraryHarness.ts).
 
@@ -119,6 +125,15 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:charts
 ### Integration Tests (Frontend)
 
 Longer-running tests are kept out of the default `npm run test:run` suite. **Charts + indexer HTTP** coverage uses `vitest.config.integration.ts`: tests call a real indexer (`VITE_INDEXER_URL`, default `http://127.0.0.1:3001`) with PostgreSQL migrations applied. They are **not** skipped when the stack is down — the run fails so CI catches broken wiring. E2E and other flows may still use LocalTerra where documented.
+
+**Charts test layers (GitLab #230):**
+
+| Layer | Command / CI job | Validates | Does **not** validate |
+|-------|------------------|-----------|------------------------|
+| Unit (jsdom stub) | `npm run test:run` / job `frontend` | React wiring, stub contract ([#227](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/227)) | Real canvas / library |
+| Real library Vitest | `npm run test:charts` / job `frontend-charts-vitest` | `lightweight-charts` init, `setData`, autoscale, large candles ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) | Indexer HTTP |
+| Indexer HTTP integration | `npm run test:integration` / job `frontend-charts-integration` | Live candles API → ChartsPage shell ([#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104)) | Canvas render (stubbed) |
+| Playwright | `npm run test:e2e` / job `e2e` | Full browser + LocalTerra tx path | Chart pixel perf at 50k candles |
 
 **Charts integration (local)**
 
@@ -331,8 +346,9 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 
 The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
 1. `cargo fmt --check` + `cargo clippy` + contract tests via `cargo llvm-cov test` (LCOV artifact) + WASM builds
-2. `tsc --noEmit` + `npm run lint` + `npm run test:run`
-3. **Frontend charts integration:** PostgreSQL service → `sqlx migrate run` → `seed-charts-integration.sql` → release indexer binary → `npm run test:integration` against `http://127.0.0.1:3001` (local equivalent: `make test-charts-integration`, GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205))
+2. **`frontend`:** `tsc --noEmit` + `npm run lint` + `npm run test:run` (jsdom unit only)
+3. **`frontend-charts-vitest`:** `npm run test:charts` with native `canvas` OS packages ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230), [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211))
+4. **Frontend charts integration:** PostgreSQL service → `sqlx migrate run` → `seed-charts-integration.sql` → release indexer binary → `npm run test:integration` against `http://127.0.0.1:3001` (local equivalent: `make test-charts-integration`, GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205))
 
 See [the workflow file](../.github/workflows/test.yml) for details.
 
