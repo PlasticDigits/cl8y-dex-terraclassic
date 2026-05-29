@@ -171,6 +171,7 @@ async fn optimize_one_hop(
 }
 
 /// Sequential per-hop optimization: output of hop *i* is the offer amount for hop *i+1*.
+#[allow(dead_code)]
 pub async fn optimize_multihop_hybrid(
     lcd: &LcdClient,
     hops: &[HopDescriptor],
@@ -178,15 +179,88 @@ pub async fn optimize_multihop_hybrid(
     max_maker_fills: u32,
 ) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta), crate::lcd::LcdError> {
     let mut meta = OptimizationMeta::default();
+    let plan = optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta).await?;
+    Ok((plan, meta))
+}
+
+/// Coordinate-descent refinement on top of the sequential baseline (GitLab #209).
+pub async fn optimize_multihop_hybrid_joint(
+    lcd: &LcdClient,
+    hops: &[HopDescriptor],
+    amount_in: u128,
+    max_maker_fills: u32,
+) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta), crate::lcd::LcdError> {
+    let mut meta = OptimizationMeta::default();
+    let mut plan =
+        optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta).await?;
+
+    const COORDINATE_PASSES: u32 = 2;
+    for _ in 0..COORDINATE_PASSES {
+        for hop_idx in 0..hops.len() {
+            let offer = propagate_offer_through_plan(lcd, hops, &plan, amount_in, hop_idx, max_maker_fills)
+                .await?;
+            let (hybrid, _) =
+                optimize_one_hop(lcd, &hops[hop_idx], offer, max_maker_fills, &mut meta).await?;
+            plan[hop_idx] = hybrid;
+        }
+    }
+
+    Ok((plan, meta))
+}
+
+async fn optimize_multihop_hybrid_with_plan(
+    lcd: &LcdClient,
+    hops: &[HopDescriptor],
+    amount_in: u128,
+    max_maker_fills: u32,
+    meta: &mut OptimizationMeta,
+) -> Result<Vec<Option<HybridHopJson>>, crate::lcd::LcdError> {
     let mut out_vec = Vec::with_capacity(hops.len());
     let mut running = amount_in;
 
     for hop in hops {
-        let (hybrid, next_in) =
-            optimize_one_hop(lcd, hop, running, max_maker_fills, &mut meta).await?;
+        let (hybrid, next_in) = optimize_one_hop(lcd, hop, running, max_maker_fills, meta).await?;
         out_vec.push(hybrid);
         running = next_in;
     }
 
-    Ok((out_vec, meta))
+    Ok(out_vec)
+}
+
+async fn propagate_offer_through_plan(
+    lcd: &LcdClient,
+    hops: &[HopDescriptor],
+    plan: &[Option<HybridHopJson>],
+    amount_in: u128,
+    target_hop: usize,
+    max_maker_fills: u32,
+) -> Result<u128, crate::lcd::LcdError> {
+    let mut running = amount_in;
+    for (idx, hop) in hops.iter().enumerate().take(target_hop) {
+        let (pool, book) = plan
+            .get(idx)
+            .and_then(|h| h.as_ref())
+            .map(|h| {
+                (
+                    h.pool_input.parse::<u128>().unwrap_or(0),
+                    h.book_input.parse::<u128>().unwrap_or(0),
+                )
+            })
+            .unwrap_or((running, 0));
+        let mut offer = pool.saturating_add(book);
+        if offer == 0 {
+            offer = running;
+        }
+        running = query_hybrid_sim(
+            lcd,
+            &hop.pair,
+            &hop.offer_token,
+            offer,
+            pool,
+            book,
+            max_maker_fills.max(1),
+        )
+        .await?;
+    }
+    Ok(running)
 }

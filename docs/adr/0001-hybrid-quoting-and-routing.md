@@ -11,7 +11,7 @@ Router and pair legacy `Simulation` queries were pool-only while Pattern C execu
 ## Decision
 
 1. **Forward / reverse hybrid quotes:** Pair queries `HybridSimulation` and `HybridReverseSimulation` (read-only book walk + pool leg) are the **only** quote paths ([#190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190)). Pool-only: `pool_only_hybrid_params(offer)` / `pool_only_hybrid_template()`. The router always uses hybrid queries; when `terra_swap.hybrid` is unset it passes pool-only params. When `hybrid` is set, legs must sum to the per-hop simulated amount. Reverse hybrid scales `pool_input` / `book_input` as ratio weights (binary search over total offer).
-2. **Indexer routing scope:** `GET /api/v1/route/solve` defaults to **hybrid-aware** routing when `amount_in` is set (max **3 hops**, GitLab **#191**). Use **`pool_only=true`** (or `hybrid_optimize=false`) for legacy pool-only ops (**max 4 hops**, `hybrid: null`). Without `amount_in`, GET returns route discovery only (pool-only ops, max 3 hops). `GET /api/v1/route/solve/best` (GitLab **#189**) is an alias for the same hybrid engine when `amount_in` is required explicitly. All indexer LCD pair quotes use **`hybrid_simulation`** only. **`POST /api/v1/route/solve`** accepts an optional `hybrid_by_hop` array (one optional hybrid payload per hop, aligned with BFS order, **max 4 hops**). The indexer merges those into `router_operations` and, when `amount_in` and `ROUTER_ADDRESS` are set, runs the same LCD `simulate_swap_operations` query the chain uses for that message shape. Integrators can use **GET** (default hybrid), **`GET /best`**, or **POST** when supplying their own `hybrid_by_hop`.
+2. **Indexer routing scope:** `GET /api/v1/route/solve` defaults to **global best execution** when `amount_in` is set (top-K paths + joint hybrid per hop, max **3 hops**; GitLab **#209**, [ADR 0002](./0002-global-best-execution-route-solver.md)). Use **`pool_only=true`** (or `hybrid_optimize=false`) for legacy pool-only ops (**max 4 hops**, `hybrid: null`). Without `amount_in`, GET returns route discovery only (first BFS path, pool-only ops). `GET /api/v1/route/solve/best` (GitLab **#189**) is an alias for the same engine when `amount_in` is required explicitly. All indexer LCD pair quotes use **`hybrid_simulation`** only. **`POST /api/v1/route/solve`** accepts an optional `hybrid_by_hop` array (one optional hybrid payload per hop, aligned with BFS order, **max 4 hops**). The indexer merges those into `router_operations` and, when `amount_in` and `ROUTER_ADDRESS` are set, runs the same LCD `simulate_swap_operations` query the chain uses for that message shape. Integrators can use **GET** (default best execution), **`GET /best`**, or **POST** when supplying their own `hybrid_by_hop`.
 
 ## Consequences
 
@@ -20,5 +20,6 @@ Router and pair legacy `Simulation` queries were pool-only while Pattern C execu
 
 ## Links
 
+- [ADR 0002 — global best execution](./0002-global-best-execution-route-solver.md) (GitLab #209)
 - `docs/limit-orders.md`
 - `docs/contracts-security-audit.md` (L8)

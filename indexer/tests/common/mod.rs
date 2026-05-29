@@ -410,6 +410,83 @@ pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
     }
 }
 
+/// A↔B, B↔C, and direct A↔C pairs — two simple paths A→C (1 hop) and A→B→C (2 hops) for global solver tests (#209).
+pub async fn seed_route_solve_multi_path(pool: &PgPool) -> RouteSolveSeed {
+    clean_db(pool).await;
+
+    // Distinct addresses so hybrid route cache keys do not collide with other route_solve seeds.
+    let token_a = "terra1routemultipathaa".to_string();
+    let token_b = "terra1routemultipathbb".to_string();
+    let token_c = "terra1routemultipathcc".to_string();
+
+    let asset_a_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route MP A', 'MPA', 6)
+         RETURNING id",
+    )
+    .bind(&token_a)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset a");
+
+    let asset_b_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route MP B', 'MPB', 6)
+         RETURNING id",
+    )
+    .bind(&token_b)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset b");
+
+    let asset_c_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route MP C', 'MPC', 6)
+         RETURNING id",
+    )
+    .bind(&token_c)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset c");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairroutempab', $1, $2, 'terra1lproutempab', 30)",
+    )
+    .bind(asset_a_id)
+    .bind(asset_b_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair ab");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairroutempbc', $1, $2, 'terra1lproutempbc', 30)",
+    )
+    .bind(asset_b_id)
+    .bind(asset_c_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair bc");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairroutempac', $1, $2, 'terra1lproutempac', 30)",
+    )
+    .bind(asset_a_id)
+    .bind(asset_c_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair ac");
+
+    RouteSolveSeed {
+        token_a,
+        token_b,
+        token_c,
+        token_d: None,
+    }
+}
+
 /// A→B→C→D chain (three hops) for multihop hybrid regression tests (GitLab #192).
 pub async fn seed_route_solve_3hop(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;

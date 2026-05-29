@@ -65,9 +65,9 @@ The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-
 
 | Method | Role |
 |--------|------|
-| **`GET`** | BFS path discovery (**default max 3 hops**). When `amount_in` is set, hybrid optimization runs **by default**: per-hop splits via pair **`HybridSimulation`**, merged `hybrid` in `router_operations`, optional `estimated_amount_out` from LCD `simulate_swap_operations` when `ROUTER_ADDRESS` is configured. Returns `intermediate_tokens`, `quote_kind`, and `hybrid_notes`. Legacy integrators may pass **`pool_only=true`** for pool-only ops (**max 4 hops**, `hybrid: null` on every hop). Without `amount_in`, GET returns route discovery only. See GitLab [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191). |
-| **`GET /best`** | **Retail / Vyntrex best-execution alias** ([GitLab **#189**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)): same hybrid engine as default GET with `amount_in`; **`amount_in` is required**. |
-| **`POST`** | Discovery (**max 4 hops**), plus optional **`hybrid_by_hop`**: one entry per hop (`null` = pool-only that hop, or a `HybridSwapParams`-shaped object). The indexer merges these into `router_operations` and, when `amount_in` and `ROUTER_ADDRESS` are configured, runs the **same** LCD `simulate_swap_operations` the chain uses for the merged message — so quotes can include limit-book legs when your splits are valid. |
+| **`GET`** | Without `amount_in`: **first** BFS path discovery (**max 3 hops**). With `amount_in`: **global best execution** ([GitLab **#209**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [ADR 0002](./adr/0002-global-best-execution-route-solver.md)) — up to 5 simple paths, joint per-hop hybrid splits, highest `estimated_amount_out` wins. Response includes `solver_version`, `paths_considered`, `optimality_scope`, `lcd_hybrid_queries`, `intermediate_tokens`, `quote_kind`, `hybrid_notes`. Legacy **`pool_only=true`** → pool-only ops (**max 4 hops**). See [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191). |
+| **`GET /best`** | **Retail / Vyntrex alias** ([GitLab **#189**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)): same `global_v1` engine as default GET; **`amount_in` required**. |
+| **`POST`** | BFS discovery (**max 4 hops**), plus optional **`hybrid_by_hop`** for **integrator overrides** (one entry per hop). Merges into `router_operations` and runs LCD `simulate_swap_operations` when configured. |
 
 **Invariant L8:** Pool-only quotes use `hybrid_simulation` with `book_input = 0` (helpers: `pool_only_hybrid_params`, `pool_only_hybrid_template`). Router ops with `hybrid: null` still get pool-only hybrid quotes on-chain. For book-inclusive quotes set non-zero `book_input` on the router op or pair query. See [limit-orders.md](./limit-orders.md), [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md), and [skills/AGENTS_HYBRID_QUOTING.md](../skills/AGENTS_HYBRID_QUOTING.md).
 
@@ -96,3 +96,4 @@ Full Terraport reference: [terraport.md](./terraport.md).
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.
 - [contracts-security-audit.md](./contracts-security-audit.md) — invariant matrix.
 - [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) — hybrid routing and quoting scope.
+- [ADR 0002](./adr/0002-global-best-execution-route-solver.md) — global best execution (#209).

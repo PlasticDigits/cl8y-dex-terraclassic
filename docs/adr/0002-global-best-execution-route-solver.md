@@ -1,0 +1,31 @@
+# ADR 0002: Global best-execution route solver (indexer)
+
+## Status
+
+Accepted (GitLab [#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209))
+
+## Context
+
+The indexer previously chose the **first** BFS shortest path and ran a **sequential** per-hop hybrid grid (`hybrid_route_opt::optimize_multihop_hybrid`). A longer path or different split schedule could yield higher `estimated_amount_out` on the same LCD snapshot. Clients saw `hybrid_notes` admitting non-global optimality without a single “best execution” contract.
+
+## Decision
+
+1. **Path search:** Enumerate up to **5** simple paths ordered by hop count (`route_paths::find_paths_top_k`), capped by GET **3 hops** (unchanged from ADR 0001 / #191).
+2. **Hybrid search:** For each candidate path, run **joint** optimization: sequential baseline plus **2** coordinate-descent passes over per-hop `book_input` grids (`hybrid_route_opt::optimize_multihop_hybrid_joint`, 17 grid points per hop).
+3. **Winner selection:** Compare router `simulate_swap_operations` `estimated_amount_out` when `ROUTER_ADDRESS` is set; otherwise compare hybrid simulation totals. Highest out wins (deterministic tie-break: later path index does not replace equal out).
+4. **API metadata:** Hybrid GET responses include `solver_version` (`global_v1`), `paths_considered`, `optimality_scope`, `lcd_hybrid_queries`, and updated `hybrid_notes`. Cache keys include `solver_version` and amount bucket.
+5. **Liability:** Solver remains **advisory**; clients set `max_spread` / min receive on execute. `optimality_scope` states bounds explicitly (not “globally optimal on all possible paths”).
+6. **POST unchanged:** `POST /api/v1/route/solve` keeps BFS discovery (max 4 hops) and optional `hybrid_by_hop` for integrator overrides.
+
+## Consequences
+
+- LCD load scales with paths × hops × grid; bounded by constants in `best_execution.rs` (`MAX_PATH_CANDIDATES`, `LCD_HYBRID_SIM_BUDGET`).
+- Degraded hops (`indexer_hybrid_lcd_degraded`) still pool-only fallback per hop (#190).
+- Discovery GET without `amount_in` still uses first BFS path only (no hybrid solver).
+
+## Links
+
+- [ADR 0001](./0001-hybrid-quoting-and-routing.md)
+- [indexer-invariants.md](../indexer-invariants.md) — route GET hybrid / best execution rows
+- [skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md](../../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md)
+- [gaps/GAP_1780023683.md](../../gaps/GAP_1780023683.md)
