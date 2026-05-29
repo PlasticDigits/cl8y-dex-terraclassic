@@ -94,46 +94,27 @@ fn acquire_shared_test_db_lock() -> std::fs::File {
 }
 
 async fn clean_db_tables(pool: &PgPool) {
-    sqlx::query("DELETE FROM ustc_prices")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM hook_events")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM limit_order_placements")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM limit_order_cancellations")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM limit_order_fills")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM swap_events")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM candles").execute(pool).await.ok();
-    sqlx::query("DELETE FROM liquidity_events")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM token_volume_stats")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM trader_positions")
-        .execute(pool)
-        .await
-        .ok();
-    sqlx::query("DELETE FROM traders").execute(pool).await.ok();
-    sqlx::query("DELETE FROM pairs").execute(pool).await.ok();
-    sqlx::query("DELETE FROM assets").execute(pool).await.ok();
+    // TRUNCATE CASCADE avoids flaky DELETE .ok() when FK rows remain.
+    sqlx::query(
+        "TRUNCATE TABLE
+            ustc_prices,
+            hook_events,
+            limit_order_cancellations,
+            limit_order_placements,
+            limit_order_fills,
+            swap_events,
+            candles,
+            liquidity_events,
+            token_volume_stats,
+            trader_positions,
+            traders,
+            pairs,
+            assets
+        RESTART IDENTITY CASCADE",
+    )
+    .execute(pool)
+    .await
+    .expect("integration test clean_db TRUNCATE");
 }
 
 pub async fn clean_db(pool: &PgPool) {
