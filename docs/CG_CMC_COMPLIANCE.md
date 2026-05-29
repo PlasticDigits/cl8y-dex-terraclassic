@@ -379,31 +379,39 @@ If GeckoTerminal does not support Terra Classic natively, the `/cg/` endpoints a
 
 ## AMM Orderbook Simulation
 
-Since constant-product AMMs (x * y = k) don't have a traditional order book, we simulate one by walking the bonding curve at discrete quantity steps.
+Constant-product AMMs (x × y = k) do not have a traditional FIFO order book. `/cg/orderbook` and `/cmc/orderbook/*` return **AMM-simulated** depth by walking the pool curve — **not** resting limit orders ([`limit-orders.md`](./limit-orders.md), indexer `limit-book`). Implementation: [`indexer/src/api/orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs) (GitLab **#210**). Invariants: [`indexer-invariants.md`](./indexer-invariants.md).
+
+**Conventions:** `asset_0` = **base**, `asset_1` = **quote**. Levels are `[price, quantity]` decimal strings (smallest on-chain units). `price` = quote per base after pool fee. Depth is capped at **100**; responses are cached **30s** per `(pair, depth, fee_bps)`.
 
 ### Method
 
-Given pool reserves `(R0, R1)` and constant product `k = R0 * R1`:
+Given pool reserves `(R0, R1)`, `k = R0 * R1`, and pool `fee_bps` (indexer `pairs.fee_bps` when the pair is indexed, else LCD `get_fee_config`):
 
-**Bids** (selling base for quote — price decreasing):
-For each step `i` from 1 to `depth`:
-1. Calculate `sell_amount = R0 * (i / depth) * 0.10` (up to 10% of reserves)
-2. New `R0' = R0 + sell_amount`
-3. New `R1' = k / R0'`
-4. `received = R1 - R1'`
-5. `effective_price = received / sell_amount`
-6. Level: `[effective_price, sell_amount]`
+For each step `i` from **1** to `depth`:
 
-**Asks** (buying base with quote — price increasing):
-For each step `i` from 1 to `depth`:
-1. Calculate `buy_amount = R0 * (i / depth) * 0.10`
-2. New `R0' = R0 - buy_amount`
-3. New `R1' = k / R0'`
-4. `cost = R1' - R1`
-5. `effective_price = cost / buy_amount`
-6. Level: `[effective_price, buy_amount]`
+- `step_amount = R0 * (i / depth) * 0.10` (integer division; up to **10%** of base reserves at `i = depth`)
 
-This approach is standard across AMM DEXes listed on CoinGecko and CoinMarketCap.
+**Bids** (sell base → receive quote; effective price **decreases** with size):
+
+1. `sell_amount = step_amount`
+2. `R0' = R0 + sell_amount`
+3. `R1' = ceil_div(k, R0')` (pair-style ceiling division — pool-favorable)
+4. `gross_quote = R1 - R1'`
+5. `net_quote = gross_quote - (gross_quote * fee_bps / 10000)`
+6. `effective_price = net_quote / sell_amount`
+7. Level: `[effective_price, sell_amount]`
+
+**Asks** (buy base → pay quote; effective price **increases** with size):
+
+1. `buy_amount = step_amount` (must be `< R0`)
+2. `R0' = R0 - buy_amount`
+3. `R1' = ceil_div(k, R0')`
+4. `gross_quote_cost = R1' - R1`
+5. `net_base = buy_amount - (buy_amount * fee_bps / 10000)` (fee on base output, same as pair pool swap)
+6. `effective_price = gross_quote_cost / net_base`
+7. Level: `[effective_price, buy_amount]`
+
+This matches the pair contract pool leg (`ceil_div`, commission on gross output). Trader-specific fee discounts are **not** applied on public orderbook endpoints.
 
 ---
 

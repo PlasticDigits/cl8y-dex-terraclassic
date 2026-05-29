@@ -3,7 +3,12 @@
 mod common;
 
 use axum_test::TestServer;
+use cl8y_dex_indexer::api::orderbook_sim;
 use serde_json::Value;
+
+fn parse_level_price(level: &[String; 2]) -> f64 {
+    level[0].parse().expect("price string")
+}
 
 #[tokio::test]
 async fn cg_orderbook_200_simulated_depth_matches_query() {
@@ -94,4 +99,61 @@ async fn cmc_orderbook_200_with_lcd_mock() {
     let asks = body["asks"].as_array().unwrap();
     assert_eq!(bids.len(), 15);
     assert_eq!(asks.len(), 15);
+}
+
+#[tokio::test]
+async fn cg_orderbook_bid_prices_decrease_ask_prices_increase() {
+    let mock = common::lcd_mock::start_pool_query_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get("/cg/orderbook?ticker_id=LUNC_USTC&depth=20")
+        .await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let bids = body["bids"].as_array().unwrap();
+    let asks = body["asks"].as_array().unwrap();
+    assert_eq!(bids.len(), 20);
+    assert_eq!(asks.len(), 20);
+
+    let bid_prices: Vec<f64> = bids
+        .iter()
+        .map(|l| l[0].as_str().unwrap().parse().unwrap())
+        .collect();
+    for w in bid_prices.windows(2) {
+        assert!(w[0] > w[1], "bids should be decreasing: {bid_prices:?}");
+    }
+
+    let ask_prices: Vec<f64> = asks
+        .iter()
+        .map(|l| l[0].as_str().unwrap().parse().unwrap())
+        .collect();
+    for w in ask_prices.windows(2) {
+        assert!(w[0] < w[1], "asks should be increasing: {ask_prices:?}");
+    }
+}
+
+#[tokio::test]
+async fn cg_orderbook_with_db_fee_worse_than_zero_fee_baseline() {
+    let r0 = 10_000_000_000u128;
+    let r1 = 5_000_000_000_000_000u128;
+    let depth = 10;
+    let zero = orderbook_sim::walk_amm_book(r0, r1, depth, 0);
+    // Seeded pair fee_bps = 30 (see common::seed_db).
+    let fee = orderbook_sim::walk_amm_book(r0, r1, depth, 30);
+
+    for i in 0..depth {
+        let z: f64 = parse_level_price(&zero.bids[i]);
+        let f: f64 = parse_level_price(&fee.bids[i]);
+        assert!(f < z, "fee should worsen bid at {i}");
+        let z: f64 = parse_level_price(&zero.asks[i]);
+        let f: f64 = parse_level_price(&fee.asks[i]);
+        assert!(f > z, "fee should worsen ask at {i}");
+    }
 }

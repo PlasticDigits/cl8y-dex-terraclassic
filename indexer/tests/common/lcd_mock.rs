@@ -8,6 +8,7 @@
 //! concept from both this stub and the pair contract’s orderbook state.
 //!
 //! See GitLab issue #105 for a repo-wide catalog of stubs and test stand-ins.
+//! Production AMM curve-walk depth: [`orderbook_sim`](cl8y_dex_indexer::api::orderbook_sim) (**#210**).
 
 use base64::Engine;
 use serde_json::{json, Value};

@@ -62,7 +62,7 @@ Full catalog: [GitLab **#105**](https://gitlab.com/PlasticDigits/cl8y-dex-terrac
 | Stand-in | Location | Production analogue |
 |----------|----------|---------------------|
 | Wiremock LCD | `indexer/tests/common/lcd_mock.rs` | Real Terra LCD |
-| AMM curve-walk depth | `indexer/src/api/orderbook_sim.rs` | On-chain FIFO limit book |
+| AMM curve-walk depth | `indexer/src/api/orderbook_sim.rs` (**#210** — production CG/CMC sim); playbook [`AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](./AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) | On-chain FIFO limit book (`limit-book` API) |
 | Vitest `vi.mock` (Terra services) | `frontend-dapp/src/**/__tests__` | Wallet + LCD I/O |
 | `lightweightChartsJsdomMock.ts` | jsdom unit tests (`test:run`) | Browser `lightweight-charts` |
 | `vitest.config.charts.ts` + `chartsSetup.ts` | Real library Vitest ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)) | Same; `npm run test:charts` |
