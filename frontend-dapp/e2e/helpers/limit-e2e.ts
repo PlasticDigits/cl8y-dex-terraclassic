@@ -117,6 +117,41 @@ export function cancelLimitCard(page: Page) {
   return page.locator('.card-neo').filter({ hasText: 'Cancel limit' })
 }
 
+/** Click Place ladder and wait for TX success (retries LocalTerra account sequence races). */
+export async function submitLadderPlaceAndExpectTx(page: Page): Promise<void> {
+  const ladderPanel = page.getByTestId('limit-order-ladder-panel')
+  const ladderBtn = ladderPanel.getByTestId('ladder-place-submit')
+  const successAlert = ladderPanel.locator('.alert-success')
+  const errorAlert = ladderPanel.locator('.alert-error')
+
+  let attempt = 0
+  await expect(async () => {
+    attempt += 1
+    if (await successAlert.isVisible().catch(() => false)) {
+      await expect(successAlert).toContainText(/TX:/i)
+      return
+    }
+    // Allowance + ladder = two txs; wait out a prior in-flight attempt before re-clicking.
+    await expect(ladderBtn).toBeEnabled({ timeout: 180_000 })
+    await expect(ladderBtn).not.toHaveText(/Placing ladder/i, { timeout: 5_000 })
+    await ladderBtn.click()
+    await expect(ladderBtn).not.toHaveText(/Placing ladder/i, { timeout: 180_000 })
+
+    try {
+      await expect(successAlert).toContainText(/TX:/i, { timeout: 45_000 })
+      return
+    } catch {
+      const msg = (await errorAlert.textContent().catch(() => '')) ?? ''
+      if (/account sequence mismatch/i.test(msg)) {
+        await page.waitForTimeout(Math.min(attempt * 2_000, 12_000))
+        throw new Error('retry after account sequence mismatch')
+      }
+      if (msg.trim()) throw new Error(`ladder place failed: ${msg.trim()}`)
+      throw new Error('no tx result after ladder place click')
+    }
+  }).toPass({ timeout: 300_000 })
+}
+
 /** Click Cancel limit and wait for TX success in the cancel card (retries sequence mismatch). */
 export async function submitCancelLimitAndExpectTx(page: Page): Promise<void> {
   const card = cancelLimitCard(page)

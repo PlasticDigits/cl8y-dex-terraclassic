@@ -84,5 +84,5 @@ export function expandLimitLadder(spec: LimitLadderSpec, maxRungs: number): Ladd
 }
 
 export function sumLadderAmountsRaw(rungs: LadderRungPreview[]): string {
-  return rungs.reduce((acc, r) => (acc + BigInt(r.amountRaw)).toString(), '0')
+  return rungs.reduce((acc, r) => acc + BigInt(r.amountRaw), 0n).toString()
 }

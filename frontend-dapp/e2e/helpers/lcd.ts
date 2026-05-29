@@ -123,6 +123,10 @@ function wasmAttrLast(attrs: Array<{ key: string; value: string }>, key: string)
   return undefined
 }
 
+function wasmHasAttrValue(attrs: Array<{ key: string; value: string }>, key: string, value: string): boolean {
+  return attrs.some((a) => a.key === key && a.value === value)
+}
+
 function collectTxEvents(
   txResponse: Record<string, unknown>
 ): Array<{ type: string; attributes: Array<{ key: string; value: string }> }> {
@@ -139,13 +143,13 @@ function isWasmLikeEventType(type: string): boolean {
   return type === 'wasm' || type === 'wasm-wasm'
 }
 
-/** Whether LCD tx JSON includes a wasm / wasm-wasm event whose last `action` attribute equals `action`. */
+/** Whether LCD tx JSON includes a wasm / wasm-wasm event with an `action` attribute equal to `action`. */
 export function txJsonHasWasmAction(txJson: unknown, action: string): boolean {
   const root = txJson as Record<string, unknown>
   const tr = (root.tx_response as Record<string, unknown> | undefined) ?? root
   for (const ev of collectTxEvents(tr)) {
     if (!isWasmLikeEventType(ev.type)) continue
-    if (wasmAttrLast(ev.attributes ?? [], 'action') === action) return true
+    if (wasmHasAttrValue(ev.attributes ?? [], 'action', action)) return true
   }
   return false
 }

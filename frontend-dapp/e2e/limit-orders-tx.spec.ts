@@ -7,6 +7,7 @@ import {
   requireLimitTxPair,
   selectLimitPairByFactoryIndex,
   submitPlaceLimitAndExpectTx,
+  submitLadderPlaceAndExpectTx,
   submitCancelLimitAndExpectTx,
   cancelLimitCard,
 } from './helpers/limit-e2e'
@@ -97,15 +98,12 @@ test.describe('Limit orders funded txs', () => {
     await ladderPanel.getByTestId('ladder-start-price').fill('0.95')
     await ladderPanel.getByTestId('ladder-end-price').fill('1.05')
     await ladderPanel.getByTestId('ladder-rung-count').fill('5')
-    await ladderPanel.getByTestId('ladder-total-amount').fill('5')
+    await ladderPanel.getByTestId('ladder-total-amount').fill('100')
 
-    const ladderBtn = ladderPanel.getByTestId('ladder-place-submit')
-    await expect(ladderBtn).toBeEnabled({ timeout: 60_000 })
-    await ladderBtn.click()
-    await expect(ladderBtn).not.toHaveText(/Placing ladder/i, { timeout: 120_000 })
+    await expect(ladderPanel.getByTestId('ladder-gas-summary')).toContainText(/saves/i, { timeout: 30_000 })
+    await submitLadderPlaceAndExpectTx(page)
 
     const successAlert = ladderPanel.locator('.alert-success')
-    await expect(successAlert).toContainText(/TX:/i, { timeout: 60_000 })
 
     const txHash = await readTxHashFromAlertLink(page, successAlert)
     await expect(async () => {

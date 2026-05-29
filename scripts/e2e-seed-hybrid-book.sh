@@ -98,7 +98,9 @@ if [[ -n "$HEAD_ID" && "$HEAD_ID" != "null" ]]; then
   exit 0
 fi
 
-PLACE_HOOK="$(printf '{"place_limit_order":{"side":"bid","price":"%s","hint_after_order_id":null,"max_adjust_steps":64}}' "$BID_PRICE")"
+# Retail single placement uses batch with one rung (GitLab #206 — `place_limit_order` hook removed).
+PLACE_HOOK="$(jq -nc --arg price "$BID_PRICE" --arg amount "$BID_ESCROW_RAW" \
+  '{place_limit_order_batch:{side:"bid",orders:[{price:$price,amount:$amount,max_adjust_steps:64}]}}')"
 PLACE_HOOK_B64="$(echo -n "$PLACE_HOOK" | base64 -w0 2>/dev/null || echo -n "$PLACE_HOOK" | base64)"
 SEND_MSG="$(jq -nc --arg pair "$PAIR_ADDR" --arg amt "$BID_ESCROW_RAW" --arg hook "$PLACE_HOOK_B64" \
   '{send:{contract:$pair,amount:$amt,msg:$hook}}')"

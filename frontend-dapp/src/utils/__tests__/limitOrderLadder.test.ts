@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { expandLimitLadder } from '../limitOrderLadder'
+import { expandLimitLadder, sumLadderAmountsRaw } from '../limitOrderLadder'
 
 describe('expandLimitLadder', () => {
   it('splits total amount across rungs', () => {
@@ -19,5 +19,6 @@ describe('expandLimitLadder', () => {
     expect(rungs).toHaveLength(5)
     const sum = rungs.reduce((a, r) => a + BigInt(r.amountRaw), 0n)
     expect(sum).toBe(1000n)
+    expect(sumLadderAmountsRaw(rungs)).toBe('1000')
   })
 })
