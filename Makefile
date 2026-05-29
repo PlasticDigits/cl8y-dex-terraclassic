@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -101,7 +101,7 @@ help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa (alias qa-start) | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | stop-qa | qa-verify-deploy | qa-tunnel-help"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
-	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | lint-frontend"
+	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev"
 	@echo "Docs:            scripts/qa/README.md"
 
@@ -188,6 +188,11 @@ test-e2e-tx:
 	$(MAKE) wait-localterra
 	bash scripts/deploy-dex-local.sh
 	$(WITH_NODE) npm run test:e2e:tx
+
+# Indexer stopped after sanity check; same specs as CI job frontend-e2e-indexer-outage (GitLab #219).
+test-e2e-indexer-outage:
+	@chmod +x scripts/test-e2e-indexer-outage.sh scripts/lib/e2e-trade-pair-from-deploy.sh scripts/with-node.sh
+	./scripts/test-e2e-indexer-outage.sh
 
 lint-frontend:
 	$(WITH_NODE) npm run lint

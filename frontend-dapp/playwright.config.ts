@@ -7,6 +7,8 @@ const devMnemonic = getLocalTerraTestMnemonic()
 const chainOptional = process.env.PLAYWRIGHT_SKIP_CHAIN === '1' || process.env.REQUIRE_LOCALTERRA === '0'
 
 const txSpecGlobs = ['**/*-tx.spec.ts', '**/hybrid-swap.spec.ts', '**/wrap-pool.spec.ts', '**/wrap-swap.spec.ts']
+/** Market-data-down specs; require E2E_INDEXER_OUTAGE=1 and stopped indexer (GitLab #219). */
+const indexerOutageGlobs = ['**/*-indexer-outage.spec.ts']
 
 export default defineConfig({
   testDir: './e2e',
@@ -38,12 +40,17 @@ export default defineConfig({
   projects: [
     {
       name: 'e2e-smoke',
-      testIgnore: txSpecGlobs,
+      testIgnore: [...txSpecGlobs, ...indexerOutageGlobs],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'e2e-tx',
       testMatch: txSpecGlobs,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'e2e-indexer-outage',
+      testMatch: indexerOutageGlobs,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

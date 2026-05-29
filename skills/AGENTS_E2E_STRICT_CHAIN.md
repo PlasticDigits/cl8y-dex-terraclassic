@@ -19,6 +19,7 @@ You are changing **CI Playwright wiring**, **`e2e/helpers/chain.ts`**, **global 
 |---------|-------|---------|
 | `e2e-smoke` | All except tx globs | UI/navigation without mandatory chain |
 | `e2e-tx` | `*-tx.spec.ts`, `hybrid-swap`, `wrap-pool`, `wrap-swap` | On-chain paths; strict by default |
+| `e2e-indexer-outage` | `*-indexer-outage.spec.ts` | Market-data-down; **separate CI job** — not part of default `npm run test:e2e` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 
 ## One-command repro
 
@@ -47,7 +48,8 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 
 | Path | Role |
 |------|------|
-| [`frontend-dapp/playwright.config.ts`](../frontend-dapp/playwright.config.ts) | `e2e-smoke` / `e2e-tx` projects, optional global setup |
+| [`frontend-dapp/playwright.config.ts`](../frontend-dapp/playwright.config.ts) | `e2e-smoke` / `e2e-tx` / `e2e-indexer-outage` projects, optional global setup |
+| [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh) | Local/CI indexer stop + outage Playwright ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 | [`frontend-dapp/e2e/helpers/chain.ts`](../frontend-dapp/e2e/helpers/chain.ts) | `isChainOptional()`, LCD + CTA assertions |
 | [`frontend-dapp/e2e/global-setup.ts`](../frontend-dapp/e2e/global-setup.ts) | LCD wait + provision + hybrid book seed |
 | [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor; CL8Y ≥ tier-1 via `E2E_DEV_MIN_CL8Y_U128` |
@@ -64,3 +66,4 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 - QA deploy verification (server): [`AGENTS_QA_DEPLOY_VERIFY.md`](./AGENTS_QA_DEPLOY_VERIFY.md) ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203))
 - Postgres / indexer env: [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md)
 - Testing matrix: [`docs/testing.md`](../docs/testing.md) § E2E Tests
+- Indexer outage E2E (separate job): [`docs/testing.md`](../docs/testing.md#frontend-e2e-indexer-outage), [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219))

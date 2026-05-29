@@ -320,3 +320,86 @@ jobs:
         env:
           VITE_NETWORK: local
           # Default: global setup + tx specs fail on missing LCD/funds/pair (GitLab #201 / #103).
+
+  frontend-e2e-indexer-outage:
+    name: Frontend E2E indexer outage
+    runs-on: ubuntu-latest
+    needs: [frontend]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: cl8y_e2e_outage
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/cl8y_e2e_outage
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create database and run migrations
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE cl8y_e2e_outage;" || true
+          cd indexer && sqlx migrate run
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: indexer
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --version 0.8.6 --no-default-features --features rustls,postgres --locked
+
+      - name: Build indexer (release)
+        run: cargo build --release
+        working-directory: indexer
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend-dapp
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+        working-directory: frontend-dapp
+
+      - name: Start LocalTerra
+        run: docker compose -f docker-compose.yml up -d localterra
+
+      - name: Wait for LocalTerra
+        run: make wait-localterra
+
+      - name: Deploy contracts locally
+        run: bash scripts/deploy-dex-local.sh
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: cl8y_e2e_outage
+
+      - name: Run indexer-outage Playwright (GitLab #219)
+        run: bash scripts/test-e2e-indexer-outage.sh
+        env:
+          VITE_NETWORK: local

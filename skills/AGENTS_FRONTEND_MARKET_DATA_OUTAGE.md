@@ -15,7 +15,7 @@ Use when adding or changing **indexer-backed** pages, global outage banners, pai
 | [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts) | `isIndexerUnavailableError`, `isIndexerPairNotFoundError` |
 | [`MarketDataServiceOutageBanner.tsx`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) | Retail banner; trade uses `layout="inline"` + `trade-indexer-outage-banner` |
 | [`MarketDataLoadingStatus.tsx`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx) | `role="status"` / `aria-live="polite"` loading row |
-| [docs/testing.md § Frontend E2E — indexer outage](../docs/testing.md#frontend-e2e-indexer-outage) | Opt-in `E2E_INDEXER_OUTAGE=1` Playwright |
+| [docs/testing.md § Frontend E2E — indexer outage](../docs/testing.md#frontend-e2e-indexer-outage) | CI job `frontend-e2e-indexer-outage`; local `make test-e2e-indexer-outage`; project `e2e-indexer-outage` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 
 ## Rules of thumb
 
@@ -28,6 +28,7 @@ Use when adding or changing **indexer-backed** pages, global outage banners, pai
 
 ## Related
 
+- Indexer-outage Playwright CI: [`AGENTS_E2E_INDEXER_OUTAGE.md`](./AGENTS_E2E_INDEXER_OUTAGE.md) ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219))
 - Trade layout / pair switch: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md), [`AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md`](./AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md)
 - Limit price / place gate under outage: [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md)
 - `/limits` book row actions (shared `trade-book-*` testids): [`AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](./AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md)

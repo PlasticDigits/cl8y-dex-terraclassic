@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test'
 const PAIR = process.env.E2E_TRADE_PAIR ?? 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
 
 /**
- * Manual QA: run with indexer stopped (GitLab #165).
- * `E2E_INDEXER_OUTAGE=1 npx playwright test e2e/trade-indexer-outage.spec.ts`
+ * Indexer stopped + E2E_INDEXER_OUTAGE=1 (GitLab #165, #219).
+ * CI: job frontend-e2e-indexer-outage. Local: make test-e2e-indexer-outage
  */
 test.describe('Trade page indexer outage panels (GitLab #165)', () => {
   test.skip(process.env.E2E_INDEXER_OUTAGE !== '1', 'Set E2E_INDEXER_OUTAGE=1 with indexer stopped')

@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * Manual QA: run with indexer stopped (GitLab #215).
- * `E2E_INDEXER_OUTAGE=1 npx playwright test e2e/charts-indexer-outage.spec.ts`
+ * Indexer stopped + E2E_INDEXER_OUTAGE=1 (GitLab #215, #219).
+ * CI: job frontend-e2e-indexer-outage. Local: make test-e2e-indexer-outage
  */
 test.describe('Charts page market-data outage banner (GitLab #215)', () => {
   test.skip(process.env.E2E_INDEXER_OUTAGE !== '1', 'Set E2E_INDEXER_OUTAGE=1 with indexer stopped')

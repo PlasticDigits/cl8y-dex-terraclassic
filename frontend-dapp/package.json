@@ -18,6 +18,7 @@
     "test:integration": "vitest run --config vitest.config.integration.ts",
     "test:charts": "vitest run --config vitest.config.charts.ts",
     "test:e2e": "playwright test",
+    "test:e2e:indexer-outage": "playwright test --project=e2e-indexer-outage",
     "test:e2e:tx": "playwright test --project=e2e-tx",
     "test:e2e:smoke": "PLAYWRIGHT_SKIP_CHAIN=1 playwright test --project=e2e-smoke",
     "test:e2e:ui": "playwright test --ui",
