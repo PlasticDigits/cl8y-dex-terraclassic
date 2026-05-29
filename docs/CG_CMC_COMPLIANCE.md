@@ -1,15 +1,49 @@
 # CoinGecko & CoinMarketCap API Compliance
 
-This document describes the CL8Y DEX's self-hosted market data API endpoints that comply with CoinGecko (CG) and CoinMarketCap (CMC) exchange integration specifications. These endpoints enable aggregators, portfolio trackers, and market data platforms to list and track the DEX.
+This document describes the CL8Y DEX's self-hosted market data API endpoints that comply with CoinGecko (CG) and CoinMarketCap (CMC) **exchange listing** specifications. These endpoints enable aggregators, portfolio trackers, and market data platforms to list and track the DEX.
+
+**Canonical sources:** Live handlers in [`indexer/src/api/cg.rs`](../indexer/src/api/cg.rs) and [`cmc.rs`](../indexer/src/api/cmc.rs); OpenAPI (utoipa) on the indexer Swagger UI. When this markdown and code disagree, **code wins** until a doc PR lands — verify with `cargo test` in [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs).
+
+**Last verified:** GitLab [**#224**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) (align with Kujira FIN CG + Openware Peatio CMC listing APIs).
 
 ## Table of Contents
 
-1. [CoinGecko Endpoints (`/cg/`)](#coingecko-endpoints-cg)
-2. [CoinMarketCap Endpoints (`/cmc/`)](#coinmarketcap-endpoints-cmc)
-3. [GeckoTerminal (On-Chain)](#geckoterminal-on-chain)
-4. [AMM Orderbook Simulation](#amm-orderbook-simulation)
-5. [Listing Submission Guide](#listing-submission-guide)
-6. [Related References](#related-references)
+1. [Not CoinGecko Pro API v3](#not-coingecko-pro-api-v3)
+2. [Spec compliance matrix](#spec-compliance-matrix)
+3. [CoinGecko Endpoints (`/cg/`)](#coingecko-endpoints-cg)
+4. [CoinMarketCap Endpoints (`/cmc/`)](#coinmarketcap-endpoints-cmc)
+5. [GeckoTerminal (On-Chain)](#geckoterminal-on-chain)
+6. [Hybrid Orderbook Simulation](#hybrid-orderbook-simulation)
+7. [AMM Orderbook Simulation](#amm-orderbook-simulation)
+8. [Listing Submission Guide](#listing-submission-guide)
+9. [Compliance verification checklist](#compliance-verification-checklist)
+10. [Related References](#related-references)
+
+---
+
+## Not CoinGecko Pro API v3
+
+> **Warning:** [CoinGecko Pro API v3](https://docs.coingecko.com/) (`/api/v3/...` on `api.coingecko.com`) is the **aggregator consumer API**. CL8Y implements the **self-hosted exchange integration** surface (`/cg/*`, `/cmc/*`) that listing crawlers poll on **your** API domain — the same class as [Kujira FIN](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) and [Openware Peatio CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap). Do not point integrators or listing forms at Pro v3 paths.
+
+---
+
+## Spec compliance matrix
+
+| Endpoint | Official ref | CL8Y path | Match | Notes |
+|----------|--------------|-----------|-------|-------|
+| Pairs | [Kujira FIN CG](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) | `GET /cg/pairs` | Partial | Kujira wraps `{ "pairs": [...] }`; CL8Y returns a **top-level JSON array** (simpler for crawlers). Fields `ticker_id`, `base`, `target`, `pool_id` match. |
+| Tickers | Kujira FIN CG | `GET /cg/tickers` | Partial | Kujira wraps `{ "tickers": [...] }`; CL8Y returns a **top-level array**. Standard volume fields are **consolidated** swap totals; optional `cl8y_extensions` ([#189](#consolidated-hybrid--pool-only-reporting-gitlab-189)). |
+| Orderbook | Kujira FIN CG | `GET /cg/orderbook` | Yes | `timestamp` = JSON **number**, Unix **ms**; `bids`/`asks` = `[price, qty]` strings, sorted. **Hybrid-simulated** depth ([#220](#hybrid-orderbook-simulation)). Query `depth` = **total** levels (Openware split [#221](#amm-orderbook-simulation)), not Kujira per-side semantics. |
+| Historical trades | Kujira FIN CG | `GET /cg/historical_trades` | Yes | `trade_timestamp` = JSON **number**, Unix **seconds**; grouped `buy` / `sell` arrays. |
+| Summary | [Openware CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap) | `GET /cmc/summary` | Yes | Array of market rows; optional `cl8y_extensions` on summary rows when indexed. |
+| Assets | Openware CMC | `GET /cmc/assets` | Partial | Openware shows array-of-maps; CL8Y returns one **object** keyed by symbol (equivalent data). |
+| Ticker | Openware CMC | `GET /cmc/ticker` | Partial | One **object** keyed by `BASE_QUOTE` (not array-of-maps). |
+| Orderbook | Openware CMC | `GET /cmc/orderbook/:market_pair` | Yes | Root **array** with one book object; `timestamp` = Unix **seconds** (intentional delta: Openware text says ms, CL8Y aligns with `/cmc/trades` seconds — see [#222](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/222)). |
+| Trades | Openware CMC | `GET /cmc/trades/:market_pair` | Partial | `timestamp` = Unix **seconds** (Openware example text says ms; CL8Y uses seconds consistently on CMC trade feeds). |
+
+Path prefix: CL8Y serves `/cg/` and `/cmc/` instead of upstream `/api/coingecko/` or `/api/v2/coinmarketcap/` — configure listing forms with your API base + these prefixes.
+
+Agent playbook: [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md). Indexer invariants: [`indexer-invariants.md`](./indexer-invariants.md) (orderbook timestamps, depth, hybrid sim).
 
 ---
 
@@ -17,7 +51,7 @@ This document describes the CL8Y DEX's self-hosted market data API endpoints tha
 
 Base URL: `https://<your-api-domain>/cg/`
 
-These endpoints follow the CoinGecko exchange API specification used for DEX listings. CoinGecko's crawler will poll these endpoints to populate exchange data on coingecko.com.
+These endpoints follow the [Kujira FIN CoinGecko integration](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) shape used for Terra-ecosystem DEX listings. CoinGecko's crawler will poll these endpoints to populate exchange data on coingecko.com.
 
 ### `GET /cg/pairs`
 
@@ -176,7 +210,7 @@ Returns recent trades for a given pair.
       "price": "0.00005123",
       "base_volume": "1000000",
       "target_volume": "51230",
-      "trade_timestamp": 1710100000000,
+      "trade_timestamp": 1710100000,
       "type": "buy"
     }
   ],
@@ -190,7 +224,7 @@ Returns recent trades for a given pair.
 | `price` | string | Executed price |
 | `base_volume` | string | Amount in base asset (raw units) |
 | `target_volume` | string | Amount in target asset (raw units) |
-| `trade_timestamp` | number | Unix timestamp in milliseconds |
+| `trade_timestamp` | number | Unix timestamp in **seconds** |
 | `type` | string | `"buy"` or `"sell"` |
 
 **Trade direction:** A trade is classified as `"buy"` if the offer asset matches the base asset (trader is buying the target), and `"sell"` if the offer asset matches the target (trader is selling the target for the base).
@@ -320,21 +354,32 @@ Level 2 order book for a specific market pair.
 |-----------|----------|---------|-------------|
 | `depth` | No | 20 | Total levels across the book (split evenly per side; max 100 total). GitLab **#221** |
 
-**Response:**
+**Response:** (Openware [array wrapper](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap) — one object per request)
 
 ```json
-{
-  "timestamp": 1710100000,
-  "bids": [
-    ["0.00005120", "10000000"],
-    ["0.00005100", "25000000"]
-  ],
-  "asks": [
-    ["0.00005126", "10000000"],
-    ["0.00005150", "25000000"]
-  ]
-}
+[
+  {
+    "timestamp": 1710100000,
+    "bids": [
+      ["0.00005120", "10000000"],
+      ["0.00005100", "25000000"]
+    ],
+    "asks": [
+      ["0.00005126", "10000000"],
+      ["0.00005150", "25000000"]
+    ]
+  }
+]
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| (root) | array | Single-element array per Openware Peatio CMC module |
+| `timestamp` | number | Unix timestamp in **seconds** (same unit as `/cmc/trades`; GitLab **#222**, **#224**) |
+| `bids` | array | `[[price, quantity], ...]` — buy orders sorted high to low |
+| `asks` | array | `[[price, quantity], ...]` — sell orders sorted low to high |
+
+Hybrid-simulated depth — not on-chain FIFO L2: [limit-orders.md](./limit-orders.md), [Hybrid Orderbook Simulation](#hybrid-orderbook-simulation).
 
 ### `GET /cmc/trades/:market_pair`
 
@@ -487,9 +532,31 @@ Before submitting exchange listings, confirm:
 
 ---
 
+## Compliance verification checklist
+
+Use after deploy or indexer release (GitLab **#224**):
+
+| # | Check | Command / expectation |
+|---|--------|------------------------|
+| 1 | `/cg/pairs` fields | `curl -s …/cg/pairs \| jq '.[0] \| keys'` → `ticker_id`, `base`, `target`, `pool_id` |
+| 2 | `/cg/tickers` + extensions | Consolidated volumes; `cl8y_extensions` present when hybrid indexed |
+| 3 | `/cg/orderbook` | `timestamp` is number, magnitude ~1.7e12 (ms); bids descending, asks ascending |
+| 4 | `/cg/historical_trades` | `trade_timestamp` seconds (~1.7e9) |
+| 5 | `/cmc/summary` | Array of rows; Openware field names |
+| 6 | `/cmc/orderbook/:pair` | **Array** root; one object; `timestamp` seconds; `depth` total cap 100 |
+| 7 | `/cmc/trades/:pair` | Array of trades; `timestamp` seconds |
+| 8 | Not Pro API v3 | Listing form uses your `/cg` + `/cmc` base URL only |
+| 9 | Simulated book disclosure | Product copy references hybrid-sim vs `limit-book` |
+| 10 | CI | `cd indexer && cargo test --test api_orderbook_lcd_mock --test api_cg --test api_cmc` |
+
+---
+
 ## Related References
 
 - [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — volume reconciliation guide (#216)
+- [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) — agent playbook for CG/CMC depth (#224)
+- [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md) — indexer integration test matrix
+- [`gaps/GAP_1780023683.md`](../gaps/GAP_1780023683.md) — gap matrix (orderbook sim row)
 - **`listing-api` repo** — Existing CoinGecko/CMC token supply API endpoints (implemented)
 - **`krchange-dapp/PROPOSAL_FEAT_001.md`** — CG/CMC/GeckoTerminal compatibility API proposal for KRChange
 - **`ustr-cmm/plans/DEX_PLAN.md` Section 8** — CoinGecko-compatible API specification for UST1 DEX

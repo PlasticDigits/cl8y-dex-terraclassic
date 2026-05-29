@@ -2,7 +2,7 @@
 
 Use when changing **`indexer/src/api/orderbook_sim.rs`**, **`indexer/src/api/hybrid_orderbook_sim.rs`**, **`/cg/orderbook`**, **`/cmc/orderbook/*`**, or CG/CMC compliance docs for synthetic depth.
 
-GitLab **#220** (hybrid merge), **#210** (AMM pool leg).
+GitLab **#220** (hybrid merge), **#210** (AMM pool leg), **#222** / **#224** (listing compliance: timestamps + CMC array wrapper).
 
 ## Do not confuse
 
@@ -18,7 +18,17 @@ GitLab **#220** (hybrid merge), **#210** (AMM pool leg).
 - [`docs/CG_CMC_COMPLIANCE.md`](../docs/CG_CMC_COMPLIANCE.md) § Hybrid Orderbook Simulation + § AMM Orderbook Simulation (pool leg)
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — query `depth` ≤ 100 **total** (Openware), cache 30s per `(pair, depth, fee_bps, bid_head, ask_head)`
 - [`docs/limit-orders.md`](../docs/limit-orders.md) — limit `price` / `remaining` units
-- GitLab **#220** (hybrid merge), **#210** (pool leg), **#221** (Openware depth split), **#105** (stub catalog)
+- GitLab **#220** (hybrid merge), **#210** (pool leg), **#221** (Openware depth split), **#222** (timestamps), **#105** (stub catalog)
+
+## Orderbook `timestamp` (#222)
+
+| Endpoint | Field | Type | Unit |
+|----------|-------|------|------|
+| `GET /cg/orderbook` | `timestamp` | JSON number (`i64`) | Unix **milliseconds** |
+| `GET /cmc/orderbook/*` | `timestamp` | JSON number (`i64`) | Unix **seconds** (same as `/cmc/trades`) |
+| `GET /cmc/orderbook/*` | (root) | JSON **array** | One book object per Openware Peatio (**#224**) |
+
+Implementation: [`listing_timestamps.rs`](../indexer/src/api/listing_timestamps.rs). **Breaking:** pre-#222 responses used RFC3339 strings; pre-#224 CMC orderbook was a bare object.
 
 ## Depth query (Openware / CMC — #221)
 
@@ -52,4 +62,4 @@ cd indexer && cargo test --lib orderbook -- --test-threads=1
 cd indexer && cargo test --test api_orderbook_lcd_mock -- --test-threads=1
 ```
 
-Unit tests: `hybrid_orderbook_sim.rs`, `orderbook_sim.rs` `#[cfg(test)]`. Integration: `tests/api_orderbook_lcd_mock.rs` (wiremock LCD + Postgres).
+Unit tests: `hybrid_orderbook_sim.rs`, `orderbook_sim.rs` `#[cfg(test)]`, `listing_timestamps.rs` (ms/s skew). Integration: `tests/api_orderbook_lcd_mock.rs` (wiremock LCD + Postgres; asserts numeric timestamps per **#222**).
