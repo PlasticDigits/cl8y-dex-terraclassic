@@ -16,6 +16,27 @@ set +a
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
+sync_indexer_database_env() {
+  local indexer_env="$REPO_ROOT/indexer/.env"
+  # shellcheck source=scripts/lib/upsert-dotenv.sh
+  source "$REPO_ROOT/scripts/lib/upsert-dotenv.sh"
+
+  if [ ! -f "$indexer_env" ]; then
+    cat >"$indexer_env" <<'EOF'
+# Local indexer env — database URLs maintained by scripts/setup-postgres-dev-databases.sh
+# Run scripts/deploy-dex-local.sh (or make deploy-local) for factory/router/LCD vars.
+EOF
+  fi
+
+  upsert_dotenv_var "$indexer_env" "DATABASE_URL" "$DATABASE_URL"
+  upsert_dotenv_var "$indexer_env" "TEST_DATABASE_URL" "$TEST_DATABASE_URL"
+
+  echo "[setup-postgres] DATABASE_URL=${DATABASE_URL}"
+  echo "[setup-postgres] TEST_DATABASE_URL=${TEST_DATABASE_URL}"
+  echo "[setup-postgres] synced indexer/.env (DATABASE_URL + TEST_DATABASE_URL)"
+  echo "[setup-postgres] integration tests: cd indexer && cargo test --tests -j 1 -- --test-threads=1"
+}
+
 ensure_db() {
   local db=$1
   local exists
@@ -32,16 +53,16 @@ ensure_db() {
 
 if ! command -v psql >/dev/null 2>&1; then
   echo "[setup-postgres] WARN: psql not found; skipping database ensure" >&2
+  sync_indexer_database_env
   exit 0
 fi
 
 if ! psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -c '\q' 2>/dev/null; then
-  echo "[setup-postgres] WARN: cannot connect as ${POSTGRES_USER}@${POSTGRES_HOST}:${POSTGRES_PORT}; skipping" >&2
+  echo "[setup-postgres] WARN: cannot connect as ${POSTGRES_USER}@${POSTGRES_HOST}:${POSTGRES_PORT}; skipping database ensure" >&2
+  sync_indexer_database_env
   exit 0
 fi
 
 ensure_db "$POSTGRES_DB"
 ensure_db "$POSTGRES_TEST_DB"
-
-echo "[setup-postgres] DATABASE_URL=${DATABASE_URL}"
-echo "[setup-postgres] TEST_DATABASE_URL=${TEST_DATABASE_URL}"
+sync_indexer_database_env

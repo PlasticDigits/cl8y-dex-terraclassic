@@ -3,6 +3,8 @@
 # Infrastructure
 start:
 	docker compose up -d
+	@chmod +x scripts/setup-postgres-dev-databases.sh scripts/lib/upsert-dotenv.sh
+	@./scripts/setup-postgres-dev-databases.sh || true
 
 stop:
 	docker compose down

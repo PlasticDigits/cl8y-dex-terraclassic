@@ -33,7 +33,7 @@ That recreates the volume (see [`docker/postgres-init/`](../docker/postgres-init
 ./scripts/setup-postgres-dev-databases.sh
 ```
 
-Requires `psql` and a reachable Postgres listening as `cl8y_legal` on `127.0.0.1:5432`.
+Requires `psql` and a reachable Postgres listening as `cl8y_legal` on `127.0.0.1:5432`. The script creates **`dex_indexer`** + **`dex_indexer_test`** and **upserts `DATABASE_URL` / `TEST_DATABASE_URL` into `indexer/.env`** (so `cargo test` from `indexer/` loads the test DB via `dotenvy`, not the live indexer DB). `make start` runs this after compose up (best-effort if Postgres is not ready yet; re-run after `make wait-healthy`).
 
 ## What agents should expect on disk
 
