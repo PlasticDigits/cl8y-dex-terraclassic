@@ -1,15 +1,10 @@
 import { useState, useDeferredValue, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import {
-  getOverview,
-  getPairs,
-  getPair,
-  getPairStats,
-  getTrades,
-  getLeaderboard,
-  INDEXER_URL,
-} from '@/services/indexer/client'
+import { getOverview, getPairs, getPair, getPairStats, getTrades, getLeaderboard } from '@/services/indexer/client'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
+import { CHARTS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
+import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import PriceChart from '@/components/charts/PriceChart'
 import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelectOption } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
@@ -168,7 +163,7 @@ export default function ChartsPage() {
   const overview = overviewQuery.data
   const stats = statsQuery.data
 
-  const indexerUnavailable = pairsQuery.isError || overviewQuery.isError
+  const marketDataDown = detectMarketDataOutage(overviewQuery, pairsQuery)
 
   return (
     <div className="space-y-4">
@@ -181,32 +176,19 @@ export default function ChartsPage() {
         </p>
       </div>
 
-      {indexerUnavailable && (
-        <div className="alert-warning" role="alert">
-          <p className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
-            Indexer unavailable
-          </p>
-          <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-            Charts and analytics require the indexer HTTP API at{' '}
-            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">{INDEXER_URL}</code>. Start the
-            indexer service, or set{' '}
-            <code className="font-mono text-[11px] px-1 py-0.5 border border-white/20">VITE_INDEXER_URL</code> to match
-            your deployment.
-          </p>
-          <button
-            type="button"
-            className="btn-primary btn-cta !text-xs !px-4 !py-1.5 mt-3"
-            onClick={() => {
-              void overviewQuery.refetch()
-              void pairsQuery.refetch()
-            }}
-          >
-            Retry
-          </button>
-        </div>
+      {marketDataDown && (
+        <MarketDataServiceOutageBanner
+          testId="charts-market-data-outage-banner"
+          title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+          lead={CHARTS_MARKET_DATA_OUTAGE_LEAD}
+          onRetry={() => {
+            void overviewQuery.refetch()
+            void pairsQuery.refetch()
+          }}
+        />
       )}
 
-      {(!indexerUnavailable || overviewQuery.isLoading || overview) && (
+      {(!marketDataDown || overviewQuery.isLoading || overview) && (
         <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatBox
             label="24h Volume"
@@ -351,7 +333,7 @@ export default function ChartsPage() {
             Loading selected pair…
           </p>
         )}
-        {pairsQuery.isSuccess && (pairItems?.length ?? 0) === 0 && !pairsQuery.isLoading && !indexerUnavailable && (
+        {pairsQuery.isSuccess && (pairItems?.length ?? 0) === 0 && !pairsQuery.isLoading && !marketDataDown && (
           <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
             No pairs in the indexer yet. After swaps are indexed, pairs will appear here.
           </p>

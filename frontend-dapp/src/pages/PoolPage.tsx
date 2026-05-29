@@ -21,7 +21,10 @@ import {
 import { FACTORY_PAIRS_MAX_FOR_POOL_LIST, getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
 import type { AssetInfo, IndexerPairSort, PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
-import { getPairs, getTokens, INDEXER_URL } from '@/services/indexer/client'
+import { getPairs, getTokens } from '@/services/indexer/client'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
+import { isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { MARKET_DATA_SERVICE_OUTAGE_TITLE, POOL_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import {
   Spinner,
   TokenDisplay,
@@ -38,6 +41,8 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
+import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/utils/provideLiquidityEstimate'
 import { evaluateProvideLiquidityCw20NativeGasGate } from '@/utils/provideLiquidityNativeGasBalanceGate'
 import { isLcdConnectivityError, LCD_CONNECTIVITY_OUTAGE_MESSAGE } from '@/utils/lcdConnectivity'
@@ -195,6 +200,37 @@ const PoolCard = memo(function PoolCard({
 
   const needsWrapA = hasNativeOptionA && useNativeA
   const needsWrapB = hasNativeOptionB && useNativeB
+
+  const nativeWrapDepositCount = useMemo((): 1 | 2 => {
+    if (needsWrapA && needsWrapB) return 2
+    return 1
+  }, [needsWrapA, needsWrapB])
+
+  const maxResultA = useMemo(() => {
+    if (!balanceAQuery.data) {
+      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
+    }
+    return computeMaxSpendableHumanAmount({
+      balanceRaw: balanceAQuery.data,
+      decimals: decimalsA,
+      assetIsNativeUluna: needsWrapA && nativeEquivA === 'uluna',
+      context: needsWrapA ? 'provide_liquidity_native_side' : 'provide_liquidity_cw20',
+      nativeWrapDepositCount: needsWrapA ? nativeWrapDepositCount : undefined,
+    })
+  }, [balanceAQuery.data, decimalsA, needsWrapA, nativeEquivA, nativeWrapDepositCount])
+
+  const maxResultB = useMemo(() => {
+    if (!balanceBQuery.data) {
+      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
+    }
+    return computeMaxSpendableHumanAmount({
+      balanceRaw: balanceBQuery.data,
+      decimals: decimalsB,
+      assetIsNativeUluna: needsWrapB && nativeEquivB === 'uluna',
+      context: needsWrapB ? 'provide_liquidity_native_side' : 'provide_liquidity_cw20',
+      nativeWrapDepositCount: needsWrapB ? nativeWrapDepositCount : undefined,
+    })
+  }, [balanceBQuery.data, decimalsB, needsWrapB, nativeEquivB, nativeWrapDepositCount])
 
   const provideCw20MinUlunaFees = useMemo(() => estimateProvideLiquidityCw20SequenceUlunaFeesTotal(), [])
 
@@ -531,67 +567,21 @@ const PoolCard = memo(function PoolCard({
               aria-label="Asset A amount"
             />
             {address && (
-              <div
-                className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-xs min-h-[1.5rem]"
-                style={{ color: 'var(--ink-subtle)' }}
-                aria-label={`Balance and actions for ${displayA.displayLabel}`}
-              >
-                <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                  <span className="shrink-0">Balance:</span>
-                  {balanceAQuery.isLoading ? (
-                    <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
-                      <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
-                      <span className="sr-only">Loading balance for asset A</span>
-                    </span>
-                  ) : balanceAQuery.isError ? (
-                    <span className="font-mono" title="Could not load balance">
-                      —
-                    </span>
-                  ) : (
-                    <span className="font-mono truncate">
-                      {formatTokenAmount(balanceAQuery.data ?? '0', decimalsA)}
-                    </span>
-                  )}
-                </span>
-                <span className="ml-auto flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    disabled={
-                      balanceAQuery.isLoading ||
-                      balanceAQuery.isError ||
-                      !balanceAQuery.data ||
-                      balanceAQuery.data === '0'
-                    }
-                    onClick={() => {
-                      sounds.playButtonPress()
-                      if (!balanceAQuery.data) return
-                      const half = (BigInt(balanceAQuery.data) / 2n).toString()
-                      setAmountA(fromRawAmount(half, decimalsA))
-                    }}
-                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-                    style={{ color: 'var(--cyan)' }}
-                  >
-                    50%
-                  </button>
-                  <button
-                    type="button"
-                    disabled={
-                      balanceAQuery.isLoading ||
-                      balanceAQuery.isError ||
-                      !balanceAQuery.data ||
-                      balanceAQuery.data === '0'
-                    }
-                    onClick={() => {
-                      sounds.playButtonPress()
-                      if (balanceAQuery.data) setAmountA(fromRawAmount(balanceAQuery.data, decimalsA))
-                    }}
-                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-                    style={{ color: 'var(--cyan)' }}
-                  >
-                    Max
-                  </button>
-                </span>
-              </div>
+              <AmountBalanceActions
+                balanceQuery={balanceAQuery}
+                decimals={decimalsA}
+                walletConnected={!!address}
+                showHalf
+                spendableRaw={maxResultA.spendableRaw}
+                onMax={() => setAmountA(maxResultA.human)}
+                onHalf={() => {
+                  if (!balanceAQuery.data) return
+                  const half = (BigInt(balanceAQuery.data) / 2n).toString()
+                  setAmountA(fromRawAmount(half, decimalsA))
+                }}
+                testIdMax="pool-add-max-a"
+                testIdHalf="pool-add-half-a"
+              />
             )}
             {insufficientAddA && (
               <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
@@ -633,67 +623,21 @@ const PoolCard = memo(function PoolCard({
               aria-label="Asset B amount"
             />
             {address && (
-              <div
-                className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-xs min-h-[1.5rem]"
-                style={{ color: 'var(--ink-subtle)' }}
-                aria-label={`Balance and actions for ${displayB.displayLabel}`}
-              >
-                <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                  <span className="shrink-0">Balance:</span>
-                  {balanceBQuery.isLoading ? (
-                    <span className="inline-flex items-center" aria-busy="true" aria-live="polite">
-                      <Spinner size="sm" className="!w-3.5 !h-3.5 opacity-90" />
-                      <span className="sr-only">Loading balance for asset B</span>
-                    </span>
-                  ) : balanceBQuery.isError ? (
-                    <span className="font-mono" title="Could not load balance">
-                      —
-                    </span>
-                  ) : (
-                    <span className="font-mono truncate">
-                      {formatTokenAmount(balanceBQuery.data ?? '0', decimalsB)}
-                    </span>
-                  )}
-                </span>
-                <span className="ml-auto flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    disabled={
-                      balanceBQuery.isLoading ||
-                      balanceBQuery.isError ||
-                      !balanceBQuery.data ||
-                      balanceBQuery.data === '0'
-                    }
-                    onClick={() => {
-                      sounds.playButtonPress()
-                      if (!balanceBQuery.data) return
-                      const half = (BigInt(balanceBQuery.data) / 2n).toString()
-                      setAmountB(fromRawAmount(half, decimalsB))
-                    }}
-                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-                    style={{ color: 'var(--cyan)' }}
-                  >
-                    50%
-                  </button>
-                  <button
-                    type="button"
-                    disabled={
-                      balanceBQuery.isLoading ||
-                      balanceBQuery.isError ||
-                      !balanceBQuery.data ||
-                      balanceBQuery.data === '0'
-                    }
-                    onClick={() => {
-                      sounds.playButtonPress()
-                      if (balanceBQuery.data) setAmountB(fromRawAmount(balanceBQuery.data, decimalsB))
-                    }}
-                    className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
-                    style={{ color: 'var(--cyan)' }}
-                  >
-                    Max
-                  </button>
-                </span>
-              </div>
+              <AmountBalanceActions
+                balanceQuery={balanceBQuery}
+                decimals={decimalsB}
+                walletConnected={!!address}
+                showHalf
+                spendableRaw={maxResultB.spendableRaw}
+                onMax={() => setAmountB(maxResultB.human)}
+                onHalf={() => {
+                  if (!balanceBQuery.data) return
+                  const half = (BigInt(balanceBQuery.data) / 2n).toString()
+                  setAmountB(fromRawAmount(half, decimalsB))
+                }}
+                testIdMax="pool-add-max-b"
+                testIdHalf="pool-add-half-b"
+              />
             )}
             {insufficientAddB && (
               <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
@@ -1104,9 +1048,18 @@ export default function PoolPage() {
         </div>
       )}
 
-      {pairsQuery.isError && (
+      {pairsQuery.isError && isIndexerUnavailableError(pairsQuery.error) && (
+        <MarketDataServiceOutageBanner
+          testId="pool-market-data-outage-banner"
+          title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+          lead={POOL_MARKET_DATA_OUTAGE_LEAD}
+          onRetry={() => void pairsQuery.refetch()}
+        />
+      )}
+
+      {pairsQuery.isError && !isIndexerUnavailableError(pairsQuery.error) && (
         <RetryError
-          message={`Pool data is unavailable right now. Check the indexer connection at ${INDEXER_URL} and try again.`}
+          message="Pool data is unavailable right now. Try again in a moment."
           onRetry={() => void pairsQuery.refetch()}
         />
       )}

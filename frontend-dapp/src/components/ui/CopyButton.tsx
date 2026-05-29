@@ -74,23 +74,22 @@ export function CopyButton({
 
   if (menuLabel) {
     return (
-      <>
-        <button
-          type="button"
-          role="menuitem"
-          className={`wallet-menu-item inline-flex items-center gap-2 w-full ${className}`.trim()}
-          style={{ color: 'var(--ink-dim)' }}
-          aria-label={ariaLabel}
-          data-testid={testId}
-          onClick={() => void handleClick()}
-        >
-          {copyIcon}
-          {menuLabel}
-        </button>
+      <button
+        type="button"
+        role="menuitem"
+        className={`wallet-menu-item inline-flex items-center gap-2 w-full ${className}`.trim()}
+        style={{ color: 'var(--ink-dim)' }}
+        aria-label={ariaLabel}
+        aria-describedby={liveMessage ? liveId : undefined}
+        data-testid={testId}
+        onClick={() => void handleClick()}
+      >
+        {copyIcon}
+        {menuLabel}
         <span id={liveId} className="sr-only" aria-live="polite" aria-atomic="true">
           {liveMessage}
         </span>
-      </>
+      </button>
     )
   }
 

@@ -340,6 +340,27 @@ Hybrid hops use `max(..., HYBRID_SWAP_GAS_LIMIT × hops)` in `terraGas.ts`.
 
 **Third-party / agent context:** see repository [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) for a short playbook when changing gas constants or debugging `out of gas`. [`packages/localnet-trading-swarm/src/gas.ts`](../packages/localnet-trading-swarm/src/gas.ts) mirrors the same buffer for scripted swaps on LocalTerra ([GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)).
 
+### Max amount / gas reserve {#max-amount-gas-reserve}
+
+Retail **Max** (and pool **50%**) actions share [`AmountBalanceActions`](../frontend-dapp/src/components/common/AmountBalanceActions.tsx) and compute spendable amounts via [`maxSpendableAmount.ts`](../frontend-dapp/src/utils/maxSpendableAmount.ts) ([GitLab **#213**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Single compute helper | **`computeMaxSpendableHumanAmount`** — all surfaces call this (Swap, Pool, trade limit/market, `/limits`); no inline `fromRawAmount(balance)` Max handlers. |
+| BigInt reserve | Native **`uluna`** Max subtracts fee reserve in **raw micro-units** before **`fromRawAmount`**; never float subtraction on LUNC. |
+| Fee envelope source | Reserves derive only from **`transactions.ts`** / **`terraGas.ts`** (`estimateNativeSwapUlunaFeesTotal`, `estimateProvideLiquidityNativeWrapUlunaFeesTotal`, existing sequence helpers). No magic uluna constants in UI. |
+| CW20 Max unchanged | When pay asset is **not** native **`uluna`**, Max = full CW20 balance; native gas **submit** gates ([#132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132), [#147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)) still block low-LUNC submits. |
+| Native pay / wrap | Swap native pay, pool **Use native (auto-wrap)**, and native-input router paths subtract the action-specific reserve so one-click Max leaves **`Fee.amount`** payable from bank balance. |
+| **`MaxAmountContext`** | Explicit per-surface context (`swap_native`, `swap_cw20`, `limit_place`, `market_swap`, `provide_liquidity_native_side`, `provide_liquidity_cw20`, `book_leg`) selects the correct fee envelope. |
+| Limit **max mode** | Bid/Ask switch re-apply uses the same helper via [`useLimitEscrowMaxReapply`](../frontend-dapp/src/hooks/useLimitEscrowMaxReapply.ts). |
+| Disabled Max | While balance is loading/error, or spendable raw is **0** after reserve, Max is disabled (no invalid drafts). |
+| Book leg Max | Hybrid book override Max caps to **min(balance, pay amount)** — no gas reserve on the leg field. |
+| Decimal drafts | Max output must pass **`isDecimalAmountDraft`** ([#169](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169)). |
+
+**Regression tests:** [`maxSpendableAmount.test.ts`](../frontend-dapp/src/utils/__tests__/maxSpendableAmount.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (native swap / native wrap provide estimates).
+
+**Third-party / agent context:** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) § Max amount / gas reserve.
+
 ### Local dev: Vite origin vs indexer CORS {#local-dev-indexer-cors}
 
 The dApp reads **`VITE_INDEXER_URL`** (see [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)) for browser `fetch` to the indexer API. **CORS is enforced on the `Origin` header**, which comes from the URL you open in the browser (`localhost` vs `127.0.0.1` are different origins). **`CORS_ORIGINS` on the indexer must list every origin you use for Vite** (typically both `http://localhost:5173` and `http://127.0.0.1:5173`, plus preview ports if applicable — [`indexer/.env.example`](../indexer/.env.example), [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh)). If they diverge, responses can show **200** in the Network panel while the browser still blocks the body (failed CORS).
@@ -388,6 +409,31 @@ Text inputs must expose an **accessible name** to assistive tech: pair **`htmlFo
 Scope and verification checklist: [GitLab **#143**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/143). Umbrella: [DEX **#133**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/133).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_FORM_LABELS.md`](../skills/AGENTS_FRONTEND_A11Y_FORM_LABELS.md).
+
+### Accessibility CI {#accessibility-ci}
+
+Automated **WCAG 2.1 A + AA** checks on retail-critical routes via **`@axe-core/playwright`** in the **`e2e-smoke`** project ([GitLab **#214**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)). Vitest asserts component-level ARIA contracts on chart, order book, and wallet.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Routes scanned** | `/trade`, `/charts` (full page; chart canvas excluded), header **Connect wallet** dialog, connected **wallet menu** (`include: header`). |
+| **Severity gate** | `assertNoCriticalA11yViolations` fails on **critical** or **serious** axe impacts only. |
+| **Canvas exclusion** | Only `[data-testid="price-chart-lightweight-canvas"] canvas` — never exclude interactive controls. |
+| **Chart AT summary** | `PriceChart` uses `role="region"` + `aria-labelledby` / `aria-describedby`; `sr-only` `aria-live="polite"` announces interval + last price; interval toggles use `aria-label` (`{iv} candle interval`). |
+| **Order book** | Per-side `<table>` with `<th scope="col">`; rows expose `aria-label` with side, order id, price, size. |
+| **Order ticket tabs** | Limit / market: `tablist` + `tab` + `tabpanel` with `aria-controls` / `aria-labelledby`; pair paused → `role="alert"`. |
+| **Wallet menu** | `role="menu"` contains **menuitems only** (balance header outside); focus first menuitem on open, return to trigger on close; `CopyButton` live region inside menuitem. |
+| **Smoke without indexer** | `PLAYWRIGHT_SKIP_CHAIN=1` still runs axe on route shell; chart `region` is required when indexer + LCD are up (CI strict E2E). |
+| **Rule disables** | Forbidden without comment in spec + row in this table. |
+
+**Run locally:**
+
+```bash
+cd frontend-dapp
+PLAYWRIGHT_SKIP_CHAIN=1 npm run test:e2e:smoke -- e2e/a11y-critical-routes.spec.ts
+```
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_CI.md`](../skills/AGENTS_FRONTEND_A11Y_CI.md); chart: [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md); wallet: [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md).
 
 ### Responsive shell & header navigation {#responsive-header-navigation}
 
@@ -460,7 +506,7 @@ The **price chart** on `/trade` and `/charts` is rendered with **TradingView [li
 | Loading vs empty | **First** load (no candle payload yet): full-panel **Loading chart…**. **Interval switch** on the **same pair** while refetching: keep `PriceChartLightweightCanvas` mounted (`placeholderData` keeps prior rows only when `queryKey[1]` is unchanged — not on pair switch; see [pair switch latency](#trade-page-pair-switch-latency)), overlay **`data-testid="price-chart-interval-loading"`** — do **not** unmount the plot (async `createChart` races froze the selector after ~5 switches — [GitLab **#148**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/148)). **Pair switch** remounts the canvas (`key={pairAddress}`) and shows **Loading chart…** until the new pair’s candles resolve ([#148](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/148) QA). Empty state applies only when the request **succeeded**, fetch settled, and there are zero valid points. |
 | **Interval / timeframe** | `PriceChartLightweightCanvas` is created **once per mount**; interval changes call **`setData`** on the existing series. Stale async inits are dropped via **`chartInitIdRef`** ([GitLab **#148**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/148)). |
 | Reference line | When the chart is empty, an optional **24h close** from `getPairStats` (`close_price`) may display; query is enabled only for that state so normal pairs are not blocked. |
-| Accessibility | The empty panel uses `role="img"` and a descriptive `aria-label` so screen readers do not see a silent canvas. |
+| Accessibility | Canvas stays `aria-hidden` on `PriceChartLightweightCanvas`. Empty state uses `role="img"` + `aria-label`. When candles render, `PriceChart` exposes `role="region"` and an `aria-live` text summary (interval + last price) — see [§ Accessibility CI](#accessibility-ci) ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)). |
 | **USD price scale (Y-axis)** | Spot **Price (USD)** is non-negative. The candlestick pane’s autoscale **must not** extend the right price scale below **zero** or below the **lowest visible candle `low`** (whichever is higher). Implemented via `autoscaleInfoProvider` + [`priceChartPriceScale.ts`](../frontend-dapp/src/components/charts/priceChartPriceScale.ts) ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
 | **Chart viewport (layout)** | The plot region must **shrink inside** resizable `/trade` panels: `PriceChart` is **`h-full flex flex-col min-h-0`**; the candle mount uses **`flex-1 min-h-0`** with **`min-h-[min(52vh,280px)]`** (no fixed `560px` height). `TradePage` chart cards use **`flex flex-col min-h-0`** so the canvas is not clipped by **`overflow-hidden`** on first paint. `PriceChartLightweightCanvas` reapplies width/height after layout via a **double `requestAnimationFrame`** ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
 | Volume histogram | **Pane 1** is a histogram of **quote** volume per candle (`volume_quote`). When quote volume is zero (common on thin local indexers), the UI uses **base** volume (`volume_base`) so bars remain visible—see [`priceChartCandles.ts`](../frontend-dapp/src/components/charts/priceChartCandles.ts). Sub-label **“Volume (quote, else base)”** documents this in the chart header. |
@@ -518,6 +564,22 @@ When **`getPair`** fails for the active `/trade/:pairAddr` route (e.g. indexer *
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_QUERY_RETRY.md`](../skills/AGENTS_FRONTEND_QUERY_RETRY.md).
 
+### Market data loading & outage (global) {#market-data-loading-outage}
+
+Retail surfaces that depend on **indexer HTTP** share banner and loading primitives ([GitLab **#215**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/215)). The `/trade` route remains the reference for panel-level degradation and pair-switch loading — see [§ Trade page — indexer outage banner](#trade-page-indexer-outage-banner) and [§ Trade page — pair switch latency](#trade-page-pair-switch-latency).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **404 vs outage** | Use [`isIndexerUnavailableError`](../frontend-dapp/src/utils/indexerErrors.ts) at query boundaries. **404** → not-found / retry panels, **not** the global market-data banner ([GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)). |
+| **LCD vs market data** | [`LcdConnectivityBanner`](../frontend-dapp/src/components/common/LcdConnectivityBanner.tsx) / [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx) cover **chain LCD** only — do not label RPC failures as “market data service.” |
+| **Retail copy** | No `VITE_INDEXER_URL`, hostnames, or “indexer unavailable” in user-visible banners ([GitLab **#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174)). Strings: [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); trade panel lines stay in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts). |
+| **Detection** | [`detectMarketDataOutage`](../frontend-dapp/src/utils/marketDataOutage.ts) ORs transport errors across passed queries (trade re-exports as `detectTradeIndexerOutage`). |
+| **Banner UI** | [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) — trade keeps `data-testid="trade-indexer-outage-banner"` and **inline** layout; Charts/Trader/Pool/Protocol use stacked layout + page `data-testid`s (`charts-market-data-outage-banner`, etc.). |
+| **Loading status** | [`MarketDataLoadingStatus`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx); trade pair switch wraps it as [`TradePairSwitchStatus`](../frontend-dapp/src/components/trade/TradePairSwitchStatus.tsx) (`trade-pair-switch-loading`). |
+| **E2E** | Indexer-stopped specs stay **opt-in** (`E2E_INDEXER_OUTAGE=1`) — see [docs/testing.md § Frontend E2E — indexer outage](./testing.md#frontend-e2e-indexer-outage). Default CI does not stop the indexer mid-suite ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)). |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
+
 ### Trade page — indexer outage banner {#trade-page-indexer-outage-banner}
 
 When the **`getPair`** query on `/trade` fails with an **indexer transport / non-OK** error (`isIndexerUnavailableError` in [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts)), the page shows a warning **above** the workspace (`data-testid="trade-indexer-outage-banner"`).
@@ -527,9 +589,9 @@ When the **`getPair`** query on `/trade` fails with an **indexer transport / non
 | **No false “chain fallback”** | The banner must **not** claim the order book or tickets still work “on chain” while [`OrderBookPanel`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx) and related flows read depth, tape, candles, or routing through **indexer HTTP** (book pages use [`getPairLimitBookPage`](../frontend-dapp/src/services/indexer/client.ts), which is unreachable when the indexer is down — [GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)). |
 | **Limit reference vs book (#166)** | The banner **tail** may state one **narrow** exception: **limit price** buy-below / sell-above checks can fall back to **AMM pool** reserves via **LCD** when tape is missing ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) — this does **not** restore order-book depth or hybrid routing; see [§ Trade page — limit order price field](#trade-page-limit-order-price). |
 | **No internal URLs in retail copy** | The banner must **not** render `VITE_INDEXER_URL`, hostnames, or “indexer unavailable at …” — use **market data service** wording ([GitLab **#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174)). |
-| **Single source of strings** | Title, lead, and tail live in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts); [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) composes them only. |
+| **Single source of strings** | Shared title from [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); trade lead, tail, and panel lines in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts); [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) composes via [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md); retail error funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
+**Third-party / agent context:** [§ Market data loading & outage (global)](#market-data-loading-outage), [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md), [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md); retail error funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
 ### Trade page — deep order book pagination {#trade-page-deep-order-book}
 

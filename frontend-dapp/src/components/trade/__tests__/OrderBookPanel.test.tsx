@@ -46,9 +46,13 @@ describe('OrderBookPanel', () => {
 
     expect(await screen.findByText('CORAL/EMBER')).toBeInTheDocument()
     expect(await screen.findByText('0.8264153')).toBeInTheDocument()
-    expect(screen.getAllByText(/Order \/ price CORAL\/EMBER/).length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByRole('columnheader', { name: /order \/ price CORAL\/EMBER/i }).length).toBeGreaterThanOrEqual(
+      2
+    )
     expect(screen.getByText('Size CORAL')).toBeInTheDocument()
     expect(screen.getByText('Size EMBER')).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: /asks limit orders/i })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: /bids limit orders/i })).toBeInTheDocument()
 
     const bids = screen.getByText('Bids').closest('.card-neo')
     expect(bids).toBeTruthy()

@@ -22,5 +22,6 @@ Use when changing **interactive styling** in [`frontend-dapp/src/index.css`](../
 
 ## Related
 
+- Accessibility CI (axe + trade/chart/wallet): [`AGENTS_FRONTEND_A11Y_CI.md`](./AGENTS_FRONTEND_A11Y_CI.md) ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214))
 - Sister issue (labels / same input): [GitLab **#143**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/143)
 - Visual QA umbrella: [GitLab **#133**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/133)

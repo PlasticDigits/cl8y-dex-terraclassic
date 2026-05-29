@@ -34,6 +34,32 @@ export function Modal({ isOpen, onClose, title, children, dismissible = true, pa
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen || !dismissible) return
+    const panel = modalRef.current
+    if (!panel) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    panel.addEventListener('keydown', onKeyDown)
+    return () => panel.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, dismissible])
+
   if (!isOpen) return null
 
   return createPortal(

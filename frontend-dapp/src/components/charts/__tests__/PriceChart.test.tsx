@@ -84,6 +84,15 @@ describe('PriceChart', () => {
     expect(screen.getByText(/volume \(quote, else base\)/i)).toBeInTheDocument()
   })
 
+  it('exposes chart region, live summary, and interval accessible names (GitLab #214)', async () => {
+    renderWithProviders(<PriceChart pairAddress={pairA} tapeLastPriceUsd="1.5" />)
+    await waitFor(() => expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument())
+    expect(screen.getByRole('region', { name: /price \(usd\)/i })).toBeInTheDocument()
+    expect(screen.getByText(/price chart\. interval 1h\./i)).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByRole('button', { name: '15m candle interval' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: '1h candle interval' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('shows loading then renders chart chrome when data resolves', async () => {
     vi.mocked(indexerClient.getCandles).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve([candle()]), 40))
@@ -161,7 +170,7 @@ describe('PriceChart', () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([candle()])
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairA, '1h'))
-    await user.click(screen.getByRole('button', { name: '1d' }))
+    await user.click(screen.getByRole('button', { name: '1d candle interval' }))
     await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairA, '1d'))
   })
 
@@ -185,7 +194,7 @@ describe('PriceChart', () => {
 
     const sequence = ['1m', '5m', '15m', '1h', '4h', '1d', '1w', '1m', '5m', '15m', '1h'] as const
     for (const iv of sequence) {
-      await user.click(screen.getByRole('button', { name: iv }))
+      await user.click(screen.getByRole('button', { name: `${iv} candle interval` }))
       await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairA, iv))
     }
 
@@ -277,7 +286,7 @@ describe('PriceChart', () => {
     expect(vi.mocked(createChart)).toHaveBeenCalledTimes(2)
     expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '1d' }))
+    await user.click(screen.getByRole('button', { name: '1d candle interval' }))
     await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairB, '1d'))
     expect(vi.mocked(createChart)).toHaveBeenCalledTimes(2)
   })

@@ -10,6 +10,7 @@ import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { MenuSelect, RetryError, Skeleton } from '@/components/ui'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import PriceChart from '@/components/charts/PriceChart'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
@@ -347,10 +348,13 @@ export default function TradePage() {
       )}
 
       {indexerDown && (
-        <div className="alert-warning text-sm" role="alert" data-testid="trade-indexer-outage-banner">
-          <span className="font-semibold">{TRADE_INDEXER_OUTAGE_BANNER_TITLE}</span> {TRADE_INDEXER_OUTAGE_BANNER_LEAD}{' '}
-          {TRADE_INDEXER_OUTAGE_BANNER_TAIL}
-        </div>
+        <MarketDataServiceOutageBanner
+          layout="inline"
+          testId="trade-indexer-outage-banner"
+          title={TRADE_INDEXER_OUTAGE_BANNER_TITLE}
+          lead={TRADE_INDEXER_OUTAGE_BANNER_LEAD}
+          tail={TRADE_INDEXER_OUTAGE_BANNER_TAIL}
+        />
       )}
 
       <div className="shell-panel p-3">
