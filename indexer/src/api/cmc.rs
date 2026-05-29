@@ -222,7 +222,7 @@ pub async fn cmc_ticker(
 
 #[derive(Deserialize, IntoParams)]
 pub struct CmcOrderbookQuery {
-    /// Number of levels (capped at 100, default 20)
+    /// Total levels across the book, split evenly per side (max 100, default 20; Openware/CMC)
     pub depth: Option<usize>,
 }
 
@@ -253,7 +253,7 @@ pub async fn cmc_orderbook(
     Path(market_pair): Path<String>,
     Query(q): Query<CmcOrderbookQuery>,
 ) -> Result<Json<CmcOrderbookResponse>, (StatusCode, String)> {
-    let depth = q.depth.unwrap_or(20).min(100);
+    let depth = orderbook_sim::cap_orderbook_depth(q.depth);
     let pair_addr = find_pair_by_ticker(&state, &market_pair).await?;
 
     let ob = orderbook_sim::simulate_orderbook_cached(

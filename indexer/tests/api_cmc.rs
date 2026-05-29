@@ -92,8 +92,8 @@ async fn cmc_orderbook_depth_capped_when_ok() {
         let body: Value = resp.json();
         let bids = body["bids"].as_array().unwrap();
         let asks = body["asks"].as_array().unwrap();
-        assert!(bids.len() <= 100);
-        assert!(asks.len() <= 100);
+        assert!(bids.len() <= 50);
+        assert!(asks.len() <= 50);
     }
 }
 

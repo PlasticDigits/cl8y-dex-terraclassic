@@ -126,7 +126,7 @@ Returns a simulated order book derived from the AMM constant-product curve.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `ticker_id` | Yes | — | Pair identifier (e.g. `CL8Y_WLUNC`) |
-| `depth` | No | 20 | Number of bid/ask levels |
+| `depth` | No | 20 | Total levels across the book (split evenly: `depth=100` → 50 bids + 50 asks; max 100 total). [Openware/CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap); GitLab **#221** |
 
 **Response:**
 
@@ -318,7 +318,7 @@ Level 2 order book for a specific market pair.
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| `depth` | No | 20 | Order book depth (levels per side) |
+| `depth` | No | 20 | Total levels across the book (split evenly per side; max 100 total). GitLab **#221** |
 
 **Response:**
 
@@ -381,17 +381,19 @@ If GeckoTerminal does not support Terra Classic natively, the `/cg/` endpoints a
 
 ## AMM Orderbook Simulation
 
-Constant-product AMMs (x × y = k) do not have a traditional FIFO order book. `/cg/orderbook` and `/cmc/orderbook/*` return **AMM-simulated** depth by walking the pool curve — **not** resting limit orders ([`limit-orders.md`](./limit-orders.md), indexer `limit-book`). Implementation: [`indexer/src/api/orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs) (GitLab **#210**). Invariants: [`indexer-invariants.md`](./indexer-invariants.md).
+Constant-product AMMs (x × y = k) do not have a traditional FIFO order book. `/cg/orderbook` and `/cmc/orderbook/*` return **AMM-simulated** depth by walking the pool curve — **not** resting limit orders ([`limit-orders.md`](./limit-orders.md), indexer `limit-book`). Implementation: [`indexer/src/api/orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs) (GitLab **#210**, depth split **#221**). Invariants: [`indexer-invariants.md`](./indexer-invariants.md).
 
-**Conventions:** `asset_0` = **base**, `asset_1` = **quote**. Levels are `[price, quantity]` decimal strings (smallest on-chain units). `price` = quote per base after pool fee. Depth is capped at **100**; responses are cached **30s** per `(pair, depth, fee_bps)`.
+**Conventions:** `asset_0` = **base**, `asset_1` = **quote**. Levels are `[price, quantity]` decimal strings (smallest on-chain units). `price` = quote per base after pool fee.
+
+**Depth (Openware / CMC exchange integration, GitLab #221):** Query `depth` is the **total** number of levels across the book, split **evenly per side** with integer floor (`levels_per_side = max(1, depth / 2)`). Examples: default `20` → 10 bids + 10 asks; `depth=100` (cap) → 50+50; `depth=1` → 1+1. Odd totals drop the remainder (e.g. `21` → 10+10). This differs from Kujira FIN’s per-side semantics. Cap: **100** total; cache key uses the **requested** `depth` query value (not per-side count); TTL **30s** per `(pair, depth, fee_bps)`.
 
 ### Method
 
 Given pool reserves `(R0, R1)`, `k = R0 * R1`, and pool `fee_bps` (indexer `pairs.fee_bps` when the pair is indexed, else LCD `get_fee_config`):
 
-For each step `i` from **1** to `depth`:
+For each step `i` from **1** to `levels_per_side` (derived from query `depth` as above):
 
-- `step_amount = R0 * (i / depth) * 0.10` (integer division; up to **10%** of base reserves at `i = depth`)
+- `step_amount = R0 * (i / levels_per_side) * 0.10` (integer division; up to **10%** of base reserves at `i = levels_per_side`)
 
 **Bids** (sell base → receive quote; effective price **decreases** with size):
 
