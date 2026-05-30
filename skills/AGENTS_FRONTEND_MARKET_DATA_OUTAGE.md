@@ -15,7 +15,7 @@ Use when adding or changing **indexer-backed** pages, global outage banners, pai
 | [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts) | `isIndexerUnavailableError`, `isIndexerPairNotFoundError` |
 | [`MarketDataServiceOutageBanner.tsx`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) | Retail banner; trade uses `layout="inline"` + `trade-indexer-outage-banner` |
 | [`MarketDataLoadingStatus.tsx`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx) | `role="status"` / `aria-live="polite"` loading row |
-| [docs/testing.md § Frontend E2E — indexer outage](../docs/testing.md#frontend-e2e-indexer-outage) | CI job `frontend-e2e-indexer-outage`; local `make test-e2e-indexer-outage`; project `e2e-indexer-outage` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
+| [docs/testing.md § Frontend E2E — indexer outage](../docs/testing.md#frontend-e2e-indexer-outage) | `make test-e2e-indexer-outage` (workflow job name `frontend-e2e-indexer-outage`); project `e2e-indexer-outage` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 
 ## Rules of thumb
 
