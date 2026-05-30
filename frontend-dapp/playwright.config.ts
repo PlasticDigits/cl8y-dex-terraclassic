@@ -10,11 +10,21 @@ const txSpecGlobs = ['**/*-tx.spec.ts', '**/hybrid-swap.spec.ts', '**/wrap-pool.
 /** Market-data-down specs; require E2E_INDEXER_OUTAGE=1 and stopped indexer (GitLab #219). */
 const indexerOutageGlobs = ['**/*-indexer-outage.spec.ts']
 
+/** On-chain tx specs share one LocalTerra account — parallel workers cause sequence mismatch (#201). */
+function playwrightProjectArg(): string | undefined {
+  const idx = process.argv.indexOf('--project')
+  if (idx >= 0 && process.argv[idx + 1]) return process.argv[idx + 1]
+  const eq = process.argv.find((a) => a.startsWith('--project='))
+  return eq?.slice('--project='.length)
+}
+
+const e2eTxProjectOnly = playwrightProjectArg() === 'e2e-tx'
+
 export default defineConfig({
   testDir: './e2e',
   globalSetup: chainOptional ? undefined : './e2e/global-setup.ts',
-  fullyParallel: true,
-  workers: 5,
+  fullyParallel: !e2eTxProjectOnly,
+  workers: e2eTxProjectOnly ? 1 : 5,
   timeout: 120_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -48,6 +58,7 @@ export default defineConfig({
     {
       name: 'e2e-tx',
       testMatch: txSpecGlobs,
+      fullyParallel: false,
       use: { ...devices['Desktop Chrome'] },
     },
     {

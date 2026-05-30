@@ -11,14 +11,16 @@ You are changing **strict Playwright automation wiring**, **`e2e/helpers/chain.t
 | **Strict (default automation/local)** | unset | `e2e/global-setup.ts` runs provision + hybrid seed | **`expect` / throw** — run fails |
 | **UI-only local** | `PLAYWRIGHT_SKIP_CHAIN=1` or legacy `REQUIRE_LOCALTERRA=0` | skipped | documented `test.skip` in helpers only |
 
-**Never** use `test.skip()` in tx spec bodies for funds/pair/pause/route on the default path — use helpers in `chain.ts`, `hybrid-e2e.ts`, `limit-e2e.ts`, `wrap-e2e.ts`, `fee-e2e.ts`.
+**Never** use `test.skip()` in tx spec bodies for funds/pair/pause/route on the default path — use helpers in `chain.ts`, `hybrid-e2e.ts`, `limit-e2e.ts`, `wrap-e2e.ts`, `fee-e2e.ts`, `pool-ui.ts`.
+
+**On-chain worker count:** `e2e-tx` runs with **1 Playwright worker** (config detects `--project=e2e-tx`). All tx specs share the LocalTerra test mnemonic; parallel workers cause `account sequence mismatch`. `npm run test:e2e` runs `e2e-smoke` (5 workers) then `e2e-tx` (1 worker) sequentially.
 
 ## Playwright projects
 
 | Project | Files | Purpose |
 |---------|-------|---------|
 | `e2e-smoke` | All except tx globs | UI/navigation without mandatory chain |
-| `e2e-tx` | `*-tx.spec.ts`, `hybrid-swap`, `wrap-pool`, `wrap-swap` | On-chain paths; strict by default |
+| `e2e-tx` | `*-tx.spec.ts`, `hybrid-swap`, `wrap-pool`, `wrap-swap` | On-chain paths; strict by default; **1 worker** (shared dev account) |
 | `e2e-indexer-outage` | `*-indexer-outage.spec.ts` | Market-data-down; **separate reference job** `frontend-e2e-indexer-outage` → `make test-e2e-indexer-outage` — not part of default `npm run test:e2e` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 | `e2e-smoke` (strict) | `price-chart-smoke.spec.ts` | Canvas mount on `/charts` + `/trade`, fullscreen aria ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)); skipped when `PLAYWRIGHT_SKIP_CHAIN=1` |
 
@@ -49,7 +51,8 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 
 | Path | Role |
 |------|------|
-| [`frontend-dapp/playwright.config.ts`](../frontend-dapp/playwright.config.ts) | `e2e-smoke` / `e2e-tx` / `e2e-indexer-outage` projects, optional global setup |
+| [`frontend-dapp/e2e/helpers/pool-ui.ts`](../frontend-dapp/e2e/helpers/pool-ui.ts) | Pool card expand vs submit locators (GitLab #201 strict mode) |
+| [`frontend-dapp/playwright.config.ts`](../frontend-dapp/playwright.config.ts) | `e2e-smoke` / `e2e-tx` / `e2e-indexer-outage` projects, optional global setup, **1 worker for `e2e-tx`** |
 | [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh) | Local indexer stop + outage Playwright ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 | [`frontend-dapp/e2e/helpers/chain.ts`](../frontend-dapp/e2e/helpers/chain.ts) | `isChainOptional()`, LCD + CTA assertions |
 | [`frontend-dapp/e2e/global-setup.ts`](../frontend-dapp/e2e/global-setup.ts) | LCD wait + provision + hybrid book seed |

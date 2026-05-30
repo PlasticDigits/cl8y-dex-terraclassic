@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, assertTxResultAlert, assertLiquidityCtaNotBlocked } from './helpers/chain'
+import { poolProvideExpandButton, poolProvideSubmitButton } from './helpers/pool-ui'
 
 test.describe('Pool Transactions', () => {
   test('provides liquidity', async ({ page, connectWallet, request }) => {
@@ -18,14 +19,14 @@ test.describe('Pool Transactions', () => {
       .locator('.shell-panel-strong')
       .filter({ hasText: /In router \(factory\)/ })
       .first()
-    await pairCard.getByRole('button', { name: 'Provide Liquidity' }).click()
+    await poolProvideExpandButton(pairCard).click()
 
     // Fill amounts (human decimal strings; leave headroom vs wallet balances after globalSetup mint)
     const inputs = pairCard.locator('input[placeholder="0.00"]')
     await inputs.nth(0).fill('10')
     await inputs.nth(1).fill('10')
 
-    const submitBtn = pairCard.getByRole('button', { name: /^Provide Liquidity$/i })
+    const submitBtn = poolProvideSubmitButton(pairCard)
     await expect(submitBtn).toBeEnabled({ timeout: 15_000 })
     assertLiquidityCtaNotBlocked(
       await submitBtn.textContent(),

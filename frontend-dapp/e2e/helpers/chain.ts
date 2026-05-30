@@ -64,7 +64,7 @@ export async function skipIfLcdUnreachable(request: APIRequestContext): Promise<
 
 /** Strict tx specs: success or error alert must appear (GitLab #103 / #201). */
 export async function assertTxResultAlert(page: Page, timeoutMs = 90_000): Promise<void> {
-  const alert = page.locator('.alert-success, .alert-error')
+  const alert = page.locator('.alert-success, .alert-error').first()
   await expect(alert, 'expected tx success or error alert after submit').toBeVisible({ timeout: timeoutMs })
 }
 
@@ -98,5 +98,5 @@ const SWAP_CTA_MSG =
 
 /** Strict swap card: must not show Insufficient Balance / No Route / Connect after global setup. */
 export function assertSwapCtaNotBlocked(label: string | null, detail = SWAP_CTA_MSG): void {
-  expect(label, detail).not.toMatch(/Insufficient Balance|No Route|Connect/i)
+  expect(label, detail).not.toMatch(/Insufficient Balance|No Route|Connect|Rate Limit|Price impact/i)
 }

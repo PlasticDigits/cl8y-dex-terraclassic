@@ -6,6 +6,7 @@ alwaysApply: false
 
 # Playwright workers
 
-- Keep `workers` at **5** in `frontend-dapp/playwright.config.ts` (see `defineConfig`).
-- Higher parallelism overloads the Vite dev server during `webServer` runs and causes flaky E2E; do not raise without measuring stability.
+- Keep `workers` at **5** in `frontend-dapp/playwright.config.ts` for **`e2e-smoke`** (and other non-tx projects).
+- **`e2e-tx`** (`--project=e2e-tx`) uses **1 worker** — shared LocalTerra dev account; parallel txs cause sequence mismatch ([GitLab **#201**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md)).
+- `npm run test:e2e` runs smoke then tx sequentially (smoke @ 5 workers, tx @ 1).
 - Do not rely on `npx playwright test --workers=N` to override this for routine runs — change the config if the project standard changes.

@@ -6,6 +6,7 @@ import {
   placeLimitCard,
   requireLimitTxPair,
   selectLimitPairByFactoryIndex,
+  selectLimitSide,
   submitPlaceLimitAndExpectTx,
   submitLadderPlaceAndExpectTx,
   submitCancelLimitAndExpectTx,
@@ -29,10 +30,11 @@ test.describe('Limit orders funded txs', () => {
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
     const { index } = await requireLimitTxPair(request, pairs)
     await selectLimitPairByFactoryIndex(page, index)
+    await selectLimitSide(page, 'ask')
 
     const placeCard = placeLimitCard(page)
-    await fillValidLimitPrice(page, 'bid')
-    await placeCard.getByPlaceholder('0.0').fill('1')
+    await fillValidLimitPrice(page, 'ask')
+    await placeCard.getByPlaceholder('0.0').fill('0.001')
     const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
     await expect(placeBtn).toBeVisible({ timeout: 60_000 })
     assertLimitPlaceCtaNotBlocked(await placeBtn.textContent())
@@ -56,10 +58,11 @@ test.describe('Limit orders funded txs', () => {
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
     const { index } = await requireLimitTxPair(request, pairs)
     await selectLimitPairByFactoryIndex(page, index)
+    await selectLimitSide(page, 'ask')
 
     const placeCard = placeLimitCard(page)
-    await fillValidLimitPrice(page, 'bid')
-    await placeCard.getByPlaceholder('0.0').fill('1')
+    await fillValidLimitPrice(page, 'ask')
+    await placeCard.getByPlaceholder('0.0').fill('0.001')
     const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
     await expect(placeBtn).toBeEnabled({ timeout: 60_000 })
     await submitPlaceLimitAndExpectTx(page)

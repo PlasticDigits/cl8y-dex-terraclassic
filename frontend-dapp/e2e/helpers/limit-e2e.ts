@@ -40,6 +40,11 @@ export async function selectLimitPairByFactoryIndex(page: Page, factoryIndex: nu
   await skipOrFailIfPairPaused(page)
 }
 
+/** Select bid or ask on the Limits page ticket. */
+export async function selectLimitSide(page: Page, side: 'bid' | 'ask'): Promise<void> {
+  await page.getByTestId(`limit-orders-side-${side}`).click()
+}
+
 const PLACE_CTA_MSG =
   'Place limit CTA blocked after E2E provisioning; verify scripts/e2e-provision-dev-wallet.sh (GitLab #195).'
 
@@ -68,7 +73,26 @@ export async function fillValidLimitPrice(page: Page, side: 'bid' | 'ask' = 'bid
     if (!(ref > 0) || !Number.isFinite(ref)) throw new Error('invalid limit price reference')
   }).toPass({ timeout: 60_000 })
 
-  const limit = side === 'bid' ? ref * 0.95 : ref * 1.05
+  const limit = side === 'bid' ? ref * 0.5 : ref * 2
+  await priceInput.fill(String(limit))
+}
+
+/** More conservative price when book-walk cap rejects a tight bid/ask (post-hybrid E2E). */
+export async function fillConservativeLimitPrice(page: Page, side: 'bid' | 'ask' = 'bid'): Promise<void> {
+  const priceInput = page.getByTestId('limit-order-price-input')
+  await expect(priceInput).toBeVisible({ timeout: 60_000 })
+  const context = page.getByTestId('limit-order-price-context')
+
+  let ref = 0
+  await expect(async () => {
+    const text = (await context.textContent()) ?? ''
+    const match = text.match(LIMIT_PRICE_REF_RE)
+    if (!match) throw new Error('limit price reference not ready')
+    ref = Number.parseFloat(match[1])
+    if (!(ref > 0) || !Number.isFinite(ref)) throw new Error('invalid limit price reference')
+  }).toPass({ timeout: 60_000 })
+
+  const limit = side === 'bid' ? ref * 0.25 : ref * 4
   await priceInput.fill(String(limit))
 }
 
@@ -130,6 +154,11 @@ export async function submitPlaceLimitAndExpectTx(page: Page): Promise<void> {
       if (/account sequence mismatch/i.test(msg)) {
         await page.waitForTimeout(Math.min(attempt * 1_500, 8_000))
         throw new Error('retry after account sequence mismatch')
+      }
+      if (/book-walk cap|placed no rungs/i.test(msg)) {
+        await fillConservativeLimitPrice(page, 'ask')
+        await page.waitForTimeout(1_000)
+        throw new Error('retry after book-walk cap')
       }
       if (msg.trim()) throw new Error(`place limit failed: ${msg.trim()}`)
       throw new Error('no tx result after place limit click')

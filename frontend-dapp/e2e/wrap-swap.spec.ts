@@ -1,6 +1,11 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, assertTxResultAlert } from './helpers/chain'
-import { clickSwapSubmit, swapActionPanel, swapYouReceiveAmountDisplay } from './helpers/swap-ui'
+import {
+  clickSwapSubmit,
+  openSwapSettingsAndSetSlippage,
+  swapActionPanel,
+  swapYouReceiveAmountDisplay,
+} from './helpers/swap-ui'
 import { requireTokenInCombobox } from './helpers/wrap-e2e'
 import {
   ARIA_SELECT_TOKEN_PAY,
@@ -68,6 +73,8 @@ test.describe('Swap with native token wrapping — UI', () => {
 })
 
 test.describe('Swap Transaction Tests — Native Wrapping', () => {
+  test.describe.configure({ mode: 'serial' })
+
   test.beforeEach(async ({ page, connectWallet, request }) => {
     await skipIfLcdUnreachable(request)
     await connectWallet
@@ -89,6 +96,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
+    await openSwapSettingsAndSetSlippage(page, 15)
+
     await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
@@ -107,6 +116,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
+
+    await openSwapSettingsAndSetSlippage(page, 15)
 
     await clickSwapSubmit(page)
 
@@ -127,9 +138,11 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
 
-    const routeDisplay = page.getByText(/Route:/)
-    const routeCount = await routeDisplay.count()
+    const routeSummary = page.getByTestId('swap-route-summary')
+    const routeCount = await routeSummary.count()
     expect(routeCount).toBeGreaterThanOrEqual(0)
+
+    await openSwapSettingsAndSetSlippage(page, 15)
 
     await clickSwapSubmit(page)
 
@@ -167,10 +180,13 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   test('E6: wrapped-to-wrapped swap — LUNC-C to USTC-C (normal CW20)', async ({ page }) => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC-C')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC-C')
-    await expect(page.getByText(/Route:/)).toBeVisible({ timeout: 30_000 })
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
+
+    await expect(async () => {
+      await expect(page.getByTestId('swap-route-summary')).toBeVisible()
+    }).toPass({ timeout: 30_000 })
 
     const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
@@ -178,6 +194,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
+
+    await openSwapSettingsAndSetSlippage(page, 15)
 
     await clickSwapSubmit(page)
 

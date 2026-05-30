@@ -10,7 +10,9 @@ Agent playbook: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../../skills/AGENTS_E2E_ST
 |---------|---------|-------|
 | `e2e-tx` | `make test-e2e` / `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx` | **Required** — global setup + strict helpers |
 | `e2e-smoke` | `bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm run test:e2e:smoke` | Optional chain |
-| Both | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e` | Tx strict; smoke skips when chain off |
+| Both | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e` | Smoke (5 workers) then tx strict (1 worker) |
+
+**Worker invariant (#201):** On-chain specs share one LocalTerra account. `e2e-tx` uses **1 worker**; `e2e-smoke` keeps **5**. Pool tx helpers: [`e2e/helpers/pool-ui.ts`](./helpers/pool-ui.ts) (expand vs submit buttons).
 
 ## One-command strict tx E2E
 

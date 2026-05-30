@@ -127,9 +127,16 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
       await confirmSwap.click()
     }
 
-    const successAlert = swapPanel.locator('.alert-success')
-    await expect(swapPanel.locator('.alert-success, .alert-error')).toBeVisible({ timeout: 90_000 })
-    await expect(successAlert).toBeVisible({ timeout: 5_000 })
+    const successAlert = swapPanel.locator('.alert-success').first()
+    await expect(swapPanel.locator('.alert-success, .alert-error').first()).toBeVisible({ timeout: 90_000 })
+    const errorAlert = swapPanel.locator('.alert-error').first()
+    if (await errorAlert.isVisible().catch(() => false)) {
+      const msg = await errorAlert.textContent()
+      expect(msg, 'hybrid swap should succeed after globalSetup book seed').not.toMatch(
+        /sequence mismatch|insufficient/i
+      )
+    }
+    await expect(successAlert).toBeVisible({ timeout: 30_000 })
     const txHash = await readTxHashFromAlertLink(page, successAlert)
 
     await expect(async () => {
