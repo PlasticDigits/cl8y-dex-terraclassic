@@ -91,10 +91,23 @@ describe('PriceChart', () => {
     expect(screen.getByText(/price chart\. interval 1h\./i)).toHaveAttribute('aria-live', 'polite')
     expect(screen.getByRole('button', { name: '15m candle interval' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: '1h candle interval' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByTestId('price-chart-tradingview-attribution')).toHaveAttribute(
-      'href',
-      'https://www.tradingview.com/'
+    const attribution = screen.getByTestId('price-chart-tradingview-attribution')
+    expect(attribution).toHaveAttribute('href', 'https://www.tradingview.com/')
+    expect(attribution).toBeVisible()
+    expect(attribution).toHaveTextContent(/charting by tradingview/i)
+  })
+
+  it('updates aria-live summary when switching 1h to 15m (GitLab #214)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getCandles).mockImplementation((_pair, interval) =>
+      Promise.resolve([candle({ close: interval === '15m' ? '1.15' : '1.09' })])
     )
+    renderWithProviders(<PriceChart pairAddress={pairA} tapeLastPriceUsd="1.5" />)
+    await waitFor(() => expect(screen.getByText(/price chart\. interval 1h\./i)).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: '15m candle interval' }))
+    await waitFor(() => expect(screen.getByText(/price chart\. interval 15m\./i)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '15m candle interval' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '1h candle interval' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('shows loading then renders chart chrome when data resolves', async () => {

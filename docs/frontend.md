@@ -445,7 +445,7 @@ Automated **WCAG 2.1 A + AA** checks on retail-critical routes via **`@axe-core/
 | **Canvas exclusion** | Only `[data-testid="price-chart-lightweight-canvas"] canvas` — never exclude interactive controls. |
 | **TradingView attribution** | `layout.attributionLogo: false` on lightweight-charts; visible **Charting by TradingView** link on `PriceChart` (outside `aria-hidden` canvas) satisfies Apache NOTICE without `aria-hidden-focus` on `#tv-attr-logo`. |
 | **Chart AT summary** | `PriceChart` uses `role="region"` + `aria-labelledby` / `aria-describedby`; `sr-only` `aria-live="polite"` announces interval + last price; interval toggles use `aria-label` (`{iv} candle interval`). |
-| **Order book** | Per-side `<table>` with `<th scope="col">`; rows expose `aria-label` with side, order id, price, size. |
+| **Order book** | Per-side `<table>` with `<th scope="col">`; rows expose `aria-label` with side, order id, price, size. Scrollable book body uses `tabIndex={0}` + `role="region"` so axe `scrollable-region-focusable` passes ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)). |
 | **Order ticket tabs** | Limit / market: `tablist` + `tab` + `tabpanel` with `aria-controls` / `aria-labelledby`; pair paused → `role="alert"`. |
 | **Wallet menu** | `role="menu"` contains **menuitems only** (balance header outside); focus first menuitem on open, return to trigger on close; `CopyButton` live region inside menuitem. |
 | **Smoke without indexer** | `PLAYWRIGHT_SKIP_CHAIN=1` still runs axe on route shell; chart `region` is required when indexer + LCD are up (CI strict E2E). |

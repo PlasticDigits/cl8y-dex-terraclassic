@@ -265,7 +265,12 @@ function BookSideColumn({
       )}
       {!q.isLoading && !q.isError && (
         <>
-          <div className="flex-1 overflow-y-auto min-h-[96px] pr-1">
+          <div
+            className="flex-1 overflow-y-auto min-h-[96px] pr-1"
+            tabIndex={0}
+            role="region"
+            aria-label={`${title} limit orders scroll`}
+          >
             <table className="w-full border-separate border-spacing-y-1" aria-label={`${title} limit orders`}>
               <thead>
                 <tr className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-subtle)' }}>
