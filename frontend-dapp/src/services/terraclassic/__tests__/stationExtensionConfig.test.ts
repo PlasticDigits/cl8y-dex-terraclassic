@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { applyStationKeplrShimSignDefaults } from '../stationExtensionConfig'
+import {
+  applyStationKeplrShimSignDefaults,
+  prepareStationExtensionForTerraClassicSign,
+} from '../stationExtensionConfig'
+
+vi.mock('../stationNativeNetwork', () => ({
+  ensureStationLocalNetworkRegistered: vi.fn().mockResolvedValue('updated'),
+  shouldUseStationNativeLocalNetwork: vi.fn(() => true),
+}))
 
 describe('applyStationKeplrShimSignDefaults', () => {
   beforeEach(() => {
@@ -31,5 +39,23 @@ describe('applyStationKeplrShimSignDefaults', () => {
 
     applyStationKeplrShimSignDefaults()
     expect(keplr.defaultOptions.sign.preferNoSetFee).toBe(false)
+  })
+})
+
+describe('prepareStationExtensionForTerraClassicSign (GitLab #127)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('window', {
+      station: { keplr: {}, addNetwork: vi.fn().mockResolvedValue(true) },
+    } as unknown as Window & typeof globalThis)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sets shim defaults and wallet gas price before sign', async () => {
+    const setGasPrice = vi.fn()
+    await prepareStationExtensionForTerraClassicSign({ setGasPrice } as never)
+    expect(setGasPrice).toHaveBeenCalledWith(expect.objectContaining({ denom: 'uluna' }))
   })
 })

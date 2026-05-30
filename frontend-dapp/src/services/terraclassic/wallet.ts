@@ -1,4 +1,5 @@
 import { applyStationKeplrShimSignDefaults } from '@/services/terraclassic/stationExtensionConfig'
+import { getTerraChainSuggestion } from '@/services/terraclassic/terraChainSuggestion'
 import {
   ensureStationLocalNetworkRegistered,
   shouldUseStationNativeLocalNetwork,
@@ -24,45 +25,10 @@ import {
 } from '@goblinhunt/cosmes/wallet'
 import { NETWORKS, DEFAULT_NETWORK } from '@/utils/constants'
 
-const TERRA_CLASSIC_BECH32 = {
-  bech32PrefixAccAddr: 'terra',
-  bech32PrefixAccPub: 'terrapub',
-  bech32PrefixValAddr: 'terravaloper',
-  bech32PrefixValPub: 'terravaloperpub',
-  bech32PrefixConsAddr: 'terravalcons',
-  bech32PrefixConsPub: 'terravalconspub',
-}
-
-function getTerraChainSuggestion(): Record<string, unknown> {
-  const config = NETWORKS[DEFAULT_NETWORK].terra
-  return {
-    chainId: config.chainId,
-    chainName: DEFAULT_NETWORK === 'local' ? 'LocalTerra' : `Terra Classic (${DEFAULT_NETWORK})`,
-    rpc: config.rpc,
-    rest: config.lcd,
-    bip44: { coinType: 330 },
-    bech32Config: TERRA_CLASSIC_BECH32,
-    currencies: [
-      { coinDenom: 'LUNC', coinMinimalDenom: 'uluna', coinDecimals: 6 },
-      { coinDenom: 'USTC', coinMinimalDenom: 'uusd', coinDecimals: 6 },
-    ],
-    feeCurrencies: [
-      {
-        coinDenom: 'LUNC',
-        coinMinimalDenom: 'uluna',
-        coinDecimals: 6,
-        gasPriceStep: { low: 28.325, average: 28.325, high: 50 },
-      },
-    ],
-    stakeCurrency: { coinDenom: 'LUNC', coinMinimalDenom: 'uluna', coinDecimals: 6 },
-  }
-}
-
 async function suggestChainToExtension(walletName: WalletName): Promise<void> {
-  const chainInfo = getTerraChainSuggestion()
   const ext = getKeplrLikeExtension(walletName)
   if (ext?.experimentalSuggestChain) {
-    await ext.experimentalSuggestChain(chainInfo)
+    await ext.experimentalSuggestChain(getTerraChainSuggestion())
   }
 }
 

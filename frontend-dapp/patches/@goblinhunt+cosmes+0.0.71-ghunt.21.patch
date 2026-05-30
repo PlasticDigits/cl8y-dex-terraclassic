@@ -2,7 +2,7 @@ diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExte
 index bcfd177..cca2429 100644
 --- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
 +++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
-@@ -1,7 +1,88 @@
+@@ -1,7 +1,104 @@
  import { RpcClient, Tx, } from "../../../client/index.js";
 +import { CosmosTxV1beta1AuthInfo as ProtoAuthInfo, } from "../../../protobufs/index.js";
  import { WalletType } from "../../constants/WalletType.js";
@@ -43,6 +43,22 @@ index bcfd177..cca2429 100644
 +    catch {
 +        return 0n;
 +    }
++}
++/** Plain JSON amino doc — extensions may ignore protobuf Coin fee amounts (GitLab #127 swap repro). */
++function toPlainAminoStdSignDoc(stdDoc) {
++    const fee = stdDoc.fee ?? { amount: [], gas: "0" };
++    return {
++        ...stdDoc,
++        fee: {
++            gas: String(fee.gas ?? "0"),
++            amount: (fee.amount ?? []).map((c) => ({
++                denom: String(c.denom),
++                amount: String(c.amount),
++            })),
++            ...(fee.payer ? { payer: fee.payer } : {}),
++            ...(fee.granter ? { granter: fee.granter } : {}),
++        },
++    };
 +}
 +function gasLimitFromProtobufFee(fee) {
 +    return fee?.gasLimit ? BigInt(fee.gasLimit) : 0n;
@@ -97,7 +113,7 @@ index bcfd177..cca2429 100644
          if (this.useAmino) {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
 -            txRaw = tx.toSignedAmino(signed, signature.signature);
-+            const stdDoc = tx.toStdSignDoc(params);
++            const stdDoc = toPlainAminoStdSignDoc(tx.toStdSignDoc(params));
 +            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS));
 +            // Single sign only — a second signAmino after approval often yields "User denied, extension popup was closed" (GitLab #208).
 +            assertExtensionSignedFeeMeetsExpected(signed, stdDoc.fee, this.chainId);

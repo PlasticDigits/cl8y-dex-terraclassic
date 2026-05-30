@@ -20,6 +20,7 @@ describe('cosmes patch-package (GitLab #127)', () => {
     expect(src).toContain('meetsMinSignedRatio')
     expect(src).toContain('ulunaFromAminoFee')
     expect(src).toContain('ulunaFromDirectSignedAuthInfoBytes')
+    expect(src).toContain('toPlainAminoStdSignDoc')
     expect(src).toContain('stdDoc.fee')
     expect(src).not.toContain('for (let attempt = 0; attempt < 2; attempt++)')
     expect(src).toMatch(/GitLab #208|extension popup was closed/)

@@ -2,7 +2,8 @@ import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
 import type { ConnectedWallet } from '@goblinhunt/cosmes/wallet'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
-import { applyStationKeplrShimSignDefaults } from '@/services/terraclassic/stationExtensionConfig'
+import { prepareStationExtensionForTerraClassicSign } from '@/services/terraclassic/stationExtensionConfig'
+import { estimateTerraClassicFeeForEntries } from '@/services/terraclassic/terraClassicFeeEstimate'
 import { EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX } from '@/utils/extensionSignedFeeGuard'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 import {
@@ -12,7 +13,7 @@ import {
   TERRA_TX_POLL_TIMEOUT_MS,
 } from '@/utils/terraTxTimeout'
 import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
-import { buildTerraClassicFee, getGasLimitForTx, totalGasLimitForExecuteMsgs } from './terraGas'
+import { buildTerraClassicFee } from './terraGas'
 import { withTerraWalletSignLock } from './terraWalletSignLock'
 
 export type TerraExecuteContractEntry = {
@@ -95,11 +96,11 @@ export async function broadcastTerraExecuteContracts(
     memo: '',
   }
 
-  const gasLimit = entries.length === 1 ? getGasLimitForTx(entries[0].msg) : totalGasLimitForExecuteMsgs(entries)
-  const fee = buildTerraClassicFee(gasLimit)
+  const feeEstimate = estimateTerraClassicFeeForEntries(entries)
+  const fee = buildTerraClassicFee(feeEstimate.gasLimit)
 
   if (wallet.id === WalletName.STATION && wallet.type === WalletType.EXTENSION) {
-    applyStationKeplrShimSignDefaults()
+    await prepareStationExtensionForTerraClassicSign(wallet)
   }
 
   try {
