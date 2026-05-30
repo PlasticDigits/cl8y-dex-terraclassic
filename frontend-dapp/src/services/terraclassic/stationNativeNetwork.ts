@@ -45,7 +45,7 @@ function getStationNativeApi(): StationNativeApi | undefined {
 export async function ensureStationLocalNetworkRegistered(
   lcd: string,
   chainId = 'localterra'
-): Promise<'registered' | 'already' | 'skipped'> {
+): Promise<'registered' | 'updated' | 'skipped'> {
   const station = getStationNativeApi()
   if (!station?.addNetwork) {
     return 'skipped'
@@ -55,16 +55,16 @@ export async function ensureStationLocalNetworkRegistered(
   const networkKey = { chainID: chainId, lcd }
 
   try {
+    let existed = false
     if (station.hasNetwork) {
-      const exists = await station.hasNetwork(networkKey)
-      if (exists) {
-        return 'already'
-      }
+      existed = await station.hasNetwork(networkKey)
     }
+    // Always call addNetwork so Station refreshes gasPrices (GitLab #127: stale ~0.015 uluna/gas
+    // survives reconnect when hasNetwork short-circuited registration).
     await station.addNetwork(network)
-    return 'registered'
+    return existed ? 'updated' : 'registered'
   } catch (err: unknown) {
-    console.warn('[Wallet] Station addNetwork for LocalTerra failed (GitLab #207):', err)
+    console.warn('[Wallet] Station addNetwork for LocalTerra failed (GitLab #207, #127):', err)
     throw err
   }
 }

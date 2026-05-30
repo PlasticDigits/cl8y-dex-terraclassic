@@ -47,4 +47,17 @@ describe('broadcastTerraExecuteContracts (GitLab #127)', () => {
       )
     ).rejects.toThrow(/Station closed the signing popup/)
   })
+
+  it('surfaces post-sign fee guard before generic user-denied copy (GitLab #127)', async () => {
+    mockBroadcastTx.mockRejectedValueOnce(
+      new Error(
+        'Wallet signed a fee far below what this dApp submitted (GitLab #127). Expected at least ~5665000 uluna; wallet returned ~3000 uluna.'
+      )
+    )
+    await expect(
+      broadcastTerraExecuteContracts(mockWallet as never, 'terra1sender', [
+        { contract: 'terra1a', msg: { increase_allowance: { spender: 'terra1p', amount: '1' } } },
+      ])
+    ).rejects.toThrow(/GitLab #127/)
+  })
 })

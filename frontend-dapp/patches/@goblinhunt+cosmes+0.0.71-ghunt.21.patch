@@ -60,12 +60,12 @@ index bcfd177..cca2429 100644
 +    const auth = ProtoAuthInfo.fromBinary(authInfoBytes);
 +    return auth.fee?.gasLimit ? BigInt(auth.fee.gasLimit) : 0n;
 +}
-+function assertExtensionSignedFeeMeetsExpected(signedDoc, expectedFee, chainId) {
++function assertExtensionSignedFeeMeetsExpected(signedDoc, expectedAminoFee, chainId) {
 +    const isLocalTerra = typeof chainId === "string" && chainId.toLowerCase() === "localterra";
 +    if (!isLocalTerra)
 +        return;
-+    const expectedUluna = ulunaFromAminoFee(expectedFee);
-+    const expectedGas = gasLimitFromProtobufFee(expectedFee);
++    const expectedUluna = ulunaFromAminoFee(expectedAminoFee);
++    const expectedGas = gasFromAminoFee(expectedAminoFee);
 +    if (expectedUluna <= 0n && expectedGas <= 0n)
 +        return;
 +    if (!signedDoc?.fee)
@@ -100,7 +100,7 @@ index bcfd177..cca2429 100644
 +            const stdDoc = tx.toStdSignDoc(params);
 +            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS));
 +            // Single sign only — a second signAmino after approval often yields "User denied, extension popup was closed" (GitLab #208).
-+            assertExtensionSignedFeeMeetsExpected(signed, fee, this.chainId);
++            assertExtensionSignedFeeMeetsExpected(signed, stdDoc.fee, this.chainId);
 +            txRaw = tx.toSignedAmino(signed, signature.signature);
          }
          else {

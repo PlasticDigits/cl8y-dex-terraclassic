@@ -39,12 +39,17 @@ describe('stationNativeNetwork (GitLab #207)', () => {
     )
   })
 
-  it('ensureStationLocalNetworkRegistered skips add when hasNetwork is true', async () => {
+  it('ensureStationLocalNetworkRegistered refreshes addNetwork when already present (GitLab #127)', async () => {
     const hasNetwork = vi.fn().mockResolvedValue(true)
-    const addNetwork = vi.fn()
+    const addNetwork = vi.fn().mockResolvedValue(true)
     vi.stubGlobal('window', { station: { hasNetwork, addNetwork } } as unknown as Window & typeof globalThis)
 
-    await expect(ensureStationLocalNetworkRegistered('http://localhost:1317')).resolves.toBe('already')
-    expect(addNetwork).not.toHaveBeenCalled()
+    await expect(ensureStationLocalNetworkRegistered('http://localhost:1317')).resolves.toBe('updated')
+    expect(addNetwork).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chainID: 'localterra',
+        gasPrices: expect.objectContaining({ uluna: expect.any(Number) }),
+      })
+    )
   })
 })

@@ -3,6 +3,7 @@ import type { ConnectedWallet } from '@goblinhunt/cosmes/wallet'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 import { applyStationKeplrShimSignDefaults } from '@/services/terraclassic/stationExtensionConfig'
+import { EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX } from '@/utils/extensionSignedFeeGuard'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 import {
   TERRA_TX_BROADCAST_TIMEOUT_MESSAGE,
@@ -28,6 +29,15 @@ function handleBroadcastError(error: unknown): Error {
       return error
     }
 
+    if (errorMessage.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX)) {
+      return error
+    }
+
+    const human = tryHumanizeTerraTxMessage(errorMessage)
+    if (human) {
+      return new Error(human)
+    }
+
     if (/extension popup was closed/i.test(errorMessage) && !/explicitly|you rejected/i.test(errorMessage)) {
       return new Error(
         'Station closed the signing popup before the transaction completed. Disconnect and reconnect Station, approve any Terra Classic network update, then retry. If this persists, update the Station extension.'
@@ -49,11 +59,6 @@ function handleBroadcastError(error: unknown): Error {
       errorMessage.includes('network')
     ) {
       return new Error(`Network error: ${errorMessage}. Please check your internet connection and try again.`)
-    }
-
-    const human = tryHumanizeTerraTxMessage(errorMessage)
-    if (human) {
-      return new Error(human)
     }
 
     return new Error(`Transaction failed: ${errorMessage}`)

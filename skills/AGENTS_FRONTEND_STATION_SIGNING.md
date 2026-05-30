@@ -22,9 +22,10 @@ Use when Station users see **false “transaction rejected by user”** errors, 
 2. **Never route Station extension through `signDirect`** — patched `StationController` sets **`useAminoSigning = true`** for all extension connects ([#208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)).
 3. **Always set `station.keplr.defaultOptions.sign.preferNoSetFee`** on connect and before broadcast via **`applyStationKeplrShimSignDefaults()`**.
 4. **Mainnet Station** — call **`experimentalSuggestChain`** before/after connect (same `gasPriceStep` as Keplr) so fees are not rebuilt from stale steps ([#208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)).
-5. **LocalTerra** — keep **`addNetwork`** path from [#207](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/207); do not rely on `experimentalSuggestChain` for `localterra` on new Station builds.
-6. **Do not re-prompt `signAmino` after the user approves** — a second call often returns “extension popup was closed” ([#208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)); surface the #127 fee guard instead.
-7. After changing the patch, run **`cd frontend-dapp && npm ci`** and **`npm run test:run`** (`cosmesPatch127.test.ts`, `terraWalletSignLock.test.ts` must pass).
+5. **LocalTerra** — **`ensureStationLocalNetworkRegistered`** always calls **`addNetwork`** (refresh stale **`gasPrices`**, [#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)) before + after connect; do not skip when **`hasNetwork`** is true. Legacy path: **`experimentalSuggestChain`** when **`addNetwork`** is unavailable ([#207](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/207)).
+6. **Post-sign fee guard** — patched **`KeplrExtension`** compares wallet **`signed.fee`** to **`stdDoc.fee`** on LocalTerra; do not re-prompt **`signAmino`** after approval ([#208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)).
+7. **`terraBroadcast`** surfaces fee-guard errors before generic **Transaction rejected by user** copy ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)).
+8. After changing the patch, run **`cd frontend-dapp && npm ci`** and **`npm run test:run`** (`cosmesPatch127.test.ts`, `terraWalletSignLock.test.ts` must pass).
 
 ## Cross-links
 

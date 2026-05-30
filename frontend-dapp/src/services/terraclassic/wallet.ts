@@ -363,10 +363,18 @@ export async function connectTerraWallet(
 
     connectedWallets.set(TERRA_CLASSIC_CHAIN_ID, wallet)
 
-    // Second suggest after enable + wallet init (GitLab #127, #208).
-    // New Station local: addNetwork for localterra; keplr suggestChain unsupported (#207).
+    // Second suggest / network refresh after enable + wallet init (GitLab #127, #208).
     if (isStationExtension) {
-      if (isStationLocalExtension && !shouldUseStationNativeLocalNetwork()) {
+      if (isStationLocalExtension && shouldUseStationNativeLocalNetwork()) {
+        try {
+          await ensureStationLocalNetworkRegistered(networkConfig.lcd, TERRA_CLASSIC_CHAIN_ID)
+        } catch (err: unknown) {
+          console.warn(
+            '[Wallet] Post-connect Station addNetwork refresh failed; LocalTerra fees may stay too low (GitLab #127):',
+            err
+          )
+        }
+      } else if (isStationLocalExtension && !shouldUseStationNativeLocalNetwork()) {
         try {
           await suggestChainToExtension(walletName)
         } catch (err: unknown) {
