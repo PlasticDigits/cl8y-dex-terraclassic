@@ -7,10 +7,17 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# shellcheck source=scripts/lib/indexer-port.sh
+source "$REPO_ROOT/scripts/lib/indexer-port.sh"
+
 INDEXER_LOG="${INDEXER_LOG:-/tmp/cl8y-indexer-e2e-outage.log}"
 INDEXER_PID_FILE="${INDEXER_PID_FILE:-/tmp/cl8y-indexer-e2e-outage.pid}"
 INDEXER_URL="${VITE_INDEXER_URL:-http://127.0.0.1:3001}"
 INDEXER_URL="${INDEXER_URL%/}"
+INDEXER_PORT="$(indexer_port_from_url "$INDEXER_URL")"
+# Browser must not hit :3001 after sanity — shared hosts may auto-restart the QA indexer (GitLab #219).
+OUTAGE_E2E_INDEXER_URL="${OUTAGE_E2E_INDEXER_URL:-http://127.0.0.1:39991}"
+OUTAGE_E2E_INDEXER_URL="${OUTAGE_E2E_INDEXER_URL%/}"
 
 _fail() {
   echo "ERROR: $*" >&2
@@ -51,15 +58,14 @@ _start_indexer() {
   _require_file "$REPO_ROOT/indexer/.env" "run scripts/deploy-dex-local.sh first"
   _require_file "$REPO_ROOT/indexer/target/release/cl8y-dex-indexer" "build indexer: (cd indexer && cargo build --release)"
 
-  if [[ -f "$INDEXER_PID_FILE" ]]; then
-    old_pid="$(cat "$INDEXER_PID_FILE" 2>/dev/null || true)"
-    if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
-      echo "[test-e2e-indexer-outage] stopping previous indexer pid ${old_pid}"
-      kill "$old_pid" 2>/dev/null || true
-      sleep 1
-    fi
-    rm -f "$INDEXER_PID_FILE"
+  if curl -sf "${INDEXER_URL}/api/v1/overview" >/dev/null 2>&1; then
+    indexer_sync_pidfile_with_port "$INDEXER_PID_FILE" "$INDEXER_PORT"
+    echo "[test-e2e-indexer-outage] reusing indexer on port ${INDEXER_PORT} (pid $(cat "$INDEXER_PID_FILE" 2>/dev/null || echo '?'))"
+    return 0
   fi
+
+  indexer_stop_port_listeners "$INDEXER_PORT"
+  rm -f "$INDEXER_PID_FILE"
 
   echo "[test-e2e-indexer-outage] starting indexer (log: ${INDEXER_LOG})"
   set -a
@@ -73,13 +79,15 @@ _start_indexer() {
 
 _stop_indexer() {
   if [[ -f "$INDEXER_PID_FILE" ]]; then
-    pid="$(cat "$INDEXER_PID_FILE")"
-    if kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" 2>/dev/null || true
+    pid="$(cat "$INDEXER_PID_FILE" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill -TERM "$pid" 2>/dev/null || true
       wait "$pid" 2>/dev/null || true
     fi
     rm -f "$INDEXER_PID_FILE"
   fi
+  indexer_stop_port_listeners "$INDEXER_PORT"
+  indexer_clear_stale_qa_pidfile_if_dead "$REPO_ROOT" "$INDEXER_PORT"
   _wait_indexer_down
 }
 
@@ -90,9 +98,10 @@ _run_playwright() {
   bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- \
     env \
       E2E_INDEXER_OUTAGE=1 \
+      VITE_E2E_INDEXER_OUTAGE=1 \
       E2E_TRADE_PAIR="$pair" \
       VITE_NETWORK=local \
-      VITE_INDEXER_URL="$INDEXER_URL" \
+      VITE_INDEXER_URL="$OUTAGE_E2E_INDEXER_URL" \
       npm run test:e2e:indexer-outage
 }
 

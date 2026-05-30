@@ -6,13 +6,18 @@ import { LazyRoute } from './components/common/LazyRoute'
 import { TradePageRouteFallback } from './components/trade/TradePageRouteFallback'
 import { isLcdConnectivityError } from '@/utils/lcdConnectivity'
 
+/** Fast indexer failure for outage Playwright (GitLab #219) — avoids long retry/backoff before banners render. */
+const indexerOutageE2e = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1'
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: (failureCount, error) => {
-        if (isLcdConnectivityError(error)) return failureCount < 3
-        return failureCount < 2
-      },
+      retry: indexerOutageE2e
+        ? false
+        : (failureCount, error) => {
+            if (isLcdConnectivityError(error)) return failureCount < 3
+            return failureCount < 2
+          },
       retryDelay: (attemptIndex) => Math.min(2_000 * 2 ** attemptIndex, 12_000),
       staleTime: 10_000,
       refetchOnWindowFocus: false,

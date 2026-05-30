@@ -241,7 +241,11 @@ export E2E_TRADE_PAIR="$(bash ../scripts/lib/e2e-trade-pair-from-deploy.sh)"
 E2E_INDEXER_OUTAGE=1 npm run test:e2e:indexer-outage
 ```
 
-**Env vars:** `E2E_INDEXER_OUTAGE=1` (required for specs to run); `E2E_TRADE_PAIR` (optional — defaults to first deploy pair via `.qa-deploy-stamp` / factory LCD); `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`).
+**Env vars:** `E2E_INDEXER_OUTAGE=1` (required for specs to run); `VITE_E2E_INDEXER_OUTAGE=1` (set automatically — fast indexer transport failure in the browser); `E2E_TRADE_PAIR` (optional — defaults to first deploy pair via `.qa-deploy-stamp` / factory LCD); `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`).
+
+After sanity on `:3001`, Playwright runs with **`OUTAGE_E2E_INDEXER_URL`** (default `http://127.0.0.1:39991`, nothing listening) so a shared host cannot auto-restart the QA indexer on `:3001` and produce a false green. CI and local use the same path via [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh).
+
+**Local QA stack:** If an indexer is already listening on `:3001` (e.g. `make qa-start`), `test-e2e-indexer-outage.sh` reuses it for the sanity check, then stops **every** process bound to that port before Playwright. Restart afterward with `bash scripts/e2e-start-indexer.sh` or `make qa-start` (indexer only) if other work needs the API.
 
 Vitest covers Charts/Trader/Pool/**Limits** outage banners with mocked transport errors (`npm run test:run`; `/limits`: [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx), GitLab **#218**). Product invariants: [docs/frontend.md § Market data loading & outage](./frontend.md#market-data-loading-outage); agent: [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md). Tracking: [GitLab **#219**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219).
 

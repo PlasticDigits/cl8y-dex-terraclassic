@@ -26,8 +26,8 @@ import type {
 } from '@/types'
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://127.0.0.1:3001'
-const FETCH_TIMEOUT_MS = 15_000
-const MAX_RETRIES = 1
+const FETCH_TIMEOUT_MS = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 4_000 : 15_000
+const MAX_RETRIES = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 0 : 1
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   let lastError: Error | undefined
