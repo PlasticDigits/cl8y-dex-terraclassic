@@ -107,23 +107,12 @@ _seed_fixtures() {
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$REPO_ROOT/indexer/scripts/seed-charts-integration.sql"
 }
 
-# Host curl to published 127.0.0.1:1317 can hang on some Linux setups; fall back to compose exec.
+# shellcheck source=scripts/lib/localterra-host-curl.sh
+source "$REPO_ROOT/scripts/lib/localterra-host-curl.sh"
+
 _lcd_curl() {
   local path="${1:?}"
-  local url="${VITE_TERRA_LCD_URL%/}${path}"
-  local out
-  out="$(curl -sf --connect-timeout 2 --max-time 8 "$url" 2>/dev/null || true)"
-  if [ -n "$out" ]; then
-    echo "$out"
-    return 0
-  fi
-  local lt_cid
-  lt_cid="$(docker compose -f "$REPO_ROOT/docker-compose.yml" ps -q localterra 2>/dev/null || true)"
-  if [ -z "$lt_cid" ]; then
-    return 1
-  fi
-  docker compose -f "$REPO_ROOT/docker-compose.yml" exec -T localterra \
-    curl -sf --connect-timeout 2 --max-time 8 "http://127.0.0.1:1317${path}" 2>/dev/null
+  localterra_lcd_curl "${VITE_TERRA_LCD_URL}" "$path"
 }
 
 _load_factory_address() {

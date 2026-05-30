@@ -45,6 +45,15 @@ Fresh wasm on disk does **not** guarantee fresh on-chain behaviour when volumes 
 
 Compose project name is fixed (`name: cl8y-dex-terraclassic` in `docker-compose.yml`) so git worktrees share volume names `cl8y-dex-terraclassic_localterra-data` and `cl8y-dex-terraclassic_postgres-data`.
 
+## LocalTerra host ports vs `docker exec`
+
+| Consumer | RPC/LCD access |
+| -------- | -------------- |
+| Browser / `VITE_TERRA_*_URL` | Published host ports (`127.0.0.1:26657`, `:1317`) |
+| `make qa-verify-deploy`, `make wait-localterra`, `scripts/status.sh`, LCD helpers | Host curl first, then **`docker exec`** into `localterra` ([`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh)) |
+
+Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md).
+
 ## Related docs
 
 - [`scripts/qa/README.md`](../scripts/qa/README.md) — server + laptop workflow

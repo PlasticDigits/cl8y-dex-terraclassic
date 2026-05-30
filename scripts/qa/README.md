@@ -89,7 +89,8 @@ Canonical root cause: [`docs/frontend.md` § Station extension signing](../../do
 | `QA_FRESH_VOLUMES=1 make start-qa` | Same as `reset-qa`              |
 | `make stop-qa`      | Stop indexer + compose (volumes kept)      |
 | `make test-qa-fresh-volumes` | Unit checks for fresh-volumes toggle (no Docker) |
-| `make test-qa-verify-deploy` | Unit checks for LCD smart-query helpers used by verify-deploy (no Docker) |
+| `make test-qa-verify-deploy` | Unit checks for LCD helpers + host-curl wiring (`test-verify-deploy`, `test-localterra-host-curl`) |
+| `make test-localterra-host-curl` | Exec fallback wiring; live RPC probe when `localterra` is up |
 | `make qa-tunnel-help` | Reprint SSH + laptop steps               |
 | `make qa-verify-deploy` | Post-deploy schema + stamp check (also runs inside `start-qa`) |
 | `make status`       | Health summary                               |
@@ -101,6 +102,7 @@ Canonical root cause: [`docs/frontend.md` § Station extension signing](../../do
 
 - **Indexer health fails** — Read **`.indexer-qa.log`**; confirm Postgres is up and **`indexer/.env`** **`DATABASE_URL`** matches compose (**`postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer`** by default (override via repo-root `.env` / `scripts/lib/postgres-dev.env`)).
 - **LocalTerra not ready** — `docker compose logs localterra`; on port conflicts set **`QA_SHARED_HOST=1`** or free host ports.
+- **Host `curl` to `127.0.0.1:26657` / `:1317` hangs** — Chain may still be healthy in-container. **`make qa-verify-deploy`** and **`make wait-localterra`** use [`scripts/lib/localterra-host-curl.sh`](../lib/localterra-host-curl.sh) (`docker exec` fallback). Run **`make test-localterra-host-curl`** when compose is up. Frontend/browser still need working published ports or Docker daemon **`userland-proxy: false`** — see [`docs/local-development.md`](../../docs/local-development.md) troubleshooting.
 - **Stale wasm on disk** — `make build-optimized` then re-run deploy ( **`make deploy-local`** ).
 - **Stale deployed contracts (reused Docker volumes)** — GitLab [**#203**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203). **`make start-qa`** runs **`make qa-verify-deploy`** after deploy; it queries the deployed pair for **`is_paused`** and **`expired_limit_refund`** and compares **`.qa-deploy-stamp`** (`git_sha`) to **`HEAD`**. Failure exits non-zero with volume-reset instructions.
 

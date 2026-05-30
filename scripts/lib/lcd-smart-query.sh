@@ -2,6 +2,10 @@
 # Shared LCD cosmwasm smart-query helpers for shell scripts (QA verify, E2E seed, smoke).
 # shellcheck shell=bash
 
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/localterra-host-curl.sh
+source "$_LIB_DIR/localterra-host-curl.sh"
+
 lcd_b64_query() {
   local msg="$1"
   if [[ "$(uname)" == Darwin ]]; then
@@ -19,7 +23,7 @@ lcd_smart_query_raw() {
   lcd="${lcd%/}"
   local b64
   b64="$(lcd_b64_query "$msg_json")"
-  curl -sf "${lcd}/cosmwasm/wasm/v1/contract/${contract}/smart/${b64}"
+  localterra_lcd_curl "$lcd" "/cosmwasm/wasm/v1/contract/${contract}/smart/${b64}"
 }
 
 # GET smart query; prints HTTP status to stdout on failure path via lcd_smart_query_checked.
@@ -30,7 +34,17 @@ lcd_smart_query_http() {
   lcd="${lcd%/}"
   local b64
   b64="$(lcd_b64_query "$msg_json")"
-  curl -sS -w $'\n%{http_code}' "${lcd}/cosmwasm/wasm/v1/contract/${contract}/smart/${b64}"
+  local url="${lcd}/cosmwasm/wasm/v1/contract/${contract}/smart/${b64}"
+  local body code
+  body="$(localterra_host_curl "$url" 2>/dev/null || true)"
+  if [ -n "$body" ]; then
+    printf '%s\n200' "$body"
+    return 0
+  fi
+  curl -sS -w $'\n%{http_code}' \
+    --connect-timeout "${LOCALTERRA_CURL_CONNECT_TIMEOUT:-2}" \
+    --max-time "${LOCALTERRA_CURL_MAX_TIME:-8}" \
+    "$url"
 }
 
 # Decode `.data` from LCD smart-query JSON (base64 string or inline object).

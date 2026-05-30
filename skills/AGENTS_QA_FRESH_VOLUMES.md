@@ -30,6 +30,8 @@ See [`docs/qa-invariants.md`](../docs/qa-invariants.md). Summary:
 
 ```bash
 make test-qa-fresh-volumes
+make test-localterra-host-curl   # when localterra container is up
+make qa-verify-deploy            # schema + stamp; uses docker exec if host ports hang
 ```
 
 ## Manual volume names (fallback)

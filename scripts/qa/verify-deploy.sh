@@ -102,15 +102,17 @@ if [ -z "$FACTORY" ]; then
   exit 1
 fi
 
-if ! curl -sf "${TERRA_RPC_URL:-http://127.0.0.1:${DEX_TERRA_RPC_PORT:-26657}}/status" >/dev/null 2>&1; then
-  echo "ERROR: LocalTerra RPC not reachable at ${TERRA_RPC_URL:-…}; start compose first." >&2
+_RPC_URL="${TERRA_RPC_URL:-http://127.0.0.1:${DEX_TERRA_RPC_PORT:-26657}}"
+if ! localterra_rpc_status_ok "$_RPC_URL"; then
+  echo "ERROR: LocalTerra RPC not reachable at ${_RPC_URL} (host or docker exec); start compose first." >&2
   exit 1
 fi
 
 if [ -z "$PAIR" ]; then
   echo "[qa-verify-deploy] Resolving first dual-CW20 pair from factory ${FACTORY}..."
   Q_PAIRS="$(lcd_b64_query '{"pairs":{"start_after":null,"limit":60}}')"
-  RAW_PAIRS="$(curl -sf "${LCD}/cosmwasm/wasm/v1/contract/${FACTORY}/smart/${Q_PAIRS}")" || fail_stale_contract "factory pairs query failed (factory=${FACTORY})"
+  RAW_PAIRS="$(localterra_lcd_curl "$LCD" "/cosmwasm/wasm/v1/contract/${FACTORY}/smart/${Q_PAIRS}")" \
+    || fail_stale_contract "factory pairs query failed (factory=${FACTORY})"
   PAIRS_DOC="$(lcd_decode_smart_data "$RAW_PAIRS")"
   while IFS= read -r row; do
     [ -n "$row" ] || continue

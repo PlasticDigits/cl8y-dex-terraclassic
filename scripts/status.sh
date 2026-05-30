@@ -39,6 +39,9 @@ TERRA_RPC_URL="${TERRA_RPC_URL:-http://127.0.0.1:${DEX_TERRA_RPC_PORT:-26657}}"
 API_PORT="${API_PORT:-3001}"
 PIDFILE="${REPO_ROOT}/.indexer-qa.pid"
 
+# shellcheck source=scripts/lib/localterra-host-curl.sh
+source "$REPO_ROOT/scripts/lib/localterra-host-curl.sh"
+
 log_line() {
   local name="$1"
   local state="$2"
@@ -69,9 +72,9 @@ echo ""
 
 echo -e "${BLUE}Health:${NC}"
 
-if curl -sf "${TERRA_RPC_URL}/status" >/dev/null 2>&1; then
+if localterra_rpc_status_ok "$TERRA_RPC_URL"; then
   height=""
-  height=$(curl -sf "${TERRA_RPC_URL}/status" | jq -r '.result.sync_info.latest_block_height // empty' 2>/dev/null || true)
+  height="$(localterra_host_curl "${TERRA_RPC_URL%/}/status" | jq -r '.result.sync_info.latest_block_height // empty' 2>/dev/null || true)"
   log_line "LocalTerra" "ok" "(${TERRA_RPC_URL} block ${height:-?})"
 else
   log_line "LocalTerra" "down" "(${TERRA_RPC_URL})"

@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -41,18 +41,8 @@ swarm-stop:
 	./scripts/bots/stop-swarm.sh
 
 wait-localterra:
-	@echo "Waiting for LocalTerra..."
-	@for i in $$(seq 1 60); do \
-		if curl -sf http://localhost:26657/status > /dev/null 2>&1; then \
-			echo "LocalTerra is ready!"; \
-			exit 0; \
-		fi; \
-		if [ "$$i" -eq 60 ]; then \
-			echo "ERROR: LocalTerra did not start in time."; \
-			exit 1; \
-		fi; \
-		sleep 2; \
-	done
+	@chmod +x scripts/wait-localterra.sh scripts/lib/localterra-host-curl.sh
+	@./scripts/wait-localterra.sh
 
 wait-healthy: wait-localterra
 	@echo "Waiting for Postgres..."
@@ -88,8 +78,13 @@ test-qa-fresh-volumes:
 	./scripts/qa/test-qa-fresh-volumes.sh
 
 test-qa-verify-deploy:
-	@chmod +x scripts/qa/test-verify-deploy.sh scripts/lib/lcd-smart-query.sh
+	@chmod +x scripts/qa/test-verify-deploy.sh scripts/qa/test-localterra-host-curl.sh scripts/lib/lcd-smart-query.sh scripts/lib/localterra-host-curl.sh
 	./scripts/qa/test-verify-deploy.sh
+	./scripts/qa/test-localterra-host-curl.sh
+
+test-localterra-host-curl:
+	@chmod +x scripts/qa/test-localterra-host-curl.sh scripts/lib/localterra-host-curl.sh
+	./scripts/qa/test-localterra-host-curl.sh
 
 qa-tunnel-help:
 	@chmod +x scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh

@@ -99,6 +99,7 @@ Agent playbook (setup, test commands, troubleshooting): [`skills/AGENTS_LOCAL_PO
 |-----------------------------------|----------------------------------------------------|
 | `wasm32-unknown-unknown` missing  | `rustup target add wasm32-unknown-unknown`         |
 | LocalTerra won't start            | Ensure Docker is running, check port 1317/26657    |
+| Host `curl` to `127.0.0.1:26657` / `:1317` hangs (TCP connects, no HTTP) | Known **docker userland-proxy** issue on some Linux hosts. Chain is often healthy **inside** the container. Scripts (`make wait-localterra`, `make qa-verify-deploy`) use **`docker exec` fallback** via [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh). Browser/frontend still need published ports or fix proxy (`userland-proxy: false` in Docker daemon). |
 | Contract upload fails             | Check gas settings in deploy script                |
 | Frontend can't connect            | Verify `VITE_NETWORK=local` and LocalTerra is up   |
 | Trade page shows `not implemented` / `-32701` under Pair | `VITE_FACTORY_ADDRESS` is empty and the app hit a malformed LCD URL (often **publicnode** when `VITE_TERRA_LCD_URL` is also unset). Run **`make deploy-local`** (writes **`frontend-dapp/.env.local`**). Delete or refresh stale **`frontend-dapp/.env`** so it does not override `.env.local`. Restart `npm run dev`. |

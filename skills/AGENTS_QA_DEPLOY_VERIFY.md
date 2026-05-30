@@ -44,13 +44,25 @@ Standalone after **`git pull`** without redeploy (expect stamp mismatch):
 make qa-verify-deploy   # should fail until make deploy-local
 ```
 
+## Host RPC/LCD (`docker exec` fallback)
+
+On some Linux hosts, **host** `curl` to published `127.0.0.1:26657` / `:1317` hangs while the chain is healthy in-container. **`verify-deploy`** and **`wait-localterra`** use [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh): try host curl (short timeout), then **`docker exec … curl http://127.0.0.1:…`** into the `localterra` service. The frontend still uses host URLs from `.env.local`.
+
+```bash
+make test-localterra-host-curl   # wiring + live probe when compose is up
+make qa-verify-deploy            # uses exec fallback automatically
+```
+
 ## Files
 
 | Path | Role |
 |------|------|
 | [`scripts/qa/verify-deploy.sh`](../scripts/qa/verify-deploy.sh) | Post-deploy verification |
 | [`scripts/qa/test-verify-deploy.sh`](../scripts/qa/test-verify-deploy.sh) | Unit checks for LCD helpers (`make test-qa-verify-deploy`) |
+| [`scripts/qa/test-localterra-host-curl.sh`](../scripts/qa/test-localterra-host-curl.sh) | Exec fallback wiring (`make test-localterra-host-curl`) |
+| [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh) | Host curl + `docker exec` fallback |
 | [`scripts/lib/lcd-smart-query.sh`](../scripts/lib/lcd-smart-query.sh) | Shared LCD smart-query helpers |
+| [`scripts/wait-localterra.sh`](../scripts/wait-localterra.sh) | `make wait-localterra` |
 | [`docs/qa-invariants.md`](../docs/qa-invariants.md) | Invariant **Q1** + failure-mode table |
 | [`.qa-deploy-stamp`](../.qa-deploy-stamp) | Machine-local stamp (gitignored) |
 | [`scripts/qa/start-qa.sh`](../scripts/qa/start-qa.sh) | Calls verify after `deploy-local` |
