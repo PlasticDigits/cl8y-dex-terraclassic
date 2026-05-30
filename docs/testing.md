@@ -227,7 +227,7 @@ Market-data-down Playwright specs live in project **`e2e-indexer-outage`** (`**/
 
 | Layer | Target |
 |-------|--------|
-| **CI** | GitHub Actions job **`frontend-e2e-indexer-outage`** (`.github/workflows/test.yml`) — LocalTerra + deploy + Postgres + indexer sanity → stop → Playwright |
+| **Automation** | `make test-e2e-indexer-outage` / [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh) (workflow job name **`frontend-e2e-indexer-outage`** in [`.github/workflows/test.yml`](../.github/workflows/test.yml) is a portable spec only — this repo does not run GitHub Actions) |
 | **Local one-command** | `make test-e2e-indexer-outage` → [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh) |
 | **Manual** | Stop indexer on `:3001`, set pair from deploy, then run specs |
 
@@ -358,13 +358,15 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 
 ## CI
 
-The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
+**This project does not run GitHub Actions or GitLab CI.** The files under [`.github/workflows/`](../.github/workflows/) document the intended check matrix for local runs and future hosting. Equivalent commands are Makefile targets and scripts (see below).
+
+The reference workflow [`.github/workflows/test.yml`](../.github/workflows/test.yml) describes:
 1. `cargo fmt --check` + `cargo clippy` + contract tests via `cargo llvm-cov test` (LCOV artifact) + WASM builds
 2. **`frontend`:** `tsc --noEmit` + `npm run lint` + `npm run test:run` (jsdom unit only)
 3. **`frontend-charts-vitest`:** `npm run test:charts` with native `canvas` OS packages ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230), [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211))
 4. **Frontend charts integration:** PostgreSQL service → `sqlx migrate run` → `seed-charts-integration.sql` → release indexer binary → `npm run test:integration` against `http://127.0.0.1:3001` (local equivalent: `make test-charts-integration`, GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205))
 
-See [the workflow file](../.github/workflows/test.yml) for details.
+See [`.github/workflows/README.md`](../.github/workflows/README.md) and [the workflow file](../.github/workflows/test.yml) for job names and step order.
 
 ## Writing Tests
 

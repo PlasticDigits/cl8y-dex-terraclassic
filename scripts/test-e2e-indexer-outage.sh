@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Playwright market-data-down specs: indexer up (sanity) → stop → E2E_INDEXER_OUTAGE=1.
 # Requires: LocalTerra + scripts/deploy-dex-local.sh, Postgres reachable, indexer built.
-# CI: see job frontend-e2e-indexer-outage in .github/workflows/test.yml (GitLab #219).
+# Automation target frontend-e2e-indexer-outage (GitLab #219). Workflow spec: .github/workflows/test.yml (not executed).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

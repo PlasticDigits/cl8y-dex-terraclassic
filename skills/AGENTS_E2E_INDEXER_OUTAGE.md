@@ -2,7 +2,7 @@
 
 ## When to use
 
-You are changing **market-data-down** Playwright specs (`*-indexer-outage.spec.ts`), CI job **`frontend-e2e-indexer-outage`**, or [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh).
+You are changing **market-data-down** Playwright specs (`*-indexer-outage.spec.ts`), the **`frontend-e2e-indexer-outage`** automation path (`make test-e2e-indexer-outage`), or [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh). There is no live GitHub/GitLab CI runner — [`.github/workflows/test.yml`](../.github/workflows/test.yml) is reference only.
 
 ## Invariants
 
@@ -30,7 +30,7 @@ cd indexer && cargo build --release
 make test-e2e-indexer-outage
 ```
 
-Or CI-equivalent:
+Same steps as the reference workflow job:
 
 ```bash
 bash scripts/test-e2e-indexer-outage.sh
