@@ -16,8 +16,8 @@ Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./re
 | Pause blocks swap + limits | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `pause_blocks_swap_and_place_cancel_refunds_escrow`; [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) | L6 — see [`contracts-security-audit.md`](./contracts-security-audit.md) |
 | Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | Manual: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) | LCD `pool` + optional `simulation`; run after deploy |
 | Stubs / mocks catalog | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy below + issue #105 | LCD stub vs AMM-sim orderbook |
-| Charts integration (indexer HTTP) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | CI job `frontend-charts-integration`; **stubbed** `lightweight-charts` — not canvas |
-| Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | CI job `frontend-charts-vitest` (isolated from unit job); large-candle + real visible-range autoscale ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) |
+| Charts integration (indexer HTTP) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | Reference job `frontend-charts-integration` → `make test-charts-integration`; **stubbed** `lightweight-charts` — not canvas |
+| Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | Reference job `frontend-charts-vitest` → `make test-frontend-charts`; large-candle + real visible-range autoscale ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) |
 | Price chart candle parsing + stale pair race | [#226](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/226) | [`priceChartCandles.test.ts`](../frontend-dapp/src/components/charts/__tests__/priceChartCandles.test.ts), [`PriceChart.test.tsx`](../frontend-dapp/src/components/charts/__tests__/PriceChart.test.tsx) | Default `npm run test:run`; no Postgres |
 
 **Post-deploy smoke (#86):**
@@ -54,7 +54,7 @@ Integration tests call [`tests/common/mod.rs`](../indexer/tests/common/mod.rs) h
 
 `seed_db` / `clean_db` take an exclusive **file lock** (`/tmp/cl8y-dex-indexer-test.seed.lock`, override with `TEST_DB_LOCK_FILE`) so parallel `cargo test` processes on one host do not interleave truncate/insert (GitLab **#210** orderbook verification). Prefer serialized execution anyway:
 
-When using a **single** shared test database (typical local or CI), prefer serialized execution:
+When using a **single** shared test database (typical local or QA host), prefer serialized execution:
 
 ```bash
 cd indexer
@@ -110,9 +110,9 @@ make test-frontend-charts   # from repo root
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:charts
 ```
 
-**CI:** dedicated job **`frontend-charts-vitest`** runs `npm run test:charts` with Node `canvas` OS deps (`libcairo`, etc.) — isolated from the fast `frontend` unit job so native binding failures do not block 600+ jsdom tests ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230), [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). The job is **required** (not optional/skip silently).
+**Automation:** reference job **`frontend-charts-vitest`** → `make test-frontend-charts` (`npm run test:charts` with Node `canvas` OS deps: `libcairo`, etc.) — isolated from the fast `frontend` unit target so native binding failures do not block 600+ jsdom tests ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230), [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). Treat as **required** in release checklists (not optional/skip silently).
 
-**Local `canvas` deps (Ubuntu/Debian):** if `npm run test:charts` fails loading the native module, install the same packages as CI:
+**Local `canvas` deps (Ubuntu/Debian):** if `npm run test:charts` fails loading the native module, install the same packages as the reference workflow spec:
 
 ```bash
 sudo apt-get install -y build-essential libcairo2-dev libgif-dev libjpeg-dev libpango1.0-dev librsvg2-dev
@@ -126,16 +126,16 @@ sudo apt-get install -y build-essential libcairo2-dev libgif-dev libjpeg-dev lib
 
 ### Integration Tests (Frontend)
 
-Longer-running tests are kept out of the default `npm run test:run` suite. **Charts + indexer HTTP** coverage uses `vitest.config.integration.ts`: tests call a real indexer (`VITE_INDEXER_URL`, default `http://127.0.0.1:3001`) with PostgreSQL migrations applied. They are **not** skipped when the stack is down — the run fails so CI catches broken wiring. E2E and other flows may still use LocalTerra where documented.
+Longer-running tests are kept out of the default `npm run test:run` suite. **Charts + indexer HTTP** coverage uses `vitest.config.integration.ts`: tests call a real indexer (`VITE_INDEXER_URL`, default `http://127.0.0.1:3001`) with PostgreSQL migrations applied. They are **not** skipped when the stack is down — the run fails so automation catches broken wiring. E2E and other flows may still use LocalTerra where documented.
 
 **Charts test layers (GitLab #230):**
 
-| Layer | Command / CI job | Validates | Does **not** validate |
-|-------|------------------|-----------|------------------------|
-| Unit (jsdom stub) | `npm run test:run` / job `frontend` | React wiring, stub contract ([#227](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/227)) | Real canvas / library |
-| Real library Vitest | `npm run test:charts` / job `frontend-charts-vitest` | `lightweight-charts` init, `setData`, autoscale, large candles ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) | Indexer HTTP |
-| Indexer HTTP integration | `npm run test:integration` / job `frontend-charts-integration` | Live candles API → ChartsPage shell ([#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104)) | Canvas render (stubbed) |
-| Playwright | `npm run test:e2e` / job `e2e` | Full browser + LocalTerra tx path | Chart pixel perf at 50k candles |
+| Layer | Command / reference job | Validates | Does **not** validate |
+|-------|-------------------------|-----------|------------------------|
+| Unit (jsdom stub) | `npm run test:run` / `frontend` | React wiring, stub contract ([#227](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/227)) | Real canvas / library |
+| Real library Vitest | `npm run test:charts` / `frontend-charts-vitest` | `lightweight-charts` init, `setData`, autoscale, large candles ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) | Indexer HTTP |
+| Indexer HTTP integration | `npm run test:integration` / `frontend-charts-integration` | Live candles API → ChartsPage shell ([#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104)) | Canvas render (stubbed) |
+| Playwright | `npm run test:e2e` / `e2e` | Full browser + LocalTerra tx path | Chart pixel perf at 50k candles |
 
 **Charts integration (local)**
 
@@ -185,7 +185,7 @@ Config: `vitest.config.integration.ts`
 
 ### E2E Tests (Playwright)
 
-Full browser tests against the running dApp + LocalTerra. **Strict on-chain policy** ([GitLab **#201**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [**#103**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/103)): default CI/local tx specs **fail** when LCD, funds, routes, or pairs are missing — no silent `test.skip` for those gaps.
+Full browser tests against the running dApp + LocalTerra. **Strict on-chain policy** ([GitLab **#201**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [**#103**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/103)): default strict automation/local tx specs **fail** when LCD, funds, routes, or pairs are missing — no silent `test.skip` for those gaps.
 
 ```bash
 make test-e2e-tx              # one command: LocalTerra + deploy + strict tx project
@@ -206,7 +206,7 @@ Browser regression for **lightweight-charts** canvas presence and **fullscreen**
 
 | Layer | Spec / helper | What it proves |
 |-------|----------------|----------------|
-| **Strict CI / local** | `e2e/price-chart-smoke.spec.ts` (`e2e-smoke` project) | `/charts` and `/trade` mount `price-chart-lightweight-canvas` + child `canvas`; interval `1h`→`1d` keeps canvas; read-only chart without wallet |
+| **Strict automation / local** | `e2e/price-chart-smoke.spec.ts` (`e2e-smoke` project) | `/charts` and `/trade` mount `price-chart-lightweight-canvas` + child `canvas`; interval `1h`→`1d` keeps canvas; read-only chart without wallet |
 | **Fullscreen (no indexer)** | Same file, mocked Fullscreen API via `e2e/helpers/price-chart.ts` | `aria-label` **Expand…** / **Exit…**, `aria-pressed`, denied enter does not remove button |
 | **UI-only skip** | `PLAYWRIGHT_SKIP_CHAIN=1` | Entire spec **skipped** (trade workspace + indexer required for toolbar and canvas) |
 | **Outage regression** | `*-indexer-outage.spec.ts` (separate job) | Unchanged — `trade-chart-unavailable` when indexer stopped ([#165](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/165), [#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
@@ -217,7 +217,7 @@ bash scripts/e2e-start-indexer.sh
 bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/price-chart-smoke.spec.ts --project=e2e-smoke
 ```
 
-CI job **`e2e`** starts Postgres, deploys, builds the indexer, runs **`e2e-start-indexer.sh`**, then **`npm run test:e2e`** ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)).
+Reference job **`e2e`** (local: Postgres + `deploy-dex-local.sh` + `bash scripts/e2e-start-indexer.sh` + `make test-e2e`) starts the stack, then runs full Playwright ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)).
 
 Chart invariants: [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants). Agent: [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md).
 
@@ -234,7 +234,7 @@ Chart invariants: [Trade page — price chart invariants](./frontend.md#trade-pa
 
 #### Frontend E2E — indexer outage {#frontend-e2e-indexer-outage}
 
-Market-data-down Playwright specs live in project **`e2e-indexer-outage`** (`**/*-indexer-outage.spec.ts`). They require the indexer HTTP API to be **stopped** while LocalTerra/Vite remain up, with **`E2E_INDEXER_OUTAGE=1`**. Default `npm run test:e2e` and the strict **`e2e`** CI job **exclude** this project — avoids flaking the strict chain suite ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)).
+Market-data-down Playwright specs live in project **`e2e-indexer-outage`** (`**/*-indexer-outage.spec.ts`). They require the indexer HTTP API to be **stopped** while LocalTerra/Vite remain up, with **`E2E_INDEXER_OUTAGE=1`**. Default `npm run test:e2e` and the strict **`e2e`** reference job **exclude** this project — avoids flaking the strict chain suite ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)).
 
 | Layer | Target |
 |-------|--------|
@@ -254,7 +254,7 @@ E2E_INDEXER_OUTAGE=1 npm run test:e2e:indexer-outage
 
 **Env vars:** `E2E_INDEXER_OUTAGE=1` (required for specs to run); `VITE_E2E_INDEXER_OUTAGE=1` (set automatically — fast indexer transport failure in the browser); `E2E_TRADE_PAIR` (optional — defaults to first deploy pair via `.qa-deploy-stamp` / factory LCD); `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`).
 
-After sanity on `:3001`, Playwright runs with **`OUTAGE_E2E_INDEXER_URL`** (default `http://127.0.0.1:39991`, nothing listening) so a shared host cannot auto-restart the QA indexer on `:3001` and produce a false green. CI and local use the same path via [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh).
+After sanity on `:3001`, Playwright runs with **`OUTAGE_E2E_INDEXER_URL`** (default `http://127.0.0.1:39991`, nothing listening) so a shared host cannot auto-restart the QA indexer on `:3001` and produce a false green. Local and reference-job paths use the same script: [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh).
 
 **Local QA stack:** If an indexer is already listening on `:3001` (e.g. `make qa-start`), `test-e2e-indexer-outage.sh` reuses it for the sanity check, then stops **every** process bound to that port before Playwright. Restart afterward with `bash scripts/e2e-start-indexer.sh` or `make qa-start` (indexer only) if other work needs the API.
 
@@ -264,7 +264,7 @@ Vitest covers Charts/Trader/Pool/**Limits** outage banners with mocked transport
 
 **Connected wallet chip — network label:** same spec file — desktop **`Local`** short label on the trigger at 1280px, mobile LUNC without visible network text, connected chip vs **More** non-overlap at 773px ([GitLab **#186**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186); [docs/frontend.md § Connected wallet chip — network & mobile](./frontend.md#connected-wallet-chip-network-mobile)).
 
-**Local stack for strict on-chain tests (default CI path):**
+**Local stack for strict on-chain tests (default `e2e` automation path):**
 
 1. `docker compose up -d localterra`
 2. From repo root: `bash scripts/deploy-dex-local.sh` (writes `frontend-dapp/.env.local`, deploys contracts, seeds CW20 balances on the dev account `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v`).
@@ -282,7 +282,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/pool-tx
 
 **Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx` — first **unpaused** dual-CW20 pair via LCD `is_paused`. See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
-**Optional chain (skip instead of fail):** set `PLAYWRIGHT_SKIP_CHAIN=1` (or legacy `REQUIRE_LOCALTERRA=0`) for local UI-only runs (`npm run test:e2e:smoke`). **Do not** set this in CI. Default is strict (unset).
+**Optional chain (skip instead of fail):** set `PLAYWRIGHT_SKIP_CHAIN=1` (or legacy `REQUIRE_LOCALTERRA=0`) for local UI-only runs (`npm run test:e2e:smoke`). **Do not** set this in release automation checklists. Default is strict (unset).
 
 **GitLab [#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138) verification (risk surfacing + E2E blockers):** after LocalTerra + `deploy-dex-local.sh` + indexer on `VITE_INDEXER_URL` (see [`docs/frontend.md` § Risk surfacing](./frontend.md#legal-risk-surfacing)):
 
@@ -367,17 +367,39 @@ Or from the repo root: `make coverage-contracts` (writes `smartcontracts/lcov.in
 
 Use coverage to find **untested business logic**, not as a vanity metric — see [contracts-security-audit.md](./contracts-security-audit.md) for invariant-to-test mapping.
 
-## CI
+## CI {#ci}
 
-**This project does not run GitHub Actions or GitLab CI.** The files under [`.github/workflows/`](../.github/workflows/) document the intended check matrix for local runs and future hosting. Equivalent commands are Makefile targets and scripts (see below).
+**Invariants ([GitLab #234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)):**
 
-The reference workflow [`.github/workflows/test.yml`](../.github/workflows/test.yml) describes:
-1. `cargo fmt --check` + `cargo clippy` + contract tests via `cargo llvm-cov test` (LCOV artifact) + WASM builds
-2. **`frontend`:** `tsc --noEmit` + `npm run lint` + `npm run test:run` (jsdom unit only)
-3. **`frontend-charts-vitest`:** `npm run test:charts` with native `canvas` OS packages ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230), [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211))
-4. **Frontend charts integration:** PostgreSQL service → `sqlx migrate run` → `seed-charts-integration.sql` → release indexer binary → `npm run test:integration` against `http://127.0.0.1:3001` (local equivalent: `make test-charts-integration`, GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205))
+| Concept | Canonical wording |
+|--------|-------------------|
+| Where checks run | **Local / QA host** — `make …`, `scripts/*.sh` |
+| [`.github/workflows/*.yml`](../.github/workflows/) | **Reference spec only** (job names, services, step order) |
+| Job names (`e2e`, `frontend-charts-integration`, …) | **Labels** mapping to Make/scripts below |
+| “CI green on main” | **Local automation checklist passed** or the named Make target |
+| Hosted runners | **None today** — this repo does **not** run GitHub Actions or GitLab CI |
 
-See [`.github/workflows/README.md`](../.github/workflows/README.md) and [the workflow file](../.github/workflows/test.yml) for job names and step order.
+**Agents:** Do not tell third parties to wait for GitHub Actions on `main`. Point to [`docs/testing.md` § CI](#ci), [`.github/workflows/README.md`](../.github/workflows/README.md), and the relevant `skills/AGENTS_*.md` playbook.
+
+### Reference job → local command
+
+| Reference job (`test.yml`) | Local command |
+|--------------------------|---------------|
+| `docs-fee-discount-tiers` | `make check-fee-discount-tier-docs` |
+| `contracts-terra` | `make lint-contracts` && `make test-contracts` (optional LCOV: `make coverage-contracts`) |
+| `localnet-trading-swarm` | `cd packages/localnet-trading-swarm && npm ci && npx tsc -p tsconfig.json && npm run test:run` |
+| `frontend` | `bash scripts/with-node.sh --cwd frontend-dapp -- npx tsc --noEmit` && `make lint-frontend` && `make test-frontend` |
+| `frontend-charts-vitest` | `make test-frontend-charts` ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230), [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)) |
+| `frontend-charts-integration` | `make test-charts-integration` ([#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205)) |
+| `indexer` | Postgres + `cd indexer && cargo fmt --check && cargo clippy -- -D warnings && cargo test` (integration: [§ Shared Postgres](#shared-postgres-and-test-parallelism)) |
+| `e2e` | `make wait-localterra` → `bash scripts/deploy-dex-local.sh` → `make qa-verify-deploy` → `bash scripts/e2e-start-indexer.sh` → `make test-e2e` |
+| `frontend-e2e-indexer-outage` | `make test-e2e-indexer-outage` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
+
+**Wasm (release):** reference job in [`contracts-wasm-optimizer.yml`](../.github/workflows/contracts-wasm-optimizer.yml) → `make build-optimized`. Fast `cargo wasm` in `test.yml` is dev-only; see [deployment guide § Build Optimized WASM](./deployment-guide.md#1-build-optimized-wasm).
+
+The reference workflow [`.github/workflows/test.yml`](../.github/workflows/test.yml) also documents step order for: contract `cargo fmt` / `clippy` / `llvm-cov`, indexer Postgres service container, and Playwright browser install. Full mapping: [`.github/workflows/README.md`](../.github/workflows/README.md).
+
+**Agent playbooks:** [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md), [`skills/AGENTS_E2E_INDEXER_OUTAGE.md`](../skills/AGENTS_E2E_INDEXER_OUTAGE.md), [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md), [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
 
 ## Writing Tests
 

@@ -4,6 +4,8 @@
 
 Use this when adding or extending coverage for hybrid indexing, fee discount on book legs, frontend hybrid message shapes, pause UX, post-deploy smoke, stub policy, or charts integration.
 
+**Local automation only** — no hosted GitHub/GitLab CI ([#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)). Reference job → Make mapping: [docs/testing.md § CI](../docs/testing.md#ci).
+
 ## Coverage map
 
 | Area | Sub-issue | Automated evidence | Manual gate |
@@ -14,8 +16,8 @@ Use this when adding or extending coverage for hybrid indexing, fee discount on 
 | **Pause** blocks swap + limits + cancel UX | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `limit_order_tests::pause_blocks_swap_and_place_cancel_refunds_escrow` (L6); [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) pause banner + disabled limit CTA | E2E: strict specs skip/fail on paused pair via [`hybrid-e2e.ts`](../frontend-dapp/e2e/helpers/hybrid-e2e.ts) |
 | Post-deploy **smoke** | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | — | [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) after deploy |
 | **Stubs / mocks catalog** | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy in [`docs/testing.md`](../docs/testing.md) | Review stub list when adding new test doubles |
-| **Charts** integration (not jsdom-only) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx); CI job **`frontend-charts-integration`** (indexer HTTP; **stubbed** canvas) | Local: `make test-charts-integration` — [`docs/testing.md` § Integration Tests (Frontend)](../docs/testing.md#integration-tests-frontend); GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) |
-| **Charts** real library Vitest | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}`; CI job **`frontend-charts-vitest`** | Local: `make test-frontend-charts`; Ubuntu `canvas` deps in [`docs/testing.md`](../docs/testing.md#real-lightweight-charts-in-vitest-gitlab-211) |
+| **Charts** integration (not jsdom-only) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx); reference job **`frontend-charts-integration`** | Local: `make test-charts-integration` — [`docs/testing.md` § Integration Tests (Frontend)](../docs/testing.md#integration-tests-frontend); GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) |
+| **Charts** real library Vitest | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}`; reference job **`frontend-charts-vitest`** | Local: `make test-frontend-charts`; Ubuntu `canvas` deps in [`docs/testing.md`](../docs/testing.md#real-lightweight-charts-in-vitest-gitlab-211) |
 
 ## Invariants cross-links
 

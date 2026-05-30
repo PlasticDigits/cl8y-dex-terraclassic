@@ -4,7 +4,7 @@ Use this checklist when **migrating** or **upgrading** CosmWasm contracts (facto
 
 ## Pre-flight
 
-- [ ] **Artifact:** Production wasm from **workspace-optimizer** only (`make build-optimized` / CI optimizer workflow). Do not upload ad-hoc `cargo wasm` from PR builds to mainnet.
+- [ ] **Artifact:** Production wasm from **workspace-optimizer** only (`make build-optimized`). Do not upload ad-hoc `cargo wasm` from dev checks to mainnet ([docs/testing.md § CI](../testing.md#ci)).
 - [ ] **Checksums:** Record `wasm-checksums.txt` and code IDs for audit trail.
 - [ ] **Governance:** `admin` on contracts is the intended multisig or DAO; verify with `terrad query wasm contract <addr>`.
 

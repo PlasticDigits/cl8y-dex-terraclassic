@@ -75,6 +75,10 @@ cl8y-dex-terraclassic/
 | Testnet | `rebel-2` | `https://terra-classic-lcd.publicnode.com` |
 | Mainnet | `columbus-5` | `https://terra-classic-lcd.publicnode.com` |
 
+## How we test
+
+This repo is on **GitLab** and does **not** run GitHub Actions or GitLab CI. Checks run on your machine or QA host via **`make`** and **`scripts/`**. The YAML under [`.github/workflows/`](.github/workflows/) is a **reference checklist** only (job names map to Make targets). See [docs/testing.md § CI](docs/testing.md#ci) and [`.github/workflows/README.md`](.github/workflows/README.md). Agent playbooks: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](skills/AGENTS_E2E_STRICT_CHAIN.md), [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
+
 ## Documentation
 
 Project docs (architecture, integrators, runbooks, testing) are indexed in [`docs/README.md`](docs/README.md). For **local, testnet, and mainnet** chain IDs, LCD defaults, and indexer expectations (`RUN_MODE`, `LCD_URLS`, etc.), see the [environment matrix](docs/environment-matrix.md).
@@ -89,7 +93,7 @@ The default branch is **`main`** (the only long-lived integration branch). Merge
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Rust](https://rustup.rs/) with `wasm32-unknown-unknown` target
-- **[nvm](https://github.com/nvm-sh/nvm)** + Node **24** (`nvm install` / `nvm use` — see `.nvmrc`). Makefile and `scripts/with-node.sh` activate it automatically; CI uses `setup-node` instead.
+- **[nvm](https://github.com/nvm-sh/nvm)** + Node **24** (`nvm install` / `nvm use` — see `.nvmrc`). Makefile and `scripts/with-node.sh` activate it automatically for local automation.
 
 ### Smart Contracts
 

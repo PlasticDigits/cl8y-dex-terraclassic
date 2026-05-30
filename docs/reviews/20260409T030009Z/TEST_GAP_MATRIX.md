@@ -1,5 +1,7 @@
 # Test gap matrix
 
+> **Historical snapshot.** References to “CI” and `.github/workflows` as live runners are outdated — see [docs/testing.md § CI](../../testing.md#ci) ([GitLab #234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)).
+
 ## Existing evidence (summary)
 
 | Area | Evidence |
@@ -47,7 +49,7 @@ rg "hybrid" frontend-dapp/e2e -n
 
 | Check | CI | Gap |
 |-------|----|-----|
-| `cargo llvm-cov` contracts | yes `.github/workflows/test.yml` | Does not run `build-optimized` |
+| `cargo llvm-cov` contracts | `make coverage-contracts` (ref. `contracts-terra`) | Does not run `build-optimized` |
 | Indexer tests | yes with Postgres | Integration parallelism note [`docs/testing.md`](../../testing.md) |
 | Playwright | yes | `hybrid-swap.spec.ts` asserts hybrid disclosure + doc link when LCD up |
 

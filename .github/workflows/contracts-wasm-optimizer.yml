@@ -1,9 +1,9 @@
-# Release-grade CosmWasm artifacts using workspace-optimizer (same as `make build-optimized`).
+# REFERENCE ONLY — not executed on GitLab. Local release-grade wasm: `make build-optimized`.
 #
-# PR CI (`.github/workflows/test.yml`) still uses `cargo build --target wasm32-unknown-unknown` for speed;
-# that output is NOT a substitute for these artifacts for mainnet uploads.
+# Fast dev wasm (`cargo build --target wasm32-unknown-unknown`) is documented in `test.yml` for parity
+# with PR checks; that output is NOT a substitute for optimizer artifacts on mainnet uploads.
 #
-# Manual smoke: Actions → "Contracts WASM (workspace-optimizer)" → Run workflow.
+# If this YAML were hosted on GitHub Actions, `workflow_dispatch` would mirror `make build-optimized`.
 name: Contracts WASM (workspace-optimizer)
 
 on:

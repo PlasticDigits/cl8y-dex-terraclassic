@@ -1,3 +1,5 @@
+# REFERENCE ONLY — this repo is hosted on GitLab and does not run GitHub Actions or GitLab CI.
+# Job names and step order map to Makefile targets and scripts (docs/testing.md § CI).
 name: CI
 
 on:

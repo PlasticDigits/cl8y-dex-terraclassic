@@ -5,7 +5,7 @@
 
 ## Current evidence
 - Existing tests: (file paths)
-- CI job:
+- Automation target (Make / reference job — see [docs/testing.md § CI](../../../testing.md#ci)):
 
 ## Missing coverage
 - Unit / integration / E2E / property / fuzz

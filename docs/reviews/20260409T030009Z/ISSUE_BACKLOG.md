@@ -1,5 +1,7 @@
 # Issue backlog (GitLab-ready)
 
+> **Historical snapshot.** Items that mention “CI job” or GitHub Actions assume a hosted runner; current policy is [local automation](../../testing.md#ci) ([#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)).
+
 **Last reviewed:** 2026-04-22 (synced with `main`; live tracking in [GitLab issues](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues)).
 
 Use labels: `contracts`, `backend`, `frontend`, `indexer`, `infra`, `docs`, `security`, `testing`, `architecture`, `v2`, `limit-orders`, `hybrid`, `launch-blocker`, `nice-to-have`.
@@ -28,12 +30,12 @@ Priority: **P0** correctness/architecture, **P1** production completeness, **P2*
 
 ## Epic 2: v2 swaps completion
 
-### DEX-P1-009 — CI/CD: optimizer wasm parity
+### DEX-P1-009 — Automation: optimizer wasm parity
 
-- **Problem:** CI builds `cargo` wasm; production uses Docker optimizer ([`Makefile`](../../../Makefile) L78–87 vs [`.github/workflows/test.yml`](../../../.github/workflows/test.yml) L59–78).
+- **Problem:** Dev checks use `cargo` wasm; production uses Docker optimizer ([`Makefile`](../../../Makefile) vs reference [`.github/workflows/test.yml`](../../../.github/workflows/test.yml)).
 - **Why it matters:** Subtle codegen/size differences; release discipline.
-- **Scope:** Add CI job to run optimizer (cached) **or** verify checksums against release artifacts; document policy.
-- **Acceptance criteria:** Release checklist states which artifact is canonical; CI enforces one policy.
+- **Scope:** Document policy in [docs/testing.md § CI](../../testing.md#ci) and [deployment-guide](../../deployment-guide.md); optional hosted runner later.
+- **Acceptance criteria:** Release checklist states `make build-optimized` as canonical; dev wasm never uploaded to mainnet.
 - **Labels:** `infra`, `testing`, `v2`, `launch-blocker`
 - **Priority:** P1
 - **Blockers:** v2 launch

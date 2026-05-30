@@ -17,7 +17,7 @@ See also: **[Pool-only v2 launch runbook](runbooks/launch-checklist.md)** — go
 make build-optimized
 ```
 
-CI uses a **hybrid** policy: pull requests run fast `cargo build --target wasm32-unknown-unknown` in [`.github/workflows/test.yml`](../.github/workflows/test.yml) only. **Do not upload PR wasm to mainnet** — run the **[Contracts WASM (workspace-optimizer)](../.github/workflows/contracts-wasm-optimizer.yml)** workflow (`workflow_dispatch` or on `main` / version tags) and use its artifacts plus `wasm-checksums.txt` for release uploads.
+**Wasm policy (local automation, [GitLab #234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)):** Dev checks may use fast `cargo build --target wasm32-unknown-unknown` (see reference job `contracts-terra` in [`.github/workflows/test.yml`](../.github/workflows/test.yml)). **Do not upload that wasm to mainnet.** Release uploads use **`make build-optimized`** (workspace-optimizer; same as reference spec [`.github/workflows/contracts-wasm-optimizer.yml`](../.github/workflows/contracts-wasm-optimizer.yml)) and `wasm-checksums.txt` under `smartcontracts/artifacts/`.
 
 ## 2. Upload Code
 
