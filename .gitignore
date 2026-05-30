@@ -21,6 +21,9 @@ smartcontracts/lcov.info
 infra/
 docker-compose.override.yml
 
+# LocalTerra node data (local dev)
+.localterra/
+
 # IDE
 .idea/
 *.swp
