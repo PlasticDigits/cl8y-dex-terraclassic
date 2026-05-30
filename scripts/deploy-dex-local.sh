@@ -184,7 +184,12 @@ if [ ! -f "$ARTIFACTS_DIR/cw20_mintable.wasm" ] && [ ! -f "$ARTIFACTS_DIR/cw20_b
         --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
         cosmwasm/workspace-optimizer:0.16.1
     cp "$CW20_TMP_DIR/artifacts/cw20_mintable.wasm" "$ARTIFACTS_DIR/"
-    rm -rf "$CW20_TMP_DIR"
+    # workspace-optimizer writes root-owned files under CW20_TMP_DIR
+    if [ -d "$CW20_TMP_DIR" ]; then
+      docker run --rm -v "$CW20_TMP_DIR":/w alpine:3.20 rm -rf /w 2>/dev/null \
+        || rm -rf "$CW20_TMP_DIR" 2>/dev/null \
+        || true
+    fi
     echo "  cw20_mintable.wasm built and copied to artifacts."
     docker cp "$ARTIFACTS_DIR/cw20_mintable.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
 fi
