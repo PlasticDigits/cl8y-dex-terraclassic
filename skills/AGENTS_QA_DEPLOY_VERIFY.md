@@ -49,7 +49,9 @@ make qa-verify-deploy   # should fail until make deploy-local
 | Path | Role |
 |------|------|
 | [`scripts/qa/verify-deploy.sh`](../scripts/qa/verify-deploy.sh) | Post-deploy verification |
+| [`scripts/qa/test-verify-deploy.sh`](../scripts/qa/test-verify-deploy.sh) | Unit checks for LCD helpers (`make test-qa-verify-deploy`) |
 | [`scripts/lib/lcd-smart-query.sh`](../scripts/lib/lcd-smart-query.sh) | Shared LCD smart-query helpers |
+| [`docs/qa-invariants.md`](../docs/qa-invariants.md) | Invariant **Q1** + failure-mode table |
 | [`.qa-deploy-stamp`](../.qa-deploy-stamp) | Machine-local stamp (gitignored) |
 | [`scripts/qa/start-qa.sh`](../scripts/qa/start-qa.sh) | Calls verify after `deploy-local` |
 | [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh) | Writes stamp in Phase 6.3 |
@@ -67,4 +69,4 @@ make qa-verify-deploy   # should fail until make deploy-local
 1. Run **`make start-qa`** (or **`make deploy-local`** + **`make qa-verify-deploy`**) on the QA host.
 2. Confirm **`.qa-deploy-stamp`** `git_sha` matches **`HEAD`**.
 3. Re-**`scp`** **`frontend-dapp/.env.local`** to laptops before live walks.
-4. If verification fails, wipe volumes (see README) — do not silence the check.
+4. If verification fails, use the **failure-mode table** above (stamp mismatch → redeploy; schema probe → reset volumes) — do not silence the check.
