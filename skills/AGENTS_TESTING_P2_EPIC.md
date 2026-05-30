@@ -74,7 +74,7 @@ Full catalog: [GitLab **#105**](https://gitlab.com/PlasticDigits/cl8y-dex-terrac
 | `vitest.config.charts.ts` + `chartsSetup.ts` | Real library Vitest ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)) | Same; `npm run test:charts` |
 | E2E `REQUIRE_LOCALTERRA=0` | Playwright global setup | Full LocalTerra stack |
 
-**Rule:** Do not add `#[ignore]` / permanent skips without a linked follow-up issue. Prefer strict fail in default CI when the stack is required.
+**Rule:** Do not add `#[ignore]` / permanent skips without a linked follow-up issue. Prefer strict fail in default local automation (reference job `e2e`) when the stack is required.
 
 ## When to extend this epic
 

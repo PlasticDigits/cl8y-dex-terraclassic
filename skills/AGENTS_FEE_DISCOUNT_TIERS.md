@@ -28,7 +28,7 @@ make check-fee-discount-tier-docs
 python3 scripts/check_fee_discount_tier_docs.py
 ```
 
-CI should run this when `docs/**`, `scripts/deploy-dex-local.sh`, or `tier_fixtures.rs` change.
+Run **`make check-fee-discount-tier-docs`** (reference job `docs-fee-discount-tiers`; [docs/testing.md § CI](../docs/testing.md#ci)) when `docs/**`, `scripts/deploy-dex-local.sh`, or `tier_fixtures.rs` change.
 
 ## Related docs
 
