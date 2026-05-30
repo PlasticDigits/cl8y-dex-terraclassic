@@ -43,7 +43,7 @@ Resting **FIFO limit orders** live on each pair contract. The indexer exposes re
 
 **LCD cost:** each **`limit-book`** page costs up to **1 + limit** smart queries (head or cursor lookup + one `limit_order` per returned row). No server-side caching of arbitrary deep walks — **clients paginate**.
 
-**Not the AMM book:** CoinGecko/CoinMarketCap **`/cg/orderbook`** and **`/cmc/orderbook`** simulate pool curve depth — not the on-chain limit book ([CG_CMC_COMPLIANCE.md](./CG_CMC_COMPLIANCE.md)).
+**Not the on-chain FIFO book:** CoinGecko/CoinMarketCap **`/cg/orderbook`** and **`/cmc/orderbook`** return **hybrid-simulated** depth (AMM curve walk + merged resting limits; GitLab **#220**) — not a live CEX L2 feed. On-chain FIFO book: **`limit-book`** above; listing spec: [CG_CMC_COMPLIANCE.md](./CG_CMC_COMPLIANCE.md).
 
 OpenAPI: served from the indexer Swagger UI (`/swagger-ui/`). Regression tests: [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs).
 

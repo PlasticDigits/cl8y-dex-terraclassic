@@ -2,7 +2,9 @@ mod common;
 
 use axum_test::TestServer;
 use serde_json::Value;
+use serial_test::serial;
 
+#[serial]
 #[tokio::test]
 async fn cg_pairs_returns_200() {
     let pool = common::setup_pool().await;
@@ -20,6 +22,7 @@ async fn cg_pairs_returns_200() {
     assert_eq!(body[0]["target"], "USTC");
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_tickers_returns_200() {
     let pool = common::setup_pool().await;
@@ -37,6 +40,7 @@ async fn cg_tickers_returns_200() {
     assert!(body[0]["base_volume"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_historical_trades_returns_trades() {
     let pool = common::setup_pool().await;
@@ -61,6 +65,7 @@ async fn cg_historical_trades_returns_trades() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_historical_trades_invalid_ticker() {
     let pool = common::setup_pool().await;
@@ -72,6 +77,7 @@ async fn cg_historical_trades_invalid_ticker() {
     resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_historical_trades_invalid_type_rejected() {
     let pool = common::setup_pool().await;
@@ -85,6 +91,7 @@ async fn cg_historical_trades_invalid_type_rejected() {
     resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_historical_trades_limit_capped_at_500() {
     let pool = common::setup_pool().await;
@@ -102,6 +109,7 @@ async fn cg_historical_trades_limit_capped_at_500() {
     assert!(buys.len() + sells.len() <= 500);
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_invalid_ticker_format() {
     let pool = common::setup_pool().await;
@@ -113,6 +121,7 @@ async fn cg_orderbook_invalid_ticker_format() {
     resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_depth_capped() {
     let pool = common::setup_pool().await;
@@ -133,6 +142,7 @@ async fn cg_orderbook_depth_capped() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_historical_trades_filter_buy() {
     let pool = common::setup_pool().await;

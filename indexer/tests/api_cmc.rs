@@ -2,7 +2,9 @@ mod common;
 
 use axum_test::TestServer;
 use serde_json::Value;
+use serial_test::serial;
 
+#[serial]
 #[tokio::test]
 async fn cmc_summary_returns_200() {
     let pool = common::setup_pool().await;
@@ -20,6 +22,7 @@ async fn cmc_summary_returns_200() {
     assert!(body[0]["last_price"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_assets_returns_map() {
     let pool = common::setup_pool().await;
@@ -37,6 +40,7 @@ async fn cmc_assets_returns_map() {
     assert!(body["LUNC"]["name"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_ticker_returns_map() {
     let pool = common::setup_pool().await;
@@ -53,6 +57,7 @@ async fn cmc_ticker_returns_map() {
     assert!(body["LUNC_USTC"]["last_price"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_trades_returns_trades() {
     let pool = common::setup_pool().await;
@@ -69,6 +74,7 @@ async fn cmc_trades_returns_trades() {
     assert!(body[0]["price"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_orderbook_returns_openware_array_wrapper() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -94,6 +100,7 @@ async fn cmc_orderbook_returns_openware_array_wrapper() {
     assert!(arr[0]["asks"].is_array());
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_orderbook_unknown_pair_returns_404_not_array() {
     let pool = common::setup_pool().await;
@@ -110,6 +117,7 @@ async fn cmc_orderbook_unknown_pair_returns_404_not_array() {
     );
 }
 
+#[serial]
 #[tokio::test]
 async fn cg_orderbook_stays_object_not_array() {
     let mock = common::lcd_mock::start_pool_query_mock().await;
@@ -131,6 +139,7 @@ async fn cg_orderbook_stays_object_not_array() {
     assert!(!body.is_array());
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_orderbook_invalid_market_pair_returns_400() {
     let pool = common::setup_pool().await;
@@ -142,6 +151,7 @@ async fn cmc_orderbook_invalid_market_pair_returns_400() {
     resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_orderbook_depth_capped_when_ok() {
     let pool = common::setup_pool().await;
@@ -163,6 +173,7 @@ async fn cmc_orderbook_depth_capped_when_ok() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn cmc_trades_invalid_pair_returns_400() {
     let pool = common::setup_pool().await;
