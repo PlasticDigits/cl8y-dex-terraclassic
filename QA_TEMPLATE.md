@@ -302,6 +302,8 @@
 
 ### 5.1 Price Chart
 
+> **Automation (GitLab #228):** Playwright `e2e/price-chart-smoke.spec.ts` covers canvas mount on `/charts` and `/trade`, interval stability, and fullscreen `aria-label` toggles. Outage copy: `e2e/*-indexer-outage.spec.ts`. **§5.1.12** (zoom/scroll) stays manual ([#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211)). Matrix: [docs/testing.md § Price chart Playwright smoke](docs/testing.md#price-chart-playwright-smoke-gitlab-228).
+
 > **“Find pair” search and selection** when filtering narrows the list: see **§23.5**.
 
 | # | Test Case | Steps | Expected Result | Status | Notes |

@@ -221,6 +221,17 @@ CI job **`e2e`** starts Postgres, deploys, builds the indexer, runs **`e2e-start
 
 Chart invariants: [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants). Agent: [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../skills/AGENTS_FRONTEND_PRICE_CHART.md).
 
+**Manual QA crosswalk** ([`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §5.1 — GitLab #228 verification):
+
+| QA row | Automated? | Where |
+|--------|------------|-------|
+| 5.1.1 Chart loads (`/charts`) | Yes | `e2e/price-chart-smoke.spec.ts` — `price-chart-lightweight-canvas` + child `canvas` |
+| 5.1.5 / 5.1.7 Interval (1h / 1d) | Partial | Same spec — `/trade` interval click 1h→1d keeps canvas |
+| 5.1.10 Loading state | Partial | Mobile viewport test — canvas **or** “Loading chart…” |
+| 5.1.11 Error / outage | Yes (regression) | `e2e/*-indexer-outage.spec.ts` (separate job; not `price-chart-smoke`) |
+| 5.1.12 Zoom / scroll | **Manual** | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211) — no pixel assertions in Playwright |
+| Fullscreen aria | Yes | `price-chart-smoke.spec.ts` + `e2e/helpers/price-chart.ts` (mocked Fullscreen API) |
+
 #### Frontend E2E — indexer outage {#frontend-e2e-indexer-outage}
 
 Market-data-down Playwright specs live in project **`e2e-indexer-outage`** (`**/*-indexer-outage.spec.ts`). They require the indexer HTTP API to be **stopped** while LocalTerra/Vite remain up, with **`E2E_INDEXER_OUTAGE=1`**. Default `npm run test:e2e` and the strict **`e2e`** CI job **exclude** this project — avoids flaking the strict chain suite ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)).
