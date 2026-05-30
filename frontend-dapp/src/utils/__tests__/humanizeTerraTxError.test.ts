@@ -76,7 +76,8 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
       const out = tryHumanizeTerraTxMessage(raw)
       expect(out).not.toBeNull()
       expect(out).toContain('3000 uluna')
-      expect(out).toContain('npm ci')
+      expect(out).toContain('Keplr')
+      expect(out).toContain('#235')
     })
 
     it('humanizes generic insufficient fees', () => {

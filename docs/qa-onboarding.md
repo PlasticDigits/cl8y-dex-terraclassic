@@ -6,7 +6,7 @@
 - **nvm** + Node **24** (`nvm use` at repo root, or `bash scripts/with-node.sh -- …`)
 - **Docker** and **Docker Compose**
 - **Rust** (stable) with `wasm32-unknown-unknown` target (for building contracts and running the indexer)
-- A Terra Classic wallet (Station extension) with testnet LUNC
+- A Terra Classic wallet with testnet LUNC — **Terra Classic Keplr (extension)** for local QA; **Terra Station** for **columbus-5** P0 only (Station cannot verify fees/signing on LocalTerra — [GitLab #235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235))
 - Access to the repository — [GitLab](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)
 
 ## Git Workflow
@@ -141,7 +141,7 @@ For Yield Omega DEX QA on a shared server, see [`scripts/qa/README.md`](../scrip
 1. Connect wallet
 2. Select input/output tokens from the dropdown
 3. Enter an amount — verify the estimated output updates
-4. Click Swap — confirm the transaction in Station
+4. Click Swap — confirm the transaction in your wallet (**Keplr** or **dev/simulated wallet** on LocalTerra; **Station** on columbus-5 only — [#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235))
 5. Verify balances updated correctly
 6. Verify the fee was deducted (check treasury balance or tx events)
 
@@ -173,11 +173,22 @@ The short **`docs/qa-templates/qa-test-pass.md`** template includes condensed bu
 
 ## Wallet Matrix
 
+### LocalTerra (`VITE_NETWORK=local`)
+
+| Wallet              | Platform | Priority        |
+|---------------------|----------|-----------------|
+| Keplr (ext)         | Chrome   | P0              |
+| Dev / simulated     | Chrome   | P0 (when enabled) |
+| Station (ext)       | —        | **N/A** — use columbus-5 for Station P0 ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)) |
+
+### columbus-5 (mainnet / staging)
+
 | Wallet          | Platform    | Priority |
 |-----------------|-------------|----------|
 | Station (ext)   | Chrome      | P0       |
 | Station (ext)   | Firefox     | P1       |
 | Station (mobile)| iOS/Android | P1       |
+| Keplr (ext)     | Chrome      | P1       |
 
 ## CLI Workflow
 

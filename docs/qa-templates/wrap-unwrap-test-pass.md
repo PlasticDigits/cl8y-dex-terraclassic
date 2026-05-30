@@ -4,7 +4,7 @@
 **Tester:** <!-- @gitlab-handle -->
 **Environment:** <!-- testnet / mainnet / local -->
 **Browser:** <!-- Chrome 130 / Safari 18 / etc. -->
-**Wallet:** <!-- Station Extension v4.x -->
+**Wallet:** <!-- Keplr Extension v0.x (LocalTerra) / Station Extension v4.x (columbus-5 only — not LocalTerra, see #235) -->
 
 ---
 

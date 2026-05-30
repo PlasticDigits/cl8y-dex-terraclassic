@@ -4,12 +4,12 @@
 **Tester:** <!-- @github-handle -->
 **Environment:** <!-- testnet / mainnet / local -->
 **Browser:** <!-- Chrome 130 / Safari 18 / etc. -->
-**Wallet:** <!-- Station Extension v4.x -->
+**Wallet:** <!-- Keplr Extension v0.x (LocalTerra) / Station Extension v4.x (columbus-5 only — not LocalTerra, see #235) -->
 
 ---
 
 ### Wallet Connection
-- [ ] Station extension detected
+- [ ] Extension wallet detected (Keplr on LocalTerra; Station on columbus-5)
 - [ ] Connect button works
 - [ ] Wallet address displayed correctly
 - [ ] Disconnect works

@@ -66,6 +66,17 @@ Checks Docker, LocalTerra RPC, Postgres, indexer **`/health`**, and the indexer 
 3. **Optional** — **`./scripts/qa/write-frontend-env-local.sh`** refreshes **`VITE_TERRA_*`** / **`VITE_INDEXER_URL`** from **`scripts/qa/qa-host.env`** (useful if ports differ between machines).
 4. **Vite** — `cd frontend-dapp && npm ci && npm run dev` — do **not** tunnel the Vite port; run the dev server locally.
 
+### Wallet verification scope (laptop QA via tunnel)
+
+Browser wallet checks over an SSH tunnel follow the same matrix as [`docs/qa-onboarding.md`](../../docs/qa-onboarding.md) § Wallet Matrix ([GitLab **#235**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)):
+
+| Environment | P0 wallets | Station |
+|-------------|------------|---------|
+| **LocalTerra** (tunnel to QA server) | **Keplr (extension)**, **dev/simulated wallet** | **N/A** — Station’s built-in `localterra` gas step cannot match node ante minimum; dApp overrides do not fix it |
+| **columbus-5** | **Station (extension)** | P0 for swap, limits, bids, wrap/unwrap |
+
+Canonical root cause: [`docs/frontend.md` § Station extension signing](../../docs/frontend.md#station-extension-signing). Agent playbooks: [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../../skills/AGENTS_FRONTEND_STATION_SIGNING.md), [`skills/AGENTS_TERRACLASSIC_GAS.md`](../../skills/AGENTS_TERRACLASSIC_GAS.md).
+
 ---
 
 ## Makefile reference
