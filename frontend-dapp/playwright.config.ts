@@ -35,6 +35,8 @@ export default defineConfig({
       VITE_DEV_MNEMONIC: devMnemonic,
       /** Suppress blocking first-visit risk modal during Playwright (GitLab #138). */
       VITE_PLAYWRIGHT_E2E: 'true',
+      /** Fast indexer transport failure for outage project (GitLab #219). */
+      VITE_E2E_INDEXER_OUTAGE: process.env.E2E_INDEXER_OUTAGE ?? '',
     },
   },
   projects: [

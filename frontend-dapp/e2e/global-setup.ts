@@ -18,13 +18,16 @@ function repoRootFromE2e(): string {
 }
 
 /** Playwright does not load Vite `.env.local`; read LCD URL for setup wait + provision. */
-function applyViteLcdFromEnvLocal(envLocalPath: string): void {
+function applyViteEnvFromEnvLocal(envLocalPath: string): void {
   const raw = fs.readFileSync(envLocalPath, 'utf8')
   for (const line of raw.split('\n')) {
-    const m = line.match(/^VITE_TERRA_LCD_URL=(.+)$/)
-    if (m) {
-      process.env.VITE_TERRA_LCD_URL = m[1].trim().replace(/^["']|["']$/g, '')
-      break
+    const lcd = line.match(/^VITE_TERRA_LCD_URL=(.+)$/)
+    if (lcd) {
+      process.env.VITE_TERRA_LCD_URL = lcd[1].trim().replace(/^["']|["']$/g, '')
+    }
+    const idx = line.match(/^VITE_INDEXER_URL=(.+)$/)
+    if (idx) {
+      process.env.VITE_INDEXER_URL = idx[1].trim().replace(/^["']|["']$/g, '')
     }
   }
 }
@@ -60,9 +63,23 @@ export default async function globalSetup(): Promise<void> {
     )
   }
 
-  applyViteLcdFromEnvLocal(envLocal)
+  applyViteEnvFromEnvLocal(envLocal)
   const base = lcdBaseUrlForSetup()
   await waitForLcd(base, 120_000)
+
+  // Indexer-outage specs are read-only UI; skip mint/seed (avoids sequence races with local bots).
+  if (process.env.E2E_INDEXER_OUTAGE === '1') {
+    // Playwright uses OUTAGE_E2E_INDEXER_URL (unbound port); optional stop of :3001 for shared hosts.
+    if (process.env.VITE_INDEXER_URL?.includes(':3001')) {
+      const stopIndexer = path.join(repoRoot, 'scripts', 'lib', 'indexer-stop-for-outage-e2e.sh')
+      execFileSync('bash', [stopIndexer], {
+        stdio: 'inherit',
+        env: { ...process.env, REPO_ROOT: repoRoot },
+        cwd: repoRoot,
+      })
+    }
+    return
+  }
 
   const provision = path.join(repoRoot, 'scripts', 'e2e-provision-dev-wallet.sh')
   execFileSync('bash', [provision], {
