@@ -89,6 +89,7 @@ Canonical root cause: [`docs/frontend.md` § Station extension signing](../../do
 | `QA_FRESH_VOLUMES=1 make start-qa` | Same as `reset-qa`              |
 | `make stop-qa`      | Stop indexer + compose (volumes kept)      |
 | `make test-qa-fresh-volumes` | Unit checks for fresh-volumes toggle (no Docker) |
+| `make test-qa-verify-deploy` | Unit checks for LCD smart-query helpers used by verify-deploy (no Docker) |
 | `make qa-tunnel-help` | Reprint SSH + laptop steps               |
 | `make qa-verify-deploy` | Post-deploy schema + stamp check (also runs inside `start-qa`) |
 | `make status`       | Health summary                               |

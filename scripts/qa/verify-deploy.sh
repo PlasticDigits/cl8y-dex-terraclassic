@@ -27,11 +27,21 @@ LCD="${LCD%/}"
 # shellcheck source=scripts/lib/lcd-smart-query.sh
 source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 
-fail_stale() {
+_fail_common_header() {
   local reason="$1"
   echo "" >&2
   echo "ERROR: QA deploy verification failed — ${reason}" >&2
   echo "" >&2
+}
+
+_fail_docs_footer() {
+  echo "Docs: scripts/qa/README.md § Stale deployed contracts; skills/AGENTS_QA_DEPLOY_VERIFY.md" >&2
+  exit 1
+}
+
+# Stale on-chain wasm / reused volumes — needs fresh volumes + redeploy.
+fail_stale_contract() {
+  _fail_common_header "$1"
   echo "Likely cause: reused LocalTerra/Postgres Docker volumes with contracts from an older tree." >&2
   echo "Symptoms: LCD 'unknown variant' on pair queries (e.g. is_paused, expired_limit_refund)." >&2
   echo "" >&2
@@ -43,8 +53,23 @@ fail_stale() {
   echo "  docker volume rm cl8y-dex-terraclassic_localterra-data cl8y-dex-terraclassic_postgres-data" >&2
   echo "  make start-qa" >&2
   echo "" >&2
-  echo "Docs: scripts/qa/README.md § Stale deployed contracts; skills/AGENTS_QA_DEPLOY_VERIFY.md" >&2
-  exit 1
+  _fail_docs_footer
+}
+
+# Deploy stamp out of sync with working tree — redeploy only (volumes may be fine).
+fail_stamp_mismatch() {
+  local stamp_sha="$1"
+  local head_sha="$2"
+  _fail_common_header "deploy stamp git_sha=${stamp_sha} but HEAD=${head_sha} — redeploy after git pull"
+  echo "Likely cause: git pull (or branch switch) without re-running deploy-local." >&2
+  echo "On-chain schema probes passed; only the deploy stamp is stale." >&2
+  echo "" >&2
+  echo "Fix (redeploy from current HEAD — no volume wipe required unless schema probes also fail):" >&2
+  echo "  make deploy-local && make qa-verify-deploy" >&2
+  echo "  # or full QA path:" >&2
+  echo "  make start-qa" >&2
+  echo "" >&2
+  _fail_docs_footer
 }
 
 read_env_var() {
@@ -85,7 +110,7 @@ fi
 if [ -z "$PAIR" ]; then
   echo "[qa-verify-deploy] Resolving first dual-CW20 pair from factory ${FACTORY}..."
   Q_PAIRS="$(lcd_b64_query '{"pairs":{"start_after":null,"limit":60}}')"
-  RAW_PAIRS="$(curl -sf "${LCD}/cosmwasm/wasm/v1/contract/${FACTORY}/smart/${Q_PAIRS}")" || fail_stale "factory pairs query failed (factory=${FACTORY})"
+  RAW_PAIRS="$(curl -sf "${LCD}/cosmwasm/wasm/v1/contract/${FACTORY}/smart/${Q_PAIRS}")" || fail_stale_contract "factory pairs query failed (factory=${FACTORY})"
   PAIRS_DOC="$(lcd_decode_smart_data "$RAW_PAIRS")"
   while IFS= read -r row; do
     [ -n "$row" ] || continue
@@ -100,7 +125,7 @@ if [ -z "$PAIR" ]; then
 fi
 
 if [ -z "$PAIR" ]; then
-  fail_stale "no dual-CW20 pair found for factory ${FACTORY}"
+  fail_stale_contract "no dual-CW20 pair found for factory ${FACTORY}"
 fi
 
 echo "[qa-verify-deploy] Pair ${PAIR} (factory ${FACTORY})"
@@ -108,18 +133,18 @@ echo "[qa-verify-deploy] Pair ${PAIR} (factory ${FACTORY})"
 # ── Schema probes (GitLab #120 / #203) ───────────────────────────────────
 echo "[qa-verify-deploy] Query is_paused..."
 if ! lcd_smart_query_ok "$LCD" "$PAIR" '{"is_paused":{}}'; then
-  fail_stale "pair ${PAIR} rejected is_paused (missing query variant — stale wasm?)"
+  fail_stale_contract "pair ${PAIR} rejected is_paused (missing query variant — stale wasm?)"
 fi
 PAUSED_RAW="$(lcd_smart_query_raw "$LCD" "$PAIR" '{"is_paused":{}}')"
 PAUSED_DOC="$(lcd_decode_smart_data "$PAUSED_RAW")"
 if ! echo "$PAUSED_DOC" | jq -e 'has("paused")' >/dev/null 2>&1; then
-  fail_stale "pair ${PAIR} is_paused response missing paused field"
+  fail_stale_contract "pair ${PAIR} is_paused response missing paused field"
 fi
 echo "  is_paused.paused=$(echo "$PAUSED_DOC" | jq -r '.paused')"
 
 echo "[qa-verify-deploy] Query expired_limit_refund (order_id=1, expect null when empty)..."
 if ! lcd_smart_query_ok "$LCD" "$PAIR" '{"expired_limit_refund":{"order_id":1}}'; then
-  fail_stale "pair ${PAIR} rejected expired_limit_refund (missing query variant — stale wasm?)"
+  fail_stale_contract "pair ${PAIR} rejected expired_limit_refund (missing query variant — stale wasm?)"
 fi
 echo "  expired_limit_refund: OK (variant accepted)"
 
@@ -127,7 +152,7 @@ echo "  expired_limit_refund: OK (variant accepted)"
 HEAD_SHA="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
 if [ -f "$STAMP_FILE" ] && [ -n "${STAMP_GIT_SHA:-}" ] && [ -n "$HEAD_SHA" ]; then
   if [ "$STAMP_GIT_SHA" != "$HEAD_SHA" ]; then
-    fail_stale "deploy stamp git_sha=${STAMP_GIT_SHA} but HEAD=${HEAD_SHA} — redeploy after git pull"
+    fail_stamp_mismatch "$STAMP_GIT_SHA" "$HEAD_SHA"
   fi
   echo "[qa-verify-deploy] Deploy stamp matches HEAD (${HEAD_SHA})"
 elif [ ! -f "$STAMP_FILE" ]; then

@@ -21,7 +21,14 @@ Parent: [GitLab **#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic
 | Probes | LCD `is_paused`, `expired_limit_refund` on stamp/factory pair |
 | Stamp | Fail if **`.qa-deploy-stamp`** `git_sha` ≠ **`git rev-parse --short HEAD`** |
 
-On failure: non-zero exit + copy pointing to **`make reset-qa`** / **`QA_FRESH_VOLUMES=1 make start-qa`** — see [`scripts/qa/README.md`](../scripts/qa/README.md) § Stale deployed contracts.
+On failure: non-zero exit + copy pointing to the right fix:
+
+| Failure | Fix |
+|---------|-----|
+| Schema probe (`unknown variant` on `is_paused` / `expired_limit_refund`) | **`make reset-qa`** / **`QA_FRESH_VOLUMES=1 make start-qa`** — see [`AGENTS_QA_FRESH_VOLUMES.md`](./AGENTS_QA_FRESH_VOLUMES.md) ([#202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)) |
+| Stamp `git_sha` ≠ **`HEAD`** (schema probes passed) | **`make deploy-local && make qa-verify-deploy`** — no volume wipe required |
+
+See [`scripts/qa/README.md`](../scripts/qa/README.md) § Stale deployed contracts.
 
 ## One-command repro
 
