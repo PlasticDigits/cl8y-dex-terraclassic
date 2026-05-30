@@ -48,10 +48,19 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
     return inner
   }
   if (/insufficient fees/i.test(inner)) {
-    const got3000 = /got:\s*"?3000uluna"?/i.test(inner)
-    return got3000
-      ? 'Terra Station signed ~3000 uluna on LocalTerra (built-in ~0.015 uluna/gas; node requires 28.325). Station cannot verify fees on LocalTerra — use Terra Classic Keplr or the dev/simulated wallet. Station P0 belongs on columbus-5 (GitLab #235).'
-      : 'Insufficient LUNC for transaction fees. Top up your wallet and try again.'
+    const gotMatch = inner.match(/got:\s*"?(\d+)uluna"?/i)
+    const reqMatch = inner.match(/required:[^"]*?(\d+)uluna/i)
+    const gotUluna = gotMatch ? BigInt(gotMatch[1]) : 0n
+    const reqUluna = reqMatch?.[1] ? BigInt(reqMatch[1]) : 0n
+    const staleStationUndershoot = gotUluna > 0n && reqUluna > 0n && gotUluna * 100n < reqUluna * 50n
+    if (staleStationUndershoot || /got:\s*"?3000uluna"?/i.test(inner)) {
+      return (
+        'Terra Station signed a fee far below what this dApp submitted on LocalTerra (built-in ~0.015 uluna/gas; node requires 28.325). ' +
+        'Station cannot verify fees on LocalTerra — use Terra Classic Keplr or the dev/simulated wallet. ' +
+        'Station P0 belongs on columbus-5 (GitLab #235).'
+      )
+    }
+    return 'Insufficient LUNC for transaction fees. Top up your wallet and try again.'
   }
   if (/insufficient funds/i.test(inner)) {
     return 'Insufficient LUNC for transaction fees. Top up your wallet and try again.'

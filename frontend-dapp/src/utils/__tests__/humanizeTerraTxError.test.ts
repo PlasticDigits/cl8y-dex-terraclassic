@@ -71,11 +71,11 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
   })
 
   describe('insufficient fees (GitLab #127)', () => {
-    it('humanizes LocalTerra Station 3000 uluna repro', () => {
+    it('humanizes LocalTerra Station stale gas price repro', () => {
       const raw = 'insufficient fees; got: "3000uluna", required: "5665000uluna" (gas) [+ ""(tax)]: insufficient fee'
       const out = tryHumanizeTerraTxMessage(raw)
       expect(out).not.toBeNull()
-      expect(out).toContain('3000 uluna')
+      expect(out).toContain('0.015 uluna/gas')
       expect(out).toContain('Keplr')
       expect(out).toContain('#235')
     })
