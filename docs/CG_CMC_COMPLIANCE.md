@@ -4,7 +4,7 @@ This document describes the CL8Y DEX's self-hosted market data API endpoints tha
 
 **Canonical sources:** Live handlers in [`indexer/src/api/cg.rs`](../indexer/src/api/cg.rs) and [`cmc.rs`](../indexer/src/api/cmc.rs); OpenAPI (utoipa) on the indexer Swagger UI. When this markdown and code disagree, **code wins** until a doc PR lands — verify with `cargo test` in [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs).
 
-**Last verified:** commit `4254d2e` — GitLab [**#224**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) verification pass (align with [Kujira FIN CG](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) + [Openware Peatio CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap)). CMC orderbook array wrapper: [**#223**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223). Integrator cross-link: [integrators.md § On-chain limit book](./integrators.md#on-chain-limit-book-lcd-proxy).
+**Last verified:** commit `3e7a175` — GitLab [**#224**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) re-verification (2026-05-30): live indexer at `http://127.0.0.1:3001` + `cargo test --test api_orderbook_lcd_mock --test api_cg --test api_cmc` (29/29); aligned with [Kujira FIN CG](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) + [Openware Peatio CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap). Dependent issues **#210**, **#220**–**#223** closed. CMC orderbook array wrapper: [**#223**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223). Integrator cross-link: [integrators.md § On-chain limit book](./integrators.md#on-chain-limit-book-lcd-proxy).
 
 ## Table of Contents
 
