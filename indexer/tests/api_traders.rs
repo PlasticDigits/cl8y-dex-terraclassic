@@ -2,7 +2,10 @@ mod common;
 
 use axum_test::TestServer;
 use serde_json::Value;
+use serial_test::serial;
 
+// Shared `dex_indexer_test` DB: serialize seed_db + HTTP assertions (see api_pairs.rs).
+#[serial]
 #[tokio::test]
 async fn get_trader_profile_returns_trader() {
     let pool = common::setup_pool().await;
@@ -21,6 +24,7 @@ async fn get_trader_profile_returns_trader() {
     assert!(body["total_volume"].is_string());
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_not_found() {
     let pool = common::setup_pool().await;
@@ -32,6 +36,7 @@ async fn get_trader_not_found() {
     resp.assert_status_not_found();
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_trades_returns_trades() {
     let pool = common::setup_pool().await;
@@ -51,6 +56,7 @@ async fn get_trader_trades_returns_trades() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn leaderboard_default_sort() {
     let pool = common::setup_pool().await;
@@ -65,6 +71,7 @@ async fn leaderboard_default_sort() {
     assert!(!body.is_empty());
 }
 
+#[serial]
 #[tokio::test]
 async fn leaderboard_valid_sort_columns() {
     let pool = common::setup_pool().await;
@@ -86,6 +93,7 @@ async fn leaderboard_valid_sort_columns() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn leaderboard_invalid_sort_returns_400() {
     let pool = common::setup_pool().await;
@@ -99,6 +107,7 @@ async fn leaderboard_invalid_sort_returns_400() {
     resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn leaderboard_limit_capped() {
     let pool = common::setup_pool().await;
@@ -113,6 +122,7 @@ async fn leaderboard_limit_capped() {
     assert!(body.len() <= 200);
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_trades_pair_filter_returns_subset() {
     let pool = common::setup_pool().await;
@@ -135,6 +145,7 @@ async fn get_trader_trades_pair_filter_returns_subset() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_trades_unknown_pair_returns_404() {
     let pool = common::setup_pool().await;
@@ -151,6 +162,7 @@ async fn get_trader_trades_unknown_pair_returns_404() {
     resp.assert_status_not_found();
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_trades_csv_returns_text_csv() {
     let pool = common::setup_pool().await;
@@ -173,6 +185,7 @@ async fn get_trader_trades_csv_returns_text_csv() {
     assert!(body.contains("tx_hash"));
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_limit_fills_returns_maker_rows() {
     let pool = common::setup_pool().await;
@@ -195,6 +208,7 @@ async fn get_trader_limit_fills_returns_maker_rows() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_limit_cancellations_returns_owner_rows() {
     let pool = common::setup_pool().await;
@@ -215,6 +229,7 @@ async fn get_trader_limit_cancellations_returns_owner_rows() {
     assert_eq!(body[0]["order_id"], 7);
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_limit_placements_returns_owner_rows() {
     let pool = common::setup_pool().await;
@@ -237,6 +252,7 @@ async fn get_trader_limit_placements_returns_owner_rows() {
     assert_eq!(body[0]["lifecycle_status"], "active");
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_limit_placements_bad_status_returns_400() {
     let pool = common::setup_pool().await;
@@ -253,6 +269,7 @@ async fn get_trader_limit_placements_bad_status_returns_400() {
     resp.assert_status_bad_request();
 }
 
+#[serial]
 #[tokio::test]
 async fn get_trader_positions_returns_rows() {
     let pool = common::setup_pool().await;
