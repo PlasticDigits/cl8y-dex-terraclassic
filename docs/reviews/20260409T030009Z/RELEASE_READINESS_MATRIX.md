@@ -1,18 +1,20 @@
 # Release readiness matrix
 
+> **Historical snapshot.** “Contracts build (CI)” rows describe reference workflow YAML, not live GitLab/GitHub runners — [docs/testing.md § CI](../../testing.md#ci).
+
 | Area | Status | Evidence | Issues | Blocker |
 |------|--------|----------|--------|---------|
 | **Contracts build (production)** | Ready | `make build-optimized` + [`smartcontracts/scripts/optimize.sh`](../../../smartcontracts/scripts/optimize.sh) | — | Launch |
-| **Contracts build (CI)** | Ready | PR: `.github/workflows/test.yml` (cargo wasm); release-grade: [`.github/workflows/contracts-wasm-optimizer.yml`](../../../.github/workflows/contracts-wasm-optimizer.yml) | — | Launch |
-| **Contract tests** | Ready | `cargo llvm-cov test` in CI | — | — |
+| **Contracts build (dev check)** | Ready | Fast cargo wasm (ref. `test.yml`); release: `make build-optimized` | [#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234) | Launch |
+| **Contract tests** | Ready | `make test-contracts` / `make coverage-contracts` | — | — |
 | **Deployment docs** | Ready | [`docs/deployment-guide.md`](../../deployment-guide.md) | DEX-P2-013 (tier drift) | Low |
-| **Factory / governance ops** | Partial | Doc’d; no automated checklist in CI | DEX-P1-006 | Launch |
+| **Factory / governance ops** | Partial | Doc’d; no automated checklist in default local matrix | DEX-P1-006 | Launch |
 | **Treasury configuration** | Partial | Per-pair fee config | DEX-P1-006 | Launch |
 | **Indexer env validation** | Partial | `CORS_ORIGINS`, `DATABASE_URL` required; others default [`config.rs`](../../../indexer/src/config.rs) | DEX-P2-023 | Medium |
 | **Indexer migrations** | Ready | `indexer/migrations/` | Run order in deploy doc | Medium |
 | **Indexer monitoring** | Missing | `tracing` only | DEX-P2-024 | Medium |
 | **Frontend env** | Partial | `VITE_*` [`docs/frontend.md`](../../frontend.md) | DEX-P2-025 | Low |
-| **E2E gate** | Ready | Playwright in CI with LocalTerra + deploy | DEX-P1-011 gap for hybrid | Medium |
+| **E2E gate** | Ready | `make test-e2e` path (LocalTerra + deploy) | DEX-P1-011 gap for hybrid | Medium |
 | **Rate limit / CORS (indexer)** | Ready | Invariants + tests | — | — |
 | **Rollback strategy** | Unclear | Wasm admin/migration not in-repo playbook | DEX-P2-026 | Medium |
 | **Mainnet vs testnet separation** | Partial | README networks; no env templates in tree | DEX-P2-027 | Low |

@@ -114,9 +114,9 @@ help:
 #                            smartcontracts/artifacts/. Does NOT require wasm32-unknown-unknown on
 #                            the host — only Docker.
 #
-#   CI: PRs use plain cargo wasm in .github/workflows/test.yml (fast). Release-grade wasm is built
-#   in .github/workflows/contracts-wasm-optimizer.yml (same optimize.sh); do not upload PR wasm to
-#   mainnet as production artifacts.
+#   Dev wasm: plain cargo wasm (reference job contracts-terra in .github/workflows/test.yml — fast).
+#   Release wasm: make build-optimized only (reference contracts-wasm-optimizer.yml); do not upload
+#   cargo wasm to mainnet. See docs/testing.md § CI and docs/deployment-guide.md (GitLab #234).
 #
 #   make build-contracts / build-artifacts-cargo  →  plain cargo --release wasm. Useful for quick
 #                            local checks / unit tests; NOT a substitute for the optimizer. Do not
@@ -184,7 +184,7 @@ test-charts-integration tests-charts-integration:
 test-e2e:
 	$(WITH_NODE) npm run test:e2e
 
-# Strict on-chain Playwright (LocalTerra + deploy + global setup). Same as CI e2e job.
+# Strict on-chain Playwright (LocalTerra + deploy + global setup). Reference job: e2e.
 test-e2e-tx:
 	@chmod +x scripts/deploy-dex-local.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh scripts/e2e-seed-wrap-pairs.sh scripts/with-node.sh
 	docker compose up -d localterra
@@ -192,7 +192,7 @@ test-e2e-tx:
 	bash scripts/deploy-dex-local.sh
 	$(WITH_NODE) npm run test:e2e:tx
 
-# Indexer stopped after sanity check; same specs as CI job frontend-e2e-indexer-outage (GitLab #219).
+# Indexer stopped after sanity check; reference job frontend-e2e-indexer-outage (GitLab #219).
 test-e2e-indexer-outage:
 	@chmod +x scripts/test-e2e-indexer-outage.sh scripts/lib/e2e-trade-pair-from-deploy.sh scripts/with-node.sh
 	./scripts/test-e2e-indexer-outage.sh

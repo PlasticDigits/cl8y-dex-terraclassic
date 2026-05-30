@@ -68,14 +68,14 @@ cd indexer && cargo test --tests -j 1 -- --test-threads=1
 
 Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 
-## Makefile / CI hooks
+## Makefile / automation hooks
 
 | Command | Postgres behavior |
 |---------|-------------------|
 | `make wait-healthy` | Waits for Postgres, runs `setup-postgres-dev-databases.sh` |
 | `make deploy-local` | Sources postgres env, ensures DBs, writes `indexer/.env` |
 | `make test-charts-integration` | Ensures target DB, migrates, seeds charts fixtures, runs Vitest integration (indexer HTTP; **stubbed** chart library) — [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) |
-| `make test-frontend-charts` | **No Postgres** — real `lightweight-charts` / Node `canvas` only (`npm run test:charts`; CI job `frontend-charts-vitest`) — [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) |
+| `make test-frontend-charts` | **No Postgres** — real `lightweight-charts` / Node `canvas` only (`npm run test:charts`; reference job `frontend-charts-vitest`) — [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) |
 | `make reset` | `docker compose down -v` — **wipes volumes**; use when credentials/volume are stale |
 
 ## Troubleshooting
@@ -86,11 +86,11 @@ Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 | `password authentication failed for user "cl8y_legal"` | Postgres not up or user not created | `docker compose up -d postgres`; fresh volume runs init SQL |
 | `database "dex_indexer_test" does not exist` | Skipped setup | `./scripts/setup-postgres-dev-databases.sh` |
 | Duplicate-key / FK flakes in tests | Parallel tests on one DB | Always use `-j 1 -- --test-threads=1` |
-| Tests pass locally but env unset in CI | CI sets `TEST_DATABASE_URL` in workflow | Match [`/.github/workflows/test.yml`](../.github/workflows/test.yml) |
+| Tests pass locally but env unset on another host | Reference `indexer` job sets `TEST_DATABASE_URL` | Export `TEST_DATABASE_URL` per [docs/testing.md § CI](../docs/testing.md#ci); spec in [`.github/workflows/test.yml`](../.github/workflows/test.yml) (reference only) |
 
 ## Cross-links
 
-- [`docs/testing.md`](../docs/testing.md) — test types, shared-DB parallelism
+- [`docs/testing.md`](../docs/testing.md) — test types, shared-DB parallelism, [§ CI](../docs/testing.md#ci) (local automation, [#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234))
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — integration test matrix
 - [`docs/local-development.md`](../docs/local-development.md) — full local stack
 - [`skills/AGENTS_TESTING_P2_EPIC.md`](./AGENTS_TESTING_P2_EPIC.md) — charts layers: HTTP integration vs real-library Vitest ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230))

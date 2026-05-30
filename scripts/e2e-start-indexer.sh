@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start indexer for strict Playwright (price chart smoke, trade layout, etc.).
 # Requires: deploy-dex-local.sh (indexer/.env + frontend-dapp/.env.local), release binary built.
-# GitLab #228 — used locally and from CI job `e2e` after deploy.
+# GitLab #228 — used locally; reference automation job `e2e` after deploy (see docs/testing.md § CI).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

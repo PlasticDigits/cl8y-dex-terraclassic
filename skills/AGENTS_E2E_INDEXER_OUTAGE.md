@@ -38,6 +38,7 @@ bash scripts/test-e2e-indexer-outage.sh
 
 ## Cross-links
 
+- [docs/testing.md § CI](../docs/testing.md#ci) — local automation invariants ([#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234))
 - [docs/testing.md § Frontend E2E — indexer outage](../docs/testing.md#frontend-e2e-indexer-outage)
 - [docs/frontend.md § Market data loading & outage](../docs/frontend.md#market-data-loading-outage)
 - Strict chain (do not merge jobs): [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)

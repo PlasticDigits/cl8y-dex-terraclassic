@@ -1,5 +1,7 @@
 # CL8Y DEX Terra Classic — production review
 
+> **Historical snapshot (2026-04-09).** CI model in tables below assumed live GitHub Actions; **current policy** is local-only automation — see [docs/testing.md § CI](../../testing.md#ci) and [GitLab #234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234).
+
 **Review date (UTC):** 2026-04-09  
 **Evidence baseline:** repository tree at review time; file paths relative to repo root.
 
@@ -17,7 +19,7 @@ This monorepo implements a **Terra Classic CosmWasm DEX**: constant-product AMM 
 2. **No automated “best” hybrid split** — Book depth and pool price are not solved server-side; the dApp exposes manual pool/book split ([`frontend-dapp/src/pages/SwapPage.tsx`](../../../frontend-dapp/src/pages/SwapPage.tsx)).
 3. **Indexer / API does not proxy raw on-chain limit book** — Resting orders require LCD `LimitOrder` / `OrderBookHead` queries per [`docs/limit-orders.md`](../../limit-orders.md).
 4. **Post-swap hooks under-report fees on hybrid txs** — `AfterSwap.commission_amount` is pool leg only (invariant **L7**).
-5. **CI builds non-optimizer wasm** for pair/factory/router — Production expects [`smartcontracts/scripts/optimize.sh`](../../../smartcontracts/scripts/optimize.sh) / `make build-optimized` ([`Makefile`](../../../Makefile) L78–87); [`.github/workflows/test.yml`](../../../.github/workflows/test.yml) uses `cargo build --target wasm32-unknown-unknown` only.
+5. **Dev automation builds non-optimizer wasm** for pair/factory/router — Production expects [`smartcontracts/scripts/optimize.sh`](../../../smartcontracts/scripts/optimize.sh) / `make build-optimized` ([`Makefile`](../../../Makefile)); reference [`.github/workflows/test.yml`](../../../.github/workflows/test.yml) documents `cargo build --target wasm32-unknown-unknown` for fast checks only.
 
 **Overall:** **v2 (pool-only) swaps** are the most complete path: contracts, router, tests, and E2E cover the happy path. **Limit orders** are implemented on-chain with strong integration tests ([`smartcontracts/tests/src/limit_order_tests.rs`](../../../smartcontracts/tests/src/limit_order_tests.rs)); frontend and indexer add partial UX/observability. **Hybrid** is implemented on-chain and in the UI but lacks honest quoting, routing, and E2E that asserts book legs.
 
@@ -39,7 +41,7 @@ This monorepo implements a **Terra Classic CosmWasm DEX**: constant-product AMM 
 | `indexer/` | Poll LCD → Postgres; Axum GET API | **Live** | `src/main.rs`, library | [`indexer/src/config.rs`](../../../indexer/src/config.rs) | Terra Classic LCD | ✓ | partial (indexed events) | partial (no hybrid in route) | **Production** (if used) |
 | `frontend-dapp/` | Wallet UX | **Live** | Vite SPA | `VITE_*` ([`docs/frontend.md`](../../frontend.md)) | Terra Classic | ✓ | partial | partial | **Production** |
 | `scripts/`, `docker-compose.yml`, `Makefile` | LocalTerra, deploy, QA | **Live** | shell/make | Host | Local/test | ✓ | ✓ | ✓ | **Infra** |
-| `.github/workflows/test.yml` | CI | **Live** | GHA | services Postgres for indexer tests | — | ✓ | ✓ | partial | **DevOps** |
+| `.github/workflows/test.yml` | Automation reference | **Spec only** | Local Make/scripts | Postgres for indexer tests (see [§ CI](../../testing.md#ci)) | — | ✓ | ✓ | partial | **DevOps** |
 
 ### 2.2 Component dependency map (logical)
 
