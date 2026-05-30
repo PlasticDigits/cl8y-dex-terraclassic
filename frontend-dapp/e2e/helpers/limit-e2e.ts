@@ -74,7 +74,31 @@ export async function fillValidLimitPrice(page: Page, side: 'bid' | 'ask' = 'bid
 
 /** Place-limit card scoped to Limits page / trade ticket. */
 export function placeLimitCard(page: Page) {
-  return page.locator('.card-neo').filter({ hasText: 'Place limit' })
+  return page.locator('.card-neo').filter({ has: page.getByRole('button', { name: /^Place limit$/i }) })
+}
+
+export type PlacementGasPresetTier = 'Low' | 'Medium' | 'High' | 'Custom'
+
+/** Expand Advanced and pick a placement gas preset (GitLab #204). */
+export async function selectPlacementGasPreset(
+  page: Page,
+  card: ReturnType<typeof placeLimitCard>,
+  tier: PlacementGasPresetTier,
+  customSteps?: number
+): Promise<void> {
+  const details = card.locator('details').filter({ hasText: 'Placement gas (book walk)' })
+  await expect(details).toBeVisible({ timeout: 30_000 })
+  const presetGroup = card.getByRole('group', { name: 'Placement gas preset' })
+  if (!(await presetGroup.isVisible().catch(() => false))) {
+    await details.locator('summary').click()
+  }
+  await expect(presetGroup).toBeVisible({ timeout: 15_000 })
+  await presetGroup.getByRole('button', { name: tier, exact: true }).click()
+  if (tier === 'Custom') {
+    const input = card.locator('input[type="number"]').first()
+    await expect(input).toBeVisible({ timeout: 10_000 })
+    await input.fill(String(customSteps ?? 64))
+  }
 }
 
 /**

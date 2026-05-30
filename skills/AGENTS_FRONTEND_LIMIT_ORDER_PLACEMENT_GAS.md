@@ -28,6 +28,17 @@ Use when changing **Placement gas (book walk)** on `/trade` or `/limit`: Low / M
 - **Broadcast:** form `maxSteps` is the single source of truth; presets only map to integers before submit.
 - **Reset:** fresh form and **Place another** → Medium (32).
 
+## Verification (GitLab #204)
+
+| Check | Command / surface |
+|-------|-------------------|
+| Preset → hook `max_adjust_steps` on LocalTerra | `bash scripts/qa/verify-glab-204-limit-gas-presets.sh` |
+| LCD decode helper | [`e2e/helpers/lcd.ts`](../frontend-dapp/e2e/helpers/lcd.ts) — `txJsonPlaceLimitMaxAdjustSteps` |
+| E2E spec | [`e2e/limit-orders-gas-presets-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-gas-presets-tx.spec.ts) |
+| UI smoke (standalone) | `/limits` → Advanced → **Low / Medium / High / Custom** (shared component with `/trade`) |
+
+Cross-link: [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md).
+
 ## Rules of thumb
 
 1. **Keep mapping in `limitOrderExpiry.ts`** — UI must not hard-code 16/32/128 in multiple places.

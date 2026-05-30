@@ -22,6 +22,7 @@ Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI
 | Path | Role |
 |------|------|
 | [`frontend-dapp/e2e/limit-orders-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-tx.spec.ts) | Funded place + cancel txs |
+| [`frontend-dapp/e2e/limit-orders-gas-presets-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-gas-presets-tx.spec.ts) | **#204** — each preset → hook `max_adjust_steps` on `/limits` |
 | [`frontend-dapp/e2e/limit-orders.spec.ts`](../frontend-dapp/e2e/limit-orders.spec.ts) | UI smoke (no chain) |
 | [`frontend-dapp/e2e/helpers/limit-e2e.ts`](../frontend-dapp/e2e/helpers/limit-e2e.ts) | Pair pick + CTA guards |
 | [`frontend-dapp/e2e/helpers/lcd.ts`](../frontend-dapp/e2e/helpers/lcd.ts) | `queryPairPaused`, `firstUnpausedDualCwPair` |
@@ -35,6 +36,14 @@ docker compose up -d localterra
 bash scripts/deploy-dex-local.sh
 bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx
 ```
+
+**GitLab #204 (placement gas presets → hook JSON):**
+
+```bash
+bash scripts/qa/verify-glab-204-limit-gas-presets.sh
+```
+
+Cross-link: [`AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md).
 
 ## Cross-links
 

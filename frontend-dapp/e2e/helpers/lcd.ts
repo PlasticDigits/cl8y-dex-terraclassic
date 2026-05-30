@@ -166,6 +166,33 @@ export function txJsonWasmAttrForAction(txJson: unknown, action: string, key: st
   return undefined
 }
 
+type LcdExecuteMsg = Record<string, unknown>
+
+/** Decode `max_adjust_steps` from the CW20 `send` hook in a place-limit batch tx (GitLab #204). */
+export function txJsonPlaceLimitMaxAdjustSteps(txJson: unknown): number | null {
+  const root = txJson as Record<string, unknown>
+  const tx = root.tx as { body?: { messages?: Array<Record<string, unknown>> } } | undefined
+  const messages = tx?.body?.messages ?? []
+  for (const m of messages) {
+    const type = String(m['@type'] ?? '')
+    if (!type.includes('MsgExecuteContract')) continue
+    const msg = m.msg as LcdExecuteMsg | string | undefined
+    if (!msg || typeof msg === 'string') continue
+    const send = msg.send as { msg?: string } | undefined
+    if (!send?.msg || typeof send.msg !== 'string') continue
+    try {
+      const hook = JSON.parse(Buffer.from(send.msg, 'base64').toString('utf8')) as {
+        place_limit_order_batch?: { orders?: Array<{ max_adjust_steps?: number }> }
+      }
+      const steps = hook.place_limit_order_batch?.orders?.[0]?.max_adjust_steps
+      if (typeof steps === 'number' && Number.isFinite(steps)) return steps
+    } catch {
+      /* try next execute msg */
+    }
+  }
+  return null
+}
+
 export async function fetchTxJson(request: APIRequestContext, txHash: string): Promise<unknown | null> {
   const base = lcdBaseUrl()
   const candidates = [txHash, txHash.toUpperCase(), txHash.toLowerCase()]
