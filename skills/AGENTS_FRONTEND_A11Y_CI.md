@@ -14,7 +14,7 @@ Use when adding **retail-critical UI** on `/trade`, `/charts`, or the **header w
 ## Invariants
 
 1. **Canvas stays decorative** — `PriceChartLightweightCanvas` remains `aria-hidden`; announce interval + last price via `PriceChart` `role="region"` + `sr-only` `aria-live="polite"` summary ([§ Trade page — price chart](../docs/frontend.md#trade-page-price-chart-invariants)). **TradingView attribution** uses `layout.attributionLogo: false` plus the visible `price-chart-tradingview-attribution` link on `PriceChart` (in-chart `#tv-attr-logo` is focusable inside `aria-hidden`).
-2. **Order book structure** — `OrderBookPanel` uses `<table>` / `<th scope="col">` per side; depth bars are `aria-hidden`; row actions keep `aria-label` with `order_id`.
+2. **Order book structure** — `OrderBookPanel` uses `<table>` / `<th scope="col">` per side; depth bars are `aria-hidden`; row actions keep `aria-label` with `order_id`. Each side’s `overflow-y-auto` list is a focusable `role="region"` (`tabIndex={0}`) for keyboard scroll per axe `scrollable-region-focusable`.
 3. **Order type tabs** — `TradeOrderTicket` limit/market: `tablist` + `tab` + `tabpanel` with `aria-controls` / `aria-labelledby`; pair-paused banner uses `role="alert"`.
 4. **Wallet menu** — `role="menu"` wraps **menuitems only** (header `AddressRow` sits outside); focus moves to first `menuitem` on open and returns to trigger on Escape/close ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)).
 5. **axe gate** — WCAG 2.1 A+AA tags; **zero critical/serious** on scanned routes. Canvas excluded via `[data-testid="price-chart-lightweight-canvas"] canvas` only.
