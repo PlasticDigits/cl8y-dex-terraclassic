@@ -85,6 +85,9 @@ pub enum ContractError {
     #[error("Limit batch must contain at least one order")]
     LimitBatchEmpty {},
 
+    #[error("Duplicate order id {order_id} in limit batch")]
+    LimitBatchDuplicateOrderId { order_id: u64 },
+
     #[error("Limit batch placed no rungs ({skipped} skipped due to book-walk cap)")]
     LimitBatchNoRungsPlaced { skipped: u32 },
 

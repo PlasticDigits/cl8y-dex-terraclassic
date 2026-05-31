@@ -249,6 +249,17 @@ export async function cancelLimitOrder(walletAddress: string, pairAddress: strin
   })
 }
 
+/** Batch cancel resting limits (GitLab #246). All ids must belong to `walletAddress`; whole tx reverts on any failure. */
+export async function cancelLimitOrders(
+  walletAddress: string,
+  pairAddress: string,
+  orderIds: number[]
+): Promise<string> {
+  return executeTerraContract(walletAddress, pairAddress, {
+    cancel_limit_orders: { order_ids: orderIds },
+  })
+}
+
 /** Owner-only refund after indexer `lifecycle_status: parked_expired` (pair `ClaimExpiredLimitOrder`). Blocked while pair is paused (L6 / GitLab #120). */
 export async function claimExpiredLimitOrder(
   walletAddress: string,
@@ -257,6 +268,17 @@ export async function claimExpiredLimitOrder(
 ): Promise<string> {
   return executeTerraContract(walletAddress, pairAddress, {
     claim_expired_limit_order: { order_id: orderId },
+  })
+}
+
+/** Batch claim parked-expiry refund rows (GitLab #246). */
+export async function claimExpiredLimitOrders(
+  walletAddress: string,
+  pairAddress: string,
+  orderIds: number[]
+): Promise<string> {
+  return executeTerraContract(walletAddress, pairAddress, {
+    claim_expired_limit_orders: { order_ids: orderIds },
   })
 }
 

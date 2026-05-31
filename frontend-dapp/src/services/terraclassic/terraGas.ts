@@ -20,6 +20,10 @@ export const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
 /** Per-rung marginal gas on top of batch base. */
 export const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180000
 export const CANCEL_LIMIT_ORDER_GAS_LIMIT = 450000
+/** Base gas for one `cancel_limit_orders` / `claim_expired_limit_orders` batch tx (GitLab #246). */
+export const CANCEL_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
+/** Per-order marginal gas on top of batch cancel/claim base. */
+export const CANCEL_LIMIT_ORDER_BATCH_PER_ORDER_GAS_LIMIT = 80000
 export const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
 export const ADD_LIQUIDITY_GAS_LIMIT = 500000
 export const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
@@ -33,6 +37,11 @@ export function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
 export function gasLimitForLimitOrderBatch(rungCount: number): number {
   const n = Math.max(1, Math.floor(rungCount))
   return PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT + PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT * n
+}
+
+export function gasLimitForLimitOrderCancelBatch(orderCount: number): number {
+  const n = Math.max(1, Math.floor(orderCount))
+  return CANCEL_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT + CANCEL_LIMIT_ORDER_BATCH_PER_ORDER_GAS_LIMIT * n
 }
 
 export function buildTerraClassicFee(gasLimit: number): Fee {
@@ -100,8 +109,16 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('cancel_limit_order' in executeMsg) {
     return CANCEL_LIMIT_ORDER_GAS_LIMIT
   }
+  if ('cancel_limit_orders' in executeMsg) {
+    const batch = executeMsg.cancel_limit_orders as { order_ids?: unknown[] }
+    return gasLimitForLimitOrderCancelBatch(batch.order_ids?.length ?? 1)
+  }
   if ('claim_expired_limit_order' in executeMsg) {
     return CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT
+  }
+  if ('claim_expired_limit_orders' in executeMsg) {
+    const batch = executeMsg.claim_expired_limit_orders as { order_ids?: unknown[] }
+    return gasLimitForLimitOrderCancelBatch(batch.order_ids?.length ?? 1)
   }
   if ('execute_swap_operations' in executeMsg) {
     return gasLimitForSwapOperationsMsg(executeMsg)

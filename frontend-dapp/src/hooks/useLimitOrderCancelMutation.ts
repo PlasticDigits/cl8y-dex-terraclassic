@@ -1,26 +1,43 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { cancelLimitOrder } from '@/services/terraclassic/pair'
+import { cancelLimitOrder, cancelLimitOrders } from '@/services/terraclassic/pair'
 import { sounds } from '@/lib/sounds'
 import type { IndexerLimitCancellation } from '@/types'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 
+export type LimitOrderCancelInput = number | number[]
+
+function normalizeCancelOrderIds(input: LimitOrderCancelInput): number[] {
+  const ids = (Array.isArray(input) ? input : [input]).filter(
+    (id) => Number.isFinite(id) && id >= 1
+  )
+  if (ids.length === 0) {
+    throw new Error('Invalid order id')
+  }
+  return ids
+}
+
 /**
- * On-chain `cancel_limit_order` for a pair. Shared by the trade ticket and order-book row actions
- * so one mutation drives loading / invalidations ([GitLab #162](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
+ * On-chain cancel for a pair — single order or batch (GitLab #246). Shared by the trade ticket
+ * and order-book row actions ([GitLab #162](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
  */
 export function useLimitOrderCancelMutation(pairAddr: string, walletAddress: string | undefined) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (orderId: number) => {
+    mutationFn: async (orderIdOrIds: LimitOrderCancelInput) => {
       if (!walletAddress) throw new Error('Connect wallet')
       if (!pairAddr.startsWith('terra1')) throw new Error('Select a pair')
-      if (!Number.isFinite(orderId) || orderId < 1) throw new Error('Invalid order id')
+      const orderIds = normalizeCancelOrderIds(orderIdOrIds)
       const cancels = queryClient.getQueryData<IndexerLimitCancellation[]>(['limitCancellations', pairAddr]) ?? []
-      if (orderIdHasIndexedCancellation(cancels, orderId)) {
-        throw new Error('This order has already been cancelled.')
+      for (const orderId of orderIds) {
+        if (orderIdHasIndexedCancellation(cancels, orderId)) {
+          throw new Error(`Order #${orderId} has already been cancelled.`)
+        }
       }
-      return cancelLimitOrder(walletAddress, pairAddr, orderId)
+      if (orderIds.length === 1) {
+        return cancelLimitOrder(walletAddress, pairAddr, orderIds[0]!)
+      }
+      return cancelLimitOrders(walletAddress, pairAddr, orderIds)
     },
     onSuccess: () => {
       sounds.playSuccess()

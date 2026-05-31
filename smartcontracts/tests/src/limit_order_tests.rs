@@ -3292,3 +3292,331 @@ fn governance_set_pair_limit_batch_max_enforced() {
         s
     );
 }
+
+// --- GitLab #246: batch cancel / batch claim expired ---
+
+fn count_cancelled_ids(events: &[cosmwasm_std::Event]) -> Vec<u64> {
+    events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_cancelled")
+        .map(|a| a.value.parse().unwrap())
+        .collect()
+}
+
+#[test]
+fn batch_cancel_mixed_bid_ask_one_tx() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let bid_escrow = Uint128::new(100_000);
+    let ask_escrow = Uint128::new(50_000);
+    let bid_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        bid_escrow,
+        Decimal::one(),
+    );
+    let ask_id = place_ask(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_a,
+        ask_escrow,
+        Decimal::one(),
+    );
+
+    let bal_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+    let bal_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrders {
+                order_ids: vec![bid_id, ask_id],
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "cancel_limit_orders_batch", "batch_count")
+            .as_deref(),
+        Some("2")
+    );
+    assert_eq!(count_cancelled_ids(&res.events).len(), 2);
+
+    let maker_fee_bid = bid_escrow.multiply_ratio(15u128, 10_000u128);
+    let maker_fee_ask = ask_escrow.multiply_ratio(15u128, 10_000u128);
+    let bal_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    let bal_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+    assert_eq!(
+        bal_b_after.checked_sub(bal_b_before).unwrap(),
+        bid_escrow.checked_sub(maker_fee_bid).unwrap()
+    );
+    assert_eq!(
+        bal_a_after.checked_sub(bal_a_before).unwrap(),
+        ask_escrow.checked_sub(maker_fee_ask).unwrap()
+    );
+}
+
+#[test]
+fn batch_cancel_empty_reverts() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrders { order_ids: vec![] },
+            &[],
+        )
+        .unwrap_err();
+    let s = err.root_cause().to_string();
+    assert!(s.contains("Limit batch") || s.contains("empty"), "{}", s);
+}
+
+#[test]
+fn batch_cancel_duplicate_id_reverts() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(10_000),
+        Decimal::one(),
+    );
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrders {
+                order_ids: vec![id, id],
+            },
+            &[],
+        )
+        .unwrap_err();
+    let s = err.root_cause().to_string();
+    assert!(s.contains("Duplicate") || s.contains("duplicate"), "{}", s);
+}
+
+#[test]
+fn batch_cancel_foreign_owner_reverts_whole_tx() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let id1 = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(10_000),
+        Decimal::one(),
+    );
+    let id2 = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(10_000),
+        Decimal::one(),
+    );
+    let attacker = cosmwasm_std::Addr::unchecked("attacker246");
+    let err = app
+        .execute_contract(
+            attacker,
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrders {
+                order_ids: vec![id1, id2],
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("Unauthorized"),
+        "{}",
+        err
+    );
+    // Orders still on book
+    let _: LimitOrderResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::LimitOrder { order_id: id1 },
+        )
+        .unwrap();
+}
+
+#[test]
+fn batch_cancel_while_paused_reverts() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(10_000),
+        Decimal::one(),
+    );
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairPaused {
+            pair: env.pair.to_string(),
+            paused: true,
+        },
+        &[],
+    )
+    .unwrap();
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrders {
+                order_ids: vec![id],
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        format!("{:?}", err.root_cause()).contains("Paused"),
+        "{}",
+        err
+    );
+}
+
+#[test]
+fn batch_claim_expired_two_orders_one_tx() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker246");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 60;
+    let escrow = Uint128::new(10_000);
+    let mut order_ids = Vec::new();
+    for _ in 0..2 {
+        let msg = batch_place_msg(LimitOrderSide::Bid, Decimal::one(), escrow, 32, Some(exp));
+        let res = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_b.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: escrow,
+                    msg,
+                },
+                &[],
+            )
+            .unwrap();
+        order_ids.push(parse_limit_order_placed(&res.events));
+    }
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(120);
+    });
+
+    for _ in 0..2 {
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            to: None,
+            deadline: None,
+            hybrid: Some(HybridSwapParams {
+                pool_input: Uint128::zero(),
+                book_input: Uint128::new(1_000),
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }),
+            trader: None,
+        })
+        .unwrap();
+        app.execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    }
+
+    let maker_fee = escrow.multiply_ratio(15u128, 10_000u128);
+    let remaining = escrow.checked_sub(maker_fee).unwrap();
+    let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::ClaimExpiredLimitOrders {
+                order_ids: order_ids.clone(),
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(
+        wasm_attr_in_action_event(
+            &res.events,
+            "claim_expired_limit_orders_batch",
+            "batch_count"
+        )
+        .as_deref(),
+        Some("2")
+    );
+    let bal_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        bal_after.checked_sub(bal_before).unwrap(),
+        remaining.checked_mul(Uint128::new(2)).unwrap()
+    );
+}

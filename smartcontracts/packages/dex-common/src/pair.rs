@@ -182,12 +182,23 @@ pub enum ExecuteMsg {
     CancelLimitOrder {
         order_id: u64,
     },
+    /// Cancel multiple resting limit orders in one tx (≤ [`MAX_LIMIT_BATCH_RUNGS_HARD_CAP`] ids;
+    /// same per-pair cap as batch placement). Owner-only for every id; whole tx reverts on any
+    /// failure. Refunds aggregate into at most two CW20 transfers (token0 + token1). GitLab #246.
+    CancelLimitOrders {
+        order_ids: Vec<u64>,
+    },
     /// Claim escrow for an order removed from the book because it had **expired** when a taker’s
     /// match walk processed that price level. The refund row is stored until claimed (`ExpiredLimitRefund`
     /// query). Owner-only. **Blocked while the pair is paused** (same `assert_not_paused` gate as
     /// `CancelLimitOrder` — emergency pause freezes all maker withdrawal paths; GitLab #120).
     ClaimExpiredLimitOrder {
         order_id: u64,
+    },
+    /// Claim multiple parked-expiry refund rows in one tx (same cap and all-or-nothing rules as
+    /// [`CancelLimitOrders`]). GitLab #246.
+    ClaimExpiredLimitOrders {
+        order_ids: Vec<u64>,
     },
     /// Change the limit price of an existing order (same `order_id`, same
     /// remaining size). Does not charge the maker placement fee again.

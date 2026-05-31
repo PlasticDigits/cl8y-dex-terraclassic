@@ -112,9 +112,50 @@ fn parse_limit_order_expired_parked_from_wasm_attrs(
     out
 }
 
+fn parse_claim_expired_limit_orders_columnar(
+    attrs: &[Attribute],
+) -> Option<Vec<ParsedClaimExpiredLimitOrder>> {
+    let has_batch = attrs
+        .iter()
+        .any(|a| a.key == "action" && a.value == "claim_expired_limit_orders_batch");
+    let claim_count = attrs
+        .iter()
+        .filter(|a| a.key == "action" && a.value == "claim_expired_limit_order")
+        .count();
+    if !has_batch && claim_count <= 1 {
+        return None;
+    }
+    let contract = attrs
+        .iter()
+        .find(|a| is_wasm_contract_addr_key(a.key.as_str()))
+        .map(|a| a.value.as_str())?;
+
+    let order_ids: Vec<i64> = wasm_attr_values(attrs, "order_id")
+        .iter()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    if order_ids.is_empty() {
+        return None;
+    }
+
+    let n = order_ids.len();
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        out.push(ParsedClaimExpiredLimitOrder {
+            pair_address: contract.to_string(),
+            order_id: order_ids[i],
+        });
+    }
+    Some(out)
+}
+
 fn parse_claim_expired_limit_orders_from_wasm_attrs(
     attrs: &[Attribute],
 ) -> Vec<ParsedClaimExpiredLimitOrder> {
+    if let Some(columnar) = parse_claim_expired_limit_orders_columnar(attrs) {
+        return columnar;
+    }
+
     let mut out = Vec::new();
     for (i, a) in attrs.iter().enumerate() {
         if a.key != "action" || a.value != "claim_expired_limit_order" {
@@ -744,6 +785,83 @@ fn parse_limit_order_placements(tx: &TxResponse) -> Vec<ParsedLimitOrderPlacemen
     out
 }
 
+fn parse_limit_order_cancellations_columnar(
+    attrs: &[Attribute],
+) -> Option<Vec<ParsedLimitOrderCancellation>> {
+    let has_batch = attrs
+        .iter()
+        .any(|a| a.key == "action" && a.value == "cancel_limit_orders_batch");
+    let cancel_count = attrs
+        .iter()
+        .filter(|a| a.key == "action" && a.value == "cancel_limit_order")
+        .count();
+    if !has_batch && cancel_count <= 1 {
+        return None;
+    }
+    let contract = attrs
+        .iter()
+        .find(|a| is_wasm_contract_addr_key(a.key.as_str()))
+        .map(|a| a.value.as_str())?;
+
+    let order_ids: Vec<i64> = wasm_attr_values(attrs, "limit_order_cancelled")
+        .iter()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    if order_ids.is_empty() {
+        return None;
+    }
+    let owners: Vec<String> = wasm_attr_values(attrs, "owner")
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    let n = order_ids.len();
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        out.push(ParsedLimitOrderCancellation {
+            pair_address: contract.to_string(),
+            order_id: order_ids[i],
+            owner: owners
+                .get(i)
+                .cloned()
+                .or_else(|| owners.first().cloned()),
+        });
+    }
+    Some(out)
+}
+
+fn parse_limit_order_cancellations_from_wasm_attrs(
+    attrs: &[Attribute],
+) -> Vec<ParsedLimitOrderCancellation> {
+    if let Some(columnar) = parse_limit_order_cancellations_columnar(attrs) {
+        return columnar;
+    }
+
+    let mut out = Vec::new();
+    for (i, a) in attrs.iter().enumerate() {
+        if a.key != "action" || a.value != "cancel_limit_order" {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            continue;
+        };
+        let seg = wasm_kv_map_after_action(attrs, i);
+        let Some(order_id) = seg
+            .get("limit_order_cancelled")
+            .and_then(|s| s.parse::<i64>().ok())
+        else {
+            continue;
+        };
+        let owner = seg.get("owner").map(|x| x.to_string());
+        out.push(ParsedLimitOrderCancellation {
+            pair_address: contract.to_string(),
+            order_id,
+            owner,
+        });
+    }
+    out
+}
+
 fn parse_limit_order_cancellations(tx: &TxResponse) -> Vec<ParsedLimitOrderCancellation> {
     let mut out = Vec::new();
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
@@ -755,27 +873,12 @@ fn parse_limit_order_cancellations(tx: &TxResponse) -> Vec<ParsedLimitOrderCance
     };
 
     for event in &events {
-        if event.event_type != "wasm" {
+        if !is_wasm_lifecycle_event_type(&event.event_type) {
             continue;
         }
-        let attrs = &event.attributes;
-        if wasm_attr_last(attrs, "action") != Some("cancel_limit_order") {
-            continue;
-        }
-        let Some(contract) = wasm_contract_addr(attrs) else {
-            continue;
-        };
-        let oid =
-            wasm_attr_last(attrs, "limit_order_cancelled").and_then(|s| s.parse::<i64>().ok());
-        let Some(order_id) = oid else {
-            continue;
-        };
-        let owner = wasm_attr_last(attrs, "owner").map(|x| x.to_string());
-        out.push(ParsedLimitOrderCancellation {
-            pair_address: contract.to_string(),
-            order_id,
-            owner,
-        });
+        out.extend(parse_limit_order_cancellations_from_wasm_attrs(
+            &event.attributes,
+        ));
     }
     out
 }
@@ -1308,6 +1411,46 @@ mod tests {
         assert_eq!(c.len(), 1);
         assert_eq!(c[0].order_id, 99);
         assert_eq!(c[0].owner.as_deref(), Some("terra1maker"));
+    }
+
+    #[test]
+    fn parse_limit_order_cancellations_batch_columnar_attrs() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "cancel_limit_orders_batch"),
+            ("batch_count", "3"),
+            ("action", "cancel_limit_order"),
+            ("action", "cancel_limit_order"),
+            ("action", "cancel_limit_order"),
+            ("limit_order_cancelled", "10"),
+            ("limit_order_cancelled", "11"),
+            ("limit_order_cancelled", "12"),
+            ("owner", "terra1maker"),
+            ("owner", "terra1maker"),
+            ("owner", "terra1maker"),
+        ]);
+        let c = parse_limit_order_cancellations(&tx);
+        assert_eq!(c.len(), 3);
+        assert_eq!(c[0].order_id, 10);
+        assert_eq!(c[2].order_id, 12);
+        assert_eq!(c[0].owner.as_deref(), Some("terra1maker"));
+    }
+
+    #[test]
+    fn parse_claim_expired_limit_orders_batch_columnar_attrs() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "claim_expired_limit_orders_batch"),
+            ("batch_count", "2"),
+            ("action", "claim_expired_limit_order"),
+            ("action", "claim_expired_limit_order"),
+            ("order_id", "5"),
+            ("order_id", "6"),
+        ]);
+        let claims = parse_claim_expired_limit_orders(&tx);
+        assert_eq!(claims.len(), 2);
+        assert_eq!(claims[0].order_id, 5);
+        assert_eq!(claims[1].order_id, 6);
     }
 
     #[test]

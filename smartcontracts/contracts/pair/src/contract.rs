@@ -6,6 +6,9 @@ use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::error::ContractError;
+use crate::limit_batch_withdraw::{
+    execute_cancel_limit_orders, execute_claim_expired_limit_orders,
+};
 use crate::limit_placement::{
     execute_place_limit_order_ladder, execute_place_limit_orders_batch, save_limit_order_config,
 };
@@ -605,9 +608,17 @@ pub fn execute(
             assert_not_paused(deps.storage)?;
             execute_cancel_limit_order(deps, env, info, order_id)
         }
+        ExecuteMsg::CancelLimitOrders { order_ids } => {
+            assert_not_paused(deps.storage)?;
+            execute_cancel_limit_orders(deps, env, info, order_ids)
+        }
         ExecuteMsg::ClaimExpiredLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
             execute_claim_expired_limit_order(deps, env, info, order_id)
+        }
+        ExecuteMsg::ClaimExpiredLimitOrders { order_ids } => {
+            assert_not_paused(deps.storage)?;
+            execute_claim_expired_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::UpdateLimitOrderPrice {
             order_id,

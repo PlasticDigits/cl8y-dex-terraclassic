@@ -388,16 +388,15 @@ export function OrderBookPanel({
   const onCancelAllMyResting = async () => {
     if (!walletAddress || !cancelLimitOrderMutation || myActiveOrderIds.length === 0) return
     const ok = window.confirm(
-      `Cancel all ${myActiveOrderIds.length} resting limit order(s) for this pair from your wallet? Each order is submitted as its own on-chain transaction.`
+      myActiveOrderIds.length === 1
+        ? 'Cancel 1 resting limit order for this pair from your wallet?'
+        : `Cancel all ${myActiveOrderIds.length} resting limit orders for this pair in one on-chain transaction?`
     )
     if (!ok) return
-    for (const id of myActiveOrderIds) {
-      try {
-        await cancelLimitOrderMutation.mutateAsync(id)
-      } catch (e) {
-        window.alert((e as Error)?.message ?? String(e))
-        break
-      }
+    try {
+      await cancelLimitOrderMutation.mutateAsync(myActiveOrderIds)
+    } catch (e) {
+      window.alert((e as Error)?.message ?? String(e))
     }
   }
 
