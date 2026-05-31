@@ -22,6 +22,7 @@ import {
   getPairPaused,
   simulateSwap,
   reverseSimulateSwap,
+  simulateHybridSwap,
   swap,
   placeLimitOrderWithAllowance,
   provideLiquidity,
@@ -146,6 +147,61 @@ describe('simulateSwap', () => {
           pool_input: '1000',
           book_input: '0',
           max_maker_fills: 1,
+          book_start_hint: undefined,
+        },
+      },
+    })
+  })
+
+  it('passes optional trader on hybrid_simulation when wallet connected (GitLab #245)', async () => {
+    const offerInfo: AssetInfo = { token: { contract_addr: TOKEN_A } }
+    const simResp: HybridSimulationResponse = {
+      return_amount: '995000',
+      spread_amount: '0',
+      commission_amount: '5000',
+      book_return_amount: '0',
+      pool_return_amount: '995000',
+    }
+    mockedQuery.mockResolvedValueOnce(simResp)
+
+    await simulateSwap(PAIR_ADDR, offerInfo, '1000000', { trader: WALLET_ADDR })
+
+    expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, {
+      hybrid_simulation: {
+        offer_asset: { info: offerInfo, amount: '1000000' },
+        hybrid: {
+          pool_input: '1000000',
+          book_input: '0',
+          max_maker_fills: 1,
+          book_start_hint: undefined,
+        },
+        trader: WALLET_ADDR,
+      },
+    })
+  })
+})
+
+describe('simulateHybridSwap', () => {
+  it('omits trader when wallet disconnected', async () => {
+    const offerInfo: AssetInfo = { token: { contract_addr: TOKEN_A } }
+    const hybrid = { pool_input: '500', book_input: '500', max_maker_fills: 8, book_start_hint: null }
+    mockedQuery.mockResolvedValueOnce({
+      return_amount: '990',
+      spread_amount: '0',
+      commission_amount: '0',
+      book_return_amount: '0',
+      pool_return_amount: '990',
+    })
+
+    await simulateHybridSwap(PAIR_ADDR, offerInfo, '1000', hybrid)
+
+    expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, {
+      hybrid_simulation: {
+        offer_asset: { info: offerInfo, amount: '1000' },
+        hybrid: {
+          pool_input: '500',
+          book_input: '500',
+          max_maker_fills: 8,
           book_start_hint: undefined,
         },
       },

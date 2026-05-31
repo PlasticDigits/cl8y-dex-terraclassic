@@ -13,6 +13,12 @@ import type {
 } from '@/types'
 import { tokenAssetInfo } from '@/types'
 
+/** Optional wallet for CL8Y fee-tier parity on hybrid LCD quotes (GitLab #245). */
+export interface QuoteTraderOptions {
+  trader?: string
+  sender?: string
+}
+
 export async function getPairInfo(pairAddress: string): Promise<PairInfo> {
   return queryContract<PairInfo>(pairAddress, { pair: {} })
 }
@@ -29,9 +35,10 @@ export async function getPairPaused(pairAddress: string): Promise<PairPausedResp
 export async function simulateSwap(
   pairAddress: string,
   offerAssetInfo: AssetInfo,
-  offerAmount: string
+  offerAmount: string,
+  options?: QuoteTraderOptions
 ): Promise<HybridSimulationResponse> {
-  return simulateHybridSwap(pairAddress, offerAssetInfo, offerAmount, poolOnlyHybridParams(offerAmount))
+  return simulateHybridSwap(pairAddress, offerAssetInfo, offerAmount, poolOnlyHybridParams(offerAmount), options)
 }
 
 export async function simulateHybridSwap(
@@ -39,7 +46,7 @@ export async function simulateHybridSwap(
   offerAssetInfo: AssetInfo,
   offerAmount: string,
   hybrid: HybridSwapParams,
-  options?: { trader?: string; sender?: string }
+  options?: QuoteTraderOptions
 ): Promise<HybridSimulationResponse> {
   const offerAsset: Asset = { info: offerAssetInfo, amount: offerAmount }
   return queryContract<HybridSimulationResponse>(pairAddress, {

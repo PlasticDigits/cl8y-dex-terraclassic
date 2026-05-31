@@ -324,6 +324,7 @@ export default function SwapPage() {
         bookInputHuman,
         hybridMaxMakers,
         slippageTolerance,
+        address,
       ] as const,
     [
       fromToken,
@@ -336,8 +337,11 @@ export default function SwapPage() {
       bookInputHuman,
       hybridMaxMakers,
       slippageTolerance,
+      address,
     ]
   )
+
+  const quoteTrader = useMemo(() => (address ? { trader: address } : undefined), [address])
 
   const simQuery = useQuery({
     queryKey: simQueryKey,
@@ -366,7 +370,12 @@ export default function SwapPage() {
         const result = await simulateNativeSwap(rawInputAmount, fromToken, toToken, pairs)
         let routePreflight: SwapRoutePreflightSpread | undefined
         if (nativeRouteInfo.operations.length > 0) {
-          routePreflight = await preflightSwapRouteSpread(nativeRouteInfo.operations, rawInputAmount, maxSpreadStr)
+          routePreflight = await preflightSwapRouteSpread(
+            nativeRouteInfo.operations,
+            rawInputAmount,
+            maxSpreadStr,
+            quoteTrader
+          )
         }
         return withIndexerOutageFlag({
           return_amount: result.amount,
@@ -388,18 +397,26 @@ export default function SwapPage() {
             if (hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
             const pool = total - book
             try {
-              const idx = await postRouteSolve(fromToken, toToken, rawInputAmount, [
-                {
-                  pool_input: pool.toString(),
-                  book_input: book.toString(),
-                  max_maker_fills: hybridMaxMakers,
-                  book_start_hint: null,
-                },
-              ])
+              const idx = await postRouteSolve(
+                fromToken,
+                toToken,
+                rawInputAmount,
+                [
+                  {
+                    pool_input: pool.toString(),
+                    book_input: book.toString(),
+                    max_maker_fills: hybridMaxMakers,
+                    book_start_hint: null,
+                  },
+                ],
+                quoteTrader
+              )
               if (idx.estimated_amount_out?.trim()) {
                 const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
                 const routePreflight =
-                  ops.length > 0 ? await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr) : undefined
+                  ops.length > 0
+                    ? await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr, quoteTrader)
+                    : undefined
                 return {
                   return_amount: idx.estimated_amount_out,
                   spread_amount: '0',
@@ -423,13 +440,14 @@ export default function SwapPage() {
         try {
           const idx = await getRouteSolve(fromToken, toToken, rawInputAmount, {
             maxMakerFills: hybridMaxMakers,
+            trader: quoteTrader?.trader,
           })
           const tin = idx.token_in.trim().toLowerCase()
           const tout = idx.token_out.trim().toLowerCase()
           if (tin === fromToken.trim().toLowerCase() && tout === toToken.trim().toLowerCase()) {
             const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-            const result = await simulateMultiHopSwap(rawInputAmount, ops)
-            const routePreflight = await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr)
+            const result = await simulateMultiHopSwap(rawInputAmount, ops, quoteTrader)
+            const routePreflight = await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr, quoteTrader)
             const intermediates =
               idx.intermediate_tokens?.length === idx.hops.length + 1
                 ? idx.intermediate_tokens
@@ -453,7 +471,7 @@ export default function SwapPage() {
       if (!route) throw new Error('No route found')
       if (isDirect && directPair) {
         const offerInfo = tokenAssetInfo(fromToken)
-        const r = await simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount)
+        const r = await simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount, quoteTrader)
         const hybridSplit = getDirectHybridBookSplit({
           isDirect: true,
           useHybridBook,
@@ -470,8 +488,8 @@ export default function SwapPage() {
         })
       }
       if (isMultiHop && route) {
-        const result = await simulateMultiHopSwap(rawInputAmount, route)
-        const routePreflight = await preflightSwapRouteSpread(route, rawInputAmount, maxSpreadStr)
+        const result = await simulateMultiHopSwap(rawInputAmount, route, quoteTrader)
+        const routePreflight = await preflightSwapRouteSpread(route, rawInputAmount, maxSpreadStr, quoteTrader)
         return withIndexerOutageFlag({
           return_amount: result.amount,
           spread_amount: '0',

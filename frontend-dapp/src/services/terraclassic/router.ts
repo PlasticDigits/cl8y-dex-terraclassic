@@ -1,5 +1,6 @@
 import { queryContract } from './queries'
 import { executeTerraContract, executeTerraContractMulti } from './transactions'
+import type { QuoteTraderOptions } from './pair'
 import {
   ROUTER_CONTRACT_ADDRESS,
   NATIVE_WRAPPED_PAIRS,
@@ -39,13 +40,17 @@ interface SimulateResponse {
 
 export async function simulateMultiHopSwap(
   offerAmount: string,
-  operations: SwapOperation[]
+  operations: SwapOperation[],
+  quoteTrader?: QuoteTraderOptions
 ): Promise<SimulateResponse> {
+  const msg: Record<string, unknown> = {
+    offer_amount: offerAmount,
+    operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
+  }
+  if (quoteTrader?.trader) msg.trader = quoteTrader.trader
+  if (quoteTrader?.sender) msg.sender = quoteTrader.sender
   return queryContract<SimulateResponse>(ROUTER_CONTRACT_ADDRESS, {
-    simulate_swap_operations: {
-      offer_amount: offerAmount,
-      operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
-    },
+    simulate_swap_operations: msg,
   })
 }
 

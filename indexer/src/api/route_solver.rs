@@ -50,6 +50,12 @@ pub struct SolveRouteParams {
     /// Per-hop `max_maker_fills` for hybrid GET (default **8**).
     #[serde(default)]
     pub max_maker_fills: Option<u32>,
+    /// Optional beneficiary wallet for CL8Y fee-tier discounted LCD quotes (GitLab #245). Omit for full-fee quotes.
+    #[serde(default)]
+    pub trader: Option<String>,
+    /// Optional CW20 sender when it differs from `trader` (trusted router execute path).
+    #[serde(default)]
+    pub sender: Option<String>,
 }
 
 /// JSON body for [`solve_route_post`]. When `hybrid_by_hop` is omitted or `null`, all hops are pool-only (same as GET).
@@ -61,6 +67,12 @@ pub struct SolveRoutePostBody {
     /// One entry per hop after BFS. `null` = pool-only for that hop. Length must match hop count when present.
     #[serde(default)]
     pub hybrid_by_hop: Option<Vec<Option<HybridHopJson>>>,
+    /// Optional beneficiary wallet for CL8Y fee-tier discounted LCD quotes (GitLab #245).
+    #[serde(default)]
+    pub trader: Option<String>,
+    /// Optional CW20 sender when it differs from `trader`.
+    #[serde(default)]
+    pub sender: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
@@ -371,10 +383,62 @@ fn should_run_hybrid_get(q: &SolveRouteParams, amount_raw: Option<&str>) -> bool
     !get_pool_only_requested(q) && amount_raw.is_some()
 }
 
+const TERRA_ADDR_MIN_LEN: usize = 39;
+const TERRA_ADDR_MAX_LEN: usize = 128;
+
+fn validate_optional_terra_address(label: &str, raw: &str) -> Result<String, (StatusCode, String)> {
+    let addr = raw.trim();
+    if addr.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("{label} must not be empty when provided"),
+        ));
+    }
+    if !addr.starts_with("terra1") {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("{label} must be a terra1 bech32 address"),
+        ));
+    }
+    if addr.len() < TERRA_ADDR_MIN_LEN || addr.len() > TERRA_ADDR_MAX_LEN {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("{label} length out of range"),
+        ));
+    }
+    if !addr.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("{label} contains invalid characters"),
+        ));
+    }
+    Ok(addr.to_string())
+}
+
+pub(crate) fn parse_quote_trader(
+    trader: Option<String>,
+    sender: Option<String>,
+) -> Result<hybrid_route_opt::QuoteTrader, (StatusCode, String)> {
+    let trader = trader
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| validate_optional_terra_address("trader", s))
+        .transpose()?;
+    let sender = sender
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| validate_optional_terra_address("sender", s))
+        .transpose()?;
+    Ok(hybrid_route_opt::QuoteTrader { trader, sender })
+}
+
 pub(crate) async fn maybe_simulate(
     state: &AppState,
     amount_in: Option<&str>,
     ops: &[serde_json::Value],
+    quote_trader: &hybrid_route_opt::QuoteTrader,
 ) -> Result<Option<String>, (StatusCode, String)> {
     let (Some(amt), Some(router)) = (amount_in, state.router_address.as_ref()) else {
         return Ok(None);
@@ -382,18 +446,19 @@ pub(crate) async fn maybe_simulate(
     let Ok(n) = amt.parse::<u128>() else {
         return Ok(None);
     };
-    let sim: Result<serde_json::Value, _> = state
-        .lcd
-        .query_contract(
-            router,
-            &json!({
-                "simulate_swap_operations": {
-                    "offer_amount": n.to_string(),
-                    "operations": ops
-                }
-            }),
-        )
-        .await;
+    let mut sim = json!({
+        "simulate_swap_operations": {
+            "offer_amount": n.to_string(),
+            "operations": ops
+        }
+    });
+    if let Some(trader) = quote_trader.trader.as_deref() {
+        sim["simulate_swap_operations"]["trader"] = json!(trader);
+    }
+    if let Some(sender) = quote_trader.sender.as_deref() {
+        sim["simulate_swap_operations"]["sender"] = json!(sender);
+    }
+    let sim: Result<serde_json::Value, _> = state.lcd.query_contract(router, &sim).await;
     match sim {
         Ok(v) => Ok(v
             .get("amount")
@@ -447,14 +512,21 @@ fn hybrid_cache_key(
     token_out: &str,
     amount_bucket: u128,
     max_maker_fills: u32,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
 ) -> String {
+    let trader_key = quote_trader
+        .trader
+        .as_deref()
+        .map(|t| t.trim().to_lowercase())
+        .unwrap_or_else(|| "none".to_string());
     format!(
-        "{}|{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}|{}",
         crate::api::best_execution::SOLVER_VERSION,
         token_in.trim().to_lowercase(),
         token_out.trim().to_lowercase(),
         amount_bucket,
-        max_maker_fills
+        max_maker_fills,
+        trader_key
     )
 }
 
@@ -487,6 +559,7 @@ async fn execute_hybrid_route_solve(
     token_out: &str,
     amount_raw: &str,
     max_maker_fills: u32,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let Ok(amount_u) = amount_raw.parse::<u128>() else {
         return Err((
@@ -503,7 +576,7 @@ async fn execute_hybrid_route_solve(
 
     let max_makers = max_maker_fills.max(1);
     let bucket = amount_cache_key(amount_u);
-    let ck = hybrid_cache_key(token_in, token_out, bucket, max_makers);
+    let ck = hybrid_cache_key(token_in, token_out, bucket, max_makers, quote_trader);
     if let Some(cached) = cache_get(&ck) {
         return Ok(Json(cached));
     }
@@ -515,6 +588,7 @@ async fn execute_hybrid_route_solve(
         amount_u,
         amount_raw,
         max_makers,
+        quote_trader,
     )
     .await?;
 
@@ -552,12 +626,14 @@ pub async fn solve_route_best(
         ));
     };
 
+    let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
     execute_hybrid_route_solve(
         &state,
         &q.token_in,
         &q.token_out,
         amount_raw,
         q.max_maker_fills.unwrap_or(8),
+        &quote_trader,
     )
     .await
 }
@@ -579,6 +655,7 @@ pub async fn solve_route(
     Query(q): Query<SolveRouteParams>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let amount_raw = parse_amount_in(q.amount_in.as_ref());
+    let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
 
     if q.hybrid_optimize == Some(true) && amount_raw.is_none() {
         return Err((
@@ -594,6 +671,7 @@ pub async fn solve_route(
             &q.token_out,
             amount_raw.expect("checked above"),
             q.max_maker_fills.unwrap_or(8),
+            &quote_trader,
         )
         .await;
     }
@@ -601,7 +679,7 @@ pub async fn solve_route(
     let max_hops = get_pool_only_max_hops(&q);
     let resolved =
         resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, max_hops).await?;
-    let estimated = maybe_simulate(&state, amount_raw, &resolved.ops).await?;
+    let estimated = maybe_simulate(&state, amount_raw, &resolved.ops, &quote_trader).await?;
 
     let quote_kind = quote_kind_after_sim(
         &estimated,
@@ -647,6 +725,7 @@ pub async fn solve_route_post(
     State(state): State<AppState>,
     Json(body): Json<SolveRoutePostBody>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let quote_trader = parse_quote_trader(body.trader.clone(), body.sender.clone())?;
     let resolved = resolve_route(&state.pool, &body.token_in, &body.token_out).await?;
     let intermediate_tokens = build_intermediate_tokens(&resolved);
     let ops = if let Some(ref hybrid) = body.hybrid_by_hop {
@@ -655,7 +734,7 @@ pub async fn solve_route_post(
         resolved.ops
     };
 
-    let estimated = maybe_simulate(&state, body.amount_in.as_deref(), &ops).await?;
+    let estimated = maybe_simulate(&state, body.amount_in.as_deref(), &ops, &quote_trader).await?;
 
     let any_hybrid = body
         .hybrid_by_hop
@@ -688,4 +767,31 @@ pub async fn solve_route_post(
     };
 
     Ok(Json(serde_json::to_value(out).map_err(internal_err)?))
+}
+
+#[cfg(test)]
+mod quote_trader_tests {
+    use super::parse_quote_trader;
+    use axum::http::StatusCode;
+
+    const VALID: &str = "terra1discountwallet000000000000000000000";
+
+    #[test]
+    fn parse_quote_trader_empty_is_default() {
+        let q = parse_quote_trader(None, None).expect("ok");
+        assert!(q.trader.is_none());
+        assert!(q.sender.is_none());
+    }
+
+    #[test]
+    fn parse_quote_trader_accepts_terra1() {
+        let q = parse_quote_trader(Some(VALID.into()), None).expect("ok");
+        assert_eq!(q.trader.as_deref(), Some(VALID));
+    }
+
+    #[test]
+    fn parse_quote_trader_rejects_non_terra() {
+        let err = parse_quote_trader(Some("cosmos1bad".into()), None).unwrap_err();
+        assert_eq!(err.0, StatusCode::BAD_REQUEST);
+    }
 }

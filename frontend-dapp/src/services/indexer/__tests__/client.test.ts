@@ -62,6 +62,8 @@ describe('indexer client fetchJson', () => {
       token_out: 'terra1b',
       amount_in: '100',
       hybrid_by_hop: [{ pool_input: '60', book_input: '40', max_maker_fills: 8, book_start_hint: null }],
+      trader: null,
+      sender: null,
     }
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(
@@ -88,6 +90,53 @@ describe('indexer client fetchJson', () => {
       })
     )
     expect(out.estimated_amount_out).toBe('99')
+  })
+
+  it('GET /route/solve sends trader when connected wallet provided (GitLab #245)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          token_in: 'terra1a',
+          token_out: 'terra1b',
+          hops: [],
+          router_operations: [],
+          intermediate_tokens: ['terra1a', 'terra1b'],
+          quote_kind: 'indexer_hybrid_lcd',
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    const trader = 'terra1wallet000000000000000000000000000000'
+    await client.getRouteSolve('terra1a', 'terra1b', '1000', { trader })
+    const url = vi.mocked(fetch).mock.calls[0][0] as string
+    expect(url).toContain(`trader=${trader}`)
+  })
+
+  it('POST /route/solve includes trader in JSON body (GitLab #245)', async () => {
+    const trader = 'terra1wallet000000000000000000000000000000'
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          token_in: 'terra1a',
+          token_out: 'terra1b',
+          hops: [],
+          router_operations: [],
+          estimated_amount_out: '99',
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    await client.postRouteSolve(
+      'terra1a',
+      'terra1b',
+      '100',
+      [{ pool_input: '100', book_input: '0', max_maker_fills: 1, book_start_hint: null }],
+      { trader }
+    )
+    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string)
+    expect(body.trader).toBe(trader)
   })
 
   it('GET /route/solve sends amount_in and max_maker_fills by default (hybrid-aware GET)', async () => {

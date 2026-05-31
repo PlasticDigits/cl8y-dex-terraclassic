@@ -198,6 +198,7 @@ export function TradeMarketOrderPanel({
   const inlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
 
   const maxSpreadStr = useMemo(() => (slippageTolerance / 100).toString(), [slippageTolerance])
+  const quoteTrader = useMemo(() => (address ? { trader: address } : undefined), [address])
 
   const simQuery = useQuery({
     queryKey: [
@@ -209,6 +210,7 @@ export function TradeMarketOrderPanel({
       bookInputHuman,
       hybridMaxMakers,
       slippageTolerance,
+      address,
     ],
     queryFn: async (): Promise<MarketSimData> => {
       if (!selectedPair || rawInputAmount === '0') throw new Error('missing')
@@ -217,18 +219,26 @@ export function TradeMarketOrderPanel({
 
       if (useHybridBook && hybrid && willSubmitHybrid) {
         try {
-          const idx = await postRouteSolve(fromToken, toToken, rawInputAmount, [
-            {
-              pool_input: hybrid.pool_input,
-              book_input: hybrid.book_input,
-              max_maker_fills: hybrid.max_maker_fills,
-              book_start_hint: hybrid.book_start_hint,
-            },
-          ])
+          const idx = await postRouteSolve(
+            fromToken,
+            toToken,
+            rawInputAmount,
+            [
+              {
+                pool_input: hybrid.pool_input,
+                book_input: hybrid.book_input,
+                max_maker_fills: hybrid.max_maker_fills,
+                book_start_hint: hybrid.book_start_hint,
+              },
+            ],
+            quoteTrader
+          )
           if (idx.estimated_amount_out?.trim()) {
             const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
             const routePreflight =
-              ops.length > 0 ? await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr) : undefined
+              ops.length > 0
+                ? await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr, quoteTrader)
+                : undefined
             return {
               return_amount: idx.estimated_amount_out,
               spread_amount: '0',
@@ -244,7 +254,13 @@ export function TradeMarketOrderPanel({
           /* fall through */
         }
         try {
-          const sim = await simulateHybridSwap(selectedPair.contract_addr, offerInfo, rawInputAmount, hybrid)
+          const sim = await simulateHybridSwap(
+            selectedPair.contract_addr,
+            offerInfo,
+            rawInputAmount,
+            hybrid,
+            quoteTrader
+          )
           const ops: SwapOperation[] = [
             {
               terra_swap: {
@@ -254,7 +270,7 @@ export function TradeMarketOrderPanel({
               },
             },
           ]
-          const routePreflight = await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr)
+          const routePreflight = await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr, quoteTrader)
           return {
             return_amount: sim.return_amount,
             spread_amount: sim.spread_amount,
@@ -268,7 +284,7 @@ export function TradeMarketOrderPanel({
         }
       }
 
-      const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, rawInputAmount)
+      const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, rawInputAmount, quoteTrader)
       const hybridSplit = getDirectHybridBookSplit({
         isDirect: true,
         useHybridBook,

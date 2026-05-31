@@ -6,6 +6,13 @@ use utoipa::ToSchema;
 
 use crate::lcd::LcdClient;
 
+/// Optional wallet forwarded to pair `HybridSimulation` / router sim for CL8Y fee-tier parity (GitLab #245).
+#[derive(Clone, Debug, Default)]
+pub struct QuoteTrader {
+    pub trader: Option<String>,
+    pub sender: Option<String>,
+}
+
 /// Hybrid parameters for one hop (matches on-chain `HybridSwapParams`; amounts as decimal strings).
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct HybridHopJson {
@@ -44,13 +51,53 @@ fn asset_info_token(contract: &str) -> serde_json::Value {
     json!({ "token": { "contract_addr": contract } })
 }
 
+fn hybrid_sim_query(
+    offer_token: &str,
+    offer_amount: u128,
+    pool_input: u128,
+    book_input: u128,
+    max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
+) -> serde_json::Value {
+    let mut sim = json!({
+        "offer_asset": {
+            "info": asset_info_token(offer_token),
+            "amount": offer_amount.to_string(),
+        },
+        "hybrid": {
+            "pool_input": pool_input.to_string(),
+            "book_input": book_input.to_string(),
+            "max_maker_fills": max_maker_fills,
+            "book_start_hint": serde_json::Value::Null,
+        }
+    });
+    if let Some(trader) = quote_trader.trader.as_deref() {
+        sim["trader"] = json!(trader);
+    }
+    if let Some(sender) = quote_trader.sender.as_deref() {
+        sim["sender"] = json!(sender);
+    }
+    json!({ "hybrid_simulation": sim })
+}
+
 async fn query_pool_only_hybrid(
     lcd: &LcdClient,
     pair: &str,
     offer_token: &str,
     offer_amount: u128,
+    quote_trader: &QuoteTrader,
 ) -> Result<u128, crate::lcd::LcdError> {
-    query_hybrid_sim(lcd, pair, offer_token, offer_amount, offer_amount, 0, 1).await
+    query_hybrid_sim(
+        lcd,
+        pair,
+        offer_token,
+        offer_amount,
+        offer_amount,
+        0,
+        1,
+        quote_trader,
+    )
+    .await
 }
 
 async fn query_hybrid_sim(
@@ -61,21 +108,16 @@ async fn query_hybrid_sim(
     pool_input: u128,
     book_input: u128,
     max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
 ) -> Result<u128, crate::lcd::LcdError> {
-    let q = json!({
-        "hybrid_simulation": {
-            "offer_asset": {
-                "info": asset_info_token(offer_token),
-                "amount": offer_amount.to_string(),
-            },
-            "hybrid": {
-                "pool_input": pool_input.to_string(),
-                "book_input": book_input.to_string(),
-                "max_maker_fills": max_maker_fills,
-                "book_start_hint": serde_json::Value::Null,
-            }
-        }
-    });
+    let q = hybrid_sim_query(
+        offer_token,
+        offer_amount,
+        pool_input,
+        book_input,
+        max_maker_fills,
+        quote_trader,
+    );
     let r: HybridSimResp = lcd.query_contract(pair, &q).await?;
     r.return_amount
         .parse::<u128>()
@@ -90,6 +132,7 @@ async fn optimize_one_hop(
     offer_amount: u128,
     max_maker_fills: u32,
     meta: &mut OptimizationMeta,
+    quote_trader: &QuoteTrader,
 ) -> Result<(Option<HybridHopJson>, u128), crate::lcd::LcdError> {
     if offer_amount == 0 {
         return Ok((None, 0));
@@ -115,6 +158,7 @@ async fn optimize_one_hop(
             pool,
             book,
             max_maker_fills,
+            quote_trader,
         )
         .await
         {
@@ -140,7 +184,7 @@ async fn optimize_one_hop(
     if !any_candidate_ok {
         meta.degraded = true;
         // HybridSimulation grid failed — pool-only hybrid (`book_input: 0`) for this hop.
-        let out = query_pool_only_hybrid(lcd, &hop.pair, &hop.offer_token, offer_amount).await?;
+        let out = query_pool_only_hybrid(lcd, &hop.pair, &hop.offer_token, offer_amount, quote_trader).await?;
         return Ok((None, out));
     }
 
@@ -165,6 +209,7 @@ async fn optimize_one_hop(
         offer_amount,
         0,
         1,
+        quote_trader,
     )
     .await?;
     Ok((None, out))
@@ -177,9 +222,10 @@ pub async fn optimize_multihop_hybrid(
     hops: &[HopDescriptor],
     amount_in: u128,
     max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
 ) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta), crate::lcd::LcdError> {
     let mut meta = OptimizationMeta::default();
-    let plan = optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta).await?;
+    let plan = optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta, quote_trader).await?;
     Ok((plan, meta))
 }
 
@@ -189,18 +235,27 @@ pub async fn optimize_multihop_hybrid_joint(
     hops: &[HopDescriptor],
     amount_in: u128,
     max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
 ) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta), crate::lcd::LcdError> {
     let mut meta = OptimizationMeta::default();
     let mut plan =
-        optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta).await?;
+        optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta, quote_trader).await?;
 
     const COORDINATE_PASSES: u32 = 2;
     for _ in 0..COORDINATE_PASSES {
         for hop_idx in 0..hops.len() {
-            let offer = propagate_offer_through_plan(lcd, hops, &plan, amount_in, hop_idx, max_maker_fills)
+            let offer = propagate_offer_through_plan(
+                lcd,
+                hops,
+                &plan,
+                amount_in,
+                hop_idx,
+                max_maker_fills,
+                quote_trader,
+            )
+            .await?;
+            let (hybrid, _) = optimize_one_hop(lcd, &hops[hop_idx], offer, max_maker_fills, &mut meta, quote_trader)
                 .await?;
-            let (hybrid, _) =
-                optimize_one_hop(lcd, &hops[hop_idx], offer, max_maker_fills, &mut meta).await?;
             plan[hop_idx] = hybrid;
         }
     }
@@ -214,12 +269,14 @@ async fn optimize_multihop_hybrid_with_plan(
     amount_in: u128,
     max_maker_fills: u32,
     meta: &mut OptimizationMeta,
+    quote_trader: &QuoteTrader,
 ) -> Result<Vec<Option<HybridHopJson>>, crate::lcd::LcdError> {
     let mut out_vec = Vec::with_capacity(hops.len());
     let mut running = amount_in;
 
     for hop in hops {
-        let (hybrid, next_in) = optimize_one_hop(lcd, hop, running, max_maker_fills, meta).await?;
+        let (hybrid, next_in) =
+            optimize_one_hop(lcd, hop, running, max_maker_fills, meta, quote_trader).await?;
         out_vec.push(hybrid);
         running = next_in;
     }
@@ -234,6 +291,7 @@ async fn propagate_offer_through_plan(
     amount_in: u128,
     target_hop: usize,
     max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
 ) -> Result<u128, crate::lcd::LcdError> {
     let mut running = amount_in;
     for (idx, hop) in hops.iter().enumerate().take(target_hop) {
@@ -259,6 +317,7 @@ async fn propagate_offer_through_plan(
             pool,
             book,
             max_maker_fills.max(1),
+            quote_trader,
         )
         .await?;
     }

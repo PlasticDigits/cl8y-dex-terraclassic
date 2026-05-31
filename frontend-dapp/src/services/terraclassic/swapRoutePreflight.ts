@@ -1,5 +1,5 @@
 import { getPair } from './factory'
-import { simulateHybridSwap } from './pair'
+import { simulateHybridSwap, type QuoteTraderOptions } from './pair'
 import { poolOnlyHybridParams } from './poolOnlyHybrid'
 import type { SwapOperation } from './router'
 import type { AssetInfo } from '@/types'
@@ -19,7 +19,8 @@ export interface SwapRoutePreflightSpread {
 export async function preflightSwapRouteSpread(
   operations: SwapOperation[],
   offerAmount: string,
-  maxSpreadDecimalStr: string
+  maxSpreadDecimalStr: string,
+  quoteTrader?: QuoteTraderOptions
 ): Promise<SwapRoutePreflightSpread> {
   if (operations.length === 0) {
     return { worstSpreadPercent: '0.00', anyHopExceedsMaxSpread: false }
@@ -37,7 +38,7 @@ export async function preflightSwapRouteSpread(
     const pairAddr = pairRow.contract_addr
 
     const hybrid = ts.hybrid != null ? ts.hybrid : poolOnlyHybridParams(currentOffer)
-    const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, hybrid)
+    const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
     const { spreadCmp, totalGrossOut } = hybridSpreadCmpAndTotal(sim)
     if (spreadRatioStrictlyExceedsMax(spreadCmp, totalGrossOut, maxSpreadDecimalStr)) {
       anyExceeds = true

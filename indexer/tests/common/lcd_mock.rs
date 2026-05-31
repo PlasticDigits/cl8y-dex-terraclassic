@@ -28,12 +28,27 @@ pub fn smart_query_from_request(req: &Request) -> Value {
     serde_json::from_slice(&bytes).expect("valid json query")
 }
 
+/// When `hybrid_simulation.trader` is set, bump output by 10% (fee-discount parity tests, GitLab #245).
+fn hybrid_sim_return_amount(offer: u128, book: u128, has_trader: bool) -> u128 {
+    let base = offer.saturating_add(book / 2);
+    if has_trader {
+        base.saturating_mul(110) / 100
+    } else {
+        base
+    }
+}
+
 /// LCD stub for hybrid route optimization: `HybridSimulation` (including pool-only `book_input: 0`), router `simulate_swap_operations`.
 pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
     let responder = |req: &Request| {
         let q = smart_query_from_request(req);
         let data = if q.get("simulate_swap_operations").is_some() {
-            json!({ "amount": "8888888" })
+            let has_trader = q["simulate_swap_operations"]
+                .get("trader")
+                .and_then(|v| v.as_str())
+                .is_some();
+            let amount = if has_trader { "9777776" } else { "8888888" };
+            json!({ "amount": amount })
         } else if q.get("hybrid_simulation").is_some() {
             let book = q["hybrid_simulation"]["hybrid"]["book_input"]
                 .as_str()
@@ -45,7 +60,11 @@ pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
                 .unwrap_or("0")
                 .parse::<u128>()
                 .unwrap_or(0);
-            let ret = offer.saturating_add(book / 2);
+            let has_trader = q["hybrid_simulation"]
+                .get("trader")
+                .and_then(|v| v.as_str())
+                .is_some();
+            let ret = hybrid_sim_return_amount(offer, book, has_trader);
             json!({
                 "return_amount": ret.to_string(),
                 "spread_amount": "0",

@@ -449,3 +449,72 @@ async fn route_solve_global_response_metadata_contract() {
     assert!(!j["hybrid_notes"].as_str().unwrap_or("").is_empty());
     assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);
 }
+
+#[serial]
+#[tokio::test]
+async fn route_solve_get_with_trader_returns_higher_estimate() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let base_url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+    let base: Value = server.get(&base_url).await.json();
+    let trader = "terra1discountwallet000000000000000000000";
+    let discounted_url = format!("{base_url}&trader={trader}");
+    let discounted: Value = server.get(&discounted_url).await.json();
+
+    assert_eq!(base["estimated_amount_out"], "8888888");
+    assert_eq!(discounted["estimated_amount_out"], "9777776");
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_invalid_trader_returns_400() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000&trader=not-a-wallet",
+        seed.token_a, seed.token_b
+    );
+    server.get(&url).await.assert_status_bad_request();
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_post_forwards_trader_to_router_sim() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let trader = "terra1discountwallet000000000000000000000";
+    let body = json!({
+        "token_in": seed.token_a,
+        "token_out": seed.token_b,
+        "amount_in": "1000000",
+        "trader": trader,
+        "hybrid_by_hop": [{
+            "pool_input": "700000",
+            "book_input": "300000",
+            "max_maker_fills": 8,
+            "book_start_hint": null
+        }]
+    });
+    let j: Value = server.post("/api/v1/route/solve").json(&body).await.json();
+    assert_eq!(j["estimated_amount_out"], "9777776");
+}

@@ -420,6 +420,9 @@ export interface GetRouteSolveOptions {
   /** @deprecated Hybrid optimization is default when `amountIn` is set; use `poolOnly` to opt out. */
   hybridOptimize?: boolean
   maxMakerFills?: number
+  /** Connected wallet for CL8Y fee-tier discounted quotes (GitLab #245). */
+  trader?: string
+  sender?: string
 }
 
 /**
@@ -438,6 +441,8 @@ export async function getRouteSolve(
   if (options?.poolOnly) sp.set('pool_only', 'true')
   else if (options?.hybridOptimize === false) sp.set('hybrid_optimize', 'false')
   if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
+  if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
+  if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
   return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`)
 }
 
@@ -446,12 +451,15 @@ export async function postRouteSolve(
   tokenIn: string,
   tokenOut: string,
   amountIn: string | undefined,
-  hybridByHop: (IndexerHybridHopInput | null)[]
+  hybridByHop: (IndexerHybridHopInput | null)[],
+  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender'>
 ): Promise<IndexerRouteSolveResponse> {
   return fetchJsonPost<IndexerRouteSolveResponse>('/api/v1/route/solve', {
     token_in: tokenIn.trim(),
     token_out: tokenOut.trim(),
     amount_in: amountIn?.trim() || null,
     hybrid_by_hop: hybridByHop,
+    trader: options?.trader?.trim() || null,
+    sender: options?.sender?.trim() || null,
   })
 }

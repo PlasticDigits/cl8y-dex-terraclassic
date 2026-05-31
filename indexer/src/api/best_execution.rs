@@ -112,6 +112,7 @@ pub async fn solve_global_best_execution(
     amount_in: u128,
     amount_raw: &str,
     max_maker_fills: u32,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
 ) -> Result<(RouteSolveResponse, BestExecutionMeta), (StatusCode, String)> {
     let candidates =
         enumerate_path_candidates(&state.pool, token_in, token_out, GET_DEFAULT_MAX_HOPS).await?;
@@ -136,6 +137,7 @@ pub async fn solve_global_best_execution(
             &hops_desc,
             amount_in,
             max_maker_fills,
+            quote_trader,
         )
         .await
         .map_err(crate::api::lcd_gateway_err)?;
@@ -146,7 +148,8 @@ pub async fn solve_global_best_execution(
         let token_out_t = token_out.trim().to_string();
         let hops = cand.hops.clone();
         let ops = apply_hybrid_by_hop(cand.ops.clone(), &hybrid_plan)?;
-        let estimated = crate::api::route_solver::maybe_simulate(state, Some(amount_raw), &ops).await?;
+        let estimated =
+            crate::api::route_solver::maybe_simulate(state, Some(amount_raw), &ops, quote_trader).await?;
 
         let out_u = estimated
             .as_ref()

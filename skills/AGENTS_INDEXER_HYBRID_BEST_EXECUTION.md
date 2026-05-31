@@ -6,11 +6,11 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 
 | Endpoint | When to use |
 |----------|-------------|
-| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — **global best execution** (`solver_version`: `global_v1`): top-5 paths by hop count, joint hybrid splits, max **3 hops** when `amount_in` is set ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)). |
-| `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Alias** — requires `amount_in` ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)). |
+| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — **global best execution** (`solver_version`: `global_v1`): top-5 paths by hop count, joint hybrid splits, max **3 hops** when `amount_in` is set ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)). Optional **`trader`** / **`sender`** for CL8Y fee-tier quote parity ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). |
+| `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Alias** — requires `amount_in` ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)). Accepts same optional **`trader`** / **`sender`**. |
 | `GET /api/v1/route/solve?hybrid_optimize=true&amount_in=` | Deprecated explicit opt-in; equivalent to default GET with `amount_in`. |
 | `GET /api/v1/route/solve?pool_only=true&amount_in=` | Pool-only opt-out (max 4 hops, no global solver). |
-| `POST /api/v1/route/solve` with `hybrid_by_hop` | **Override** splits (max 4 hops, first BFS path); not the global optimizer. |
+| `POST /api/v1/route/solve` with `hybrid_by_hop` | **Override** splits (max 4 hops, first BFS path); not the global optimizer. Optional body **`trader`** / **`sender`** forwarded to LCD sim ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). |
 
 ### Response fields (#209)
 
