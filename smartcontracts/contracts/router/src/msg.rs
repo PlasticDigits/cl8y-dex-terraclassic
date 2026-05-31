@@ -61,6 +61,9 @@ pub enum QueryMsg {
     #[returns(ConfigResponse)]
     Config {},
     #[returns(SimulateSwapOperationsResponse)]
+    /// Chains explicit per-hop amounts (no router balance query). Execution matches when the
+    /// router has no pre-existing dust on intermediate/output tokens; see invariant **R4**
+    /// ([`docs/contracts-security-audit.md`](../../../../docs/contracts-security-audit.md)).
     SimulateSwapOperations {
         offer_amount: Uint128,
         operations: Vec<SwapOperation>,
