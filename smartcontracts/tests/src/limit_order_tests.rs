@@ -1,7 +1,7 @@
 //! Integration tests for FIFO limit orders and Pattern C hybrid swaps.
 
 use cosmwasm_std::{to_json_binary, Addr, Decimal, Uint128};
-use cw_multi_test::{App, Executor};
+use cw_multi_test::{App, AppResponse, Executor};
 
 use super::helpers::*;
 
@@ -12,7 +12,7 @@ use dex_common::limit_placement::{
 use dex_common::pair::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
     HybridSimulationResponse, HybridSwapParams, LimitOrderConfigResponse, LimitOrderResponse,
-    LimitOrderSide, PausedResponse, QueryMsg, MAX_MAKER_FILLS_HARD_CAP,
+    LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -67,6 +67,151 @@ fn parse_limit_order_placed(events: &[cosmwasm_std::Event]) -> u64 {
         .find(|a| a.key == "limit_order_placed")
         .map(|a| a.value.parse::<u64>().unwrap())
         .expect("limit_order_placed attribute")
+}
+
+fn count_limit_order_expired_parked_events(events: &[cosmwasm_std::Event]) -> usize {
+    events
+        .iter()
+        .filter(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+        })
+        .count()
+}
+
+fn place_expired_bids(
+    app: &mut App,
+    env: &TestEnv,
+    count: usize,
+    escrow_each: Uint128,
+    exp: u64,
+) -> Vec<u64> {
+    let mut ids = Vec::with_capacity(count);
+    for _ in 0..count {
+        let msg = batch_place_msg(
+            LimitOrderSide::Bid,
+            Decimal::one(),
+            escrow_each,
+            32,
+            Some(exp),
+        );
+        let res = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_b.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: escrow_each,
+                    msg,
+                },
+                &[],
+            )
+            .unwrap();
+        ids.push(parse_limit_order_placed(&res.events));
+    }
+    ids
+}
+
+fn place_expired_asks(
+    app: &mut App,
+    env: &TestEnv,
+    count: usize,
+    escrow_each: Uint128,
+    exp: u64,
+) -> Vec<u64> {
+    let mut ids = Vec::with_capacity(count);
+    for _ in 0..count {
+        let msg = batch_place_msg(
+            LimitOrderSide::Ask,
+            Decimal::one(),
+            escrow_each,
+            32,
+            Some(exp),
+        );
+        let res = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: escrow_each,
+                    msg,
+                },
+                &[],
+            )
+            .unwrap();
+        ids.push(parse_limit_order_placed(&res.events));
+    }
+    ids
+}
+
+fn hybrid_swap_a_to_b(
+    app: &mut App,
+    env: &TestEnv,
+    taker: &Addr,
+    book_input: Uint128,
+    max_maker_fills: u32,
+) -> AppResponse {
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input,
+            max_maker_fills,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker.clone(),
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: book_input,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap()
+}
+
+fn hybrid_swap_b_to_a(
+    app: &mut App,
+    env: &TestEnv,
+    taker: &Addr,
+    book_input: Uint128,
+    max_maker_fills: u32,
+) -> AppResponse {
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input,
+            max_maker_fills,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker.clone(),
+        env.token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: book_input,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap()
 }
 
 fn count_limit_order_fill_events(events: &[cosmwasm_std::Event]) -> usize {
@@ -1300,6 +1445,291 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
         )
         .unwrap();
     assert!(empty.is_none());
+}
+
+// --- GitLab #250: cap expired limit parks during hybrid match walks ---
+
+#[test]
+fn hybrid_walk_parks_at_most_five_expired_bids_per_swap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp_cap");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    let escrow = Uint128::new(5_000);
+    let order_ids = place_expired_bids(&mut app, &env, 10, escrow, exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        MAX_EXPIRED_PARKS_PER_SWAP as usize
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used"),
+        Some(MAX_EXPIRED_PARKS_PER_SWAP.to_string())
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped"),
+        Some("true".into())
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_skipped"),
+        Some("5".into())
+    );
+
+    let mut parked = 0usize;
+    for id in &order_ids[..MAX_EXPIRED_PARKS_PER_SWAP as usize] {
+        let row: Option<ExpiredLimitRefundResponse> = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::ExpiredLimitRefund { order_id: *id },
+            )
+            .unwrap();
+        assert!(row.is_some(), "order {id} should be parked");
+        parked += 1;
+    }
+    assert_eq!(parked, MAX_EXPIRED_PARKS_PER_SWAP as usize);
+
+    for id in &order_ids[MAX_EXPIRED_PARKS_PER_SWAP as usize..] {
+        let row: Option<ExpiredLimitRefundResponse> = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::ExpiredLimitRefund { order_id: *id },
+            )
+            .unwrap();
+        assert!(
+            row.is_none(),
+            "order {id} should remain on book (skipped park)"
+        );
+        app.wrap()
+            .query_wasm_smart::<LimitOrderResponse>(
+                env.pair.to_string(),
+                &QueryMsg::LimitOrder { order_id: *id },
+            )
+            .expect("skipped expired order still queryable on book");
+    }
+}
+
+#[test]
+fn hybrid_walk_three_expired_bids_all_parked_then_fills_live_bid() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp3");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    place_expired_bids(&mut app, &env, 3, Uint128::new(5_000), exp);
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(10_000), 8);
+
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        3
+    );
+    assert_eq!(count_limit_order_fill_events(&hybrid_res.events), 1);
+    assert!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped").is_none()
+    );
+}
+
+#[test]
+fn hybrid_walk_ten_expired_asks_parks_five_skips_five() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp_ask");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    place_expired_asks(&mut app, &env, 10, Uint128::new(5_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let hybrid_res = hybrid_swap_b_to_a(&mut app, &env, &taker, Uint128::new(50_000), 8);
+
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        MAX_EXPIRED_PARKS_PER_SWAP as usize
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_skipped"),
+        Some("5".into())
+    );
+}
+
+#[test]
+fn skipped_expired_bid_cancelable_by_maker() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp_cancel");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    let order_ids = place_expired_bids(&mut app, &env, 10, Uint128::new(5_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+
+    let skipped_id = order_ids[MAX_EXPIRED_PARKS_PER_SWAP as usize];
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::CancelLimitOrder {
+            order_id: skipped_id,
+        },
+        &[],
+    )
+    .expect("maker can cancel skipped expired order still on book");
+}
+
+#[test]
+fn hybrid_simulation_matches_execute_with_expired_park_cap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp_sim");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    place_expired_bids(&mut app, &env, 10, Uint128::new(5_000), exp);
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::zero(),
+        book_input: Uint128::new(10_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: hybrid.book_input,
+                },
+                hybrid: hybrid.clone(),
+                trader: None,
+                sender: None,
+            },
+        )
+        .unwrap();
+
+    let taker_b_before = query_cw20_balance(&app, &env.token_b, &taker);
+    hybrid_swap_a_to_b(
+        &mut app,
+        &env,
+        &taker,
+        hybrid.book_input,
+        hybrid.max_maker_fills,
+    );
+    let taker_b_after = query_cw20_balance(&app, &env.token_b, &taker);
+
+    assert_eq!(
+        taker_b_after.checked_sub(taker_b_before).unwrap(),
+        sim.return_amount,
+        "sim skips all expired; execute parks ≤5 then skips — fill behind stack matches"
+    );
 }
 
 /// Invariant L6: `ClaimExpiredLimitOrder` is blocked while paused (same gate as cancel); succeeds after unpause.

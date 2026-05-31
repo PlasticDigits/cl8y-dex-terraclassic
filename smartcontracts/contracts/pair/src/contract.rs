@@ -849,6 +849,8 @@ fn execute_swap(
     let mut book_commission_total = Uint128::zero();
     let mut offer_consumed_by_book = Uint128::zero();
     let mut book_maker_payouts = std::collections::BTreeMap::new();
+    let mut book_expired_parks = 0u32;
+    let mut book_expired_parks_skipped = 0u32;
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
@@ -870,6 +872,8 @@ fn execute_swap(
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
             book_maker_payouts = book_match.maker_payouts;
+            book_expired_parks = book_match.expired_parks;
+            book_expired_parks_skipped = book_match.expired_parks_skipped;
         } else {
             let book_match = orderbook::match_asks(
                 deps.storage,
@@ -889,6 +893,8 @@ fn execute_swap(
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
             book_maker_payouts = book_match.maker_payouts;
+            book_expired_parks = book_match.expired_parks;
+            book_expired_parks_skipped = book_match.expired_parks_skipped;
         }
     }
 
@@ -1045,6 +1051,17 @@ fn execute_swap(
         resp = resp
             .add_attribute("limit_book_offer_consumed", offer_consumed_by_book)
             .add_attribute("book_commission_amount", book_commission_total);
+        if book_expired_parks > 0 {
+            resp = resp.add_attribute("expired_parks_used", book_expired_parks.to_string());
+        }
+        if book_expired_parks_skipped > 0 {
+            resp = resp
+                .add_attribute("expired_parks_capped", "true")
+                .add_attribute(
+                    "expired_parks_skipped",
+                    book_expired_parks_skipped.to_string(),
+                );
+        }
     }
 
     Ok(resp)

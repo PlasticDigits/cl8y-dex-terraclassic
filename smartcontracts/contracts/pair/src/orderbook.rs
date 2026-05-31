@@ -23,7 +23,9 @@ use crate::state::{
     ORDER_NEXT_ID, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1,
 };
 
-use dex_common::pair::{MAX_ADJUST_STEPS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP};
+use dex_common::pair::{
+    MAX_ADJUST_STEPS_HARD_CAP, MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP,
+};
 
 /// Maker-side basis points charged once at order placement (`floor(effective/2)`).
 #[inline]
@@ -46,6 +48,10 @@ pub struct BookMatchResult {
     pub offer_consumed: Uint128,
     /// Distinct maker orders filled (excluding expired parks).
     pub makers_used: u32,
+    /// Expired orders parked into `EXPIRED_LIMIT_CLAIMS` during this walk.
+    pub expired_parks: u32,
+    /// Expired orders left on book because [`MAX_EXPIRED_PARKS_PER_SWAP`] was reached.
+    pub expired_parks_skipped: u32,
     /// Sum of taker-side commission sent to treasury (denominated in the ask asset).
     pub commission_total: Uint128,
     /// Offer-token payouts per maker (deduped by owner; aggregated in `execute_swap`).
@@ -708,6 +714,8 @@ pub fn match_bids(
     let mut token1_out_total = Uint128::zero();
     let mut commission_total = Uint128::zero();
     let mut makers_used = 0u32;
+    let mut expired_parks = 0u32;
+    let mut expired_parks_skipped = 0u32;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
 
@@ -730,8 +738,13 @@ pub fn match_bids(
         let next_ptr = order.next;
 
         if order.expires_at.is_some_and(|e| now >= e) {
-            let ev = park_expired_limit_order_for_claim(storage, oid, now, pair_contract)?;
-            fill_events.push(ev);
+            if expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
+                let ev = park_expired_limit_order_for_claim(storage, oid, now, pair_contract)?;
+                fill_events.push(ev);
+                expired_parks += 1;
+            } else {
+                expired_parks_skipped += 1;
+            }
             cur = next_ptr;
             continue;
         }
@@ -832,6 +845,8 @@ pub fn match_bids(
         return_net: token1_out_total,
         offer_consumed: token0_budget.checked_sub(token0_left)?,
         makers_used,
+        expired_parks,
+        expired_parks_skipped,
         commission_total,
         maker_payouts,
         fill_events,
@@ -859,6 +874,8 @@ pub fn match_asks(
     let mut token0_out_total = Uint128::zero();
     let mut commission_total = Uint128::zero();
     let mut makers_used = 0u32;
+    let mut expired_parks = 0u32;
+    let mut expired_parks_skipped = 0u32;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
 
@@ -881,8 +898,13 @@ pub fn match_asks(
         let next_ptr = order.next;
 
         if order.expires_at.is_some_and(|e| now >= e) {
-            let ev = park_expired_limit_order_for_claim(storage, oid, now, pair_contract)?;
-            fill_events.push(ev);
+            if expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
+                let ev = park_expired_limit_order_for_claim(storage, oid, now, pair_contract)?;
+                fill_events.push(ev);
+                expired_parks += 1;
+            } else {
+                expired_parks_skipped += 1;
+            }
             cur = next_ptr;
             continue;
         }
@@ -982,6 +1004,8 @@ pub fn match_asks(
         return_net: token0_out_total,
         offer_consumed: token1_budget.checked_sub(token1_left)?,
         makers_used,
+        expired_parks,
+        expired_parks_skipped,
         commission_total,
         maker_payouts,
         fill_events,
@@ -1654,5 +1678,145 @@ mod proptest_limits {
             prop_assert!(result.makers_used <= cap);
             assert_escrow_matches_lists(storage);
         }
+    }
+}
+
+/// GitLab #250 — cap expired limit parks during hybrid match walks.
+#[cfg(test)]
+mod expired_park_cap_tests {
+    use super::*;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    fn insert_expired_bid(
+        storage: &mut dyn Storage,
+        owner: Addr,
+        exp: u64,
+        escrow: Uint128,
+    ) -> u64 {
+        insert_bid(storage, Decimal::one(), escrow, owner, None, 256, Some(exp)).unwrap()
+    }
+
+    #[test]
+    fn match_bids_parks_at_most_max_expired_parks_per_swap() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let exp = 100u64;
+        for _ in 0..10 {
+            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000));
+        }
+
+        let result = match_bids(
+            storage,
+            exp,
+            Uint128::new(50_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.expired_parks, MAX_EXPIRED_PARKS_PER_SWAP);
+        assert_eq!(result.expired_parks_skipped, 5);
+        assert_eq!(result.makers_used, 0);
+        assert_eq!(
+            result
+                .fill_events
+                .iter()
+                .filter(|e| {
+                    e.attributes
+                        .iter()
+                        .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+                })
+                .count(),
+            MAX_EXPIRED_PARKS_PER_SWAP as usize
+        );
+        let parked = EXPIRED_LIMIT_CLAIMS
+            .range(storage, None, None, cosmwasm_std::Order::Ascending)
+            .count();
+        assert_eq!(parked, MAX_EXPIRED_PARKS_PER_SWAP as usize);
+    }
+
+    #[test]
+    fn match_bids_parks_three_expired_then_fills_behind() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let exp = 100u64;
+        for _ in 0..3 {
+            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000));
+        }
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50_000),
+            owner.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+
+        let result = match_bids(
+            storage,
+            exp,
+            Uint128::new(10_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.expired_parks, 3);
+        assert_eq!(result.expired_parks_skipped, 0);
+        assert_eq!(result.makers_used, 1);
+    }
+
+    #[test]
+    fn match_asks_parks_at_most_max_expired_parks_per_swap() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let exp = 100u64;
+        for _ in 0..10 {
+            insert_ask(
+                storage,
+                Decimal::one(),
+                Uint128::new(1_000),
+                owner.clone(),
+                None,
+                256,
+                Some(exp),
+            )
+            .unwrap();
+        }
+
+        let result = match_asks(
+            storage,
+            exp,
+            Uint128::new(50_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.expired_parks, MAX_EXPIRED_PARKS_PER_SWAP);
+        assert_eq!(result.expired_parks_skipped, 5);
     }
 }

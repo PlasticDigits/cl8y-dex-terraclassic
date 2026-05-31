@@ -18,6 +18,10 @@ pub use crate::limit_placement::{
 /// On-chain caps (pair contract enforces the same upper bounds).
 pub const MAX_ADJUST_STEPS_HARD_CAP: u32 = 256;
 pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 256;
+/// Maximum expired limit orders parked into `EXPIRED_LIMIT_CLAIMS` per book walk during hybrid swap
+/// ([GitLab #250](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/250)).
+/// Additional expired orders at the book head are skipped without storage writes until a later tx.
+pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 5;
 
 /// Decimals configured on CW20 mintable LP tokens instantiated by pairs (gitlab #124).
 pub const LP_TOKEN_DECIMALS: u8 = 18;
