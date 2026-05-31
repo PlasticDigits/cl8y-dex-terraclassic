@@ -113,6 +113,9 @@ export const NETWORKS: Record<string, NetworkConfig> = {
 
 export const DEFAULT_NETWORK = (import.meta.env.VITE_NETWORK || 'local') as keyof typeof NETWORKS
 
+/** Pair hard cap for batch cancel / claim execute msgs (`dex-common` `MAX_LIMIT_BATCH_RUNGS_HARD_CAP`). */
+export const MAX_LIMIT_BATCH_RUNGS_HARD_CAP = 30
+
 export function isValidTerraAddress(addr: string): boolean {
   return /^terra1[a-z0-9]{38,}$/.test(addr)
 }

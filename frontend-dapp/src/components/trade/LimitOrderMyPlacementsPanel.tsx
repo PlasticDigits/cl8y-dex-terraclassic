@@ -1,9 +1,13 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { claimExpiredLimitOrder } from '@/services/terraclassic/pair'
 import { TxResultAlert, Spinner } from '@/components/ui'
-import { sounds } from '@/lib/sounds'
+import { useLimitExpiredClaimMutation } from '@/hooks/useLimitExpiredClaimMutation'
 import type { IndexerLimitPlacement, PairInfo } from '@/types'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import {
+  chunkExpiredClaimOrderIds,
+  confirmExpiredClaimBatchMessage,
+  isOrderIdInExpiredClaimVariables,
+  normalizeExpiredClaimOrderIds,
+} from '@/utils/limitExpiredClaimBatch'
 import {
   escrowTokenAddressForLimitSide,
   formatRemainingEscrowHuman,
@@ -23,7 +27,7 @@ export interface LimitOrderMyPlacementsPanelProps {
   /** When true, on-chain claim is rejected — disable Claim refund (L6 / GitLab #120). */
   isPairPaused: boolean
   openWalletModal: () => void
-  /** When set, the active row for this `order_id` is visually emphasized (trade ticket “View order” — GitLab #161). */
+  /** When set, the active row for this `order_id` is visually emphasized (trade ticket "View order" — GitLab #161). */
   highlightOrderId?: number | null
 }
 
@@ -39,8 +43,8 @@ export function LimitOrderMyPlacementsPanel({
   openWalletModal,
   highlightOrderId = null,
 }: LimitOrderMyPlacementsPanelProps) {
-  const queryClient = useQueryClient()
   const { active, parkedExpired } = partitionLimitPlacementsByLifecycle(rows)
+  const claimMutation = useLimitExpiredClaimMutation(pairAddr, walletAddress || undefined)
   const compact = variant === 'compact'
   const titleClass = compact
     ? 'uppercase tracking-wide font-semibold mb-1'
@@ -48,24 +52,33 @@ export function LimitOrderMyPlacementsPanel({
   const rowClass = compact ? 'text-[10px] font-mono' : 'text-xs font-mono'
   const dtPrefix = compact ? 'trade' : 'limits-page'
 
-  const claimMutation = useMutation({
-    mutationFn: async (orderId: number) => {
-      if (!walletAddress) throw new Error('Connect wallet')
-      return claimExpiredLimitOrder(walletAddress, pairAddr, orderId)
-    },
-    onSuccess: () => {
-      sounds.playSuccess()
-      queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
-      queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
-      queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
-      queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
-    },
-    onError: () => sounds.playError(),
-  })
+  const claimAllDisabled = !isWalletConnected || isPairPaused || claimMutation.isPending || parkedExpired.length < 2
+
+  const onClaimAllParked = async () => {
+    if (!isWalletConnected) {
+      openWalletModal()
+      return
+    }
+    if (isPairPaused || parkedExpired.length < 2) return
+
+    const orderIds = normalizeExpiredClaimOrderIds(parkedExpired.map((r) => r.order_id))
+    const chunks = chunkExpiredClaimOrderIds(orderIds)
+
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i]!
+        const ok = window.confirm(confirmExpiredClaimBatchMessage(chunk, i, chunks.length, orderIds.length))
+        if (!ok) return
+        await claimMutation.mutateAsync(chunk)
+      }
+    } catch {
+      // TxResultAlert surfaces mutation.error
+    }
+  }
 
   const emptyCopy =
     'No indexed placements for this wallet on this pair (or pair code predates owner attrs). ' +
-    'Expired limits removed during another trader’s swap can still appear here once the indexer marks them parked expired — use Claim refund to recover escrow.'
+    "Expired limits removed during another trader's swap can still appear here once the indexer marks them parked expired — use Claim refund to recover escrow."
 
   return (
     <div className={compact ? 'space-y-1 border-t border-white/10 pt-3 max-h-48 overflow-y-auto' : 'space-y-2'}>
@@ -107,23 +120,49 @@ export function LimitOrderMyPlacementsPanel({
           )}
           {parkedExpired.length > 0 && (
             <div className="space-y-1">
-              <div
-                className={
-                  compact
-                    ? 'text-[10px] uppercase tracking-wide font-medium'
-                    : 'text-[11px] uppercase tracking-wide font-medium'
-                }
-                style={{ color: 'var(--ink-dim)' }}
-              >
-                Expired — refund pending
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div
+                  className={
+                    compact
+                      ? 'text-[10px] uppercase tracking-wide font-medium'
+                      : 'text-[11px] uppercase tracking-wide font-medium'
+                  }
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  Expired — refund pending
+                </div>
+                {parkedExpired.length >= 2 && (
+                  <button
+                    type="button"
+                    data-testid={`${dtPrefix}-claim-all-parked`}
+                    className={
+                      compact
+                        ? 'rounded-lg border border-amber-500/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-amber-500/10 disabled:opacity-40'
+                        : 'rounded-lg border border-amber-500/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-amber-500/10 disabled:opacity-40'
+                    }
+                    style={{ color: 'var(--ink-dim)' }}
+                    disabled={claimAllDisabled}
+                    title="Uses indexer parked-expired rows for your wallet on this pair."
+                    onClick={() => void onClaimAllParked()}
+                  >
+                    {!isWalletConnected
+                      ? 'Connect to claim all'
+                      : isPairPaused
+                        ? 'Unavailable (pair paused)'
+                        : claimMutation.isPending
+                          ? 'Claiming…'
+                          : `Claim all parked (${parkedExpired.length})`}
+                  </button>
+                )}
               </div>
               <ul className="space-y-2">
                 {parkedExpired.map((r) => {
                   const escrowAddr = escrowTokenAddressForLimitSide(pair, r.side)
                   const sym = escrowAddr.startsWith('terra1') ? getTokenDisplaySymbol(escrowAddr) : 'escrow'
                   const rem = formatRemainingEscrowHuman(r, pair)
-                  const claiming = claimMutation.isPending && claimMutation.variables === r.order_id
-                  const claimDisabled = !isWalletConnected || claiming || isPairPaused
+                  const claiming =
+                    claimMutation.isPending && isOrderIdInExpiredClaimVariables(r.order_id, claimMutation.variables)
+                  const claimDisabled = !isWalletConnected || claiming || isPairPaused || claimMutation.isPending
                   return (
                     <li
                       key={r.id}
