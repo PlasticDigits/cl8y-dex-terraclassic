@@ -12,7 +12,7 @@ use crate::msg::{
 };
 use crate::state::{
     Config, CONFIG, PAIRS, PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_CREATION_BLOCK, PAIR_INDEX,
-    PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
+    PAIR_KEY_INDEX, PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
 };
 use dex_common::pagination::calc_limit;
 use dex_common::pair::{
@@ -21,7 +21,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.2.0";
+const CONTRACT_VERSION: &str = "1.3.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -658,21 +658,10 @@ fn query_pairs(
 
     let start_idx: Option<u64> = if let Some(after_assets) = start_after {
         let after_key = pair_key(&after_assets);
-        let mut found_idx: Option<u64> = None;
-        for result in PAIR_INDEX.range(deps.storage, None, None, Order::Ascending) {
-            let (idx, info) = result?;
-            let info_key = pair_key(&info.asset_infos);
-            if info_key == after_key {
-                found_idx = Some(idx);
-                break;
-            }
-        }
-        if found_idx.is_none() {
-            return Err(StdError::generic_err(
-                "start_after pair not found in registry",
-            ));
-        }
-        found_idx
+        let found_idx = PAIR_KEY_INDEX
+            .may_load(deps.storage, &after_key)?
+            .ok_or_else(|| StdError::generic_err("start_after pair not found in registry"))?;
+        Some(found_idx)
     } else {
         None
     };
@@ -732,7 +721,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 
 /// Handle the reply from a successful Pair contract instantiation.
 /// Queries the new pair for its `PairInfo`, stores it in `PAIRS`,
-/// `PAIR_INDEX`, and `PAIR_ADDR_REGISTERED`, and increments `PAIR_COUNT`.
+/// `PAIR_INDEX`, `PAIR_KEY_INDEX`, and `PAIR_ADDR_REGISTERED`, and increments `PAIR_COUNT`.
 fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, ContractError> {
     let contract_addr = parse_reply_contract_address(msg)?;
     let pair_addr = deps.api.addr_validate(&contract_addr)?;
@@ -755,6 +744,7 @@ fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, Contrac
 
     let count = PAIR_COUNT.load(deps.storage)?;
     PAIR_INDEX.save(deps.storage, count, &pair_info_resp)?;
+    PAIR_KEY_INDEX.save(deps.storage, &key, &count)?;
     PAIR_ADDR_REGISTERED.save(deps.storage, pair_info_resp.contract_addr.clone(), &true)?;
     PAIR_COUNT.save(deps.storage, &(count + 1))?;
 
@@ -818,6 +808,8 @@ pub fn migrate(
     let count = PAIR_COUNT.load(deps.storage)?;
     for idx in 0..count {
         let info = PAIR_INDEX.load(deps.storage, idx)?;
+        let key = pair_key(&info.asset_infos);
+        PAIR_KEY_INDEX.save(deps.storage, &key, &idx)?;
         PAIR_ADDR_REGISTERED.save(deps.storage, info.contract_addr, &true)?;
     }
 
@@ -830,11 +822,11 @@ pub fn migrate(
 mod pair_addr_registry_tests {
     use super::*;
     use crate::msg::MigrateMsg;
-    use crate::state::{PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_INDEX};
+    use crate::state::{PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_INDEX, PAIR_KEY_INDEX};
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::Addr;
     use cw2::{get_contract_version, set_contract_version};
-    use dex_common::types::{AssetInfo, PairInfo};
+    use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
     fn sample_pair_info(contract: &str, lp: &str) -> PairInfo {
         PairInfo {
@@ -852,25 +844,80 @@ mod pair_addr_registry_tests {
     }
 
     #[test]
-    fn migrate_from_1_0_0_backfills_pair_addr_registered() {
+    fn migrate_from_1_0_0_backfills_pair_addr_registered_and_pair_key_index() {
         let mut deps = mock_dependencies();
         set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.0.0").unwrap();
 
+        let pair0 = sample_pair_info("pair0", "lp0");
+        let pair1 = sample_pair_info("pair1", "lp1");
+
         PAIR_COUNT.save(deps.as_mut().storage, &2u64).unwrap();
-        PAIR_INDEX
-            .save(deps.as_mut().storage, 0, &sample_pair_info("pair0", "lp0"))
-            .unwrap();
-        PAIR_INDEX
-            .save(deps.as_mut().storage, 1, &sample_pair_info("pair1", "lp1"))
-            .unwrap();
+        PAIR_INDEX.save(deps.as_mut().storage, 0, &pair0).unwrap();
+        PAIR_INDEX.save(deps.as_mut().storage, 1, &pair1).unwrap();
 
         migrate(deps.as_mut(), mock_env(), MigrateMsg {}).unwrap();
 
         assert!(PAIR_ADDR_REGISTERED.has(deps.as_ref().storage, Addr::unchecked("pair0")));
         assert!(PAIR_ADDR_REGISTERED.has(deps.as_ref().storage, Addr::unchecked("pair1")));
 
+        let key0 = pair_key(&pair0.asset_infos);
+        let key1 = pair_key(&pair1.asset_infos);
+        assert_eq!(
+            PAIR_KEY_INDEX.load(deps.as_ref().storage, &key0).unwrap(),
+            0
+        );
+        assert_eq!(
+            PAIR_KEY_INDEX.load(deps.as_ref().storage, &key1).unwrap(),
+            1
+        );
+
         let ver = get_contract_version(deps.as_ref().storage).unwrap();
         assert_eq!(ver.contract, CONTRACT_NAME);
         assert_eq!(ver.version.as_str(), CONTRACT_VERSION);
+    }
+
+    #[test]
+    fn query_pairs_start_after_uses_pair_key_index() {
+        let mut deps = mock_dependencies();
+        set_contract_version(deps.as_mut().storage, CONTRACT_NAME, CONTRACT_VERSION).unwrap();
+
+        let pair0 = sample_pair_info("pair0", "lp0");
+        let pair1 = sample_pair_info("pair1", "lp1");
+        let pair2 = sample_pair_info("pair2", "lp2");
+
+        PAIR_COUNT.save(deps.as_mut().storage, &3u64).unwrap();
+        PAIR_INDEX.save(deps.as_mut().storage, 0, &pair0).unwrap();
+        PAIR_INDEX.save(deps.as_mut().storage, 1, &pair1).unwrap();
+        PAIR_INDEX.save(deps.as_mut().storage, 2, &pair2).unwrap();
+
+        PAIR_KEY_INDEX
+            .save(deps.as_mut().storage, &pair_key(&pair0.asset_infos), &0u64)
+            .unwrap();
+        PAIR_KEY_INDEX
+            .save(deps.as_mut().storage, &pair_key(&pair1.asset_infos), &1u64)
+            .unwrap();
+        PAIR_KEY_INDEX
+            .save(deps.as_mut().storage, &pair_key(&pair2.asset_infos), &2u64)
+            .unwrap();
+
+        let page: PairsResponse =
+            query_pairs(deps.as_ref(), Some(pair1.asset_infos.clone()), Some(2)).unwrap();
+        assert_eq!(page.pairs.len(), 1);
+        assert_eq!(page.pairs[0].contract_addr, pair2.contract_addr);
+
+        let err = query_pairs(
+            deps.as_ref(),
+            Some([
+                AssetInfo::Token {
+                    contract_addr: "missing_a".to_string(),
+                },
+                AssetInfo::Token {
+                    contract_addr: "missing_b".to_string(),
+                },
+            ]),
+            None,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("start_after pair not found"));
     }
 }

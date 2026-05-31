@@ -8,6 +8,7 @@
 //! - Provides governance-gated admin operations: fee updates, hook
 //!   registration, discount registry configuration, pause, and sweep.
 //! - Stores a sequential pair index for paginated enumeration (discovery).
+//! - Maintains `PAIR_KEY_INDEX` for **O(1)** `Pairs` query cursor resolve (GitLab #258).
 //! - Maintains `PAIR_ADDR_REGISTERED` (`state.rs`) so pair-address membership
 //!   checks for governance messages are **O(1)** in storage reads (see GitLab #122).
 //!

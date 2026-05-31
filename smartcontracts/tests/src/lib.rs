@@ -890,6 +890,136 @@ mod factory_tests {
         assert_eq!(fee_config.fee_config.fee_bps, 29);
     }
 
+    /// Regression for GitLab #258: `Pairs { start_after }` resolves cursor via `pair_key_idx`
+    /// (O(1)) and returns the next page in ascending index order.
+    #[test]
+    fn test_factory_pairs_pagination_start_after() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let hub = create_cw20_token(&mut app, cw20_code_id, &user, "Hub Token", "HUB", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let mut cursor_assets: Option<[AssetInfo; 2]> = None;
+        let mut all_pairs: Vec<dex_common::types::PairInfo> = Vec::new();
+        const NUM_PAIRS: usize = 5;
+
+        for i in 0..NUM_PAIRS {
+            let sat = create_cw20_token(
+                &mut app,
+                cw20_code_id,
+                &user,
+                &format!("Satellite {}", i),
+                &format!("SAT{}", i),
+                initial,
+            );
+            app.execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&hub), asset_info_token(&sat)],
+                },
+                &[],
+            )
+            .unwrap();
+            app.update_block(|b| b.height += 1);
+        }
+
+        loop {
+            let page: dex_common::factory::PairsResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    factory.to_string(),
+                    &dex_common::factory::QueryMsg::Pairs {
+                        start_after: cursor_assets.clone(),
+                        limit: Some(2),
+                    },
+                )
+                .unwrap();
+            if page.pairs.is_empty() {
+                break;
+            }
+            if let Some(last) = page.pairs.last() {
+                cursor_assets = Some(last.asset_infos.clone());
+            }
+            all_pairs.extend(page.pairs);
+        }
+
+        assert_eq!(all_pairs.len(), NUM_PAIRS);
+
+        let err = app
+            .wrap()
+            .query_wasm_smart::<dex_common::factory::PairsResponse>(
+                factory.to_string(),
+                &dex_common::factory::QueryMsg::Pairs {
+                    start_after: Some([
+                        asset_info_token(&Addr::unchecked("ghost_a")),
+                        asset_info_token(&Addr::unchecked("ghost_b")),
+                    ]),
+                    limit: None,
+                },
+            );
+        assert!(err.is_err());
+
+        let first_page: dex_common::factory::PairsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                factory.to_string(),
+                &dex_common::factory::QueryMsg::Pairs {
+                    start_after: None,
+                    limit: Some(2),
+                },
+            )
+            .unwrap();
+        assert_eq!(first_page.pairs.len(), 2);
+
+        let second_page: dex_common::factory::PairsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                factory.to_string(),
+                &dex_common::factory::QueryMsg::Pairs {
+                    start_after: Some(first_page.pairs[1].asset_infos.clone()),
+                    limit: Some(2),
+                },
+            )
+            .unwrap();
+        assert_eq!(second_page.pairs.len(), 2);
+        assert_ne!(
+            second_page.pairs[0].contract_addr,
+            first_page.pairs[0].contract_addr
+        );
+        assert_ne!(
+            second_page.pairs[0].contract_addr,
+            first_page.pairs[1].contract_addr
+        );
+    }
+
     #[test]
     fn test_create_pair_native_token_rejected() {
         let mut app = App::default();

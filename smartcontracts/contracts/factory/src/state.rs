@@ -37,6 +37,11 @@ pub const PAIR_COUNT: Item<u64> = Item::new("pair_count");
 /// Sequential index -> PairInfo for paginated enumeration.
 pub const PAIR_INDEX: Map<u64, PairInfo> = Map::new("pair_index");
 
+/// Canonical pair key → sequential index for O(1) `Pairs` pagination cursor resolve.
+/// **Invariant:** For every entry in `PAIR_INDEX` at `idx`, `PAIR_KEY_INDEX[pair_key(asset_infos)] == idx`.
+/// Maintained in `reply_instantiate_pair`; legacy deployments backfill via migrate (`1.2.0` → `1.3.0`).
+pub const PAIR_KEY_INDEX: Map<&str, u64> = Map::new("pair_key_idx");
+
 /// Pair contract address → membership marker for O(1) registry checks.
 /// **Invariant:** For every entry in `PAIR_INDEX` at indices `0..PAIR_COUNT`,
 /// `PAIR_ADDR_REGISTERED` contains `contract_addr → true`. Maintained in
