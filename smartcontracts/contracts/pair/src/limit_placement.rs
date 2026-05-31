@@ -151,6 +151,8 @@ pub fn execute_place_limit_orders_batch(
                 reason: "order id overflow".into(),
             })?;
 
+        let hint_after = item.hint_after_order_id.or(last_placed_hint);
+
         let insert_result = match side {
             LimitOrderSide::Bid => orderbook::insert_bid_with_id(
                 deps.storage,
@@ -158,7 +160,7 @@ pub fn execute_place_limit_orders_batch(
                 item.price,
                 remaining_for_book,
                 owner.clone(),
-                last_placed_hint,
+                hint_after,
                 item.max_adjust_steps,
                 item.expires_at,
                 false,
@@ -169,7 +171,7 @@ pub fn execute_place_limit_orders_batch(
                 item.price,
                 remaining_for_book,
                 owner.clone(),
-                last_placed_hint,
+                hint_after,
                 item.max_adjust_steps,
                 item.expires_at,
                 false,

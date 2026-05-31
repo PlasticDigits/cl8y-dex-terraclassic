@@ -22,6 +22,9 @@ pub struct LimitOrderPlacementItem {
     pub max_adjust_steps: u32,
     #[serde(default)]
     pub expires_at: Option<u64>,
+    /// Optional predecessor order id for O(1) insert verify (GitLab #256 / #261).
+    #[serde(default)]
+    pub hint_after_order_id: Option<u64>,
 }
 
 #[cw_serde]
@@ -87,6 +90,7 @@ pub fn expand_limit_ladder(
             amount,
             max_adjust_steps: spec.max_adjust_steps,
             expires_at: spec.expires_at,
+            hint_after_order_id: None,
         })
         .collect())
 }

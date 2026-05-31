@@ -40,7 +40,9 @@ import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubm
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
 import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
+import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
+import { flattenLimitBookPages, resolveLimitInsertHintAfter } from '@/utils/limitBookInsertHint'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
 import type { LimitBookEditContext, LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
@@ -254,6 +256,11 @@ function TradeOrderTicketContent({
   const isPaused = pausedQuery.data?.paused === true
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr)
+  const limitBookQuery = useLimitBookInfinite(pairAddr, side)
+  const placeInsertHintAfter = useMemo(() => {
+    const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
+    return resolveLimitInsertHintAfter(side, price, orders, { hasMore })
+  }, [limitBookQuery.data?.pages, side, price])
 
   const crossingBlocker = useMemo(
     () => describeLimitCrossingBlocker(side, price, bestBid, bestAsk),
@@ -430,7 +437,8 @@ function TradeOrderTicketContent({
         side,
         price,
         maxSteps,
-        expiresAt
+        expiresAt,
+        placeInsertHintAfter
       )
     },
     onSuccess: async () => {

@@ -31,6 +31,7 @@ fn batch_place_msg(
             amount,
             max_adjust_steps,
             expires_at,
+            hint_after_order_id: None,
         }],
     })
     .unwrap()
@@ -3710,6 +3711,7 @@ fn batch_placement_order_ids_match_sequential_singles() {
                     amount: Uint128::new(10_000),
                     max_adjust_steps: 32,
                     expires_at: None,
+                    hint_after_order_id: None,
                 })
                 .collect();
             let total = Uint128::new(30_000);
@@ -3796,18 +3798,21 @@ fn limit_batch_partial_success_skips_book_walk_failures() {
             amount: Uint128::new(1_000),
             max_adjust_steps: 32,
             expires_at: None,
+            hint_after_order_id: None,
         },
         LimitOrderPlacementItem {
             price: Decimal::one(),
             amount: Uint128::new(1_000),
             max_adjust_steps: 5,
             expires_at: None,
+            hint_after_order_id: None,
         },
         LimitOrderPlacementItem {
             price: Decimal::from_ratio(98u128, 100u128),
             amount: Uint128::new(1_000),
             max_adjust_steps: 32,
             expires_at: None,
+            hint_after_order_id: None,
         },
     ];
     let total = Uint128::new(3_000);
@@ -3858,6 +3863,70 @@ fn limit_batch_partial_success_skips_book_walk_failures() {
     );
 }
 
+/// GitLab #261 — explicit per-rung `hint_after_order_id` wins over head walk when steps are tight.
+#[test]
+fn limit_batch_item_explicit_hint_places_on_deep_book() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let mut last_id = 0u64;
+    for _ in 0..10 {
+        last_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(1_000),
+            Decimal::one(),
+        );
+    }
+
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders: vec![LimitOrderPlacementItem {
+            price: Decimal::from_ratio(99u128, 100u128),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 5,
+            expires_at: None,
+            hint_after_order_id: Some(last_id),
+        }],
+    })
+    .unwrap();
+
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(
+        placed.len(),
+        1,
+        "hint should allow placement with low max_adjust_steps"
+    );
+}
+
 #[test]
 fn limit_batch_too_large_rejected() {
     let mut app = App::default();
@@ -3883,6 +3952,7 @@ fn limit_batch_too_large_rejected() {
             amount: Uint128::new(1000),
             max_adjust_steps: 32,
             expires_at: None,
+            hint_after_order_id: None,
         });
     }
     let total: Uint128 = orders.iter().map(|o| o.amount).sum();
@@ -3941,18 +4011,21 @@ fn governance_set_pair_limit_batch_max_enforced() {
             amount: Uint128::new(1000),
             max_adjust_steps: 32,
             expires_at: None,
+            hint_after_order_id: None,
         },
         LimitOrderPlacementItem {
             price: Decimal::from_ratio(91u128, 100u128),
             amount: Uint128::new(1000),
             max_adjust_steps: 32,
             expires_at: None,
+            hint_after_order_id: None,
         },
         LimitOrderPlacementItem {
             price: Decimal::from_ratio(92u128, 100u128),
             amount: Uint128::new(1000),
             max_adjust_steps: 32,
             expires_at: None,
+            hint_after_order_id: None,
         },
     ];
     let total = Uint128::new(3000);

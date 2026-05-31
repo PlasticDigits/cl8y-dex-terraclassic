@@ -47,6 +47,19 @@ Resting **FIFO limit orders** live on each pair contract. The indexer exposes re
 
 OpenAPI: served from the indexer Swagger UI (`/swagger-ui/`). Regression tests: [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs).
 
+### Batch placement insert hints (GitLab **#261**)
+
+When placing via **`PlaceLimitOrderBatch`**, each `orders[]` entry may include optional **`hint_after_order_id`** (`null`/omit = head walk only). On-chain verify + fallback: invariant **L14** in [contracts-security-audit.md](./contracts-security-audit.md).
+
+**Client resolver (recommended):** walk paginated **`limit-book`** pages for the target side (head → tail). For insert price `P`:
+
+- **Bids** (descending price, ascending `order_id`): return the `order_id` of the order immediately **before** the insert slot; `null` for head insert (price better than loaded head) or when **`has_more`** and the slot is past the last loaded row (pagination gap).
+- **Asks** (ascending price): same rule with ask sort order ([limit-orders.md § Ordering](./limit-orders.md#ordering-composite-key-fifo)).
+- At **equal price**, hint = last loaded order at that price level (new ids are higher → FIFO tail).
+- **Never guess** across pagination gaps; stale hints are safe (bounded head walk).
+
+Reference implementation: [`limitBookInsertHint.ts`](../frontend-dapp/src/utils/limitBookInsertHint.ts). dApp wire: [`placeLimitOrderWithAllowance`](../frontend-dapp/src/services/terraclassic/pair.ts). Agent playbooks: [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md), [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md), [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md).
+
 **dApp reference:** [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md).
 
 ## Slippage: `max_spread` and `belief_price` (hybrid)

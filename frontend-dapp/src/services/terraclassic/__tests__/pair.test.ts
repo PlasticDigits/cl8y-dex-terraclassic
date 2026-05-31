@@ -255,6 +255,21 @@ describe('placeLimitOrderWithAllowance', () => {
       orders: [{ price: '1.5', amount: '500000', max_adjust_steps: 3 }],
     })
   })
+
+  it('encodes optional hint_after_order_id on batch item (GitLab #261)', async () => {
+    mockedAllowanceThen.mockImplementationOnce(async (_w, _t, _s, _a, run) => run())
+    mockedExecute.mockResolvedValueOnce('txhash_limit_hint')
+
+    await placeLimitOrderWithAllowance(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '500000', 'bid', '0.95', 16, null, 42)
+
+    const sendMsg = (mockedExecute.mock.calls[0][2] as { send: { msg: string } }).send
+    const decoded = JSON.parse(atob(sendMsg.msg))
+    expect(decoded.place_limit_order_batch.orders[0]).toMatchObject({
+      price: '0.95',
+      hint_after_order_id: 42,
+      max_adjust_steps: 16,
+    })
+  })
 })
 
 describe('updateLimitOrderPrice', () => {

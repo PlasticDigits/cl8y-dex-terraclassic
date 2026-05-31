@@ -129,6 +129,7 @@ export interface LimitOrderPlacementItemWire {
   amount: string
   max_adjust_steps: number
   expires_at?: number
+  hint_after_order_id?: number | null
 }
 
 export interface LimitOrderLadderSpecWire {
@@ -231,16 +232,19 @@ export async function placeLimitOrderWithAllowance(
   side: 'bid' | 'ask',
   price: string,
   maxAdjustSteps: number,
-  expiresAt?: number | null
+  expiresAt?: number | null,
+  hintAfterOrderId?: number | null
 ): Promise<string> {
-  return placeLimitOrderBatchWithAllowance(walletAddress, escrowTokenAddress, pairAddress, amount, side, [
-    {
-      price,
-      amount,
-      max_adjust_steps: maxAdjustSteps,
-      expires_at: expiresAt ?? undefined,
-    },
-  ])
+  const item: LimitOrderPlacementItemWire = {
+    price,
+    amount,
+    max_adjust_steps: maxAdjustSteps,
+    expires_at: expiresAt ?? undefined,
+  }
+  if (hintAfterOrderId != null) {
+    item.hint_after_order_id = hintAfterOrderId
+  }
+  return placeLimitOrderBatchWithAllowance(walletAddress, escrowTokenAddress, pairAddress, amount, side, [item])
 }
 
 export async function cancelLimitOrder(walletAddress: string, pairAddress: string, orderId: number): Promise<string> {

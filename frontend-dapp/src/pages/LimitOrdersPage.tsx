@@ -43,7 +43,9 @@ import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
+import { flattenLimitBookPages, resolveLimitInsertHintAfter } from '@/utils/limitBookInsertHint'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 
 export default function LimitOrdersPage() {
@@ -98,6 +100,12 @@ export default function LimitOrdersPage() {
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
+
+  const limitBookQuery = useLimitBookInfinite(pairAddr, side)
+  const placeInsertHintAfter = useMemo(() => {
+    const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
+    return resolveLimitInsertHintAfter(side, price, orders, { hasMore })
+  }, [limitBookQuery.data?.pages, side, price])
 
   const {
     effectiveFeeBps,
@@ -307,7 +315,8 @@ export default function LimitOrdersPage() {
         side,
         price,
         maxSteps,
-        expiresAt
+        expiresAt,
+        placeInsertHintAfter
       )
     },
     onSuccess: async () => {
