@@ -1,9 +1,10 @@
-import { useCallback, useId, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePortalListbox } from './PortalListbox'
+import { usePortalListboxKeyboard } from './usePortalListboxKeyboard'
 import type { AssetInfo } from '@/types'
 import { tokenAssetInfo } from '@/types'
-import { getAddressForBlockie, getTokenLogoURI } from '@/utils/tokenDisplay'
+import { getAddressForBlockie, getCachedTokenSymbol, getTokenLogoURI } from '@/utils/tokenDisplay'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { TokenLogo } from './TokenLogo'
 
@@ -18,6 +19,10 @@ function logoPropsForToken(tokenId: string): {
     addressForBlockie: getAddressForBlockie(info),
     blockieSeed: 'token' in info ? undefined : tokenId,
   }
+}
+
+function tokenTypeaheadLabel(tokenId: string): string {
+  return getCachedTokenSymbol(tokenId) ?? ''
 }
 
 export interface TokenSelectProps {
@@ -47,6 +52,7 @@ export function TokenSelect({
 }: TokenSelectProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLUListElement>(null)
   const listId = useId()
 
@@ -54,6 +60,29 @@ export function TokenSelect({
   const triggerLabel = options.length === 0 ? loadingLabel : value ? <TokenLabel tokenId={value} /> : 'Select token'
 
   const close = useCallback(() => setOpen(false), [])
+  const openMenu = useCallback(() => setOpen(true), [])
+
+  const selectedIndex = useMemo(() => options.findIndex((t) => t === value), [options, value])
+
+  const getTypeaheadLabel = useCallback((index: number) => tokenTypeaheadLabel(options[index] ?? ''), [options])
+
+  const { activeOptionId, getOptionClassName, getOptionId, handleTriggerKeyDown, primeActiveIndexForClickOpen } =
+    usePortalListboxKeyboard({
+      open,
+      canOpen: options.length > 0 && !disabled,
+      optionCount: options.length,
+      selectedIndex,
+      getTypeaheadLabel,
+      listId,
+      triggerRef,
+      listboxRef: dropdownRef,
+      onOpen: openMenu,
+      onClose: close,
+      onSelectIndex: (index) => {
+        const tokenId = options[index]!
+        if (tokenId !== value) onChange(tokenId)
+      },
+    })
 
   const dropdownStyle = usePortalListbox({
     open,
@@ -72,6 +101,7 @@ export function TokenSelect({
       className="token-select-root relative w-full sm:w-auto sm:min-w-[170px] sm:max-w-[220px] sm:shrink-0"
     >
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled || options.length === 0}
         className="token-select-trigger"
@@ -79,9 +109,13 @@ export function TokenSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        onKeyDown={handleTriggerKeyDown}
         onClick={() => {
           if (options.length === 0) return
-          setOpen((o) => !o)
+          setOpen((o) => {
+            if (!o) primeActiveIndexForClickOpen()
+            return !o
+          })
         }}
       >
         {selectedLogo && (
@@ -104,21 +138,24 @@ export function TokenSelect({
             ref={dropdownRef}
             id={listId}
             role="listbox"
+            tabIndex={-1}
             className="token-select-dropdown"
             aria-label={ariaLabel}
+            aria-activedescendant={activeOptionId}
             style={dropdownStyle}
           >
-            {options.map((tokenId) => {
+            {options.map((tokenId, index) => {
               const lp = logoPropsForToken(tokenId)
               const isSelected = tokenId === value
               return (
                 <li key={tokenId} role="none">
                   <button
                     type="button"
+                    id={getOptionId(index)}
                     role="option"
                     data-testid={`token-option-${tokenId}`}
                     aria-selected={isSelected}
-                    className={`token-select-option ${isSelected ? 'token-select-option-active' : ''}`}
+                    className={getOptionClassName(index, isSelected)}
                     onClick={() => {
                       onChange(tokenId)
                       close()

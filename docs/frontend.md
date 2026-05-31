@@ -504,10 +504,11 @@ Custom pair/token pickers use a **portaled** `<ul role="listbox">` positioned wi
 | **Stable trigger** | Wrapper `.token-select-root` uses `contain: layout` and `min-height: 48px` matching `.token-select-trigger`. Trade `#trade-pair-select` sits in `shrink-0` `max-w-xl` shell so flex rows do not compress the control when the menu opens. |
 | **Scrollbar gutter** | `html { scrollbar-gutter: stable; }` avoids horizontal reflow when overlay scrollbars would otherwise appear/disappear. |
 | **CLS budget** | Lighthouse CLS on `/trade` after opening the pair menu should stay **&lt; 0.1**; surrounding content must not jump (eyeball + Lighthouse). |
+| **Keyboard (APG listbox)** | Arrow Up/Down (wrap), Home/End, typeahead by option label/symbol prefix (case-insensitive, 500ms buffer), Enter/Space to select, Escape/Tab to close with focus restored to trigger. Listbox exposes `aria-activedescendant`; options use `role="option"` + `aria-selected`. Shared hook: [`usePortalListboxKeyboard`](../frontend-dapp/src/components/ui/usePortalListboxKeyboard.ts) ([GitLab **#244**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244), gap **M5**). |
 
-**Regression tests:** [`frontend-dapp/e2e/trade-pair-select-cls.spec.ts`](../frontend-dapp/e2e/trade-pair-select-cls.spec.ts) (bounding-box deltas); unit tests in [`portalListboxPosition.test.ts`](../frontend-dapp/src/components/ui/__tests__/portalListboxPosition.test.ts).
+**Regression tests:** [`frontend-dapp/e2e/trade-pair-select-cls.spec.ts`](../frontend-dapp/e2e/trade-pair-select-cls.spec.ts) (bounding-box deltas); unit tests in [`portalListboxPosition.test.ts`](../frontend-dapp/src/components/ui/__tests__/portalListboxPosition.test.ts), [`portalListboxKeyboard.test.ts`](../frontend-dapp/src/components/ui/__tests__/portalListboxKeyboard.test.ts), [`MenuSelect.keyboard.test.tsx`](../frontend-dapp/src/components/ui/__tests__/MenuSelect.keyboard.test.tsx), [`TokenSelect.keyboard.test.tsx`](../frontend-dapp/src/components/ui/__tests__/TokenSelect.keyboard.test.tsx).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); keyboard listbox APG: [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
 
 ### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
 
