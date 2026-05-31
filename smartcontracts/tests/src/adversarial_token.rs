@@ -692,7 +692,7 @@ mod adversarial_tests {
     }
 
     #[test]
-    fn router_absorbs_pre_existing_dust_on_output_token() {
+    fn router_ignores_pre_existing_dust_on_output_token() {
         let mut app = App::default();
         let env = crate::helpers::setup_full_env(&mut app);
         provide_liquidity(
@@ -715,12 +715,28 @@ mod adversarial_tests {
         )
         .unwrap();
 
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        let swap_in = Uint128::new(10_000);
+        let ops = vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_a),
+            ask_asset_info: asset_info_token(&env.token_b),
+            hybrid: None,
+        }];
+        let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: swap_in,
+                    operations: ops.clone(),
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+
         let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
-            operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
-                offer_asset_info: asset_info_token(&env.token_a),
-                ask_asset_info: asset_info_token(&env.token_b),
-                hybrid: None,
-            }],
+            operations: ops,
             max_spread: Decimal::one(),
             minimum_receive: None,
             to: None,
@@ -729,7 +745,6 @@ mod adversarial_tests {
         })
         .unwrap();
 
-        let swap_in = Uint128::new(10_000);
         app.execute_contract(
             env.user.clone(),
             env.token_a.clone(),
@@ -742,28 +757,109 @@ mod adversarial_tests {
         )
         .unwrap();
 
-        let user_b = query_cw20_balance(&app, &env.token_b, &env.user);
-        let sim: dex_common::pair::HybridSimulationResponse = app
+        let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+        let router_b = query_cw20_balance(&app, &env.token_b, &env.router);
+        let received = user_b_after.checked_sub(user_b_before).unwrap();
+        assert_eq!(
+            received, sim.amount,
+            "user receives hop output only; got {} want {}",
+            received, sim.amount
+        );
+        assert_eq!(
+            router_b, dust,
+            "pre-existing router dust must remain; got {} want {}",
+            router_b, dust
+        );
+    }
+
+    #[test]
+    fn router_multi_hop_ignores_dust_on_intermediate_and_final_tokens() {
+        use crate::helpers::{setup_router_abc_env, RouterAbcEnv};
+
+        let mut app = App::default();
+        let RouterAbcEnv { env, token_c, .. } = setup_router_abc_env(&mut app);
+
+        let dust_b = Uint128::new(50_000);
+        let dust_c = Uint128::new(75_000);
+        for (token, dust) in [(&env.token_b, dust_b), (&token_c, dust_c)] {
+            app.execute_contract(
+                env.user.clone(),
+                token.clone(),
+                &Cw20ExecuteMsg::Transfer {
+                    recipient: env.router.to_string(),
+                    amount: dust,
+                },
+                &[],
+            )
+            .unwrap();
+        }
+
+        let swap_in = Uint128::new(10_000);
+        let ops = vec![
+            cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_a),
+                ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
+            },
+            cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_b),
+                ask_asset_info: asset_info_token(&token_c),
+                hybrid: None,
+            },
+        ];
+        let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
             .wrap()
             .query_wasm_smart(
-                env.pair.to_string(),
-                &dex_common::pair::QueryMsg::HybridSimulation {
-                    offer_asset: dex_common::types::Asset {
-                        info: asset_info_token(&env.token_a),
-                        amount: swap_in,
-                    },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(swap_in),
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: swap_in,
+                    operations: ops.clone(),
                     trader: None,
                     sender: None,
                 },
             )
             .unwrap();
-        assert!(
-            user_b >= sim.return_amount + dust,
-            "user receives swap output plus prior router dust; got {} want >= {} + {}",
-            user_b,
-            sim.return_amount,
-            dust
+
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: ops,
+            max_spread: Decimal::one(),
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+            unwrap_output: None,
+        })
+        .unwrap();
+
+        let user_c_before = query_cw20_balance(&app, &token_c, &env.user);
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: swap_in,
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let user_c_after = query_cw20_balance(&app, &token_c, &env.user);
+        let received_c = user_c_after.checked_sub(user_c_before).unwrap();
+        assert_eq!(
+            received_c, sim.amount,
+            "multi-hop output must match simulate; got {} want {}",
+            received_c, sim.amount
+        );
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_b, &env.router),
+            dust_b,
+            "intermediate-token dust must remain on router"
+        );
+        assert_eq!(
+            query_cw20_balance(&app, &token_c, &env.router),
+            dust_c,
+            "final-token dust must remain on router"
         );
     }
 

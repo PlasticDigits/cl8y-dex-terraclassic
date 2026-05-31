@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    from_json, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, SubMsg, Uint128, WasmMsg,
+    from_json, to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -138,10 +138,39 @@ fn execute_receive(
 /// 3. Store `SwapState` (sender, recipient, remaining ops, minimum_receive).
 /// 4. Send input tokens to the first pair via CW20 Send with SubMsg reply.
 /// 5. Each hop is handled in `reply_swap_hop`.
+fn query_router_cw20_balance(
+    deps: Deps,
+    router: &Addr,
+    token: &Addr,
+) -> Result<Uint128, ContractError> {
+    let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
+        token.to_string(),
+        &cw20::Cw20QueryMsg::Balance {
+            address: router.to_string(),
+        },
+    )?;
+    Ok(balance.balance)
+}
+
+fn hop_output_from_balance(
+    balance_after: Uint128,
+    pre_hop_balance: Uint128,
+) -> Result<Uint128, ContractError> {
+    let hop_output = balance_after.checked_sub(pre_hop_balance).map_err(|_| {
+        ContractError::Std(cosmwasm_std::StdError::generic_err(
+            "hop balance decreased unexpectedly",
+        ))
+    })?;
+    if hop_output.is_zero() {
+        return Err(ContractError::ZeroHopOutput {});
+    }
+    Ok(hop_output)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn execute_swap_operations(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     sender: cosmwasm_std::Addr,
     input_token: cosmwasm_std::Addr,
     amount: Uint128,
@@ -188,6 +217,8 @@ fn execute_swap_operations(
         .assert_is_token()
         .map_err(|_| ContractError::NativeTokenNotSupported {})?;
     let output_token = deps.api.addr_validate(ask_addr_str)?;
+    let pre_hop_balance =
+        query_router_cw20_balance(deps.as_ref(), &env.contract.address, &output_token)?;
 
     SWAP_STATE.save(
         deps.storage,
@@ -197,6 +228,7 @@ fn execute_swap_operations(
             remaining_operations: remaining,
             minimum_receive,
             output_token,
+            pre_hop_balance,
             unwrap_output: do_unwrap,
             max_spread,
         },
@@ -283,31 +315,26 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 
 /// Handle the completion of each swap hop.
 ///
-/// If operations remain: query router's balance of the intermediate token,
-/// resolve the next pair, and chain another SubMsg swap.
+/// If operations remain: compute this hop's output delta, resolve the next pair,
+/// snapshot the next output token's pre-hop balance, and chain another SubMsg swap.
 ///
-/// If this was the final hop: assert `minimum_receive`, transfer output
+/// If this was the final hop: assert `minimum_receive`, transfer hop output
 /// to the recipient (or unwrap via wrap-mapper), and clear `SWAP_STATE`.
 fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut state = SWAP_STATE.load(deps.storage)?;
 
-    let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
-        state.output_token.to_string(),
-        &cw20::Cw20QueryMsg::Balance {
-            address: env.contract.address.to_string(),
-        },
-    )?;
-
-    let current_amount = balance.balance;
+    let balance_after =
+        query_router_cw20_balance(deps.as_ref(), &env.contract.address, &state.output_token)?;
+    let hop_output = hop_output_from_balance(balance_after, state.pre_hop_balance)?;
 
     if state.remaining_operations.is_empty() {
         SWAP_STATE.remove(deps.storage);
 
         if let Some(min) = state.minimum_receive {
-            if current_amount < min {
+            if hop_output < min {
                 return Err(ContractError::MinimumReceiveAssertion {
                     minimum: min.to_string(),
-                    actual: current_amount.to_string(),
+                    actual: hop_output.to_string(),
                 });
             }
         }
@@ -325,7 +352,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 contract_addr: state.output_token.to_string(),
                 msg: to_json_binary(&Cw20ExecuteMsg::Send {
                     contract: mapper.to_string(),
-                    amount: current_amount,
+                    amount: hop_output,
                     msg: to_json_binary(&unwrap_hook)?,
                 })?,
                 funds: vec![],
@@ -335,7 +362,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 contract_addr: state.output_token.to_string(),
                 msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: state.recipient.to_string(),
-                    amount: current_amount,
+                    amount: hop_output,
                 })?,
                 funds: vec![],
             })
@@ -344,7 +371,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         return Ok(Response::new()
             .add_message(output_msg)
             .add_attribute("action", "swap_complete")
-            .add_attribute("output_amount", current_amount)
+            .add_attribute("output_amount", hop_output)
             .add_attribute("recipient", state.recipient));
     }
 
@@ -357,6 +384,8 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         .assert_is_token()
         .map_err(|_| ContractError::NativeTokenNotSupported {})?;
     state.output_token = deps.api.addr_validate(ask_addr_str)?;
+    state.pre_hop_balance =
+        query_router_cw20_balance(deps.as_ref(), &env.contract.address, &state.output_token)?;
 
     SWAP_STATE.save(deps.storage, &state)?;
 
@@ -379,7 +408,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             contract_addr: current_token.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Send {
                 contract: pair_addr.to_string(),
-                amount: current_amount,
+                amount: hop_output,
                 msg: to_json_binary(&swap_msg)?,
             })?,
             funds: vec![],
@@ -391,7 +420,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         .add_submessage(send_msg)
         .add_attribute("action", "swap_hop")
         .add_attribute("next_pair", pair_addr)
-        .add_attribute("amount", current_amount))
+        .add_attribute("amount", hop_output))
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

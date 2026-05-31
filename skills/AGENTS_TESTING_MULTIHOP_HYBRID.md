@@ -54,6 +54,7 @@ LCD stubs: [`indexer/tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock
 - [`docs/testing.md`](../docs/testing.md) — test types and commands; [P2 epic #199](../docs/testing.md#p2-testing-epic-gitlab-199)
 - [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — local Postgres credentials, `make reset`, indexer integration tests
 - [`skills/AGENTS_TESTING_P2_EPIC.md`](./AGENTS_TESTING_P2_EPIC.md) — consolidated P2 coverage map ([#199](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/199))
+- [`skills/AGENTS_ROUTER_HOP_ACCOUNTING.md`](./AGENTS_ROUTER_HOP_ACCOUNTING.md) — R4 hop delta vs full balance ([#240](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/240))
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — route solve HTTP semantics
 - [`docs/limit-orders.md`](../docs/limit-orders.md) — Pattern C / L8 quoting scope
 - [`skills/AGENTS_MAX_SPREAD_HYBRID.md`](./AGENTS_MAX_SPREAD_HYBRID.md) — L9 slippage on hybrid executes ([#197](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197))

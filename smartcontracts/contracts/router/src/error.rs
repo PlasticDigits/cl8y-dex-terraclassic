@@ -38,4 +38,7 @@ pub enum ContractError {
 
     #[error("Cannot unwrap output: final asset is not a wrapped native token")]
     UnwrapOutputNotSupported {},
+
+    #[error("Swap hop produced zero output")]
+    ZeroHopOutput {},
 }

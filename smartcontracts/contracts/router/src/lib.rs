@@ -2,9 +2,10 @@
 //!
 //! Multi-hop swap router that chains swaps across multiple pairs in a
 //! single transaction. Users send input tokens via CW20 Send; the router
-//! executes each hop as a SubMsg, queries its own balance to determine
-//! intermediate output amounts, and delivers the final output to the
-//! recipient.
+//! executes each hop as a SubMsg, uses the **balance delta** on each hop's
+//! output token (not the router's full CW20 balance) for the next leg, and
+//! delivers the final hop output to the recipient. Pre-existing dust on the
+//! router is never swept into a user's swap chain.
 //!
 //! ## Reentrancy guard
 //!

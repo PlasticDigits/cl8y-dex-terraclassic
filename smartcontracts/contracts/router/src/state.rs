@@ -14,6 +14,9 @@ pub struct SwapState {
     pub remaining_operations: Vec<SwapOperation>,
     pub minimum_receive: Option<Uint128>,
     pub output_token: Addr,
+    /// Router CW20 balance of `output_token` immediately before the hop that will
+    /// credit that token. Hop output is `balance_after - pre_hop_balance`.
+    pub pre_hop_balance: Uint128,
     pub unwrap_output: bool,
     pub max_spread: Decimal,
 }
