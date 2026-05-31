@@ -2150,6 +2150,8 @@ fn query_hybrid_reverse_simulation(
     trader: Option<String>,
     sender: Option<String>,
 ) -> StdResult<HybridReverseSimulationResponse> {
+    use crate::hybrid_reverse::{seed_upper_offer_from_pool_math, MAX_HYBRID_REVERSE_SIM_CALLS};
+
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let offer_info = if ask_asset.info.equal(&pair_info.asset_infos[0]) {
         pair_info.asset_infos[1].clone()
@@ -2188,40 +2190,57 @@ fn query_hybrid_reverse_simulation(
         sender.as_deref(),
     );
 
-    let mut hi = Uint128::new(1u128);
-    for _ in 0..128 {
-        let sim = simulate_hybrid_swap_with_fee(
+    let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
+    let (input_reserve, output_reserve) = if offer_info.equal(&pair_info.asset_infos[0]) {
+        (reserve_a, reserve_b)
+    } else if offer_info.equal(&pair_info.asset_infos[1]) {
+        (reserve_b, reserve_a)
+    } else {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "Invalid ask asset: does not match pair assets",
+        ));
+    };
+
+    let mut sim_calls: u32 = 0;
+    let mut run_sim = |offer: Uint128| -> StdResult<HybridSimulationResponse> {
+        if sim_calls >= MAX_HYBRID_REVERSE_SIM_CALLS {
+            return Err(cosmwasm_std::StdError::generic_err(
+                "Hybrid reverse simulation exceeded iteration cap",
+            ));
+        }
+        sim_calls += 1;
+        simulate_hybrid_swap_with_fee(
             deps,
             env,
-            hi,
-            &scale_hybrid_template(&hybrid, hi)
+            offer,
+            &scale_hybrid_template(&hybrid, offer)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
             &offer_info,
             effective_fee_bps,
         )
-        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
+    };
+
+    let mut hi = seed_upper_offer_from_pool_math(
+        &hybrid,
+        input_reserve,
+        output_reserve,
+        effective_fee_bps,
+        ask_target,
+    )
+    .unwrap_or(Uint128::one());
+    if hi.is_zero() {
+        hi = Uint128::one();
+    }
+
+    loop {
+        let sim = run_sim(hi)?;
         if sim.return_amount >= ask_target {
             break;
         }
         hi = hi
             .checked_mul(Uint128::new(2u128))
             .map_err(|_| cosmwasm_std::StdError::generic_err("offer overflow"))?;
-    }
-
-    let check_hi = simulate_hybrid_swap_with_fee(
-        deps,
-        env,
-        hi,
-        &scale_hybrid_template(&hybrid, hi)
-            .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
-        &offer_info,
-        effective_fee_bps,
-    )
-    .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
-    if check_hi.return_amount < ask_target {
-        return Err(cosmwasm_std::StdError::generic_err(
-            "Insufficient liquidity for hybrid reverse simulation",
-        ));
     }
 
     let mut lo = Uint128::new(1u128);
@@ -2231,16 +2250,7 @@ fn query_hybrid_reverse_simulation(
         if mid.is_zero() {
             break;
         }
-        let sim_mid = simulate_hybrid_swap_with_fee(
-            deps,
-            env,
-            mid,
-            &scale_hybrid_template(&hybrid, mid)
-                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
-            &offer_info,
-            effective_fee_bps,
-        )
-        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+        let sim_mid = run_sim(mid)?;
         if sim_mid.return_amount >= ask_target {
             r_hi = mid;
         } else {
@@ -2248,11 +2258,7 @@ fn query_hybrid_reverse_simulation(
         }
     }
 
-    let final_h = scale_hybrid_template(&hybrid, r_hi)
-        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
-    let sim =
-        simulate_hybrid_swap_with_fee(deps, env, r_hi, &final_h, &offer_info, effective_fee_bps)
-            .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+    let sim = run_sim(r_hi)?;
     Ok(HybridReverseSimulationResponse {
         offer_amount: r_hi,
         spread_amount: sim.spread_amount,

@@ -10,9 +10,10 @@ use dex_common::limit_placement::{
     LimitLadderDistribution, LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
 use dex_common::pair::{
-    Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
-    HybridSimulationResponse, HybridSwapParams, LimitOrderConfigResponse, LimitOrderResponse,
-    LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP,
+    pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse,
+    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
+    LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg,
+    MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -3445,6 +3446,136 @@ fn hybrid_reverse_pool_only_template_is_stable() {
 
     assert!(hrev.offer_amount > Uint128::zero());
     assert_eq!(hrev.book_return_amount, Uint128::zero());
+}
+
+/// GitLab #257 — reverse offer is minimal: forward at quoted offer meets ask; one step less does not.
+#[test]
+fn hybrid_reverse_sim_minimal_offer_invariant() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let _bid = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(300_000),
+        Decimal::one(),
+    );
+
+    let ask_amt = Uint128::new(25_000);
+    let cases: &[(u128, u128)] = &[(1, 0), (0, 1), (40, 60), (50, 50)];
+    for &(pool_num, book_num) in cases {
+        let hybrid = if book_num == 0 {
+            pool_only_hybrid_template()
+        } else if pool_num == 0 {
+            HybridSwapParams {
+                pool_input: Uint128::zero(),
+                book_input: Uint128::one(),
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }
+        } else {
+            HybridSwapParams {
+                pool_input: Uint128::from(pool_num),
+                book_input: Uint128::from(book_num),
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }
+        };
+        let hrev: HybridReverseSimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::HybridReverseSimulation {
+                    ask_asset: Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: ask_amt,
+                    },
+                    hybrid: hybrid.clone(),
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        assert!(
+            hrev.offer_amount > Uint128::zero(),
+            "split {pool_num}/{book_num}"
+        );
+        let fwd_hybrid = if book_num == 0 {
+            dex_common::pair::pool_only_hybrid_params(hrev.offer_amount)
+        } else if pool_num == 0 {
+            HybridSwapParams {
+                pool_input: Uint128::zero(),
+                book_input: hrev.offer_amount,
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }
+        } else {
+            hybrid_params_split(hrev.offer_amount, pool_num, book_num)
+        };
+        let fwd: HybridSimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::HybridSimulation {
+                    offer_asset: Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: hrev.offer_amount,
+                    },
+                    hybrid: fwd_hybrid,
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        assert!(
+            fwd.return_amount >= ask_amt,
+            "split {pool_num}/{book_num}: forward {} < ask {}",
+            fwd.return_amount,
+            ask_amt
+        );
+        if hrev.offer_amount > Uint128::one() {
+            let less = hrev.offer_amount.checked_sub(Uint128::one()).unwrap();
+            let fwd_lo_hybrid = if book_num == 0 {
+                dex_common::pair::pool_only_hybrid_params(less)
+            } else if pool_num == 0 {
+                HybridSwapParams {
+                    pool_input: Uint128::zero(),
+                    book_input: less,
+                    max_maker_fills: 8,
+                    book_start_hint: None,
+                }
+            } else {
+                hybrid_params_split(less, pool_num, book_num)
+            };
+            let fwd_lo: HybridSimulationResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    env.pair.to_string(),
+                    &QueryMsg::HybridSimulation {
+                        offer_asset: Asset {
+                            info: asset_info_token(&env.token_a),
+                            amount: less,
+                        },
+                        hybrid: fwd_lo_hybrid,
+                        trader: None,
+                        sender: None,
+                    },
+                )
+                .unwrap();
+            assert!(
+                fwd_lo.return_amount < ask_amt,
+                "split {pool_num}/{book_num}: offer-1 still satisfies target"
+            );
+        }
+    }
 }
 
 #[test]

@@ -69,6 +69,7 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 ### Pair quoting (removed legacy queries)
 
 - Legacy `Simulation` / `ReverseSimulation` queries were **removed** ([#190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190)). Integrators must use **`hybrid_simulation`** / **`hybrid_reverse_simulation`** only. Agent playbook: [`skills/AGENTS_HYBRID_QUOTING.md`](../skills/AGENTS_HYBRID_QUOTING.md).
+- **`HybridReverseSimulation` search bounds ([GitLab #257](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/257)):** The pair seeds the upper offer from constant-product reverse math on the pool leg (`hybrid_reverse.rs`), then binary-searches for the **minimal** total offer whose hybrid return ≥ `ask_asset.amount`. Full hybrid sims are capped at **`MAX_HYBRID_REVERSE_SIM_CALLS` = 32** per query (replaces the prior 128-step exponential ramp). Fee discount is still resolved **once** per query ([#238](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)). Regression: `limit_order_tests::hybrid_reverse_sim_minimal_offer_invariant`.
 
 ### Pause (governance)
 

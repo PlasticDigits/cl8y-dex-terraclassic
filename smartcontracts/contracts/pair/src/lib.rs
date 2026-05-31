@@ -41,6 +41,7 @@
 //!   Execute/limit paths cache registry lookups for [`dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`]
 //!   (GitLab #251); simulation reads cache but does not write.
 //!   See `docs/limit-orders.md` and invariant L8 in `docs/contracts-security-audit.md`.
+//!   Reverse quotes seed from pool CP math and cap full sims at 32 per query (GitLab #257).
 //!
 //! ## Auth model
 //!
@@ -54,6 +55,7 @@
 pub mod contract;
 pub mod discount_cache;
 pub mod error;
+pub mod hybrid_reverse;
 pub mod limit_batch_withdraw;
 pub mod limit_placement;
 pub mod msg;

@@ -161,7 +161,7 @@ Liquidity-share tokens use CW20 **`decimals = LP_TOKEN_DECIMALS`** (18). `MINIMU
 | `Pair`               | —                  | `PairInfo`                   |
 | `Pool`               | —                  | `PoolResponse`               |
 | `HybridSimulation`         | `offer_asset`, `hybrid`, optional `trader`, optional `sender` | `HybridSimulationResponse`         |
-| `HybridReverseSimulation`  | `ask_asset`, `hybrid`, optional `trader`, optional `sender`   | `HybridReverseSimulationResponse`  |
+| `HybridReverseSimulation`  | `ask_asset`, `hybrid`, optional `trader`, optional `sender`   | `HybridReverseSimulationResponse` — minimal `offer_amount` for `ask_asset.amount`; search seeded from pool CP math, ≤ **32** full hybrid sims per query ([#257](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/257)) |
 | `GetFeeConfig`       | —                  | `FeeConfigResponse`          |
 | `GetHooks`           | —                  | `HooksResponse`              |
 | `GetDiscountRegistry`| —                  | `DiscountRegistryResponse`   |
