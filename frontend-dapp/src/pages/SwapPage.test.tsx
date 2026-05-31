@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
+import { useWalletStore } from '@/hooks/useWallet'
 
 vi.mock('react-blockies', () => ({
   __esModule: true,
@@ -10,10 +11,6 @@ vi.mock('react-blockies', () => ({
     return null
   },
 }))
-import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { findRoute, getAllTokens } from '@/services/terraclassic/router'
-import * as indexerClient from '@/services/indexer/client'
-
 vi.mock('@/services/terraclassic/factory', () => ({
   getAllPairsPaginated: vi.fn().mockResolvedValue({ pairs: [] }),
 }))
@@ -75,11 +72,20 @@ vi.mock('@/lib/sounds', () => ({
   },
 }))
 
+import { getAllPairsPaginated } from '@/services/terraclassic/factory'
+import { findRoute, getAllTokens } from '@/services/terraclassic/router'
+import { simulateSwap } from '@/services/terraclassic/pair'
+import * as indexerClient from '@/services/indexer/client'
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
+import { getTokenBalance } from '@/services/terraclassic/queries'
+
 describe('SwapPage', () => {
   beforeEach(() => {
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     vi.mocked(findRoute).mockReturnValue(null)
     vi.mocked(getAllTokens).mockReturnValue([])
+    vi.mocked(getConnectedWallet).mockReturnValue(null)
+    useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
   })
 
@@ -167,6 +173,87 @@ describe('SwapPage', () => {
     const execution = await screen.findByTestId('swap-execution-summary')
     expect(execution).toHaveTextContent(/Execution:\s*Indexer hybrid/i)
     expect(execution).toHaveTextContent(/Hybrid \(pool \+ limit book\)/i)
+  })
+
+  it('shows market-data outage banner when sim fails with indexer transport error (GitLab #241)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+    ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    vi.mocked(simulateSwap).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    const banner = await screen.findByTestId('swap-market-data-outage-banner')
+    expect(banner).toHaveTextContent(/market data service unavailable/i)
+    expect(banner).not.toHaveTextContent(/VITE_INDEXER_URL|127\.0\.0\.1/i)
+    expect(screen.getByTestId('swap-quote-unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Quote unavailable' })).toBeDisabled()
+  })
+
+  it('shows outage banner with pool fallback quote when indexer fails but LCD sim succeeds (GitLab #241)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+    ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    vi.mocked(simulateSwap).mockResolvedValue({
+      return_amount: '1000000',
+      spread_amount: '100',
+      commission_amount: '3000',
+    })
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    expect(await screen.findByTestId('swap-market-data-outage-banner')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
   })
 
   it('rejects invalid characters in book leg amount without surfacing BigInt errors', async () => {

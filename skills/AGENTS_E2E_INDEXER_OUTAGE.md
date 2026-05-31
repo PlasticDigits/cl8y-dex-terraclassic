@@ -17,7 +17,7 @@ You are changing **market-data-down** Playwright specs (`*-indexer-outage.spec.t
 
 ## Playwright project
 
-- **`e2e-indexer-outage`** — `testMatch: **/*-indexer-outage.spec.ts`
+- **`e2e-indexer-outage`** — `testMatch: **/*-indexer-outage.spec.ts` (includes `swap-indexer-outage.spec.ts` — [#241](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241))
 - Excluded from **`e2e-smoke`** / default `npm run test:e2e`
 
 ## Repro

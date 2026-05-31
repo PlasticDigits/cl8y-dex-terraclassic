@@ -31,8 +31,9 @@ import {
   type IndexerRouteQuoteKind,
 } from '@/types'
 import { sounds } from '@/lib/sounds'
-import { FeeDisplay, TxResultAlert, TokenSelect, Spinner } from '@/components/ui'
+import { FeeDisplay, TxResultAlert, TokenSelect, Spinner, RetryError } from '@/components/ui'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
+import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
@@ -45,6 +46,10 @@ import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOpera
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
+import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
+import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
+import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
+import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { MevPostureNotice } from '@/components/swap/MevPostureNotice'
 
 /** Wallet-side simulation result with optional indexer-routing metadata. */
@@ -61,6 +66,8 @@ interface SwapSimData {
   receiveQuoteIsPoolOnlyWithConfiguredBookLeg?: boolean
   /** Per-hop pair simulations for router/indexer/native multihop quotes (router sim omits spread). See `docs/swap-max-spread-ux.md` (GitLab #134). */
   routePreflight?: SwapRoutePreflightSpread
+  /** Indexer HTTP failed during quote; pool-only LCD fallback may still succeed (GitLab #241). */
+  indexerTransportFailed?: boolean
 }
 
 export default function SwapPage() {
@@ -303,24 +310,49 @@ export default function SwapPage() {
   const isWrapPaused = pausedQuery.data === true
   const isRateLimitExceeded = rateLimitQuery.data === true
 
-  const simQuery = useQuery({
-    queryKey: [
-      'simulation',
+  const simQueryKey = useMemo(
+    () =>
+      [
+        'simulation',
+        fromToken,
+        toToken,
+        rawInputAmount,
+        JSON.stringify(route),
+        wrapUnwrapType,
+        JSON.stringify(nativeRouteInfo),
+        useHybridBook,
+        bookInputHuman,
+        hybridMaxMakers,
+        slippageTolerance,
+      ] as const,
+    [
       fromToken,
       toToken,
       rawInputAmount,
-      JSON.stringify(route),
+      route,
       wrapUnwrapType,
-      JSON.stringify(nativeRouteInfo),
+      nativeRouteInfo,
       useHybridBook,
       bookInputHuman,
       hybridMaxMakers,
       slippageTolerance,
-    ],
+    ]
+  )
+
+  const simQuery = useQuery({
+    queryKey: simQueryKey,
     queryFn: async (): Promise<SwapSimData> => {
       if (!inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
 
       const maxSpreadStr = (slippageTolerance / 100).toString()
+      let indexerTransportFailed = false
+
+      const noteIndexerFailure = (err: unknown) => {
+        if (isIndexerUnavailableError(err)) indexerTransportFailed = true
+      }
+
+      const withIndexerOutageFlag = (data: SwapSimData): SwapSimData =>
+        indexerTransportFailed ? { ...data, indexerTransportFailed: true } : data
 
       if (isWrapOrUnwrap) {
         return {
@@ -336,12 +368,12 @@ export default function SwapPage() {
         if (nativeRouteInfo.operations.length > 0) {
           routePreflight = await preflightSwapRouteSpread(nativeRouteInfo.operations, rawInputAmount, maxSpreadStr)
         }
-        return {
+        return withIndexerOutageFlag({
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
           routePreflight,
-        }
+        })
       }
 
       // Advanced: manual limit-book split on a direct pair (overrides indexer hybrid for this quote).
@@ -378,7 +410,8 @@ export default function SwapPage() {
                   routePreflight,
                 }
               }
-            } catch {
+            } catch (e) {
+              noteIndexerFailure(e)
               /* fall through */
             }
           }
@@ -411,7 +444,8 @@ export default function SwapPage() {
               routePreflight,
             }
           }
-        } catch {
+        } catch (e) {
+          noteIndexerFailure(e)
           /* pool-only fallback */
         }
       }
@@ -428,28 +462,30 @@ export default function SwapPage() {
           rawInputAmount,
           hybridMaxMakers,
         })
-        return {
+        return withIndexerOutageFlag({
           ...r,
           receiveQuoteIsPoolOnlyWithConfiguredBookLeg: !!(
             hybridSplit?.willSubmitHybrid && !hybridSplit?.bookExceedsPay
           ),
-        }
+        })
       }
       if (isMultiHop && route) {
         const result = await simulateMultiHopSwap(rawInputAmount, route)
         const routePreflight = await preflightSwapRouteSpread(route, rawInputAmount, maxSpreadStr)
-        return {
+        return withIndexerOutageFlag({
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
           routePreflight,
-        }
+        })
       }
       throw new Error('No route found')
     },
     enabled: hasRoute && !!inputAmount && parseFloat(inputAmount) > 0,
     refetchInterval: 10_000,
   })
+
+  const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
   const swapMutation = useMutation({
     mutationFn: async () => {
@@ -470,7 +506,7 @@ export default function SwapPage() {
         )
       }
 
-      const idxOps = simQuery.data?.indexerOperations
+      const idxOps = simData?.indexerOperations
       if (idxOps && idxOps.length > 0) {
         const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
         return executeMultiHopSwap(
@@ -532,23 +568,38 @@ export default function SwapPage() {
     },
   })
 
-  const outputAmount = simQuery.data?.return_amount ?? ''
-  const commissionAmount = simQuery.data?.commission_amount ?? ''
+  const simData = simQuery.isError ? undefined : simQuery.data
+  const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
+  const simQuoteUnavailable =
+    !isWrapOrUnwrap &&
+    !!inputAmount &&
+    parseFloat(inputAmount) > 0 &&
+    (simQuery.isError || (!simQuery.isLoading && !simData))
+  const showSimRetryError =
+    simQuery.isError &&
+    !isWrapOrUnwrap &&
+    !!inputAmount &&
+    parseFloat(inputAmount) > 0 &&
+    !indexerOutage &&
+    !isIndexerPairNotFoundError(simQuery.error)
 
-  const priceImpact = simQuery.data
-    ? simQuery.data.routePreflight != null
-      ? simQuery.data.routePreflight.worstSpreadPercent
+  const outputAmount = simData?.return_amount ?? ''
+  const commissionAmount = simData?.commission_amount ?? ''
+
+  const priceImpact = simData
+    ? simData.routePreflight != null
+      ? simData.routePreflight.worstSpreadPercent
       : (() => {
           const total =
-            parseFloat(simQuery.data.return_amount) +
-            parseFloat(simQuery.data.commission_amount) +
-            parseFloat(simQuery.data.spread_amount)
+            parseFloat(simData.return_amount) +
+            parseFloat(simData.commission_amount) +
+            parseFloat(simData.spread_amount)
           if (total === 0) return '0'
-          return ((parseFloat(simQuery.data.spread_amount) / total) * 100).toFixed(2)
+          return ((parseFloat(simData.spread_amount) / total) * 100).toFixed(2)
         })()
     : null
 
-  const minReceived = simQuery.data ? applySlippagePercentFloor(simQuery.data.return_amount, slippageTolerance) : null
+  const minReceived = simData ? applySlippagePercentFloor(simData.return_amount, slippageTolerance) : null
 
   const directHybridBookSplit = useMemo(
     () =>
@@ -564,8 +615,8 @@ export default function SwapPage() {
   )
 
   const indexerHybridExec = useMemo(
-    () => getIndexerHybridExecutionSummary(simQuery.data?.indexerQuoteKind),
-    [simQuery.data?.indexerQuoteKind]
+    () => getIndexerHybridExecutionSummary(simData?.indexerQuoteKind),
+    [simData?.indexerQuoteKind]
   )
 
   /** One execution-aligned path for the trade summary (GitLab #158 — never duplicate indexer vs client labels). */
@@ -576,8 +627,8 @@ export default function SwapPage() {
         toToken,
         isWrapOrUnwrap: !!isWrapOrUnwrap,
         nativeRouteInfo: nativeRouteInfo,
-        indexerIntermediateTokens: simQuery.data?.indexerIntermediateTokens,
-        indexerOperations: simQuery.data?.indexerOperations,
+        indexerIntermediateTokens: simData?.indexerIntermediateTokens,
+        indexerOperations: simData?.indexerOperations,
         clientRoute: route,
         isMultiHop,
         isDirect,
@@ -588,8 +639,8 @@ export default function SwapPage() {
       toToken,
       isWrapOrUnwrap,
       nativeRouteInfo,
-      simQuery.data?.indexerIntermediateTokens,
-      simQuery.data?.indexerOperations,
+      simData?.indexerIntermediateTokens,
+      simData?.indexerOperations,
       route,
       isMultiHop,
       isDirect,
@@ -622,7 +673,10 @@ export default function SwapPage() {
   } else if (insufficientBalance) {
     buttonText = 'Insufficient Balance'
     buttonDisabled = true
-  } else if (simQuery.data?.routePreflight?.anyHopExceedsMaxSpread) {
+  } else if (simQuoteUnavailable) {
+    buttonText = 'Quote unavailable'
+    buttonDisabled = true
+  } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Price impact too high for this trade'
     buttonDisabled = true
   } else if (simQuery.isLoading) {
@@ -702,6 +756,30 @@ export default function SwapPage() {
               Settings
             </button>
           </div>
+
+          {indexerOutage && (
+            <MarketDataServiceOutageBanner
+              testId="swap-market-data-outage-banner"
+              title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+              lead={SWAP_MARKET_DATA_OUTAGE_LEAD}
+              onRetry={simRetry.retry}
+            />
+          )}
+
+          {showSimRetryError && (
+            <RetryError
+              data-testid="swap-quote-retry-error"
+              message={humanizeUserFacingErrorFromUnknown(simQuery.error)}
+              isRetrying={simRetry.isRetrying}
+              onRetry={simRetry.retry}
+            />
+          )}
+
+          {simQuery.isError && indexerOutage && !isWrapOrUnwrap && !!inputAmount && parseFloat(inputAmount) > 0 && (
+            <p className="alert-error text-xs mb-4" data-testid="swap-quote-unavailable">
+              {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+            </p>
+          )}
 
           {/* Slippage Settings */}
           {showSettings && (
@@ -968,13 +1046,13 @@ export default function SwapPage() {
                   <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
                     Calculating...
                   </span>
-                ) : outputAmount && receiveAssetInfo ? (
+                ) : simData && outputAmount && receiveAssetInfo ? (
                   formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
                 ) : (
                   <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
                 )}
               </div>
-              {simQuery.data?.receiveQuoteIsPoolOnlyWithConfiguredBookLeg && (
+              {simData?.receiveQuoteIsPoolOnlyWithConfiguredBookLeg && (
                 <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
                   Shown amount is a pool-only simulation. You still submit a hybrid (book leg); final receive can
                   differ.
@@ -984,7 +1062,7 @@ export default function SwapPage() {
           </div>
 
           <div className="mb-4 space-y-2">
-            {simQuery.data && (indexerHybridExec.show || directHybridBookSplit) && (
+            {simData && (indexerHybridExec.show || directHybridBookSplit) && (
               <div
                 data-testid="swap-execution-summary"
                 className="card-neo text-[11px] sm:text-xs leading-relaxed space-y-2"
@@ -1046,7 +1124,7 @@ export default function SwapPage() {
           </div>
 
           {/* Trade Details */}
-          {simQuery.data && (
+          {simData && (
             <div className="card-neo mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm sm:block sm:space-y-2">
               {poolQuery.data && (
                 <div
@@ -1178,13 +1256,13 @@ export default function SwapPage() {
             </div>
           )}
 
-          {simQuery.data?.routePreflight && (
+          {simData?.routePreflight && (
             <div className="card-neo mb-3 text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
               <span className="uppercase tracking-wide font-semibold" style={{ color: 'var(--ink-subtle)' }}>
                 Route spread check:{' '}
               </span>
-              Worst hop ≈ {simQuery.data.routePreflight.worstSpreadPercent}% of gross on that hop (pair simulation,
-              matches on-chain max spread logic). See{' '}
+              Worst hop ≈ {simData.routePreflight.worstSpreadPercent}% of gross on that hop (pair simulation, matches
+              on-chain max spread logic). See{' '}
               <a
                 href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/swap-max-spread-ux.md"
                 target="_blank"
@@ -1196,7 +1274,7 @@ export default function SwapPage() {
               .
             </div>
           )}
-          {simQuery.data?.routePreflight?.anyHopExceedsMaxSpread && (
+          {simData?.routePreflight?.anyHopExceedsMaxSpread && (
             <div className="alert-error mb-3 text-xs" role="alert">
               <p className="font-semibold mb-1">Insufficient liquidity for this trade size</p>
               <p>
@@ -1207,8 +1285,8 @@ export default function SwapPage() {
             </div>
           )}
           {(showHybridBookSubmitWarning ||
-            simQuery.data?.indexerQuoteKind === 'indexer_hybrid_lcd' ||
-            simQuery.data?.indexerQuoteKind === 'indexer_hybrid_lcd_degraded') && (
+            simData?.indexerQuoteKind === 'indexer_hybrid_lcd' ||
+            simData?.indexerQuoteKind === 'indexer_hybrid_lcd_degraded') && (
             <div className="alert-error mb-3 text-xs" role="alert">
               <p className="font-semibold mb-1">Limit book leg</p>
               <p>

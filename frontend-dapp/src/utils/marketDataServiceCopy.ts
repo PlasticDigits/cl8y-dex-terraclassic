@@ -23,3 +23,7 @@ export const PROTOCOL_MARKET_DATA_OUTAGE_LEAD =
 /** Standalone `/limits` route — book, tape, placements ([GitLab #218](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/218)). */
 export const LIMITS_MARKET_DATA_OUTAGE_LEAD =
   'Order book depth, recent trades, and indexed placements may be limited until the service recovers.'
+
+/** Swap route (`/` and `/swap`) — hybrid routing and indexer-backed quotes ([GitLab #241](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241)). */
+export const SWAP_MARKET_DATA_OUTAGE_LEAD =
+  'Swap routing quotes and hybrid path optimization may be limited until the service recovers.'

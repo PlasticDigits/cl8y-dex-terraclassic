@@ -602,12 +602,27 @@ Retail surfaces that depend on **indexer HTTP** share banner and loading primiti
 | **LCD vs market data** | [`LcdConnectivityBanner`](../frontend-dapp/src/components/common/LcdConnectivityBanner.tsx) / [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx) cover **chain LCD** only — do not label RPC failures as “market data service.” |
 | **Retail copy** | No `VITE_INDEXER_URL`, hostnames, or “indexer unavailable” in user-visible banners ([GitLab **#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174)). Strings: [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); trade panel lines stay in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts). |
 | **Detection** | [`detectMarketDataOutage`](../frontend-dapp/src/utils/marketDataOutage.ts) ORs transport errors across passed queries (trade re-exports as `detectTradeIndexerOutage`). |
-| **Banner UI** | [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) — trade keeps `data-testid="trade-indexer-outage-banner"` and **inline** layout; Charts/Trader/Pool/Protocol/`/limits` use stacked layout + page `data-testid`s (`charts-market-data-outage-banner`, `limits-market-data-outage-banner`, etc.). |
+| **Banner UI** | [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) — trade keeps `data-testid="trade-indexer-outage-banner"` and **inline** layout; Charts/Trader/Pool/Protocol/`/limits`/`/` (swap) use stacked layout + page `data-testid`s (`charts-market-data-outage-banner`, `limits-market-data-outage-banner`, `swap-market-data-outage-banner`, etc.). |
 | **Loading status** | [`MarketDataLoadingStatus`](../frontend-dapp/src/components/common/MarketDataLoadingStatus.tsx); trade pair switch wraps it as [`TradePairSwitchStatus`](../frontend-dapp/src/components/trade/TradePairSwitchStatus.tsx) (`trade-pair-switch-loading`); `/limits` uses `limits-pair-switch-loading` on the same primitive. |
 | **`/limits` detection** | [`detectMarketDataOutage`](../frontend-dapp/src/utils/marketDataOutage.ts) on `indexer-pair-limit-orders` + `pair-trades-limit-orders` only — **not** placements list transport (logical empty OK). Lead: [`LIMITS_MARKET_DATA_OUTAGE_LEAD`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); limit-reference **tail** reuses trade [#166] string from [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts). Vitest: [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx) ([GitLab **#218**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/218)). |
 | **E2E** | Indexer-stopped specs run via `make test-e2e-indexer-outage` (Playwright project **`e2e-indexer-outage`**, `E2E_INDEXER_OUTAGE=1`) — see [docs/testing.md § Frontend E2E — indexer outage](./testing.md#frontend-e2e-indexer-outage). Default strict `npm run test:e2e` does not stop the indexer ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
+
+### Swap page (`/` and `/swap`) — market data outage {#swap-page-market-data-outage}
+
+When the swap **`simulation`** query observes **indexer transport / non-OK** errors (`isIndexerUnavailableError` or `indexerTransportFailed` on pool fallback — [GitLab **#241**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241)), the page shows a stacked [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) above the form (`data-testid="swap-market-data-outage-banner"`).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **404 vs outage** | Indexer **404** on route solve does **not** show the global banner — same boundary as `/trade` ([#177](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)). |
+| **No stale quotes** | When `simQuery.isError`, receive line and fee/slippage blocks hide prior cached data; CTA reads **Quote unavailable** and stays disabled until a fresh sim succeeds. |
+| **Pool fallback** | Indexer failure during quote sets `indexerTransportFailed` on successful LCD pool sim — banner still shows; CTA may remain enabled when the pool quote is valid (parity with Trade market panel). |
+| **Wrap / unwrap** | Wrap-only sim does not call indexer — no outage banner on pure wrap paths; swap CTA stays available when other gates pass. |
+| **LCD separate** | Factory pair list uses LCD — [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx) only; do not conflate with market-data copy ([#171](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/171)). |
+| **Detection** | [`detectSwapIndexerOutage`](../frontend-dapp/src/utils/swapIndexerOutage.ts) on the sim query slice + optional `indexerTransportFailed` flag. Lead: [`SWAP_MARKET_DATA_OUTAGE_LEAD`](../frontend-dapp/src/utils/marketDataServiceCopy.ts). Vitest: [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx). E2E: [`swap-indexer-outage.spec.ts`](../frontend-dapp/e2e/swap-indexer-outage.spec.ts). |
+
+**Third-party / agent context:** [§ Market data loading & outage (global)](#market-data-loading-outage), [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
 
 ### Trade page — indexer outage banner {#trade-page-indexer-outage-banner}
 
