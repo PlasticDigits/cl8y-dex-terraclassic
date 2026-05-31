@@ -48,3 +48,30 @@ async fn list_pairs_volume_sort_uses_rollup_table() {
     let resp = server.get("/api/v1/pairs?sort=volume_24h&order=desc").await;
     resp.assert_status_ok();
 }
+
+#[serial]
+#[tokio::test]
+async fn pair_list_volume_sort_plan_does_not_touch_swap_events() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+
+    let rows: Vec<(String,)> = sqlx::query_as(
+        "EXPLAIN (FORMAT TEXT)
+         SELECT p.id, pv.volume_quote
+         FROM pairs p
+         INNER JOIN assets a0 ON a0.id = p.asset_0_id
+         INNER JOIN assets a1 ON a1.id = p.asset_1_id
+         LEFT JOIN pair_volume_24h pv ON pv.pair_id = p.id
+         ORDER BY pv.volume_quote DESC NULLS LAST
+         LIMIT 50 OFFSET 0",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("explain pair list volume sort");
+
+    let plan: String = rows.into_iter().map(|(line,)| line).collect::<Vec<_>>().join("\n");
+    assert!(
+        !plan.contains("swap_events"),
+        "pair list volume sort must use pair_volume_24h rollup, not scan swap_events:\n{plan}"
+    );
+}
