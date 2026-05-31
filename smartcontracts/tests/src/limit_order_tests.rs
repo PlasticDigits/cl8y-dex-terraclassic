@@ -12,8 +12,7 @@ use dex_common::limit_placement::{
 use dex_common::pair::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
     HybridSimulationResponse, HybridSwapParams, LimitOrderConfigResponse, LimitOrderResponse,
-    LimitOrderSide, PausedResponse, QueryMsg, MAX_LIMIT_BATCH_RUNGS_HARD_CAP,
-    MAX_MAKER_FILLS_HARD_CAP, SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+    LimitOrderSide, PausedResponse, QueryMsg, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -2476,7 +2475,9 @@ fn place_limit_insert_steps_exceeded() {
         .unwrap_err();
     let s = err.root_cause().to_string();
     assert!(
-        s.contains("max adjust steps") || s.contains("Limit order insert"),
+        s.contains("max adjust steps")
+            || s.contains("Limit order insert")
+            || s.contains("book-walk cap"),
         "{}",
         s
     );
