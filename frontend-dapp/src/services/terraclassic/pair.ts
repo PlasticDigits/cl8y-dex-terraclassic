@@ -38,7 +38,8 @@ export async function simulateHybridSwap(
   pairAddress: string,
   offerAssetInfo: AssetInfo,
   offerAmount: string,
-  hybrid: HybridSwapParams
+  hybrid: HybridSwapParams,
+  options?: { trader?: string; sender?: string }
 ): Promise<HybridSimulationResponse> {
   const offerAsset: Asset = { info: offerAssetInfo, amount: offerAmount }
   return queryContract<HybridSimulationResponse>(pairAddress, {
@@ -50,6 +51,8 @@ export async function simulateHybridSwap(
         max_maker_fills: hybrid.max_maker_fills,
         book_start_hint: hybrid.book_start_hint ?? undefined,
       },
+      trader: options?.trader,
+      sender: options?.sender,
     },
   })
 }

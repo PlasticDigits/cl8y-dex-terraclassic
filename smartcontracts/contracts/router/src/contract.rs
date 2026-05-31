@@ -400,16 +400,22 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::SimulateSwapOperations {
             offer_amount,
             operations,
+            trader,
+            sender,
         } => to_json_binary(&query_simulate_swap_operations(
             deps,
             offer_amount,
             operations,
+            trader,
+            sender,
         )?),
         QueryMsg::ReverseSimulateSwapOperations {
             ask_amount,
             operations,
+            trader,
+            sender,
         } => to_json_binary(&query_reverse_simulate_swap_operations(
-            deps, ask_amount, operations,
+            deps, ask_amount, operations, trader, sender,
         )?),
     }
 }
@@ -429,6 +435,8 @@ fn query_simulate_swap_operations(
     deps: Deps,
     offer_amount: Uint128,
     operations: Vec<SwapOperation>,
+    trader: Option<String>,
+    sender: Option<String>,
 ) -> StdResult<SimulateSwapOperationsResponse> {
     if operations.is_empty() {
         return Err(cosmwasm_std::StdError::generic_err(
@@ -486,6 +494,8 @@ fn query_simulate_swap_operations(
                             amount: current_amount,
                         },
                         hybrid: hybrid_params,
+                        trader: trader.clone(),
+                        sender: sender.clone(),
                     },
                 )?;
                 current_amount = sim.return_amount;
@@ -503,6 +513,8 @@ fn query_reverse_simulate_swap_operations(
     deps: Deps,
     ask_amount: Uint128,
     operations: Vec<SwapOperation>,
+    trader: Option<String>,
+    sender: Option<String>,
 ) -> StdResult<SimulateSwapOperationsResponse> {
     if operations.is_empty() {
         return Err(cosmwasm_std::StdError::generic_err(
@@ -553,6 +565,8 @@ fn query_reverse_simulate_swap_operations(
                             amount: current_amount,
                         },
                         hybrid: hybrid_params,
+                        trader: trader.clone(),
+                        sender: sender.clone(),
                     },
                 )?;
                 current_amount = sim.offer_amount;

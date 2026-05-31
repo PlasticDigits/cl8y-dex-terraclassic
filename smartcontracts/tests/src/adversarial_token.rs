@@ -753,6 +753,8 @@ mod adversarial_tests {
                         amount: swap_in,
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_params(swap_in),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();

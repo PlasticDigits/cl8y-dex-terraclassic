@@ -544,6 +544,202 @@ fn hybrid_book_fill_uses_taker_discounted_effective_fee_bps() {
     assert_eq!(eff, expected_effective);
 }
 
+/// GitLab #238 — `HybridSimulation` applies the same CL8Y fee-tier discount as execute.
+#[test]
+fn hybrid_simulation_matches_execute_with_fee_discount() {
+    use dex_common::pair::{hybrid_simulation_with_trader, pool_only_hybrid_params};
+
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = Addr::unchecked("taker_sim_disc");
+
+    let cw20_code_id = app.store_code(cw20_mintable_contract());
+    let fd_code_id = app.store_code(fee_discount_contract());
+
+    let cl8y = create_cw20_token_with_decimals(
+        &mut app,
+        cw20_code_id,
+        &env.user,
+        "CL8Y",
+        "CL8Y",
+        18,
+        Uint128::new(1_000_000_000_000_000_000_000u128),
+    );
+
+    let fd = app
+        .instantiate_contract(
+            fd_code_id,
+            env.governance.clone(),
+            &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                governance: env.governance.to_string(),
+                cl8y_token: cl8y.to_string(),
+            },
+            &[],
+            "fd_sim_disc",
+            None,
+        )
+        .unwrap();
+
+    app.execute_contract(
+        env.governance.clone(),
+        fd.clone(),
+        &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+            tier_id: 1,
+            min_cl8y_balance: Uint128::zero(),
+            discount_bps: 2500,
+            governance_only: false,
+        },
+        &[],
+    )
+    .unwrap();
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetDiscountRegistry {
+            pair: env.pair.to_string(),
+            registry: Some(fd.to_string()),
+        },
+        &[],
+    )
+    .unwrap();
+
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &cl8y,
+        &env.user,
+        &taker,
+        Uint128::new(1_000_000_000_000_000_000u128),
+    );
+    app.execute_contract(
+        taker.clone(),
+        fd,
+        &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+        &[],
+    )
+    .unwrap();
+
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(300_000),
+        Decimal::one(),
+    );
+
+    let trader_str = taker.to_string();
+
+    let assert_sim_execute_parity = |app: &mut App, hybrid: HybridSwapParams, total_in: Uint128| {
+        let sim: HybridSimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &hybrid_simulation_with_trader(
+                    Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: total_in,
+                    },
+                    hybrid.clone(),
+                    trader_str.clone(),
+                    None,
+                ),
+            )
+            .unwrap();
+
+        let sim_no_trader: HybridSimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::HybridSimulation {
+                    offer_asset: Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: total_in,
+                    },
+                    hybrid: hybrid.clone(),
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        assert!(
+            sim.return_amount > sim_no_trader.return_amount,
+            "discounted sim should quote more output than undiscounted"
+        );
+
+        let taker_b_before = query_cw20_balance(app, &env.token_b, &taker);
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            to: None,
+            deadline: None,
+            hybrid: Some(hybrid),
+            trader: None,
+        })
+        .unwrap();
+        app.execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+        let taker_b_after = query_cw20_balance(app, &env.token_b, &taker);
+        assert_eq!(
+            taker_b_after.checked_sub(taker_b_before).unwrap(),
+            sim.return_amount,
+            "discounted HybridSimulation must match execute output"
+        );
+    };
+
+    let pool_in = Uint128::new(50_000);
+    assert_sim_execute_parity(&mut app, pool_only_hybrid_params(pool_in), pool_in);
+
+    let book_in = Uint128::new(40_000);
+    assert_sim_execute_parity(
+        &mut app,
+        HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: book_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        },
+        book_in,
+    );
+
+    let total_in = Uint128::new(80_000);
+    assert_sim_execute_parity(
+        &mut app,
+        HybridSwapParams {
+            pool_input: Uint128::new(30_000),
+            book_input: Uint128::new(50_000),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        },
+        total_in,
+    );
+}
+
 #[test]
 fn hybrid_swap_two_makers_emits_two_fill_events() {
     let mut app = App::default();
@@ -1734,6 +1930,8 @@ fn hybrid_pool_and_book_legs_one_swap() {
                     amount: total_in,
                 },
                 hybrid: hybrid.clone(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -1829,6 +2027,8 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
                     amount: total_in,
                 },
                 hybrid: hybrid.clone(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2055,6 +2255,8 @@ fn hybrid_hook_commission_includes_pool_and_book() {
                     amount: total_in,
                 },
                 hybrid: hybrid.clone(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2135,6 +2337,8 @@ fn pool_only_hook_commission_unchanged() {
                     amount: offer,
                 },
                 hybrid: hybrid.clone(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2303,6 +2507,8 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
             &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
                 offer_amount: offer,
                 operations: vec![ops_base.clone()],
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2324,6 +2530,8 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
             &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
                 offer_amount: offer,
                 operations: vec![ops_hybrid],
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2340,6 +2548,8 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
                     amount: offer,
                 },
                 hybrid: dex_common::pair::pool_only_hybrid_params(offer),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2441,6 +2651,8 @@ fn router_two_hop_first_leg_hybrid_matches_simulate() {
             &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
                 offer_amount: offer_a,
                 operations: operations.clone(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2502,6 +2714,8 @@ fn router_simulate_amount(
             &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
                 offer_amount,
                 operations: operations.to_vec(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2635,6 +2849,8 @@ fn hybrid_reverse_pool_only_template_is_stable() {
                     amount: ask_amt,
                 },
                 hybrid: dex_common::pair::pool_only_hybrid_template(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2672,6 +2888,8 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                     amount: offer,
                 },
                 hybrid: hybrid.clone(),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();
@@ -2685,6 +2903,8 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                     amount: offer,
                 },
                 hybrid: dex_common::pair::pool_only_hybrid_params(offer),
+                trader: None,
+                sender: None,
             },
         )
         .unwrap();

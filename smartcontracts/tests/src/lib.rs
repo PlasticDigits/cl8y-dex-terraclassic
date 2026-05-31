@@ -1560,6 +1560,8 @@ mod pair_tests {
                         amount: Uint128::new(1_000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -1591,6 +1593,8 @@ mod pair_tests {
                         amount: Uint128::new(997),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -3121,6 +3125,8 @@ mod pair_coverage_tests {
                         amount: Uint128::new(1_000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap_err();
@@ -3435,6 +3441,8 @@ mod pair_coverage_tests {
                         amount: Uint128::new(10_000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(10_000)),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -4504,6 +4512,8 @@ mod router_coverage_tests {
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
                     }],
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -4535,6 +4545,8 @@ mod router_coverage_tests {
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
                     }],
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -5832,6 +5844,8 @@ mod fuzz_tests {
                             amount: Uint128::new(swap_amount),
                         },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                trader: None,
+                sender: None,
                 },
                 )
                 .unwrap();
@@ -6263,6 +6277,8 @@ mod fuzz_tests {
                             amount: Uint128::new(swap_amount),
                         },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                trader: None,
+                sender: None,
                 },
                 )
                 .unwrap();
@@ -8809,6 +8825,8 @@ mod line_coverage_tests {
                         amount: Uint128::new(1000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
+                    trader: None,
+                    sender: None,
                 },
             );
 
@@ -8841,6 +8859,8 @@ mod line_coverage_tests {
                         amount: Uint128::new(1000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1000)),
+                    trader: None,
+                    sender: None,
                 },
             );
 
@@ -8870,6 +8890,8 @@ mod line_coverage_tests {
                         amount: Uint128::new(1000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
+                    trader: None,
+                    sender: None,
                 },
             );
 
@@ -8929,6 +8951,8 @@ mod line_coverage_tests {
                         offer_denom: "uusd".to_string(),
                         ask_denom: "uluna".to_string(),
                     }],
+                    trader: None,
+                    sender: None,
                 },
             );
 
@@ -9130,6 +9154,8 @@ mod line_coverage_tests {
                         amount: Uint128::new(10_000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -9493,6 +9519,8 @@ mod additional_fuzz_tests {
                             amount: Uint128::new(swap_amount),
                         },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                trader: None,
+                sender: None,
                 },
                 )
                 .unwrap();
@@ -9509,6 +9537,8 @@ mod additional_fuzz_tests {
                             ask_asset_info: asset_info_token(&env1.token_b),
                 hybrid: None,
                         }],
+                trader: None,
+                sender: None,
                     },
                 )
                 .unwrap();
@@ -10884,6 +10914,8 @@ mod fee_treasury_tests {
                         amount: Uint128::new(100_000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -10908,6 +10940,8 @@ mod fee_treasury_tests {
                         amount: Uint128::new(100_000),
                     },
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -11486,6 +11520,8 @@ mod router_hop_tests {
                             hybrid: None,
                         },
                     ],
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();
@@ -12644,6 +12680,8 @@ mod wrap_router_tests {
                             hybrid: None,
                         },
                     ],
+                    trader: None,
+                    sender: None,
                 },
             )
             .unwrap();

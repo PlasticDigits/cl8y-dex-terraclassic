@@ -142,8 +142,8 @@ Liquidity-share tokens use CW20 **`decimals = LP_TOKEN_DECIMALS`** (18). `MINIMU
 |----------------------|--------------------|------------------------------|
 | `Pair`               | —                  | `PairInfo`                   |
 | `Pool`               | —                  | `PoolResponse`               |
-| `HybridSimulation`         | `offer_asset`, `hybrid` | `HybridSimulationResponse`         |
-| `HybridReverseSimulation`  | `ask_asset`, `hybrid`   | `HybridReverseSimulationResponse`  |
+| `HybridSimulation`         | `offer_asset`, `hybrid`, optional `trader`, optional `sender` | `HybridSimulationResponse`         |
+| `HybridReverseSimulation`  | `ask_asset`, `hybrid`, optional `trader`, optional `sender`   | `HybridReverseSimulationResponse`  |
 | `GetFeeConfig`       | —                  | `FeeConfigResponse`          |
 | `GetHooks`           | —                  | `HooksResponse`              |
 | `GetDiscountRegistry`| —                  | `DiscountRegistryResponse`   |

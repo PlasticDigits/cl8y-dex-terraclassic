@@ -13,6 +13,7 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
    - **TypeScript:** `poolOnlyHybridParams(offerAmount)` / `poolOnlyHybridTemplate()` in [`frontend-dapp/src/services/terraclassic/poolOnlyHybrid.ts`](../frontend-dapp/src/services/terraclassic/poolOnlyHybrid.ts).
 4. **Router** `simulate_swap_operations`: `terra_swap.hybrid: null` still means pool-only on-chain — router maps that to `pool_only_hybrid_params` per hop.
 5. **Book-inclusive quotes:** non-zero `book_input`; must match execute `HybridSwapParams` for the same snapshot (queries do not park expired orders).
+6. **CL8Y fee discounts (GitLab #238):** pass optional `trader` on pair `HybridSimulation` / `HybridReverseSimulation` (and router `SimulateSwapOperations`) so discounted wallets get execute-matching output; omit for full-fee quotes. Optional `sender` when `trader` differs from the CW20 sender (trusted router). Sim is read-only (no deregister). Rust helpers: `hybrid_simulation_with_trader`, `hybrid_simulation_undiscounted`.
 
 ## Canonical docs
 
@@ -20,12 +21,14 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 - Invariant **L9** (`max_spread` pool + hybrid): [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs), [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197), [`docs/integrators.md`](../docs/integrators.md#slippage-max_spread-and-belief_price-hybrid)
 - Product/integrator: [`docs/limit-orders.md`](../docs/limit-orders.md), [`docs/integrators.md`](../docs/integrators.md)
 - ADR: [`docs/adr/0001-hybrid-quoting-and-routing.md`](../docs/adr/0001-hybrid-quoting-and-routing.md)
+- Fee discount tiers + sim `trader`: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) · [GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)
 - Frontend preflight math: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md)
 
 ## Tests to run after changes
 
 ```bash
 cd smartcontracts && cargo test -p dex-common max_spread
+cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_simulation_matches_execute_with_fee_discount
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_max_spread
 cd smartcontracts && cargo test -p cl8y-dex-tests test_swap_max_spread
 cd frontend-dapp && npm test -- src/services/terraclassic/__tests__/pair.test.ts

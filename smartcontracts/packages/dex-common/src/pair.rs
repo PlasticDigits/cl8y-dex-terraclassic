@@ -282,12 +282,71 @@ pub enum QueryMsg {
     HybridSimulation {
         offer_asset: Asset,
         hybrid: HybridSwapParams,
+        /// When set, CL8Y fee-tier discount is applied (same math as execute). Omit for undiscounted quotes.
+        trader: Option<String>,
+        /// CW20 sender for discount lookup when `trader` differs (e.g. trusted router). Defaults to `trader`.
+        sender: Option<String>,
     },
     #[returns(HybridReverseSimulationResponse)]
     HybridReverseSimulation {
         ask_asset: Asset,
         hybrid: HybridSwapParams,
+        trader: Option<String>,
+        sender: Option<String>,
     },
+}
+
+/// Undiscounted forward hybrid quote (`trader` / `sender` omitted — full pair fee).
+pub fn hybrid_simulation_undiscounted(offer_asset: Asset, hybrid: HybridSwapParams) -> QueryMsg {
+    QueryMsg::HybridSimulation {
+        offer_asset,
+        hybrid,
+        trader: None,
+        sender: None,
+    }
+}
+
+/// Undiscounted reverse hybrid quote.
+pub fn hybrid_reverse_simulation_undiscounted(
+    ask_asset: Asset,
+    hybrid: HybridSwapParams,
+) -> QueryMsg {
+    QueryMsg::HybridReverseSimulation {
+        ask_asset,
+        hybrid,
+        trader: None,
+        sender: None,
+    }
+}
+
+/// Forward hybrid quote with CL8Y fee-tier discount for `trader` (optional distinct `sender`).
+pub fn hybrid_simulation_with_trader(
+    offer_asset: Asset,
+    hybrid: HybridSwapParams,
+    trader: String,
+    sender: Option<String>,
+) -> QueryMsg {
+    QueryMsg::HybridSimulation {
+        offer_asset,
+        hybrid,
+        trader: Some(trader),
+        sender,
+    }
+}
+
+/// Reverse hybrid quote with CL8Y fee-tier discount for `trader`.
+pub fn hybrid_reverse_simulation_with_trader(
+    ask_asset: Asset,
+    hybrid: HybridSwapParams,
+    trader: String,
+    sender: Option<String>,
+) -> QueryMsg {
+    QueryMsg::HybridReverseSimulation {
+        ask_asset,
+        hybrid,
+        trader: Some(trader),
+        sender,
+    }
 }
 
 /// TerraSwap-compatible pool response.

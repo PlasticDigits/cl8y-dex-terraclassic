@@ -18,7 +18,8 @@ Do **not** duplicate numeric tier tables in [`docs/deployment-guide.md`](../docs
 - `ExecuteMsg::AddTier` includes **`governance_only`**: tiers **0** and **255** are governance-only; **1–9** are self-register (EOA).
 - CL8Y uses **18 decimals** (`1 CL8Y = 10^18` base units).
 - Effective pair fee: `fee_bps * (10000 - discount_bps) / 10000` (integer division).
-- Router must be on the fee-discount **trusted router** list before `trader` forwarding applies.
+- Router must be on the fee-discount **trusted router** list before `trader` forwarding applies on **execute**.
+- **Quotes:** pass optional `trader` (and `sender` if needed) on `HybridSimulation` / router `SimulateSwapOperations` for execute-matching discounted output ([GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238), [skills/AGENTS_HYBRID_QUOTING.md](./AGENTS_HYBRID_QUOTING.md)).
 
 ## Verification
 

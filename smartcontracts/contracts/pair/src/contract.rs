@@ -41,6 +41,91 @@ const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// tokens to make subsequent depositors receive 0 LP shares.
 const MINIMUM_LIQUIDITY: u128 = 1_000;
 
+/// Shared CL8Y fee-tier lookup (execute, limit placement, hybrid sim).
+/// On registry query failure, returns full `fee_bps` (matches execute fallback).
+fn lookup_effective_fee_bps(
+    deps: Deps,
+    fee_bps: u16,
+    discount_registry: &Option<Addr>,
+    trader: &str,
+    sender: &str,
+) -> (u16, Option<fee_discount::DiscountResponse>) {
+    match discount_registry {
+        Some(registry) => {
+            let discount_result: StdResult<fee_discount::DiscountResponse> =
+                deps.querier.query_wasm_smart(
+                    registry.to_string(),
+                    &fee_discount::QueryMsg::GetDiscount {
+                        trader: trader.to_string(),
+                        sender: sender.to_string(),
+                    },
+                );
+            match discount_result {
+                Ok(discount) => {
+                    let discounted = (fee_bps as u32)
+                        * (10000u32.saturating_sub(discount.discount_bps as u32))
+                        / 10000u32;
+                    (discounted as u16, Some(discount))
+                }
+                Err(_) => (fee_bps, None),
+            }
+        }
+        None => (fee_bps, None),
+    }
+}
+
+fn deregister_msgs_for_discount(
+    registry: Addr,
+    trader: &str,
+    discount: &fee_discount::DiscountResponse,
+) -> Result<Vec<CosmosMsg>, ContractError> {
+    if discount.needs_deregister {
+        Ok(vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: registry.to_string(),
+            msg: to_json_binary(&fee_discount::ExecuteMsg::DeregisterWallet {
+                wallet: trader.to_string(),
+                epoch: discount.registration_epoch,
+            })?,
+            funds: vec![],
+        })])
+    } else {
+        Ok(vec![])
+    }
+}
+
+fn effective_fee_bps_with_deregister_msgs(
+    deps: Deps,
+    fee_bps: u16,
+    discount_registry: Option<Addr>,
+    trader: &str,
+    sender: &str,
+) -> Result<(u16, Vec<CosmosMsg>), ContractError> {
+    let (effective_fee_bps, discount) =
+        lookup_effective_fee_bps(deps, fee_bps, &discount_registry, trader, sender);
+    let mut deregister_msgs = vec![];
+    if let (Some(registry), Some(discount)) = (discount_registry, discount) {
+        deregister_msgs.extend(deregister_msgs_for_discount(registry, trader, &discount)?);
+    }
+    Ok((effective_fee_bps, deregister_msgs))
+}
+
+/// Read-only fee lookup for hybrid simulation (no deregister side-effects).
+fn effective_fee_bps_for_sim(
+    deps: Deps,
+    fee_bps: u16,
+    discount_registry: &Option<Addr>,
+    trader: Option<&str>,
+    sender: Option<&str>,
+) -> u16 {
+    match trader {
+        None => fee_bps,
+        Some(trader) => {
+            let sender = sender.unwrap_or(trader);
+            lookup_effective_fee_bps(deps, fee_bps, discount_registry, trader, sender).0
+        }
+    }
+}
+
 /// Fee discount for a wallet placing a limit order (`trader` == `sender` == order owner).
 pub(crate) fn effective_fee_bps_with_discount_msgs(
     deps: Deps,
@@ -49,41 +134,7 @@ pub(crate) fn effective_fee_bps_with_discount_msgs(
     owner: Addr,
 ) -> Result<(u16, Vec<CosmosMsg>), ContractError> {
     let trader = owner.to_string();
-    let sender = trader.clone();
-    let mut deregister_msgs: Vec<CosmosMsg> = vec![];
-    let effective_fee_bps = match discount_registry {
-        Some(ref registry) => {
-            let discount_result: StdResult<fee_discount::DiscountResponse> =
-                deps.querier.query_wasm_smart(
-                    registry.to_string(),
-                    &fee_discount::QueryMsg::GetDiscount {
-                        trader: trader.clone(),
-                        sender,
-                    },
-                );
-            match discount_result {
-                Ok(discount) => {
-                    if discount.needs_deregister {
-                        deregister_msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                            contract_addr: registry.to_string(),
-                            msg: to_json_binary(&fee_discount::ExecuteMsg::DeregisterWallet {
-                                wallet: trader,
-                                epoch: discount.registration_epoch,
-                            })?,
-                            funds: vec![],
-                        }));
-                    }
-                    let discounted = (fee_bps as u32)
-                        * (10000u32.saturating_sub(discount.discount_bps as u32))
-                        / 10000u32;
-                    discounted as u16
-                }
-                Err(_) => fee_bps,
-            }
-        }
-        None => fee_bps,
-    };
-    Ok((effective_fee_bps, deregister_msgs))
+    effective_fee_bps_with_deregister_msgs(deps, fee_bps, discount_registry, &trader, &trader)
 }
 
 /// Integer square root via Newton's method. Returns floor(√n).
@@ -772,40 +823,13 @@ fn execute_swap(
 
     let trader_addr = trader.unwrap_or_else(|| sender.to_string());
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
-    let mut deregister_msgs: Vec<CosmosMsg> = vec![];
-
-    let effective_fee_bps = match discount_registry {
-        Some(ref registry) => {
-            let discount_result: StdResult<fee_discount::DiscountResponse> =
-                deps.querier.query_wasm_smart(
-                    registry.to_string(),
-                    &fee_discount::QueryMsg::GetDiscount {
-                        trader: trader_addr.clone(),
-                        sender: sender.to_string(),
-                    },
-                );
-            match discount_result {
-                Ok(discount) => {
-                    if discount.needs_deregister {
-                        deregister_msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                            contract_addr: registry.to_string(),
-                            msg: to_json_binary(&fee_discount::ExecuteMsg::DeregisterWallet {
-                                wallet: trader_addr.clone(),
-                                epoch: discount.registration_epoch,
-                            })?,
-                            funds: vec![],
-                        }));
-                    }
-                    let discounted = (fee_config.fee_bps as u32)
-                        * (10000u32.saturating_sub(discount.discount_bps as u32))
-                        / 10000u32;
-                    discounted as u16
-                }
-                Err(_) => fee_config.fee_bps,
-            }
-        }
-        None => fee_config.fee_bps,
-    };
+    let (effective_fee_bps, deregister_msgs) = effective_fee_bps_with_deregister_msgs(
+        deps.as_ref(),
+        fee_config.fee_bps,
+        discount_registry,
+        &trader_addr,
+        sender.as_ref(),
+    )?;
 
     let ask_token_addr = token_addr(&ask_asset_info);
 
@@ -1796,10 +1820,24 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::HybridSimulation {
             offer_asset,
             hybrid,
-        } => to_json_binary(&query_hybrid_simulation(deps, &env, offer_asset, hybrid)?),
-        QueryMsg::HybridReverseSimulation { ask_asset, hybrid } => to_json_binary(
-            &query_hybrid_reverse_simulation(deps, &env, ask_asset, hybrid)?,
-        ),
+            trader,
+            sender,
+        } => to_json_binary(&query_hybrid_simulation(
+            deps,
+            &env,
+            offer_asset,
+            hybrid,
+            trader,
+            sender,
+        )?),
+        QueryMsg::HybridReverseSimulation {
+            ask_asset,
+            hybrid,
+            trader,
+            sender,
+        } => to_json_binary(&query_hybrid_reverse_simulation(
+            deps, &env, ask_asset, hybrid, trader, sender,
+        )?),
     }
 }
 
@@ -1893,6 +1931,8 @@ fn simulate_hybrid_swap(
     input_amount: Uint128,
     hybrid: &HybridSwapParams,
     offer_asset_info: &AssetInfo,
+    trader: Option<&str>,
+    sender: Option<&str>,
 ) -> Result<HybridSimulationResponse, ContractError> {
     if input_amount.is_zero() {
         return Ok(HybridSimulationResponse {
@@ -1921,7 +1961,9 @@ fn simulate_hybrid_swap(
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let effective_fee_bps = fee_config.fee_bps;
+    let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
+    let effective_fee_bps =
+        effective_fee_bps_for_sim(deps, fee_config.fee_bps, &discount_registry, trader, sender);
 
     let (input_reserve, output_reserve, _ask_asset_info) =
         if offer_asset_info.equal(&pair_info.asset_infos[0]) {
@@ -2013,9 +2055,19 @@ fn query_hybrid_simulation(
     env: &Env,
     offer_asset: Asset,
     hybrid: HybridSwapParams,
+    trader: Option<String>,
+    sender: Option<String>,
 ) -> StdResult<HybridSimulationResponse> {
-    simulate_hybrid_swap(deps, env, offer_asset.amount, &hybrid, &offer_asset.info)
-        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
+    simulate_hybrid_swap(
+        deps,
+        env,
+        offer_asset.amount,
+        &hybrid,
+        &offer_asset.info,
+        trader.as_deref(),
+        sender.as_deref(),
+    )
+    .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
 }
 
 fn query_hybrid_reverse_simulation(
@@ -2023,6 +2075,8 @@ fn query_hybrid_reverse_simulation(
     env: &Env,
     ask_asset: Asset,
     hybrid: HybridSwapParams,
+    trader: Option<String>,
+    sender: Option<String>,
 ) -> StdResult<HybridReverseSimulationResponse> {
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let offer_info = if ask_asset.info.equal(&pair_info.asset_infos[0]) {
@@ -2048,6 +2102,9 @@ fn query_hybrid_reverse_simulation(
         });
     }
 
+    let trader_ref = trader.as_deref();
+    let sender_ref = sender.as_deref();
+
     let mut hi = Uint128::new(1u128);
     for _ in 0..128 {
         let sim = simulate_hybrid_swap(
@@ -2057,6 +2114,8 @@ fn query_hybrid_reverse_simulation(
             &scale_hybrid_template(&hybrid, hi)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
             &offer_info,
+            trader_ref,
+            sender_ref,
         )
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
         if sim.return_amount >= ask_target {
@@ -2074,6 +2133,8 @@ fn query_hybrid_reverse_simulation(
         &scale_hybrid_template(&hybrid, hi)
             .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
         &offer_info,
+        trader_ref,
+        sender_ref,
     )
     .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
     if check_hi.return_amount < ask_target {
@@ -2096,6 +2157,8 @@ fn query_hybrid_reverse_simulation(
             &scale_hybrid_template(&hybrid, mid)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
             &offer_info,
+            trader_ref,
+            sender_ref,
         )
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
         if sim_mid.return_amount >= ask_target {
@@ -2107,8 +2170,16 @@ fn query_hybrid_reverse_simulation(
 
     let final_h = scale_hybrid_template(&hybrid, r_hi)
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
-    let sim = simulate_hybrid_swap(deps, env, r_hi, &final_h, &offer_info)
-        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+    let sim = simulate_hybrid_swap(
+        deps,
+        env,
+        r_hi,
+        &final_h,
+        &offer_info,
+        trader_ref,
+        sender_ref,
+    )
+    .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
     Ok(HybridReverseSimulationResponse {
         offer_amount: r_hi,
         spread_amount: sim.spread_amount,

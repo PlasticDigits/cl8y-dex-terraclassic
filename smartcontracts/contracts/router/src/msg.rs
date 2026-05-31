@@ -64,12 +64,31 @@ pub enum QueryMsg {
     SimulateSwapOperations {
         offer_amount: Uint128,
         operations: Vec<SwapOperation>,
+        /// When set, per-hop pair `HybridSimulation` applies CL8Y fee-tier discount for this wallet.
+        trader: Option<String>,
+        /// CW20 sender for discount lookup when `trader` differs (trusted router). Defaults to `trader`.
+        sender: Option<String>,
     },
     #[returns(SimulateSwapOperationsResponse)]
     ReverseSimulateSwapOperations {
         ask_amount: Uint128,
         operations: Vec<SwapOperation>,
+        trader: Option<String>,
+        sender: Option<String>,
     },
+}
+
+/// Undiscounted router multi-hop sim (full pair fee on every hop).
+pub fn simulate_swap_operations_undiscounted(
+    offer_amount: Uint128,
+    operations: Vec<SwapOperation>,
+) -> QueryMsg {
+    QueryMsg::SimulateSwapOperations {
+        offer_amount,
+        operations,
+        trader: None,
+        sender: None,
+    }
 }
 
 #[cw_serde]
