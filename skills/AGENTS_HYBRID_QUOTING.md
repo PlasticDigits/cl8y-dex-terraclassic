@@ -21,7 +21,7 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 - Invariant **L9** (`max_spread` pool + hybrid): [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs), [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197), [`docs/integrators.md`](../docs/integrators.md#slippage-max_spread-and-belief_price-hybrid)
 - Product/integrator: [`docs/limit-orders.md`](../docs/limit-orders.md), [`docs/integrators.md`](../docs/integrators.md)
 - ADR: [`docs/adr/0001-hybrid-quoting-and-routing.md`](../docs/adr/0001-hybrid-quoting-and-routing.md)
-- Fee discount tiers + sim `trader`: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) · [GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238) · off-chain wiring [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)
+- Fee discount tiers + sim `trader`: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) · [GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238) · off-chain wiring [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245) · QA: `make verify-issue-245` ([`AGENTS_QA_DEPLOY_VERIFY.md`](./AGENTS_QA_DEPLOY_VERIFY.md))
 - Frontend preflight math: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md)
 
 ## Tests to run after changes

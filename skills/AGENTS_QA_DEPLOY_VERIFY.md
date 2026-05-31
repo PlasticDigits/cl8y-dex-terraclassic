@@ -61,6 +61,19 @@ this script is the on-chain proof that a fresh deploy resolves it. See
 [`skills/AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) and
 [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md).
 
+**GitLab #245** (off-chain wiring: dapp + indexer forward connected wallet as
+`trader` on every quote LCD hop):
+
+```bash
+make verify-issue-245   # scripts/qa/verify-issue-245.sh
+```
+
+Runs frontend + indexer unit/integration tests, then **`verify-issue-238`** when
+LocalTerra is up (proves indexer route/solve and pair preflight parity on live
+wasm). Manual UI checklist (Trade/Swap receive preview) remains for human QA;
+issue stays open until sign-off. Cross-links: [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245),
+[`skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md).
+
 Standalone after **`git pull`** without redeploy (expect stamp mismatch):
 
 ```bash
