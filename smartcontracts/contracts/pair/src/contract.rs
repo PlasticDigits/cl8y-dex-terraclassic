@@ -5,6 +5,9 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
 
+use crate::discount_cache::{
+    invalidate_discount_cache, lookup_effective_fee_bps_cached, lookup_effective_fee_bps_readonly,
+};
 use crate::error::ContractError;
 use crate::limit_batch_withdraw::{
     execute_cancel_limit_orders, execute_claim_expired_limit_orders,
@@ -37,45 +40,12 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.6.0";
+const CONTRACT_VERSION: &str = "1.7.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
 /// tokens to make subsequent depositors receive 0 LP shares.
 const MINIMUM_LIQUIDITY: u128 = 1_000;
-
-/// Shared CL8Y fee-tier lookup (execute, limit placement, hybrid sim).
-/// On registry query failure, returns full `fee_bps` (matches execute fallback).
-fn lookup_effective_fee_bps(
-    deps: Deps,
-    fee_bps: u16,
-    discount_registry: &Option<Addr>,
-    trader: &str,
-    sender: &str,
-) -> (u16, Option<fee_discount::DiscountResponse>) {
-    match discount_registry {
-        Some(registry) => {
-            let discount_result: StdResult<fee_discount::DiscountResponse> =
-                deps.querier.query_wasm_smart(
-                    registry.to_string(),
-                    &fee_discount::QueryMsg::GetDiscount {
-                        trader: trader.to_string(),
-                        sender: sender.to_string(),
-                    },
-                );
-            match discount_result {
-                Ok(discount) => {
-                    let discounted = (fee_bps as u32)
-                        * (10000u32.saturating_sub(discount.discount_bps as u32))
-                        / 10000u32;
-                    (discounted as u16, Some(discount))
-                }
-                Err(_) => (fee_bps, None),
-            }
-        }
-        None => (fee_bps, None),
-    }
-}
 
 fn deregister_msgs_for_discount(
     registry: Addr,
@@ -97,17 +67,33 @@ fn deregister_msgs_for_discount(
 }
 
 fn effective_fee_bps_with_deregister_msgs(
-    deps: Deps,
+    mut deps: DepsMut,
+    block_time: u64,
     fee_bps: u16,
     discount_registry: Option<Addr>,
     trader: &str,
     sender: &str,
 ) -> Result<(u16, Vec<CosmosMsg>), ContractError> {
-    let (effective_fee_bps, discount) =
-        lookup_effective_fee_bps(deps, fee_bps, &discount_registry, trader, sender);
+    let (effective_fee_bps, discount) = lookup_effective_fee_bps_cached(
+        deps.branch(),
+        block_time,
+        fee_bps,
+        &discount_registry,
+        trader,
+        sender,
+    )?;
     let mut deregister_msgs = vec![];
-    if let (Some(registry), Some(discount)) = (discount_registry, discount) {
-        deregister_msgs.extend(deregister_msgs_for_discount(registry, trader, &discount)?);
+    if let (Some(registry), Some(discount)) = (discount_registry.as_ref(), discount.as_ref()) {
+        deregister_msgs.extend(deregister_msgs_for_discount(
+            registry.clone(),
+            trader,
+            discount,
+        )?);
+        if !deregister_msgs.is_empty() {
+            let trader_addr = deps.api.addr_validate(trader)?;
+            let sender_addr = deps.api.addr_validate(sender)?;
+            invalidate_discount_cache(deps.storage, &trader_addr, &sender_addr)?;
+        }
     }
     Ok((effective_fee_bps, deregister_msgs))
 }
@@ -115,6 +101,7 @@ fn effective_fee_bps_with_deregister_msgs(
 /// Read-only fee lookup for hybrid simulation (no deregister side-effects).
 fn effective_fee_bps_for_sim(
     deps: Deps,
+    block_time: u64,
     fee_bps: u16,
     discount_registry: &Option<Addr>,
     trader: Option<&str>,
@@ -124,20 +111,36 @@ fn effective_fee_bps_for_sim(
         None => fee_bps,
         Some(trader) => {
             let sender = sender.unwrap_or(trader);
-            lookup_effective_fee_bps(deps, fee_bps, discount_registry, trader, sender).0
+            lookup_effective_fee_bps_readonly(
+                deps,
+                block_time,
+                fee_bps,
+                discount_registry,
+                trader,
+                sender,
+            )
+            .0
         }
     }
 }
 
 /// Fee discount for a wallet placing a limit order (`trader` == `sender` == order owner).
 pub(crate) fn effective_fee_bps_with_discount_msgs(
-    deps: Deps,
+    mut deps: DepsMut,
+    block_time: u64,
     fee_bps: u16,
     discount_registry: Option<Addr>,
     owner: Addr,
 ) -> Result<(u16, Vec<CosmosMsg>), ContractError> {
     let trader = owner.to_string();
-    effective_fee_bps_with_deregister_msgs(deps, fee_bps, discount_registry, &trader, &trader)
+    effective_fee_bps_with_deregister_msgs(
+        deps.branch(),
+        block_time,
+        fee_bps,
+        discount_registry,
+        &trader,
+        &trader,
+    )
 }
 
 /// Integer square root via Newton's method. Returns floor(√n).
@@ -763,7 +766,7 @@ fn assert_max_spread(
 /// 8. Fire post-swap hooks (burn, tax, etc.).
 #[allow(clippy::too_many_arguments)]
 fn execute_swap(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     sender: Addr,
@@ -835,7 +838,8 @@ fn execute_swap(
     let trader_addr = trader.unwrap_or_else(|| sender.to_string());
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
     let (effective_fee_bps, deregister_msgs) = effective_fee_bps_with_deregister_msgs(
-        deps.as_ref(),
+        deps.branch(),
+        env.block.time.seconds(),
         fee_config.fee_bps,
         discount_registry,
         &trader_addr,
@@ -2094,8 +2098,14 @@ fn simulate_hybrid_swap(
 ) -> Result<HybridSimulationResponse, ContractError> {
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
-    let effective_fee_bps =
-        effective_fee_bps_for_sim(deps, fee_config.fee_bps, &discount_registry, trader, sender);
+    let effective_fee_bps = effective_fee_bps_for_sim(
+        deps,
+        env.block.time.seconds(),
+        fee_config.fee_bps,
+        &discount_registry,
+        trader,
+        sender,
+    );
     simulate_hybrid_swap_with_fee(
         deps,
         env,
@@ -2165,6 +2175,7 @@ fn query_hybrid_reverse_simulation(
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
     let effective_fee_bps = effective_fee_bps_for_sim(
         deps,
+        env.block.time.seconds(),
         fee_config.fee_bps,
         &discount_registry,
         trader.as_deref(),

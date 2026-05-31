@@ -57,7 +57,7 @@ pub fn execute_place_limit_order_ladder(
 }
 
 pub fn execute_place_limit_orders_batch(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     owner: Addr,
@@ -86,11 +86,13 @@ pub fn execute_place_limit_orders_batch(
         });
     }
 
+    let now = env.block.time.seconds();
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
     let (effective_fee_bps, deregister_msgs) = effective_fee_bps_with_discount_msgs(
-        deps.as_ref(),
+        deps.branch(),
+        now,
         fee_config.fee_bps,
         discount_registry,
         owner.clone(),
@@ -112,7 +114,6 @@ pub fn execute_place_limit_orders_batch(
         }
     }
 
-    let now = env.block.time.seconds();
     let side_label = orderbook::side_str(&side);
     let owner_str = owner.to_string();
     let maker_bps = orderbook::maker_fee_bps(effective_fee_bps);

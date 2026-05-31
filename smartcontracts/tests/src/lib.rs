@@ -1761,6 +1761,8 @@ mod fee_discount_tests {
     use super::helpers::*;
     use cosmwasm_std::{to_json_binary, Addr, Decimal, Uint128};
     use cw_multi_test::{App, Executor};
+    use dex_common::pair::HybridSimulationResponse;
+    use dex_common::types::Asset;
 
     const ONE_CL8Y: u128 = 1_000_000_000_000_000_000;
 
@@ -2372,6 +2374,217 @@ mod fee_discount_tests {
             .expect("tier 255");
         assert_eq!(t255.tier.discount_bps, 0);
         assert!(t255.tier.governance_only);
+    }
+
+    fn wasm_attr_last(events: &[cosmwasm_std::Event], key: &str) -> Option<String> {
+        events.iter().rev().find_map(|e| {
+            e.attributes
+                .iter()
+                .rev()
+                .find(|a| a.key == key)
+                .map(|a| a.value.clone())
+        })
+    }
+
+    fn pool_swap_effective_fee_bps(
+        app: &mut App,
+        env: &TestEnv,
+        taker: &Addr,
+        amount: Uint128,
+    ) -> u16 {
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::percent(50)),
+            to: None,
+            deadline: None,
+            hybrid: Some(dex_common::pair::pool_only_hybrid_params(amount)),
+            trader: None,
+        })
+        .unwrap();
+        let res = app
+            .execute_contract(
+                taker.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount,
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap();
+        wasm_attr_last(&res.events, "effective_fee_bps")
+            .expect("effective_fee_bps")
+            .parse()
+            .expect("parse effective_fee_bps")
+    }
+
+    /// GitLab #251 — second swap within TTL reuses cached tier (registry upgrade not visible until expiry).
+    #[test]
+    fn discount_cache_hit_within_ttl_after_registry_upgrade() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let amount = Uint128::new(1_000);
+        assert_eq!(
+            pool_swap_effective_fee_bps(&mut app, env, &env.user, amount),
+            29
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 5 },
+            &[],
+        )
+        .unwrap();
+
+        assert_eq!(
+            pool_swap_effective_fee_bps(&mut app, env, &env.user, amount),
+            29,
+            "cache hit must keep tier-1 effective fee until TTL expires"
+        );
+
+        app.update_block(|b| {
+            b.time = b
+                .time
+                .plus_seconds(dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS + 1);
+        });
+
+        assert_eq!(
+            pool_swap_effective_fee_bps(&mut app, env, &env.user, amount),
+            15,
+            "after TTL pair must re-query registry and apply tier 5"
+        );
+    }
+
+    /// GitLab #251 — cache valid at TTL-1s, miss at TTL+1s.
+    #[test]
+    fn discount_cache_ttl_boundary() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let amount = Uint128::new(1_000);
+        assert_eq!(
+            pool_swap_effective_fee_bps(&mut app, env, &env.user, amount),
+            29
+        );
+
+        app.update_block(|b| {
+            b.time = b
+                .time
+                .plus_seconds(dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS - 1);
+        });
+        assert_eq!(
+            pool_swap_effective_fee_bps(&mut app, env, &env.user, amount),
+            29
+        );
+
+        app.update_block(|b| {
+            b.time = b.time.plus_seconds(2);
+        });
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 5 },
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            pool_swap_effective_fee_bps(&mut app, env, &env.user, amount),
+            15,
+            "cache miss after TTL must observe fresh registry tier"
+        );
+    }
+
+    /// GitLab #251 — HybridSimulation reads the same cached fee as execute within TTL.
+    #[test]
+    fn discount_cache_hybrid_sim_matches_execute() {
+        let mut app = App::default();
+        let denv = setup_discount_env(&mut app);
+        let env = &denv.base;
+
+        provide_liquidity(
+            &mut app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let amount = Uint128::new(5_000);
+        let exec_fee = pool_swap_effective_fee_bps(&mut app, env, &env.user, amount);
+
+        app.execute_contract(
+            env.user.clone(),
+            denv.fee_discount.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 5 },
+            &[],
+        )
+        .unwrap();
+
+        let sim: HybridSimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::HybridSimulation {
+                    offer_asset: Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount,
+                    },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(amount),
+                    trader: Some(env.user.to_string()),
+                    sender: None,
+                },
+            )
+            .unwrap();
+
+        let sim_exec_fee = pool_swap_effective_fee_bps(&mut app, env, &env.user, amount);
+        assert_eq!(exec_fee, 29);
+        assert_eq!(sim_exec_fee, 29);
+        assert!(!sim.return_amount.is_zero());
     }
 }
 

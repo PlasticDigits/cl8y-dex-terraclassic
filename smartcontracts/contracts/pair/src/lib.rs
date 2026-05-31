@@ -38,6 +38,8 @@
 //!   swap quote paths. Use [`dex_common::pair::pool_only_hybrid_params`] for
 //!   pool-only quotes (`book_input = 0`). Optional `trader` / `sender` apply
 //!   CL8Y fee-tier discounts (same math as execute; read-only — GitLab #238).
+//!   Execute/limit paths cache registry lookups for [`dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`]
+//!   (GitLab #251); simulation reads cache but does not write.
 //!   See `docs/limit-orders.md` and invariant L8 in `docs/contracts-security-audit.md`.
 //!
 //! ## Auth model
@@ -50,6 +52,7 @@
 //! | UpdateFee / Hooks / Pause / Sweep / DiscountRegistry | Factory only |
 
 pub mod contract;
+pub mod discount_cache;
 pub mod error;
 pub mod limit_batch_withdraw;
 pub mod limit_placement;

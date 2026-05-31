@@ -20,6 +20,7 @@ Do **not** duplicate numeric tier tables in [`docs/deployment-guide.md`](../docs
 - Effective pair fee: `fee_bps * (10000 - discount_bps) / 10000` (integer division).
 - Router must be on the fee-discount **trusted router** list before `trader` forwarding applies on **execute**.
 - **Quotes:** pass optional `trader` (and `sender` if needed) on `HybridSimulation` / router `SimulateSwapOperations` for execute-matching discounted output ([GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238), [skills/AGENTS_HYBRID_QUOTING.md](./AGENTS_HYBRID_QUOTING.md)). **dApp + indexer** must forward the connected wallet on all quote LCD hops and route-solve calls ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)).
+- **Pair cache ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)):** `execute_swap` and limit placement cache registry `GetDiscount` for **300s** per `(trader, sender)`; sim reads cache only. Do not assume quotes re-query registry every block within TTL — document **I9** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md). Constant: `dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`.
 
 ## Verification
 

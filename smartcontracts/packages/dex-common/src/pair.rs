@@ -23,6 +23,9 @@ pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 256;
 /// Additional expired orders at the book head are skipped without storage writes until a later tx.
 pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 5;
 
+/// TTL for on-pair CL8Y fee-discount cache entries ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)).
+pub const DISCOUNT_CACHE_TTL_SECONDS: u64 = 300;
+
 /// Decimals configured on CW20 mintable LP tokens instantiated by pairs (gitlab #124).
 pub const LP_TOKEN_DECIMALS: u8 = 18;
 

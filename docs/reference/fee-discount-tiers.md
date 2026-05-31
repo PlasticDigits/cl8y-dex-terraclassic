@@ -46,6 +46,7 @@ terrad tx wasm execute <fee_discount_addr> '{
 | I6 | **Trusted router:** router must be registered before `trader` on router-originated swaps counts for discount lookup. |
 | I7 | **Drift guard:** `make check-fee-discount-tier-docs` keeps this file, `tier_fixtures.rs`, and `deploy-dex-local.sh` identical. |
 | I8 | **Factory rollout:** point pairs at the fee-discount contract via factory `set_discount_registry` (one pair), `set_discount_registry_all` (≤10 pairs only), or paginated `set_discount_registry_batch` — see [contracts-terraclassic.md § Factory discount registry rollout](../contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123) ([#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)). |
+| I9 | **Pair discount cache ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)):** When `discount_registry` is set, the pair caches `GetDiscount` per `(trader, sender)` for **`DISCOUNT_CACHE_TTL_SECONDS` = 300** (`dex_common::pair`). Entries with `needs_deregister: true` are never cached; cache is cleared when a deregister submessage is emitted. Stale tier within TTL may still apply the prior discount (bounded 5 min). `HybridSimulation` with `trader` reads the cache; it does not write. Pairs without registry incur no cache storage. |
 
 ## Drift check
 
@@ -61,4 +62,5 @@ make check-fee-discount-tier-docs
 - [`docs/security-model.md`](../security-model.md) — EOA / trusted router rules
 - [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../../skills/AGENTS_FEE_DISCOUNT_TIERS.md) — third-party agent playbook (factory registry rollout I8)
 - [GitLab #242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242) — cap `SetDiscountRegistryAll`; batch path for large `PAIR_COUNT`
+- [GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251) — on-pair discount cache TTL (invariant **I9**)
 - Integration tiers: `smartcontracts/tests/src/tier_fixtures.rs` (`STANDARD_PRODUCTION_TIERS`)

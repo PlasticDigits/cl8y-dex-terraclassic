@@ -45,6 +45,16 @@ pub const OBSERVATIONS: Map<u16, Observation> = Map::new("observations");
 pub const PAUSED: Item<bool> = Item::new("paused");
 pub const DISCOUNT_REGISTRY: Item<Option<Addr>> = Item::new("discount_registry");
 
+/// Cached CL8Y fee-discount lookup per `(trader, sender)` ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)).
+#[cw_serde]
+pub struct DiscountCacheEntry {
+    pub effective_fee_bps: u16,
+    pub discount: dex_common::fee_discount::DiscountResponse,
+    pub cached_at: u64,
+}
+
+pub const DISCOUNT_CACHE: Map<(&Addr, &Addr), DiscountCacheEntry> = Map::new("disc_cache");
+
 /// Next limit order id (monotonic).
 pub const ORDER_NEXT_ID: Item<u64> = Item::new("order_next_id");
 /// Doubly-linked limit orders (see [`crate::orderbook`]).
