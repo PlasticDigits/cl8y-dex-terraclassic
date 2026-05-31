@@ -17,7 +17,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListboxKeyboa
 
 1. **Extend the shared hook** — do not duplicate keyboard logic in `TokenSelect` vs `MenuSelect`; both consume `usePortalListboxKeyboard`.
 2. **APG listbox pattern** — while open, focus the portaled `<ul role="listbox">` (`tabIndex={-1}`) and drive highlight via **`aria-activedescendant`** on option ids (`{listId}-option-{index}`).
-3. **Typeahead** — case-insensitive **prefix** on `getTypeaheadLabel` (MenuSelect: `option.label`; TokenSelect: cached symbol via `getCachedTokenSymbol`). Buffer clears after **500ms** (`PORTAL_LISTBOX_TYPEAHEAD_RESET_MS`).
+3. **Typeahead** — case-insensitive **prefix** on `getTypeaheadLabel` (MenuSelect: `option.label`; TokenSelect: cached symbol via `getCachedTokenSymbol`). Buffer clears after **500ms** (`PORTAL_LISTBOX_TYPEAHEAD_RESET_MS`). **`openRef`** keeps multi-char typeahead intact between the first printable key and React `open` commit (GitLab **#244** regression).
 4. **Preserve** click selection, Escape dismiss, portal positioning (`usePortalListbox`), and CLS invariants from [`AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md).
 5. **Visual active row** — `.token-select-option-keyboard-active` (distinct from `.token-select-option-active` selected state).
 6. **Guard duplicate select** — `selectingRef` prevents Enter key-repeat from spamming `onChange`.

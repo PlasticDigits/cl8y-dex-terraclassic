@@ -53,6 +53,8 @@ export function usePortalListboxKeyboard({
 }: UsePortalListboxKeyboardArgs) {
   const [activeIndex, setActiveIndex] = useState(0)
   const activeIndexRef = useRef(0)
+  /** True while open or between `onOpen()` and the next render (typeahead must not reset mid-buffer). */
+  const openRef = useRef(false)
   const typeaheadRef = useRef('')
   const typeaheadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const selectingRef = useRef(false)
@@ -84,6 +86,7 @@ export function usePortalListboxKeyboard({
 
   const closeAndRestoreFocus = useCallback(() => {
     clearTypeahead()
+    openRef.current = false
     onClose()
     triggerRef.current?.focus()
   }, [clearTypeahead, onClose, triggerRef])
@@ -130,6 +133,7 @@ export function usePortalListboxKeyboard({
       if (!canOpen || optionCount <= 0) return
       clearTypeahead()
       setActiveForOpen(index)
+      openRef.current = true
       onOpen()
     },
     [canOpen, clearTypeahead, onOpen, optionCount, setActiveForOpen]
@@ -175,7 +179,9 @@ export function usePortalListboxKeyboard({
 
   const handleTriggerKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLButtonElement>) => {
-      if (!canOpen || optionCount <= 0 || open) return
+      if (!canOpen || optionCount <= 0) return
+      // While open, document keydown handles navigation; only catch the pre-render typeahead frame.
+      if (open) return
 
       switch (e.key) {
         case 'ArrowDown':
@@ -197,17 +203,34 @@ export function usePortalListboxKeyboard({
         default:
           if (isPrintableKey(e.key)) {
             e.preventDefault()
+            if (openRef.current) {
+              handleOpenListboxKey(e.key)
+              return
+            }
             clearTypeahead()
-            setActiveForOpen(0)
+            setActiveForOpen(selectedIndex >= 0 ? selectedIndex : 0)
+            openRef.current = true
             onOpen()
             applyTypeahead(e.key, -1)
           }
       }
     },
-    [applyTypeahead, canOpen, clearTypeahead, onOpen, open, openWithActiveIndex, optionCount, setActiveForOpen]
+    [
+      applyTypeahead,
+      canOpen,
+      clearTypeahead,
+      handleOpenListboxKey,
+      onOpen,
+      open,
+      openWithActiveIndex,
+      optionCount,
+      selectedIndex,
+      setActiveForOpen,
+    ]
   )
 
   useEffect(() => {
+    openRef.current = open
     if (!open) {
       clearTypeahead()
       return

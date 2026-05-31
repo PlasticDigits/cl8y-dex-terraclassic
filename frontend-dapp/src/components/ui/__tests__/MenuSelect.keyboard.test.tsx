@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MenuSelect } from '@/components/ui/MenuSelect'
 
@@ -54,6 +54,19 @@ describe('MenuSelect keyboard (GitLab #244)', () => {
     const listbox = screen.getByRole('listbox', { name: 'Test pair' })
     const activeId = listbox.getAttribute('aria-activedescendant')
     expect(activeId).toBeTruthy()
+    expect(document.getElementById(activeId!)).toHaveTextContent('Delta pair')
+  })
+
+  it('accumulates rapid typeahead from a closed trigger before open state commits', () => {
+    render(<ControlledMenuSelect />)
+
+    const trigger = screen.getByRole('button', { name: 'Test pair' })
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'd' })
+    fireEvent.keyDown(trigger, { key: 'e' })
+
+    const listbox = screen.getByRole('listbox', { name: 'Test pair' })
+    const activeId = listbox.getAttribute('aria-activedescendant')
     expect(document.getElementById(activeId!)).toHaveTextContent('Delta pair')
   })
 
