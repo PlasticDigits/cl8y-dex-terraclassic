@@ -188,8 +188,174 @@ impl LcdClient {
         self.get(&path).await
     }
 
-    pub async fn get_block_txs(&self, height: i64) -> Result<TxSearchResponse, LcdError> {
-        self.search_txs(&[("tx.height", &height.to_string())], 1, 100)
-            .await
+    pub async fn get_block_at_height(&self, height: i64) -> Result<BlockResponse, LcdError> {
+        let path = format!("/cosmos/base/tendermint/v1beta1/blocks/{}", height);
+        self.get(&path).await
+    }
+
+    pub async fn get_block_hash(&self, height: i64) -> Result<String, LcdError> {
+        let resp = self.get_block_at_height(height).await?;
+        resp.block_id
+            .map(|id| id.hash)
+            .ok_or_else(|| LcdError::Deserialize(format!("block {} missing block_id.hash", height)))
+    }
+
+    /// Fetch all txs for a block, paginating until `pagination.total` is satisfied or pages are empty.
+    pub async fn get_block_txs(
+        &self,
+        height: i64,
+        page_limit: u32,
+        max_pages: u32,
+    ) -> Result<BlockTxsResult, LcdError> {
+        let mut all_txs = Vec::new();
+        let mut page = 1u32;
+        let mut expected_total: Option<u64> = None;
+
+        loop {
+            if page > max_pages {
+                return Err(LcdError::Deserialize(format!(
+                    "block {} tx pagination exceeded max_pages={} (collected {} txs)",
+                    height,
+                    max_pages,
+                    all_txs.len()
+                )));
+            }
+
+            let resp = self
+                .search_txs(&[("tx.height", &height.to_string())], page, page_limit)
+                .await?;
+
+            if expected_total.is_none() {
+                expected_total = resp
+                    .pagination
+                    .as_ref()
+                    .and_then(|p| p.total.as_ref())
+                    .and_then(|t| t.parse::<u64>().ok());
+            }
+
+            let page_txs = resp.tx_responses.unwrap_or_default();
+            let page_len = page_txs.len();
+            all_txs.extend(page_txs);
+
+            let done = page_len == 0
+                || page_len < page_limit as usize
+                || expected_total.is_some_and(|total| all_txs.len() as u64 >= total);
+
+            if done {
+                if let Some(total) = expected_total {
+                    if all_txs.len() as u64 != total {
+                        return Err(LcdError::Deserialize(format!(
+                            "block {} incomplete tx fetch: LCD total={} collected={} pages={}",
+                            height,
+                            total,
+                            all_txs.len(),
+                            page
+                        )));
+                    }
+                }
+                return Ok(BlockTxsResult {
+                    txs: all_txs,
+                    page_count: page,
+                });
+            }
+
+            page += 1;
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BlockTxsResult {
+    pub txs: Vec<TxResponse>,
+    pub page_count: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use wiremock::matchers::{method, path, query_param};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn tx_at(height: i64, idx: u32) -> serde_json::Value {
+        json!({
+            "height": height.to_string(),
+            "txhash": format!("hash{}_{}", height, idx),
+            "timestamp": "2024-01-01T00:00:00Z",
+            "logs": [],
+            "events": []
+        })
+    }
+
+    #[tokio::test]
+    async fn get_block_txs_single_page() {
+        let server = MockServer::start().await;
+        let height = 42i64;
+        Mock::given(method("GET"))
+            .and(path("/cosmos/tx/v1beta1/txs"))
+            .and(query_param("events", format!("tx.height={}", height)))
+            .and(query_param("pagination.offset", "0"))
+            .and(query_param("pagination.limit", "100"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "tx_responses": [tx_at(height, 1), tx_at(height, 2)],
+                "pagination": { "total": "2" }
+            })))
+            .mount(&server)
+            .await;
+
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let result = lcd.get_block_txs(height, 100, 10).await.unwrap();
+        assert_eq!(result.txs.len(), 2);
+        assert_eq!(result.page_count, 1);
+    }
+
+    #[tokio::test]
+    async fn get_block_txs_multi_page() {
+        let server = MockServer::start().await;
+        let height = 99i64;
+        let page1: Vec<_> = (0..100).map(|i| tx_at(height, i)).collect();
+        let page2: Vec<_> = (100..150).map(|i| tx_at(height, i)).collect();
+
+        Mock::given(method("GET"))
+            .and(path("/cosmos/tx/v1beta1/txs"))
+            .and(query_param("pagination.offset", "0"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "tx_responses": page1,
+                "pagination": { "total": "150" }
+            })))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/cosmos/tx/v1beta1/txs"))
+            .and(query_param("pagination.offset", "100"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "tx_responses": page2,
+                "pagination": { "total": "150" }
+            })))
+            .mount(&server)
+            .await;
+
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let result = lcd.get_block_txs(height, 100, 10).await.unwrap();
+        assert_eq!(result.txs.len(), 150);
+        assert_eq!(result.page_count, 2);
+    }
+
+    #[tokio::test]
+    async fn get_block_txs_rejects_incomplete_total() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cosmos/tx/v1beta1/txs"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "tx_responses": [tx_at(1, 0)],
+                "pagination": { "total": "150" }
+            })))
+            .mount(&server)
+            .await;
+
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let err = lcd.get_block_txs(1, 100, 1).await.unwrap_err();
+        assert!(err.to_string().contains("incomplete tx fetch"));
     }
 }

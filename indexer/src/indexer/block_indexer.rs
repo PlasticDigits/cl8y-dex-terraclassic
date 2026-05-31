@@ -1,0 +1,257 @@
+//! Single-block ingestion: LCD fetch, parser dispatch, checkpoint commit, reorg guard.
+//!
+//! Invariants: [`docs/indexer-invariants.md`](../../../docs/indexer-invariants.md) — GitLab **#236**.
+
+use std::time::Duration;
+
+use chrono::{DateTime, Utc};
+use sqlx::PgPool;
+
+use crate::config::Config;
+use crate::db::queries::state;
+use crate::lcd::{BlockTxsResult, LcdClient, LcdError};
+
+use super::{oracle, parser};
+
+type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum BlockIndexError {
+    #[error("chain reorg detected at height {height}: stored hash {stored} != canonical {canonical}")]
+    ReorgDetected {
+        height: i64,
+        stored: String,
+        canonical: String,
+    },
+    #[error("block processing failed at height {height}: {source}")]
+    ProcessingFailed {
+        height: i64,
+        #[source]
+        source: BoxError,
+    },
+    #[error("LCD error at height {height}: {source}")]
+    Lcd {
+        height: i64,
+        #[source]
+        source: LcdError,
+    },
+    #[error("state error at height {height}: {source}")]
+    State {
+        height: i64,
+        #[source]
+        source: sqlx::Error,
+    },
+    #[error(
+        "block {height} failed after {attempts} attempts; indexer halted (see indexer_failed_blocks)"
+    )]
+    MaxRetriesExceeded { height: i64, attempts: u32 },
+}
+
+/// Verify the stored checkpoint hash still matches canonical chain (reorg guard).
+pub async fn verify_checkpoint_unchanged(
+    lcd: &LcdClient,
+    pool: &PgPool,
+    height: i64,
+) -> Result<(), BlockIndexError> {
+    if height <= 0 {
+        return Ok(());
+    }
+
+    let stored = state::get_last_indexed_block_hash(pool)
+        .await
+        .map_err(|e| BlockIndexError::State {
+            height,
+            source: e,
+        })?;
+
+    let Some(stored_hash) = stored else {
+        tracing::warn!(
+            height,
+            "No last_indexed_block_hash stored; skipping reorg check (legacy cursor)"
+        );
+        return Ok(());
+    };
+
+    let canonical = lcd.get_block_hash(height).await.map_err(|e| BlockIndexError::Lcd {
+        height,
+        source: e,
+    })?;
+
+    if stored_hash != canonical {
+        return Err(BlockIndexError::ReorgDetected {
+            height,
+            stored: stored_hash,
+            canonical,
+        });
+    }
+
+    Ok(())
+}
+
+#[derive(Debug)]
+pub struct IndexedBlockMeta {
+    pub tx_count: usize,
+    pub page_count: u32,
+}
+
+/// Fetch txs, parse, and commit checkpoint for one height. Does **not** advance on error.
+pub async fn index_block(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    config: &Config,
+    height: i64,
+    ustc_price: &oracle::SharedPrice,
+) -> Result<IndexedBlockMeta, BlockIndexError> {
+    let block_hash = lcd.get_block_hash(height).await.map_err(|e| BlockIndexError::Lcd {
+        height,
+        source: e,
+    })?;
+
+    let BlockTxsResult { txs, page_count } = lcd
+        .get_block_txs(
+            height,
+            config.block_tx_page_limit,
+            config.block_tx_max_pages,
+        )
+        .await
+        .map_err(|e| BlockIndexError::Lcd {
+            height,
+            source: e,
+        })?;
+
+    let tx_count = txs.len();
+
+    if !txs.is_empty() {
+        let (block_time, _time_fallback) = parse_block_time(txs[0].timestamp.as_deref());
+
+        parser::process_block_txs(pool, lcd, config, &txs, height, block_time, ustc_price)
+            .await
+            .map_err(|e| BlockIndexError::ProcessingFailed {
+                height,
+                source: e,
+            })?;
+    }
+
+    state::set_indexer_checkpoint(pool, height, &block_hash)
+        .await
+        .map_err(|e| BlockIndexError::State {
+            height,
+            source: e,
+        })?;
+
+    state::clear_failed_block(pool, height)
+        .await
+        .map_err(|e| BlockIndexError::State {
+            height,
+            source: e,
+        })?;
+
+    tracing::info!(
+        height,
+        tx_count,
+        page_count,
+        block_hash = %block_hash,
+        "Indexed block"
+    );
+
+    Ok(IndexedBlockMeta {
+        tx_count,
+        page_count,
+    })
+}
+
+pub async fn index_block_with_retries(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    config: &Config,
+    height: i64,
+    ustc_price: &oracle::SharedPrice,
+) -> Result<IndexedBlockMeta, BlockIndexError> {
+    let max_retries = config.block_process_max_retries;
+    let mut attempt = 0u32;
+
+    loop {
+        attempt += 1;
+        match index_block(pool, lcd, config, height, ustc_price).await {
+            Ok(meta) => return Ok(meta),
+            Err(e @ BlockIndexError::ReorgDetected { .. }) => return Err(e),
+            Err(e @ BlockIndexError::MaxRetriesExceeded { .. }) => return Err(e),
+            Err(e @ BlockIndexError::ProcessingFailed { .. })
+            | Err(e @ BlockIndexError::Lcd { .. })
+            | Err(e @ BlockIndexError::State { .. }) => {
+                let msg = e.to_string();
+                if let Err(db_err) = state::record_failed_block(pool, height, &msg).await {
+                    tracing::error!(
+                        height,
+                        error = %db_err,
+                        "Failed to record indexer_failed_blocks row"
+                    );
+                }
+
+                if attempt >= max_retries {
+                    tracing::error!(
+                        height,
+                        attempt,
+                        max_retries,
+                        error = %msg,
+                        "Block indexing halted after max retries"
+                    );
+                    return Err(BlockIndexError::MaxRetriesExceeded {
+                        height,
+                        attempts: attempt,
+                    });
+                }
+
+                let backoff_ms = config.block_process_retry_backoff_ms.saturating_mul(attempt as u64);
+                tracing::warn!(
+                    height,
+                    attempt,
+                    max_retries,
+                    backoff_ms,
+                    error = %msg,
+                    "Block indexing failed; retrying"
+                );
+                tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+            }
+        }
+    }
+}
+
+/// Second value is `true` when wall-clock UTC was substituted (candle skew risk).
+fn parse_block_time(ts: Option<&str>) -> (DateTime<Utc>, bool) {
+    match ts {
+        Some(s) => match DateTime::parse_from_rfc3339(s) {
+            Ok(dt) => (dt.with_timezone(&Utc), false),
+            Err(_) => {
+                tracing::warn!(
+                    "Invalid block timestamp {:?}; using current UTC (candles may be misaligned)",
+                    s
+                );
+                (Utc::now(), true)
+            }
+        },
+        None => {
+            tracing::warn!(
+                "Missing block timestamp; using current UTC (candles may be misaligned)"
+            );
+            (Utc::now(), true)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_block_time_valid_rfc3339() {
+        let (_, fallback) = parse_block_time(Some("2024-06-01T12:00:00Z"));
+        assert!(!fallback);
+    }
+
+    #[test]
+    fn parse_block_time_invalid_uses_fallback() {
+        let (_, fallback) = parse_block_time(Some("not-a-date"));
+        assert!(fallback);
+    }
+}

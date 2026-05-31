@@ -210,104 +210,42 @@ pub async fn process_block_txs(
     for tx in txs {
         let swaps = parse_swaps(tx);
         for swap in &swaps {
-            if let Err(e) = process_swap(
+            process_swap(
                 pool, lcd, config, swap, height, block_time, &tx.txhash, ustc_price,
             )
-            .await
-            {
-                tracing::warn!(
-                    "Failed to process swap in tx {} for pair {}: {}",
-                    tx.txhash,
-                    swap.pair_address,
-                    e
-                );
-            }
+            .await?;
         }
 
         let liq_events = parse_liquidity_events(tx);
         for liq in &liq_events {
-            if let Err(e) =
-                process_liquidity_event(pool, lcd, liq, height, block_time, &tx.txhash).await
-            {
-                tracing::warn!(
-                    "Failed to process liquidity event in tx {} for pair {}: {}",
-                    tx.txhash,
-                    liq.pair_address,
-                    e
-                );
-            }
+            process_liquidity_event(pool, lcd, liq, height, block_time, &tx.txhash).await?;
         }
 
         let lo_fills = parse_limit_order_fills(tx);
         for fill in &lo_fills {
-            if let Err(e) =
-                process_limit_order_fill(pool, lcd, fill, height, block_time, &tx.txhash).await
-            {
-                tracing::warn!(
-                    "Failed to process limit order fill in tx {} for pair {}: {}",
-                    tx.txhash,
-                    fill.pair_address,
-                    e
-                );
-            }
+            process_limit_order_fill(pool, lcd, fill, height, block_time, &tx.txhash).await?;
         }
 
         let placements = parse_limit_order_placements(tx);
         for p in &placements {
-            if let Err(e) =
-                process_limit_order_placement(pool, lcd, p, height, block_time, &tx.txhash).await
-            {
-                tracing::warn!(
-                    "Failed to process limit order placement in tx {} for pair {}: {}",
-                    tx.txhash,
-                    p.pair_address,
-                    e
-                );
-            }
+            process_limit_order_placement(pool, lcd, p, height, block_time, &tx.txhash).await?;
         }
 
         let cancellations = parse_limit_order_cancellations(tx);
         for c in &cancellations {
-            if let Err(e) =
-                process_limit_order_cancellation(pool, lcd, c, height, block_time, &tx.txhash).await
-            {
-                tracing::warn!(
-                    "Failed to process limit order cancel in tx {} for pair {}: {}",
-                    tx.txhash,
-                    c.pair_address,
-                    e
-                );
-            }
+            process_limit_order_cancellation(pool, lcd, c, height, block_time, &tx.txhash).await?;
         }
 
         let parked = parse_limit_order_expired_parked(tx);
         for p in &parked {
-            if let Err(e) =
-                process_limit_order_expired_parked(pool, lcd, p, height, block_time, &tx.txhash)
-                    .await
-            {
-                tracing::warn!(
-                    "Failed to process limit_order_expired_parked in tx {} for pair {}: {}",
-                    tx.txhash,
-                    p.pair_address,
-                    e
-                );
-            }
+            process_limit_order_expired_parked(pool, lcd, p, height, block_time, &tx.txhash)
+                .await?;
         }
 
         let claims = parse_claim_expired_limit_orders(tx);
         for c in &claims {
-            if let Err(e) =
-                process_claim_expired_limit_order(pool, lcd, c, height, block_time, &tx.txhash)
-                    .await
-            {
-                tracing::warn!(
-                    "Failed to process claim_expired_limit_order in tx {} for pair {}: {}",
-                    tx.txhash,
-                    c.pair_address,
-                    e
-                );
-            }
+            process_claim_expired_limit_order(pool, lcd, c, height, block_time, &tx.txhash)
+                .await?;
         }
 
         let hook_events = parse_hook_events(tx);
@@ -323,7 +261,7 @@ pub async fn process_block_txs(
             {
                 continue;
             }
-            if let Err(e) = crate::db::queries::hook_events::insert_hook_event(
+            crate::db::queries::hook_events::insert_hook_event(
                 pool,
                 &tx.txhash,
                 &hook.hook_address,
@@ -335,10 +273,7 @@ pub async fn process_block_txs(
                 height,
                 block_time,
             )
-            .await
-            {
-                tracing::warn!("Failed to save hook event in tx {}: {}", tx.txhash, e);
-            }
+            .await?;
         }
     }
     Ok(())
