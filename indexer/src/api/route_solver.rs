@@ -532,7 +532,7 @@ async fn execute_hybrid_route_solve(
         (status = 200, description = "Hybrid best-execution route with merged router operations", body = RouteSolveResponse),
         (status = 400, description = "Missing or invalid amount_in, or unknown token"),
         (status = 404, description = "No route within 3 hops"),
-        (status = 502, description = "Hybrid optimization LCD failure"),
+        (status = 502, description = "Hybrid optimization LCD failure (sanitized body)"),
     ),
     tag = "Routing"
 )]

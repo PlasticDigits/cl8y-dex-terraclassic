@@ -1,7 +1,7 @@
 //! Global best-execution route solver: top-K path enumeration + joint hybrid optimization (GitLab #209).
 
-use axum::http::StatusCode;
 use crate::api::hybrid_route_opt::{self, HopDescriptor, OptimizationMeta};
+use axum::http::StatusCode;
 use crate::api::route_paths;
 use crate::api::route_solver::{
     apply_hybrid_by_hop, build_hops_and_ops, build_intermediate_tokens, quote_kind_after_sim,
@@ -138,13 +138,7 @@ pub async fn solve_global_best_execution(
             max_maker_fills,
         )
         .await
-        .map_err(|e| {
-            tracing::warn!("hybrid optimization LCD error: {}", e);
-            (
-                StatusCode::BAD_GATEWAY,
-                "hybrid optimization failed (LCD)".to_string(),
-            )
-        })?;
+        .map_err(crate::api::lcd_gateway_err)?;
         // Approximate LCD calls: grid per hop + coordinate passes (bounded by design).
         lcd_queries = queries_before.saturating_add(estimate_lcd_calls(hops_desc.len()));
 

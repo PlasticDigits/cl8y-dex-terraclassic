@@ -3,6 +3,7 @@
 
 mod cg;
 mod cmc;
+mod errors;
 mod listing_timestamps;
 mod consolidated_stats;
 pub mod hooks;
@@ -68,6 +69,34 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
         StatusCode::INTERNAL_SERVER_ERROR,
         "Internal server error".to_string(),
     )
+}
+
+pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
+
+fn apply_rate_limit_layer<S>(router: Router<S>, rps: u64) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    if rps == 0 {
+        return router;
+    }
+    let governor_conf = GovernorConfigBuilder::default()
+        .per_second(rps)
+        .burst_size(rps.saturating_mul(2) as u32)
+        .use_headers()
+        .finish()
+        .expect("failed to build governor config");
+
+    let governor_limiter = governor_conf.limiter().clone();
+    let cleanup_interval = Duration::from_secs(60);
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(cleanup_interval).await;
+            governor_limiter.retain_recent();
+        }
+    });
+
+    router.layer(GovernorLayer::new(governor_conf))
 }
 
 async fn build_asset_map(pool: &PgPool) -> Result<HashMap<i32, assets::AssetRow>, sqlx::Error> {
@@ -291,6 +320,31 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
 
+    // LCD-heavy routes: stricter per-IP rate limit (H7) in addition to the global governor.
+    let lcd_heavy_router = Router::new()
+        .route(
+            "/api/v1/pairs/{addr}/order-book-head",
+            get(pairs::get_pair_order_book_head),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-book-shallow",
+            get(pairs::get_pair_limit_book_shallow),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-book",
+            get(pairs::get_pair_limit_book),
+        )
+        .route(
+            "/api/v1/route/solve/best",
+            get(route_solver::solve_route_best),
+        )
+        .route(
+            "/api/v1/route/solve",
+            get(route_solver::solve_route).post(route_solver::solve_route_post),
+        );
+    let lcd_heavy_router =
+        apply_rate_limit_layer(lcd_heavy_router, config.rate_limit_lcd_heavy_rps);
+
     let api_router = Router::new()
         .route("/health", get(health))
         .route("/api/v1/pairs", get(pairs::list_pairs))
@@ -316,18 +370,6 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/pairs/{addr}/limit-orders/{order_id}/fills",
             get(pairs::get_pair_order_limit_fills),
-        )
-        .route(
-            "/api/v1/pairs/{addr}/order-book-head",
-            get(pairs::get_pair_order_book_head),
-        )
-        .route(
-            "/api/v1/pairs/{addr}/limit-book-shallow",
-            get(pairs::get_pair_limit_book_shallow),
-        )
-        .route(
-            "/api/v1/pairs/{addr}/limit-book",
-            get(pairs::get_pair_limit_book),
         )
         .route("/api/v1/pairs/{addr}/stats", get(pairs::get_pair_stats))
         .route("/api/v1/tokens", get(tokens::list_tokens))
@@ -357,14 +399,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
-        .route(
-            "/api/v1/route/solve/best",
-            get(route_solver::solve_route_best),
-        )
-        .route(
-            "/api/v1/route/solve",
-            get(route_solver::solve_route).post(route_solver::solve_route_post),
-        )
+        .merge(lcd_heavy_router)
         .route("/api/v1/oracle/price", get(oracle::get_oracle_price))
         .route("/api/v1/oracle/history", get(oracle::get_oracle_history))
         .route("/cg/pairs", get(cg::cg_pairs))
@@ -378,27 +413,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/cmc/trades/{market_pair}", get(cmc::cmc_trades))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 
-    let api_router = if config.rate_limit_rps > 0 {
-        let governor_conf = GovernorConfigBuilder::default()
-            .per_second(config.rate_limit_rps)
-            .burst_size(config.rate_limit_rps as u32 * 2)
-            .use_headers()
-            .finish()
-            .expect("failed to build governor config");
-
-        let governor_limiter = governor_conf.limiter().clone();
-        let cleanup_interval = std::time::Duration::from_secs(60);
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(cleanup_interval).await;
-                governor_limiter.retain_recent();
-            }
-        });
-
-        api_router.layer(GovernorLayer::new(governor_conf))
-    } else {
-        api_router
-    };
+    let api_router = apply_rate_limit_layer(api_router, config.rate_limit_rps);
 
     api_router
         .layer(TraceLayer::new_for_http())

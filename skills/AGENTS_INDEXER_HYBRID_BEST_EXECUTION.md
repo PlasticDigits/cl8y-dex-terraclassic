@@ -47,6 +47,12 @@ cd indexer && cargo test --test api_route_solve -- --test-threads=1
 
 Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route_solve_global_response_metadata_contract`.
 
+## Rate limits and LCD budgets ([#239](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/239))
+
+- `GET /route/solve` and `/route/solve/best` are **LCD-heavy** (stricter **10 RPS** per IP by default).
+- Hybrid optimization is bounded by **`LCD_HYBRID_SIM_BUDGET`**; LCD failures return generic **502** (`Upstream LCD query failed`), not raw `LcdError` text.
+- Agent playbook: [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md).
+
 ## Related invariants
 
 [docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), CG/CMC consolidated reporting rows.

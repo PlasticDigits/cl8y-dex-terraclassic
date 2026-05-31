@@ -10,6 +10,8 @@ use crate::lcd::{LcdClient, LcdError};
 pub const LIMIT_BOOK_PAGE_DEFAULT: i64 = 50;
 /// Max orders per `GET .../limit-book` request (each order may require one LCD `limit_order` query).
 pub const LIMIT_BOOK_PAGE_MAX: i64 = 100;
+/// Max LCD smart queries per deep limit-book page (head + cursor + one per order). Documented H7 budget.
+pub const LIMIT_BOOK_LCD_QUERY_BUDGET: usize = 101;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -107,8 +109,20 @@ pub async fn fetch_limit_book_page(
     page_limit: i64,
     after_order_id: Option<u64>,
 ) -> Result<(Vec<LimitBookOrderItem>, bool, Option<u64>), LimitBookLcdError> {
+    let mut lcd_queries = 0usize;
+    let mut bump_lcd = || -> Result<(), LimitBookLcdError> {
+        lcd_queries += 1;
+        if lcd_queries > LIMIT_BOOK_LCD_QUERY_BUDGET {
+            return Err(LimitBookLcdError::BadRequest(
+                "limit-book LCD query budget exceeded for this page".to_string(),
+            ));
+        }
+        Ok(())
+    };
+
     let mut current: Option<u64> = match after_order_id {
         None => {
+            bump_lcd()?;
             lcd.query_contract(
                 pair_addr,
                 &json!({ "order_book_head": { "side": side_label } }),
@@ -116,6 +130,7 @@ pub async fn fetch_limit_book_page(
             .await?
         }
         Some(prev_id) => {
+            bump_lcd()?;
             let row_opt = fetch_limit_order(lcd, pair_addr, prev_id).await?;
             let Some(row) = row_opt else {
                 return Err(LimitBookLcdError::BadRequest(format!(
@@ -138,6 +153,7 @@ pub async fn fetch_limit_book_page(
         let Some(oid) = current else {
             break;
         };
+        bump_lcd()?;
         let row_opt = fetch_limit_order(lcd, pair_addr, oid).await?;
         let Some(row) = row_opt else {
             return Err(LimitBookLcdError::BadRequest(format!(

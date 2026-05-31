@@ -4,7 +4,10 @@ use std::net::SocketAddr;
 
 use axum::http::{header, HeaderValue, StatusCode};
 use axum_test::TestServer;
+use cl8y_dex_indexer::api::LCD_UPSTREAM_GATEWAY_MSG;
 use serde_json::Value;
+use wiremock::matchers::{method, path_regex};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn invalid_interval_rejected() {
@@ -331,6 +334,77 @@ async fn limit_cancellations_limit_capped_at_200() {
     resp.assert_status_ok();
     let body: Vec<Value> = resp.json();
     assert!(body.len() <= 200);
+}
+
+#[tokio::test]
+async fn lcd_failure_returns_sanitized_502_body() {
+    let mock = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("internal LCD failure"))
+        .mount(&mock)
+        .await;
+
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs/{}/order-book-head?side=bid",
+            seed.pair_address
+        ))
+        .await;
+    assert_eq!(resp.status_code(), StatusCode::BAD_GATEWAY);
+    let body = resp.text();
+    assert_eq!(body, LCD_UPSTREAM_GATEWAY_MSG);
+    assert!(
+        !body.contains("LCD query failed:"),
+        "must not echo legacy LcdError display prefix"
+    );
+    assert!(
+        !body.contains("All LCD endpoints failed"),
+        "must not echo LcdError variant text"
+    );
+    assert!(
+        !body.contains(&mock.uri()),
+        "must not leak LCD endpoint URL"
+    );
+    assert!(!body.contains("cosmwasm"), "must not leak LCD path details");
+}
+
+#[tokio::test]
+async fn lcd_heavy_route_rate_limit_returns_429() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = 5;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    let url = format!(
+        "/api/v1/pairs/{}/order-book-head?side=bid",
+        seed.pair_address
+    );
+    let mut saw_429 = false;
+    for _ in 0..80 {
+        let resp = server.get(&url).await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            break;
+        }
+    }
+    assert!(
+        saw_429,
+        "LCD-heavy governor should return 429 even when global RATE_LIMIT_RPS=0"
+    );
 }
 
 #[tokio::test]

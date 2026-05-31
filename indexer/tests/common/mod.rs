@@ -51,6 +51,7 @@ pub fn test_config() -> Config {
             "http://localhost:5173".to_string(),
         ],
         rate_limit_rps: 0,
+        rate_limit_lcd_heavy_rps: 0,
         oracle_poll_interval_ms: 30000,
         ustc_denom: None,
         router_address: None,

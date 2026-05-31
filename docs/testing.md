@@ -36,7 +36,7 @@ See also [`docs/deployment-guide.md`](./deployment-guide.md) and [`docs/runbooks
 ### Indexer (Rust)
 
 - **Unit tests (`cargo test --lib`):** parser stress tests, candle OHLC merge invariants, position clamping, oracle `f64` conversion, CG ticker shape validation — **no database required**.
-- **Integration tests (`cargo test --tests`):** require PostgreSQL (set `TEST_DATABASE_URL` or use the default URL with valid credentials). They assert API allowlists, caps, CORS, rate limiting (429), and sanitized 500 responses.
+- **Integration tests (`cargo test --tests`):** require PostgreSQL (set `TEST_DATABASE_URL` or use the default URL with valid credentials). They assert API allowlists, caps, CORS, rate limiting (429), sanitized 500 responses, and sanitized **502** LCD bodies ([#239](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/239); [`indexer/tests/security.rs`](../indexer/tests/security.rs), [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md)).
 
 ```bash
 cd indexer

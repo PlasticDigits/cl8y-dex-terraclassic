@@ -8,12 +8,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, consolidated_stats, internal_err, limit_book_lcd, AppState};
+use super::{build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd, AppState};
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
     candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
 };
-use crate::lcd::LcdError;
 
 pub use limit_book_lcd::LimitBookOrderItem;
 
@@ -22,13 +21,9 @@ pub const VALID_INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"
 /// Max levels returned by `limit-book-shallow` (each level is one LCD `limit_order` query).
 const LIMIT_BOOK_SHALLOW_DEPTH_MAX: i64 = 20;
 
-fn lcd_err(e: LcdError) -> (StatusCode, String) {
-    (StatusCode::BAD_GATEWAY, format!("LCD query failed: {e}"))
-}
-
 fn limit_book_lcd_err(e: limit_book_lcd::LimitBookLcdError) -> (StatusCode, String) {
     match e {
-        limit_book_lcd::LimitBookLcdError::Lcd(le) => lcd_err(le),
+        limit_book_lcd::LimitBookLcdError::Lcd(le) => lcd_gateway_err(le),
         limit_book_lcd::LimitBookLcdError::BadRequest(m) => (StatusCode::BAD_REQUEST, m),
     }
 }
@@ -911,7 +906,7 @@ pub struct OrderBookHeadResponse {
         (status = 200, description = "On-chain book head via LCD proxy", body = OrderBookHeadResponse),
         (status = 400, description = "Invalid side"),
         (status = 404, description = "Pair not found"),
-        (status = 502, description = "LCD error"),
+        (status = 502, description = "Upstream LCD failure (sanitized body)"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "Pairs"
@@ -931,7 +926,7 @@ pub async fn get_pair_order_book_head(
         .lcd
         .query_contract(&addr, &json!({ "order_book_head": { "side": side } }))
         .await
-        .map_err(lcd_err)?;
+        .map_err(lcd_gateway_err)?;
 
     Ok(Json(OrderBookHeadResponse {
         head_order_id: head,
@@ -963,7 +958,7 @@ pub struct LimitBookShallowResponse {
         (status = 200, description = "Shallow on-chain book via LCD proxy", body = LimitBookShallowResponse),
         (status = 400, description = "Invalid side or depth"),
         (status = 404, description = "Pair not found"),
-        (status = 502, description = "LCD error"),
+        (status = 502, description = "Upstream LCD failure (sanitized body)"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "Pairs"
@@ -1021,7 +1016,7 @@ pub struct LimitBookPagedResponse {
         (status = 200, description = "Paginated on-chain book via LCD proxy", body = LimitBookPagedResponse),
         (status = 400, description = "Invalid side, limit, or cursor"),
         (status = 404, description = "Pair not found"),
-        (status = 502, description = "LCD error"),
+        (status = 502, description = "Upstream LCD failure (sanitized body)"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "Pairs"

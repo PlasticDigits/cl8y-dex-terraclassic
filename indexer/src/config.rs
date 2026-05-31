@@ -60,6 +60,8 @@ pub struct Config {
     pub start_block: Option<i64>,
     pub cors_origins: Vec<String>,
     pub rate_limit_rps: u64,
+    /// Stricter per-IP limit for LCD-heavy routes (limit-book, route solve). Default **10** RPS.
+    pub rate_limit_lcd_heavy_rps: u64,
     pub oracle_poll_interval_ms: u64,
     pub ustc_denom: Option<String>,
     /// Router contract for `SimulateSwapOperations` in route solver (optional).
@@ -145,10 +147,26 @@ impl Config {
                 .unwrap_or(30000),
             start_block: env::var("START_BLOCK").ok().and_then(|v| v.parse().ok()),
             cors_origins,
-            rate_limit_rps: env::var("RATE_LIMIT_RPS")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(60),
+            rate_limit_rps: {
+                let mut rps = env::var("RATE_LIMIT_RPS")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(60);
+                if run_mode == RunMode::Prod && rps == 0 {
+                    rps = 60;
+                }
+                rps
+            },
+            rate_limit_lcd_heavy_rps: {
+                let mut rps = env::var("RATE_LIMIT_LCD_HEAVY_RPS")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(10);
+                if run_mode == RunMode::Prod && rps == 0 {
+                    rps = 10;
+                }
+                rps
+            },
             oracle_poll_interval_ms: env::var("ORACLE_POLL_INTERVAL_MS")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -187,6 +205,8 @@ mod tests {
             "DATABASE_URL",
             "FACTORY_ADDRESS",
             "CORS_ORIGINS",
+            "RATE_LIMIT_RPS",
+            "RATE_LIMIT_LCD_HEAVY_RPS",
         ] {
             env::remove_var(key);
         }
@@ -229,6 +249,22 @@ mod tests {
         let c = Config::from_env().expect("prod config");
         assert_eq!(c.run_mode, RunMode::Prod);
         assert_eq!(c.lcd_urls, vec!["https://lcd.example.com".to_string()]);
+    }
+
+    #[test]
+    #[serial]
+    fn prod_forces_nonzero_rate_limits_when_zero() {
+        clear_config_env();
+        env::set_var("RUN_MODE", "prod");
+        env::set_var("LCD_URLS", "https://lcd.example.com");
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "https://app.example.com");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        let c = Config::from_env().expect("prod config");
+        assert_eq!(c.rate_limit_rps, 60);
+        assert_eq!(c.rate_limit_lcd_heavy_rps, 10);
     }
 
     #[test]
