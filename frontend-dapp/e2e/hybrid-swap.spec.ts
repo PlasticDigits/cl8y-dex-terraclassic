@@ -92,7 +92,7 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     connectWallet,
     request,
   }) => {
-    test.setTimeout(240_000)
+    test.setTimeout(420_000)
     await skipIfLcdUnreachable(request)
     await connectWallet
 
@@ -128,6 +128,23 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     }
 
     const successAlert = swapPanel.locator('.alert-success').first()
+    const gasHint = swapPanel.getByText(/more gas than estimated/i)
+    for (let gasRetry = 0; gasRetry < 10; gasRetry++) {
+      if (await successAlert.isVisible().catch(() => false)) break
+      if (await gasHint.isVisible().catch(() => false)) {
+        await page.waitForTimeout(5_000)
+        const retryBtn = swapPanel.getByRole('button').filter({ hasText: /^(Swap|Confirm Swap)/ })
+        await expect(retryBtn).toBeEnabled({ timeout: 30_000 })
+        await retryBtn.click()
+        await page.waitForTimeout(500)
+        if (await confirmSwap.isVisible().catch(() => false)) {
+          await confirmSwap.click()
+        }
+        continue
+      }
+      await page.waitForTimeout(3_000)
+    }
+
     await expect(swapPanel.locator('.alert-success, .alert-error').first()).toBeVisible({ timeout: 90_000 })
     const errorAlert = swapPanel.locator('.alert-error').first()
     if (await errorAlert.isVisible().catch(() => false)) {

@@ -166,6 +166,26 @@ export function txJsonWasmAttrForAction(txJson: unknown, action: string, key: st
   return undefined
 }
 
+/** Last `return_amount` on wasm `swap` events (multihop router: final hop output). */
+export function txJsonLastSwapReturnAmount(txJson: unknown): string | undefined {
+  const amounts = txJsonAllSwapReturnAmounts(txJson)
+  return amounts.length > 0 ? amounts[amounts.length - 1] : undefined
+}
+
+/** Every `return_amount` on wasm `swap` events in tx order (multihop router). */
+export function txJsonAllSwapReturnAmounts(txJson: unknown): string[] {
+  const root = txJson as Record<string, unknown>
+  const tr = (root.tx_response as Record<string, unknown> | undefined) ?? root
+  const out: string[] = []
+  for (const ev of collectTxEvents(tr)) {
+    if (!isWasmLikeEventType(ev.type)) continue
+    if (wasmAttrLast(ev.attributes ?? [], 'action') !== 'swap') continue
+    const ret = wasmAttrLast(ev.attributes ?? [], 'return_amount')
+    if (ret) out.push(ret)
+  }
+  return out
+}
+
 type LcdExecuteMsg = Record<string, unknown>
 
 /** Decode `max_adjust_steps` from the CW20 `send` hook in a place-limit batch tx (GitLab #204). */

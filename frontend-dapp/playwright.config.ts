@@ -6,7 +6,13 @@ const devMnemonic = getLocalTerraTestMnemonic()
 /** UI-only local dev: skip chain global setup and allow documented test.skip (GitLab #201). */
 const chainOptional = process.env.PLAYWRIGHT_SKIP_CHAIN === '1' || process.env.REQUIRE_LOCALTERRA === '0'
 
-const txSpecGlobs = ['**/*-tx.spec.ts', '**/hybrid-swap.spec.ts', '**/wrap-pool.spec.ts', '**/wrap-swap.spec.ts']
+const txSpecGlobs = [
+  '**/*-tx.spec.ts',
+  '**/hybrid-swap.spec.ts',
+  '**/fee-discount-quote-245.spec.ts',
+  '**/wrap-pool.spec.ts',
+  '**/wrap-swap.spec.ts',
+]
 /** Market-data-down specs; require E2E_INDEXER_OUTAGE=1 and stopped indexer (GitLab #219). */
 const indexerOutageGlobs = ['**/*-indexer-outage.spec.ts']
 

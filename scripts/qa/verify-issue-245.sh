@@ -38,6 +38,9 @@ echo "════════════════════════�
 echo "  GitLab #245 — off-chain trader quote parity"
 echo "════════════════════════════════════════════════════════════════"
 
+run_step "Playwright e2e-tx (fee-discount-quote-245 + hybrid-swap UI)" \
+  bash -c 'cd frontend-dapp && npx playwright test e2e/fee-discount-quote-245.spec.ts e2e/hybrid-swap.spec.ts --project=e2e-tx --grep-invert "on-chain limit book fill"'
+
 run_step "frontend unit tests (pair, preflight, indexer client)" \
   bash -c 'cd frontend-dapp && { test -d node_modules || npm ci --silent; } && npx vitest run \
     src/services/terraclassic/__tests__/pair.test.ts \

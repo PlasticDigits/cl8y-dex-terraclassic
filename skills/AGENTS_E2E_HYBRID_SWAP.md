@@ -22,6 +22,7 @@ Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI
 | Path | Role |
 |------|------|
 | [`frontend-dapp/e2e/hybrid-swap.spec.ts`](../frontend-dapp/e2e/hybrid-swap.spec.ts) | UI disclosure + funded hybrid tx |
+| [`frontend-dapp/e2e/fee-discount-quote-245.spec.ts`](../frontend-dapp/e2e/fee-discount-quote-245.spec.ts) | **#245** Trade market quote=execute + Swap `trader` on route/solve + router sim |
 | [`frontend-dapp/e2e/helpers/hybrid-e2e.ts`](../frontend-dapp/e2e/helpers/hybrid-e2e.ts) | Strict prerequisite helpers |
 | [`scripts/e2e-seed-hybrid-book.sh`](../scripts/e2e-seed-hybrid-book.sh) | Idempotent bid seed (`E2E_HYBRID_SEED_*`); **`order_book_head`** LCD payload is a bare **`u64`**, not `{ head_order_id }` — use `order_book_head_id_from_payload` ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)) |
 | [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor for dev wallet |
