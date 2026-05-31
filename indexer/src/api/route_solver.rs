@@ -795,3 +795,34 @@ mod quote_trader_tests {
         assert_eq!(err.0, StatusCode::BAD_REQUEST);
     }
 }
+
+#[cfg(test)]
+mod hybrid_cache_key_tests {
+    use super::hybrid_cache_key;
+    use crate::api::hybrid_route_opt::QuoteTrader;
+
+    const TIN: &str = "terra1tokenin000000000000000000000000000";
+    const TOUT: &str = "terra1tokenout00000000000000000000000000";
+
+    #[test]
+    fn hybrid_cache_key_includes_trader_or_none() {
+        let none = QuoteTrader {
+            trader: None,
+            sender: None,
+        };
+        let discounted = QuoteTrader {
+            trader: Some("terra1discountwallet000000000000000000000".into()),
+            sender: None,
+        };
+        let other = QuoteTrader {
+            trader: Some("terra1otherwallet00000000000000000000000".into()),
+            sender: None,
+        };
+        let base = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &none);
+        let d1 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &discounted);
+        let d2 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &other);
+        assert_ne!(base, d1, "full-fee cache must not share key with trader");
+        assert_ne!(d1, d2, "distinct traders must not share cache key");
+        assert_ne!(base, d2);
+    }
+}
