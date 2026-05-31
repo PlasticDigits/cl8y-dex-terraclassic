@@ -361,17 +361,96 @@ pub fn insert_ask_with_id(
     Ok(id)
 }
 
+/// Doubly-linked insert position: `(prev, next)` neighbor order ids.
+type InsertNeighbors = (Option<u64>, Option<u64>);
+
+/// O(1) insert position when `hint_id` is a valid on-book predecessor (GitLab #256).
+/// Loads the hint order and at most its `next` neighbor; returns `None` to fall back to head walk.
+fn try_insert_after_hint_bid(
+    storage: &dyn Storage,
+    head: Option<u64>,
+    hint_id: u64,
+    new_price: Decimal,
+    new_id: u64,
+    steps: &mut u32,
+) -> Result<Option<InsertNeighbors>, ContractError> {
+    *steps += 1;
+    let hint = match ORDERS.may_load(storage, hint_id)? {
+        Some(o) if o.side == LimitOrderSide::Bid => o,
+        _ => return Ok(None),
+    };
+    if hint.prev.is_none() && head != Some(hint_id) {
+        return Ok(None);
+    }
+    if !bid_before(hint.price, hint_id, new_price, new_id) {
+        return Ok(None);
+    }
+    if let Some(next_id) = hint.next {
+        *steps += 1;
+        let next = match ORDERS.may_load(storage, next_id)? {
+            Some(o) if o.side == LimitOrderSide::Bid => o,
+            _ => return Ok(None),
+        };
+        if !bid_before(new_price, new_id, next.price, next_id) {
+            return Ok(None);
+        }
+        Ok(Some((Some(hint_id), Some(next_id))))
+    } else {
+        Ok(Some((Some(hint_id), None)))
+    }
+}
+
+fn try_insert_after_hint_ask(
+    storage: &dyn Storage,
+    head: Option<u64>,
+    hint_id: u64,
+    new_price: Decimal,
+    new_id: u64,
+    steps: &mut u32,
+) -> Result<Option<InsertNeighbors>, ContractError> {
+    *steps += 1;
+    let hint = match ORDERS.may_load(storage, hint_id)? {
+        Some(o) if o.side == LimitOrderSide::Ask => o,
+        _ => return Ok(None),
+    };
+    if hint.prev.is_none() && head != Some(hint_id) {
+        return Ok(None);
+    }
+    if !ask_before(hint.price, hint_id, new_price, new_id) {
+        return Ok(None);
+    }
+    if let Some(next_id) = hint.next {
+        *steps += 1;
+        let next = match ORDERS.may_load(storage, next_id)? {
+            Some(o) if o.side == LimitOrderSide::Ask => o,
+            _ => return Ok(None),
+        };
+        if !ask_before(new_price, new_id, next.price, next_id) {
+            return Ok(None);
+        }
+        Ok(Some((Some(hint_id), Some(next_id))))
+    } else {
+        Ok(Some((Some(hint_id), None)))
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn find_insert_bid(
     storage: &dyn Storage,
     head: Option<u64>,
-    _hint_after: Option<u64>,
+    hint_after: Option<u64>,
     new_price: Decimal,
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<(Option<u64>, Option<u64>), ContractError> {
-    // Linear walk from head (indexer hints are advisory; full verify is head-only within max_steps).
+) -> Result<InsertNeighbors, ContractError> {
+    if let Some(hint_id) = hint_after {
+        if let Some(pos) =
+            try_insert_after_hint_bid(storage, head, hint_id, new_price, new_id, steps)?
+        {
+            return Ok(pos);
+        }
+    }
     let mut prev: Option<u64> = None;
     let mut cur = head;
 
@@ -382,7 +461,6 @@ fn find_insert_bid(
         }
         let ord = ORDERS.load(storage, cid)?;
         if bid_before(new_price, new_id, ord.price, cid) {
-            // insert before cid
             return Ok((ord.prev, Some(cid)));
         }
         prev = Some(cid);
@@ -395,12 +473,19 @@ fn find_insert_bid(
 fn find_insert_ask(
     storage: &dyn Storage,
     head: Option<u64>,
-    _hint_after: Option<u64>,
+    hint_after: Option<u64>,
     new_price: Decimal,
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<(Option<u64>, Option<u64>), ContractError> {
+) -> Result<InsertNeighbors, ContractError> {
+    if let Some(hint_id) = hint_after {
+        if let Some(pos) =
+            try_insert_after_hint_ask(storage, head, hint_id, new_price, new_id, steps)?
+        {
+            return Ok(pos);
+        }
+    }
     let mut prev: Option<u64> = None;
     let mut cur = head;
 
@@ -1398,6 +1483,268 @@ mod tests {
         );
         let lo2 = load_order_response(storage, id2).unwrap();
         assert!(lo2.prev.is_none());
+    }
+
+    /// GitLab #256 — valid `hint_after` inserts after predecessor without head walk.
+    #[test]
+    fn insert_bid_with_valid_hint_after_is_o1() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id3 = insert_bid(
+            storage,
+            Decimal::from_ratio(98u128, 100u128),
+            Uint128::new(100),
+            o,
+            Some(id2),
+            256,
+            None,
+        )
+        .unwrap();
+        let lo2 = load_order_response(storage, id2).unwrap();
+        assert_eq!(lo2.prev, Some(id1));
+        assert_eq!(lo2.next, Some(id3));
+        let lo3 = load_order_response(storage, id3).unwrap();
+        assert_eq!(lo3.prev, Some(id2));
+    }
+
+    #[test]
+    fn insert_bid_stale_hint_falls_back_to_head_walk() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        unlink_order(storage, id1).unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o,
+            Some(id1),
+            256,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            query_head(storage, LimitOrderSide::Bid).unwrap().unwrap(),
+            id2
+        );
+    }
+
+    #[test]
+    fn insert_bid_wrong_side_hint_falls_back() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let ask_id = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let bid_id = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o,
+            Some(ask_id),
+            256,
+            None,
+        )
+        .unwrap();
+        let lo = load_order_response(storage, bid_id).unwrap();
+        assert!(lo.prev.is_none());
+    }
+
+    #[test]
+    fn insert_bid_hint_at_tail() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id3 = insert_bid(
+            storage,
+            Decimal::from_ratio(98u128, 100u128),
+            Uint128::new(100),
+            o,
+            Some(id2),
+            256,
+            None,
+        )
+        .unwrap();
+        let lo3 = load_order_response(storage, id3).unwrap();
+        assert_eq!(lo3.prev, Some(id2));
+        assert!(lo3.next.is_none());
+        let lo2 = load_order_response(storage, id2).unwrap();
+        assert_eq!(lo2.next, Some(id3));
+        assert_eq!(lo2.prev, Some(id1));
+    }
+
+    #[test]
+    fn insert_bid_bad_hint_with_max_steps_one_errors() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        for i in 0..5 {
+            insert_bid(
+                storage,
+                Decimal::from_ratio(100u128 - i, 100u128),
+                Uint128::new(100),
+                o.clone(),
+                None,
+                256,
+                None,
+            )
+            .unwrap();
+        }
+        let err = insert_bid(
+            storage,
+            Decimal::from_ratio(50u128, 100u128),
+            Uint128::new(100),
+            o,
+            Some(999_999),
+            1,
+            None,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            ContractError::LimitInsertStepsExceeded { max: 1 }
+        ));
+    }
+
+    #[test]
+    fn insert_ask_with_valid_hint_after() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_ask(
+            storage,
+            Decimal::from_ratio(101u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id3 = insert_ask(
+            storage,
+            Decimal::from_ratio(102u128, 100u128),
+            Uint128::new(100),
+            o,
+            Some(id2),
+            256,
+            None,
+        )
+        .unwrap();
+        let lo3 = load_order_response(storage, id3).unwrap();
+        assert_eq!(lo3.prev, Some(id2));
+        assert!(lo3.next.is_none());
+        let lo1 = load_order_response(storage, id1).unwrap();
+        assert_eq!(lo1.next, Some(id2));
+        let _ = id3;
+    }
+
+    #[test]
+    fn relink_limit_order_price_uses_hint() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        relink_limit_order_price(
+            storage,
+            id2,
+            Decimal::from_ratio(98u128, 100u128),
+            Some(id1),
+            256,
+        )
+        .unwrap();
+        let lo = load_order_response(storage, id2).unwrap();
+        assert_eq!(lo.price, Decimal::from_ratio(98u128, 100u128));
+        assert_eq!(lo.prev, Some(id1));
+        assert!(lo.next.is_none());
     }
 
     #[test]

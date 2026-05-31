@@ -131,6 +131,7 @@ pub fn execute_place_limit_orders_batch(
 
     let rung_count = orders.len() as u32;
     let mut next_id = orderbook::reserve_order_id_block(deps.storage, rung_count)?;
+    let mut last_placed_hint: Option<u64> = None;
 
     for item in &orders {
         validate_placement_item(item, now)?;
@@ -157,7 +158,7 @@ pub fn execute_place_limit_orders_batch(
                 item.price,
                 remaining_for_book,
                 owner.clone(),
-                None,
+                last_placed_hint,
                 item.max_adjust_steps,
                 item.expires_at,
                 false,
@@ -168,7 +169,7 @@ pub fn execute_place_limit_orders_batch(
                 item.price,
                 remaining_for_book,
                 owner.clone(),
-                None,
+                last_placed_hint,
                 item.max_adjust_steps,
                 item.expires_at,
                 false,
@@ -182,6 +183,7 @@ pub fn execute_place_limit_orders_batch(
                 placed_escrow_remaining =
                     placed_escrow_remaining.checked_add(remaining_for_book)?;
                 placed.push((id, maker_fee, item.price));
+                last_placed_hint = Some(id);
             }
             Err(ContractError::LimitInsertStepsExceeded { .. }) => {
                 skipped_count += 1;

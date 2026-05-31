@@ -3657,6 +3657,8 @@ fn limit_batch_partial_success_skips_book_walk_failures() {
         );
     }
 
+    // Rung 2 uses a better price than rung 1 so batch hint-chaining cannot O(1)-insert;
+    // head walk with max_adjust_steps=5 fails against the seeded deep book (GitLab #256).
     let orders = vec![
         LimitOrderPlacementItem {
             price: Decimal::from_ratio(99u128, 100u128),
@@ -3665,7 +3667,7 @@ fn limit_batch_partial_success_skips_book_walk_failures() {
             expires_at: None,
         },
         LimitOrderPlacementItem {
-            price: Decimal::from_ratio(5u128, 10u128),
+            price: Decimal::one(),
             amount: Uint128::new(1_000),
             max_adjust_steps: 5,
             expires_at: None,
