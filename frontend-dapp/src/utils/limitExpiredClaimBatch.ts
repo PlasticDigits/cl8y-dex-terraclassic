@@ -1,4 +1,10 @@
+import {
+  CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT,
+  estimateFeeUlunaAmountForGasLimit,
+  gasLimitForLimitOrderCancelBatch,
+} from '@/services/terraclassic/terraGas'
 import { MAX_LIMIT_BATCH_RUNGS_HARD_CAP } from '@/utils/constants'
+import { formatTokenAmount } from '@/utils/formatAmount'
 
 export type LimitExpiredClaimInput = number | number[]
 
@@ -22,18 +28,40 @@ export function chunkExpiredClaimOrderIds(orderIds: number[], maxChunk = MAX_LIM
   return chunks
 }
 
+/** Batch vs N×single claim fee line for confirm copy (GitLab #259 — same math as broadcast). */
+export function formatExpiredClaimBatchGasLine(chunkSize: number): string {
+  const n = Math.max(1, chunkSize)
+  const batchGas = gasLimitForLimitOrderCancelBatch(n)
+  const batchUluna = estimateFeeUlunaAmountForGasLimit(batchGas)
+  const batchApprox = formatTokenAmount(batchUluna.toString(), 6, 4)
+
+  if (n < 2) {
+    return `Est. ~${batchApprox} LUNC gas.`
+  }
+
+  const singlesUluna = estimateFeeUlunaAmountForGasLimit(CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT) * BigInt(n)
+  const savingsUluna = singlesUluna - batchUluna
+  if (savingsUluna <= 0n) {
+    return `Est. ~${batchApprox} LUNC gas.`
+  }
+
+  const savedApprox = formatTokenAmount(savingsUluna.toString(), 6, 4)
+  return `Est. ~${batchApprox} LUNC gas (saves ~${savedApprox} LUNC vs ${n} separate claims).`
+}
+
 export function confirmExpiredClaimBatchMessage(
   chunk: number[],
   chunkIndex: number,
   totalChunks: number,
   totalOrderCount: number
 ): string {
+  const gasLine = formatExpiredClaimBatchGasLine(chunk.length)
   if (totalChunks === 1) {
-    return `Claim all ${chunk.length} expired refund(s) in one transaction?`
+    return `Claim all ${chunk.length} expired refund(s) in one transaction? ${gasLine}`
   }
   return (
     `Claim batch ${chunkIndex + 1} of ${totalChunks}: ${chunk.length} expired refund(s) in one transaction? ` +
-    `(${totalOrderCount} total)`
+    `(${totalOrderCount} total) ${gasLine}`
   )
 }
 
