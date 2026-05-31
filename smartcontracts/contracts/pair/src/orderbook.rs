@@ -105,10 +105,14 @@ pub struct BookSimulateResult {
     pub commission_total: Uint128,
 }
 
+/// Single load / checked subtract / save for bid-side escrow (token1).
 fn escrow_sub_pending_token1(
     storage: &mut dyn Storage,
     amount: Uint128,
 ) -> Result<(), ContractError> {
+    if amount.is_zero() {
+        return Ok(());
+    }
     let mut esc = PENDING_ESCROW_TOKEN1.may_load(storage)?.unwrap_or_default();
     esc = esc
         .checked_sub(amount)
@@ -119,10 +123,14 @@ fn escrow_sub_pending_token1(
     Ok(())
 }
 
+/// Single load / checked subtract / save for ask-side escrow (token0).
 fn escrow_sub_pending_token0(
     storage: &mut dyn Storage,
     amount: Uint128,
 ) -> Result<(), ContractError> {
+    if amount.is_zero() {
+        return Ok(());
+    }
     let mut esc = PENDING_ESCROW_TOKEN0.may_load(storage)?.unwrap_or_default();
     esc = esc
         .checked_sub(amount)
@@ -734,6 +742,7 @@ pub fn match_bids(
     let mut scan_steps_capped = false;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
+    let mut token1_escrow_sub_total = Uint128::zero();
 
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
@@ -835,7 +844,7 @@ pub fn match_bids(
         let entry = maker_payouts.entry(order.owner.clone()).or_default();
         *entry = entry.checked_add(fill)?;
 
-        escrow_sub_pending_token1(storage, cost)?;
+        token1_escrow_sub_total = token1_escrow_sub_total.checked_add(cost)?;
 
         fill_events.push(limit_order_fill_event(
             pair_contract,
@@ -860,6 +869,8 @@ pub fn match_bids(
 
         cur = order.next;
     }
+
+    escrow_sub_pending_token1(storage, token1_escrow_sub_total)?;
 
     Ok(BookMatchResult {
         return_net: token1_out_total,
@@ -901,6 +912,7 @@ pub fn match_asks(
     let mut scan_steps_capped = false;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
+    let mut token0_escrow_sub_total = Uint128::zero();
 
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
@@ -1001,7 +1013,7 @@ pub fn match_asks(
         let entry = maker_payouts.entry(order.owner.clone()).or_default();
         *entry = entry.checked_add(cost)?;
 
-        escrow_sub_pending_token0(storage, fill_t0)?;
+        token0_escrow_sub_total = token0_escrow_sub_total.checked_add(fill_t0)?;
 
         fill_events.push(limit_order_fill_event(
             pair_contract,
@@ -1026,6 +1038,8 @@ pub fn match_asks(
 
         cur = order.next;
     }
+
+    escrow_sub_pending_token0(storage, token0_escrow_sub_total)?;
 
     Ok(BookMatchResult {
         return_net: token0_out_total,
@@ -1518,6 +1532,146 @@ mod aggregation_tests {
         let net = cost.checked_sub(commission).unwrap();
         assert_eq!(result.commission_total, commission);
         assert_eq!(result.return_net, net);
+    }
+
+    /// GitLab #255 — one pending-escrow write per token side per `match_bids` invocation.
+    #[test]
+    fn match_bids_batches_pending_escrow_token1_subtract() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(8_000),
+            owner.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(8_000),
+            owner,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let pending_before = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
+
+        let result = match_bids(
+            storage,
+            1,
+            Uint128::new(12_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.makers_used, 2);
+        let pending_after = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
+        let consumed = pending_before.checked_sub(pending_after).unwrap();
+        assert_eq!(consumed, result.offer_consumed);
+        assert_eq!(consumed, Uint128::new(12_000));
+    }
+
+    /// GitLab #255 — batched subtract uses `checked_sub` and the same underflow error as singles.
+    #[test]
+    fn match_bids_pending_escrow_underflow_on_excessive_batch_subtract() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50_000),
+            owner,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        PENDING_ESCROW_TOKEN1
+            .save(storage, &Uint128::new(1_000))
+            .unwrap();
+
+        let err = match_bids(
+            storage,
+            1,
+            Uint128::new(10_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            ContractError::InvariantViolation { reason } if reason == "pending escrow token1 underflow"
+        ));
+    }
+
+    /// GitLab #255 — one pending-escrow write per token side per `match_asks` invocation.
+    #[test]
+    fn match_asks_batches_pending_escrow_token0_subtract() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(15_000),
+            owner.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(15_000),
+            owner,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let pending_before = PENDING_ESCROW_TOKEN0.may_load(storage).unwrap().unwrap();
+
+        let result = match_asks(
+            storage,
+            1,
+            Uint128::new(20_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.makers_used, 2);
+        let pending_after = PENDING_ESCROW_TOKEN0.may_load(storage).unwrap().unwrap();
+        let consumed = pending_before.checked_sub(pending_after).unwrap();
+        assert_eq!(consumed, Uint128::new(20_000));
     }
 }
 
