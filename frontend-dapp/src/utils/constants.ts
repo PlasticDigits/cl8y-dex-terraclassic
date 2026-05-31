@@ -68,6 +68,17 @@ export const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50000
  */
 export const SWAP_GAS_SAFETY_MARGIN = 10000
 
+/**
+ * Direct pair Pattern C hybrid gas (GitLab #249; tuned after #248 transfer aggregation / #252 benchmarks).
+ * `gasWanted ≈ HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS × (makersUsed + HYBRID_SWAP_MAKER_GAS_BUFFER)`,
+ * clamped to [`HYBRID_SWAP_GAS_FLOOR`, `HYBRID_SWAP_GAS_LIMIT`]. Pool-only leg (`book_input = 0`) uses
+ * {@link gasLimitForExecuteSwapOperations}(1) instead.
+ */
+export const HYBRID_SWAP_BASE_GAS = 550_000
+export const HYBRID_SWAP_PER_MAKER_GAS = 65_000
+export const HYBRID_SWAP_MAKER_GAS_BUFFER = 2
+export const HYBRID_SWAP_GAS_FLOOR = 600_000
+
 type NetworkConfig = {
   terra: {
     chainId: string

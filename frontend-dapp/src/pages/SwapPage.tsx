@@ -14,12 +14,14 @@ import {
   getAllTokens,
   simulateMultiHopSwap,
   executeMultiHopSwap,
+  type SwapOperation,
   isDirectWrapUnwrap,
   findRouteWithNativeSupport,
   simulateNativeSwap,
   executeNativeSwap,
-  type SwapOperation,
 } from '@/services/terraclassic/router'
+import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
+import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
@@ -525,13 +527,14 @@ export default function SwapPage() {
       }
 
       const idxOps = simData?.indexerOperations
-      if (idxOps && idxOps.length > 0) {
-        const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
+      const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
+
+      if (swapOpsRequireRouter(idxOps)) {
         return executeMultiHopSwap(
           address,
           fromToken,
           rawInputAmount,
-          idxOps,
+          idxOps!,
           maxSpread,
           minReceived ?? undefined,
           undefined,
@@ -542,9 +545,8 @@ export default function SwapPage() {
       if (!route) throw new Error('No route found')
 
       if (isDirect && directPair) {
-        const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
-        let hybrid: HybridSwapParams | undefined
-        if (useHybridBook && fromToken.startsWith('terra1')) {
+        let hybrid: HybridSwapParams | undefined = hybridFromSingleHopIndexerOps(idxOps)
+        if (!hybrid && useHybridBook && fromToken.startsWith('terra1')) {
           const payDec = getDecimals(tokenAssetInfo(fromToken))
           const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
           const total = BigInt(rawInputAmount)
@@ -560,6 +562,9 @@ export default function SwapPage() {
               book_start_hint: null,
             }
           }
+        }
+        if (hybrid) {
+          hybrid = hybridParamsWithSubmitCap(hybrid)
         }
         return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread, undefined, {
           hybrid,

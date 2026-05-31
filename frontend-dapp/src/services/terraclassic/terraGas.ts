@@ -8,12 +8,15 @@ import {
   WRAP_GAS_LIMIT,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
+import { HYBRID_SWAP_GAS_LIMIT, gasLimitForHybridParams, hybridSwapParamsFromRecord } from './hybridSwapGas'
+
+export { HYBRID_SWAP_GAS_LIMIT }
+export { gasLimitForHybridSwap, gasLimitForHybridParams } from './hybridSwapGas'
 
 export const BASE_GAS_LIMIT = 200000
 /** Legacy per-hop base; pool-only broadcast uses {@link gasLimitForExecuteSwapOperations}(1) (840k, GitLab #115 / #134). */
 export const SWAP_GAS_LIMIT = 600000
-/** Pattern C / limit-book matching uses more gas than pool-only swaps. */
-export const HYBRID_SWAP_GAS_LIMIT = 1200000
+/** Pattern C / limit-book matching — flat fallback when quote-driven estimate unavailable (GitLab #249). */
 export const PLACE_LIMIT_ORDER_GAS_LIMIT = 950000
 /** Base gas for one CW20 send → `place_limit_order_batch` / ladder (GitLab #206). */
 export const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
@@ -76,11 +79,22 @@ function executeSwapOpsUsesHybrid(msg: Record<string, unknown>): boolean {
   return e.operations.some((op) => op.terra_swap?.hybrid != null)
 }
 
+function gasLimitForHybridRouterOperations(msg: Record<string, unknown>): number {
+  const e = msg.execute_swap_operations as { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> } | undefined
+  if (!e?.operations?.length) return HYBRID_SWAP_GAS_LIMIT
+  let total = 0
+  for (const op of e.operations) {
+    const hybrid = hybridSwapParamsFromRecord(op.terra_swap?.hybrid as Record<string, unknown> | undefined)
+    total += gasLimitForHybridParams(hybrid)
+  }
+  return total
+}
+
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
   const poolOnly = gasLimitForExecuteSwapOperations(hops)
   if (executeSwapOpsUsesHybrid(msg)) {
-    return Math.max(poolOnly, HYBRID_SWAP_GAS_LIMIT * hops)
+    return Math.max(poolOnly, gasLimitForHybridRouterOperations(msg))
   }
   return poolOnly
 }
@@ -128,7 +142,11 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('execute_swap_operations' in executeMsg) {
     return gasLimitForSwapOperationsMsg(executeMsg)
   } else if ('swap' in executeMsg) {
-    return innerSwapUsesHybrid(executeMsg) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
+    if (innerSwapUsesHybrid(executeMsg)) {
+      const hybrid = hybridSwapParamsFromRecord((executeMsg.swap as { hybrid?: Record<string, unknown> }).hybrid)
+      return gasLimitForHybridParams(hybrid)
+    }
+    return gasLimitForExecuteSwapOperations(1)
   } else if ('provide_liquidity' in executeMsg) {
     return ADD_LIQUIDITY_GAS_LIMIT
   } else if ('withdraw_liquidity' in executeMsg) {
@@ -149,7 +167,11 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
           return gasLimitForLimitOrderBatch(ladder.ladder?.count ?? 1)
         }
         if ('swap' in inner) {
-          return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
+          if (innerSwapUsesHybrid(inner)) {
+            const hybrid = hybridSwapParamsFromRecord((inner.swap as { hybrid?: Record<string, unknown> }).hybrid)
+            return gasLimitForHybridParams(hybrid)
+          }
+          return gasLimitForExecuteSwapOperations(1)
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
         if ('execute_swap_operations' in inner) return gasLimitForSwapOperationsMsg(inner)

@@ -340,7 +340,7 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(580000))
   })
 
-  it('uses HYBRID_SWAP_GAS_LIMIT for send with inner swap including hybrid', async () => {
+  it('uses quote-driven hybrid gas for send with inner swap (deep book cap)', async () => {
     const inner = btoa(
       JSON.stringify({
         swap: {
@@ -356,6 +356,24 @@ describe('gas limit selection (tested indirectly)', () => {
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
     expect(fee.gasLimit).toBe(BigInt(1200000))
+  })
+
+  it('shallow-book hybrid send uses lower gas than flat 1.2M (GitLab #249)', async () => {
+    const inner = btoa(
+      JSON.stringify({
+        swap: {
+          hybrid: {
+            pool_input: '500',
+            book_input: '500',
+            max_maker_fills: 2,
+            book_start_hint: null,
+          },
+        },
+      })
+    )
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBe(BigInt(810_000))
+    expect(fee.gasLimit).toBeLessThan(BigInt(1_200_000))
   })
 
   it('bumps execute_swap_operations gas when a hop includes hybrid', async () => {
@@ -376,10 +394,10 @@ describe('gas limit selection (tested indirectly)', () => {
         ],
       },
     })
-    expect(fee.gasLimit).toBe(BigInt(1200000))
+    expect(fee.gasLimit).toBe(BigInt(940_000))
   })
 
-  it('2-hop execute_swap_operations with hybrid on each hop uses hybrid floor per hop', async () => {
+  it('2-hop execute_swap_operations with hybrid on each hop sums per-hop quote-driven gas', async () => {
     const fee = await getFeeForMsg({
       execute_swap_operations: {
         operations: [
@@ -400,7 +418,7 @@ describe('gas limit selection (tested indirectly)', () => {
         ],
       },
     })
-    expect(fee.gasLimit).toBe(BigInt(2400000))
+    expect(fee.gasLimit).toBe(BigInt(1_880_000))
   })
 })
 

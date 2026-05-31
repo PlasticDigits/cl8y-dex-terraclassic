@@ -1,4 +1,6 @@
 import { getConnectedWallet } from './wallet'
+import type { HybridSwapParams } from '@/types'
+import { hybridParamsWithSubmitCap } from './hybridSwapGas'
 import {
   buildTerraClassicFee,
   estimateFeeUlunaAmountForGasLimit,
@@ -43,13 +45,31 @@ export function estimateUpdateLimitOrderPriceUlunaFeesTotal(): bigint {
 
 /**
  * CW20 `increase_allowance` then CW20 `send` → pair `swap` (GitLab #152 trade ticket market path).
- * Must stay aligned with {@link getGasLimitForTx} for `send` → `swap` with optional `hybrid`.
+ * Must stay aligned with {@link getGasLimitForTx} for `send` → `swap` with optional `hybrid` (GitLab #249).
  */
-export function estimateMarketPairSwapSequenceUlunaFeesTotal(usesHybrid: boolean): bigint {
+export function estimateMarketPairSwapSequenceUlunaFeesTotal(
+  usesHybrid: boolean,
+  hybridForGas?: HybridSwapParams | null
+): bigint {
   const allowanceGas = getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
-  const swapInner = usesHybrid
-    ? { swap: { hybrid: { pool_input: '0', book_input: '0', max_maker_fills: 1 } } }
-    : { swap: {} }
+  let swapInner: Record<string, unknown>
+  if (usesHybrid && hybridForGas) {
+    const wired = hybridParamsWithSubmitCap(hybridForGas)
+    swapInner = {
+      swap: {
+        hybrid: {
+          pool_input: wired.pool_input,
+          book_input: wired.book_input,
+          max_maker_fills: wired.max_maker_fills,
+          book_start_hint: wired.book_start_hint ?? undefined,
+        },
+      },
+    }
+  } else if (usesHybrid) {
+    swapInner = { swap: { hybrid: { pool_input: '0', book_input: '1', max_maker_fills: 8 } } }
+  } else {
+    swapInner = { swap: {} }
+  }
   const swapGas = getGasLimitForTx({
     send: { contract: '', amount: '', msg: btoa(JSON.stringify(swapInner)) },
   })

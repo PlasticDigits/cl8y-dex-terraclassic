@@ -46,3 +46,4 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/hybrid-
 - GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)
 - Strict chain umbrella: [#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)
 - **#138 verification:** cosmes patch integrity test + hybrid seed idempotency — [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md), [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md)
+- **#249 hybrid gas / direct single-hop:** lower `gas_wanted` on shallow book; tx path is pair `swap` not router — [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) rule 14; QA may compare `gas_used` vs pre-change on LocalTerra ([#252](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/252))

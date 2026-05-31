@@ -8,6 +8,8 @@ import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, simulateHybridSwap, swap } from '@/services/terraclassic/pair'
 import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
 import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
+import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
+import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import {
   executeCw20AllowanceThen,
   estimateMarketPairSwapSequenceUlunaFeesTotal,
@@ -139,7 +141,10 @@ export function TradeMarketOrderPanel({
     [rawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers]
   )
 
-  const marketGasMin = useMemo(() => estimateMarketPairSwapSequenceUlunaFeesTotal(willSubmitHybrid), [willSubmitHybrid])
+  const marketGasMin = useMemo(
+    () => estimateMarketPairSwapSequenceUlunaFeesTotal(willSubmitHybrid, hybrid),
+    [willSubmitHybrid, hybrid]
+  )
 
   const bookLegMaxResult = useMemo(() => {
     if (!escrowBalanceQuery.data || rawInputAmount === '0') {
@@ -338,21 +343,23 @@ export function TradeMarketOrderPanel({
       const maxSpread = maxSpreadStr
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
       const idxOps = simQuery.data?.indexerOperations
+      const submitHybrid = hybrid ? hybridParamsWithSubmitCap(hybrid) : undefined
       return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, raw, async () => {
-        if (idxOps && idxOps.length > 0) {
+        if (swapOpsRequireRouter(idxOps)) {
           return executeMultiHopSwap(
             address,
             fromToken,
             raw,
-            idxOps,
+            idxOps!,
             maxSpread,
             minReceived ?? undefined,
             undefined,
             deadline
           )
         }
+        const hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? submitHybrid
         return swap(address, fromToken, selectedPair.contract_addr, raw, undefined, maxSpread, undefined, {
-          hybrid,
+          hybrid: hopHybrid,
           deadline,
         })
       })

@@ -2,6 +2,11 @@ import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 
 const BASE_GAS_LIMIT = 200_000
 const HYBRID_SWAP_GAS_LIMIT = 1_200_000
+/** Keep in sync with `frontend-dapp/src/utils/constants.ts` (GitLab #249). */
+const HYBRID_SWAP_BASE_GAS = 550_000
+const HYBRID_SWAP_PER_MAKER_GAS = 65_000
+const HYBRID_SWAP_MAKER_GAS_BUFFER = 2
+const HYBRID_SWAP_GAS_FLOOR = 600_000
 const PLACE_LIMIT_ORDER_GAS_LIMIT = 950_000
 const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400_000
 const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180_000
@@ -40,13 +45,43 @@ function gasLimitForExecuteSwapOperations(hops: number): number {
   return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
 }
 
+function gasLimitForHybridSwap(makersUsed: number): number {
+  const makers = Math.max(0, Math.floor(makersUsed))
+  if (makers === 0) return gasLimitForExecuteSwapOperations(1)
+  const buffered = makers + HYBRID_SWAP_MAKER_GAS_BUFFER
+  const scaled = HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS * buffered
+  return Math.min(HYBRID_SWAP_GAS_LIMIT, Math.max(HYBRID_SWAP_GAS_FLOOR, scaled))
+}
+
+function makersFromHybrid(hybrid: Record<string, unknown> | undefined): number | undefined {
+  if (!hybrid) return undefined
+  const book = String(hybrid.book_input ?? '0')
+  try {
+    if (BigInt(book) === 0n) return 0
+  } catch {
+    return undefined
+  }
+  const fills = Number(hybrid.max_maker_fills ?? 0)
+  if (!Number.isFinite(fills) || fills < 1) return undefined
+  return Math.floor(fills)
+}
+
+function gasForHybridRecord(hybrid: Record<string, unknown> | undefined): number {
+  const makers = makersFromHybrid(hybrid)
+  if (makers === undefined) return HYBRID_SWAP_GAS_LIMIT
+  return gasLimitForHybridSwap(makers)
+}
+
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
   const poolOnly = gasLimitForExecuteSwapOperations(hops)
-  if (executeSwapOpsUsesHybrid(msg)) {
-    return Math.max(poolOnly, HYBRID_SWAP_GAS_LIMIT * hops)
+  if (!executeSwapOpsUsesHybrid(msg)) return poolOnly
+  const e = msg.execute_swap_operations as { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> } | undefined
+  let total = 0
+  for (const op of e?.operations ?? []) {
+    total += gasForHybridRecord(op.terra_swap?.hybrid as Record<string, unknown> | undefined)
   }
-  return poolOnly
+  return Math.max(poolOnly, total)
 }
 
 export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): number {
@@ -54,9 +89,11 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
     return gasLimitForSwapOperationsMsg(executeMsg)
   }
   if ('swap' in executeMsg) {
-    return innerSwapUsesHybrid(executeMsg as Record<string, unknown>)
-      ? HYBRID_SWAP_GAS_LIMIT
-      : gasLimitForExecuteSwapOperations(1)
+    if (innerSwapUsesHybrid(executeMsg as Record<string, unknown>)) {
+      const hybrid = (executeMsg.swap as { hybrid?: Record<string, unknown> }).hybrid
+      return gasForHybridRecord(hybrid)
+    }
+    return gasLimitForExecuteSwapOperations(1)
   }
   if ('provide_liquidity' in executeMsg) {
     return ADD_LIQUIDITY_GAS_LIMIT
@@ -76,7 +113,10 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
           return PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT + PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT * n
         }
         if ('swap' in inner) {
-          return innerSwapUsesHybrid(inner) ? HYBRID_SWAP_GAS_LIMIT : gasLimitForExecuteSwapOperations(1)
+          if (innerSwapUsesHybrid(inner)) {
+            return gasForHybridRecord((inner.swap as { hybrid?: Record<string, unknown> }).hybrid)
+          }
+          return gasLimitForExecuteSwapOperations(1)
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
         if ('execute_swap_operations' in inner) return gasLimitForSwapOperationsMsg(inner)

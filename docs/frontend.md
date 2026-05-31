@@ -319,7 +319,7 @@ The dApp does **not** LCD-simulate every swap before broadcast. All contract exe
 
 `gasWanted = max( round(SWAP_GAS_PER_HOP × hops × SWAP_GAS_BUFFER) + hops × SWAP_MULTIHOP_GAS_PADDING_PER_HOP, hops × EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP )`
 
-Hybrid hops use `max(..., HYBRID_SWAP_GAS_LIMIT × hops)` in `terraGas.ts`.
+Hybrid hops use quote-driven limits in [`hybridSwapGas.ts`](../frontend-dapp/src/services/terraclassic/hybridSwapGas.ts) (sum per hop for router paths; flat **1.2M** only when `max_maker_fills` is unknown — [GitLab **#249**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/249)). Single-hop with a known pair must not use the router ([`swapRouting.ts`](../frontend-dapp/src/services/terraclassic/swapRouting.ts)).
 
 | Invariant | Meaning |
 |-----------|---------|
