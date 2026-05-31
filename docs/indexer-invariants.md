@@ -94,10 +94,16 @@ When validating LocalTerra flows with **browser wallets**, fee broadcast quirks 
 8. **LCD amplification abuse** — Per-request query budgets + **`RATE_LIMIT_LCD_HEAVY_RPS`** on limit-book and route solve (**#239** / H7).
 9. **CORS token theft** — Browser enforces origin; server only echoes allowlisted origins.
 
+## Postgres stack prerequisite (PG-1, GitLab #245)
+
+| ID | Invariant |
+|----|-----------|
+| **PG-1** | Indexer runtime and integration tests connect as **`cl8y_legal`** on `dex_indexer` / `dex_indexer_test`. Compose creates the role on a fresh volume. External Postgres with only **`postgres:postgres`** must run [`scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh) (superuser bootstrap) or manual role creation — see [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md). Regression: `make test-setup-postgres`. |
+
 ## Running tests
 
 - **Library tests (no Postgres):** `cd indexer && cargo test --lib` — includes parser/candle/oracle fuzz-style tests, **proptest** on `merge_candle_ohlc` and `cg_ticker_segments`, and invariant unit tests.
-- **Integration tests:** Require PostgreSQL and migrations (e.g. CI service or `TEST_DATABASE_URL`). Default local credentials are **`cl8y_legal` / `cl8y_legal`** on `dex_indexer_test` — see agent playbook [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) and [Testing — shared Postgres](./testing.md#shared-postgres-and-test-parallelism). `cd indexer && cargo test --tests -j 1 -- --test-threads=1`. Orderbook routes are also covered with a **wiremock** stub of the LCD `pool` smart query ([`tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock.rs)).
+- **Integration tests:** Require PostgreSQL and migrations (e.g. CI service or `TEST_DATABASE_URL`). Default local credentials are **`cl8y_legal` / `cl8y_legal`** on `dex_indexer_test` — see agent playbook [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) (stack prerequisite **PG-1**, superuser bootstrap [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)) and [Testing — shared Postgres](./testing.md#shared-postgres-and-test-parallelism). `cd indexer && cargo test --tests -j 1 -- --test-threads=1`. Orderbook routes are also covered with a **wiremock** stub of the LCD `pool` smart query ([`tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock.rs)).
 
 Integration tests **fail fast** if the database is unreachable (see [`tests/common/mod.rs`](../indexer/tests/common/mod.rs)).
 

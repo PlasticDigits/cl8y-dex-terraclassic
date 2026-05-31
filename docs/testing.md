@@ -46,7 +46,9 @@ cargo test --tests        # needs Postgres + migrations
 
 #### Local Postgres setup (agents)
 
-**Agent playbook:** [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — default user `cl8y_legal`, `make reset` when an old Docker volume still has `postgres:postgres`, `setup-postgres-dev-databases.sh`, and what `deploy-dex-local` writes to `indexer/.env`.
+**Agent playbook:** [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — default user `cl8y_legal`, superuser bootstrap via `setup-postgres-dev-databases.sh`, `make reset` when an old Docker volume still has `postgres:postgres`, and what `deploy-dex-local` writes to `indexer/.env`.
+
+**Stack prerequisite (invariant PG-1):** The indexer and integration tests authenticate as **`cl8y_legal`**. Compose creates that role on a fresh volume (`POSTGRES_USER=cl8y_legal`). External or legacy Postgres that only ships **`postgres:postgres`** must either run [`scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh) (auto-creates `cl8y_legal` when `POSTGRES_SUPERUSER` is reachable) or provision the role manually — see [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245) QA note and the skill § Stack prerequisite.
 
 #### Shared Postgres and test parallelism
 

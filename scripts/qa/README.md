@@ -100,7 +100,7 @@ Canonical root cause: [`docs/frontend.md` § Station extension signing](../../do
 
 ## Troubleshooting
 
-- **Indexer health fails** — Read **`.indexer-qa.log`**; confirm Postgres is up and **`indexer/.env`** **`DATABASE_URL`** matches compose (**`postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer`** by default (override via repo-root `.env` / `scripts/lib/postgres-dev.env`)).
+- **Indexer health fails** — Read **`.indexer-qa.log`**; confirm Postgres is up and **`indexer/.env`** **`DATABASE_URL`** matches compose (**`postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer`** by default (override via repo-root `.env` / `scripts/lib/postgres-dev.env`)). If the host Postgres only has **`postgres:postgres`**, run **`./scripts/setup-postgres-dev-databases.sh`** to bootstrap **`cl8y_legal`** (GitLab [**#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245); [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../../skills/AGENTS_LOCAL_POSTGRES_DEV.md)).
 - **LocalTerra not ready** — `docker compose logs localterra`; on port conflicts set **`QA_SHARED_HOST=1`** or free host ports.
 - **Host `curl` to `127.0.0.1:26657` / `:1317` hangs** — Chain may still be healthy in-container. **`make qa-verify-deploy`** and **`make wait-localterra`** use [`scripts/lib/localterra-host-curl.sh`](../lib/localterra-host-curl.sh) (`docker exec` fallback). Run **`make test-localterra-host-curl`** when compose is up. Frontend/browser still need working published ports or Docker daemon **`userland-proxy: false`** — see [`docs/local-development.md`](../../docs/local-development.md) troubleshooting.
 - **Stale wasm on disk** — `make build-optimized` then re-run deploy ( **`make deploy-local`** ).

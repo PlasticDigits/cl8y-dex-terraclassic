@@ -12,10 +12,33 @@ Local dev uses **`cl8y_legal` / `cl8y_legal`** (not the old Docker default user)
 | `POSTGRES_PASSWORD` | `cl8y_legal` |
 | `POSTGRES_DB` | `dex_indexer` |
 | `POSTGRES_TEST_DB` | `dex_indexer_test` |
+| `POSTGRES_SUPERUSER` | `postgres` (bootstrap only) |
+| `POSTGRES_SUPERUSER_PASSWORD` | `postgres` (bootstrap only) |
 | `DATABASE_URL` | `postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer` |
 | `TEST_DATABASE_URL` | `postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer_test` |
 
 Canonical source: [`scripts/lib/postgres-dev.env`](../scripts/lib/postgres-dev.env). Override via repo-root [`.env`](../.env.example) (gitignored) or exported env vars before deploy/setup.
+
+## Stack prerequisite: `cl8y_legal` role
+
+The indexer and integration tests connect as **`cl8y_legal`**. Every stack must satisfy one of:
+
+| Stack | How `cl8y_legal` appears |
+|-------|---------------------------|
+| **Repo Docker Compose** (fresh volume) | Compose `POSTGRES_USER` creates `cl8y_legal` on first init — no manual step |
+| **Legacy / external Postgres** (only `postgres:postgres`) | Run [`scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh) — it **bootstraps** `cl8y_legal` via `POSTGRES_SUPERUSER` when superuser creds are available ([GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)) |
+| **Locked-down host** (no superuser for automation) | **Manual one-time:** create role + DBs (QA example below) |
+
+Manual QA-stack provisioning (when bootstrap cannot run):
+
+```sql
+-- as postgres superuser (local QA only; do not grant SUPERUSER in production)
+CREATE ROLE cl8y_legal WITH LOGIN CREATEDB PASSWORD 'cl8y_legal';
+CREATE DATABASE dex_indexer OWNER cl8y_legal;
+CREATE DATABASE dex_indexer_test OWNER cl8y_legal;
+```
+
+After role exists, `./scripts/setup-postgres-dev-databases.sh` is idempotent (ensures DBs + syncs `indexer/.env`).
 
 ## One-time / fresh stack
 
@@ -33,7 +56,9 @@ That recreates the volume (see [`docker/postgres-init/`](../docker/postgres-init
 ./scripts/setup-postgres-dev-databases.sh
 ```
 
-Requires `psql` and a reachable Postgres listening as `cl8y_legal` on `127.0.0.1:5432`. The script creates **`dex_indexer`** + **`dex_indexer_test`** and **upserts `DATABASE_URL` / `TEST_DATABASE_URL` into `indexer/.env`** (so `cargo test` from `indexer/` loads the test DB via `dotenvy`, not the live indexer DB). `make start` runs this after compose up (best-effort if Postgres is not ready yet; re-run after `make wait-healthy`).
+Requires `psql` and a reachable Postgres on `127.0.0.1:5432`. The script **creates `cl8y_legal` via superuser when missing** (see [Stack prerequisite](#stack-prerequisite-cl8y_legal-role)), then ensures **`dex_indexer`** + **`dex_indexer_test`** and **upserts `DATABASE_URL` / `TEST_DATABASE_URL` into `indexer/.env`** (so `cargo test` from `indexer/` loads the test DB via `dotenvy`, not the live indexer DB). `make start` runs this after compose up (best-effort if Postgres is not ready yet; re-run after `make wait-healthy`).
+
+Regression: `make test-setup-postgres` (static + optional live Docker bootstrap).
 
 ## What agents should expect on disk
 
@@ -83,13 +108,14 @@ Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | `password authentication failed for user "postgres"` | Old volume or wrong URL | `make reset && make start && make deploy-local` |
-| `password authentication failed for user "cl8y_legal"` | Postgres not up or user not created | `docker compose up -d postgres`; fresh volume runs init SQL |
+| `password authentication failed for user "cl8y_legal"` | Postgres not up, user not created, or wrong password | `docker compose up -d postgres`; run `./scripts/setup-postgres-dev-databases.sh` (auto-bootstrap via superuser when available); see [Stack prerequisite](#stack-prerequisite-cl8y_legal-role) |
 | `database "dex_indexer_test" does not exist` | Skipped setup | `./scripts/setup-postgres-dev-databases.sh` |
 | Duplicate-key / FK flakes in tests | Parallel tests on one DB | Always use `-j 1 -- --test-threads=1` |
 | Tests pass locally but env unset on another host | Reference `indexer` job sets `TEST_DATABASE_URL` | Export `TEST_DATABASE_URL` per [docs/testing.md § CI](../docs/testing.md#ci); spec in [`.github/workflows/test.yml`](../.github/workflows/test.yml) (reference only) |
 
 ## Cross-links
 
+- [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245) — off-chain fee-discount quotes; **Postgres bootstrap** note (this skill)
 - [`docs/testing.md`](../docs/testing.md) — test types, shared-DB parallelism, [§ CI](../docs/testing.md#ci) (local automation, [#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234))
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — integration test matrix
 - [`docs/local-development.md`](../docs/local-development.md) — full local stack

@@ -83,11 +83,13 @@ docker compose down
 
 Docker Compose Postgres defaults to user **`cl8y_legal`** (not `postgres`). Deploy writes `indexer/.env` with `DATABASE_URL` and `TEST_DATABASE_URL`.
 
+**Stack prerequisite:** Every host running the indexer or `cargo test --tests` must have the **`cl8y_legal`** role (see [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) § Stack prerequisite; [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). [`scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh) bootstraps the role via superuser when missing.
+
 ```bash
 # Fresh volume after credential changes:
 make reset && make start && make wait-healthy && make deploy-local
 
-# Or ensure databases only:
+# Or ensure role + databases only:
 ./scripts/setup-postgres-dev-databases.sh
 ```
 

@@ -84,6 +84,10 @@ make qa-verify-deploy   # should fail until make deploy-local
 
 On some Linux hosts, **host** `curl` to published `127.0.0.1:26657` / `:1317` hangs while the chain is healthy in-container. **`verify-deploy`** and **`wait-localterra`** use [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh): try host curl (short timeout), then **`docker exec … curl http://127.0.0.1:…`** into the `localterra` service. The frontend still uses host URLs from `.env.local`.
 
+## Postgres on external QA hosts (GitLab #245)
+
+If Postgres only ships **`postgres:postgres`**, indexer integration tests fail until **`cl8y_legal`** exists. Run **`./scripts/setup-postgres-dev-databases.sh`** (auto-bootstrap via superuser) or create the role manually — [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) § Stack prerequisite. Verify: **`make test-setup-postgres`**.
+
 ```bash
 make test-localterra-host-curl   # wiring + live probe when compose is up
 make qa-verify-deploy            # uses exec fallback automatically

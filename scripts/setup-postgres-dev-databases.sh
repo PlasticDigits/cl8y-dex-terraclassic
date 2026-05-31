@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Ensure local dev Postgres databases exist (idempotent). Called during deploy / wait-healthy.
+# Bootstraps POSTGRES_USER via POSTGRES_SUPERUSER when the role is missing (GitLab #245).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,6 +16,9 @@ source "$REPO_ROOT/scripts/lib/postgres-dev.env"
 set +a
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
+
+# shellcheck source=scripts/lib/postgres-bootstrap-role.sh
+source "$REPO_ROOT/scripts/lib/postgres-bootstrap-role.sh"
 
 sync_indexer_database_env() {
   local indexer_env="$REPO_ROOT/indexer/.env"
@@ -57,8 +61,7 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 0
 fi
 
-if ! psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -c '\q' 2>/dev/null; then
-  echo "[setup-postgres] WARN: cannot connect as ${POSTGRES_USER}@${POSTGRES_HOST}:${POSTGRES_PORT}; skipping database ensure" >&2
+if ! postgres_bootstrap_app_role; then
   sync_indexer_database_env
   exit 0
 fi
