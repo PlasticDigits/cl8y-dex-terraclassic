@@ -54,6 +54,10 @@ pub fn test_config() -> Config {
         oracle_poll_interval_ms: 30000,
         ustc_denom: None,
         router_address: None,
+        block_tx_page_limit: 100,
+        block_tx_max_pages: 50,
+        block_process_max_retries: 5,
+        block_process_retry_backoff_ms: 2000,
     }
 }
 

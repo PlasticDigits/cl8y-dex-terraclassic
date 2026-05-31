@@ -1,4 +1,5 @@
 pub mod asset_resolver;
+pub mod block_indexer;
 pub mod candle_builder;
 pub mod oracle;
 pub mod pair_discovery;

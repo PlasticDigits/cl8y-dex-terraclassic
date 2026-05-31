@@ -64,6 +64,14 @@ pub struct Config {
     pub ustc_denom: Option<String>,
     /// Router contract for `SimulateSwapOperations` in route solver (optional).
     pub router_address: Option<String>,
+    /// LCD `search_txs` page size for block ingestion (GitLab #236).
+    pub block_tx_page_limit: u32,
+    /// Max pages per block — bounds memory / pagination DoS (default 50 × page_limit txs).
+    pub block_tx_max_pages: u32,
+    /// Retries before halting catch-up on a failing block (cursor not advanced).
+    pub block_process_max_retries: u32,
+    /// Base backoff ms multiplied by attempt number between block retries.
+    pub block_process_retry_backoff_ms: u64,
 }
 
 impl Config {
@@ -147,6 +155,22 @@ impl Config {
                 .unwrap_or(30000),
             ustc_denom: env::var("USTC_DENOM").ok(),
             router_address: env::var("ROUTER_ADDRESS").ok().filter(|s| !s.is_empty()),
+            block_tx_page_limit: env::var("BLOCK_TX_PAGE_LIMIT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(100),
+            block_tx_max_pages: env::var("BLOCK_TX_MAX_PAGES")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(50),
+            block_process_max_retries: env::var("BLOCK_PROCESS_MAX_RETRIES")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(5),
+            block_process_retry_backoff_ms: env::var("BLOCK_PROCESS_RETRY_BACKOFF_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2000),
         })
     }
 }

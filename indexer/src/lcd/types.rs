@@ -2,7 +2,13 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct BlockResponse {
+    pub block_id: Option<BlockId>,
     pub block: Block,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct BlockId {
+    pub hash: String,
 }
 
 #[derive(Debug, Deserialize)]

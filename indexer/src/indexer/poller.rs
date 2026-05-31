@@ -1,13 +1,12 @@
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::config::Config;
 use crate::db::queries::state;
 use crate::lcd::LcdClient;
 
-use super::{oracle, pair_discovery, parser, trader_tracker, volume_aggregator};
+use super::{block_indexer, oracle, pair_discovery, trader_tracker, volume_aggregator};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -91,40 +90,66 @@ pub async fn run_indexer(
                 tracing::info!("Indexer shutting down gracefully (mid-catchup)");
                 return Ok(());
             }
-            match lcd.get_block_txs(height).await {
-                Ok(tx_resp) => {
-                    let txs = tx_resp.tx_responses.unwrap_or_default();
 
-                    if !txs.is_empty() {
-                        let (block_time, _time_fallback) =
-                            parse_block_time(txs[0].timestamp.as_deref());
+            if let Err(e) =
+                block_indexer::verify_checkpoint_unchanged(&lcd, &pool, last_indexed).await
+            {
+                tracing::error!(
+                    last_indexed,
+                    error = %e,
+                    "Reorg detected — halting indexer (see docs/runbooks/indexer-reorg-replay-dedup.md)"
+                );
+                return Err(e.into());
+            }
 
-                        if let Err(e) = parser::process_block_txs(
-                            &pool,
-                            &lcd,
-                            &config,
-                            &txs,
-                            height,
-                            block_time,
-                            &ustc_price,
-                        )
-                        .await
-                        {
-                            tracing::error!("Error processing block {}: {}", height, e);
-                        }
-                    }
-
-                    if let Err(e) = state::set_last_indexed_height(&pool, height).await {
-                        tracing::error!("Failed to update last_indexed_height: {}", e);
-                    }
+            match block_indexer::index_block_with_retries(
+                &pool,
+                &lcd,
+                &config,
+                height,
+                &ustc_price,
+            )
+            .await
+            {
+                Ok(_meta) => {
                     last_indexed = height;
-
                     if height % 100 == 0 {
                         tracing::info!("Indexed block {} / {}", height, latest);
                     }
                 }
+                Err(block_indexer::BlockIndexError::ReorgDetected {
+                    height: reorg_height,
+                    stored,
+                    canonical,
+                }) => {
+                    tracing::error!(
+                        reorg_height,
+                        stored_hash = %stored,
+                        canonical_hash = %canonical,
+                        "Reorg detected — halting indexer"
+                    );
+                    return Err(block_indexer::BlockIndexError::ReorgDetected {
+                        height: reorg_height,
+                        stored,
+                        canonical,
+                    }
+                    .into());
+                }
+                Err(block_indexer::BlockIndexError::MaxRetriesExceeded { height, attempts }) => {
+                    tracing::error!(
+                        height,
+                        attempts,
+                        "Block indexing halted; cursor unchanged at {}",
+                        last_indexed
+                    );
+                    return Err(block_indexer::BlockIndexError::MaxRetriesExceeded {
+                        height,
+                        attempts,
+                    }
+                    .into());
+                }
                 Err(e) => {
-                    tracing::error!("Failed to fetch block {}: {}", height, e);
+                    tracing::error!(height, error = %e, "Unexpected block index error");
                     tokio::select! {
                         _ = tokio::time::sleep(Duration::from_secs(2)) => {},
                         _ = cancel.cancelled() => {
@@ -149,26 +174,4 @@ pub async fn run_indexer(
     }
 
     Ok(())
-}
-
-/// Second value is `true` when wall-clock UTC was substituted (candle skew risk).
-fn parse_block_time(ts: Option<&str>) -> (DateTime<Utc>, bool) {
-    match ts {
-        Some(s) => match DateTime::parse_from_rfc3339(s) {
-            Ok(dt) => (dt.with_timezone(&Utc), false),
-            Err(_) => {
-                tracing::warn!(
-                    "Invalid block timestamp {:?}; using current UTC (candles may be misaligned)",
-                    s
-                );
-                (Utc::now(), true)
-            }
-        },
-        None => {
-            tracing::warn!(
-                "Missing block timestamp; using current UTC (candles may be misaligned)"
-            );
-            (Utc::now(), true)
-        }
-    }
 }
