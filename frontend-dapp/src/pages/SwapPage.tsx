@@ -36,6 +36,7 @@ import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -547,9 +548,7 @@ export default function SwapPage() {
         })()
     : null
 
-  const minReceived = simQuery.data
-    ? Math.floor(parseFloat(simQuery.data.return_amount) * (1 - slippageTolerance / 100)).toString()
-    : null
+  const minReceived = simQuery.data ? applySlippagePercentFloor(simQuery.data.return_amount, slippageTolerance) : null
 
   const directHybridBookSplit = useMemo(
     () =>

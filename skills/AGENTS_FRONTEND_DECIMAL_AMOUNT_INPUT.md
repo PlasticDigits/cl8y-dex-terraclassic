@@ -8,6 +8,7 @@ Use when adding or changing **human token amount** fields (Swap pay amount, hybr
 |------------|---------|
 | [docs/frontend.md § Decimal amount inputs](../docs/frontend.md#decimal-amount-inputs) | Product invariants |
 | [`frontend-dapp/src/utils/decimalAmountInput.ts`](../frontend-dapp/src/utils/decimalAmountInput.ts) | **`isDecimalAmountDraft`**, **`tryParseBigInt`** |
+| [`frontend-dapp/src/utils/rawAmountMath.ts`](../frontend-dapp/src/utils/rawAmountMath.ts) | **`applySlippagePercentFloor`**, **`withdrawMinAssetAmounts`**, **`isLpBurnExceedsBalance`** ([GitLab **#237**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/237)) |
 | [`frontend-dapp/src/utils/decimalAmountInput.test.ts`](../frontend-dapp/src/utils/decimalAmountInput.test.ts) | Regression strings (`^`, `,`, `\\`) |
 | Swap **You Pay** (reference UX) | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — same draft regex |
 | Hybrid book leg | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) Settings panel; [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) |
@@ -18,7 +19,8 @@ Use when adding or changing **human token amount** fields (Swap pay amount, hybr
 1. **Reject at `onChange`** — only call `setState` when **`isDecimalAmountDraft(v)`** is true; do not surface raw JS conversion errors for typos.
 2. **`.` only** — locale commas are **not** normalized in retail fields (W10-C4); users must use `.` as the decimal separator.
 3. **Downstream math** — prefer **`tryParseBigInt`** on raw integer strings; for human → micro, use **`toRawAmount`** only after the draft passes **`isDecimalAmountDraft`**.
-4. **New fields** — set `type="text"` and `inputMode="decimal"` (not uncontrolled `type="number"` with browser locale quirks).
+4. **Protection / display on raw chain amounts** — slippage **`min_received`**, LP withdraw mins, and LP balance checks use **`rawAmountMath.ts`** (`applySlippagePercentFloor`, `withdrawMinAssetAmounts`, `isLpBurnExceedsBalance`); **`formatTokenAmount`** avoids **`Number(whole)`** above 2⁵³ ([GitLab **#237**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/237)).
+5. **New fields** — set `type="text"` and `inputMode="decimal"` (not uncontrolled `type="number"` with browser locale quirks).
 
 ## Related
 

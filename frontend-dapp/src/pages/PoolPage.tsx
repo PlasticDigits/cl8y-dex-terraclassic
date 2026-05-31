@@ -41,6 +41,7 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { isLpBurnExceedsBalance, withdrawMinAssetAmounts } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/utils/provideLiquidityEstimate'
@@ -169,8 +170,7 @@ const PoolCard = memo(function PoolCard({
   const LP_DECIMALS = 6
   const lpBalance = lpBalanceQuery.data ?? '0'
   const lpBalanceDisplay = lpBalance === '0' ? '0' : formatTokenAmount(lpBalance, LP_DECIMALS)
-  const lpRaw = Number(lpAmount)
-  const insufficientLp = !!lpAmount && !isNaN(lpRaw) && lpRaw * 10 ** LP_DECIMALS > Number(lpBalance)
+  const insufficientLp = isLpBurnExceedsBalance(lpAmount, LP_DECIMALS, lpBalance)
 
   const decimalsA = getDecimals(pair.asset_infos[0])
   const decimalsB = getDecimals(pair.asset_infos[1])
@@ -368,15 +368,14 @@ const PoolCard = memo(function PoolCard({
       const rawLp = toRawAmount(lpAmount, LP_DECIMALS)
       let minAssets: [string, string] | undefined
       if (poolQuery.data && withdrawSlippage) {
-        const slippageFactor = 1 - parseFloat(withdrawSlippage) / 100
-        const totalLp = parseFloat(poolQuery.data.total_share)
-        const rawLpAmount = parseFloat(toRawAmount(lpAmount, LP_DECIMALS))
-        if (totalLp > 0) {
-          const shareRatio = rawLpAmount / totalLp
-          const minA = Math.floor(parseFloat(poolQuery.data.assets[0].amount) * shareRatio * slippageFactor).toString()
-          const minB = Math.floor(parseFloat(poolQuery.data.assets[1].amount) * shareRatio * slippageFactor).toString()
-          minAssets = [minA, minB]
-        }
+        const mins = withdrawMinAssetAmounts(
+          rawLp,
+          poolQuery.data.total_share,
+          poolQuery.data.assets[0].amount,
+          poolQuery.data.assets[1].amount,
+          parseFloat(withdrawSlippage)
+        )
+        if (mins) minAssets = mins
       }
       const txHash = await withdrawLiquidity(address, pair.liquidity_token, pair.contract_addr, rawLp, minAssets)
 

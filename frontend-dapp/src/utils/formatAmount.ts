@@ -59,12 +59,25 @@ export function formatTokenAmount(rawAmount: string, decimals: number, sigfigs =
   } catch {
     return '0'
   }
+
+  const humanStr = fromRawAmount(rawAmount, decimals)
+  const absHuman = humanStr.startsWith('-') ? humanStr.slice(1) : humanStr
+  const intPart = absHuman.split('.')[0] || '0'
+  if (BigInt(intPart || '0') <= BigInt(Number.MAX_SAFE_INTEGER)) {
+    return formatNum(humanStr, sigfigs)
+  }
+
   const divisor = BigInt(10) ** BigInt(decimals)
   const whole = raw / divisor
   const remainder = raw % divisor
-  const value = Number(whole) + Number(remainder) / Number(divisor)
+  const sign = whole < 0n ? '-' : ''
+  const absWhole = whole < 0n ? -whole : whole
 
-  return formatNum(value, sigfigs)
+  if (remainder === 0n) {
+    return formatWholeTokensAbbrev(absWhole, sign)
+  }
+
+  return formatNum(humanStr, sigfigs)
 }
 
 /**
@@ -104,6 +117,15 @@ export function fromRawAmount(rawAmount: string, decimals: number): string {
 function stripTrailingZerosAbbrevDisplay(s: string): string {
   const suffix = /[KMBT]$/.exec(s)?.[0] ?? ''
   const core = suffix ? s.slice(0, -1) : s
+  if (/^\d+(\.\d+)?$/.test(core)) {
+    const [intPart, fracPart = ''] = core.split('.')
+    const trimmedFrac = fracPart.replace(/0+$/, '')
+    const fmtInt = Number(intPart).toLocaleString('en-US')
+    if (!trimmedFrac) {
+      return fmtInt + suffix
+    }
+    return `${fmtInt}.${trimmedFrac}` + suffix
+  }
   const n = parseFloat(core.replace(/,/g, ''))
   if (isNaN(n)) return s
   if (n === 0 && !suffix) return '0'
@@ -112,6 +134,15 @@ function stripTrailingZerosAbbrevDisplay(s: string): string {
   }
   const formatted = n.toLocaleString('en-US', { maximumFractionDigits: 12, useGrouping: true })
   return formatted + suffix
+}
+
+function bigintAbbrevCoef(absWhole: bigint, threshold: bigint): string {
+  const scaledInt = absWhole / threshold
+  const rem = absWhole % threshold
+  if (rem === 0n) return scaledInt.toString()
+  const fracDigits = threshold.toString().length - 1
+  const frac = rem.toString().padStart(fracDigits, '0').replace(/0+$/, '')
+  return frac ? `${scaledInt}.${frac}` : scaledInt.toString()
 }
 
 function formatWholeTokensAbbrev(absWhole: bigint, sign: string): string {
@@ -129,11 +160,7 @@ function formatWholeTokensAbbrev(absWhole: bigint, sign: string): string {
       if (rem === 0n) {
         return `${sign}${scaledInt.toLocaleString('en-US')}${suf}`
       }
-      const q = Number(absWhole) / Number(th)
-      if (!Number.isFinite(q)) {
-        return `${sign}${absWhole.toLocaleString('en-US')}`
-      }
-      const coef = stripTrailingZerosAbbrevDisplay(String(q))
+      const coef = stripTrailingZerosAbbrevDisplay(bigintAbbrevCoef(absWhole, th))
       return `${sign}${coef}${suf}`
     }
   }
@@ -165,8 +192,14 @@ export function formatTokenAmountAbbrev(rawAmount: string, decimals: number, sig
     return formatWholeTokensAbbrev(absWhole, sign)
   }
 
-  const value = Number(whole) + Number(remainder) / Number(divisor)
-  return stripTrailingZerosAbbrevDisplay(formatNum(value, sigfigs))
+  const humanStr = fromRawAmount(rawAmount, decimals)
+  const absHuman = humanStr.startsWith('-') ? humanStr.slice(1) : humanStr
+  const intPart = absHuman.split('.')[0] || '0'
+  if (BigInt(intPart || '0') <= BigInt(Number.MAX_SAFE_INTEGER)) {
+    return stripTrailingZerosAbbrevDisplay(formatNum(humanStr, sigfigs))
+  }
+
+  return `${sign}${absWhole.toLocaleString('en-US')}`
 }
 
 /**

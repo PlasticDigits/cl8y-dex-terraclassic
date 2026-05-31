@@ -24,6 +24,7 @@ import {
   type PairInfo,
 } from '@/types'
 import { getDecimals, toRawAmount, fromRawAmount, formatTokenAmount } from '@/utils/formatAmount'
+import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -293,7 +294,7 @@ export function TradeMarketOrderPanel({
 
   const minReceived = useMemo(() => {
     if (!simQuery.data?.return_amount) return null
-    return Math.floor(parseFloat(simQuery.data.return_amount) * (1 - slippageTolerance / 100)).toString()
+    return applySlippagePercentFloor(simQuery.data.return_amount, slippageTolerance)
   }, [simQuery.data?.return_amount, slippageTolerance])
 
   const swapMutation = useMutation({

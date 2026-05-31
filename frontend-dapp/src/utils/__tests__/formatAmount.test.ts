@@ -76,6 +76,13 @@ describe('formatTokenAmount', () => {
     const result = formatTokenAmount('999999999999999999999999', 18)
     expect(result).toContain('M')
   })
+
+  it('preserves whole part above 2^53 without float truncation', () => {
+    const raw = '9007199254740993000000'
+    const result = formatTokenAmount(raw, 6)
+    expect(result).toMatch(/9,007\.199254740993T/)
+    expect(result).not.toBe(formatTokenAmount('9007199254740992000000', 6))
+  })
 })
 
 describe('formatTokenAmountAbbrev', () => {

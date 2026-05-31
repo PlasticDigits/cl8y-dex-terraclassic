@@ -306,7 +306,8 @@ Retail **human amount** fields (Swap **You Pay**, Settings **book leg amount**, 
 | Reject at `onChange` | Invalid characters are **not** stored; no toast, modal, or query error for typos. |
 | Locale commas | **`,`** is not auto-normalized to **`.`** in these fields; European decimal commas are rejected at the field (product uses `.` only). |
 | Downstream safety | **`getDirectHybridBookSplit`** / trade hybrid helpers return **`null`** (no throw) when the book draft is invalid; raw chain integers use **`tryParseBigInt`**. |
-| Regression tests | [`decimalAmountInput.test.ts`](../frontend-dapp/src/utils/decimalAmountInput.test.ts), [`swapDisclosure.test.ts`](../frontend-dapp/src/utils/swapDisclosure.test.ts), [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx). |
+| Raw integer protection | Slippage **`min_received`**, pool withdraw minimums, and LP sufficiency checks operate on **raw uint strings** via **`rawAmountMath.ts`** — never **`parseFloat`** / **`Number`** on chain amounts ([GitLab **#237**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/237)). |
+| Regression tests | [`decimalAmountInput.test.ts`](../frontend-dapp/src/utils/decimalAmountInput.test.ts), [`rawAmountMath.test.ts`](../frontend-dapp/src/utils/__tests__/rawAmountMath.test.ts), [`swapDisclosure.test.ts`](../frontend-dapp/src/utils/swapDisclosure.test.ts), [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md`](../skills/AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md).
 
