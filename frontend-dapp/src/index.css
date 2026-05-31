@@ -381,6 +381,16 @@
     color: var(--mint-soft);
   }
 
+  .token-select-option-keyboard-active {
+    background: rgba(255, 255, 255, 0.055);
+    outline: 2px solid color-mix(in srgb, var(--mint-soft) 70%, transparent);
+    outline-offset: -2px;
+  }
+
+  .token-select-option-keyboard-active.token-select-option-active {
+    outline-color: color-mix(in srgb, var(--mint-soft) 90%, transparent);
+  }
+
   .label-neo {
     @apply block text-xs font-semibold uppercase tracking-wide mb-1;
     color: color-mix(in srgb, var(--ink) 76%, transparent);

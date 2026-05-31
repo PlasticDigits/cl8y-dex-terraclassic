@@ -15,7 +15,7 @@ export type UsePortalListboxArgs = {
 }
 
 /**
- * Shared fixed + portal listbox positioning and outside-click / Escape handling
+ * Shared fixed + portal listbox positioning and outside-click handling
  * for MenuSelect and TokenSelect. Flips above the anchor when space below is tight
  * so the menu does not collide with fixed footers or the mobile tab bar
  * ({@link getMobileBottomNavInsetPx}); clamps horizontally.
@@ -73,14 +73,9 @@ export function usePortalListbox({
       if (dropdownRef.current?.contains(t)) return
       onClose()
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
     document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKey)
     }
   }, [open, canShow, onClose, anchorRef, dropdownRef])
 

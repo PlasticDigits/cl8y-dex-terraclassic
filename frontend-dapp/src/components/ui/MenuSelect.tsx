@@ -1,6 +1,7 @@
 import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePortalListbox } from './PortalListbox'
+import { usePortalListboxKeyboard } from './usePortalListboxKeyboard'
 
 export interface MenuSelectOption {
   value: string
@@ -39,6 +40,7 @@ export function MenuSelect({
 }: MenuSelectProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLUListElement>(null)
   const listId = useId()
 
@@ -49,6 +51,29 @@ export function MenuSelect({
   }, [options, value])
 
   const close = useCallback(() => setOpen(false), [])
+  const openMenu = useCallback(() => setOpen(true), [])
+
+  const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value])
+
+  const getTypeaheadLabel = useCallback((index: number) => options[index]?.label ?? '', [options])
+
+  const { activeOptionId, getOptionClassName, getOptionId, handleTriggerKeyDown, primeActiveIndexForClickOpen } =
+    usePortalListboxKeyboard({
+      open,
+      canOpen,
+      optionCount: options.length,
+      selectedIndex,
+      getTypeaheadLabel,
+      listId,
+      triggerRef,
+      listboxRef: dropdownRef,
+      onOpen: openMenu,
+      onClose: close,
+      onSelectIndex: (index) => {
+        const next = options[index]!.value
+        if (next !== value) onChange(next)
+      },
+    })
 
   const dropdownStyle = usePortalListbox({
     open,
@@ -62,6 +87,7 @@ export function MenuSelect({
   return (
     <div ref={rootRef} className={`token-select-root ${className ?? 'relative w-full'}`}>
       <button
+        ref={triggerRef}
         type="button"
         id={id}
         disabled={!canOpen}
@@ -70,9 +96,13 @@ export function MenuSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        onKeyDown={handleTriggerKeyDown}
         onClick={() => {
           if (!canOpen) return
-          setOpen((o) => !o)
+          setOpen((o) => {
+            if (!o) primeActiveIndexForClickOpen()
+            return !o
+          })
         }}
       >
         <span className="truncate flex-1 text-left">{canOpen ? selectedLabel : emptyLabel}</span>
@@ -87,19 +117,22 @@ export function MenuSelect({
             ref={dropdownRef}
             id={listId}
             role="listbox"
+            tabIndex={-1}
             className="token-select-dropdown"
             aria-label={ariaLabel}
+            aria-activedescendant={activeOptionId}
             style={dropdownStyle}
           >
-            {options.map((opt) => {
+            {options.map((opt, index) => {
               const isSelected = opt.value === value
               return (
                 <li key={opt.value} role="none">
                   <button
                     type="button"
+                    id={getOptionId(index)}
                     role="option"
                     aria-selected={isSelected}
-                    className={`token-select-option ${isSelected ? 'token-select-option-active' : ''}`}
+                    className={getOptionClassName(index, isSelected)}
                     onPointerEnter={() => onOptionIntent?.(opt.value)}
                     onFocus={() => onOptionIntent?.(opt.value)}
                     onClick={() => {

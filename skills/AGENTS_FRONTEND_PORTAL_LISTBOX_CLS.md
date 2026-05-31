@@ -9,6 +9,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListbox`**, *
 | [docs/frontend.md § Portal listboxes — layout stability](../docs/frontend.md#portal-listbox-layout-stability) | Invariants: fixed portal, stable trigger footprint, scrollbar gutter, CLS &lt; 0.1 |
 | [`frontend-dapp/src/components/ui/portalListboxPosition.ts`](../frontend-dapp/src/components/ui/portalListboxPosition.ts) | Pure `computePortalListboxStyle` (unit-tested flip/clamp) |
 | [`frontend-dapp/src/components/ui/PortalListbox.tsx`](../frontend-dapp/src/components/ui/PortalListbox.tsx) | Sync position on open + scroll/resize listeners |
+| [`frontend-dapp/src/components/ui/usePortalListboxKeyboard.ts`](../frontend-dapp/src/components/ui/usePortalListboxKeyboard.ts) | WAI-ARIA listbox keyboard APG ([GitLab **#244**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244)) |
 | [`frontend-dapp/e2e/trade-pair-select-cls.spec.ts`](../frontend-dapp/e2e/trade-pair-select-cls.spec.ts) | Playwright: `#trade-pair-select` and desktop workspace Y/X stable on open |
 
 ## Rules of thumb
@@ -21,6 +22,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListbox`**, *
 
 ## Related
 
+- Keyboard listbox APG: [`AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md) ([GitLab **#244**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244))
 - Keyboard focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - Trade page layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Mobile tab bar inset for flip-above: `getMobileBottomNavInsetPx` ([`mobileBottomNav.ts`](../frontend-dapp/src/lib/mobileBottomNav.ts))
