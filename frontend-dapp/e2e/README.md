@@ -84,6 +84,24 @@ Playbook: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../../skills/AGENTS_E2E_LIMIT
 
 UI smoke (no chain): `e2e/limit-orders.spec.ts` in `e2e-smoke` project.
 
+## Claim all parked tx E2E (`limit-orders-claim-all-tx.spec.ts`, GitLab **#259**)
+
+End-to-end **place → expire → hybrid park → indexer `parked_expired` → Claim all parked → `claim_expired_limit_orders_batch`**. The spec calls **`scripts/e2e-seed-expired-parked-claim-all.sh`** (terrad: two expired bids, wait for `block_time`, hybrid swap parks) then drives the `/limits` UI confirm (must include **est. LUNC gas** copy).
+
+**Prerequisites:** same stack as other `e2e-tx` specs — LocalTerra, deploy, **indexer running** with CORS for the Vite origin ([`docs/frontend.md` § Local dev indexer CORS](../../docs/frontend.md)).
+
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `E2E_EXPIRED_PARK_EXPIRY_LEAD_SEC` | `45` | `expires_at` = block time + lead |
+| `E2E_EXPIRED_PARK_EXPIRY_WAIT_MAX_SEC` | `120` | Max wait for chain time ≥ `expires_at` |
+| `E2E_EXPIRED_PARK_HYBRID_BOOK_INPUT` | `5000` | Hybrid swap book leg (raw token0) |
+
+```bash
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-claim-all-tx.spec.ts --project=e2e-tx
+```
+
+Playbooks: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md), [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
+
 ## Price chart smoke (`price-chart-smoke.spec.ts`)
 
 Browser checks for **lightweight-charts** canvas mount on `/charts` and `/trade`, interval switch stability, and **fullscreen** `aria-label` toggles with a mocked Fullscreen API ([GitLab **#228**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)). Helpers: `e2e/helpers/price-chart.ts`.

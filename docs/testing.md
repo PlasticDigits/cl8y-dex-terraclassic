@@ -282,6 +282,8 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/pool-tx
 
 **Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx` — first **unpaused** dual-CW20 pair via LCD `is_paused`. See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
+**Claim all parked tx E2E (GitLab [#259](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/259)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-claim-all-tx.spec.ts --project=e2e-tx` — expiry-park harness + batch claim confirm gas copy. Requires indexer + [`scripts/e2e-seed-expired-parked-claim-all.sh`](../scripts/e2e-seed-expired-parked-claim-all.sh). See [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
+
 **Optional chain (skip instead of fail):** set `PLAYWRIGHT_SKIP_CHAIN=1` (or legacy `REQUIRE_LOCALTERRA=0`) for local UI-only runs (`npm run test:e2e:smoke`). **Do not** set this in release automation checklists. Default is strict (unset).
 
 **GitLab [#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138) verification (risk surfacing + E2E blockers):** after LocalTerra + `deploy-dex-local.sh` + indexer on `VITE_INDEXER_URL` (see [`docs/frontend.md` § Risk surfacing](./frontend.md#legal-risk-surfacing)):

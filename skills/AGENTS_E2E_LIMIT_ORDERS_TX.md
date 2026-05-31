@@ -14,6 +14,7 @@ You are changing **limit order on-chain browser tests**, **E2E LCD pair selectio
 | UI pause banner absent after selection | `skipOrFailIfPairPaused()` from `hybrid-e2e.ts` | Hard fail (L6) |
 | Place / cancel wasm actions | `limit-orders-tx.spec.ts` LCD poll | Expect `place_limit_order`, `cancel_limit_order` |
 | 5-rung ladder (one tx) | `limit-orders-tx.spec.ts` ladder test | Expect `place_limit_order_batch` + `place_limit_order` |
+| Claim all parked (batch claim) | `limit-orders-claim-all-tx.spec.ts` ([#259](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/259)) | Harness: `scripts/e2e-seed-expired-parked-claim-all.sh`; UI confirm includes LUNC gas; LCD `claim_expired_limit_orders_batch` |
 
 Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI-only local runs; helpers fall back to documented `test.skip`. Default CI must not set it ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201), [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md)).
 
@@ -22,7 +23,10 @@ Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI
 | Path | Role |
 |------|------|
 | [`frontend-dapp/e2e/limit-orders-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-tx.spec.ts) | Funded place + cancel txs |
+| [`frontend-dapp/e2e/limit-orders-claim-all-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-claim-all-tx.spec.ts) | **#259** — expiry park harness + Claim all parked batch tx |
 | [`frontend-dapp/e2e/limit-orders-gas-presets-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-gas-presets-tx.spec.ts) | **#204** — each preset → hook `max_adjust_steps` on `/limits` |
+| [`frontend-dapp/e2e/helpers/limit-expiry-park-e2e.ts`](../frontend-dapp/e2e/helpers/limit-expiry-park-e2e.ts) | Indexer poll + seed script wrapper ([#259](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/259)) |
+| [`scripts/e2e-seed-expired-parked-claim-all.sh`](../scripts/e2e-seed-expired-parked-claim-all.sh) | Terrad: 2 expired bids → wait → hybrid park |
 | [`frontend-dapp/e2e/limit-orders.spec.ts`](../frontend-dapp/e2e/limit-orders.spec.ts) | UI smoke (no chain) |
 | [`frontend-dapp/e2e/helpers/limit-e2e.ts`](../frontend-dapp/e2e/helpers/limit-e2e.ts) | Pair pick + CTA guards |
 | [`frontend-dapp/e2e/helpers/lcd.ts`](../frontend-dapp/e2e/helpers/lcd.ts) | `queryPairPaused`, `firstUnpausedDualCwPair` |
@@ -36,6 +40,15 @@ docker compose up -d localterra
 bash scripts/deploy-dex-local.sh
 bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx
 ```
+
+**GitLab #259 (Claim all parked — expiry park + batch claim tx):**
+
+```bash
+bash scripts/e2e-seed-expired-parked-claim-all.sh   # optional manual harness check
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-claim-all-tx.spec.ts --project=e2e-tx
+```
+
+Cross-link: [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md), [`docs/limit-orders.md` § #253 follow-up](../docs/limit-orders.md#dapp-retail-form-wires-invariants).
 
 **GitLab #204 (placement gas presets → hook JSON):**
 
