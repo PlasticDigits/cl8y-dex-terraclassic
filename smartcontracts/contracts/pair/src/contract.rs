@@ -833,11 +833,11 @@ fn execute_swap(
 
     let ask_token_addr = token_addr(&ask_asset_info);
 
-    let mut book_messages: Vec<CosmosMsg> = vec![];
     let mut book_fill_events: Vec<Event> = vec![];
     let mut book_return_net = Uint128::zero();
     let mut book_commission_total = Uint128::zero();
     let mut offer_consumed_by_book = Uint128::zero();
+    let mut book_maker_payouts = std::collections::BTreeMap::new();
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
@@ -854,11 +854,11 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_messages = book_match.messages;
             book_fill_events = book_match.fill_events;
             book_return_net = book_match.return_net;
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
+            book_maker_payouts = book_match.maker_payouts;
         } else {
             let book_match = orderbook::match_asks(
                 deps.storage,
@@ -873,11 +873,11 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_messages = book_match.messages;
             book_fill_events = book_match.fill_events;
             book_return_net = book_match.return_net;
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
+            book_maker_payouts = book_match.maker_payouts;
         }
     }
 
@@ -886,7 +886,6 @@ fn execute_swap(
     let mut return_amount = Uint128::zero();
     let mut pool_commission_amount = Uint128::zero();
     let mut spread_amount = Uint128::zero();
-    let mut pool_messages: Vec<CosmosMsg> = vec![];
 
     if pool_input_amount > Uint128::zero() {
         if input_reserve.is_zero() || output_reserve.is_zero() {
@@ -949,31 +948,10 @@ fn execute_swap(
             )
         };
         RESERVES.save(deps.storage, &(new_reserve_a, new_reserve_b))?;
-
-        if !pool_commission_amount.is_zero() {
-            pool_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: ask_token_addr.to_string(),
-                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: fee_config.treasury.to_string(),
-                    amount: pool_commission_amount,
-                })?,
-                funds: vec![],
-            }));
-        }
-
-        if !return_amount.is_zero() {
-            pool_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: ask_token_addr.to_string(),
-                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: receiver.to_string(),
-                    amount: return_amount,
-                })?,
-                funds: vec![],
-            }));
-        }
     }
 
     let total_return = book_return_net.checked_add(return_amount)?;
+    let total_commission = book_commission_total.checked_add(pool_commission_amount)?;
 
     assert_max_spread(
         belief_price,
@@ -985,7 +963,7 @@ fn execute_swap(
         book_return_net,
     )?;
 
-    let hook_commission_amount = pool_commission_amount.checked_add(book_commission_total)?;
+    let hook_commission_amount = total_commission;
 
     let hooks = HOOKS.load(deps.storage)?;
     let mut hook_messages: Vec<CosmosMsg> = vec![];
@@ -1010,10 +988,33 @@ fn execute_swap(
         }));
     }
 
+    // Aggregated CW20 transfers: maker payouts (offer) → taker return (ask) → treasury (ask).
+    let mut swap_transfer_messages: Vec<CosmosMsg> =
+        orderbook::maker_payout_transfer_messages(&book_maker_payouts, &offer_token_addr)?;
+    if !total_return.is_zero() {
+        swap_transfer_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: ask_token_addr.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: receiver.to_string(),
+                amount: total_return,
+            })?,
+            funds: vec![],
+        }));
+    }
+    if !total_commission.is_zero() {
+        swap_transfer_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: ask_token_addr.to_string(),
+            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: fee_config.treasury.to_string(),
+                amount: total_commission,
+            })?,
+            funds: vec![],
+        }));
+    }
+
     let mut resp = Response::new()
-        .add_messages(book_messages)
+        .add_messages(swap_transfer_messages)
         .add_events(book_fill_events)
-        .add_messages(pool_messages)
         .add_messages(hook_messages)
         .add_messages(deregister_msgs)
         .add_attribute("action", "swap")

@@ -815,6 +815,7 @@ fn hybrid_swap_two_makers_emits_two_fill_events() {
     );
 
     let book_in = Uint128::new(100_000);
+    let maker_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
@@ -842,6 +843,77 @@ fn hybrid_swap_two_makers_emits_two_fill_events() {
         )
         .unwrap();
     assert_eq!(count_limit_order_fill_events(&res.events), 2);
+    // Same owner on both bids: one aggregated token0 payout equal to total fill (GitLab #248).
+    let maker_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+    assert_eq!(
+        maker_a_after.checked_sub(maker_a_before).unwrap(),
+        book_in,
+        "aggregated maker payout should equal sum of per-fill token0 amounts"
+    );
+}
+
+/// GitLab #248 — distinct makers each receive correct aggregated fill proceeds.
+#[test]
+fn hybrid_aggregated_maker_payouts_multi_maker() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_agg");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let makers = [
+        cosmwasm_std::Addr::unchecked("maker_a"),
+        cosmwasm_std::Addr::unchecked("maker_b"),
+        cosmwasm_std::Addr::unchecked("maker_c"),
+    ];
+    let mut maker_a_before = std::collections::HashMap::new();
+    for m in &makers {
+        transfer_tokens(&mut app, &env.token_b, &env.user, m, Uint128::new(100_000));
+        maker_a_before.insert(m.clone(), query_cw20_balance(&app, &env.token_a, m));
+        place_bid(
+            &mut app,
+            &env.pair,
+            m,
+            &env.token_b,
+            Uint128::new(50_000),
+            Decimal::one(),
+        );
+    }
+
+    let book_in = Uint128::new(120_000);
+    swap_a_to_b_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_a,
+        book_in,
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: book_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+    );
+
+    for m in &makers {
+        let after = query_cw20_balance(&app, &env.token_a, m);
+        assert!(
+            after > *maker_a_before.get(m).unwrap(),
+            "each maker should receive token0 fill proceeds"
+        );
+    }
 }
 
 #[test]

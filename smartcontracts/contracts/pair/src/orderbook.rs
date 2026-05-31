@@ -9,6 +9,8 @@
 //! - **Asks** (makers escrow token0; matched on taker **token1 → token0**):
 //!   Walk best-first: **ascending** `price`, then **ascending** `order_id` (FIFO at same price).
 
+use std::collections::BTreeMap;
+
 use cosmwasm_std::{
     Addr, CosmosMsg, Decimal, Event, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
@@ -46,8 +48,31 @@ pub struct BookMatchResult {
     pub makers_used: u32,
     /// Sum of taker-side commission sent to treasury (denominated in the ask asset).
     pub commission_total: Uint128,
-    pub messages: Vec<CosmosMsg>,
+    /// Offer-token payouts per maker (deduped by owner; aggregated in `execute_swap`).
+    pub maker_payouts: BTreeMap<Addr, Uint128>,
     pub fill_events: Vec<Event>,
+}
+
+/// CW20 transfers for aggregated maker payouts (offer token), one per distinct owner.
+pub fn maker_payout_transfer_messages(
+    maker_payouts: &BTreeMap<Addr, Uint128>,
+    offer_token_addr: &str,
+) -> Result<Vec<CosmosMsg>, StdError> {
+    let mut msgs = Vec::with_capacity(maker_payouts.len());
+    for (owner, amount) in maker_payouts {
+        if amount.is_zero() {
+            continue;
+        }
+        msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: offer_token_addr.to_string(),
+            msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: owner.to_string(),
+                amount: *amount,
+            })?,
+            funds: vec![],
+        }));
+    }
+    Ok(msgs)
 }
 
 /// Read-only book match for hybrid simulation (no storage mutation, no CW20 msgs).
@@ -604,10 +629,10 @@ pub fn match_bids(
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
     pair_contract: &str,
-    token0_addr: &str,
-    token1_addr: &str,
-    receiver: &Addr,
-    treasury: &Addr,
+    _token0_addr: &str,
+    _token1_addr: &str,
+    _receiver: &Addr,
+    _treasury: &Addr,
     effective_fee_bps: u16,
 ) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
@@ -616,7 +641,7 @@ pub fn match_bids(
     let mut token1_out_total = Uint128::zero();
     let mut commission_total = Uint128::zero();
     let mut makers_used = 0u32;
-    let mut msgs: Vec<CosmosMsg> = Vec::new();
+    let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
 
     let mut cur = if let Some(h) = book_start_hint {
@@ -707,36 +732,8 @@ pub fn match_bids(
         let net_to_taker = cost.checked_sub(commission)?;
         commission_total = commission_total.checked_add(commission)?;
 
-        // Maker receives fill token0 from contract (taker funds already received by pair)
-        msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: token0_addr.to_string(),
-            msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: order.owner.to_string(),
-                amount: fill,
-            })?,
-            funds: vec![],
-        }));
-
-        if !net_to_taker.is_zero() {
-            msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token1_addr.to_string(),
-                msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: receiver.to_string(),
-                    amount: net_to_taker,
-                })?,
-                funds: vec![],
-            }));
-        }
-        if !commission.is_zero() {
-            msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token1_addr.to_string(),
-                msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: treasury.to_string(),
-                    amount: commission,
-                })?,
-                funds: vec![],
-            }));
-        }
+        let entry = maker_payouts.entry(order.owner.clone()).or_default();
+        *entry = entry.checked_add(fill)?;
 
         escrow_sub_pending_token1(storage, cost)?;
 
@@ -769,7 +766,7 @@ pub fn match_bids(
         offer_consumed: token0_budget.checked_sub(token0_left)?,
         makers_used,
         commission_total,
-        messages: msgs,
+        maker_payouts,
         fill_events,
     })
 }
@@ -783,10 +780,10 @@ pub fn match_asks(
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
     pair_contract: &str,
-    token0_addr: &str,
-    token1_addr: &str,
-    receiver: &Addr,
-    treasury: &Addr,
+    _token0_addr: &str,
+    _token1_addr: &str,
+    _receiver: &Addr,
+    _treasury: &Addr,
     effective_fee_bps: u16,
 ) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
@@ -795,7 +792,7 @@ pub fn match_asks(
     let mut token0_out_total = Uint128::zero();
     let mut commission_total = Uint128::zero();
     let mut makers_used = 0u32;
-    let mut msgs: Vec<CosmosMsg> = Vec::new();
+    let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
 
     let mut cur = if let Some(h) = book_start_hint {
@@ -885,36 +882,8 @@ pub fn match_asks(
         let net_to_taker = fill_t0.checked_sub(commission)?;
         commission_total = commission_total.checked_add(commission)?;
 
-        // Pay token1 cost from taker's funds held by contract to maker
-        msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: token1_addr.to_string(),
-            msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: order.owner.to_string(),
-                amount: cost,
-            })?,
-            funds: vec![],
-        }));
-
-        if !net_to_taker.is_zero() {
-            msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token0_addr.to_string(),
-                msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: receiver.to_string(),
-                    amount: net_to_taker,
-                })?,
-                funds: vec![],
-            }));
-        }
-        if !commission.is_zero() {
-            msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token0_addr.to_string(),
-                msg: cosmwasm_std::to_json_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: treasury.to_string(),
-                    amount: commission,
-                })?,
-                funds: vec![],
-            }));
-        }
+        let entry = maker_payouts.entry(order.owner.clone()).or_default();
+        *entry = entry.checked_add(cost)?;
 
         escrow_sub_pending_token0(storage, fill_t0)?;
 
@@ -947,7 +916,7 @@ pub fn match_asks(
         offer_consumed: token1_budget.checked_sub(token1_left)?,
         makers_used,
         commission_total,
-        messages: msgs,
+        maker_payouts,
         fill_events,
     })
 }
@@ -1314,6 +1283,108 @@ mod tests {
         assert_eq!(row.owner, o);
         let pending_after = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
         assert_eq!(pending_before, pending_after);
+    }
+}
+
+/// GitLab #248 — book match accumulates maker payouts and defers CW20 msgs to `execute_swap`.
+#[cfg(test)]
+mod aggregation_tests {
+    use super::*;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    #[test]
+    fn match_bids_dedupes_maker_payouts_by_owner() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50_000),
+            owner.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50_000),
+            owner.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+
+        let result = match_bids(
+            storage,
+            1,
+            Uint128::new(80_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.makers_used, 2);
+        assert_eq!(result.maker_payouts.len(), 1);
+        assert_eq!(
+            result.maker_payouts.get(&owner).copied().unwrap(),
+            Uint128::new(80_000)
+        );
+        let msgs = maker_payout_transfer_messages(&result.maker_payouts, "token0").unwrap();
+        assert_eq!(msgs.len(), 1, "one CW20 transfer per distinct maker");
+    }
+
+    #[test]
+    fn match_bids_commission_and_return_net_sum_per_fill() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100_000),
+            owner,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+
+        let fill = Uint128::new(10_000);
+        let result = match_bids(
+            storage,
+            1,
+            fill,
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        let taker_bps = taker_fee_bps(30);
+        let cost = fill;
+        let commission = cost
+            .checked_mul(Uint128::new(taker_bps as u128))
+            .unwrap()
+            .checked_div(Uint128::new(10000))
+            .unwrap();
+        let net = cost.checked_sub(commission).unwrap();
+        assert_eq!(result.commission_total, commission);
+        assert_eq!(result.return_net, net);
     }
 }
 

@@ -19,6 +19,7 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 
 - Invariant **L8:** [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md)
 - Invariant **L9** (`max_spread` pool + hybrid): [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs), [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197), [`docs/integrators.md`](../docs/integrators.md#slippage-max_spread-and-belief_price-hybrid)
+- Invariant **L10** (hybrid execute CW20 aggregation / gas): [GitLab **#248**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/248), [`docs/limit-orders.md` § Execution order](../docs/limit-orders.md#execution-order-in-execute_swap), [`skills/AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) — sim path unchanged; only execute submessage count differs.
 - Product/integrator: [`docs/limit-orders.md`](../docs/limit-orders.md), [`docs/integrators.md`](../docs/integrators.md)
 - ADR: [`docs/adr/0001-hybrid-quoting-and-routing.md`](../docs/adr/0001-hybrid-quoting-and-routing.md)
 - Fee discount tiers + sim `trader`: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) · [GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238) · off-chain wiring [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245) · QA: `make verify-issue-245` ([`AGENTS_QA_DEPLOY_VERIFY.md`](./AGENTS_QA_DEPLOY_VERIFY.md))
@@ -27,6 +28,8 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 ## Tests to run after changes
 
 ```bash
+cd smartcontracts && cargo test -p cl8y-dex-pair aggregation_tests
+cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_swap_two_makers
 cd smartcontracts && cargo test -p dex-common max_spread
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_simulation_matches_execute_with_fee_discount
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_max_spread
