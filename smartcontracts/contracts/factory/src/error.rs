@@ -31,4 +31,8 @@ pub enum ContractError {
         decimals_b: u8,
         max: u8,
     },
+    #[error(
+        "SetDiscountRegistryAll supports at most {max} pairs per transaction (factory has {pair_count}); use SetDiscountRegistryBatch with start_after and limit"
+    )]
+    DiscountRegistryAllTooManyPairs { pair_count: u64, max: u32 },
 }

@@ -332,8 +332,8 @@ The integration test harness in `smartcontracts/tests/` deploys the full contrac
 - Swap without registration: verify full fee applied
 - Balance drop: transfer CL8Y away, swap, verify discount revoked and deregistration fired
 - Router trusted forwarding: swap via Router passes trader address correctly
-- Factory `SetDiscountRegistryAll`: verify all pairs receive the registry address (small deployments only)
-- Factory `SetDiscountRegistryBatch`: verify cursor `next_start_after` + `has_more` advance until complete ([GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), covered in `factory_coverage_tests`)
+- Factory `SetDiscountRegistryAll`: succeeds when `PAIR_COUNT` ≤ 10; rejects with `DiscountRegistryAllTooManyPairs` when larger ([GitLab #242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242), `test_set_discount_registry_all_rejects_when_pair_count_exceeds_cap`)
+- Factory `SetDiscountRegistryBatch`: verify cursor `next_start_after` + `has_more` advance until complete ([GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242) — `test_set_discount_registry_batch_covers_many_pairs` for 25 pairs / limit 10)
 - Blacklist (Tier 255): verify wallet receives zero discount
 
 **Hybrid / limit book (L8 regression):** [`limit_order_tests.rs`](../smartcontracts/tests/src/limit_order_tests.rs) — single-hop hybrid sim vs execute, two-hop router with hybrid on the first leg (`router_two_hop_first_leg_hybrid_matches_simulate`), and **3-hop router with hybrid on ≥2 legs** (`router_three_hop_two_legs_hybrid_matches_simulate`, [GitLab **#192**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/192)). Agent playbook: [`skills/AGENTS_TESTING_MULTIHOP_HYBRID.md`](../skills/AGENTS_TESTING_MULTIHOP_HYBRID.md).

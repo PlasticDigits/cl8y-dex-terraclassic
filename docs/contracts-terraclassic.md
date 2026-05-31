@@ -55,7 +55,7 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `SetPairFee`               | `pair: String`, `fee_bps: u16`                     | Governance  |
 | `SetPairHooks`             | `pair: String`, `hooks: Vec<String>`               | Governance  |
 | `SetDiscountRegistry`      | `pair: String`, `registry: Option<String>`         | Governance  |
-| `SetDiscountRegistryAll` | `registry: Option<String>`                         | Governance ([gas note](#factory-discount-registry-rollout-invariants-glab-123)) |
+| `SetDiscountRegistryAll` | `registry: Option<String>`                         | Governance — **≤10 pairs** only ([rollout invariants](#factory-discount-registry-rollout-invariants-glab-123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)) |
 | `SetDiscountRegistryBatch` | `registry: Option<String>`, `start_after?: u64`, `limit?: u32` | Governance — paginated rollout; see [invariants](#factory-discount-registry-rollout-invariants-glab-123) |
 | `UpdateConfig`             | `governance?`, `treasury?`, `default_fee_bps?`     | Governance  |
 
@@ -81,11 +81,11 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 
 **Invariant:** For each index `i` in `0..pair_count`, `pair_index[i].contract_addr` has a `true` entry in `pair_addr_reg`. Maintained when pairs register in `reply_instantiate_pair`. Legacy factory instances on wasm **1.0.0** must migrate once to **1.1.0** so `pair_addr_reg` is backfilled from `pair_index` ([GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)).
 
-**Gas / iteration:** Per-pair governance messages use **O(1)** `pair_addr_reg` where applicable ([#122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)). For **broadcasting** discount-registry updates to **all** pairs at once, use **`SetDiscountRegistryBatch`** ([#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)) so each transaction carries a bounded Wasm message list; `SetDiscountRegistryAll` remains a single-tx option only for small pair counts. Other full-registry passes (e.g. propagating governance to LP admins on governance change) still iterate `pair_index` by design where no batched API exists. Indexers or LCD clients listing pairs should paginate rather than relying on unbounded queries. Off-chain operators and automation: [Indexer invariants — Factory LCD](./indexer-invariants.md#factory-lcd-pair-enumeration-vs-governance-gas-agents).
+**Gas / iteration:** Per-pair governance messages use **O(1)** `pair_addr_reg` where applicable ([#122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)). For **broadcasting** discount-registry updates across the factory, use **`SetDiscountRegistryBatch`** ([#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)) so each transaction carries a bounded Wasm message list. **`SetDiscountRegistryAll`** is a single-tx shortcut only when `PAIR_COUNT` ≤ the default pagination cap (**10**); otherwise the contract returns `DiscountRegistryAllTooManyPairs` and operators must paginate. Other full-registry passes (e.g. propagating governance to LP admins on governance change) still iterate `pair_index` by design where no batched API exists. Indexers or LCD clients listing pairs should paginate rather than relying on unbounded queries. Off-chain operators and automation: [Indexer invariants — Factory LCD](./indexer-invariants.md#factory-lcd-pair-enumeration-vs-governance-gas-agents).
 
-### Factory discount registry rollout (invariants, [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123))
+### Factory discount registry rollout (invariants, [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242))
 
-`SetDiscountRegistryAll` attaches **one** `WasmMsg::Execute(SetDiscountRegistry …)` **per indexed pair**. With many pairs, the serialized response risks block gas limits and operator failure.
+`SetDiscountRegistryAll` attaches **one** `WasmMsg::Execute(SetDiscountRegistry …)` **per indexed pair**, but only when `PAIR_COUNT` ≤ **`calc_limit(None)`** (default **10**). If the factory has more pairs, execution fails with **`DiscountRegistryAllTooManyPairs`** — use batch pagination instead (on-chain DoS / block-gas fix, [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)).
 
 **`SetDiscountRegistryBatch`** emits at most **`limit`** such messages per transaction (omit `limit` ⇒ default **`10`**; hard cap **`30`**, same as other factory queries — see `dex_common::pagination`).
 
@@ -99,8 +99,26 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 1. Indices are contiguous from `0` to `PAIR_COUNT - 1` for normally created pairs (append-only registry).
 2. If `PAIR_COUNT` grows **during** a multi-step rollout, repeat batches until **`has_more` is false**, then optionally rerun from `start_after: null` once more if new tail pairs must receive the registry (those indices were not scanned in earlier steps).
 3. Failed/missing loads for an index slot are skipped (same as “all”), but contiguous indices remain the enumeration order — tooling should rely on **`has_more` / `next_start_after`**, not on `PAIR_COUNT` alone.
+4. **`SetDiscountRegistryAll` cap:** `PAIR_COUNT` must be ≤ default `calc_limit` (**10**) or the factory rejects the message ([#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)).
 
-Canonical doc for agent automation: [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md).
+**Example — governance multisig / script (batch loop until `has_more` is false):**
+
+```bash
+REGISTRY="<fee_discount_addr>"
+FACTORY="<factory_addr>"
+START=""
+while true; do
+  if [ -z "$START" ]; then
+    MSG="{\"set_discount_registry_batch\":{\"registry\":\"$REGISTRY\",\"start_after\":null,\"limit\":10}}"
+  else
+    MSG="{\"set_discount_registry_batch\":{\"registry\":\"$REGISTRY\",\"start_after\":$START,\"limit\":10}}"
+  fi
+  terrad tx wasm execute "$FACTORY" "$MSG" --from gov --gas auto --gas-adjustment 1.4 ...
+  # Parse tx logs: if has_more=false, break; else set START=next_start_after
+done
+```
+
+Canonical doc for agent automation: [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md), [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
 
 ---
 

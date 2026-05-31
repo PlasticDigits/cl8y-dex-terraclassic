@@ -45,6 +45,7 @@ terrad tx wasm execute <fee_discount_addr> '{
 | I5 | **Balance check:** each `GetDiscount` compares on-chain CL8Y balance to the registered tier minimum; insufficient balance → `discount_bps: 0` and lazy deregistration. |
 | I6 | **Trusted router:** router must be registered before `trader` on router-originated swaps counts for discount lookup. |
 | I7 | **Drift guard:** `make check-fee-discount-tier-docs` keeps this file, `tier_fixtures.rs`, and `deploy-dex-local.sh` identical. |
+| I8 | **Factory rollout:** point pairs at the fee-discount contract via factory `set_discount_registry` (one pair), `set_discount_registry_all` (≤10 pairs only), or paginated `set_discount_registry_batch` — see [contracts-terraclassic.md § Factory discount registry rollout](../contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123) ([#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)). |
 
 ## Drift check
 
@@ -58,5 +59,6 @@ make check-fee-discount-tier-docs
 - [`docs/architecture.md`](../architecture.md) — fee discount flow diagram
 - [`docs/contracts-terraclassic.md`](../contracts-terraclassic.md) — message reference (links here for tiers)
 - [`docs/security-model.md`](../security-model.md) — EOA / trusted router rules
-- [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../../skills/AGENTS_FEE_DISCOUNT_TIERS.md) — third-party agent playbook
+- [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../../skills/AGENTS_FEE_DISCOUNT_TIERS.md) — third-party agent playbook (factory registry rollout I8)
+- [GitLab #242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242) — cap `SetDiscountRegistryAll`; batch path for large `PAIR_COUNT`
 - Integration tiers: `smartcontracts/tests/src/tier_fixtures.rs` (`STANDARD_PRODUCTION_TIERS`)

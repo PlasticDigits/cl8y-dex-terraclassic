@@ -366,9 +366,12 @@ fn execute_set_discount_registry(
         .add_attribute("registry", registry_str))
 }
 
-/// Set or clear the fee discount registry on ALL registered pairs.
-/// Governance only. Iterates over `PAIR_INDEX` and sends a
-/// `SetDiscountRegistry` message to each pair.
+/// Set or clear the fee discount registry on all registered pairs in **one** transaction.
+///
+/// Governance only. Bounded to [`calc_limit`](dex_common::pagination::calc_limit)(`None`)
+/// pairs (default **10**, hard cap **30** — same as batch). If `PAIR_COUNT` exceeds that
+/// bound, returns [`ContractError::DiscountRegistryAllTooManyPairs`] so operators use
+/// [`execute_set_discount_registry_batch`] (GitLab [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)).
 fn execute_set_discount_registry_all(
     deps: DepsMut,
     info: MessageInfo,
@@ -376,7 +379,15 @@ fn execute_set_discount_registry_all(
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
 
+    let max_pairs = calc_limit(None);
     let count = PAIR_COUNT.load(deps.storage)?;
+    if count > max_pairs as u64 {
+        return Err(ContractError::DiscountRegistryAllTooManyPairs {
+            pair_count: count,
+            max: max_pairs as u32,
+        });
+    }
+
     let mut messages = Vec::new();
 
     for idx in 0..count {

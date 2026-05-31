@@ -59,8 +59,11 @@ pub enum ExecuteMsg {
     },
     /// Set the fee discount registry for all pairs in one transaction (governance only).
     ///
-    /// **Gas / size caution:** emits one Wasm execute submessage per registered pair.
-    /// For factories with large `PAIR_COUNT`, prefer [`SetDiscountRegistryBatch`](ExecuteMsg::SetDiscountRegistryBatch) (see GitLab [#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)).
+    /// **Bounded:** fails when `PAIR_COUNT` exceeds the default pagination cap (**10** pairs;
+    /// see [`crate::pagination`]). For larger factories use
+    /// [`SetDiscountRegistryBatch`](ExecuteMsg::SetDiscountRegistryBatch)
+    /// (GitLab [#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123),
+    /// [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)).
     SetDiscountRegistryAll {
         registry: Option<String>,
     },

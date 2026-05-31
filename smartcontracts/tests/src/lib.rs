@@ -4063,6 +4063,209 @@ mod factory_coverage_tests {
         assert!(err.root_cause().to_string().contains("Unauthorized"));
     }
 
+    /// GitLab #242: `SetDiscountRegistryAll` must not fan out unbounded Wasm messages.
+    #[test]
+    fn test_set_discount_registry_all_rejects_when_pair_count_exceeds_cap() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let hub = create_cw20_token(&mut app, cw20_code_id, &user, "Hub", "HUB", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        const EXTRA_PAIRS: usize = 11;
+        for i in 0..EXTRA_PAIRS {
+            let sat = create_cw20_token(
+                &mut app,
+                cw20_code_id,
+                &user,
+                &format!("Satellite {}", i),
+                &format!("SAT{}", i),
+                initial,
+            );
+            app.execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&hub), asset_info_token(&sat)],
+                },
+                &[],
+            )
+            .unwrap();
+            app.update_block(|b| b.height += 1);
+        }
+
+        let count: dex_common::factory::PairCountResponse = app
+            .wrap()
+            .query_wasm_smart(
+                factory.to_string(),
+                &dex_common::factory::QueryMsg::GetPairCount {},
+            )
+            .unwrap();
+        assert_eq!(count.count, EXTRA_PAIRS as u64);
+
+        let err = app
+            .execute_contract(
+                governance.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetDiscountRegistryAll { registry: None },
+                &[],
+            )
+            .unwrap_err();
+        let msg = err.root_cause().to_string();
+        assert!(
+            msg.contains("SetDiscountRegistryAll supports at most"),
+            "unexpected error: {msg}"
+        );
+        assert!(msg.contains("SetDiscountRegistryBatch"));
+    }
+
+    /// GitLab #242: many-pair rollout via bounded batch (25 pairs, limit 10 ⇒ 3 txs).
+    #[test]
+    fn test_set_discount_registry_batch_covers_many_pairs() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+        let fee_discount_code_id = app.store_code(fee_discount_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let hub = create_cw20_token(&mut app, cw20_code_id, &user, "Hub", "HUB", initial);
+        let cl8y = create_cw20_token(&mut app, cw20_code_id, &user, "CL8Y", "CL8Y", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let fee_discount = app
+            .instantiate_contract(
+                fee_discount_code_id,
+                governance.clone(),
+                &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                    cl8y_token: cl8y.to_string(),
+                },
+                &[],
+                "fee_discount",
+                None,
+            )
+            .unwrap();
+
+        const NUM_PAIRS: usize = 25;
+        for i in 0..NUM_PAIRS {
+            let sat = create_cw20_token(
+                &mut app,
+                cw20_code_id,
+                &user,
+                &format!("Satellite {}", i),
+                &format!("SAT{}", i),
+                initial,
+            );
+            app.execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&hub), asset_info_token(&sat)],
+                },
+                &[],
+            )
+            .unwrap();
+            app.update_block(|b| b.height += 1);
+        }
+
+        let mut start_after: Option<u64> = None;
+        let mut total_updated = 0u32;
+        let mut tx_count = 0u32;
+
+        loop {
+            let resp = app
+                .execute_contract(
+                    governance.clone(),
+                    factory.clone(),
+                    &dex_common::factory::ExecuteMsg::SetDiscountRegistryBatch {
+                        registry: Some(fee_discount.to_string()),
+                        start_after,
+                        limit: Some(10),
+                    },
+                    &[],
+                )
+                .unwrap();
+            tx_count += 1;
+
+            let updated: u32 =
+                wasm_attr_for_action(&resp.events, "set_discount_registry_batch", "pairs_updated")
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+            total_updated += updated;
+
+            let has_more =
+                wasm_attr_for_action(&resp.events, "set_discount_registry_batch", "has_more")
+                    .unwrap();
+            if has_more == "false" {
+                break;
+            }
+            start_after = Some(
+                wasm_attr_for_action(
+                    &resp.events,
+                    "set_discount_registry_batch",
+                    "next_start_after",
+                )
+                .unwrap()
+                .parse()
+                .unwrap(),
+            );
+        }
+
+        assert_eq!(tx_count, 3);
+        assert_eq!(total_updated, NUM_PAIRS as u32);
+    }
+
     #[test]
     fn test_pair_query() {
         let mut app = App::default();

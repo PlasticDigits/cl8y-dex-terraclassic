@@ -31,6 +31,18 @@ python3 scripts/check_fee_discount_tier_docs.py
 
 Run **`make check-fee-discount-tier-docs`** (reference job `docs-fee-discount-tiers`; [docs/testing.md § CI](../docs/testing.md#ci)) when `docs/**`, `scripts/deploy-dex-local.sh`, or `tier_fixtures.rs` change.
 
+## Factory registry rollout (GitLab #242)
+
+After the fee-discount contract is deployed and tiers are configured:
+
+| `PAIR_COUNT` | Factory message |
+|--------------|-----------------|
+| 1 pair (targeted) | `set_discount_registry` with `pair` |
+| ≤10 pairs | `set_discount_registry_all` (single tx) |
+| >10 pairs | Repeat `set_discount_registry_batch` until response `has_more` is `false` (use `next_start_after` as cursor) |
+
+Invariants and batch loop example: [docs/contracts-terraclassic.md § Factory discount registry rollout](../docs/contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123). Gas playbook: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md).
+
 ## Related docs
 
 - [docs/deployment-guide.md](../docs/deployment-guide.md) — §5a (points at reference)
