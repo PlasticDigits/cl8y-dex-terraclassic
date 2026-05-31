@@ -1,11 +1,23 @@
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use serde::Serialize;
-use utoipa::ToSchema;
+use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use super::{build_asset_map, internal_err, AppState};
 use crate::db::queries::{assets, pairs as db_pairs, volume};
+
+const TOKEN_LIST_LIMIT_DEFAULT: i64 = 200;
+const TOKEN_LIST_LIMIT_MAX: i64 = 500;
+const TOKEN_LIST_OFFSET_MAX: i64 = 10_000;
+
+#[derive(Deserialize, IntoParams, ToSchema)]
+pub struct ListTokensQuery {
+    /// Page size (default 200, max 500)
+    pub limit: Option<i64>,
+    /// Offset for pagination (max 10_000)
+    pub offset: Option<i64>,
+}
 
 #[derive(Serialize, ToSchema)]
 pub struct TokenResponse {
@@ -41,20 +53,38 @@ impl From<&assets::AssetRow> for TokenResponse {
 #[utoipa::path(
     get,
     path = "/api/v1/tokens",
+    params(ListTokensQuery),
     responses(
-        (status = 200, description = "List of all tokens", body = Vec<TokenResponse>),
+        (status = 200, description = "Paginated token list", body = Vec<TokenResponse>),
+        (status = 400, description = "Invalid query parameters"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "Tokens"
 )]
 pub async fn list_tokens(
     State(state): State<AppState>,
+    Query(q): Query<ListTokensQuery>,
 ) -> Result<Json<Vec<TokenResponse>>, (StatusCode, String)> {
-    let all = assets::get_all_assets(&state.pool)
+    let limit = q
+        .limit
+        .unwrap_or(TOKEN_LIST_LIMIT_DEFAULT)
+        .clamp(1, TOKEN_LIST_LIMIT_MAX);
+    let offset = q.offset.unwrap_or(0).max(0);
+    if offset > TOKEN_LIST_OFFSET_MAX {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "offset exceeds maximum of {} (deep pagination disabled)",
+                TOKEN_LIST_OFFSET_MAX
+            ),
+        ));
+    }
+
+    let rows = assets::list_assets_paginated(&state.pool, limit, offset)
         .await
         .map_err(internal_err)?;
 
-    Ok(Json(all.iter().map(TokenResponse::from).collect()))
+    Ok(Json(rows.iter().map(TokenResponse::from).collect()))
 }
 
 #[derive(Serialize, ToSchema)]

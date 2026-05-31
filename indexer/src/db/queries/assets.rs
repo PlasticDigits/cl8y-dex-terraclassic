@@ -97,6 +97,18 @@ pub async fn get_all_assets(pool: &PgPool) -> Result<Vec<AssetRow>, sqlx::Error>
         .await
 }
 
+pub async fn list_assets_paginated(
+    pool: &PgPool,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<AssetRow>, sqlx::Error> {
+    sqlx::query_as::<_, AssetRow>("SELECT * FROM assets ORDER BY id LIMIT $1 OFFSET $2")
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
+}
+
 pub async fn get_asset_by_id(pool: &PgPool, id: i32) -> Result<Option<AssetRow>, sqlx::Error> {
     sqlx::query_as::<_, AssetRow>("SELECT * FROM assets WHERE id = $1")
         .bind(id)

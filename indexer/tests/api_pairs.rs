@@ -48,6 +48,9 @@ async fn list_pairs_returns_200() {
 
     let resp = server.get("/api/v1/pairs?sort=bad_sort").await;
     resp.assert_status_bad_request();
+
+    let resp = server.get("/api/v1/pairs?offset=99999").await;
+    resp.assert_status_bad_request();
 }
 
 #[serial]

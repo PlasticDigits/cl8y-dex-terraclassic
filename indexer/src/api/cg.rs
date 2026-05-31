@@ -11,7 +11,7 @@ use super::{
 };
 use crate::db::queries::{pairs as db_pairs, swap_events};
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Clone, ToSchema)]
 pub struct CgPairResponse {
     pub ticker_id: String,
     pub base: String,
@@ -19,18 +19,48 @@ pub struct CgPairResponse {
     pub pool_id: String,
 }
 
+#[derive(Deserialize, IntoParams, ToSchema)]
+pub struct CgPairsQuery {
+    /// Max pairs returned (default 500, max 1000)
+    pub limit: Option<i64>,
+    /// Offset for pagination (max 10_000)
+    pub offset: Option<i64>,
+}
+
+const CG_PAIRS_LIMIT_DEFAULT: i64 = 500;
+const CG_PAIRS_LIMIT_MAX: i64 = 1000;
+const CG_PAIRS_OFFSET_MAX: i64 = 10_000;
+
 #[utoipa::path(
     get,
     path = "/cg/pairs",
+    params(CgPairsQuery),
     responses(
         (status = 200, description = "CoinGecko-format pair list", body = Vec<CgPairResponse>),
+        (status = 400, description = "Invalid query parameters"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "CoinGecko"
 )]
 pub async fn cg_pairs(
     State(state): State<AppState>,
+    Query(q): Query<CgPairsQuery>,
 ) -> Result<Json<Vec<CgPairResponse>>, (StatusCode, String)> {
+    let limit = q
+        .limit
+        .unwrap_or(CG_PAIRS_LIMIT_DEFAULT)
+        .clamp(1, CG_PAIRS_LIMIT_MAX);
+    let offset = q.offset.unwrap_or(0).max(0);
+    if offset > CG_PAIRS_OFFSET_MAX {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "offset exceeds maximum of {} (deep pagination disabled)",
+                CG_PAIRS_OFFSET_MAX
+            ),
+        ));
+    }
+
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
@@ -48,7 +78,15 @@ pub async fn cg_pairs(
         }
     }
 
-    Ok(Json(result))
+    let start = offset.min(result.len() as i64) as usize;
+    let end = (offset + limit).min(result.len() as i64) as usize;
+    let page = if start >= result.len() {
+        Vec::new()
+    } else {
+        result[start..end].to_vec()
+    };
+
+    Ok(Json(page))
 }
 
 #[derive(Serialize, ToSchema)]

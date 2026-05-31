@@ -58,6 +58,39 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// Rebuild rolling 24h quote-side volume per pair (materialized table for pair list sort).
+pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
+    let cutoff = Utc::now() - chrono::Duration::hours(24);
+
+    sqlx::query(
+        r#"INSERT INTO pair_volume_24h (pair_id, volume_quote, updated_at)
+           SELECT pair_id, SUM(return_amount), NOW()
+           FROM swap_events
+           WHERE block_timestamp >= $1
+           GROUP BY pair_id
+           ON CONFLICT (pair_id)
+             DO UPDATE SET volume_quote = EXCLUDED.volume_quote,
+                          updated_at = EXCLUDED.updated_at"#,
+    )
+    .bind(cutoff)
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+        r#"UPDATE pair_volume_24h pv
+           SET volume_quote = 0, updated_at = NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM swap_events se
+             WHERE se.pair_id = pv.pair_id AND se.block_timestamp >= $1
+           )"#,
+    )
+    .bind(cutoff)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_token_volume(
     pool: &PgPool,
     asset_id: i32,

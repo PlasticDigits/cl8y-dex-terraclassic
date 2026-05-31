@@ -111,6 +111,7 @@ async fn clean_db_tables(pool: &PgPool) {
             candles,
             liquidity_events,
             token_volume_stats,
+            pair_volume_24h,
             trader_positions,
             traders,
             pairs,
@@ -282,6 +283,10 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
     .execute(pool)
     .await
     .expect("insert candle");
+
+    cl8y_dex_indexer::db::queries::volume::refresh_pair_volumes(pool)
+        .await
+        .expect("refresh pair_volume_24h for tests");
 
     SeedData {
         asset_0_id,

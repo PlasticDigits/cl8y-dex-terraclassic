@@ -16,7 +16,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | No SQL injection on dynamic ordering | Leaderboard `sort` matched to fixed columns in Rust + API allowlist | Unknown `sort` → **400** | [`security.rs`](../indexer/tests/security.rs), [`api_traders.rs`](../indexer/tests/api_traders.rs) |
 | Candle `interval` allowlist | `VALID_INTERVALS` | Bad / injection-like string → **400** | `security.rs` |
 | Candle default time window | `GET .../candles` without `from`/`to`: **`from` = `to` − 90 days**, **`to` = now** (RFC 3339 bounds on `open_time`) | Short windows (historically 7 days) made charts **empty** when indexed swaps were older than the window (common on LocalTerra / QA) while `trades` still returned rows — see [`pairs.rs`](../indexer/src/api/pairs.rs) `DEFAULT_CANDLE_LOOKBACK_DAYS` | `api_pairs.rs` |
-| Numeric query caps | `.min(200)`, `.min(500)`, `.min(1000)` on limits/depth | Oversized `limit`/`depth` clamped | `security.rs` (pairs candles/trades, oracle history, trader trades), [`api_cg.rs`](../indexer/tests/api_cg.rs), [`api_cmc.rs`](../indexer/tests/api_cmc.rs) |
+| Numeric query caps | `.min(200)`, `.min(500)`, `.min(1000)` on limits/depth; pair list **`offset` ≤ 10_000** → **400**; token/CG pair lists paginated (default limits, max offset 10_000) | Oversized `limit`/`depth` clamped; deep offset → **400** | `security.rs` (pairs candles/trades, oracle history, trader trades), [`api_cg.rs`](../indexer/tests/api_cg.rs), [`api_cmc.rs`](../indexer/tests/api_cmc.rs), [`indexer_pair_volume_pagination.rs`](../indexer/tests/indexer_pair_volume_pagination.rs); GitLab [**#243**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/243) |
 | CG `type` filter | Only `buy`, `sell`, or omit | Invalid → **400** | `api_cg.rs` |
 | Ticker / market pair shape | Exactly one `_`, non-empty `BASE` and `TARGET` | `A_B_C`, `_`, `A_`, malformed → **400** | `security.rs` (`cg_ticker_id_attack_matrix`), `api::cg_ticker_tests`, **proptest** on `cg_ticker_segments` |
 | Unknown pair / token | DB lookup miss | **404** with short message | Various `api_*.rs` |
@@ -25,7 +25,7 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 | Hooks errors | Same `internal_err()` as rest of API | No raw DB text | Code path in [`hooks.rs`](../indexer/src/api/hooks.rs) |
 | CORS | Allowlist from `CORS_ORIGINS` | Disallowed `Origin` → no `ACA-O` | `security.rs` |
 | Abuse: rate limit | Global `tower_governor` when `RATE_LIMIT_RPS > 0` (default **60**; **`RUN_MODE=prod`** forces **60** if unset to **0**). LCD-heavy routes (`limit-book`, `order-book-head`, `route/solve`, `route/solve/best`) also use **`RATE_LIMIT_LCD_HEAVY_RPS`** (default **10**; prod forces **10** if **0**) | Sustained burst → **429** | `security.rs`, [`api/mod.rs`](../indexer/src/api/mod.rs); GitLab [**#239**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/239) |
-| Observability | **`tracing` logs only** — no `/metrics` endpoint or Prometheus dependency ([GitLab **#200**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200); supersedes #89 / #125) | N/A | Startup logs in [`main.rs`](../indexer/src/main.rs); block-time warnings in [`poller.rs`](../indexer/src/indexer/poller.rs) |
+| Observability | **`tracing` logs only** — no `/metrics` endpoint or Prometheus dependency ([GitLab **#200**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200); supersedes #89 / #125) | N/A | Startup logs in [`main.rs`](../indexer/src/main.rs); block-time warnings in [`block_indexer.rs`](../indexer/src/indexer/block_indexer.rs) |
 | Abuse: slow handlers | `TimeoutLayer` 30s | **408** Request Timeout | Documented; no slow-query test |
 | Abuse: response size | `CompressionLayer` | Reduces bandwidth cost | Operational |
 | LCD amplification | Orderbook cached 30s per `(pair, depth, fee_bps, bid_head, ask_head)`; `depth` = **query total** (Openware), not per-side count. Deep **`limit-book`**: ≤ **101** LCD queries/page ([`LIMIT_BOOK_LCD_QUERY_BUDGET`](../indexer/src/api/limit_book_lcd.rs)). Route **`global_v1`**: ≤ **`LCD_HYBRID_SIM_BUDGET`** pair sims/request ([`best_execution.rs`](../indexer/src/api/best_execution.rs)). Stricter **10 RPS** governor on LCD-heavy routes (**#239**). | Repeated CG/CMC hits reuse cache; abuse → **429** on heavy routes | [`orderbook_sim.rs`](../indexer/src/api/orderbook_sim.rs) (**#210**, **#221**, **#220**), [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs), [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md) |
@@ -67,7 +67,8 @@ When validating LocalTerra flows with **browser wallets**, fee broadcast quirks 
 
 | Invariant | Enforcement | Unhappy path | Tests |
 |-----------|-------------|--------------|-------|
-| Block time usable | RFC3339 parse; else `tracing::warn` + `Utc::now()` | Misaligned candles (documented risk) | Manual / logs; see [Block time fallback and candle skew](#block-time-fallback-and-candle-skew) |
+| Block time usable | Tx RFC3339 first; else LCD **block header** `time`; **no** `Utc::now()` fallback — missing/invalid both → block ingest **fails** (cursor unchanged) | Misaligned candles avoided; operator fixes LCD | [`block_indexer.rs`](../indexer/src/indexer/block_indexer.rs) `resolve_block_time`; [`indexer_ingestion_hardening.rs`](../indexer/tests/indexer_ingestion_hardening.rs); GitLab [**#243**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/243) |
+| Pair list 24h volume | `pair_volume_24h` table refreshed ~5 min by [`volume_aggregator`](../indexer/src/indexer/volume_aggregator.rs); pair list JOINs rollup (not live 24h scan) | Stale sort up to refresh interval (~5 min) | [`indexer_pair_volume_pagination.rs`](../indexer/tests/indexer_pair_volume_pagination.rs); migration `20260531143000_*`; [**#243**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/243), [`skills/AGENTS_INDEXER_VOLUME_PAGINATION.md`](../skills/AGENTS_INDEXER_VOLUME_PAGINATION.md) |
 | Swap dedup | Unique index on `(tx_hash, pair_id)`; `INSERT ... ON CONFLICT DO NOTHING` in [`insert_swap`](../indexer/src/db/queries/swap_events.rs) | Replay skipped; optional `trade_exists` fast path in parser | Migration `20260326120000_*`; [`parser.rs`](../indexer/src/indexer/parser.rs) |
 | Limit placement lifecycle | Parser applies **`limit_order_expired_parked`** (`remaining`) then **`claim_expired_limit_order`** on `limit_order_placements`; transitions **`active` → `parked_expired` → `refunded`**. Parsers scan **every** `action` key in each `wasm` event (not only `wasm_attr_last`), so a flattened stream where **`action=swap` is last** still records an earlier **`limit_order_expired_parked`** ([GitLab **#141**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/141)). | Replay idempotent (updates match at-most-one row per event) | [`parser.rs`](../indexer/src/indexer/parser.rs); [`limit_order_lifecycle.rs`](../indexer/src/db/queries/limit_order_lifecycle.rs); [`limit_order_parked_lifecycle.rs`](../indexer/tests/limit_order_parked_lifecycle.rs); GitLab [**#142**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/142), [**#141**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/141) |
 | Limit placement HTTP feed | `list_placements_for_pair` SQL excludes rows whose `(pair_id, order_id)` exists in `limit_order_cancellations` | Stale UI listing already-cancelled ids as “active” | [`limit_order_lifecycle.rs`](../indexer/src/db/queries/limit_order_lifecycle.rs); `api_pairs.rs`; GitLab [**#135**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/135) |
@@ -102,17 +103,22 @@ Integration tests **fail fast** if the database is unreachable (see [`tests/comm
 
 **Shared DB / flaky tests:** If you see sporadic duplicate-key or FK errors against one database, run tests with serialized parallelism as documented in [Testing — Shared Postgres and test parallelism](./testing.md#shared-postgres-and-test-parallelism) (`cargo test --tests -j 1 -- --test-threads=1`).
 
-## Block time fallback and candle skew
+## Block time resolution (GitLab #243)
 
-Block timestamps come from the LCD transaction response (`tx_responses[0].timestamp`). In [`indexer/src/indexer/poller.rs`](../indexer/src/indexer/poller.rs), `parse_block_time`:
+Block timestamps for indexing come from the LCD transaction response (`tx_responses[0].timestamp`) when valid RFC3339. In [`indexer/src/indexer/block_indexer.rs`](../indexer/src/indexer/block_indexer.rs), `resolve_block_time`:
 
-- Parses RFC3339 into UTC when valid.
-- If the timestamp is **missing** or **invalid**, logs a **warning** and uses **`Utc::now()`** (wall-clock) for that block’s events.
+- Parses tx timestamp into UTC when valid.
+- If the tx timestamp is **missing** or **invalid**, retries using the LCD **block header** `time` for that height.
+- If **both** are unusable, block ingest **fails** (cursor unchanged) — **no** `Utc::now()` wall-clock fallback.
 
-**Risk:** Event times and candle bucket boundaries can **diverge** from true chain time—**OHLC intervals may skew** relative to block time. Mitigations:
+**Risk mitigated:** Event times and candle bucket boundaries no longer skew to ingestion wall clock when LCD tx metadata is bad but header time is good.
 
-- Run a **reliable LCD** close to your chain; monitor logs for block timestamp warnings (`Invalid block timestamp` / `Missing block timestamp`) — see [`poller.rs`](../indexer/src/indexer/poller.rs) `parse_block_time` ([GitLab **#200**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200): tracing-only observability; no Prometheus).
+- Run a **reliable LCD** close to your chain; monitor logs for `Invalid tx timestamp` / `Missing tx timestamp` / `Block header time missing or invalid`.
 - After prolonged LCD issues, consider **re-indexing** from a known height (see [runbook: reorg / replay / dedup](./runbooks/indexer-reorg-replay-dedup.md)).
+
+## Pair list 24h volume rollup (GitLab #243)
+
+`GET /api/v1/pairs?sort=volume_24h` reads from materialized table **`pair_volume_24h`**, refreshed every **~5 minutes** by the indexer background task (same loop as token volume stats). Expect up to one refresh interval of lag vs live swap totals. Migration: `indexer/migrations/20260531143000_pair_volume_24h_rollup.sql`.
 
 ## Dapp read model (pools list)
 

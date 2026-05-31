@@ -79,6 +79,18 @@ async fn cg_historical_trades_invalid_ticker() {
 
 #[serial]
 #[tokio::test]
+async fn cg_pairs_rejects_excessive_offset() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/cg/pairs?offset=99999").await;
+    resp.assert_status_bad_request();
+}
+
+#[serial]
+#[tokio::test]
 async fn cg_historical_trades_invalid_type_rejected() {
     let pool = common::setup_pool().await;
     common::seed_db(&pool).await;
