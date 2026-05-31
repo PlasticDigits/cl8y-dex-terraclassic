@@ -855,6 +855,7 @@ fn execute_swap(
     let mut book_maker_payouts = std::collections::BTreeMap::new();
     let mut book_expired_parks = 0u32;
     let mut book_expired_parks_skipped = 0u32;
+    let mut book_scan_steps_capped = false;
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
@@ -878,6 +879,7 @@ fn execute_swap(
             book_maker_payouts = book_match.maker_payouts;
             book_expired_parks = book_match.expired_parks;
             book_expired_parks_skipped = book_match.expired_parks_skipped;
+            book_scan_steps_capped = book_match.scan_steps_capped;
         } else {
             let book_match = orderbook::match_asks(
                 deps.storage,
@@ -899,6 +901,7 @@ fn execute_swap(
             book_maker_payouts = book_match.maker_payouts;
             book_expired_parks = book_match.expired_parks;
             book_expired_parks_skipped = book_match.expired_parks_skipped;
+            book_scan_steps_capped = book_match.scan_steps_capped;
         }
     }
 
@@ -1065,6 +1068,9 @@ fn execute_swap(
                     "expired_parks_skipped",
                     book_expired_parks_skipped.to_string(),
                 );
+        }
+        if book_scan_steps_capped {
+            resp = resp.add_attribute("scan_steps_capped", "true");
         }
     }
 

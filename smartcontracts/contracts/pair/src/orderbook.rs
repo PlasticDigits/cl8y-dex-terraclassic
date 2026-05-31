@@ -24,8 +24,18 @@ use crate::state::{
 };
 
 use dex_common::pair::{
-    MAX_ADJUST_STEPS_HARD_CAP, MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP,
+    MAX_ADJUST_STEPS_HARD_CAP, MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS,
 };
+
+/// Increment scan step count; return `false` when [`MAX_SCAN_STEPS`] is reached (caller should break).
+#[inline]
+fn book_walk_step(scan_steps: &mut u32) -> bool {
+    if *scan_steps >= MAX_SCAN_STEPS {
+        return false;
+    }
+    *scan_steps += 1;
+    true
+}
 
 /// Maker-side basis points charged once at order placement (`floor(effective/2)`).
 #[inline]
@@ -52,6 +62,8 @@ pub struct BookMatchResult {
     pub expired_parks: u32,
     /// Expired orders left on book because [`MAX_EXPIRED_PARKS_PER_SWAP`] was reached.
     pub expired_parks_skipped: u32,
+    /// Book walk stopped because [`MAX_SCAN_STEPS`] was reached before `max_maker_fills` or list end.
+    pub scan_steps_capped: bool,
     /// Sum of taker-side commission sent to treasury (denominated in the ask asset).
     pub commission_total: Uint128,
     /// Offer-token payouts per maker (deduped by owner; aggregated in `execute_swap`).
@@ -87,6 +99,8 @@ pub struct BookSimulateResult {
     pub return_net: Uint128,
     pub offer_consumed: Uint128,
     pub makers_used: u32,
+    /// Same flag as [`BookMatchResult::scan_steps_capped`] for quote/execute parity.
+    pub scan_steps_capped: bool,
     /// Taker commission total in the ask asset (same basis as [`BookMatchResult::commission_total`]).
     pub commission_total: Uint128,
 }
@@ -716,6 +730,8 @@ pub fn match_bids(
     let mut makers_used = 0u32;
     let mut expired_parks = 0u32;
     let mut expired_parks_skipped = 0u32;
+    let mut scan_steps = 0u32;
+    let mut scan_steps_capped = false;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
 
@@ -730,6 +746,10 @@ pub fn match_bids(
     };
 
     while makers_used < cap {
+        if !book_walk_step(&mut scan_steps) {
+            scan_steps_capped = true;
+            break;
+        }
         let oid = match cur {
             Some(id) => id,
             None => break,
@@ -847,6 +867,7 @@ pub fn match_bids(
         makers_used,
         expired_parks,
         expired_parks_skipped,
+        scan_steps_capped,
         commission_total,
         maker_payouts,
         fill_events,
@@ -876,6 +897,8 @@ pub fn match_asks(
     let mut makers_used = 0u32;
     let mut expired_parks = 0u32;
     let mut expired_parks_skipped = 0u32;
+    let mut scan_steps = 0u32;
+    let mut scan_steps_capped = false;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
 
@@ -890,6 +913,10 @@ pub fn match_asks(
     };
 
     while makers_used < cap {
+        if !book_walk_step(&mut scan_steps) {
+            scan_steps_capped = true;
+            break;
+        }
         let oid = match cur {
             Some(id) => id,
             None => break,
@@ -1006,6 +1033,7 @@ pub fn match_asks(
         makers_used,
         expired_parks,
         expired_parks_skipped,
+        scan_steps_capped,
         commission_total,
         maker_payouts,
         fill_events,
@@ -1027,6 +1055,8 @@ pub fn simulate_match_bids(
     let mut token1_out_total = Uint128::zero();
     let mut commission_total = Uint128::zero();
     let mut makers_used: u32 = 0;
+    let mut scan_steps = 0u32;
+    let mut scan_steps_capped = false;
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
             Some(h)
@@ -1037,6 +1067,10 @@ pub fn simulate_match_bids(
         HEAD_BID.may_load(storage)?.flatten()
     };
     while makers_used < cap {
+        if !book_walk_step(&mut scan_steps) {
+            scan_steps_capped = true;
+            break;
+        }
         let oid = match cur {
             Some(id) => id,
             None => break,
@@ -1110,6 +1144,7 @@ pub fn simulate_match_bids(
         return_net: token1_out_total,
         offer_consumed: token0_budget.checked_sub(token0_left)?,
         makers_used,
+        scan_steps_capped,
         commission_total,
     })
 }
@@ -1129,6 +1164,8 @@ pub fn simulate_match_asks(
     let mut token0_out_total = Uint128::zero();
     let mut commission_total = Uint128::zero();
     let mut makers_used: u32 = 0;
+    let mut scan_steps = 0u32;
+    let mut scan_steps_capped = false;
     let mut cur = if let Some(h) = book_start_hint {
         if ORDERS.may_load(storage, h)?.is_some() {
             Some(h)
@@ -1139,6 +1176,10 @@ pub fn simulate_match_asks(
         HEAD_ASK.may_load(storage)?.flatten()
     };
     while makers_used < cap {
+        if !book_walk_step(&mut scan_steps) {
+            scan_steps_capped = true;
+            break;
+        }
         let oid = match cur {
             Some(id) => id,
             None => break,
@@ -1211,6 +1252,7 @@ pub fn simulate_match_asks(
         return_net: token0_out_total,
         offer_consumed: token1_budget.checked_sub(token1_left)?,
         makers_used,
+        scan_steps_capped,
         commission_total,
     })
 }
@@ -1692,8 +1734,10 @@ mod expired_park_cap_tests {
         owner: Addr,
         exp: u64,
         escrow: Uint128,
+        price_offset: u64,
     ) -> u64 {
-        insert_bid(storage, Decimal::one(), escrow, owner, None, 256, Some(exp)).unwrap()
+        let price = Decimal::from_ratio(100u128 + price_offset as u128, 100u128);
+        insert_bid(storage, price, escrow, owner, None, 256, Some(exp)).unwrap()
     }
 
     #[test]
@@ -1702,8 +1746,8 @@ mod expired_park_cap_tests {
         let storage = deps.as_mut().storage;
         let owner = Addr::unchecked("maker");
         let exp = 100u64;
-        for _ in 0..10 {
-            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000));
+        for i in 0..20 {
+            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000), i);
         }
 
         let result = match_bids(
@@ -1722,7 +1766,10 @@ mod expired_park_cap_tests {
         .unwrap();
 
         assert_eq!(result.expired_parks, MAX_EXPIRED_PARKS_PER_SWAP);
-        assert_eq!(result.expired_parks_skipped, 5);
+        assert_eq!(
+            result.expired_parks_skipped,
+            20 - MAX_EXPIRED_PARKS_PER_SWAP
+        );
         assert_eq!(result.makers_used, 0);
         assert_eq!(
             result
@@ -1749,7 +1796,7 @@ mod expired_park_cap_tests {
         let owner = Addr::unchecked("maker");
         let exp = 100u64;
         for _ in 0..3 {
-            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000));
+            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000), 0);
         }
         insert_bid(
             storage,
@@ -1788,7 +1835,7 @@ mod expired_park_cap_tests {
         let storage = deps.as_mut().storage;
         let owner = Addr::unchecked("maker");
         let exp = 100u64;
-        for _ in 0..10 {
+        for _ in 0..20 {
             insert_ask(
                 storage,
                 Decimal::one(),
@@ -1817,6 +1864,89 @@ mod expired_park_cap_tests {
         .unwrap();
 
         assert_eq!(result.expired_parks, MAX_EXPIRED_PARKS_PER_SWAP);
-        assert_eq!(result.expired_parks_skipped, 5);
+        assert_eq!(
+            result.expired_parks_skipped,
+            20 - MAX_EXPIRED_PARKS_PER_SWAP
+        );
+    }
+
+    #[test]
+    fn match_bids_scan_steps_cap_bounds_expired_prefix_walk() {
+        use dex_common::pair::MAX_SCAN_STEPS;
+
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let exp = 100u64;
+        let order_count = (MAX_SCAN_STEPS + 50) as usize;
+        for i in 0..order_count as u64 {
+            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000), i);
+        }
+
+        let result = match_bids(
+            storage,
+            exp,
+            Uint128::new(50_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert!(result.scan_steps_capped);
+        assert_eq!(result.expired_parks, MAX_EXPIRED_PARKS_PER_SWAP);
+        assert_eq!(
+            result.expired_parks + result.expired_parks_skipped,
+            MAX_SCAN_STEPS,
+            "each scan step should park or skip one expired head order"
+        );
+        let on_book = ORDERS
+            .range(storage, None, None, cosmwasm_std::Order::Ascending)
+            .count();
+        assert_eq!(
+            on_book,
+            order_count - MAX_EXPIRED_PARKS_PER_SWAP as usize,
+            "only parked orders leave ORDERS; scan cap leaves skipped backlog"
+        );
+    }
+
+    #[test]
+    fn simulate_match_bids_scan_steps_cap_matches_execute() {
+        use dex_common::pair::MAX_SCAN_STEPS;
+
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let exp = 100u64;
+        for i in 0..(MAX_SCAN_STEPS + 50) {
+            insert_expired_bid(storage, owner.clone(), exp, Uint128::new(1_000), i as u64);
+        }
+
+        let exec = match_bids(
+            storage,
+            exp,
+            Uint128::new(50_000),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+        let sim = simulate_match_bids(storage, exp, Uint128::new(50_000), 8, None, 30).unwrap();
+
+        assert!(exec.scan_steps_capped);
+        assert_eq!(sim.scan_steps_capped, exec.scan_steps_capped);
+        assert_eq!(sim.makers_used, exec.makers_used);
+        assert_eq!(sim.offer_consumed, exec.offer_consumed);
+        assert_eq!(sim.return_net, exec.return_net);
     }
 }

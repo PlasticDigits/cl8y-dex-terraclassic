@@ -88,14 +88,14 @@ fn place_expired_bids(
     exp: u64,
 ) -> Vec<u64> {
     let mut ids = Vec::with_capacity(count);
-    for _ in 0..count {
-        let msg = batch_place_msg(
-            LimitOrderSide::Bid,
-            Decimal::one(),
-            escrow_each,
-            32,
-            Some(exp),
-        );
+    for i in 0..count {
+        // Large stacks need incrementing prices so each insert stays within max_adjust_steps.
+        let price = if count > 32 {
+            Decimal::from_ratio(100u128 + i as u128, 100u128)
+        } else {
+            Decimal::one()
+        };
+        let msg = batch_place_msg(LimitOrderSide::Bid, price, escrow_each, 32, Some(exp));
         let res = app
             .execute_contract(
                 env.user.clone(),
@@ -1450,7 +1450,7 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
 // --- GitLab #250: cap expired limit parks during hybrid match walks ---
 
 #[test]
-fn hybrid_walk_parks_at_most_five_expired_bids_per_swap() {
+fn hybrid_walk_parks_at_most_max_expired_bids_per_swap() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     let taker = cosmwasm_std::Addr::unchecked("taker_exp_cap");
@@ -1471,7 +1471,8 @@ fn hybrid_walk_parks_at_most_five_expired_bids_per_swap() {
 
     let exp = app.block_info().time.seconds() + 120;
     let escrow = Uint128::new(5_000);
-    let order_ids = place_expired_bids(&mut app, &env, 10, escrow, exp);
+    let expired_count = (MAX_EXPIRED_PARKS_PER_SWAP + 5) as usize;
+    let order_ids = place_expired_bids(&mut app, &env, expired_count, escrow, exp);
 
     app.update_block(|b| {
         b.time = b.time.plus_seconds(10_000);
@@ -1579,7 +1580,7 @@ fn hybrid_walk_three_expired_bids_all_parked_then_fills_live_bid() {
 }
 
 #[test]
-fn hybrid_walk_ten_expired_asks_parks_five_skips_five() {
+fn hybrid_walk_twenty_expired_asks_parks_cap_skips_remainder() {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     let taker = cosmwasm_std::Addr::unchecked("taker_exp_ask");
@@ -1599,7 +1600,8 @@ fn hybrid_walk_ten_expired_asks_parks_five_skips_five() {
     );
 
     let exp = app.block_info().time.seconds() + 120;
-    place_expired_asks(&mut app, &env, 10, Uint128::new(5_000), exp);
+    let expired_count = (MAX_EXPIRED_PARKS_PER_SWAP + 5) as usize;
+    place_expired_asks(&mut app, &env, expired_count, Uint128::new(5_000), exp);
 
     app.update_block(|b| {
         b.time = b.time.plus_seconds(10_000);
@@ -1638,7 +1640,8 @@ fn skipped_expired_bid_cancelable_by_maker() {
     );
 
     let exp = app.block_info().time.seconds() + 120;
-    let order_ids = place_expired_bids(&mut app, &env, 10, Uint128::new(5_000), exp);
+    let expired_count = (MAX_EXPIRED_PARKS_PER_SWAP + 5) as usize;
+    let order_ids = place_expired_bids(&mut app, &env, expired_count, Uint128::new(5_000), exp);
 
     app.update_block(|b| {
         b.time = b.time.plus_seconds(10_000);
@@ -1728,7 +1731,51 @@ fn hybrid_simulation_matches_execute_with_expired_park_cap() {
     assert_eq!(
         taker_b_after.checked_sub(taker_b_before).unwrap(),
         sim.return_amount,
-        "sim skips all expired; execute parks ≤5 then skips — fill behind stack matches"
+        "sim skips all expired; execute parks ≤ cap then skips — fill behind stack matches"
+    );
+}
+
+/// GitLab #254 — scan step budget bounds expired-prefix reads; pool spillover completes swap.
+#[test]
+fn hybrid_walk_scan_steps_cap_bounds_expired_prefix_and_spills_to_pool() {
+    use dex_common::pair::MAX_SCAN_STEPS;
+
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_scan_cap");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    let expired_count = (MAX_SCAN_STEPS + 50) as usize;
+    place_expired_bids(&mut app, &env, expired_count, Uint128::new(1_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let book_input = Uint128::new(50_000);
+    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, book_input, 8);
+
+    assert_eq!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "scan_steps_capped"),
+        Some("true".into())
+    );
+    assert!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "pool_return_amount").is_some(),
+        "unfilled book budget should spill to pool"
     );
 }
 
