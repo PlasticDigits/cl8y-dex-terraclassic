@@ -25,7 +25,7 @@ Human doc: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (indexi
 | Rollup refresh | [`indexer/src/db/queries/volume.rs`](../indexer/src/db/queries/volume.rs) |
 | Pair list query | [`indexer/src/db/queries/pairs.rs`](../indexer/src/db/queries/pairs.rs) |
 | Block time | [`indexer/src/indexer/block_indexer.rs`](../indexer/src/indexer/block_indexer.rs) |
-| Tests | [`indexer/tests/indexer_pair_volume_pagination.rs`](../indexer/tests/indexer_pair_volume_pagination.rs), [`indexer_ingestion_hardening.rs`](../indexer/tests/indexer_ingestion_hardening.rs) |
+| Tests | [`indexer/tests/indexer_pair_volume_pagination.rs`](../indexer/tests/indexer_pair_volume_pagination.rs) (rollup match, EXPLAIN no `swap_events`), [`indexer_ingestion_hardening.rs`](../indexer/tests/indexer_ingestion_hardening.rs) |
 
 ## Tests
 
