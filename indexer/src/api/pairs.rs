@@ -80,14 +80,15 @@ pub struct PairListResponse {
 }
 
 const PAIR_LIST_LIMIT_DEFAULT: i64 = 50;
-const PAIR_LIST_LIMIT_MAX: i64 = 100;
+pub const PAIR_LIST_LIMIT_MAX: i64 = 100;
+pub const PAIR_LIST_OFFSET_MAX: i64 = 10_000;
 const PAIR_LIST_Q_MAX_LEN: usize = 128;
 
 #[derive(Deserialize, IntoParams, ToSchema)]
 pub struct ListPairsQuery {
     /// Page size (default 50, max 100)
     pub limit: Option<i64>,
-    /// Offset for pagination
+    /// Offset for pagination (max [`PAIR_LIST_OFFSET_MAX`])
     pub offset: Option<i64>,
     /// Search pair address, token symbols, contract addresses, or denoms (substring, case-insensitive)
     pub q: Option<String>,
@@ -155,6 +156,15 @@ pub async fn list_pairs(
         .unwrap_or(PAIR_LIST_LIMIT_DEFAULT)
         .clamp(1, PAIR_LIST_LIMIT_MAX);
     let offset = q.offset.unwrap_or(0).max(0);
+    if offset > PAIR_LIST_OFFSET_MAX {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "offset exceeds maximum of {} (deep pagination disabled)",
+                PAIR_LIST_OFFSET_MAX
+            ),
+        ));
+    }
 
     let q_trimmed = q.q.as_ref().map(|s| {
         let t = s.trim();

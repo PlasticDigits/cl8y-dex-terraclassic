@@ -281,3 +281,95 @@ async fn multi_page_block_txs_ingested_count_matches_lcd_total() {
     assert_eq!(result.txs.len(), 155);
     assert_eq!(result.page_count, 2);
 }
+
+#[tokio::test]
+async fn missing_tx_timestamp_uses_block_header_time() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+
+    let server = MockServer::start().await;
+    let height = 900i64;
+    let hash = "HASH900";
+
+    mount_block_at_height(&server, height, hash).await;
+
+    let mut tx = tx_json(height, 0);
+    tx.as_object_mut().unwrap().remove("timestamp");
+
+    mount_block_txs_json(
+        &server,
+        height,
+        json!({ "tx_responses": [tx], "pagination": { "total": "1" } }),
+    )
+    .await;
+
+    let lcd = lcd_client(&server);
+    let config = test_config();
+    let price = oracle::new_shared_price();
+
+    block_indexer::index_block(&pool, &lcd, &config, height, &price)
+        .await
+        .expect("index block with header fallback");
+
+    assert_eq!(
+        state::get_last_indexed_height(&pool).await.unwrap(),
+        height
+    );
+}
+
+#[tokio::test]
+async fn invalid_tx_and_header_timestamp_fails_block() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+
+    let server = MockServer::start().await;
+    let height = 901i64;
+    let hash = "HASH901";
+
+    Mock::given(method("GET"))
+        .and(path(format!(
+            "/cosmos/base/tendermint/v1beta1/blocks/{}",
+            height
+        )))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "block_id": { "hash": hash },
+            "block": {
+                "header": {
+                    "height": height.to_string(),
+                    "time": "not-a-valid-time"
+                }
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let mut tx = tx_json(height, 0);
+    tx.as_object_mut().unwrap().remove("timestamp");
+
+    mount_block_txs_json(
+        &server,
+        height,
+        json!({ "tx_responses": [tx], "pagination": { "total": "1" } }),
+    )
+    .await;
+
+    let lcd = lcd_client(&server);
+    let config = test_config();
+    let price = oracle::new_shared_price();
+
+    let cursor_before = state::get_last_indexed_height(&pool).await.unwrap();
+
+    let err = block_indexer::index_block(&pool, &lcd, &config, height, &price)
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("no usable chain timestamp"),
+        "got: {err}"
+    );
+
+    assert_eq!(
+        state::get_last_indexed_height(&pool).await.unwrap(),
+        cursor_before,
+        "cursor must not advance when chain time is unavailable"
+    );
+}

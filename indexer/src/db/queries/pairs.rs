@@ -109,7 +109,7 @@ fn push_pair_list_order_by(
             qb.push(", p.id ASC");
         }
         PairListSort::Volume24h => {
-            qb.push("COALESCE(se.volume_quote_24h, 0)");
+            qb.push("COALESCE(pv.volume_quote, 0)");
             qb.push(desc);
             qb.push(", p.id ASC");
         }
@@ -138,16 +138,11 @@ pub async fn list_pairs_filtered(
 ) -> Result<Vec<PairListRow>, sqlx::Error> {
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
         "SELECT p.id, p.contract_address, p.asset_0_id, p.asset_1_id, p.lp_token, p.fee_bps, p.hooks,
-                p.created_at_block, p.created_at, p.updated_at, se.volume_quote_24h
+                p.created_at_block, p.created_at, p.updated_at, pv.volume_quote AS volume_quote_24h
          FROM pairs p
          INNER JOIN assets a0 ON a0.id = p.asset_0_id
          INNER JOIN assets a1 ON a1.id = p.asset_1_id
-         LEFT JOIN (
-           SELECT pair_id, SUM(return_amount) AS volume_quote_24h
-           FROM swap_events
-           WHERE block_timestamp >= NOW() - INTERVAL '24 hours'
-           GROUP BY pair_id
-         ) se ON se.pair_id = p.id
+         LEFT JOIN pair_volume_24h pv ON pv.pair_id = p.id
          WHERE 1=1",
     );
     push_pair_list_filters(&mut qb, params.q, params.asset);

@@ -3,7 +3,7 @@ use std::time::Duration;
 use sqlx::PgPool;
 
 use crate::config::Config;
-use crate::db::queries::state;
+use crate::db::queries::{state, volume};
 use crate::lcd::LcdClient;
 
 use super::{block_indexer, oracle, pair_discovery, trader_tracker, volume_aggregator};
@@ -20,6 +20,10 @@ pub async fn run_indexer(
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
         tracing::error!("Initial pair sync failed: {}", e);
+    }
+
+    if let Err(e) = volume::refresh_pair_volumes(&pool).await {
+        tracing::warn!("Initial pair 24h volume refresh failed: {}", e);
     }
 
     let vol_pool = pool.clone();

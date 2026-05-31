@@ -122,7 +122,7 @@ pub async fn index_block(
     let tx_count = txs.len();
 
     if !txs.is_empty() {
-        let (block_time, _time_fallback) = parse_block_time(txs[0].timestamp.as_deref());
+        let block_time = resolve_block_time(lcd, height, txs[0].timestamp.as_deref()).await?;
 
         parser::process_block_txs(pool, lcd, config, &txs, height, block_time, ustc_price)
             .await
@@ -217,26 +217,58 @@ pub async fn index_block_with_retries(
     }
 }
 
-/// Second value is `true` when wall-clock UTC was substituted (candle skew risk).
-fn parse_block_time(ts: Option<&str>) -> (DateTime<Utc>, bool) {
-    match ts {
-        Some(s) => match DateTime::parse_from_rfc3339(s) {
-            Ok(dt) => (dt.with_timezone(&Utc), false),
-            Err(_) => {
-                tracing::warn!(
-                    "Invalid block timestamp {:?}; using current UTC (candles may be misaligned)",
-                    s
-                );
-                (Utc::now(), true)
-            }
-        },
-        None => {
-            tracing::warn!(
-                "Missing block timestamp; using current UTC (candles may be misaligned)"
+/// Resolve chain time for a block: tx timestamp first, then LCD block header (GitLab #243 / M8).
+async fn resolve_block_time(
+    lcd: &LcdClient,
+    height: i64,
+    tx_timestamp: Option<&str>,
+) -> Result<DateTime<Utc>, BlockIndexError> {
+    if let Some(ts) = tx_timestamp {
+        if let Ok(dt) = DateTime::parse_from_rfc3339(ts) {
+            return Ok(dt.with_timezone(&Utc));
+        }
+        tracing::warn!(
+            height,
+            tx_timestamp = ts,
+            "Invalid tx timestamp; falling back to block header time"
+        );
+    } else {
+        tracing::warn!(
+            height,
+            "Missing tx timestamp; falling back to block header time"
+        );
+    }
+
+    let block = lcd.get_block_at_height(height).await.map_err(|e| BlockIndexError::Lcd {
+        height,
+        source: e,
+    })?;
+
+    match DateTime::parse_from_rfc3339(&block.block.header.time) {
+        Ok(dt) => Ok(dt.with_timezone(&Utc)),
+        Err(e) => {
+            tracing::error!(
+                height,
+                header_time = %block.block.header.time,
+                error = %e,
+                "Block header time missing or invalid; refusing wall-clock fallback"
             );
-            (Utc::now(), true)
+            Err(BlockIndexError::ProcessingFailed {
+                height,
+                source: format!(
+                    "block {} has no usable chain timestamp (tx and header both invalid)",
+                    height
+                )
+                .into(),
+            })
         }
     }
+}
+
+fn parse_rfc3339_utc(s: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(s)
+        .ok()
+        .map(|dt| dt.with_timezone(&Utc))
 }
 
 #[cfg(test)]
@@ -244,14 +276,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_block_time_valid_rfc3339() {
-        let (_, fallback) = parse_block_time(Some("2024-06-01T12:00:00Z"));
-        assert!(!fallback);
+    fn parse_rfc3339_valid() {
+        let dt = parse_rfc3339_utc("2024-06-01T12:00:00Z").expect("valid");
+        assert_eq!(dt.to_rfc3339(), "2024-06-01T12:00:00+00:00");
     }
 
     #[test]
-    fn parse_block_time_invalid_uses_fallback() {
-        let (_, fallback) = parse_block_time(Some("not-a-date"));
-        assert!(fallback);
+    fn parse_rfc3339_invalid_returns_none() {
+        assert!(parse_rfc3339_utc("not-a-date").is_none());
     }
 }
