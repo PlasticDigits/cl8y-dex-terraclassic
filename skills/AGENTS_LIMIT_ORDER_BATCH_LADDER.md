@@ -30,6 +30,7 @@ Use when changing **multi-rung limit placement** on-chain, in the indexer, or in
 6. **Gas preflight** for ladder uses `estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount)` — keep aligned with `getGasLimitForTx` for `place_limit_order_batch` / `place_limit_order_ladder` ([#132](./AGENTS_TERRACLASSIC_GAS.md)).
 7. **Retail single** order uses batch with one item ([`placeLimitOrderWithAllowance`](../frontend-dapp/src/services/terraclassic/pair.ts)).
 8. **Escrow balance hook must resolve** — [`useLimitLadderPlaceGates`](../frontend-dapp/src/hooks/useLimitLadderPlaceGates.ts) imports [`useLimitOrderEscrowBalance`](../frontend-dapp/src/hooks/useLimitOrderEscrowBalance.ts) (not a missing `@/hooks/useTokenBalance` module). [`useTokenBalance`](../frontend-dapp/src/hooks/useTokenBalance.ts) is only a re-export for callers that want a generic name; do not duplicate `useQuery` logic ([#231](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/231)).
+9. **Batch storage collapse ([#247](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/247))** — `execute_place_limit_orders_batch` must use one `ORDER_NEXT_ID` write per batch and one `PENDING_ESCROW_*` write per token side touched; order id sequence must match sequential singles (`batch_placement_order_ids_match_sequential_singles`). Helpers: `reserve_order_id_block`, `insert_*_with_id(..., update_escrow: false)` in [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs).
 
 ## Tests to run after changes
 

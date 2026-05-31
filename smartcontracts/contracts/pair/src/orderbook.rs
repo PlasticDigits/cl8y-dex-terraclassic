@@ -124,15 +124,26 @@ pub fn ask_before(a_price: Decimal, a_id: u64, b_price: Decimal, b_id: u64) -> b
 }
 
 fn next_order_id(storage: &mut dyn Storage) -> Result<u64, ContractError> {
-    let id = ORDER_NEXT_ID.may_load(storage)?.unwrap_or(1u64);
-    ORDER_NEXT_ID.save(
-        storage,
-        &(id.checked_add(1)
-            .ok_or_else(|| ContractError::InvariantViolation {
-                reason: "order id overflow".into(),
-            })?),
-    )?;
-    Ok(id)
+    reserve_order_id_block(storage, 1)
+}
+
+/// Reserve `count` consecutive order ids with a single `ORDER_NEXT_ID` write (GitLab #247).
+/// Returns the first id in the block; callers consume ids sequentially (including on
+/// `LimitInsertStepsExceeded` — same gap semantics as per-rung `next_order_id`).
+pub fn reserve_order_id_block(storage: &mut dyn Storage, count: u32) -> Result<u64, ContractError> {
+    if count == 0 {
+        return Err(ContractError::InvariantViolation {
+            reason: "cannot reserve zero order ids".into(),
+        });
+    }
+    let start = ORDER_NEXT_ID.may_load(storage)?.unwrap_or(1u64);
+    let end = start
+        .checked_add(count as u64)
+        .ok_or_else(|| ContractError::InvariantViolation {
+            reason: "order id overflow".into(),
+        })?;
+    ORDER_NEXT_ID.save(storage, &end)?;
+    Ok(start)
 }
 
 /// Insert a bid (descending price, then ascending order_id). Returns new order id.
@@ -146,8 +157,34 @@ pub fn insert_bid(
     max_adjust_steps: u32,
     expires_at: Option<u64>,
 ) -> Result<u64, ContractError> {
-    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let id = next_order_id(storage)?;
+    insert_bid_with_id(
+        storage,
+        id,
+        price,
+        remaining_token1,
+        owner,
+        hint_after,
+        max_adjust_steps,
+        expires_at,
+        true,
+    )
+}
+
+/// Batch path: caller supplies a pre-reserved id; optionally skip per-insert escrow write.
+#[allow(clippy::too_many_arguments)]
+pub fn insert_bid_with_id(
+    storage: &mut dyn Storage,
+    id: u64,
+    price: Decimal,
+    remaining_token1: Uint128,
+    owner: Addr,
+    hint_after: Option<u64>,
+    max_adjust_steps: u32,
+    expires_at: Option<u64>,
+    update_escrow: bool,
+) -> Result<u64, ContractError> {
+    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let mut steps: u32 = 0;
 
     let head = HEAD_BID.may_load(storage)?.flatten();
@@ -190,13 +227,15 @@ pub fn insert_bid(
             .map_err(ContractError::Std)?;
     }
 
-    let mut esc = PENDING_ESCROW_TOKEN1
-        .may_load(storage)?
-        .unwrap_or(Uint128::zero());
-    esc = esc
-        .checked_add(remaining_token1)
-        .map_err(ContractError::Overflow)?;
-    PENDING_ESCROW_TOKEN1.save(storage, &esc)?;
+    if update_escrow {
+        let mut esc = PENDING_ESCROW_TOKEN1
+            .may_load(storage)?
+            .unwrap_or(Uint128::zero());
+        esc = esc
+            .checked_add(remaining_token1)
+            .map_err(ContractError::Overflow)?;
+        PENDING_ESCROW_TOKEN1.save(storage, &esc)?;
+    }
 
     Ok(id)
 }
@@ -212,8 +251,34 @@ pub fn insert_ask(
     max_adjust_steps: u32,
     expires_at: Option<u64>,
 ) -> Result<u64, ContractError> {
-    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let id = next_order_id(storage)?;
+    insert_ask_with_id(
+        storage,
+        id,
+        price,
+        remaining_token0,
+        owner,
+        hint_after,
+        max_adjust_steps,
+        expires_at,
+        true,
+    )
+}
+
+/// Batch path: caller supplies a pre-reserved id; optionally skip per-insert escrow write.
+#[allow(clippy::too_many_arguments)]
+pub fn insert_ask_with_id(
+    storage: &mut dyn Storage,
+    id: u64,
+    price: Decimal,
+    remaining_token0: Uint128,
+    owner: Addr,
+    hint_after: Option<u64>,
+    max_adjust_steps: u32,
+    expires_at: Option<u64>,
+    update_escrow: bool,
+) -> Result<u64, ContractError> {
+    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let mut steps: u32 = 0;
 
     let head = HEAD_ASK.may_load(storage)?.flatten();
@@ -255,13 +320,15 @@ pub fn insert_ask(
             .map_err(ContractError::Std)?;
     }
 
-    let mut esc = PENDING_ESCROW_TOKEN0
-        .may_load(storage)?
-        .unwrap_or(Uint128::zero());
-    esc = esc
-        .checked_add(remaining_token0)
-        .map_err(ContractError::Overflow)?;
-    PENDING_ESCROW_TOKEN0.save(storage, &esc)?;
+    if update_escrow {
+        let mut esc = PENDING_ESCROW_TOKEN0
+            .may_load(storage)?
+            .unwrap_or(Uint128::zero());
+        esc = esc
+            .checked_add(remaining_token0)
+            .map_err(ContractError::Overflow)?;
+        PENDING_ESCROW_TOKEN0.save(storage, &esc)?;
+    }
 
     Ok(id)
 }

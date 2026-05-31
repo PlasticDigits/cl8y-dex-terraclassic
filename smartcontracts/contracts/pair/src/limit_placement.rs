@@ -7,7 +7,10 @@ use cw20::Cw20ExecuteMsg;
 
 use crate::error::ContractError;
 use crate::orderbook;
-use crate::state::{LimitOrderConfig, FEE_CONFIG, LIMIT_ORDER_CONFIG, PAIR_INFO};
+use crate::state::{
+    LimitOrderConfig, FEE_CONFIG, LIMIT_ORDER_CONFIG, PAIR_INFO, PENDING_ESCROW_TOKEN0,
+    PENDING_ESCROW_TOKEN1,
+};
 use dex_common::limit_placement::{
     expand_limit_ladder, LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
@@ -123,6 +126,10 @@ pub fn execute_place_limit_orders_batch(
     let mut placed: Vec<(u64, Uint128, Decimal)> = Vec::with_capacity(orders.len());
     let mut skipped_count: u32 = 0;
     let mut placed_amount_sum = Uint128::zero();
+    let mut placed_escrow_remaining = Uint128::zero();
+
+    let rung_count = orders.len() as u32;
+    let mut next_id = orderbook::reserve_order_id_block(deps.storage, rung_count)?;
 
     for item in &orders {
         validate_placement_item(item, now)?;
@@ -135,24 +142,35 @@ pub fn execute_place_limit_orders_batch(
         }
         let remaining_for_book = item.amount.checked_sub(maker_fee)?;
 
+        let id = next_id;
+        next_id = next_id
+            .checked_add(1)
+            .ok_or_else(|| ContractError::InvariantViolation {
+                reason: "order id overflow".into(),
+            })?;
+
         let insert_result = match side {
-            LimitOrderSide::Bid => orderbook::insert_bid(
+            LimitOrderSide::Bid => orderbook::insert_bid_with_id(
                 deps.storage,
+                id,
                 item.price,
                 remaining_for_book,
                 owner.clone(),
                 None,
                 item.max_adjust_steps,
                 item.expires_at,
+                false,
             ),
-            LimitOrderSide::Ask => orderbook::insert_ask(
+            LimitOrderSide::Ask => orderbook::insert_ask_with_id(
                 deps.storage,
+                id,
                 item.price,
                 remaining_for_book,
                 owner.clone(),
                 None,
                 item.max_adjust_steps,
                 item.expires_at,
+                false,
             ),
         };
 
@@ -160,12 +178,37 @@ pub fn execute_place_limit_orders_batch(
             Ok(id) => {
                 total_maker_fee = total_maker_fee.checked_add(maker_fee)?;
                 placed_amount_sum = placed_amount_sum.checked_add(item.amount)?;
+                placed_escrow_remaining =
+                    placed_escrow_remaining.checked_add(remaining_for_book)?;
                 placed.push((id, maker_fee, item.price));
             }
             Err(ContractError::LimitInsertStepsExceeded { .. }) => {
                 skipped_count += 1;
             }
             Err(e) => return Err(e),
+        }
+    }
+
+    if !placed_escrow_remaining.is_zero() {
+        match side {
+            LimitOrderSide::Bid => {
+                let mut esc = PENDING_ESCROW_TOKEN1
+                    .may_load(deps.storage)?
+                    .unwrap_or(Uint128::zero());
+                esc = esc
+                    .checked_add(placed_escrow_remaining)
+                    .map_err(ContractError::Overflow)?;
+                PENDING_ESCROW_TOKEN1.save(deps.storage, &esc)?;
+            }
+            LimitOrderSide::Ask => {
+                let mut esc = PENDING_ESCROW_TOKEN0
+                    .may_load(deps.storage)?
+                    .unwrap_or(Uint128::zero());
+                esc = esc
+                    .checked_add(placed_escrow_remaining)
+                    .map_err(ContractError::Overflow)?;
+                PENDING_ESCROW_TOKEN0.save(deps.storage, &esc)?;
+            }
         }
     }
 

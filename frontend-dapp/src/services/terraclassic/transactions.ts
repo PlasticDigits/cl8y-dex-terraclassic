@@ -36,6 +36,11 @@ export function estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount: nu
   return estimateLimitOrderPlaceSequenceUlunaFeesTotal(rungCount)
 }
 
+/** Single `update_limit_order_price` execute — no CW20 leg (GitLab #247). */
+export function estimateUpdateLimitOrderPriceUlunaFeesTotal(): bigint {
+  return estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ update_limit_order_price: {} }))
+}
+
 /**
  * CW20 `increase_allowance` then CW20 `send` → pair `swap` (GitLab #152 trade ticket market path).
  * Must stay aligned with {@link getGasLimitForTx} for `send` → `swap` with optional `hybrid`.

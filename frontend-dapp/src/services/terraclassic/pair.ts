@@ -249,6 +249,25 @@ export async function cancelLimitOrder(walletAddress: string, pairAddress: strin
   })
 }
 
+/** Owner-only in-place price relink — no maker fee, no CW20 movement (GitLab #247). */
+export async function updateLimitOrderPrice(
+  walletAddress: string,
+  pairAddress: string,
+  orderId: number,
+  price: string,
+  maxAdjustSteps: number,
+  hintAfterOrderId?: number | null
+): Promise<string> {
+  return executeTerraContract(walletAddress, pairAddress, {
+    update_limit_order_price: {
+      order_id: orderId,
+      price,
+      hint_after_order_id: hintAfterOrderId ?? null,
+      max_adjust_steps: maxAdjustSteps,
+    },
+  })
+}
+
 /** Batch cancel resting limits (GitLab #246). All ids must belong to `walletAddress`; whole tx reverts on any failure. */
 export async function cancelLimitOrders(
   walletAddress: string,

@@ -47,6 +47,7 @@ function BookRow({
   cancelMutation,
   onPrefillLimitTicket,
   cancellations,
+  hintAfterOrderId,
 }: {
   order: IndexerShallowLimitOrder
   side: 'bid' | 'ask'
@@ -60,6 +61,7 @@ function BookRow({
   cancelMutation?: UseMutationResult<string, Error, number, unknown>
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
   cancellations: { order_id: number }[]
+  hintAfterOrderId?: number | null
 }) {
   let remainingRaw = 0n
   let cumulativeRaw = 0n
@@ -108,6 +110,9 @@ function BookRow({
       side: rowSide,
       price: order.price,
       amountHuman,
+      orderId: order.order_id,
+      expiresAt: order.expires_at ?? null,
+      hintAfterOrderId: hintAfterOrderId ?? null,
     })
   }
 
@@ -156,8 +161,8 @@ function BookRow({
                 className="rounded-md border border-white/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-white/10 disabled:opacity-40"
                 style={{ color: 'var(--ink)' }}
                 disabled={isPairPaused || pendingThis}
-                title="Load this size and price into the limit ticket (cancel the old order separately, or replace after cancel)."
-                aria-label={`Edit order ${order.order_id} — load price and size into limit ticket`}
+                title="Load this order into the limit ticket — change price only to update in one tx, or cancel first to replace size/side/expiry."
+                aria-label={`Edit order ${order.order_id} — load into limit ticket for price update or replace`}
                 onClick={onEditClick}
               >
                 Edit
@@ -300,7 +305,7 @@ function BookSideColumn({
                     </td>
                   </tr>
                 )}
-                {rows.map(({ order, cumulative }) => (
+                {rows.map(({ order, cumulative }, index) => (
                   <BookRow
                     key={`${side}-${order.order_id}`}
                     order={order}
@@ -315,6 +320,7 @@ function BookSideColumn({
                     cancelMutation={cancelMutation}
                     onPrefillLimitTicket={onPrefillLimitTicket}
                     cancellations={cancellations}
+                    hintAfterOrderId={index > 0 ? orders[index - 1]?.order_id : null}
                   />
                 ))}
               </tbody>
@@ -426,7 +432,8 @@ export function OrderBookPanel({
               title="Shows open resting limit orders only. Swaps against AMM pool liquidity appear in Recent trades, not in this book."
             >
               Resting limit orders only — AMM pool depth is not shown here. Rows you own show Edit / × (cancel); Edit
-              loads the limit ticket — cancel the resting order before placing a replacement.
+              loads the limit ticket — change price only to update in one tx (#247), or cancel first to replace size,
+              side, or expiry.
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">

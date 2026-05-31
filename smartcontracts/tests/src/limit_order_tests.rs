@@ -3078,6 +3078,85 @@ fn place_limit_order_ladder_five_rungs() {
     );
 }
 
+/// GitLab #247: batch reserves ids in one block; sequence must match sequential singles.
+#[test]
+fn batch_placement_order_ids_match_sequential_singles() {
+    fn three_rung_ids(app: &mut App, env: &TestEnv, batch: bool) -> Vec<u64> {
+        provide_liquidity(
+            app,
+            env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let prices = [
+            Decimal::from_ratio(95u128, 100u128),
+            Decimal::from_ratio(96u128, 100u128),
+            Decimal::from_ratio(97u128, 100u128),
+        ];
+        if batch {
+            let orders: Vec<LimitOrderPlacementItem> = prices
+                .iter()
+                .map(|p| LimitOrderPlacementItem {
+                    price: *p,
+                    amount: Uint128::new(10_000),
+                    max_adjust_steps: 32,
+                    expires_at: None,
+                })
+                .collect();
+            let total = Uint128::new(30_000);
+            let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+                side: LimitOrderSide::Bid,
+                orders,
+            })
+            .unwrap();
+            let res = app
+                .execute_contract(
+                    env.user.clone(),
+                    env.token_b.clone(),
+                    &cw20::Cw20ExecuteMsg::Send {
+                        contract: env.pair.to_string(),
+                        amount: total,
+                        msg,
+                    },
+                    &[],
+                )
+                .unwrap();
+            res.events
+                .iter()
+                .flat_map(|e| e.attributes.iter())
+                .filter(|a| a.key == "limit_order_placed")
+                .map(|a| a.value.parse().unwrap())
+                .collect()
+        } else {
+            prices
+                .iter()
+                .map(|p| {
+                    place_bid(
+                        app,
+                        &env.pair,
+                        &env.user,
+                        &env.token_b,
+                        Uint128::new(10_000),
+                        *p,
+                    )
+                })
+                .collect()
+        }
+    }
+
+    let mut batch_app = App::default();
+    let batch_env = setup_full_env(&mut batch_app);
+    let batch_ids = three_rung_ids(&mut batch_app, &batch_env, true);
+
+    let mut seq_app = App::default();
+    let seq_env = setup_full_env(&mut seq_app);
+    let seq_ids = three_rung_ids(&mut seq_app, &seq_env, false);
+
+    assert_eq!(batch_ids, seq_ids);
+    assert_eq!(batch_ids.len(), 3);
+}
+
 #[test]
 fn limit_batch_partial_success_skips_book_walk_failures() {
     let mut app = App::default();

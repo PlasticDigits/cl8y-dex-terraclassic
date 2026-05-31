@@ -3,11 +3,15 @@ import type { ReactNode } from 'react'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePriceMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
-import { estimateLimitOrderPlaceSequenceUlunaFeesTotal } from '@/services/terraclassic/transactions'
+import {
+  estimateLimitOrderPlaceSequenceUlunaFeesTotal,
+  estimateUpdateLimitOrderPriceUlunaFeesTotal,
+} from '@/services/terraclassic/transactions'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
@@ -39,7 +43,12 @@ import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
-import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
+import type { LimitBookEditContext, LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
+import {
+  buildLimitBookEditContext,
+  isPriceOnlyLimitEdit,
+  LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE,
+} from '@/utils/limitOrderPriceEdit'
 
 function TicketSection({
   eyebrow,
@@ -169,6 +178,8 @@ function TradeOrderTicketContent({
   } = useLimitOrderForm()
   const [cancelOrderId, setCancelOrderId] = useState('')
   const [lastIndexedOrderId, setLastIndexedOrderId] = useState<number | null>(null)
+  const [editContext, setEditContext] = useState<LimitBookEditContext | null>(null)
+  const [editHintAfterOrderId, setEditHintAfterOrderId] = useState<number | null>(null)
 
   const selectedPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
 
@@ -216,6 +227,7 @@ function TradeOrderTicketContent({
     setLimitEscrowAmountFromMaxReapply,
   })
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
+  const updatePriceMinUlunaFees = useMemo(() => estimateUpdateLimitOrderPriceUlunaFeesTotal(), [])
 
   const {
     effectiveFeeBps,
@@ -301,7 +313,51 @@ function TradeOrderTicketContent({
     placeNativeGasGate.canPlaceLimit &&
     placePriceGate.canPlaceLimit &&
     !crossingBlocker &&
-    !expiryPastBlocker
+    !expiryPastBlocker &&
+    !editContext
+
+  const priceOnlyEdit = useMemo(
+    () =>
+      isPriceOnlyLimitEdit(editContext, {
+        side,
+        price,
+        amountHuman,
+        expiresAt,
+      }),
+    [editContext, side, price, amountHuman, expiresAt]
+  )
+
+  const editNonPriceChanged = useMemo(() => {
+    if (!editContext) return false
+    if (editContext.side !== side) return true
+    if (editContext.amountHuman !== amountHuman.trim()) return true
+    if ((expiresAt ?? null) !== editContext.expiresAt) return true
+    return false
+  }, [editContext, side, amountHuman, expiresAt])
+
+  const updatePriceNativeGasGate = useMemo(
+    () =>
+      evaluateLimitOrderNativeGasPlaceGate(
+        '',
+        escrowDecimals,
+        {
+          data: nativeUlunaQuery.data,
+          isLoading: nativeUlunaQuery.isLoading,
+          isError: nativeUlunaQuery.isError,
+        },
+        updatePriceMinUlunaFees
+      ),
+    [
+      escrowDecimals,
+      nativeUlunaQuery.data,
+      nativeUlunaQuery.isLoading,
+      nativeUlunaQuery.isError,
+      updatePriceMinUlunaFees,
+    ]
+  )
+
+  const updatePriceCombinedOk =
+    priceOnlyEdit && placePriceGate.canPlaceLimit && !crossingBlocker && updatePriceNativeGasGate.canPlaceLimit
 
   const placeLimitInlineGate = useMemo(() => {
     if (expiryPastBlocker) {
@@ -326,6 +382,14 @@ function TradeOrderTicketContent({
     Number.isFinite(parsedCancelOrderId) &&
     parsedCancelOrderId >= 1 &&
     orderIdHasIndexedCancellation(cancellationsQuery.data ?? [], parsedCancelOrderId)
+
+  const cancelMutation = cancelLimitOrderMutation
+  const updatePriceMutation = useLimitOrderUpdatePriceMutation(pairAddr, address ?? undefined)
+
+  const clearEditContext = useCallback(() => {
+    setEditContext(null)
+    setEditHintAfterOrderId(null)
+  }, [])
 
   const placeMutation = useMutation({
     mutationFn: async () => {
@@ -400,7 +464,32 @@ function TradeOrderTicketContent({
     onError: () => sounds.playError(),
   })
 
-  const cancelMutation = cancelLimitOrderMutation
+  const submitUpdateLimitPrice = () => {
+    if (!isWalletConnected) {
+      openWalletModal()
+      return
+    }
+    if (!editContext) return
+    const cross = describeLimitCrossingBlocker(side, price, bestBid, bestAsk)
+    if (cross) {
+      updatePriceMutation.reset()
+      return
+    }
+    updatePriceMutation.mutate(
+      {
+        orderId: editContext.orderId,
+        price,
+        maxAdjustSteps: maxSteps,
+        hintAfterOrderId: editHintAfterOrderId,
+      },
+      {
+        onSuccess: () => {
+          clearEditContext()
+          placeMutation.reset()
+        },
+      }
+    )
+  }
 
   const submitCancelFromForm = () => {
     if (!isWalletConnected) {
@@ -445,6 +534,8 @@ function TradeOrderTicketContent({
   const onPlaceAnotherLimit = () => {
     sounds.playButtonPress()
     placeMutation.reset()
+    updatePriceMutation.reset()
+    clearEditContext()
     resetLimitEscrowAmount()
     setPrice('1')
     setExpiresAt(null)
@@ -475,6 +566,8 @@ function TradeOrderTicketContent({
     setSide(limitBookDraft.side)
     setPrice(limitBookDraft.price)
     setLimitEscrowAmountFromDraft(limitBookDraft.amountHuman)
+    setEditContext(buildLimitBookEditContext(limitBookDraft))
+    setEditHintAfterOrderId(limitBookDraft.hintAfterOrderId ?? null)
     onLimitBookDraftConsumed?.()
   }, [limitBookDraftKey, limitBookDraft, onLimitBookDraftConsumed, setLimitEscrowAmountFromDraft])
 
@@ -683,21 +776,67 @@ function TradeOrderTicketContent({
                   data-testid="trade-limit-pre-submit-summary"
                 />
               )}
+              {editContext && (
+                <p
+                  className="text-[10px] leading-snug rounded-lg border border-white/10 px-2.5 py-2"
+                  style={{ color: 'var(--ink-dim)' }}
+                  data-testid="trade-limit-edit-context"
+                >
+                  Editing order <span className="font-mono">#{editContext.orderId}</span>
+                  {priceOnlyEdit
+                    ? ' — change price and tap Update price (one tx, no maker fee).'
+                    : editNonPriceChanged
+                      ? ` — ${LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE}`
+                      : ' — adjust price to update in one tx.'}
+                </p>
+              )}
               <button
                 type="button"
-                data-testid="trade-limit-submit"
+                data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
                 className="btn-primary btn-cta w-full !text-xs"
                 disabled={
-                  placeMutation.isPending || !selectedPair || isPaused || (isWalletConnected && !placeLimitCombinedOk)
+                  priceOnlyEdit
+                    ? updatePriceMutation.isPending ||
+                      !selectedPair ||
+                      isPaused ||
+                      (isWalletConnected && !updatePriceCombinedOk)
+                    : placeMutation.isPending ||
+                      !selectedPair ||
+                      isPaused ||
+                      editNonPriceChanged ||
+                      (isWalletConnected && !placeLimitCombinedOk)
                 }
                 onClick={() => {
                   if (!isWalletConnected) openWalletModal()
+                  else if (priceOnlyEdit) submitUpdateLimitPrice()
                   else placeMutation.mutate()
                 }}
               >
-                {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
+                {!isWalletConnected
+                  ? 'Connect Wallet'
+                  : priceOnlyEdit
+                    ? updatePriceMutation.isPending
+                      ? 'Updating…'
+                      : 'Update price'
+                    : placeMutation.isPending
+                      ? 'Placing…'
+                      : 'Place limit'}
               </button>
-              <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
+              {priceOnlyEdit && updatePriceNativeGasGate.userMessage && (
+                <LimitOrderEscrowPlaceGuardMessage
+                  gate={updatePriceNativeGasGate}
+                  data-testid="trade-limit-update-price-guard"
+                />
+              )}
+              {!priceOnlyEdit && (
+                <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
+              )}
+              {updatePriceMutation.isError && (
+                <TxResultAlert type="error" message={(updatePriceMutation.error as Error).message} />
+              )}
+              {updatePriceMutation.isSuccess && (
+                <TxResultAlert type="success" message="Limit order price updated." txHash={updatePriceMutation.data} />
+              )}
               {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
               {placeMutation.isSuccess && (
                 <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />

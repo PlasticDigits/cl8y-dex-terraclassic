@@ -173,6 +173,9 @@ describe('OrderBookPanel', () => {
       side: 'bid',
       price: '0.826415278294723875',
       amountHuman: '139.163969',
+      orderId: 7,
+      expiresAt: null,
+      hintAfterOrderId: null,
     })
   })
 })

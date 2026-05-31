@@ -25,6 +25,7 @@ import {
   simulateHybridSwap,
   swap,
   placeLimitOrderWithAllowance,
+  updateLimitOrderPrice,
   provideLiquidity,
   withdrawLiquidity,
   claimExpiredLimitOrder,
@@ -252,6 +253,24 @@ describe('placeLimitOrderWithAllowance', () => {
     expect(decoded.place_limit_order_batch).toMatchObject({
       side: 'bid',
       orders: [{ price: '1.5', amount: '500000', max_adjust_steps: 3 }],
+    })
+  })
+})
+
+describe('updateLimitOrderPrice', () => {
+  it('calls executeTerraContract with update_limit_order_price (GitLab #247)', async () => {
+    mockedExecute.mockResolvedValueOnce('txhash_update_price')
+
+    const result = await updateLimitOrderPrice(WALLET_ADDR, PAIR_ADDR, 7, '1.25', 32, 6)
+
+    expect(result).toBe('txhash_update_price')
+    expect(mockedExecute).toHaveBeenCalledWith(WALLET_ADDR, PAIR_ADDR, {
+      update_limit_order_price: {
+        order_id: 7,
+        price: '1.25',
+        hint_after_order_id: 6,
+        max_adjust_steps: 32,
+      },
     })
   })
 })

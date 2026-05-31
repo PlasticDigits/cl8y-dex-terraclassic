@@ -24,6 +24,8 @@ export const CANCEL_LIMIT_ORDER_GAS_LIMIT = 450000
 export const CANCEL_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
 /** Per-order marginal gas on top of batch cancel/claim base. */
 export const CANCEL_LIMIT_ORDER_BATCH_PER_ORDER_GAS_LIMIT = 80000
+/** In-place limit price relink — one pair execute, no CW20 (GitLab #247; ≪ cancel+place). */
+export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = 350000
 export const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
 export const ADD_LIQUIDITY_GAS_LIMIT = 500000
 export const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
@@ -108,6 +110,9 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   }
   if ('cancel_limit_order' in executeMsg) {
     return CANCEL_LIMIT_ORDER_GAS_LIMIT
+  }
+  if ('update_limit_order_price' in executeMsg) {
+    return UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT
   }
   if ('cancel_limit_orders' in executeMsg) {
     const batch = executeMsg.cancel_limit_orders as { order_ids?: unknown[] }
