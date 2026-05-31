@@ -1925,14 +1925,19 @@ fn scale_hybrid_template(
     })
 }
 
-fn simulate_hybrid_swap(
+/// Core hybrid swap simulation against a **precomputed** effective fee.
+///
+/// Callers resolve the CL8Y fee-tier discount once (via `effective_fee_bps_for_sim`)
+/// and reuse the result. This keeps reverse-sim search loops from re-querying the
+/// discount registry per iteration, so simulation query gas stays bounded
+/// (GitLab #238 guardrail). For one-shot forward quotes use `simulate_hybrid_swap`.
+fn simulate_hybrid_swap_with_fee(
     deps: Deps,
     env: &Env,
     input_amount: Uint128,
     hybrid: &HybridSwapParams,
     offer_asset_info: &AssetInfo,
-    trader: Option<&str>,
-    sender: Option<&str>,
+    effective_fee_bps: u16,
 ) -> Result<HybridSimulationResponse, ContractError> {
     if input_amount.is_zero() {
         return Ok(HybridSimulationResponse {
@@ -1960,10 +1965,6 @@ fn simulate_hybrid_swap(
 
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
-    let fee_config = FEE_CONFIG.load(deps.storage)?;
-    let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
-    let effective_fee_bps =
-        effective_fee_bps_for_sim(deps, fee_config.fee_bps, &discount_registry, trader, sender);
 
     let (input_reserve, output_reserve, _ask_asset_info) =
         if offer_asset_info.equal(&pair_info.asset_infos[0]) {
@@ -2050,6 +2051,32 @@ fn simulate_hybrid_swap(
     })
 }
 
+/// Forward hybrid quote. Resolves the CL8Y fee-tier discount once (read-only; no
+/// deregister side-effects) then runs the core sim. `trader`/`sender` omitted →
+/// full pair fee (backward compatible). GitLab #238 invariant **L8**.
+fn simulate_hybrid_swap(
+    deps: Deps,
+    env: &Env,
+    input_amount: Uint128,
+    hybrid: &HybridSwapParams,
+    offer_asset_info: &AssetInfo,
+    trader: Option<&str>,
+    sender: Option<&str>,
+) -> Result<HybridSimulationResponse, ContractError> {
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
+    let effective_fee_bps =
+        effective_fee_bps_for_sim(deps, fee_config.fee_bps, &discount_registry, trader, sender);
+    simulate_hybrid_swap_with_fee(
+        deps,
+        env,
+        input_amount,
+        hybrid,
+        offer_asset_info,
+        effective_fee_bps,
+    )
+}
+
 fn query_hybrid_simulation(
     deps: Deps,
     env: &Env,
@@ -2102,20 +2129,29 @@ fn query_hybrid_reverse_simulation(
         });
     }
 
-    let trader_ref = trader.as_deref();
-    let sender_ref = sender.as_deref();
+    // Resolve the CL8Y fee-tier discount ONCE (one registry query at most), then
+    // reuse it across every search iteration. Querying per iteration would blow
+    // past the bounded simulation query gas (GitLab #238 guardrail).
+    let fee_config = FEE_CONFIG.load(deps.storage)?;
+    let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
+    let effective_fee_bps = effective_fee_bps_for_sim(
+        deps,
+        fee_config.fee_bps,
+        &discount_registry,
+        trader.as_deref(),
+        sender.as_deref(),
+    );
 
     let mut hi = Uint128::new(1u128);
     for _ in 0..128 {
-        let sim = simulate_hybrid_swap(
+        let sim = simulate_hybrid_swap_with_fee(
             deps,
             env,
             hi,
             &scale_hybrid_template(&hybrid, hi)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
             &offer_info,
-            trader_ref,
-            sender_ref,
+            effective_fee_bps,
         )
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
         if sim.return_amount >= ask_target {
@@ -2126,15 +2162,14 @@ fn query_hybrid_reverse_simulation(
             .map_err(|_| cosmwasm_std::StdError::generic_err("offer overflow"))?;
     }
 
-    let check_hi = simulate_hybrid_swap(
+    let check_hi = simulate_hybrid_swap_with_fee(
         deps,
         env,
         hi,
         &scale_hybrid_template(&hybrid, hi)
             .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
         &offer_info,
-        trader_ref,
-        sender_ref,
+        effective_fee_bps,
     )
     .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
     if check_hi.return_amount < ask_target {
@@ -2150,15 +2185,14 @@ fn query_hybrid_reverse_simulation(
         if mid.is_zero() {
             break;
         }
-        let sim_mid = simulate_hybrid_swap(
+        let sim_mid = simulate_hybrid_swap_with_fee(
             deps,
             env,
             mid,
             &scale_hybrid_template(&hybrid, mid)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
             &offer_info,
-            trader_ref,
-            sender_ref,
+            effective_fee_bps,
         )
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
         if sim_mid.return_amount >= ask_target {
@@ -2170,16 +2204,9 @@ fn query_hybrid_reverse_simulation(
 
     let final_h = scale_hybrid_template(&hybrid, r_hi)
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
-    let sim = simulate_hybrid_swap(
-        deps,
-        env,
-        r_hi,
-        &final_h,
-        &offer_info,
-        trader_ref,
-        sender_ref,
-    )
-    .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+    let sim =
+        simulate_hybrid_swap_with_fee(deps, env, r_hi, &final_h, &offer_info, effective_fee_bps)
+            .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
     Ok(HybridReverseSimulationResponse {
         offer_amount: r_hi,
         spread_amount: sim.spread_amount,

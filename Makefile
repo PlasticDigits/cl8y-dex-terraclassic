@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl qa-tunnel-help qa-verify-deploy swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl qa-tunnel-help qa-verify-deploy verify-issue-238 swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -97,6 +97,12 @@ stop-qa:
 qa-verify-deploy:
 	@chmod +x scripts/qa/verify-deploy.sh scripts/lib/lcd-smart-query.sh
 	./scripts/qa/verify-deploy.sh
+
+# On-chain E2E for GitLab #238 (hybrid sim CL8Y fee-discount parity). Requires a
+# fresh deploy (make deploy-local) + running indexer for the route/solve check.
+verify-issue-238:
+	@chmod +x scripts/qa/verify-issue-238.sh scripts/lib/lcd-smart-query.sh scripts/lib/localterra-host-curl.sh
+	./scripts/qa/verify-issue-238.sh
 
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"

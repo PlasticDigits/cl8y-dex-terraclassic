@@ -38,6 +38,29 @@ make start-qa          # includes qa-verify-deploy
 make qa-verify-deploy
 ```
 
+## On-chain feature E2E after schema-changing deploys
+
+`qa-verify-deploy` only probes that the deployed pair accepts current-schema
+queries. For features whose **on-chain behaviour** must be re-checked after a
+redeploy (not just schema acceptance), add a dedicated live E2E. Example —
+**GitLab #238** hybrid-sim CL8Y fee-discount parity (invariant **L8**):
+
+```bash
+make deploy-local        # fresh wasm at new addresses (schema adds `trader`)
+make qa-verify-deploy    # stamp == HEAD + schema probes
+# start the indexer (route/solve check needs it), then:
+make verify-issue-238    # scripts/qa/verify-issue-238.sh
+```
+
+`verify-issue-238` mints CL8Y to the dev wallet, registers a discount tier, and
+asserts: pair/router `hybrid_simulation` accept `trader`; discounted sim >
+undiscounted; **executed swap output == discounted sim `return_amount`** on the
+same reserves; indexer `GET /route/solve?...&trader=` returns a trader-aware
+quote. Prior #238 verification was **blocked on stale wasm rejecting `trader`** —
+this script is the on-chain proof that a fresh deploy resolves it. See
+[`skills/AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) and
+[`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md).
+
 Standalone after **`git pull`** without redeploy (expect stamp mismatch):
 
 ```bash

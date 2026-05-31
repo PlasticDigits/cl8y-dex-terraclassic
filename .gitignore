@@ -33,7 +33,8 @@ docker-compose.override.yml
 # Logs
 *.log
 
-# QA indexer pid (make start-qa)
+# Local/QA indexer pid (make indexer-dev / make start-qa)
+.indexer-dev.pid
 .indexer-qa.pid
 # QA deploy stamp (scripts/deploy-dex-local.sh; GitLab #203)
 .qa-deploy-stamp

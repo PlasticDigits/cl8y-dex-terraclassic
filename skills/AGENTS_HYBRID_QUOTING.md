@@ -34,7 +34,14 @@ cd smartcontracts && cargo test -p cl8y-dex-tests test_swap_max_spread
 cd frontend-dapp && npm test -- src/services/terraclassic/__tests__/pair.test.ts
 cd indexer && cargo test api_route_solve
 bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/hybrid-swap.spec.ts --project=e2e-tx   # strict E2E — see AGENTS_E2E_HYBRID_SWAP.md (#193)
+make verify-issue-238   # on-chain: deployed pair/router accept `trader`; sim==execute for a discounted wallet; indexer route/solve trader-aware (needs fresh deploy + indexer; see AGENTS_QA_DEPLOY_VERIFY.md)
 ```
+
+> **Post-deploy parity (L8 / #238):** the contract fix only holds end-to-end if
+> the **deployed** wasm accepts `trader`. After any redeploy that changes the
+> pair/router schema, run `make verify-issue-238` (script:
+> [`scripts/qa/verify-issue-238.sh`](../scripts/qa/verify-issue-238.sh)) to prove
+> sim==execute on-chain — stale on-chain wasm previously blocked verification.
 
 ## Related frontend skills
 

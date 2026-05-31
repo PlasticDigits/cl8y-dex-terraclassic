@@ -546,7 +546,11 @@ fn hybrid_book_fill_uses_taker_discounted_effective_fee_bps() {
 /// GitLab #238 — `HybridSimulation` applies the same CL8Y fee-tier discount as execute.
 #[test]
 fn hybrid_simulation_matches_execute_with_fee_discount() {
-    use dex_common::pair::{hybrid_simulation_with_trader, pool_only_hybrid_params};
+    use dex_common::pair::{
+        hybrid_reverse_simulation_undiscounted, hybrid_reverse_simulation_with_trader,
+        hybrid_simulation_with_trader, pool_only_hybrid_params, pool_only_hybrid_template,
+        HybridReverseSimulationResponse,
+    };
 
     let mut app = App::default();
     let env = setup_full_env(&mut app);
@@ -736,6 +740,40 @@ fn hybrid_simulation_matches_execute_with_fee_discount() {
             book_start_hint: None,
         },
         total_in,
+    );
+
+    // Reverse sim must also honor the discount: for a fixed ask, a discounted
+    // trader needs strictly LESS offer than an undiscounted one (lower fee).
+    // The discount is resolved once and reused across the search loop so query
+    // gas stays bounded (GitLab #238 guardrail); here we assert the direction.
+    let ask = Asset {
+        info: asset_info_token(&env.token_b),
+        amount: Uint128::new(40_000),
+    };
+    let rev_disc: HybridReverseSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &hybrid_reverse_simulation_with_trader(
+                ask.clone(),
+                pool_only_hybrid_template(),
+                trader_str.clone(),
+                None,
+            ),
+        )
+        .unwrap();
+    let rev_full: HybridReverseSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &hybrid_reverse_simulation_undiscounted(ask, pool_only_hybrid_template()),
+        )
+        .unwrap();
+    assert!(
+        rev_disc.offer_amount < rev_full.offer_amount,
+        "discounted reverse sim should need less offer ({}) than undiscounted ({})",
+        rev_disc.offer_amount,
+        rev_full.offer_amount
     );
 }
 
