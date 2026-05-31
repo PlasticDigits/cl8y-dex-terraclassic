@@ -2,11 +2,17 @@ import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 
 const BASE_GAS_LIMIT = 200_000
 const HYBRID_SWAP_GAS_LIMIT = 1_200_000
-/** Keep in sync with `frontend-dapp/src/utils/constants.ts` (GitLab #249). */
+/** Keep in sync with `frontend-dapp/src/utils/constants.ts` (GitLab #249, #260). */
 const HYBRID_SWAP_BASE_GAS = 550_000
 const HYBRID_SWAP_PER_MAKER_GAS = 65_000
 const HYBRID_SWAP_MAKER_GAS_BUFFER = 2
 const HYBRID_SWAP_GAS_FLOOR = 600_000
+/** Keep in sync with `frontend-dapp/src/utils/constants.ts` (GitLab #260). */
+const HYBRID_SWAP_PER_SCAN_STEP_GAS = 950
+const HYBRID_SWAP_PER_EXPIRED_PARK_GAS = 8_000
+/** Keep in sync with `frontend-dapp/src/services/terraclassic/hybridBookWalkLimits.ts`. */
+const MAX_SCAN_STEPS = 288
+const MAX_EXPIRED_PARKS_PER_SWAP = 15
 const PLACE_LIMIT_ORDER_GAS_LIMIT = 950_000
 const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400_000
 const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180_000
@@ -29,8 +35,8 @@ function innerSwapUsesHybrid(inner: Record<string, unknown>): boolean {
   return !!(sw && sw.hybrid != null)
 }
 
-function executeSwapOpsUsesHybrid(inner: Record<string, unknown>): boolean {
-  const e = inner.execute_swap_operations as
+function executeSwapOpsUsesHybrid(msg: Record<string, unknown>): boolean {
+  const e = msg.execute_swap_operations as
     | { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> }
     | undefined
   if (!e?.operations) return false
@@ -45,11 +51,17 @@ function gasLimitForExecuteSwapOperations(hops: number): number {
   return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
 }
 
+function bookWalkScanOverheadGas(makerUnits: number): number {
+  const extraScanSteps = Math.max(0, MAX_SCAN_STEPS - makerUnits)
+  return HYBRID_SWAP_PER_SCAN_STEP_GAS * extraScanSteps + HYBRID_SWAP_PER_EXPIRED_PARK_GAS * MAX_EXPIRED_PARKS_PER_SWAP
+}
+
 function gasLimitForHybridSwap(makersUsed: number): number {
   const makers = Math.max(0, Math.floor(makersUsed))
   if (makers === 0) return gasLimitForExecuteSwapOperations(1)
-  const buffered = makers + HYBRID_SWAP_MAKER_GAS_BUFFER
-  const scaled = HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS * buffered
+  const makerUnits = makers + HYBRID_SWAP_MAKER_GAS_BUFFER
+  const makerComponent = HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS * makerUnits
+  const scaled = makerComponent + bookWalkScanOverheadGas(makerUnits)
   return Math.min(HYBRID_SWAP_GAS_LIMIT, Math.max(HYBRID_SWAP_GAS_FLOOR, scaled))
 }
 
@@ -137,4 +149,9 @@ export function estimateTerraClassicFee(gasLimit: number, gasPriceUluna: string)
     amount: [{ amount: feeAmount.toString(), denom: 'uluna' }],
     gasLimit: BigInt(gasLimit),
   })
+}
+
+/** Exported for parity tests with dApp `hybridSwapGas.ts` (GitLab #260). */
+export function gasLimitForHybridSwapPublic(makersUsed: number): number {
+  return gasLimitForHybridSwap(makersUsed)
 }

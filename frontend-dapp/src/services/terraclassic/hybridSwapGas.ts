@@ -3,13 +3,16 @@ import {
   HYBRID_SWAP_BASE_GAS,
   HYBRID_SWAP_GAS_FLOOR,
   HYBRID_SWAP_MAKER_GAS_BUFFER,
+  HYBRID_SWAP_PER_EXPIRED_PARK_GAS,
   HYBRID_SWAP_PER_MAKER_GAS,
+  HYBRID_SWAP_PER_SCAN_STEP_GAS,
   SWAP_GAS_BUFFER,
   SWAP_GAS_PER_HOP,
   SWAP_GAS_SAFETY_MARGIN,
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
 } from '@/utils/constants'
 import type { HybridSwapParams } from '@/types'
+import { MAX_EXPIRED_PARKS_PER_SWAP, MAX_SCAN_STEPS } from './hybridBookWalkLimits'
 
 function gasLimitForPoolOnlySingleHop(): number {
   const hopCount = 1
@@ -27,19 +30,48 @@ export type HybridSwapGasInput = {
   makersUsed: number
   /** True when `pool_input > 0` on this hop. */
   hasPoolLeg: boolean
+  /**
+   * Optional indexer/LCD hint for head pollution; defaults to {@link MAX_SCAN_STEPS} offline (GitLab #260).
+   */
+  estimatedScanSteps?: number
+  /** Optional hint; defaults to {@link MAX_EXPIRED_PARKS_PER_SWAP} offline. */
+  estimatedExpiredParks?: number
+}
+
+/**
+ * Extra gas for doubly-linked book walk beyond the maker-fill envelope.
+ * Covers expired-prefix skips and parks up to on-chain caps without live book queries.
+ */
+export function bookWalkScanOverheadGas(
+  makerUnits: number,
+  options?: { scanSteps?: number; expiredParks?: number }
+): number {
+  const scanSteps = Math.min(MAX_SCAN_STEPS, Math.max(0, Math.floor(options?.scanSteps ?? MAX_SCAN_STEPS)))
+  const extraScanSteps = Math.max(0, scanSteps - makerUnits)
+  const expiredParks = Math.min(
+    MAX_EXPIRED_PARKS_PER_SWAP,
+    Math.max(0, Math.floor(options?.expiredParks ?? MAX_EXPIRED_PARKS_PER_SWAP))
+  )
+  return HYBRID_SWAP_PER_SCAN_STEP_GAS * extraScanSteps + HYBRID_SWAP_PER_EXPIRED_PARK_GAS * expiredParks
 }
 
 /**
  * Estimate gas for one direct pair `swap` with Pattern C hybrid.
  * Calibrated for post-#248 transfer aggregation; shallow books (0–2 makers) stay below {@link HYBRID_SWAP_GAS_LIMIT}.
+ * Book legs add scan-step + expired-park overhead capped at on-chain limits (GitLab #260 / #254).
  */
 export function gasLimitForHybridSwap(input: HybridSwapGasInput): number {
   const makers = Math.max(0, Math.floor(input.makersUsed))
   if (makers === 0) {
     return gasLimitForPoolOnlySingleHop()
   }
-  const bufferedMakers = makers + HYBRID_SWAP_MAKER_GAS_BUFFER
-  const scaled = HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS * bufferedMakers
+  const makerUnits = makers + HYBRID_SWAP_MAKER_GAS_BUFFER
+  const makerComponent = HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS * makerUnits
+  const scanOverhead = bookWalkScanOverheadGas(makerUnits, {
+    scanSteps: input.estimatedScanSteps,
+    expiredParks: input.estimatedExpiredParks,
+  })
+  const scaled = makerComponent + scanOverhead
   return Math.min(HYBRID_SWAP_GAS_LIMIT, Math.max(HYBRID_SWAP_GAS_FLOOR, scaled))
 }
 

@@ -358,7 +358,7 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(1200000))
   })
 
-  it('shallow-book hybrid send uses lower gas than flat 1.2M (GitLab #249)', async () => {
+  it('shallow-book hybrid send budgets scan/park overhead (GitLab #260)', async () => {
     const inner = btoa(
       JSON.stringify({
         swap: {
@@ -372,7 +372,7 @@ describe('gas limit selection (tested indirectly)', () => {
       })
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBe(BigInt(810_000))
+    expect(fee.gasLimit).toBe(BigInt(1_199_800))
     expect(fee.gasLimit).toBeLessThan(BigInt(1_200_000))
   })
 
@@ -394,7 +394,7 @@ describe('gas limit selection (tested indirectly)', () => {
         ],
       },
     })
-    expect(fee.gasLimit).toBe(BigInt(940_000))
+    expect(fee.gasLimit).toBe(BigInt(1_200_000))
   })
 
   it('2-hop execute_swap_operations with hybrid on each hop sums per-hop quote-driven gas', async () => {
@@ -418,7 +418,7 @@ describe('gas limit selection (tested indirectly)', () => {
         ],
       },
     })
-    expect(fee.gasLimit).toBe(BigInt(1_880_000))
+    expect(fee.gasLimit).toBe(BigInt(2_400_000))
   })
 })
 

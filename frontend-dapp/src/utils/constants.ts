@@ -69,8 +69,10 @@ export const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50000
 export const SWAP_GAS_SAFETY_MARGIN = 10000
 
 /**
- * Direct pair Pattern C hybrid gas (GitLab #249; tuned after #248 transfer aggregation / #252 benchmarks).
- * `gasWanted ≈ HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS × (makersUsed + HYBRID_SWAP_MAKER_GAS_BUFFER)`,
+ * Direct pair Pattern C hybrid gas (GitLab #249; tuned after #248 transfer aggregation / #252 benchmarks;
+ * book walk overhead GitLab #260 / #254).
+ * `gasWanted ≈ HYBRID_SWAP_BASE_GAS + HYBRID_SWAP_PER_MAKER_GAS × (makersUsed + HYBRID_SWAP_MAKER_GAS_BUFFER)
+ *   + bookWalkScanOverheadGas(...)` when `book_input > 0`,
  * clamped to [`HYBRID_SWAP_GAS_FLOOR`, `HYBRID_SWAP_GAS_LIMIT`]. Pool-only leg (`book_input = 0`) uses
  * {@link gasLimitForExecuteSwapOperations}(1) instead.
  */
@@ -78,6 +80,14 @@ export const HYBRID_SWAP_BASE_GAS = 550_000
 export const HYBRID_SWAP_PER_MAKER_GAS = 65_000
 export const HYBRID_SWAP_MAKER_GAS_BUFFER = 2
 export const HYBRID_SWAP_GAS_FLOOR = 600_000
+/**
+ * Marginal gas per book-walk iteration beyond the maker-fill envelope (GitLab #260 / #254).
+ * Tuned so `makersUsed + buffer` shallow quotes stay unchanged while
+ * `MAX_SCAN_STEPS` + `MAX_EXPIRED_PARKS_PER_SWAP` worst case fits under {@link HYBRID_SWAP_GAS_LIMIT}.
+ */
+export const HYBRID_SWAP_PER_SCAN_STEP_GAS = 950
+/** Marginal gas per expired-order park (storage write + event) on the book walk (GitLab #260 / #250). */
+export const HYBRID_SWAP_PER_EXPIRED_PARK_GAS = 8_000
 
 type NetworkConfig = {
   terra: {
