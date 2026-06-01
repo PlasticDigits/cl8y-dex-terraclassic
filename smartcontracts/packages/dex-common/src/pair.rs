@@ -28,7 +28,8 @@ pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 100;
 /// without raising the distinct-maker fill cap
 /// ([GitLab #254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254),
 /// [#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)).
-pub const MAX_SCAN_STEPS: u32 = 1000;
+/// Sized for ~19k gas per list iteration vs a 15M dApp gas envelope (~789 steps); see GitLab #262.
+pub const MAX_SCAN_STEPS: u32 = 500;
 /// Maximum expired limit orders parked into `EXPIRED_LIMIT_CLAIMS` per book walk during hybrid swap
 /// ([GitLab #250](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/250),
 /// raised in [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254)).

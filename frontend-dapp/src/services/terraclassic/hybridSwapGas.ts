@@ -23,7 +23,8 @@ function gasLimitForPoolOnlySingleHop(): number {
 }
 
 /** Conservative ceiling when quote / `max_maker_fills` is unknown (GitLab #249 fallback). */
-export const HYBRID_SWAP_GAS_LIMIT = 1_200_000
+/** Offline hybrid envelope ceiling (GitLab #262: ~789 order-steps at ~19k gas vs 15M budget). */
+export const HYBRID_SWAP_GAS_LIMIT = 15_000_000
 
 export type HybridSwapGasInput = {
   /** Distinct makers expected on the book leg (from quote or `max_maker_fills` cap). */

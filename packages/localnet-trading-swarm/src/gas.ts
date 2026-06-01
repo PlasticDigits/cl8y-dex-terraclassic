@@ -1,7 +1,8 @@
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 
 const BASE_GAS_LIMIT = 200_000
-const HYBRID_SWAP_GAS_LIMIT = 1_200_000
+/** Keep in sync with `frontend-dapp/src/services/terraclassic/hybridSwapGas.ts` (GitLab #262). */
+const HYBRID_SWAP_GAS_LIMIT = 15_000_000
 /** Keep in sync with `frontend-dapp/src/utils/constants.ts` (GitLab #249, #260). */
 const HYBRID_SWAP_BASE_GAS = 550_000
 const HYBRID_SWAP_PER_MAKER_GAS = 65_000
@@ -11,7 +12,7 @@ const HYBRID_SWAP_GAS_FLOOR = 600_000
 const HYBRID_SWAP_PER_SCAN_STEP_GAS = 950
 const HYBRID_SWAP_PER_EXPIRED_PARK_GAS = 8_000
 /** Keep in sync with `frontend-dapp/src/services/terraclassic/hybridBookWalkLimits.ts` (GitLab #262). */
-const MAX_SCAN_STEPS = 1000
+const MAX_SCAN_STEPS = 500
 const MAX_EXPIRED_PARKS_PER_SWAP = 15
 const PLACE_LIMIT_ORDER_GAS_LIMIT = 950_000
 const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400_000

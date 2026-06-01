@@ -8,28 +8,27 @@ import {
 } from '../hybridSwapGas'
 import { MAX_SCAN_STEPS, MAX_EXPIRED_PARKS_PER_SWAP } from '../hybridBookWalkLimits'
 
-describe('gasLimitForHybridSwap (GitLab #249, #260)', () => {
+describe('gasLimitForHybridSwap (GitLab #249, #260, #262)', () => {
   it('pool-only leg (0 makers) uses buffered one-hop pool envelope', () => {
     expect(gasLimitForHybridSwap({ makersUsed: 0, hasPoolLeg: true })).toBe(840_000)
   })
 
-  it('is monotonic in makersUsed (book leg) and capped at HYBRID_SWAP_GAS_LIMIT', () => {
+  it('is monotonic in makersUsed (book leg) and stays below HYBRID_SWAP_GAS_LIMIT', () => {
     const g1 = gasLimitForHybridSwap({ makersUsed: 1, hasPoolLeg: true })
     const g2 = gasLimitForHybridSwap({ makersUsed: 2, hasPoolLeg: true })
     const g10 = gasLimitForHybridSwap({ makersUsed: 10, hasPoolLeg: true })
     expect(g2).toBeLessThanOrEqual(HYBRID_SWAP_GAS_LIMIT)
     expect(g1).toBeLessThanOrEqual(g2)
-    expect(g10).toBe(HYBRID_SWAP_GAS_LIMIT)
+    expect(g10).toBe(1_913_600)
     expect(g10).toBeGreaterThanOrEqual(g2)
   })
 
-  it('shallow book (2 makers) hits HYBRID_SWAP_GAS_LIMIT with 1k scan worst case (GitLab #262)', () => {
-    const gas = gasLimitForHybridSwap({ makersUsed: 2, hasPoolLeg: true })
-    expect(gas).toBe(HYBRID_SWAP_GAS_LIMIT)
+  it('shallow book (2 makers) budgets 500-step scan worst case below 15M ceiling (GitLab #262)', () => {
+    expect(gasLimitForHybridSwap({ makersUsed: 2, hasPoolLeg: true })).toBe(1_401_200)
   })
 
-  it('deep maker cap (8 makers) hits HYBRID_SWAP_GAS_LIMIT before scan overhead binds', () => {
-    expect(gasLimitForHybridSwap({ makersUsed: 8, hasPoolLeg: false })).toBe(HYBRID_SWAP_GAS_LIMIT)
+  it('deep maker cap (8 makers) stays below 15M ceiling with 500 scan steps', () => {
+    expect(gasLimitForHybridSwap({ makersUsed: 8, hasPoolLeg: false })).toBe(1_785_500)
   })
 })
 
@@ -51,14 +50,14 @@ describe('gasLimitForHybridParams', () => {
     expect(gasLimitForHybridParams(undefined)).toBe(HYBRID_SWAP_GAS_LIMIT)
   })
 
-  it('covers book leg with max_maker_fills=8 below polluted-head scan worst case (#260)', () => {
+  it('covers book leg with max_maker_fills=8 under 500-step scan worst case (#262)', () => {
     const gas = gasLimitForHybridParams({
       pool_input: '500',
       book_input: '500',
       max_maker_fills: 8,
       book_start_hint: null,
     })
-    expect(gas).toBe(HYBRID_SWAP_GAS_LIMIT)
+    expect(gas).toBe(1_785_500)
     expect(gas).toBeGreaterThan(810_000)
   })
 })
