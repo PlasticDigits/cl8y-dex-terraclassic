@@ -9,7 +9,8 @@ mod consolidated_stats;
 pub mod hooks;
 mod best_execution;
 mod hybrid_route_opt;
-mod limit_book_lcd;
+pub mod limit_book_lcd;
+pub mod limit_book_price;
 mod oracle;
 pub mod hybrid_orderbook_sim;
 pub mod orderbook_sim;
@@ -206,6 +207,7 @@ pub async fn find_pair_by_ticker(
         pairs::get_pair_order_book_head,
         pairs::get_pair_limit_book_shallow,
         pairs::get_pair_limit_book,
+        pairs::get_pair_limit_book_insert_hints,
         pairs::get_pair_stats,
         hooks::get_hook_events,
         tokens::list_tokens,
@@ -258,6 +260,9 @@ pub async fn find_pair_by_ticker(
         pairs::LimitBookOrderItem,
         pairs::LimitBookPagedQuery,
         pairs::LimitBookPagedResponse,
+        pairs::LimitBookInsertHintsQuery,
+        pairs::LimitBookInsertHintsResponse,
+        limit_book_lcd::LimitBookInsertHintItem,
         pairs::PairStatsResponse,
         hooks::HookEventsQuery,
         hooks::HookEventResponse,
@@ -333,6 +338,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/pairs/{addr}/limit-book",
             get(pairs::get_pair_limit_book),
+        )
+        .route(
+            "/api/v1/pairs/{addr}/limit-book/insert-hints",
+            get(pairs::get_pair_limit_book_insert_hints),
         )
         .route(
             "/api/v1/route/solve/best",

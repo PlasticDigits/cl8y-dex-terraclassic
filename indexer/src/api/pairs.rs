@@ -1005,6 +1005,25 @@ pub struct LimitBookPagedQuery {
     pub limit: Option<i64>,
     /// Keyset cursor: `order_id` from `next_after_order_id` of the previous page
     pub after_order_id: Option<u64>,
+    /// Inclusive band high bound (bids: highest price in window; asks: lowest price in window)
+    pub price_from: Option<String>,
+    /// Inclusive band low bound (bids: lowest price; asks: highest price in window)
+    pub price_to: Option<String>,
+}
+
+#[derive(Deserialize, IntoParams, ToSchema)]
+pub struct LimitBookInsertHintsQuery {
+    /// Book side: `bid` or `ask`
+    pub side: String,
+    /// Comma-separated positive decimal prices (max 100)
+    pub prices: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LimitBookInsertHintsResponse {
+    pub side: String,
+    pub hints: Vec<limit_book_lcd::LimitBookInsertHintItem>,
+    pub budget_exhausted: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -1047,14 +1066,36 @@ pub async fn get_pair_limit_book(
         .unwrap_or(limit_book_lcd::LIMIT_BOOK_PAGE_DEFAULT)
         .clamp(1, limit_book_lcd::LIMIT_BOOK_PAGE_MAX);
 
-    let (orders, has_more, next_after_order_id) = limit_book_lcd::fetch_limit_book_page(
-        &state.lcd,
-        &addr,
-        side_label,
-        page_limit,
-        q.after_order_id,
-    )
-    .await
+    let (orders, has_more, next_after_order_id) = match (&q.price_from, &q.price_to) {
+        (Some(from), Some(to)) => {
+            limit_book_lcd::fetch_limit_book_price_window(
+                &state.lcd,
+                &addr,
+                side_label,
+                from,
+                to,
+                page_limit,
+                q.after_order_id,
+            )
+            .await
+        }
+        (None, None) => {
+            limit_book_lcd::fetch_limit_book_page(
+                &state.lcd,
+                &addr,
+                side_label,
+                page_limit,
+                q.after_order_id,
+            )
+            .await
+        }
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "price_from and price_to must both be set for a price window".to_string(),
+            ));
+        }
+    }
     .map_err(limit_book_lcd_err)?;
 
     Ok(Json(LimitBookPagedResponse {
@@ -1062,6 +1103,63 @@ pub async fn get_pair_limit_book(
         orders,
         has_more,
         next_after_order_id,
+    }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/pairs/{addr}/limit-book/insert-hints",
+    params(
+        ("addr" = String, Path, description = "Pair contract address"),
+        LimitBookInsertHintsQuery,
+    ),
+    responses(
+        (status = 200, description = "Batch insert-hint resolution via LCD walk", body = LimitBookInsertHintsResponse),
+        (status = 400, description = "Invalid side, prices, or oversized list"),
+        (status = 404, description = "Pair not found"),
+        (status = 502, description = "Upstream LCD failure (sanitized body)"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Pairs"
+)]
+pub async fn get_pair_limit_book_insert_hints(
+    State(state): State<AppState>,
+    Path(addr): Path<String>,
+    Query(q): Query<LimitBookInsertHintsQuery>,
+) -> Result<Json<LimitBookInsertHintsResponse>, (StatusCode, String)> {
+    let _pair = db_pairs::get_pair_by_address(&state.pool, &addr)
+        .await
+        .map_err(internal_err)?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+    let side_label = parse_book_side(&q.side)?;
+    let prices: Vec<String> = q
+        .prices
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect();
+    if prices.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "prices must contain at least one entry".to_string(),
+        ));
+    }
+
+    let result = limit_book_lcd::resolve_limit_insert_hints(
+        &state.lcd,
+        &addr,
+        side_label,
+        &prices,
+    )
+    .await
+    .map_err(limit_book_lcd_err)?;
+
+    Ok(Json(LimitBookInsertHintsResponse {
+        side: side_label.to_string(),
+        hints: result.hints,
+        budget_exhausted: result.budget_exhausted,
     }))
 }
 

@@ -15,7 +15,9 @@ Use when changing **paginated book depth** on **`/trade` or `/limits`**, indexer
 | `indexer/tests/api_limit_book_deep.rs` | Deep pagination + concurrent page stress (wiremock LCD) |
 | `frontend-dapp/src/hooks/useLimitBookInfinite.ts` | Shared infinite query for one book side |
 | `frontend-dapp/src/utils/limitBookPagination.ts` | `LIMIT_BOOK_UI_PAGE_SIZE`, `limitBookPageQueryKey` |
-| `frontend-dapp/src/utils/limitBookInsertHint.ts` | **`resolveLimitInsertHintAfter`** — predecessor id for new placement ([#261](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/261)) |
+| `frontend-dapp/src/utils/limitBookInsertHint.ts` | **`resolveLimitInsertHintAfter`** — client fallback; prefer indexer **`GET .../limit-book/insert-hints`** ([#267](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/267)) |
+| [integrators.md § Insert hints & price window](../docs/integrators.md#insert-hints-price-window-gitlab-267) | Batch hints + `price_from`/`price_to` window (**#267**) |
+| `indexer/tests/api_limit_book_insert_hints.rs` | Resolver parity + HTTP regression (**#267**) |
 | `frontend-dapp/src/components/trade/OrderBookPanel.tsx` | Bids/Asks columns + **Load more depth** button |
 
 ## Rules of thumb
@@ -26,7 +28,7 @@ Use when changing **paginated book depth** on **`/trade` or `/limits`**, indexer
 4. Best bid/ask preflight (**`limit=1`**) uses **`useTradeBestBookPrices`** — separate keys from **`limitBookPage`**.
 5. When changing invalidations, update **`useLimitOrderCancelMutation`**, place/cancel/claim success handlers, and docs in **`docs/frontend.md`**.
 6. After API or cursor semantics change, run **`cargo test -p indexer api_limit_book_deep`** and frontend **`OrderBookPanel.test.tsx`** + **`useLimitBookInfinite.test.tsx`** + **`limitBookInsertHint.test.ts`**.
-7. **Insert hints ([#261](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/261)):** `/trade` and `/limits` place flows share **`resolveLimitInsertHintAfter`** with merged infinite-book pages; wire via **`placeLimitOrderWithAllowance(..., hintAfterOrderId)`**. Omit hint on pagination gap — never guess. Invariant **L14**; [integrators.md § Batch placement insert hints](../docs/integrators.md#batch-placement-insert-hints-gitlab-261).
+7. **Insert hints ([#261](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/261), indexer **#267**):** prefer **`GET .../limit-book/insert-hints`** for ladder bands; until wired, **`resolveLimitInsertHintAfter`** over merged pages. Wire via **`placeLimitOrderWithAllowance(..., hintAfterOrderId)`**. Omit hint when `resolved: false` / `pagination_gap` — never guess. Invariant **L14**; [integrators.md § Insert hints & price window](../docs/integrators.md#insert-hints-price-window-gitlab-267).
 
 ## Related
 

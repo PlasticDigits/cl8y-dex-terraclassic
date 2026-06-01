@@ -10,7 +10,7 @@ You are changing **LCD-proxied HTTP routes**, **rate limiting**, or **502 error 
 |----|-----------|-------------|
 | **H6** | Client **502** bodies never include `LcdError` text, LCD URLs, or wasm paths | [`lcd_gateway_err`](../indexer/src/api/errors.rs) |
 | **H7** | LCD-heavy routes rate-limited separately; prod cannot disable global/heavy limits with `0` | [`api/mod.rs`](../indexer/src/api/mod.rs), [`config.rs`](../indexer/src/config.rs) |
-| **H7b** | Deep `limit-book` ≤ **101** LCD queries per page | [`LIMIT_BOOK_LCD_QUERY_BUDGET`](../indexer/src/api/limit_book_lcd.rs) |
+| **H7b** | Deep `limit-book` / `insert-hints` / price-window ≤ **101** LCD queries per request | [`LIMIT_BOOK_LCD_QUERY_BUDGET`](../indexer/src/api/limit_book_lcd.rs); [integrators.md § #267](../docs/integrators.md#insert-hints-price-window-gitlab-267) |
 | **H7c** | Route `global_v1` documents ≤ **`LCD_HYBRID_SIM_BUDGET`** hybrid sims | [`best_execution.rs`](../indexer/src/api/best_execution.rs) |
 
 Human matrix: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md). Hybrid route behavior: [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md).
@@ -22,6 +22,7 @@ These paths use **`RATE_LIMIT_LCD_HEAVY_RPS`** (default **10**) in addition to *
 - `GET /api/v1/pairs/{addr}/order-book-head`
 - `GET /api/v1/pairs/{addr}/limit-book-shallow`
 - `GET /api/v1/pairs/{addr}/limit-book`
+- `GET /api/v1/pairs/{addr}/limit-book/insert-hints` ([#267](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/267))
 - `GET|POST /api/v1/route/solve`
 - `GET /api/v1/route/solve/best`
 

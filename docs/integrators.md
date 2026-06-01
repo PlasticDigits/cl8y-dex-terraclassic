@@ -36,7 +36,8 @@ Resting **FIFO limit orders** live on each pair contract. The indexer exposes re
 | Endpoint | Purpose |
 |----------|---------|
 | **`GET /api/v1/pairs/{addr}/order-book-head?side=bid\|ask`** | Best `order_id` on that side, or `null` if empty. |
-| **`GET /api/v1/pairs/{addr}/limit-book?side=bid\|ask&limit=L&after_order_id=OPTIONAL`** | **Paginated** walk along on-chain `next` pointers. Default **`limit=50`**, max **100** per response. Response: `{ side, orders[], has_more, next_after_order_id }`. Pass **`next_after_order_id`** as **`after_order_id`** for the next page. |
+| **`GET /api/v1/pairs/{addr}/limit-book?side=bid\|ask&limit=L&after_order_id=OPTIONAL`** | **Paginated** walk along on-chain `next` pointers. Default **`limit=50`**, max **100** per response. Response: `{ side, orders[], has_more, next_after_order_id }`. Pass **`next_after_order_id`** as **`after_order_id`** for the next page. Optional **`price_from`** + **`price_to`** return only the contiguous in-band slice (see [§ Insert hints & price window](#insert-hints-price-window-gitlab-267)). |
+| **`GET /api/v1/pairs/{addr}/limit-book/insert-hints?side=bid\|ask&prices=p1,p2,...`** | Batch **insert-hint** resolution in one LCD walk (max **100** prices). Response: `{ side, hints[], budget_exhausted }` per [§ Insert hints & price window](#insert-hints-price-window-gitlab-267). |
 | **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid\|ask&depth=N`** | Legacy preview (default **10**, max **20**). Prefer **`limit-book`** for pro depth. |
 
 **Errors:** unknown pair → **404**; LCD failure → **502**; invalid cursor / side mismatch → **400**. When **`RATE_LIMIT_RPS > 0`**, sustained abuse → **429** ([indexer-invariants.md](./indexer-invariants.md)).
@@ -45,13 +46,35 @@ Resting **FIFO limit orders** live on each pair contract. The indexer exposes re
 
 **Not the on-chain FIFO book:** CoinGecko/CoinMarketCap **`/cg/orderbook`** and **`/cmc/orderbook`** return **hybrid-simulated** depth (AMM curve walk + merged resting limits; GitLab **#220**) — not a live CEX L2 feed. On-chain FIFO book: **`limit-book`** above; listing spec: [CG_CMC_COMPLIANCE.md](./CG_CMC_COMPLIANCE.md).
 
-OpenAPI: served from the indexer Swagger UI (`/swagger-ui/`). Regression tests: [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs).
+OpenAPI: served from the indexer Swagger UI (`/swagger-ui/`). Regression tests: [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_limit_book_deep.rs`](../indexer/tests/api_limit_book_deep.rs), [`api_limit_book_insert_hints.rs`](../indexer/tests/api_limit_book_insert_hints.rs).
+
+### Insert hints & price window (GitLab **#267**) {#insert-hints-price-window-gitlab-267}
+
+Indexer primitives for deep-book ladders ([#268](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/268)) and contract anchor hints ([#266](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/266)). **Frontends must use these HTTP routes** — no direct LCD/RPC book walks in production UI.
+
+**`insert-hints`** — comma-separated **`prices`** (≤ **100**). Each hint:
+
+| Field | Meaning |
+|-------|---------|
+| `predecessor_order_id` | On-chain `hint_after_order_id` when `resolved` is true |
+| `resolved` | `false` when the walk cannot reach the slot (**never guess**) |
+| `reason` | `"head"` (better than head / empty book), or `"pagination_gap"` (budget or tail not reached) |
+| `budget_exhausted` | Top-level flag when the **101** LCD query cap stopped the walk early |
+
+Semantics match [limit-orders.md § Ordering](./limit-orders.md#ordering-composite-key-fifo) and [`limitBookInsertHint.ts`](../frontend-dapp/src/utils/limitBookInsertHint.ts) (parity-tested in Rust).
+
+**Price window** — on **`limit-book`**, set both **`price_from`** and **`price_to`** (positive decimals). Band is inclusive:
+
+- **Bids** (head = highest price): `price_from` ≥ `price_to`; returns orders with `price_to ≤ price ≤ price_from`.
+- **Asks** (head = lowest price): `price_from` ≤ `price_to`; returns orders with `price_from ≤ price ≤ price_to`.
+
+Same **`limit`**, **`after_order_id`**, **`has_more`**, and **101** LCD budget as paginated `limit-book`. Routes sit on the **LCD-heavy** governor ([`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md)).
 
 ### Batch placement insert hints (GitLab **#261**)
 
 When placing via **`PlaceLimitOrderBatch`**, each `orders[]` entry may include optional **`hint_after_order_id`** (`null`/omit = head walk only). **`PlaceLimitOrderLadder`** accepts optional **`ladder.hint_after_order_id`** on the **head-most rung in book order** only (GitLab **#266**; resolved via indexer **#267**). On-chain, batch inserts traverse rungs in **book-sort order** (composite `(price, order_id)`) while preserving input **id assignment** and **wasm attr order**; interior rungs reuse an **`InsertThreadCursor`** from the prior successful insert when bracketed (O(0)-load verify). On-chain verify + fallback: invariant **L14** in [contracts-security-audit.md](./contracts-security-audit.md) ([#256](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/256), directional near-miss fallback [#265](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/265), book-order traversal [#266](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/266)).
 
-**Client resolver (recommended):** walk paginated **`limit-book`** pages for the target side (head → tail). For insert price `P`:
+**Client resolver (recommended):** prefer **`GET .../limit-book/insert-hints`** ([#267](#insert-hints-price-window-gitlab-267)) for batch ladder bands; otherwise walk paginated **`limit-book`** pages for the target side (head → tail). For insert price `P`:
 
 - **Bids** (descending price, ascending `order_id`): return the `order_id` of the order immediately **before** the insert slot; `null` for head insert (price better than loaded head) or when **`has_more`** and the slot is past the last loaded row (pagination gap).
 - **Asks** (ascending price): same rule with ask sort order ([limit-orders.md § Ordering](./limit-orders.md#ordering-composite-key-fifo)).
