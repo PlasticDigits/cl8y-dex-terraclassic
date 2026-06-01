@@ -3026,8 +3026,25 @@ mod proptest_limits {
             .may_load(storage)
             .unwrap()
             .unwrap_or_default();
-        assert_eq!(walk_bid_sum(storage), p1);
-        assert_eq!(walk_ask_sum(storage), p0);
+        // GitLab #264: sub-threshold dust is parked off-book into EXPIRED_LIMIT_CLAIMS while
+        // escrow keeps backing it until the maker claims (L1). Escrow therefore equals on-book
+        // remaining PLUS parked dust on each side, not on-book remaining alone.
+        let mut parked_bid = Uint128::zero();
+        let mut parked_ask = Uint128::zero();
+        for item in EXPIRED_LIMIT_CLAIMS.range(storage, None, None, cosmwasm_std::Order::Ascending)
+        {
+            let (_id, refund) = item.unwrap();
+            match refund.side {
+                LimitOrderSide::Bid => {
+                    parked_bid = parked_bid.checked_add(refund.remaining).unwrap()
+                }
+                LimitOrderSide::Ask => {
+                    parked_ask = parked_ask.checked_add(refund.remaining).unwrap()
+                }
+            }
+        }
+        assert_eq!(walk_bid_sum(storage).checked_add(parked_bid).unwrap(), p1);
+        assert_eq!(walk_ask_sum(storage).checked_add(parked_ask).unwrap(), p0);
     }
 
     #[derive(Clone, Debug)]
