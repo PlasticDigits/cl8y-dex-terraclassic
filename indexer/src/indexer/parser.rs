@@ -2,8 +2,9 @@
 //!
 //! **Invariants:** duplicate wasm attribute keys use the last value (`wasm_attr_last`) where a
 //! single logical value is intended. **Lifecycle wasm** (`limit_order_expired_parked`,
-//! `claim_expired_limit_order`) may share one `wasm` event with other actions when LCD output
-//! flattens attribute streams — those parsers scan **every** `action` occurrence (GitLab #141).
+//! `claim_expired_limit_order`, `limit_order_fill`) may share one `wasm` event with other actions
+//! when LCD output flattens attribute streams — those parsers scan **every** `action` occurrence
+//! (GitLab #141, #269).
 //! LocalTerra also emits standalone lifecycle rows as **`wasm-wasm`** events (same attribute keys).
 //! Parsing must not panic on adversarial attribute lists (see stress tests in `#[cfg(test)]`).
 //! Full matrix: `docs/indexer-invariants.md`.
@@ -530,9 +531,125 @@ pub fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
     swaps
 }
 
-fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
-    let mut out = Vec::new();
+fn parse_limit_order_fill_segment(
+    contract: &str,
+    seg: &std::collections::HashMap<&str, &str>,
+) -> Option<ParsedLimitOrderFill> {
+    let side = seg.get("side").copied()?;
+    if side != "bid" && side != "ask" {
+        return None;
+    }
+    let maker = seg.get("maker").copied()?;
+    let order_id = seg.get("order_id")?.parse::<i64>().ok()?;
+    let price = seg.get("price")?.parse::<BigDecimal>().ok()?;
+    let token0_amount = seg.get("token0_amount")?.parse::<BigDecimal>().ok()?;
+    let token1_amount = seg.get("token1_amount")?.parse::<BigDecimal>().ok()?;
+    let commission_amount = seg.get("commission_amount")?.parse::<BigDecimal>().ok()?;
+    Some(ParsedLimitOrderFill {
+        pair_address: contract.to_string(),
+        order_id,
+        side: side.to_string(),
+        maker: maker.to_string(),
+        price,
+        token0_amount,
+        token1_amount,
+        commission_amount,
+    })
+}
 
+/// Merged LCD streams may list multiple `limit_order_fill` actions with columnar field keys.
+fn parse_limit_order_fills_columnar(attrs: &[Attribute]) -> Option<Vec<ParsedLimitOrderFill>> {
+    let fill_count = attrs
+        .iter()
+        .filter(|a| a.key == "action" && a.value == "limit_order_fill")
+        .count();
+    if fill_count <= 1 {
+        return None;
+    }
+    let contract = attrs
+        .iter()
+        .find(|a| is_wasm_contract_addr_key(a.key.as_str()))
+        .map(|a| a.value.as_str())?;
+
+    let order_ids: Vec<i64> = wasm_attr_values(attrs, "order_id")
+        .iter()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    if order_ids.len() != fill_count {
+        return None;
+    }
+
+    let sides: Vec<&str> = wasm_attr_values(attrs, "side");
+    let makers: Vec<&str> = wasm_attr_values(attrs, "maker");
+    let prices: Vec<BigDecimal> = wasm_attr_values(attrs, "price")
+        .iter()
+        .filter_map(|s| BigDecimal::from_str(s).ok())
+        .collect();
+    let token0_amounts: Vec<BigDecimal> = wasm_attr_values(attrs, "token0_amount")
+        .iter()
+        .filter_map(|s| BigDecimal::from_str(s).ok())
+        .collect();
+    let token1_amounts: Vec<BigDecimal> = wasm_attr_values(attrs, "token1_amount")
+        .iter()
+        .filter_map(|s| BigDecimal::from_str(s).ok())
+        .collect();
+    let commission_amounts: Vec<BigDecimal> = wasm_attr_values(attrs, "commission_amount")
+        .iter()
+        .filter_map(|s| BigDecimal::from_str(s).ok())
+        .collect();
+
+    let n = fill_count;
+    if prices.len() != n
+        || token0_amounts.len() != n
+        || token1_amounts.len() != n
+        || commission_amounts.len() != n
+    {
+        return None;
+    }
+
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let side = sides.get(i).copied().or_else(|| sides.first().copied())?;
+        if side != "bid" && side != "ask" {
+            return None;
+        }
+        let maker = makers.get(i).copied().or_else(|| makers.first().copied())?;
+        out.push(ParsedLimitOrderFill {
+            pair_address: contract.to_string(),
+            order_id: order_ids[i],
+            side: side.to_string(),
+            maker: maker.to_string(),
+            price: prices[i].clone(),
+            token0_amount: token0_amounts[i].clone(),
+            token1_amount: token1_amounts[i].clone(),
+            commission_amount: commission_amounts[i].clone(),
+        });
+    }
+    Some(out)
+}
+
+fn parse_limit_order_fills_from_wasm_attrs(attrs: &[Attribute]) -> Vec<ParsedLimitOrderFill> {
+    if let Some(columnar) = parse_limit_order_fills_columnar(attrs) {
+        return columnar;
+    }
+
+    let mut out = Vec::new();
+    for (i, a) in attrs.iter().enumerate() {
+        if a.key != "action" || a.value != "limit_order_fill" {
+            continue;
+        }
+        let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            continue;
+        };
+        let seg = wasm_kv_map_after_action(attrs, i);
+        if let Some(fill) = parse_limit_order_fill_segment(contract, &seg) {
+            out.push(fill);
+        }
+    }
+    out
+}
+
+fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
         logs.iter().flat_map(|l| l.events.iter()).collect()
     } else if let Some(evts) = &tx.events {
@@ -541,59 +658,13 @@ fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
         Vec::new()
     };
 
+    let mut out = Vec::new();
     for event in &events {
-        if event.event_type != "wasm" {
+        if !is_wasm_lifecycle_event_type(&event.event_type) {
             continue;
         }
-        let attrs = &event.attributes;
-        if wasm_attr_last(attrs, "action") != Some("limit_order_fill") {
-            continue;
-        }
-
-        let contract = wasm_contract_addr(attrs);
-        let order_id_s = wasm_attr_last(attrs, "order_id");
-        let side = wasm_attr_last(attrs, "side");
-        let maker = wasm_attr_last(attrs, "maker");
-        let price_s = wasm_attr_last(attrs, "price");
-        let t0 = wasm_attr_last(attrs, "token0_amount");
-        let t1 = wasm_attr_last(attrs, "token1_amount");
-        let comm = wasm_attr_last(attrs, "commission_amount");
-
-        let Some(contract) = contract else { continue };
-        let Some(side) = side else { continue };
-        if side != "bid" && side != "ask" {
-            continue;
-        }
-        let Some(maker) = maker else { continue };
-
-        let Some(oid) = order_id_s.and_then(|s| s.parse::<i64>().ok()) else {
-            continue;
-        };
-        let Some(price) = price_s.and_then(|s| s.parse::<BigDecimal>().ok()) else {
-            continue;
-        };
-        let Some(token0_amount) = t0.and_then(|s| s.parse::<BigDecimal>().ok()) else {
-            continue;
-        };
-        let Some(token1_amount) = t1.and_then(|s| s.parse::<BigDecimal>().ok()) else {
-            continue;
-        };
-        let Some(commission_amount) = comm.and_then(|s| s.parse::<BigDecimal>().ok()) else {
-            continue;
-        };
-
-        out.push(ParsedLimitOrderFill {
-            pair_address: contract.to_string(),
-            order_id: oid,
-            side: side.to_string(),
-            maker: maker.to_string(),
-            price,
-            token0_amount,
-            token1_amount,
-            commission_amount,
-        });
+        out.extend(parse_limit_order_fills_from_wasm_attrs(&event.attributes));
     }
-
     out
 }
 
@@ -1375,6 +1446,240 @@ mod tests {
         assert_eq!(fills[0].side, "bid");
         assert_eq!(fills[1].order_id, 8);
         assert_eq!(fills[1].side, "ask");
+    }
+
+    #[test]
+    fn parse_limit_order_fills_merged_before_swap() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "limit_order_fill"),
+            ("order_id", "101"),
+            ("side", "bid"),
+            ("maker", "terra1mk1"),
+            ("price", "1.0"),
+            ("token0_amount", "10"),
+            ("token1_amount", "10"),
+            ("commission_amount", "0.1"),
+            ("action", "limit_order_fill"),
+            ("order_id", "102"),
+            ("side", "ask"),
+            ("maker", "terra1mk2"),
+            ("price", "1.1"),
+            ("token0_amount", "20"),
+            ("token1_amount", "22"),
+            ("commission_amount", "0.2"),
+            ("action", "limit_order_fill"),
+            ("order_id", "103"),
+            ("side", "bid"),
+            ("maker", "terra1mk3"),
+            ("price", "0.9"),
+            ("token0_amount", "5"),
+            ("token1_amount", "4"),
+            ("commission_amount", "0.05"),
+            ("action", "limit_order_fill"),
+            ("order_id", "104"),
+            ("side", "ask"),
+            ("maker", "terra1mk4"),
+            ("price", "1.2"),
+            ("token0_amount", "8"),
+            ("token1_amount", "9"),
+            ("commission_amount", "0.08"),
+            ("action", "limit_order_fill"),
+            ("order_id", "105"),
+            ("side", "bid"),
+            ("maker", "terra1mk5"),
+            ("price", "1.05"),
+            ("token0_amount", "15"),
+            ("token1_amount", "15"),
+            ("commission_amount", "0.15"),
+            ("action", "swap"),
+            ("sender", "terra1taker"),
+            ("offer_amount", "100"),
+            ("return_amount", "95"),
+            ("offer_asset", "tokena"),
+            ("ask_asset", "tokenb"),
+            ("pool_return_amount", "40"),
+            ("book_return_amount", "55"),
+            ("limit_book_offer_consumed", "60"),
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 5, "GitLab #254 QA: 5 on-chain fills");
+        assert_eq!(fills[0].order_id, 101);
+        assert_eq!(fills[4].order_id, 105);
+        assert_eq!(fills[0].maker, "terra1mk1");
+        assert_eq!(fills[4].commission_amount.to_string(), "0.15");
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(
+            swaps[0].book_return_amount.as_ref().unwrap().to_string(),
+            "55"
+        );
+    }
+
+    #[test]
+    fn parse_limit_order_fills_twenty_makers_merged_before_transfer() {
+        let mut attributes = vec![Attribute {
+            key: "_contract_address".into(),
+            value: "terra1pair".into(),
+        }];
+        for id in 1..=20i64 {
+            attributes.extend([
+                Attribute {
+                    key: "action".into(),
+                    value: "limit_order_fill".into(),
+                },
+                Attribute {
+                    key: "order_id".into(),
+                    value: id.to_string(),
+                },
+                Attribute {
+                    key: "side".into(),
+                    value: if id % 2 == 0 {
+                        "ask".into()
+                    } else {
+                        "bid".into()
+                    },
+                },
+                Attribute {
+                    key: "maker".into(),
+                    value: format!("terra1mk{id}"),
+                },
+                Attribute {
+                    key: "price".into(),
+                    value: "1".into(),
+                },
+                Attribute {
+                    key: "token0_amount".into(),
+                    value: "1".into(),
+                },
+                Attribute {
+                    key: "token1_amount".into(),
+                    value: "1".into(),
+                },
+                Attribute {
+                    key: "commission_amount".into(),
+                    value: "0.01".into(),
+                },
+            ]);
+        }
+        attributes.extend([
+            Attribute {
+                key: "action".into(),
+                value: "transfer".into(),
+            },
+            Attribute {
+                key: "recipient".into(),
+                value: "terra1taker".into(),
+            },
+            Attribute {
+                key: "amount".into(),
+                value: "100".into(),
+            },
+            Attribute {
+                key: "action".into(),
+                value: "swap".into(),
+            },
+            Attribute {
+                key: "sender".into(),
+                value: "terra1taker".into(),
+            },
+            Attribute {
+                key: "offer_amount".into(),
+                value: "500".into(),
+            },
+            Attribute {
+                key: "return_amount".into(),
+                value: "480".into(),
+            },
+            Attribute {
+                key: "offer_asset".into(),
+                value: "tokena".into(),
+            },
+            Attribute {
+                key: "ask_asset".into(),
+                value: "tokenb".into(),
+            },
+        ]);
+        let tx = TxResponse {
+            height: "1".into(),
+            txhash: "HYBRID20".into(),
+            logs: Some(vec![TxLog {
+                events: vec![Event {
+                    event_type: "wasm".into(),
+                    attributes,
+                }],
+            }]),
+            timestamp: None,
+            events: None,
+        };
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 20, "GitLab #254 QA: 20 on-chain fills");
+        assert_eq!(fills[0].order_id, 1);
+        assert_eq!(fills[19].order_id, 20);
+        assert_eq!(fills[19].maker, "terra1mk20");
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+    }
+
+    #[test]
+    fn parse_limit_order_fills_from_wasm_wasm_event_type() {
+        let tx = wasm_wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "limit_order_fill"),
+            ("order_id", "7"),
+            ("side", "bid"),
+            ("maker", "terra1maker"),
+            ("price", "1.5"),
+            ("token0_amount", "100"),
+            ("token1_amount", "150"),
+            ("commission_amount", "1"),
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 1);
+        assert_eq!(fills[0].pair_address, "terra1pair");
+        assert_eq!(fills[0].order_id, 7);
+    }
+
+    #[test]
+    fn parse_limit_order_fills_skips_malformed_segment_keeps_valid() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "limit_order_fill"),
+            ("order_id", "not-a-number"),
+            ("side", "bid"),
+            ("maker", "terra1bad"),
+            ("action", "limit_order_fill"),
+            ("order_id", "42"),
+            ("side", "ask"),
+            ("maker", "terra1good"),
+            ("price", "2"),
+            ("token0_amount", "10"),
+            ("token1_amount", "20"),
+            ("commission_amount", "0"),
+            ("action", "swap"),
+            ("sender", "terra1taker"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+            ("offer_asset", "a"),
+            ("ask_asset", "b"),
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 1);
+        assert_eq!(fills[0].order_id, 42);
+    }
+
+    #[test]
+    fn parse_limit_order_fills_pool_only_swap_has_zero_fills() {
+        let tx = wasm_tx(vec![
+            ("contract_address", "terra1pair"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "100"),
+            ("return_amount", "99"),
+            ("offer_asset", "a"),
+            ("ask_asset", "b"),
+        ]);
+        assert!(parse_limit_order_fills(&tx).is_empty());
     }
 
     #[test]
