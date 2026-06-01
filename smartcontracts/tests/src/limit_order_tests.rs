@@ -3791,8 +3791,9 @@ fn limit_batch_partial_success_skips_book_walk_failures() {
         );
     }
 
-    // Rung 2 uses a better price than rung 1 so batch hint-chaining cannot O(1)-insert;
-    // head walk with max_adjust_steps=5 fails against the seeded deep book (GitLab #256).
+    // Rung 2 uses a better price than rung 1 so batch hint-chaining cannot O(1)-insert.
+    // GitLab #265: directional walk from chained hint succeeds at max_adjust_steps=5;
+    // max_adjust_steps=1 still skips (O(1) verify + walk exceed cap).
     let orders = vec![
         LimitOrderPlacementItem {
             price: Decimal::from_ratio(99u128, 100u128),
@@ -3804,7 +3805,7 @@ fn limit_batch_partial_success_skips_book_walk_failures() {
         LimitOrderPlacementItem {
             price: Decimal::one(),
             amount: Uint128::new(1_000),
-            max_adjust_steps: 5,
+            max_adjust_steps: 1,
             expires_at: None,
             hint_after_order_id: None,
         },
@@ -3925,6 +3926,80 @@ fn limit_batch_item_explicit_hint_places_on_deep_book() {
         placed.len(),
         1,
         "hint should allow placement with low max_adjust_steps"
+    );
+}
+
+/// GitLab #265 — near-miss chained hint: directional walk from prior rung succeeds under cap.
+#[test]
+fn limit_batch_chained_near_miss_hint_directional_walk_succeeds() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    for _ in 0..10 {
+        place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(1_000),
+            Decimal::one(),
+        );
+    }
+
+    let orders = vec![
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(99u128, 100u128),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        },
+        LimitOrderPlacementItem {
+            price: Decimal::one(),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 5,
+            expires_at: None,
+            hint_after_order_id: None,
+        },
+    ];
+    let total = Uint128::new(2_000);
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders,
+    })
+    .unwrap();
+
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(
+        placed.len(),
+        2,
+        "chained near-miss hint should succeed via directional walk (#265)"
     );
 }
 

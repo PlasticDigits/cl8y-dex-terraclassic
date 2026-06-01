@@ -404,8 +404,20 @@ pub fn insert_ask_with_id(
 /// Doubly-linked insert position: `(prev, next)` neighbor order ids.
 type InsertNeighbors = (Option<u64>, Option<u64>);
 
+/// Outcome of O(1) hint verification (GitLab #256) and directional fallback routing (#265).
+enum HintInsertOutcome {
+    /// Verified predecessor — insert in O(1).
+    Ready(InsertNeighbors),
+    /// Hint missing, wrong side, or dangling — fall back to head walk.
+    HeadWalk,
+    /// Valid anchor; new sorts before hint — walk `prev` toward head.
+    WalkTowardHead { hint_id: u64 },
+    /// Valid anchor; new sorts after hint's `next` — walk `next` toward tail from `start_id`.
+    WalkTowardTail { start_id: u64 },
+}
+
 /// O(1) insert position when `hint_id` is a valid on-book predecessor (GitLab #256).
-/// Loads the hint order and at most its `next` neighbor; returns `None` to fall back to head walk.
+/// On verify failure with a valid anchor, returns a directional walk target (GitLab #265).
 fn try_insert_after_hint_bid(
     storage: &dyn Storage,
     head: Option<u64>,
@@ -413,30 +425,32 @@ fn try_insert_after_hint_bid(
     new_price: Decimal,
     new_id: u64,
     steps: &mut u32,
-) -> Result<Option<InsertNeighbors>, ContractError> {
+) -> Result<HintInsertOutcome, ContractError> {
     *steps += 1;
     let hint = match ORDERS.may_load(storage, hint_id)? {
         Some(o) if o.side == LimitOrderSide::Bid => o,
-        _ => return Ok(None),
+        _ => return Ok(HintInsertOutcome::HeadWalk),
     };
     if hint.prev.is_none() && head != Some(hint_id) {
-        return Ok(None);
+        return Ok(HintInsertOutcome::HeadWalk);
     }
     if !bid_before(hint.price, hint_id, new_price, new_id) {
-        return Ok(None);
+        return Ok(HintInsertOutcome::WalkTowardHead { hint_id });
     }
     if let Some(next_id) = hint.next {
         *steps += 1;
         let next = match ORDERS.may_load(storage, next_id)? {
             Some(o) if o.side == LimitOrderSide::Bid => o,
-            _ => return Ok(None),
+            _ => {
+                return Ok(HintInsertOutcome::WalkTowardTail { start_id: hint_id });
+            }
         };
         if !bid_before(new_price, new_id, next.price, next_id) {
-            return Ok(None);
+            return Ok(HintInsertOutcome::WalkTowardTail { start_id: next_id });
         }
-        Ok(Some((Some(hint_id), Some(next_id))))
+        Ok(HintInsertOutcome::Ready((Some(hint_id), Some(next_id))))
     } else {
-        Ok(Some((Some(hint_id), None)))
+        Ok(HintInsertOutcome::Ready((Some(hint_id), None)))
     }
 }
 
@@ -447,50 +461,163 @@ fn try_insert_after_hint_ask(
     new_price: Decimal,
     new_id: u64,
     steps: &mut u32,
-) -> Result<Option<InsertNeighbors>, ContractError> {
+) -> Result<HintInsertOutcome, ContractError> {
     *steps += 1;
     let hint = match ORDERS.may_load(storage, hint_id)? {
         Some(o) if o.side == LimitOrderSide::Ask => o,
-        _ => return Ok(None),
+        _ => return Ok(HintInsertOutcome::HeadWalk),
     };
     if hint.prev.is_none() && head != Some(hint_id) {
-        return Ok(None);
+        return Ok(HintInsertOutcome::HeadWalk);
     }
     if !ask_before(hint.price, hint_id, new_price, new_id) {
-        return Ok(None);
+        return Ok(HintInsertOutcome::WalkTowardHead { hint_id });
     }
     if let Some(next_id) = hint.next {
         *steps += 1;
         let next = match ORDERS.may_load(storage, next_id)? {
             Some(o) if o.side == LimitOrderSide::Ask => o,
-            _ => return Ok(None),
+            _ => {
+                return Ok(HintInsertOutcome::WalkTowardTail { start_id: hint_id });
+            }
         };
         if !ask_before(new_price, new_id, next.price, next_id) {
-            return Ok(None);
+            return Ok(HintInsertOutcome::WalkTowardTail { start_id: next_id });
         }
-        Ok(Some((Some(hint_id), Some(next_id))))
+        Ok(HintInsertOutcome::Ready((Some(hint_id), Some(next_id))))
     } else {
-        Ok(Some((Some(hint_id), None)))
+        Ok(HintInsertOutcome::Ready((Some(hint_id), None)))
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn find_insert_bid(
+/// Forward book walk from `start_id` (same comparator loop as head walk).
+fn walk_insert_bid_from(
     storage: &dyn Storage,
-    head: Option<u64>,
-    hint_after: Option<u64>,
+    start_id: u64,
     new_price: Decimal,
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
 ) -> Result<InsertNeighbors, ContractError> {
-    if let Some(hint_id) = hint_after {
-        if let Some(pos) =
-            try_insert_after_hint_bid(storage, head, hint_id, new_price, new_id, steps)?
-        {
-            return Ok(pos);
+    let mut prev: Option<u64> = None;
+    let mut cur = Some(start_id);
+
+    while let Some(cid) = cur {
+        *steps += 1;
+        if *steps > max_steps {
+            return Err(ContractError::LimitInsertStepsExceeded { max: max_steps });
         }
+        let ord = ORDERS.load(storage, cid)?;
+        if bid_before(new_price, new_id, ord.price, cid) {
+            return Ok((ord.prev, Some(cid)));
+        }
+        prev = Some(cid);
+        cur = ord.next;
     }
+    Ok((prev, None))
+}
+
+fn walk_insert_ask_from(
+    storage: &dyn Storage,
+    start_id: u64,
+    new_price: Decimal,
+    new_id: u64,
+    max_steps: u32,
+    steps: &mut u32,
+) -> Result<InsertNeighbors, ContractError> {
+    let mut prev: Option<u64> = None;
+    let mut cur = Some(start_id);
+
+    while let Some(cid) = cur {
+        *steps += 1;
+        if *steps > max_steps {
+            return Err(ContractError::LimitInsertStepsExceeded { max: max_steps });
+        }
+        let ord = ORDERS.load(storage, cid)?;
+        if ask_before(new_price, new_id, ord.price, cid) {
+            return Ok((ord.prev, Some(cid)));
+        }
+        prev = Some(cid);
+        cur = ord.next;
+    }
+    Ok((prev, None))
+}
+
+/// Walk `prev` from `hint_id` toward head; new sorts before hint (GitLab #265).
+/// At each node, verify the candidate `(prev, cur)` pair against price-time order before stopping.
+fn walk_insert_bid_toward_head(
+    storage: &dyn Storage,
+    hint_id: u64,
+    new_price: Decimal,
+    new_id: u64,
+    max_steps: u32,
+    steps: &mut u32,
+) -> Result<InsertNeighbors, ContractError> {
+    let mut cur = Some(hint_id);
+
+    while let Some(cid) = cur {
+        *steps += 1;
+        if *steps > max_steps {
+            return Err(ContractError::LimitInsertStepsExceeded { max: max_steps });
+        }
+        let ord = ORDERS.load(storage, cid)?;
+        if bid_before(new_price, new_id, ord.price, cid) {
+            if let Some(prev_id) = ord.prev {
+                let prev_ord = ORDERS.load(storage, prev_id)?;
+                if bid_before(prev_ord.price, prev_id, new_price, new_id) {
+                    return Ok((Some(prev_id), Some(cid)));
+                }
+                cur = Some(prev_id);
+                continue;
+            }
+            return Ok((None, Some(cid)));
+        }
+        cur = ord.prev;
+    }
+    Ok((None, Some(hint_id)))
+}
+
+fn walk_insert_ask_toward_head(
+    storage: &dyn Storage,
+    hint_id: u64,
+    new_price: Decimal,
+    new_id: u64,
+    max_steps: u32,
+    steps: &mut u32,
+) -> Result<InsertNeighbors, ContractError> {
+    let mut cur = Some(hint_id);
+
+    while let Some(cid) = cur {
+        *steps += 1;
+        if *steps > max_steps {
+            return Err(ContractError::LimitInsertStepsExceeded { max: max_steps });
+        }
+        let ord = ORDERS.load(storage, cid)?;
+        if ask_before(new_price, new_id, ord.price, cid) {
+            if let Some(prev_id) = ord.prev {
+                let prev_ord = ORDERS.load(storage, prev_id)?;
+                if ask_before(prev_ord.price, prev_id, new_price, new_id) {
+                    return Ok((Some(prev_id), Some(cid)));
+                }
+                cur = Some(prev_id);
+                continue;
+            }
+            return Ok((None, Some(cid)));
+        }
+        cur = ord.prev;
+    }
+    Ok((None, Some(hint_id)))
+}
+
+/// Head walk — used when hint anchor is unusable (missing / wrong side / unlinked).
+fn walk_insert_bid_from_head(
+    storage: &dyn Storage,
+    head: Option<u64>,
+    new_price: Decimal,
+    new_id: u64,
+    max_steps: u32,
+    steps: &mut u32,
+) -> Result<InsertNeighbors, ContractError> {
     let mut prev: Option<u64> = None;
     let mut cur = head;
 
@@ -509,23 +636,14 @@ fn find_insert_bid(
     Ok((prev, None))
 }
 
-#[allow(clippy::too_many_arguments)]
-fn find_insert_ask(
+fn walk_insert_ask_from_head(
     storage: &dyn Storage,
     head: Option<u64>,
-    hint_after: Option<u64>,
     new_price: Decimal,
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
 ) -> Result<InsertNeighbors, ContractError> {
-    if let Some(hint_id) = hint_after {
-        if let Some(pos) =
-            try_insert_after_hint_ask(storage, head, hint_id, new_price, new_id, steps)?
-        {
-            return Ok(pos);
-        }
-    }
     let mut prev: Option<u64> = None;
     let mut cur = head;
 
@@ -542,6 +660,64 @@ fn find_insert_ask(
         cur = ord.next;
     }
     Ok((prev, None))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn find_insert_bid(
+    storage: &dyn Storage,
+    head: Option<u64>,
+    hint_after: Option<u64>,
+    new_price: Decimal,
+    new_id: u64,
+    max_steps: u32,
+    steps: &mut u32,
+) -> Result<InsertNeighbors, ContractError> {
+    if let Some(hint_id) = hint_after {
+        match try_insert_after_hint_bid(storage, head, hint_id, new_price, new_id, steps)? {
+            HintInsertOutcome::Ready(pos) => return Ok(pos),
+            HintInsertOutcome::WalkTowardHead { hint_id } => {
+                return walk_insert_bid_toward_head(
+                    storage, hint_id, new_price, new_id, max_steps, steps,
+                );
+            }
+            HintInsertOutcome::WalkTowardTail { start_id } => {
+                return walk_insert_bid_from(
+                    storage, start_id, new_price, new_id, max_steps, steps,
+                );
+            }
+            HintInsertOutcome::HeadWalk => {}
+        }
+    }
+    walk_insert_bid_from_head(storage, head, new_price, new_id, max_steps, steps)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn find_insert_ask(
+    storage: &dyn Storage,
+    head: Option<u64>,
+    hint_after: Option<u64>,
+    new_price: Decimal,
+    new_id: u64,
+    max_steps: u32,
+    steps: &mut u32,
+) -> Result<InsertNeighbors, ContractError> {
+    if let Some(hint_id) = hint_after {
+        match try_insert_after_hint_ask(storage, head, hint_id, new_price, new_id, steps)? {
+            HintInsertOutcome::Ready(pos) => return Ok(pos),
+            HintInsertOutcome::WalkTowardHead { hint_id } => {
+                return walk_insert_ask_toward_head(
+                    storage, hint_id, new_price, new_id, max_steps, steps,
+                );
+            }
+            HintInsertOutcome::WalkTowardTail { start_id } => {
+                return walk_insert_ask_from(
+                    storage, start_id, new_price, new_id, max_steps, steps,
+                );
+            }
+            HintInsertOutcome::HeadWalk => {}
+        }
+    }
+    walk_insert_ask_from_head(storage, head, new_price, new_id, max_steps, steps)
 }
 
 /// Remove an order from its list and delete storage (refund handled by caller).
@@ -1807,6 +1983,253 @@ mod tests {
         assert_eq!(lo.price, Decimal::from_ratio(98u128, 100u128));
         assert_eq!(lo.prev, Some(id1));
         assert!(lo.next.is_none());
+    }
+
+    /// GitLab #265 — near-miss hint (new better than hint): prev walk finds slot under tight cap.
+    #[test]
+    fn insert_bid_near_miss_hint_toward_head_succeeds_under_cap() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id3 = insert_bid(
+            storage,
+            Decimal::from_ratio(98u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        // Hint id3 (too late); new belongs after id2 — head walk needs 3 steps, directional needs 1.
+        let id4 = insert_bid(
+            storage,
+            Decimal::from_ratio(985u128, 1000u128),
+            Uint128::new(100),
+            o,
+            Some(id3),
+            3,
+            None,
+        )
+        .unwrap();
+        let lo = load_order_response(storage, id4).unwrap();
+        assert_eq!(lo.prev, Some(id2));
+        assert_eq!(lo.next, Some(id3));
+        let lo2 = load_order_response(storage, id2).unwrap();
+        assert_eq!(lo2.next, Some(id4));
+        let _ = id1;
+    }
+
+    /// GitLab #265 — near-miss hint (new worse than hint.next): next walk finds slot under tight cap.
+    #[test]
+    fn insert_bid_near_miss_hint_toward_tail_succeeds_under_cap() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id3 = insert_bid(
+            storage,
+            Decimal::from_ratio(98u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        // Hint id1 (too early); new belongs after id2 — directional tail walk from id2.
+        let id4 = insert_bid(
+            storage,
+            Decimal::from_ratio(985u128, 1000u128),
+            Uint128::new(100),
+            o,
+            Some(id1),
+            4,
+            None,
+        )
+        .unwrap();
+        let lo = load_order_response(storage, id4).unwrap();
+        assert_eq!(lo.prev, Some(id2));
+        assert_eq!(lo.next, Some(id3));
+        let lo2 = load_order_response(storage, id2).unwrap();
+        assert_eq!(lo2.next, Some(id4));
+    }
+
+    /// GitLab #265 — deep book: near-miss hint succeeds where head walk would revert.
+    #[test]
+    fn insert_bid_deep_book_near_miss_hint_beats_head_walk_cap() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let mut ids = Vec::new();
+        for i in 0..20u128 {
+            ids.push(
+                insert_bid(
+                    storage,
+                    Decimal::from_ratio(100u128 - i, 100u128),
+                    Uint128::new(100),
+                    o.clone(),
+                    None,
+                    256,
+                    None,
+                )
+                .unwrap(),
+            );
+        }
+        let target_prev = ids[17];
+        let stale_hint = ids[19];
+        let id_new = insert_bid(
+            storage,
+            Decimal::from_ratio(825u128, 1000u128),
+            Uint128::new(100),
+            o,
+            Some(stale_hint),
+            3,
+            None,
+        )
+        .unwrap();
+        let lo = load_order_response(storage, id_new).unwrap();
+        assert_eq!(lo.prev, Some(target_prev));
+        assert_eq!(lo.next, Some(ids[18]));
+    }
+
+    #[test]
+    fn insert_ask_near_miss_hint_toward_tail_succeeds_under_cap() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_ask(
+            storage,
+            Decimal::from_ratio(101u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id3 = insert_ask(
+            storage,
+            Decimal::from_ratio(102u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id4 = insert_ask(
+            storage,
+            Decimal::from_ratio(1015u128, 1000u128),
+            Uint128::new(100),
+            o,
+            Some(id1),
+            4,
+            None,
+        )
+        .unwrap();
+        let lo = load_order_response(storage, id4).unwrap();
+        assert_eq!(lo.prev, Some(id2));
+        assert_eq!(lo.next, Some(id3));
+        let _ = (id1, id2, id3);
+    }
+
+    #[test]
+    fn relink_limit_order_price_near_miss_hint_succeeds() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let id1 = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id2 = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let id3 = insert_bid(
+            storage,
+            Decimal::from_ratio(98u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        relink_limit_order_price(
+            storage,
+            id1,
+            Decimal::from_ratio(985u128, 1000u128),
+            Some(id3),
+            3,
+        )
+        .unwrap();
+        let lo = load_order_response(storage, id1).unwrap();
+        assert_eq!(lo.price, Decimal::from_ratio(985u128, 1000u128));
+        assert_eq!(lo.prev, Some(id2));
+        assert_eq!(lo.next, Some(id3));
     }
 
     #[test]
