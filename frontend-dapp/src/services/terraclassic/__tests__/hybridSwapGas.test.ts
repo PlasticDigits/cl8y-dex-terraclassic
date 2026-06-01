@@ -23,11 +23,9 @@ describe('gasLimitForHybridSwap (GitLab #249, #260)', () => {
     expect(g10).toBeGreaterThanOrEqual(g2)
   })
 
-  it('shallow book (2 makers) includes scan/park overhead below flat 1.2M (GitLab #260)', () => {
+  it('shallow book (2 makers) hits HYBRID_SWAP_GAS_LIMIT with 1k scan worst case (GitLab #262)', () => {
     const gas = gasLimitForHybridSwap({ makersUsed: 2, hasPoolLeg: true })
-    expect(gas).toBeGreaterThan(810_000)
-    expect(gas).toBeLessThan(HYBRID_SWAP_GAS_LIMIT)
-    expect(gas).toBe(1_199_800)
+    expect(gas).toBe(HYBRID_SWAP_GAS_LIMIT)
   })
 
   it('deep maker cap (8 makers) hits HYBRID_SWAP_GAS_LIMIT before scan overhead binds', () => {

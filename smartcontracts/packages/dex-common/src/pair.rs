@@ -17,14 +17,15 @@ pub use crate::limit_placement::{
 
 /// On-chain caps (pair contract enforces the same upper bounds).
 pub const MAX_ADJUST_STEPS_HARD_CAP: u32 = 256;
-pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 256;
-/// Extra doubly-linked list iterations allowed beyond [`MAX_MAKER_FILLS_HARD_CAP`] per book walk
-/// (expired parks/skips, zero-remaining continues). See [`MAX_SCAN_STEPS`].
-pub const MAX_SCAN_STEPS_EXTRA: u32 = 32;
+/// Maximum distinct maker orders matched per hybrid book walk (execute + sim).
+/// Clamps caller `max_maker_fills` ([GitLab #262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)).
+pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 100;
 /// Hard ceiling on total book-walk iterations per side per call (fills + parks + skips + continues).
-/// Bounds taker gas when a long expired prefix sits at the book head
-/// ([GitLab #254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254)).
-pub const MAX_SCAN_STEPS: u32 = MAX_MAKER_FILLS_HARD_CAP + MAX_SCAN_STEPS_EXTRA;
+/// Decoupled from [`MAX_MAKER_FILLS_HARD_CAP`] so taker walks can traverse deep expired prefixes
+/// without raising the distinct-maker fill cap
+/// ([GitLab #254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254),
+/// [#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)).
+pub const MAX_SCAN_STEPS: u32 = 1000;
 /// Maximum expired limit orders parked into `EXPIRED_LIMIT_CLAIMS` per book walk during hybrid swap
 /// ([GitLab #250](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/250),
 /// raised in [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254)).

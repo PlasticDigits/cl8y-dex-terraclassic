@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { gasLimitForHybridSwapPublic, getGasLimitForExecuteMsg } from './gas'
 
 describe('getGasLimitForExecuteMsg hybrid parity (GitLab #260)', () => {
-  it('shallow book (2 makers) matches dApp scan/park envelope', () => {
-    expect(gasLimitForHybridSwapPublic(2)).toBe(1_199_800)
+  it('shallow book (2 makers) matches dApp scan/park envelope at ceiling (GitLab #262)', () => {
+    expect(gasLimitForHybridSwapPublic(2)).toBe(1_200_000)
   })
 
   it('pool-only hybrid uses one-hop pool envelope', () => {
@@ -25,6 +25,6 @@ describe('getGasLimitForExecuteMsg hybrid parity (GitLab #260)', () => {
         msg: Buffer.from(JSON.stringify(inner)).toString('base64'),
       },
     }
-    expect(getGasLimitForExecuteMsg(msg)).toBe(1_199_800)
+    expect(getGasLimitForExecuteMsg(msg)).toBe(1_200_000)
   })
 })

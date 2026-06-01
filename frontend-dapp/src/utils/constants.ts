@@ -82,8 +82,8 @@ export const HYBRID_SWAP_MAKER_GAS_BUFFER = 2
 export const HYBRID_SWAP_GAS_FLOOR = 600_000
 /**
  * Marginal gas per book-walk iteration beyond the maker-fill envelope (GitLab #260 / #254).
- * Tuned so `makersUsed + buffer` shallow quotes stay unchanged while
- * `MAX_SCAN_STEPS` + `MAX_EXPIRED_PARKS_PER_SWAP` worst case fits under {@link HYBRID_SWAP_GAS_LIMIT}.
+ * Tuned so shallow quotes with low `max_maker_fills` stay below {@link HYBRID_SWAP_GAS_LIMIT};
+ * worst-case `MAX_SCAN_STEPS` (1000) + parks offline envelope hits the ceiling (GitLab #262).
  */
 export const HYBRID_SWAP_PER_SCAN_STEP_GAS = 950
 /** Marginal gas per expired-order park (storage write + event) on the book walk (GitLab #260 / #250). */

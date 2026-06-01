@@ -10,8 +10,8 @@ const HYBRID_SWAP_GAS_FLOOR = 600_000
 /** Keep in sync with `frontend-dapp/src/utils/constants.ts` (GitLab #260). */
 const HYBRID_SWAP_PER_SCAN_STEP_GAS = 950
 const HYBRID_SWAP_PER_EXPIRED_PARK_GAS = 8_000
-/** Keep in sync with `frontend-dapp/src/services/terraclassic/hybridBookWalkLimits.ts`. */
-const MAX_SCAN_STEPS = 288
+/** Keep in sync with `frontend-dapp/src/services/terraclassic/hybridBookWalkLimits.ts` (GitLab #262). */
+const MAX_SCAN_STEPS = 1000
 const MAX_EXPIRED_PARKS_PER_SWAP = 15
 const PLACE_LIMIT_ORDER_GAS_LIMIT = 950_000
 const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400_000
