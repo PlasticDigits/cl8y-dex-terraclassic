@@ -78,6 +78,16 @@ Query **`limit_clean_config`** for per-side `min_remaining_token0` (asks) / `min
 
 Canonical: [limit-orders.md § Permissionless limit book clean](./limit-orders.md#permissionless-limit-book-clean), invariant **L15** in [contracts-security-audit.md](./contracts-security-audit.md), [`limit_book_clean.rs`](../smartcontracts/contracts/pair/src/limit_book_clean.rs). **No in-repo watcher** — operators may cron `clean_limit_book` from indexer backlog signals ([`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md)).
 
+## Match-time dust flush (GitLab #264) {#match-time-dust-flush-gitlab-264}
+
+During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remaining < 10`** (raw escrow units: token1 bids, token0 asks) are **auto-parked** into **`EXPIRED_LIMIT_CLAIMS`** with **`force_expired=true`** — no separate keeper tx, no CW20 in the swap. Constant: **`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`** in [`dex-common::pair`](../smartcontracts/packages/dex-common/src/pair.rs). Makers claim via **`claim_expired_limit_order`** (same as time-expiry / governance dust parks).
+
+**vs #263:** `CleanLimitBook` is permissionless, governance-threshold, and async; match-time flush is proactive with a fixed **10**-unit protocol threshold at fill time.
+
+**Indexer:** existing `limit_order_expired_parked` + `force_expired=true` → **`parked_expired`** (no parser change expected).
+
+Canonical: [limit-orders.md § Match-time dust flush](./limit-orders.md#match-time-dust-flush-gitlab-264), invariant **L16** in [contracts-security-audit.md](./contracts-security-audit.md), [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs). Agent playbook: [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
+
 ## Slippage: `max_spread` and `belief_price` (hybrid)
 
 Slippage checks run in the pair after the book leg and pool leg are computed. See [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) for the high-level rule. Canonical implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs) (invariant **L9**, [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197)). Pool-only swaps are the special case `book_return_net = 0`.

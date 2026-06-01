@@ -4701,3 +4701,84 @@ fn limit_clean_config_query_defaults_zero() {
     assert_eq!(cfg.min_remaining_token0, Uint128::zero());
     assert_eq!(cfg.min_remaining_token1, Uint128::zero());
 }
+
+/// GitLab #264 — post-fill sub-10 dust auto-parks; maker claims; no dust rows in ORDERS.
+#[test]
+fn match_dust_flush_bid_hybrid_then_maker_claims() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let price = Decimal::from_ratio(105u128, 100u128);
+    let fill = Uint128::new(94_380_952);
+    let cost = fill.checked_mul_floor(price).unwrap();
+    let gross_escrow = cost.checked_add(Uint128::one()).unwrap();
+    let order_id = place_bid_with_steps(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        gross_escrow,
+        price,
+        32,
+    );
+
+    let taker = Addr::unchecked("taker_dust_flush");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        fill.checked_mul(Uint128::new(5)).unwrap(),
+    );
+
+    let res = hybrid_swap_a_to_b(&mut app, &env, &taker, fill, 8);
+    assert!(
+        res.events.iter().any(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+                && e.attributes
+                    .iter()
+                    .any(|a| a.key == "force_expired" && a.value == "true")
+        }),
+        "dust flush emits limit_order_expired_parked with force_expired=true"
+    );
+
+    assert!(
+        app.wrap()
+            .query_wasm_smart::<LimitOrderResponse>(
+                env.pair.to_string(),
+                &QueryMsg::LimitOrder { order_id },
+            )
+            .is_err(),
+        "flushed order must not appear in ORDERS"
+    );
+
+    let row: Option<ExpiredLimitRefundResponse> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::ExpiredLimitRefund { order_id },
+        )
+        .unwrap();
+    let row = row.expect("dust claim row");
+    assert_eq!(row.remaining, Uint128::one());
+
+    let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+        &[],
+    )
+    .unwrap();
+    let bal_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(bal_after.checked_sub(bal_before).unwrap(), Uint128::one());
+}

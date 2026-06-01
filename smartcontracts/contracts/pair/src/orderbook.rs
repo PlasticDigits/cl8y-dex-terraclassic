@@ -24,8 +24,48 @@ use crate::state::{
 };
 
 use dex_common::pair::{
-    MAX_ADJUST_STEPS_HARD_CAP, MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS,
+    LIMIT_ORDER_DUST_FLUSH_THRESHOLD, MAX_ADJUST_STEPS_HARD_CAP, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS,
 };
+
+/// True when post-fill `remaining` is sub-threshold dust (GitLab #264).
+#[inline]
+pub fn should_flush_dust(remaining: Uint128) -> bool {
+    !remaining.is_zero() && remaining < LIMIT_ORDER_DUST_FLUSH_THRESHOLD
+}
+
+enum PostFillOutcome {
+    Unlinked,
+    FlushedDust { event: Event },
+    PartialSaved,
+}
+
+/// Unlink, park dust, or save partial after a successful fill.
+fn finalize_order_after_fill(
+    storage: &mut dyn Storage,
+    oid: u64,
+    order: &LimitOrder,
+    pair_contract: &str,
+) -> Result<PostFillOutcome, ContractError> {
+    if order.remaining.is_zero() {
+        unlink_order(storage, oid)?;
+        return Ok(PostFillOutcome::Unlinked);
+    }
+    if should_flush_dust(order.remaining) {
+        ORDERS.save(storage, oid, order)?;
+        let event = park_limit_order_for_clean(storage, oid, pair_contract, true, None)?;
+        return Ok(PostFillOutcome::FlushedDust { event });
+    }
+    ORDERS.save(storage, oid, order)?;
+    Ok(PostFillOutcome::PartialSaved)
+}
+
+#[inline]
+fn apply_sim_dust_flush(order: &mut LimitOrder) {
+    if should_flush_dust(order.remaining) {
+        order.remaining = Uint128::zero();
+    }
+}
 
 /// Increment scan step count; return `false` when [`MAX_SCAN_STEPS`] is reached (caller should break).
 #[inline]
@@ -962,10 +1002,12 @@ pub fn match_bids(
         token0_left = token0_left.checked_sub(fill)?;
         token1_out_total = token1_out_total.checked_add(net_to_taker)?;
 
-        if order.remaining.is_zero() {
-            unlink_order(storage, oid)?;
-        } else {
-            ORDERS.save(storage, oid, &order)?;
+        match finalize_order_after_fill(storage, oid, &order, pair_contract)? {
+            PostFillOutcome::Unlinked => {}
+            PostFillOutcome::FlushedDust { event, .. } => {
+                fill_events.push(event);
+            }
+            PostFillOutcome::PartialSaved => {}
         }
 
         cur = order.next;
@@ -1131,10 +1173,12 @@ pub fn match_asks(
         token1_left = token1_left.checked_sub(cost)?;
         token0_out_total = token0_out_total.checked_add(net_to_taker)?;
 
-        if order.remaining.is_zero() {
-            unlink_order(storage, oid)?;
-        } else {
-            ORDERS.save(storage, oid, &order)?;
+        match finalize_order_after_fill(storage, oid, &order, pair_contract)? {
+            PostFillOutcome::Unlinked => {}
+            PostFillOutcome::FlushedDust { event, .. } => {
+                fill_events.push(event);
+            }
+            PostFillOutcome::PartialSaved => {}
         }
 
         cur = order.next;
@@ -1251,6 +1295,7 @@ pub fn simulate_match_bids(
         let net_to_taker = cost.checked_sub(commission)?;
         commission_total = commission_total.checked_add(commission)?;
         order.remaining = order.remaining.checked_sub(cost)?;
+        apply_sim_dust_flush(&mut order);
         token0_left = token0_left.checked_sub(fill)?;
         token1_out_total = token1_out_total.checked_add(net_to_taker)?;
         cur = order.next;
@@ -1359,6 +1404,7 @@ pub fn simulate_match_asks(
         let net_to_taker = fill_t0.checked_sub(commission)?;
         commission_total = commission_total.checked_add(commission)?;
         order.remaining = order.remaining.checked_sub(fill_t0)?;
+        apply_sim_dust_flush(&mut order);
         token1_left = token1_left.checked_sub(cost)?;
         token0_out_total = token0_out_total.checked_add(net_to_taker)?;
         cur = order.next;
@@ -2035,6 +2081,195 @@ mod aggregation_tests {
         let pending_after = PENDING_ESCROW_TOKEN0.may_load(storage).unwrap().unwrap();
         let consumed = pending_before.checked_sub(pending_after).unwrap();
         assert_eq!(consumed, Uint128::new(20_000));
+    }
+
+    /// GitLab #264 — bid fill leaving `remaining = 1` parks dust; escrow includes cost + dust.
+    #[test]
+    fn match_bid_dust_remainder_one_flushes_to_expired_claim() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let price = Decimal::from_ratio(105u128, 100u128);
+        let fill = Uint128::new(94_380_952);
+        let cost = fill.checked_mul_floor(price).unwrap();
+        let escrow = cost.checked_add(Uint128::one()).unwrap();
+        let order_id = insert_bid(storage, price, escrow, owner.clone(), None, 256, None).unwrap();
+        let pending_before = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
+
+        let result = match_bids(
+            storage,
+            1,
+            fill,
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.makers_used, 1);
+        assert!(ORDERS.may_load(storage, order_id).unwrap().is_none());
+        let claim = EXPIRED_LIMIT_CLAIMS.load(storage, order_id).unwrap();
+        assert_eq!(claim.remaining, Uint128::one());
+        assert_eq!(claim.owner, owner);
+        assert!(claim.expires_at.is_none());
+        let pending_after = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
+        assert_eq!(
+            pending_before.checked_sub(pending_after).unwrap(),
+            cost,
+            "fill batched subtract releases cost; dust stays in pending until claim (L1)"
+        );
+        assert_eq!(pending_after, Uint128::one());
+        assert!(
+            result.fill_events.iter().any(|e| e
+                .attributes
+                .iter()
+                .any(|a| { a.key == "action" && a.value == "limit_order_expired_parked" })),
+            "dust flush emits park event"
+        );
+    }
+
+    /// GitLab #264 — ask partial leaving `remaining = 5` flushes on token0 side.
+    #[test]
+    fn match_ask_dust_remainder_five_flushes_to_expired_claim() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let price = Decimal::one();
+        let order_id = insert_ask(
+            storage,
+            price,
+            Uint128::new(15),
+            owner.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let pending_before = PENDING_ESCROW_TOKEN0.may_load(storage).unwrap().unwrap();
+
+        let result = match_asks(
+            storage,
+            1,
+            Uint128::new(10),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert_eq!(result.makers_used, 1);
+        assert!(ORDERS.may_load(storage, order_id).unwrap().is_none());
+        let claim = EXPIRED_LIMIT_CLAIMS.load(storage, order_id).unwrap();
+        assert_eq!(claim.remaining, Uint128::new(5));
+        let pending_after = PENDING_ESCROW_TOKEN0.may_load(storage).unwrap().unwrap();
+        assert_eq!(
+            pending_before.checked_sub(pending_after).unwrap(),
+            Uint128::new(10),
+            "fill subtracts consumed token0; dust pending until claim"
+        );
+        assert_eq!(pending_after, Uint128::new(5));
+    }
+
+    /// GitLab #264 — `remaining = 10` stays on book (threshold is exclusive upper bound).
+    #[test]
+    fn match_bid_remaining_ten_stays_on_book() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let price = Decimal::one();
+        let order_id =
+            insert_bid(storage, price, Uint128::new(20), owner, None, 256, None).unwrap();
+
+        match_bids(
+            storage,
+            1,
+            Uint128::new(10),
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        let order = ORDERS.load(storage, order_id).unwrap();
+        assert_eq!(order.remaining, Uint128::new(10));
+        assert!(EXPIRED_LIMIT_CLAIMS
+            .may_load(storage, order_id)
+            .unwrap()
+            .is_none());
+    }
+
+    /// GitLab #264 / #255 — multi-fill ladder: each near-complete fill parks dust; sim = execute.
+    #[test]
+    fn match_bids_multi_maker_dust_flush_sim_matches_execute() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let price = Decimal::from_ratio(105u128, 100u128);
+        let fill_each = Uint128::new(94_380_952);
+        let cost = fill_each.checked_mul_floor(price).unwrap();
+        let escrow = cost.checked_add(Uint128::one()).unwrap();
+        let mut order_ids = Vec::new();
+        for _ in 0..5 {
+            order_ids
+                .push(insert_bid(storage, price, escrow, owner.clone(), None, 256, None).unwrap());
+        }
+
+        let budget = fill_each.checked_mul(Uint128::new(5)).unwrap();
+        let exec = match_bids(
+            storage,
+            1,
+            budget,
+            8,
+            None,
+            "pair",
+            "token0",
+            "token1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+        assert_eq!(exec.makers_used, 5);
+        for id in &order_ids {
+            assert!(ORDERS.may_load(storage, *id).unwrap().is_none());
+            assert_eq!(
+                EXPIRED_LIMIT_CLAIMS.load(storage, *id).unwrap().remaining,
+                Uint128::one()
+            );
+        }
+
+        let mut deps2 = mock_dependencies();
+        let storage2 = deps2.as_mut().storage;
+        for _ in 0..5 {
+            insert_bid(storage2, price, escrow, owner.clone(), None, 256, None).unwrap();
+        }
+        let sim = simulate_match_bids(storage2, 1, budget, 8, None, 30).unwrap();
+        assert_eq!(sim.makers_used, exec.makers_used);
+        assert_eq!(sim.offer_consumed, exec.offer_consumed);
+        assert_eq!(sim.return_net, exec.return_net);
+        assert_eq!(sim.commission_total, exec.commission_total);
+    }
+
+    #[test]
+    fn should_flush_dust_boundary_nine_yes_ten_no() {
+        assert!(should_flush_dust(Uint128::new(9)));
+        assert!(!should_flush_dust(Uint128::new(10)));
+        assert!(!should_flush_dust(Uint128::zero()));
     }
 }
 

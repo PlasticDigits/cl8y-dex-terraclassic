@@ -37,6 +37,12 @@ pub const MAX_SCAN_STEPS: u32 = 500;
 /// Kept well below [`MAX_SCAN_STEPS`] — parking is write-heavy (unlink + claim row + event).
 pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 15;
 
+/// Post-fill rounding can leave 1–9 smallest-unit remainders on limit orders. Match walks
+/// auto-park sub-threshold dust into `EXPIRED_LIMIT_CLAIMS` (GitLab #264); governance
+/// `CleanLimitBook` thresholds ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263))
+/// cover larger notionals separately.
+pub const LIMIT_ORDER_DUST_FLUSH_THRESHOLD: Uint128 = Uint128::new(10);
+
 /// TTL for on-pair CL8Y fee-discount cache entries ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)).
 pub const DISCOUNT_CACHE_TTL_SECONDS: u64 = 300;
 

@@ -124,7 +124,29 @@ When `hybrid` is set: the pair consumes the **book leg** first (up to `max_maker
 
 **CW20 transfer aggregation ([GitLab #248](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/248)):** Book match (`match_bids` / `match_asks`) accumulates payouts in memory — `maker_payouts` (offer token, one entry per distinct maker owner), `return_net`, and `commission_total` (ask token). After the pool leg, `execute_swap` builds aggregated submessages in order: **maker payouts** (offer token) → **one ask-token transfer to the receiver** (`book_return + pool_return`) → **one ask-token transfer to treasury** (`book_commission + pool_commission`). Zero amounts omit the transfer. Per-fill **`limit_order_fill`** wasm events are unchanged (indexer/analytics). Invariant **L10** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbook [skills/AGENTS_TERRACLASSIC_GAS.md](../skills/AGENTS_TERRACLASSIC_GAS.md).
 
-**Pending-escrow storage batching ([GitLab #255](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/255)):** During book match, `PENDING_ESCROW_TOKEN1` (bid fills) and `PENDING_ESCROW_TOKEN0` (ask fills) are decremented **once per token side per invocation** — fill costs accumulate in memory during the loop, then a single `checked_sub` + save runs after the walk (same final balance as sequential per-fill subtracts; underflow errors unchanged). Placement, cancel, claim, and park paths are unchanged. `simulate_match_*` does not touch escrow. Invariant **L13** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbook [skills/AGENTS_TERRACLASSIC_GAS.md](../skills/AGENTS_TERRACLASSIC_GAS.md).
+**Pending-escrow storage batching ([GitLab #255](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/255)):** During book match, `PENDING_ESCROW_TOKEN1` (bid fills) and `PENDING_ESCROW_TOKEN0` (ask fills) are decremented **once per token side per invocation** — fill costs accumulate in memory during the loop, then a single `checked_sub` + save runs after the walk (same final balance as sequential per-fill subtracts; underflow errors unchanged). **Dust flush ([#264](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/264)):** sub-threshold post-fill remainders add to the same batched subtract before save. Placement, cancel, claim, and time-expiry park paths are unchanged. `simulate_match_*` does not touch escrow. Invariant **L13** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbook [skills/AGENTS_TERRACLASSIC_GAS.md](../skills/AGENTS_TERRACLASSIC_GAS.md).
+
+<a id="match-time-dust-flush-gitlab-264"></a>
+
+### Match-time dust flush (GitLab #264)
+
+Integer rounding during hybrid book fills can leave **1–9 smallest-unit** remainders on resting limits (`floor(fill × price)` on bids). Those rows are economically exhausted but previously stayed in `ORDERS` until cancel or **`CleanLimitBook`** ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263)).
+
+**Protocol constant:** `LIMIT_ORDER_DUST_FLUSH_THRESHOLD = 10` in [`dex-common::pair`](../smartcontracts/packages/dex-common/src/pair.rs) (not governance-configurable in v1).
+
+**Execute:** After each successful fill in `match_bids` / `match_asks`, when **`0 < remaining < 10`** (token1 for bids, token0 for asks):
+
+1. Fill batched subtract already decremented **`cost`** from **`PENDING_ESCROW_*`** (**L13**); dust **`remaining`** is unchanged at park (same **L1** economics as time-expiry park — maker claim decrements pending).
+2. **`park_limit_order_for_clean(..., force_expired=true)`** — unlink `ORDERS`, store dust in **`EXPIRED_LIMIT_CLAIMS`**; **no** CW20 in the swap tx.
+3. Emit **`limit_order_expired_parked`** with **`force_expired=true`** (indexer → `parked_expired` lifecycle, same as governance dust clean).
+
+**Unchanged:** `remaining = 0` → unlink only; **`remaining ≥ 10`** → partial save. Dust flush **does not** count toward **`MAX_EXPIRED_PARKS_PER_SWAP` (15)** — only time-expired parks during the walk do.
+
+**Simulation:** `simulate_match_*` zeroes in-memory sub-threshold remainders so **`HybridSimulation`** quotes match execute (**L8**).
+
+**Maker recovery:** **`ClaimExpiredLimitOrder`** / batch claim — same pause gate (**L6**) and CW20 routing as time-expiry parks. Distinction vs **`CleanLimitBook`:** proactive at fill time with fixed **10**-unit threshold; vs **cancel:** only while row is still in `ORDERS`.
+
+Invariant **L16** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbooks [skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md), [skills/AGENTS_LOCALNET_TRADING_SWARM.md](../skills/AGENTS_LOCALNET_TRADING_SWARM.md).
 
 **Frontend hybrid gas ([GitLab #249](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/249), scan cap [#260](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/260), ceiling [#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)):** Terra Classic does not refund unused gas — the dApp sizes `Fee.gas` from the route quote’s `max_maker_fills` **plus** conservative book-walk overhead when `book_input > 0`, not a flat **15M** per hop unless the envelope hits the ceiling. Formula (one hop, book leg):
 
@@ -163,7 +185,7 @@ CosmWasm responses use **attributes** (visible in tx logs as events). Useful key
 | `action` = `claim_expired_limit_order` | Expired-limit refund (after park) |
 | `limit_order_cancelled`, `owner` | Same tx |
 | `action` = `limit_order_expired_parked` | Expired order removed from book into claim queue (wasm event; taker tx or **`clean_limit_book`**) |
-| `force_expired` = `true` | Optional on park event when governance dust threshold triggered ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263)) |
+| `force_expired` = `true` | Optional on park event when governance dust threshold triggered ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263)) or **match-time dust flush** ([#264](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/264)) |
 | `action` = `clean_limit_book` | Permissionless clean summary: `cleaned_count`, `time_expired_count`, `force_expired_count`, `cap_hit` ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263)) |
 | `action` = `swap` | Any swap |
 | `book_return_amount`, `pool_return_amount`, `return_amount` | Hybrid breakdown |
