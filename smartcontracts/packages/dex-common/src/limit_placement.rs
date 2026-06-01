@@ -44,6 +44,9 @@ pub struct LimitOrderLadderSpec {
     pub max_adjust_steps: u32,
     #[serde(default)]
     pub expires_at: Option<u64>,
+    /// Optional predecessor for the head-most rung in book order (GitLab #266).
+    #[serde(default)]
+    pub hint_after_order_id: Option<u64>,
 }
 
 #[cw_serde]
@@ -82,18 +85,50 @@ pub fn expand_limit_ladder(
     let count = spec.count;
     let prices = ladder_prices(spec.start_price, spec.end_price, count)?;
     let amounts = ladder_amounts_equal(spec.total_amount, count)?;
+    let boundary_idx =
+        ladder_boundary_rung_index(&spec.side, spec.start_price, spec.end_price, count);
 
     Ok(prices
         .into_iter()
         .zip(amounts)
-        .map(|(price, amount)| LimitOrderPlacementItem {
+        .enumerate()
+        .map(|(idx, (price, amount))| LimitOrderPlacementItem {
             price,
             amount,
             max_adjust_steps: spec.max_adjust_steps,
             expires_at: spec.expires_at,
-            hint_after_order_id: None,
+            hint_after_order_id: if idx == boundary_idx as usize {
+                spec.hint_after_order_id
+            } else {
+                None
+            },
         })
         .collect())
+}
+
+/// Index of the head-most rung in book order (GitLab #266).
+fn ladder_boundary_rung_index(
+    side: &LimitOrderSide,
+    start: Decimal,
+    end: Decimal,
+    count: u32,
+) -> u32 {
+    match side {
+        LimitOrderSide::Bid => {
+            if start >= end {
+                0
+            } else {
+                count - 1
+            }
+        }
+        LimitOrderSide::Ask => {
+            if start <= end {
+                0
+            } else {
+                count - 1
+            }
+        }
+    }
 }
 
 fn ladder_prices(start: Decimal, end: Decimal, count: u32) -> Result<Vec<Decimal>, StdError> {
@@ -157,6 +192,7 @@ mod tests {
             distribution: LimitLadderDistribution::Equal,
             max_adjust_steps: 32,
             expires_at: None,
+            hint_after_order_id: None,
         }
     }
 
@@ -173,5 +209,25 @@ mod tests {
     fn expand_rejects_count_over_max() {
         let spec = ladder_spec(25, 100);
         assert!(expand_limit_ladder(&spec, 20).is_err());
+    }
+
+    #[test]
+    fn expand_ladder_anchor_on_boundary_rung_ascending_bid() {
+        let spec = LimitOrderLadderSpec {
+            side: LimitOrderSide::Bid,
+            start_price: Decimal::from_ratio(99u128, 100u128),
+            end_price: Decimal::one(),
+            count: 3,
+            total_amount: Uint128::new(300),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: Some(42),
+        };
+        let items = expand_limit_ladder(&spec, 20).unwrap();
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].hint_after_order_id, None);
+        assert_eq!(items[1].hint_after_order_id, None);
+        assert_eq!(items[2].hint_after_order_id, Some(42));
     }
 }

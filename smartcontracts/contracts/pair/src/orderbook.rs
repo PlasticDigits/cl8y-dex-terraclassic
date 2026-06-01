@@ -191,6 +191,50 @@ pub fn ask_before(a_price: Decimal, a_id: u64, b_price: Decimal, b_id: u64) -> b
     a_price < b_price || (a_price == b_price && a_id < b_id)
 }
 
+/// Doubly-linked insert position: `(prev, next)` neighbor order ids.
+type InsertNeighbors = (Option<u64>, Option<u64>);
+
+/// Resolved insert position plus optional next-neighbor price when it was loaded (GitLab #266).
+struct InsertFindResult {
+    neighbors: InsertNeighbors,
+    next_price: Option<Decimal>,
+}
+
+/// Thread cursor from the previous batch insert — O(0) verify for the next rung in book order (#266).
+#[derive(Clone, Copy, Debug)]
+pub struct InsertThreadCursor {
+    pub after_id: u64,
+    pub after_price: Decimal,
+    pub next_id: Option<u64>,
+    pub next_price: Option<Decimal>,
+}
+
+/// Outcome of a batch-path insert including cursor for the next traversal step (#266).
+pub struct BatchInsertOutcome {
+    pub id: u64,
+    pub thread_cursor: InsertThreadCursor,
+}
+
+fn insert_find_result(
+    prev: Option<u64>,
+    next: Option<u64>,
+    next_price: Option<Decimal>,
+) -> InsertFindResult {
+    InsertFindResult {
+        neighbors: (prev, next),
+        next_price: if next.is_some() { next_price } else { None },
+    }
+}
+
+fn next_thread_cursor(id: u64, price: Decimal, found: &InsertFindResult) -> InsertThreadCursor {
+    InsertThreadCursor {
+        after_id: id,
+        after_price: price,
+        next_id: found.neighbors.1,
+        next_price: found.next_price,
+    }
+}
+
 fn next_order_id(storage: &mut dyn Storage) -> Result<u64, ContractError> {
     reserve_order_id_block(storage, 1)
 }
@@ -256,11 +300,14 @@ pub fn insert_bid_with_id(
     let mut steps: u32 = 0;
 
     let head = HEAD_BID.may_load(storage)?.flatten();
-    let (prev, next) = if head.is_none() {
-        (None, None)
+    let found = if head.is_none() {
+        insert_find_result(None, None, None)
     } else {
-        find_insert_bid(storage, head, hint_after, price, id, max_steps, &mut steps)?
+        find_insert_bid(
+            storage, head, None, hint_after, price, id, max_steps, &mut steps,
+        )?
     };
+    let (prev, next) = found.neighbors;
 
     let order = LimitOrder {
         owner: owner.clone(),
@@ -350,11 +397,14 @@ pub fn insert_ask_with_id(
     let mut steps: u32 = 0;
 
     let head = HEAD_ASK.may_load(storage)?.flatten();
-    let (prev, next) = if head.is_none() {
-        (None, None)
+    let found = if head.is_none() {
+        insert_find_result(None, None, None)
     } else {
-        find_insert_ask(storage, head, hint_after, price, id, max_steps, &mut steps)?
+        find_insert_ask(
+            storage, head, None, hint_after, price, id, max_steps, &mut steps,
+        )?
     };
+    let (prev, next) = found.neighbors;
 
     let order = LimitOrder {
         owner: owner.clone(),
@@ -401,13 +451,199 @@ pub fn insert_ask_with_id(
     Ok(id)
 }
 
-/// Doubly-linked insert position: `(prev, next)` neighbor order ids.
-type InsertNeighbors = (Option<u64>, Option<u64>);
+/// Batch path: thread cursor + hint; returns cursor for the next book-order traversal step (#266).
+#[allow(clippy::too_many_arguments)]
+pub fn insert_bid_with_id_for_batch(
+    storage: &mut dyn Storage,
+    id: u64,
+    price: Decimal,
+    remaining_token1: Uint128,
+    owner: Addr,
+    thread_cursor: Option<InsertThreadCursor>,
+    hint_after: Option<u64>,
+    max_adjust_steps: u32,
+    expires_at: Option<u64>,
+) -> Result<BatchInsertOutcome, ContractError> {
+    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
+    let mut steps: u32 = 0;
+
+    let head = HEAD_BID.may_load(storage)?.flatten();
+    let found = if head.is_none() {
+        insert_find_result(None, None, None)
+    } else {
+        find_insert_bid(
+            storage,
+            head,
+            thread_cursor,
+            hint_after,
+            price,
+            id,
+            max_steps,
+            &mut steps,
+        )?
+    };
+    let (prev, next) = found.neighbors;
+
+    let order = LimitOrder {
+        owner: owner.clone(),
+        price,
+        remaining: remaining_token1,
+        side: LimitOrderSide::Bid,
+        expires_at,
+        prev,
+        next,
+    };
+    ORDERS.save(storage, id, &order)?;
+
+    if let Some(p) = prev {
+        ORDERS
+            .update(storage, p, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("prev neighbor"))?;
+                x.next = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    } else {
+        HEAD_BID.save(storage, &Some(id))?;
+    }
+    if let Some(n) = next {
+        ORDERS
+            .update(storage, n, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("next neighbor"))?;
+                x.prev = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    }
+
+    Ok(BatchInsertOutcome {
+        id,
+        thread_cursor: next_thread_cursor(id, price, &found),
+    })
+}
+
+/// Batch path: thread cursor + hint; returns cursor for the next book-order traversal step (#266).
+#[allow(clippy::too_many_arguments)]
+pub fn insert_ask_with_id_for_batch(
+    storage: &mut dyn Storage,
+    id: u64,
+    price: Decimal,
+    remaining_token0: Uint128,
+    owner: Addr,
+    thread_cursor: Option<InsertThreadCursor>,
+    hint_after: Option<u64>,
+    max_adjust_steps: u32,
+    expires_at: Option<u64>,
+) -> Result<BatchInsertOutcome, ContractError> {
+    let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
+    let mut steps: u32 = 0;
+
+    let head = HEAD_ASK.may_load(storage)?.flatten();
+    let found = if head.is_none() {
+        insert_find_result(None, None, None)
+    } else {
+        find_insert_ask(
+            storage,
+            head,
+            thread_cursor,
+            hint_after,
+            price,
+            id,
+            max_steps,
+            &mut steps,
+        )?
+    };
+    let (prev, next) = found.neighbors;
+
+    let order = LimitOrder {
+        owner: owner.clone(),
+        price,
+        remaining: remaining_token0,
+        side: LimitOrderSide::Ask,
+        expires_at,
+        prev,
+        next,
+    };
+    ORDERS.save(storage, id, &order)?;
+
+    if let Some(p) = prev {
+        ORDERS
+            .update(storage, p, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("prev neighbor"))?;
+                x.next = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    } else {
+        HEAD_ASK.save(storage, &Some(id))?;
+    }
+    if let Some(n) = next {
+        ORDERS
+            .update(storage, n, |o| -> StdResult<LimitOrder> {
+                let mut x = o.ok_or_else(|| StdError::generic_err("next neighbor"))?;
+                x.prev = Some(id);
+                Ok(x)
+            })
+            .map_err(ContractError::Std)?;
+    }
+
+    Ok(BatchInsertOutcome {
+        id,
+        thread_cursor: next_thread_cursor(id, price, &found),
+    })
+}
+
+/// O(0)-load verify when batch traversal inserts the next rung immediately after `cursor` (#266).
+fn try_insert_after_thread_cursor_bid(
+    cursor: InsertThreadCursor,
+    new_price: Decimal,
+    new_id: u64,
+) -> Option<InsertFindResult> {
+    if !bid_before(cursor.after_price, cursor.after_id, new_price, new_id) {
+        return None;
+    }
+    if let Some(next_id) = cursor.next_id {
+        let np = cursor.next_price?;
+        if !bid_before(new_price, new_id, np, next_id) {
+            return None;
+        }
+    }
+    Some(insert_find_result(
+        Some(cursor.after_id),
+        cursor.next_id,
+        cursor.next_price,
+    ))
+}
+
+fn try_insert_after_thread_cursor_ask(
+    cursor: InsertThreadCursor,
+    new_price: Decimal,
+    new_id: u64,
+) -> Option<InsertFindResult> {
+    if !ask_before(cursor.after_price, cursor.after_id, new_price, new_id) {
+        return None;
+    }
+    if let Some(next_id) = cursor.next_id {
+        let np = cursor.next_price?;
+        if !ask_before(new_price, new_id, np, next_id) {
+            return None;
+        }
+    }
+    Some(insert_find_result(
+        Some(cursor.after_id),
+        cursor.next_id,
+        cursor.next_price,
+    ))
+}
 
 /// Outcome of O(1) hint verification (GitLab #256) and directional fallback routing (#265).
 enum HintInsertOutcome {
     /// Verified predecessor — insert in O(1).
-    Ready(InsertNeighbors),
+    Ready {
+        prev: Option<u64>,
+        next: Option<u64>,
+        next_price: Option<Decimal>,
+    },
     /// Hint missing, wrong side, or dangling — fall back to head walk.
     HeadWalk,
     /// Valid anchor; new sorts before hint — walk `prev` toward head.
@@ -448,9 +684,17 @@ fn try_insert_after_hint_bid(
         if !bid_before(new_price, new_id, next.price, next_id) {
             return Ok(HintInsertOutcome::WalkTowardTail { start_id: next_id });
         }
-        Ok(HintInsertOutcome::Ready((Some(hint_id), Some(next_id))))
+        Ok(HintInsertOutcome::Ready {
+            prev: Some(hint_id),
+            next: Some(next_id),
+            next_price: Some(next.price),
+        })
     } else {
-        Ok(HintInsertOutcome::Ready((Some(hint_id), None)))
+        Ok(HintInsertOutcome::Ready {
+            prev: Some(hint_id),
+            next: None,
+            next_price: None,
+        })
     }
 }
 
@@ -484,9 +728,17 @@ fn try_insert_after_hint_ask(
         if !ask_before(new_price, new_id, next.price, next_id) {
             return Ok(HintInsertOutcome::WalkTowardTail { start_id: next_id });
         }
-        Ok(HintInsertOutcome::Ready((Some(hint_id), Some(next_id))))
+        Ok(HintInsertOutcome::Ready {
+            prev: Some(hint_id),
+            next: Some(next_id),
+            next_price: Some(next.price),
+        })
     } else {
-        Ok(HintInsertOutcome::Ready((Some(hint_id), None)))
+        Ok(HintInsertOutcome::Ready {
+            prev: Some(hint_id),
+            next: None,
+            next_price: None,
+        })
     }
 }
 
@@ -498,7 +750,7 @@ fn walk_insert_bid_from(
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
     let mut prev: Option<u64> = None;
     let mut cur = Some(start_id);
 
@@ -509,12 +761,12 @@ fn walk_insert_bid_from(
         }
         let ord = ORDERS.load(storage, cid)?;
         if bid_before(new_price, new_id, ord.price, cid) {
-            return Ok((ord.prev, Some(cid)));
+            return Ok(insert_find_result(ord.prev, Some(cid), Some(ord.price)));
         }
         prev = Some(cid);
         cur = ord.next;
     }
-    Ok((prev, None))
+    Ok(insert_find_result(prev, None, None))
 }
 
 fn walk_insert_ask_from(
@@ -524,7 +776,7 @@ fn walk_insert_ask_from(
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
     let mut prev: Option<u64> = None;
     let mut cur = Some(start_id);
 
@@ -535,12 +787,12 @@ fn walk_insert_ask_from(
         }
         let ord = ORDERS.load(storage, cid)?;
         if ask_before(new_price, new_id, ord.price, cid) {
-            return Ok((ord.prev, Some(cid)));
+            return Ok(insert_find_result(ord.prev, Some(cid), Some(ord.price)));
         }
         prev = Some(cid);
         cur = ord.next;
     }
-    Ok((prev, None))
+    Ok(insert_find_result(prev, None, None))
 }
 
 /// Walk `prev` from `hint_id` toward head; new sorts before hint (GitLab #265).
@@ -552,7 +804,7 @@ fn walk_insert_bid_toward_head(
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
     let mut cur = Some(hint_id);
 
     while let Some(cid) = cur {
@@ -565,16 +817,20 @@ fn walk_insert_bid_toward_head(
             if let Some(prev_id) = ord.prev {
                 let prev_ord = ORDERS.load(storage, prev_id)?;
                 if bid_before(prev_ord.price, prev_id, new_price, new_id) {
-                    return Ok((Some(prev_id), Some(cid)));
+                    return Ok(insert_find_result(
+                        Some(prev_id),
+                        Some(cid),
+                        Some(ord.price),
+                    ));
                 }
                 cur = Some(prev_id);
                 continue;
             }
-            return Ok((None, Some(cid)));
+            return Ok(insert_find_result(None, Some(cid), Some(ord.price)));
         }
         cur = ord.prev;
     }
-    Ok((None, Some(hint_id)))
+    Ok(insert_find_result(None, Some(hint_id), None))
 }
 
 fn walk_insert_ask_toward_head(
@@ -584,7 +840,7 @@ fn walk_insert_ask_toward_head(
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
     let mut cur = Some(hint_id);
 
     while let Some(cid) = cur {
@@ -597,16 +853,20 @@ fn walk_insert_ask_toward_head(
             if let Some(prev_id) = ord.prev {
                 let prev_ord = ORDERS.load(storage, prev_id)?;
                 if ask_before(prev_ord.price, prev_id, new_price, new_id) {
-                    return Ok((Some(prev_id), Some(cid)));
+                    return Ok(insert_find_result(
+                        Some(prev_id),
+                        Some(cid),
+                        Some(ord.price),
+                    ));
                 }
                 cur = Some(prev_id);
                 continue;
             }
-            return Ok((None, Some(cid)));
+            return Ok(insert_find_result(None, Some(cid), Some(ord.price)));
         }
         cur = ord.prev;
     }
-    Ok((None, Some(hint_id)))
+    Ok(insert_find_result(None, Some(hint_id), None))
 }
 
 /// Head walk — used when hint anchor is unusable (missing / wrong side / unlinked).
@@ -617,7 +877,7 @@ fn walk_insert_bid_from_head(
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
     let mut prev: Option<u64> = None;
     let mut cur = head;
 
@@ -628,12 +888,12 @@ fn walk_insert_bid_from_head(
         }
         let ord = ORDERS.load(storage, cid)?;
         if bid_before(new_price, new_id, ord.price, cid) {
-            return Ok((ord.prev, Some(cid)));
+            return Ok(insert_find_result(ord.prev, Some(cid), Some(ord.price)));
         }
         prev = Some(cid);
         cur = ord.next;
     }
-    Ok((prev, None))
+    Ok(insert_find_result(prev, None, None))
 }
 
 fn walk_insert_ask_from_head(
@@ -643,7 +903,7 @@ fn walk_insert_ask_from_head(
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
     let mut prev: Option<u64> = None;
     let mut cur = head;
 
@@ -654,27 +914,37 @@ fn walk_insert_ask_from_head(
         }
         let ord = ORDERS.load(storage, cid)?;
         if ask_before(new_price, new_id, ord.price, cid) {
-            return Ok((ord.prev, Some(cid)));
+            return Ok(insert_find_result(ord.prev, Some(cid), Some(ord.price)));
         }
         prev = Some(cid);
         cur = ord.next;
     }
-    Ok((prev, None))
+    Ok(insert_find_result(prev, None, None))
 }
 
 #[allow(clippy::too_many_arguments)]
 fn find_insert_bid(
     storage: &dyn Storage,
     head: Option<u64>,
+    thread_cursor: Option<InsertThreadCursor>,
     hint_after: Option<u64>,
     new_price: Decimal,
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
+    if let Some(cursor) = thread_cursor {
+        if let Some(found) = try_insert_after_thread_cursor_bid(cursor, new_price, new_id) {
+            return Ok(found);
+        }
+    }
     if let Some(hint_id) = hint_after {
         match try_insert_after_hint_bid(storage, head, hint_id, new_price, new_id, steps)? {
-            HintInsertOutcome::Ready(pos) => return Ok(pos),
+            HintInsertOutcome::Ready {
+                prev,
+                next,
+                next_price,
+            } => return Ok(insert_find_result(prev, next, next_price)),
             HintInsertOutcome::WalkTowardHead { hint_id } => {
                 return walk_insert_bid_toward_head(
                     storage, hint_id, new_price, new_id, max_steps, steps,
@@ -695,15 +965,25 @@ fn find_insert_bid(
 fn find_insert_ask(
     storage: &dyn Storage,
     head: Option<u64>,
+    thread_cursor: Option<InsertThreadCursor>,
     hint_after: Option<u64>,
     new_price: Decimal,
     new_id: u64,
     max_steps: u32,
     steps: &mut u32,
-) -> Result<InsertNeighbors, ContractError> {
+) -> Result<InsertFindResult, ContractError> {
+    if let Some(cursor) = thread_cursor {
+        if let Some(found) = try_insert_after_thread_cursor_ask(cursor, new_price, new_id) {
+            return Ok(found);
+        }
+    }
     if let Some(hint_id) = hint_after {
         match try_insert_after_hint_ask(storage, head, hint_id, new_price, new_id, steps)? {
-            HintInsertOutcome::Ready(pos) => return Ok(pos),
+            HintInsertOutcome::Ready {
+                prev,
+                next,
+                next_price,
+            } => return Ok(insert_find_result(prev, next, next_price)),
             HintInsertOutcome::WalkTowardHead { hint_id } => {
                 return walk_insert_ask_toward_head(
                     storage, hint_id, new_price, new_id, max_steps, steps,
@@ -810,12 +1090,13 @@ fn link_bid_order_at_id(
     let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let mut steps: u32 = 0;
     let head = HEAD_BID.may_load(storage)?.flatten();
-    let (prev, next) = if head.is_none() {
-        (None, None)
+    let found = if head.is_none() {
+        insert_find_result(None, None, None)
     } else {
         find_insert_bid(
             storage,
             head,
+            None,
             hint_after,
             order.price,
             id,
@@ -823,6 +1104,7 @@ fn link_bid_order_at_id(
             &mut steps,
         )?
     };
+    let (prev, next) = found.neighbors;
     order.prev = prev;
     order.next = next;
     ORDERS.save(storage, id, &order)?;
@@ -860,12 +1142,13 @@ fn link_ask_order_at_id(
     let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let mut steps: u32 = 0;
     let head = HEAD_ASK.may_load(storage)?.flatten();
-    let (prev, next) = if head.is_none() {
-        (None, None)
+    let found = if head.is_none() {
+        insert_find_result(None, None, None)
     } else {
         find_insert_ask(
             storage,
             head,
+            None,
             hint_after,
             order.price,
             id,
@@ -873,6 +1156,7 @@ fn link_ask_order_at_id(
             &mut steps,
         )?
     };
+    let (prev, next) = found.neighbors;
     order.prev = prev;
     order.next = next;
     ORDERS.save(storage, id, &order)?;

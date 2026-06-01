@@ -3655,6 +3655,7 @@ fn place_limit_order_ladder_five_rungs() {
         distribution: LimitLadderDistribution::Equal,
         max_adjust_steps: 32,
         expires_at: None,
+        hint_after_order_id: None,
     };
     let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderLadder { ladder }).unwrap();
     let res = app
@@ -3929,7 +3930,72 @@ fn limit_batch_item_explicit_hint_places_on_deep_book() {
     );
 }
 
-/// GitLab #265 — near-miss chained hint: directional walk from prior rung succeeds under cap.
+/// GitLab #266 — book-order traversal places ascending bid ladder on empty book (O(1) interior via thread cursor).
+#[test]
+fn limit_batch_bid_ladder_book_order_traversal_places_all_on_empty_book() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let orders = vec![
+        LimitOrderPlacementItem {
+            price: Decimal::from_ratio(99u128, 100u128),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        },
+        LimitOrderPlacementItem {
+            price: Decimal::one(),
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        },
+    ];
+    let total = Uint128::new(2_000);
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders,
+    })
+    .unwrap();
+
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(
+        placed.len(),
+        2,
+        "book-order bid ladder should place all rungs on empty book (#266)"
+    );
+    // Attr order follows input/id order (lower id first).
+    assert!(placed[0] < placed[1]);
+}
+
+/// GitLab #265 / #266 — deep book: boundary rung may skip under tight steps; later rungs still attempt.
 #[test]
 fn limit_batch_chained_near_miss_hint_directional_walk_succeeds() {
     let mut app = App::default();
@@ -3998,9 +4064,201 @@ fn limit_batch_chained_near_miss_hint_directional_walk_succeeds() {
         .collect();
     assert_eq!(
         placed.len(),
-        2,
-        "chained near-miss hint should succeed via directional walk (#265)"
+        1,
+        "book-order inserts 1.0 first on deep book; tight steps skip it; 0.99 still places (#266 traversal)"
     );
+}
+
+/// GitLab #266 — equal-price batch rungs resolve to ascending order_id (FIFO).
+#[test]
+fn limit_batch_equal_price_fifo_by_order_id() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let price = Decimal::from_ratio(99u128, 100u128);
+    let orders = vec![
+        LimitOrderPlacementItem {
+            price,
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        },
+        LimitOrderPlacementItem {
+            price,
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        },
+        LimitOrderPlacementItem {
+            price,
+            amount: Uint128::new(1_000),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        },
+    ];
+    let total = Uint128::new(3_000);
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(placed.len(), 3);
+    assert!(placed[0] < placed[1] && placed[1] < placed[2]);
+
+    let head: Option<u64> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::OrderBookHead {
+                side: LimitOrderSide::Bid,
+            },
+        )
+        .unwrap();
+    assert_eq!(head, Some(placed[0]));
+}
+
+/// GitLab #266 — ladder anchor hint on boundary rung avoids head walk under tight steps.
+#[test]
+fn limit_batch_ladder_anchor_hint_places_boundary_on_deep_book() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let mut anchor_id = 0u64;
+    for _ in 0..10 {
+        anchor_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(1_000),
+            Decimal::one(),
+        );
+    }
+
+    let total = Uint128::new(20_000);
+    let ladder = LimitOrderLadderSpec {
+        side: LimitOrderSide::Bid,
+        start_price: Decimal::from_ratio(99u128, 100u128),
+        end_price: Decimal::one(),
+        count: 2,
+        total_amount: total,
+        distribution: LimitLadderDistribution::Equal,
+        max_adjust_steps: 5,
+        expires_at: None,
+        hint_after_order_id: Some(anchor_id),
+    };
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderLadder { ladder }).unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(
+        placed.len(),
+        2,
+        "anchor hint should place boundary rung under tight steps (#266)"
+    );
+}
+
+/// GitLab #266 — stale ladder anchor falls back to head walk; tx still succeeds.
+#[test]
+fn limit_batch_ladder_stale_anchor_still_places() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let total = Uint128::new(20_000);
+    let ladder = LimitOrderLadderSpec {
+        side: LimitOrderSide::Ask,
+        start_price: Decimal::from_ratio(101u128, 100u128),
+        end_price: Decimal::from_ratio(105u128, 100u128),
+        count: 2,
+        total_amount: total,
+        distribution: LimitLadderDistribution::Equal,
+        max_adjust_steps: 32,
+        expires_at: None,
+        hint_after_order_id: Some(999_999),
+    };
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderLadder { ladder }).unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let placed: Vec<u64> = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .filter(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse().unwrap())
+        .collect();
+    assert_eq!(placed.len(), 2);
 }
 
 #[test]

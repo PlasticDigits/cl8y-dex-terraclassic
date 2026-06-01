@@ -49,7 +49,7 @@ OpenAPI: served from the indexer Swagger UI (`/swagger-ui/`). Regression tests: 
 
 ### Batch placement insert hints (GitLab **#261**)
 
-When placing via **`PlaceLimitOrderBatch`**, each `orders[]` entry may include optional **`hint_after_order_id`** (`null`/omit = head walk only). On-chain verify + fallback: invariant **L14** in [contracts-security-audit.md](./contracts-security-audit.md) ([#256](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/256), directional near-miss fallback [#265](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/265)).
+When placing via **`PlaceLimitOrderBatch`**, each `orders[]` entry may include optional **`hint_after_order_id`** (`null`/omit = head walk only). **`PlaceLimitOrderLadder`** accepts optional **`ladder.hint_after_order_id`** on the **head-most rung in book order** only (GitLab **#266**; resolved via indexer **#267**). On-chain, batch inserts traverse rungs in **book-sort order** (composite `(price, order_id)`) while preserving input **id assignment** and **wasm attr order**; interior rungs reuse an **`InsertThreadCursor`** from the prior successful insert when bracketed (O(0)-load verify). On-chain verify + fallback: invariant **L14** in [contracts-security-audit.md](./contracts-security-audit.md) ([#256](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/256), directional near-miss fallback [#265](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/265), book-order traversal [#266](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/266)).
 
 **Client resolver (recommended):** walk paginated **`limit-book`** pages for the target side (head → tail). For insert price `P`:
 

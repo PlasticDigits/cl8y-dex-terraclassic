@@ -141,6 +141,8 @@ export interface LimitOrderLadderSpecWire {
   distribution: 'equal'
   max_adjust_steps: number
   expires_at?: number
+  /** Head-most rung anchor from indexer (#266 / #267). */
+  hint_after_order_id?: number
 }
 
 export interface LimitOrderConfigResponse {
