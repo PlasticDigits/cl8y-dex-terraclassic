@@ -251,4 +251,24 @@ describe('indexer client fetchJson', () => {
     expect(url).toContain('limit=50')
     expect(url).toContain('after_order_id=42')
   })
+
+  it('builds insert-hints URL (GitLab #267 / #268)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          side: 'bid',
+          hints: [{ price: '1', predecessor_order_id: null, resolved: true, reason: 'head' }],
+          budget_exhausted: false,
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    const pair = 'terra1pairaddr000000000000000000000000000'
+    await client.getPairLimitBookInsertHints(pair, 'bid', ['0.95', '1.05'])
+    const url = vi.mocked(fetch).mock.calls[0][0] as string
+    expect(url).toContain(`/api/v1/pairs/${pair}/limit-book/insert-hints?`)
+    expect(url).toContain('side=bid')
+    expect(url).toContain('prices=0.95%2C1.05')
+  })
 })

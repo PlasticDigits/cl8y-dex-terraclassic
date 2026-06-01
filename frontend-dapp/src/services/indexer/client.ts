@@ -21,6 +21,7 @@ import type {
   IndexerLimitPlacement,
   IndexerLimitCancellation,
   IndexerOrderBookHeadResponse,
+  IndexerLimitBookInsertHintsResponse,
   IndexerLimitBookShallowResponse,
   IndexerLimitBookPageResponse,
 } from '@/types'
@@ -229,6 +230,9 @@ export async function getPairLimitBookShallow(
 export interface GetPairLimitBookPageParams {
   limit?: number
   afterOrderId?: number
+  /** Inclusive band bounds — both required for price-window fetch (GitLab #267). */
+  priceFrom?: string
+  priceTo?: string
 }
 
 /** Paginated on-chain book (default limit 50, max 100 per request). */
@@ -240,7 +244,19 @@ export async function getPairLimitBookPage(
   const sp = new URLSearchParams({ side })
   if (params?.limit != null) sp.set('limit', String(params.limit))
   if (params?.afterOrderId != null) sp.set('after_order_id', String(params.afterOrderId))
+  if (params?.priceFrom != null) sp.set('price_from', params.priceFrom)
+  if (params?.priceTo != null) sp.set('price_to', params.priceTo)
   return fetchJson<IndexerLimitBookPageResponse>(`/api/v1/pairs/${pairAddr}/limit-book?${sp}`)
+}
+
+/** Batch insert-hint resolution for ladder rung prices (indexer only — GitLab #267). */
+export async function getPairLimitBookInsertHints(
+  pairAddr: string,
+  side: 'bid' | 'ask',
+  prices: string[]
+): Promise<IndexerLimitBookInsertHintsResponse> {
+  const sp = new URLSearchParams({ side, prices: prices.join(',') })
+  return fetchJson<IndexerLimitBookInsertHintsResponse>(`/api/v1/pairs/${pairAddr}/limit-book/insert-hints?${sp}`)
 }
 
 /** Get global DEX overview stats. */

@@ -1,25 +1,28 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { placeLimitOrderLadderWithAllowance } from '@/services/terraclassic/pair'
+import { placeLimitOrderBatchWithAllowance, placeLimitOrderLadderWithAllowance } from '@/services/terraclassic/pair'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { TxResultAlert } from '@/components/ui'
 import { useLimitOrderConfig } from '@/hooks/useLimitOrderConfig'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitLadderPlaceGates } from '@/hooks/useLimitLadderPlaceGates'
+import { useLimitLadderPlacementPlan } from '@/hooks/useLimitLadderPlacementPlan'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
-import { formatLimitBatchGasSavingsLine } from '@/utils/limitOrderBatchGasSummary'
+import { formatLimitBatchGasSavingsLine, formatLimitLadderPlacementSummary } from '@/utils/limitOrderBatchGasSummary'
+import { buildLadderSpecWire, ladderRungsToBatchItems } from '@/utils/limitLadderPlacementPlan'
 import {
   expandLimitLadder,
   LimitLadderError,
   sumLadderAmountsRaw,
   type LimitLadderSpec,
 } from '@/utils/limitOrderLadder'
+import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
 import { toRawAmount } from '@/utils/formatAmount'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 
@@ -52,11 +55,10 @@ export function LimitOrderLadderPanel({
   const [totalHuman, setTotalHuman] = useState('100')
   const { maxSteps, setMaxSteps, expiresAt, setExpiresAt, limitAdvancedOpen, setLimitAdvancedOpen } =
     useLimitOrderForm()
+  const maxStepsTouchedRef = useRef(false)
 
   const configQuery = useLimitOrderConfig(pairAddress)
   const maxRungs = configQuery.data?.max_batch_rungs ?? 20
-
-  const placeGates = useLimitLadderPlaceGates(walletAddress, escrowToken, totalHuman, escrowDecimals, rungCount)
 
   const preview = useMemo(() => {
     try {
@@ -78,6 +80,28 @@ export function LimitOrderLadderPanel({
     }
   }, [side, startPrice, endPrice, rungCount, totalHuman, escrowDecimals, maxSteps, expiresAt, maxRungs])
 
+  const placementPlanQuery = useLimitLadderPlacementPlan({
+    pairAddress,
+    side,
+    startPrice,
+    endPrice,
+    count: rungCount,
+    rungs: preview.rungs,
+    maxAdjustSteps: maxSteps,
+    expiresAt,
+    enabled: !preview.error && preview.rungs.length >= 2,
+  })
+
+  useEffect(() => {
+    const recommended = placementPlanQuery.data?.recommendedMaxSteps
+    if (recommended == null || maxStepsTouchedRef.current) return
+    if (maxSteps === LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT) {
+      setMaxSteps(recommended)
+    }
+  }, [placementPlanQuery.data?.recommendedMaxSteps, maxSteps, setMaxSteps])
+
+  const placeGates = useLimitLadderPlaceGates(walletAddress, escrowToken, totalHuman, escrowDecimals, rungCount)
+
   const placeMutation = useMutation({
     mutationFn: async () => {
       if (preview.error || preview.rungs.length < 2) {
@@ -96,18 +120,46 @@ export function LimitOrderLadderPanel({
       if (!nativeGate.canPlaceLimit) {
         throw new Error(nativeGate.userMessage ?? 'Insufficient LUNC for gas')
       }
+
+      const plan = placementPlanQuery.data
       const totalRaw = sumLadderAmountsRaw(preview.rungs)
       const exp = expiresAt ?? undefined
-      return placeLimitOrderLadderWithAllowance(walletAddress, escrowToken, pairAddress, totalRaw, {
+
+      if (plan?.path === 'deep_batch') {
+        const orders = ladderRungsToBatchItems(preview.rungs, plan.hints, maxSteps, exp)
+        return placeLimitOrderBatchWithAllowance(walletAddress, escrowToken, pairAddress, totalRaw, side, orders)
+      }
+
+      const ladderSpec = buildLadderSpecWire({
         side,
-        start_price: startPrice,
-        end_price: endPrice,
+        startPrice,
+        endPrice,
         count: rungCount,
-        total_amount: totalRaw,
-        distribution: 'equal',
-        max_adjust_steps: maxSteps,
-        expires_at: exp,
+        totalAmountRaw: totalRaw,
+        maxAdjustSteps: maxSteps,
+        expiresAt: exp,
+        plan: plan ?? {
+          path: 'thin_ladder',
+          recommendedMaxSteps: maxSteps,
+          skipRisk: {
+            score: 0,
+            predictedPlaced: rungCount,
+            predictedSkipped: 0,
+            needsHintedBatchPath: false,
+          },
+          depth: {
+            windowOrderCount: 0,
+            foreignOrdersBetweenRungs: 0,
+            headToBoundaryDistance: 0,
+            unresolvedHintCount: 0,
+          },
+          hints: [],
+          probeDegraded: true,
+          notes: [],
+        },
       })
+
+      return placeLimitOrderLadderWithAllowance(walletAddress, escrowToken, pairAddress, totalRaw, ladderSpec)
     },
     onSuccess: async (txHash) => {
       void queryClient.invalidateQueries({ queryKey: ['limitPlacements', pairAddress] })
@@ -134,6 +186,8 @@ export function LimitOrderLadderPanel({
     placeGates.batchMinUluna,
     placeGates.gasSavingsUlunaVsSeparate
   )
+  const placementSummaryLine = formatLimitLadderPlacementSummary(rungCount, maxSteps, placementPlanQuery.data)
+  const planNotes = placementPlanQuery.data?.notes ?? []
 
   const submitDisabled = disabled || placeMutation.isPending || Boolean(preview.error) || !placeGates.canPlace
 
@@ -192,7 +246,10 @@ export function LimitOrderLadderPanel({
         open={limitAdvancedOpen}
         onOpenChange={setLimitAdvancedOpen}
         maxSteps={maxSteps}
-        onMaxStepsChange={setMaxSteps}
+        onMaxStepsChange={(v) => {
+          maxStepsTouchedRef.current = true
+          setMaxSteps(v)
+        }}
         expiresAt={expiresAt}
         onExpiresAtChange={setExpiresAt}
         idPrefix="ladder"
@@ -221,6 +278,14 @@ export function LimitOrderLadderPanel({
           <p className="mt-2" data-testid="ladder-gas-summary">
             {gasSummaryLine}
           </p>
+          <p className="mt-1" data-testid="ladder-placement-summary">
+            {placementPlanQuery.isLoading ? 'Probing book depth…' : placementSummaryLine}
+          </p>
+          {planNotes.map((note, i) => (
+            <p key={i} className="mt-1 text-amber-400/90" data-testid="ladder-placement-note">
+              {note}
+            </p>
+          ))}
         </div>
       )}
       <LimitOrderEscrowPlaceGuardMessage gate={placeGates.inlineGate} data-testid="ladder-place-guard" />

@@ -305,6 +305,21 @@ export interface IndexerLimitBookPageResponse {
   next_after_order_id: number | null
 }
 
+/** One row from `GET /api/v1/pairs/{addr}/limit-book/insert-hints` (GitLab #267). */
+export interface IndexerLimitBookInsertHintItem {
+  price: string
+  predecessor_order_id: number | null
+  resolved: boolean
+  reason?: 'head' | 'pagination_gap' | string | null
+}
+
+/** `GET /api/v1/pairs/{addr}/limit-book/insert-hints` */
+export interface IndexerLimitBookInsertHintsResponse {
+  side: string
+  hints: IndexerLimitBookInsertHintItem[]
+  budget_exhausted: boolean
+}
+
 /** Pair `is_paused` CosmWasm query */
 export interface PairPausedResponse {
   paused: boolean

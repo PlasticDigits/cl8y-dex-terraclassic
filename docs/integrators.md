@@ -83,7 +83,7 @@ When placing via **`PlaceLimitOrderBatch`**, each `orders[]` entry may include o
 
 Reference implementation: [`limitBookInsertHint.ts`](../frontend-dapp/src/utils/limitBookInsertHint.ts). dApp wire: [`placeLimitOrderWithAllowance`](../frontend-dapp/src/services/terraclassic/pair.ts). Agent playbooks: [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md), [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md), [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md).
 
-**dApp reference:** [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md).
+**dApp reference:** [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md), [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md) §12 (GitLab **#268** — `useLimitLadderPlacementPlan`, path selection, adaptive steps).
 
 ## Limit book clean (GitLab #263) {#limit-book-clean-gitlab-263}
 

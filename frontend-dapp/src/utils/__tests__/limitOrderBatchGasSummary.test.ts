@@ -1,17 +1,25 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatLimitBatchGasSavingsLine } from '../limitOrderBatchGasSummary'
+import { formatLimitLadderPlacementSummary } from '../limitOrderBatchGasSummary'
 
-describe('formatLimitBatchGasSavingsLine', () => {
-  it('shows savings for multi-rung batch', () => {
-    const line = formatLimitBatchGasSavingsLine(5, 1_300_000n, 500_000n)
-    expect(line).toContain('saves')
-    expect(line).toContain('5 separate')
-  })
-
-  it('omits savings for single rung', () => {
-    const line = formatLimitBatchGasSavingsLine(1, 400_000n, 0n)
-    expect(line).not.toContain('saves')
-    expect(line).toContain('One transaction')
+describe('formatLimitLadderPlacementSummary (GitLab #268)', () => {
+  it('includes path and expected rungs', () => {
+    const line = formatLimitLadderPlacementSummary(5, 48, {
+      path: 'deep_batch',
+      recommendedMaxSteps: 48,
+      skipRisk: { score: 2, predictedPlaced: 4, predictedSkipped: 1, needsHintedBatchPath: true },
+      depth: {
+        windowOrderCount: 10,
+        foreignOrdersBetweenRungs: 1,
+        headToBoundaryDistance: 3,
+        unresolvedHintCount: 0,
+      },
+      hints: [],
+      probeDegraded: false,
+      notes: [],
+    })
+    expect(line).toContain('hinted batch')
+    expect(line).toContain('4/5')
+    expect(line).toContain('48')
   })
 })

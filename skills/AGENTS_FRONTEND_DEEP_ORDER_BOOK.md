@@ -18,6 +18,9 @@ Use when changing **paginated book depth** on **`/trade` or `/limits`**, indexer
 | `frontend-dapp/src/utils/limitBookInsertHint.ts` | **`resolveLimitInsertHintAfter`** — client fallback; prefer indexer **`GET .../limit-book/insert-hints`** ([#267](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/267)) |
 | [integrators.md § Insert hints & price window](../docs/integrators.md#insert-hints-price-window-gitlab-267) | Batch hints + `price_from`/`price_to` window (**#267**) |
 | `indexer/tests/api_limit_book_insert_hints.rs` | Resolver parity + HTTP regression (**#267**) |
+| [`useLimitLadderPlacementPlan.ts`](../frontend-dapp/src/hooks/useLimitLadderPlacementPlan.ts) | Ladder preflight: price window + batch hints (**#268**) |
+| [`limitLadderPlacementPlan.ts`](../frontend-dapp/src/utils/limitLadderPlacementPlan.ts) | Path selection: thin / single-anchor / hinted batch (**#268**) |
+| [`LimitOrderLadderPanel.tsx`](../frontend-dapp/src/components/trade/LimitOrderLadderPanel.tsx) | Ladder UI submit + pre-submit skip/gas summary (**#268**) |
 | `frontend-dapp/src/components/trade/OrderBookPanel.tsx` | Bids/Asks columns + **Load more depth** button |
 
 ## Rules of thumb
@@ -29,6 +32,7 @@ Use when changing **paginated book depth** on **`/trade` or `/limits`**, indexer
 5. When changing invalidations, update **`useLimitOrderCancelMutation`**, place/cancel/claim success handlers, and docs in **`docs/frontend.md`**.
 6. After API or cursor semantics change, run **`cargo test -p indexer api_limit_book_deep`** and frontend **`OrderBookPanel.test.tsx`** + **`useLimitBookInfinite.test.tsx`** + **`limitBookInsertHint.test.ts`**.
 7. **Insert hints ([#261](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/261), indexer **#267**):** prefer **`GET .../limit-book/insert-hints`** for ladder bands; until wired, **`resolveLimitInsertHintAfter`** over merged pages. Wire via **`placeLimitOrderWithAllowance(..., hintAfterOrderId)`**. Omit hint when `resolved: false` / `pagination_gap` — never guess. Invariant **L14**; [integrators.md § Insert hints & price window](../docs/integrators.md#insert-hints-price-window-gitlab-267).
+8. **Ladder depth probe ([#268](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/268)):** **`LimitOrderLadderPanel`** uses **`useLimitLadderPlacementPlan`** — indexer **`price_from`/`price_to`** window + **`insert-hints`** only (no LCD). Playbook: [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) §12.
 
 ## Related
 
