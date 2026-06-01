@@ -101,6 +101,17 @@ pub fn execute(
         ExecuteMsg::SetPairLimitBatchMax { pair, max_rungs } => {
             execute_set_pair_limit_batch_max(deps, info, pair, max_rungs)
         }
+        ExecuteMsg::SetPairLimitCleanConfig {
+            pair,
+            min_remaining_token0,
+            min_remaining_token1,
+        } => execute_set_pair_limit_clean_config(
+            deps,
+            info,
+            pair,
+            min_remaining_token0,
+            min_remaining_token1,
+        ),
         ExecuteMsg::SetDiscountRegistry { pair, registry } => {
             execute_set_discount_registry(deps, info, pair, registry)
         }
@@ -554,6 +565,31 @@ fn execute_set_pair_limit_batch_max(
         .add_attribute("action", "set_pair_limit_batch_max")
         .add_attribute("pair", pair)
         .add_attribute("max_batch_rungs", clamped.to_string()))
+}
+
+fn execute_set_pair_limit_clean_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+    min_remaining_token0: cosmwasm_std::Uint128,
+    min_remaining_token1: cosmwasm_std::Uint128,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    let msg = WasmMsg::Execute {
+        contract_addr: pair_addr.to_string(),
+        msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateLimitCleanConfig {
+            min_remaining_token0,
+            min_remaining_token1,
+        })?,
+        funds: vec![],
+    };
+    Ok(Response::new()
+        .add_message(msg)
+        .add_attribute("action", "set_pair_limit_clean_config")
+        .add_attribute("pair", pair)
+        .add_attribute("min_remaining_token0", min_remaining_token0)
+        .add_attribute("min_remaining_token1", min_remaining_token1))
 }
 
 fn execute_update_config(

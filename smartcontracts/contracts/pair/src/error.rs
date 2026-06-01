@@ -100,6 +100,9 @@ pub enum ContractError {
     #[error("No claimable expired-limit refund for order id {order_id}")]
     NoExpiredLimitClaim { order_id: u64 },
 
+    #[error("CleanLimitBook max_orders exceeds hard cap ({max}); got {actual}")]
+    LimitCleanMaxOrdersExceeded { max: u32, actual: u32 },
+
     #[error(
         "Pair asset CW20 decimals must be ≤ {max}; got token0={decimals0}, token1={decimals1}"
     )]

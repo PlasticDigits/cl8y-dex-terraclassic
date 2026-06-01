@@ -52,6 +52,12 @@ pub enum ExecuteMsg {
         pair: String,
         max_rungs: u32,
     },
+    /// Set limit book force-clean dust thresholds on one pair. Governance only (GitLab #263).
+    SetPairLimitCleanConfig {
+        pair: String,
+        min_remaining_token0: cosmwasm_std::Uint128,
+        min_remaining_token1: cosmwasm_std::Uint128,
+    },
     /// Set the fee discount registry for a specific pair. Governance only.
     SetDiscountRegistry {
         pair: String,

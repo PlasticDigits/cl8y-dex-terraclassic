@@ -12,6 +12,7 @@ use crate::error::ContractError;
 use crate::limit_batch_withdraw::{
     execute_cancel_limit_orders, execute_claim_expired_limit_orders,
 };
+use crate::limit_book_clean::{clean_limit_book, save_limit_clean_config};
 use crate::limit_placement::{
     execute_place_limit_order_ladder, execute_place_limit_orders_batch, save_limit_order_config,
 };
@@ -23,8 +24,9 @@ use crate::msg::{
 use crate::orderbook;
 use crate::state::{
     LimitOrderConfig, OracleState, PairInfoState, DISCOUNT_REGISTRY, EXPIRED_LIMIT_CLAIMS,
-    FEE_CONFIG, HOOKS, LIMIT_ORDER_CONFIG, OBSERVATIONS, ORACLE_STATE, ORDER_NEXT_ID, PAIR_INFO,
-    PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1, RESERVES, TOTAL_LP_SUPPLY,
+    FEE_CONFIG, HOOKS, LIMIT_CLEAN_CONFIG, LIMIT_ORDER_CONFIG, OBSERVATIONS, ORACLE_STATE,
+    ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1, RESERVES,
+    TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
@@ -476,6 +478,7 @@ pub fn instantiate(
     PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
 
     save_limit_order_config(deps.storage, msg.max_batch_rungs)?;
+    save_limit_clean_config(deps.storage, Uint128::zero(), Uint128::zero())?;
 
     ORACLE_STATE.save(
         deps.storage,
@@ -643,6 +646,23 @@ pub fn execute(
         ExecuteMsg::UpdateLimitOrderConfig { max_batch_rungs } => {
             execute_update_limit_order_config(deps, info, max_batch_rungs)
         }
+        ExecuteMsg::CleanLimitBook {
+            side,
+            max_orders,
+            start_hint,
+        } => {
+            assert_not_paused(deps.storage)?;
+            execute_clean_limit_book(deps, env, side, max_orders, start_hint)
+        }
+        ExecuteMsg::UpdateLimitCleanConfig {
+            min_remaining_token0,
+            min_remaining_token1,
+        } => execute_update_limit_clean_config(
+            deps,
+            info,
+            min_remaining_token0,
+            min_remaining_token1,
+        ),
     }
 }
 
@@ -1075,6 +1095,57 @@ fn execute_swap(
     }
 
     Ok(resp)
+}
+
+fn execute_clean_limit_book(
+    deps: DepsMut,
+    env: Env,
+    side: LimitOrderSide,
+    max_orders: u32,
+    start_hint: Option<u64>,
+) -> Result<Response, ContractError> {
+    let pair_contract = env.contract.address.to_string();
+    let now = env.block.time.seconds();
+    let side_label = orderbook::side_str(&side);
+    let result = clean_limit_book(
+        deps.storage,
+        now,
+        side,
+        max_orders,
+        start_hint,
+        &pair_contract,
+    )?;
+    let mut resp = Response::new()
+        .add_attribute("action", "clean_limit_book")
+        .add_attribute("side", side_label)
+        .add_attribute("cleaned_count", result.cleaned_count.to_string())
+        .add_attribute("time_expired_count", result.time_expired_count.to_string())
+        .add_attribute(
+            "force_expired_count",
+            result.force_expired_count.to_string(),
+        )
+        .add_attribute("cap_hit", result.cap_hit.to_string());
+    for ev in result.events {
+        resp = resp.add_event(ev);
+    }
+    Ok(resp)
+}
+
+fn execute_update_limit_clean_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    min_remaining_token0: Uint128,
+    min_remaining_token1: Uint128,
+) -> Result<Response, ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+    save_limit_clean_config(deps.storage, min_remaining_token0, min_remaining_token1)?;
+    Ok(Response::new()
+        .add_attribute("action", "update_limit_clean_config")
+        .add_attribute("min_remaining_token0", min_remaining_token0)
+        .add_attribute("min_remaining_token1", min_remaining_token1))
 }
 
 fn execute_update_limit_order_config(
@@ -1856,6 +1927,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
         QueryMsg::LimitOrderConfig {} => to_json_binary(&query_limit_order_config(deps)?),
+        QueryMsg::LimitCleanConfig {} => to_json_binary(&query_limit_clean_config(deps)?),
         QueryMsg::HybridSimulation {
             offer_asset,
             hybrid,
@@ -1912,6 +1984,20 @@ fn query_limit_order_config(deps: Deps) -> StdResult<dex_common::pair::LimitOrde
     let cfg = LIMIT_ORDER_CONFIG.load(deps.storage)?;
     Ok(dex_common::pair::LimitOrderConfigResponse {
         max_batch_rungs: cfg.max_batch_rungs,
+    })
+}
+
+fn query_limit_clean_config(deps: Deps) -> StdResult<dex_common::pair::LimitCleanConfigResponse> {
+    let cfg =
+        LIMIT_CLEAN_CONFIG
+            .may_load(deps.storage)?
+            .unwrap_or(crate::state::LimitCleanConfig {
+                min_remaining_token0: Uint128::zero(),
+                min_remaining_token1: Uint128::zero(),
+            });
+    Ok(dex_common::pair::LimitCleanConfigResponse {
+        min_remaining_token0: cfg.min_remaining_token0,
+        min_remaining_token1: cfg.min_remaining_token1,
     })
 }
 
@@ -2396,6 +2482,9 @@ pub fn migrate(
                 max_batch_rungs: dex_common::pair::DEFAULT_LIMIT_BATCH_MAX_RUNGS,
             },
         )?;
+    }
+    if LIMIT_CLEAN_CONFIG.may_load(deps.storage)?.is_none() {
+        save_limit_clean_config(deps.storage, Uint128::zero(), Uint128::zero())?;
     }
 
     Ok(Response::new()

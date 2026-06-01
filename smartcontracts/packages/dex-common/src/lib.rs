@@ -1,6 +1,7 @@
 pub mod factory;
 pub mod fee_discount;
 pub mod hook;
+pub mod limit_clean;
 pub mod limit_placement;
 pub mod max_spread;
 pub mod oracle;

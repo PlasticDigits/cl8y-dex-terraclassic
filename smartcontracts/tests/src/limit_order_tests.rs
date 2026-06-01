@@ -12,8 +12,9 @@ use dex_common::limit_placement::{
 use dex_common::pair::{
     pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse,
     HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
-    LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg,
-    MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP,
+    LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide,
+    PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
+    MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -4381,4 +4382,322 @@ fn batch_claim_expired_two_orders_one_tx() {
         bal_after.checked_sub(bal_before).unwrap(),
         remaining.checked_mul(Uint128::new(2)).unwrap()
     );
+}
+
+fn execute_clean_limit_book(
+    app: &mut App,
+    pair: &Addr,
+    sender: &Addr,
+    side: LimitOrderSide,
+    max_orders: u32,
+    start_hint: Option<u64>,
+) -> AppResponse {
+    app.execute_contract(
+        sender.clone(),
+        pair.clone(),
+        &ExecuteMsg::CleanLimitBook {
+            side,
+            max_orders,
+            start_hint,
+        },
+        &[],
+    )
+    .unwrap()
+}
+
+/// GitLab #263 — default config parks only time-expired orders; second call continues.
+#[test]
+fn clean_limit_book_parks_expired_head_default_config() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 60;
+    let order_ids = place_expired_bids(&mut app, &env, 5, Uint128::new(10_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(120);
+    });
+
+    let keeper = cosmwasm_std::Addr::unchecked("keeper");
+    let res1 = execute_clean_limit_book(&mut app, &env.pair, &keeper, LimitOrderSide::Bid, 3, None);
+    assert_eq!(
+        wasm_attr_in_action_event(&res1.events, "clean_limit_book", "cleaned_count").as_deref(),
+        Some("3")
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res1.events, "clean_limit_book", "cap_hit").as_deref(),
+        Some("true")
+    );
+
+    let res2 =
+        execute_clean_limit_book(&mut app, &env.pair, &keeper, LimitOrderSide::Bid, 10, None);
+    assert_eq!(
+        wasm_attr_in_action_event(&res2.events, "clean_limit_book", "cleaned_count").as_deref(),
+        Some("2")
+    );
+
+    for id in &order_ids {
+        let row: Option<ExpiredLimitRefundResponse> = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::ExpiredLimitRefund { order_id: *id },
+            )
+            .unwrap();
+        assert!(row.is_some(), "order {id} should be parked");
+        assert!(
+            app.wrap()
+                .query_wasm_smart::<LimitOrderResponse>(
+                    env.pair.to_string(),
+                    &QueryMsg::LimitOrder { order_id: *id }
+                )
+                .is_err(),
+            "order {id} should be off book"
+        );
+    }
+}
+
+/// GitLab #263 — live non-expired orders are not removed when thresholds are zero.
+#[test]
+fn clean_limit_book_leaves_live_orders_when_config_zero() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 10_000;
+    let live_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+    let _ = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::one(),
+        Uint128::new(10_000),
+        32,
+        Some(exp),
+    );
+    let msg = batch_place_msg(
+        LimitOrderSide::Bid,
+        Decimal::from_ratio(99u128, 100u128),
+        Uint128::new(10_000),
+        32,
+        Some(exp),
+    );
+    app.execute_contract(
+        env.user.clone(),
+        env.token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(10_000),
+            msg,
+        },
+        &[],
+    )
+    .unwrap();
+
+    execute_clean_limit_book(
+        &mut app,
+        &env.pair,
+        &env.user,
+        LimitOrderSide::Bid,
+        50,
+        None,
+    );
+
+    let live: LimitOrderResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::LimitOrder { order_id: live_id },
+        )
+        .unwrap();
+    assert_eq!(live.order_id, live_id);
+}
+
+/// GitLab #263 — governance dust threshold force-parks live sub-threshold bid; maker claims.
+#[test]
+fn clean_limit_book_force_dust_bid_then_claim_refunds() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairLimitCleanConfig {
+            pair: env.pair.to_string(),
+            min_remaining_token1: Uint128::new(100_000),
+            min_remaining_token0: Uint128::zero(),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let escrow = Uint128::new(50_000);
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        escrow,
+        Decimal::one(),
+    );
+
+    let res = execute_clean_limit_book(
+        &mut app,
+        &env.pair,
+        &cosmwasm_std::Addr::unchecked("keeper"),
+        LimitOrderSide::Bid,
+        10,
+        None,
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "force_expired_count")
+            .as_deref(),
+        Some("1")
+    );
+
+    let row: Option<ExpiredLimitRefundResponse> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::ExpiredLimitRefund { order_id },
+        )
+        .unwrap();
+    let row = row.expect("parked row");
+    assert!(row.expires_at.is_none(), "force-clean clears expires_at");
+
+    let maker_fee = escrow.multiply_ratio(15u128, 10_000u128);
+    let remaining = escrow.checked_sub(maker_fee).unwrap();
+    let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+        &[],
+    )
+    .unwrap();
+    let bal_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(bal_after.checked_sub(bal_before).unwrap(), remaining);
+}
+
+/// GitLab #263 — rejects max_orders above hard cap.
+#[test]
+fn clean_limit_book_rejects_max_orders_above_hard_cap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CleanLimitBook {
+                side: LimitOrderSide::Bid,
+                max_orders: MAX_LIMIT_CLEAN_ORDERS_HARD_CAP + 1,
+                start_hint: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let s = err.root_cause().to_string();
+    assert!(s.contains("hard cap") || s.contains("max_orders"));
+}
+
+/// GitLab #263 — pause blocks clean (global security response).
+#[test]
+fn clean_limit_book_blocked_while_pair_paused() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 60;
+    place_expired_bids(&mut app, &env, 2, Uint128::new(10_000), exp);
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(120);
+    });
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairPaused {
+            pair: env.pair.to_string(),
+            paused: true,
+        },
+        &[],
+    )
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CleanLimitBook {
+                side: LimitOrderSide::Bid,
+                max_orders: 5,
+                start_hint: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err.root_cause().to_string().contains("paused"));
+}
+
+/// GitLab #263 — non-factory cannot set clean thresholds.
+#[test]
+fn update_limit_clean_config_unauthorized() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::UpdateLimitCleanConfig {
+                min_remaining_token0: Uint128::one(),
+                min_remaining_token1: Uint128::one(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err.root_cause().to_string().contains("Unauthorized"));
+}
+
+/// GitLab #263 — limit clean config query defaults to zero.
+#[test]
+fn limit_clean_config_query_defaults_zero() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let cfg: LimitCleanConfigResponse = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::LimitCleanConfig {})
+        .unwrap();
+    assert_eq!(cfg.min_remaining_token0, Uint128::zero());
+    assert_eq!(cfg.min_remaining_token1, Uint128::zero());
 }

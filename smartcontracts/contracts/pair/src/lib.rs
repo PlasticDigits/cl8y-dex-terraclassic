@@ -57,6 +57,7 @@ pub mod discount_cache;
 pub mod error;
 pub mod hybrid_reverse;
 pub mod limit_batch_withdraw;
+pub mod limit_book_clean;
 pub mod limit_placement;
 pub mod msg;
 pub mod orderbook;

@@ -709,7 +709,7 @@ pub fn relink_limit_order_price(
     }
 }
 
-pub(crate) fn side_str(side: &LimitOrderSide) -> &'static str {
+pub fn side_str(side: &LimitOrderSide) -> &'static str {
     match side {
         LimitOrderSide::Bid => "bid",
         LimitOrderSide::Ask => "ask",
@@ -746,24 +746,59 @@ fn limit_order_fill_event(
         .add_attribute("commission_amount", commission_amount)
 }
 
-fn limit_order_expired_parked_event(
+pub(crate) fn limit_order_expired_parked_event(
     pair_contract: &str,
     order_id: u64,
     maker: &Addr,
     side: LimitOrderSide,
     remaining: Uint128,
+    force_expired: bool,
 ) -> Event {
-    Event::new("wasm")
+    let mut ev = Event::new("wasm")
         .add_attribute("contract_address", pair_contract)
         .add_attribute("action", "limit_order_expired_parked")
         .add_attribute("order_id", order_id.to_string())
         .add_attribute("maker", maker.as_str())
         .add_attribute("side", side_str(&side))
-        .add_attribute("remaining", remaining)
+        .add_attribute("remaining", remaining);
+    if force_expired {
+        ev = ev.add_attribute("force_expired", "true");
+    }
+    ev
 }
 
-/// Remove an expired order from the price-time list, record it for `ClaimExpiredLimitOrder`,
-/// and leave `PENDING_ESCROW_*` unchanged (tokens remain counted until claim transfers out).
+/// Park an order into `EXPIRED_LIMIT_CLAIMS` without moving CW20 (GitLab #263 / #120).
+pub fn park_limit_order_for_clean(
+    storage: &mut dyn Storage,
+    order_id: u64,
+    pair_contract: &str,
+    force_expired: bool,
+    refund_expires_at: Option<u64>,
+) -> Result<Event, ContractError> {
+    if EXPIRED_LIMIT_CLAIMS.may_load(storage, order_id)?.is_some() {
+        return Err(ContractError::InvariantViolation {
+            reason: "expired limit claim already exists for order id".into(),
+        });
+    }
+    let removed = unlink_order(storage, order_id)?;
+    let row = ExpiredLimitRefund {
+        owner: removed.owner.clone(),
+        side: removed.side.clone(),
+        remaining: removed.remaining,
+        expires_at: refund_expires_at,
+    };
+    EXPIRED_LIMIT_CLAIMS.save(storage, order_id, &row)?;
+    Ok(limit_order_expired_parked_event(
+        pair_contract,
+        order_id,
+        &removed.owner,
+        removed.side,
+        removed.remaining,
+        force_expired,
+    ))
+}
+
+/// Remove a time-expired order from the book during a hybrid match walk.
 pub fn park_expired_limit_order_for_claim(
     storage: &mut dyn Storage,
     order_id: u64,
@@ -778,26 +813,7 @@ pub fn park_expired_limit_order_for_claim(
             reason: "park_expired_limit_order_for_claim on non-expired order".into(),
         });
     }
-    if EXPIRED_LIMIT_CLAIMS.may_load(storage, order_id)?.is_some() {
-        return Err(ContractError::InvariantViolation {
-            reason: "expired limit claim already exists for order id".into(),
-        });
-    }
-    let removed = unlink_order(storage, order_id)?;
-    let row = ExpiredLimitRefund {
-        owner: removed.owner.clone(),
-        side: removed.side.clone(),
-        remaining: removed.remaining,
-        expires_at: removed.expires_at,
-    };
-    EXPIRED_LIMIT_CLAIMS.save(storage, order_id, &row)?;
-    Ok(limit_order_expired_parked_event(
-        pair_contract,
-        order_id,
-        &removed.owner,
-        removed.side,
-        removed.remaining,
-    ))
+    park_limit_order_for_clean(storage, order_id, pair_contract, false, order.expires_at)
 }
 
 /// Match bids while taker sells token0 for token1. `token0_budget` is filled from the taker.

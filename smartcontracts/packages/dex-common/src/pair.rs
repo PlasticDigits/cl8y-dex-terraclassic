@@ -5,6 +5,9 @@ use cw20::Cw20ReceiveMsg;
 use crate::oracle::{ObserveResponse, OracleInfoResponse};
 use crate::types::{Asset, AssetInfo, FeeConfig};
 
+pub use crate::limit_clean::{
+    clamp_max_clean_orders, LimitCleanConfigResponse, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
+};
 pub use crate::limit_placement::{
     clamp_max_batch_rungs, expand_limit_ladder, LimitLadderDistribution, LimitOrderConfigResponse,
     LimitOrderLadderSpec, LimitOrderPlacementItem, DEFAULT_LIMIT_BATCH_MAX_RUNGS,
@@ -229,6 +232,21 @@ pub enum ExecuteMsg {
     UpdateLimitOrderConfig {
         max_batch_rungs: u32,
     },
+    /// Permissionless: park time-expired and/or governance dust orders from the limit book
+    /// into `EXPIRED_LIMIT_CLAIMS` (no CW20 movement; makers claim later). Distinct from
+    /// factory-only CW20 excess recovery [`Sweep`](ExecuteMsg::Sweep) (GitLab #263).
+    CleanLimitBook {
+        side: LimitOrderSide,
+        max_orders: u32,
+        /// Optional order id to start the walk; when absent or not on-book, walk from head.
+        start_hint: Option<u64>,
+    },
+    /// Set per-side min remaining notionals for force-clean (factory only). `0` disables force-clean
+    /// on that side; only time-expired orders are eligible.
+    UpdateLimitCleanConfig {
+        min_remaining_token0: Uint128,
+        min_remaining_token1: Uint128,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
@@ -305,6 +323,9 @@ pub enum QueryMsg {
     /// Max rungs allowed per batch/ladder placement on this pair.
     #[returns(LimitOrderConfigResponse)]
     LimitOrderConfig {},
+    /// Min remaining notionals for permissionless force-clean per token side (GitLab #263).
+    #[returns(LimitCleanConfigResponse)]
+    LimitCleanConfig {},
 
     #[returns(HybridSimulationResponse)]
     HybridSimulation {

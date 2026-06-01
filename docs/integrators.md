@@ -62,6 +62,22 @@ Reference implementation: [`limitBookInsertHint.ts`](../frontend-dapp/src/utils/
 
 **dApp reference:** [`skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](../skills/AGENTS_FRONTEND_DEEP_ORDER_BOOK.md).
 
+## Limit book clean (GitLab #263) {#limit-book-clean-gitlab-263}
+
+Permissionless pair execute **`clean_limit_book`** parks time-expired and/or governance **dust** orders into **`EXPIRED_LIMIT_CLAIMS`** (no CW20 in that tx — makers use **`claim_expired_limit_order`** later). **Not** factory **`sweep`** (excess CW20 recovery).
+
+| Field | Meaning |
+|-------|---------|
+| `side` | `bid` or `ask` |
+| `max_orders` | 1…**100** (`MAX_LIMIT_CLEAN_ORDERS_HARD_CAP`) |
+| `start_hint` | Optional order id to start the DLL walk; invalid/absent → **head** |
+
+Query **`limit_clean_config`** for per-side `min_remaining_token0` (asks) / `min_remaining_token1` (bids). **0** disables force-clean on that side. Governance: factory **`set_pair_limit_clean_config`**.
+
+**Pause:** blocked while `is_paused` (invariant **L6**). **Indexer:** `limit_order_expired_parked` still drives **`parked_expired`**; optional wasm attr **`force_expired=true`** on dust parks.
+
+Canonical: [limit-orders.md § Permissionless limit book clean](./limit-orders.md#permissionless-limit-book-clean), invariant **L15** in [contracts-security-audit.md](./contracts-security-audit.md), [`limit_book_clean.rs`](../smartcontracts/contracts/pair/src/limit_book_clean.rs). **No in-repo watcher** — operators may cron `clean_limit_book` from indexer backlog signals ([`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md)).
+
 ## Slippage: `max_spread` and `belief_price` (hybrid)
 
 Slippage checks run in the pair after the book leg and pool leg are computed. See [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) for the high-level rule. Canonical implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs) (invariant **L9**, [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197)). Pool-only swaps are the special case `book_return_net = 0`.

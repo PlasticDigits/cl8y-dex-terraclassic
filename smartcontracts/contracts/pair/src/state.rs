@@ -12,6 +12,15 @@ pub struct LimitOrderConfig {
 
 pub const LIMIT_ORDER_CONFIG: Item<LimitOrderConfig> = Item::new("limit_order_cfg");
 
+/// Governance dust thresholds for permissionless `CleanLimitBook` (GitLab #263).
+#[cw_serde]
+pub struct LimitCleanConfig {
+    pub min_remaining_token0: Uint128,
+    pub min_remaining_token1: Uint128,
+}
+
+pub const LIMIT_CLEAN_CONFIG: Item<LimitCleanConfig> = Item::new("limit_clean_cfg");
+
 use cosmwasm_schema::cw_serde;
 
 #[cw_serde]

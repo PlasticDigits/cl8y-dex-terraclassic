@@ -6,7 +6,8 @@ use cosmwasm_std::{Decimal, StdError, Uint128};
 use crate::pair::LimitOrderSide;
 
 /// Absolute ceiling (gas safety); governance cannot exceed this on-chain.
-pub const MAX_LIMIT_BATCH_RUNGS_HARD_CAP: u32 = 30;
+/// Raised to 100 per LocalTerra gas benchmarks (GitLab #263).
+pub const MAX_LIMIT_BATCH_RUNGS_HARD_CAP: u32 = 100;
 
 /// Default for new pairs / migrated pairs when config was absent.
 pub const DEFAULT_LIMIT_BATCH_MAX_RUNGS: u32 = 10;
