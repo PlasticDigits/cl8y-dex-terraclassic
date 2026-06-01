@@ -464,7 +464,8 @@ describe('estimateMarketPairSwapSequenceUlunaFeesTotal', () => {
 
   it('sums allowance + hybrid pair swap gas when hybrid is on', () => {
     const total = estimateMarketPairSwapSequenceUlunaFeesTotal(true)
-    expect(total).toBe(39_655_000n)
+    // 200k allowance + ~1.7855M hybrid (8 makers, 500 scan steps) × 28.325
+    expect(total).toBe(56_239_288n)
   })
 })
 
