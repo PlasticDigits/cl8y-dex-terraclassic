@@ -436,6 +436,11 @@ fn order_in_price_window(
 }
 
 /// Walk the on-chain book and return the contiguous slice covering `[price_from, price_to]` (GitLab #267).
+///
+/// GitLab #270: on a page-full stop this peeks the one successor node to decide `has_more` (see the
+/// post-loop comment). A side effect is that a broken/wrong-side immediate successor surfaces its
+/// corrupt-book 400 one page earlier than the full-book route would — the same integrity checks the
+/// walk loop already applies to every node; a healthy book never triggers it.
 pub async fn fetch_limit_book_price_window(
     lcd: &LcdClient,
     pair_addr: &str,
@@ -528,7 +533,46 @@ pub async fn fetch_limit_book_price_window(
         current = next;
     }
 
-    let has_more = current.is_some();
+    // GitLab #270: `has_more` for a price window means "another page may return more IN-BAND rows",
+    // NOT "the FIFO chain continues outside the band". The book is price-ordered, so once the walk
+    // leaves the band every later node is out-of-band; `current` may still point at such a node.
+    //
+    //  - past_band  -> the in-band region is exhausted -> has_more = false (no extra LCD query).
+    //  - chain end  -> has_more = false.
+    //  - page full  -> the successor is unclassified; peek its band membership and only count an
+    //                  in-band successor as "more". The peek costs one LCD query, so it is gated on
+    //                  the per-page budget: if the budget is already spent we conservatively keep
+    //                  has_more = true (a bounded over-report — the next page returns the remaining
+    //                  in-band rows or one empty past-band page, then false). The common past_band
+    //                  case adds zero queries, so the budget ceiling (101) is preserved.
+    let has_more = if past_band {
+        false
+    } else {
+        match current {
+            None => false,
+            Some(oid) => {
+                if bump_lcd().is_err() {
+                    true
+                } else {
+                    let row_opt = fetch_limit_order(lcd, pair_addr, oid).await?;
+                    let Some(row) = row_opt else {
+                        return Err(LimitBookLcdError::BadRequest(format!(
+                            "Broken book link: limit_order {oid} missing"
+                        )));
+                    };
+                    if !side_matches_book(side_label, &row) {
+                        return Err(LimitBookLcdError::BadRequest(
+                            "Order side does not match requested book side".to_string(),
+                        ));
+                    }
+                    matches!(
+                        order_in_price_window(side_label, &row.price, &price_from, &price_to)?,
+                        Some(true)
+                    )
+                }
+            }
+        }
+    };
     let next_after_order_id = if has_more {
         orders.last().map(|o| o.order_id)
     } else {

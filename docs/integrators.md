@@ -68,7 +68,7 @@ Semantics match [limit-orders.md § Ordering](./limit-orders.md#ordering-composi
 - **Bids** (head = highest price): `price_from` ≥ `price_to`; returns orders with `price_to ≤ price ≤ price_from`.
 - **Asks** (head = lowest price): `price_from` ≤ `price_to`; returns orders with `price_from ≤ price ≤ price_to`.
 
-Same **`limit`**, **`after_order_id`**, **`has_more`**, and **101** LCD budget as paginated `limit-book`. Routes sit on the **LCD-heavy** governor ([`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md)).
+Same **`limit`**, **`after_order_id`**, and **101** LCD budget as paginated `limit-book`. In price-window mode **`has_more`** means **"another page may return more in-band rows for the same `price_from`/`price_to`"** — *not* that the FIFO chain continues outside the band. When the full in-band slice fits one page, **`has_more`** is **`false`** even though the book continues below (bids) or above (asks) the band; paginate on **`has_more: true`** only (GitLab **#270**). Routes sit on the **LCD-heavy** governor ([`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md)).
 
 ### Batch placement insert hints (GitLab **#261**)
 
