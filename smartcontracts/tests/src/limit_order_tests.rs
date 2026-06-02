@@ -5115,3 +5115,309 @@ fn match_dust_flush_bid_hybrid_then_maker_claims() {
     let bal_after = query_cw20_balance(&app, &env.token_b, &env.user);
     assert_eq!(bal_after.checked_sub(bal_before).unwrap(), Uint128::one());
 }
+
+/// GitLab #271 (#263 follow-up) — true if any tx event is a CW20 `transfer` action paying `recipient`.
+fn cw20_transfer_to_present(events: &[cosmwasm_std::Event], recipient: &Addr) -> bool {
+    events.iter().any(|e| {
+        let is_transfer = e
+            .attributes
+            .iter()
+            .any(|a| a.key == "action" && a.value == "transfer");
+        let to_recipient = e
+            .attributes
+            .iter()
+            .any(|a| a.key == "to" && a.value == recipient.as_str());
+        is_transfer && to_recipient
+    })
+}
+
+/// GitLab #271 (#263 follow-up, audit L15) — `CleanLimitBook` force-parks a sub-threshold bid
+/// WITHOUT any CW20 transfer to the maker in the clean tx; the refund is deferred to
+/// `ClaimExpiredLimitOrder`. Guards against a future refactor accidentally attaching a premature
+/// CW20 `Transfer` to the clean path (which balance-delta-after-claim checks would not catch).
+#[test]
+fn clean_limit_book_emits_no_cw20_transfers() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    // Governance dust threshold force-parks any sub-100k bid on the next clean.
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairLimitCleanConfig {
+            pair: env.pair.to_string(),
+            min_remaining_token1: Uint128::new(100_000),
+            min_remaining_token0: Uint128::zero(),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let escrow = Uint128::new(50_000);
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        escrow,
+        Decimal::one(),
+    );
+
+    let maker_bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+    // Permissionless keeper runs the clean.
+    let res = execute_clean_limit_book(
+        &mut app,
+        &env.pair,
+        &cosmwasm_std::Addr::unchecked("keeper"),
+        LimitOrderSide::Bid,
+        10,
+        None,
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "force_expired_count")
+            .as_deref(),
+        Some("1")
+    );
+
+    // L15: the clean tx parks the row but pays NOTHING — no CW20 transfer to the maker, balance flat.
+    assert!(
+        !cw20_transfer_to_present(&res.events, &env.user),
+        "CleanLimitBook must not CW20-transfer to the maker; refund is deferred to claim"
+    );
+    let maker_bal_after_clean = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        maker_bal_after_clean, maker_bal_before,
+        "maker balance must be unchanged by the clean tx"
+    );
+
+    // The escrow is still fully parked off-book.
+    let maker_fee = escrow.multiply_ratio(15u128, 10_000u128);
+    let remaining = escrow.checked_sub(maker_fee).unwrap();
+    let row: Option<ExpiredLimitRefundResponse> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::ExpiredLimitRefund { order_id },
+        )
+        .unwrap();
+    let row = row.expect("parked claim row exists after clean");
+    assert_eq!(row.remaining, remaining);
+
+    // Refund deferred, not lost: the owner claim now pays exactly `remaining`. That it pays the
+    // FULL remaining also proves PENDING_ESCROW was untouched by the clean (no premature decrement).
+    let claim_res = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+            &[],
+        )
+        .unwrap();
+    // Self-check: the SAME scanner that found zero transfers in the clean tx must detect the real
+    // CW20 transfer to the maker here — proves the clean-tx assertion above is not vacuous.
+    assert!(
+        cw20_transfer_to_present(&claim_res.events, &env.user),
+        "the claim tx must CW20-transfer to the maker (scanner sanity check)"
+    );
+    let maker_bal_after_claim = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        maker_bal_after_claim.checked_sub(maker_bal_before).unwrap(),
+        remaining,
+        "owner claim refunds exactly the parked remaining"
+    );
+}
+
+/// GitLab #271 (#264 follow-up, audit L1 claim guard) — a non-owner cannot claim a parked refund.
+/// Mirrors `cancel_limit_order_non_owner_rejected` for the claim entry point, which debits CW20
+/// from pair custody and is therefore equally security-sensitive.
+#[test]
+fn claim_expired_limit_order_non_owner_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    // Park a row via force-dust clean (deterministic, no time travel needed).
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairLimitCleanConfig {
+            pair: env.pair.to_string(),
+            min_remaining_token1: Uint128::new(100_000),
+            min_remaining_token0: Uint128::zero(),
+        },
+        &[],
+    )
+    .unwrap();
+    let escrow = Uint128::new(50_000);
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        escrow,
+        Decimal::one(),
+    );
+    execute_clean_limit_book(
+        &mut app,
+        &env.pair,
+        &cosmwasm_std::Addr::unchecked("keeper"),
+        LimitOrderSide::Bid,
+        10,
+        None,
+    );
+
+    let maker_fee = escrow.multiply_ratio(15u128, 10_000u128);
+    let remaining = escrow.checked_sub(maker_fee).unwrap();
+
+    let attacker = cosmwasm_std::Addr::unchecked("attacker271");
+    let maker_bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
+    let attacker_bal_before = query_cw20_balance(&app, &env.token_b, &attacker);
+
+    let err = app
+        .execute_contract(
+            attacker.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("Unauthorized"),
+        "{}",
+        err
+    );
+
+    // Row still parked, both balances untouched by the rejected attempt.
+    let row: Option<ExpiredLimitRefundResponse> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::ExpiredLimitRefund { order_id },
+        )
+        .unwrap();
+    let row = row.expect("parked claim row survives a rejected non-owner claim");
+    assert_eq!(row.remaining, remaining);
+    assert_eq!(row.owner, env.user);
+    assert_eq!(
+        query_cw20_balance(&app, &env.token_b, &env.user),
+        maker_bal_before
+    );
+    assert_eq!(
+        query_cw20_balance(&app, &env.token_b, &attacker),
+        attacker_bal_before
+    );
+
+    // The legitimate owner can still claim afterward — single refund, not lost.
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::ClaimExpiredLimitOrder { order_id },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        query_cw20_balance(&app, &env.token_b, &env.user)
+            .checked_sub(maker_bal_before)
+            .unwrap(),
+        remaining,
+        "owner claim still refunds exactly the parked remaining after the rejected attempt"
+    );
+}
+
+/// GitLab #271 (audit L11, stretch) — a foreign owner batch-claiming reverts the whole tx with no
+/// partial CW20 out; both parked rows persist. Twin of `batch_cancel_foreign_owner_reverts_whole_tx`.
+#[test]
+fn batch_claim_expired_foreign_owner_reverts_whole_tx() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetPairLimitCleanConfig {
+            pair: env.pair.to_string(),
+            min_remaining_token1: Uint128::new(100_000),
+            min_remaining_token0: Uint128::zero(),
+        },
+        &[],
+    )
+    .unwrap();
+    let escrow = Uint128::new(40_000);
+    let id1 = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        escrow,
+        Decimal::one(),
+    );
+    let id2 = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        escrow,
+        Decimal::one(),
+    );
+    execute_clean_limit_book(
+        &mut app,
+        &env.pair,
+        &cosmwasm_std::Addr::unchecked("keeper"),
+        LimitOrderSide::Bid,
+        10,
+        None,
+    );
+
+    let attacker = cosmwasm_std::Addr::unchecked("attacker271batch");
+    let err = app
+        .execute_contract(
+            attacker,
+            env.pair.clone(),
+            &ExecuteMsg::ClaimExpiredLimitOrders {
+                order_ids: vec![id1, id2],
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("Unauthorized"),
+        "{}",
+        err
+    );
+
+    // Both rows still parked — all-or-nothing revert, no partial CW20 out.
+    for id in [id1, id2] {
+        let row: Option<ExpiredLimitRefundResponse> = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::ExpiredLimitRefund { order_id: id },
+            )
+            .unwrap();
+        assert!(
+            row.is_some(),
+            "order {id} must remain parked after a rejected foreign-owner batch claim"
+        );
+    }
+}
