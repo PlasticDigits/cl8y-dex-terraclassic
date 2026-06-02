@@ -3,6 +3,7 @@ import type { UseMutationResult } from '@tanstack/react-query'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
+import type { LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
 import { Spinner } from '@/components/ui'
 import type { IndexerPair, IndexerShallowLimitOrder, PairInfo } from '@/types'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
@@ -58,7 +59,7 @@ function BookRow({
   isPairPaused: boolean
   isWalletConnected: boolean
   openWalletModal?: () => void
-  cancelMutation?: UseMutationResult<string, Error, number, unknown>
+  cancelMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
   cancellations: { order_id: number }[]
   hintAfterOrderId?: number | null
@@ -211,7 +212,7 @@ function BookSideColumn({
   isPairPaused: boolean
   isWalletConnected: boolean
   openWalletModal?: () => void
-  cancelMutation?: UseMutationResult<string, Error, number, unknown>
+  cancelMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
 }) {
   const cancellationsQuery = usePairLimitCancellations(pairAddress)
@@ -351,7 +352,7 @@ export type OrderBookPanelProps = {
   isPairPaused?: boolean
   openWalletModal?: () => void
   /** Shared with `TradeOrderTicket` on `/trade` so book rows and ticket use one cancel mutation. */
-  cancelLimitOrderMutation?: UseMutationResult<string, Error, number, unknown>
+  cancelLimitOrderMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
   /** Opens the limit ticket with side / price / size prefilled (replace-style flow; GitLab #162). */
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
   /** Factory pair (asset_infos) for cancel-all placement partition; optional if cancel-all unused. */

@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useId, useRef, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useLimitOrderCancelMutation, type LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
 import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePriceMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
@@ -118,7 +118,7 @@ export type TradeOrderTicketProps = {
    * When set (e.g. from `TradePage` with `OrderBookPanel`), book rows and ticket share one cancel mutation
    * ([GitLab #162](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
    */
-  cancelLimitOrderMutation?: UseMutationResult<string, Error, number, unknown>
+  cancelLimitOrderMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
   /** Incrementing key so the ticket applies a book-driven prefill even when fields match the prior draft. */
   limitBookDraftKey?: number
   limitBookDraft?: LimitBookTicketDraft | null
@@ -126,7 +126,7 @@ export type TradeOrderTicketProps = {
 }
 
 type TradeOrderTicketContentProps = TradeOrderTicketProps & {
-  cancelLimitOrderMutation: UseMutationResult<string, Error, number, unknown>
+  cancelLimitOrderMutation: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
 }
 
 /**
