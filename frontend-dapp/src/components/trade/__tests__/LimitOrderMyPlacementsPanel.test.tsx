@@ -124,7 +124,11 @@ describe('LimitOrderMyPlacementsPanel', () => {
 
     fireEvent.click(claimAll)
 
-    expect(window.confirm).toHaveBeenCalledWith('Claim all 2 expired refund(s) in one transaction?')
+    // Match the stable confirm prefix only; the gas-estimate suffix (GitLab #259) is asserted in
+    // limitExpiredClaimBatch.test.ts. Keeps the panel test decoupled from volatile gas-copy numbers.
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('Claim all 2 expired refund(s) in one transaction?')
+    )
     await waitFor(() => {
       expect(claimExpiredLimitOrders).toHaveBeenCalledWith('terra1wallet', PAIR.contract_addr, [10, 11])
     })
