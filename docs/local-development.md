@@ -59,14 +59,15 @@ Details, invariants, `--dry-run`, `--stats`, and env vars: [`packages/localnet-t
 
 The `docker-compose.yml` at the repo root starts a LocalTerra node for development. Contract deployment scripts in `smartcontracts/scripts/` target this local node by default.
 
-Images use **immutable digests** (LocalTerra + Postgres) for reproducible QA. To bump LocalTerra after a new `:latest` publish:
+Images use **immutable digests** (LocalTerra + Postgres) for reproducible QA. LocalTerra tracks **Terra Classic terrad v4 / Cosmos SDK 0.53** ([GitLab **#292**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292) — invariants: [`docs/localterra-sdk53.md`](./localterra-sdk53.md)). To bump LocalTerra after a new `:latest` publish:
 
 ```bash
 docker pull ghcr.io/plasticdigits/localterra-cl8y:latest
 docker inspect ghcr.io/plasticdigits/localterra-cl8y:latest --format '{{index .RepoDigests 0}}'
+terrad version   # inside container: docker compose exec localterra terrad version
 ```
 
-Copy the `name@sha256:…` value into `docker-compose.yml` and update the adjacent YAML comment with the human-readable tag.
+Copy the `name@sha256:…` value into `docker-compose.yml`, sync [`docker/init-chain.sh`](../docker/init-chain.sh) with the image’s `/usr/local/bin/init-chain.sh` if genesis/CLI changed, then **`make reset`** before redeploy.
 
 ```bash
 # Start

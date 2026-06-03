@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test, type APIRequestContext } from '@playwright/test'
 
-import { lcdBaseUrl } from './chain'
+import { lcdRequestGet } from './lcd-docker-fallback'
 
 const DEV_WALLET = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 const DEFAULT_INDEXER = 'http://127.0.0.1:3001'
@@ -73,12 +73,11 @@ export async function firstDualCwPairAddr(request: APIRequestContext): Promise<s
     return ''
   }
 
-  const lcd = lcdBaseUrl()
   const q = Buffer.from(JSON.stringify({ pairs: { start_after: null, limit: 60 } })).toString('base64')
-  const res = await request.get(`${lcd}/cosmwasm/wasm/v1/contract/${factory}/smart/${q}`, {
+  const res = await lcdRequestGet(request, `/cosmwasm/wasm/v1/contract/${factory}/smart/${q}`, {
     timeout: 20_000,
   })
-  expect(res.ok()).toBeTruthy()
+  expect(res.ok).toBeTruthy()
   const raw = (await res.json()) as { data?: unknown }
   let pairsDoc: { pairs?: Array<{ contract_addr: string; asset_infos: unknown[] }> }
   if (typeof raw.data === 'string') {
@@ -93,8 +92,8 @@ export async function firstDualCwPairAddr(request: APIRequestContext): Promise<s
     const b = infos[1]?.token?.contract_addr ?? ''
     if (a.startsWith('terra1') && b.startsWith('terra1')) {
       const pausedQ = Buffer.from(JSON.stringify({ is_paused: {} })).toString('base64')
-      const pausedRes = await request.get(`${lcd}/cosmwasm/wasm/v1/contract/${p.contract_addr}/smart/${pausedQ}`)
-      if (!pausedRes.ok()) continue
+      const pausedRes = await lcdRequestGet(request, `/cosmwasm/wasm/v1/contract/${p.contract_addr}/smart/${pausedQ}`)
+      if (!pausedRes.ok) continue
       const pausedRaw = (await pausedRes.json()) as { data?: unknown }
       let paused = false
       if (typeof pausedRaw.data === 'string') {

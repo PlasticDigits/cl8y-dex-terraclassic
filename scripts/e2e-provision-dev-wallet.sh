@@ -43,6 +43,8 @@ fi
 
 # shellcheck source=scripts/lib/e2e-terrad-tx.sh
 source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
+# shellcheck source=scripts/lib/lcd-smart-query.sh
+source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 
 terrad_tx() {
   e2e_terrad_tx "$CONTAINER" "$@"
@@ -63,8 +65,7 @@ decode_pairs_payload() {
   fi
 }
 
-Q_PAIRS="$(b64_query '{"pairs":{"start_after":null,"limit":60}}')"
-RAW_PAIRS="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$VITE_FACTORY_ADDRESS/smart/$Q_PAIRS")"
+RAW_PAIRS="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":60}}')"
 PAIRS_DOC="$(decode_pairs_payload "$RAW_PAIRS")"
 
 mapfile -t TOKEN_ADDRS < <(echo "$PAIRS_DOC" | jq -r '.pairs[] | .asset_infos[] | .token.contract_addr? // empty' | sort -u)
@@ -87,8 +88,7 @@ for TOKEN in "${TOKEN_ADDRS[@]}"; do
   if [[ -n "${VITE_CL8Y_TOKEN_ADDRESS:-}" && "$TOKEN" == "$VITE_CL8Y_TOKEN_ADDRESS" ]]; then
     MIN_FOR_TOKEN="${E2E_DEV_MIN_CL8Y_U128:-1000000000000000000}"
   fi
-  Q_BAL="$(b64_query "{\"balance\":{\"address\":\"$DEV_ADDR\"}}")"
-  RAW_BAL="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$TOKEN/smart/$Q_BAL")"
+  RAW_BAL="$(lcd_smart_query_raw "$LCD" "$TOKEN" "{\"balance\":{\"address\":\"$DEV_ADDR\"}}")"
   BAL="$(decode_pairs_payload "$RAW_BAL" | jq -r '.balance // "0"')"
   if [[ "$BAL" =~ ^[0-9]+$ ]] && ((10#$BAL >= 10#$MIN_FOR_TOKEN)); then
     continue

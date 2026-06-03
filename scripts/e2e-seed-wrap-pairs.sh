@@ -39,6 +39,10 @@ fi
 
 # shellcheck source=scripts/lib/e2e-terrad-tx.sh
 source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
+# shellcheck source=scripts/lib/terrad-tx-events.sh
+source "$REPO_ROOT/scripts/lib/terrad-tx-events.sh"
+# shellcheck source=scripts/lib/lcd-smart-query.sh
+source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 
 terrad_tx() {
   e2e_terrad_tx "$CONTAINER" "$@"
@@ -53,7 +57,7 @@ terrad_query() {
 pair_addr_from_tx() {
   local tx_hash="$1"
   sleep 3
-  terrad_query tx "$tx_hash" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value' | head -1
+  terrad_query tx "$tx_hash" | terrad_jq_contract_address_from_tx_json | head -1
 }
 
 b64_query() {
@@ -76,9 +80,8 @@ LCD="${LCD%/}"
 
 factory_has_pair_with_token() {
   local token="$1"
-  local q pairs_doc
-  q="$(b64_query '{"pairs":{"start_after":null,"limit":120}}')"
-  pairs_doc="$(decode_smart_payload "$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$VITE_FACTORY_ADDRESS/smart/$q")")"
+  local pairs_doc
+  pairs_doc="$(decode_smart_payload "$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":120}}')")"
   echo "$pairs_doc" | jq -e --arg t "$token" '
     [.pairs[]? | select(
       (.asset_infos[0].token.contract_addr // "") == $t
@@ -89,9 +92,8 @@ factory_has_pair_with_token() {
 
 cw20_balance() {
   local token="$1"
-  local q
-  q="$(b64_query "{\"balance\":{\"address\":\"$TEST_ADDRESS\"}}")"
-  curl -sf "$LCD/cosmwasm/wasm/v1/contract/$token/smart/$q" | jq -r '.data.balance // "0"'
+  decode_smart_payload "$(lcd_smart_query_raw "$LCD" "$token" "{\"balance\":{\"address\":\"$TEST_ADDRESS\"}}")" \
+    | jq -r '.balance // "0"'
 }
 
 fund_wrap_token_via_treasury() {
@@ -110,8 +112,7 @@ fund_wrap_token_via_treasury() {
 }
 
 # First factory pair (EMBER/CORAL) for stable wrap-pair partners.
-Q_PAIRS="$(b64_query '{"pairs":{"start_after":null,"limit":5}}')"
-RAW_PAIRS="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$VITE_FACTORY_ADDRESS/smart/$Q_PAIRS")"
+RAW_PAIRS="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":5}}')"
 PAIRS_DOC="$(decode_smart_payload "$RAW_PAIRS")"
 EMBER_ADDR="$(echo "$PAIRS_DOC" | jq -r '.pairs[0].asset_infos[0].token.contract_addr // empty')"
 CORAL_ADDR="$(echo "$PAIRS_DOC" | jq -r '.pairs[0].asset_infos[1].token.contract_addr // empty')"

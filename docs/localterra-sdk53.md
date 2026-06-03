@@ -1,0 +1,56 @@
+# LocalTerra — Terra Classic SDK 0.53 / terrad v4
+
+Operator and agent reference for the **LocalTerra** stack after [GitLab **#292**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292).
+
+## Pinned image
+
+| Field | Value |
+| ----- | ----- |
+| Registry | `ghcr.io/plasticdigits/localterra-cl8y` |
+| Tag (human) | `:latest` |
+| Digest (compose) | `sha256:29e2d125c123a230aac86b72e781b33db3f357f00fa44c751249a9a2c2512faf` |
+| `terrad version` | **4.0.1** |
+| Cosmos SDK | **0.53.6** (`cosmos_sdk_version` in `terrad version --long`) |
+| Wasm | `wasmd` **0.61.8**, `wasmvm` **v3.0.3** |
+| Chain ID | `localterra` (unchanged) |
+
+Bump procedure: [`docs/local-development.md`](./local-development.md) § Docker Setup (`docker pull` + `docker inspect` → update `docker-compose.yml`).
+
+## Invariants
+
+| ID | Invariant | Rationale |
+| -- | --------- | --------- |
+| **LT1** | Compose pins **digest**, not floating `:latest` | Reproducible QA / CI agents ([#292](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292)) |
+| **LT2** | Mounted [`docker/init-chain.sh`](../docker/init-chain.sh) matches image SDK **0.53** genesis (`bond_denom`, gov `min_deposit`, gentx commission flags) | SDK 0.53 defaults `bond_denom` to `stake` without patch |
+| **LT3** | Oracle slash patch (**LT3a**) runs when `app_state.oracle.params` exists | Single-validator localnet has no oracle feeder; validator jails at ~100800 without patch |
+| **LT4** | Genesis test account: **1M LUNC** + stablecoins per `init-chain.sh` | CW20 / E2E funding uses deploy + `e2e-provision-dev-wallet.sh`, not 100M LUNC genesis |
+| **LT5** | DEX wasm stays **cosmwasm-std 1.5.x** until a deliberate contract bump | Runtime accepts 1.5 artifacts on LocalTerra wasmvm v3 ([#292](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292) acceptance) |
+| **LT6** | After digest bump, **`make reset && make start && make wait-healthy`** before deploy | Stale `localterra-data` volumes are pre–SDK-53 state ([#202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)) |
+| **LT7** | `terrad query tx` wasm events live at **`.events`** (not `.logs[0].events`) | Use [`scripts/lib/terrad-tx-events.sh`](../scripts/lib/terrad-tx-events.sh) in deploy/e2e scripts |
+| **LT8** | Treasury bank send uses **`DEPLOY_TREASURY_FUND_COINS`** default **2M USTC + 200k LUNC** | Genesis is **1M LUNC**; legacy 10M LUNC send fails on SDK 0.53 LocalTerra |
+| **LT9** | E2E `global-setup.ts` falls back to **`docker exec` LCD** when host `:1317` fetch times out | Same userland-proxy pattern as [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh) |
+
+## Verification commands
+
+```bash
+make reset && make start && make wait-healthy
+make deploy-local
+make test-contracts
+make test-frontend
+make test-qa-verify-deploy
+make test-e2e-tx    # strict on-chain; long-running
+```
+
+## Agent playbooks
+
+- E2E / strict chain: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md)
+- Gas / wallets on LocalTerra: [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md)
+- QA deploy verify: [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md)
+- Fresh volumes: [`skills/AGENTS_QA_FRESH_VOLUMES.md`](../skills/AGENTS_QA_FRESH_VOLUMES.md)
+
+## Related
+
+- [Local development](./local-development.md)
+- [Environment matrix](./environment-matrix.md)
+- [QA invariants](./qa-invariants.md)
+- [Testing](./testing.md)

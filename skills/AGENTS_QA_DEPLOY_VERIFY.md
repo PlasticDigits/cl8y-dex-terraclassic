@@ -110,6 +110,7 @@ make qa-verify-deploy            # uses exec fallback automatically
 
 ## Cross-links
 
+- LocalTerra **SDK 0.53** image / fresh volumes after digest bump: [`docs/localterra-sdk53.md`](../docs/localterra-sdk53.md) ([GitLab **#292**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292))
 - Operator runbook: [`scripts/qa/README.md`](../scripts/qa/README.md)
 - Strict E2E (uses `is_paused` on laptop): [`AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md) ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201))
 - Limit tx E2E: [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md) ([#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195))

@@ -62,6 +62,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 
 ## Cross-links
 
+- LocalTerra **SDK 0.53 / terrad v4** stack: [`docs/localterra-sdk53.md`](../docs/localterra-sdk53.md) ([GitLab **#292**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292)) — **`make reset`** after image digest bump before strict E2E; E2E global setup uses **docker exec LCD fallback** when host `:1317` hangs (**LT9**)
 - Umbrella issue: [GitLab **#201**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)
 - Policy parent: [GitLab **#103**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/103)
 - Hybrid child: [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) ([#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193))

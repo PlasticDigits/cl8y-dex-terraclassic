@@ -1,5 +1,7 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
 
+import { effectiveLcdBaseUrl, lcdHealthyViaDockerExec, lcdRequestGet } from './lcd-docker-fallback'
+
 const DEFAULT_LCD = 'http://localhost:1317'
 
 /**
@@ -23,19 +25,19 @@ export function lcdBaseUrl(): string {
 }
 
 export async function assertLcdReachable(request: APIRequestContext): Promise<void> {
-  const base = lcdBaseUrl()
+  const base = effectiveLcdBaseUrl()
   try {
-    const res = await request.get(`${base}/cosmos/base/tendermint/v1beta1/node_info`, {
+    const res = await lcdRequestGet(request, '/cosmos/base/tendermint/v1beta1/node_info', {
       timeout: 10_000,
-      failOnStatusCode: false,
     })
-    if (!res.ok()) {
+    if (!res.ok) {
       throw new Error(
-        `LCD ${base} returned ${res.status()}; start LocalTerra (docker compose up -d localterra) and deploy contracts.`
+        `LCD ${base} returned ${res.status}; start LocalTerra (docker compose up -d localterra) and deploy contracts.`
       )
     }
   } catch (e) {
     if (e instanceof Error && e.message.startsWith(`LCD ${base} returned`)) throw e
+    if (lcdHealthyViaDockerExec()) return
     throw new Error(
       `LCD ${base} unreachable (${e instanceof Error ? e.message : String(e)}); start LocalTerra for on-chain E2E.`
     )

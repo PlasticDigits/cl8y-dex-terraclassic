@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
-import { lcdBaseUrl } from './chain'
+import { lcdRequestGet } from './lcd-docker-fallback'
 
 /** Pair `is_paused` smart-query response (`data` may be JSON or base64 string). */
 export type LcdPairPausedResponse = { paused: boolean }
@@ -24,13 +24,11 @@ function b64SmartQuery(msg: Record<string, unknown>): string {
 
 /** LCD `is_paused` on a pair contract. Returns `true` when the query fails (conservative for strict E2E). */
 export async function queryPairPaused(request: APIRequestContext, pairAddr: string): Promise<boolean> {
-  const base = lcdBaseUrl()
   const q = b64SmartQuery({ is_paused: {} })
-  const res = await request.get(`${base}/cosmwasm/wasm/v1/contract/${pairAddr}/smart/${q}`, {
-    failOnStatusCode: false,
+  const res = await lcdRequestGet(request, `/cosmwasm/wasm/v1/contract/${pairAddr}/smart/${q}`, {
     timeout: 20_000,
   })
-  if (!res.ok()) return true
+  if (!res.ok) return true
   const body = (await res.json()) as { data?: LcdPairPausedResponse | string }
   const decoded = decodeSmartDataPayload<LcdPairPausedResponse>(body)
   return decoded?.paused === true
@@ -214,15 +212,13 @@ export function txJsonPlaceLimitMaxAdjustSteps(txJson: unknown): number | null {
 }
 
 export async function fetchTxJson(request: APIRequestContext, txHash: string): Promise<unknown | null> {
-  const base = lcdBaseUrl()
   const candidates = [txHash, txHash.toUpperCase(), txHash.toLowerCase()]
   const uniq = [...new Set(candidates)]
   for (const h of uniq) {
-    const res = await request.get(`${base}/cosmos/tx/v1beta1/txs/${encodeURIComponent(h)}`, {
-      failOnStatusCode: false,
+    const res = await lcdRequestGet(request, `/cosmos/tx/v1beta1/txs/${encodeURIComponent(h)}`, {
       timeout: 20_000,
     })
-    if (res.ok()) return res.json()
+    if (res.ok) return res.json()
   }
   return null
 }

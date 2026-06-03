@@ -3,8 +3,8 @@ name: cl8y-dex-terraclassic
 
 services:
   localterra:
-    # Pinned digest for reproducible QA; tag reference: ghcr.io/plasticdigits/localterra-cl8y:latest
-    image: ghcr.io/plasticdigits/localterra-cl8y@sha256:9a58488b7fd65fd6a87e43384c0ee3023178378402505bbd8bcd114ce0c9938e
+    # Pinned digest for reproducible QA; tag: ghcr.io/plasticdigits/localterra-cl8y:latest (terrad v4.0.1 / SDK 0.53.6 — GitLab #292)
+    image: ghcr.io/plasticdigits/localterra-cl8y@sha256:29e2d125c123a230aac86b72e781b33db3f357f00fa44c751249a9a2c2512faf
     platform: linux/amd64
     ports:
       - "127.0.0.1:26657:26657"

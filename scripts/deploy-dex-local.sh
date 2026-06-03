@@ -23,6 +23,8 @@ if [ -z "$CONTAINER_NAME" ]; then
 fi
 ARTIFACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/artifacts" && pwd)"
 CONTRACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/contracts" && pwd)"
+# shellcheck source=scripts/lib/terrad-tx-events.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/terrad-tx-events.sh"
 
 # ── Staleness check ────────────────────────────────────────────────────
 # Fail fast if any WASM artifact is older than its source, so QA doesn't
@@ -125,7 +127,7 @@ get_code_id() {
     sleep 3
     local RESULT
     RESULT=$(terrad_query tx "$TX_HASH")
-    echo "$RESULT" | jq -r '.logs[0].events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value'
+    echo "$RESULT" | terrad_jq_code_id_from_tx_json
 }
 
 get_contract_address() {
@@ -133,7 +135,7 @@ get_contract_address() {
     sleep 3
     local RESULT
     RESULT=$(terrad_query tx "$TX_HASH")
-    echo "$RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value'
+    echo "$RESULT" | terrad_jq_contract_address_from_tx_json
 }
 
 echo "=============================================="
@@ -280,7 +282,11 @@ if [ ! -f "$ARTIFACTS_DIR/treasury.wasm" ]; then
         cosmwasm/workspace-optimizer:0.16.1
     cp "$USTR_TMP_DIR/contracts/artifacts/treasury.wasm" "$ARTIFACTS_DIR/"
     cp "$USTR_TMP_DIR/contracts/artifacts/wrap_mapper.wasm" "$ARTIFACTS_DIR/"
-    rm -rf "$USTR_TMP_DIR"
+    if [ -d "$USTR_TMP_DIR" ]; then
+      docker run --rm -v "$USTR_TMP_DIR":/w alpine:3.20 rm -rf /w 2>/dev/null \
+        || rm -rf "$USTR_TMP_DIR" 2>/dev/null \
+        || true
+    fi
     echo "  treasury.wasm and wrap_mapper.wasm built and copied to artifacts."
     docker cp "$ARTIFACTS_DIR/treasury.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
     docker cp "$ARTIFACTS_DIR/wrap_mapper.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
@@ -367,12 +373,18 @@ echo "  Set wrap-mapper: $TX_HASH"
 sleep 3
 
 echo ""
-echo "[9b.10] Funding Treasury with 40M USTC and 10M LUNC..."
+# SDK 0.53 LocalTerra genesis: 1M LUNC + 10M USTC on test1 (GitLab #292). Keep headroom for deploy gas.
+TREASURY_FUND_COINS="${DEPLOY_TREASURY_FUND_COINS:-2000000000000uusd,200000000000uluna}"
+echo "[9b.10] Funding Treasury ($TREASURY_FUND_COINS)..."
 TX_HASH=$(terrad_tx bank send test1 "$TREASURY_ADDRESS" \
-  "40000000000000uusd,10000000000000uluna" | jq -r '.txhash')
+  "$TREASURY_FUND_COINS" | jq -r '.txhash')
 echo "  Fund treasury: $TX_HASH"
 sleep 3
-echo "  Treasury funded: 40,000,000 USTC + 10,000,000 LUNC"
+if terrad_query tx "$TX_HASH" | jq -e '.code == 0' >/dev/null 2>&1; then
+  echo "  Treasury funded: $TREASURY_FUND_COINS"
+else
+  echo "  WARNING: Treasury fund tx may have failed (code != 0). Wrap E2E may need manual bank send."
+fi
 
 # ── Phase 2: Tokens ─────────────────────────────────────────────────────
 
@@ -514,7 +526,7 @@ for p in "${!PAIR_CONFIGS[@]}"; do
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
-    PAIR_ADDR=$(echo "$PAIR_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value' | head -1)
+    PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
     PAIR_ADDRESSES+=("$PAIR_ADDR")
     echo "  Pair Address: $PAIR_ADDR"
 
@@ -624,7 +636,7 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
-    PAIR_ADDR=$(echo "$PAIR_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value' | head -1)
+    PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
     echo "  Pair Address: $PAIR_ADDR"
 
     TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
@@ -671,7 +683,7 @@ do
   echo "  TX: $TX_HASH"
   sleep 3
   PAIR_RESULT=$(terrad_query tx "$TX_HASH")
-  PAIR_ADDR=$(echo "$PAIR_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value' | head -1)
+  PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
   echo "  Pair Address: $PAIR_ADDR"
 
   TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \

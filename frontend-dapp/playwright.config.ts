@@ -48,6 +48,7 @@ export default defineConfig({
     timeout: 60_000,
     env: {
       ...process.env,
+      VITE_TERRA_LCD_URL: process.env.E2E_LCD_PROXY_URL ?? process.env.VITE_TERRA_LCD_URL ?? process.env.E2E_LCD_URL,
       VITE_DEV_MNEMONIC: devMnemonic,
       /** Suppress blocking first-visit risk modal during Playwright (GitLab #138). */
       VITE_PLAYWRIGHT_E2E: 'true',

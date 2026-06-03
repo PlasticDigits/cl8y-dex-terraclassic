@@ -119,6 +119,7 @@ Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 - [`docs/testing.md`](../docs/testing.md) — test types, shared-DB parallelism, [§ CI](../docs/testing.md#ci) (local automation, [#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234))
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) — integration test matrix
 - [`docs/local-development.md`](../docs/local-development.md) — full local stack
+- [`docs/localterra-sdk53.md`](../docs/localterra-sdk53.md) — LocalTerra **terrad v4 / SDK 0.53** ([#292](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292)); **`make reset`** with Postgres when bumping chain image
 - [`skills/AGENTS_TESTING_P2_EPIC.md`](./AGENTS_TESTING_P2_EPIC.md) — charts layers: HTTP integration vs real-library Vitest ([#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230))
 - [`skills/AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md) — Playwright chain setup (Postgres via deploy)
 - [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) — localnet bots after deploy

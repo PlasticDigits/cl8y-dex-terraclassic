@@ -41,6 +41,8 @@ fi
 
 # shellcheck source=scripts/lib/e2e-terrad-tx.sh
 source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
+# shellcheck source=scripts/lib/lcd-smart-query.sh
+source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 
 terrad_tx() {
   e2e_terrad_tx "$CONTAINER" "$@"
@@ -66,8 +68,7 @@ order_book_head_id_from_payload() {
   jq -r 'if type == "number" then tostring elif type == "object" then (.head_order_id // empty | tostring) else empty end'
 }
 
-Q_PAIRS="$(b64_query '{"pairs":{"start_after":null,"limit":60}}')"
-RAW_PAIRS="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$VITE_FACTORY_ADDRESS/smart/$Q_PAIRS")"
+RAW_PAIRS="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":60}}')"
 PAIRS_DOC="$(decode_smart_payload "$RAW_PAIRS")"
 
 PAIR_ADDR=""
@@ -90,8 +91,7 @@ if [[ -z "$PAIR_ADDR" || -z "$TOKEN0" ]]; then
   exit 1
 fi
 
-Q_HEAD="$(b64_query '{"order_book_head":{"side":"bid"}}')"
-RAW_HEAD="$(curl -sf "$LCD/cosmwasm/wasm/v1/contract/$PAIR_ADDR/smart/$Q_HEAD")"
+RAW_HEAD="$(lcd_smart_query_raw "$LCD" "$PAIR_ADDR" '{"order_book_head":{"side":"bid"}}')"
 HEAD_ID="$(decode_smart_payload "$RAW_HEAD" | order_book_head_id_from_payload)"
 if [[ -n "$HEAD_ID" && "$HEAD_ID" != "null" ]]; then
   echo "e2e-seed-hybrid-book: bid book already has head order $HEAD_ID on $PAIR_ADDR; skipping."

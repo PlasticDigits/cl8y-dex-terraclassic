@@ -1,19 +1,22 @@
 #!/bin/bash
-# Initialize LocalTerra chain with pre-funded accounts
+# Initialize LocalTerra chain with pre-funded accounts (Terra Classic terrad v4 / SDK 0.53).
 #
 # This script sets up:
-# - Chain configuration
+# - Chain configuration (bond_denom / gov min_deposit aligned to uluna)
 # - Test accounts with funds
 # - Validator
 # - Fast block times
 # - Enabled APIs
 # - Disabled oracle slashing (no oracle feeder on local chain)
+#
+# GitLab #292 — keep in sync with ghcr.io/plasticdigits/localterra-cl8y image init when bumping digest.
 
 set -e
 
 TERRA_HOME="${TERRA_HOME:-$HOME/.terra}"
 CHAIN_ID="${CHAIN_ID:-localterra}"
 MONIKER="${MONIKER:-localterra}"
+DENOM="${DENOM:-uluna}"
 
 # Test account mnemonic (DO NOT USE IN PRODUCTION)
 TEST_MNEMONIC="notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
@@ -23,12 +26,17 @@ echo "Chain ID: $CHAIN_ID"
 echo "Moniker: $MONIKER"
 echo "Home: $TERRA_HOME"
 
+update_genesis() {
+    local genesis="$TERRA_HOME/config/genesis.json"
+    jq "$1" "$genesis" > "${genesis}.tmp" && mv "${genesis}.tmp" "$genesis"
+}
+
 # Initialize chain
-echo "[1/7] Initializing chain..."
+echo "[1/8] Initializing chain..."
 terrad init "$MONIKER" --chain-id "$CHAIN_ID" --home "$TERRA_HOME"
 
 # Import test account
-echo "[2/7] Importing test account..."
+echo "[2/8] Importing test account..."
 echo "$TEST_MNEMONIC" | terrad keys add test1 --recover --keyring-backend test --home "$TERRA_HOME"
 
 # Get test account address
@@ -36,10 +44,10 @@ TEST_ADDRESS=$(terrad keys show test1 -a --keyring-backend test --home "$TERRA_H
 echo "Test account: $TEST_ADDRESS"
 
 # Add genesis account with funds
-echo "[3/7] Adding genesis account with funds..."
+echo "[3/8] Adding genesis account with funds..."
 terrad add-genesis-account "$TEST_ADDRESS" \
-    100000000000000uluna,\
-100000000000000uusd,\
+    1000000000000uluna,\
+10000000000000uusd,\
 10000000000000ukrw,\
 10000000000000usdr,\
 10000000000000ueur,\
@@ -49,19 +57,36 @@ terrad add-genesis-account "$TEST_ADDRESS" \
     --keyring-backend test \
     --home "$TERRA_HOME"
 
+# SDK 0.53 defaults bond_denom to "stake"; align genesis with Terra Classic denoms
+echo "[4/8] Configuring genesis parameters..."
+update_genesis '.app_state["mint"]["params"]["mint_denom"]="'$DENOM'"'
+update_genesis '.app_state["gov"]["deposit_params"]["min_deposit"]=[{"denom":"'$DENOM'","amount": "1000000"}]'
+update_genesis '.app_state["gov"]["params"]["min_deposit"]=[{"denom":"'$DENOM'","amount": "1000000"}]'
+update_genesis '.app_state["gov"]["params"]["voting_period"]="30s"'
+update_genesis '.app_state["gov"]["voting_params"]["voting_period"]="30s"'
+if jq -e '.app_state["gov"]["params"]["expedited_voting_period"]' "$TERRA_HOME/config/genesis.json" > /dev/null 2>&1; then
+    update_genesis '.app_state["gov"]["params"]["expedited_voting_period"]="4s"'
+fi
+update_genesis '.app_state["crisis"]["constant_fee"]={"denom":"'$DENOM'","amount":"1000"}'
+update_genesis '.app_state["staking"]["params"]["bond_denom"]="'$DENOM'"'
+
 # Create validator genesis transaction
-echo "[4/7] Creating validator..."
+echo "[5/8] Creating validator..."
 terrad gentx test1 10000000uluna \
+    --commission-rate=0.01 \
+    --commission-max-rate=0.02 \
     --chain-id "$CHAIN_ID" \
     --keyring-backend test \
     --home "$TERRA_HOME"
 
 # Collect genesis transactions
-echo "[5/7] Collecting genesis transactions..."
+echo "[6/8] Collecting genesis transactions..."
 terrad collect-gentxs --home "$TERRA_HOME"
 
+terrad validate-genesis --home "$TERRA_HOME" || echo "WARNING: validate-genesis failed, continuing anyway..."
+
 # Configure for local development
-echo "[6/7] Configuring for local development..."
+echo "[7/8] Configuring for local development..."
 
 CONFIG_TOML="$TERRA_HOME/config/config.toml"
 APP_TOML="$TERRA_HOME/config/app.toml"
@@ -81,8 +106,9 @@ sed -i 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/g' "
 # Enable CORS for development
 sed -i 's/cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/g' "$CONFIG_TOML"
 
-# Enable REST API
-sed -i 's/enable = false/enable = true/g' "$APP_TOML"
+# Enable REST API (first enable = false is the API server toggle)
+sed -i '0,/enable = false/s//enable = true/' "$APP_TOML"
+sed -i 's/swagger = false/swagger = true/' "$APP_TOML"
 sed -i 's/address = "tcp:\/\/localhost:1317"/address = "tcp:\/\/0.0.0.0:1317"/g' "$APP_TOML"
 sed -i 's/enabled-unsafe-cors = false/enabled-unsafe-cors = true/g' "$APP_TOML"
 
@@ -95,11 +121,15 @@ sed -i 's/minimum-gas-prices = ""/minimum-gas-prices = "0uluna"/g' "$APP_TOML"
 # Disable oracle slashing — LocalTerra runs a single validator with no oracle
 # feeder, so without this patch the validator gets jailed at block 100800
 # (the default slash_window) and the chain permanently stops producing blocks.
-echo "[7/7] Patching genesis: disabling oracle slashing..."
+echo "[8/8] Patching genesis: disabling oracle slashing..."
 GENESIS="$TERRA_HOME/config/genesis.json"
-jq '.app_state.oracle.params.slash_fraction = "0.000000000000000000"
-  | .app_state.oracle.params.min_valid_per_window = "0.000000000000000000"
-  | .app_state.oracle.params.whitelist = []' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
+if jq -e '.app_state.oracle.params' "$GENESIS" > /dev/null 2>&1; then
+  jq '.app_state.oracle.params.slash_fraction = "0.000000000000000000"
+    | .app_state.oracle.params.min_valid_per_window = "0.000000000000000000"
+    | .app_state.oracle.params.whitelist = []' "$GENESIS" > "${GENESIS}.tmp" && mv "${GENESIS}.tmp" "$GENESIS"
+else
+  echo "WARNING: genesis has no app_state.oracle.params — skipping oracle slash patch"
+fi
 
 echo ""
 echo "=== LocalTerra Initialized ==="
@@ -109,8 +139,8 @@ echo "  Address:  $TEST_ADDRESS"
 echo "  Mnemonic: $TEST_MNEMONIC"
 echo ""
 echo "Balances:"
-echo "  100,000,000 LUNC (100000000000000 uluna)"
-echo "  100,000,000 USTC (100000000000000 uusd)"
+echo "  1,000,000 LUNC (1000000000000 uluna)"
+echo "  10,000,000 USTC (10000000000000 uusd)"
 echo "  + other stablecoins"
 echo ""
 echo "Endpoints (after start):"
