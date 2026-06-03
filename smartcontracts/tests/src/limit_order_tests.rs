@@ -3020,6 +3020,213 @@ fn match_invalid_book_start_hint_falls_back_to_head() {
     assert!(lo.remaining < Uint128::new(80_000));
 }
 
+/// GitLab #272 — wrong-side `book_start_hint` must not cross debit bid/ask escrow pools.
+#[test]
+fn hybrid_wrong_side_book_start_hint_no_cross_escrow_drain() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let honest_bid = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(100_000),
+        Decimal::one(),
+    );
+
+    let attacker = cosmwasm_std::Addr::unchecked("attacker_272");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &attacker,
+        Uint128::new(200_000),
+    );
+    let ask_id = place_ask(
+        &mut app,
+        &env.pair,
+        &attacker,
+        &env.token_a,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+
+    let ask_before = query_limit(&app, &env.pair, ask_id);
+    let bid_before = query_limit(&app, &env.pair, honest_bid);
+    let tb_before = query_cw20_balance(&app, &env.token_b, &attacker);
+
+    swap_a_to_b_hybrid(
+        &mut app,
+        &env.pair,
+        &attacker,
+        &env.token_a,
+        Uint128::new(20_000),
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(20_000),
+            max_maker_fills: 8,
+            book_start_hint: Some(ask_id),
+        }),
+    );
+
+    let ask_after = query_limit(&app, &env.pair, ask_id);
+    let bid_after = query_limit(&app, &env.pair, honest_bid);
+    let tb_after = query_cw20_balance(&app, &env.token_b, &attacker);
+
+    assert_eq!(
+        ask_after.remaining, ask_before.remaining,
+        "ask must not be filled when hint points at opposite side under match_bids"
+    );
+    assert!(
+        bid_after.remaining < bid_before.remaining,
+        "matcher must fall back to bid head"
+    );
+    let gained = tb_after.checked_sub(tb_before).unwrap();
+    assert!(
+        gained <= Uint128::new(20_500),
+        "taker token1 gain must match honest bid fill, not bid-pool drain via ask hint (got {gained})"
+    );
+}
+
+#[test]
+fn hybrid_wrong_side_book_start_hint_match_asks_symmetric() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let honest_ask = place_ask(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_a,
+        Uint128::new(100_000),
+        Decimal::one(),
+    );
+
+    let attacker = cosmwasm_std::Addr::unchecked("attacker_272_b");
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &attacker,
+        Uint128::new(200_000),
+    );
+    let bid_id = place_bid(
+        &mut app,
+        &env.pair,
+        &attacker,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+
+    let bid_before = query_limit(&app, &env.pair, bid_id);
+    let ask_before = query_limit(&app, &env.pair, honest_ask);
+    let ta_before = query_cw20_balance(&app, &env.token_a, &attacker);
+
+    swap_b_to_a_hybrid(
+        &mut app,
+        &env.pair,
+        &attacker,
+        &env.token_b,
+        Uint128::new(20_000),
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(20_000),
+            max_maker_fills: 8,
+            book_start_hint: Some(bid_id),
+        }),
+    );
+
+    let bid_after = query_limit(&app, &env.pair, bid_id);
+    let ask_after = query_limit(&app, &env.pair, honest_ask);
+    let ta_after = query_cw20_balance(&app, &env.token_a, &attacker);
+
+    assert_eq!(
+        bid_after.remaining, bid_before.remaining,
+        "bid must not be filled when hint points at opposite side under match_asks"
+    );
+    assert!(
+        ask_after.remaining < ask_before.remaining,
+        "matcher must fall back to ask head"
+    );
+    let gained = ta_after.checked_sub(ta_before).unwrap();
+    assert!(
+        gained <= Uint128::new(20_500),
+        "taker token0 gain must match honest ask fill, not ask-pool drain via bid hint (got {gained})"
+    );
+}
+
+#[test]
+fn hybrid_same_side_book_start_hint_still_matches() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let _head_bid = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(10_000),
+        Decimal::from_ratio(99u128, 100u128),
+    );
+    let deep_bid = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(80_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_same_side_hint");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(50_000),
+    );
+
+    swap_a_to_b_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_a,
+        Uint128::new(15_000),
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(15_000),
+            max_maker_fills: 8,
+            book_start_hint: Some(deep_bid),
+        }),
+    );
+
+    let lo = query_limit(&app, &env.pair, deep_bid);
+    assert!(lo.remaining < Uint128::new(80_000));
+}
+
 #[test]
 fn place_limit_insert_steps_exceeded() {
     let mut app = App::default();

@@ -1,5 +1,7 @@
 //! FIFO doubly-linked limit orders per pair side (bids / asks).
 //!
+//! Hybrid match walks validate `book_start_hint` and each stepped order for side (GitLab #272 / L17).
+//!
 //! ## Ordering (composite key, strict total order)
 //!
 //! Price is always **token1 per token0** (same basis as pool pricing).
@@ -75,6 +77,32 @@ fn book_walk_step(scan_steps: &mut u32) -> bool {
     }
     *scan_steps += 1;
     true
+}
+
+/// Resolve `book_start_hint` for a match walk: accept only when the order exists on `expected_side`;
+/// otherwise fall back to the book head (GitLab #272).
+fn resolve_match_start_hint(
+    storage: &dyn Storage,
+    book_start_hint: Option<u64>,
+    expected_side: LimitOrderSide,
+) -> StdResult<Option<u64>> {
+    if let Some(h) = book_start_hint {
+        if let Some(order) = ORDERS.may_load(storage, h)? {
+            if order.side == expected_side {
+                return Ok(Some(h));
+            }
+        }
+    }
+    match expected_side {
+        LimitOrderSide::Bid => Ok(HEAD_BID.may_load(storage)?.flatten()),
+        LimitOrderSide::Ask => Ok(HEAD_ASK.may_load(storage)?.flatten()),
+    }
+}
+
+/// Defense in depth during match walks: skip orders on the wrong side (GitLab #272).
+#[inline]
+fn order_on_match_side(order: &LimitOrder, expected_side: LimitOrderSide) -> bool {
+    order.side == expected_side
 }
 
 /// Maker-side basis points charged once at order placement (`floor(effective/2)`).
@@ -1345,15 +1373,7 @@ pub fn match_bids(
     let mut fill_events: Vec<Event> = Vec::new();
     let mut token1_escrow_sub_total = Uint128::zero();
 
-    let mut cur = if let Some(h) = book_start_hint {
-        if ORDERS.may_load(storage, h)?.is_some() {
-            Some(h)
-        } else {
-            HEAD_BID.may_load(storage)?.flatten()
-        }
-    } else {
-        HEAD_BID.may_load(storage)?.flatten()
-    };
+    let mut cur = resolve_match_start_hint(storage, book_start_hint, LimitOrderSide::Bid)?;
 
     while makers_used < cap {
         if !book_walk_step(&mut scan_steps) {
@@ -1366,6 +1386,11 @@ pub fn match_bids(
         };
         let order = ORDERS.load(storage, oid)?;
         let next_ptr = order.next;
+
+        if !order_on_match_side(&order, LimitOrderSide::Bid) {
+            cur = next_ptr;
+            continue;
+        }
 
         if order.expires_at.is_some_and(|e| now >= e) {
             if expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
@@ -1517,15 +1542,7 @@ pub fn match_asks(
     let mut fill_events: Vec<Event> = Vec::new();
     let mut token0_escrow_sub_total = Uint128::zero();
 
-    let mut cur = if let Some(h) = book_start_hint {
-        if ORDERS.may_load(storage, h)?.is_some() {
-            Some(h)
-        } else {
-            HEAD_ASK.may_load(storage)?.flatten()
-        }
-    } else {
-        HEAD_ASK.may_load(storage)?.flatten()
-    };
+    let mut cur = resolve_match_start_hint(storage, book_start_hint, LimitOrderSide::Ask)?;
 
     while makers_used < cap {
         if !book_walk_step(&mut scan_steps) {
@@ -1538,6 +1555,11 @@ pub fn match_asks(
         };
         let order = ORDERS.load(storage, oid)?;
         let next_ptr = order.next;
+
+        if !order_on_match_side(&order, LimitOrderSide::Ask) {
+            cur = next_ptr;
+            continue;
+        }
 
         if order.expires_at.is_some_and(|e| now >= e) {
             if expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
@@ -1676,15 +1698,7 @@ pub fn simulate_match_bids(
     let mut makers_used: u32 = 0;
     let mut scan_steps = 0u32;
     let mut scan_steps_capped = false;
-    let mut cur = if let Some(h) = book_start_hint {
-        if ORDERS.may_load(storage, h)?.is_some() {
-            Some(h)
-        } else {
-            HEAD_BID.may_load(storage)?.flatten()
-        }
-    } else {
-        HEAD_BID.may_load(storage)?.flatten()
-    };
+    let mut cur = resolve_match_start_hint(storage, book_start_hint, LimitOrderSide::Bid)?;
     while makers_used < cap {
         if !book_walk_step(&mut scan_steps) {
             scan_steps_capped = true;
@@ -1696,6 +1710,10 @@ pub fn simulate_match_bids(
         };
         let order = ORDERS.load(storage, oid)?;
         let next_ptr = order.next;
+        if !order_on_match_side(&order, LimitOrderSide::Bid) {
+            cur = next_ptr;
+            continue;
+        }
         if order.expires_at.is_some_and(|e| now >= e) {
             cur = next_ptr;
             continue;
@@ -1786,15 +1804,7 @@ pub fn simulate_match_asks(
     let mut makers_used: u32 = 0;
     let mut scan_steps = 0u32;
     let mut scan_steps_capped = false;
-    let mut cur = if let Some(h) = book_start_hint {
-        if ORDERS.may_load(storage, h)?.is_some() {
-            Some(h)
-        } else {
-            HEAD_ASK.may_load(storage)?.flatten()
-        }
-    } else {
-        HEAD_ASK.may_load(storage)?.flatten()
-    };
+    let mut cur = resolve_match_start_hint(storage, book_start_hint, LimitOrderSide::Ask)?;
     while makers_used < cap {
         if !book_walk_step(&mut scan_steps) {
             scan_steps_capped = true;
@@ -1806,6 +1816,10 @@ pub fn simulate_match_asks(
         };
         let order = ORDERS.load(storage, oid)?;
         let next_ptr = order.next;
+        if !order_on_match_side(&order, LimitOrderSide::Ask) {
+            cur = next_ptr;
+            continue;
+        }
         if order.expires_at.is_some_and(|e| now >= e) {
             cur = next_ptr;
             continue;
@@ -2549,6 +2563,154 @@ mod tests {
     }
 }
 
+/// GitLab #272 — `book_start_hint` must match the active matcher side.
+#[cfg(test)]
+mod book_start_hint_side_tests {
+    use super::*;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    #[test]
+    fn match_bids_wrong_side_hint_falls_back_to_bid_head() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let maker = Addr::unchecked("maker");
+        let bid_id = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50_000),
+            maker.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let ask_id = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(40_000),
+            maker,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let ask_before = ORDERS.load(storage, ask_id).unwrap().remaining;
+        let bid_before = ORDERS.load(storage, bid_id).unwrap().remaining;
+
+        let result = match_bids(
+            storage,
+            1,
+            Uint128::new(10_000),
+            8,
+            Some(ask_id),
+            "pair",
+            "t0",
+            "t1",
+            &Addr::unchecked("taker"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert!(result.makers_used >= 1);
+        assert_eq!(
+            ORDERS.load(storage, ask_id).unwrap().remaining,
+            ask_before,
+            "ask must not be consumed via wrong-side hint"
+        );
+        assert!(
+            ORDERS.load(storage, bid_id).unwrap().remaining < bid_before,
+            "bid head should be matched"
+        );
+    }
+
+    #[test]
+    fn match_asks_wrong_side_hint_falls_back_to_ask_head() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let maker = Addr::unchecked("maker");
+        let bid_id = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50_000),
+            maker.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let ask_id = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(40_000),
+            maker,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let bid_before = ORDERS.load(storage, bid_id).unwrap().remaining;
+        let ask_before = ORDERS.load(storage, ask_id).unwrap().remaining;
+
+        let result = match_asks(
+            storage,
+            1,
+            Uint128::new(10_000),
+            8,
+            Some(bid_id),
+            "pair",
+            "t0",
+            "t1",
+            &Addr::unchecked("taker"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert!(result.makers_used >= 1);
+        assert_eq!(
+            ORDERS.load(storage, bid_id).unwrap().remaining,
+            bid_before,
+            "bid must not be consumed via wrong-side hint"
+        );
+        assert!(
+            ORDERS.load(storage, ask_id).unwrap().remaining < ask_before,
+            "ask head should be matched"
+        );
+    }
+
+    #[test]
+    fn simulate_match_bids_wrong_side_hint_matches_execute_start() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let maker = Addr::unchecked("maker");
+        insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(50_000),
+            maker.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let ask_id = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(40_000),
+            maker,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let sim =
+            simulate_match_bids(storage, 1, Uint128::new(10_000), 8, Some(ask_id), 30).unwrap();
+        assert!(sim.makers_used >= 1);
+        assert!(sim.return_net > Uint128::zero());
+    }
+}
+
 /// GitLab #248 — book match accumulates maker payouts and defers CW20 msgs to `execute_swap`.
 #[cfg(test)]
 mod aggregation_tests {
@@ -3194,6 +3356,52 @@ mod proptest_limits {
             )
             .unwrap();
             prop_assert!(result.makers_used <= cap);
+            assert_escrow_matches_lists(storage);
+        }
+
+        #[test]
+        fn prop_match_bids_adversarial_wrong_side_hint_preserves_escrow(
+            n_bids in 1usize..5usize,
+            budget in 1u128..100_000u128,
+            ask_amt in 1u128..50_000u128,
+        ) {
+            let mut deps = mock_dependencies();
+            let storage = deps.as_mut().storage;
+            let owner = Addr::unchecked("maker");
+            for i in 0..n_bids {
+                let price = Decimal::from_ratio(100u128 + i as u128, 100u128);
+                insert_bid(
+                    storage,
+                    price,
+                    Uint128::new(10_000),
+                    owner.clone(),
+                    None,
+                    256,
+                    None,
+                ).unwrap();
+            }
+            let ask_id = insert_ask(
+                storage,
+                Decimal::one(),
+                Uint128::new(ask_amt),
+                owner,
+                None,
+                256,
+                None,
+            ).unwrap();
+            let _ = match_bids(
+                storage,
+                1,
+                Uint128::new(budget),
+                8,
+                Some(ask_id),
+                "pair",
+                "t0",
+                "t1",
+                &Addr::unchecked("recv"),
+                &Addr::unchecked("treasury"),
+                30,
+            ).unwrap();
             assert_escrow_matches_lists(storage);
         }
     }

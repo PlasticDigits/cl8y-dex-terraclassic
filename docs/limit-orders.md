@@ -42,7 +42,7 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 ### Swap with Pattern C (`Cw20HookMsg::Swap`)
 
 - **`hybrid`:** optional [`HybridSwapParams`](../smartcontracts/packages/dex-common/src/pair.rs): `pool_input`, `book_input` (must sum to the CW20 `amount`), `max_maker_fills`, optional `book_start_hint` (order id).
-- **Match walk:** If `book_start_hint` is set and that order id still exists, matching starts from that id; otherwise it starts from the book head (see `orderbook::match_bids` / `match_asks`).
+- **Match walk:** If `book_start_hint` is set and that order id still exists **on the side being matched** (bid hint for `match_bids`, ask hint for `match_asks`), matching starts from that id; wrong-side, stale, or missing hints fall back to the book head with no error. Each walked order must match the active matcher side (defense in depth — GitLab [**#272**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)). See invariant **L17** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbook [skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md](../skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md).
 
 ### Place / cancel limit (GitLab [#206](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/206))
 
