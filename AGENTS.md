@@ -12,6 +12,7 @@ These are **not** in the startup update script; install once when provisioning a
 - **Rust**: Use `rustup default stable` (1.96+ as of 2026). Indexer build needs `libssl-dev` and `pkg-config`.
 - **Node 24**: `nvm install` from repo `.nvmrc`. Cloud VMs may ship `/exec-daemon/node` (v22) **before** nvm on `PATH` — prepend the nvm bin dir or `hash -r` after `nvm use`, or `scripts/with-node.sh` may run the wrong Node.
 - **Docker access**: `sudo usermod -aG docker $USER` then use `sg docker -c '…'` in non-login shells.
+- **GitLab CLI (`glab`)**: Not preinstalled on Cloud Agent VMs. After `GITLAB_TOKEN` is available, run `./scripts/setup-glab-cloud-agent.sh` once per checkout (installs `glab`, authenticates, sets `remote.origin_url`, writes `.env.glab` with `GITLAB_REPO`). Cloud Agent git remotes use `https://x-access-token:…@gitlab.com/PlasticDigits/<repo>.git`, which breaks `glab repo view` / issue commands unless `GITLAB_REPO` is set — `source .env.glab` in the shell or re-run the setup script. Verify: `glab api "projects/PlasticDigits%2F<repo>"` (encode `/` as `%2F`).
 
 ### Docker daemon
 
