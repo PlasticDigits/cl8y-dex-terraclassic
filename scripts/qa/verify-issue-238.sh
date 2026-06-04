@@ -81,8 +81,10 @@ wait_tx() { sleep 4; }
 # be the same wallet as `trader` on localnet — the treasury also receives the
 # `commission_amount`, which would inflate a naive balance delta.
 tx_return_amount() {
+  # terrad v4 (SDK 0.53) exposes ABCI events at top-level `.events`; v3.x nested them under
+  # `.logs[0].events` (empty on v4). Read `.events` first, fall back to `.logs` for old nodes.
   docker exec "$CONTAINER_NAME" terrad query tx "$1" --node "$TERRAD_NODE" --output json 2>/dev/null \
-    | jq -r '[.logs[].events[] | select(.type|test("wasm")) | .attributes[] | select(.key=="return_amount") | .value] | last // "ERR"'
+    | jq -r '[(.events // .logs[0].events // [])[] | select(.type|test("wasm")) | .attributes[] | select(.key=="return_amount") | .value] | last // "ERR"'
 }
 
 # Resolve first dual-CW20 pair + its two token addresses from the factory.

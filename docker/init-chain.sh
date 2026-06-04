@@ -83,7 +83,17 @@ terrad gentx test1 10000000uluna \
 echo "[6/8] Collecting genesis transactions..."
 terrad collect-gentxs --home "$TERRA_HOME"
 
-terrad validate-genesis --home "$TERRA_HOME" || echo "WARNING: validate-genesis failed, continuing anyway..."
+# NOTE: terrad v4 (cosmos-sdk 0.53) `validate-genesis` SIGSEGVs (nil deref in x/genutil
+# ValidateAndGetGenTx) on any genesis containing collected gentxs — which this one always
+# does here. The old `|| echo WARNING` swallowed that panic, leaving a dead safety net.
+# Validate JSON well-formedness + that gentxs were actually collected instead.
+GENESIS_FILE="$TERRA_HOME/config/genesis.json"
+if jq -e '.app_state.genutil.gen_txs | length > 0' "$GENESIS_FILE" > /dev/null 2>&1; then
+    echo "Genesis OK: $(jq -r '.app_state.genutil.gen_txs | length' "$GENESIS_FILE") gentx(s) collected."
+else
+    echo "ERROR: genesis.json is malformed or has no collected gentxs" >&2
+    exit 1
+fi
 
 # Configure for local development
 echo "[7/8] Configuring for local development..."
