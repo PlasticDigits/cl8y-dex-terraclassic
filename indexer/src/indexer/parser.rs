@@ -36,12 +36,16 @@ fn wasm_attr_last<'a>(attributes: &'a [Attribute], key: &str) -> Option<&'a str>
 }
 
 fn wasm_contract_addr(attributes: &[Attribute]) -> Option<&str> {
+    // GitLab #285: only the runtime-reserved `_contract_address` (stamped by wasmd, which
+    // contracts cannot set) scopes a lifecycle event. The no-underscore `contract_address`
+    // is an ordinary attribute any contract can forge, so it must never be trusted as the
+    // emitter — treat it as data only.
     wasm_attr_last(attributes, "_contract_address")
-        .or_else(|| wasm_attr_last(attributes, "contract_address"))
 }
 
 fn is_wasm_contract_addr_key(key: &str) -> bool {
-    key == "_contract_address" || key == "contract_address"
+    // GitLab #285: scope events by the runtime-reserved key only (see `wasm_contract_addr`).
+    key == "_contract_address"
 }
 
 /// CosmWasm lifecycle rows on LocalTerra LCD: merged into `wasm` or emitted as `wasm-wasm`.
@@ -1381,7 +1385,7 @@ mod tests {
     #[test]
     fn parse_swaps_hybrid_and_fee_attrs() {
         let tx = wasm_tx(vec![
-            ("contract_address", "terra1pair"),
+            ("_contract_address", "terra1pair"),
             ("action", "swap"),
             ("sender", "terra1user"),
             ("offer_amount", "100"),
@@ -1418,7 +1422,7 @@ mod tests {
     fn parse_limit_order_fills_extracts_events() {
         let tx = wasm_tx_multi(vec![
             vec![
-                ("contract_address", "terra1pair"),
+                ("_contract_address", "terra1pair"),
                 ("action", "limit_order_fill"),
                 ("order_id", "7"),
                 ("side", "bid"),
@@ -1429,7 +1433,7 @@ mod tests {
                 ("commission_amount", "1"),
             ],
             vec![
-                ("contract_address", "terra1pair"),
+                ("_contract_address", "terra1pair"),
                 ("action", "limit_order_fill"),
                 ("order_id", "8"),
                 ("side", "ask"),
@@ -1718,6 +1722,76 @@ mod tests {
         assert_eq!(c[0].owner.as_deref(), Some("terra1maker"));
     }
 
+    // GitLab #285 — forged emitter attack. A malicious contract emits a non-reserved
+    // `contract_address` pointing at a victim pair, BEFORE its `action`. wasmd still stamps
+    // the real `_contract_address` (the attacker's own contract). The parser must scope the
+    // event by the runtime-reserved key only, so the forged value cannot attribute the event
+    // to the victim. These would FAIL on the pre-fix existence-only `contract_address` path
+    // (which would attribute the row to terra1victimpair).
+    #[test]
+    fn forged_contract_address_fill_not_attributed_to_victim_pair() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1attacker"), // runtime-stamped real emitter
+            ("contract_address", "terra1victimpair"), // FORGED, placed before action
+            ("action", "limit_order_fill"),
+            ("order_id", "7"),
+            ("side", "bid"),
+            ("maker", "terra1maker"),
+            ("price", "1.5"),
+            ("token0_amount", "100"),
+            ("token1_amount", "150"),
+            ("commission_amount", "1"),
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 1);
+        assert_eq!(
+            fills[0].pair_address, "terra1attacker",
+            "forged contract_address must not scope the fill to the victim pair"
+        );
+        assert_ne!(fills[0].pair_address, "terra1victimpair");
+    }
+
+    #[test]
+    fn forged_contract_address_cancel_not_attributed_to_victim_pair() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1attacker"),
+            ("contract_address", "terra1victimpair"), // FORGED
+            ("action", "cancel_limit_order"),
+            ("limit_order_cancelled", "42"),
+            ("owner", "terra1maker"),
+        ]);
+        let cancels = parse_limit_order_cancellations(&tx);
+        assert_eq!(cancels.len(), 1);
+        assert_eq!(
+            cancels[0].pair_address, "terra1attacker",
+            "forged contract_address must not let an attacker mark a victim pair's order cancelled"
+        );
+        assert_ne!(cancels[0].pair_address, "terra1victimpair");
+    }
+
+    // No regression: the real on-chain shape — wasmd `_contract_address` before `action`,
+    // plus the pair's own convenience `contract_address` after `action` (same value) —
+    // still attributes correctly to the pair.
+    #[test]
+    fn genuine_fill_with_both_contract_address_keys_attributes_to_pair() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "limit_order_fill"),
+            ("order_id", "9"),
+            ("side", "ask"),
+            ("maker", "terra1maker"),
+            ("price", "2"),
+            ("token0_amount", "10"),
+            ("token1_amount", "20"),
+            ("commission_amount", "0"),
+            ("contract_address", "terra1pair"), // pair's own convenience attr, after action
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 1);
+        assert_eq!(fills[0].pair_address, "terra1pair");
+        assert_eq!(fills[0].order_id, 9);
+    }
+
     #[test]
     fn parse_limit_order_cancellations_batch_columnar_attrs() {
         let tx = wasm_tx(vec![
@@ -1761,7 +1835,7 @@ mod tests {
     #[test]
     fn parse_limit_order_expired_parked_event() {
         let tx = wasm_tx(vec![
-            ("contract_address", "terra1pair"),
+            ("_contract_address", "terra1pair"),
             ("action", "limit_order_expired_parked"),
             ("order_id", "42"),
             ("maker", "terra1mk"),
@@ -1995,7 +2069,7 @@ mod tests {
     #[test]
     fn parse_claim_expired_limit_order_finds_claim_before_swap_in_merged_wasm_attrs() {
         let tx = wasm_tx(vec![
-            ("contract_address", "terra1pair"),
+            ("_contract_address", "terra1pair"),
             ("action", "claim_expired_limit_order"),
             ("order_id", "7"),
             ("owner", "terra1mk"),
