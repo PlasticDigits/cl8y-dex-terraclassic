@@ -1,4 +1,15 @@
 //! Short-lived CL8Y fee-discount cache on the pair ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)).
+//!
+//! Invariant ([GitLab #275](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/275), accepted design):
+//! the cached `(effective_fee_bps, discount)` is a **`DISCOUNT_CACHE_TTL_SECONDS` (300s) snapshot**,
+//! not a live per-trade balance check. Within the window the pair serves the cached discount
+//! without re-querying the registry, so a tier holder must transact **at least once per 300s** to
+//! keep it fresh, and a wallet that drops below its tier can still receive the cached discount
+//! until the entry expires (fee leakage bounded to one 300s window). This is a deliberate gas
+//! optimization — re-querying the registry on every swap is the cost it avoids (#251) — and the
+//! once-per-window refresh requirement is considered sufficient demand on the CL8Y sink. The
+//! registry itself (`fee_discount::query_discount`) always reads live balance; only the on-pair
+//! cache window is a snapshot.
 
 use cosmwasm_std::{Addr, Deps, DepsMut, Storage};
 use dex_common::fee_discount;
