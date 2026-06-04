@@ -2629,6 +2629,10 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
         sim.pool_commission_amount,
         sim.spread_amount,
         sim.book_return_amount,
+        // #273: book_input=0 keeps this a #197 no-belief threshold check; the book-degradation
+        // term has dedicated coverage in the dex-common max_spread unit tests.
+        total_in,
+        Uint128::zero(),
     );
     let pool_gross = sim
         .pool_return_amount
@@ -3225,6 +3229,74 @@ fn hybrid_same_side_book_start_hint_still_matches() {
 
     let lo = query_limit(&app, &env.pair, deep_bid);
     assert!(lo.remaining < Uint128::new(80_000));
+}
+
+// GitLab #273 — hybrid no-belief slippage gap (PoC). With no `belief_price`, the spread
+// check measures only the POOL leg's spread; a book leg that fills materially worse than
+// the pool fair rate enters only the denominator (making the ratio SMALLER), so it passes.
+// A taker who routes input to a book resting far below the pool price is unprotected by
+// default. This swap fills the book leg ~50% below the pool fair rate and MUST be rejected
+// on slippage. It currently SUCCEEDS — so this test FAILS pre-fix (demonstrates the gap)
+// and passes once the no-belief metric accounts for book-leg degradation.
+#[test]
+fn hybrid_no_belief_book_far_below_pool_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    // Pool ~1.0 (1M : 1M).
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    // Bid resting at 0.5 (50% below pool): buys token0 at only 0.5 token1 each. 5_000 token1
+    // escrow fills up to 10_000 token0.
+    let _bad_bid = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(5_000),
+        Decimal::percent(50),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_273");
+    transfer_tokens(&mut app, &env.token_a, &env.user, &taker, Uint128::new(20_000));
+
+    // No belief_price, 1% max_spread; route most input (10_000) to the far-below-pool book,
+    // a small pool leg (1_000) so a pool fair-rate reference exists.
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::percent(1)),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::new(1_000),
+            book_input: Uint128::new(10_000),
+            max_maker_fills: 1,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    let res = app.execute_contract(
+        taker.clone(),
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(11_000),
+            msg: swap_msg,
+        },
+        &[],
+    );
+
+    assert!(
+        res.is_err(),
+        "hybrid no-belief swap whose book leg fills ~50% below the pool fair rate must be \
+         rejected on slippage (no-belief metric must reflect book-leg degradation, #273)"
+    );
 }
 
 #[test]
