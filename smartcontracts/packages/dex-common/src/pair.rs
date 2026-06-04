@@ -44,6 +44,11 @@ pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 15;
 pub const LIMIT_ORDER_DUST_FLUSH_THRESHOLD: Uint128 = Uint128::new(10);
 
 /// TTL for on-pair CL8Y fee-discount cache entries ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)).
+///
+/// The discount is a 300s **snapshot**, not a live per-trade balance check: a tier holder must
+/// transact at least once per window to keep it fresh, and a wallet dropping below its tier keeps
+/// the cached discount until the entry expires. Accepted design — the cache exists to avoid a
+/// per-swap registry query (#251); see [GitLab #275](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/275).
 pub const DISCOUNT_CACHE_TTL_SECONDS: u64 = 300;
 
 /// Decimals configured on CW20 mintable LP tokens instantiated by pairs (gitlab #124).
