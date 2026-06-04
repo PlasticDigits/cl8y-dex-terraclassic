@@ -13,6 +13,7 @@
 //! never dropped in favour of a longer one. Because the work is now bounded, the route handlers run
 //! it under `spawn_blocking` so a large legitimate graph never stalls the async executor.
 
+use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 
 use crate::db::queries::pairs as db_pairs;
@@ -23,7 +24,7 @@ pub type PathHop = (String, i32, i32);
 type Adjacency = HashMap<i32, Vec<(i32, String)>>;
 
 fn build_adjacency(pair_rows: &[db_pairs::PairRow]) -> Adjacency {
-    let mut adj: Adjacency = HashMap::new();
+    let mut adj: Adjacency = HashMap::with_capacity(pair_rows.len().saturating_mul(2));
     for p in pair_rows {
         let a0 = p.asset_0_id;
         let a1 = p.asset_1_id;
@@ -33,6 +34,13 @@ fn build_adjacency(pair_rows: &[db_pairs::PairRow]) -> Adjacency {
         adj.entry(a1)
             .or_default()
             .push((a0, p.contract_address.clone()));
+    }
+    for edges in adj.values_mut() {
+        edges.sort_by(|(left_asset, left_pair), (right_asset, right_pair)| {
+            left_pair
+                .cmp(right_pair)
+                .then_with(|| left_asset.cmp(right_asset))
+        });
     }
     adj
 }
@@ -97,10 +105,10 @@ pub(crate) fn find_paths_top_k_instrumented(
     // adversarial case from #286 (dense graph, unreachable goal) and also covers an isolated
     // input/output token — both now O(V+E) instead of full simple-path enumeration.
     let dist = hop_distance_to_goal(goal, &adj, max_hops);
-    match dist.get(&start) {
-        Some(d) if *d <= max_hops => {}
+    let min_depth = match dist.get(&start) {
+        Some(d) if *d <= max_hops => *d,
         _ => return (Vec::new(), 0),
-    }
+    };
 
     let mut found: Vec<Vec<PathHop>> = Vec::new();
     let mut expansions: u64 = 0;
@@ -117,7 +125,7 @@ pub(crate) fn find_paths_top_k_instrumented(
         adj: &Adjacency,
         dist: &HashMap<i32, usize>,
         path: &mut Vec<PathHop>,
-        on_path: &mut Vec<bool>,
+        visited: &mut Vec<i32>,
         found: &mut Vec<Vec<PathHop>>,
         expansions: &mut u64,
     ) {
@@ -148,47 +156,44 @@ pub(crate) fn find_paths_top_k_instrumented(
                     _ => continue,
                 }
             }
-            let vid = *v as usize;
-            if vid < on_path.len() && on_path[vid] {
+            if visited.contains(v) {
                 continue;
             }
-            if vid >= on_path.len() {
-                on_path.resize(vid + 1, false);
-            }
-            on_path[vid] = true;
+            visited.push(*v);
             path.push((pair.clone(), u, *v));
             dfs_exact(
-                *v, goal, depth, max_paths, adj, dist, path, on_path, found, expansions,
+                *v, goal, depth, max_paths, adj, dist, path, visited, found, expansions,
             );
             path.pop();
-            on_path[vid] = false;
+            visited.pop();
             if found.len() >= max_paths {
                 return;
             }
         }
     }
 
-    let max_node = pair_rows
-        .iter()
-        .flat_map(|p| [p.asset_0_id, p.asset_1_id])
-        .max()
-        .unwrap_or(goal)
-        .max(start) as usize;
-    let mut on_path = vec![false; max_node + 1];
-    on_path[start as usize] = true;
+    let mut visited = vec![start];
     let mut path = Vec::new();
 
     // Iterative deepening: take the K SHORTEST routes. Deepening one hop at a time means the
     // `max_paths` cap keeps the fewest-hop routes — the natural execution priority (lower fees, less
     // slippage) — instead of an arbitrary subset, so a route that exists, especially a short/direct
     // one, is never crowded out by longer alternatives (GitLab #286). `dfs_exact` leaves `path`
-    // empty and `on_path` reset to just `start` between passes, so the buffers are reused safely.
-    for depth in 1..=max_hops {
+    // empty and `visited` reset to just `start` between passes, so the buffers are reused safely.
+    for depth in min_depth..=max_hops {
         if found.len() >= max_paths {
             break;
         }
         dfs_exact(
-            start, goal, depth, max_paths, &adj, &dist, &mut path, &mut on_path, &mut found,
+            start,
+            goal,
+            depth,
+            max_paths,
+            &adj,
+            &dist,
+            &mut path,
+            &mut visited,
+            &mut found,
             &mut expansions,
         );
     }
@@ -198,17 +203,16 @@ pub(crate) fn find_paths_top_k_instrumented(
     found.sort_by(|a, b| {
         a.len()
             .cmp(&b.len())
-            .then_with(|| path_sort_key(a).cmp(&path_sort_key(b)))
+            .then_with(|| cmp_path_pair_addresses(a, b))
     });
     found.truncate(max_paths);
     (found, expansions)
 }
 
-fn path_sort_key(path: &[PathHop]) -> String {
-    path.iter()
-        .map(|(pair, _, _)| pair.as_str())
-        .collect::<Vec<_>>()
-        .join("|")
+fn cmp_path_pair_addresses(left: &[PathHop], right: &[PathHop]) -> Ordering {
+    left.iter()
+        .map(|(pair, _, _)| pair)
+        .cmp(right.iter().map(|(pair, _, _)| pair))
 }
 
 #[cfg(test)]
@@ -217,10 +221,19 @@ mod tests {
     use crate::db::queries::pairs::PairRow;
 
     fn mk_pair(id: i32, a0: i32, a1: i32) -> PairRow {
+        mk_pair_with_contract(id, format!("pair{id}"), a0, a1)
+    }
+
+    fn mk_pair_with_contract(
+        id: i32,
+        contract_address: impl Into<String>,
+        a0: i32,
+        a1: i32,
+    ) -> PairRow {
         let t = chrono::DateTime::<chrono::Utc>::from_timestamp(0, 0).unwrap();
         PairRow {
             id,
-            contract_address: format!("pair{id}"),
+            contract_address: contract_address.into(),
             asset_0_id: a0,
             asset_1_id: a1,
             lp_token: None,
@@ -243,14 +256,7 @@ mod tests {
         max_paths: usize,
     ) -> u64 {
         let adj = build_adjacency(pair_rows);
-        let max_node = pair_rows
-            .iter()
-            .flat_map(|p| [p.asset_0_id, p.asset_1_id])
-            .max()
-            .unwrap_or(goal)
-            .max(start) as usize;
-        let mut on_path = vec![false; max_node + 1];
-        on_path[start as usize] = true;
+        let mut visited = vec![start];
 
         #[allow(clippy::too_many_arguments)]
         fn go(
@@ -260,7 +266,7 @@ mod tests {
             max_paths: usize,
             depth: usize,
             adj: &Adjacency,
-            on_path: &mut Vec<bool>,
+            visited: &mut Vec<i32>,
             found: &mut usize,
             exp: &mut u64,
         ) {
@@ -276,25 +282,37 @@ mod tests {
                 return;
             }
             for (v, _) in adj.get(&u).into_iter().flatten() {
-                let vid = *v as usize;
-                if vid < on_path.len() && on_path[vid] {
+                if visited.contains(v) {
                     continue;
                 }
-                if vid >= on_path.len() {
-                    on_path.resize(vid + 1, false);
-                }
-                on_path[vid] = true;
+                visited.push(*v);
                 go(
-                    *v, goal, max_hops, max_paths, depth + 1, adj, on_path, found, exp,
+                    *v,
+                    goal,
+                    max_hops,
+                    max_paths,
+                    depth + 1,
+                    adj,
+                    visited,
+                    found,
+                    exp,
                 );
-                on_path[vid] = false;
+                visited.pop();
             }
         }
 
         let mut found = 0usize;
         let mut exp = 0u64;
         go(
-            start, goal, max_hops, max_paths, 0, &adj, &mut on_path, &mut found, &mut exp,
+            start,
+            goal,
+            max_hops,
+            max_paths,
+            0,
+            &adj,
+            &mut visited,
+            &mut found,
+            &mut exp,
         );
         exp
     }
@@ -422,6 +440,51 @@ mod tests {
             1,
             "the 1-hop direct route must be discovered, not crowded out by longer routes"
         );
+    }
+
+    #[test]
+    fn same_depth_paths_are_capped_in_lexicographic_order() {
+        // More shortest paths exist than the cap allows. Adjacency sorting makes the early cap
+        // deterministic and keeps the lexicographically first same-hop routes, independent of DB
+        // row order.
+        let goal = 99;
+        let mut pairs = Vec::new();
+        let mut id = 1;
+        for k in (1..=6).rev() {
+            pairs.push(mk_pair_with_contract(id, format!("p{k:02}a"), 0, k));
+            id += 1;
+            pairs.push(mk_pair_with_contract(id, format!("p{k:02}b"), k, goal));
+            id += 1;
+        }
+
+        let paths = find_paths_top_k(0, goal, &pairs, 2, 3);
+        let keys: Vec<Vec<String>> = paths
+            .iter()
+            .map(|path| path.iter().map(|(pair, _, _)| pair.clone()).collect())
+            .collect();
+
+        assert_eq!(
+            keys,
+            vec![
+                vec!["p01a".to_string(), "p01b".to_string()],
+                vec!["p02a".to_string(), "p02b".to_string()],
+                vec!["p03a".to_string(), "p03b".to_string()],
+            ]
+        );
+    }
+
+    #[test]
+    fn sparse_asset_ids_do_not_allocate_by_max_id() {
+        // The visited set is path-depth sized, not max(asset_id) sized. Sparse database IDs should
+        // not turn route search into a huge allocation.
+        let pairs = vec![
+            mk_pair(1, 1_000_000_000, 1_000_000_001),
+            mk_pair(2, 1_000_000_001, 1_000_000_002),
+        ];
+
+        let paths = find_paths_top_k(1_000_000_000, 1_000_000_002, &pairs, 2, 5);
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].len(), 2);
     }
 
     #[test]
