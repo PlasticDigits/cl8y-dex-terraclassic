@@ -87,8 +87,15 @@ async fn enumerate_path_candidates(
         )
     })?;
 
-    let paths_raw =
-        route_paths::find_paths_top_k(start, goal, &pair_rows, max_hops, MAX_PATH_CANDIDATES);
+    // The enumeration is CPU-bound and synchronous; run it on the blocking pool so a large
+    // legitimate pair graph never stalls the async executor (#286). The reachability gate inside
+    // find_paths_top_k bounds the work to O(V+E), so there is no truncation — a route that exists
+    // is always discovered.
+    let paths_raw = tokio::task::spawn_blocking(move || {
+        route_paths::find_paths_top_k(start, goal, &pair_rows, max_hops, MAX_PATH_CANDIDATES)
+    })
+    .await
+    .map_err(crate::api::internal_err)?;
     if paths_raw.is_empty() {
         return Err((
             StatusCode::NOT_FOUND,
