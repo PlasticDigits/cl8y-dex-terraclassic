@@ -174,14 +174,22 @@ impl LcdClient {
         page: u32,
         limit: u32,
     ) -> Result<TxSearchResponse, LcdError> {
-        let event_queries: Vec<String> =
-            events.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
-        let events_param = event_queries.join("&events=");
+        // Cosmos SDK 0.50+ (terrad v4) GetTxsEvent: a single `query` param with conditions
+        // joined by " AND ", a 1-based `page`, and a plain `limit`. The legacy `events=` and
+        // `pagination.offset|limit` params were removed — on v4 `events=` returns HTTP 500
+        // ("query cannot be empty") and the pagination.* params are silently ignored (every
+        // page refetches the first). Encode spaces; the raw `=` inside a condition is fine.
+        let query = events
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join(" AND ")
+            .replace(' ', "%20");
 
         let path = format!(
-            "/cosmos/tx/v1beta1/txs?events={}&pagination.offset={}&pagination.limit={}&order_by=1",
-            events_param,
-            (page.saturating_sub(1)) * limit,
+            "/cosmos/tx/v1beta1/txs?query={}&page={}&limit={}&order_by=1",
+            query,
+            page.max(1),
             limit,
         );
 
@@ -226,10 +234,12 @@ impl LcdClient {
                 .await?;
 
             if expected_total.is_none() {
+                // SDK 0.50+ returns the count at top-level `total` with `pagination: null`;
+                // older LCDs only set `pagination.total`. Prefer the former, fall back to the latter.
                 expected_total = resp
-                    .pagination
+                    .total
                     .as_ref()
-                    .and_then(|p| p.total.as_ref())
+                    .or_else(|| resp.pagination.as_ref().and_then(|p| p.total.as_ref()))
                     .and_then(|t| t.parse::<u64>().ok());
             }
 
@@ -293,12 +303,12 @@ mod tests {
         let height = 42i64;
         Mock::given(method("GET"))
             .and(path("/cosmos/tx/v1beta1/txs"))
-            .and(query_param("events", format!("tx.height={}", height)))
-            .and(query_param("pagination.offset", "0"))
-            .and(query_param("pagination.limit", "100"))
+            .and(query_param("query", format!("tx.height={}", height)))
+            .and(query_param("page", "1"))
+            .and(query_param("limit", "100"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "tx_responses": [tx_at(height, 1), tx_at(height, 2)],
-                "pagination": { "total": "2" }
+                "total": "2"
             })))
             .mount(&server)
             .await;
@@ -318,20 +328,20 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/cosmos/tx/v1beta1/txs"))
-            .and(query_param("pagination.offset", "0"))
+            .and(query_param("page", "1"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "tx_responses": page1,
-                "pagination": { "total": "150" }
+                "total": "150"
             })))
             .mount(&server)
             .await;
 
         Mock::given(method("GET"))
             .and(path("/cosmos/tx/v1beta1/txs"))
-            .and(query_param("pagination.offset", "100"))
+            .and(query_param("page", "2"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "tx_responses": page2,
-                "pagination": { "total": "150" }
+                "total": "150"
             })))
             .mount(&server)
             .await;
@@ -349,7 +359,7 @@ mod tests {
             .and(path("/cosmos/tx/v1beta1/txs"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "tx_responses": [tx_at(1, 0)],
-                "pagination": { "total": "150" }
+                "total": "150"
             })))
             .mount(&server)
             .await;

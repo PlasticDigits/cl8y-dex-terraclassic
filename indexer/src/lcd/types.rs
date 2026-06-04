@@ -26,6 +26,10 @@ pub struct BlockHeader {
 pub struct TxSearchResponse {
     pub tx_responses: Option<Vec<TxResponse>>,
     pub pagination: Option<Pagination>,
+    /// SDK 0.50+ moved the result count to a top-level `total` and returns `pagination: null`.
+    /// Older (v3.x) LCDs only populate `pagination.total`; read this first, fall back to that.
+    #[serde(default)]
+    pub total: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
