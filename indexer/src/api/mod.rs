@@ -74,6 +74,35 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 
 pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 
+// GitLab #288: 60s TTL cache for the CG/CMC aggregator endpoints (tickers/summary),
+// whose per-pair N+1 fanout could pin the DB pool under a request burst. Caches the
+// serialized response per endpoint so the fanout runs at most once per minute.
+const AGGREGATOR_CACHE_TTL: Duration = Duration::from_secs(60);
+
+fn aggregator_cache() -> &'static std::sync::Mutex<HashMap<String, (serde_json::Value, Instant)>> {
+    static CACHE: std::sync::OnceLock<
+        std::sync::Mutex<HashMap<String, (serde_json::Value, Instant)>>,
+    > = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
+}
+
+pub(crate) fn aggregator_cache_get(key: &str) -> Option<serde_json::Value> {
+    let guard = aggregator_cache().lock().ok()?;
+    let (value, at) = guard.get(key)?;
+    if Instant::now().duration_since(*at) > AGGREGATOR_CACHE_TTL {
+        return None;
+    }
+    Some(value.clone())
+}
+
+pub(crate) fn aggregator_cache_put(key: &str, value: serde_json::Value) {
+    if let Ok(mut guard) = aggregator_cache().lock() {
+        let now = Instant::now();
+        guard.retain(|_, (_, at)| now.duration_since(*at) <= AGGREGATOR_CACHE_TTL);
+        guard.insert(key.to_string(), (value, now));
+    }
+}
+
 fn apply_rate_limit_layer<S>(router: Router<S>, rps: u64) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
