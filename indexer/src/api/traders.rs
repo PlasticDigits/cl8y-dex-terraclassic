@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -31,7 +33,43 @@ pub const VALID_SORTS: &[&str] = &[
     "total_fees_paid",
 ];
 
-#[derive(Serialize, ToSchema)]
+// GitLab #280: short TTL cache for the unauthenticated /traders/leaderboard response so
+// a burst can't seq-scan + top-N sort the traders table on every request. Keyed by
+// (sort_by, limit); mirrors the route_solver module-level cache pattern.
+const LEADERBOARD_CACHE_TTL: Duration = Duration::from_secs(60);
+const LEADERBOARD_CACHE_MAX_ENTRIES: usize = 64;
+
+struct LeaderboardCacheEntry {
+    rows: Vec<TraderResponse>,
+    at: Instant,
+}
+
+fn leaderboard_cache() -> &'static Mutex<HashMap<String, LeaderboardCacheEntry>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, LeaderboardCacheEntry>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn leaderboard_cache_get(key: &str) -> Option<Vec<TraderResponse>> {
+    let guard = leaderboard_cache().lock().ok()?;
+    let entry = guard.get(key)?;
+    if Instant::now().duration_since(entry.at) > LEADERBOARD_CACHE_TTL {
+        return None;
+    }
+    Some(entry.rows.clone())
+}
+
+fn leaderboard_cache_put(key: String, rows: Vec<TraderResponse>) {
+    if let Ok(mut guard) = leaderboard_cache().lock() {
+        let now = Instant::now();
+        guard.retain(|_, v| now.duration_since(v.at) <= LEADERBOARD_CACHE_TTL);
+        if guard.len() >= LEADERBOARD_CACHE_MAX_ENTRIES {
+            guard.clear();
+        }
+        guard.insert(key, LeaderboardCacheEntry { rows, at: now });
+    }
+}
+
+#[derive(Serialize, ToSchema, Clone)]
 pub struct TraderResponse {
     pub address: String,
     pub total_trades: i64,
@@ -470,11 +508,18 @@ pub async fn leaderboard(
     let sort_by = q.sort.unwrap_or_else(|| "total_volume".to_string());
     let limit = q.limit.unwrap_or(50).clamp(1, 200);
 
+    let cache_key = format!("{sort_by}|{limit}");
+    if let Some(cached) = leaderboard_cache_get(&cache_key) {
+        return Ok(Json(cached));
+    }
+
     let rows = db_traders::get_leaderboard(&state.pool, &sort_by, limit)
         .await
         .map_err(internal_err)?;
+    let resp: Vec<TraderResponse> = rows.iter().map(TraderResponse::from).collect();
+    leaderboard_cache_put(cache_key, resp.clone());
 
-    Ok(Json(rows.iter().map(TraderResponse::from).collect()))
+    Ok(Json(resp))
 }
 
 #[utoipa::path(
