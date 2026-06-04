@@ -350,7 +350,11 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/route/solve",
             get(route_solver::solve_route).post(route_solver::solve_route_post),
-        );
+        )
+        // cg/cmc orderbook endpoints carry the same LCD fanout as the native limit-book
+        // routes (orderbook_sim::simulate_orderbook_cached) — throttle them the same (#278).
+        .route("/cg/orderbook", get(cg::cg_orderbook))
+        .route("/cmc/orderbook/{market_pair}", get(cmc::cmc_orderbook));
     let lcd_heavy_router =
         apply_rate_limit_layer(lcd_heavy_router, config.rate_limit_lcd_heavy_rps);
 
@@ -413,12 +417,11 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/api/v1/oracle/history", get(oracle::get_oracle_history))
         .route("/cg/pairs", get(cg::cg_pairs))
         .route("/cg/tickers", get(cg::cg_tickers))
-        .route("/cg/orderbook", get(cg::cg_orderbook))
+        // /cg/orderbook + /cmc/orderbook/{market_pair} moved to lcd_heavy_router (#278)
         .route("/cg/historical_trades", get(cg::cg_historical_trades))
         .route("/cmc/summary", get(cmc::cmc_summary))
         .route("/cmc/assets", get(cmc::cmc_assets))
         .route("/cmc/ticker", get(cmc::cmc_ticker))
-        .route("/cmc/orderbook/{market_pair}", get(cmc::cmc_orderbook))
         .route("/cmc/trades/{market_pair}", get(cmc::cmc_trades))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()));
 
