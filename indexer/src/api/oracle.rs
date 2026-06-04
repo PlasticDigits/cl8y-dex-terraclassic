@@ -105,7 +105,7 @@ pub async fn get_oracle_history(
                 .map(|d| d.with_timezone(&Utc))
         })
         .unwrap_or(now);
-    let limit = q.limit.unwrap_or(200).min(1000);
+    let limit = q.limit.unwrap_or(200).clamp(1, 1000);
 
     let rows = db_oracle::get_price_history(&state.pool, from, to, limit)
         .await

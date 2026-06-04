@@ -348,7 +348,7 @@ pub async fn get_pair_candles(
                 .map(|d| d.with_timezone(&Utc))
         })
         .unwrap_or(now);
-    let limit = q.limit.unwrap_or(200).min(1000);
+    let limit = q.limit.unwrap_or(200).clamp(1, 1000);
 
     let rows = candles::get_candles(&state.pool, pair.id, &interval, from, to, limit)
         .await
@@ -498,7 +498,7 @@ pub async fn get_pair_trades(
         .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let trades = swap_events::get_trades_for_pair(&state.pool, pair.id, limit, q.before)
         .await
         .map_err(internal_err)?;
@@ -557,7 +557,7 @@ pub async fn get_pair_liquidity_events(
         .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let rows = liquidity::list_liquidity_for_pair(&state.pool, pair.id, limit, q.before)
         .await
         .map_err(internal_err)?;
@@ -669,7 +669,7 @@ pub async fn get_pair_limit_placements(
         .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let lifecycle = parse_placement_lifecycle_filter(q.status.as_deref())?;
     let rows = limit_order_lifecycle::list_placements_for_pair(
         &state.pool,
@@ -754,7 +754,7 @@ pub async fn get_pair_limit_cancellations(
         .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let rows =
         limit_order_lifecycle::list_cancellations_for_pair(&state.pool, pair.id, limit, q.before)
             .await
@@ -808,7 +808,7 @@ pub async fn get_pair_limit_fills(
         .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let rows = limit_order_fills::list_fills_for_pair(&state.pool, pair.id, limit, q.before)
         .await
         .map_err(internal_err)?;
@@ -866,7 +866,7 @@ pub async fn get_pair_order_limit_fills(
         .map_err(internal_err)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
 
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let rows = limit_order_fills::list_fills_for_order(&state.pool, pair.id, order_id, limit)
         .await
         .map_err(internal_err)?;

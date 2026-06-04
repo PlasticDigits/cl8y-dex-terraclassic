@@ -217,7 +217,7 @@ pub async fn get_trader_trades(
     Query(q): Query<TraderTradesQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let use_csv = trader_history_format(q.format.as_deref())?;
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
 
     let pair_id = resolve_pair_filter(&state.pool, q.pair.as_deref()).await?;
 
@@ -274,7 +274,7 @@ pub async fn get_trader_limit_fills(
     Query(q): Query<TraderHistoryQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let use_csv = trader_history_format(q.format.as_deref())?;
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let pair_id = resolve_pair_filter(&state.pool, q.pair.as_deref()).await?;
     let rows =
         limit_order_fills::list_fills_for_maker(&state.pool, &addr, pair_id, limit, q.before)
@@ -339,7 +339,7 @@ pub async fn get_trader_limit_cancellations(
     Query(q): Query<TraderHistoryQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let use_csv = trader_history_format(q.format.as_deref())?;
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let pair_id = resolve_pair_filter(&state.pool, q.pair.as_deref()).await?;
     let rows = limit_order_lifecycle::list_cancellations_for_owner(
         &state.pool,
@@ -410,7 +410,7 @@ pub async fn get_trader_limit_placements(
     Path(addr): Path<String>,
     Query(q): Query<TraderLimitPlacementsQuery>,
 ) -> Result<Json<Vec<LimitPlacementResponse>>, (StatusCode, String)> {
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
     let lifecycle = parse_placement_lifecycle_filter(q.status.as_deref())?;
     let pair_id = resolve_pair_filter(&state.pool, q.pair.as_deref()).await?;
     let rows = limit_order_lifecycle::list_placements_for_owner(
@@ -468,7 +468,7 @@ pub async fn leaderboard(
     }
 
     let sort_by = q.sort.unwrap_or_else(|| "total_volume".to_string());
-    let limit = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
 
     let rows = db_traders::get_leaderboard(&state.pool, &sort_by, limit)
         .await
