@@ -42,7 +42,10 @@ pub struct CmcSummaryEntry {
 )]
 pub async fn cmc_summary(
     State(state): State<AppState>,
-) -> Result<Json<Vec<CmcSummaryEntry>>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if let Some(cached) = super::aggregator_cache_get("cmc_summary") {
+        return Ok(Json(cached));
+    }
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
@@ -97,7 +100,9 @@ pub async fn cmc_summary(
         });
     }
 
-    Ok(Json(result))
+    let value = serde_json::to_value(&result).map_err(internal_err)?;
+    super::aggregator_cache_put("cmc_summary", value.clone());
+    Ok(Json(value))
 }
 
 // ---------- /cmc/assets ----------
@@ -168,7 +173,10 @@ pub struct CmcTickerEntry {
 )]
 pub async fn cmc_ticker(
     State(state): State<AppState>,
-) -> Result<Json<HashMap<String, CmcTickerEntry>>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if let Some(cached) = super::aggregator_cache_get("cmc_ticker") {
+        return Ok(Json(cached));
+    }
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
@@ -215,7 +223,9 @@ pub async fn cmc_ticker(
         );
     }
 
-    Ok(Json(map))
+    let value = serde_json::to_value(&map).map_err(internal_err)?;
+    super::aggregator_cache_put("cmc_ticker", value.clone());
+    Ok(Json(value))
 }
 
 // ---------- /cmc/orderbook/:market_pair ----------

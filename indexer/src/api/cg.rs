@@ -118,7 +118,10 @@ pub struct CgTickerResponse {
 )]
 pub async fn cg_tickers(
     State(state): State<AppState>,
-) -> Result<Json<Vec<CgTickerResponse>>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if let Some(cached) = super::aggregator_cache_get("cg_tickers") {
+        return Ok(Json(cached));
+    }
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
@@ -188,7 +191,9 @@ pub async fn cg_tickers(
         });
     }
 
-    Ok(Json(result))
+    let value = serde_json::to_value(&result).map_err(internal_err)?;
+    super::aggregator_cache_put("cg_tickers", value.clone());
+    Ok(Json(value))
 }
 
 #[derive(Deserialize, IntoParams)]
