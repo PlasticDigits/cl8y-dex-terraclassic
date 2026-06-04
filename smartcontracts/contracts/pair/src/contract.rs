@@ -748,6 +748,7 @@ fn spot_linear_spread_over_gross(
 /// Validate that the swap's effective spread does not exceed the user's
 /// tolerance. Pool-only swaps use the same path as hybrid (`book_net = 0`).
 /// See [`dex_common::max_spread`] and GitLab #197.
+#[allow(clippy::too_many_arguments)]
 fn assert_max_spread(
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
@@ -756,6 +757,8 @@ fn assert_max_spread(
     spread_amount: Uint128,
     commission_amount: Uint128,
     book_return_net: Uint128,
+    pool_input: Uint128,
+    book_input: Uint128,
 ) -> Result<(), ContractError> {
     max_spread::check_max_spread(
         belief_price,
@@ -766,6 +769,8 @@ fn assert_max_spread(
             pool_commission: commission_amount,
             pool_spread: spread_amount,
             book_net_return: book_return_net,
+            pool_input,
+            book_input,
         },
     )
     .map_err(|v| ContractError::MaxSpreadAssertion {
@@ -1005,6 +1010,10 @@ fn execute_swap(
         spread_amount,
         pool_commission_amount,
         book_return_net,
+        // #273: pool leg actually hitting the AMM (incl. book's unfilled remainder) and the
+        // offer the book actually consumed — bounds the book leg vs the pool net rate.
+        pool_input_amount,
+        offer_consumed_by_book,
     )?;
 
     let hook_commission_amount = total_commission;
