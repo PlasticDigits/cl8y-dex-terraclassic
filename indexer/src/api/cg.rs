@@ -297,7 +297,7 @@ pub async fn cg_historical_trades(
     State(state): State<AppState>,
     Query(q): Query<HistoricalTradesQuery>,
 ) -> Result<Json<CgHistoricalTradesResponse>, (StatusCode, String)> {
-    let limit = q.limit.unwrap_or(100).min(500);
+    let limit = q.limit.unwrap_or(100).clamp(1, 500);
     let pair_addr = find_pair_by_ticker(&state, &q.ticker_id).await?;
 
     let pair = db_pairs::get_pair_by_address(&state.pool, &pair_addr)
