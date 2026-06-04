@@ -53,6 +53,7 @@ clean_gitlab_remote_url() {
   fi
   raw="$(printf '%s' "$raw" | sed -E 's#https://[^@]+@#https://#')"
   raw="${raw%/}"
+  raw="${raw%.git}"
   printf '%s\n' "$raw"
 }
 
