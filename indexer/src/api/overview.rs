@@ -1,3 +1,6 @@
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
@@ -7,7 +10,16 @@ use utoipa::ToSchema;
 use super::{internal_err, AppState};
 use crate::db::queries::{assets, volume};
 
-#[derive(Serialize, ToSchema)]
+// GitLab #281: /overview aggregates over swap_events on every hit; cache the whole
+// response for 1 minute so a request burst can't repeatedly scan the table.
+const OVERVIEW_CACHE_TTL: Duration = Duration::from_secs(60);
+
+fn overview_cache() -> &'static Mutex<Option<(OverviewResponse, Instant)>> {
+    static CACHE: OnceLock<Mutex<Option<(OverviewResponse, Instant)>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(None))
+}
+
+#[derive(Serialize, ToSchema, Clone)]
 pub struct OverviewResponse {
     pub total_volume_24h: String,
     pub total_volume_24h_usd: String,
@@ -29,6 +41,14 @@ pub struct OverviewResponse {
 pub async fn get_overview(
     State(state): State<AppState>,
 ) -> Result<Json<OverviewResponse>, (StatusCode, String)> {
+    if let Ok(guard) = overview_cache().lock() {
+        if let Some((resp, at)) = guard.as_ref() {
+            if Instant::now().duration_since(*at) <= OVERVIEW_CACHE_TTL {
+                return Ok(Json(resp.clone()));
+            }
+        }
+    }
+
     let global = volume::get_global_stats(&state.pool)
         .await
         .map_err(internal_err)?;
@@ -40,12 +60,18 @@ pub async fn get_overview(
 
     let ustc_price = state.ustc_price.read().await.clone();
 
-    Ok(Json(OverviewResponse {
+    let resp = OverviewResponse {
         total_volume_24h: global.total_volume_24h.to_string(),
         total_volume_24h_usd: global.total_volume_24h_usd.to_string(),
         total_trades_24h: global.total_trades_24h,
         pair_count: global.pair_count,
         token_count,
         ustc_price_usd: ustc_price.map(|p| p.to_string()),
-    }))
+    };
+
+    if let Ok(mut guard) = overview_cache().lock() {
+        *guard = Some((resp.clone(), Instant::now()));
+    }
+
+    Ok(Json(resp))
 }
