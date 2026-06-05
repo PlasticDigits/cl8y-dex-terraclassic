@@ -143,7 +143,14 @@ pub async fn load_hop_mirror(
         .cloned()
         .ok_or(DbSimError::PairNotFound)?;
 
-    let reserves = pair_reserves::get_pair_reserves(pool, pair_row.id)
+    // Reserves and resting book are written in one snapshot transaction (#322); read them under
+    // REPEATABLE READ so a concurrent snapshot cannot mix rows from different commits.
+    let mut tx = pool.begin().await?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        .execute(&mut *tx)
+        .await?;
+
+    let reserves = pair_reserves::get_pair_reserves(&mut *tx, pair_row.id)
         .await?
         .ok_or(DbSimError::MissingMirror)?;
 
@@ -157,8 +164,9 @@ pub async fn load_hop_mirror(
     let reserve_0 = parse_u128(&reserves.reserve_0).ok_or(DbSimError::InvalidNumeric)?;
     let reserve_1 = parse_u128(&reserves.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
 
-    let bids = resting_orders::get_pair_resting_book(pool, pair_row.id, "bid").await?;
-    let asks = resting_orders::get_pair_resting_book(pool, pair_row.id, "ask").await?;
+    let bids = resting_orders::get_pair_resting_book(&mut *tx, pair_row.id, "bid").await?;
+    let asks = resting_orders::get_pair_resting_book(&mut *tx, pair_row.id, "ask").await?;
+    tx.commit().await?;
 
     let bids = filter_live_orders(bids, now_secs);
     let asks = filter_live_orders(asks, now_secs);

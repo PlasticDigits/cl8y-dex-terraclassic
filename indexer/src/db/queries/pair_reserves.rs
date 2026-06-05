@@ -3,7 +3,7 @@
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::FromRow;
 
 #[derive(Debug, Clone, FromRow)]
 pub struct PairReservesRow {
@@ -53,15 +53,18 @@ where
 
 /// The current reserves snapshot for a pair, or `None` if it has not been snapshotted yet
 /// (callers treat a missing snapshot as degrade-not-error).
-pub async fn get_pair_reserves(
-    pool: &PgPool,
+pub async fn get_pair_reserves<'e, E>(
+    executor: E,
     pair_id: i32,
-) -> Result<Option<PairReservesRow>, sqlx::Error> {
+) -> Result<Option<PairReservesRow>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as::<_, PairReservesRow>(
         "SELECT pair_id, reserve_0, reserve_1, fee_bps, block_height, snapshot_at
          FROM pair_reserves WHERE pair_id = $1",
     )
     .bind(pair_id)
-    .fetch_optional(pool)
+    .fetch_optional(executor)
     .await
 }

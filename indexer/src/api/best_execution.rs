@@ -386,10 +386,16 @@ pub async fn solve_global_best_execution(
         );
         body.estimated_amount_out = final_est;
         if meta.fidelity_check == FidelityCheck::Drift {
-            body.quote_kind = RouteQuoteKind::IndexerHybridDbDegraded;
-            if body.estimated_amount_out.is_none() {
-                body.quote_kind = RouteQuoteKind::IndexerRouteOnly;
-            }
+            body.quote_kind = quote_kind_for(
+                &OptimizationMeta {
+                    degraded: meta.degraded && meta.any_book_leg,
+                    any_book_leg: meta.any_book_leg,
+                    mirror_stale: meta.mirror_stale,
+                    mirror_missing: meta.mirror_missing,
+                },
+                &body.estimated_amount_out,
+                true,
+            );
         } else {
             body.quote_kind = quote_kind_for(
                 &OptimizationMeta {

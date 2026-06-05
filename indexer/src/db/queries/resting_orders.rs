@@ -75,11 +75,14 @@ pub async fn replace_pair_resting_orders(
 /// A pair's resting book for one side, in walk order: best price first (bids DESC, asks ASC), then
 /// FIFO by `order_id`. `side` is `"bid"` or `"ask"` (a controlled value — only the sort direction
 /// is interpolated, no caller input reaches the SQL).
-pub async fn get_pair_resting_book(
-    pool: &PgPool,
+pub async fn get_pair_resting_book<'e, E>(
+    executor: E,
     pair_id: i32,
     side: &str,
-) -> Result<Vec<RestingOrderRow>, sqlx::Error> {
+) -> Result<Vec<RestingOrderRow>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     let price_dir = if side == "bid" { "DESC" } else { "ASC" };
     let sql = format!(
         "SELECT pair_id, order_id, side, price, remaining, owner, expires_at
@@ -90,6 +93,6 @@ pub async fn get_pair_resting_book(
     sqlx::query_as::<_, RestingOrderRow>(&sql)
         .bind(pair_id)
         .bind(side)
-        .fetch_all(pool)
+        .fetch_all(executor)
         .await
 }
