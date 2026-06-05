@@ -43,6 +43,7 @@ pub fn test_config() -> Config {
         poll_interval_ms: 6000,
         api_port: 0,
         api_bind: "127.0.0.1".to_string(),
+        api_ipv6_enabled: false,
         lcd_timeout_ms: 5000,
         lcd_cooldown_ms: 30000,
         start_block: None,
