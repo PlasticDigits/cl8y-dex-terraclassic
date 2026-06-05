@@ -123,6 +123,44 @@ async fn global_stats_rollup_excludes_swaps_older_than_24h() {
 
 #[serial]
 #[tokio::test]
+async fn global_stats_uninitialized_rollup_falls_back_to_live() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+
+    // Post-migration seed row (zeros) before refresh_global_stats — API can serve /overview
+    // while the indexer task is still in pair sync.
+    sqlx::query(
+        "UPDATE global_stats_24h
+         SET total_volume = 0, total_volume_usd = 0, total_trades = 0",
+    )
+    .execute(&pool)
+    .await
+    .expect("reset rollup to migration seed");
+
+    let stats = volume::get_global_stats(&pool)
+        .await
+        .expect("rollup read with fallback");
+    let live = volume::get_global_stats_live(&pool)
+        .await
+        .expect("live stats");
+
+    assert_eq!(
+        stats.total_trades_24h, live.total_trades_24h,
+        "must not serve seeded zeros when swap_events has 24h data"
+    );
+    assert_eq!(stats.total_trades_24h, 5);
+    assert_eq!(
+        stats.total_volume_24h.normalized(),
+        live.total_volume_24h.normalized()
+    );
+    assert_eq!(
+        stats.total_volume_24h_usd.normalized(),
+        live.total_volume_24h_usd.normalized()
+    );
+}
+
+#[serial]
+#[tokio::test]
 async fn global_stats_empty_db_returns_zeros() {
     let pool = setup_pool().await;
     common::clean_db(&pool).await;

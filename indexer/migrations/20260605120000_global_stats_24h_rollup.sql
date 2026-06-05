@@ -10,7 +10,16 @@ CREATE TABLE IF NOT EXISTS global_stats_24h (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO global_stats_24h (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+-- Backfill from existing swap_events on upgrade; fresh DBs get zeros until first refresh.
+INSERT INTO global_stats_24h (id, total_volume, total_volume_usd, total_trades, updated_at)
+SELECT 1,
+       COALESCE(SUM(offer_amount), 0),
+       COALESCE(SUM(volume_usd), 0),
+       COUNT(*),
+       NOW()
+FROM swap_events
+WHERE block_timestamp >= NOW() - INTERVAL '24 hours'
+ON CONFLICT (id) DO NOTHING;
 
 COMMENT ON TABLE global_stats_24h IS
     'Rolling 24h SUM(offer_amount), SUM(volume_usd), COUNT(*) across all pairs; refreshed periodically — not real-time.';
