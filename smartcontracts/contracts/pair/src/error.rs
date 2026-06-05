@@ -33,6 +33,25 @@ pub enum ContractError {
     #[error("Max spread assertion: actual spread ({actual}) exceeds max allowed ({max})")]
     MaxSpreadAssertion { max: String, actual: String },
 
+    #[error(
+        "Hybrid swap requires a material pool leg without belief_price: pool_input {pool_input} \
+         is below minimum {min_pool_input} (book_input {book_input})"
+    )]
+    InsufficientPoolLegForHybrid {
+        pool_input: String,
+        min_pool_input: String,
+        book_input: String,
+    },
+
+    #[error(
+        "Hybrid swap pool leg produced zero net output with book_input {book_input} \
+         (pool_input {pool_input})"
+    )]
+    ZeroPoolNetForHybrid {
+        pool_input: String,
+        book_input: String,
+    },
+
     #[error("Insufficient LP tokens: expected at least {min}, got {actual}")]
     InsufficientLpTokens { min: String, actual: String },
 
@@ -50,6 +69,16 @@ pub enum ContractError {
 
     #[error("Contract is paused")]
     Paused {},
+
+    #[error(
+        "Trading blacklist: wallet_blacklisted={wallet_blacklisted}, pair_blacklisted={pair_blacklisted}, tokens={blacklisted_tokens:?}, pairs={blacklisted_pairs:?}"
+    )]
+    Blacklisted {
+        wallet_blacklisted: bool,
+        pair_blacklisted: bool,
+        blacklisted_tokens: Vec<String>,
+        blacklisted_pairs: Vec<String>,
+    },
 
     #[error("Invariant violation: {reason}")]
     InvariantViolation { reason: String },

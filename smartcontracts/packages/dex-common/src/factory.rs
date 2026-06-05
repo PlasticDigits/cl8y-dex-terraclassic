@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
 
+use crate::blacklist::{BlacklistCheck, BlacklistCheckResponse};
 use crate::types::{AssetInfo, PairInfo};
 
 /// Default pair-creation fee in uluna (100 LUNC), transferred to the treasury on `CreatePair`
@@ -129,6 +130,30 @@ pub enum ExecuteMsg {
         token: String,
         recipient: String,
     },
+    /// Governance-only: block all protocol actions for a wallet (GitLab #308).
+    BlacklistWallet {
+        address: String,
+    },
+    /// Governance-only: restore a previously blacklisted wallet.
+    UnblacklistWallet {
+        address: String,
+    },
+    /// Governance-only: block trades involving a CW20 token on any pair.
+    BlacklistToken {
+        token: String,
+    },
+    /// Governance-only: remove a token from the trading blacklist.
+    UnblacklistToken {
+        token: String,
+    },
+    /// Governance-only: block all actions on a registered pair contract.
+    BlacklistPair {
+        pair: String,
+    },
+    /// Governance-only: remove a pair from the trading blacklist.
+    UnblacklistPair {
+        pair: String,
+    },
 }
 
 #[cw_serde]
@@ -153,6 +178,9 @@ pub enum QueryMsg {
     },
     #[returns(PairCountResponse)]
     GetPairCount {},
+    /// Combined probe used by pair/router guards and off-chain UX (GitLab #308).
+    #[returns(BlacklistCheckResponse)]
+    BlacklistCheck(BlacklistCheck),
 }
 
 #[cw_serde]

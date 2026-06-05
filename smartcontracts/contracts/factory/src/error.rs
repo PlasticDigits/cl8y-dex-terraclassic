@@ -41,4 +41,16 @@ pub enum ContractError {
     DiscountRegistryAllTooManyPairs { pair_count: u64, max: u32 },
     #[error("Too many pairs ({pair_count}) for SetLpAdminAll; max {max} — use SetLpAdminBatch")]
     LpAdminAllTooManyPairs { pair_count: u64, max: u32 },
+    #[error("Wallet is already blacklisted: {address}")]
+    WalletAlreadyBlacklisted { address: String },
+    #[error("Wallet is not blacklisted: {address}")]
+    WalletNotBlacklisted { address: String },
+    #[error("Token is already blacklisted: {token}")]
+    TokenAlreadyBlacklisted { token: String },
+    #[error("Token is not blacklisted: {token}")]
+    TokenNotBlacklisted { token: String },
+    #[error("Pair is already blacklisted: {pair}")]
+    PairAlreadyBlacklisted { pair: String },
+    #[error("Pair is not blacklisted: {pair}")]
+    PairNotBlacklisted { pair: String },
 }

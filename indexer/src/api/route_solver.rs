@@ -36,41 +36,43 @@ const AMOUNT_CACHE_BUCKET: u128 = 1_000_000;
 
 #[derive(Debug, Deserialize, Serialize, IntoParams, ToSchema)]
 pub struct SolveRouteParams {
-    /// CW20 contract address (must match indexed `assets.contract_address`).
+    /// CW20 contract address (must match indexed `assets.contract_address`). See [route-solver glossary](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/route-solver.md#glossary).
     pub token_in: String,
+    /// CW20 contract address for the output asset (indexed `assets.contract_address`).
     pub token_out: String,
-    /// Raw integer amount in offer token (optional). When set, GET runs hybrid split optimization by default.
+    /// Raw integer offer amount (optional). When set on GET (and `pool_only` is not true), runs **global_v1** best execution: top-5 paths, joint hybrid optimization, max **3 hops**. Required for `/route/solve/best`.
     pub amount_in: Option<String>,
     /// Deprecated alias: `hybrid_optimize=false` or `pool_only=true` for pool-only routing.
     #[serde(default)]
     pub hybrid_optimize: Option<bool>,
-    /// Legacy pool-only routing (max **4 hops**, `hybrid: null` on every hop). Migration escape hatch (GitLab #191).
+    /// Pool-only escape hatch: first BFS path, `hybrid: null` on every hop, max **4 hops** — skips the global optimizer. See `docs/route-solver.md`.
     #[serde(default)]
     pub pool_only: Option<bool>,
-    /// Per-hop `max_maker_fills` for hybrid GET (default **8**).
+    /// Per-hop `max_maker_fills` for hybrid GET optimization (default **8**); caps limit-book matches per hop.
     #[serde(default)]
     pub max_maker_fills: Option<u32>,
-    /// Optional beneficiary wallet for CL8Y fee-tier discounted LCD quotes (GitLab #245). Omit for full-fee quotes.
+    /// Optional beneficiary `terra1` wallet for CL8Y fee-tier discounted LCD quotes (GitLab #245). Omit for full-fee quotes. Cache keys include resolved `discount_tier`.
     #[serde(default)]
     pub trader: Option<String>,
-    /// Optional CW20 sender when it differs from `trader` (trusted router execute path).
+    /// Optional CW20 sender `terra1` address when it differs from `trader` (trusted router execute path).
     #[serde(default)]
     pub sender: Option<String>,
 }
 
-/// JSON body for [`solve_route_post`]. When `hybrid_by_hop` is omitted or `null`, all hops are pool-only (same as GET).
+/// JSON body for [`solve_route_post`]. Uses **first BFS path** (max **4 hops**); does **not** run `global_v1`. See `docs/route-solver.md#api-matrix-get-vs-post`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SolveRoutePostBody {
     pub token_in: String,
     pub token_out: String,
+    /// Raw integer offer amount for optional router `simulate_swap_operations`.
     pub amount_in: Option<String>,
-    /// One entry per hop after BFS. `null` = pool-only for that hop. Length must match hop count when present.
+    /// Integrator override: one entry per hop after BFS. `null` = pool-only for that hop. Length must equal hop count when present.
     #[serde(default)]
     pub hybrid_by_hop: Option<Vec<Option<HybridHopJson>>>,
-    /// Optional beneficiary wallet for CL8Y fee-tier discounted LCD quotes (GitLab #245).
+    /// Optional beneficiary `terra1` wallet for CL8Y fee-tier discounted LCD quotes (GitLab #245).
     #[serde(default)]
     pub trader: Option<String>,
-    /// Optional CW20 sender when it differs from `trader`.
+    /// Optional CW20 sender `terra1` when it differs from `trader`.
     #[serde(default)]
     pub sender: Option<String>,
 }
@@ -78,13 +80,13 @@ pub struct SolveRoutePostBody {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RouteQuoteKind {
-    /// No `estimated_amount_out` (missing `ROUTER_ADDRESS` and/or `amount_in`).
+    /// Topology only — no `estimated_amount_out` (missing `ROUTER_ADDRESS` and/or `amount_in`, or router sim failed). Documented in `docs/route-solver.md#glossary`.
     IndexerRouteOnly,
-    /// Pool-only router operations; LCD sim when configured.
+    /// Pool-only router operations (`hybrid: null`); LCD `simulate_swap_operations` when configured.
     IndexerPoolLcd,
-    /// At least one hop uses a limit-book leg after hybrid optimization.
+    /// At least one hop has a non-zero `book_input` after server hybrid optimization (`global_v1` GET).
     IndexerHybridLcd,
-    /// Hybrid optimization fell back to pool-only `HybridSimulation` (`book_input: 0`) on at least one hop (LCD).
+    /// Hybrid grid failed on at least one hop; degraded to pool-only `HybridSimulation` (`book_input: 0`). See `hybrid_notes`.
     IndexerHybridLcdDegraded,
 }
 
@@ -207,25 +209,30 @@ pub struct RouteHop {
 pub struct RouteSolveResponse {
     pub token_in: String,
     pub token_out: String,
+    /// Ordered swap legs: pair contract plus offer/ask CW20 per hop.
     pub hops: Vec<RouteHop>,
     /// Full token path: `token_in`, then each hop's `ask_token` (ends at `token_out`).
     pub intermediate_tokens: Vec<String>,
+    /// How the quote was produced — see `docs/route-solver.md#glossary` (`indexer_route_only`, `indexer_pool_lcd`, `indexer_hybrid_lcd`, `indexer_hybrid_lcd_degraded`).
     pub quote_kind: RouteQuoteKind,
-    /// Model limits, degradation, or execution-risk notes for clients.
+    /// Advisory notes: search bounds, degradation, path/sim counts, LCD snapshot liability. Present on `global_v1` GET.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hybrid_notes: Option<String>,
-    /// Router `ExecuteSwapOperations` operations (JSON). `terra_swap.hybrid` is `null` unless merged.
+    /// Router `ExecuteSwapOperations` operations (JSON). `terra_swap.hybrid` is `null` for pool-only hops.
     #[schema(value_type = Vec<Object>)]
     pub router_operations: Vec<serde_json::Value>,
-    /// From `SimulateSwapOperations` when `amount_in` and `ROUTER_ADDRESS` are set.
+    /// LCD router `simulate_swap_operations` output when `amount_in` and `ROUTER_ADDRESS` are set — **not** a guaranteed fill.
     pub estimated_amount_out: Option<String>,
-    /// Present on global best-execution GET responses (GitLab #209).
+    /// Solver generation label on global best-execution GET (shipped: `global_v1`). Absent on discovery-only GET and POST.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub solver_version: Option<String>,
+    /// Simple paths evaluated (≤ `MAX_PATH_CANDIDATES` = 5). Present on `global_v1` GET only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub paths_considered: Option<u32>,
+    /// Human-readable optimality bound — not global optimum over all paths. Matches `best_execution::OPTIMALITY_SCOPE`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub optimality_scope: Option<String>,
+    /// Approximate pair-level `HybridSimulation` LCD calls during optimization. Upper bound documented as `LCD_HYBRID_SIM_BUDGET`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lcd_hybrid_queries: Option<u32>,
 }

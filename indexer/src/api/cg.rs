@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
+    aggregator_snapshot::{self, AggregatorListQuery},
     build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, listing_timestamps,
     orderbook_sim, AppState,
 };
@@ -110,36 +111,34 @@ pub struct CgTickerResponse {
 #[utoipa::path(
     get,
     path = "/cg/tickers",
+    params(AggregatorListQuery),
     responses(
-        (status = 200, description = "CoinGecko-format ticker data", body = Vec<CgTickerResponse>),
+        (status = 200, description = "CoinGecko-format ticker data (top pairs by 24h volume; default limit 100)", body = Vec<CgTickerResponse>),
+        (status = 400, description = "Invalid query parameters"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "CoinGecko"
 )]
 pub async fn cg_tickers(
     State(state): State<AppState>,
+    Query(q): Query<AggregatorListQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if let Some(cached) = super::aggregator_cache_get("cg_tickers") {
+    let params = aggregator_snapshot::parse_aggregator_list_query(q)?;
+    let cache_key = aggregator_snapshot::aggregator_cache_key("cg_tickers", params);
+    if let Some(cached) = super::aggregator_cache_get(&cache_key) {
         return Ok(Json(cached));
     }
-    let all_pairs = db_pairs::get_all_pairs(&state.pool)
+
+    let rows = aggregator_snapshot::load_aggregator_pairs(&state.pool, params, true)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
-    let mut result = Vec::new();
-    for p in &all_pairs {
-        let (a0, a1) = match (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
-            (Some(a0), Some(a1)) => (a0, a1),
-            _ => continue,
-        };
-
-        let stats = swap_events::get_24h_stats_for_pair(&state.pool, p.id)
-            .await
-            .map_err(internal_err)?;
-        let extensions = consolidated_stats::fetch_consolidated_extensions(&state.pool, p.id)
-            .await
-            .map_err(internal_err)?;
+    let mut result = Vec::with_capacity(rows.len());
+    for row in &rows {
+        let a0 = &row.asset_0;
+        let a1 = &row.asset_1;
+        let stats = &row.stats;
+        let extensions = row.extensions.clone().expect("extensions loaded");
 
         let last_price_f = stats
             .close_price
@@ -179,20 +178,22 @@ pub async fn cg_tickers(
             ask: format!("{:.18}", last_price_f * 1.001),
             high: stats
                 .high
+                .as_ref()
                 .map(|h| h.to_string())
                 .unwrap_or_else(|| "0".to_string()),
             low: stats
                 .low
+                .as_ref()
                 .map(|l| l.to_string())
                 .unwrap_or_else(|| "0".to_string()),
-            pool_id: p.contract_address.clone(),
+            pool_id: row.pair.contract_address.clone(),
             liquidity_in_usd: liquidity_usd,
             cl8y_extensions: extensions,
         });
     }
 
     let value = serde_json::to_value(&result).map_err(internal_err)?;
-    super::aggregator_cache_put("cg_tickers", value.clone());
+    super::aggregator_cache_put(&cache_key, value.clone());
     Ok(Json(value))
 }
 

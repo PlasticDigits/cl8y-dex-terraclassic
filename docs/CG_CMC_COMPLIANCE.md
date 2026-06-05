@@ -79,7 +79,16 @@ Returns all available trading pairs on the DEX.
 
 ### `GET /cg/tickers`
 
-Returns 24-hour market data for all trading pairs.
+Returns 24-hour market data for trading pairs, ranked by 24h quote volume (highest first).
+
+**Query parameters (GitLab #288):**
+
+| Param | Default | Max | Description |
+|-------|---------|-----|-------------|
+| `limit` | `100` | `1000` | Number of pairs returned |
+| `offset` | `0` | `10000` | Pagination offset (deep offset → **400**) |
+
+Responses are cached **60s** per `(limit, offset)`; stats are loaded with set-based queries (not per-pair N+1).
 
 **Response:**
 
@@ -239,7 +248,7 @@ These endpoints follow the [CMC exchange API specification](https://openware.com
 
 ### `GET /cmc/summary`
 
-Overview of market data for all tickers and markets.
+Overview of market data for tickers and markets, ranked by 24h quote volume (highest first). Same `limit` / `offset` pagination as `/cg/tickers` (default `limit=100`; GitLab #288).
 
 **Response:**
 
@@ -312,7 +321,7 @@ Detailed summary for each available currency on the DEX.
 
 ### `GET /cmc/ticker`
 
-24-hour pricing and volume summary for each market pair.
+24-hour pricing and volume summary per market pair (object keyed by `BASE_QUOTE`). Same `limit` / `offset` pagination as `/cg/tickers` (default `limit=100`; GitLab #288).
 
 **Response:**
 

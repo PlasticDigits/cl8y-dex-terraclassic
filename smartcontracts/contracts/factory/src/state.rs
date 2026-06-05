@@ -64,3 +64,10 @@ pub const PENDING_PAIR: Item<[AssetInfo; 2]> = Item::new("pending_pair");
 pub const PAIR_CREATION_BLOCK: Item<u64> = Item::new("pair_creation_block");
 
 pub const REPLY_INSTANTIATE_PAIR: u64 = 1;
+
+/// Wallets blocked from all pair/router protocol actions (GitLab #308).
+pub const BLACKLISTED_WALLETS: Map<&Addr, bool> = Map::new("bl_wallets");
+/// CW20 tokens blocked from trading on any pair (both directions).
+pub const BLACKLISTED_TOKENS: Map<&Addr, bool> = Map::new("bl_tokens");
+/// Pair contracts blocked from swaps, LP, and limit actions.
+pub const BLACKLISTED_PAIRS: Map<&Addr, bool> = Map::new("bl_pairs");

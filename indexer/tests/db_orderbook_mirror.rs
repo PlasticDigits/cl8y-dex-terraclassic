@@ -3,6 +3,7 @@
 mod common;
 
 use bigdecimal::BigDecimal;
+use serial_test::serial;
 use cl8y_dex_indexer::db::queries::{pair_reserves, resting_orders};
 use std::str::FromStr;
 
@@ -106,4 +107,51 @@ async fn resting_book_replace_and_walk_order() {
         vec![9],
         "replace wipes the prior snapshot"
     );
+}
+
+#[tokio::test]
+#[serial]
+async fn resting_book_replace_rolls_back_on_constraint_failure() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+
+    let mk = |order_id: i64, side: &str, price: &str| resting_orders::RestingOrderInput {
+        order_id,
+        side: side.to_string(),
+        price: bd(price),
+        remaining: bd("100"),
+        owner: None,
+        expires_at: None,
+    };
+
+    let initial = vec![mk(1, "bid", "1.0"), mk(2, "ask", "1.2")];
+    resting_orders::replace_pair_resting_orders(&pool, seed.pair_id, Some(1), &initial)
+        .await
+        .unwrap();
+
+    let bad = vec![
+        mk(3, "bid", "0.9"),
+        resting_orders::RestingOrderInput {
+            side: "buy".to_string(),
+            ..mk(4, "bid", "0.8")
+        },
+    ];
+    let err = resting_orders::replace_pair_resting_orders(&pool, seed.pair_id, Some(2), &bad)
+        .await
+        .expect_err("invalid side should fail");
+    assert!(
+        err.to_string().contains("resting_limit_orders") || err.to_string().contains("check"),
+        "expected CHECK constraint failure, got: {err}"
+    );
+
+    let bids = resting_orders::get_pair_resting_book(&pool, seed.pair_id, "bid")
+        .await
+        .unwrap();
+    let asks = resting_orders::get_pair_resting_book(&pool, seed.pair_id, "ask")
+        .await
+        .unwrap();
+    assert_eq!(bids.len(), 1);
+    assert_eq!(asks.len(), 1);
+    assert_eq!(bids[0].order_id, 1);
+    assert_eq!(asks[0].order_id, 2);
 }

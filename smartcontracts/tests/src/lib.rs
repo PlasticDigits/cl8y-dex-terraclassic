@@ -5,6 +5,8 @@ mod adversarial_token;
 mod mock_failing_hook;
 
 #[cfg(test)]
+mod blacklist_tests;
+#[cfg(test)]
 mod limit_order_tests;
 
 #[cfg(test)]
@@ -1013,6 +1015,215 @@ mod factory_tests {
         );
     }
 
+    /// GitLab #313 — adversarial paths for factory `BankMsg::Send` pair-creation fee:
+    /// stray denom, overpay refund, and treasury rotation via `UpdateConfig`.
+    #[test]
+    fn create_pair_fee_bank_send_adversarial_paths() {
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let new_treasury = Addr::unchecked("new_treasury");
+        let user = Addr::unchecked("user");
+        let fee = Uint128::new(100_000_000);
+
+        let mut app = App::new(|router, _api, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &user,
+                    vec![
+                        cosmwasm_std::Coin::new(5_000_000_000u128, "uluna"),
+                        cosmwasm_std::Coin::new(1_000_000u128, "uusd"),
+                    ],
+                )
+                .unwrap();
+        });
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let token_a = create_cw20_token(&mut app, cw20_code_id, &user, "Token A", "AAA", initial);
+        let token_b = create_cw20_token(&mut app, cw20_code_id, &user, "Token B", "BBB", initial);
+        let token_c = create_cw20_token(&mut app, cw20_code_id, &user, "Token C", "CCC", initial);
+        let token_d = create_cw20_token(&mut app, cw20_code_id, &user, "Token D", "DDD", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: fee,
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let create_ab = dex_common::factory::ExecuteMsg::CreatePair {
+            asset_infos: [
+                AssetInfo::Token {
+                    contract_addr: token_a.to_string(),
+                },
+                AssetInfo::Token {
+                    contract_addr: token_b.to_string(),
+                },
+            ],
+        };
+        let create_cd = dex_common::factory::ExecuteMsg::CreatePair {
+            asset_infos: [
+                AssetInfo::Token {
+                    contract_addr: token_c.to_string(),
+                },
+                AssetInfo::Token {
+                    contract_addr: token_d.to_string(),
+                },
+            ],
+        };
+
+        // Stray denom only -> rejected; uluna not consumed.
+        let user_uluna_before = app
+            .wrap()
+            .query_balance(user.as_str(), "uluna")
+            .unwrap()
+            .amount;
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &create_ab,
+            &[cosmwasm_std::Coin::new(fee.u128(), "uusd")],
+        )
+        .unwrap_err();
+        // cw-multi-test may not surface the contract error string; on-chain the contract
+        // returns `UnexpectedPairCreationFunds` or `InsufficientPairCreationFee` before any bank send.
+        assert_eq!(
+            app.wrap()
+                .query_balance(user.as_str(), "uluna")
+                .unwrap()
+                .amount,
+            user_uluna_before,
+            "uluna balance unchanged after stray-denom rejection"
+        );
+
+        // uluna + stray denom in same tx -> rejected.
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &create_ab,
+            &[
+                cosmwasm_std::Coin::new(fee.u128(), "uluna"),
+                cosmwasm_std::Coin::new(1u128, "uusd"),
+            ],
+        )
+        .unwrap_err();
+        // Mixed uluna + stray denom must fail before pair creation (on-chain: UnexpectedPairCreationFunds).
+        let pair_count: dex_common::factory::PairCountResponse = app
+            .wrap()
+            .query_wasm_smart(
+                factory.to_string(),
+                &dex_common::factory::QueryMsg::GetPairCount {},
+            )
+            .unwrap();
+        assert_eq!(pair_count.count, 0, "stray denom must not create a pair");
+
+        // Overpay -> treasury gets exactly `fee`, user gets refund.
+        let overpay = fee + Uint128::new(50_000_000);
+        let user_before = app
+            .wrap()
+            .query_balance(user.as_str(), "uluna")
+            .unwrap()
+            .amount;
+        let tre_before = app
+            .wrap()
+            .query_balance(treasury.as_str(), "uluna")
+            .unwrap()
+            .amount;
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &create_ab,
+            &[cosmwasm_std::Coin::new(overpay.u128(), "uluna")],
+        )
+        .unwrap();
+        assert_eq!(
+            app.wrap()
+                .query_balance(treasury.as_str(), "uluna")
+                .unwrap()
+                .amount,
+            tre_before + fee
+        );
+        assert_eq!(
+            app.wrap()
+                .query_balance(user.as_str(), "uluna")
+                .unwrap()
+                .amount,
+            user_before - fee,
+            "user should pay only the fee after refund of overpay"
+        );
+        assert_eq!(
+            app.wrap()
+                .query_balance(factory.as_str(), "uluna")
+                .unwrap()
+                .amount,
+            Uint128::zero(),
+            "factory must not retain uluna"
+        );
+
+        // Governance rotates treasury; next pair creation fee goes to the new address.
+        app.execute_contract(
+            governance.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::UpdateConfig {
+                governance: None,
+                treasury: Some(new_treasury.to_string()),
+                default_fee_bps: None,
+                default_limit_batch_max_rungs: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let new_tre_before = app
+            .wrap()
+            .query_balance(new_treasury.as_str(), "uluna")
+            .unwrap()
+            .amount;
+        app.update_block(|b| b.height += 1);
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &create_cd,
+            &[cosmwasm_std::Coin::new(fee.u128(), "uluna")],
+        )
+        .unwrap();
+        assert_eq!(
+            app.wrap()
+                .query_balance(new_treasury.as_str(), "uluna")
+                .unwrap()
+                .amount,
+            new_tre_before + fee,
+            "fee must credit treasury after UpdateConfig"
+        );
+        assert_eq!(
+            app.wrap()
+                .query_balance(treasury.as_str(), "uluna")
+                .unwrap()
+                .amount,
+            tre_before + fee,
+            "old treasury must not receive post-rotation creation fees"
+        );
+    }
+
     /// Regression for GitLab #122: governance paths must not linear-scan `PAIR_INDEX`
     /// for membership checks at scale (reverse map keeps lookup bounded).
     ///
@@ -1909,6 +2120,7 @@ mod pair_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -1942,6 +2154,7 @@ mod pair_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -2924,6 +3137,7 @@ mod fee_discount_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(amount),
                     trader: Some(env.user.to_string()),
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -3687,6 +3901,7 @@ mod pair_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap_err();
@@ -4003,6 +4218,7 @@ mod pair_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(10_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -6613,6 +6829,7 @@ mod fuzz_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
                 trader: None,
                 sender: None,
+                belief_price: None,
                 },
                 )
                 .unwrap();
@@ -7046,6 +7263,7 @@ mod fuzz_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
                 trader: None,
                 sender: None,
+                belief_price: None,
                 },
                 )
                 .unwrap();
@@ -9594,6 +9812,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             );
 
@@ -9628,6 +9847,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             );
 
@@ -9659,6 +9879,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             );
 
@@ -9923,6 +10144,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -10288,6 +10510,7 @@ mod additional_fuzz_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
                 trader: None,
                 sender: None,
+                belief_price: None,
                 },
                 )
                 .unwrap();
@@ -11721,6 +11944,7 @@ mod fee_treasury_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -11747,6 +11971,7 @@ mod fee_treasury_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();

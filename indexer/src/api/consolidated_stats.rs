@@ -20,18 +20,22 @@ pub struct Cl8yConsolidatedExtensions {
     pub pool_leg_volume_quote_24h: String,
 }
 
-pub async fn fetch_consolidated_extensions(
-    pool: &PgPool,
-    pair_id: i32,
-) -> Result<Cl8yConsolidatedExtensions, sqlx::Error> {
-    let b = swap_events::get_24h_hybrid_breakdown(pool, pair_id).await?;
-    Ok(Cl8yConsolidatedExtensions {
+pub fn extensions_from_breakdown(b: &swap_events::HybridVolumeBreakdown) -> Cl8yConsolidatedExtensions {
+    Cl8yConsolidatedExtensions {
         consolidated: true,
         hybrid_trade_count_24h: b.hybrid_trade_count.to_string(),
         pool_only_trade_count_24h: b.pool_only_trade_count.to_string(),
         book_leg_volume_quote_24h: b.book_leg_volume_quote.to_string(),
         pool_leg_volume_quote_24h: b.pool_leg_volume_quote.to_string(),
-    })
+    }
+}
+
+pub async fn fetch_consolidated_extensions(
+    pool: &PgPool,
+    pair_id: i32,
+) -> Result<Cl8yConsolidatedExtensions, sqlx::Error> {
+    let b = swap_events::get_24h_hybrid_breakdown(pool, pair_id).await?;
+    Ok(extensions_from_breakdown(&b))
 }
 
 /// Optional per-trade hybrid leg volumes when indexed on the swap event.

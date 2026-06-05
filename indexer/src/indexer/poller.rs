@@ -6,7 +6,9 @@ use crate::config::Config;
 use crate::db::queries::{state, volume};
 use crate::lcd::LcdClient;
 
-use super::{block_indexer, oracle, pair_discovery, trader_tracker, volume_aggregator};
+use super::{
+    block_indexer, book_snapshot, oracle, pair_discovery, trader_tracker, volume_aggregator,
+};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -43,6 +45,13 @@ pub async fn run_indexer(
     let oracle_price = ustc_price.clone();
     tokio::spawn(async move {
         oracle::run_oracle_loop(oracle_pool, oracle_interval, oracle_price).await;
+    });
+
+    let snapshot_pool = pool.clone();
+    let snapshot_lcd = lcd.clone();
+    let snapshot_interval = config.book_snapshot_interval_ms;
+    tokio::spawn(async move {
+        book_snapshot::run_book_snapshot_loop(snapshot_pool, snapshot_lcd, snapshot_interval).await;
     });
 
     let mut last_indexed = state::get_last_indexed_height(&pool).await?;

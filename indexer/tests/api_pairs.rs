@@ -343,3 +343,113 @@ async fn get_pair_limit_placements_and_cancellations() {
     assert_eq!(c.len(), 1);
     assert_eq!(c[0]["order_id"], 7);
 }
+
+#[serial]
+#[tokio::test]
+async fn list_pairs_relevance_ordering() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+
+    // Second LUNC pair with lower 24h volume (same symbol tier, lower liquidity).
+    let wbtc_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ('terra1wbtctoken', true, 'Wrapped BTC', 'WBTC', 8)
+         RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("insert wbtc");
+
+    let low_vol_pair: String = "terra1pairluncwbtc".to_string();
+    let low_vol_pair_id: i32 = sqlx::query_scalar(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ($1, $2, $3, 'terra1lpwbtc', 30)
+         RETURNING id",
+    )
+    .bind(&low_vol_pair)
+    .bind(seed.asset_0_id)
+    .bind(wbtc_id)
+    .fetch_one(&pool)
+    .await
+    .expect("insert low vol pair");
+
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, price)
+         VALUES ($1, 2000, NOW(), 'txlowvol', $2, $3, $4, 10, 9, 0.9)",
+    )
+    .bind(low_vol_pair_id)
+    .bind(&seed.trader_address)
+    .bind(seed.asset_0_id)
+    .bind(wbtc_id)
+    .execute(&pool)
+    .await
+    .expect("insert low vol swap");
+
+    cl8y_dex_indexer::db::queries::volume::refresh_pair_volumes(&pool)
+        .await
+        .expect("refresh volumes");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    // Exact pair address — tier 5.
+    let resp = server
+        .get(&format!(
+            "/api/v1/pairs?q={}&sort=relevance",
+            seed.pair_address
+        ))
+        .await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let items = body["items"].as_array().unwrap();
+    assert_eq!(items[0]["pair_address"], seed.pair_address);
+
+    // Exact CW20 token address — tier 4.
+    let resp = server.get("/api/v1/pairs?q=terra1ustctoken&sort=relevance").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let items = body["items"].as_array().unwrap();
+    assert!(!items.is_empty());
+    assert_eq!(items[0]["pair_address"], seed.pair_address);
+
+    // Symbol tier — higher volume LUNC/USTC before LUNC/WBTC.
+    let resp = server.get("/api/v1/pairs?q=LUNC&sort=relevance").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let items = body["items"].as_array().unwrap();
+    assert!(items.len() >= 2);
+    assert_eq!(items[0]["pair_address"], seed.pair_address);
+    assert_eq!(items[1]["pair_address"], low_vol_pair);
+
+    // Token name substring — tier 2.
+    let resp = server
+        .get("/api/v1/pairs?q=Luna+Classic&sort=relevance")
+        .await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let items = body["items"].as_array().unwrap();
+    assert!(!items.is_empty());
+    assert!(items.iter().any(|p| p["pair_address"] == seed.pair_address));
+
+    // Pair symbol query — exact pair ranks first.
+    let resp = server.get("/api/v1/pairs?q=LUNC+USTC&sort=relevance").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let items = body["items"].as_array().unwrap();
+    assert_eq!(items[0]["pair_address"], seed.pair_address);
+
+    // Default sort when q present is relevance.
+    let resp = server.get("/api/v1/pairs?q=LUNC").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let items = body["items"].as_array().unwrap();
+    assert_eq!(items[0]["pair_address"], seed.pair_address);
+
+    let resp = server.get("/api/v1/pairs?sort=relevance").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    let items = body["items"].as_array().unwrap();
+    assert_eq!(items[0]["pair_address"], seed.pair_address);
+}

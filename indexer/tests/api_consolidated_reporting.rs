@@ -20,7 +20,11 @@ async fn cg_tickers_include_consolidated_extensions() {
     resp.assert_status_ok();
 
     let body: Vec<Value> = resp.json();
-    let ext = &body[0]["cl8y_extensions"];
+    let row = body
+        .iter()
+        .find(|r| r["ticker_id"] == "LUNC_USTC")
+        .expect("LUNC_USTC ticker");
+    let ext = &row["cl8y_extensions"];
     assert_eq!(ext["consolidated"], true);
     assert_eq!(ext["hybrid_trade_count_24h"], "1");
     assert!(
@@ -71,8 +75,12 @@ async fn cmc_summary_includes_consolidated_extensions() {
     resp.assert_status_ok();
 
     let body: Vec<Value> = resp.json();
-    assert_eq!(body[0]["cl8y_extensions"]["hybrid_trade_count_24h"], "1");
-    assert_eq!(body[0]["cl8y_extensions"]["consolidated"], true);
+    let row = body
+        .iter()
+        .find(|r| r["trading_pairs"] == "LUNC_USTC")
+        .expect("LUNC_USTC summary");
+    assert_eq!(row["cl8y_extensions"]["hybrid_trade_count_24h"], "1");
+    assert_eq!(row["cl8y_extensions"]["consolidated"], true);
 }
 
 async fn insert_hybrid_swap(pool: &sqlx::PgPool, seed: &common::SeedData, tx_hash: &str) {

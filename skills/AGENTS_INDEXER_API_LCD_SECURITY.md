@@ -35,6 +35,7 @@ Legitimate frontend polling (e.g. deep book, route preview) should stay under **
 |-----|---------------|-----------|
 | `RATE_LIMIT_RPS` | 60 | If set to `0`, prod forces **60** |
 | `RATE_LIMIT_LCD_HEAVY_RPS` | 10 | If set to `0`, prod forces **10** |
+| `API_IPV6_ENABLED` | off | When off (default), API binds **IPv4-only** and rejects IPv6 `API_BIND` ([#282](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/282)) |
 | `RUN_MODE=prod` | — | Requires operator `LCD_URLS` (no public defaults) |
 
 See [`indexer/.env.example`](../indexer/.env.example).
