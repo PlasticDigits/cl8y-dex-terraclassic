@@ -253,6 +253,16 @@ def _txhash_from_terrad_json(text: str) -> str | None:
     return None
 
 
+def _tx_query_succeeded(data: dict) -> bool:
+    codes: list[int] = []
+    if "code" in data:
+        codes.append(int(data["code"]))
+    tx_resp = data.get("tx_response")
+    if isinstance(tx_resp, dict) and "code" in tx_resp:
+        codes.append(int(tx_resp["code"]))
+    return not codes or all(c == 0 for c in codes)
+
+
 async def _poll_tx_inclusion(container: str, txhash: str, *, timeout_sec: float = 90.0) -> bool:
     deadline = asyncio.get_running_loop().time() + timeout_sec
     while asyncio.get_running_loop().time() < deadline:
@@ -264,9 +274,11 @@ async def _poll_tx_inclusion(container: str, txhash: str, *, timeout_sec: float 
             try:
                 data = json.loads(out)
             except json.JSONDecodeError:
-                return True
-            tx_code = data.get("code", 0)
-            if tx_code != 0:
+                await asyncio.sleep(1.0)
+                continue
+            if not _tx_query_succeeded(data):
+                tx_resp = data.get("tx_response")
+                tx_code = tx_resp.get("code", data.get("code")) if isinstance(tx_resp, dict) else data.get("code")
                 print(f"[warn] tx {txhash[:16]}… failed code={tx_code}: {out[:300]}")
                 return False
             return True
@@ -327,9 +339,9 @@ async def provide_liquidity_pair(
     amount0: int,
     amount1: int,
     dry_run: bool,
-) -> None:
+) -> bool:
     if amount0 < 1 or amount1 < 1:
-        return
+        return False
     allow0 = json.dumps(
         {"increase_allowance": {"spender": pair, "amount": str(amount0), "expires": {"never": {}}}},
         separators=(",", ":"),
@@ -355,12 +367,12 @@ async def provide_liquidity_pair(
     if not await _wasm_execute(
         container, token0, allow0, dry_run, f"allow->{pair[:12]}… amt0={amount0}", wait=True
     ):
-        return
+        return False
     if not await _wasm_execute(
         container, token1, allow1, dry_run, f"allow->{pair[:12]}… amt1={amount1}", wait=True
     ):
-        return
-    await _wasm_execute(
+        return False
+    return await _wasm_execute(
         container, pair, provide, dry_run, f"provide_liquidity amt0={amount0} amt1={amount1}", wait=True
     )
 
@@ -580,14 +592,14 @@ async def lp_worker_loop(
                     continue
                 amount0, amount1 = topped
         try:
-            await provide_liquidity_pair(
+            if await provide_liquidity_pair(
                 container, m.token0, m.token1, m.pair_addr, amount0, amount1, dry
-            )
-            print(
-                f"[{name}] provide_liquidity pair={m.sym0}/{m.sym1} "
-                f"amt0={amount0} amt1={amount1}",
-                flush=True,
-            )
+            ):
+                print(
+                    f"[{name}] provide_liquidity pair={m.sym0}/{m.sym1} "
+                    f"amt0={amount0} amt1={amount1}",
+                    flush=True,
+                )
         except Exception as exc:  # noqa: BLE001
             print(f"[{name}] error: {exc}", file=sys.stderr)
 
