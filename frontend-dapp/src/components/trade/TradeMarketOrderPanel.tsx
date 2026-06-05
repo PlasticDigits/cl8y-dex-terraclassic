@@ -566,7 +566,7 @@ export function TradeMarketOrderPanel({
       <LimitOrderEscrowPlaceGuardMessage gate={inlineGate} data-testid="trade-market-place-guard" />
       {swapMutation.isError && <TxResultAlert type="error" message={(swapMutation.error as Error).message} />}
       {swapMutation.isSuccess && (
-        <TxResultAlert type="success" message="Market swap submitted." txHash={swapMutation.data} />
+        <TxResultAlert type="success" message="Market swap confirmed." txHash={swapMutation.data} />
       )}
     </div>
   )
