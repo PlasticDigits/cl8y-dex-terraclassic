@@ -1095,14 +1095,13 @@ mod factory_tests {
             .query_balance(user.as_str(), "uluna")
             .unwrap()
             .amount;
-        let err = app
-            .execute_contract(
-                user.clone(),
-                factory.clone(),
-                &create_ab,
-                &[cosmwasm_std::Coin::new(fee.u128(), "uusd")],
-            )
-            .unwrap_err();
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &create_ab,
+            &[cosmwasm_std::Coin::new(fee.u128(), "uusd")],
+        )
+        .unwrap_err();
         // cw-multi-test may not surface the contract error string; on-chain the contract
         // returns `UnexpectedPairCreationFunds` or `InsufficientPairCreationFee` before any bank send.
         assert_eq!(

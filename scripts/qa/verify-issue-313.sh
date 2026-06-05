@@ -32,7 +32,7 @@ run_step "adversarial fee paths (stray denom, overpay, treasury rotation)" \
   bash -c 'cd smartcontracts && cargo test create_pair_fee_bank_send_adversarial_paths --quiet'
 
 run_step "#276 fee regression tests" \
-  bash -c 'cd smartcontracts && cargo test create_pair_charges_fee_to_treasury_and_gov_can_set_it create_pair_refunds_uluna_when_fee_disabled --quiet'
+  bash -c 'cd smartcontracts && cargo test create_pair_charges_fee_to_treasury_and_gov_can_set_it --quiet && cargo test create_pair_refunds_uluna_when_fee_disabled --quiet'
 
 run_step "audit doc present" \
   test -f docs/audits/factory-treasury-bank-send.md
