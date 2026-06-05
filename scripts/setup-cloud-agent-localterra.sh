@@ -113,7 +113,12 @@ _deploy_up_to_date() {
   factory_stamp="$(grep -E '^factory_address=' "$STAMP" | tail -n1 | sed 's/^factory_address=//')"
   factory_env="$(grep -E '^VITE_FACTORY_ADDRESS=' "$ENV_LOCAL" | tail -n1 | sed 's/^VITE_FACTORY_ADDRESS=//')"
   [[ -n "$factory_stamp" && "$factory_stamp" = "$factory_env" ]] || return 1
-  compgen -G "$REPO_ROOT/smartcontracts/artifacts/*.wasm" >/dev/null
+  compgen -G "$REPO_ROOT/smartcontracts/artifacts/*.wasm" >/dev/null || return 1
+  # Stamp/env survive `make reset`; confirm factory still answers on the live chain.
+  # shellcheck source=scripts/lib/lcd-smart-query.sh
+  source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
+  local lcd="http://127.0.0.1:${DEX_TERRA_LCD_PORT:-1317}"
+  lcd_smart_query_ok "$lcd" "$factory_stamp" '{"pairs":{"start_after":null,"limit":1}}'
 }
 
 _start_indexer_tmux() {
