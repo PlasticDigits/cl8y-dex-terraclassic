@@ -95,6 +95,32 @@ pub async fn start_tier_aware_route_optimizer_mock(tier5_addrs: &[&str]) -> Mock
     server
 }
 
+/// Router sim only — counts `hybrid_simulation` LCD calls (Phase 1c: grid must not use them).
+pub async fn start_router_only_route_mock(sim_amount: &str) -> (MockServer, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    let hybrid_hits = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let hits = hybrid_hits.clone();
+    let amount = sim_amount.to_string();
+    let responder = move |req: &Request| {
+        let q = smart_query_from_request(req);
+        let data = if q.get("simulate_swap_operations").is_some() {
+            json!({ "amount": amount })
+        } else if q.get("hybrid_simulation").is_some() {
+            hits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            json!(null)
+        } else {
+            json!(null)
+        };
+        ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(responder)
+        .mount(&server)
+        .await;
+    (server, hybrid_hits)
+}
+
 /// LCD stub for hybrid route optimization: `HybridSimulation` (including pool-only `book_input: 0`), router `simulate_swap_operations`.
 pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
     let responder = |req: &Request| {

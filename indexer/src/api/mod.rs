@@ -10,6 +10,7 @@ mod listing_timestamps;
 mod consolidated_stats;
 pub mod hooks;
 mod best_execution;
+pub mod db_orderbook_sim;
 mod hybrid_route_opt;
 pub mod limit_book_lcd;
 pub mod limit_book_price;
@@ -67,6 +68,12 @@ pub struct AppState {
     pub router_address: Option<String>,
     /// Factory contract for on-chain governance queries (blacklist, etc.).
     pub factory_address: Option<String>,
+    /// CL8Y fee-discount registry for on-chain `GetDiscount` (mirror grid fee parity with LCD).
+    pub fee_discount_address: Option<String>,
+    /// Postgres-backed hybrid grid for `/route/solve` (GitLab #319).
+    pub route_solver_db_hybrid: bool,
+    pub book_snapshot_max_staleness_ms: u64,
+    pub route_fidelity_drift_bps: u32,
 }
 
 pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
@@ -274,6 +281,7 @@ pub async fn find_pair_by_ticker(
         route_solver::SolveRouteParams,
         route_solver::SolveRoutePostBody,
         hybrid_route_opt::HybridHopJson,
+        route_solver::FidelityCheck,
         route_solver::RouteQuoteKind,
         route_solver::RouteHop,
         route_solver::RouteSolveResponse,
@@ -531,6 +539,10 @@ pub async fn serve(
         orderbook_cache: orderbook_sim::OrderbookCache::default(),
         router_address,
         factory_address,
+        fee_discount_address: config.fee_discount_address.clone(),
+        route_solver_db_hybrid: config.route_solver_db_hybrid,
+        book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
+        route_fidelity_drift_bps: config.route_fidelity_drift_bps,
     };
     let app = build_router(state, &config);
 

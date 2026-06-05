@@ -55,6 +55,8 @@ pub fn test_config() -> Config {
         rate_limit_lcd_heavy_rps: 0,
         oracle_poll_interval_ms: 30000,
         book_snapshot_interval_ms: 10_000,
+        route_solver_db_hybrid: false,
+        route_fidelity_drift_bps: 100,
         ustc_denom: None,
         router_address: None,
         block_tx_page_limit: 100,
@@ -366,6 +368,35 @@ pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
         token_e: None,
     }
 }
+
+/// Route solve seed + fresh `pair_reserves` mirror for Phase 1c DB hybrid tests.
+pub async fn seed_route_solve_with_mirror(pool: &PgPool) -> RouteSolveSeed {
+    use bigdecimal::BigDecimal;
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+    use std::str::FromStr;
+
+    let seed = seed_route_solve(pool).await;
+    let pair_id: i32 = sqlx::query_scalar(
+        "SELECT id FROM pairs WHERE contract_address = 'terra1pairrouteabc'",
+    )
+    .fetch_one(pool)
+    .await
+    .expect("route pair id");
+
+    let bd = |s: &str| BigDecimal::from_str(s).unwrap();
+    pair_reserves::upsert_pair_reserves(
+        pool,
+        pair_id,
+        &bd("10000000000000"),
+        &bd("10000000000000"),
+        30,
+        Some(100),
+    )
+    .await
+    .expect("upsert reserves");
+    seed
+}
+
 pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;
 
@@ -756,6 +787,10 @@ pub async fn build_test_app_with_price_and_config(
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
+        fee_discount_address: config.fee_discount_address.clone(),
+        route_solver_db_hybrid: config.route_solver_db_hybrid,
+        book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
+        route_fidelity_drift_bps: config.route_fidelity_drift_bps,
     };
     build_router(state, &config)
 }
