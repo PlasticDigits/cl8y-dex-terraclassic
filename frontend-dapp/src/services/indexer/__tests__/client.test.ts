@@ -252,6 +252,23 @@ describe('indexer client fetchJson', () => {
     expect(url).toContain('after_order_id=42')
   })
 
+  it('normalizes limit-book pages missing orders (GitLab #327)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          side: 'bid',
+          has_more: false,
+          next_after_order_id: null,
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    const page = await client.getPairLimitBookPage('terra1pairaddr000000000000000000000000000', 'bid')
+    expect(page.orders).toEqual([])
+    expect(page.has_more).toBe(false)
+  })
+
   it('builds insert-hints URL (GitLab #267 / #268)', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(

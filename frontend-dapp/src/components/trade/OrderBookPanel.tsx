@@ -11,6 +11,7 @@ import { formatNum, formatTokenAmount, fromRawAmount } from '@/utils/formatAmoun
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { partitionLimitPlacementsByLifecycle } from '@/utils/limitPlacementLifecycle'
 import { TRADE_PANEL_BOOK_UNAVAILABLE } from '@/utils/indexerTradeOutageCopy'
+import { flattenLimitBookPages } from '@/utils/limitBookInsertHint'
 import { TradeMarketDataUnavailableNotice } from '@/components/trade/TradeMarketDataUnavailableNotice'
 
 function rawTotal(orders: IndexerShallowLimitOrder[]): bigint {
@@ -219,7 +220,7 @@ function BookSideColumn({
 
   const q = useLimitBookInfinite(pairAddress, side)
 
-  const orders = q.data?.pages.flatMap((p) => p.orders) ?? []
+  const orders = flattenLimitBookPages(q.data?.pages).orders
   const maxRaw = rawTotal(orders)
   let runningRaw = 0n
   const rows = orders.map((order) => {

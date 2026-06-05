@@ -78,6 +78,12 @@ describe('sanitizeOpaqueErrorMessage', () => {
     const long = 'x'.repeat(300)
     expect(sanitizeOpaqueErrorMessage(long).length).toBeLessThanOrEqual(240)
   })
+
+  it('replaces raw undefined property reads (GitLab #327)', () => {
+    expect(sanitizeOpaqueErrorMessage("Cannot read properties of undefined (reading 'length')")).toMatch(
+      /something went wrong while loading/i
+    )
+  })
 })
 
 describe('humanizeUserFacingError', () => {

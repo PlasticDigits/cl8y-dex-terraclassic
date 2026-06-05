@@ -117,6 +117,15 @@ describe('getAllPairsPaginated', () => {
     expect(mockedQuery).toHaveBeenCalledTimes(1)
   })
 
+  it('treats missing pairs field as empty page (GitLab #327)', async () => {
+    mockedQuery.mockResolvedValueOnce({} as { pairs: PairInfo[] })
+
+    const result = await getAllPairsPaginated()
+
+    expect(result.pairs).toEqual([])
+    expect(mockedQuery).toHaveBeenCalledTimes(1)
+  })
+
   it('respects the maxPairs limit', async () => {
     const page1 = Array.from({ length: 50 }, (_, i) => makePairInfo(`pair${i}`, TOKEN_A, `terra1t${i}`))
 

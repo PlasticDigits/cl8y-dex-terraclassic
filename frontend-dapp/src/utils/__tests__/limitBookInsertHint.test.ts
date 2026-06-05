@@ -58,4 +58,13 @@ describe('flattenLimitBookPages', () => {
     expect(flat.orders.map((o) => o.order_id)).toEqual([1, 2])
     expect(flat.hasMore).toBe(false)
   })
+
+  it('ignores pages with missing orders (GitLab #327)', () => {
+    const flat = flattenLimitBookPages([
+      { orders: [order(1, '1')], has_more: true },
+      { has_more: false } as { orders: IndexerShallowLimitOrder[]; has_more: boolean },
+    ])
+    expect(flat.orders.map((o) => o.order_id)).toEqual([1])
+    expect(flat.hasMore).toBe(false)
+  })
 })
