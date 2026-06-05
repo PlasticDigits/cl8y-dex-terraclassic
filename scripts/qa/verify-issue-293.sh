@@ -76,6 +76,7 @@ else
 
   echo ""
   echo "  [3a] Global best-execution route trace (asymmetry expected — informational)"
+  set +e
   PY_GLOBAL="$(VERIFY293_INDEXER_URL="$INDEXER" python3 - <<'PY'
 import json, os, time, urllib.request
 
@@ -119,7 +120,9 @@ for a, b in PAIRS:
     print(f"           rev={hr:.4f} ({hops_r}h) {route_str(rev.get('router_operations'), addr_to_sym)}")
     print(f"           reciprocal-of-fwd={exp:.6f}  rev/reciprocal={ratio:.1f}x (asymmetric routes, not a decimal bug)")
 PY
-)" || true
+)"
+  PY_GLOBAL_RC=$?
+  set -e
   echo "$PY_GLOBAL"
 
   echo ""
@@ -179,7 +182,11 @@ PY
     bad "OE-1 hub pairs pool_only not near-inverse (see lines above)"
   fi
 
-  ok "global route asymmetry documented (see [3a] — different best paths per direction)"
+  if [[ $PY_GLOBAL_RC -eq 0 && -n "$PY_GLOBAL" ]]; then
+    ok "global route asymmetry documented (see [3a] — different best paths per direction)"
+  else
+    bad "global route asymmetry trace failed (see [3a] output above)"
+  fi
 
   sg docker -c './scripts/bots/stop-swarm.sh' >/dev/null 2>&1 || true
 fi
