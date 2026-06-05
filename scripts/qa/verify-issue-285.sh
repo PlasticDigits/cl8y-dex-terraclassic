@@ -100,7 +100,7 @@ else
     local max="${VERIFY285_TX_QUERY_ATTEMPTS:-20}"
     while (( attempts < max )); do
       local json
-      json="$(curl -sf "${LCD}/cosmos/tx/v1beta1/txs/${txhash}" 2>/dev/null || true)"
+      json="$(localterra_lcd_curl "$LCD" "/cosmos/tx/v1beta1/txs/${txhash}" 2>/dev/null || true)"
       if [[ -n "$json" ]] && echo "$json" | jq -e '.tx_response.txhash // .txhash' >/dev/null 2>&1; then
         echo "$json"
         return 0
