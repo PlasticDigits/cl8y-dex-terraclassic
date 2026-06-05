@@ -186,6 +186,22 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
     .fetch_one(pool)
     .await?;
 
+    // Migration seeds id=1 with zeros; refresh runs after pair sync. Fall back to a live
+    // aggregate when the rollup is still uninitialized but swap_events has 24h data.
+    if rollup.total_trades == 0 {
+        let cutoff_24h = Utc::now() - chrono::Duration::hours(24);
+        let has_recent_swaps: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM swap_events WHERE block_timestamp >= $1)",
+        )
+        .bind(cutoff_24h)
+        .fetch_one(pool)
+        .await?;
+
+        if has_recent_swaps {
+            return get_global_stats_live(pool).await;
+        }
+    }
+
     let pair_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM pairs")
         .fetch_one(pool)
         .await?;
