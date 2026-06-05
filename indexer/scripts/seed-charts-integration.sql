@@ -47,7 +47,8 @@ INSERT INTO swap_events (
   ask_asset_id,
   offer_amount,
   return_amount,
-  price
+  price,
+  swap_index
 )
 SELECT
   p.id,
@@ -59,12 +60,13 @@ SELECT
   a1.id,
   1000,
   950,
-  0.95
+  0.95,
+  0
 FROM pairs p
 JOIN assets a0 ON a0.denom = 'uluna'
 JOIN assets a1 ON a1.contract_address = 'terra1ustctoken'
 WHERE p.contract_address = 'terra1paircontractabc'
-ON CONFLICT (tx_hash, pair_id) DO NOTHING;
+ON CONFLICT (tx_hash, pair_id, swap_index) DO NOTHING;
 
 -- Replace prior fixture candles so re-seeds stay inside the 90-day default API window.
 DELETE FROM candles c
