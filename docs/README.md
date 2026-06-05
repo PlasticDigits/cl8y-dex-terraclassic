@@ -37,6 +37,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 
 ## QA
 - [QA stack invariants](./qa-invariants.md) — `make start-qa` vs `reset-qa` / `QA_FRESH_VOLUMES` ([GitLab #202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)); agent playbook [`skills/AGENTS_QA_FRESH_VOLUMES.md`](../skills/AGENTS_QA_FRESH_VOLUMES.md)
+- [QA redeploy decision guide](../skills/AGENTS_QA_REDEPLOY_DECISION.md) — when to `reset-qa` vs `deploy-local` vs no redeploy ([GitLab #325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325))
 - [QA Onboarding](./qa-onboarding.md) — getting started with QA, test flows, device matrix
 - [Bug Report Template](./qa-templates/frontend-bug.md)
 - [Test Pass Template](./qa-templates/qa-test-pass.md)

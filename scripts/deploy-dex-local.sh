@@ -25,6 +25,19 @@ ARTIFACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/artifacts" && pwd)"
 CONTRACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/contracts" && pwd)"
 # shellcheck source=scripts/lib/terrad-tx-events.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/terrad-tx-events.sh"
+# shellcheck source=scripts/lib/terrad-wait-tx.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/terrad-wait-tx.sh"
+# shellcheck source=scripts/lib/qa-phase-timing.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/qa-phase-timing.sh"
+
+QA_DEPLOY_SEED="${QA_DEPLOY_SEED:-full}"
+case "$QA_DEPLOY_SEED" in
+  full | minimal | charts | wallet) ;;
+  *)
+    echo "ERROR: unknown QA_DEPLOY_SEED=$QA_DEPLOY_SEED (full|minimal|charts|wallet)" >&2
+    exit 1
+    ;;
+esac
 
 # ── Staleness check ────────────────────────────────────────────────────
 # Fail fast if any WASM artifact is older than its source, so QA doesn't
@@ -97,6 +110,24 @@ PAIR_CONFIGS=(
 )
 PAIR_ADDRESSES=()
 
+# Seed profiles (GitLab #325): trim tokens/pairs/phases for faster QA when full history is unnecessary.
+case "$QA_DEPLOY_SEED" in
+  minimal | charts)
+    TOKEN_NAMES=("Ember" "Coral")
+    TOKEN_SYMBOLS=("EMBER" "CORAL")
+    NOWHITELIST_NAMES=()
+    NOWHITELIST_SYMBOLS=()
+    UNPAIRED_NAMES=()
+    UNPAIRED_SYMBOLS=()
+    PAIR_CONFIGS=("0:1:100000000000:100000000000")
+  ;;
+  wallet)
+    TOKEN_NAMES=("Ember" "Coral" "Jade")
+    TOKEN_SYMBOLS=("EMBER" "CORAL" "JADE")
+    PAIR_CONFIGS=("0:1:100000000000:100000000000")
+  ;;
+esac
+
 terrad_tx() {
     docker exec "$CONTAINER_NAME" terrad tx "$@" \
         --from test1 \
@@ -124,27 +155,32 @@ localterra_rpc_ready() {
 
 get_code_id() {
     local TX_HASH="$1"
-    sleep 3
     local RESULT
-    RESULT=$(terrad_query tx "$TX_HASH")
+    RESULT=$(terrad_wait_tx_query "$CONTAINER_NAME" "$TX_HASH" "$TERRAD_NODE")
     echo "$RESULT" | terrad_jq_code_id_from_tx_json
 }
 
 get_contract_address() {
     local TX_HASH="$1"
-    sleep 3
     local RESULT
-    RESULT=$(terrad_query tx "$TX_HASH")
+    RESULT=$(terrad_wait_tx_query "$CONTAINER_NAME" "$TX_HASH" "$TERRAD_NODE")
     echo "$RESULT" | terrad_jq_contract_address_from_tx_json
 }
 
+wait_tx() {
+    terrad_wait_tx_inclusion "$CONTAINER_NAME" "$1" "$TERRAD_NODE"
+}
+
 echo "=============================================="
-echo "CL8Y DEX - Local Deployment"
-echo "  10 Tokens, 3 Unpaired Tokens, 2 Non-Whitelisted Tokens, 23 Pairs"
+echo "CL8Y DEX - Local Deployment (seed=${QA_DEPLOY_SEED})"
+echo "  ${#TOKEN_SYMBOLS[@]} Tokens, ${#UNPAIRED_SYMBOLS[@]} Unpaired, ${#NOWHITELIST_SYMBOLS[@]} Non-Whitelisted, ${#PAIR_CONFIGS[@]} Pairs"
 echo "=============================================="
+
+qa_timing_begin_session
 
 # ── Phase 1: Infrastructure ─────────────────────────────────────────────
 
+qa_timing_phase_start "infrastructure"
 echo ""
 echo "[Phase 1] Infrastructure Setup"
 echo "----------------------------------------------"
@@ -280,7 +316,12 @@ factory_create_pair() {
 # PAIR_CONFIGS + 3 unpaired + 2 wrapped-native). The fee returns to treasury (== test1), so this is a
 # generous headroom check; it fails fast with an actionable message instead of dying mid-Phase-4.
 if [ "$PAIR_CREATION_FEE_ULUNA" != "0" ]; then
-    PAIRS_TO_CREATE=$(( ${#PAIR_CONFIGS[@]} + 5 ))
+    _qa_extra_pairs=0
+    case "$QA_DEPLOY_SEED" in
+      full) _qa_extra_pairs=5 ;;
+      wallet) _qa_extra_pairs=2 ;;
+    esac
+    PAIRS_TO_CREATE=$(( ${#PAIR_CONFIGS[@]} + _qa_extra_pairs ))
     FEE_NEEDED=$(( PAIR_CREATION_FEE_ULUNA * PAIRS_TO_CREATE + 5000000000 ))
     TEST1_ULUNA=$(terrad_query bank balances "$TEST_ADDRESS" \
       | jq -r '(.balances[]? | select(.denom=="uluna") | .amount) // empty' | head -1)
@@ -305,6 +346,13 @@ echo "  Router Address: $ROUTER_ADDRESS"
 
 # ── Phase 1b: Treasury & Wrap-Mapper ────────────────────────────────────
 
+TREASURY_ADDRESS=""
+WRAP_MAPPER_ADDRESS=""
+LUNC_C_ADDRESS=""
+USTC_C_ADDRESS=""
+
+if [ "$QA_DEPLOY_SEED" = "full" ] || [ "$QA_DEPLOY_SEED" = "wallet" ]; then
+qa_timing_phase_start "treasury-wrap"
 echo ""
 echo "[Phase 1b] Treasury & Wrap-Mapper Setup"
 echo "----------------------------------------------"
@@ -388,29 +436,29 @@ echo "[9b.7] Registering denom mappings on Wrap-Mapper..."
 TX_HASH=$(terrad_tx wasm execute "$WRAP_MAPPER_ADDRESS" \
   "{\"set_denom_mapping\":{\"denom\":\"uluna\",\"cw20_addr\":\"$LUNC_C_ADDRESS\"}}" | jq -r '.txhash')
 echo "  uluna -> LUNC-C: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 TX_HASH=$(terrad_tx wasm execute "$WRAP_MAPPER_ADDRESS" \
   "{\"set_denom_mapping\":{\"denom\":\"uusd\",\"cw20_addr\":\"$USTC_C_ADDRESS\"}}" | jq -r '.txhash')
 echo "  uusd -> USTC-C: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 
 echo ""
 echo "[9b.8] Registering wrappers on Treasury..."
 TX_HASH=$(terrad_tx wasm execute "$TREASURY_ADDRESS" \
   "{\"set_denom_wrapper\":{\"denom\":\"uluna\",\"wrapper\":\"$WRAP_MAPPER_ADDRESS\"}}" | jq -r '.txhash')
 echo "  uluna wrapper: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 TX_HASH=$(terrad_tx wasm execute "$TREASURY_ADDRESS" \
   "{\"set_denom_wrapper\":{\"denom\":\"uusd\",\"wrapper\":\"$WRAP_MAPPER_ADDRESS\"}}" | jq -r '.txhash')
 echo "  uusd wrapper: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 
 echo ""
 echo "[9b.9] Setting Wrap-Mapper on Router..."
 TX_HASH=$(terrad_tx wasm execute "$ROUTER_ADDRESS" \
   "{\"set_wrap_mapper\":{\"wrap_mapper\":\"$WRAP_MAPPER_ADDRESS\"}}" | jq -r '.txhash')
 echo "  Set wrap-mapper: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 
 echo ""
 # SDK 0.53 LocalTerra genesis: 1M LUNC + 10M USTC on test1 (GitLab #292). Keep headroom for deploy gas.
@@ -419,7 +467,7 @@ echo "[9b.10] Funding Treasury ($TREASURY_FUND_COINS)..."
 TX_HASH=$(terrad_tx bank send test1 "$TREASURY_ADDRESS" \
   "$TREASURY_FUND_COINS" | jq -r '.txhash')
 echo "  Fund treasury: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 if terrad_query tx "$TX_HASH" | jq -e '.code == 0' >/dev/null 2>&1; then
   echo "  Treasury funded: $TREASURY_FUND_COINS"
 else
@@ -427,6 +475,13 @@ else
   terrad_query tx "$TX_HASH" | jq -r '.raw_log // "no log"' >&2
   exit 1
 fi
+qa_timing_phase_end
+else
+  echo ""
+  echo "[Phase 1b] Skipped (seed=${QA_DEPLOY_SEED} — no wrap/treasury E2E)"
+fi
+
+qa_timing_phase_start "tokens-pairs"
 
 # ── Phase 2: Tokens ─────────────────────────────────────────────────────
 
@@ -454,6 +509,7 @@ echo "  All ${#TOKEN_NAMES[@]} tokens created."
 
 # ── Phase 2b: Non-Whitelisted Tokens ────────────────────────────────────
 
+if [ "${#NOWHITELIST_NAMES[@]}" -gt 0 ]; then
 echo ""
 echo "[Phase 2b] Creating ${#NOWHITELIST_NAMES[@]} Non-Whitelisted Tokens (code_id=$CW20_CODE_ID_NOWHITELIST)"
 echo "----------------------------------------------"
@@ -475,9 +531,11 @@ done
 
 echo ""
 echo "  All ${#NOWHITELIST_NAMES[@]} non-whitelisted tokens created."
+fi
 
 # ── Phase 2c: Unpaired Tokens ───────────────────────────────────────────
 
+if [ "${#UNPAIRED_NAMES[@]}" -gt 0 ]; then
 echo ""
 echo "[Phase 2c] Creating ${#UNPAIRED_NAMES[@]} Unpaired/Minimally-Paired Tokens"
 echo "----------------------------------------------"
@@ -500,6 +558,7 @@ done
 echo ""
 echo "  All ${#UNPAIRED_NAMES[@]} unpaired tokens created."
 echo "  ZINC: 0 pairs | IRON: will get 1 pair | NEON: will get 2 pairs"
+fi
 
 # ── Phase 3: Fee Discount ───────────────────────────────────────────────
 
@@ -543,7 +602,7 @@ echo "[13] Adding trusted router..."
 TX_HASH=$(terrad_tx wasm execute "$FEE_DISCOUNT_ADDRESS" \
   "{\"add_trusted_router\":{\"router\":\"$ROUTER_ADDRESS\"}}" | jq -r '.txhash')
 echo "  Added trusted router: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 
 # ── Phase 4: Pairs, Liquidity & Discount Registries ─────────────────────
 
@@ -566,7 +625,7 @@ for p in "${!PAIR_CONFIGS[@]}"; do
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
     TX_HASH=$(factory_create_pair "$CREATE_MSG" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
     PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
     PAIR_ADDRESSES+=("$PAIR_ADDR")
@@ -576,23 +635,23 @@ for p in "${!PAIR_CONFIGS[@]}"; do
     TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
       "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
     echo "  Set discount registry: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
 
     # Approve tokens for pair
     TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \
       "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_A\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
     echo "  Approved $SYM_A: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
     TX_HASH=$(terrad_tx wasm execute "$ADDR_B" \
       "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_B\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
     echo "  Approved $SYM_B: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
 
     # Provide liquidity
     PROVIDE_MSG="{\"provide_liquidity\":{\"assets\":[{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_A\"}},\"amount\":\"$LIQ_A\"},{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_B\"}},\"amount\":\"$LIQ_B\"}],\"slippage_tolerance\":null,\"receiver\":null,\"deadline\":null}}"
     TX_HASH=$(terrad_tx wasm execute "$PAIR_ADDR" "$PROVIDE_MSG" | jq -r '.txhash')
     echo "  Liquidity provided ($LIQ_A / $LIQ_B): $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
 done
 
 echo ""
@@ -602,6 +661,7 @@ echo "  All ${#PAIR_CONFIGS[@]} pairs created with liquidity."
 # Generate at least one remove + re-add event for the first pair so the
 # indexer's liquidity_events table is populated with both event types.
 
+if [ "$QA_DEPLOY_SEED" = "full" ]; then
 echo ""
 echo "[Phase 4a] Liquidity withdraw/re-provide cycle (pair 1: ${TOKEN_SYMBOLS[0]}/${TOKEN_SYMBOLS[1]})"
 echo "----------------------------------------------"
@@ -623,7 +683,7 @@ WITHDRAW_HOOK=$(echo -n '{"withdraw_liquidity":{}}' | base64 -w0)
 TX_HASH=$(terrad_tx wasm execute "$LP_TOKEN" \
   "{\"send\":{\"contract\":\"$LP_PAIR_ADDR\",\"amount\":\"$WITHDRAW_AMOUNT\",\"msg\":\"$WITHDRAW_HOOK\"}}" | jq -r '.txhash')
 echo "  Withdraw TX: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 
 READD_A=5000000000
 READD_B=5000000000
@@ -634,23 +694,25 @@ echo "  Re-approving tokens for re-provide..."
 TX_HASH=$(terrad_tx wasm execute "$READD_ADDR_A" \
   "{\"increase_allowance\":{\"spender\":\"$LP_PAIR_ADDR\",\"amount\":\"$READD_A\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
 echo "  Approved ${TOKEN_SYMBOLS[0]}: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 TX_HASH=$(terrad_tx wasm execute "$READD_ADDR_B" \
   "{\"increase_allowance\":{\"spender\":\"$LP_PAIR_ADDR\",\"amount\":\"$READD_B\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
 echo "  Approved ${TOKEN_SYMBOLS[1]}: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 
 echo "  Re-providing liquidity ($READD_A / $READD_B)..."
 READD_MSG="{\"provide_liquidity\":{\"assets\":[{\"info\":{\"token\":{\"contract_addr\":\"$READD_ADDR_A\"}},\"amount\":\"$READD_A\"},{\"info\":{\"token\":{\"contract_addr\":\"$READD_ADDR_B\"}},\"amount\":\"$READD_B\"}],\"slippage_tolerance\":null,\"receiver\":null,\"deadline\":null}}"
 TX_HASH=$(terrad_tx wasm execute "$LP_PAIR_ADDR" "$READD_MSG" | jq -r '.txhash')
 echo "  Re-provide TX: $TX_HASH"
-sleep 3
+wait_tx "$TX_HASH"
 
 echo "  Liquidity cycle complete (1 withdraw + 1 re-provide)."
+fi
 
 # ── Phase 4b: Unpaired Token Pairs ──────────────────────────────────────
 # IRON gets 1 pair, NEON gets 2 pairs, ZINC stays at 0 pairs
 
+if [ "$QA_DEPLOY_SEED" = "full" ]; then
 echo ""
 echo "[Phase 4b] Creating Pairs for Unpaired Tokens"
 echo "----------------------------------------------"
@@ -676,7 +738,7 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
     TX_HASH=$(factory_create_pair "$CREATE_MSG" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
     PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
     echo "  Pair Address: $PAIR_ADDR"
@@ -684,28 +746,30 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
     TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
       "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
     echo "  Set discount registry: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
 
     TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \
       "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_A\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
     echo "  Approved $SYM_A: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
     TX_HASH=$(terrad_tx wasm execute "$ADDR_B" \
       "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_B\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
     echo "  Approved $SYM_B: $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
 
     PROVIDE_MSG="{\"provide_liquidity\":{\"assets\":[{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_A\"}},\"amount\":\"$LIQ_A\"},{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_B\"}},\"amount\":\"$LIQ_B\"}],\"slippage_tolerance\":null,\"receiver\":null,\"deadline\":null}}"
     TX_HASH=$(terrad_tx wasm execute "$PAIR_ADDR" "$PROVIDE_MSG" | jq -r '.txhash')
     echo "  Liquidity provided ($LIQ_A / $LIQ_B): $TX_HASH"
-    sleep 3
+    wait_tx "$TX_HASH"
 done
 
 echo ""
 echo "  $UNPAIRED_PAIR_NUM unpaired-token pairs created (ZINC: 0, IRON: 1, NEON: 2)."
+fi
 
 # ── Phase 4c: Wrapped-native pairs (wrap / native swap E2E, GitLab #201) ──
 
+if { [ "$QA_DEPLOY_SEED" = "full" ] || [ "$QA_DEPLOY_SEED" = "wallet" ]; } && [ -n "$LUNC_C_ADDRESS" ]; then
 echo ""
 echo "[Phase 4c] Creating wrapped-native pairs for wrap E2E"
 echo "----------------------------------------------"
@@ -723,7 +787,7 @@ do
   CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
   TX_HASH=$(factory_create_pair "$CREATE_MSG" | jq -r '.txhash')
   echo "  TX: $TX_HASH"
-  sleep 3
+  wait_tx "$TX_HASH"
   PAIR_RESULT=$(terrad_query tx "$TX_HASH")
   PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
   echo "  Pair Address: $PAIR_ADDR"
@@ -731,28 +795,30 @@ do
   TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
     "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
   echo "  Set discount registry: $TX_HASH"
-  sleep 3
+  wait_tx "$TX_HASH"
 
   TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \
     "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_A\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
   echo "  Approved $SYM_A: $TX_HASH"
-  sleep 3
+  wait_tx "$TX_HASH"
   TX_HASH=$(terrad_tx wasm execute "$ADDR_B" \
     "{\"increase_allowance\":{\"spender\":\"$PAIR_ADDR\",\"amount\":\"$LIQ_B\",\"expires\":{\"never\":{}}}}" | jq -r '.txhash')
   echo "  Approved $SYM_B: $TX_HASH"
-  sleep 3
+  wait_tx "$TX_HASH"
 
   PROVIDE_MSG="{\"provide_liquidity\":{\"assets\":[{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_A\"}},\"amount\":\"$LIQ_A\"},{\"info\":{\"token\":{\"contract_addr\":\"$ADDR_B\"}},\"amount\":\"$LIQ_B\"}],\"slippage_tolerance\":null,\"receiver\":null,\"deadline\":null}}"
   TX_HASH=$(terrad_tx wasm execute "$PAIR_ADDR" "$PROVIDE_MSG" | jq -r '.txhash')
   echo "  Liquidity provided ($LIQ_A / $LIQ_B): $TX_HASH"
-  sleep 3
+  wait_tx "$TX_HASH"
 done
 
 echo ""
 echo "  $WRAP_PAIR_NUM wrapped-native pairs created."
+fi
 
 # ── Phase 5: Test Swaps ─────────────────────────────────────────────────
 
+if [ "$QA_DEPLOY_SEED" = "full" ] || [ "$QA_DEPLOY_SEED" = "charts" ]; then
 echo ""
 echo "[Phase 5] Executing Test Swaps"
 echo "----------------------------------------------"
@@ -787,25 +853,32 @@ for p in "${!PAIR_CONFIGS[@]}"; do
       "{\"send\":{\"contract\":\"$PAIR_ADDR\",\"amount\":\"$SWAP_A1\",\"msg\":\"$SWAP_HOOK\"}}" | jq -r '.txhash')
     echo "    TX: $TX_HASH"
     SWAP_COUNT=$((SWAP_COUNT+1))
-    sleep 3
+    wait_tx "$TX_HASH"
 
     echo "  Swap $((SWAP_COUNT+1)): $SWAP_B1 $SYM_B -> $SYM_A"
     TX_HASH=$(terrad_tx wasm execute "$ADDR_B" \
       "{\"send\":{\"contract\":\"$PAIR_ADDR\",\"amount\":\"$SWAP_B1\",\"msg\":\"$SWAP_HOOK\"}}" | jq -r '.txhash')
     echo "    TX: $TX_HASH"
     SWAP_COUNT=$((SWAP_COUNT+1))
-    sleep 3
+    wait_tx "$TX_HASH"
 
     echo "  Swap $((SWAP_COUNT+1)): $SWAP_A2 $SYM_A -> $SYM_B"
     TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \
       "{\"send\":{\"contract\":\"$PAIR_ADDR\",\"amount\":\"$SWAP_A2\",\"msg\":\"$SWAP_HOOK\"}}" | jq -r '.txhash')
     echo "    TX: $TX_HASH"
     SWAP_COUNT=$((SWAP_COUNT+1))
-    sleep 3
+    wait_tx "$TX_HASH"
 done
 
 echo ""
 echo "  $SWAP_COUNT total swaps executed across ${#PAIR_CONFIGS[@]} pairs."
+else
+  SWAP_COUNT=0
+  echo ""
+  echo "[Phase 5] Skipped (seed=${QA_DEPLOY_SEED} — no swap history seed)"
+fi
+
+qa_timing_phase_end
 
 # ── Phase 6: Summary ────────────────────────────────────────────────────
 
@@ -869,11 +942,11 @@ VITE_TREASURY_ADDRESS=$TREASURY_ADDRESS
 VITE_WRAP_MAPPER_ADDRESS=$WRAP_MAPPER_ADDRESS
 VITE_LUNC_C_TOKEN_ADDRESS=$LUNC_C_ADDRESS
 VITE_USTC_C_TOKEN_ADDRESS=$USTC_C_ADDRESS
-VITE_NOWHITELIST_TOKEN_1=${NOWHITELIST_ADDRESSES[0]}
-VITE_NOWHITELIST_TOKEN_2=${NOWHITELIST_ADDRESSES[1]}
-VITE_UNPAIRED_TOKEN_ZINC=${UNPAIRED_ADDRESSES[0]}
-VITE_UNPAIRED_TOKEN_IRON=${UNPAIRED_ADDRESSES[1]}
-VITE_UNPAIRED_TOKEN_NEON=${UNPAIRED_ADDRESSES[2]}
+VITE_NOWHITELIST_TOKEN_1=${NOWHITELIST_ADDRESSES[0]:-}
+VITE_NOWHITELIST_TOKEN_2=${NOWHITELIST_ADDRESSES[1]:-}
+VITE_UNPAIRED_TOKEN_ZINC=${UNPAIRED_ADDRESSES[0]:-}
+VITE_UNPAIRED_TOKEN_IRON=${UNPAIRED_ADDRESSES[1]:-}
+VITE_UNPAIRED_TOKEN_NEON=${UNPAIRED_ADDRESSES[2]:-}
 # Use 127.0.0.1 so the browser does not resolve "localhost" to ::1 while API_BIND is IPv4-only.
 VITE_INDEXER_URL=http://127.0.0.1:${API_PORT:-3001}
 ENVEOF
@@ -930,4 +1003,5 @@ echo "  git_sha=${DEPLOY_GIT_SHA} pair=${VERIFY_PAIR}"
 
 echo ""
 echo "Test address: $TEST_ADDRESS"
-echo "  10 tokens, 3 unpaired tokens, 2 non-whitelisted tokens, 23 pairs, $SWAP_COUNT swaps executed"
+echo "  seed=${QA_DEPLOY_SEED}: ${#TOKEN_SYMBOLS[@]} tokens, ${#UNPAIRED_SYMBOLS[@]} unpaired, ${#NOWHITELIST_SYMBOLS[@]} non-whitelisted, ${#PAIR_CONFIGS[@]} pairs, $SWAP_COUNT swaps executed"
+qa_timing_session_end
