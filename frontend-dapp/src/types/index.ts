@@ -432,6 +432,9 @@ export type IndexerRouteQuoteKind =
   | 'indexer_pool_lcd'
   | 'indexer_hybrid_lcd'
   | 'indexer_hybrid_lcd_degraded'
+  | 'indexer_pool_db'
+  | 'indexer_hybrid_db'
+  | 'indexer_hybrid_db_degraded'
 
 export interface IndexerRouteSolveResponse {
   token_in: string
@@ -443,6 +446,10 @@ export interface IndexerRouteSolveResponse {
   hybrid_notes?: string | null
   router_operations: unknown[]
   estimated_amount_out?: string
+  /** `global_v2` when DB mirror grid is enabled. */
+  solver_version?: string
+  fidelity_check?: 'passed' | 'drift' | 'skipped'
+  db_hybrid_queries?: number
 }
 
 export interface IndexerTrader {

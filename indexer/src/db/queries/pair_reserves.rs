@@ -2,6 +2,7 @@
 //! hybrid solver can price the pool leg without an LCD call. One row per pair, replaced per snapshot.
 
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
 
 #[derive(Debug, Clone, FromRow)]
@@ -14,6 +15,7 @@ pub struct PairReservesRow {
     pub fee_bps: i16,
     /// Chain height the snapshot was taken at, when known.
     pub block_height: Option<i64>,
+    pub snapshot_at: DateTime<Utc>,
 }
 
 /// Upsert the current reserves snapshot for a pair (replaces any prior row).
@@ -56,7 +58,7 @@ pub async fn get_pair_reserves(
     pair_id: i32,
 ) -> Result<Option<PairReservesRow>, sqlx::Error> {
     sqlx::query_as::<_, PairReservesRow>(
-        "SELECT pair_id, reserve_0, reserve_1, fee_bps, block_height
+        "SELECT pair_id, reserve_0, reserve_1, fee_bps, block_height, snapshot_at
          FROM pair_reserves WHERE pair_id = $1",
     )
     .bind(pair_id)

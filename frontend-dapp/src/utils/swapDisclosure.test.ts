@@ -89,9 +89,12 @@ describe('getIndexerHybridExecutionSummary', () => {
   })
 
   it('shows for hybrid LCD kinds', () => {
-    const a = getIndexerHybridExecutionSummary('indexer_hybrid_lcd')
-    expect(a.show).toBe(true)
-    if (a.show) expect(a.degraded).toBe(false)
+    const db = getIndexerHybridExecutionSummary('indexer_hybrid_db')
+    const lcd = getIndexerHybridExecutionSummary('indexer_hybrid_lcd')
+    expect(db.show).toBe(true)
+    expect(lcd.show).toBe(true)
+    if (db.show) expect(db.degraded).toBe(false)
+    if (lcd.show) expect(lcd.degraded).toBe(false)
     const b = getIndexerHybridExecutionSummary('indexer_hybrid_lcd_degraded')
     expect(b.show).toBe(true)
     if (b.show) expect(b.degraded).toBe(true)

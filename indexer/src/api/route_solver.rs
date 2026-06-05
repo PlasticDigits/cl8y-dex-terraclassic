@@ -88,6 +88,31 @@ pub enum RouteQuoteKind {
     IndexerHybridLcd,
     /// Hybrid grid failed on at least one hop; degraded to pool-only `HybridSimulation` (`book_input: 0`). See `hybrid_notes`.
     IndexerHybridLcdDegraded,
+    /// Pool-only ops; grid priced from Postgres mirror (`global_v2`).
+    IndexerPoolDb,
+    /// Hybrid legs from indexed mirror (`global_v2`).
+    IndexerHybridDb,
+    /// Mirror/grid degraded or fidelity drift rejected optimistic DB output.
+    IndexerHybridDbDegraded,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FidelityCheck {
+    Passed,
+    Drift,
+    #[default]
+    Skipped,
+}
+
+impl FidelityCheck {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FidelityCheck::Passed => "passed",
+            FidelityCheck::Drift => "drift",
+            FidelityCheck::Skipped => "skipped",
+        }
+    }
 }
 
 pub(crate) struct ResolvedRoute {
@@ -235,6 +260,15 @@ pub struct RouteSolveResponse {
     /// Approximate pair-level `HybridSimulation` LCD calls during optimization. Upper bound documented as `LCD_HYBRID_SIM_BUDGET`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lcd_hybrid_queries: Option<u32>,
+    /// Postgres mirror hybrid grid evaluations (`global_v2`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_hybrid_queries: Option<u32>,
+    /// Router sim vs mirror grid drift guard (#319).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fidelity_check: Option<FidelityCheck>,
+    /// Reserved: max chain lag vs mirror `block_height` (future).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mirror_max_block_lag: Option<i64>,
 }
 
 pub(crate) fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
@@ -489,6 +523,9 @@ pub(crate) fn quote_kind_after_sim(estimated: &Option<String>, base: RouteQuoteK
             RouteQuoteKind::IndexerPoolLcd
                 | RouteQuoteKind::IndexerHybridLcd
                 | RouteQuoteKind::IndexerHybridLcdDegraded
+                | RouteQuoteKind::IndexerPoolDb
+                | RouteQuoteKind::IndexerHybridDb
+                | RouteQuoteKind::IndexerHybridDbDegraded
         )
     {
         return RouteQuoteKind::IndexerRouteOnly;
@@ -521,7 +558,7 @@ fn amount_cache_key(amount: u128) -> u128 {
 /// served. Per Plastik's direction we key on the tier (not the raw address) so same-tier
 /// callers still share the cache. Tier comes from the already-synced `traders.tier_id` — no
 /// extra LCD call; absent/unknown subject resolves to tier 0 (full fee).
-async fn resolve_discount_tier(
+pub(crate) async fn resolve_discount_tier(
     state: &AppState,
     quote_trader: &hybrid_route_opt::QuoteTrader,
 ) -> i16 {
@@ -537,6 +574,7 @@ async fn resolve_discount_tier(
 }
 
 fn hybrid_cache_key(
+    solver_version: &str,
     token_in: &str,
     token_out: &str,
     amount_bucket: u128,
@@ -551,7 +589,7 @@ fn hybrid_cache_key(
         .unwrap_or_else(|| "none".to_string());
     format!(
         "{}|{}|{}|{}|{}|{}|t{}",
-        crate::api::best_execution::SOLVER_VERSION,
+        solver_version,
         token_in.trim().to_lowercase(),
         token_out.trim().to_lowercase(),
         amount_bucket,
@@ -608,7 +646,16 @@ async fn execute_hybrid_route_solve(
     let max_makers = max_maker_fills.max(1);
     let bucket = amount_cache_key(amount_u);
     let discount_tier = resolve_discount_tier(state, quote_trader).await;
-    let ck = hybrid_cache_key(token_in, token_out, bucket, max_makers, quote_trader, discount_tier);
+    let solver_version = crate::api::best_execution::solver_version_for(state);
+    let ck = hybrid_cache_key(
+        solver_version,
+        token_in,
+        token_out,
+        bucket,
+        max_makers,
+        quote_trader,
+        discount_tier,
+    );
     if let Some(cached) = cache_get(&ck) {
         return Ok(Json(cached));
     }
@@ -736,6 +783,9 @@ pub async fn solve_route(
         paths_considered: None,
         optimality_scope: None,
         lcd_hybrid_queries: None,
+        db_hybrid_queries: None,
+        fidelity_check: None,
+        mirror_max_block_lag: None,
     };
 
     Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
@@ -796,6 +846,9 @@ pub async fn solve_route_post(
         paths_considered: None,
         optimality_scope: None,
         lcd_hybrid_queries: None,
+        db_hybrid_queries: None,
+        fidelity_check: None,
+        mirror_max_block_lag: None,
     };
 
     Ok(Json(serde_json::to_value(out).map_err(internal_err)?))
@@ -850,9 +903,9 @@ mod hybrid_cache_key_tests {
             trader: Some("terra1otherwallet00000000000000000000000".into()),
             sender: None,
         };
-        let base = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &none, 0);
-        let d1 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &discounted, 0);
-        let d2 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &other, 0);
+        let base = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &none, 0);
+        let d1 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &discounted, 0);
+        let d2 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &other, 0);
         assert_ne!(base, d1, "full-fee cache must not share key with trader");
         assert_ne!(d1, d2, "distinct traders must not share cache key");
         assert_ne!(base, d2);
@@ -867,9 +920,9 @@ mod hybrid_cache_key_tests {
             trader: None,
             sender: Some("terra1sender0000000000000000000000000000".into()),
         };
-        let tier0 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &qt, 0);
-        let tier5 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &qt, 5);
-        let tier9 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &qt, 9);
+        let tier0 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 0);
+        let tier5 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 5);
+        let tier9 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 9);
         assert_ne!(tier0, tier5, "different discount tiers must not share a cache key");
         assert_ne!(tier5, tier9);
         // Same tier (even from a different sender address) shares the key by design.
@@ -879,7 +932,7 @@ mod hybrid_cache_key_tests {
         };
         assert_eq!(
             tier5,
-            hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &other_sender, 5),
+            hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &other_sender, 5),
             "same-tier callers should reuse the cache regardless of address"
         );
     }
