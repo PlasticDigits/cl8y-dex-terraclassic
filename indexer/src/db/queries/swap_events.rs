@@ -51,6 +51,7 @@ pub struct HybridVolumeBreakdown {
 pub async fn insert_swap(
     pool: &PgPool,
     pair_id: i32,
+    swap_index: i32,
     block_height: i64,
     block_timestamp: DateTime<Utc>,
     tx_hash: &str,
@@ -74,9 +75,9 @@ pub async fn insert_swap(
          (pair_id, block_height, block_timestamp, tx_hash, sender, receiver,
           offer_asset_id, ask_asset_id, offer_amount, return_amount,
           spread_amount, commission_amount, effective_fee_bps, price, volume_usd,
-          pool_return_amount, book_return_amount, limit_book_offer_consumed)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-         ON CONFLICT (tx_hash, pair_id) DO NOTHING
+          pool_return_amount, book_return_amount, limit_book_offer_consumed, swap_index)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         ON CONFLICT (tx_hash, pair_id, swap_index) DO NOTHING
          RETURNING id",
     )
     .bind(pair_id)
@@ -97,6 +98,7 @@ pub async fn insert_swap(
     .bind(pool_return_amount)
     .bind(book_return_amount)
     .bind(limit_book_offer_consumed)
+    .bind(swap_index)
     .fetch_optional(pool)
     .await
 }
@@ -326,12 +328,18 @@ pub async fn get_24h_hybrid_breakdown(
     })
 }
 
-pub async fn trade_exists(pool: &PgPool, tx_hash: &str, pair_id: i32) -> Result<bool, sqlx::Error> {
+pub async fn trade_exists(
+    pool: &PgPool,
+    tx_hash: &str,
+    pair_id: i32,
+    swap_index: i32,
+) -> Result<bool, sqlx::Error> {
     let count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM swap_events WHERE tx_hash = $1 AND pair_id = $2",
+        "SELECT COUNT(*) FROM swap_events WHERE tx_hash = $1 AND pair_id = $2 AND swap_index = $3",
     )
     .bind(tx_hash)
     .bind(pair_id)
+    .bind(swap_index)
     .fetch_one(pool)
     .await?;
     Ok(count > 0)
