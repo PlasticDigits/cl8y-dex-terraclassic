@@ -68,6 +68,8 @@ pub struct AppState {
     pub router_address: Option<String>,
     /// Factory contract for on-chain governance queries (blacklist, etc.).
     pub factory_address: Option<String>,
+    /// CL8Y fee-discount registry for on-chain `GetDiscount` (mirror grid fee parity with LCD).
+    pub fee_discount_address: Option<String>,
     /// Postgres-backed hybrid grid for `/route/solve` (GitLab #319).
     pub route_solver_db_hybrid: bool,
     pub book_snapshot_max_staleness_ms: u64,
@@ -537,6 +539,7 @@ pub async fn serve(
         orderbook_cache: orderbook_sim::OrderbookCache::default(),
         router_address,
         factory_address,
+        fee_discount_address: config.fee_discount_address.clone(),
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,

@@ -581,6 +581,45 @@ pub(crate) async fn resolve_discount_tier(
     }
 }
 
+/// On-chain `GetDiscount` discount_bps for mirror grid pricing — matches pair `HybridSimulation` / router sim (#319).
+pub(crate) async fn resolve_discount_bps(
+    state: &AppState,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
+) -> u16 {
+    let (trader, sender) = match (
+        quote_trader.trader.as_deref(),
+        quote_trader.sender.as_deref(),
+    ) {
+        (None, None) => return 0,
+        (Some(t), None) => (t.trim(), t.trim()),
+        (None, Some(s)) => (s.trim(), s.trim()),
+        (Some(t), Some(s)) => (t.trim(), s.trim()),
+    };
+
+    if let Some(fee_addr) = state
+        .fee_discount_address
+        .as_deref()
+        .filter(|a| !a.is_empty())
+    {
+        let q = json!({
+            "get_discount": {
+                "trader": trader,
+                "sender": sender,
+            }
+        });
+        if let Ok(val) = state.lcd.query_contract::<serde_json::Value>(fee_addr, &q).await {
+            return val
+                .get("discount_bps")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u16;
+        }
+    }
+
+    crate::api::db_orderbook_sim::tier_discount_bps(
+        resolve_discount_tier(state, quote_trader).await,
+    )
+}
+
 fn hybrid_cache_key(
     solver_version: &str,
     token_in: &str,
@@ -588,7 +627,7 @@ fn hybrid_cache_key(
     amount_bucket: u128,
     max_maker_fills: u32,
     quote_trader: &hybrid_route_opt::QuoteTrader,
-    discount_tier: i16,
+    discount_bps: u16,
 ) -> String {
     let trader_key = quote_trader
         .trader
@@ -596,14 +635,14 @@ fn hybrid_cache_key(
         .map(|t| t.trim().to_lowercase())
         .unwrap_or_else(|| "none".to_string());
     format!(
-        "{}|{}|{}|{}|{}|{}|t{}",
+        "{}|{}|{}|{}|{}|{}|d{}",
         solver_version,
         token_in.trim().to_lowercase(),
         token_out.trim().to_lowercase(),
         amount_bucket,
         max_maker_fills,
         trader_key,
-        discount_tier
+        discount_bps
     )
 }
 
@@ -653,7 +692,7 @@ async fn execute_hybrid_route_solve(
 
     let max_makers = max_maker_fills.max(1);
     let bucket = amount_cache_key(amount_u);
-    let discount_tier = resolve_discount_tier(state, quote_trader).await;
+    let discount_bps = resolve_discount_bps(state, quote_trader).await;
     let solver_version = crate::api::best_execution::solver_version_for(state);
     let ck = hybrid_cache_key(
         solver_version,
@@ -662,7 +701,7 @@ async fn execute_hybrid_route_solve(
         bucket,
         max_makers,
         quote_trader,
-        discount_tier,
+        discount_bps,
     );
     if let Some(cached) = cache_get(&ck) {
         return Ok(Json(cached));
@@ -923,28 +962,28 @@ mod hybrid_cache_key_tests {
     // tiers can never collide and be served each other's quote — and two callers on the SAME
     // tier still share the cache.
     #[test]
-    fn hybrid_cache_key_distinguishes_discount_tier() {
+    fn hybrid_cache_key_distinguishes_discount_bps() {
         let qt = QuoteTrader {
             trader: None,
             sender: Some("terra1sender0000000000000000000000000000".into()),
         };
-        let tier0 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 0);
-        let tier5 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 5);
-        let tier9 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 9);
+        let tier0 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 10_000);
+        let tier5 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 5_000);
+        let tier9 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 9_500);
         assert_ne!(
             tier0, tier5,
-            "different discount tiers must not share a cache key"
+            "different discount bps must not share a cache key"
         );
         assert_ne!(tier5, tier9);
-        // Same tier (even from a different sender address) shares the key by design.
+        // Same discount (even from a different sender address) shares the key by design.
         let other_sender = QuoteTrader {
             trader: None,
             sender: Some("terra1othersender000000000000000000000000".into()),
         };
         assert_eq!(
             tier5,
-            hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &other_sender, 5),
-            "same-tier callers should reuse the cache regardless of address"
+            hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &other_sender, 5_000),
+            "same-discount callers should reuse the cache regardless of address"
         );
     }
 }

@@ -249,7 +249,7 @@ pub async fn solve_global_best_execution(
     let candidates =
         enumerate_path_candidates(&state.pool, token_in, token_out, GET_DEFAULT_MAX_HOPS).await?;
 
-    let discount_tier = crate::api::route_solver::resolve_discount_tier(state, quote_trader).await;
+    let discount_bps = crate::api::route_solver::resolve_discount_bps(state, quote_trader).await;
 
     let mut mirrors: HashMap<String, db_orderbook_sim::HopMirror> = HashMap::new();
     if db_mode {
@@ -297,7 +297,7 @@ pub async fn solve_global_best_execution(
             HybridSimSource::Db {
                 lcd_fallback: &state.lcd,
                 mirrors: &mirrors,
-                discount_tier,
+                discount_bps,
             }
         } else {
             HybridSimSource::Lcd(&state.lcd)

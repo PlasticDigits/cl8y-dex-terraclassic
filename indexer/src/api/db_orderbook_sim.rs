@@ -18,7 +18,7 @@ pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 30;
 const MAX_SCAN_STEPS: u32 = 256;
 
 /// Production tier `discount_bps` by `traders.tier_id` (see `docs/reference/fee-discount-tiers.md`).
-fn tier_discount_bps(tier_id: i16) -> u16 {
+pub(crate) fn tier_discount_bps(tier_id: i16) -> u16 {
     match tier_id {
         // Sentinel from `resolve_discount_tier` when no discount subject is known (#283).
         -1 => 0,
@@ -39,8 +39,12 @@ fn tier_discount_bps(tier_id: i16) -> u16 {
 
 #[inline]
 pub fn effective_fee_bps(base_fee_bps: u16, discount_tier: i16) -> u16 {
-    let discount = tier_discount_bps(discount_tier);
-    let num = (base_fee_bps as u32).saturating_mul(10_000u32 - discount as u32);
+    effective_fee_bps_from_discount_bps(base_fee_bps, tier_discount_bps(discount_tier))
+}
+
+#[inline]
+pub fn effective_fee_bps_from_discount_bps(base_fee_bps: u16, discount_bps: u16) -> u16 {
+    let num = (base_fee_bps as u32).saturating_mul(10_000u32 - discount_bps as u32);
     (num / 10_000) as u16
 }
 
@@ -349,7 +353,7 @@ pub fn simulate_hybrid_from_mirror(
     pool_input: u128,
     book_input: u128,
     max_maker_fills: u32,
-    discount_tier: i16,
+    discount_bps: u16,
 ) -> Result<u128, DbSimError> {
     if offer_amount == 0 {
         return Ok(0);
@@ -365,7 +369,7 @@ pub fn simulate_hybrid_from_mirror(
         });
     }
 
-    let eff_fee = effective_fee_bps(mirror.fee_bps, discount_tier);
+    let eff_fee = effective_fee_bps_from_discount_bps(mirror.fee_bps, discount_bps);
     let offer_is_token0 = offer_token.eq_ignore_ascii_case(&mirror.asset_0_addr);
 
     let (input_reserve, output_reserve) = if offer_is_token0 {
@@ -456,7 +460,7 @@ pub fn simulate_pool_only_from_mirror(
     mirror: &HopMirror,
     offer_token: &str,
     offer_amount: u128,
-    discount_tier: i16,
+    discount_bps: u16,
 ) -> Result<u128, DbSimError> {
     simulate_hybrid_from_mirror(
         mirror,
@@ -465,7 +469,7 @@ pub fn simulate_pool_only_from_mirror(
         offer_amount,
         0,
         1,
-        discount_tier,
+        discount_bps,
     )
 }
 
@@ -529,8 +533,8 @@ mod tests {
     #[test]
     fn effective_fee_tier_reduces_fee_increases_out() {
         let m = mirror_with_book(vec![]);
-        let full = simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 255).unwrap();
-        let disc = simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 5).unwrap();
+        let full = simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 0).unwrap();
+        let disc = simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 5_000).unwrap();
         assert!(disc > full);
     }
 }

@@ -57,7 +57,7 @@ pub enum HybridSimSource<'a> {
     Db {
         lcd_fallback: &'a LcdClient,
         mirrors: &'a HashMap<String, HopMirror>,
-        discount_tier: i16,
+        discount_bps: u16,
     },
 }
 
@@ -169,7 +169,7 @@ async fn query_hybrid_sim_unified(
         HybridSimSource::Db {
             lcd_fallback,
             mirrors,
-            discount_tier,
+            discount_bps,
         } => {
             let mirror_meta = mirror_meta
                 .as_mut()
@@ -188,7 +188,7 @@ async fn query_hybrid_sim_unified(
                         pool_input,
                         book_input,
                         max_maker_fills,
-                        *discount_tier,
+                        *discount_bps,
                     )
                     .map_err(HybridSimError::from);
                 }
