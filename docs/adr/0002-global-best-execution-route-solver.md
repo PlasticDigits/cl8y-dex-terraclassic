@@ -23,6 +23,10 @@ The indexer previously chose the **first** BFS shortest path and ran a **sequent
 - Degraded hops (`indexer_hybrid_lcd_degraded`) still pool-only fallback per hop (#190).
 - Discovery GET without `amount_in` still uses first BFS path only (no hybrid solver).
 
+## Amendments
+
+- **#323** (2026): Raised default hybrid GET hop cap from **3 → 4** (`GET_DEFAULT_MAX_HOPS`) after #319 (DB mirror pricing). Matches `GET_POOL_ONLY_MAX_HOPS`, POST BFS, and on-chain `MAX_HOPS`. `LCD_HYBRID_SIM_BUDGET` re-derived to **1700** (`5×4×85`). See [route-solver.md](../route-solver.md).
+
 ## Links
 
 - [ADR 0001](./0001-hybrid-quoting-and-routing.md)

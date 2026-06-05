@@ -69,7 +69,8 @@ def main() -> int:
     doc = DOC.read_text()
     errors: list[str] = []
 
-    solver_version = extract_str_const(BEST_EXEC, "SOLVER_VERSION")
+    solver_version_lcd = extract_str_const(BEST_EXEC, "SOLVER_VERSION_LCD")
+    solver_version_db = extract_str_const(BEST_EXEC, "SOLVER_VERSION_DB")
     max_paths = extract_usize(BEST_EXEC, "MAX_PATH_CANDIDATES")
     optimality = extract_str_const(BEST_EXEC, "OPTIMALITY_SCOPE")
     default_hops = extract_usize(ROUTE_SOLVER, "GET_DEFAULT_MAX_HOPS")
@@ -82,7 +83,8 @@ def main() -> int:
     lcd_budget = max_paths * default_hops * (grid_points + 2 * 2 * grid_points)
 
     checks: list[tuple[str, list[str]]] = [
-        ("solver_version", [solver_version, "global_v1"]),
+        ("solver_version_lcd", [solver_version_lcd, "global_v1"]),
+        ("solver_version_db", [solver_version_db, "global_v2"]),
         ("max_paths", [str(max_paths), "top-5", "five"]),
         ("optimality", [optimality]),
         ("lcd_budget", [str(lcd_budget), "1700"]),
