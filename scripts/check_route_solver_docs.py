@@ -85,7 +85,7 @@ def main() -> int:
         ("solver_version", [solver_version, "global_v1"]),
         ("max_paths", [str(max_paths), "top-5", "five"]),
         ("optimality", [optimality]),
-        ("lcd_budget", [str(lcd_budget), "1275"]),
+        ("lcd_budget", [str(lcd_budget), "1700"]),
         ("default_hops", [f"GET_DEFAULT_MAX_HOPS` | {default_hops}", f"≤ {default_hops} hops"]),
         ("pool_only_hops", [f"GET_POOL_ONLY_MAX_HOPS` | {pool_only_hops}", f"max **{pool_only_hops} hops**"]),
         ("cache_ttl", [f"{cache_ttl} s", f"{cache_ttl}s"]),
