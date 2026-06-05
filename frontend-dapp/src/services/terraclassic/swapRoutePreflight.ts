@@ -50,6 +50,7 @@ export async function preflightSwapRouteSpread(
     const declaredMaterialReject = hybridNoBeliefMaterialPoolReject(offerBn, poolIn, bookIn, 1n)
     if (declaredMaterialReject?.kind === 'insufficient_pool_leg') {
       anyExceeds = true
+      break
     }
     const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
     const materialRejectAfterSim = hybridNoBeliefMaterialPoolReject(
