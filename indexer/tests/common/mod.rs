@@ -428,6 +428,22 @@ pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
     }
 }
 
+/// Insert or update `traders` rows with explicit `tier_id` (GitLab #306 / #283 HTTP cache tests).
+pub async fn seed_traders_with_tiers(pool: &PgPool, traders: &[(&str, i16)]) {
+    for (address, tier_id) in traders {
+        sqlx::query(
+            "INSERT INTO traders (address, total_trades, total_volume, volume_24h, volume_7d, volume_30d, registered, tier_id)
+             VALUES ($1, 0, 0, 0, 0, 0, true, $2)
+             ON CONFLICT (address) DO UPDATE SET tier_id = EXCLUDED.tier_id",
+        )
+        .bind(*address)
+        .bind(*tier_id)
+        .execute(pool)
+        .await
+        .expect("seed trader with tier");
+    }
+}
+
 /// A↔B, B↔C, and direct A↔C pairs — two simple paths A→C (1 hop) and A→B→C (2 hops) for global solver tests (#209).
 pub async fn seed_route_solve_multi_path(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;
