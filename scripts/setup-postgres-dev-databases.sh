@@ -17,6 +17,10 @@ set +a
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
+# shellcheck source=scripts/lib/postgres-psql.sh
+source "$REPO_ROOT/scripts/lib/postgres-psql.sh"
+postgres_psql_init
+
 # shellcheck source=scripts/lib/postgres-bootstrap-role.sh
 source "$REPO_ROOT/scripts/lib/postgres-bootstrap-role.sh"
 
@@ -44,26 +48,20 @@ EOF
 ensure_db() {
   local db=$1
   local exists
-  exists="$(psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -tAc \
+  exists="$(postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" -U "$POSTGRES_USER" -d postgres -tAc \
     "SELECT 1 FROM pg_database WHERE datname='${db}'" 2>/dev/null || true)"
   if [ "$exists" = "1" ]; then
     echo "[setup-postgres] database ${db} already exists"
     return 0
   fi
   echo "[setup-postgres] creating database ${db} (owner ${POSTGRES_USER})..."
-  psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+  postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
     -c "CREATE DATABASE \"${db}\" OWNER \"${POSTGRES_USER}\";"
 }
 
-if ! command -v psql >/dev/null 2>&1; then
-  echo "[setup-postgres] WARN: psql not found; skipping database ensure" >&2
-  sync_indexer_database_env
-  exit 0
-fi
-
 if ! postgres_bootstrap_app_role; then
   sync_indexer_database_env
-  exit 0
+  exit 1
 fi
 
 ensure_db "$POSTGRES_DB"

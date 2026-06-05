@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # Bootstrap the app Postgres role via superuser when the stack only ships postgres:postgres.
 # Sourced by scripts/setup-postgres-dev-databases.sh (GitLab #245 infra note).
+# Requires scripts/lib/postgres-psql.sh (postgres_psql_init already called).
 # shellcheck shell=bash
 
 # Returns 0 when psql can connect with the given credentials.
 postgres_can_connect() {
   local user=$1 password=$2
   if command -v timeout >/dev/null 2>&1; then
-    timeout 5 env PGPASSWORD="$password" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$user" -d postgres -c '\q' \
-      >/dev/null 2>&1
+    timeout 5 env PGPASSWORD="$password" postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" \
+      -U "$user" -d postgres -c '\q' >/dev/null 2>&1
     return $?
   fi
-  PGPASSWORD="$password" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$user" -d postgres -c '\q' \
-    >/dev/null 2>&1
+  PGPASSWORD="$password" postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" \
+    -U "$user" -d postgres -c '\q' >/dev/null 2>&1
 }
 
 # Ensure POSTGRES_USER exists and accepts POSTGRES_PASSWORD. Uses POSTGRES_SUPERUSER when
@@ -35,7 +36,7 @@ postgres_bootstrap_app_role() {
 
   local role_exists
   role_exists="$(
-    PGPASSWORD="$POSTGRES_SUPERUSER_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
+    PGPASSWORD="$POSTGRES_SUPERUSER_PASSWORD" postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" \
       -U "$POSTGRES_SUPERUSER" -d postgres -tAc \
       "SELECT 1 FROM pg_roles WHERE rolname='${POSTGRES_USER}'" 2>/dev/null || true
   )"
@@ -47,7 +48,7 @@ postgres_bootstrap_app_role() {
 
   echo "[setup-postgres] bootstrapping role ${POSTGRES_USER} via superuser ${POSTGRES_SUPERUSER}..."
   local escaped_password="${POSTGRES_PASSWORD//\'/\'\'}"
-  PGPASSWORD="$POSTGRES_SUPERUSER_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" \
+  PGPASSWORD="$POSTGRES_SUPERUSER_PASSWORD" postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" \
     -U "$POSTGRES_SUPERUSER" -d postgres -v ON_ERROR_STOP=1 \
     -c "CREATE ROLE \"${POSTGRES_USER}\" WITH LOGIN CREATEDB PASSWORD '${escaped_password}';"
 

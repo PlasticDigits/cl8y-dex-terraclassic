@@ -69,6 +69,8 @@ cargo test --tests -j 1 -- --test-threads=1
 
 Start Postgres (`docker compose up -d postgres`) and run `./scripts/setup-postgres-dev-databases.sh` (or `make deploy-local`) so `dex_indexer_test` exists before the first run.
 
+**Cursor Cloud Agent (no wasm deploy):** `make setup-indexer-postgres` then `make test-indexer-integration` — see [`AGENTS.md`](../AGENTS.md) § Indexer integration tests (Postgres-only) and [GitLab **#335**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335).
+
 See [Indexer invariants](./indexer-invariants.md) for the full matrix and the same note under **Running tests**.
 
 **Stubs, mocks, and test stand-ins:** intentional test doubles are cataloged in [GitLab issue #105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) and summarized under [P2 testing epic (#199)](./testing.md#p2-testing-epic-gitlab-199). Key indexer spots: `indexer/tests/common/lcd_mock.rs` (LCD HTTP stub only) vs `indexer/src/api/orderbook_sim.rs` (**production** AMM curve-walk for CG/CMC — not the on-chain FIFO book; see **#210**). Agent playbook: [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).

@@ -19,6 +19,25 @@ _assert_file_contains "$REPO_ROOT/scripts/setup-postgres-dev-databases.sh" \
   'postgres-bootstrap-role.sh' \
   'setup-postgres must source postgres-bootstrap-role.sh'
 
+_assert_file_contains "$REPO_ROOT/scripts/setup-postgres-dev-databases.sh" \
+  'postgres-psql.sh' \
+  'setup-postgres must source postgres-psql.sh (compose exec fallback)'
+
+_assert_file_contains "$REPO_ROOT/scripts/lib/postgres-bootstrap-role.sh" \
+  'postgres_psql' \
+  'bootstrap helper must use postgres_psql wrapper'
+
+[ -f "$REPO_ROOT/scripts/setup-cloud-agent-indexer-postgres.sh" ] \
+  || _fail 'setup-cloud-agent-indexer-postgres.sh must exist'
+
+_assert_file_contains "$REPO_ROOT/AGENTS.md" \
+  'setup-indexer-postgres' \
+  'AGENTS.md must document make setup-indexer-postgres'
+
+_assert_file_contains "$REPO_ROOT/Makefile" \
+  'test-indexer-integration' \
+  'Makefile must define test-indexer-integration'
+
 _assert_file_contains "$REPO_ROOT/scripts/lib/postgres-bootstrap-role.sh" \
   'postgres_bootstrap_app_role' \
   'bootstrap helper must define postgres_bootstrap_app_role'
