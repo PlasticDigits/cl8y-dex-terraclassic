@@ -558,3 +558,132 @@ async fn route_solve_post_forwards_trader_to_router_sim() {
     let j: Value = server.post("/api/v1/route/solve").json(&body).await.json();
     assert_eq!(j["estimated_amount_out"], "9777776");
 }
+
+/// Tier-0 router/hybrid LCD mock output (no discount subject or tier-0 sender).
+const TIER0_ROUTE_AMOUNT: &str = "8888888";
+/// Tier-5 router/hybrid LCD mock output (sender/trader in tier5_addrs list).
+const TIER5_ROUTE_AMOUNT: &str = "9777776";
+
+const TIER0_SENDER: &str = "terra1tier0sender000000000000000000000000";
+const TIER5_SENDER_A: &str = "terra1tier5sendera00000000000000000000000";
+const TIER5_SENDER_B: &str = "terra1tier5senderb00000000000000000000000";
+const UNKNOWN_SENDER: &str = "terra1unknownsender0000000000000000000000";
+
+#[serial]
+#[tokio::test]
+async fn route_solve_get_cache_tier_isolation() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    common::seed_traders_with_tiers(
+        &pool,
+        &[(TIER0_SENDER, 0), (TIER5_SENDER_A, 5)],
+    )
+    .await;
+
+    let mock =
+        lcd_mock::start_tier_aware_route_optimizer_mock(&[TIER5_SENDER_A]).await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let base_url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+
+    let tier0: Value = server
+        .get(&format!("{base_url}&sender={TIER0_SENDER}"))
+        .await
+        .json();
+    assert_eq!(tier0["estimated_amount_out"], TIER0_ROUTE_AMOUNT);
+
+    let tier5: Value = server
+        .get(&format!("{base_url}&sender={TIER5_SENDER_A}"))
+        .await
+        .json();
+    assert_eq!(tier5["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
+    assert_ne!(
+        tier5["estimated_amount_out"], tier0["estimated_amount_out"],
+        "tier-5 sender must not receive tier-0 cached quote"
+    );
+
+    let unknown: Value = server
+        .get(&format!("{base_url}&sender={UNKNOWN_SENDER}"))
+        .await
+        .json();
+    assert_eq!(
+        unknown["estimated_amount_out"], TIER0_ROUTE_AMOUNT,
+        "unknown sender resolves to tier 0"
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_get_cache_same_tier_reuses_lcd() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    common::seed_traders_with_tiers(
+        &pool,
+        &[(TIER5_SENDER_A, 5), (TIER5_SENDER_B, 5)],
+    )
+    .await;
+
+    let mock = lcd_mock::start_tier_aware_route_optimizer_mock(&[
+        TIER5_SENDER_A,
+        TIER5_SENDER_B,
+    ])
+    .await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let base_url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+
+    server
+        .get(&format!("{base_url}&sender={TIER5_SENDER_A}"))
+        .await
+        .assert_status_ok();
+    let lcd_calls_after_first = mock
+        .received_requests()
+        .await
+        .expect("mock server should expose request log")
+        .len();
+
+    let tier5_b: Value = server
+        .get(&format!("{base_url}&sender={TIER5_SENDER_B}"))
+        .await
+        .json();
+    assert_eq!(tier5_b["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
+
+    let lcd_calls_after_second = mock
+        .received_requests()
+        .await
+        .expect("request log")
+        .len();
+    assert_eq!(
+        lcd_calls_after_first, lcd_calls_after_second,
+        "same-tier senders should share hybrid GET cache (no extra LCD sim calls)"
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_invalid_sender_returns_400() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000&sender=not-a-wallet",
+        seed.token_a, seed.token_b
+    );
+    server.get(&url).await.assert_status_bad_request();
+}

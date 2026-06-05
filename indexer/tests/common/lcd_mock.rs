@@ -38,6 +38,63 @@ fn hybrid_sim_return_amount(offer: u128, book: u128, has_trader: bool) -> u128 {
     }
 }
 
+/// Discount subject on a pair `HybridSimulation` or router `SimulateSwapOperations` query.
+fn discount_subject(sim: &Value) -> Option<&str> {
+    sim.get("trader")
+        .and_then(|v| v.as_str())
+        .or_else(|| sim.get("sender").and_then(|v| v.as_str()))
+}
+
+fn subject_has_tier5_discount(subject: Option<&str>, tier5_addrs: &[String]) -> bool {
+    subject
+        .map(|a| tier5_addrs.iter().any(|t| t == a))
+        .unwrap_or(false)
+}
+
+/// Like [`start_hybrid_route_optimizer_mock`], but router/hybrid output varies by discount
+/// subject (`trader` if set, else `sender`) against `tier5_addrs` (GitLab #306).
+pub async fn start_tier_aware_route_optimizer_mock(tier5_addrs: &[&str]) -> MockServer {
+    let tier5: Vec<String> = tier5_addrs.iter().map(|s| (*s).to_string()).collect();
+    let responder = move |req: &Request| {
+        let q = smart_query_from_request(req);
+        let data = if let Some(sim) = q.get("simulate_swap_operations") {
+            let discounted = subject_has_tier5_discount(discount_subject(sim), &tier5);
+            let amount = if discounted { "9777776" } else { "8888888" };
+            json!({ "amount": amount })
+        } else if let Some(sim) = q.get("hybrid_simulation") {
+            let book = sim["hybrid"]["book_input"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            let offer = sim["offer_asset"]["amount"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0);
+            let discounted = subject_has_tier5_discount(discount_subject(sim), &tier5);
+            let ret = hybrid_sim_return_amount(offer, book, discounted);
+            json!({
+                "return_amount": ret.to_string(),
+                "spread_amount": "0",
+                "commission_amount": "0",
+                "book_return_amount": "0",
+                "pool_return_amount": ret.to_string(),
+            })
+        } else {
+            json!(null)
+        };
+        ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(responder)
+        .mount(&server)
+        .await;
+    server
+}
+
 /// LCD stub for hybrid route optimization: `HybridSimulation` (including pool-only `book_input: 0`), router `simulate_swap_operations`.
 pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
     let responder = |req: &Request| {

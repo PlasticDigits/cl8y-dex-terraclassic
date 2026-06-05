@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  isIndexerClientError,
-  isIndexerPairNotFoundError,
-  isIndexerUnavailableError,
-} from '@/utils/indexerErrors'
+import { isIndexerClientError, isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 
 describe('indexerErrors', () => {
   it('treats indexer 404 as pair-not-found, not outage', () => {
