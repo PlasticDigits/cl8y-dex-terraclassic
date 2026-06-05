@@ -30,7 +30,7 @@ for i in $(seq 1 30); do
     && pg_isready -h "${POSTGRES_HOST:-127.0.0.1}" -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
     break
   fi
-  if cloud_agent_docker_compose exec -T postgres pg_isready -U "${POSTGRES_SUPERUSER:-postgres}" >/dev/null 2>&1; then
+  if cloud_agent_docker_compose exec -T postgres pg_isready -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
     break
   fi
   if [ "$i" -eq 30 ]; then

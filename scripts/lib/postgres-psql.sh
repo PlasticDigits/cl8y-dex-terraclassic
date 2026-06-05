@@ -15,7 +15,7 @@ postgres_docker_compose() {
 # Returns 0 when the compose postgres service is running and accepting connections.
 postgres_compose_postgres_ready() {
   postgres_docker_compose ps -q postgres 2>/dev/null | grep -q . || return 1
-  postgres_docker_compose exec -T postgres pg_isready -U "${POSTGRES_SUPERUSER:-postgres}" >/dev/null 2>&1
+  postgres_docker_compose exec -T postgres pg_isready -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1
 }
 
 # Initialize psql invocation mode. Returns 0 on success.

@@ -5,13 +5,10 @@
 # shellcheck shell=bash
 
 # Returns 0 when psql can connect with the given credentials.
+# Note: cannot wrap postgres_psql (a shell function) in `timeout env …` — that spawns a
+# subprocess where the function is undefined (exit 127).
 postgres_can_connect() {
   local user=$1 password=$2
-  if command -v timeout >/dev/null 2>&1; then
-    timeout 5 env PGPASSWORD="$password" postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" \
-      -U "$user" -d postgres -c '\q' >/dev/null 2>&1
-    return $?
-  fi
   PGPASSWORD="$password" postgres_psql -h "$POSTGRES_PSQL_HOST" -p "$POSTGRES_PSQL_PORT" \
     -U "$user" -d postgres -c '\q' >/dev/null 2>&1
 }
