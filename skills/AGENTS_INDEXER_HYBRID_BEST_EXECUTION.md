@@ -55,6 +55,14 @@ Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route
 - Hybrid optimization is bounded by **`LCD_HYBRID_SIM_BUDGET`**; LCD failures return generic **502** (`Upstream LCD query failed`), not raw `LcdError` text.
 - Agent playbook: [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md).
 
+## `book_start_hint` on optimized hops ([#332](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/332))
+
+When `solver_version` is **`global_v2`** and a hop has `book_input > 0` with a **fresh** Postgres mirror, `optimize_hop_hybrid` sets `book_start_hint` to the first live resting order on the taker's match side (from `resting_limit_orders`, expired rows filtered). Stale/missing mirror → `null` (LCD fallback grid omits hint). Pool-only hops → `null`. The same hint is forwarded to mirror `HybridSimulation` math and LCD fallback is hint-free.
+
+Side safety: hint rows must match bid/ask for the offer token; corrupt wrong-side mirror rows are skipped. On-chain **L17** ([#272](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) still validates at execute — see [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md).
+
+Regression: `route_solve_db_hybrid_book_start_hint_paths` in `indexer/tests/api_route_solve_db_hybrid.rs`.
+
 ## Related invariants
 
 [docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), hybrid GET cache tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)), CG/CMC consolidated reporting rows.
