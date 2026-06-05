@@ -10,7 +10,7 @@ Headline volume = **one** `swap_events` row per taker swap (`offer_amount` / `re
 
 ## Fill ↔ swap linkage (#316)
 
-`limit_order_fills.swap_event_id` resolves via per-pair **`swap_index`** (parser walk ordinal), not `MIN(swap_events.id)`. Multi-swap same-pair txs: each fill links to the swap that produced it. See [integrators-hybrid-volume.md § Fill ↔ swap linkage](../docs/integrators-hybrid-volume.md#fill--swap-linkage-swap_event_id).
+`limit_order_fills.swap_event_id` resolves via per-pair **`swap_index`** (on-chain wasm attr since #331 when present; else parser walk ordinal), not `MIN(swap_events.id)`. Multi-swap same-pair txs: each fill links to the swap that produced it. See [integrators-hybrid-volume.md § Fill ↔ swap linkage](../docs/integrators-hybrid-volume.md#fill--swap-linkage-swap_event_id).
 
 ## Tests to run
 

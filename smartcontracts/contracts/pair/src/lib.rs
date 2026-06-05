@@ -63,6 +63,7 @@ pub mod limit_placement;
 pub mod msg;
 pub mod orderbook;
 pub mod state;
+pub mod tx_swap_index;
 
 #[cfg(not(feature = "library"))]
 pub mod entry {

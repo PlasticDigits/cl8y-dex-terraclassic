@@ -492,6 +492,13 @@ fn hybrid_swap_emits_limit_order_fill_events() {
         .map(|a| a.value.as_str())
         .expect("side");
     assert_eq!(side, "bid");
+    let swap_index = fill_ev
+        .attributes
+        .iter()
+        .find(|a| a.key == "swap_index")
+        .map(|a| a.value.as_str())
+        .expect("swap_index attr (GitLab #331)");
+    assert_eq!(swap_index, "0");
 }
 
 /// GitLab #85 — `max_maker_fills` may be set to [`MAX_MAKER_FILLS_HARD_CAP`] (bounded match uses min with cap).
