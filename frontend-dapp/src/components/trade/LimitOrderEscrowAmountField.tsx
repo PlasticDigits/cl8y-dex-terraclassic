@@ -106,7 +106,9 @@ export function LimitOrderEscrowAmountField({
         compact={compact}
         spendableRaw={maxResult.spendableRaw}
         onMax={() => onMax(maxResult.human)}
+        onFraction={(human) => onAmountChange(human)}
         testIdMax="limit-order-escrow-max"
+        testIdFractionPrefix="limit-order-escrow-frac"
       />
     </div>
   )
