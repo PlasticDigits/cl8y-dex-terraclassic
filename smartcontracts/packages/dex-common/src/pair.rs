@@ -353,6 +353,9 @@ pub enum QueryMsg {
         trader: Option<String>,
         /// CW20 sender for discount lookup when `trader` differs (e.g. trusted router). Defaults to `trader`.
         sender: Option<String>,
+        /// When set, skip the no-belief material pool-leg guard (same as execute `belief_price`).
+        #[serde(default)]
+        belief_price: Option<Decimal>,
     },
     #[returns(HybridReverseSimulationResponse)]
     HybridReverseSimulation {
@@ -360,6 +363,9 @@ pub enum QueryMsg {
         hybrid: HybridSwapParams,
         trader: Option<String>,
         sender: Option<String>,
+        /// When set, skip the no-belief material pool-leg guard (same as execute `belief_price`).
+        #[serde(default)]
+        belief_price: Option<Decimal>,
     },
 }
 
@@ -370,6 +376,7 @@ pub fn hybrid_simulation_undiscounted(offer_asset: Asset, hybrid: HybridSwapPara
         hybrid,
         trader: None,
         sender: None,
+        belief_price: None,
     }
 }
 
@@ -383,6 +390,7 @@ pub fn hybrid_reverse_simulation_undiscounted(
         hybrid,
         trader: None,
         sender: None,
+        belief_price: None,
     }
 }
 
@@ -398,6 +406,7 @@ pub fn hybrid_simulation_with_trader(
         hybrid,
         trader: Some(trader),
         sender,
+        belief_price: None,
     }
 }
 
@@ -413,6 +422,7 @@ pub fn hybrid_reverse_simulation_with_trader(
         hybrid,
         trader: Some(trader),
         sender,
+        belief_price: None,
     }
 }
 
@@ -446,6 +456,8 @@ pub struct HybridSimulationResponse {
     pub book_commission_amount: Uint128,
     pub book_return_amount: Uint128,
     pub pool_return_amount: Uint128,
+    /// Offer-side amount matched on the book (same attr as execute `limit_book_offer_consumed`).
+    pub limit_book_offer_consumed: Uint128,
 }
 
 #[cw_serde]

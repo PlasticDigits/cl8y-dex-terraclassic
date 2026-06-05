@@ -2118,6 +2118,7 @@ mod pair_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -2151,6 +2152,7 @@ mod pair_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -3133,6 +3135,7 @@ mod fee_discount_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(amount),
                     trader: Some(env.user.to_string()),
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -3896,6 +3899,7 @@ mod pair_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap_err();
@@ -4212,6 +4216,7 @@ mod pair_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(10_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -6822,6 +6827,7 @@ mod fuzz_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
                 trader: None,
                 sender: None,
+                belief_price: None,
                 },
                 )
                 .unwrap();
@@ -7255,6 +7261,7 @@ mod fuzz_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
                 trader: None,
                 sender: None,
+                belief_price: None,
                 },
                 )
                 .unwrap();
@@ -9803,6 +9810,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             );
 
@@ -9837,6 +9845,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             );
 
@@ -9868,6 +9877,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             );
 
@@ -10132,6 +10142,7 @@ mod line_coverage_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_template(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -10497,6 +10508,7 @@ mod additional_fuzz_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
                 trader: None,
                 sender: None,
+                belief_price: None,
                 },
                 )
                 .unwrap();
@@ -11930,6 +11942,7 @@ mod fee_treasury_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -11956,6 +11969,7 @@ mod fee_treasury_tests {
                     hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
