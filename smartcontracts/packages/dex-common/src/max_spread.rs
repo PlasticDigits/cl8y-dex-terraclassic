@@ -75,7 +75,7 @@ pub fn validate_hybrid_book_requires_slippage_floor(
     if book_input.is_zero() || belief_price.is_some() {
         return Ok(());
     }
-    if min_return.is_some() {
+    if min_return.is_some_and(|m| !m.is_zero()) {
         return Ok(());
     }
     Err(CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input })
@@ -545,6 +545,15 @@ mod tests {
             .unwrap_err(),
             CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input } if book_input
                 == Uint128::new(10_000)
+        ));
+        assert!(matches!(
+            validate_hybrid_book_requires_slippage_floor(
+                Uint128::new(10_000),
+                None,
+                Some(Uint128::zero())
+            )
+            .unwrap_err(),
+            CheckMaxSpreadError::BookHybridRequiresSlippageFloor { .. }
         ));
         validate_hybrid_book_requires_slippage_floor(
             Uint128::new(10_000),
