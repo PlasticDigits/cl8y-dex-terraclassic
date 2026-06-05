@@ -923,15 +923,24 @@ The Swap page displays the effective fee after discount. When a connected wallet
 
 ### Swap page — MEV / submission posture {#swap-mev-posture}
 
-Retail traders must understand how swaps reach the chain ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), W10-C3). The **Settings** panel on `/` includes an informational card (**Transaction submission (MEV)**) alongside slippage, the direct **limit book leg** controls, and **Indexer route check**.
+This section documents how swaps reach the chain and the MEV/front-running risks traders should understand. It is **documentation only** — there is no MEV-protection setting in the dApp UI ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), [**#299**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)).
+
+#### How transactions are submitted
+
+All swaps and trades are signed in the connected wallet and broadcast to the **public** Terra Classic mempool via the wallet’s normal RPC/LCD path. This dApp does **not** operate a private RPC, bundle relay, or MEV-protection channel. There is no opt-in protected submission path in this build, and no MEV-protection toggle will be added without a real protected path wired end-to-end.
+
+#### MEV and front-running risks
+
+- **Public mempool exposure:** Once a signed transaction enters the public mempool, validators and searchers can observe it before inclusion. Large or predictable swaps may be sandwiched or front-run.
+- **Slippage tolerance is the on-chain guard:** **Slippage tolerance** (`max_spread` on pair/router messages) is the primary contract-level protection against sandwich and front-running losses. Keep it tight for large trades. The Swap Settings panel still exposes slippage presets and a **High slippage increases front-running risk** warning when tolerance exceeds 5%.
+- **No UI disclosure panel:** Per product decision ([#299](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)), MEV posture is **not** surfaced in the Swap or Trade UI — an informational card would imply a user-controllable setting that does not exist.
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Public mempool default** | All swaps are signed in the connected wallet and broadcast to the **public** Terra Classic mempool via the wallet’s normal RPC path. The dApp does **not** submit through a private relay, bundle, or Flashbots-style channel. |
-| **No cosmetic MEV toggle** | There is **no** MEV-protection checkbox in this build. Do not add a disabled toggle that implies protection exists elsewhere — use disclosure copy until a real protected path is wired end-to-end. |
-| **Slippage is the on-chain guard** | **Slippage tolerance** (`max_spread` on pair/router messages) is the primary contract-level protection against sandwich / front-running losses; the notice references the active Settings value. High slippage also shows the existing **front-running risk** warning above the MEV card. |
-| **Settings visibility** | The notice renders only when **Settings** is expanded (`data-testid="swap-mev-posture-notice"`), same surface as routing tools in the issue repro. |
-| **Copy single source** | Strings live in [`mevPosture.ts`](../frontend-dapp/src/utils/mevPosture.ts); UI in [`MevPostureNotice.tsx`](../frontend-dapp/src/components/swap/MevPostureNotice.tsx). |
+| **Public mempool default** | Wallet → public Terra Classic mempool; no private relay or bundle. |
+| **No MEV toggle** | Do not add a cosmetic or disabled “MEV protection” control in the UI. |
+| **Slippage is executable protection** | `max_spread` from Settings is enforced on-chain; see [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md). |
+| **Docs-only disclosure** | MEV risks live in this section and linked docs, not in Swap/Trade Settings. |
 
 Related: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md) (price impact / max spread) · [`docs/limit-orders.md`](./limit-orders.md) (hybrid routing disclosure — GitLab #111).
 
