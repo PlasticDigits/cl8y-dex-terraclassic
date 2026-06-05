@@ -6,7 +6,10 @@ import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
-import { estimateLimitOrderPlaceSequenceUlunaFeesTotal } from '@/services/terraclassic/transactions'
+import {
+  estimateLimitOrderPlaceSequenceUlunaFeesTotal,
+  estimateUpdateLimitOrderPriceUlunaFeesTotal,
+} from '@/services/terraclassic/transactions'
 import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
@@ -46,10 +49,16 @@ import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePriceMutation'
 import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
 import { flattenLimitBookPages, resolveLimitInsertHintAfter } from '@/utils/limitBookInsertHint'
-import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
+import type { LimitBookEditContext, LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
+import {
+  buildLimitBookEditContext,
+  isPriceOnlyLimitEdit,
+  LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE,
+} from '@/utils/limitOrderPriceEdit'
 
 export default function LimitOrdersPage() {
   const address = useWalletStore((s) => s.address)
@@ -81,6 +90,8 @@ export default function LimitOrdersPage() {
   const [cancelOrderId, setCancelOrderId] = useState('')
   const [lastIndexedOrderId, setLastIndexedOrderId] = useState<number | null>(null)
   const [placeMode, setPlaceMode] = useState<'single' | 'ladder'>('single')
+  const [editContext, setEditContext] = useState<LimitBookEditContext | null>(null)
+  const [editHintAfterOrderId, setEditHintAfterOrderId] = useState<number | null>(null)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -103,6 +114,7 @@ export default function LimitOrdersPage() {
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
+  const updatePriceMinUlunaFees = useMemo(() => estimateUpdateLimitOrderPriceUlunaFeesTotal(), [])
 
   const limitBookQuery = useLimitBookInfinite(pairAddr, side)
   const placeInsertHintAfter = useMemo(() => {
@@ -201,12 +213,25 @@ export default function LimitOrdersPage() {
   const isPaused = pausedQuery.data?.paused === true
 
   const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
+  const updatePriceMutation = useLimitOrderUpdatePriceMutation(pairAddr, address ?? undefined)
 
-  const onPrefillLimitTicketFromBook = (draft: LimitBookTicketDraft) => {
-    setSide(draft.side)
-    setPrice(draft.price)
-    setLimitEscrowAmountFromDraft(draft.amountHuman)
-  }
+  const clearEditContext = useCallback(() => {
+    setEditContext(null)
+    setEditHintAfterOrderId(null)
+  }, [])
+
+  const onPrefillLimitTicketFromBook = useCallback(
+    (draft: LimitBookTicketDraft) => {
+      setPlaceMode('single')
+      setSide(draft.side)
+      setPrice(draft.price)
+      setLimitEscrowAmountFromDraft(draft.amountHuman)
+      setExpiresAt(draft.expiresAt ?? null)
+      setEditContext(buildLimitBookEditContext(draft))
+      setEditHintAfterOrderId(draft.hintAfterOrderId ?? null)
+    },
+    [setLimitEscrowAmountFromDraft, setExpiresAt]
+  )
 
   const placeEscrowGate = useMemo(
     () =>
@@ -256,11 +281,54 @@ export default function LimitOrdersPage() {
     return null
   }, [expiresAt])
 
+  const priceOnlyEdit = useMemo(
+    () =>
+      isPriceOnlyLimitEdit(editContext, {
+        side,
+        price,
+        amountHuman,
+        expiresAt,
+      }),
+    [editContext, side, price, amountHuman, expiresAt]
+  )
+
+  const editNonPriceChanged = useMemo(() => {
+    if (!editContext) return false
+    if (editContext.side !== side) return true
+    if (editContext.amountHuman !== amountHuman.trim()) return true
+    if ((expiresAt ?? null) !== editContext.expiresAt) return true
+    return false
+  }, [editContext, side, amountHuman, expiresAt])
+
+  const updatePriceNativeGasGate = useMemo(
+    () =>
+      evaluateLimitOrderNativeGasPlaceGate(
+        '',
+        escrowDecimals,
+        {
+          data: nativeUlunaQuery.data,
+          isLoading: nativeUlunaQuery.isLoading,
+          isError: nativeUlunaQuery.isError,
+        },
+        updatePriceMinUlunaFees
+      ),
+    [
+      escrowDecimals,
+      nativeUlunaQuery.data,
+      nativeUlunaQuery.isLoading,
+      nativeUlunaQuery.isError,
+      updatePriceMinUlunaFees,
+    ]
+  )
+
+  const updatePriceCombinedOk = priceOnlyEdit && placePriceGate.canPlaceLimit && updatePriceNativeGasGate.canPlaceLimit
+
   const placeLimitCombinedOk =
     placeEscrowGate.canPlaceLimit &&
     placeNativeGasGate.canPlaceLimit &&
     placePriceGate.canPlaceLimit &&
-    !expiryPastBlocker
+    !expiryPastBlocker &&
+    !editContext
 
   const placeLimitInlineGate = expiryPastBlocker
     ? { canPlaceLimit: false, userMessage: expiryPastBlocker, tone: 'warning' as const }
@@ -325,6 +393,7 @@ export default function LimitOrdersPage() {
     onSuccess: async () => {
       sounds.playSuccess()
       resetLimitEscrowAmount()
+      clearEditContext()
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
@@ -354,6 +423,28 @@ export default function LimitOrdersPage() {
     onError: () => sounds.playError(),
   })
 
+  const submitUpdateLimitPrice = () => {
+    if (!isWalletConnected) {
+      openWalletModal()
+      return
+    }
+    if (!editContext) return
+    updatePriceMutation.mutate(
+      {
+        orderId: editContext.orderId,
+        price,
+        maxAdjustSteps: maxSteps,
+        hintAfterOrderId: editHintAfterOrderId,
+      },
+      {
+        onSuccess: () => {
+          clearEditContext()
+          placeMutation.reset()
+        },
+      }
+    )
+  }
+
   const submitCancelFromForm = () => {
     if (!isWalletConnected) {
       openWalletModal()
@@ -380,7 +471,8 @@ export default function LimitOrdersPage() {
 
   useEffect(() => {
     setLastIndexedOrderId(null)
-  }, [pairAddr])
+    clearEditContext()
+  }, [pairAddr, clearEditContext])
 
   return (
     <div className="max-w-[560px] mx-auto">
@@ -572,35 +664,78 @@ export default function LimitOrdersPage() {
                         data-testid="limits-page-pre-submit-summary"
                       />
                     )}
+                    {editContext && (
+                      <p
+                        className="text-xs leading-snug rounded-lg border border-white/10 px-2.5 py-2"
+                        style={{ color: 'var(--ink-dim)' }}
+                        data-testid="limits-page-edit-context"
+                      >
+                        Editing order <span className="font-mono">#{editContext.orderId}</span>
+                        {priceOnlyEdit
+                          ? ' — change price and tap Update price (one tx, no maker fee).'
+                          : editNonPriceChanged
+                            ? ` — ${LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE}`
+                            : ' — adjust price to update in one tx.'}
+                      </p>
+                    )}
                     <button
                       type="button"
                       className="btn-primary btn-cta w-full"
+                      data-testid={priceOnlyEdit ? 'limits-limit-update-price-submit' : 'limits-limit-submit'}
                       disabled={
-                        !isWalletConnected ||
-                        placeMutation.isPending ||
-                        !selectedPair ||
-                        isPaused ||
-                        !placeLimitCombinedOk
+                        priceOnlyEdit
+                          ? updatePriceMutation.isPending ||
+                            !selectedPair ||
+                            isPaused ||
+                            (isWalletConnected && !updatePriceCombinedOk)
+                          : placeMutation.isPending ||
+                            !selectedPair ||
+                            isPaused ||
+                            editNonPriceChanged ||
+                            (isWalletConnected && !placeLimitCombinedOk)
                       }
                       onClick={() => {
                         if (!isWalletConnected) openWalletModal()
+                        else if (priceOnlyEdit) submitUpdateLimitPrice()
                         else placeMutation.mutate()
                       }}
                     >
                       {!isWalletConnected
                         ? 'Connect Wallet'
-                        : terraBroadcastPendingButtonLabel(
-                            placeMutation.phase,
-                            placeMutation.isPending,
-                            'Place limit',
-                            'Placing…'
-                          )}
+                        : priceOnlyEdit
+                          ? updatePriceMutation.isPending
+                            ? 'Updating…'
+                            : 'Update price'
+                          : terraBroadcastPendingButtonLabel(
+                              placeMutation.phase,
+                              placeMutation.isPending,
+                              'Place limit',
+                              'Placing…'
+                            )}
                     </button>
                     <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
-                    <LimitOrderEscrowPlaceGuardMessage
-                      gate={placeLimitInlineGate}
-                      data-testid="limits-page-place-guard"
-                    />
+                    {priceOnlyEdit && updatePriceNativeGasGate.userMessage && (
+                      <LimitOrderEscrowPlaceGuardMessage
+                        gate={updatePriceNativeGasGate}
+                        data-testid="limits-page-update-price-guard"
+                      />
+                    )}
+                    {!priceOnlyEdit && (
+                      <LimitOrderEscrowPlaceGuardMessage
+                        gate={placeLimitInlineGate}
+                        data-testid="limits-page-place-guard"
+                      />
+                    )}
+                    {updatePriceMutation.isError && (
+                      <TxResultAlert type="error" message={(updatePriceMutation.error as Error).message} />
+                    )}
+                    {updatePriceMutation.isSuccess && (
+                      <TxResultAlert
+                        type="success"
+                        message="Limit order price updated."
+                        txHash={updatePriceMutation.data}
+                      />
+                    )}
                     {placeMutation.isError && (
                       <TxResultAlert type="error" message={(placeMutation.error as Error).message} />
                     )}

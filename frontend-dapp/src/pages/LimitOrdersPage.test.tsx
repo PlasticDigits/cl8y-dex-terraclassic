@@ -3,11 +3,15 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import LimitOrdersPage from './LimitOrdersPage'
 import { renderWithProviders } from '@/test-utils'
+import { useWalletStore } from '@/hooks/useWallet'
 import * as factory from '@/services/terraclassic/factory'
 import * as indexerClient from '@/services/indexer/client'
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
+import { getPairPaused, updateLimitOrderPrice } from '@/services/terraclassic/pair'
 import type { IndexerPair } from '@/types'
 
 const PAIR = 'terra1pair0000000000000000000000000000000001'
+const MAKER = 'terra1maker000000000000000000000000000001'
 
 const mockIndexerPair: IndexerPair = {
   pair_address: PAIR,
@@ -43,6 +47,8 @@ vi.mock('@/services/terraclassic/pair', () => ({
   getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   placeLimitOrderWithAllowance: vi.fn(),
   cancelLimitOrder: vi.fn(),
+  updateLimitOrderPrice: vi.fn().mockResolvedValue('tx-update-price'),
+  getPool: vi.fn().mockResolvedValue({ assets: [{ amount: '1000000' }, { amount: '3000000' }] }),
 }))
 
 vi.mock('@/services/terraclassic/wallet', () => ({
@@ -87,6 +93,10 @@ async function selectLimitsPair(user: ReturnType<typeof userEvent.setup>) {
 
 describe('LimitOrdersPage', () => {
   beforeEach(() => {
+    vi.mocked(getConnectedWallet).mockReturnValue(null)
+    vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
+    vi.mocked(updateLimitOrderPrice).mockClear()
+    useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
       pairs: [
         {
@@ -100,7 +110,18 @@ describe('LimitOrdersPage', () => {
       ],
     })
     vi.mocked(indexerClient.getPair).mockResolvedValue(mockIndexerPair)
-    vi.mocked(indexerClient.getTrades).mockResolvedValue([])
+    vi.mocked(indexerClient.getTrades).mockResolvedValue([
+      {
+        trade_id: 1,
+        pair_address: PAIR,
+        price: '3',
+        side: 'buy',
+        amount_base: '1000000',
+        amount_quote: '3000000',
+        timestamp: '2026-01-01T00:00:00Z',
+        tx_hash: 'abc',
+      },
+    ])
     vi.mocked(indexerClient.getPairLimitBookPage).mockResolvedValue({
       side: 'bid',
       orders: [],
@@ -177,5 +198,107 @@ describe('LimitOrdersPage', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('limits-pair-switch-loading')).not.toBeInTheDocument()
     })
+  })
+
+  it('book Edit prefills ticket with orderId and shows editing context (GitLab #312 / #294)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders:
+        side === 'bid'
+          ? [{ order_id: 7, owner: MAKER, side, price: '2.5', remaining: '1000000', expires_at: null }]
+          : [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+    await user.click(await screen.findByTestId('trade-book-edit-bid-7'))
+
+    expect(await screen.findByTestId('limits-page-edit-context')).toHaveTextContent(/Editing order\s+#7/i)
+    expect(screen.getByTestId('limit-order-price-input')).toHaveValue('2.5')
+    expect(screen.getByTestId('limit-order-escrow-amount-input')).toHaveValue('1')
+  })
+
+  it('price-only amend on /limits submits UpdateLimitOrderPrice, not place (GitLab #312)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders:
+        side === 'bid'
+          ? [{ order_id: 7, owner: MAKER, side, price: '2.5', remaining: '1000000', expires_at: null }]
+          : [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+    await user.click(await screen.findByTestId('trade-book-edit-bid-7'))
+
+    const priceInput = await screen.findByTestId('limit-order-price-input')
+    await user.clear(priceInput)
+    await user.type(priceInput, '2')
+
+    const updateBtn = await screen.findByTestId('limits-limit-update-price-submit')
+    expect(updateBtn).toHaveTextContent(/Update price/i)
+    await user.click(updateBtn)
+
+    await waitFor(() => {
+      expect(updateLimitOrderPrice).toHaveBeenCalledWith(MAKER, PAIR, 7, '2', expect.any(Number), null)
+    })
+  })
+
+  it('blocks silent duplicate when side changes during book edit (GitLab #312)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders:
+        side === 'bid'
+          ? [{ order_id: 7, owner: MAKER, side, price: '2.5', remaining: '1000000', expires_at: null }]
+          : [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+    await user.click(await screen.findByTestId('trade-book-edit-bid-7'))
+    await user.click(await screen.findByTestId('limit-orders-side-ask'))
+
+    const submit = await screen.findByTestId('limits-limit-submit')
+    expect(submit).toBeDisabled()
+    expect(await screen.findByTestId('limits-page-edit-context')).toHaveTextContent(
+      /cancel this order first, then place a new limit/i
+    )
+  })
+
+  it('disables book Edit when pair is paused (GitLab #312 / L6)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders:
+        side === 'bid'
+          ? [{ order_id: 7, owner: MAKER, side, price: '2.5', remaining: '1000000', expires_at: null }]
+          : [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+
+    expect(await screen.findByTestId('trade-book-edit-bid-7')).toBeDisabled()
+    expect(await screen.findByText(/This pair is paused by governance/i)).toBeInTheDocument()
   })
 })
