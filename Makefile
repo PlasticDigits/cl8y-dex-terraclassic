@@ -177,8 +177,7 @@ setup-indexer-postgres:
 	./scripts/setup-cloud-agent-indexer-postgres.sh
 
 test-indexer-integration: setup-indexer-postgres
-	@export PATH="/usr/local/cargo/bin:$$HOME/.cargo/bin:$$PATH"
-	cd indexer && cargo test --tests -j 1 -- --test-threads=1
+	@export PATH="/usr/local/cargo/bin:$$HOME/.cargo/bin:$$PATH"; cd indexer && cargo test --tests -j 1 -- --test-threads=1
 
 verify-issue-324:
 	@chmod +x scripts/qa/verify-issue-324.sh scripts/setup-cloud-agent-indexer-postgres.sh
