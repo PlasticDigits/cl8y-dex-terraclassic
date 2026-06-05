@@ -11,6 +11,7 @@ use crate::msg::{
     SimulateSwapOperationsResponse, SwapOperation,
 };
 use crate::state::{SwapState, FACTORY, SWAP_STATE, WRAP_MAPPER};
+use dex_common::max_spread::{self, CheckMaxSpreadError};
 use dex_common::pair;
 use dex_common::types::Asset;
 use dex_common::wrap_mapper;
@@ -190,6 +191,12 @@ fn execute_swap_operations(
             actual: operations.len(),
         });
     }
+
+    let first_hybrid_precheck = match &operations[0] {
+        SwapOperation::TerraSwap { hybrid, .. } => hybrid.clone(),
+        SwapOperation::NativeSwap { .. } => return Err(ContractError::NativeSwapNotSupported {}),
+    };
+    validate_hybrid_declared_split_for_no_belief(amount, &first_hybrid_precheck)?;
 
     if SWAP_STATE.may_load(deps.storage)?.is_some() {
         return Err(ContractError::SwapInProgress {});
@@ -393,6 +400,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         SwapOperation::TerraSwap { hybrid, .. } => hybrid.clone(),
         SwapOperation::NativeSwap { .. } => None,
     };
+    validate_hybrid_declared_split_for_no_belief(hop_output, &hop_hybrid)?;
 
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
@@ -458,6 +466,45 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
+/// Router swaps always use `belief_price: None`; mirror pair declared-split guard (#307).
+fn validate_hybrid_declared_split_for_no_belief(
+    hop_offer: Uint128,
+    hybrid: &Option<pair::HybridSwapParams>,
+) -> Result<(), ContractError> {
+    if let Some(h) = hybrid {
+        let leg_sum = h
+            .pool_input
+            .checked_add(h.book_input)
+            .map_err(|e| ContractError::Std(cosmwasm_std::StdError::from(e)))?;
+        if leg_sum != hop_offer {
+            return Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+                "hybrid pool_input + book_input must equal hop offer amount",
+            )));
+        }
+        max_spread::validate_declared_hybrid_pool_leg_for_no_belief(
+            hop_offer,
+            h.pool_input,
+            h.book_input,
+        )
+        .map_err(hybrid_pool_leg_router_error)?;
+    }
+    Ok(())
+}
+
+fn hybrid_pool_leg_router_error(e: CheckMaxSpreadError) -> ContractError {
+    match e {
+        CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+            pool_input,
+            min_pool_input,
+            book_input,
+        } => ContractError::Std(cosmwasm_std::StdError::generic_err(format!(
+            "Hybrid swap requires a material pool leg without belief_price: pool_input \
+             {pool_input} is below minimum {min_pool_input} (book_input {book_input})"
+        ))),
+        other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
+    }
+}
+
 /// Simulates multi-hop output via pair `HybridSimulation` (pool-only when `hybrid` is unset).
 /// When `hybrid` is set, legs must sum to the per-hop offer amount.
 fn query_simulate_swap_operations(
@@ -512,6 +559,8 @@ fn query_simulate_swap_operations(
                                 "hybrid pool_input + book_input must equal simulated offer amount for this hop",
                             ));
                         }
+                        validate_hybrid_declared_split_for_no_belief(current_amount, &Some(h.clone()))
+                            .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
                         h.clone()
                     }
                 };

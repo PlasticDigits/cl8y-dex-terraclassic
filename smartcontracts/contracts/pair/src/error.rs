@@ -33,6 +33,25 @@ pub enum ContractError {
     #[error("Max spread assertion: actual spread ({actual}) exceeds max allowed ({max})")]
     MaxSpreadAssertion { max: String, actual: String },
 
+    #[error(
+        "Hybrid swap requires a material pool leg without belief_price: pool_input {pool_input} \
+         is below minimum {min_pool_input} (book_input {book_input})"
+    )]
+    InsufficientPoolLegForHybrid {
+        pool_input: String,
+        min_pool_input: String,
+        book_input: String,
+    },
+
+    #[error(
+        "Hybrid swap pool leg produced zero net output with book_input {book_input} \
+         (pool_input {pool_input})"
+    )]
+    ZeroPoolNetForHybrid {
+        pool_input: String,
+        book_input: String,
+    },
+
     #[error("Insufficient LP tokens: expected at least {min}, got {actual}")]
     InsufficientLpTokens { min: String, actual: String },
 

@@ -3,7 +3,12 @@ import { simulateHybridSwap, type QuoteTraderOptions } from './pair'
 import { poolOnlyHybridParams } from './poolOnlyHybrid'
 import type { SwapOperation } from './router'
 import type { AssetInfo } from '@/types'
-import { hybridSpreadCmpAndTotal, spreadPercentOfGross, spreadRatioStrictlyExceedsMax } from '@/utils/swapMaxSpread'
+import {
+  hybridNoBeliefMaterialPoolReject,
+  hybridSpreadCmpAndTotal,
+  spreadPercentOfGross,
+  spreadRatioStrictlyExceedsMax,
+} from '@/utils/swapMaxSpread'
 
 export interface SwapRoutePreflightSpread {
   /** Max over hops of contract-style spread % (2 decimal places). */
@@ -38,8 +43,26 @@ export async function preflightSwapRouteSpread(
     const pairAddr = pairRow.contract_addr
 
     const hybrid = ts.hybrid != null ? ts.hybrid : poolOnlyHybridParams(currentOffer)
+    const offerBn = BigInt(currentOffer)
+    const poolIn = BigInt(hybrid.pool_input)
+    const bookIn = BigInt(hybrid.book_input)
+    const declaredMaterialReject = hybridNoBeliefMaterialPoolReject(offerBn, poolIn, bookIn, 1n)
+    if (declaredMaterialReject?.kind === 'insufficient_pool_leg') {
+      anyExceeds = true
+    }
     const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
-    const { spreadCmp, totalGrossOut } = hybridSpreadCmpAndTotal(sim)
+    const materialRejectAfterSim = hybridNoBeliefMaterialPoolReject(
+      offerBn,
+      poolIn,
+      bookIn,
+      BigInt(sim.pool_return_amount),
+    )
+    if (materialRejectAfterSim != null) {
+      anyExceeds = true
+    }
+    const legs =
+      bookIn > 0n && poolIn > 0n ? { poolInput: poolIn, bookInput: bookIn } : undefined
+    const { spreadCmp, totalGrossOut } = hybridSpreadCmpAndTotal(sim, legs)
     if (spreadRatioStrictlyExceedsMax(spreadCmp, totalGrossOut, maxSpreadDecimalStr)) {
       anyExceeds = true
     }

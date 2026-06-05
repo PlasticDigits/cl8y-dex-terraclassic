@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
+  hybridNoBeliefMaterialPoolReject,
   hybridSpreadCmpAndTotal,
+  minPoolInputForBookHybrid,
   parseDecimalStringToScaled,
   poolOnlySpreadCmpAndTotal,
   spreadPercentOfGross,
@@ -38,6 +40,27 @@ describe('swapMaxSpread', () => {
     })
     expect(spreadCmp).toBe(5n)
     expect(totalGrossOut).toBe(30n)
+  })
+
+  it('folds book shortfall into hybrid spread_cmp (#273)', () => {
+    const { spreadCmp } = hybridSpreadCmpAndTotal(
+      {
+        spread_amount: '1',
+        commission_amount: '3',
+        pool_return_amount: '997',
+        book_return_amount: '4985',
+      },
+      { poolInput: 1000n, bookInput: 10000n },
+    )
+    expect(spreadCmp).toBeGreaterThan(4000n)
+  })
+
+  it('requires at least 10% pool leg when book leg is set (#307)', () => {
+    expect(minPoolInputForBookHybrid(11000n)).toBe(1100n)
+    expect(
+      hybridNoBeliefMaterialPoolReject(11000n, 1000n, 10000n, 997n),
+    ).toMatchObject({ kind: 'insufficient_pool_leg' })
+    expect(hybridNoBeliefMaterialPoolReject(10000n, 6000n, 4000n, 5947n)).toBeNull()
   })
 
   it('formats spread percent with two decimals', () => {
