@@ -45,7 +45,8 @@ echo "  GitLab #285 — lifecycle emitter scoping (_contract_address only)"
 echo "════════════════════════════════════════════════════════════════"
 
 run_step "parser forged-attack + regression unit tests" \
-  bash -c 'cd indexer && cargo test --lib "forged_contract_address|genuine_fill_with_both_contract_address" -- --quiet'
+  bash -c 'cd indexer && cargo test --lib forged_contract_address -- --quiet && \
+    cargo test --lib genuine_fill_with_both_contract_address -- --quiet'
 
 run_step "integration limit_order_parked_lifecycle (_contract_address fixtures)" \
   bash -c 'cd indexer && cargo test --test limit_order_parked_lifecycle -j 1 -- --test-threads=1 --quiet'
@@ -176,7 +177,6 @@ else
     bad "live: no dual-CW20 pair on factory"
   else
     ok "live: using pair ${PAIR_ADDR:0:18}… token0 ${TOKEN0:0:12}…"
-  fi
 
   BOOK_INPUT="${VERIFY285_BOOK_INPUT:-1000000}"
   HYBRID_JSON="$(jq -nc --arg amt "$BOOK_INPUT" \
@@ -248,6 +248,7 @@ else
   else
     bad "live: indexer did not list limit fill for hybrid swap tx within 180s"
     echo "    last response: $(echo "$FILLS" | jq -c 'if type == "array" then length else . end' 2>/dev/null || echo ERR)" >&2
+  fi
   fi
 fi
 
