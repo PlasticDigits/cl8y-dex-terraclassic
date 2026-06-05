@@ -220,7 +220,8 @@ export function PairSearchSelect({
     [canOpen, open, options.length, selectIndex, close]
   )
 
-  const showEmptyState = open && options.length === 0 && !pairsQuery.isLoading && debouncedSearch.length > 0
+  const showEmptyState =
+    open && options.length === 0 && !pairsQuery.isLoading && queryReady && debouncedSearch.length > 0
   const activeOptionId = open && options.length > 0 ? portalListboxOptionId(listId, activeIndex) : undefined
 
   return (

@@ -30,9 +30,11 @@ test.describe('Claim all parked limit refunds (GitLab #259)', () => {
 
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
     await requireLimitTxPair(request, pairs)
-    const factoryIndex = pairs.findIndex((p) => p.contract_addr === pairAddr)
-    expect(factoryIndex, `seed pair ${pairAddr} on factory list`).toBeGreaterThanOrEqual(0)
-    await selectLimitPairByFactoryIndex(page, factoryIndex)
+    expect(
+      pairs.some((p) => p.contract_addr === pairAddr),
+      `seed pair ${pairAddr} on factory list`
+    ).toBe(true)
+    await selectLimitPairByFactoryIndex(page, pairAddr)
 
     const claimAll = page.getByTestId('limits-page-claim-all-parked')
     await expect(claimAll).toBeVisible({ timeout: 120_000 })

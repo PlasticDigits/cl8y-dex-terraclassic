@@ -24,15 +24,19 @@ export async function requireLimitTxPair(
 }
 
 /**
- * Select a factory pair in the Limits page pair combobox.
- * `factoryIndex` is the index in the factory `pairs` array (sorted by indexer volume in the dropdown).
+ * Select a factory pair in the Limits page pair combobox by contract address.
+ * The dropdown lists pairs by indexer 24h volume, not factory array order.
  */
-export async function selectLimitPairByFactoryIndex(page: Page, factoryIndex: number): Promise<void> {
+export async function selectLimitPairByFactoryIndex(page: Page, pairAddress: string): Promise<void> {
   const pairTrigger = page.locator('#limit-pair')
   await expect(pairTrigger).toBeVisible({ timeout: 60_000 })
   await expect(pairTrigger).toBeEnabled({ timeout: 60_000 })
   await pairTrigger.click()
-  await page.getByRole('option').nth(factoryIndex).click()
+  await pairTrigger.fill(pairAddress)
+  const addrSuffix = pairAddress.slice(-6)
+  const option = page.getByRole('option').filter({ hasText: addrSuffix })
+  await expect(option.first()).toBeVisible({ timeout: 30_000 })
+  await option.first().click()
   await expect(pairTrigger).toHaveValue(/\//, { timeout: 30_000 })
   await skipOrFailIfPairPaused(page)
 }
