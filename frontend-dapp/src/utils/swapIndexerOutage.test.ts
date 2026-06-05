@@ -23,4 +23,13 @@ describe('detectSwapIndexerOutage', () => {
       })
     ).toBe(false)
   })
+
+  it('returns false for route/solve 400 (healthy indexer, simulation failed) (GitLab #326)', () => {
+    expect(
+      detectSwapIndexerOutage({
+        isError: true,
+        error: new Error('Indexer API error: 400 Bad Request'),
+      })
+    ).toBe(false)
+  })
 })
