@@ -237,6 +237,13 @@ else
   ok "chain time past expired tail expires_at"
 fi
 
+if (( NOW_SEC < SHORT_EXPIRY )); then
+  echo ""
+  echo "==> Summary ($PASS passed, $FAIL failed)"
+  printf '%s\n' "${RESULTS[@]}"
+  exit 1
+fi
+
 echo "==> CleanLimitBook max_steps=$MAX_STEPS_CAP against ${HEALTHY_COUNT}+${EXPIRED_TAIL_COUNT} book"
 execute_clean "$MAX_STEPS_CAP"
 GAS="$(tx_gas_used "$CLEAN_TX" || true)"
@@ -273,27 +280,29 @@ else
   bad "gas_used unavailable for tx=$CLEAN_TX (query failed or gas missing/zero)"
 fi
 
-echo "==> Resume clean from resume_cursor until expired tail parked"
-pass=2
-resume="$RESUME"
-total_parked=0
-while (( pass <= 20 )); do
-  execute_clean 500 "$resume"
-  cleaned="$(tx_wasm_attr "$CLEAN_TX" cleaned_count || true)"
-  scan="$(tx_wasm_attr "$CLEAN_TX" scan_capped || true)"
-  resume="$(tx_wasm_attr "$CLEAN_TX" resume_cursor || true)"
-  echo "    pass=$pass tx=$CLEAN_TX cleaned=$cleaned scan_capped=$scan resume=$resume"
-  total_parked=$((total_parked + cleaned))
-  if [[ "$scan" != "true" && -z "$resume" ]]; then
-    break
-  fi
-  ((pass++))
-done
+if [[ -n "$RESUME" ]]; then
+  echo "==> Resume clean from resume_cursor until expired tail parked"
+  pass=2
+  resume="$RESUME"
+  total_parked=0
+  while (( pass <= 20 )); do
+    execute_clean 500 "$resume"
+    cleaned="$(tx_wasm_attr "$CLEAN_TX" cleaned_count || true)"
+    scan="$(tx_wasm_attr "$CLEAN_TX" scan_capped || true)"
+    resume="$(tx_wasm_attr "$CLEAN_TX" resume_cursor || true)"
+    echo "    pass=$pass tx=$CLEAN_TX cleaned=$cleaned scan_capped=$scan resume=$resume"
+    total_parked=$((total_parked + cleaned))
+    if [[ "$scan" != "true" && -z "$resume" ]]; then
+      break
+    fi
+    ((pass++))
+  done
 
-if (( total_parked >= EXPIRED_TAIL_COUNT )); then
-  ok "resumed clean parked $total_parked expired tail orders (expected >= $EXPIRED_TAIL_COUNT)"
-else
-  bad "resumed clean parked only $total_parked (expected >= $EXPIRED_TAIL_COUNT)"
+  if (( total_parked >= EXPIRED_TAIL_COUNT )); then
+    ok "resumed clean parked $total_parked expired tail orders (expected >= $EXPIRED_TAIL_COUNT)"
+  else
+    bad "resumed clean parked only $total_parked (expected >= $EXPIRED_TAIL_COUNT)"
+  fi
 fi
 
 echo ""
