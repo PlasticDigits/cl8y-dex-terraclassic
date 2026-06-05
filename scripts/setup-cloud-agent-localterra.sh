@@ -152,6 +152,11 @@ _wait_indexer() {
 echo "[setup-cloud-localterra] repo: $REPO_ROOT"
 
 if [[ "$POSTGRES_ONLY" -eq 1 ]]; then
+  if [[ "$FRESH_VOLUMES" -eq 1 ]]; then
+    _ensure_dockerd
+    echo "[setup-cloud-localterra] --fresh: wiping docker volumes…"
+    _run_make reset
+  fi
   exec "$REPO_ROOT/scripts/setup-cloud-agent-indexer-postgres.sh"
 fi
 

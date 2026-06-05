@@ -17,10 +17,6 @@ set +a
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
-# shellcheck source=scripts/lib/postgres-psql.sh
-source "$REPO_ROOT/scripts/lib/postgres-psql.sh"
-postgres_psql_init
-
 # shellcheck source=scripts/lib/postgres-bootstrap-role.sh
 source "$REPO_ROOT/scripts/lib/postgres-bootstrap-role.sh"
 
@@ -44,6 +40,13 @@ EOF
   echo "[setup-postgres] synced indexer/.env (DATABASE_URL + TEST_DATABASE_URL)"
   echo "[setup-postgres] integration tests: cd indexer && cargo test --tests -j 1 -- --test-threads=1"
 }
+
+# shellcheck source=scripts/lib/postgres-psql.sh
+source "$REPO_ROOT/scripts/lib/postgres-psql.sh"
+if ! postgres_psql_init; then
+  sync_indexer_database_env
+  exit 1
+fi
 
 ensure_db() {
   local db=$1
