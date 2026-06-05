@@ -317,7 +317,7 @@ describe('SwapPage', () => {
         },
       ],
     })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB, terraC])
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraC, terraB])
     vi.mocked(findRoute).mockReturnValue(multihopRoute)
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
@@ -325,11 +325,6 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-    const fromSelect = screen.getAllByRole('combobox')[0]
-    const toSelect = screen.getAllByRole('combobox')[1]
-    await user.selectOptions(fromSelect, terraA)
-    await user.selectOptions(toSelect, terraC)
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
     expect(await screen.findByTestId('swap-route-summary')).toBeInTheDocument()
@@ -372,7 +367,7 @@ describe('SwapPage', () => {
         },
       ],
     })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB, terraC])
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraC, terraB])
     vi.mocked(findRoute).mockReturnValue(multihopRoute)
     vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
       token_in: terraA,
@@ -391,11 +386,6 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-    const fromSelect = screen.getAllByRole('combobox')[0]
-    const toSelect = screen.getAllByRole('combobox')[1]
-    await user.selectOptions(fromSelect, terraA)
-    await user.selectOptions(toSelect, terraC)
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
     await screen.findByTestId('swap-route-summary')
