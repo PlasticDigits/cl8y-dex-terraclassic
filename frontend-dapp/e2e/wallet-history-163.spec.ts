@@ -21,8 +21,8 @@ test.describe('Wallet indexer history (#163)', () => {
     if (pairs.length === 0) {
       pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
     }
-    const { index } = await requireLimitTxPair(request, pairs)
-    await selectLimitPairByFactoryIndex(page, index)
+    const { pair } = await requireLimitTxPair(request, pairs)
+    await selectLimitPairByFactoryIndex(page, pair.contract_addr)
 
     const history = page.getByTestId('wallet-indexer-history')
     await expect(history).toBeVisible({ timeout: 30_000 })

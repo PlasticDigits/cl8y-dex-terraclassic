@@ -10,11 +10,11 @@ use dex_common::limit_placement::{
     LimitLadderDistribution, LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
 use dex_common::pair::{
-    pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse,
-    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
-    LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide,
-    PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
-    MAX_MAKER_FILLS_HARD_CAP,
+    pool_only_hybrid_params, pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg,
+    ExpiredLimitRefundResponse, HybridReverseSimulationResponse, HybridSimulationResponse,
+    HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse,
+    LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -826,6 +826,7 @@ fn hybrid_simulation_matches_execute_with_fee_discount() {
                     hybrid: hybrid.clone(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -1622,6 +1623,177 @@ fn hybrid_walk_twenty_expired_asks_parks_cap_skips_remainder() {
     );
 }
 
+/// GitLab #309 — at exactly `MAX_EXPIRED_PARKS_PER_SWAP`, all expired head orders park in one swap.
+#[test]
+fn hybrid_walk_at_cap_parks_all_expired_bids_without_capped_attr() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp_at_cap");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    let cap = MAX_EXPIRED_PARKS_PER_SWAP as usize;
+    place_expired_bids(&mut app, &env, cap, Uint128::new(5_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        cap
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used"),
+        Some(MAX_EXPIRED_PARKS_PER_SWAP.to_string())
+    );
+    assert!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped").is_none(),
+        "cap attr only when additional expired orders remain skipped"
+    );
+}
+
+/// GitLab #309 — pool-only hybrid (`book_input = 0`) has no expired-park overhead.
+#[test]
+fn hybrid_walk_pool_only_swap_has_no_expired_park_attrs() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_pool_only");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    place_expired_bids(&mut app, &env, 10, Uint128::new(5_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let pool_in = Uint128::new(50_000);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(pool_only_hybrid_params(pool_in)),
+        trader: None,
+    })
+    .unwrap();
+    let hybrid_res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: pool_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        0
+    );
+    assert!(wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used").is_none());
+}
+
+/// GitLab #309 — event-count sweep for N expired head orders (1..30); parks clamp at cap.
+#[test]
+fn expired_parks_benchmark_event_counts_sweep() {
+    const SWEEP: [usize; 7] = [1, 5, 10, 15, 20, 25, 30];
+    let cap = MAX_EXPIRED_PARKS_PER_SWAP as usize;
+
+    for &n in &SWEEP {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let taker = cosmwasm_std::Addr::unchecked(format!("taker_exp_sweep_{n}"));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &taker,
+            Uint128::new(500_000),
+        );
+
+        let exp = app.block_info().time.seconds() + 120;
+        place_expired_bids(&mut app, &env, n, Uint128::new(5_000), exp);
+
+        app.update_block(|b| {
+            b.time = b.time.plus_seconds(10_000);
+        });
+
+        let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+
+        let expected_parks = n.min(cap);
+        let expected_skipped = n.saturating_sub(cap);
+
+        assert_eq!(
+            count_limit_order_expired_parked_events(&hybrid_res.events),
+            expected_parks,
+            "N={n}: park event count"
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used"),
+            Some(expected_parks.to_string()),
+            "N={n}: expired_parks_used attr"
+        );
+        if expected_skipped > 0 {
+            assert_eq!(
+                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped"),
+                Some("true".into()),
+                "N={n}: cap attr"
+            );
+            assert_eq!(
+                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_skipped"),
+                Some(expected_skipped.to_string()),
+                "N={n}: skipped attr"
+            );
+        } else {
+            assert!(
+                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped")
+                    .is_none(),
+                "N={n}: no cap attr below cap"
+            );
+        }
+    }
+}
+
 #[test]
 fn skipped_expired_bid_cancelable_by_maker() {
     let mut app = App::default();
@@ -1717,6 +1889,7 @@ fn hybrid_simulation_matches_execute_with_expired_park_cap() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2521,6 +2694,7 @@ fn hybrid_pool_and_book_legs_one_swap() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2618,6 +2792,7 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2633,6 +2808,7 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
         // term has dedicated coverage in the dex-common max_spread unit tests.
         total_in,
         Uint128::zero(),
+        hybrid.pool_input,
     );
     let pool_gross = sim
         .pool_return_amount
@@ -2850,6 +3026,7 @@ fn hybrid_hook_commission_includes_pool_and_book() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2932,6 +3109,7 @@ fn pool_only_hook_commission_unchanged() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3231,13 +3409,8 @@ fn hybrid_same_side_book_start_hint_still_matches() {
     assert!(lo.remaining < Uint128::new(80_000));
 }
 
-// GitLab #273 — hybrid no-belief slippage gap (PoC). With no `belief_price`, the spread
-// check measures only the POOL leg's spread; a book leg that fills materially worse than
-// the pool fair rate enters only the denominator (making the ratio SMALLER), so it passes.
-// A taker who routes input to a book resting far below the pool price is unprotected by
-// default. This swap fills the book leg ~50% below the pool fair rate and MUST be rejected
-// on slippage. It currently SUCCEEDS — so this test FAILS pre-fix (demonstrates the gap)
-// and passes once the no-belief metric accounts for book-leg degradation.
+// GitLab #273 / #307 — hybrid no-belief: toxic book (~50% below pool) with a dust pool leg
+// must be rejected (#307 material-pool floor and/or #273 book shortfall).
 #[test]
 fn hybrid_no_belief_book_far_below_pool_rejected() {
     let mut app = App::default();
@@ -3300,8 +3473,82 @@ fn hybrid_no_belief_book_far_below_pool_rejected() {
 
     assert!(
         res.is_err(),
-        "hybrid no-belief swap whose book leg fills ~50% below the pool fair rate must be \
-         rejected on slippage (no-belief metric must reflect book-leg degradation, #273)"
+        "toxic book + dust pool hybrid must be rejected without belief"
+    );
+    let msg = res.unwrap_err().root_cause().to_string();
+    assert!(
+        msg.contains("material pool leg")
+            || msg.contains("Max spread assertion")
+            || msg.contains("InsufficientPoolLeg"),
+        "expected #307 or #273 slippage rejection, got: {msg}"
+    );
+}
+
+// GitLab #307 — fair book at pool rate but pool leg below 10% of offer must fail without belief.
+#[test]
+fn hybrid_no_belief_dust_pool_leg_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    // Bid at pool (~1.0) so #273 book shortfall stays zero; only the material-pool guard fires.
+    let _bid = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_307_dust");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(20_000),
+    );
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::percent(1)),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::new(500),
+            book_input: Uint128::new(9_500),
+            max_maker_fills: 1,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    let res = app.execute_contract(
+        taker.clone(),
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(10_000),
+            msg: swap_msg,
+        },
+        &[],
+    );
+
+    assert!(
+        res.is_err(),
+        "dust pool leg with book must be rejected (#307)"
+    );
+    let msg = res.unwrap_err().root_cause().to_string();
+    assert!(
+        msg.contains("material pool leg") || msg.contains("InsufficientPoolLeg"),
+        "expected material pool leg error, got: {msg}"
     );
 }
 
@@ -3426,6 +3673,7 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
                 hybrid: dex_common::pair::pool_only_hybrid_params(offer),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3727,6 +3975,7 @@ fn hybrid_reverse_pool_only_template_is_stable() {
                 hybrid: dex_common::pair::pool_only_hybrid_template(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3788,6 +4037,7 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                     hybrid: hybrid.clone(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -3819,6 +4069,7 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                     hybrid: fwd_hybrid,
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -3854,6 +4105,7 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                         hybrid: fwd_lo_hybrid,
                         trader: None,
                         sender: None,
+                        belief_price: None,
                     },
                 )
                 .unwrap();
@@ -3896,6 +4148,7 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3911,6 +4164,7 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                 hybrid: dex_common::pair::pool_only_hybrid_params(offer),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();

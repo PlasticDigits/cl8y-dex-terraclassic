@@ -43,6 +43,7 @@ pub fn test_config() -> Config {
         poll_interval_ms: 6000,
         api_port: 0,
         api_bind: "127.0.0.1".to_string(),
+        api_ipv6_enabled: false,
         lcd_timeout_ms: 5000,
         lcd_cooldown_ms: 30000,
         start_block: None,
@@ -53,6 +54,7 @@ pub fn test_config() -> Config {
         rate_limit_rps: 0,
         rate_limit_lcd_heavy_rps: 0,
         oracle_poll_interval_ms: 30000,
+        book_snapshot_interval_ms: 10_000,
         ustc_denom: None,
         router_address: None,
         block_tx_page_limit: 100,
@@ -622,6 +624,7 @@ pub async fn build_test_app_with_price_and_config(
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
+        factory_address: Some(config.factory_address.clone()),
     };
     build_router(state, &config)
 }

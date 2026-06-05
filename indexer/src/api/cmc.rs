@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
-    build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, listing_timestamps,
-    orderbook_sim, AppState,
+    aggregator_snapshot::{self, AggregatorListQuery},
+    consolidated_stats, find_pair_by_ticker, internal_err, listing_timestamps, orderbook_sim,
+    AppState,
 };
 use crate::db::queries::{assets, pairs as db_pairs, swap_events};
 
@@ -34,36 +35,34 @@ pub struct CmcSummaryEntry {
 #[utoipa::path(
     get,
     path = "/cmc/summary",
+    params(AggregatorListQuery),
     responses(
-        (status = 200, description = "CoinMarketCap summary for all pairs", body = Vec<CmcSummaryEntry>),
+        (status = 200, description = "CoinMarketCap summary (top pairs by 24h volume; default limit 100)", body = Vec<CmcSummaryEntry>),
+        (status = 400, description = "Invalid query parameters"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "CoinMarketCap"
 )]
 pub async fn cmc_summary(
     State(state): State<AppState>,
+    Query(q): Query<AggregatorListQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if let Some(cached) = super::aggregator_cache_get("cmc_summary") {
+    let params = aggregator_snapshot::parse_aggregator_list_query(q)?;
+    let cache_key = aggregator_snapshot::aggregator_cache_key("cmc_summary", params);
+    if let Some(cached) = super::aggregator_cache_get(&cache_key) {
         return Ok(Json(cached));
     }
-    let all_pairs = db_pairs::get_all_pairs(&state.pool)
+
+    let rows = aggregator_snapshot::load_aggregator_pairs(&state.pool, params, true)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
-    let mut result = Vec::new();
-    for p in &all_pairs {
-        let (a0, a1) = match (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
-            (Some(a0), Some(a1)) => (a0, a1),
-            _ => continue,
-        };
-
-        let stats = swap_events::get_24h_stats_for_pair(&state.pool, p.id)
-            .await
-            .map_err(internal_err)?;
-        let extensions = consolidated_stats::fetch_consolidated_extensions(&state.pool, p.id)
-            .await
-            .map_err(internal_err)?;
+    let mut result = Vec::with_capacity(rows.len());
+    for row in &rows {
+        let a0 = &row.asset_0;
+        let a1 = &row.asset_1;
+        let stats = &row.stats;
+        let extensions = row.extensions.clone().expect("extensions loaded");
 
         let last_price_f = stats
             .close_price
@@ -90,10 +89,12 @@ pub async fn cmc_summary(
                 .unwrap_or_else(|| "0.00".to_string()),
             highest_price_24h: stats
                 .high
+                .as_ref()
                 .map(|h| h.to_string())
                 .unwrap_or_else(|| "0".to_string()),
             lowest_price_24h: stats
                 .low
+                .as_ref()
                 .map(|l| l.to_string())
                 .unwrap_or_else(|| "0".to_string()),
             cl8y_extensions: extensions,
@@ -101,7 +102,7 @@ pub async fn cmc_summary(
     }
 
     let value = serde_json::to_value(&result).map_err(internal_err)?;
-    super::aggregator_cache_put("cmc_summary", value.clone());
+    super::aggregator_cache_put(&cache_key, value.clone());
     Ok(Json(value))
 }
 
@@ -165,33 +166,33 @@ pub struct CmcTickerEntry {
 #[utoipa::path(
     get,
     path = "/cmc/ticker",
+    params(AggregatorListQuery),
     responses(
-        (status = 200, description = "Ticker data in CoinMarketCap format", body = HashMap<String, CmcTickerEntry>),
+        (status = 200, description = "Ticker data in CoinMarketCap format (top pairs by 24h volume; default limit 100)", body = HashMap<String, CmcTickerEntry>),
+        (status = 400, description = "Invalid query parameters"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "CoinMarketCap"
 )]
 pub async fn cmc_ticker(
     State(state): State<AppState>,
+    Query(q): Query<AggregatorListQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if let Some(cached) = super::aggregator_cache_get("cmc_ticker") {
+    let params = aggregator_snapshot::parse_aggregator_list_query(q)?;
+    let cache_key = aggregator_snapshot::aggregator_cache_key("cmc_ticker", params);
+    if let Some(cached) = super::aggregator_cache_get(&cache_key) {
         return Ok(Json(cached));
     }
-    let all_pairs = db_pairs::get_all_pairs(&state.pool)
+
+    let rows = aggregator_snapshot::load_aggregator_pairs(&state.pool, params, false)
         .await
         .map_err(internal_err)?;
-    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut map = HashMap::new();
-    for p in &all_pairs {
-        let (a0, a1) = match (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
-            (Some(a0), Some(a1)) => (a0, a1),
-            _ => continue,
-        };
-
-        let stats = swap_events::get_24h_stats_for_pair(&state.pool, p.id)
-            .await
-            .map_err(internal_err)?;
+    for row in &rows {
+        let a0 = &row.asset_0;
+        let a1 = &row.asset_1;
+        let stats = &row.stats;
 
         let base_id = a0
             .contract_address
@@ -214,6 +215,7 @@ pub async fn cmc_ticker(
                 quote_id,
                 last_price: stats
                     .close_price
+                    .as_ref()
                     .map(|p| p.to_string())
                     .unwrap_or_else(|| "0".to_string()),
                 base_volume: stats.volume_base.to_string(),
@@ -224,7 +226,7 @@ pub async fn cmc_ticker(
     }
 
     let value = serde_json::to_value(&map).map_err(internal_err)?;
-    super::aggregator_cache_put("cmc_ticker", value.clone());
+    super::aggregator_cache_put(&cache_key, value.clone());
     Ok(Json(value))
 }
 

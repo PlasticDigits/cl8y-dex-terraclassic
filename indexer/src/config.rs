@@ -1,4 +1,5 @@
 use std::env;
+use std::net::IpAddr;
 
 use thiserror::Error;
 
@@ -33,6 +34,14 @@ fn normalized_lcd_url_list(s: &str) -> String {
         .join(",")
 }
 
+/// Staleness TTL multiplier for mirrored book/reserves (one missed snapshot cycle tolerated).
+pub const BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES: u64 = 2;
+
+/// Wall-clock staleness TTL for a given snapshot cadence (Phase 1c consumers).
+pub const fn book_snapshot_max_staleness_ms(cadence_ms: u64) -> u64 {
+    cadence_ms.saturating_mul(BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES)
+}
+
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error(
@@ -43,6 +52,10 @@ pub enum ConfigError {
     ProdEmpty(&'static str),
     #[error("{0}")]
     Missing(&'static str),
+    #[error(
+        "API_BIND is an IPv6 address but API_IPV6_ENABLED is not set — use an IPv4 bind (e.g. 0.0.0.0 or 127.0.0.1) or set API_IPV6_ENABLED=1"
+    )]
+    Ipv6BindDisabled,
 }
 
 #[derive(Debug, Clone)]
@@ -55,6 +68,8 @@ pub struct Config {
     pub poll_interval_ms: u64,
     pub api_port: u16,
     pub api_bind: String,
+    /// When false (default), the API listener binds IPv4-only and rejects IPv6 `API_BIND` values.
+    pub api_ipv6_enabled: bool,
     pub lcd_timeout_ms: u64,
     pub lcd_cooldown_ms: u64,
     pub start_block: Option<i64>,
@@ -63,6 +78,8 @@ pub struct Config {
     /// Stricter per-IP limit for LCD-heavy routes (limit-book, route solve). Default **10** RPS.
     pub rate_limit_lcd_heavy_rps: u64,
     pub oracle_poll_interval_ms: u64,
+    /// Background mirror snapshot cadence for pair reserves + resting books (GitLab #322).
+    pub book_snapshot_interval_ms: u64,
     pub ustc_denom: Option<String>,
     /// Router contract for `SimulateSwapOperations` in route solver (optional).
     pub router_address: Option<String>,
@@ -122,6 +139,18 @@ impl Config {
             }
         }
 
+        let api_ipv6_enabled = env::var("API_IPV6_ENABLED")
+            .ok()
+            .is_some_and(|v| matches!(v.as_str(), "1" | "true" | "yes"));
+        let api_bind = env::var("API_BIND").unwrap_or_else(|_| "127.0.0.1".to_string());
+        if !api_ipv6_enabled {
+            if let Ok(ip) = api_bind.parse::<IpAddr>() {
+                if ip.is_ipv6() {
+                    return Err(ConfigError::Ipv6BindDisabled);
+                }
+            }
+        }
+
         Ok(Self {
             run_mode,
             database_url,
@@ -136,7 +165,8 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(3001),
-            api_bind: env::var("API_BIND").unwrap_or_else(|_| "127.0.0.1".to_string()),
+            api_bind,
+            api_ipv6_enabled,
             lcd_timeout_ms: env::var("LCD_TIMEOUT_MS")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -171,6 +201,10 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(30000),
+            book_snapshot_interval_ms: env::var("BOOK_SNAPSHOT_INTERVAL_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(10_000),
             ustc_denom: env::var("USTC_DENOM").ok(),
             router_address: env::var("ROUTER_ADDRESS").ok().filter(|s| !s.is_empty()),
             block_tx_page_limit: env::var("BLOCK_TX_PAGE_LIMIT")
@@ -191,6 +225,11 @@ impl Config {
                 .unwrap_or(2000),
         })
     }
+
+    /// Mirror staleness TTL derived from the configured snapshot cadence.
+    pub fn book_snapshot_max_staleness_ms(&self) -> u64 {
+        book_snapshot_max_staleness_ms(self.book_snapshot_interval_ms)
+    }
 }
 
 #[cfg(test)]
@@ -207,6 +246,8 @@ mod tests {
             "CORS_ORIGINS",
             "RATE_LIMIT_RPS",
             "RATE_LIMIT_LCD_HEAVY_RPS",
+            "API_BIND",
+            "API_IPV6_ENABLED",
         ] {
             env::remove_var(key);
         }
@@ -265,6 +306,32 @@ mod tests {
         let c = Config::from_env().expect("prod config");
         assert_eq!(c.rate_limit_rps, 60);
         assert_eq!(c.rate_limit_lcd_heavy_rps, 10);
+    }
+
+    #[test]
+    #[serial]
+    fn ipv6_bind_rejected_when_ipv6_disabled() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("API_BIND", "::");
+        let err = Config::from_env().unwrap_err();
+        assert!(matches!(err, ConfigError::Ipv6BindDisabled));
+    }
+
+    #[test]
+    #[serial]
+    fn ipv6_bind_allowed_when_ipv6_enabled() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("API_BIND", "::");
+        env::set_var("API_IPV6_ENABLED", "1");
+        let c = Config::from_env().expect("ipv6 bind with flag");
+        assert!(c.api_ipv6_enabled);
+        assert_eq!(c.api_bind, "::");
     }
 
     #[test]

@@ -61,7 +61,7 @@ Query failed blocks: `SELECT * FROM indexer_failed_blocks ORDER BY height;`
 
 ## Do not regress
 
-- Swap dedup `(tx_hash, pair_id)` on replay.
+- Swap dedup `(tx_hash, pair_id, swap_index)` on replay ([#287](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)).
 - **Merged wasm fill parsing:** hybrid multi-maker txs must produce one `limit_order_fills` row per on-chain `limit_order_fill` action even when LCD flattens the stream and `action=swap` is last ([#269](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/269), pattern [#141](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/141)).
 - Existing integration test binaries under `indexer/tests/` (22+ files).
 - Warn-only skip inside `process_block_txs` for hard failures — errors must propagate (**C1**).

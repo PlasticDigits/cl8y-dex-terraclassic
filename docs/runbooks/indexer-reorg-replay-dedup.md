@@ -12,7 +12,7 @@ Implementation: GitLab [**#236**](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 
 ## Dedup and replay
 
-- **Swap dedup:** Inserts use a unique constraint on `(tx_hash, pair_id)` with `ON CONFLICT DO NOTHING` ([`insert_swap`](../../indexer/src/db/queries/swap_events.rs)). Re-processing the same block after a restart **skips** duplicate swaps safely.
+- **Swap dedup:** Inserts use a unique constraint on `(tx_hash, pair_id, swap_index)` with `ON CONFLICT DO NOTHING` ([`insert_swap`](../../indexer/src/db/queries/swap_events.rs); migration `20260605000000_swap_events_per_tx_pair_swap_index.sql`, GitLab [**#287**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)). `swap_index` is the per-pair ordinal within the tx so multiple genuine swaps on one pair are stored separately; re-processing the same block after a restart **skips** duplicate delivery of the same swap safely.
 - **Replay:** Running the indexer again over heights that were already indexed is safe for idempotent rows (swaps); other tables (candles, positions, aggregates) are updated by merge logic—if you suspect corruption, treat as a **full re-backfill** from a known-good height (see below).
 
 ## Reorg handling

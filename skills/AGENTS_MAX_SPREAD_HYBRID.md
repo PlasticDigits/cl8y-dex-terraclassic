@@ -10,7 +10,7 @@ One shared implementation: [`dex_common::max_spread`](../smartcontracts/packages
 
 | Mode | Pass condition |
 |------|----------------|
-| **No `belief_price`** | `min(pool_spread, pool_gross) / (pool_gross + book_net) ≤ max_spread` (strict `>` fails) |
+| **No `belief_price`** | `(min(pool_spread, pool_gross) + book_shortfall) / (pool_gross + book_net) ≤ max_spread` (strict `>` fails). `book_shortfall` vs pool net rate when both legs present ([#273](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/273)). Hybrid with `book_input > 0` and `pool_input > 0` also requires `pool_input ≥ 10%` of offer and `pool_net > 0` ([#307](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/307)). Pure-book (`pool_input = 0`) unchanged — needs `belief_price` or `min_receive`. |
 | **`belief_price` set** | `(expected − actual) / expected ≤ max_spread` where `expected = offer / belief_price` and `actual = book_net + pool_net + pool_commission` |
 
 Default `max_spread` when omitted: **1%**.

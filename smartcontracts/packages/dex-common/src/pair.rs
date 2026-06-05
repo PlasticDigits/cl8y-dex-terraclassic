@@ -33,9 +33,13 @@ pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 100;
 pub const MAX_SCAN_STEPS: u32 = 500;
 /// Maximum expired limit orders parked into `EXPIRED_LIMIT_CLAIMS` per book walk during hybrid swap
 /// ([GitLab #250](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/250),
-/// raised in [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254)).
+/// raised in [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254),
+/// benchmarked [#309](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/309)).
 /// Additional expired orders at the book head are skipped without storage writes until a later tx.
 /// Kept well below [`MAX_SCAN_STEPS`] — parking is write-heavy (unlink + claim row + event).
+/// Value **15** retained after LocalTerra optimized-wasm sweep (N=1..30): gas stays under 12M
+/// headroom vs 15M dApp ceiling; raising parks trades maker UX for marginal gain while scan-step
+/// budget (500 × ~19k) remains the binding hybrid envelope — see `docs/limit-orders.md` § Expired-park benchmark.
 pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 15;
 
 /// Post-fill rounding can leave 1–9 smallest-unit remainders on limit orders. Match walks
@@ -353,6 +357,9 @@ pub enum QueryMsg {
         trader: Option<String>,
         /// CW20 sender for discount lookup when `trader` differs (e.g. trusted router). Defaults to `trader`.
         sender: Option<String>,
+        /// When set, skip the no-belief material pool-leg guard (same as execute `belief_price`).
+        #[serde(default)]
+        belief_price: Option<Decimal>,
     },
     #[returns(HybridReverseSimulationResponse)]
     HybridReverseSimulation {
@@ -360,6 +367,9 @@ pub enum QueryMsg {
         hybrid: HybridSwapParams,
         trader: Option<String>,
         sender: Option<String>,
+        /// When set, skip the no-belief material pool-leg guard (same as execute `belief_price`).
+        #[serde(default)]
+        belief_price: Option<Decimal>,
     },
 }
 
@@ -370,6 +380,7 @@ pub fn hybrid_simulation_undiscounted(offer_asset: Asset, hybrid: HybridSwapPara
         hybrid,
         trader: None,
         sender: None,
+        belief_price: None,
     }
 }
 
@@ -383,6 +394,7 @@ pub fn hybrid_reverse_simulation_undiscounted(
         hybrid,
         trader: None,
         sender: None,
+        belief_price: None,
     }
 }
 
@@ -398,6 +410,7 @@ pub fn hybrid_simulation_with_trader(
         hybrid,
         trader: Some(trader),
         sender,
+        belief_price: None,
     }
 }
 
@@ -413,6 +426,7 @@ pub fn hybrid_reverse_simulation_with_trader(
         hybrid,
         trader: Some(trader),
         sender,
+        belief_price: None,
     }
 }
 
@@ -446,6 +460,8 @@ pub struct HybridSimulationResponse {
     pub book_commission_amount: Uint128,
     pub book_return_amount: Uint128,
     pub pool_return_amount: Uint128,
+    /// Offer-side amount matched on the book (same attr as execute `limit_book_offer_consumed`).
+    pub limit_book_offer_consumed: Uint128,
 }
 
 #[cw_serde]

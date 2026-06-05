@@ -5,6 +5,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
 
+use crate::blacklist_guard;
 use crate::discount_cache::{
     invalidate_discount_cache, lookup_effective_fee_bps_cached, lookup_effective_fee_bps_readonly,
 };
@@ -30,7 +31,7 @@ use crate::state::{
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
-use dex_common::max_spread::{self, MaxSpreadInputs};
+use dex_common::max_spread::{self, CheckMaxSpreadError, MaxSpreadInputs};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
 };
@@ -42,7 +43,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.7.0";
+const CONTRACT_VERSION: &str = "1.8.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -232,6 +233,23 @@ fn assert_not_paused(storage: &dyn cosmwasm_std::Storage) -> Result<(), Contract
         return Err(ContractError::Paused {});
     }
     Ok(())
+}
+
+fn gate_trading_blacklist(
+    deps: Deps,
+    pair_contract: &Addr,
+    wallets: &[Addr],
+    extra_tokens: &[Addr],
+) -> Result<(), ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let wallet_refs: Vec<&Addr> = wallets.iter().collect();
+    blacklist_guard::assert_trade_not_blacklisted_deps(
+        deps,
+        &pair_info,
+        pair_contract,
+        &wallet_refs,
+        extra_tokens,
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -582,6 +600,12 @@ pub fn execute(
         } => {
             assert_not_paused(deps.storage)?;
             assert_deadline(&env, deadline)?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_provide_liquidity(deps, env, info, assets, slippage_tolerance, receiver)
         }
         ExecuteMsg::Swap {
@@ -612,18 +636,42 @@ pub fn execute(
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
         ExecuteMsg::CancelLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_cancel_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::CancelLimitOrders { order_ids } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_cancel_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::ClaimExpiredLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_claim_expired_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::ClaimExpiredLimitOrders { order_ids } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_claim_expired_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::UpdateLimitOrderPrice {
@@ -633,6 +681,12 @@ pub fn execute(
             max_adjust_steps,
         } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_update_limit_order_price(
                 deps,
                 env,
@@ -675,6 +729,20 @@ fn execute_receive(
 ) -> Result<Response, ContractError> {
     let hook_msg: Cw20HookMsg = cosmwasm_std::from_json(&cw20_msg.msg)?;
     let token_sender = deps.api.addr_validate(&cw20_msg.sender)?;
+
+    let mut wallets = vec![token_sender.clone()];
+    if let Cw20HookMsg::Swap {
+        trader: Some(t), ..
+    } = &hook_msg
+    {
+        wallets.push(deps.api.addr_validate(t)?);
+    }
+    gate_trading_blacklist(
+        deps.as_ref(),
+        &env.contract.address,
+        &wallets,
+        std::slice::from_ref(&info.sender),
+    )?;
 
     match hook_msg {
         Cw20HookMsg::Swap {
@@ -760,6 +828,7 @@ fn assert_max_spread(
     book_return_net: Uint128,
     pool_input: Uint128,
     book_input: Uint128,
+    declared_pool_input: Uint128,
 ) -> Result<(), ContractError> {
     max_spread::check_max_spread(
         belief_price,
@@ -772,11 +841,30 @@ fn assert_max_spread(
             book_net_return: book_return_net,
             pool_input,
             book_input,
+            declared_pool_input,
         },
     )
-    .map_err(|v| ContractError::MaxSpreadAssertion {
-        max: v.max_allowed.to_string(),
-        actual: v.actual.to_string(),
+    .map_err(|e| match e {
+        CheckMaxSpreadError::SpreadExceeded(v) => ContractError::MaxSpreadAssertion {
+            max: v.max_allowed.to_string(),
+            actual: v.actual.to_string(),
+        },
+        CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+            pool_input,
+            min_pool_input,
+            book_input,
+        } => ContractError::InsufficientPoolLegForHybrid {
+            pool_input: pool_input.to_string(),
+            min_pool_input: min_pool_input.to_string(),
+            book_input: book_input.to_string(),
+        },
+        CheckMaxSpreadError::ZeroPoolNetForBookHybrid {
+            pool_input,
+            book_input,
+        } => ContractError::ZeroPoolNetForHybrid {
+            pool_input: pool_input.to_string(),
+            book_input: book_input.to_string(),
+        },
     })
 }
 
@@ -817,6 +905,27 @@ fn execute_swap(
                 return Err(ContractError::InvalidHybridParams {
                     reason: "max_maker_fills must be > 0 when book_input > 0".into(),
                 });
+            }
+            if belief_price.is_none() {
+                max_spread::validate_declared_hybrid_pool_leg_for_no_belief(
+                    input_amount,
+                    h.pool_input,
+                    h.book_input,
+                )
+                .map_err(|e| match e {
+                    CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+                        pool_input,
+                        min_pool_input,
+                        book_input,
+                    } => ContractError::InsufficientPoolLegForHybrid {
+                        pool_input: pool_input.to_string(),
+                        min_pool_input: min_pool_input.to_string(),
+                        book_input: book_input.to_string(),
+                    },
+                    other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!(
+                        "{other:?}"
+                    ))),
+                })?;
             }
             (
                 h.pool_input,
@@ -1015,6 +1124,7 @@ fn execute_swap(
         // offer the book actually consumed — bounds the book leg vs the pool net rate.
         pool_input_amount,
         offer_consumed_by_book,
+        pool_leg,
     )?;
 
     let hook_commission_amount = total_commission;
@@ -1950,6 +2060,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             hybrid,
             trader,
             sender,
+            belief_price,
         } => to_json_binary(&query_hybrid_simulation(
             deps,
             &env,
@@ -1957,14 +2068,22 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             hybrid,
             trader,
             sender,
+            belief_price,
         )?),
         QueryMsg::HybridReverseSimulation {
             ask_asset,
             hybrid,
             trader,
             sender,
+            belief_price,
         } => to_json_binary(&query_hybrid_reverse_simulation(
-            deps, &env, ask_asset, hybrid, trader, sender,
+            deps,
+            &env,
+            ask_asset,
+            hybrid,
+            trader,
+            sender,
+            belief_price,
         )?),
     }
 }
@@ -2080,6 +2199,7 @@ fn simulate_hybrid_swap_with_fee(
     hybrid: &HybridSwapParams,
     offer_asset_info: &AssetInfo,
     effective_fee_bps: u16,
+    belief_price: Option<Decimal>,
 ) -> Result<HybridSimulationResponse, ContractError> {
     if input_amount.is_zero() {
         return Ok(HybridSimulationResponse {
@@ -2090,6 +2210,7 @@ fn simulate_hybrid_swap_with_fee(
             book_commission_amount: Uint128::zero(),
             book_return_amount: Uint128::zero(),
             pool_return_amount: Uint128::zero(),
+            limit_book_offer_consumed: Uint128::zero(),
         });
     }
     if hybrid.pool_input.checked_add(hybrid.book_input)? != input_amount {
@@ -2099,6 +2220,25 @@ fn simulate_hybrid_swap_with_fee(
         return Err(ContractError::InvalidHybridParams {
             reason: "max_maker_fills must be > 0 when book_input > 0".into(),
         });
+    }
+    if belief_price.is_none() {
+        max_spread::validate_declared_hybrid_pool_leg_for_no_belief(
+            input_amount,
+            hybrid.pool_input,
+            hybrid.book_input,
+        )
+        .map_err(|e| match e {
+            CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+                pool_input,
+                min_pool_input,
+                book_input,
+            } => ContractError::InsufficientPoolLegForHybrid {
+                pool_input: pool_input.to_string(),
+                min_pool_input: min_pool_input.to_string(),
+                book_input: book_input.to_string(),
+            },
+            other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
+        })?;
     }
     let pool_leg = hybrid.pool_input;
     let book_leg = hybrid.book_input;
@@ -2190,12 +2330,14 @@ fn simulate_hybrid_swap_with_fee(
         book_commission_amount: book_commission_total,
         book_return_amount: book_return_net,
         pool_return_amount: return_amount,
+        limit_book_offer_consumed: offer_consumed_by_book,
     })
 }
 
 /// Forward hybrid quote. Resolves the CL8Y fee-tier discount once (read-only; no
 /// deregister side-effects) then runs the core sim. `trader`/`sender` omitted →
 /// full pair fee (backward compatible). GitLab #238 invariant **L8**.
+#[allow(clippy::too_many_arguments)]
 fn simulate_hybrid_swap(
     deps: Deps,
     env: &Env,
@@ -2204,6 +2346,7 @@ fn simulate_hybrid_swap(
     offer_asset_info: &AssetInfo,
     trader: Option<&str>,
     sender: Option<&str>,
+    belief_price: Option<Decimal>,
 ) -> Result<HybridSimulationResponse, ContractError> {
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
@@ -2222,6 +2365,7 @@ fn simulate_hybrid_swap(
         hybrid,
         offer_asset_info,
         effective_fee_bps,
+        belief_price,
     )
 }
 
@@ -2232,6 +2376,7 @@ fn query_hybrid_simulation(
     hybrid: HybridSwapParams,
     trader: Option<String>,
     sender: Option<String>,
+    belief_price: Option<Decimal>,
 ) -> StdResult<HybridSimulationResponse> {
     simulate_hybrid_swap(
         deps,
@@ -2241,6 +2386,7 @@ fn query_hybrid_simulation(
         &offer_asset.info,
         trader.as_deref(),
         sender.as_deref(),
+        belief_price,
     )
     .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
 }
@@ -2252,6 +2398,7 @@ fn query_hybrid_reverse_simulation(
     hybrid: HybridSwapParams,
     trader: Option<String>,
     sender: Option<String>,
+    belief_price: Option<Decimal>,
 ) -> StdResult<HybridReverseSimulationResponse> {
     use crate::hybrid_reverse::{seed_upper_offer_from_pool_math, MAX_HYBRID_REVERSE_SIM_CALLS};
 
@@ -2320,6 +2467,7 @@ fn query_hybrid_reverse_simulation(
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
             &offer_info,
             effective_fee_bps,
+            belief_price,
         )
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
     };

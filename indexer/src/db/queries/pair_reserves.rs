@@ -17,14 +17,17 @@ pub struct PairReservesRow {
 }
 
 /// Upsert the current reserves snapshot for a pair (replaces any prior row).
-pub async fn upsert_pair_reserves(
-    pool: &PgPool,
+pub async fn upsert_pair_reserves<'e, E>(
+    executor: E,
     pair_id: i32,
     reserve_0: &BigDecimal,
     reserve_1: &BigDecimal,
     fee_bps: i16,
     block_height: Option<i64>,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query(
         "INSERT INTO pair_reserves
             (pair_id, reserve_0, reserve_1, fee_bps, block_height, snapshot_at)
@@ -41,7 +44,7 @@ pub async fn upsert_pair_reserves(
     .bind(reserve_1)
     .bind(fee_bps)
     .bind(block_height)
-    .execute(pool)
+    .execute(executor)
     .await?;
     Ok(())
 }

@@ -38,8 +38,26 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
       'Try a smaller amount, pick a deeper pool route, or raise slippage tolerance in Settings (higher slippage increases execution risk).'
     )
   }
+  if (/material pool leg|InsufficientPoolLeg/i.test(inner)) {
+    return (
+      'Trade rejected: this hybrid route sends too little through the pool while using the limit book without a belief price. ' +
+      'Increase the pool leg (at least 10% of the swap), add a belief price, or use pool-only / book-only with appropriate slippage guards.'
+    )
+  }
+  if (/zero net output with book_input|ZeroPoolNetForHybrid/i.test(inner)) {
+    return (
+      'Trade rejected: the pool leg produced no output while a book leg was requested. ' +
+      'Check hybrid split and pool liquidity, or set a belief price for book-heavy routes.'
+    )
+  }
   if (/assert_not_paused|contract is paused/i.test(inner)) {
     return 'This pool is currently paused by the operator. Try again later or pick a different pair.'
+  }
+  if (/Trading blacklist/i.test(inner)) {
+    return (
+      'This action was blocked by the protocol trading blacklist (compliance or incident response). ' +
+      'Contact support if you believe this is an error.'
+    )
   }
   if (/\bUnauthorized\b/i.test(inner)) {
     return 'You do not have permission for this action.'

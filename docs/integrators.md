@@ -123,7 +123,7 @@ These are **execution** semantics; all quoting uses `HybridSimulation` / `Hybrid
 
 ## Route discovery and quotes (L8)
 
-The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-invariants.md](./indexer-invariants.md) for full HTTP semantics).
+The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-invariants.md](./indexer-invariants.md) for full HTTP semantics and [route-solver.md](./route-solver.md) for the in-depth solver guide).
 
 | Method | Role |
 |--------|------|
@@ -154,6 +154,10 @@ Indexer persistence and `/api/v1/pairs/{addr}/trades` expose the same columns pl
 **Volume reconciliation (headline vs legs vs fills):** [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) ([GitLab #216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)). Agent playbook: [skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md](../skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md).
 
 Full Terraport reference: [terraport.md](./terraport.md).
+
+## Indexer pair list (factory provenance)
+
+The indexer only **auto-discovers** pairs that respond to the pair `Pair` query **and** are listed at the same `contract_addr` in the configured factory’s `Pair { asset_infos }` reverse lookup ([GitLab **#311**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/311)). Operators must set **`FACTORY_ADDRESS`** in production (`RUN_MODE=prod` rejects an empty factory). Treat `GET /api/v1/pairs` and route discovery as **canonical factory deployments**, not arbitrary contracts that mimic the pair API. Details: [indexer-invariants.md § Factory pair provenance (P1)](./indexer-invariants.md).
 
 ## Related docs
 

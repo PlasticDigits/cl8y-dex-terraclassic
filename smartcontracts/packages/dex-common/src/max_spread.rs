@@ -11,12 +11,58 @@
 //! only enlarging the denominator. A **pure-book** hybrid (`pool_input == 0`) has no pool
 //! reference rate, so this metric cannot bound it; that case is deferred to the separate
 //! `belief_price` / `min_receive` guard (out of scope here).
+//!
+//! GitLab #307: when both legs are present on the no-belief path, require a **material** pool
+//! leg (`pool_input` share of `offer_amount` and `pool_net_return > 0`) before applying the
+//! #273 book shortfall — otherwise reject (dust pool legs make the reference rate unstable).
 
 use cosmwasm_std::{Decimal, Uint128};
 
 /// Default slippage tolerance when the user omits `max_spread` (1%).
 pub fn default_max_spread() -> Decimal {
     Decimal::percent(1)
+}
+
+/// Minimum share of `offer_amount` routed to the pool when `book_input > 0` on the no-belief
+/// max_spread path (GitLab #307). Satisfied when `pool_input * DEN >= offer_amount * NUM`.
+pub const MIN_POOL_INPUT_FOR_BOOK_HYBRID_NUM: u128 = 1;
+pub const MIN_POOL_INPUT_FOR_BOOK_HYBRID_DEN: u128 = 10;
+
+/// Minimum declared or realized `pool_input` for a hybrid with a book leg under no-belief
+/// `max_spread` (at least 10% of `offer_amount`, or 1 raw unit when the ratio rounds to zero).
+pub fn min_pool_input_for_book_hybrid(offer_amount: Uint128) -> Uint128 {
+    if offer_amount.is_zero() {
+        return Uint128::zero();
+    }
+    let ratio_min = offer_amount.multiply_ratio(
+        Uint128::new(MIN_POOL_INPUT_FOR_BOOK_HYBRID_NUM),
+        Uint128::new(MIN_POOL_INPUT_FOR_BOOK_HYBRID_DEN),
+    );
+    if ratio_min.is_zero() {
+        Uint128::one()
+    } else {
+        ratio_min
+    }
+}
+
+/// Early validation of caller-declared hybrid splits (pair / router) before simulation.
+pub fn validate_declared_hybrid_pool_leg_for_no_belief(
+    offer_amount: Uint128,
+    pool_input: Uint128,
+    book_input: Uint128,
+) -> Result<(), CheckMaxSpreadError> {
+    if book_input.is_zero() || pool_input.is_zero() {
+        return Ok(());
+    }
+    let min_pool = min_pool_input_for_book_hybrid(offer_amount);
+    if pool_input < min_pool {
+        return Err(CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+            pool_input,
+            min_pool_input: min_pool,
+            book_input,
+        });
+    }
+    Ok(())
 }
 
 /// Leg amounts passed into the spread check after book + pool settlement.
@@ -30,8 +76,10 @@ pub struct MaxSpreadInputs {
     /// Offer actually routed to the AMM pool (incl. the book's unfilled remainder).
     /// Used as the reference-rate base for the no-belief book-degradation term (#273).
     pub pool_input: Uint128,
-    /// Offer actually consumed by book fills (`pool_input + book_input == offer_amount`).
+    /// Offer actually consumed by book fills (`declared_pool_input + declared book ≤ offer_amount`).
     pub book_input: Uint128,
+    /// Caller-declared pool leg from `HybridSwapParams` (zero for pure-book intent; #307).
+    pub declared_pool_input: Uint128,
 }
 
 impl MaxSpreadInputs {
@@ -50,6 +98,7 @@ impl MaxSpreadInputs {
             book_net_return: Uint128::zero(),
             pool_input: offer_amount,
             book_input: Uint128::zero(),
+            declared_pool_input: offer_amount,
         }
     }
 
@@ -64,6 +113,30 @@ impl MaxSpreadInputs {
         pool_input: Uint128,
         book_input: Uint128,
     ) -> Self {
+        Self::hybrid_with_declared_pool(
+            offer_amount,
+            pool_net_return,
+            pool_commission,
+            pool_spread,
+            book_net_return,
+            pool_input,
+            book_input,
+            pool_input,
+        )
+    }
+
+    /// Hybrid snapshot with explicit declared pool leg (may differ from realized `pool_input`).
+    #[allow(clippy::too_many_arguments)]
+    pub fn hybrid_with_declared_pool(
+        offer_amount: Uint128,
+        pool_net_return: Uint128,
+        pool_commission: Uint128,
+        pool_spread: Uint128,
+        book_net_return: Uint128,
+        pool_input: Uint128,
+        book_input: Uint128,
+        declared_pool_input: Uint128,
+    ) -> Self {
         Self {
             offer_amount,
             pool_net_return,
@@ -72,6 +145,7 @@ impl MaxSpreadInputs {
             book_net_return,
             pool_input,
             book_input,
+            declared_pool_input,
         }
     }
 
@@ -85,8 +159,9 @@ impl MaxSpreadInputs {
         book_return_amount: Uint128,
         pool_input: Uint128,
         book_input: Uint128,
+        declared_pool_input: Uint128,
     ) -> Self {
-        Self::hybrid(
+        Self::hybrid_with_declared_pool(
             offer_amount,
             pool_return_amount,
             pool_commission_amount,
@@ -94,6 +169,7 @@ impl MaxSpreadInputs {
             book_return_amount,
             pool_input,
             book_input,
+            declared_pool_input,
         )
     }
 }
@@ -104,12 +180,28 @@ pub struct MaxSpreadViolation {
     pub actual: Decimal,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CheckMaxSpreadError {
+    SpreadExceeded(MaxSpreadViolation),
+    /// No-belief hybrid with `book_input > 0` but `pool_input` below [`min_pool_input_for_book_hybrid`].
+    InsufficientPoolLegForBookHybrid {
+        pool_input: Uint128,
+        min_pool_input: Uint128,
+        book_input: Uint128,
+    },
+    /// No-belief hybrid with a book leg and a positive pool leg but zero pool net output.
+    ZeroPoolNetForBookHybrid {
+        pool_input: Uint128,
+        book_input: Uint128,
+    },
+}
+
 /// Returns `Ok(())` when spread is within tolerance; `Err` when it strictly exceeds `max_spread`.
 pub fn check_max_spread(
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
     inputs: &MaxSpreadInputs,
-) -> Result<(), MaxSpreadViolation> {
+) -> Result<(), CheckMaxSpreadError> {
     let max_allowed = max_spread.unwrap_or_else(default_max_spread);
 
     if let Some(bp) = belief_price {
@@ -118,9 +210,11 @@ pub fn check_max_spread(
             .book_net_return
             .checked_add(inputs.pool_net_return)
             .and_then(|v| v.checked_add(inputs.pool_commission))
-            .map_err(|_| MaxSpreadViolation {
-                max_allowed,
-                actual: Decimal::zero(),
+            .map_err(|_| {
+                CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                    max_allowed,
+                    actual: Decimal::zero(),
+                })
             })?;
         let spread = if expected_return > actual_return {
             expected_return - actual_return
@@ -131,24 +225,48 @@ pub fn check_max_spread(
         if expected_return > Uint128::zero()
             && Decimal::from_ratio(spread, expected_return) > max_allowed
         {
-            return Err(MaxSpreadViolation {
+            return Err(CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
                 max_allowed,
                 actual: Decimal::from_ratio(spread, expected_return),
-            });
+            }));
         }
     } else {
+        // GitLab #307: declared hybrid with both legs — require material declared pool leg.
+        // Pure-book (`declared_pool_input == 0`) may still route book remainder to the pool;
+        // that realized pool leg is not subject to this floor.
+        if !inputs.book_input.is_zero() && !inputs.declared_pool_input.is_zero() {
+            let min_pool = min_pool_input_for_book_hybrid(inputs.offer_amount);
+            if inputs.declared_pool_input < min_pool {
+                return Err(CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+                    pool_input: inputs.declared_pool_input,
+                    min_pool_input: min_pool,
+                    book_input: inputs.book_input,
+                });
+            }
+            if inputs.pool_net_return.is_zero() {
+                return Err(CheckMaxSpreadError::ZeroPoolNetForBookHybrid {
+                    pool_input: inputs.pool_input,
+                    book_input: inputs.book_input,
+                });
+            }
+        }
+
         let pool_gross = inputs
             .pool_net_return
             .checked_add(inputs.pool_commission)
-            .map_err(|_| MaxSpreadViolation {
-                max_allowed,
-                actual: Decimal::zero(),
+            .map_err(|_| {
+                CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                    max_allowed,
+                    actual: Decimal::zero(),
+                })
             })?;
         let total_gross_out = pool_gross
             .checked_add(inputs.book_net_return)
-            .map_err(|_| MaxSpreadViolation {
-                max_allowed,
-                actual: Decimal::zero(),
+            .map_err(|_| {
+                CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                    max_allowed,
+                    actual: Decimal::zero(),
+                })
             })?;
         let spread_cmp = inputs.pool_spread.min(pool_gross);
 
@@ -164,27 +282,28 @@ pub fn check_max_spread(
             let fair_net_book = inputs
                 .pool_net_return
                 .checked_multiply_ratio(inputs.book_input, inputs.pool_input)
-                .map_err(|_| MaxSpreadViolation {
-                    max_allowed,
-                    actual: Decimal::zero(),
+                .map_err(|_| {
+                    CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                        max_allowed,
+                        actual: Decimal::zero(),
+                    })
                 })?;
             fair_net_book.saturating_sub(inputs.book_net_return)
         };
-        let spread_total =
-            spread_cmp
-                .checked_add(book_shortfall)
-                .map_err(|_| MaxSpreadViolation {
-                    max_allowed,
-                    actual: Decimal::zero(),
-                })?;
+        let spread_total = spread_cmp.checked_add(book_shortfall).map_err(|_| {
+            CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                max_allowed,
+                actual: Decimal::zero(),
+            })
+        })?;
 
         if total_gross_out > Uint128::zero()
             && Decimal::from_ratio(spread_total, total_gross_out) > max_allowed
         {
-            return Err(MaxSpreadViolation {
+            return Err(CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
                 max_allowed,
                 actual: Decimal::from_ratio(spread_total, total_gross_out),
-            });
+            }));
         }
     }
 
@@ -212,6 +331,7 @@ mod tests {
             Uint128::new(1),
             Uint128::zero(),
         );
+        // declared_pool_input follows pool_input for hybrid() helper
         let max = Some(Decimal::percent(5));
         assert_eq!(
             check_max_spread(None, max, &inputs),
@@ -236,7 +356,7 @@ mod tests {
 
     #[test]
     fn max_spread_half_rejects_at_full_slippage_metric() {
-        let err = check_max_spread(
+        let err = match check_max_spread(
             None,
             Some(Decimal::percent(50)),
             &MaxSpreadInputs::pool_only(
@@ -246,7 +366,11 @@ mod tests {
                 Uint128::new(150),
             ),
         )
-        .unwrap_err();
+        .unwrap_err()
+        {
+            CheckMaxSpreadError::SpreadExceeded(v) => v,
+            other => panic!("expected spread exceeded, got {other:?}"),
+        };
         assert!(err.actual > err.max_allowed);
     }
 
@@ -329,20 +453,80 @@ mod tests {
     // GitLab #273 — no-belief branch must reflect book-leg degradation vs the pool net rate.
     #[test]
     fn no_belief_rejects_book_far_below_pool_net_rate() {
-        // Pool leg 1000 in -> 997 net (+3 commission, 1 spread); book leg 10000 in -> 4985
-        // net (filled ~50% below the pool rate). fair_net_book = 997*10000/1000 = 9970,
-        // shortfall = 9970-4985 = 4985, spread_total ~4986 / total_gross ~5985 ~= 0.83 -> reject.
+        // Pool leg 1100 in -> 1097 net (+3 commission, 1 spread); book leg 9900 in -> 4935
+        // net (filled ~50% below the pool rate). fair_net_book = 1097*9900/1100 = 9867,
+        // shortfall = 9867-4935 = 4932, spread_total >> 1% -> reject (#273; pool leg meets #307 min).
+        let inputs = MaxSpreadInputs::hybrid(
+            Uint128::new(11_000),
+            Uint128::new(1097),
+            Uint128::new(3),
+            Uint128::new(1),
+            Uint128::new(4935),
+            Uint128::new(1_100), // pool_input (≥ 10% of offer)
+            Uint128::new(9_900), // book_input
+        );
+        let err = match check_max_spread(None, Some(Decimal::percent(1)), &inputs).unwrap_err() {
+            CheckMaxSpreadError::SpreadExceeded(v) => v,
+            other => panic!("expected spread exceeded, got {other:?}"),
+        };
+        assert!(err.actual > err.max_allowed);
+    }
+
+    // GitLab #307 — dust pool leg with a book leg must fail before #273 book shortfall.
+    #[test]
+    fn no_belief_rejects_dust_pool_leg_with_book() {
         let inputs = MaxSpreadInputs::hybrid(
             Uint128::new(11_000),
             Uint128::new(997),
             Uint128::new(3),
             Uint128::new(1),
-            Uint128::new(4985),
-            Uint128::new(1_000),  // pool_input
-            Uint128::new(10_000), // book_input
+            Uint128::new(5_000),
+            Uint128::new(1_000),
+            Uint128::new(10_000),
         );
         let err = check_max_spread(None, Some(Decimal::percent(1)), &inputs).unwrap_err();
-        assert!(err.actual > err.max_allowed);
+        assert!(matches!(
+            err,
+            CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+                pool_input,
+                min_pool_input,
+                book_input,
+            } if pool_input == Uint128::new(1_000)
+                && min_pool_input == Uint128::new(1_100)
+                && book_input == Uint128::new(10_000)
+        ));
+    }
+
+    #[test]
+    fn no_belief_rejects_zero_pool_net_with_book_leg() {
+        let inputs = MaxSpreadInputs::hybrid(
+            Uint128::new(10_000),
+            Uint128::zero(),
+            Uint128::zero(),
+            Uint128::zero(),
+            Uint128::new(5_000),
+            Uint128::new(5_000),
+            Uint128::new(5_000),
+        );
+        assert!(matches!(
+            check_max_spread(None, Some(Decimal::percent(1)), &inputs).unwrap_err(),
+            CheckMaxSpreadError::ZeroPoolNetForBookHybrid { .. }
+        ));
+    }
+
+    #[test]
+    fn pure_book_hybrid_skips_material_pool_floor() {
+        let inputs = MaxSpreadInputs::hybrid_with_declared_pool(
+            Uint128::new(10_000),
+            Uint128::new(50),
+            Uint128::zero(),
+            Uint128::zero(),
+            Uint128::new(5_000),
+            Uint128::new(100),
+            Uint128::new(10_000),
+            Uint128::zero(),
+        );
+        check_max_spread(None, Some(Decimal::percent(1)), &inputs).unwrap();
     }
 
     // GitLab #273 — a legit hybrid whose book fills at ~the pool net rate (book only short by

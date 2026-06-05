@@ -28,8 +28,8 @@ test.describe('Limit orders funded txs', () => {
     await connectWallet
 
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
-    const { index } = await requireLimitTxPair(request, pairs)
-    await selectLimitPairByFactoryIndex(page, index)
+    const { pair } = await requireLimitTxPair(request, pairs)
+    await selectLimitPairByFactoryIndex(page, pair.contract_addr)
     await selectLimitSide(page, 'ask')
 
     const placeCard = placeLimitCard(page)
@@ -56,8 +56,8 @@ test.describe('Limit orders funded txs', () => {
     await connectWallet
 
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
-    const { index } = await requireLimitTxPair(request, pairs)
-    await selectLimitPairByFactoryIndex(page, index)
+    const { pair } = await requireLimitTxPair(request, pairs)
+    await selectLimitPairByFactoryIndex(page, pair.contract_addr)
     await selectLimitSide(page, 'ask')
 
     const placeCard = placeLimitCard(page)
@@ -91,8 +91,8 @@ test.describe('Limit orders funded txs', () => {
     await connectWallet
 
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
-    const { index } = await requireLimitTxPair(request, pairs)
-    await selectLimitPairByFactoryIndex(page, index)
+    const { pair } = await requireLimitTxPair(request, pairs)
+    await selectLimitPairByFactoryIndex(page, pair.contract_addr)
 
     await page.getByTestId('limit-place-mode-ladder').click()
     const ladderPanel = page.getByTestId('limit-order-ladder-panel')
