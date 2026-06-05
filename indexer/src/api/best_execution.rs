@@ -155,7 +155,8 @@ fn estimate_lcd_calls(hop_count: usize) -> u32 {
 }
 
 fn quote_kind_for(meta: &OptimizationMeta, estimated: &Option<String>, db_mode: bool) -> RouteQuoteKind {
-    let kind = if meta.degraded {
+    let mirror_degraded = meta.mirror_stale || meta.mirror_missing;
+    let kind = if meta.degraded || mirror_degraded {
         if db_mode {
             RouteQuoteKind::IndexerHybridDbDegraded
         } else {
