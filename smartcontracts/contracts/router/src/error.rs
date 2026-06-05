@@ -41,4 +41,7 @@ pub enum ContractError {
 
     #[error("Swap hop produced zero output")]
     ZeroHopOutput {},
+
+    #[error("Trading blacklist: swap path or sender is blocked")]
+    Blacklisted {},
 }

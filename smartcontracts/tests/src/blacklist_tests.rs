@@ -1,0 +1,431 @@
+//! Trading blacklist integration tests (GitLab #308).
+
+use cosmwasm_std::{to_json_binary, Decimal, Uint128};
+use cw_multi_test::{App, Executor};
+
+use dex_common::blacklist::BlacklistCheck;
+use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
+use dex_common::limit_placement::LimitOrderPlacementItem;
+use dex_common::pair::{
+    pool_only_hybrid_params, Cw20HookMsg, ExecuteMsg, HybridSwapParams, LimitOrderSide,
+};
+use dex_common::types::Asset;
+
+use crate::helpers::*;
+
+fn is_blacklisted_err(err: &dyn std::error::Error) -> bool {
+    let s = err.to_string();
+    s.contains("Trading blacklist") || s.contains("Blacklisted")
+}
+
+fn batch_place_msg(
+    side: LimitOrderSide,
+    price: Decimal,
+    amount: Uint128,
+) -> cosmwasm_std::Binary {
+    to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side,
+        orders: vec![LimitOrderPlacementItem {
+            price,
+            amount,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        }],
+    })
+    .unwrap()
+}
+
+fn blacklist_wallet(app: &mut App, env: &TestEnv, wallet: &cosmwasm_std::Addr) {
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::BlacklistWallet {
+            address: wallet.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+}
+
+fn unblacklist_wallet(app: &mut App, env: &TestEnv, wallet: &cosmwasm_std::Addr) {
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::UnblacklistWallet {
+            address: wallet.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+}
+
+fn setup_liquid_pool(app: &mut App, env: &TestEnv) {
+    provide_liquidity(
+        app,
+        env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+}
+
+#[test]
+fn non_governance_cannot_blacklist_wallet() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.factory.clone(),
+            &FactoryExecuteMsg::BlacklistWallet {
+                address: env.user.to_string(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err.root_cause().to_string().contains("Unauthorized"));
+}
+
+#[test]
+fn wallet_blacklist_blocks_swap_lp_limits_and_unban_restores() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+
+    let place_msg = batch_place_msg(LimitOrderSide::Bid, Decimal::one(), Uint128::new(10_000));
+    app.execute_contract(
+        env.user.clone(),
+        env.token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(10_000),
+            msg: place_msg,
+        },
+        &[],
+    )
+    .unwrap();
+    let order_id = 1u64;
+
+    blacklist_wallet(&mut app, &env, &env.user);
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: None,
+        trader: None,
+    })
+    .unwrap();
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: batch_place_msg(LimitOrderSide::Bid, Decimal::one(), Uint128::new(1_000)),
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::CancelLimitOrder { order_id },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: Uint128::new(1_000),
+                    },
+                    Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(1_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    let lp_before = query_cw20_balance(&app, &env.lp_token, &env.user);
+    assert!(lp_before > Uint128::zero());
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.lp_token.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: to_json_binary(&Cw20HookMsg::WithdrawLiquidity { min_assets: None }).unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    unblacklist_wallet(&mut app, &env, &env.user);
+    swap_a_to_b(&mut app, &env, &env.user, Uint128::new(500));
+}
+
+#[test]
+fn token_blacklist_blocks_swap_both_directions() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::BlacklistToken {
+            token: env.token_a.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let swap_msg = |hybrid: Option<HybridSwapParams>| {
+        to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            to: None,
+            deadline: None,
+            hybrid,
+            trader: None,
+        })
+        .unwrap()
+    };
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_msg(None),
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_msg(None),
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    let hybrid = pool_only_hybrid_params(Uint128::new(500));
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(500),
+                msg: swap_msg(Some(hybrid)),
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+}
+
+#[test]
+fn pair_blacklist_blocks_swap_and_lp() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::BlacklistPair {
+            pair: env.pair.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: None,
+        trader: None,
+    })
+    .unwrap();
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(500),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+}
+
+#[test]
+fn router_multihop_rejects_blacklisted_wallet() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+    blacklist_wallet(&mut app, &env, &env.user);
+
+    let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+        operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_a),
+            ask_asset_info: asset_info_token(&env.token_b),
+            hybrid: None,
+        }],
+        max_spread: Decimal::one(),
+        minimum_receive: None,
+        to: None,
+        deadline: None,
+        unwrap_output: None,
+    })
+    .unwrap();
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: Uint128::new(1_000),
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+}
+
+#[test]
+fn unrelated_user_on_clean_pair_can_trade() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+    blacklist_wallet(&mut app, &env, &env.user);
+
+    let other = cosmwasm_std::Addr::unchecked("other_trader");
+
+    for token in [&env.token_a, &env.token_b] {
+        app.execute_contract(
+            env.user.clone(),
+            token.clone(),
+            &cw20::Cw20ExecuteMsg::Transfer {
+                recipient: other.to_string(),
+                amount: Uint128::new(500_000),
+            },
+            &[],
+        )
+        .unwrap();
+    }
+
+    swap_a_to_b(&mut app, &env, &other, Uint128::new(500));
+}
+
+#[test]
+fn factory_blacklist_check_query_reflects_state() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+
+    let check: dex_common::blacklist::BlacklistCheckResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.factory.to_string(),
+            &dex_common::factory::QueryMsg::BlacklistCheck(BlacklistCheck {
+                wallet: Some(env.user.to_string()),
+                tokens: vec![env.token_a.to_string()],
+                pair: Some(env.pair.to_string()),
+                pairs: vec![],
+            }),
+        )
+        .unwrap();
+    assert!(!check.blocked);
+
+    blacklist_wallet(&mut app, &env, &env.user);
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::BlacklistToken {
+            token: env.token_a.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let check: dex_common::blacklist::BlacklistCheckResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.factory.to_string(),
+            &dex_common::factory::QueryMsg::BlacklistCheck(BlacklistCheck {
+                wallet: Some(env.user.to_string()),
+                tokens: vec![env.token_a.to_string()],
+                pair: None,
+                pairs: vec![env.pair.to_string()],
+            }),
+        )
+        .unwrap();
+    assert!(check.blocked);
+    assert!(check.wallet_blacklisted);
+    assert!(!check.blacklisted_tokens.is_empty());
+}

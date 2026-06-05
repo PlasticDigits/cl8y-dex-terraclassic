@@ -51,6 +51,16 @@ pub enum ContractError {
     #[error("Contract is paused")]
     Paused {},
 
+    #[error(
+        "Trading blacklist: wallet_blacklisted={wallet_blacklisted}, pair_blacklisted={pair_blacklisted}, tokens={blacklisted_tokens:?}, pairs={blacklisted_pairs:?}"
+    )]
+    Blacklisted {
+        wallet_blacklisted: bool,
+        pair_blacklisted: bool,
+        blacklisted_tokens: Vec<String>,
+        blacklisted_pairs: Vec<String>,
+    },
+
     #[error("Invariant violation: {reason}")]
     InvariantViolation { reason: String },
 

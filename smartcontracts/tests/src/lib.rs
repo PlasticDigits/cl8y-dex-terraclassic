@@ -6,6 +6,7 @@ mod mock_failing_hook;
 
 #[cfg(test)]
 mod limit_order_tests;
+mod blacklist_tests;
 
 #[cfg(test)]
 mod tier_fixtures;

@@ -52,6 +52,7 @@
 //! | WithdrawLiquidity  | LP token holder (via Send) |
 //! | UpdateFee / Hooks / Pause / Sweep / DiscountRegistry | Factory only |
 
+pub mod blacklist_guard;
 pub mod contract;
 pub mod discount_cache;
 pub mod error;

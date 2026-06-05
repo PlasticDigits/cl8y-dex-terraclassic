@@ -10,6 +10,7 @@ use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     SimulateSwapOperationsResponse, SwapOperation,
 };
+use crate::blacklist_guard;
 use crate::state::{SwapState, FACTORY, SWAP_STATE, WRAP_MAPPER};
 use dex_common::pair;
 use dex_common::types::Asset;
@@ -203,6 +204,14 @@ fn execute_swap_operations(
     }
 
     let factory = FACTORY.load(deps.storage)?;
+    blacklist_guard::assert_router_swap_not_blacklisted(
+        deps.as_ref(),
+        &factory,
+        &sender,
+        &input_token,
+        &operations,
+    )?;
+
     let recipient = match to {
         Some(addr) => deps.api.addr_validate(&addr)?,
         None => sender.clone(),

@@ -5,6 +5,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
 
+use crate::blacklist_guard;
 use crate::discount_cache::{
     invalidate_discount_cache, lookup_effective_fee_bps_cached, lookup_effective_fee_bps_readonly,
 };
@@ -42,7 +43,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.7.0";
+const CONTRACT_VERSION: &str = "1.8.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -232,6 +233,23 @@ fn assert_not_paused(storage: &dyn cosmwasm_std::Storage) -> Result<(), Contract
         return Err(ContractError::Paused {});
     }
     Ok(())
+}
+
+fn gate_trading_blacklist(
+    deps: Deps,
+    pair_contract: &Addr,
+    wallets: &[Addr],
+    extra_tokens: &[Addr],
+) -> Result<(), ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let wallet_refs: Vec<&Addr> = wallets.iter().collect();
+    blacklist_guard::assert_trade_not_blacklisted_deps(
+        deps,
+        &pair_info,
+        pair_contract,
+        &wallet_refs,
+        extra_tokens,
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -582,6 +600,7 @@ pub fn execute(
         } => {
             assert_not_paused(deps.storage)?;
             assert_deadline(&env, deadline)?;
+            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
             execute_provide_liquidity(deps, env, info, assets, slippage_tolerance, receiver)
         }
         ExecuteMsg::Swap {
@@ -612,18 +631,22 @@ pub fn execute(
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
         ExecuteMsg::CancelLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
             execute_cancel_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::CancelLimitOrders { order_ids } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
             execute_cancel_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::ClaimExpiredLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
             execute_claim_expired_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::ClaimExpiredLimitOrders { order_ids } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
             execute_claim_expired_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::UpdateLimitOrderPrice {
@@ -633,6 +656,7 @@ pub fn execute(
             max_adjust_steps,
         } => {
             assert_not_paused(deps.storage)?;
+            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
             execute_update_limit_order_price(
                 deps,
                 env,
@@ -675,6 +699,19 @@ fn execute_receive(
 ) -> Result<Response, ContractError> {
     let hook_msg: Cw20HookMsg = cosmwasm_std::from_json(&cw20_msg.msg)?;
     let token_sender = deps.api.addr_validate(&cw20_msg.sender)?;
+
+    let mut wallets = vec![token_sender.clone()];
+    if let Cw20HookMsg::Swap { trader, .. } = &hook_msg {
+        if let Some(t) = trader {
+            wallets.push(deps.api.addr_validate(t)?);
+        }
+    }
+    gate_trading_blacklist(
+        deps.as_ref(),
+        &env.contract.address,
+        &wallets,
+        &[info.sender.clone()],
+    )?;
 
     match hook_msg {
         Cw20HookMsg::Swap {

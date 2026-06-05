@@ -11,9 +11,11 @@ use crate::msg::{
     PairsResponse, QueryMsg,
 };
 use crate::state::{
-    Config, CONFIG, PAIRS, PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_CREATION_BLOCK, PAIR_INDEX,
-    PAIR_KEY_INDEX, PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
+    Config, CONFIG, BLACKLISTED_PAIRS, BLACKLISTED_TOKENS, BLACKLISTED_WALLETS, PAIRS,
+    PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_CREATION_BLOCK, PAIR_INDEX, PAIR_KEY_INDEX,
+    PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
 };
+use dex_common::blacklist::{BlacklistCheck, BlacklistCheckResponse};
 use dex_common::pagination::calc_limit;
 use dex_common::pair::{
     clamp_max_batch_rungs, PairInstantiateMsg, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
@@ -21,7 +23,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.4.0";
+const CONTRACT_VERSION: &str = "1.5.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -141,6 +143,16 @@ pub fn execute(
             token,
             recipient,
         } => execute_sweep_pair(deps, info, pair, token, recipient),
+        ExecuteMsg::BlacklistWallet { address } => {
+            execute_blacklist_wallet(deps, info, address)
+        }
+        ExecuteMsg::UnblacklistWallet { address } => {
+            execute_unblacklist_wallet(deps, info, address)
+        }
+        ExecuteMsg::BlacklistToken { token } => execute_blacklist_token(deps, info, token),
+        ExecuteMsg::UnblacklistToken { token } => execute_unblacklist_token(deps, info, token),
+        ExecuteMsg::BlacklistPair { pair } => execute_blacklist_pair(deps, info, pair),
+        ExecuteMsg::UnblacklistPair { pair } => execute_unblacklist_pair(deps, info, pair),
     }
 }
 
@@ -803,6 +815,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&query_whitelisted_code_ids(deps, start_after, limit)?)
         }
         QueryMsg::GetPairCount {} => to_json_binary(&query_pair_count(deps)?),
+        QueryMsg::BlacklistCheck(check) => to_json_binary(&query_blacklist_check(deps, check)?),
     }
 }
 
@@ -883,6 +896,163 @@ fn query_whitelisted_code_ids(
 fn query_pair_count(deps: Deps) -> StdResult<PairCountResponse> {
     let count = PAIR_COUNT.load(deps.storage)?;
     Ok(PairCountResponse { count })
+}
+
+fn query_blacklist_check(deps: Deps, check: BlacklistCheck) -> StdResult<BlacklistCheckResponse> {
+    let wallet_blacklisted = if let Some(wallet) = check.wallet {
+        let addr = deps.api.addr_validate(&wallet)?;
+        BLACKLISTED_WALLETS.has(deps.storage, &addr)
+    } else {
+        false
+    };
+
+    let mut blacklisted_tokens = Vec::new();
+    for token in check.tokens {
+        let addr = deps.api.addr_validate(&token)?;
+        if BLACKLISTED_TOKENS.has(deps.storage, &addr) {
+            blacklisted_tokens.push(addr);
+        }
+    }
+
+    let mut blacklisted_pairs = Vec::new();
+    let mut pair_addrs: Vec<String> = check.pairs;
+    if let Some(pair) = check.pair {
+        if !pair_addrs.contains(&pair) {
+            pair_addrs.push(pair);
+        }
+    }
+    for pair in pair_addrs {
+        let addr = deps.api.addr_validate(&pair)?;
+        if BLACKLISTED_PAIRS.has(deps.storage, &addr) {
+            blacklisted_pairs.push(addr);
+        }
+    }
+    let pair_blacklisted = !blacklisted_pairs.is_empty();
+
+    let blocked = wallet_blacklisted
+        || pair_blacklisted
+        || !blacklisted_tokens.is_empty();
+
+    Ok(BlacklistCheckResponse {
+        blocked,
+        wallet_blacklisted,
+        blacklisted_tokens,
+        pair_blacklisted,
+        blacklisted_pairs,
+    })
+}
+
+fn execute_blacklist_wallet(
+    deps: DepsMut,
+    info: MessageInfo,
+    address: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let wallet = deps.api.addr_validate(&address)?;
+    if BLACKLISTED_WALLETS.has(deps.storage, &wallet) {
+        return Err(ContractError::WalletAlreadyBlacklisted {
+            address: wallet.to_string(),
+        });
+    }
+    BLACKLISTED_WALLETS.save(deps.storage, &wallet, &true)?;
+    Ok(Response::new()
+        .add_attribute("action", "blacklist_wallet")
+        .add_attribute("wallet", wallet))
+}
+
+fn execute_unblacklist_wallet(
+    deps: DepsMut,
+    info: MessageInfo,
+    address: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let wallet = deps.api.addr_validate(&address)?;
+    if !BLACKLISTED_WALLETS.has(deps.storage, &wallet) {
+        return Err(ContractError::WalletNotBlacklisted {
+            address: wallet.to_string(),
+        });
+    }
+    BLACKLISTED_WALLETS.remove(deps.storage, &wallet);
+    Ok(Response::new()
+        .add_attribute("action", "unblacklist_wallet")
+        .add_attribute("wallet", wallet))
+}
+
+fn execute_blacklist_token(
+    deps: DepsMut,
+    info: MessageInfo,
+    token: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let token_addr = deps.api.addr_validate(&token)?;
+    if BLACKLISTED_TOKENS.has(deps.storage, &token_addr) {
+        return Err(ContractError::TokenAlreadyBlacklisted {
+            token: token_addr.to_string(),
+        });
+    }
+    BLACKLISTED_TOKENS.save(deps.storage, &token_addr, &true)?;
+    Ok(Response::new()
+        .add_attribute("action", "blacklist_token")
+        .add_attribute("token", token_addr))
+}
+
+fn execute_unblacklist_token(
+    deps: DepsMut,
+    info: MessageInfo,
+    token: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let token_addr = deps.api.addr_validate(&token)?;
+    if !BLACKLISTED_TOKENS.has(deps.storage, &token_addr) {
+        return Err(ContractError::TokenNotBlacklisted {
+            token: token_addr.to_string(),
+        });
+    }
+    BLACKLISTED_TOKENS.remove(deps.storage, &token_addr);
+    Ok(Response::new()
+        .add_attribute("action", "unblacklist_token")
+        .add_attribute("token", token_addr))
+}
+
+fn execute_blacklist_pair(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    if !PAIR_ADDR_REGISTERED.has(deps.storage, pair_addr.clone()) {
+        return Err(ContractError::PairNotInRegistry {
+            pair: pair_addr.to_string(),
+        });
+    }
+    if BLACKLISTED_PAIRS.has(deps.storage, &pair_addr) {
+        return Err(ContractError::PairAlreadyBlacklisted {
+            pair: pair_addr.to_string(),
+        });
+    }
+    BLACKLISTED_PAIRS.save(deps.storage, &pair_addr, &true)?;
+    Ok(Response::new()
+        .add_attribute("action", "blacklist_pair")
+        .add_attribute("pair", pair_addr))
+}
+
+fn execute_unblacklist_pair(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    if !BLACKLISTED_PAIRS.has(deps.storage, &pair_addr) {
+        return Err(ContractError::PairNotBlacklisted {
+            pair: pair_addr.to_string(),
+        });
+    }
+    BLACKLISTED_PAIRS.remove(deps.storage, &pair_addr);
+    Ok(Response::new()
+        .add_attribute("action", "unblacklist_pair")
+        .add_attribute("pair", pair_addr))
 }
 
 // ---------------------------------------------------------------------------
