@@ -20,7 +20,7 @@ test.describe('Limit ladder rung count (#295)', () => {
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
     test.skip(pairs.length === 0, 'No factory pairs — run make deploy-local')
 
-    await selectLimitPairByFactoryIndex(page, 0)
+    await selectLimitPairByFactoryIndex(page, pairs[0].contract_addr)
 
     await page.getByTestId('limit-place-mode-ladder').click()
     const ladderPanel = page.getByTestId('limit-order-ladder-panel')

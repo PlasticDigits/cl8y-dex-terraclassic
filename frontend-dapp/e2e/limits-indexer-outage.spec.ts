@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { selectLimitPairByFactoryIndex } from './helpers/limit-e2e'
+import { gotoAndCaptureFactoryPairsPage } from './helpers/lcd'
 
 /**
  * CI: job frontend-e2e-indexer-outage. Local: make test-e2e-indexer-outage (GitLab #218, #219).
@@ -8,8 +9,9 @@ test.describe('Limits page market-data outage banner (GitLab #218)', () => {
   test.skip(process.env.E2E_INDEXER_OUTAGE !== '1', 'Set E2E_INDEXER_OUTAGE=1 with indexer stopped')
 
   test('shows retail banner without env URLs', async ({ page }) => {
-    await page.goto('/limits', { waitUntil: 'networkidle' })
-    await selectLimitPairByFactoryIndex(page, 0)
+    const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
+    test.skip(pairs.length === 0, 'No factory pairs — run make deploy-local')
+    await selectLimitPairByFactoryIndex(page, pairs[0].contract_addr)
 
     const banner = page.getByTestId('limits-market-data-outage-banner')
     await expect(banner).toBeVisible({ timeout: 30_000 })

@@ -156,7 +156,7 @@ export interface IndexerPairsListResponse {
   offset: number
 }
 
-export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h'
+export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'relevance'
 
 /** Map indexer pair metadata to on-chain `PairInfo` for pool queries and txs */
 export function indexerAssetToAssetInfo(a: IndexerAssetBrief): AssetInfo {

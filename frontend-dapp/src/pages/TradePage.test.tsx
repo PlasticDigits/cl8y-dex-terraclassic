@@ -55,6 +55,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/indexer/client')>()
   return {
     ...actual,
+    getPairs: vi.fn(),
     getPair: vi.fn(),
     getTrades: vi.fn(),
     getPairLimitBookPage: vi.fn(),
@@ -116,6 +117,12 @@ describe('TradePage', () => {
           ],
         },
       ],
+    })
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({
+      items: [mockIndexerPair],
+      total: 1,
+      limit: 20,
+      offset: 0,
     })
     vi.mocked(indexerClient.getPair).mockResolvedValue(mockIndexerPair)
     vi.mocked(indexerClient.getTrades).mockResolvedValue([])
@@ -241,7 +248,7 @@ describe('TradePage', () => {
     })
 
     const pairSelect = await screen.findByLabelText('Trading pair')
-    expect(pairSelect.textContent).not.toMatch(/lilwayne/i)
+    expect((pairSelect as HTMLInputElement).value).not.toMatch(/lilwayne/i)
 
     expect(indexerClient.getPair).not.toHaveBeenCalled()
     expect(indexerClient.getTrades).not.toHaveBeenCalled()
@@ -320,7 +327,7 @@ describe('TradePage', () => {
     })
 
     const pairSelect = await screen.findByLabelText('Trading pair')
-    expect(pairSelect.textContent).not.toContain(unknownPair)
+    expect((pairSelect as HTMLInputElement).value).not.toContain(unknownPair)
 
     expect(indexerClient.getPair).not.toHaveBeenCalled()
     expect(indexerClient.getTrades).not.toHaveBeenCalled()
