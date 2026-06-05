@@ -516,7 +516,10 @@ pub(crate) async fn maybe_simulate(
     }
 }
 
-pub(crate) fn quote_kind_after_sim(estimated: &Option<String>, base: RouteQuoteKind) -> RouteQuoteKind {
+pub(crate) fn quote_kind_after_sim(
+    estimated: &Option<String>,
+    base: RouteQuoteKind,
+) -> RouteQuoteKind {
     if estimated.is_none()
         && matches!(
             base,
@@ -557,7 +560,9 @@ fn amount_cache_key(amount: u128) -> u128 {
 /// different tiers (e.g. both with `trader` unset) collide and the wrong-discount quote is
 /// served. Per Plastik's direction we key on the tier (not the raw address) so same-tier
 /// callers still share the cache. Tier comes from the already-synced `traders.tier_id` — no
-/// extra LCD call; absent/unknown subject resolves to tier 0 (full fee).
+/// extra LCD call; absent/unknown subject resolves to [`FULL_FEE_TIER_SENTINEL`].
+pub const FULL_FEE_TIER_SENTINEL: i16 = -1;
+
 pub(crate) async fn resolve_discount_tier(
     state: &AppState,
     quote_trader: &hybrid_route_opt::QuoteTrader,
@@ -566,10 +571,12 @@ pub(crate) async fn resolve_discount_tier(
         .trader
         .as_deref()
         .or(quote_trader.sender.as_deref());
-    let Some(addr) = subject else { return 0 };
+    let Some(addr) = subject else {
+        return FULL_FEE_TIER_SENTINEL;
+    };
     match crate::db::queries::traders::get_trader(&state.pool, addr.trim()).await {
         Ok(Some(t)) => t.tier_id,
-        _ => 0,
+        _ => FULL_FEE_TIER_SENTINEL,
     }
 }
 
@@ -923,7 +930,10 @@ mod hybrid_cache_key_tests {
         let tier0 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 0);
         let tier5 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 5);
         let tier9 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 9);
-        assert_ne!(tier0, tier5, "different discount tiers must not share a cache key");
+        assert_ne!(
+            tier0, tier5,
+            "different discount tiers must not share a cache key"
+        );
         assert_ne!(tier5, tier9);
         // Same tier (even from a different sender address) shares the key by design.
         let other_sender = QuoteTrader {

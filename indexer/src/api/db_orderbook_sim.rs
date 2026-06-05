@@ -3,10 +3,10 @@
 //! Prices pool + resting-book legs from `pair_reserves` and `resting_limit_orders` using the same
 //! math as on-chain `query_hybrid_simulation` / `orderbook::simulate_match_*`.
 
-use std::collections::HashMap;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
+use std::collections::HashMap;
 
 use crate::api::orderbook_sim::{ceil_div, swap_fee_amount};
 use crate::db::queries::{pair_reserves, pairs, resting_orders};
@@ -20,6 +20,8 @@ const MAX_SCAN_STEPS: u32 = 256;
 /// Production tier `discount_bps` by `traders.tier_id` (see `docs/reference/fee-discount-tiers.md`).
 fn tier_discount_bps(tier_id: i16) -> u16 {
     match tier_id {
+        // Sentinel from `resolve_discount_tier` when no discount subject is known (#283).
+        -1 => 0,
         0 => 10_000,
         1 => 250,
         2 => 1_000,
@@ -181,11 +183,7 @@ fn filter_live_orders(
     now_secs: u64,
 ) -> Vec<resting_orders::RestingOrderRow> {
     rows.into_iter()
-        .filter(|o| {
-            o.expires_at
-                .map(|e| now_secs < e as u64)
-                .unwrap_or(true)
-        })
+        .filter(|o| o.expires_at.map(|e| now_secs < e as u64).unwrap_or(true))
         .filter(|o| parse_u128(&o.remaining).unwrap_or(0) > 0)
         .collect()
 }
@@ -381,7 +379,8 @@ pub fn simulate_hybrid_from_mirror(
         offer_consumed_by_book = book_sim.offer_consumed;
     }
 
-    let pool_input_amount = pool_input.saturating_add(book_input.saturating_sub(offer_consumed_by_book));
+    let pool_input_amount =
+        pool_input.saturating_add(book_input.saturating_sub(offer_consumed_by_book));
     let pool_out = simulate_pool_leg(input_reserve, output_reserve, pool_input_amount, eff_fee)?;
     Ok(book_return.saturating_add(pool_out))
 }
@@ -512,8 +511,10 @@ mod tests {
     #[test]
     fn bid_book_adds_return() {
         let m = mirror_with_book(vec![resting(1, "bid", "2", "1000")]);
-        let pool_only = simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 100_000, 0, 8, 0).unwrap();
-        let hybrid = simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 50_000, 50_000, 8, 0).unwrap();
+        let pool_only =
+            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 100_000, 0, 8, 0).unwrap();
+        let hybrid =
+            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 50_000, 50_000, 8, 0).unwrap();
         assert!(hybrid >= pool_only);
     }
 

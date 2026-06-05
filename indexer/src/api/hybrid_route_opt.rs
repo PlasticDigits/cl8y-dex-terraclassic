@@ -154,20 +154,18 @@ async fn query_hybrid_sim_unified(
     quote_trader: &QuoteTrader,
 ) -> Result<u128, HybridSimError> {
     match source {
-        HybridSimSource::Lcd(lcd) => {
-            query_hybrid_sim_lcd(
-                lcd,
-                &hop.pair,
-                &hop.offer_token,
-                offer_amount,
-                pool_input,
-                book_input,
-                max_maker_fills,
-                quote_trader,
-            )
-            .await
-            .map_err(HybridSimError::from)
-        }
+        HybridSimSource::Lcd(lcd) => query_hybrid_sim_lcd(
+            lcd,
+            &hop.pair,
+            &hop.offer_token,
+            offer_amount,
+            pool_input,
+            book_input,
+            max_maker_fills,
+            quote_trader,
+        )
+        .await
+        .map_err(HybridSimError::from),
         HybridSimSource::Db {
             lcd_fallback,
             mirrors,
@@ -208,8 +206,7 @@ async fn query_hybrid_sim_unified(
             } else {
                 mirror_meta.mirror_missing_hops = mirror_meta.mirror_missing_hops.saturating_add(1);
             }
-            mirror_meta.lcd_fallback_queries =
-                mirror_meta.lcd_fallback_queries.saturating_add(1);
+            mirror_meta.lcd_fallback_queries = mirror_meta.lcd_fallback_queries.saturating_add(1);
             query_hybrid_sim_lcd(
                 lcd_fallback,
                 &hop.pair,
@@ -315,7 +312,8 @@ async fn optimize_one_hop(
 
     if !any_candidate_ok {
         meta.degraded = true;
-        let out = query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
+        let out = query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader)
+            .await?;
         return Ok((None, out));
     }
 
@@ -331,7 +329,8 @@ async fn optimize_one_hop(
         return Ok((Some(h), best_out));
     }
 
-    let out = query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
+    let out =
+        query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
     Ok((None, out))
 }
 
@@ -495,16 +494,17 @@ async fn propagate_offer_through_plan(
         {
             Ok(v) => v,
             // Degraded plans may reference book legs that no longer simulate (#190).
-            Err(HybridSimError::Lcd(_)) => query_pool_only_unified(
-                source,
-                mirror_meta.as_deref_mut(),
-                hop,
-                offer,
-                1,
-                quote_trader,
-            )
-            .await?,
-            Err(e) => return Err(e),
+            Err(HybridSimError::Lcd(_)) | Err(HybridSimError::Db(_)) => {
+                query_pool_only_unified(
+                    source,
+                    mirror_meta.as_deref_mut(),
+                    hop,
+                    offer,
+                    1,
+                    quote_trader,
+                )
+                .await?
+            }
         };
     }
     Ok(running)
