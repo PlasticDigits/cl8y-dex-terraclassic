@@ -8,10 +8,31 @@ KEPLR_CWS_UPDATE_URL="${KEPLR_CWS_UPDATE_URL:-https://clients2.google.com/servic
 KEPLR_CACHE_DIR="${KEPLR_CACHE_DIR:-/tmp/keplr-extension}"
 KEPLR_CRX_CACHE="${KEPLR_CRX_CACHE:-/tmp/keplr-extension.crx}"
 
-# Return 0 when $1 is a directory containing manifest.json.
+# Return 0 when $1 looks like a complete unpacked Keplr CRX (not manifest-only cache).
 keplr_extension_dir_ready() {
   local dir="$1"
-  [[ -f "${dir}/manifest.json" ]]
+  [[ -d "$dir" ]] || return 1
+  python3 - "$dir" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest_path = root / "manifest.json"
+if not manifest_path.is_file():
+    raise SystemExit(1)
+try:
+    manifest = json.loads(manifest_path.read_text())
+except json.JSONDecodeError:
+    raise SystemExit(1)
+if not isinstance(manifest.get("version"), str) or not manifest.get("version"):
+    raise SystemExit(1)
+if not isinstance(manifest.get("name"), str) or not manifest.get("name"):
+    raise SystemExit(1)
+# A real CRX unpack has many files; manifest-only trees are incomplete caches.
+if len([p for p in root.rglob("*") if p.is_file()]) < 3:
+    raise SystemExit(1)
+PY
 }
 
 # Download CRX from the Chrome Web Store (cached at KEPLR_CRX_CACHE).
@@ -62,6 +83,11 @@ with zipfile.ZipFile(io.BytesIO(payload)) as zf:
 if not (dest / "manifest.json").is_file():
     raise SystemExit("manifest.json missing after CRX unpack")
 PY
+  if ! keplr_extension_dir_ready "$KEPLR_CACHE_DIR"; then
+    echo "[setup-browser] unpacked extension cache failed validation: ${KEPLR_CACHE_DIR}" >&2
+    rm -rf "$KEPLR_CACHE_DIR"
+    return 1
+  fi
 }
 
 # Install unpacked extension into a Chrome profile and register it in Preferences.
