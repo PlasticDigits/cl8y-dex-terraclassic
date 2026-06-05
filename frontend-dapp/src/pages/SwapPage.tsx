@@ -1010,7 +1010,12 @@ export default function SwapPage() {
                   showBalance={!!offerAssetInfo}
                   spendableRaw={payMaxResult.spendableRaw}
                   onMax={() => setInputAmount(payMaxResult.human)}
+                  onFraction={(human) => {
+                    setInputAmount(human)
+                    setShowImpactConfirm(false)
+                  }}
                   testIdMax="swap-pay-max"
+                  testIdFractionPrefix="swap-pay-frac"
                 />
               )}
             </div>
