@@ -9,14 +9,12 @@ function resolveActiveScope(): TerraBroadcastOptions | undefined {
 }
 
 function invokeScoped<T>(fn: () => Promise<T>): Promise<T> {
-  return Promise.resolve().then(() => {
-    scopedExecutionDepth++
-    try {
-      return fn()
-    } finally {
+  scopedExecutionDepth++
+  return Promise.resolve()
+    .then(fn)
+    .finally(() => {
       scopedExecutionDepth--
-    }
-  })
+    })
 }
 
 /**
