@@ -14,6 +14,7 @@ Gap analysis: [`gaps/GAP_1780200149.md`](../gaps/GAP_1780200149.md) — **M4**, 
 | **V2** | Rollup refreshed ~**5 min** by [`volume_aggregator`](../indexer/src/indexer/volume_aggregator.rs) + initial refresh in [`poller.rs`](../indexer/src/indexer/poller.rs) | [`volume::refresh_pair_volumes`](../indexer/src/db/queries/volume.rs) |
 | **V3** | Block time: tx RFC3339 → LCD header; **never** `Utc::now()` | [`block_indexer::resolve_block_time`](../indexer/src/indexer/block_indexer.rs) |
 | **V4** | Deep list **`offset` > 10_000** → **400** on pairs, tokens, `/cg/pairs` | [`api/pairs.rs`](../indexer/src/api/pairs.rs), [`api/tokens.rs`](../indexer/src/api/tokens.rs), [`api/cg.rs`](../indexer/src/api/cg.rs) |
+| **V5** | `/overview` global 24h aggregate: BRIN `idx_swaps_block_timestamp_brin` + **60s** whole-response cache | [`overview.rs`](../indexer/src/api/overview.rs), [`volume::get_global_stats`](../indexer/src/db/queries/volume.rs); [**#281**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/281) |
 
 Human doc: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (indexing + API cap rows).
 
@@ -25,7 +26,7 @@ Human doc: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (indexi
 | Rollup refresh | [`indexer/src/db/queries/volume.rs`](../indexer/src/db/queries/volume.rs) |
 | Pair list query | [`indexer/src/db/queries/pairs.rs`](../indexer/src/db/queries/pairs.rs) |
 | Block time | [`indexer/src/indexer/block_indexer.rs`](../indexer/src/indexer/block_indexer.rs) |
-| Tests | [`indexer/tests/indexer_pair_volume_pagination.rs`](../indexer/tests/indexer_pair_volume_pagination.rs) (rollup match, EXPLAIN no `swap_events`), [`indexer_ingestion_hardening.rs`](../indexer/tests/indexer_ingestion_hardening.rs) |
+| Tests | [`indexer/tests/indexer_pair_volume_pagination.rs`](../indexer/tests/indexer_pair_volume_pagination.rs) (rollup match, EXPLAIN no `swap_events`), [`indexer_overview_global_stats.rs`](../indexer/tests/indexer_overview_global_stats.rs) (BRIN index + overview cache), [`indexer_ingestion_hardening.rs`](../indexer/tests/indexer_ingestion_hardening.rs) |
 
 ## Tests
 
@@ -33,7 +34,7 @@ Human doc: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (indexi
 cd indexer && cargo test --lib indexer::block_indexer
 docker compose up -d postgres
 ./scripts/setup-postgres-dev-databases.sh
-cd indexer && cargo test --test indexer_pair_volume_pagination --test indexer_ingestion_hardening --test api_pairs --test api_tokens --test api_cg -j 1 -- --test-threads=1
+cd indexer && cargo test --test indexer_pair_volume_pagination --test indexer_overview_global_stats --test indexer_ingestion_hardening --test api_pairs --test api_tokens --test api_cg -j 1 -- --test-threads=1
 ```
 
 ## Do not regress
