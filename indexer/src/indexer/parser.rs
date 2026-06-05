@@ -1769,6 +1769,28 @@ mod tests {
         assert_ne!(cancels[0].pair_address, "terra1victimpair");
     }
 
+    #[test]
+    fn forged_contract_address_placement_not_attributed_to_victim_pair() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1attacker"), // runtime-stamped real emitter
+            ("contract_address", "terra1victimpair"), // FORGED, placed before action
+            ("action", "place_limit_order"),
+            ("order_id", "7"),
+            ("limit_order_placed", "7"),
+            ("side", "bid"),
+            ("price", "1.5"),
+            ("owner", "terra1maker"),
+            ("expires_at", "2000000000"),
+        ]);
+        let placements = parse_limit_order_placements(&tx);
+        assert_eq!(placements.len(), 1);
+        assert_eq!(
+            placements[0].pair_address, "terra1attacker",
+            "forged contract_address must not let an attacker plant a placement on a victim pair"
+        );
+        assert_ne!(placements[0].pair_address, "terra1victimpair");
+    }
+
     // No regression: the real on-chain shape — wasmd `_contract_address` before `action`,
     // plus the pair's own convenience `contract_address` after `action` (same value) —
     // still attributes correctly to the pair.
