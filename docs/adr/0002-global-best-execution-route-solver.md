@@ -26,6 +26,7 @@ The indexer previously chose the **first** BFS shortest path and ran a **sequent
 ## Links
 
 - [ADR 0001](./0001-hybrid-quoting-and-routing.md)
+- [route-solver.md](../route-solver.md) — in-depth pipeline, glossary, optimization theory, and shipped constants (GitLab [#310](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/310))
 - [indexer-invariants.md](../indexer-invariants.md) — route GET hybrid / best execution rows
 - [skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md](../../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md)
 - [gaps/GAP_1780023683.md](../../gaps/GAP_1780023683.md)

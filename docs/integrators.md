@@ -123,7 +123,7 @@ These are **execution** semantics; all quoting uses `HybridSimulation` / `Hybrid
 
 ## Route discovery and quotes (L8)
 
-The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-invariants.md](./indexer-invariants.md) for full HTTP semantics).
+The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-invariants.md](./indexer-invariants.md) for full HTTP semantics and [route-solver.md](./route-solver.md) for the in-depth solver guide).
 
 | Method | Role |
 |--------|------|

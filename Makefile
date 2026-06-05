@@ -179,6 +179,9 @@ lint-contracts:
 check-fee-discount-tier-docs:
 	python3 scripts/check_fee_discount_tier_docs.py
 
+check-route-solver-docs:
+	python3 scripts/check_route_solver_docs.py
+
 # Deployment
 deploy-local: build-optimized
 	./scripts/deploy-dex-local.sh
