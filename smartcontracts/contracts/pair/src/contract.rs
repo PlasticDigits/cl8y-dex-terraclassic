@@ -983,6 +983,7 @@ fn execute_swap(
 
     let ask_token_addr = token_addr(&ask_asset_info);
 
+    let swap_index = crate::tx_swap_index::current_tx_swap_index(deps.storage, &env)?;
     let mut book_fill_events: Vec<Event> = vec![];
     let mut book_return_net = Uint128::zero();
     let mut book_commission_total = Uint128::zero();
@@ -1007,7 +1008,10 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_fill_events = book_match.fill_events;
+            book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
+                book_match.fill_events,
+                swap_index,
+            );
             book_return_net = book_match.return_net;
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
@@ -1029,7 +1033,10 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_fill_events = book_match.fill_events;
+            book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
+                book_match.fill_events,
+                swap_index,
+            );
             book_return_net = book_match.return_net;
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
@@ -1213,6 +1220,8 @@ fn execute_swap(
             resp = resp.add_attribute("scan_steps_capped", "true");
         }
     }
+
+    crate::tx_swap_index::advance_tx_swap_index(deps.storage, &env)?;
 
     Ok(resp)
 }

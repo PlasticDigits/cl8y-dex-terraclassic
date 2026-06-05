@@ -85,7 +85,7 @@ One taker swap matches two makers → two `limit_order_fill` wasm events, **one*
 
 ### Fill ↔ swap linkage (`swap_event_id`)
 
-Each `limit_order_fills` row may set optional **`swap_event_id`** → parent `swap_events.id`. The indexer resolves this by the fill's per-pair **`swap_index`** (0-based ordinal of swaps on that pair within the tx, matching parser walk order and the unique key `(tx_hash, pair_id, swap_index)` from GitLab [#287](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)) — **not** by `MIN(id)` on swap rows ([GitLab #316](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/316)).
+Each `limit_order_fills` row may set optional **`swap_event_id`** → parent `swap_events.id`. The indexer resolves this by the fill's per-pair **`swap_index`** (0-based ordinal of swaps on that pair within the tx, matching the unique key `(tx_hash, pair_id, swap_index)` from GitLab [#287](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)) — **not** by `MIN(id)` on swap rows ([GitLab #316](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/316)). Post-upgrade pair wasm emits **`swap_index`** on each `limit_order_fill` event ([#331](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/331)); the indexer prefers that attribute when present and falls back to parser walk-order inference for historical txs.
 
 | Scenario | `swap_index` | `swap_event_id` target |
 |----------|--------------|------------------------|
