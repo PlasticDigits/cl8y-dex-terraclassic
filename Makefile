@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-295 swarm-local swarm-launch swarm-stop setup-cloud-localterra
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-313 verify-issue-295 swarm-local swarm-launch swarm-stop setup-cloud-localterra
 
 # Infrastructure
 start:
@@ -126,6 +126,10 @@ verify-issue-274:
 verify-issue-276:
 	@chmod +x scripts/qa/verify-issue-276.sh
 	./scripts/qa/verify-issue-276.sh
+
+verify-issue-313:
+	@chmod +x scripts/qa/verify-issue-313.sh
+	./scripts/qa/verify-issue-313.sh
 
 # GitLab #295 — limit ladder rung count UI (Playwright against make dev on :5173).
 verify-issue-295:
