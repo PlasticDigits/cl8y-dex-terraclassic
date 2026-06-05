@@ -137,8 +137,11 @@ async fn global_stats_empty_db_returns_zeros() {
 
     assert_eq!(stats.total_trades_24h, 0);
     assert_eq!(stats.pair_count, 0);
-    assert_eq!(stats.total_volume_24h.normalized(), "0");
-    assert_eq!(stats.total_volume_24h_usd.normalized(), "0");
+    assert_eq!(stats.total_volume_24h.normalized(), bigdecimal::BigDecimal::from(0).normalized());
+    assert_eq!(
+        stats.total_volume_24h_usd.normalized(),
+        bigdecimal::BigDecimal::from(0).normalized()
+    );
 }
 
 #[serial]
