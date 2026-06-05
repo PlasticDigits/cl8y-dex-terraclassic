@@ -45,12 +45,7 @@ echo "  GitLab #285 — lifecycle emitter scoping (_contract_address only)"
 echo "════════════════════════════════════════════════════════════════"
 
 run_step "parser forged-attack + regression unit tests" \
-  bash -c 'cd indexer && cargo test --lib \
-    forged_contract_address_fill_not_attributed_to_victim_pair \
-    forged_contract_address_cancel_not_attributed_to_victim_pair \
-    forged_contract_address_placement_not_attributed_to_victim_pair \
-    genuine_fill_with_both_contract_address_keys_attributes_to_pair \
-    -- --quiet'
+  bash -c 'cd indexer && cargo test --lib "forged_contract_address|genuine_fill_with_both_contract_address" -- --quiet'
 
 run_step "integration limit_order_parked_lifecycle (_contract_address fixtures)" \
   bash -c 'cd indexer && cargo test --test limit_order_parked_lifecycle -j 1 -- --test-threads=1 --quiet'
