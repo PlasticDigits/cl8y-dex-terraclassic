@@ -56,7 +56,19 @@ That recreates the volume (see [`docker/postgres-init/`](../docker/postgres-init
 ./scripts/setup-postgres-dev-databases.sh
 ```
 
-Requires `psql` and a reachable Postgres on `127.0.0.1:5432`. The script **creates `cl8y_legal` via superuser when missing** (see [Stack prerequisite](#stack-prerequisite-cl8y_legal-role)), then ensures **`dex_indexer`** + **`dex_indexer_test`** and **upserts `DATABASE_URL` / `TEST_DATABASE_URL` into `indexer/.env`** (so `cargo test` from `indexer/` loads the test DB via `dotenvy`, not the live indexer DB). `make start` runs this after compose up (best-effort if Postgres is not ready yet; re-run after `make wait-healthy`).
+Requires a reachable Postgres on `127.0.0.1:5432`. Uses host **`psql`** when installed; otherwise **`docker compose exec postgres psql`** (Cloud Agent VMs often lack `postgresql-client`). The script **creates `cl8y_legal` via superuser when missing** (see [Stack prerequisite](#stack-prerequisite-cl8y_legal-role)), then ensures **`dex_indexer`** + **`dex_indexer_test`** and **upserts `DATABASE_URL` / `TEST_DATABASE_URL` into `indexer/.env`** (so `cargo test` from `indexer/` loads the test DB via `dotenvy`, not the live indexer DB). `make start` runs this after compose up (best-effort if Postgres is not ready yet; re-run after `make wait-healthy`).
+
+### Cursor Cloud Agent (Postgres-only, no wasm deploy)
+
+On Cloud Agent VMs, use the lightweight bootstrap ([#335](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335)) — does **not** start LocalTerra or run `deploy-dex-local`:
+
+```bash
+make setup-indexer-postgres
+make test-indexer-integration    # serialized full integration suite
+make verify-issue-324            # #324 lib + route_solve_get_cache HTTP tests
+```
+
+Full stack (frontend `.env.local`, chain LCD, indexer tmux): `make setup-cloud-localterra` — see [`AGENTS.md`](../AGENTS.md) § LocalTerra.
 
 Regression: `make test-setup-postgres` (static + optional live Docker bootstrap).
 
@@ -97,6 +109,9 @@ Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 
 | Command | Postgres behavior |
 |---------|-------------------|
+| `make setup-indexer-postgres` | Cloud Agent: dockerd + `postgres` only + `indexer/.env` ([#335](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335)) |
+| `make test-indexer-integration` | Runs `setup-indexer-postgres`, then `cargo test --tests -j 1 -- --test-threads=1` |
+| `make verify-issue-324` | #324 lib + `api_route_solve` cache tier integration (needs Postgres bootstrap) |
 | `make wait-healthy` | Waits for Postgres, runs `setup-postgres-dev-databases.sh` |
 | `make deploy-local` | Sources postgres env, ensures DBs, writes `indexer/.env` |
 | `make test-charts-integration` | Ensures target DB, migrates, seeds charts fixtures, runs Vitest integration (indexer HTTP; **stubbed** chart library) — [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) |

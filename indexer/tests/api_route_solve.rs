@@ -454,7 +454,7 @@ async fn route_solve_global_picks_best_path_not_shortest() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v1");
+    assert_eq!(j["solver_version"], "global_v3");
     assert_eq!(j["paths_considered"], 2);
     assert_eq!(j["hops"].as_array().unwrap().len(), 2, "2-hop path beats 1-hop");
     assert_eq!(j["estimated_amount_out"], "9000000");
@@ -484,7 +484,7 @@ async fn route_solve_global_response_metadata_contract() {
         seed.token_a, seed.token_c
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v1");
+    assert_eq!(j["solver_version"], "global_v3");
     assert!(j["paths_considered"].as_u64().unwrap_or(0) >= 1);
     assert!(!j["hybrid_notes"].as_str().unwrap_or("").is_empty());
     assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);
@@ -495,6 +495,9 @@ async fn route_solve_global_response_metadata_contract() {
 async fn route_solve_get_with_trader_returns_higher_estimate() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_2hop(&pool).await;
+    let trader = "terra1discountwallet000000000000000000000";
+    // #283 tier-keyed GET cache: unregistered trader collides with no-trader (tier -1).
+    common::seed_traders_with_tiers(&pool, &[(trader, 5)]).await;
     let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
@@ -507,7 +510,6 @@ async fn route_solve_get_with_trader_returns_higher_estimate() {
         seed.token_a, seed.token_c
     );
     let base: Value = server.get(&base_url).await.json();
-    let trader = "terra1discountwallet000000000000000000000";
     let discounted_url = format!("{base_url}&trader={trader}");
     let discounted: Value = server.get(&discounted_url).await.json();
 

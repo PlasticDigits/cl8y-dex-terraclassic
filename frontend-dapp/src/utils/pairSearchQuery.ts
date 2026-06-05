@@ -23,6 +23,36 @@ export function isPairSearchQueryReady(raw: string): boolean {
   return q.length >= PAIR_SEARCH_MIN_CHARS
 }
 
+/** Split `XXX YYY` or `XXX/YYY` pair-symbol queries into two lowercase tokens. */
+export function parsePairSymbolQueryTokens(q: string): [string, string] | null {
+  const trimmed = q.trim()
+  const parts: string[] = trimmed.includes('/') ? trimmed.split('/') : trimmed.split(/\s+/).filter(Boolean)
+  if (parts.length !== 2) return null
+  const t0 = parts[0].trim().toLowerCase()
+  const t1 = parts[1].trim().toLowerCase()
+  if (!t0 || !t1) return null
+  return [t0, t1]
+}
+
+function legSearchTokens(info: PairInfo['asset_infos'][number]): string[] {
+  const id = assetInfoLabel(info)
+  const symbol = getTokenDisplaySymbol(id).toLowerCase()
+  const tokens = [id.toLowerCase(), symbol]
+  const cached = getCachedTokenEntry(id)
+  if (cached?.symbol) tokens.push(cached.symbol.toLowerCase())
+  if (cached?.name) tokens.push(cached.name.toLowerCase())
+  const reg = lookupByAssetInfo(info)
+  if (reg) {
+    tokens.push(reg.symbol.toLowerCase(), reg.name.toLowerCase())
+  }
+  return tokens
+}
+
+function legMatchesToken(info: PairInfo['asset_infos'][number], token: string): boolean {
+  const t = token.toLowerCase()
+  return legSearchTokens(info).some((part) => part.includes(t) || t.includes(part))
+}
+
 /**
  * Searchable text for degraded pair search (menu label + symbols/names/addresses).
  * Includes localStorage-cached CW20 metadata so typed symbol search works when the indexer is down.
@@ -55,7 +85,39 @@ export function buildPairSearchHaystacksByAddress(
   return map
 }
 
-/** Client-side fallback filter when the indexer is unavailable. */
+/** Searchable text for a factory pair (labels, symbols, cached CW20 metadata, registry). */
+export function pairInfoSearchHaystack(pair: PairInfo, variant: PairMenuLabelVariant = 'full'): string {
+  return buildPairLocalSearchHaystack(pair, pairInfoMenuLabel(pair, { variant })).toLowerCase()
+}
+
+function pairMatchesLocalQuery(pair: PairInfo, query: string, variant: PairMenuLabelVariant): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const haystack = pairInfoSearchHaystack(pair, variant)
+  if (haystack.includes(q)) return true
+  const tokens = parsePairSymbolQueryTokens(query)
+  if (!tokens) return false
+  const [t0, t1] = tokens
+  const [a0, a1] = pair.asset_infos
+  return (legMatchesToken(a0, t0) && legMatchesToken(a1, t1)) || (legMatchesToken(a0, t1) && legMatchesToken(a1, t0))
+}
+
+/**
+ * Client-side fallback filter when the indexer is unavailable.
+ * Searches menu labels, display symbols, cached CW20 metadata, and two-token pair queries.
+ */
+export function filterFactoryPairsByLocalSearch(
+  pairs: PairInfo[],
+  query: string,
+  limit = PAIR_SEARCH_RESULT_LIMIT,
+  variant: PairMenuLabelVariant = 'full'
+): PairInfo[] {
+  const q = query.trim()
+  if (!q) return pairs.slice(0, limit)
+  return pairs.filter((p) => pairMatchesLocalQuery(p, q, variant)).slice(0, limit)
+}
+
+/** Filter factory pairs by pre-built haystack map (degraded combobox path). */
 export function filterPairsByLocalSearch(
   searchHaystackByAddress: Map<string, string>,
   query: string,

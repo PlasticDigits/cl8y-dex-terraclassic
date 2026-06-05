@@ -1,9 +1,9 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-indexer-postgres test-indexer-integration
 
 # Infrastructure
 start:
 	docker compose up -d
-	@chmod +x scripts/setup-postgres-dev-databases.sh scripts/lib/upsert-dotenv.sh
+	@chmod +x scripts/setup-postgres-dev-databases.sh scripts/lib/upsert-dotenv.sh scripts/lib/postgres-psql.sh scripts/lib/postgres-bootstrap-role.sh
 	@./scripts/setup-postgres-dev-databases.sh || true
 
 stop:
@@ -53,7 +53,7 @@ wait-localterra:
 
 wait-healthy: wait-localterra
 	@echo "Waiting for Postgres..."
-	@chmod +x scripts/setup-postgres-dev-databases.sh
+	@chmod +x scripts/setup-postgres-dev-databases.sh scripts/lib/postgres-psql.sh scripts/lib/postgres-bootstrap-role.sh
 	@for i in $$(seq 1 30); do \
 		if pg_isready -h localhost -U $${POSTGRES_USER:-cl8y_legal} > /dev/null 2>&1 \
 			|| docker compose exec -T postgres pg_isready -U $${POSTGRES_USER:-cl8y_legal} > /dev/null 2>&1; then \
@@ -98,7 +98,7 @@ test-localterra-host-curl:
 	./scripts/qa/test-localterra-host-curl.sh
 
 test-setup-postgres:
-	@chmod +x scripts/test-setup-postgres-dev-databases.sh scripts/lib/postgres-bootstrap-role.sh scripts/setup-postgres-dev-databases.sh
+	@chmod +x scripts/test-setup-postgres-dev-databases.sh scripts/lib/postgres-bootstrap-role.sh scripts/lib/postgres-psql.sh scripts/setup-postgres-dev-databases.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/test-setup-postgres-dev-databases.sh
 
 test-setup-browser:
@@ -168,17 +168,29 @@ verify-issue-295:
 
 # Cloud Agent: dockerd + LocalTerra + deploy + .env.local (+ optional indexer/frontend tmux).
 setup-cloud-localterra:
-	@chmod +x scripts/setup-cloud-agent-localterra.sh
+	@chmod +x scripts/setup-cloud-agent-localterra.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/setup-cloud-agent-localterra.sh
+
+# Cloud Agent: Postgres + indexer/.env only — indexer integration tests without wasm deploy (#335).
+setup-indexer-postgres:
+	@chmod +x scripts/setup-cloud-agent-indexer-postgres.sh scripts/lib/cloud-agent-docker.sh scripts/lib/postgres-psql.sh
+	./scripts/setup-cloud-agent-indexer-postgres.sh
+
+test-indexer-integration: setup-indexer-postgres
+	@export PATH="/usr/local/cargo/bin:$$HOME/.cargo/bin:$$PATH"; cd indexer && cargo test --tests -j 1 -- --test-threads=1
+
+verify-issue-324:
+	@chmod +x scripts/qa/verify-issue-324.sh scripts/setup-cloud-agent-indexer-postgres.sh
+	./scripts/qa/verify-issue-324.sh
 
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-redeploy-decision"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
-	@echo "Cloud Agent:     make setup-cloud-localterra | verify-issue-295 (needs make dev)"
+	@echo "Cloud Agent:     make setup-cloud-localterra | setup-indexer-postgres | test-indexer-integration | verify-issue-324 | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
-	@echo "Indexer:         make indexer-dev"
+	@echo "Indexer:         make indexer-dev | test-indexer-integration"
 	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:

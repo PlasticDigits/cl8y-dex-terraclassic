@@ -69,6 +69,8 @@ cargo test --tests -j 1 -- --test-threads=1
 
 Start Postgres (`docker compose up -d postgres`) and run `./scripts/setup-postgres-dev-databases.sh` (or `make deploy-local`) so `dex_indexer_test` exists before the first run.
 
+**Cursor Cloud Agent (no wasm deploy):** `make setup-indexer-postgres` then `make test-indexer-integration` — see [`AGENTS.md`](../AGENTS.md) § Indexer integration tests (Postgres-only) and [GitLab **#335**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335).
+
 See [Indexer invariants](./indexer-invariants.md) for the full matrix and the same note under **Running tests**.
 
 **Stubs, mocks, and test stand-ins:** intentional test doubles are cataloged in [GitLab issue #105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) and summarized under [P2 testing epic (#199)](./testing.md#p2-testing-epic-gitlab-199). Key indexer spots: `indexer/tests/common/lcd_mock.rs` (LCD HTTP stub only) vs `indexer/src/api/orderbook_sim.rs` (**production** AMM curve-walk for CG/CMC — not the on-chain FIFO book; see **#210**). Agent playbook: [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
@@ -316,7 +318,7 @@ The [`@cl8y-dex/localnet-trading-swarm`](../packages/localnet-trading-swarm) pac
 
 Contract message shapes align with [`docs/contracts-terraclassic.md`](./contracts-terraclassic.md), [`docs/limit-orders.md`](./limit-orders.md), and frontend Terra services. Full invariants: [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md); agent playbook: [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md). Issue: [GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119).
 
-**Python QA swarm (`make swarm-launch`):** separate from the TypeScript package — **25** swap workers + **5** limit makers + **3** `provide_liquidity` workers. `launch-swarm.sh` runs `bootstrap-swarm-liquidity` once so OE-1 swap pairs (EMBER/CORAL, TOPAZ/ONYX, ONYX/CORAL) stay deep after swap-only volume ([#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)). Unit tests: `make test-swarm-liquidity`. Live OE-1 quote check (needs LocalTerra + indexer): `make verify-issue-293`.
+**Python QA swarm (`make swarm-launch`):** separate from the TypeScript package — **25** swap workers + **5** limit makers + **3** `provide_liquidity` workers. `launch-swarm.sh` runs `bootstrap-swarm-liquidity` once so OE-1 swap pairs (EMBER/CORAL, TOPAZ/ONYX, ONYX/CORAL) stay deep after swap-only volume ([#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)). Unit tests: `make test-swarm-liquidity`. Live OE-1 quote check (needs LocalTerra + indexer): `make verify-issue-293` — **acceptance** is `pool_only=true` direct-pool reciprocal (≤5%); global best-execution routes are traced for asymmetry (multi-hop vs direct is expected on LocalTerra, not a decimal bug).
 
 ### Fee Discount Contract Tests
 

@@ -181,6 +181,9 @@ pub enum ExecuteMsg {
         offer_asset: Asset,
         belief_price: Option<Decimal>,
         max_spread: Option<Decimal>,
+        /// Minimum net ask tokens to the receiver after the swap (GitLab #334).
+        #[serde(default)]
+        min_return: Option<Uint128>,
         to: Option<String>,
         deadline: Option<u64>,
     },
@@ -277,6 +280,9 @@ pub enum Cw20HookMsg {
     Swap {
         belief_price: Option<Decimal>,
         max_spread: Option<Decimal>,
+        /// Minimum net ask tokens to the receiver after the swap (GitLab #334).
+        #[serde(default)]
+        min_return: Option<Uint128>,
         to: Option<String>,
         deadline: Option<u64>,
         /// Original trader address for fee discount lookup.

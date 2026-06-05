@@ -7,7 +7,12 @@ import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, simulateHybridSwap, swap } from '@/services/terraclassic/pair'
-import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
+import {
+  computeDirectHybridMinReturn,
+  enrichSwapOperationsWithHopMinReturns,
+  preflightSwapRouteSpread,
+  type SwapRoutePreflightSpread,
+} from '@/services/terraclassic/swapRoutePreflight'
 import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
@@ -350,11 +355,17 @@ export function TradeMarketOrderPanel({
       const submitHybrid = hybrid ? hybridParamsWithSubmitCap(hybrid) : undefined
       return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, raw, async () => {
         if (swapOpsRequireRouter(idxOps)) {
+          const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
+            idxOps!,
+            raw,
+            slippageTolerance,
+            address ? { trader: address } : undefined
+          )
           return executeMultiHopSwap(
             address,
             fromToken,
             raw,
-            idxOps!,
+            opsForSubmit,
             maxSpread,
             minReceived ?? undefined,
             undefined,
@@ -362,8 +373,20 @@ export function TradeMarketOrderPanel({
           )
         }
         const hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? submitHybrid
+        const directMinReturn =
+          hopHybrid && BigInt(hopHybrid.book_input) > 0n
+            ? await computeDirectHybridMinReturn(
+                selectedPair.contract_addr,
+                tokenAssetInfo(fromToken),
+                raw,
+                hopHybrid,
+                slippageTolerance,
+                quoteTrader
+              )
+            : undefined
         return swap(address, fromToken, selectedPair.contract_addr, raw, undefined, maxSpread, undefined, {
           hybrid: hopHybrid,
+          minReturn: directMinReturn,
           deadline,
         })
       })

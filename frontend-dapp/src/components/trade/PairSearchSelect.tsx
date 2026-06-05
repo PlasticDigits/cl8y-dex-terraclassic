@@ -8,8 +8,7 @@ import type { IndexerPair } from '@/types'
 import type { PairInfo } from '@/types'
 import { pairInfoMenuLabel, indexerPairMenuLabel, type PairMenuLabelVariant } from '@/utils/pairMenuOptions'
 import {
-  buildPairSearchHaystacksByAddress,
-  filterPairsByLocalSearch,
+  filterFactoryPairsByLocalSearch,
   isPairSearchQueryReady,
   PAIR_SEARCH_RESULT_LIMIT,
 } from '@/utils/pairSearchQuery'
@@ -75,6 +74,7 @@ export function PairSearchSelect({
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const activeIndexRef = useRef(0)
+  const [indexerUnavailable, setIndexerUnavailable] = useState(false)
 
   const factorySet = useMemo(() => new Set(factoryPairs.map((p) => p.contract_addr)), [factoryPairs])
 
@@ -85,11 +85,6 @@ export function PairSearchSelect({
     }
     return map
   }, [factoryPairs, variant])
-
-  const searchHaystackByAddress = useMemo(
-    () => buildPairSearchHaystacksByAddress(factoryPairs, variant),
-    [factoryPairs, variant]
-  )
 
   const selectedLabel = useMemo(() => {
     if (!value) return ''
@@ -106,7 +101,7 @@ export function PairSearchSelect({
   }, [activeIndex])
 
   const queryReady = isPairSearchQueryReady(debouncedSearch)
-  const useIndexerSearch = queryReady && open
+  const useIndexerSearch = queryReady && open && !indexerUnavailable
   const inputValue = open ? searchText : selectedLabel
 
   const pairsQuery = useQuery({
@@ -125,24 +120,29 @@ export function PairSearchSelect({
     retry: false,
   })
 
-  const degradedMode = pairsQuery.isError
+  useEffect(() => {
+    if (pairsQuery.isError) setIndexerUnavailable(true)
+  }, [pairsQuery.isError])
 
-  const fallbackAddresses = useMemo(() => {
-    if (!degradedMode) return []
-    return filterPairsByLocalSearch(searchHaystackByAddress, debouncedSearch, PAIR_SEARCH_RESULT_LIMIT).filter((addr) =>
-      factorySet.has(addr)
-    )
-  }, [degradedMode, searchHaystackByAddress, debouncedSearch, factorySet])
+  const useLocalFallback = indexerUnavailable || pairsQuery.isError
+
+  const localSearchQuery = useMemo(() => {
+    if (useLocalFallback && open) return debouncedSearch || searchText.trim()
+    return debouncedSearch
+  }, [useLocalFallback, open, debouncedSearch, searchText])
+
+  const localFallbackPairs = useMemo(() => {
+    if (!useLocalFallback || factoryPairs.length === 0) return []
+    return filterFactoryPairsByLocalSearch(factoryPairs, localSearchQuery, PAIR_SEARCH_RESULT_LIMIT, variant)
+  }, [useLocalFallback, factoryPairs, localSearchQuery, variant])
 
   const options: PairSearchOption[] = useMemo(() => {
     if (factoryPairs.length === 0) return []
 
     let result: PairSearchOption[]
-    if (degradedMode) {
-      result = fallbackAddresses.map((addr) => {
-        const factory = factoryPairs.find((p) => p.contract_addr === addr)
-        return factory ? factoryPairToOption(factory, variant) : { value: addr, label: addr }
-      })
+
+    if (useLocalFallback) {
+      result = localFallbackPairs.map((p) => factoryPairToOption(p, variant))
     } else if (!pairsQuery.data) {
       result = []
     } else {
@@ -165,7 +165,7 @@ export function PairSearchSelect({
       }
     }
     return result
-  }, [factoryPairs, degradedMode, pairsQuery.data, fallbackAddresses, factorySet, variant, debouncedSearch, value])
+  }, [factoryPairs, useLocalFallback, localFallbackPairs, pairsQuery.data, factorySet, variant, debouncedSearch, value])
 
   const canOpen = factoryPairs.length > 0 && !disabled
   const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value])
@@ -244,13 +244,12 @@ export function PairSearchSelect({
     [canOpen, open, options.length, selectIndex, close]
   )
 
+  const awaitingIndexer =
+    useIndexerSearch && !useLocalFallback && (pairsQuery.isLoading || (pairsQuery.isFetching && !pairsQuery.data))
+
   const showEmptyState =
-    open &&
-    options.length === 0 &&
-    !pairsQuery.isLoading &&
-    queryReady &&
-    debouncedSearch.length > 0 &&
-    (!degradedMode || pairsQuery.isFetched)
+    open && options.length === 0 && !awaitingIndexer && (queryReady || useLocalFallback) && localSearchQuery.length > 0
+
   const activeOptionId = open && options.length > 0 ? portalListboxOptionId(listId, activeIndex) : undefined
 
   return (
@@ -300,16 +299,15 @@ export function PairSearchSelect({
             tabIndex={-1}
             className="token-select-dropdown"
             aria-label={ariaLabel}
-            aria-busy={pairsQuery.isLoading || undefined}
+            aria-busy={awaitingIndexer || undefined}
             style={dropdownStyle}
           >
-            {degradedMode && options.length > 0 ? (
+            {useLocalFallback && options.length > 0 ? (
               <li className="px-3 py-1.5 text-xs" style={{ color: 'var(--ink-dim)' }} role="presentation">
                 Offline search — showing factory pairs from cached labels
               </li>
             ) : null}
-            {(pairsQuery.isLoading || (useIndexerSearch && !pairsQuery.data && !degradedMode)) &&
-            options.length === 0 ? (
+            {awaitingIndexer && options.length === 0 ? (
               <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
                 Searching…
               </li>

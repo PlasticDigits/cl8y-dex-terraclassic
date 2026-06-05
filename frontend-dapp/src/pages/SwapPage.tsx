@@ -6,7 +6,12 @@ import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
-import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
+import {
+  computeDirectHybridMinReturn,
+  enrichSwapOperationsWithHopMinReturns,
+  preflightSwapRouteSpread,
+  type SwapRoutePreflightSpread,
+} from '@/services/terraclassic/swapRoutePreflight'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
@@ -49,7 +54,11 @@ import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
-import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
+import {
+  computeSwapRouteDisplay,
+  deriveSwapSubmitRouteSource,
+  SWAP_CLIENT_BFS_FALLBACK_COPY,
+} from '@/utils/swapRouteDisplay'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
@@ -569,11 +578,17 @@ export default function SwapPage() {
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
 
       if (swapOpsRequireRouter(idxOps)) {
+        const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
+          idxOps!,
+          rawInputAmount,
+          slippageTolerance,
+          quoteTrader
+        )
         return executeMultiHopSwap(
           address,
           fromToken,
           rawInputAmount,
-          idxOps!,
+          opsForSubmit,
           maxSpread,
           minReceived ?? undefined,
           undefined,
@@ -605,15 +620,33 @@ export default function SwapPage() {
         if (hybrid) {
           hybrid = hybridParamsWithSubmitCap(hybrid)
         }
+        const directMinReturn =
+          hybrid && BigInt(hybrid.book_input) > 0n
+            ? await computeDirectHybridMinReturn(
+                directPair.contract_addr,
+                tokenAssetInfo(fromToken),
+                rawInputAmount,
+                hybrid,
+                slippageTolerance,
+                quoteTrader
+              )
+            : undefined
         return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread, undefined, {
           hybrid,
+          minReturn: directMinReturn,
           deadline,
         })
       }
 
       if (isMultiHop && route) {
         const minReceive = minReceived ?? undefined
-        return executeMultiHopSwap(address, fromToken, rawInputAmount, route, maxSpread, minReceive)
+        const routeForSubmit = await enrichSwapOperationsWithHopMinReturns(
+          route,
+          rawInputAmount,
+          slippageTolerance,
+          quoteTrader
+        )
+        return executeMultiHopSwap(address, fromToken, rawInputAmount, routeForSubmit, maxSpread, minReceive)
       }
 
       throw new Error('No route found')
@@ -708,6 +741,21 @@ export default function SwapPage() {
       isDirect,
     ]
   )
+
+  const swapSubmitRouteSource = useMemo(
+    () =>
+      deriveSwapSubmitRouteSource({
+        isWrapOrUnwrap: !!isWrapOrUnwrap,
+        nativeRouteInfo,
+        indexerOperations: simData?.indexerOperations,
+        clientRoute: route,
+        isDirect,
+        isMultiHop,
+      }),
+    [isWrapOrUnwrap, nativeRouteInfo, simData?.indexerOperations, route, isDirect, isMultiHop]
+  )
+
+  const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
 
   const insufficientBalance =
     !!inputAmount &&
@@ -1264,6 +1312,15 @@ export default function SwapPage() {
                             ? 'wrap'
                             : 'unwrap'}{' '}
                         your tokens
+                      </span>
+                    )}
+                    {showClientBfsFallbackLabel && (
+                      <span
+                        data-testid="swap-route-source-client-fallback"
+                        className="block mt-0.5 text-[10px] font-sans leading-snug"
+                        style={{ color: 'var(--color-warning, #f59e0b)' }}
+                      >
+                        {SWAP_CLIENT_BFS_FALLBACK_COPY}
                       </span>
                     )}
                   </div>

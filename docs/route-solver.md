@@ -16,6 +16,7 @@ Authoritative reference for contributors and integrators using **`GET` / `POST /
 | **Pool-only leg** | Constant-product AMM only; router op has `terra_swap.hybrid: null` (on-chain this is pool-only hybrid with `book_input = 0`). | `quote_kind`: `indexer_pool_lcd` or `indexer_route_only` |
 | **Hybrid leg** | Split between pool and limit book: `pool_input + book_input = offer` for that hop. | `router_operations[].terra_swap.hybrid` |
 | **`book_input` / `pool_input`** | Raw integer strings: offer amount routed to the limit book vs the AMM pool on one hop. | `HybridHopJson` in POST body / merged ops |
+| **`book_start_hint`** | Optional order id to start the book walk on the **matcher side** for that hop (bid hint when offering token0, ask hint when offering token1). The global optimizer (`global_v2`) sets this to the first **live** resting order on that side when the Postgres mirror is fresh and `book_input > 0`; stale/missing mirror or pool-only hops leave it `null` ([#332](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/332), [#289](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/289)). Same hint is used in mirror/LCD `HybridSimulation` grid evals and in returned `router_operations`. Wrong-side hints are omitted server-side; on-chain validation (**L17**, [#272](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) remains authoritative at execute time. | `HybridHopJson.book_start_hint` |
 | **`RouteQuoteKind`** | How the quote was produced. | `quote_kind` (snake_case enum) |
 | **`indexer_route_only`** | Topology only — no `estimated_amount_out` (missing `ROUTER_ADDRESS` and/or `amount_in`, or sim failed). | `RouteQuoteKind::IndexerRouteOnly` |
 | **`indexer_pool_lcd`** | Pool-only router ops; LCD `simulate_swap_operations` when configured. | |
@@ -107,9 +108,10 @@ Read the response using this doc:
 
 | Constant | Value | Location |
 |----------|-------|----------|
-| `SOLVER_VERSION_LCD` | `global_v1` | `best_execution.rs` |
-| `SOLVER_VERSION_DB` | `global_v2` | `best_execution.rs` |
+| `SOLVER_VERSION_LCD` | `global_v3` | `best_execution.rs` |
+| `SOLVER_VERSION_DB` | `global_v4` | `best_execution.rs` |
 | `MAX_PATH_CANDIDATES` | 5 | `best_execution.rs` |
+| `SOLVE_CONCURRENCY` | 5 (bounded concurrent candidate eval; #324) | `best_execution.rs` |
 | `GET_DEFAULT_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GET_POOL_ONLY_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GRID_POINTS` | 17 | `hybrid_route_opt.rs` |
@@ -121,7 +123,7 @@ Read the response using this doc:
 | `LCD_HYBRID_SIM_BUDGET` | 1700 (= 5×4×85) | `best_execution.rs` |
 | `OPTIMALITY_SCOPE` | See [optimality scope](#optimality-scope-string) | `best_execution.rs` |
 
-Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `amount_in`, `max_maker_fills`, normalized `trader` (or `none`), **`discount_tier`** (`traders.tier_id` for discount subject — `trader` if set, else `sender`; unknown → 0). Same-tier callers share cache ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)).
+Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `amount_in`, **bucketed** `max_maker_fills` (retail 1–8 → 8; see `cache_key_maker_fills`), **`discount_bps`** from resolved tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283), [#324](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/324)). Trader address is **not** keyed — same-tier wallets share cache.
 
 **Rate limits:** `route/solve` and `route/solve/best` are LCD-heavy (**10 RPS** default per IP). LCD upstream failures → **502** `Upstream LCD query failed` (sanitized).
 

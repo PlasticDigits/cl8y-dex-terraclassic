@@ -8,6 +8,7 @@
 #   ./scripts/setup-cloud-agent-localterra.sh              # full: infra + build + deploy
 #   ./scripts/setup-cloud-agent-localterra.sh --skip-build # infra + deploy only (artifacts exist)
 #   ./scripts/setup-cloud-agent-localterra.sh --infra-only # docker up + wait-healthy only
+#   ./scripts/setup-cloud-agent-localterra.sh --postgres-only # Postgres + indexer/.env only (#335)
 #
 # After success:
 #   tmux attach -t indexer-dev    # if started with --start-indexer (default)
@@ -20,6 +21,7 @@ cd "$REPO_ROOT"
 
 SKIP_BUILD=0
 INFRA_ONLY=0
+POSTGRES_ONLY=0
 FRESH_VOLUMES=0
 START_INDEXER=1
 START_FRONTEND=0
@@ -28,6 +30,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-build) SKIP_BUILD=1; shift ;;
     --infra-only) INFRA_ONLY=1; shift ;;
+    --postgres-only) POSTGRES_ONLY=1; shift ;;
     --fresh) FRESH_VOLUMES=1; shift ;;
     --no-indexer) START_INDEXER=0; shift ;;
     --start-frontend) START_FRONTEND=1; shift ;;
@@ -147,6 +150,16 @@ _wait_indexer() {
 }
 
 echo "[setup-cloud-localterra] repo: $REPO_ROOT"
+
+if [[ "$POSTGRES_ONLY" -eq 1 ]]; then
+  if [[ "$FRESH_VOLUMES" -eq 1 ]]; then
+    _ensure_dockerd
+    echo "[setup-cloud-localterra] --fresh: wiping docker volumes…"
+    _run_make reset
+  fi
+  exec "$REPO_ROOT/scripts/setup-cloud-agent-indexer-postgres.sh"
+fi
+
 _ensure_dockerd
 _ensure_node
 

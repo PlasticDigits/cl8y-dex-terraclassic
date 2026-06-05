@@ -21,6 +21,9 @@ pub enum SwapOperation {
         ask_asset_info: AssetInfo,
         /// Pattern C: per-hop book vs pool split (None = 100% pool, TerraSwap-compatible default).
         hybrid: Option<HybridSwapParams>,
+        /// Per-hop minimum net ask output when this hop has `book_input > 0` without `belief_price`.
+        #[serde(default)]
+        min_return: Option<Uint128>,
     },
 }
 

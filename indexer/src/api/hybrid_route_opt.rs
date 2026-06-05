@@ -96,8 +96,13 @@ fn hybrid_sim_query(
     pool_input: u128,
     book_input: u128,
     max_maker_fills: u32,
+    book_start_hint: Option<u64>,
     quote_trader: &QuoteTrader,
 ) -> serde_json::Value {
+    let hint_json = match book_start_hint {
+        Some(h) => json!(h),
+        None => serde_json::Value::Null,
+    };
     let mut sim = json!({
         "offer_asset": {
             "info": asset_info_token(offer_token),
@@ -107,7 +112,7 @@ fn hybrid_sim_query(
             "pool_input": pool_input.to_string(),
             "book_input": book_input.to_string(),
             "max_maker_fills": max_maker_fills,
-            "book_start_hint": serde_json::Value::Null,
+            "book_start_hint": hint_json,
         }
     });
     if let Some(trader) = quote_trader.trader.as_deref() {
@@ -119,6 +124,15 @@ fn hybrid_sim_query(
     json!({ "hybrid_simulation": sim })
 }
 
+fn resolve_hop_book_start_hint(source: &HybridSimSource<'_>, hop: &HopDescriptor) -> Option<u64> {
+    match source {
+        HybridSimSource::Lcd(_) => None,
+        HybridSimSource::Db { mirrors, .. } => mirrors
+            .get(&hop.pair)
+            .and_then(|m| db_orderbook_sim::first_live_book_start_hint(m, &hop.offer_token)),
+    }
+}
+
 async fn query_hybrid_sim_lcd(
     lcd: &LcdClient,
     pair: &str,
@@ -127,14 +141,21 @@ async fn query_hybrid_sim_lcd(
     pool_input: u128,
     book_input: u128,
     max_maker_fills: u32,
+    book_start_hint: Option<u64>,
     quote_trader: &QuoteTrader,
 ) -> Result<u128, crate::lcd::LcdError> {
+    let hint = if book_input > 0 {
+        book_start_hint
+    } else {
+        None
+    };
     let q = hybrid_sim_query(
         offer_token,
         offer_amount,
         pool_input,
         book_input,
         max_maker_fills,
+        hint,
         quote_trader,
     );
     let r: HybridSimResp = lcd.query_contract(pair, &q).await?;
@@ -151,8 +172,14 @@ async fn query_hybrid_sim_unified(
     pool_input: u128,
     book_input: u128,
     max_maker_fills: u32,
+    book_start_hint: Option<u64>,
     quote_trader: &QuoteTrader,
 ) -> Result<u128, HybridSimError> {
+    let hint = if book_input > 0 {
+        book_start_hint
+    } else {
+        None
+    };
     match source {
         HybridSimSource::Lcd(lcd) => query_hybrid_sim_lcd(
             lcd,
@@ -162,6 +189,7 @@ async fn query_hybrid_sim_unified(
             pool_input,
             book_input,
             max_maker_fills,
+            hint,
             quote_trader,
         )
         .await
@@ -189,6 +217,7 @@ async fn query_hybrid_sim_unified(
                         book_input,
                         max_maker_fills,
                         *discount_bps,
+                        hint,
                     )
                     .map_err(HybridSimError::from);
                 }
@@ -215,6 +244,7 @@ async fn query_hybrid_sim_unified(
                 pool_input,
                 book_input,
                 max_maker_fills,
+                None,
                 quote_trader,
             )
             .await
@@ -239,6 +269,7 @@ async fn query_pool_only_unified(
         offer_amount,
         0,
         max_maker_fills.max(1),
+        None,
         quote_trader,
     )
     .await
@@ -259,6 +290,7 @@ async fn optimize_one_hop(
     }
 
     let max_maker_fills = max_maker_fills.max(1);
+    let book_start_hint = resolve_hop_book_start_hint(source, hop);
     let mut best_book = 0u128;
     let mut best_out = 0u128;
     let mut any_candidate_ok = false;
@@ -278,6 +310,7 @@ async fn optimize_one_hop(
             pool,
             book,
             max_maker_fills,
+            book_start_hint,
             quote_trader,
         )
         .await
@@ -324,7 +357,7 @@ async fn optimize_one_hop(
             pool_input: pool_input.to_string(),
             book_input: best_book.to_string(),
             max_maker_fills,
-            book_start_hint: None,
+            book_start_hint,
         };
         return Ok((Some(h), best_out));
     }
@@ -466,16 +499,17 @@ async fn propagate_offer_through_plan(
 ) -> Result<u128, HybridSimError> {
     let mut running = amount_in;
     for (idx, hop) in hops.iter().enumerate().take(target_hop) {
-        let (pool, book) = plan
+        let (pool, book, hint) = plan
             .get(idx)
             .and_then(|h| h.as_ref())
             .map(|h| {
                 (
                     h.pool_input.parse::<u128>().unwrap_or(0),
                     h.book_input.parse::<u128>().unwrap_or(0),
+                    h.book_start_hint,
                 )
             })
-            .unwrap_or((running, 0));
+            .unwrap_or((running, 0, None));
         let mut offer = pool.saturating_add(book);
         if offer == 0 {
             offer = running;
@@ -488,6 +522,7 @@ async fn propagate_offer_through_plan(
             pool,
             book,
             max_maker_fills.max(1),
+            hint,
             quote_trader,
         )
         .await
