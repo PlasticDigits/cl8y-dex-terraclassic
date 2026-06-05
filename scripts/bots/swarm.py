@@ -44,7 +44,9 @@ from decimal import Decimal, getcontext
 from typing import Any
 
 from swarm_liquidity import (
+    MIN_PROVIDE_LIQUIDITY_LEG,
     MIN_RESERVE_PER_SIDE_FOR_SWAP,
+    bootstrap_top_up_amounts,
     pick_scaled_provide_amounts,
     pool_reserves_ok,
 )
@@ -498,12 +500,22 @@ async def lp_worker_loop(
         if not fresh:
             continue
         m = fresh
+        floor = _min_reserve_per_side()
         scaled = pick_scaled_provide_amounts(
-            m.reserve0, m.reserve1, fraction_ppm, min_reserve_per_side=_min_reserve_per_side()
+            m.reserve0, m.reserve1, fraction_ppm, min_reserve_per_side=floor
         )
-        if not scaled:
-            continue
-        amount0, amount1 = scaled
+        if scaled:
+            amount0, amount1 = scaled
+        else:
+            topped = bootstrap_top_up_amounts(
+                m.reserve0,
+                m.reserve1,
+                floor_per_side=floor,
+                target_per_side=floor + MIN_PROVIDE_LIQUIDITY_LEG,
+            )
+            if not topped:
+                continue
+            amount0, amount1 = topped
         try:
             await provide_liquidity_pair(
                 container, m.token0, m.token1, m.pair_addr, amount0, amount1, dry
