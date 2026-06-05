@@ -280,6 +280,18 @@ Implementation: [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.
 
 Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases).
 
+### Broadcast phase UI (signing → confirming) {#broadcast-phase-ui}
+
+Retail submit buttons distinguish wallet signing from on-chain confirmation ([GitLab **#305**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/305), umbrella [#304](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/304)):
+
+| Phase | When | Typical button copy |
+|-------|------|---------------------|
+| `signing` | Before `wallet.broadcastTx` enters the sign lock | Signing… |
+| `broadcasting` | Inside `broadcastTx` (sign + submit) | Broadcasting… |
+| `confirming` | After tx hash, during `pollTx` | Confirming… (+ explorer link) |
+
+**Invariants:** `broadcastTerraExecuteContracts` accepts optional `onPhaseChange`; failed broadcast never enters `confirming`; failed poll does not re-fire `signing`. React mutations use [`useTerraBroadcastMutation`](../frontend-dapp/src/hooks/useTerraBroadcastMutation.ts) + [`terraBroadcastScope`](../frontend-dapp/src/services/terraclassic/terraBroadcastScope.ts) so service layers stay unchanged. **`isPending`** remains the disable guard.
+
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](../skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md).
 
 

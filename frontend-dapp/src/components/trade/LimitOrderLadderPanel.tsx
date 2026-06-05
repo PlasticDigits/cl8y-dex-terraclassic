@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 
 import { placeLimitOrderBatchWithAllowance, placeLimitOrderLadderWithAllowance } from '@/services/terraclassic/pair'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { TxResultAlert } from '@/components/ui'
+import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { useLimitOrderConfig } from '@/hooks/useLimitOrderConfig'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitLadderPlaceGates } from '@/hooks/useLimitLadderPlaceGates'
@@ -160,7 +163,7 @@ export function LimitOrderLadderPanel({
     }
   }, [preview.error, preview.rungs, side, bestBid, bestAsk])
 
-  const placeMutation = useMutation({
+  const placeMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (preview.error || preview.rungs.length < 2) {
         throw new Error(preview.error ?? 'Invalid ladder')
@@ -375,8 +378,14 @@ export function LimitOrderLadderPanel({
         data-testid="ladder-place-submit"
         onClick={() => placeMutation.mutate()}
       >
-        {placeMutation.isPending ? 'Placing ladder…' : `Place ${rungCount}-rung ladder`}
+        {terraBroadcastPendingButtonLabel(
+          placeMutation.phase,
+          placeMutation.isPending,
+          `Place ${rungCount}-rung ladder`,
+          'Placing ladder…'
+        )}
       </button>
+      <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
       {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
       {placeMutation.isSuccess && <TxResultAlert type="success" message="Ladder placed." txHash={placeMutation.data} />}
     </div>

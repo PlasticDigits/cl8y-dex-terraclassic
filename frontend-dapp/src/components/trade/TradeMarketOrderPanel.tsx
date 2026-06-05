@@ -1,5 +1,6 @@
 import { useMemo, useState, useId } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
@@ -18,6 +19,8 @@ import { postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
+import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import {
   assetInfoLabel,
   tokenAssetInfo,
@@ -319,7 +322,7 @@ export function TradeMarketOrderPanel({
     return applySlippagePercentFloor(simQuery.data.return_amount, slippageTolerance)
   }, [simQuery.data?.return_amount, slippageTolerance])
 
-  const swapMutation = useMutation({
+  const swapMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address || !selectedPair) throw new Error('Connect wallet')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')
@@ -585,12 +588,14 @@ export function TradeMarketOrderPanel({
       >
         {!isWalletConnected
           ? 'Connect Wallet'
-          : swapMutation.isPending
-            ? 'Submitting…'
-            : priceImpactTooHigh
-              ? 'Price impact too high'
-              : `Market ${side === 'bid' ? 'buy' : 'sell'}`}
+          : terraBroadcastPendingButtonLabel(
+              swapMutation.phase,
+              swapMutation.isPending,
+              priceImpactTooHigh ? 'Price impact too high' : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+              'Submitting…'
+            )}
       </button>
+      <TerraBroadcastPendingLink phase={swapMutation.phase} txHash={swapMutation.pendingTxHash} />
       <LimitOrderEscrowPlaceGuardMessage gate={inlineGate} data-testid="trade-market-place-guard" />
       {swapMutation.isError && <TxResultAlert type="error" message={(swapMutation.error as Error).message} />}
       {swapMutation.isSuccess && (

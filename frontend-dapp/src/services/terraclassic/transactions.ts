@@ -9,6 +9,7 @@ import {
   totalGasLimitForExecuteMsgs,
 } from './terraGas'
 import { broadcastTerraExecuteContracts, type TerraExecuteContractEntry } from './terraBroadcast'
+import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
 
 function requireConnectedWalletForAddress(walletAddress: string) {
   const wallet = getConnectedWallet()
@@ -172,7 +173,12 @@ export async function executeTerraContract(
   coins?: Array<{ denom: string; amount: string }>
 ): Promise<string> {
   const wallet = requireConnectedWalletForAddress(walletAddress)
-  return broadcastTerraExecuteContracts(wallet, walletAddress, [{ contract: contractAddress, msg: executeMsg, coins }])
+  return broadcastTerraExecuteContracts(
+    wallet,
+    walletAddress,
+    [{ contract: contractAddress, msg: executeMsg, coins }],
+    getTerraBroadcastScopeOptions()
+  )
 }
 
 export async function executeTerraContractMulti(
@@ -180,8 +186,10 @@ export async function executeTerraContractMulti(
   messages: TerraExecuteContractEntry[]
 ): Promise<string> {
   const wallet = requireConnectedWalletForAddress(walletAddress)
-  return broadcastTerraExecuteContracts(wallet, walletAddress, messages)
+  return broadcastTerraExecuteContracts(wallet, walletAddress, messages, getTerraBroadcastScopeOptions())
 }
+
+export type { TerraBroadcastOptions, TerraBroadcastPhase } from './terraBroadcast'
 
 /** @internal Exported for tests that assert fee gas limits. */
 export { buildTerraClassicFee, getGasLimitForTx }

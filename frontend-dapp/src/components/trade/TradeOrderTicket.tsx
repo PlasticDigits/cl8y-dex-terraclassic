@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect, useId, useRef, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import type { UseMutationResult } from '@tanstack/react-query'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useLimitOrderCancelMutation, type LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
 import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePriceMutation'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -15,6 +16,8 @@ import {
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
+import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair, type IndexerTrade, type PairInfo } from '@/types'
 import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
@@ -398,7 +401,7 @@ function TradeOrderTicketContent({
     setEditHintAfterOrderId(null)
   }, [])
 
-  const placeMutation = useMutation({
+  const placeMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Connect wallet')
       if (!selectedPair) throw new Error('Select a pair')
@@ -826,10 +829,14 @@ function TradeOrderTicketContent({
                     ? updatePriceMutation.isPending
                       ? 'Updating…'
                       : 'Update price'
-                    : placeMutation.isPending
-                      ? 'Placing…'
-                      : 'Place limit'}
+                    : terraBroadcastPendingButtonLabel(
+                        placeMutation.phase,
+                        placeMutation.isPending,
+                        'Place limit',
+                        'Placing…'
+                      )}
               </button>
+              <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
               {priceOnlyEdit && updatePriceNativeGasGate.userMessage && (
                 <LimitOrderEscrowPlaceGuardMessage
                   gate={updatePriceNativeGasGate}
