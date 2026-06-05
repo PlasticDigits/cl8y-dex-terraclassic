@@ -107,7 +107,10 @@ export async function computeDirectHybridMinReturn(
 ): Promise<string | undefined> {
   if (BigInt(hybrid.book_input) === 0n) return undefined
   const sim = await simulateHybridSwap(pairAddress, offerAssetInfo, offerAmount, hybrid, quoteTrader)
-  return applySlippagePercentFloor(sim.return_amount, slippagePercent) ?? undefined
+  const computed = applySlippagePercentFloor(sim.return_amount, slippagePercent)
+  return computed != null && !hybridBookRequiresSlippageFloor(BigInt(hybrid.book_input), null, computed)
+    ? computed
+    : undefined
 }
 
 /** Attach per-hop `min_return` from slippage on simulated hop output (GitLab #334). */
@@ -130,8 +133,9 @@ export async function enrichSwapOperationsWithHopMinReturns(
     const assetTuple: [AssetInfo, AssetInfo] = [ts.offer_asset_info, ts.ask_asset_info]
     const pairRow = await getPair(assetTuple)
     const sim = await simulateHybridSwap(pairRow.contract_addr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
-    if (bookIn > 0n && (minReturn == null || minReturn === '')) {
-      minReturn = applySlippagePercentFloor(sim.return_amount, slippagePercent) ?? undefined
+    if (bookIn > 0n && hybridBookRequiresSlippageFloor(bookIn, null, minReturn)) {
+      const computed = applySlippagePercentFloor(sim.return_amount, slippagePercent)
+      minReturn = computed != null && !hybridBookRequiresSlippageFloor(bookIn, null, computed) ? computed : undefined
     }
     out.push({
       terra_swap: {

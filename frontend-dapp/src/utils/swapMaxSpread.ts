@@ -51,7 +51,12 @@ export function hybridBookRequiresSlippageFloor(
 ): boolean {
   if (bookInput === 0n) return false
   if (beliefPrice != null && beliefPrice !== '') return false
-  return minReturn == null || minReturn === ''
+  if (minReturn == null || minReturn === '') return true
+  try {
+    return BigInt(minReturn) === 0n
+  } catch {
+    return true
+  }
 }
 
 /** Returns a reject reason when declared/realized hybrid legs fail the #307 floor (no belief). */
