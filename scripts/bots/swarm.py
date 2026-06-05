@@ -238,8 +238,13 @@ def _min_reserve_per_side() -> int:
 
 
 def _txhash_from_terrad_json(text: str) -> str | None:
+    # terrad may prefix stderr ("gas estimate: …") on the same stream as JSON stdout.
+    stripped = text.strip()
+    json_start = stripped.find("{")
+    if json_start > 0:
+        stripped = stripped[json_start:]
     try:
-        data = json.loads(text)
+        data = json.loads(stripped)
     except json.JSONDecodeError:
         return None
     txhash = data.get("txhash")
