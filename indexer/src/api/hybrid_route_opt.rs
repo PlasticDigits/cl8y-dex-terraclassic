@@ -13,12 +13,16 @@ pub struct QuoteTrader {
     pub sender: Option<String>,
 }
 
-/// Hybrid parameters for one hop (matches on-chain `HybridSwapParams`; amounts as decimal strings).
+/// Hybrid parameters for one hop (matches on-chain `HybridSwapParams`; amounts as decimal strings). See `docs/route-solver.md#glossary`.
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct HybridHopJson {
+    /// Offer amount routed to the constant-product pool leg (raw integer string).
     pub pool_input: String,
+    /// Offer amount routed to the limit book leg (raw integer string); `pool_input + book_input` = hop offer.
     pub book_input: String,
+    /// Maximum maker orders to match on the book leg for this hop.
     pub max_maker_fills: u32,
+    /// Optional on-chain book walk start hint (advanced; usually omitted).
     #[serde(default)]
     pub book_start_hint: Option<u64>,
 }

@@ -11,6 +11,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Security Model](./security-model.md) — governance keys, treasury, hook safety
 - [Contracts Security Audit & Invariants](./contracts-security-audit.md) — invariant matrix, attack paths, test mapping
 - [Indexer Invariants & API Security](./indexer-invariants.md) — HTTP/indexing invariants, caps, caches, test mapping
+- [Route solver guide](./route-solver.md) — global best-execution pipeline, glossary, `optimality_scope`, optimization theory ([GitLab #310](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/310))
 
 ## Smart Contracts
 - [Contract Reference](./contracts-terraclassic.md) — Factory, Pair, Router message schemas. **LP CW20 shares** use **18** `decimals`; **`CreatePair` / empty-pool liquidity** rejects either asset CW20 with **`decimals > 18`** ([gitlab #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)).
