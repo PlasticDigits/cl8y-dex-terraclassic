@@ -144,3 +144,61 @@ async fn limit_book_lcd_proxy_endpoints() {
         assert_eq!(body["orders"].as_array().unwrap().len(), 0);
     }
 }
+
+/// GET with `limit=-1` / `limit=0` or `depth=-1` / `depth=0`; assert **200** (never **500**) and
+/// at most one order (clamp guarantees a single LCD walk step from head).
+async fn assert_limit_book_param_clamps_low(
+    server: &TestServer,
+    pair: &str,
+    endpoint: &str,
+    param: &str,
+) {
+    for v in ["-1", "0"] {
+        let url = format!("/api/v1/pairs/{pair}/{endpoint}?side=bid&{param}={v}");
+        let resp = server.get(&url).await;
+        resp.assert_status_ok();
+        let body: Value = resp.json();
+        let orders = body["orders"].as_array().unwrap();
+        assert!(
+            orders.len() <= 1,
+            "{url} must clamp {param} to 1, got {} orders",
+            orders.len()
+        );
+    }
+}
+
+/// GitLab #317: LCD-backed `limit-book` / `limit-book-shallow` must clamp negative/zero
+/// `limit`/`depth` like SQL list routes (#284) — bounded LCD budget, never **500**.
+#[tokio::test]
+async fn limit_book_negative_and_zero_limit_depth_clamp_not_500() {
+    {
+        let mock = mount_smart_mock(limit_book_responder(Some(7u64), "two")).await;
+        let mut cfg = common::test_config();
+        cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let server = TestServer::new(app);
+
+        assert_limit_book_param_clamps_low(
+            &server,
+            &seed.pair_address,
+            "limit-book-shallow",
+            "depth",
+        )
+        .await;
+    }
+    {
+        let mock = mount_smart_mock(limit_book_responder(Some(7u64), "two")).await;
+        let mut cfg = common::test_config();
+        cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let server = TestServer::new(app);
+
+        assert_limit_book_param_clamps_low(&server, &seed.pair_address, "limit-book", "limit").await;
+    }
+}
