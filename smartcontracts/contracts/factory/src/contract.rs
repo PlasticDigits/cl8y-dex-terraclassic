@@ -218,33 +218,36 @@ fn execute_create_pair(
     let config = CONFIG.load(deps.storage)?;
 
     // GitLab #276: charge the governance-set pair-creation fee (uluna) and forward it to treasury.
-    // Reject stray denoms (nothing should get stuck in the factory); refund any overpay.
+    // Fund handling runs regardless of the fee value so nothing can get stuck in the factory: only
+    // uluna may be attached (stray denoms rejected), the attached amount must cover the fee, the
+    // fee goes to treasury, and ANY excess is refunded — including the whole amount when the fee is
+    // disabled (fee == 0) and uluna was attached by mistake.
     let fee = config.pair_creation_fee_uluna;
+    if info.funds.iter().any(|c| c.denom != "uluna") {
+        return Err(ContractError::UnexpectedPairCreationFunds {});
+    }
+    let paid = info
+        .funds
+        .iter()
+        .find(|c| c.denom == "uluna")
+        .map(|c| c.amount)
+        .unwrap_or_default();
+    if paid < fee {
+        return Err(ContractError::InsufficientPairCreationFee { required: fee });
+    }
     let mut fee_msgs: Vec<CosmosMsg> = vec![];
     if !fee.is_zero() {
-        if info.funds.iter().any(|c| c.denom != "uluna") {
-            return Err(ContractError::UnexpectedPairCreationFunds {});
-        }
-        let paid = info
-            .funds
-            .iter()
-            .find(|c| c.denom == "uluna")
-            .map(|c| c.amount)
-            .unwrap_or_default();
-        if paid < fee {
-            return Err(ContractError::InsufficientPairCreationFee { required: fee });
-        }
         fee_msgs.push(CosmosMsg::Bank(BankMsg::Send {
             to_address: config.treasury.to_string(),
             amount: vec![Coin::new(fee.u128(), "uluna")],
         }));
-        let refund = paid - fee;
-        if !refund.is_zero() {
-            fee_msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                to_address: info.sender.to_string(),
-                amount: vec![Coin::new(refund.u128(), "uluna")],
-            }));
-        }
+    }
+    let refund = paid - fee;
+    if !refund.is_zero() {
+        fee_msgs.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: vec![Coin::new(refund.u128(), "uluna")],
+        }));
     }
 
     let height = env.block.height;
