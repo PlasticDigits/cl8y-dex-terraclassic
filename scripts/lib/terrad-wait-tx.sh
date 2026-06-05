@@ -44,13 +44,18 @@ terrad_wait_tx_query() {
   local node="$3"
   local timeout="${4:-90}"
   local elapsed=0
-  local result
+  local result code
 
   while [ "$elapsed" -lt "$timeout" ]; do
     if result="$(docker exec "$container" terrad query tx "$tx_hash" --node "$node" --output json 2>/dev/null)"; then
       if terrad_tx_query_succeeded "$result"; then
         printf '%s' "$result"
         return 0
+      fi
+      code="$(printf '%s' "$result" | jq -r '.tx_response.code // .code // empty' 2>/dev/null || true)"
+      if [[ -n "$code" && "$code" != "0" ]]; then
+        echo "[terrad-wait-tx] tx ${tx_hash} failed with code=${code}" >&2
+        return 1
       fi
     fi
     sleep 1

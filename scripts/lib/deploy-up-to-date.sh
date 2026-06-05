@@ -22,6 +22,11 @@ deploy_up_to_date() {
 
   compgen -G "${repo_root}/smartcontracts/artifacts/cl8y_dex_*.wasm" >/dev/null || return 1
 
+  # shellcheck source=scripts/lib/wasm-artifacts-stale.sh
+  source "${repo_root}/scripts/lib/wasm-artifacts-stale.sh"
+  dex_wasm_stale_vs_sources "$repo_root" || return 1
+  dex_wasm_newer_than_stamp "$repo_root" "$stamp" && return 1
+
   # shellcheck source=scripts/lib/lcd-smart-query.sh
   source "${repo_root}/scripts/lib/lcd-smart-query.sh"
   local lcd="http://127.0.0.1:${DEX_TERRA_LCD_PORT:-1317}"

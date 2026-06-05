@@ -42,27 +42,10 @@ esac
 # ── Staleness check ────────────────────────────────────────────────────
 # Fail fast if any WASM artifact is older than its source, so QA doesn't
 # chase phantom contract errors from a stale build.
-STALE_CONTRACTS=()
-for wasm in "$ARTIFACTS_DIR"/cl8y_dex_*.wasm; do
-    [ -f "$wasm" ] || continue
-    basename=$(basename "$wasm" .wasm)
-    # cl8y_dex_factory.wasm  -> contracts/factory
-    # cl8y_dex_burn_hook.wasm -> contracts/hooks/burn-hook
-    short=${basename#cl8y_dex_}            # e.g. "factory", "burn_hook"
-    short_dash=${short//_/-}               # e.g. "factory", "burn-hook"
-    if [ -d "$CONTRACTS_DIR/$short_dash" ]; then
-        src_dir="$CONTRACTS_DIR/$short_dash"
-    elif [ -d "$CONTRACTS_DIR/hooks/$short_dash" ]; then
-        src_dir="$CONTRACTS_DIR/hooks/$short_dash"
-    else
-        continue
-    fi
-    newest_src=$(find "$src_dir/src" -name '*.rs' -newer "$wasm" 2>/dev/null | head -1)
-    if [ -n "$newest_src" ]; then
-        STALE_CONTRACTS+=("$basename")
-    fi
-done
-if [ ${#STALE_CONTRACTS[@]} -gt 0 ]; then
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/lib/wasm-artifacts-stale.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/wasm-artifacts-stale.sh"
+if ! dex_wasm_stale_vs_sources "$REPO_ROOT"; then
     echo ""
     echo "ERROR: Stale WASM artifacts detected — source is newer than the build:"
     for sc in "${STALE_CONTRACTS[@]}"; do
@@ -124,6 +107,10 @@ case "$QA_DEPLOY_SEED" in
   wallet)
     TOKEN_NAMES=("Ember" "Coral" "Jade")
     TOKEN_SYMBOLS=("EMBER" "CORAL" "JADE")
+    NOWHITELIST_NAMES=()
+    NOWHITELIST_SYMBOLS=()
+    UNPAIRED_NAMES=()
+    UNPAIRED_SYMBOLS=()
     PAIR_CONFIGS=("0:1:100000000000:100000000000")
   ;;
 esac
