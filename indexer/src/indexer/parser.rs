@@ -216,6 +216,12 @@ struct ParsedLimitOrderFill {
     token0_amount: BigDecimal,
     token1_amount: BigDecimal,
     commission_amount: BigDecimal,
+    /// GitLab #316: 0-based ordinal of the swap (on this pair, within the tx) that produced this
+    /// fill, derived from parser walk order — maker fills are emitted before their `swap` action
+    /// in the same execute. Links the fill to the correct `swap_events` row via
+    /// `(tx_hash, pair_id, swap_index)` when a tx has multiple swaps on the same pair. Assigned in
+    /// [`parse_limit_order_fills`]; the segment/columnar builders leave it 0.
+    swap_index: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -575,6 +581,7 @@ fn parse_limit_order_fill_segment(
         token0_amount,
         token1_amount,
         commission_amount,
+        swap_index: 0, // assigned by parse_limit_order_fills (GitLab #316)
     })
 }
 
@@ -644,6 +651,7 @@ fn parse_limit_order_fills_columnar(attrs: &[Attribute]) -> Option<Vec<ParsedLim
             token0_amount: token0_amounts[i].clone(),
             token1_amount: token1_amounts[i].clone(),
             commission_amount: commission_amounts[i].clone(),
+            swap_index: 0, // assigned by parse_limit_order_fills (GitLab #316)
         });
     }
     Some(out)
@@ -679,12 +687,43 @@ fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
         Vec::new()
     };
 
+    // GitLab #316: tag each fill with the per-pair swap ordinal of the swap that produced it so it
+    // links to the correct swap_events row when a tx has multiple swaps on one pair. Maker fills
+    // are emitted before their `swap` action in the same execute (the pair adds book_fill_events,
+    // then the swap attribute), so a fill belongs to the *upcoming* swap on its pair — the current
+    // per-pair count, before this event's swap is counted. The swap count mirrors parse_swaps
+    // exactly (one swap per wasm event, the event's last `action`), so the ordinals line up with
+    // the persisted swap_events.swap_index. (Two swaps on one pair merged into a single wasm event
+    // is not separable here — but parse_swaps only keeps the event's last swap in that case too,
+    // so neither side splits it; realistic multi-swap-same-pair txs arrive as separate events.)
+    let mut per_pair_swap_seen: std::collections::HashMap<String, i32> =
+        std::collections::HashMap::new();
     let mut out = Vec::new();
     for event in &events {
         if !is_wasm_lifecycle_event_type(&event.event_type) {
             continue;
         }
-        out.extend(parse_limit_order_fills_from_wasm_attrs(&event.attributes));
+        let attrs = &event.attributes;
+        let mut fills = parse_limit_order_fills_from_wasm_attrs(attrs);
+        for fill in &mut fills {
+            fill.swap_index = per_pair_swap_seen
+                .get(&fill.pair_address)
+                .copied()
+                .unwrap_or(0);
+        }
+        out.append(&mut fills);
+
+        // Advance the per-pair ordinal for this event's swap, matching parse_swaps' detection.
+        if event.event_type == "wasm" && wasm_attr_last(attrs, "action") == Some("swap") {
+            if let (Some(contract), Some(_), Some(_), Some(_)) = (
+                wasm_contract_addr(attrs),
+                wasm_attr_last(attrs, "sender"),
+                wasm_attr_last(attrs, "offer_amount"),
+                wasm_attr_last(attrs, "return_amount"),
+            ) {
+                *per_pair_swap_seen.entry(contract.to_string()).or_insert(0) += 1;
+            }
+        }
     }
     out
 }
@@ -712,7 +751,9 @@ async fn process_limit_order_fill(
         return Ok(());
     }
 
-    let swap_event_id = limit_order_fills::swap_id_for_tx_pair(pool, tx_hash, pair.id).await?;
+    let swap_event_id =
+        limit_order_fills::swap_id_for_tx_pair_index(pool, tx_hash, pair.id, fill.swap_index)
+            .await?;
 
     limit_order_fills::insert_fill(
         pool,
@@ -1579,6 +1620,73 @@ mod tests {
             swaps[0].book_return_amount.as_ref().unwrap().to_string(),
             "55"
         );
+        // GitLab #316: single swap on the pair -> every fill carries swap_index 0.
+        assert!(fills.iter().all(|f| f.swap_index == 0));
+    }
+
+    #[test]
+    fn parse_limit_order_fills_assigns_swap_index_per_pair_swap() {
+        // GitLab #316: two swaps on the SAME pair in one tx arrive as separate wasm events, each
+        // with its maker fills before the `swap` action. Each fill must carry the ordinal of the
+        // swap that produced it, matching the persisted swap_events.swap_index — not all collapse
+        // to swap 0 (the old `ORDER BY id ASC LIMIT 1` linkage bug).
+        let tx = wasm_tx_multi(vec![
+            // swap 0 on terra1pair: one maker fill, then the swap action.
+            vec![
+                ("_contract_address", "terra1pair"),
+                ("action", "limit_order_fill"),
+                ("order_id", "11"),
+                ("side", "bid"),
+                ("maker", "terra1mkA"),
+                ("price", "1.0"),
+                ("token0_amount", "10"),
+                ("token1_amount", "10"),
+                ("commission_amount", "0.1"),
+                ("_contract_address", "terra1pair"),
+                ("action", "swap"),
+                ("sender", "terra1taker"),
+                ("offer_amount", "100"),
+                ("return_amount", "95"),
+            ],
+            // swap 1 on the SAME pair: two maker fills, then the swap action.
+            vec![
+                ("_contract_address", "terra1pair"),
+                ("action", "limit_order_fill"),
+                ("order_id", "21"),
+                ("side", "ask"),
+                ("maker", "terra1mkB"),
+                ("price", "1.1"),
+                ("token0_amount", "5"),
+                ("token1_amount", "6"),
+                ("commission_amount", "0.05"),
+                ("_contract_address", "terra1pair"),
+                ("action", "limit_order_fill"),
+                ("order_id", "22"),
+                ("side", "ask"),
+                ("maker", "terra1mkC"),
+                ("price", "1.2"),
+                ("token0_amount", "7"),
+                ("token1_amount", "8"),
+                ("commission_amount", "0.07"),
+                ("_contract_address", "terra1pair"),
+                ("action", "swap"),
+                ("sender", "terra1taker"),
+                ("offer_amount", "50"),
+                ("return_amount", "48"),
+            ],
+        ]);
+
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 2);
+        assert_eq!((swaps[0].swap_index, swaps[1].swap_index), (0, 1));
+
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 3);
+        // fill of swap 0
+        assert_eq!((fills[0].order_id, fills[0].swap_index), (11, 0));
+        // both fills of swap 1
+        assert_eq!((fills[1].order_id, fills[1].swap_index), (21, 1));
+        assert_eq!((fills[2].order_id, fills[2].swap_index), (22, 1));
     }
 
     #[test]
