@@ -1,7 +1,8 @@
 import type { PairInfo } from '@/types'
 import { assetInfoLabel } from '@/types'
+import { getCachedTokenEntry, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { lookupByAssetInfo } from '@/utils/tokenRegistry'
 import { pairInfoMenuLabel, type PairMenuLabelVariant } from '@/utils/pairMenuOptions'
-import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 
 /** Minimum characters before a pair search hits the indexer (unless query looks like a Terra address). */
 export const PAIR_SEARCH_MIN_CHARS = 2
@@ -36,7 +37,15 @@ export function parsePairSymbolQueryTokens(q: string): [string, string] | null {
 function legSearchTokens(info: PairInfo['asset_infos'][number]): string[] {
   const id = assetInfoLabel(info)
   const symbol = getTokenDisplaySymbol(id).toLowerCase()
-  return [id.toLowerCase(), symbol]
+  const tokens = [id.toLowerCase(), symbol]
+  const cached = getCachedTokenEntry(id)
+  if (cached?.symbol) tokens.push(cached.symbol.toLowerCase())
+  if (cached?.name) tokens.push(cached.name.toLowerCase())
+  const reg = lookupByAssetInfo(info)
+  if (reg) {
+    tokens.push(reg.symbol.toLowerCase(), reg.name.toLowerCase())
+  }
+  return tokens
 }
 
 function legMatchesToken(info: PairInfo['asset_infos'][number], token: string): boolean {
@@ -44,11 +53,41 @@ function legMatchesToken(info: PairInfo['asset_infos'][number], token: string): 
   return legSearchTokens(info).some((part) => part.includes(t) || t.includes(part))
 }
 
-/** Searchable text for a factory pair (labels, symbols, contract/denom ids). */
+/**
+ * Searchable text for degraded pair search (menu label + symbols/names/addresses).
+ * Includes localStorage-cached CW20 metadata so typed symbol search works when the indexer is down.
+ */
+export function buildPairLocalSearchHaystack(pair: PairInfo, menuLabel: string): string {
+  const parts = [menuLabel, pair.contract_addr]
+  for (const info of pair.asset_infos) {
+    const id = assetInfoLabel(info)
+    parts.push(id, getTokenDisplaySymbol(id))
+    const cached = getCachedTokenEntry(id)
+    if (cached?.symbol) parts.push(cached.symbol)
+    if (cached?.name) parts.push(cached.name)
+    const reg = lookupByAssetInfo(info)
+    if (reg) {
+      parts.push(reg.symbol, reg.name)
+    }
+  }
+  return parts.filter(Boolean).join(' ')
+}
+
+/** Build per-pair haystacks for {@link filterPairsByLocalSearch}. */
+export function buildPairSearchHaystacksByAddress(
+  factoryPairs: PairInfo[],
+  variant: PairMenuLabelVariant = 'full'
+): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const p of factoryPairs) {
+    map.set(p.contract_addr, buildPairLocalSearchHaystack(p, pairInfoMenuLabel(p, { variant })))
+  }
+  return map
+}
+
+/** Searchable text for a factory pair (labels, symbols, cached CW20 metadata, registry). */
 export function pairInfoSearchHaystack(pair: PairInfo, variant: PairMenuLabelVariant = 'full'): string {
-  const label = pairInfoMenuLabel(pair, { variant }).toLowerCase()
-  const legs = pair.asset_infos.flatMap(legSearchTokens)
-  return [label, pair.contract_addr.toLowerCase(), ...legs].join(' ')
+  return buildPairLocalSearchHaystack(pair, pairInfoMenuLabel(pair, { variant })).toLowerCase()
 }
 
 function pairMatchesLocalQuery(pair: PairInfo, query: string, variant: PairMenuLabelVariant): boolean {
@@ -65,7 +104,7 @@ function pairMatchesLocalQuery(pair: PairInfo, query: string, variant: PairMenuL
 
 /**
  * Client-side fallback filter when the indexer is unavailable.
- * Searches menu labels, display symbols, and contract/denom identifiers.
+ * Searches menu labels, display symbols, cached CW20 metadata, and two-token pair queries.
  */
 export function filterFactoryPairsByLocalSearch(
   pairs: PairInfo[],
@@ -78,17 +117,17 @@ export function filterFactoryPairsByLocalSearch(
   return pairs.filter((p) => pairMatchesLocalQuery(p, q, variant)).slice(0, limit)
 }
 
-/** @deprecated Prefer {@link filterFactoryPairsByLocalSearch} — label-only filter. */
+/** Filter factory pairs by pre-built haystack map (degraded combobox path). */
 export function filterPairsByLocalSearch(
-  labelsByAddress: Map<string, string>,
+  searchHaystackByAddress: Map<string, string>,
   query: string,
   limit = PAIR_SEARCH_RESULT_LIMIT
 ): string[] {
   const q = query.trim().toLowerCase()
-  const entries = [...labelsByAddress.entries()]
+  const entries = [...searchHaystackByAddress.entries()]
   if (!q) return entries.slice(0, limit).map(([addr]) => addr)
   return entries
-    .filter(([, label]) => label.toLowerCase().includes(q))
+    .filter(([, haystack]) => haystack.toLowerCase().includes(q))
     .slice(0, limit)
     .map(([addr]) => addr)
 }

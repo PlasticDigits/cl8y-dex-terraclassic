@@ -13,13 +13,35 @@ pub async fn resolve_asset(
 ) -> Result<i32, BoxError> {
     match asset_info {
         AssetInfo::Token { contract_addr } => {
-            if let Some(asset) = assets::get_asset_by_contract(pool, contract_addr).await? {
-                return Ok(asset.id);
+            let partial_asset = assets::get_asset_by_contract(pool, contract_addr).await?;
+            if let Some(ref asset) = partial_asset {
+                if !asset.name.trim().is_empty() && !asset.symbol.trim().is_empty() {
+                    return Ok(asset.id);
+                }
+                tracing::debug!(
+                    "Refreshing CW20 metadata for {} (name/symbol missing in DB)",
+                    contract_addr
+                );
             }
 
-            let token_info: Cw20TokenInfoResponse = lcd
+            let token_info: Cw20TokenInfoResponse = match lcd
                 .query_contract(contract_addr, &serde_json::json!({"token_info": {}}))
-                .await?;
+                .await
+            {
+                Ok(info) => info,
+                Err(e) => {
+                    if let Some(asset) = partial_asset {
+                        tracing::warn!(
+                            "LCD token_info failed for {} (using existing asset id {}, will retry metadata refresh): {}",
+                            contract_addr,
+                            asset.id,
+                            e
+                        );
+                        return Ok(asset.id);
+                    }
+                    return Err(e.into());
+                }
+            };
 
             let id = assets::upsert_asset(
                 pool,

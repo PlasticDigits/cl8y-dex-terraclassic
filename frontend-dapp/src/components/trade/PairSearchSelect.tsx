@@ -302,6 +302,11 @@ export function PairSearchSelect({
             aria-busy={awaitingIndexer || undefined}
             style={dropdownStyle}
           >
+            {useLocalFallback && options.length > 0 ? (
+              <li className="px-3 py-1.5 text-xs" style={{ color: 'var(--ink-dim)' }} role="presentation">
+                Offline search — showing factory pairs from cached labels
+              </li>
+            ) : null}
             {awaitingIndexer && options.length === 0 ? (
               <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
                 Searching…

@@ -38,6 +38,14 @@ export function getCachedTokenSymbol(tokenId: string): string | null {
   return cache[tokenId.toLowerCase()]?.symbol ?? null
 }
 
+/** Cached CW20 metadata from prior on-chain `token_info` reads (localStorage). */
+export function getCachedTokenEntry(tokenId: string): CachedEntry | null {
+  const reg = lookupByTokenId(tokenId)
+  if (reg) return { symbol: reg.symbol, name: reg.name }
+  const cache = loadCache()
+  return cache[tokenId.toLowerCase()] ?? null
+}
+
 export function getTokenLogoURI(info: AssetInfo): string | undefined {
   return lookupByAssetInfo(info)?.logoURI
 }
