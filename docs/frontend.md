@@ -522,6 +522,23 @@ Custom pair/token pickers use a **portaled** `<ul role="listbox">` positioned wi
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); keyboard listbox APG: [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
 
+### Pair search combobox (`PairSearchSelect`) — Trade / Limits {#pair-search-combobox}
+
+Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/trade/PairSearchSelect.tsx) instead of a full factory pair dropdown ([GitLab **#314**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/314)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query uses `sort=volume_24h&order=desc` (high-liquidity defaults). |
+| **Min query length** | ≥2 chars unless the query looks like a `terra1…` address ([`pairSearchQuery.ts`](../frontend-dapp/src/utils/pairSearchQuery.ts)). |
+| **Factory gate** | Results are filtered to factory-registered pairs (`factoryPairs` prop) so only routable pairs appear. |
+| **Degraded mode** | When the indexer errors, client-side substring filter on cached factory labels (`filterPairsByLocalSearch`). |
+| **Accessibility** | Input uses `role="combobox"` + portaled `listbox`; Arrow keys / Enter / Escape match portal listbox keyboard patterns. |
+| **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`. |
+
+Charts keeps its separate search + sort + `MenuSelect` layout (unchanged).
+
+**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
+
 ### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
 
 Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.ts`](../frontend-dapp/src/services/indexer/client.ts)). Before the UI renders stats, the response is normalized by [`traderProfilePayload.ts`](../frontend-dapp/src/services/indexer/traderProfilePayload.ts) so **arrays, `null` bodies, or partial objects** from a buggy proxy or indexer never reach the page as a “truthy” trader object (which previously could crash the route tree and strand users behind the route error UI — [GitLab #126](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)).
