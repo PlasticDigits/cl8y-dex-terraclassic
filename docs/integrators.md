@@ -155,6 +155,10 @@ Indexer persistence and `/api/v1/pairs/{addr}/trades` expose the same columns pl
 
 Full Terraport reference: [terraport.md](./terraport.md).
 
+## Indexer pair list (factory provenance)
+
+The indexer only **auto-discovers** pairs that respond to the pair `Pair` query **and** are listed at the same `contract_addr` in the configured factory’s `Pair { asset_infos }` reverse lookup ([GitLab **#311**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/311)). Operators must set **`FACTORY_ADDRESS`** in production (`RUN_MODE=prod` rejects an empty factory). Treat `GET /api/v1/pairs` and route discovery as **canonical factory deployments**, not arbitrary contracts that mimic the pair API. Details: [indexer-invariants.md § Factory pair provenance (P1)](./indexer-invariants.md).
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.
