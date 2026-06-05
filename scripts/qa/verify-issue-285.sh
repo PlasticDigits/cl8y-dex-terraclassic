@@ -192,7 +192,7 @@ else
 
   echo ""
   echo "[live] Broadcasting hybrid swap (book leg fills resting bid)..."
-  SWAP_TX="$(terrad_tx wasm execute "$TOKEN0" "$SEND_MSG" | tx_hash_from_json)"
+  SWAP_TX="$(terrad_tx wasm execute "$TOKEN0" "$SEND_MSG" | tx_hash_from_json)" || SWAP_TX=""
   wait_tx
   if [[ -z "$SWAP_TX" ]]; then
     bad "live: hybrid swap broadcast (no txhash)"

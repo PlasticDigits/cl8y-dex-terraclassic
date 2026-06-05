@@ -10,6 +10,8 @@
 
 LOCALTERRA_CURL_CONNECT_TIMEOUT="${LOCALTERRA_CURL_CONNECT_TIMEOUT:-2}"
 LOCALTERRA_CURL_MAX_TIME="${LOCALTERRA_CURL_MAX_TIME:-8}"
+# Set when localterra_container_id resolved via sg docker (Cloud Agent shells).
+LOCALTERRA_DOCKER_VIA_SG=""
 
 # Resolve running localterra container id (empty if compose stack down).
 localterra_container_id() {
@@ -18,19 +20,34 @@ localterra_container_id() {
     repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   fi
   local cid
+  LOCALTERRA_DOCKER_VIA_SG=""
   cid="$(docker compose -f "$repo_root/docker-compose.yml" ps -q localterra 2>/dev/null | head -1 || true)"
   # Cloud Agent shells may lack docker.sock; sg docker is the standard workaround (AGENTS.md).
   if [[ -z "$cid" ]] && command -v sg >/dev/null 2>&1; then
     cid="$(sg docker -c "docker compose -f \"$repo_root/docker-compose.yml\" ps -q localterra 2>/dev/null | head -1" 2>/dev/null | head -1 || true)"
+    if [[ -n "$cid" ]]; then
+      LOCALTERRA_DOCKER_VIA_SG=1
+    fi
   fi
   printf '%s' "$cid"
+}
+
+# docker exec into localterra; mirrors sg fallback from localterra_container_id.
+localterra_docker_exec() {
+  local cid="$1"
+  shift
+  if [[ -n "${LOCALTERRA_DOCKER_VIA_SG:-}" ]] && command -v sg >/dev/null 2>&1; then
+    sg docker -c "docker exec $(printf '%q' "$cid") $(printf '%q ' "$@")"
+  else
+    docker exec "$cid" "$@"
+  fi
 }
 
 # curl inside the localterra container (RPC/LCD listen on 127.0.0.1 there).
 localterra_exec_curl() {
   local cid="$1"
   shift
-  docker exec "$cid" curl -sf \
+  localterra_docker_exec "$cid" curl -sf \
     --connect-timeout "$LOCALTERRA_CURL_CONNECT_TIMEOUT" \
     --max-time "$LOCALTERRA_CURL_MAX_TIME" \
     "$@"
