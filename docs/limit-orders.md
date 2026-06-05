@@ -101,11 +101,49 @@ Integrators: [integrators.md § Limit book clean](./integrators.md#limit-book-cl
 ### Expiry (`expires_at`)
 
 - If **`expires_at`** is set and a hybrid (or future) match walk reaches that order when **`block_time >= expires_at`**, the contract **does not** match it. The order is **removed from the DLL**, a row is stored in **`EXPIRED_LIMIT_CLAIMS`**, and **`PENDING_ESCROW_*` is left unchanged** until the maker calls **`ClaimExpiredLimitOrder`** (which CW20-transfers and then decrements pending — same economics as cancel).
-- **Park cap ([GitLab #250](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/250), raised [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254)):** Each `match_bids` / `match_asks` walk during hybrid swap parks at most **`MAX_EXPIRED_PARKS_PER_SWAP` (15)** expired orders (`dex-common`). Additional expired orders at the book head are **skipped without storage writes** (`cur = next_ptr; continue`) until a later swap parks them or the maker **`CancelLimitOrder`** / **`ClaimExpiredLimitOrder`** (after a park). Swap attrs when the cap bites: `expired_parks_used`, `expired_parks_capped=true`, `expired_parks_skipped`. **`max_maker_fills`** still limits profitable fills only; expired parks do not increment `makers_used`. Skipped expired rows may remain visible on LCD/indexer book APIs until parked elsewhere — see invariant **L5** in [contracts-security-audit.md](./contracts-security-audit.md) and [skills/AGENTS_TERRACLASSIC_GAS.md](../skills/AGENTS_TERRACLASSIC_GAS.md).
+- **Park cap ([GitLab #250](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/250), raised [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254), benchmarked [#309](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/309)):** Each `match_bids` / `match_asks` walk during hybrid swap parks at most **`MAX_EXPIRED_PARKS_PER_SWAP` (15)** expired orders (`dex-common`). Additional expired orders at the book head are **skipped without storage writes** (`cur = next_ptr; continue`) until a later swap parks them or the maker **`CancelLimitOrder`** / **`ClaimExpiredLimitOrder`** (after a park). Swap attrs when the cap bites: `expired_parks_used`, `expired_parks_capped=true`, `expired_parks_skipped`. **`max_maker_fills`** still limits profitable fills only; expired parks do not increment `makers_used`. Skipped expired rows may remain visible on LCD/indexer book APIs until parked elsewhere — see invariant **L5** in [contracts-security-audit.md](./contracts-security-audit.md) and [skills/AGENTS_TERRACLASSIC_GAS.md](../skills/AGENTS_TERRACLASSIC_GAS.md).
 - **Scan step budget ([GitLab #254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254), raised [#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)):** Each book walk counts **every** doubly-linked list iteration (fills, parks, skips, zero-remaining continues) against **`MAX_SCAN_STEPS` (500)** — decoupled from **`MAX_MAKER_FILLS_HARD_CAP` (100)**. Sized for ~**19k gas per step** vs a **15M** dApp envelope (~789 steps) with conservative margin. When the budget is exhausted, the walk stops early; unfilled book budget rolls to the pool leg (existing spread rules). Swap attr: `scan_steps_capped=true`. **`HybridSimulation`** applies the same step budget so quotes match execute when the cap binds.
 - The taker transaction emits a wasm event **`limit_order_expired_parked`** (`action`, `order_id`, `maker`, `side`, `remaining`). **No** CW20 is sent to the maker in that taker tx — this keeps `balance − reserves − pending_escrow` aligned and fixes the stranded-funds / mis-sweep issue described in GitLab [**#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120).
 - **`CancelLimitOrder`** only operates on **`ORDERS`**; it cannot fire after a park, so there is **no** path to refund the same escrow twice.
 - While an order is still live on the book but past `expires_at`, the owner may **`CancelLimitOrder`** if the pair is unpaused — useful before any taker walks the book.
+
+<a id="expired-park-benchmark-gitlab-309"></a>
+
+#### Expired-park benchmark (GitLab #309)
+
+**Goal:** evidence-based validation of **`MAX_EXPIRED_PARKS_PER_SWAP` (15)** vs Terra Classic **15M** dApp gas ceiling and wasm tx size after post-#254 orderbook features (dust flush #264, scan cap #254, adjust steps #265).
+
+**Methodology**
+
+| Item | Value |
+|------|-------|
+| Build | `make build-optimized` (CosmWasm optimizer wasm) + `make deploy-local` |
+| Book setup | `N` expired bids at book head (`expires_at` in the near future); chain time advanced past expiry |
+| Swap | Book-only hybrid: `pool_input = 0`, `book_input = 50_000`, `max_maker_fills = 8` (CW20 `send` → pair `swap`) |
+| Isolation | One fresh factory pair per sweep case (`VERIFY309_PAIR_INDEX` base + case offset) |
+| Measure | `gas_used`, `limit_order_expired_parked` event count, serialized tx bytes, swap attrs `expired_parks_*` |
+| Acceptance ceiling | `gas_used < 12_000_000` (~20% headroom under **15M**); tx bytes `< 1_048_576` |
+
+**LocalTerra results (optimized wasm, 2026-06-05)**
+
+| N expired at head | gas_used | park events | tx bytes | parks_used | skipped |
+|-------------------|----------|-------------|----------|------------|---------|
+| 1 | 413_250 | 1 | 1_623 | 1 | 0 |
+| 5 | 529_043 | 5 | 1_623 | 5 | 0 |
+| 10 | 673_976 | 10 | 1_623 | 10 | 0 |
+| 15 | 819_194 | 15 | 1_624 | 15 | 0 |
+| 20 | 837_841 | 15 | 1_624 | 15 | 5 |
+| 25 | 846_429 | 15 | 1_624 | 15 | 10 |
+| 30 | 854_701 | 15 | 1_624 | 15 | 15 |
+
+Marginal cost on optimized wasm: **~29k gas per park** (storage unlink + `EXPIRED_LIMIT_CLAIMS` write + wasm event); **~3.7k gas per skipped** expired head (pointer advance only). Isolated worst case at the current cap (**15** parks, `N ≥ 15`) ≈ **855k** `gas_used` — far below the **12M** headroom target.
+
+**Chosen cap: retain 15.** Raising parks is gas-feasible in isolation, but (1) **`MAX_SCAN_STEPS` (500)** is the binding traversal budget on deep expired prefixes — additional head orders beyond **15** are skipped cheaply and clear on the next taker swap or via maker cancel/claim; (2) combined worst-case hybrid envelope with **`MAX_MAKER_FILLS_HARD_CAP` (100)** + full scan budget is already budgeted offline at **~7.7M** ([#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)); extra parks add **~29k** each on-chain vs **8k** in the dApp offline formula (conservative). **Governance:** changing the on-chain constant requires pair wasm redeploy.
+
+**Regression / reproduction**
+
+- Integration: `limit_order_tests::{expired_parks_benchmark_event_counts_sweep, hybrid_walk_at_cap_parks_all_expired_bids_without_capped_attr, hybrid_walk_pool_only_swap_has_no_expired_park_attrs}` (`cargo test expired_parks_benchmark`).
+- Live stack: `make verify-issue-309` (requires `make start` + `make deploy-local`).
 
 ### Post-swap hooks and hybrid
 
