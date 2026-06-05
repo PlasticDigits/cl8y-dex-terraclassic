@@ -531,7 +531,7 @@ Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/
 | **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query uses `sort=volume_24h&order=desc` (high-liquidity defaults). |
 | **Min query length** | ≥2 chars unless the query looks like a `terra1…` address ([`pairSearchQuery.ts`](../frontend-dapp/src/utils/pairSearchQuery.ts)). |
 | **Factory gate** | Results are filtered to factory-registered pairs (`factoryPairs` prop) so only routable pairs appear. |
-| **Degraded mode** | When the indexer errors, client-side substring filter on cached factory labels (`filterPairsByLocalSearch`). |
+| **Degraded mode** | When the indexer errors, client-side substring filter on factory pairs via `filterPairsByLocalSearch` over a per-pair haystack (menu label + contract addresses + localStorage-cached CW20 symbol/name). Typed symbol search (e.g. `EMBER`) works without the indexer when token metadata was cached from a prior `token_info` read. Shows a dim **Offline search** hint in the listbox. |
 | **Accessibility** | Input uses `role="combobox"` + portaled `listbox`; Arrow keys / Enter / Escape match portal listbox keyboard patterns. |
 | **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`. |
 

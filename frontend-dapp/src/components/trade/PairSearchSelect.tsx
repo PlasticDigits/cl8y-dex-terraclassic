@@ -7,7 +7,12 @@ import { getPairs } from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 import type { PairInfo } from '@/types'
 import { pairInfoMenuLabel, indexerPairMenuLabel, type PairMenuLabelVariant } from '@/utils/pairMenuOptions'
-import { filterPairsByLocalSearch, isPairSearchQueryReady, PAIR_SEARCH_RESULT_LIMIT } from '@/utils/pairSearchQuery'
+import {
+  buildPairSearchHaystacksByAddress,
+  filterPairsByLocalSearch,
+  isPairSearchQueryReady,
+  PAIR_SEARCH_RESULT_LIMIT,
+} from '@/utils/pairSearchQuery'
 import { formatNum } from '@/utils/formatAmount'
 
 export interface PairSearchSelectProps {
@@ -81,6 +86,11 @@ export function PairSearchSelect({
     return map
   }, [factoryPairs, variant])
 
+  const searchHaystackByAddress = useMemo(
+    () => buildPairSearchHaystacksByAddress(factoryPairs, variant),
+    [factoryPairs, variant]
+  )
+
   const selectedLabel = useMemo(() => {
     if (!value) return ''
     return labelsByAddress.get(value) ?? value
@@ -115,18 +125,20 @@ export function PairSearchSelect({
     retry: false,
   })
 
+  const degradedMode = pairsQuery.isError
+
   const fallbackAddresses = useMemo(() => {
-    if (!pairsQuery.isError) return []
-    return filterPairsByLocalSearch(labelsByAddress, debouncedSearch, PAIR_SEARCH_RESULT_LIMIT).filter((addr) =>
+    if (!degradedMode) return []
+    return filterPairsByLocalSearch(searchHaystackByAddress, debouncedSearch, PAIR_SEARCH_RESULT_LIMIT).filter((addr) =>
       factorySet.has(addr)
     )
-  }, [pairsQuery.isError, labelsByAddress, debouncedSearch, factorySet])
+  }, [degradedMode, searchHaystackByAddress, debouncedSearch, factorySet])
 
   const options: PairSearchOption[] = useMemo(() => {
     if (factoryPairs.length === 0) return []
 
     let result: PairSearchOption[]
-    if (pairsQuery.isError) {
+    if (degradedMode) {
       result = fallbackAddresses.map((addr) => {
         const factory = factoryPairs.find((p) => p.contract_addr === addr)
         return factory ? factoryPairToOption(factory, variant) : { value: addr, label: addr }
@@ -153,16 +165,7 @@ export function PairSearchSelect({
       }
     }
     return result
-  }, [
-    factoryPairs,
-    pairsQuery.isError,
-    pairsQuery.data,
-    fallbackAddresses,
-    factorySet,
-    variant,
-    debouncedSearch,
-    value,
-  ])
+  }, [factoryPairs, degradedMode, pairsQuery.data, fallbackAddresses, factorySet, variant, debouncedSearch, value])
 
   const canOpen = factoryPairs.length > 0 && !disabled
   const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value])
@@ -242,7 +245,12 @@ export function PairSearchSelect({
   )
 
   const showEmptyState =
-    open && options.length === 0 && !pairsQuery.isLoading && queryReady && debouncedSearch.length > 0
+    open &&
+    options.length === 0 &&
+    !pairsQuery.isLoading &&
+    queryReady &&
+    debouncedSearch.length > 0 &&
+    (!degradedMode || pairsQuery.isFetched)
   const activeOptionId = open && options.length > 0 ? portalListboxOptionId(listId, activeIndex) : undefined
 
   return (
@@ -295,7 +303,12 @@ export function PairSearchSelect({
             aria-busy={pairsQuery.isLoading || undefined}
             style={dropdownStyle}
           >
-            {(pairsQuery.isLoading || (useIndexerSearch && !pairsQuery.data && !pairsQuery.isError)) &&
+            {degradedMode && options.length > 0 ? (
+              <li className="px-3 py-1.5 text-xs" style={{ color: 'var(--ink-dim)' }} role="presentation">
+                Offline search — showing factory pairs from cached labels
+              </li>
+            ) : null}
+            {(pairsQuery.isLoading || (useIndexerSearch && !pairsQuery.data && !degradedMode)) &&
             options.length === 0 ? (
               <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
                 Searching…

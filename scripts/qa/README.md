@@ -86,6 +86,18 @@ Browser wallet checks over an SSH tunnel follow the same matrix as [`docs/qa-onb
 
 Canonical root cause: [`docs/frontend.md` § Station extension signing](../../docs/frontend.md#station-extension-signing). Agent playbooks: [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../../skills/AGENTS_FRONTEND_STATION_SIGNING.md), [`skills/AGENTS_TERRACLASSIC_GAS.md`](../../skills/AGENTS_TERRACLASSIC_GAS.md).
 
+### Pair search — token name relevance (LocalTerra)
+
+After **`make deploy-local`** (or QA deploy) and indexer sync, verify indexer **tier 2** (token **name** substring) and degraded combobox typed search ([#328](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/328), [#314](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/314)):
+
+| Step | Expected |
+| ---- | -------- |
+| `./scripts/qa/verify-issue-328.sh` | Vitest PASS; live `q=Ember` returns pairs with `Ember` in `asset_*.name` or `EMBER` symbol when indexer is up |
+| Stop indexer → `/trade` or `/limits` → type `EMBER` in pair combobox | Options list matching factory pairs (not “No pairs match”); **Offline search** hint |
+| Indexer up → type `EMBER` | Indexer relevance results (unchanged healthy path) |
+
+Deploy seeds CW20 **`name`** / **`symbol`** in Phase 2 (`scripts/deploy-dex-local.sh`). If `assets.name` is empty in Postgres, restart indexer after deploy so pair discovery re-resolves metadata.
+
 ---
 
 ## Makefile reference

@@ -14,7 +14,13 @@ pub async fn resolve_asset(
     match asset_info {
         AssetInfo::Token { contract_addr } => {
             if let Some(asset) = assets::get_asset_by_contract(pool, contract_addr).await? {
-                return Ok(asset.id);
+                if !asset.name.trim().is_empty() && !asset.symbol.trim().is_empty() {
+                    return Ok(asset.id);
+                }
+                tracing::debug!(
+                    "Refreshing CW20 metadata for {} (name/symbol missing in DB)",
+                    contract_addr
+                );
             }
 
             let token_info: Cw20TokenInfoResponse = lcd
