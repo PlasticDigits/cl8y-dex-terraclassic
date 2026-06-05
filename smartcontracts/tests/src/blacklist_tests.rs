@@ -108,6 +108,7 @@ fn wallet_blacklist_blocks_swap_lp_limits_and_unban_restores() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: None,
         to: None,
         deadline: None,
         hybrid: None,
@@ -221,6 +222,7 @@ fn token_blacklist_blocks_swap_both_directions() {
         to_json_binary(&Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid,
@@ -295,6 +297,7 @@ fn pair_blacklist_blocks_swap_and_lp() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: None,
         to: None,
         deadline: None,
         hybrid: None,
@@ -329,6 +332,7 @@ fn router_multihop_rejects_blacklisted_wallet() {
             offer_asset_info: asset_info_token(&env.token_a),
             ask_asset_info: asset_info_token(&env.token_b),
             hybrid: None,
+            min_return: None,
         }],
         max_spread: Decimal::one(),
         minimum_receive: None,

@@ -81,6 +81,8 @@ export async function reverseSimulateSwap(
 
 export interface DirectSwapOptions {
   hybrid?: HybridSwapParams | null
+  /** Minimum net ask output when the book leg is present without `belief_price` (GitLab #334). */
+  minReturn?: string | null
   deadline?: number | null
   trader?: string | null
 }
@@ -101,6 +103,7 @@ export async function swap(
       swap: {
         belief_price: beliefPrice,
         max_spread: maxSpread,
+        min_return: options?.minReturn ?? undefined,
         to,
         deadline: options?.deadline ?? undefined,
         trader: options?.trader ?? undefined,

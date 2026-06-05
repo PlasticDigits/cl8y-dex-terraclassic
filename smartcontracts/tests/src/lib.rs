@@ -386,6 +386,7 @@ mod helpers {
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -410,6 +411,7 @@ mod helpers {
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -1970,6 +1972,7 @@ mod pair_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -2021,6 +2024,7 @@ mod pair_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::permille(1)),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -2239,6 +2243,7 @@ mod router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -2450,6 +2455,7 @@ mod fee_discount_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::percent(5)),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -2510,6 +2516,7 @@ mod fee_discount_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::percent(5)),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -2556,6 +2563,7 @@ mod fee_discount_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -2628,6 +2636,7 @@ mod fee_discount_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::percent(5)),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -2740,6 +2749,7 @@ mod fee_discount_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -2809,6 +2819,7 @@ mod fee_discount_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -2955,6 +2966,7 @@ mod fee_discount_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::percent(50)),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: Some(dex_common::pair::pool_only_hybrid_params(amount)),
@@ -3253,6 +3265,7 @@ mod pair_coverage_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -3297,6 +3310,7 @@ mod pair_coverage_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: Some(receiver.to_string()),
             deadline: None,
             hybrid: None,
@@ -3328,6 +3342,7 @@ mod pair_coverage_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -3616,6 +3631,7 @@ mod pair_coverage_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -3663,6 +3679,7 @@ mod pair_coverage_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None,
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -3802,6 +3819,7 @@ mod pair_coverage_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: Some(Decimal::one()),
             max_spread: Some(Decimal::percent(5)),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -3928,6 +3946,7 @@ mod pair_coverage_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -5494,6 +5513,7 @@ mod router_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        min_return: None,
                     }],
                     trader: None,
                     sender: None,
@@ -5527,6 +5547,7 @@ mod router_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        min_return: None,
                     }],
                     trader: None,
                     sender: None,
@@ -5555,6 +5576,7 @@ mod router_coverage_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999)),
@@ -5603,6 +5625,7 @@ mod router_coverage_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999)),
@@ -5629,6 +5652,7 @@ mod router_coverage_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -5754,11 +5778,13 @@ mod router_coverage_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    min_return: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -7313,6 +7339,7 @@ mod fuzz_tests {
             let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
                 belief_price: None,
                 max_spread: Some(cosmwasm_std::Decimal::percent(99999)),
+        min_return: None,
                 to: None,
                 deadline: None,
             hybrid: None,
@@ -7437,6 +7464,7 @@ mod security_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::percent(9999999)),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -7523,6 +7551,7 @@ mod security_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::permille(5)), // 0.5%
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -7731,6 +7760,7 @@ mod security_tests {
                 let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
                     belief_price: None,
                     max_spread: Some(Decimal::one()),
+                    min_return: None,
                     to: None,
                     deadline: None,
                     hybrid: None,
@@ -7793,6 +7823,7 @@ mod security_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: None, // defaults to 1% — will likely reject
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -8364,6 +8395,7 @@ mod deadline_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: None,
             to: None,
             deadline: Some(deadline),
             hybrid: None,
@@ -8410,6 +8442,7 @@ mod deadline_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: None,
             to: None,
             deadline: Some(deadline),
             hybrid: None,
@@ -8515,6 +8548,7 @@ mod deadline_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -8669,6 +8703,7 @@ mod audit_invariant_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -8727,6 +8762,7 @@ mod audit_invariant_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -8769,6 +8805,7 @@ mod audit_invariant_tests {
         let swap_msg_bad = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -9670,6 +9707,7 @@ mod line_coverage_tests {
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -9903,6 +9941,7 @@ mod line_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        min_return: None,
                     }],
                     max_spread: cosmwasm_std::Decimal::one(),
                     minimum_receive: None,
@@ -10179,6 +10218,7 @@ mod line_coverage_tests {
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -10526,6 +10566,7 @@ mod additional_fuzz_tests {
                             offer_asset_info: asset_info_token(&env1.token_a),
                             ask_asset_info: asset_info_token(&env1.token_b),
                 hybrid: None,
+                min_return: None,
                         }],
                 trader: None,
                 sender: None,
@@ -10575,6 +10616,7 @@ mod additional_fuzz_tests {
                 &dex_common::pair::Cw20HookMsg::Swap {
                     belief_price: None,
                     max_spread: Some(cosmwasm_std::Decimal::percent(1)),
+        min_return: None,
                     to: None,
                     deadline: None,
             hybrid: None,
@@ -10599,6 +10641,7 @@ mod additional_fuzz_tests {
                 let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
                     belief_price: None,
                     max_spread: Some(cosmwasm_std::Decimal::percent(9999999)),
+        min_return: None,
                     to: None,
                     deadline: None,
             hybrid: None,
@@ -11074,6 +11117,7 @@ mod new_feature_tests {
                 offer_asset_info: asset_info_token(&tokens[i]),
                 ask_asset_info: asset_info_token(&tokens[i + 1]),
                 hybrid: None,
+                min_return: None,
             })
             .collect();
 
@@ -11112,6 +11156,7 @@ mod new_feature_tests {
                 offer_asset_info: asset_info_token(&tokens[i]),
                 ask_asset_info: asset_info_token(&tokens[i + 1]),
                 hybrid: None,
+                min_return: None,
             })
             .collect();
 
@@ -11554,6 +11599,7 @@ mod new_feature_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -12154,6 +12200,7 @@ mod dust_amount_tests {
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -12310,6 +12357,7 @@ mod dust_amount_tests {
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -12538,16 +12586,19 @@ mod router_hop_tests {
                             offer_asset_info: asset_info_token(&env.token_a),
                             ask_asset_info: asset_info_token(&env.token_b),
                             hybrid: None,
+                            min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_b),
                             ask_asset_info: asset_info_token(&token_c),
                             hybrid: None,
+                            min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&token_c),
                             ask_asset_info: asset_info_token(&token_d),
                             hybrid: None,
+                            min_return: None,
                         },
                     ],
                     trader: None,
@@ -12565,16 +12616,19 @@ mod router_hop_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&token_c),
                     ask_asset_info: asset_info_token(&token_d),
                     hybrid: None,
+                    min_return: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -12723,16 +12777,19 @@ mod router_hop_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&token_c),
                     ask_asset_info: asset_info_token(&token_d),
                     hybrid: None,
+                    min_return: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -12921,6 +12978,7 @@ mod reentrancy_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
+            min_return: None,
             to: None,
             deadline: None,
             hybrid: None,
@@ -13265,6 +13323,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -13320,6 +13379,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -13371,6 +13431,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -13474,11 +13535,13 @@ mod wrap_router_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    min_return: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -13529,6 +13592,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -13581,6 +13645,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: Some(Uint128::new(999_999_999)),
@@ -13704,11 +13769,13 @@ mod wrap_router_tests {
                             offer_asset_info: asset_info_token(&env.token_a),
                             ask_asset_info: asset_info_token(&env.token_b),
                             hybrid: None,
+                            min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_b),
                             ask_asset_info: asset_info_token(&env.lunc_c),
                             hybrid: None,
+                            min_return: None,
                         },
                     ],
                     trader: None,
@@ -13724,11 +13791,13 @@ mod wrap_router_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&env.lunc_c),
                     hybrid: None,
+                    min_return: None,
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -14493,6 +14562,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&env.lunc_c),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -14581,6 +14651,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&env.token_b),
                 ask_asset_info: asset_info_token(&env.lunc_c),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -14842,6 +14913,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&ustc_c),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,
@@ -17384,6 +17456,7 @@ mod ustr_cmm_d8b0afd_tests {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&token_b),
                 hybrid: None,
+                min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
             minimum_receive: None,

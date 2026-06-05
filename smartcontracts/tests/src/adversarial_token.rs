@@ -722,6 +722,7 @@ mod adversarial_tests {
             offer_asset_info: asset_info_token(&env.token_a),
             ask_asset_info: asset_info_token(&env.token_b),
             hybrid: None,
+            min_return: None,
         }];
         let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
             .wrap()
@@ -801,11 +802,13 @@ mod adversarial_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                min_return: None,
             },
             cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_b),
                 ask_asset_info: asset_info_token(&token_c),
                 hybrid: None,
+                min_return: None,
             },
         ];
         let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
@@ -883,6 +886,7 @@ mod adversarial_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        min_return: None,
                     }],
                     max_spread: Decimal::one(),
                     minimum_receive: None,

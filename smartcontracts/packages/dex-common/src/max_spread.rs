@@ -9,8 +9,8 @@
 //! the pool's realized **net** rate (`pool_net_return / pool_input`) is folded into the spread
 //! numerator, so a book leg that fills materially worse than the pool can no longer pass by
 //! only enlarging the denominator. A **pure-book** hybrid (`pool_input == 0`) has no pool
-//! reference rate, so this metric cannot bound it; that case is deferred to the separate
-//! `belief_price` / `min_receive` guard (out of scope here).
+//! reference rate, so this metric cannot bound it; execute requires `belief_price` or pair
+//! `min_return` ([#334](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334)).
 //!
 //! GitLab #307: when both legs are present on the no-belief path, require a **material** pool
 //! leg (`pool_input` share of `offer_amount` and `pool_net_return > 0`) before applying the
@@ -63,6 +63,22 @@ pub fn validate_declared_hybrid_pool_leg_for_no_belief(
         });
     }
     Ok(())
+}
+
+/// When `book_input > 0` on execute without `belief_price`, callers must supply a hard output
+/// floor via pair `min_return` (GitLab #334 / #273 direction 3).
+pub fn validate_hybrid_book_requires_slippage_floor(
+    book_input: Uint128,
+    belief_price: Option<Decimal>,
+    min_return: Option<Uint128>,
+) -> Result<(), CheckMaxSpreadError> {
+    if book_input.is_zero() || belief_price.is_some() {
+        return Ok(());
+    }
+    if min_return.is_some_and(|m| !m.is_zero()) {
+        return Ok(());
+    }
+    Err(CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input })
 }
 
 /// Leg amounts passed into the spread check after book + pool settlement.
@@ -192,6 +208,10 @@ pub enum CheckMaxSpreadError {
     /// No-belief hybrid with a book leg and a positive pool leg but zero pool net output.
     ZeroPoolNetForBookHybrid {
         pool_input: Uint128,
+        book_input: Uint128,
+    },
+    /// Hybrid with `book_input > 0` and no `belief_price` must set pair `min_return` on execute.
+    BookHybridRequiresSlippageFloor {
         book_input: Uint128,
     },
 }
@@ -512,6 +532,42 @@ mod tests {
             check_max_spread(None, Some(Decimal::percent(1)), &inputs).unwrap_err(),
             CheckMaxSpreadError::ZeroPoolNetForBookHybrid { .. }
         ));
+    }
+
+    #[test]
+    fn book_hybrid_requires_slippage_floor_without_belief() {
+        assert!(matches!(
+            validate_hybrid_book_requires_slippage_floor(
+                Uint128::new(10_000),
+                None,
+                None
+            )
+            .unwrap_err(),
+            CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input } if book_input
+                == Uint128::new(10_000)
+        ));
+        assert!(matches!(
+            validate_hybrid_book_requires_slippage_floor(
+                Uint128::new(10_000),
+                None,
+                Some(Uint128::zero())
+            )
+            .unwrap_err(),
+            CheckMaxSpreadError::BookHybridRequiresSlippageFloor { .. }
+        ));
+        validate_hybrid_book_requires_slippage_floor(
+            Uint128::new(10_000),
+            None,
+            Some(Uint128::new(1)),
+        )
+        .unwrap();
+        validate_hybrid_book_requires_slippage_floor(
+            Uint128::new(10_000),
+            Some(Decimal::one()),
+            None,
+        )
+        .unwrap();
+        validate_hybrid_book_requires_slippage_floor(Uint128::zero(), None, None).unwrap();
     }
 
     #[test]

@@ -6,7 +6,12 @@ import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
-import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
+import {
+  computeDirectHybridMinReturn,
+  enrichSwapOperationsWithHopMinReturns,
+  preflightSwapRouteSpread,
+  type SwapRoutePreflightSpread,
+} from '@/services/terraclassic/swapRoutePreflight'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
@@ -573,11 +578,17 @@ export default function SwapPage() {
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
 
       if (swapOpsRequireRouter(idxOps)) {
+        const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
+          idxOps!,
+          rawInputAmount,
+          slippageTolerance,
+          quoteTrader
+        )
         return executeMultiHopSwap(
           address,
           fromToken,
           rawInputAmount,
-          idxOps!,
+          opsForSubmit,
           maxSpread,
           minReceived ?? undefined,
           undefined,
@@ -609,15 +620,33 @@ export default function SwapPage() {
         if (hybrid) {
           hybrid = hybridParamsWithSubmitCap(hybrid)
         }
+        const directMinReturn =
+          hybrid && BigInt(hybrid.book_input) > 0n
+            ? await computeDirectHybridMinReturn(
+                directPair.contract_addr,
+                tokenAssetInfo(fromToken),
+                rawInputAmount,
+                hybrid,
+                slippageTolerance,
+                quoteTrader
+              )
+            : undefined
         return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread, undefined, {
           hybrid,
+          minReturn: directMinReturn,
           deadline,
         })
       }
 
       if (isMultiHop && route) {
         const minReceive = minReceived ?? undefined
-        return executeMultiHopSwap(address, fromToken, rawInputAmount, route, maxSpread, minReceive)
+        const routeForSubmit = await enrichSwapOperationsWithHopMinReturns(
+          route,
+          rawInputAmount,
+          slippageTolerance,
+          quoteTrader
+        )
+        return executeMultiHopSwap(address, fromToken, rawInputAmount, routeForSubmit, maxSpread, minReceive)
       }
 
       throw new Error('No route found')
