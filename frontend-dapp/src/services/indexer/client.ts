@@ -1,4 +1,5 @@
 import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePayload'
+import { normalizeLimitBookPageResponse } from '@/utils/limitBookPagination'
 import type {
   IndexerPair,
   IndexerPairsListResponse,
@@ -246,7 +247,8 @@ export async function getPairLimitBookPage(
   if (params?.afterOrderId != null) sp.set('after_order_id', String(params.afterOrderId))
   if (params?.priceFrom != null) sp.set('price_from', params.priceFrom)
   if (params?.priceTo != null) sp.set('price_to', params.priceTo)
-  return fetchJson<IndexerLimitBookPageResponse>(`/api/v1/pairs/${pairAddr}/limit-book?${sp}`)
+  const raw = await fetchJson<IndexerLimitBookPageResponse>(`/api/v1/pairs/${pairAddr}/limit-book?${sp}`)
+  return normalizeLimitBookPageResponse(raw)
 }
 
 /** Batch insert-hint resolution for ladder rung prices (indexer only — GitLab #267). */

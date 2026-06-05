@@ -96,6 +96,10 @@ export function sanitizeOpaqueErrorMessage(message: string): string {
   let s = norm(message)
   if (!s) return 'Something went wrong. Please try again.'
 
+  if (/^cannot read properties of (null|undefined) \(reading '/i.test(s)) {
+    return 'Something went wrong while loading this view. Wait a moment and try again.'
+  }
+
   const lines = s.split('\n')
   if (lines.length > 1 && /\s+at\s+/.test(s)) {
     s = lines[0].trim()

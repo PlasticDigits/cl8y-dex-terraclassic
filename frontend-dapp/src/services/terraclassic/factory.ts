@@ -41,10 +41,11 @@ export async function getAllPairsPaginated(maxPairs = 200): Promise<PairsRespons
 
   while (allPairs.length < maxPairs) {
     const resp = await getAllPairs(startAfter, PAGE_SIZE)
-    if (resp.pairs.length === 0) break
-    allPairs.push(...resp.pairs)
-    if (resp.pairs.length < PAGE_SIZE) break
-    const last = resp.pairs[resp.pairs.length - 1]
+    const pagePairs = resp.pairs ?? []
+    if (pagePairs.length === 0) break
+    allPairs.push(...pagePairs)
+    if (pagePairs.length < PAGE_SIZE) break
+    const last = pagePairs[pagePairs.length - 1]
     startAfter = last.asset_infos
   }
 
