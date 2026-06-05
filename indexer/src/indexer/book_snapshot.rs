@@ -18,6 +18,7 @@
 //!
 //! See [`book_snapshot_lcd_budget`].
 
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -205,8 +206,12 @@ async fn walk_resting_book_side(
 
     let mut current = head;
     let mut orders = Vec::new();
+    let mut seen = HashSet::new();
 
     while let Some(oid) = current {
+        if !seen.insert(oid) {
+            return Err(format!("broken book link: cycle at order_id {oid}").into());
+        }
         let row_opt = fetch_limit_order(lcd, pair_addr, oid).await?;
         let Some(row) = row_opt else {
             return Err(format!("broken book link: limit_order {oid} missing").into());
