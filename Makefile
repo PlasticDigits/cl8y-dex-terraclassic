@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -89,6 +89,10 @@ test-localterra-host-curl:
 test-setup-postgres:
 	@chmod +x scripts/test-setup-postgres-dev-databases.sh scripts/lib/postgres-bootstrap-role.sh scripts/setup-postgres-dev-databases.sh
 	./scripts/test-setup-postgres-dev-databases.sh
+
+test-setup-browser:
+	@chmod +x scripts/test-setup-browser-cloud-agent.sh scripts/setup-browser-cloud-agent.sh scripts/lib/keplr-chrome-extension.sh
+	./scripts/test-setup-browser-cloud-agent.sh
 
 qa-tunnel-help:
 	@chmod +x scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
