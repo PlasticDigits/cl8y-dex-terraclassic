@@ -718,18 +718,18 @@ const PoolCard = memo(function PoolCard({
               ? 'Connect Wallet'
               : tradingBlacklist.blocked
                 ? 'Trading restricted'
-              : insufficientAdd
-                ? 'Insufficient balance'
-                : !provideLiquidityNativeGasGate.canAddLiquidity && provideLiquidityNativeGasGate.tone === 'warning'
-                  ? 'Checking gas balance…'
-                  : !provideLiquidityNativeGasGate.canAddLiquidity
-                    ? 'Not enough LUNC for gas'
-                    : terraBroadcastPendingButtonLabel(
-                        addMutation.phase,
-                        addMutation.isPending,
-                        'Provide Liquidity',
-                        'Providing Liquidity…'
-                      )}
+                : insufficientAdd
+                  ? 'Insufficient balance'
+                  : !provideLiquidityNativeGasGate.canAddLiquidity && provideLiquidityNativeGasGate.tone === 'warning'
+                    ? 'Checking gas balance…'
+                    : !provideLiquidityNativeGasGate.canAddLiquidity
+                      ? 'Not enough LUNC for gas'
+                      : terraBroadcastPendingButtonLabel(
+                          addMutation.phase,
+                          addMutation.isPending,
+                          'Provide Liquidity',
+                          'Providing Liquidity…'
+                        )}
           </button>
           <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
           {addMutation.isError && (
@@ -839,9 +839,7 @@ const PoolCard = memo(function PoolCard({
               sounds.playButtonPress()
               removeMutation.mutate()
             }}
-            disabled={
-              !address || !lpAmount || insufficientLp || removeMutation.isPending || tradingBlacklist.blocked
-            }
+            disabled={!address || !lpAmount || insufficientLp || removeMutation.isPending || tradingBlacklist.blocked}
             className={`w-full py-2.5 font-semibold text-sm ${
               !address || !lpAmount || insufficientLp || removeMutation.isPending || tradingBlacklist.blocked
                 ? 'btn-disabled !w-full'
@@ -852,14 +850,14 @@ const PoolCard = memo(function PoolCard({
               ? 'Connect Wallet'
               : tradingBlacklist.blocked
                 ? 'Trading restricted'
-              : insufficientLp
-                ? 'Insufficient LP Balance'
-                : terraBroadcastPendingButtonLabel(
-                    removeMutation.phase,
-                    removeMutation.isPending,
-                    'Withdraw Liquidity',
-                    'Withdrawing…'
-                  )}
+                : insufficientLp
+                  ? 'Insufficient LP Balance'
+                  : terraBroadcastPendingButtonLabel(
+                      removeMutation.phase,
+                      removeMutation.isPending,
+                      'Withdraw Liquidity',
+                      'Withdrawing…'
+                    )}
           </button>
           <TerraBroadcastPendingLink phase={removeMutation.phase} txHash={removeMutation.pendingTxHash} />
           {removeMutation.isError && (
