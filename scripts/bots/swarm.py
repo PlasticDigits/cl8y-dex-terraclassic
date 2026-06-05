@@ -47,6 +47,7 @@ from swarm_liquidity import (
     MIN_PROVIDE_LIQUIDITY_LEG,
     MIN_RESERVE_PER_SIDE_FOR_SWAP,
     bootstrap_top_up_amounts,
+    min_leg_provide_amounts,
     pick_scaled_provide_amounts,
     pool_reserves_ok,
 )
@@ -236,7 +237,47 @@ def _min_reserve_per_side() -> int:
     return MIN_RESERVE_PER_SIDE_FOR_SWAP
 
 
-async def _wasm_execute(container: str, contract: str, exec_msg: str, dry_run: bool, label: str) -> None:
+def _txhash_from_terrad_json(text: str) -> str | None:
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    txhash = data.get("txhash")
+    if isinstance(txhash, str) and txhash:
+        return txhash
+    tx_resp = data.get("tx_response")
+    if isinstance(tx_resp, dict):
+        nested = tx_resp.get("txhash")
+        if isinstance(nested, str) and nested:
+            return nested
+    return None
+
+
+async def _poll_tx_inclusion(container: str, txhash: str, *, timeout_sec: float = 90.0) -> bool:
+    deadline = asyncio.get_running_loop().time() + timeout_sec
+    while asyncio.get_running_loop().time() < deadline:
+        code, out = await _terrad_tx(
+            container,
+            ["query", "tx", txhash, "--node", "http://127.0.0.1:26657", "--output", "json"],
+        )
+        if code == 0:
+            try:
+                data = json.loads(out)
+            except json.JSONDecodeError:
+                return True
+            tx_code = data.get("code", 0)
+            if tx_code != 0:
+                print(f"[warn] tx {txhash[:16]}… failed code={tx_code}: {out[:300]}")
+                return False
+            return True
+        await asyncio.sleep(1.0)
+    print(f"[warn] tx {txhash[:16]}… inclusion timeout after {timeout_sec:.0f}s")
+    return False
+
+
+async def _wasm_execute(
+    container: str, contract: str, exec_msg: str, dry_run: bool, label: str, *, wait: bool = False
+) -> bool:
     base = [
         "wasm",
         "execute",
@@ -264,10 +305,18 @@ async def _wasm_execute(container: str, contract: str, exec_msg: str, dry_run: b
     ]
     if dry_run:
         print(f"[dry-run] terrad tx wasm execute {contract} {label}")
-        return
+        return True
     code, out = await _terrad_tx(container, base)
     if code != 0:
         print(f"[warn] terrad exit {code}: {out[:500]}")
+        return False
+    if not wait:
+        return True
+    txhash = _txhash_from_terrad_json(out)
+    if not txhash:
+        print(f"[warn] no txhash in terrad output for {label}")
+        return False
+    return await _poll_tx_inclusion(container, txhash)
 
 
 async def provide_liquidity_pair(
@@ -303,9 +352,17 @@ async def provide_liquidity_pair(
         },
         separators=(",", ":"),
     )
-    await _wasm_execute(container, token0, allow0, dry_run, f"allow->{pair[:12]}… amt0={amount0}")
-    await _wasm_execute(container, token1, allow1, dry_run, f"allow->{pair[:12]}… amt1={amount1}")
-    await _wasm_execute(container, pair, provide, dry_run, f"provide_liquidity amt0={amount0} amt1={amount1}")
+    if not await _wasm_execute(
+        container, token0, allow0, dry_run, f"allow->{pair[:12]}… amt0={amount0}", wait=True
+    ):
+        return
+    if not await _wasm_execute(
+        container, token1, allow1, dry_run, f"allow->{pair[:12]}… amt1={amount1}", wait=True
+    ):
+        return
+    await _wasm_execute(
+        container, pair, provide, dry_run, f"provide_liquidity amt0={amount0} amt1={amount1}", wait=True
+    )
 
 
 async def swap_cw20_send(
@@ -507,15 +564,21 @@ async def lp_worker_loop(
         if scaled:
             amount0, amount1 = scaled
         else:
-            topped = bootstrap_top_up_amounts(
-                m.reserve0,
-                m.reserve1,
-                floor_per_side=floor,
-                target_per_side=floor + MIN_PROVIDE_LIQUIDITY_LEG,
+            min_leg = min_leg_provide_amounts(
+                m.reserve0, m.reserve1, min_reserve_per_side=floor
             )
-            if not topped:
-                continue
-            amount0, amount1 = topped
+            if min_leg:
+                amount0, amount1 = min_leg
+            else:
+                topped = bootstrap_top_up_amounts(
+                    m.reserve0,
+                    m.reserve1,
+                    floor_per_side=floor,
+                    target_per_side=floor + MIN_PROVIDE_LIQUIDITY_LEG,
+                )
+                if not topped:
+                    continue
+                amount0, amount1 = topped
         try:
             await provide_liquidity_pair(
                 container, m.token0, m.token1, m.pair_addr, amount0, amount1, dry

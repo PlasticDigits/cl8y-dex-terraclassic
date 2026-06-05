@@ -37,6 +37,31 @@ def pick_scaled_provide_amounts(
     return amount0, amount1
 
 
+def min_leg_provide_amounts(
+    reserve0: int,
+    reserve1: int,
+    *,
+    min_reserve_per_side: int = MIN_RESERVE_PER_SIDE_FOR_SWAP,
+) -> tuple[int, int] | None:
+    """Smallest proportional add with each leg >= MIN_PROVIDE_LIQUIDITY_LEG (mid-sized pools)."""
+    if not pool_reserves_ok(reserve0, reserve1, min_reserve_per_side=min_reserve_per_side):
+        return None
+    if reserve0 <= 0 or reserve1 <= 0:
+        return None
+
+    def _scale_for_min_leg(reserve: int) -> int:
+        return 1_000_000 + (MIN_PROVIDE_LIQUIDITY_LEG * 1_000_000 + reserve - 1) // reserve
+
+    scale = max(_scale_for_min_leg(reserve0), _scale_for_min_leg(reserve1))
+    if scale <= 1_000_000:
+        return None
+    add0 = (reserve0 * (scale - 1_000_000)) // 1_000_000
+    add1 = (reserve1 * (scale - 1_000_000)) // 1_000_000
+    if add0 < MIN_PROVIDE_LIQUIDITY_LEG or add1 < MIN_PROVIDE_LIQUIDITY_LEG:
+        return None
+    return add0, add1
+
+
 def bootstrap_top_up_amounts(
     reserve0: int,
     reserve1: int,
