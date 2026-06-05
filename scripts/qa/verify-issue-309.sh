@@ -288,6 +288,8 @@ run_sweep_case() {
     ok "N=$n: tx_bytes=$tx_bytes < $TX_BYTES_CEILING"
   elif [[ -n "$tx_bytes" ]]; then
     bad "N=$n: tx_bytes=$tx_bytes exceeds limit"
+  else
+    bad "N=$n: tx_bytes unavailable"
   fi
 }
 
