@@ -77,6 +77,7 @@ async fn hybrid_swap_attrs_round_trip_to_swap_events_columns() {
     let id = swap_events::insert_swap(
         &pool,
         seed.pair_id,
+        0,
         height,
         block_time,
         tx_hash,

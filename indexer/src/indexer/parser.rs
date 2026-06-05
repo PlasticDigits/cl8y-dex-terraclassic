@@ -188,6 +188,10 @@ fn parse_claim_expired_limit_orders_from_wasm_attrs(
 #[derive(Debug, Clone)]
 pub struct ParsedSwap {
     pub pair_address: String,
+    /// GitLab #287: 0-based ordinal of this swap among swaps on the SAME pair within the tx,
+    /// taken from parser walk order. Makes `(tx_hash, pair_id, swap_index)` unique so multiple
+    /// swaps on one pair in a single tx are stored instead of collapsed.
+    pub swap_index: i32,
     pub sender: String,
     pub receiver: Option<String>,
     pub offer_asset: String,
@@ -346,7 +350,7 @@ async fn process_swap(
         },
     };
 
-    if swap_events::trade_exists(pool, tx_hash, pair.id).await? {
+    if swap_events::trade_exists(pool, tx_hash, pair.id, swap.swap_index).await? {
         return Ok(());
     }
 
@@ -373,6 +377,7 @@ async fn process_swap(
     let inserted = swap_events::insert_swap(
         pool,
         pair.id,
+        swap.swap_index,
         height,
         block_time,
         tx_hash,
@@ -479,6 +484,9 @@ async fn compute_volume_usd(
 /// Hybrid fields (`pool_return_amount`, `book_return_amount`, `limit_book_offer_consumed`, `effective_fee_bps`) are optional.
 pub fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
     let mut swaps = Vec::new();
+    // GitLab #287: assign each swap a per-pair ordinal within the tx (walk order).
+    let mut per_pair_swap_index: std::collections::HashMap<String, i32> =
+        std::collections::HashMap::new();
 
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
         logs.iter().flat_map(|l| l.events.iter()).collect()
@@ -507,8 +515,17 @@ pub fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
         if let (Some(contract), Some(sender), Some(offer), Some(ret)) =
             (contract, sender, offer_amount, return_amount)
         {
+            let swap_index = {
+                let c = per_pair_swap_index
+                    .entry(contract.to_string())
+                    .or_insert(0);
+                let i = *c;
+                *c += 1;
+                i
+            };
             swaps.push(ParsedSwap {
                 pair_address: contract.to_string(),
+                swap_index,
                 sender: sender.to_string(),
                 receiver: wasm_attr_last(attrs, "receiver").map(|s| s.to_string()),
                 offer_asset: wasm_attr_last(attrs, "offer_asset")
@@ -1380,6 +1397,50 @@ mod tests {
         assert_eq!(swaps[0].sender, "terra1user");
         assert_eq!(swaps[0].offer_amount.to_string(), "100");
         assert_eq!(swaps[0].return_amount.to_string(), "95");
+        assert_eq!(swaps[0].swap_index, 0);
+    }
+
+    #[test]
+    fn parse_swaps_assigns_per_pair_swap_index() {
+        // GitLab #287: two swaps on the same pair in one tx must get distinct ordinals (0, 1)
+        // so they no longer collapse on (tx_hash, pair_id); a swap on a different pair restarts
+        // at 0 (the ordinal is per-pair, not per-tx).
+        let tx = wasm_tx_multi(vec![
+            vec![
+                ("_contract_address", "terra1pairA"),
+                ("action", "swap"),
+                ("sender", "terra1u"),
+                ("offer_amount", "100"),
+                ("return_amount", "90"),
+            ],
+            vec![
+                ("_contract_address", "terra1pairA"),
+                ("action", "swap"),
+                ("sender", "terra1u"),
+                ("offer_amount", "50"),
+                ("return_amount", "45"),
+            ],
+            vec![
+                ("_contract_address", "terra1pairB"),
+                ("action", "swap"),
+                ("sender", "terra1u"),
+                ("offer_amount", "10"),
+                ("return_amount", "9"),
+            ],
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 3);
+        assert_eq!((swaps[0].pair_address.as_str(), swaps[0].swap_index), ("terra1pairA", 0));
+        assert_eq!(
+            (swaps[1].pair_address.as_str(), swaps[1].swap_index),
+            ("terra1pairA", 1),
+            "second swap on the same pair must get ordinal 1"
+        );
+        assert_eq!(
+            (swaps[2].pair_address.as_str(), swaps[2].swap_index),
+            ("terra1pairB", 0),
+            "a different pair restarts the ordinal"
+        );
     }
 
     #[test]
