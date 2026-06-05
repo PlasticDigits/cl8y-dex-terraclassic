@@ -87,6 +87,69 @@ async fn cg_orderbook_depth_capped_at_100_with_lcd_mock() {
     assert_eq!(asks.len(), 50);
 }
 
+/// GitLab #317 / #284: negative or zero `depth` on the CG/CMC orderbook mirrors must clamp via
+/// `cap_orderbook_depth` (-> `clamp(1, 100)`) and never 500. `depth` is `usize`, so `depth=-1`
+/// fails query deserialization with **400** (handler never runs); `depth=0` clamps to 1 and
+/// returns **200** with one level per side. Either way: never 500.
+#[serial]
+#[tokio::test]
+async fn cg_orderbook_negative_and_zero_depth_not_500() {
+    let mock = common::lcd_mock::start_pool_query_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    for depth in ["-1", "0"] {
+        let resp = server
+            .get(&format!("/cg/orderbook?ticker_id=LUNC_USTC&depth={depth}"))
+            .await;
+        assert_ne!(
+            resp.status_code(),
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "depth={depth} must not 500"
+        );
+        if resp.status_code().is_success() {
+            let body: Value = resp.json();
+            assert_eq!(body["bids"].as_array().unwrap().len(), 1, "depth={depth} bids");
+            assert_eq!(body["asks"].as_array().unwrap().len(), 1, "depth={depth} asks");
+        }
+    }
+}
+
+#[serial]
+#[tokio::test]
+async fn cmc_orderbook_negative_and_zero_depth_not_500() {
+    let mock = common::lcd_mock::start_pool_query_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    for depth in ["-1", "0"] {
+        let resp = server
+            .get(&format!("/cmc/orderbook/LUNC_USTC?depth={depth}"))
+            .await;
+        assert_ne!(
+            resp.status_code(),
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "depth={depth} must not 500"
+        );
+        if resp.status_code().is_success() {
+            let body: Value = resp.json();
+            let ob = cmc_orderbook_entry(&body);
+            assert_eq!(ob["bids"].as_array().unwrap().len(), 1, "depth={depth} bids");
+            assert_eq!(ob["asks"].as_array().unwrap().len(), 1, "depth={depth} asks");
+        }
+    }
+}
+
 #[serial]
 #[tokio::test]
 async fn cg_orderbook_second_identical_request_hits_cache_not_lcd() {

@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-276 swarm-local swarm-launch swarm-stop
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 swarm-local swarm-launch swarm-stop
 
 # Infrastructure
 start:
@@ -116,6 +116,11 @@ verify-issue-238:
 verify-issue-245:
 	@chmod +x scripts/qa/verify-issue-245.sh scripts/qa/verify-issue-238.sh scripts/lib/lcd-smart-query.sh
 	./scripts/qa/verify-issue-245.sh
+
+# GitLab #274 — live LocalTerra gas: CleanLimitBook traversal cap + resume cursor.
+verify-issue-274:
+	@chmod +x scripts/qa/verify-issue-274.sh scripts/lib/lcd-smart-query.sh scripts/lib/e2e-terrad-tx.sh scripts/lib/localterra-host-curl.sh scripts/e2e-provision-dev-wallet.sh
+	./scripts/qa/verify-issue-274.sh
 
 # GitLab #276 — pair-creation fee (contract tests + doc cross-links).
 verify-issue-276:

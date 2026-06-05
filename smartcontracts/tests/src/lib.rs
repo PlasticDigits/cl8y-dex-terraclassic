@@ -990,9 +990,22 @@ mod factory_tests {
         )
         .unwrap();
 
-        let bal = |addr: &Addr| app.wrap().query_balance(addr.as_str(), "uluna").unwrap().amount;
-        assert_eq!(bal(&treasury), Uint128::zero(), "treasury not credited when fee is disabled");
-        assert_eq!(bal(&factory), Uint128::zero(), "no uluna stuck in the factory");
+        let bal = |addr: &Addr| {
+            app.wrap()
+                .query_balance(addr.as_str(), "uluna")
+                .unwrap()
+                .amount
+        };
+        assert_eq!(
+            bal(&treasury),
+            Uint128::zero(),
+            "treasury not credited when fee is disabled"
+        );
+        assert_eq!(
+            bal(&factory),
+            Uint128::zero(),
+            "no uluna stuck in the factory"
+        );
         assert_eq!(
             bal(&user),
             Uint128::new(1_000_000),
