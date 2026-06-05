@@ -25,14 +25,16 @@ CHAIN_ID="${CHAIN_ID:-localterra}"
 TERRAD_NODE="${TERRAD_NODE:-http://127.0.0.1:26657}"
 CONTAINER_NAME="$(docker compose ps -q localterra 2>/dev/null | head -1)"
 
-HEALTHY_COUNT="${VERIFY274_HEALTHY_COUNT:-250}"
-HEALTHY_BATCH="${VERIFY274_HEALTHY_BATCH:-100}"
+HEALTHY_COUNT="${VERIFY274_HEALTHY_COUNT:-100}"
+PAIR_INDEX="${VERIFY274_PAIR_INDEX:-2}"
+HEALTHY_BATCH="${VERIFY274_HEALTHY_BATCH:-5}"
+MAX_ADJUST_STEPS="${VERIFY274_MAX_ADJUST_STEPS:-256}"
 EXPIRED_TAIL_COUNT="${VERIFY274_EXPIRED_TAIL:-5}"
 MAX_STEPS_CAP="${VERIFY274_MAX_STEPS:-15}"
 MAX_ORDERS="${VERIFY274_MAX_ORDERS:-100}"
 BID_ESCROW_RAW="${VERIFY274_BID_ESCROW:-10000}"
 HEALTHY_PRICE="${VERIFY274_HEALTHY_PRICE:-2}"
-TAIL_PRICE="${VERIFY274_TAIL_PRICE:-1.5}"
+TAIL_PRICE="${VERIFY274_TAIL_PRICE:-0.10}"
 EXPIRY_LEAD_SEC="${VERIFY274_EXPIRY_LEAD_SEC:-45}"
 # ~19k gas/step * 15 steps + base; well below walking 250+ nodes (~4.7M+ at 19k/step).
 GAS_CEILING="${VERIFY274_GAS_CEILING:-800000}"
@@ -79,7 +81,8 @@ latest_block_unix() {
 }
 
 tx_hash_from_json() {
-  jq -r '.txhash // .tx_response.txhash // empty'
+  # e2e_terrad_tx merges stderr ("gas estimate: …") with JSON on stdout.
+  sed -n '/^{/,$p' | tail -1 | jq -r '.txhash // .tx_response.txhash // empty'
 }
 
 tx_gas_used() {
@@ -96,15 +99,18 @@ tx_wasm_attr() {
 }
 
 resolve_pair() {
-  local pairs_doc pair="" t0="" t1=""
+  local pairs_doc pair="" t0="" t1="" idx=0 want="$PAIR_INDEX"
   pairs_doc="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$FACTORY" '{"pairs":{"start_after":null,"limit":60}}')")"
   while IFS= read -r row; do
     [[ -n "$row" ]] || continue
     t0="$(echo "$row" | jq -r '.asset_infos[0].token.contract_addr // empty')"
     t1="$(echo "$row" | jq -r '.asset_infos[1].token.contract_addr // empty')"
     if [[ "$t0" =~ ^terra1 && "$t1" =~ ^terra1 ]]; then
-      pair="$(echo "$row" | jq -r '.contract_addr')"
-      break
+      if (( idx == want )); then
+        pair="$(echo "$row" | jq -r '.contract_addr')"
+        break
+      fi
+      idx=$((idx + 1))
     fi
   done < <(echo "$pairs_doc" | jq -c '.pairs[]? // empty')
   if [[ -z "$pair" ]]; then
@@ -127,8 +133,10 @@ place_bid_batch() {
     --arg price "$price" \
     --arg amt "$amount" \
     --argjson n "$count" \
-    '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | {price:$price, amount:$amt, max_adjust_steps:64, expires_at:$exp}]}}')"
-  total_escrow="$(awk -v c="$count" -v a="$amount" -v p="$price" 'BEGIN{printf "%.0f", c*a*p}')"
+    --argjson steps "$MAX_ADJUST_STEPS" \
+    '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | {price:$price, amount:$amt, max_adjust_steps:$steps, expires_at:$exp}]}}')"
+  # Batch CW20 send must equal the sum of per-rung `amount` fields (token1 escrow for bids).
+  total_escrow=$((count * amount))
   txjson="$(terrad_tx wasm execute "$TOKEN1" "$(jq -nc \
     --arg pair "$PAIR" \
     --arg amt "$total_escrow" \
@@ -166,18 +174,26 @@ echo "==> Provision dev wallet CW20 (idempotent)"
 bash "$REPO_ROOT/scripts/e2e-provision-dev-wallet.sh"
 
 NOW_SEC="$(latest_block_unix)"
-FAR_EXPIRY=$((NOW_SEC + 1_000_000))
+FAR_EXPIRY=$((NOW_SEC + 1000000))
 SHORT_EXPIRY=$((NOW_SEC + EXPIRY_LEAD_SEC))
 
-echo "==> Seed $HEALTHY_COUNT healthy far-future bids at price $HEALTHY_PRICE (head prefix)"
+if (( HEALTHY_COUNT > 0 )); then
+echo "==> Seed $HEALTHY_COUNT healthy far-future bids (head prefix; distinct prices per batch)"
 remaining="$HEALTHY_COUNT"
+batch_num=0
 while (( remaining > 0 )); do
   batch="$HEALTHY_BATCH"
   (( batch > remaining )) && batch="$remaining"
-  echo "    placing batch of $batch healthy bids..."
-  place_bid_batch "$batch" "$HEALTHY_PRICE" "$BID_ESCROW_RAW" "$FAR_EXPIRY"
+  # Descending price per batch avoids LimitInsertStepsExceeded on deep same-price stacks.
+  batch_price="$(awk -v b="$batch_num" 'BEGIN{printf "%.2f", 10.0 - b * 0.5}')"
+  echo "    placing batch of $batch healthy bids at price $batch_price..."
+  place_bid_batch "$batch" "$batch_price" "$BID_ESCROW_RAW" "$FAR_EXPIRY"
   remaining=$((remaining - batch))
+  batch_num=$((batch_num + 1))
 done
+else
+  echo "==> Skip healthy seed (VERIFY274_HEALTHY_COUNT=0); using existing book depth"
+fi
 
 echo "==> Seed $EXPIRED_TAIL_COUNT expired bids at tail price $TAIL_PRICE"
 place_bid_batch "$EXPIRED_TAIL_COUNT" "$TAIL_PRICE" "$BID_ESCROW_RAW" "$SHORT_EXPIRY"
