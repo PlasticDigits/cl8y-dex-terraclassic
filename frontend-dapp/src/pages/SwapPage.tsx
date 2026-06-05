@@ -122,13 +122,6 @@ export default function SwapPage() {
 
   const allTokens = useMemo(() => (pairs.length > 0 ? getAllTokens(pairs) : []), [pairs])
 
-  const tradingBlacklist = useTradingBlacklist({
-    wallet: address,
-    token0: fromToken?.startsWith('terra1') ? fromToken : null,
-    token1: toToken?.startsWith('terra1') ? toToken : null,
-    enabled: isWalletConnected,
-  })
-
   useEffect(() => {
     const cw20Tokens = allTokens.filter((tokenId) => tokenId.startsWith('terra1'))
     cw20Tokens.forEach((tokenId) => {
@@ -199,6 +192,37 @@ export default function SwapPage() {
     const a = assetInfoLabel(p.asset_infos[0])
     const b = assetInfoLabel(p.asset_infos[1])
     return (a === fromToken && b === toToken) || (b === fromToken && a === toToken)
+  })
+
+  const swapPairAddresses = useMemo(() => {
+    const addresses = new Set<string>()
+    const routeOps = route ?? nativeRouteInfo?.operations
+    if (routeOps && routeOps.length > 0) {
+      for (const op of routeOps) {
+        const offer = assetInfoLabel(op.terra_swap.offer_asset_info)
+        const ask = assetInfoLabel(op.terra_swap.ask_asset_info)
+        const matched = pairs.find((p) => {
+          const a = assetInfoLabel(p.asset_infos[0])
+          const b = assetInfoLabel(p.asset_infos[1])
+          return (a === offer && b === ask) || (b === offer && a === ask)
+        })
+        if (matched?.contract_addr.startsWith('terra1')) {
+          addresses.add(matched.contract_addr)
+        }
+      }
+    } else if (directPair?.contract_addr.startsWith('terra1')) {
+      addresses.add(directPair.contract_addr)
+    }
+    return [...addresses]
+  }, [route, nativeRouteInfo, directPair, pairs])
+
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    token0: fromToken?.startsWith('terra1') ? fromToken : null,
+    token1: toToken?.startsWith('terra1') ? toToken : null,
+    pairAddress: swapPairAddresses.length === 1 ? swapPairAddresses[0] : null,
+    pairs: swapPairAddresses.length > 1 ? swapPairAddresses : null,
+    enabled: isWalletConnected,
   })
 
   const offerAssetInfo = fromToken ? tokenAssetInfo(fromToken) : null
