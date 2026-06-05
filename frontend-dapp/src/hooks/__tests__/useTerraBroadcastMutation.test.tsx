@@ -45,6 +45,34 @@ describe('useTerraBroadcastMutation (GitLab #305)', () => {
     expect(mockBroadcastTx).toHaveBeenCalled()
   })
 
+  it('exposes confirming phase and hash before pollTx settles (GitLab #330)', async () => {
+    let resolvePoll!: (value: { txResponse: { code: number; rawLog: string; logs: [] } }) => void
+    mockPollTx.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePoll = resolve
+        })
+    )
+
+    const { result } = renderHook(
+      () =>
+        useTerraBroadcastMutation({
+          mutationFn: () => executeTerraContract('terra1sender', 'terra1contract', { swap: {} }),
+        }),
+      { wrapper }
+    )
+
+    result.current.mutate()
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe('confirming')
+      expect(result.current.pendingTxHash).toBe('HASH305')
+    })
+
+    resolvePoll({ txResponse: { code: 0, rawLog: '', logs: [] } })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
   it('clears phase after settlement', async () => {
     const { result } = renderHook(
       () =>

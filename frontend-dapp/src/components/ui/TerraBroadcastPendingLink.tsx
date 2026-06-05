@@ -18,11 +18,20 @@ export function TerraBroadcastPendingLink({ phase, txHash, className }: TerraBro
     <p className={className ?? 'text-[10px] font-mono break-all'} style={{ color: 'var(--ink-dim)' }}>
       TX:{' '}
       {explorerUrl ? (
-        <a href={explorerUrl} target="_blank" rel="noopener noreferrer" title={txHash} className="underline">
+        <a
+          href={explorerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={txHash}
+          className="underline"
+          data-testid="terra-broadcast-pending-tx"
+        >
           {label}
         </a>
       ) : (
-        <span title={txHash}>{label}</span>
+        <span title={txHash} data-testid="terra-broadcast-pending-tx">
+          {label}
+        </span>
       )}
     </p>
   )

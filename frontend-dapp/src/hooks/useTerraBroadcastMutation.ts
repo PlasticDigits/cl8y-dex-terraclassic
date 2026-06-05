@@ -1,5 +1,6 @@
 import { useMutation, type UseMutationOptions, type UseMutationResult } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
+import { flushSync } from 'react-dom'
 import type { TerraBroadcastOptions, TerraBroadcastPhase } from '@/services/terraclassic/terraBroadcast'
 import { withTerraBroadcastScope } from '@/services/terraclassic/terraBroadcastScope'
 
@@ -29,12 +30,15 @@ export function useTerraBroadcastMutation<TData = string, TVariables = void, TCo
   const broadcastOptions = useMemo<TerraBroadcastOptions>(
     () => ({
       onPhaseChange: (nextPhase, ctx) => {
-        setPhase(nextPhase)
-        if (nextPhase === 'signing') {
-          setPendingTxHash(null)
-        } else if (ctx?.txHash) {
-          setPendingTxHash(ctx.txHash)
-        }
+        // Async mutationFn batches updates; flush confirming+hash before pollTx (GitLab #330).
+        flushSync(() => {
+          setPhase(nextPhase)
+          if (nextPhase === 'signing') {
+            setPendingTxHash(null)
+          } else if (ctx?.txHash) {
+            setPendingTxHash(ctx.txHash)
+          }
+        })
       },
     }),
     []
