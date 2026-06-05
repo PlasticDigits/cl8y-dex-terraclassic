@@ -11,11 +11,10 @@ use dex_common::limit_placement::{
 };
 use dex_common::pair::{
     pool_only_hybrid_params, pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg,
-    ExpiredLimitRefundResponse,
-    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
-    LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide,
-    PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
-    MAX_MAKER_FILLS_HARD_CAP,
+    ExpiredLimitRefundResponse, HybridReverseSimulationResponse, HybridSimulationResponse,
+    HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse,
+    LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -1719,10 +1718,11 @@ fn hybrid_walk_pool_only_swap_has_no_expired_park_attrs() {
         )
         .unwrap();
 
-    assert_eq!(count_limit_order_expired_parked_events(&hybrid_res.events), 0);
-    assert!(
-        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used").is_none()
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        0
     );
+    assert!(wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used").is_none());
 }
 
 /// GitLab #309 — event-count sweep for N expired head orders (1..30); parks clamp at cap.
@@ -1785,7 +1785,8 @@ fn expired_parks_benchmark_event_counts_sweep() {
             );
         } else {
             assert!(
-                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped").is_none(),
+                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped")
+                    .is_none(),
                 "N={n}: no cap attr below cap"
             );
         }

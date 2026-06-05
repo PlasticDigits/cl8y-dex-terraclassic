@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
@@ -257,19 +259,8 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
     .fetch_optional(pool)
     .await?;
 
-    let price_change_pct = match (&open, &close) {
-        (Some(o), Some(c)) => {
-            use bigdecimal::ToPrimitive;
-            let o_f = o.price.to_f64().unwrap_or(0.0);
-            let c_f = c.price.to_f64().unwrap_or(0.0);
-            if o_f != 0.0 {
-                Some(((c_f - o_f) / o_f) * 100.0)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
+    let open_price = open.map(|r| r.price);
+    let close_price = close.map(|r| r.price);
 
     Ok(PairStats {
         volume_base: stats.volume_base.unwrap_or_default(),
@@ -278,10 +269,114 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
         trade_count: stats.trade_count.unwrap_or(0),
         high: stats.high,
         low: stats.low,
-        open_price: open.map(|r| r.price),
-        close_price: close.map(|r| r.price),
-        price_change_pct,
+        open_price: open_price.clone(),
+        close_price: close_price.clone(),
+        price_change_pct: price_change_pct(open_price.as_ref(), close_price.as_ref()),
     })
+}
+
+fn price_change_pct(open: Option<&BigDecimal>, close: Option<&BigDecimal>) -> Option<f64> {
+    use bigdecimal::ToPrimitive;
+    match (open, close) {
+        (Some(o), Some(c)) => {
+            let o_f = o.to_f64().unwrap_or(0.0);
+            let c_f = c.to_f64().unwrap_or(0.0);
+            if o_f != 0.0 {
+                Some(((c_f - o_f) / o_f) * 100.0)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// 24h stats for every pair that traded in the window — O(1) DB round-trips (GitLab #288).
+pub async fn get_24h_stats_all_pairs(
+    pool: &PgPool,
+) -> Result<HashMap<i32, PairStats>, sqlx::Error> {
+    let cutoff = Utc::now() - chrono::Duration::hours(24);
+
+    #[derive(FromRow)]
+    struct AggRow {
+        pair_id: i32,
+        volume_base: Option<BigDecimal>,
+        volume_quote: Option<BigDecimal>,
+        volume_usd: Option<BigDecimal>,
+        trade_count: Option<i64>,
+        high: Option<BigDecimal>,
+        low: Option<BigDecimal>,
+    }
+
+    let agg_rows = sqlx::query_as::<_, AggRow>(
+        "SELECT
+           pair_id,
+           COALESCE(SUM(offer_amount), 0) AS volume_base,
+           COALESCE(SUM(return_amount), 0) AS volume_quote,
+           SUM(volume_usd) AS volume_usd,
+           COUNT(*) AS trade_count,
+           MAX(price) AS high,
+           MIN(price) AS low
+         FROM swap_events
+         WHERE block_timestamp >= $1
+         GROUP BY pair_id",
+    )
+    .bind(cutoff)
+    .fetch_all(pool)
+    .await?;
+
+    #[derive(FromRow)]
+    struct PriceRow {
+        pair_id: i32,
+        price: BigDecimal,
+    }
+
+    let open_rows = sqlx::query_as::<_, PriceRow>(
+        "SELECT DISTINCT ON (pair_id) pair_id, price
+         FROM swap_events
+         WHERE block_timestamp >= $1
+         ORDER BY pair_id, block_timestamp ASC, id ASC",
+    )
+    .bind(cutoff)
+    .fetch_all(pool)
+    .await?;
+
+    let close_rows = sqlx::query_as::<_, PriceRow>(
+        "SELECT DISTINCT ON (pair_id) pair_id, price
+         FROM swap_events
+         WHERE block_timestamp >= $1
+         ORDER BY pair_id, block_timestamp DESC, id DESC",
+    )
+    .bind(cutoff)
+    .fetch_all(pool)
+    .await?;
+
+    let open_map: HashMap<i32, BigDecimal> = open_rows.into_iter().map(|r| (r.pair_id, r.price)).collect();
+    let close_map: HashMap<i32, BigDecimal> =
+        close_rows.into_iter().map(|r| (r.pair_id, r.price)).collect();
+
+    let mut result = HashMap::with_capacity(agg_rows.len());
+    for row in agg_rows {
+        let open_price = open_map.get(&row.pair_id).cloned();
+        let close_price = close_map.get(&row.pair_id).cloned();
+        let pct = price_change_pct(open_price.as_ref(), close_price.as_ref());
+        result.insert(
+            row.pair_id,
+            PairStats {
+                volume_base: row.volume_base.unwrap_or_default(),
+                volume_quote: row.volume_quote.unwrap_or_default(),
+                volume_usd: row.volume_usd,
+                trade_count: row.trade_count.unwrap_or(0),
+                high: row.high,
+                low: row.low,
+                open_price,
+                close_price,
+                price_change_pct: pct,
+            },
+        );
+    }
+
+    Ok(result)
 }
 
 /// Hybrid leg attribution for consolidated listing stats (ask-side: `pool_return_amount` /
@@ -326,6 +421,56 @@ pub async fn get_24h_hybrid_breakdown(
         book_leg_volume_quote: row.book_leg_volume_quote.unwrap_or_default(),
         pool_leg_volume_quote: row.pool_leg_volume_quote.unwrap_or_default(),
     })
+}
+
+/// Hybrid breakdown for every pair that traded in the window — single grouped query (GitLab #288).
+pub async fn get_24h_hybrid_breakdown_all_pairs(
+    pool: &PgPool,
+) -> Result<HashMap<i32, HybridVolumeBreakdown>, sqlx::Error> {
+    let cutoff = Utc::now() - chrono::Duration::hours(24);
+
+    #[derive(FromRow)]
+    struct Row {
+        pair_id: i32,
+        hybrid_trade_count: Option<i64>,
+        pool_only_trade_count: Option<i64>,
+        book_leg_volume_quote: Option<BigDecimal>,
+        pool_leg_volume_quote: Option<BigDecimal>,
+    }
+
+    let rows = sqlx::query_as::<_, Row>(
+        "SELECT
+           pair_id,
+           COUNT(*) FILTER (
+             WHERE COALESCE(book_return_amount, 0) > 0
+           ) AS hybrid_trade_count,
+           COUNT(*) FILTER (
+             WHERE book_return_amount IS NULL OR book_return_amount = 0
+           ) AS pool_only_trade_count,
+           COALESCE(SUM(book_return_amount), 0) AS book_leg_volume_quote,
+           COALESCE(SUM(pool_return_amount), 0) AS pool_leg_volume_quote
+         FROM swap_events
+         WHERE block_timestamp >= $1
+         GROUP BY pair_id",
+    )
+    .bind(cutoff)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            (
+                row.pair_id,
+                HybridVolumeBreakdown {
+                    hybrid_trade_count: row.hybrid_trade_count.unwrap_or(0),
+                    pool_only_trade_count: row.pool_only_trade_count.unwrap_or(0),
+                    book_leg_volume_quote: row.book_leg_volume_quote.unwrap_or_default(),
+                    pool_leg_volume_quote: row.pool_leg_volume_quote.unwrap_or_default(),
+                },
+            )
+        })
+        .collect())
 }
 
 pub async fn trade_exists(

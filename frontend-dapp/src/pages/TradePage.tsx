@@ -8,7 +8,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { MenuSelect, RetryError, Skeleton } from '@/components/ui'
+import { PairSearchSelect, RetryError, Skeleton } from '@/components/ui'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import PriceChart from '@/components/charts/PriceChart'
@@ -21,7 +21,7 @@ import { TradePageWorkspaceSkeleton } from '@/components/trade/TradePageWorkspac
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
-import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
+import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
 import {
@@ -127,7 +127,10 @@ export default function TradePage() {
     () => isPendingTradePairRouteResolution(routePair, invalidRoutePair, factoryPairsResolved),
     [routePair, invalidRoutePair, factoryPairsResolved]
   )
-  const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs, { variant: 'full' }), [pairs])
+  const activePairMenuLabel = useMemo(() => {
+    const hit = pairs.find((p) => p.contract_addr === pairAddr)
+    return hit ? pairInfoMenuLabel(hit, { variant: 'full' }) : undefined
+  }, [pairs, pairAddr])
   const pairRouteReady = isTradePairRouteParam(pairAddr)
   const showTradeWorkspace = shouldShowTradeWorkspace({
     pairRouteReady,
@@ -135,10 +138,6 @@ export default function TradePage() {
     unknownPairNotice,
     pendingDeepLinkPair,
   })
-  const activePairMenuLabel = useMemo(
-    () => pairMenuOptions.find((o) => o.value === pairAddr)?.label,
-    [pairMenuOptions, pairAddr]
-  )
 
   useEffect(() => {
     if (invalidRoutePair) {
@@ -362,12 +361,12 @@ export default function TradePage() {
           Pair
         </label>
         <LcdQueryGate query={pairsQuery} loadingFallback={<Skeleton height="2.5rem" width="100%" />}>
-          <MenuSelect
+          <PairSearchSelect
             id={TRADE_PAIR_SELECT_ID}
             className="relative w-full max-w-xl shrink-0"
             aria-label="Trading pair"
             value={pairAddr}
-            options={pairMenuOptions}
+            factoryPairs={pairs}
             emptyLabel="No pairs on factory"
             onChange={onPairChange}
             onOptionIntent={onPairPrefetchIntent}

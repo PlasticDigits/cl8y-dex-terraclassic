@@ -1,6 +1,7 @@
 //! HTTP API: routing, CORS, rate limits, timeouts, and ticker/orderbook caches.
 //! Invariants and threat model: see repository `docs/indexer-invariants.md`.
 
+mod aggregator_snapshot;
 mod cg;
 mod cmc;
 mod errors;
@@ -23,17 +24,16 @@ mod tokens;
 mod traders;
 
 use std::collections::HashMap;
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use axum::extract::ConnectInfo;
 use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::routing::get;
 use axum::Router;
 use sqlx::PgPool;
 use tower_governor::governor::GovernorConfigBuilder;
-use tower_governor::key_extractor::KeyExtractor;
-use tower_governor::{GovernorError, GovernorLayer};
+use tower_governor::key_extractor::PeerIpKeyExtractor;
+use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::timeout::TimeoutLayer;
@@ -76,9 +76,8 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 
 pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 
-// GitLab #288: 60s TTL cache for the CG/CMC aggregator endpoints (tickers/summary),
-// whose per-pair N+1 fanout could pin the DB pool under a request burst. Caches the
-// serialized response per endpoint so the fanout runs at most once per minute.
+// GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
+// (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
 const AGGREGATOR_CACHE_TTL: Duration = Duration::from_secs(60);
 
 fn aggregator_cache() -> &'static std::sync::Mutex<HashMap<String, (serde_json::Value, Instant)>> {
@@ -105,41 +104,6 @@ pub(crate) fn aggregator_cache_put(key: &str, value: serde_json::Value) {
     }
 }
 
-/// Collapse an IPv6 address to its `/64` network prefix (zero the low 64 host bits); IPv4 is
-/// returned unchanged. A single `/64` is the smallest block a host is typically allocated, so
-/// without this an IPv6 client could rotate through addresses in its own `/64` to multiply its
-/// rate limit (GitLab #282).
-fn rate_limit_ip_key(ip: IpAddr) -> IpAddr {
-    match ip {
-        IpAddr::V4(_) => ip,
-        IpAddr::V6(v6) => {
-            let mut octets = v6.octets();
-            octets[8..].fill(0);
-            IpAddr::V6(Ipv6Addr::from(octets))
-        }
-    }
-}
-
-/// Rate-limit key extractor (GitLab #282). Keys on the socket peer IP — per the deployment topology
-/// there is no trusted forwarded header (`CF-Connecting-IP` / `X-Forwarded-For`), so the peer IP is
-/// the real client and a forwarded-header extractor would only add a spoofable bucket key. IPv6
-/// clients are bucketed by their `/64` prefix ([`rate_limit_ip_key`]); IPv4 by the full address.
-#[derive(Clone)]
-struct PeerIpV6Slash64KeyExtractor;
-
-impl KeyExtractor for PeerIpV6Slash64KeyExtractor {
-    type Key = IpAddr;
-
-    fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
-        let ip = req
-            .extensions()
-            .get::<ConnectInfo<SocketAddr>>()
-            .map(|ci| ci.0.ip())
-            .ok_or(GovernorError::UnableToExtractKey)?;
-        Ok(rate_limit_ip_key(ip))
-    }
-}
-
 fn apply_rate_limit_layer<S>(router: Router<S>, rps: u64) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -147,8 +111,11 @@ where
     if rps == 0 {
         return router;
     }
+    // GitLab #282: key on socket peer IP only. No trusted forwarded header in this deployment
+    // (`CF-Connecting-IP` / `X-Forwarded-For`), so a SmartIp/XFF extractor would be spoofable.
+    // IPv6 is disabled by default (`API_IPV6_ENABLED`); see `bind_api_listener`.
     let governor_conf = GovernorConfigBuilder::default()
-        .key_extractor(PeerIpV6Slash64KeyExtractor)
+        .key_extractor(PeerIpKeyExtractor)
         .per_second(rps)
         .burst_size(rps.saturating_mul(2) as u32)
         .use_headers()
@@ -505,6 +472,42 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .with_state(state)
 }
 
+/// Bind the API TCP listener. When `ipv6_enabled` is false (default), creates an IPv4-only socket
+/// so clients cannot reach the API over IPv6 (GitLab #282 — avoids /64 address-rotation abuse).
+fn bind_api_listener(
+    bind: &str,
+    port: u16,
+    ipv6_enabled: bool,
+) -> Result<tokio::net::TcpListener, std::io::Error> {
+    use socket2::{Domain, Socket, Type};
+
+    let addr: SocketAddr = format!("{bind}:{port}")
+        .parse()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+
+    let domain = if ipv6_enabled {
+        match addr {
+            SocketAddr::V4(_) => Domain::IPV4,
+            SocketAddr::V6(_) => Domain::IPV6,
+        }
+    } else {
+        if addr.is_ipv6() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "IPv6 bind address requires API_IPV6_ENABLED=1",
+            ));
+        }
+        Domain::IPV4
+    };
+
+    let socket = Socket::new(domain, Type::STREAM, None)?;
+    socket.set_reuse_address(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(128)?;
+    socket.set_nonblocking(true)?;
+    tokio::net::TcpListener::from_std(socket.into())
+}
+
 pub async fn serve(
     pool: PgPool,
     lcd: LcdClient,
@@ -523,9 +526,13 @@ pub async fn serve(
     let app = build_router(state, &config);
 
     let addr = format!("{}:{}", config.api_bind, config.api_port);
-    tracing::info!("API server listening on {}", addr);
+    tracing::info!(
+        "API server listening on {} (ipv6_enabled={})",
+        addr,
+        config.api_ipv6_enabled
+    );
 
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    let listener = bind_api_listener(&config.api_bind, config.api_port, config.api_ipv6_enabled)?;
 
     axum::serve(
         listener,
@@ -597,62 +604,59 @@ mod cg_ticker_proptest {
 }
 
 #[cfg(test)]
-mod rate_limit_key_tests {
-    //! GitLab #282: the rate-limit key buckets IPv6 clients by their /64 prefix so a single /64
-    //! can't rotate addresses past the limit; IPv4 keys on the full address.
-    use super::{rate_limit_ip_key, PeerIpV6Slash64KeyExtractor};
-    use axum::extract::ConnectInfo;
-    use std::net::{IpAddr, SocketAddr};
-    use tower_governor::key_extractor::KeyExtractor;
+mod api_listener_tests {
+    //! GitLab #282: API listener is IPv4-only unless `API_IPV6_ENABLED=1`.
+    use super::bind_api_listener;
 
-    fn ip(s: &str) -> IpAddr {
-        s.parse().unwrap()
+    #[tokio::test]
+    async fn ipv4_bind_succeeds_when_ipv6_disabled() {
+        bind_api_listener("127.0.0.1", 0, false).expect("ipv4 bind");
     }
 
-    /// Run the real extractor against a request carrying `addr` as the socket peer.
-    fn extractor_key(addr: &str) -> IpAddr {
-        let sock: SocketAddr = addr.parse().unwrap();
+    #[test]
+    fn ipv6_bind_rejected_when_ipv6_disabled() {
+        let err = bind_api_listener("::1", 0, false).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    }
+}
+
+#[cfg(test)]
+mod rate_limit_key_tests {
+    //! GitLab #282: rate limit keys on socket peer IP; forwarded headers are not trusted.
+    use axum::extract::ConnectInfo;
+    use axum::http::HeaderValue;
+    use std::net::{IpAddr, SocketAddr};
+    use tower_governor::key_extractor::{KeyExtractor, PeerIpKeyExtractor};
+
+    fn extractor_key(peer: &str, xff: Option<&str>) -> IpAddr {
+        let sock: SocketAddr = peer.parse().unwrap();
         let mut req = axum::http::Request::new(());
         req.extensions_mut().insert(ConnectInfo(sock));
-        PeerIpV6Slash64KeyExtractor.extract(&req).unwrap()
+        if let Some(xff) = xff {
+            req.headers_mut().insert(
+                axum::http::header::FORWARDED,
+                HeaderValue::from_str(&format!("for={xff}")).unwrap(),
+            );
+            req.headers_mut().insert(
+                axum::http::header::HeaderName::from_static("x-forwarded-for"),
+                HeaderValue::from_str(xff).unwrap(),
+            );
+        }
+        PeerIpKeyExtractor.extract(&req).unwrap()
     }
 
     #[test]
-    fn ipv6_same_slash64_collapses_to_one_key() {
-        let a = rate_limit_ip_key(ip("2001:db8:abcd:1::1"));
-        let b = rate_limit_ip_key(ip("2001:db8:abcd:1:ffff:ffff:ffff:ffff"));
-        assert_eq!(a, b, "addresses in the same /64 must share a bucket");
-        assert_eq!(a, ip("2001:db8:abcd:1::"), "key is the /64 network prefix");
+    fn peer_ip_extractor_ignores_forwarded_headers() {
+        let peer = "203.0.113.7:40000";
+        let key = extractor_key(peer, Some("198.51.100.99"));
+        assert_eq!(key, "203.0.113.7".parse::<IpAddr>().unwrap());
     }
 
     #[test]
-    fn ipv6_different_slash64_stay_independent() {
+    fn peer_ip_extractor_keys_distinct_ipv4_peers() {
         assert_ne!(
-            rate_limit_ip_key(ip("2001:db8:abcd:1::1")),
-            rate_limit_ip_key(ip("2001:db8:abcd:2::1")),
+            extractor_key("203.0.113.7:1", None),
+            extractor_key("203.0.113.8:1", None),
         );
-    }
-
-    #[test]
-    fn ipv4_keys_on_the_full_address() {
-        let a = rate_limit_ip_key(ip("203.0.113.7"));
-        assert_eq!(a, ip("203.0.113.7"));
-        assert_ne!(a, rate_limit_ip_key(ip("203.0.113.8")));
-    }
-
-    #[test]
-    fn extractor_reads_connect_info_and_buckets_by_slash64() {
-        // two distinct peers in the same /64 -> identical extractor key
-        assert_eq!(
-            extractor_key("[2001:db8:abcd:1::1]:40000"),
-            extractor_key("[2001:db8:abcd:1::2]:51000"),
-        );
-        // different /64 -> distinct
-        assert_ne!(
-            extractor_key("[2001:db8:abcd:1::1]:40000"),
-            extractor_key("[2001:db8:abcd:9::1]:40000"),
-        );
-        // v4 keyed on the full address
-        assert_ne!(extractor_key("198.51.100.1:1"), extractor_key("198.51.100.2:1"));
     }
 }

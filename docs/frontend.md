@@ -522,6 +522,23 @@ Custom pair/token pickers use a **portaled** `<ul role="listbox">` positioned wi
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); keyboard listbox APG: [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
 
+### Pair search combobox (`PairSearchSelect`) — Trade / Limits {#pair-search-combobox}
+
+Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/trade/PairSearchSelect.tsx) instead of a full factory pair dropdown ([GitLab **#314**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/314)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query uses `sort=volume_24h&order=desc` (high-liquidity defaults). |
+| **Min query length** | ≥2 chars unless the query looks like a `terra1…` address ([`pairSearchQuery.ts`](../frontend-dapp/src/utils/pairSearchQuery.ts)). |
+| **Factory gate** | Results are filtered to factory-registered pairs (`factoryPairs` prop) so only routable pairs appear. |
+| **Degraded mode** | When the indexer errors, client-side substring filter on cached factory labels (`filterPairsByLocalSearch`). |
+| **Accessibility** | Input uses `role="combobox"` + portaled `listbox`; Arrow keys / Enter / Escape match portal listbox keyboard patterns. |
+| **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`. |
+
+Charts keeps its separate search + sort + `MenuSelect` layout (unchanged).
+
+**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
+
 ### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
 
 Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.ts`](../frontend-dapp/src/services/indexer/client.ts)). Before the UI renders stats, the response is normalized by [`traderProfilePayload.ts`](../frontend-dapp/src/services/indexer/traderProfilePayload.ts) so **arrays, `null` bodies, or partial objects** from a buggy proxy or indexer never reach the page as a “truthy” trader object (which previously could crash the route tree and strand users behind the route error UI — [GitLab #126](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)).
@@ -571,8 +588,9 @@ Readability for traders used to centralized exchanges ([GitLab **#149**](https:/
 | **`hybrid` badge** | Uppercase styling on the badge text; native **`title`** explains hybrid **AMM + limit order** execution and points integrators to **`docs/integrators.md`** for fee attribution across events. |
 | **Order ticket — type tabs** | **Limit** vs **Market** tabs on `/trade` (`TradeOrderTicket`). Market uses global slippage (`useDexStore`), optional **hybrid** Pattern C routing (indexer `POST /route/solve` when available, else pair `hybrid_simulation`), shows expected receive + min after slippage ([GitLab **#152**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)). |
 | **Order ticket — post-only limit preflight** | Before `place_limit_order`, the UI compares the typed price to the **book head** from `GET .../limit-book?limit=1` (best bid / best ask). Bids with price **≥ best ask** and asks with price **≤ best bid** are blocked with inline copy — pure client guard; the pair still inserts by book walk on-chain. Helpers: [`limitOrderNonCrossing.ts`](../frontend-dapp/src/utils/limitOrderNonCrossing.ts), hook [`useTradeBestBookPrices.ts`](../frontend-dapp/src/hooks/useTradeBestBookPrices.ts). The **`/limits` ladder panel** applies the same guard **per rung** and shows **`N of M rungs will cross the market…`** when any rung crosses ([#297](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/297)). Complements the **tape-reference** gate in [§ Trade page — limit order price field](#trade-page-limit-order-price) ([GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154)). |
+| **Market quote — route preview (#302)** | When a market amount is quoted, [`TradeMarketOrderPanel`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) shows a single **Route** row (`data-testid="trade-market-route-summary"`) inside `trade-market-quote`, using the same `computeSwapRouteDisplay` helper and indexer-op precedence as Swap ([#158](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/158)). Row renders only when `marketRouteLine` is truthy; multihop paths appear when hybrid quoting returns indexer `router_operations`. Agent checklist: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) (layout + this section for labeling).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) (layout + this section for labeling), [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) (swap + trade market route row).
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
@@ -923,15 +941,24 @@ The Swap page displays the effective fee after discount. When a connected wallet
 
 ### Swap page — MEV / submission posture {#swap-mev-posture}
 
-Retail traders must understand how swaps reach the chain ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), W10-C3). The **Settings** panel on `/` includes an informational card (**Transaction submission (MEV)**) alongside slippage, the direct **limit book leg** controls, and **Indexer route check**.
+This section documents how swaps reach the chain and the MEV/front-running risks traders should understand. It is **documentation only** — there is no MEV-protection setting in the dApp UI ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), [**#299**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)).
+
+#### How transactions are submitted
+
+All swaps and trades are signed in the connected wallet and broadcast to the **public** Terra Classic mempool via the wallet’s normal RPC/LCD path. This dApp does **not** operate a private RPC, bundle relay, or MEV-protection channel. There is no opt-in protected submission path in this build, and no MEV-protection toggle will be added without a real protected path wired end-to-end.
+
+#### MEV and front-running risks
+
+- **Public mempool exposure:** Once a signed transaction enters the public mempool, validators and searchers can observe it before inclusion. Large or predictable swaps may be sandwiched or front-run.
+- **Slippage tolerance is the on-chain guard:** **Slippage tolerance** (`max_spread` on pair/router messages) is the primary contract-level protection against sandwich and front-running losses. Keep it tight for large trades. The Swap Settings panel still exposes slippage presets and a **High slippage increases front-running risk** warning when tolerance exceeds 5%.
+- **No UI disclosure panel:** Per product decision ([#299](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)), MEV posture is **not** surfaced in the Swap or Trade UI — an informational card would imply a user-controllable setting that does not exist.
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Public mempool default** | All swaps are signed in the connected wallet and broadcast to the **public** Terra Classic mempool via the wallet’s normal RPC path. The dApp does **not** submit through a private relay, bundle, or Flashbots-style channel. |
-| **No cosmetic MEV toggle** | There is **no** MEV-protection checkbox in this build. Do not add a disabled toggle that implies protection exists elsewhere — use disclosure copy until a real protected path is wired end-to-end. |
-| **Slippage is the on-chain guard** | **Slippage tolerance** (`max_spread` on pair/router messages) is the primary contract-level protection against sandwich / front-running losses; the notice references the active Settings value. High slippage also shows the existing **front-running risk** warning above the MEV card. |
-| **Settings visibility** | The notice renders only when **Settings** is expanded (`data-testid="swap-mev-posture-notice"`), same surface as routing tools in the issue repro. |
-| **Copy single source** | Strings live in [`mevPosture.ts`](../frontend-dapp/src/utils/mevPosture.ts); UI in [`MevPostureNotice.tsx`](../frontend-dapp/src/components/swap/MevPostureNotice.tsx). |
+| **Public mempool default** | Wallet → public Terra Classic mempool; no private relay or bundle. |
+| **No MEV toggle** | Do not add a cosmetic or disabled “MEV protection” control in the UI. |
+| **Slippage is executable protection** | `max_spread` from Settings is enforced on-chain; see [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md). |
+| **Docs-only disclosure** | MEV risks live in this section and linked docs, not in Swap/Trade Settings. |
 
 Related: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md) (price impact / max spread) · [`docs/limit-orders.md`](./limit-orders.md) (hybrid routing disclosure — GitLab #111).
 

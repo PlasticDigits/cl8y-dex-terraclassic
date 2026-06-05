@@ -94,7 +94,7 @@ pub struct ListPairsQuery {
     pub q: Option<String>,
     /// Filter to pairs that include this token (exact CW20 contract or native denom)
     pub asset: Option<String>,
-    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h` (default `id`)
+    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `relevance` (default `relevance` when `q` is set, else `id`)
     pub sort: Option<String>,
     /// `asc` or `desc`. Default: `asc` for id/fee/created/symbol; `desc` for volume_24h
     pub order: Option<String>,
@@ -107,10 +107,11 @@ fn parse_pair_list_sort(s: Option<&str>) -> Result<db_pairs::PairListSort, (Stat
         Some("created") => Ok(db_pairs::PairListSort::Created),
         Some("symbol") => Ok(db_pairs::PairListSort::Symbol),
         Some("volume_24h") => Ok(db_pairs::PairListSort::Volume24h),
+        Some("relevance") => Ok(db_pairs::PairListSort::Relevance),
         Some(other) => Err((
             StatusCode::BAD_REQUEST,
             format!(
-                "Invalid sort '{}'. Use id, fee, created, symbol, or volume_24h",
+                "Invalid sort '{}'. Use id, fee, created, symbol, volume_24h, or relevance",
                 other
             ),
         )),
@@ -122,7 +123,10 @@ fn parse_pair_list_order(
     order: Option<&str>,
 ) -> Result<bool, (StatusCode, String)> {
     match order.map(str::trim).filter(|x| !x.is_empty()) {
-        None => Ok(matches!(sort, db_pairs::PairListSort::Volume24h)),
+        None => Ok(matches!(
+            sort,
+            db_pairs::PairListSort::Volume24h | db_pairs::PairListSort::Relevance
+        )),
         Some(o) if o.eq_ignore_ascii_case("asc") => Ok(false),
         Some(o) if o.eq_ignore_ascii_case("desc") => Ok(true),
         Some(o) => Err((
@@ -175,7 +179,11 @@ pub async fn list_pairs(
     let asset_trimmed = q.asset.as_ref().map(|s| s.trim().to_string());
     let asset_ref = asset_trimmed.as_deref().filter(|s| !s.is_empty());
 
-    let sort = parse_pair_list_sort(q.sort.as_deref())?;
+    let sort = match q.sort.as_deref().map(str::trim).filter(|x| !x.is_empty()) {
+        Some(raw) => parse_pair_list_sort(Some(raw))?,
+        None if q_ref.is_some() => db_pairs::PairListSort::Relevance,
+        None => db_pairs::PairListSort::Id,
+    };
     let sort_desc = parse_pair_list_order(sort, q.order.as_deref())?;
 
     let total = db_pairs::count_pairs_filtered(&state.pool, q_ref, asset_ref)

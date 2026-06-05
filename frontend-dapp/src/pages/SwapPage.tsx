@@ -55,8 +55,6 @@ import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/i
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
-import { MevPostureNotice } from '@/components/swap/MevPostureNotice'
-
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   return_amount: string
@@ -861,7 +859,6 @@ export default function SwapPage() {
                   </p>
                 )}
               </div>
-              <MevPostureNotice slippageTolerancePct={slippageTolerance} />
               {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
                 <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
                   <p className="label-neo mb-2">Advanced — direct swap: limit book leg</p>
