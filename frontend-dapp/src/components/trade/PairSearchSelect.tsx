@@ -124,25 +124,45 @@ export function PairSearchSelect({
 
   const options: PairSearchOption[] = useMemo(() => {
     if (factoryPairs.length === 0) return []
+
+    let result: PairSearchOption[]
     if (pairsQuery.isError) {
-      return fallbackAddresses.map((addr) => {
+      result = fallbackAddresses.map((addr) => {
         const factory = factoryPairs.find((p) => p.contract_addr === addr)
         return factory ? factoryPairToOption(factory, variant) : { value: addr, label: addr }
       })
-    }
-    if (!pairsQuery.data) {
-      if (!debouncedSearch) {
-        return factoryPairs.slice(0, PAIR_SEARCH_RESULT_LIMIT).map((p) => factoryPairToOption(p, variant))
+    } else if (!pairsQuery.data) {
+      result = []
+    } else {
+      const fromIndexer = pairsQuery.data.items
+        .filter((p) => factorySet.has(p.pair_address))
+        .map((p) => indexerPairToOption(p, variant))
+      if (fromIndexer.length > 0) {
+        result = fromIndexer
+      } else if (debouncedSearch) {
+        result = []
+      } else {
+        result = factoryPairs.slice(0, PAIR_SEARCH_RESULT_LIMIT).map((p) => factoryPairToOption(p, variant))
       }
-      return []
     }
-    const fromIndexer = pairsQuery.data.items
-      .filter((p) => factorySet.has(p.pair_address))
-      .map((p) => indexerPairToOption(p, variant))
-    if (fromIndexer.length > 0) return fromIndexer
-    if (debouncedSearch) return []
-    return factoryPairs.slice(0, PAIR_SEARCH_RESULT_LIMIT).map((p) => factoryPairToOption(p, variant))
-  }, [factoryPairs, pairsQuery.isError, pairsQuery.data, fallbackAddresses, factorySet, variant, debouncedSearch])
+
+    if (value && factorySet.has(value) && !result.some((o) => o.value === value)) {
+      const factory = factoryPairs.find((p) => p.contract_addr === value)
+      if (factory) {
+        result = [factoryPairToOption(factory, variant), ...result]
+      }
+    }
+    return result
+  }, [
+    factoryPairs,
+    pairsQuery.isError,
+    pairsQuery.data,
+    fallbackAddresses,
+    factorySet,
+    variant,
+    debouncedSearch,
+    value,
+  ])
 
   const canOpen = factoryPairs.length > 0 && !disabled
   const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value])
@@ -275,7 +295,8 @@ export function PairSearchSelect({
             aria-busy={pairsQuery.isLoading || undefined}
             style={dropdownStyle}
           >
-            {pairsQuery.isLoading && options.length === 0 ? (
+            {(pairsQuery.isLoading || (useIndexerSearch && !pairsQuery.data && !pairsQuery.isError)) &&
+            options.length === 0 ? (
               <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
                 Searching…
               </li>
