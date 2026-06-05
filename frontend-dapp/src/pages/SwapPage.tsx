@@ -49,7 +49,11 @@ import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
-import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
+import {
+  computeSwapRouteDisplay,
+  deriveSwapSubmitRouteSource,
+  SWAP_CLIENT_BFS_FALLBACK_COPY,
+} from '@/utils/swapRouteDisplay'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
@@ -709,6 +713,21 @@ export default function SwapPage() {
     ]
   )
 
+  const swapSubmitRouteSource = useMemo(
+    () =>
+      deriveSwapSubmitRouteSource({
+        isWrapOrUnwrap: !!isWrapOrUnwrap,
+        nativeRouteInfo,
+        indexerOperations: simData?.indexerOperations,
+        clientRoute: route,
+        isDirect,
+        isMultiHop,
+      }),
+    [isWrapOrUnwrap, nativeRouteInfo, simData?.indexerOperations, route, isDirect, isMultiHop]
+  )
+
+  const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
+
   const insufficientBalance =
     !!inputAmount &&
     parseFloat(inputAmount) > 0 &&
@@ -1264,6 +1283,15 @@ export default function SwapPage() {
                             ? 'wrap'
                             : 'unwrap'}{' '}
                         your tokens
+                      </span>
+                    )}
+                    {showClientBfsFallbackLabel && (
+                      <span
+                        data-testid="swap-route-source-client-fallback"
+                        className="block mt-0.5 text-[10px] font-sans leading-snug"
+                        style={{ color: 'var(--color-warning, #f59e0b)' }}
+                      >
+                        {SWAP_CLIENT_BFS_FALLBACK_COPY}
                       </span>
                     )}
                   </div>

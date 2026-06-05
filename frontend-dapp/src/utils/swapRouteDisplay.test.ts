@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeSwapRouteDisplay,
+  deriveSwapSubmitRouteSource,
   tokenPathFromSwapOperations,
   tokenPathForNativeSupportedRoute,
 } from './swapRouteDisplay'
@@ -58,6 +59,46 @@ describe('swapRouteDisplay', () => {
       displaySymbol: sym,
     })
     expect(line).toBe(`${sym(from)} → ${sym(mid)} → ${sym(to)}`)
+  })
+
+  it('deriveSwapSubmitRouteSource matches swapMutation branches (GitLab #329)', () => {
+    const from = 'terra1aa0000000000000000000000000000000001'
+    const mid = 'terra1bb0000000000000000000000000000000001'
+    const to = 'terra1cc0000000000000000000000000000000001'
+    const client: SwapOperation[] = [op(from, mid), op(mid, to)]
+
+    expect(
+      deriveSwapSubmitRouteSource({
+        isWrapOrUnwrap: false,
+        nativeRouteInfo: null,
+        indexerOperations: client,
+        clientRoute: client,
+        isDirect: false,
+        isMultiHop: true,
+      })
+    ).toBe('indexer')
+
+    expect(
+      deriveSwapSubmitRouteSource({
+        isWrapOrUnwrap: false,
+        nativeRouteInfo: null,
+        indexerOperations: undefined,
+        clientRoute: client,
+        isDirect: false,
+        isMultiHop: true,
+      })
+    ).toBe('client_bfs')
+
+    expect(
+      deriveSwapSubmitRouteSource({
+        isWrapOrUnwrap: false,
+        nativeRouteInfo: null,
+        indexerOperations: undefined,
+        clientRoute: [op(from, to)],
+        isDirect: true,
+        isMultiHop: false,
+      })
+    ).toBe('direct')
   })
 
   it('tokenPathForNativeSupportedRoute prepends native input when wrapping', () => {

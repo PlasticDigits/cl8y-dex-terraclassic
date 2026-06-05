@@ -20,6 +20,7 @@ Parent: [GitLab **#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic
 | Schema probe | **`make qa-verify-deploy`** (also runs inside **`make start-qa`** after deploy) |
 | Probes | LCD `is_paused`, `expired_limit_refund` on stamp/factory pair |
 | Stamp | Fail if **`.qa-deploy-stamp`** `git_sha` ≠ **`git rev-parse --short HEAD`** |
+| Pair-creation fee on deploy | **`factory_create_pair`** in **`scripts/deploy-dex-local.sh`** reads on-chain `pair_creation_fee_uluna` and attaches `--amount` on every `create_pair` ([#318](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/318)); regression grep in **`scripts/qa/verify-issue-276.sh`**. **`scripts/e2e-seed-wrap-pairs.sh`** attaches the same fee when non-zero. |
 
 On failure: non-zero exit + copy pointing to the right fix:
 
