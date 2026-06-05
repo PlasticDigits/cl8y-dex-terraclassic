@@ -624,6 +624,7 @@ pub async fn build_test_app_with_price_and_config(
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
+        factory_address: Some(config.factory_address.clone()),
     };
     build_router(state, &config)
 }

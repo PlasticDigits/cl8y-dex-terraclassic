@@ -53,6 +53,12 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   if (/assert_not_paused|contract is paused/i.test(inner)) {
     return 'This pool is currently paused by the operator. Try again later or pick a different pair.'
   }
+  if (/Trading blacklist/i.test(inner)) {
+    return (
+      'This action was blocked by the protocol trading blacklist (compliance or incident response). ' +
+      'Contact support if you believe this is an error.'
+    )
+  }
   if (/\bUnauthorized\b/i.test(inner)) {
     return 'You do not have permission for this action.'
   }

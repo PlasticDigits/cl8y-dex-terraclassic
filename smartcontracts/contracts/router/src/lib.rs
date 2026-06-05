@@ -19,6 +19,7 @@
 //! in `Cw20HookMsg::Swap` so the pair can look up the correct fee
 //! discount even though the CW20 Send originates from the router contract.
 
+pub mod blacklist_guard;
 pub mod contract;
 pub mod error;
 pub mod msg;

@@ -26,6 +26,8 @@ export interface LimitOrderMyPlacementsPanelProps {
   isWalletConnected: boolean
   /** When true, on-chain claim is rejected — disable Claim refund (L6 / GitLab #120). */
   isPairPaused: boolean
+  /** When true, disable claims without pair-paused copy (e.g. trading blacklist). */
+  claimsDisabled?: boolean
   openWalletModal: () => void
   /** When set, the active row for this `order_id` is visually emphasized (trade ticket "View order" — GitLab #161). */
   highlightOrderId?: number | null
@@ -40,6 +42,7 @@ export function LimitOrderMyPlacementsPanel({
   isLoading,
   isWalletConnected,
   isPairPaused,
+  claimsDisabled = false,
   openWalletModal,
   highlightOrderId = null,
 }: LimitOrderMyPlacementsPanelProps) {
@@ -52,14 +55,15 @@ export function LimitOrderMyPlacementsPanel({
   const rowClass = compact ? 'text-[10px] font-mono' : 'text-xs font-mono'
   const dtPrefix = compact ? 'trade' : 'limits-page'
 
-  const claimAllDisabled = !isWalletConnected || isPairPaused || claimMutation.isPending || parkedExpired.length < 2
+  const claimsBlocked = isPairPaused || claimsDisabled
+  const claimAllDisabled = !isWalletConnected || claimsBlocked || claimMutation.isPending || parkedExpired.length < 2
 
   const onClaimAllParked = async () => {
     if (!isWalletConnected) {
       openWalletModal()
       return
     }
-    if (isPairPaused || parkedExpired.length < 2) return
+    if (claimsBlocked || parkedExpired.length < 2) return
 
     const orderIds = normalizeExpiredClaimOrderIds(parkedExpired.map((r) => r.order_id))
     const chunks = chunkExpiredClaimOrderIds(orderIds)
@@ -149,9 +153,11 @@ export function LimitOrderMyPlacementsPanel({
                       ? 'Connect to claim all'
                       : isPairPaused
                         ? 'Unavailable (pair paused)'
-                        : claimMutation.isPending
-                          ? 'Claiming…'
-                          : `Claim all parked (${parkedExpired.length})`}
+                        : claimsDisabled
+                          ? 'Trading restricted'
+                          : claimMutation.isPending
+                            ? 'Claiming…'
+                            : `Claim all parked (${parkedExpired.length})`}
                   </button>
                 )}
               </div>
@@ -162,7 +168,7 @@ export function LimitOrderMyPlacementsPanel({
                   const rem = formatRemainingEscrowHuman(r, pair)
                   const claiming =
                     claimMutation.isPending && isOrderIdInExpiredClaimVariables(r.order_id, claimMutation.variables)
-                  const claimDisabled = !isWalletConnected || claiming || isPairPaused || claimMutation.isPending
+                  const claimDisabled = !isWalletConnected || claiming || claimsBlocked || claimMutation.isPending
                   return (
                     <li
                       key={r.id}
@@ -187,16 +193,18 @@ export function LimitOrderMyPlacementsPanel({
                         disabled={claimDisabled}
                         onClick={() => {
                           if (!isWalletConnected) openWalletModal()
-                          else if (!isPairPaused) claimMutation.mutate(r.order_id)
+                          else if (!claimsBlocked) claimMutation.mutate(r.order_id)
                         }}
                       >
                         {!isWalletConnected
                           ? 'Connect wallet to claim'
                           : isPairPaused
                             ? 'Unavailable (pair paused)'
-                            : claiming
-                              ? 'Claiming…'
-                              : 'Claim refund'}
+                            : claimsDisabled
+                              ? 'Trading restricted'
+                              : claiming
+                                ? 'Claiming…'
+                                : 'Claim refund'}
                       </button>
                     </li>
                   )

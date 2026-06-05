@@ -5,6 +5,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
+use crate::blacklist_guard;
 use crate::error::ContractError;
 use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
@@ -210,6 +211,14 @@ fn execute_swap_operations(
     }
 
     let factory = FACTORY.load(deps.storage)?;
+    blacklist_guard::assert_router_swap_not_blacklisted(
+        deps.as_ref(),
+        &factory,
+        &sender,
+        &input_token,
+        &operations,
+    )?;
+
     let recipient = match to {
         Some(addr) => deps.api.addr_validate(&addr)?,
         None => sender.clone(),

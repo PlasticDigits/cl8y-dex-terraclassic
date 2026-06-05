@@ -100,6 +100,22 @@ This lazy approach avoids the need for a background process or cron job to monit
 | `RemoveTrustedRouter`  | Governance            |
 | `UpdateConfig`         | Governance            |
 
+## Trading blacklist (compliance / incident response)
+
+Governance on the **factory** can block protocol interaction without bricking unrelated users' balances permanently. State lives in `BLACKLISTED_WALLETS`, `BLACKLISTED_TOKENS`, and `BLACKLISTED_PAIRS` (see [ADR 0003](adr/0003-governance-trading-blacklist.md), GitLab [#308](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/308)).
+
+| Dimension | Blocks |
+|-----------|--------|
+| Wallet | Swaps, hybrid swaps, provide/withdraw liquidity, limit place/cancel/claim/update, router multihop for that address |
+| Token | Any trade on any pair that includes the CW20 (both directions) |
+| Pair | All user actions on that pair contract |
+
+**Not the same as Tier 255:** fee-discount tier 255 only removes discounts; trading continues. Use factory blacklist when trading must halt.
+
+**Recovery:** `UnblacklistWallet`, `UnblacklistToken`, or `UnblacklistPair` restores normal operation. Escrow and LP positions remain on-chain; only gated execute paths are rejected.
+
+**Queries:** `BlacklistCheck { wallet, tokens, pair, pairs }` on the factory. Indexer proxy: `GET /api/v1/compliance/blacklist-check`. dApp disables CTAs when blocked.
+
 ## Pair Contract Auth
 
 | Action              | Authorized Caller       |

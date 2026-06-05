@@ -55,6 +55,7 @@ import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/i
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   return_amount: string
@@ -506,6 +507,43 @@ export default function SwapPage() {
     refetchInterval: 10_000,
   })
 
+  const swapBlacklistProbe = useMemo(() => {
+    const routeOps = route ?? nativeRouteInfo?.operations ?? simQuery.data?.indexerOperations
+    const tokens = new Set<string>()
+    if (fromToken?.startsWith('terra1')) tokens.add(fromToken)
+    if (toToken?.startsWith('terra1')) tokens.add(toToken)
+
+    const addresses = new Set<string>()
+    if (routeOps && routeOps.length > 0) {
+      for (const op of routeOps) {
+        const offer = assetInfoLabel(op.terra_swap.offer_asset_info)
+        const ask = assetInfoLabel(op.terra_swap.ask_asset_info)
+        if (offer.startsWith('terra1')) tokens.add(offer)
+        if (ask.startsWith('terra1')) tokens.add(ask)
+        const matched = pairs.find((p) => {
+          const a = assetInfoLabel(p.asset_infos[0])
+          const b = assetInfoLabel(p.asset_infos[1])
+          return (a === offer && b === ask) || (b === offer && a === ask)
+        })
+        if (matched?.contract_addr.startsWith('terra1')) {
+          addresses.add(matched.contract_addr)
+        }
+      }
+    } else if (directPair?.contract_addr.startsWith('terra1')) {
+      addresses.add(directPair.contract_addr)
+    }
+    const pairAddresses = [...addresses]
+    return { tokens: [...tokens], pairAddresses }
+  }, [route, nativeRouteInfo, simQuery.data?.indexerOperations, directPair, pairs, fromToken, toToken])
+
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    tokens: swapBlacklistProbe.tokens,
+    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
+    pairs: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
+    enabled: isWalletConnected,
+  })
+
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
   const swapMutation = useTerraBroadcastMutation({
@@ -687,6 +725,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (isWrapPaused) {
     buttonText = 'Wrapping is Temporarily Paused'
+    buttonDisabled = true
+  } else if (tradingBlacklist.blocked) {
+    buttonText = 'Trading restricted'
     buttonDisabled = true
   } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
     buttonText = 'Enter Amount'
@@ -1330,6 +1371,11 @@ export default function SwapPage() {
                 </a>{' '}
                 for integrator semantics.
               </p>
+            </div>
+          )}
+          {tradingBlacklist.blocked && tradingBlacklist.message && (
+            <div className="alert-error mb-3 text-xs" role="alert">
+              <p>{tradingBlacklist.message}</p>
             </div>
           )}
           {/* Swap Button */}

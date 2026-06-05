@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
@@ -91,6 +92,15 @@ const PoolCard = memo(function PoolCard({
 
   const tokenA = assetInfoLabel(pair.asset_infos[0])
   const tokenB = assetInfoLabel(pair.asset_infos[1])
+  const token0Addr = 'token' in pair.asset_infos[0] ? pair.asset_infos[0].token.contract_addr : null
+  const token1Addr = 'token' in pair.asset_infos[1] ? pair.asset_infos[1].token.contract_addr : null
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    token0: token0Addr,
+    token1: token1Addr,
+    pairAddress: pair.contract_addr,
+    enabled: !!address,
+  })
   const displayA = useTokenDisplayInfo(pair.asset_infos[0])
   const displayB = useTokenDisplayInfo(pair.asset_infos[1])
 
@@ -535,6 +545,11 @@ const PoolCard = memo(function PoolCard({
 
       {expanded === 'add' && (
         <div className="card-neo space-y-3 animate-fade-in-up">
+          {tradingBlacklist.blocked && tradingBlacklist.message && (
+            <p className="alert-error text-xs" role="alert">
+              {tradingBlacklist.message}
+            </p>
+          )}
           <div>
             <label className="label-neo">
               Asset A Amount
@@ -684,7 +699,8 @@ const PoolCard = memo(function PoolCard({
               !amountB ||
               addMutation.isPending ||
               insufficientAdd ||
-              !provideLiquidityNativeGasGate.canAddLiquidity
+              !provideLiquidityNativeGasGate.canAddLiquidity ||
+              tradingBlacklist.blocked
             }
             className={`w-full py-2.5 font-semibold text-sm ${
               !address ||
@@ -692,13 +708,16 @@ const PoolCard = memo(function PoolCard({
               !amountB ||
               addMutation.isPending ||
               insufficientAdd ||
-              !provideLiquidityNativeGasGate.canAddLiquidity
+              !provideLiquidityNativeGasGate.canAddLiquidity ||
+              tradingBlacklist.blocked
                 ? 'btn-disabled !w-full'
                 : 'btn-primary !w-full'
             }`}
           >
             {!address
               ? 'Connect Wallet'
+              : tradingBlacklist.blocked
+                ? 'Trading restricted'
               : insufficientAdd
                 ? 'Insufficient balance'
                 : !provideLiquidityNativeGasGate.canAddLiquidity && provideLiquidityNativeGasGate.tone === 'warning'
@@ -724,6 +743,11 @@ const PoolCard = memo(function PoolCard({
 
       {expanded === 'remove' && (
         <div className="card-neo space-y-3 animate-fade-in-up">
+          {tradingBlacklist.blocked && tradingBlacklist.message && (
+            <p className="alert-error text-xs" role="alert">
+              {tradingBlacklist.message}
+            </p>
+          )}
           <div>
             <div className="flex items-center justify-between">
               <label className="label-neo" htmlFor={lpTokenAmountInputId}>
@@ -815,15 +839,19 @@ const PoolCard = memo(function PoolCard({
               sounds.playButtonPress()
               removeMutation.mutate()
             }}
-            disabled={!address || !lpAmount || insufficientLp || removeMutation.isPending}
+            disabled={
+              !address || !lpAmount || insufficientLp || removeMutation.isPending || tradingBlacklist.blocked
+            }
             className={`w-full py-2.5 font-semibold text-sm ${
-              !address || !lpAmount || insufficientLp || removeMutation.isPending
+              !address || !lpAmount || insufficientLp || removeMutation.isPending || tradingBlacklist.blocked
                 ? 'btn-disabled !w-full'
                 : 'btn-primary !w-full'
             }`}
           >
             {!address
               ? 'Connect Wallet'
+              : tradingBlacklist.blocked
+                ? 'Trading restricted'
               : insufficientLp
                 ? 'Insufficient LP Balance'
                 : terraBroadcastPendingButtonLabel(

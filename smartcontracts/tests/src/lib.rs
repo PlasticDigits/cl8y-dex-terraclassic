@@ -5,6 +5,8 @@ mod adversarial_token;
 mod mock_failing_hook;
 
 #[cfg(test)]
+mod blacklist_tests;
+#[cfg(test)]
 mod limit_order_tests;
 
 #[cfg(test)]

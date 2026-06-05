@@ -3,6 +3,7 @@
 
 mod aggregator_snapshot;
 mod cg;
+mod compliance;
 mod cmc;
 mod errors;
 mod listing_timestamps;
@@ -64,6 +65,8 @@ pub struct AppState {
     pub orderbook_cache: orderbook_sim::OrderbookCache,
     /// Set when `ROUTER_ADDRESS` is configured (LCD simulation in route solver).
     pub router_address: Option<String>,
+    /// Factory contract for on-chain governance queries (blacklist, etc.).
+    pub factory_address: Option<String>,
 }
 
 pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
@@ -394,6 +397,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
 
     let api_router = Router::new()
         .route("/health", get(health))
+        .route(
+            "/api/v1/compliance/blacklist-check",
+            get(compliance::blacklist_check),
+        )
         .route("/api/v1/pairs", get(pairs::list_pairs))
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
         .route("/api/v1/pairs/{addr}/candles", get(pairs::get_pair_candles))
@@ -515,6 +522,7 @@ pub async fn serve(
     ustc_price: SharedPrice,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router_address = config.router_address.clone();
+    let factory_address = Some(config.factory_address.clone());
     let state = AppState {
         pool,
         lcd,
@@ -522,6 +530,7 @@ pub async fn serve(
         ticker_map_cache: TickerMapCache::default(),
         orderbook_cache: orderbook_sim::OrderbookCache::default(),
         router_address,
+        factory_address,
     };
     let app = build_router(state, &config);
 
