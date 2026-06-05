@@ -5,7 +5,7 @@
 //! | Field | Meaning |
 //! |-------|---------|
 //! | **Cadence** | Target interval between full snapshot cycles — config `book_snapshot_interval_ms` (default [`BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS`]). |
-//! | **Max staleness** | Wall-clock TTL beyond which Phase 1c should treat mirror rows as stale and **degrade** (fall back to LCD or mark quote degraded): [`BOOK_SNAPSHOT_MAX_STALENESS_MS`] = cadence × [`BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES`] (tolerates one missed cycle). |
+//! | **Max staleness** | Wall-clock TTL beyond which Phase 1c should treat mirror rows as stale and **degrade** (fall back to LCD or mark quote degraded): [`book_snapshot_max_staleness_ms`] (cadence) = cadence × [`BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES`] (tolerates one missed cycle). At default cadence use [`BOOK_SNAPSHOT_MAX_STALENESS_MS`]. |
 //! | **Block height** | Each cycle stamps the same `block_height` on reserves + resting rows when LCD returns latest height; Phase 1c can reason about block lag vs chain head. |
 //!
 //! **Degrade-not-error:** missing snapshot (`get_pair_reserves` → `None`), empty book, or stale `snapshot_at` must not hard-fail the solver — Phase 1c falls back per pair/hop.
@@ -37,12 +37,11 @@ type BoxError = Box<dyn std::error::Error + Send + Sync>;
 /// Default snapshot cadence when `BOOK_SNAPSHOT_INTERVAL_MS` is unset (10s).
 pub const BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS: u64 = 10_000;
 
-/// Staleness TTL = cadence × this factor (2 → one missed cycle tolerated).
-pub const BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES: u64 = 2;
+pub use crate::config::BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES;
 
-/// Max wall-clock staleness at default cadence; Phase 1c imports this constant.
+/// Max wall-clock staleness at default cadence; equals [`book_snapshot_max_staleness_ms`] with default interval.
 pub const BOOK_SNAPSHOT_MAX_STALENESS_MS: u64 =
-    BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS * BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES;
+    crate::config::book_snapshot_max_staleness_ms(BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS);
 
 /// Per-pair fixed LCD smart queries: `pool`, `get_fee_config`, `order_book_head` (bid), `order_book_head` (ask).
 pub const BOOK_SNAPSHOT_LCD_FIXED_PER_PAIR: usize = 4;
@@ -57,11 +56,7 @@ pub fn book_snapshot_lcd_budget(pair_count: usize, total_resting_orders: usize) 
         + total_resting_orders
 }
 
-pub async fn run_book_snapshot_loop(
-    pool: PgPool,
-    lcd: LcdClient,
-    snapshot_interval_ms: u64,
-) {
+pub async fn run_book_snapshot_loop(pool: PgPool, lcd: LcdClient, snapshot_interval_ms: u64) {
     let interval = Duration::from_millis(snapshot_interval_ms);
 
     loop {
@@ -112,9 +107,7 @@ pub async fn snapshot_single_pair(
 ) -> Result<(), BoxError> {
     let addr = &pair.contract_address;
 
-    let pool_resp: PoolResponse = lcd
-        .query_contract(addr, &json!({ "pool": {} }))
-        .await?;
+    let pool_resp: PoolResponse = lcd.query_contract(addr, &json!({ "pool": {} })).await?;
     let reserve_0 = parse_uint_amount(&pool_resp.assets[0].amount, "reserve_0")?;
     let reserve_1 = parse_uint_amount(&pool_resp.assets[1].amount, "reserve_1")?;
 
@@ -123,8 +116,15 @@ pub async fn snapshot_single_pair(
         .await?;
     let fee_bps = fee_resp.fee_config.fee_bps as i16;
 
+    let mut orders = Vec::new();
+    for side in ["bid", "ask"] {
+        let side_orders = walk_resting_book_side(lcd, addr, side).await?;
+        orders.extend(side_orders);
+    }
+
+    let mut tx = pool.begin().await?;
     pair_reserves::upsert_pair_reserves(
-        pool,
+        &mut *tx,
         pair.id,
         &reserve_0,
         &reserve_1,
@@ -132,14 +132,9 @@ pub async fn snapshot_single_pair(
         block_height,
     )
     .await?;
-
-    let mut orders = Vec::new();
-    for side in ["bid", "ask"] {
-        let side_orders = walk_resting_book_side(lcd, addr, side).await?;
-        orders.extend(side_orders);
-    }
-
-    resting_orders::replace_pair_resting_orders(pool, pair.id, block_height, &orders).await?;
+    resting_orders::replace_pair_resting_orders_in_tx(&mut tx, pair.id, block_height, &orders)
+        .await?;
+    tx.commit().await?;
 
     Ok(())
 }
@@ -256,7 +251,8 @@ mod tests {
         assert!(BOOK_SNAPSHOT_MAX_STALENESS_MS > 0);
         assert_eq!(
             BOOK_SNAPSHOT_MAX_STALENESS_MS,
-            BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS * BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES
+            crate::config::book_snapshot_max_staleness_ms(BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS)
         );
+        assert_eq!(crate::config::book_snapshot_max_staleness_ms(5_000), 10_000);
     }
 }

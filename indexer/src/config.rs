@@ -34,6 +34,14 @@ fn normalized_lcd_url_list(s: &str) -> String {
         .join(",")
 }
 
+/// Staleness TTL multiplier for mirrored book/reserves (one missed snapshot cycle tolerated).
+pub const BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES: u64 = 2;
+
+/// Wall-clock staleness TTL for a given snapshot cadence (Phase 1c consumers).
+pub const fn book_snapshot_max_staleness_ms(cadence_ms: u64) -> u64 {
+    cadence_ms.saturating_mul(BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES)
+}
+
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error(
@@ -216,6 +224,11 @@ impl Config {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(2000),
         })
+    }
+
+    /// Mirror staleness TTL derived from the configured snapshot cadence.
+    pub fn book_snapshot_max_staleness_ms(&self) -> u64 {
+        book_snapshot_max_staleness_ms(self.book_snapshot_interval_ms)
     }
 }
 
