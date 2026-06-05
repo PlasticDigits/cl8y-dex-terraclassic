@@ -72,9 +72,16 @@ def bootstrap_top_up_amounts(
     """One-shot top-up when either reserve is below *floor_per_side*."""
     if reserve0 >= floor_per_side and reserve1 >= floor_per_side:
         return None
-    # Bring the thinner side up toward target while preserving the pool ratio.
     if reserve0 <= 0 or reserve1 <= 0:
         return None
+    # Skewed factory pairs (e.g. ONYX/CORAL 1B vs 100B) often have only one leg
+    # under the floor; proportional scaling to target then needs far more of the
+    # thick token than test1 holds (~1e12 minted). Hub deepen / LP workers handle those.
+    below0 = reserve0 < floor_per_side
+    below1 = reserve1 < floor_per_side
+    if below0 != below1:
+        return None
+    # Bring both sides up toward target while preserving the pool ratio.
     scale0 = (target_per_side * 1_000_000) // reserve0 if reserve0 < floor_per_side else 0
     scale1 = (target_per_side * 1_000_000) // reserve1 if reserve1 < floor_per_side else 0
     scale = max(scale0, scale1)
