@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { filterPairsByLocalSearch, isPairSearchQueryReady } from '@/utils/pairSearchQuery'
+import type { PairInfo } from '@/types'
+import {
+  filterFactoryPairsByLocalSearch,
+  filterPairsByLocalSearch,
+  isPairSearchQueryReady,
+  parsePairSymbolQueryTokens,
+  pairInfoSearchHaystack,
+} from '@/utils/pairSearchQuery'
 
 describe('isPairSearchQueryReady', () => {
   it('allows empty query for default high-liquidity list', () => {
@@ -11,6 +18,67 @@ describe('isPairSearchQueryReady', () => {
     expect(isPairSearchQueryReady('L')).toBe(false)
     expect(isPairSearchQueryReady('LU')).toBe(true)
     expect(isPairSearchQueryReady('terra1abc123456789012345678')).toBe(true)
+  })
+})
+
+describe('parsePairSymbolQueryTokens', () => {
+  it('splits space- and slash-separated pair symbols', () => {
+    expect(parsePairSymbolQueryTokens('LUNC USTC')).toEqual(['lunc', 'ustc'])
+    expect(parsePairSymbolQueryTokens('LUNC/USTC')).toEqual(['lunc', 'ustc'])
+  })
+
+  it('returns null for single-token queries', () => {
+    expect(parsePairSymbolQueryTokens('LUNC')).toBeNull()
+  })
+})
+
+const emberCoralPair: PairInfo = {
+  contract_addr: 'terra1pair0000000000000000000000000000000001',
+  liquidity_token: 'terra1lp',
+  asset_infos: [{ token: { contract_addr: 'EMBER' } }, { token: { contract_addr: 'CORAL' } }],
+}
+
+const luncUstcPair: PairInfo = {
+  contract_addr: 'terra1pair0000000000000000000000000000000002',
+  liquidity_token: 'terra1lp2',
+  asset_infos: [{ token: { contract_addr: 'LUNC' } }, { token: { contract_addr: 'USTC' } }],
+}
+
+describe('pairInfoSearchHaystack', () => {
+  it('includes display symbols even when menu label uses shortened addresses', () => {
+    const haystack = pairInfoSearchHaystack(emberCoralPair)
+    expect(haystack).toContain('ember')
+    expect(haystack).toContain('coral')
+  })
+})
+
+describe('filterFactoryPairsByLocalSearch', () => {
+  const pairs = [emberCoralPair, luncUstcPair]
+
+  it('returns first N pairs when query is empty', () => {
+    expect(filterFactoryPairsByLocalSearch(pairs, '', 1).map((p) => p.contract_addr)).toEqual([
+      emberCoralPair.contract_addr,
+    ])
+  })
+
+  it('filters by token symbol substring', () => {
+    expect(filterFactoryPairsByLocalSearch(pairs, 'lunc', 10).map((p) => p.contract_addr)).toEqual([
+      luncUstcPair.contract_addr,
+    ])
+  })
+
+  it('matches two-token pair symbol queries', () => {
+    expect(filterFactoryPairsByLocalSearch(pairs, 'EMBER CORAL', 10).map((p) => p.contract_addr)).toEqual([
+      emberCoralPair.contract_addr,
+    ])
+    expect(filterFactoryPairsByLocalSearch(pairs, 'CORAL/EMBER', 10).map((p) => p.contract_addr)).toEqual([
+      emberCoralPair.contract_addr,
+    ])
+  })
+
+  it('matches pair contract address', () => {
+    const addr = emberCoralPair.contract_addr
+    expect(filterFactoryPairsByLocalSearch(pairs, addr, 10)).toHaveLength(1)
   })
 })
 
