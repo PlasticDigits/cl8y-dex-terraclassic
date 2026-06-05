@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
@@ -34,6 +35,8 @@ import {
 } from '@/types'
 import { sounds } from '@/lib/sounds'
 import { FeeDisplay, TxResultAlert, TokenSelect, Spinner, RetryError } from '@/components/ui'
+import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
@@ -507,7 +510,7 @@ export default function SwapPage() {
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
-  const swapMutation = useMutation({
+  const swapMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
       const maxSpread = (slippageTolerance / 100).toString()
@@ -706,7 +709,7 @@ export default function SwapPage() {
     buttonText = 'Calculating...'
     buttonDisabled = true
   } else if (swapMutation.isPending) {
-    buttonText = 'Swapping...'
+    buttonText = terraBroadcastPendingButtonLabel(swapMutation.phase, true, 'Swap', 'Swapping…')
     buttonDisabled = true
   } else if (showImpactConfirm) {
     buttonText = `Confirm Swap (${priceImpact}% impact)`
@@ -1363,6 +1366,12 @@ export default function SwapPage() {
           >
             {buttonText}
           </button>
+
+          <TerraBroadcastPendingLink
+            phase={swapMutation.phase}
+            txHash={swapMutation.pendingTxHash}
+            className="mt-2 text-[10px] font-mono break-all"
+          />
 
           {swapMutation.isError && (
             <div className="mt-4">

@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useId, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient, useIsFetching } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useIsFetching } from '@tanstack/react-query'
+import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
@@ -9,6 +10,8 @@ import { estimateLimitOrderPlaceSequenceUlunaFeesTotal } from '@/services/terrac
 import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
+import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { MarketDataLoadingStatus } from '@/components/common/MarketDataLoadingStatus'
@@ -278,7 +281,7 @@ export default function LimitOrdersPage() {
     parsedCancelOrderId >= 1 &&
     orderIdHasIndexedCancellation(cancellationsQuery.data ?? [], parsedCancelOrderId)
 
-  const placeMutation = useMutation({
+  const placeMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Connect wallet')
       if (!selectedPair) throw new Error('Select a pair')
@@ -584,8 +587,16 @@ export default function LimitOrdersPage() {
                         else placeMutation.mutate()
                       }}
                     >
-                      {!isWalletConnected ? 'Connect Wallet' : placeMutation.isPending ? 'Placing…' : 'Place limit'}
+                      {!isWalletConnected
+                        ? 'Connect Wallet'
+                        : terraBroadcastPendingButtonLabel(
+                            placeMutation.phase,
+                            placeMutation.isPending,
+                            'Place limit',
+                            'Placing…'
+                          )}
                     </button>
+                    <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
                     <LimitOrderEscrowPlaceGuardMessage
                       gate={placeLimitInlineGate}
                       data-testid="limits-page-place-guard"

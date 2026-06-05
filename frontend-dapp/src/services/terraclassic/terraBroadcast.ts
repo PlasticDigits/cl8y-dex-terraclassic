@@ -14,12 +14,23 @@ import {
 } from '@/utils/terraTxTimeout'
 import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
 import { buildTerraClassicFee } from './terraGas'
+import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
 import { withTerraWalletSignLock } from './terraWalletSignLock'
 
 export type TerraExecuteContractEntry = {
   contract: string
   msg: Record<string, unknown>
   coins?: Array<{ denom: string; amount: string }>
+}
+
+export type TerraBroadcastPhase = 'signing' | 'broadcasting' | 'confirming'
+
+export type TerraBroadcastPhaseChangeContext = {
+  txHash?: string
+}
+
+export type TerraBroadcastOptions = {
+  onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
 }
 
 function handleBroadcastError(error: unknown): Error {
@@ -75,8 +86,11 @@ function handleBroadcastError(error: unknown): Error {
 export async function broadcastTerraExecuteContracts(
   wallet: ConnectedWallet,
   walletAddress: string,
-  entries: TerraExecuteContractEntry[]
+  entries: TerraExecuteContractEntry[],
+  options?: TerraBroadcastOptions
 ): Promise<string> {
+  const resolvedOptions = options ?? getTerraBroadcastScopeOptions()
+  const onPhaseChange = resolvedOptions?.onPhaseChange
   if (entries.length === 0) {
     throw new Error('No messages to broadcast')
   }
@@ -104,13 +118,16 @@ export async function broadcastTerraExecuteContracts(
   }
 
   try {
-    const txHash = await withTerraWalletSignLock(() =>
-      withPromiseTimeout(
+    onPhaseChange?.('signing')
+    const txHash = await withTerraWalletSignLock(() => {
+      onPhaseChange?.('broadcasting')
+      return withPromiseTimeout(
         wallet.broadcastTx(unsignedTx, fee),
         TERRA_TX_BROADCAST_TIMEOUT_MS,
         TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
       )
-    )
+    })
+    onPhaseChange?.('confirming', { txHash })
     const { txResponse } = await withPromiseTimeout(
       wallet.pollTx(txHash),
       TERRA_TX_POLL_TIMEOUT_MS,

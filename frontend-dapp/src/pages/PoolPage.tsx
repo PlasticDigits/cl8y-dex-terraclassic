@@ -1,5 +1,6 @@
 import { useState, memo, useMemo, useId } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
@@ -35,6 +36,8 @@ import {
   MenuSelect,
   type MenuSelectOption,
 } from '@/components/ui'
+import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
@@ -269,7 +272,7 @@ const PoolCard = memo(function PoolCard({
   const ratioBalanced =
     poolQuery.data && amountA && amountB ? isProportionalAddAmounts(rawAddA, rawAddB, poolQuery.data) : null
 
-  const addMutation = useMutation({
+  const addMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
       const rawA = toRawAmount(amountA, decimalsA)
@@ -362,7 +365,7 @@ const PoolCard = memo(function PoolCard({
     onError: () => sounds.playError(),
   })
 
-  const removeMutation = useMutation({
+  const removeMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
       const rawLp = toRawAmount(lpAmount, LP_DECIMALS)
@@ -702,10 +705,14 @@ const PoolCard = memo(function PoolCard({
                   ? 'Checking gas balance…'
                   : !provideLiquidityNativeGasGate.canAddLiquidity
                     ? 'Not enough LUNC for gas'
-                    : addMutation.isPending
-                      ? 'Providing Liquidity...'
-                      : 'Provide Liquidity'}
+                    : terraBroadcastPendingButtonLabel(
+                        addMutation.phase,
+                        addMutation.isPending,
+                        'Provide Liquidity',
+                        'Providing Liquidity…'
+                      )}
           </button>
+          <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
           {addMutation.isError && (
             <TxResultAlert type="error" message={addMutation.error?.message ?? 'Failed to provide liquidity'} />
           )}
@@ -819,10 +826,14 @@ const PoolCard = memo(function PoolCard({
               ? 'Connect Wallet'
               : insufficientLp
                 ? 'Insufficient LP Balance'
-                : removeMutation.isPending
-                  ? 'Withdrawing...'
-                  : 'Withdraw Liquidity'}
+                : terraBroadcastPendingButtonLabel(
+                    removeMutation.phase,
+                    removeMutation.isPending,
+                    'Withdraw Liquidity',
+                    'Withdrawing…'
+                  )}
           </button>
+          <TerraBroadcastPendingLink phase={removeMutation.phase} txHash={removeMutation.pendingTxHash} />
           {removeMutation.isError && (
             <TxResultAlert type="error" message={removeMutation.error?.message ?? 'Failed to withdraw liquidity'} />
           )}
