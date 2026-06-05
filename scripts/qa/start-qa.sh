@@ -97,12 +97,17 @@ DEPLOY_SKIPPED=0
 if deploy_up_to_date "$REPO_ROOT"; then
   echo "[start-qa] deploy stamp matches HEAD + factory LCD probe — skipping make deploy-local"
   DEPLOY_SKIPPED=1
-elif compgen -G "$REPO_ROOT/smartcontracts/artifacts/cl8y_dex_*.wasm" >/dev/null; then
-  echo "[start-qa] wasm artifacts present — make deploy-local-no-build"
-  make deploy-local-no-build
 else
-  echo "[start-qa] no fresh wasm artifacts — make deploy-local (optimizer + deploy)"
-  make deploy-local
+  # shellcheck source=scripts/lib/wasm-artifacts-stale.sh
+  source "$REPO_ROOT/scripts/lib/wasm-artifacts-stale.sh"
+  if compgen -G "$REPO_ROOT/smartcontracts/artifacts/cl8y_dex_*.wasm" >/dev/null \
+    && dex_wasm_stale_vs_sources "$REPO_ROOT"; then
+    echo "[start-qa] fresh wasm artifacts present — make deploy-local-no-build"
+    make deploy-local-no-build
+  else
+    echo "[start-qa] no fresh wasm artifacts — make deploy-local (optimizer + deploy)"
+    make deploy-local
+  fi
 fi
 qa_timing_phase_end
 
