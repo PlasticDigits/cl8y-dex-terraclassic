@@ -25,6 +25,8 @@ This package encodes **conservative heuristics** in `src/liquidityGuards.ts` so 
 | `MIN_PROVIDE_LIQUIDITY_LEG` | Skip tiny `provide_liquidity` legs that would round to dust vs the 1000 LP lock. |
 | `MIN_SWAP_OR_ESCROW_AMOUNT` | Avoid limit orders and hybrid legs that fail **maker-fee** dust checks on-chain. |
 
+Profile weights bias **`add_liquidity`** over **`remove_liquidity`** so long-running bots replenish pools ([#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)). The Python `make swarm-launch` path adds matching bootstrap + dedicated LP workers — see [`scripts/bots/launch-swarm.sh`](../scripts/bots/launch-swarm.sh).
+
 Limit orders have **no** extra “minimum pool liquidity” gate in the pair contract; failures are usually wrong-side token, bad price, or hybrid book empty — see `docs/limit-orders.md`.
 
 ## Prerequisites

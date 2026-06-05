@@ -13,6 +13,10 @@ You touch **hybrid swap execution**, **book matching** (`match_bids` / `match_as
 
 Wrong-side hints must **fall back to head** silently (same UX as stale/missing id).
 
+## Expired head-clog mitigation ([#289](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/289))
+
+When the book head is a long **expired** prefix, a head-only hybrid walk can hit **`MAX_SCAN_STEPS` (500)** before live liquidity. **Integrators should set `book_start_hint` to the first live order on the matcher side** (bid hint for `match_bids`, ask hint for `match_asks`) so `resolve_match_start_hint` starts past the clog. Keepers use resumable **`CleanLimitBook`** (**#274**). The dApp/indexer route optimizer may still emit `book_start_hint: null` — tightening that is a product follow-up, not a contract gap.
+
 ## Canonical docs
 
 - Invariant **L17:** [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md)
