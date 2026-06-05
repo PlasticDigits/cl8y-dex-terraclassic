@@ -48,7 +48,7 @@ export function useTradingBlacklist({
   })
 
   const data = query.data
-  const blocked = canQuery && (query.isError || query.isPending || data?.blocked === true)
+  const blocked = data?.blocked === true
   const message = data && data.blocked ? describeTradingBlacklistBlock(data) : null
 
   return {
