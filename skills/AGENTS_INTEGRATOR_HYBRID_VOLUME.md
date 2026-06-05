@@ -8,11 +8,16 @@
 
 Headline volume = **one** `swap_events` row per taker swap (`offer_amount` / `return_amount`). Never add `limit_order_fills` on top for the same `tx_hash`.
 
+## Fill ↔ swap linkage (#316)
+
+`limit_order_fills.swap_event_id` resolves via per-pair **`swap_index`** (parser walk ordinal), not `MIN(swap_events.id)`. Multi-swap same-pair txs: each fill links to the swap that produced it. See [integrators-hybrid-volume.md § Fill ↔ swap linkage](../docs/integrators-hybrid-volume.md#fill--swap-linkage-swap_event_id).
+
 ## Tests to run
 
 ```bash
 cd indexer
-cargo test swap_events_hybrid_columns api_consolidated_reporting api_integrator_hybrid_volume --tests
+cargo test swap_events_hybrid_columns api_consolidated_reporting api_integrator_hybrid_volume limit_fill_swap_linkage --tests
+cargo test parse_limit_order_fills_assigns_swap_index --lib
 ```
 
 ## Key files
