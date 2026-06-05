@@ -91,6 +91,38 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// Rebuild rolling 24h global overview stats (materialized single-row table).
+pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
+    let cutoff = Utc::now() - chrono::Duration::hours(24);
+
+    sqlx::query(
+        r#"INSERT INTO global_stats_24h (id, total_volume, total_volume_usd, total_trades, updated_at)
+           SELECT 1,
+                  COALESCE(SUM(offer_amount), 0),
+                  COALESCE(SUM(volume_usd), 0),
+                  COUNT(*),
+                  NOW()
+           FROM swap_events
+           WHERE block_timestamp >= $1
+           ON CONFLICT (id)
+             DO UPDATE SET total_volume = EXCLUDED.total_volume,
+                          total_volume_usd = EXCLUDED.total_volume_usd,
+                          total_trades = EXCLUDED.total_trades,
+                          updated_at = EXCLUDED.updated_at"#,
+    )
+    .bind(cutoff)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+fn overview_global_stats_live_query() -> bool {
+    std::env::var("OVERVIEW_GLOBAL_STATS_LIVE")
+        .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(false)
+}
+
 pub async fn get_token_volume(
     pool: &PgPool,
     asset_id: i32,
@@ -103,7 +135,8 @@ pub async fn get_token_volume(
     .await
 }
 
-pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error> {
+/// Live aggregate over `swap_events` (debug / parity checks). Set `OVERVIEW_GLOBAL_STATS_LIVE=1`.
+pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::Error> {
     let cutoff_24h = Utc::now() - chrono::Duration::hours(24);
 
     #[derive(FromRow)]
@@ -131,6 +164,52 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         total_volume_24h: agg.total_volume.unwrap_or_default(),
         total_volume_24h_usd: agg.total_volume_usd.unwrap_or_default(),
         total_trades_24h: agg.total_trades.unwrap_or(0),
+        pair_count,
+    })
+}
+
+pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error> {
+    if overview_global_stats_live_query() {
+        return get_global_stats_live(pool).await;
+    }
+
+    #[derive(FromRow)]
+    struct RollupRow {
+        total_volume: BigDecimal,
+        total_volume_usd: BigDecimal,
+        total_trades: i64,
+    }
+
+    let rollup = sqlx::query_as::<_, RollupRow>(
+        "SELECT total_volume, total_volume_usd, total_trades FROM global_stats_24h WHERE id = 1",
+    )
+    .fetch_one(pool)
+    .await?;
+
+    // Migration seeds id=1 with zeros; refresh runs after pair sync. Fall back to a live
+    // aggregate when the rollup is still uninitialized but swap_events has 24h data.
+    if rollup.total_trades == 0 {
+        let cutoff_24h = Utc::now() - chrono::Duration::hours(24);
+        let has_recent_swaps: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM swap_events WHERE block_timestamp >= $1)",
+        )
+        .bind(cutoff_24h)
+        .fetch_one(pool)
+        .await?;
+
+        if has_recent_swaps {
+            return get_global_stats_live(pool).await;
+        }
+    }
+
+    let pair_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM pairs")
+        .fetch_one(pool)
+        .await?;
+
+    Ok(GlobalStats {
+        total_volume_24h: rollup.total_volume,
+        total_volume_24h_usd: rollup.total_volume_usd,
+        total_trades_24h: rollup.total_trades,
         pair_count,
     })
 }

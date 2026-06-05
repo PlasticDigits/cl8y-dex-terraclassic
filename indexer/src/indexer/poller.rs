@@ -28,6 +28,10 @@ pub async fn run_indexer(
         tracing::warn!("Initial pair 24h volume refresh failed: {}", e);
     }
 
+    if let Err(e) = volume::refresh_global_stats(&pool).await {
+        tracing::warn!("Initial global 24h stats refresh failed: {}", e);
+    }
+
     let vol_pool = pool.clone();
     tokio::spawn(async move {
         volume_aggregator::run_volume_refresh_loop(vol_pool).await;
