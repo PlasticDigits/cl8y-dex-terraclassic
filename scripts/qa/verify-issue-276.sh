@@ -47,8 +47,8 @@ run_step "full contract suite" \
 run_step "docs mention #276 / pair_creation_fee_uluna" \
   bash -c 'grep -q "#276" docs/security-model.md docs/contracts-terraclassic.md docs/contracts-security-audit.md'
 
-run_step "local deploy sets pair_creation_fee_uluna=0" \
-  bash -c 'grep -q "pair_creation_fee_uluna" scripts/deploy-dex-local.sh'
+run_step "local deploy attaches pair_creation_fee on create_pair (#318)" \
+  bash -c 'grep -q "factory_create_pair " scripts/deploy-dex-local.sh && grep -q "PAIR_CREATION_FEE_ULUNA}uluna" scripts/deploy-dex-local.sh'
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
