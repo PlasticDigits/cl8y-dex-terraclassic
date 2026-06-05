@@ -61,3 +61,9 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 6. **Multihop:** On a pair where indexer returns **≥ 2 hops** (e.g. EMBER→COBALT via `POST /route/solve`), confirm the route shows **≥ 3** token symbols and matches a small on-chain market submit hop count.
 7. **Pool-only:** Hybrid off, amount set → quote card shows; route line is direct `PAY → RECEIVE` (or row absent only when `marketRouteLine` is null per table above).
 8. Confirm **no** duplicate route labels on the market quote card (single **Route** row only).
+
+## Open scope (GitLab #302 — verification)
+
+- **Client BFS fallback indicator (not implemented):** On **Swap**, when indexer `route/solve` is unavailable and the active quote falls back to client `findRoute`, the **Route** row still renders but there is **no** user-facing label that the path source changed (grep: no `client fallback` / route-source copy in `SwapPage` or `TradeMarketOrderPanel`). **Trade market** passes `clientRoute: null` into `computeSwapRouteDisplay` — indexer/pool-only direct line only; client-BFS fallback is a Swap concern unless product extends hybrid-off multihop there.
+- **Explainability:** Token arrow only; no “best route” rationale beyond existing hybrid execution callouts.
+- Close **#302** only when route display on `/trade` **and** fallback-indicator acceptance are both met or explicitly descoped on the issue.
