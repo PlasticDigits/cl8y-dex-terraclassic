@@ -325,6 +325,7 @@ mod helpers {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -723,6 +724,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -804,6 +806,124 @@ mod factory_tests {
         assert_eq!(fee_config.fee_config.treasury, env.treasury);
     }
 
+    /// GitLab #276 — pair creation charges the uluna fee to treasury; an underpaid/empty
+    /// attachment is rejected; governance can change the fee.
+    #[test]
+    fn create_pair_charges_fee_to_treasury_and_gov_can_set_it() {
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+        let fee = Uint128::new(100_000_000);
+
+        let mut app = App::new(|router, _api, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &user,
+                    vec![cosmwasm_std::Coin::new(1_000_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let token_a = create_cw20_token(&mut app, cw20_code_id, &user, "Token A", "AAA", initial);
+        let token_b = create_cw20_token(&mut app, cw20_code_id, &user, "Token B", "BBB", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: fee,
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let create_msg = dex_common::factory::ExecuteMsg::CreatePair {
+            asset_infos: [
+                AssetInfo::Token {
+                    contract_addr: token_a.to_string(),
+                },
+                AssetInfo::Token {
+                    contract_addr: token_b.to_string(),
+                },
+            ],
+        };
+
+        // No fee attached -> rejected, nothing created.
+        let err = app
+            .execute_contract(user.clone(), factory.clone(), &create_msg, &[])
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().contains("uluna"),
+            "expected creation-fee rejection, got: {err}"
+        );
+
+        // Exact fee -> succeeds and the treasury is credited.
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &create_msg,
+            &[cosmwasm_std::Coin::new(fee.u128(), "uluna")],
+        )
+        .unwrap();
+        let bal = app
+            .wrap()
+            .query_balance(treasury.as_str(), "uluna")
+            .unwrap();
+        assert_eq!(bal.amount, fee, "treasury should receive the creation fee");
+
+        // Governance can raise the fee; it shows up in Config.
+        let new_fee = Uint128::new(500_000_000);
+        app.execute_contract(
+            governance.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairCreationFee { fee_uluna: new_fee },
+            &[],
+        )
+        .unwrap();
+        let cfg: dex_common::factory::ConfigResponse = app
+            .wrap()
+            .query_wasm_smart(
+                factory.to_string(),
+                &dex_common::factory::QueryMsg::Config {},
+            )
+            .unwrap();
+        assert_eq!(cfg.pair_creation_fee_uluna, new_fee);
+
+        // Non-governance cannot change the fee.
+        let err = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetPairCreationFee {
+                    fee_uluna: Uint128::zero(),
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().contains("Unauthorized"),
+            "{err}"
+        );
+    }
+
     /// Regression for GitLab #122: governance paths must not linear-scan `PAIR_INDEX`
     /// for membership checks at scale (reverse map keeps lookup bounded).
     ///
@@ -835,6 +955,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -919,6 +1040,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -1053,6 +1175,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -1123,6 +1246,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -1201,6 +1325,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -1297,6 +1422,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -1370,6 +1496,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -1427,6 +1554,7 @@ mod factory_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -3937,6 +4065,7 @@ mod pair_coverage_tests {
                     whitelisted_code_ids: vec![cw20_code_id, adversarial_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -4005,6 +4134,7 @@ mod pair_coverage_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -4434,6 +4564,7 @@ mod factory_coverage_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -4518,6 +4649,7 @@ mod factory_coverage_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -10533,6 +10665,7 @@ mod new_feature_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -10898,6 +11031,7 @@ mod new_feature_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -12615,6 +12749,7 @@ mod wrap_router_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -13867,6 +14002,7 @@ mod wrap_integration_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -14301,6 +14437,7 @@ mod wrap_integration_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",
@@ -16832,6 +16969,7 @@ mod ustr_cmm_d8b0afd_tests {
                     whitelisted_code_ids: vec![cw20_code_id],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",

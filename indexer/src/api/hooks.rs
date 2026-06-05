@@ -56,7 +56,9 @@ pub async fn get_hook_events(
     State(state): State<AppState>,
     Query(params): Query<HookEventsQuery>,
 ) -> Result<Json<Vec<HookEventResponse>>, (StatusCode, String)> {
-    let limit = params.limit.unwrap_or(50).min(200);
+    // GitLab #284: clamp to >=1 so a negative/zero limit can't reach Postgres as a negative
+    // LIMIT (500). This list endpoint was missed by the original .min()->.clamp(1,MAX) sweep.
+    let limit = params.limit.unwrap_or(50).clamp(1, 200);
 
     let rows = if let Some(addr) = &params.hook_address {
         sqlx::query_as::<_, HookEventRow>(

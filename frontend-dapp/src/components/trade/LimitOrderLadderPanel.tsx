@@ -8,12 +8,14 @@ import { useLimitOrderConfig } from '@/hooks/useLimitOrderConfig'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitLadderPlaceGates } from '@/hooks/useLimitLadderPlaceGates'
 import { useLimitLadderPlacementPlan } from '@/hooks/useLimitLadderPlacementPlan'
+import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
+import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { formatLimitBatchGasSavingsLine, formatLimitLadderPlacementSummary } from '@/utils/limitOrderBatchGasSummary'
 import { buildLadderSpecWire, ladderRungsToBatchItems } from '@/utils/limitLadderPlacementPlan'
 import {
@@ -52,6 +54,7 @@ export function LimitOrderLadderPanel({
   const [startPrice, setStartPrice] = useState('0.95')
   const [endPrice, setEndPrice] = useState('1.05')
   const [rungCount, setRungCount] = useState(5)
+  const [rungCountInput, setRungCountInput] = useState('5')
   const [totalHuman, setTotalHuman] = useState('100')
   const { maxSteps, setMaxSteps, expiresAt, setExpiresAt, limitAdvancedOpen, setLimitAdvancedOpen } =
     useLimitOrderForm()
@@ -59,6 +62,36 @@ export function LimitOrderLadderPanel({
 
   const configQuery = useLimitOrderConfig(pairAddress)
   const maxRungs = configQuery.data?.max_batch_rungs ?? 20
+
+  const handleRungCountChange = (raw: string) => {
+    setRungCountInput(raw)
+    if (raw.trim() === '') return
+    const parsed = Number(raw)
+    if (Number.isInteger(parsed) && parsed >= 2 && parsed <= maxRungs) {
+      setRungCount(parsed)
+    }
+  }
+
+  const handleRungCountBlur = () => {
+    const parsed = Number(rungCountInput)
+    if (rungCountInput.trim() === '' || !Number.isInteger(parsed)) {
+      setRungCountInput(String(rungCount))
+      return
+    }
+    const clamped = Math.min(maxRungs, Math.max(2, parsed))
+    setRungCount(clamped)
+    setRungCountInput(String(clamped))
+  }
+
+  const rungCountError =
+    rungCountInput.trim() !== '' &&
+    (() => {
+      const parsed = Number(rungCountInput)
+      if (!Number.isInteger(parsed)) return 'Rung count must be a whole number'
+      if (parsed < 2) return 'Rung count must be at least 2'
+      if (parsed > maxRungs) return `Rung count can be at most ${maxRungs} on this pair`
+      return null
+    })()
 
   const preview = useMemo(() => {
     try {
@@ -102,6 +135,31 @@ export function LimitOrderLadderPanel({
 
   const placeGates = useLimitLadderPlaceGates(walletAddress, escrowToken, totalHuman, escrowDecimals, rungCount)
 
+  const { bestBid, bestAsk } = useTradeBestBookPrices(pairAddress)
+
+  const ladderCrossingGate = useMemo(() => {
+    if (preview.error || preview.rungs.length === 0) {
+      return { canPlaceLimit: true, userMessage: null, tone: 'none' as const }
+    }
+    let crossingCount = 0
+    let firstReason: string | null = null
+    for (const r of preview.rungs) {
+      const reason = describeLimitCrossingBlocker(side, r.price, bestBid, bestAsk)
+      if (reason) {
+        crossingCount += 1
+        if (firstReason == null) firstReason = reason
+      }
+    }
+    if (crossingCount === 0) {
+      return { canPlaceLimit: true, userMessage: null, tone: 'none' as const }
+    }
+    return {
+      canPlaceLimit: false,
+      userMessage: `${crossingCount} of ${preview.rungs.length} rungs will cross the market and execute immediately as taker orders. ${firstReason}`,
+      tone: 'warning' as const,
+    }
+  }, [preview.error, preview.rungs, side, bestBid, bestAsk])
+
   const placeMutation = useMutation({
     mutationFn: async () => {
       if (preview.error || preview.rungs.length < 2) {
@@ -119,6 +177,12 @@ export function LimitOrderLadderPanel({
       )
       if (!nativeGate.canPlaceLimit) {
         throw new Error(nativeGate.userMessage ?? 'Insufficient LUNC for gas')
+      }
+      for (const r of preview.rungs) {
+        const cross = describeLimitCrossingBlocker(side, r.price, bestBid, bestAsk)
+        if (cross) {
+          throw new Error(cross)
+        }
       }
 
       const plan = placementPlanQuery.data
@@ -163,6 +227,9 @@ export function LimitOrderLadderPanel({
     },
     onSuccess: async (txHash) => {
       void queryClient.invalidateQueries({ queryKey: ['limitPlacements', pairAddress] })
+      void queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddress] })
+      void queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddress] })
+      void queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddress] })
       const before = await getPairLimitPlacements(pairAddress, { limit: 100 })
       const known = new Set(before.map((p) => p.order_id))
       const found: number[] = []
@@ -189,7 +256,12 @@ export function LimitOrderLadderPanel({
   const placementSummaryLine = formatLimitLadderPlacementSummary(rungCount, maxSteps, placementPlanQuery.data)
   const planNotes = placementPlanQuery.data?.notes ?? []
 
-  const submitDisabled = disabled || placeMutation.isPending || Boolean(preview.error) || !placeGates.canPlace
+  const submitDisabled =
+    disabled ||
+    placeMutation.isPending ||
+    Boolean(preview.error) ||
+    !placeGates.canPlace ||
+    !ladderCrossingGate.canPlaceLimit
 
   return (
     <div className="space-y-3" data-testid="limit-order-ladder-panel">
@@ -227,10 +299,16 @@ export function LimitOrderLadderPanel({
           min={2}
           max={maxRungs}
           className="input-neo mt-1 w-full"
-          value={rungCount}
-          onChange={(e) => setRungCount(Math.min(maxRungs, Math.max(2, Number(e.target.value) || 2)))}
+          value={rungCountInput}
+          onChange={(e) => handleRungCountChange(e.target.value)}
+          onBlur={handleRungCountBlur}
           data-testid="ladder-rung-count"
         />
+        {rungCountError && (
+          <p className="mt-1 text-sm text-red-400" data-testid="ladder-rung-count-error">
+            {rungCountError}
+          </p>
+        )}
       </label>
       <label className="block text-sm">
         <span className="text-muted">Total escrow ({side === 'bid' ? token1Symbol : token0Symbol})</span>
@@ -289,9 +367,10 @@ export function LimitOrderLadderPanel({
         </div>
       )}
       <LimitOrderEscrowPlaceGuardMessage gate={placeGates.inlineGate} data-testid="ladder-place-guard" />
+      <LimitOrderEscrowPlaceGuardMessage gate={ladderCrossingGate} data-testid="ladder-crossing-guard" />
       <button
         type="button"
-        className="btn-neo w-full"
+        className="btn-primary btn-cta w-full !text-xs"
         disabled={submitDisabled}
         data-testid="ladder-place-submit"
         onClick={() => placeMutation.mutate()}
@@ -299,9 +378,7 @@ export function LimitOrderLadderPanel({
         {placeMutation.isPending ? 'Placing ladder…' : `Place ${rungCount}-rung ladder`}
       </button>
       {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
-      {placeMutation.isSuccess && (
-        <TxResultAlert type="success" message="Ladder submitted." txHash={placeMutation.data} />
-      )}
+      {placeMutation.isSuccess && <TxResultAlert type="success" message="Ladder placed." txHash={placeMutation.data} />}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response, StdError,
-    StdResult, SubMsg, WasmMsg,
+    to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order,
+    Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
@@ -21,7 +21,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.3.0";
+const CONTRACT_VERSION: &str = "1.4.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -53,6 +53,7 @@ pub fn instantiate(
             pair_code_id: msg.pair_code_id,
             lp_token_code_id: msg.lp_token_code_id,
             default_limit_batch_max_rungs,
+            pair_creation_fee_uluna: msg.pair_creation_fee_uluna,
         },
     )?;
 
@@ -84,6 +85,9 @@ pub fn execute(
             execute_remove_whitelisted_code_id(deps, info, code_id)
         }
         ExecuteMsg::SetPairFee { pair, fee_bps } => execute_set_pair_fee(deps, info, pair, fee_bps),
+        ExecuteMsg::SetPairCreationFee { fee_uluna } => {
+            execute_set_pair_creation_fee(deps, info, fee_uluna)
+        }
         ExecuteMsg::SetPairHooks { pair, hooks } => execute_set_pair_hooks(deps, info, pair, hooks),
         ExecuteMsg::UpdateConfig {
             governance,
@@ -161,7 +165,7 @@ fn ensure_governance(deps: &DepsMut, info: &MessageInfo) -> Result<(), ContractE
 fn execute_create_pair(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     asset_infos: [AssetInfo; 2],
 ) -> Result<Response, ContractError> {
     let addr_a = asset_infos[0]
@@ -219,6 +223,36 @@ fn execute_create_pair(
 
     let config = CONFIG.load(deps.storage)?;
 
+    // GitLab #276: charge the governance-set pair-creation fee (uluna) and forward it to treasury.
+    // Reject stray denoms (nothing should get stuck in the factory); refund any overpay.
+    let fee = config.pair_creation_fee_uluna;
+    let mut fee_msgs: Vec<CosmosMsg> = vec![];
+    if !fee.is_zero() {
+        if info.funds.iter().any(|c| c.denom != "uluna") {
+            return Err(ContractError::UnexpectedPairCreationFunds {});
+        }
+        let paid = info
+            .funds
+            .iter()
+            .find(|c| c.denom == "uluna")
+            .map(|c| c.amount)
+            .unwrap_or_default();
+        if paid < fee {
+            return Err(ContractError::InsufficientPairCreationFee { required: fee });
+        }
+        fee_msgs.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: config.treasury.to_string(),
+            amount: vec![Coin::new(fee.u128(), "uluna")],
+        }));
+        let refund = paid - fee;
+        if !refund.is_zero() {
+            fee_msgs.push(CosmosMsg::Bank(BankMsg::Send {
+                to_address: info.sender.to_string(),
+                amount: vec![Coin::new(refund.u128(), "uluna")],
+            }));
+        }
+    }
+
     let height = env.block.height;
     if PAIR_CREATION_BLOCK
         .may_load(deps.storage)?
@@ -253,9 +287,11 @@ fn execute_create_pair(
     );
 
     Ok(Response::new()
+        .add_messages(fee_msgs)
         .add_submessage(sub_msg)
         .add_attribute("action", "create_pair")
-        .add_attribute("pair", format!("{}-{}", asset_infos[0], asset_infos[1])))
+        .add_attribute("pair", format!("{}-{}", asset_infos[0], asset_infos[1]))
+        .add_attribute("creation_fee_uluna", fee.to_string()))
 }
 
 /// Add a CW20 code ID to the whitelist. Governance only.
@@ -325,6 +361,21 @@ fn execute_set_pair_fee(
         .add_attribute("action", "set_pair_fee")
         .add_attribute("pair", pair_addr)
         .add_attribute("fee_bps", fee_bps.to_string()))
+}
+
+/// Set the uluna fee required to create a pair (forwarded to treasury). Governance only (GitLab #276).
+fn execute_set_pair_creation_fee(
+    deps: DepsMut,
+    info: MessageInfo,
+    fee_uluna: Uint128,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    let mut config = CONFIG.load(deps.storage)?;
+    config.pair_creation_fee_uluna = fee_uluna;
+    CONFIG.save(deps.storage, &config)?;
+    Ok(Response::new()
+        .add_attribute("action", "set_pair_creation_fee")
+        .add_attribute("pair_creation_fee_uluna", fee_uluna.to_string()))
 }
 
 /// Register post-swap hooks on a specific pair. Governance only.
@@ -761,6 +812,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         default_limit_batch_max_rungs: c.default_limit_batch_max_rungs,
         pair_code_id: c.pair_code_id,
         lp_token_code_id: c.lp_token_code_id,
+        pair_creation_fee_uluna: c.pair_creation_fee_uluna,
     })
 }
 

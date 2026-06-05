@@ -594,7 +594,7 @@ export default function LimitOrdersPage() {
                       <TxResultAlert type="error" message={(placeMutation.error as Error).message} />
                     )}
                     {placeMutation.isSuccess && (
-                      <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
+                      <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
                     )}
                     {lastIndexedOrderId != null && (
                       <p className="text-xs font-mono" data-testid="last-placed-order-id">

@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::{Item, Map};
 use dex_common::types::{AssetInfo, PairInfo};
 
@@ -20,10 +20,18 @@ pub struct Config {
     /// Default max batch/ladder rungs for newly created pairs.
     #[serde(default = "default_limit_batch_max_rungs_config")]
     pub default_limit_batch_max_rungs: u32,
+    /// uluna fee to create a pair, forwarded to treasury (GitLab #276). `#[serde(default)]` so
+    /// 1.3.x stored configs migrate to the 100-LUNC default on first read.
+    #[serde(default = "default_pair_creation_fee_config")]
+    pub pair_creation_fee_uluna: Uint128,
 }
 
 fn default_limit_batch_max_rungs_config() -> u32 {
     dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS
+}
+
+fn default_pair_creation_fee_config() -> Uint128 {
+    Uint128::new(dex_common::factory::DEFAULT_PAIR_CREATION_FEE_ULUNA)
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");

@@ -847,7 +847,7 @@ function TradeOrderTicketContent({
               )}
               {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
               {placeMutation.isSuccess && (
-                <TxResultAlert type="success" message="Limit order submitted." txHash={placeMutation.data} />
+                <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
               )}
               {placeMutation.isSuccess && (
                 <div className="space-y-2" data-testid="trade-limit-post-place-actions">

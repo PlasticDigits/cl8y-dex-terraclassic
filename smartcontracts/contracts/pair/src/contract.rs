@@ -650,9 +650,10 @@ pub fn execute(
             side,
             max_orders,
             start_hint,
+            max_steps,
         } => {
             assert_not_paused(deps.storage)?;
-            execute_clean_limit_book(deps, env, side, max_orders, start_hint)
+            execute_clean_limit_book(deps, env, side, max_orders, start_hint, max_steps)
         }
         ExecuteMsg::UpdateLimitCleanConfig {
             min_remaining_token0,
@@ -1112,15 +1113,18 @@ fn execute_clean_limit_book(
     side: LimitOrderSide,
     max_orders: u32,
     start_hint: Option<u64>,
+    max_steps: Option<u32>,
 ) -> Result<Response, ContractError> {
     let pair_contract = env.contract.address.to_string();
     let now = env.block.time.seconds();
     let side_label = orderbook::side_str(&side);
+    // #274: `None` → 0 → the full `MAX_CLEAN_SCAN_STEPS` cap inside `clean_limit_book`.
     let result = clean_limit_book(
         deps.storage,
         now,
         side,
         max_orders,
+        max_steps.unwrap_or(0),
         start_hint,
         &pair_contract,
     )?;
@@ -1133,7 +1137,11 @@ fn execute_clean_limit_book(
             "force_expired_count",
             result.force_expired_count.to_string(),
         )
-        .add_attribute("cap_hit", result.cap_hit.to_string());
+        .add_attribute("cap_hit", result.cap_hit.to_string())
+        .add_attribute("scan_capped", result.scan_capped.to_string());
+    if let Some(rc) = result.resume_cursor {
+        resp = resp.add_attribute("resume_cursor", rc.to_string());
+    }
     for ev in result.events {
         resp = resp.add_event(ev);
     }

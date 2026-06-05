@@ -444,6 +444,7 @@ mod adversarial_tests {
                     whitelisted_code_ids: vec![honest_cw20, adv_code],
                     default_limit_batch_max_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
                 },
                 &[],
                 "factory",

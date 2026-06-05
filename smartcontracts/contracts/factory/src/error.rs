@@ -1,4 +1,4 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -15,6 +15,10 @@ pub enum ContractError {
     PairNotInRegistry { pair: String },
     #[error("Invalid fee")]
     InvalidFee {},
+    #[error("Pair creation requires {required} uluna attached")]
+    InsufficientPairCreationFee { required: Uint128 },
+    #[error("Only uluna may be attached for the pair creation fee")]
+    UnexpectedPairCreationFunds {},
     #[error("Invalid tokens")]
     InvalidTokens {},
     #[error("Invalid code ID")]

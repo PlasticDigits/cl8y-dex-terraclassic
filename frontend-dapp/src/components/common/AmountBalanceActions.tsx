@@ -1,7 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import { sounds } from '@/lib/sounds'
 import { Spinner } from '@/components/ui'
-import { formatTokenAmount } from '@/utils/formatAmount'
+import { formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
 
 type Props = {
   balanceQuery: UseQueryResult<string, Error>
@@ -14,9 +14,21 @@ type Props = {
   spendableRaw: bigint
   onMax: () => void
   onHalf?: () => void
+  /**
+   * Optional fraction preset buttons (e.g. 25/50/75/100%). When provided, one
+   * button per `fractionPresets` entry is rendered; each applies its fraction to
+   * the same gas-adjusted `spendableRaw` that `onMax` uses and passes the
+   * resulting human draft to the caller. Backwards-compatible with the existing
+   * `showHalf`/`onMax` callers ([GitLab #303](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/303)).
+   */
+  onFraction?: (human: string) => void
+  /** Fractions of spendable to expose as preset buttons. Defaults to 25/50/75/100%. */
+  fractionPresets?: number[]
   balanceLabel?: string
   testIdMax?: string
   testIdHalf?: string
+  /** Per-fraction test id prefix, suffixed with the integer percent (e.g. `swap-pay-frac-25`). */
+  testIdFractionPrefix?: string
 }
 
 /**
@@ -32,9 +44,12 @@ export function AmountBalanceActions({
   spendableRaw,
   onMax,
   onHalf,
+  onFraction,
+  fractionPresets = [0.25, 0.5, 0.75, 1],
   balanceLabel = 'Balance:',
   testIdMax,
   testIdHalf,
+  testIdFractionPrefix,
 }: Props) {
   if (!walletConnected || !showBalance) return null
 
@@ -48,6 +63,14 @@ export function AmountBalanceActions({
   const halfDisabled = balanceQuery.isLoading || balanceQuery.isError || !balanceQuery.data || balanceQuery.data === '0'
 
   const textSize = compact ? 'text-[10px] ' : 'text-xs '
+
+  // Apply a fraction to the gas-adjusted spendable via exact bigint math, then
+  // format to a human draft (no float drift). fraction 1 == full spendable (== Max).
+  const fractionHuman = (fraction: number): string => {
+    const num = BigInt(Math.round(fraction * 100))
+    const scaled = (spendableRaw * num) / 100n
+    return fromRawAmount(scaled.toString(), decimals)
+  }
 
   return (
     <div
@@ -68,6 +91,26 @@ export function AmountBalanceActions({
         )}
       </span>
       <span className="ml-auto inline-flex items-center gap-2 shrink-0">
+        {onFraction &&
+          fractionPresets.map((fraction) => {
+            const pct = Math.round(fraction * 100)
+            return (
+              <button
+                key={pct}
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  sounds.playButtonPress()
+                  onFraction(fractionHuman(fraction))
+                }}
+                className="uppercase font-semibold tracking-wide hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                style={{ color: 'var(--cyan)' }}
+                data-testid={testIdFractionPrefix ? `${testIdFractionPrefix}-${pct}` : undefined}
+              >
+                {pct}%
+              </button>
+            )
+          })}
         {showHalf && onHalf && (
           <button
             type="button"

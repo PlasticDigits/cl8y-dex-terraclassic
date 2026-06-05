@@ -507,12 +507,35 @@ fn amount_cache_key(amount: u128) -> u128 {
     }
 }
 
+/// GitLab #283: the on-chain discount is determined by the tier of the discount subject —
+/// `trader` when set (the #245 off-chain forwarding), otherwise `sender` — and the router
+/// simulate forwards both. The route cache must key on that resolved tier, or two senders on
+/// different tiers (e.g. both with `trader` unset) collide and the wrong-discount quote is
+/// served. Per Plastik's direction we key on the tier (not the raw address) so same-tier
+/// callers still share the cache. Tier comes from the already-synced `traders.tier_id` — no
+/// extra LCD call; absent/unknown subject resolves to tier 0 (full fee).
+async fn resolve_discount_tier(
+    state: &AppState,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
+) -> i16 {
+    let subject = quote_trader
+        .trader
+        .as_deref()
+        .or(quote_trader.sender.as_deref());
+    let Some(addr) = subject else { return 0 };
+    match crate::db::queries::traders::get_trader(&state.pool, addr.trim()).await {
+        Ok(Some(t)) => t.tier_id,
+        _ => 0,
+    }
+}
+
 fn hybrid_cache_key(
     token_in: &str,
     token_out: &str,
     amount_bucket: u128,
     max_maker_fills: u32,
     quote_trader: &hybrid_route_opt::QuoteTrader,
+    discount_tier: i16,
 ) -> String {
     let trader_key = quote_trader
         .trader
@@ -520,13 +543,14 @@ fn hybrid_cache_key(
         .map(|t| t.trim().to_lowercase())
         .unwrap_or_else(|| "none".to_string());
     format!(
-        "{}|{}|{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}|{}|t{}",
         crate::api::best_execution::SOLVER_VERSION,
         token_in.trim().to_lowercase(),
         token_out.trim().to_lowercase(),
         amount_bucket,
         max_maker_fills,
-        trader_key
+        trader_key,
+        discount_tier
     )
 }
 
@@ -576,7 +600,8 @@ async fn execute_hybrid_route_solve(
 
     let max_makers = max_maker_fills.max(1);
     let bucket = amount_cache_key(amount_u);
-    let ck = hybrid_cache_key(token_in, token_out, bucket, max_makers, quote_trader);
+    let discount_tier = resolve_discount_tier(state, quote_trader).await;
+    let ck = hybrid_cache_key(token_in, token_out, bucket, max_makers, quote_trader, discount_tier);
     if let Some(cached) = cache_get(&ck) {
         return Ok(Json(cached));
     }
@@ -818,11 +843,37 @@ mod hybrid_cache_key_tests {
             trader: Some("terra1otherwallet00000000000000000000000".into()),
             sender: None,
         };
-        let base = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &none);
-        let d1 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &discounted);
-        let d2 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &other);
+        let base = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &none, 0);
+        let d1 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &discounted, 0);
+        let d2 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &other, 0);
         assert_ne!(base, d1, "full-fee cache must not share key with trader");
         assert_ne!(d1, d2, "distinct traders must not share cache key");
         assert_ne!(base, d2);
+    }
+
+    // GitLab #283: the resolved discount tier is part of the key, so two callers on different
+    // tiers can never collide and be served each other's quote — and two callers on the SAME
+    // tier still share the cache.
+    #[test]
+    fn hybrid_cache_key_distinguishes_discount_tier() {
+        let qt = QuoteTrader {
+            trader: None,
+            sender: Some("terra1sender0000000000000000000000000000".into()),
+        };
+        let tier0 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &qt, 0);
+        let tier5 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &qt, 5);
+        let tier9 = hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &qt, 9);
+        assert_ne!(tier0, tier5, "different discount tiers must not share a cache key");
+        assert_ne!(tier5, tier9);
+        // Same tier (even from a different sender address) shares the key by design.
+        let other_sender = QuoteTrader {
+            trader: None,
+            sender: Some("terra1othersender000000000000000000000000".into()),
+        };
+        assert_eq!(
+            tier5,
+            hybrid_cache_key(TIN, TOUT, 1_000_000, 8, &other_sender, 5),
+            "same-tier callers should reuse the cache regardless of address"
+        );
     }
 }

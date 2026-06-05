@@ -1,7 +1,11 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 
 use crate::types::{AssetInfo, PairInfo};
+
+/// Default pair-creation fee in uluna (100 LUNC), transferred to the treasury on `CreatePair`
+/// to make permissionless pair-spam costly (GitLab #276). Governance-settable per deployment.
+pub const DEFAULT_PAIR_CREATION_FEE_ULUNA: u128 = 100_000_000;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -14,10 +18,18 @@ pub struct InstantiateMsg {
     /// Default max batch/ladder rungs for new pairs (clamped to hard cap on-chain).
     #[serde(default = "default_limit_batch_max_rungs_instantiate")]
     pub default_limit_batch_max_rungs: u32,
+    /// uluna required (and forwarded to treasury) to create a pair (GitLab #276). Absent →
+    /// [`DEFAULT_PAIR_CREATION_FEE_ULUNA`]; governance-settable after instantiate.
+    #[serde(default = "default_pair_creation_fee")]
+    pub pair_creation_fee_uluna: Uint128,
 }
 
 fn default_limit_batch_max_rungs_instantiate() -> u32 {
     crate::limit_placement::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS
+}
+
+fn default_pair_creation_fee() -> Uint128 {
+    Uint128::new(DEFAULT_PAIR_CREATION_FEE_ULUNA)
 }
 
 #[cw_serde]
@@ -36,6 +48,10 @@ pub enum ExecuteMsg {
     SetPairFee {
         pair: String,
         fee_bps: u16,
+    },
+    /// Set the uluna fee required to create a pair (forwarded to treasury). Governance only (GitLab #276).
+    SetPairCreationFee {
+        fee_uluna: Uint128,
     },
     SetPairHooks {
         pair: String,
@@ -147,6 +163,8 @@ pub struct ConfigResponse {
     pub default_limit_batch_max_rungs: u32,
     pub pair_code_id: u64,
     pub lp_token_code_id: u64,
+    /// uluna required to create a pair, forwarded to treasury (GitLab #276).
+    pub pair_creation_fee_uluna: Uint128,
 }
 
 #[cw_serde]
