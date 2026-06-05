@@ -16,7 +16,16 @@ make start-qa
 make qa-start
 ```
 
-This stops any prior QA indexer and runs **`docker compose down`** (volumes **preserved**), then starts **localterra** + **postgres**, waits for health, runs **`make deploy-local`** (optimizer wasm + **`scripts/deploy-dex-local.sh`**), runs **`make qa-verify-deploy`** (schema + deploy-stamp check — GitLab [**#203**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), starts the **indexer** in the background (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), checks indexer **`/health`**, and prints **laptop** steps (same as **`make qa-tunnel-help`**).
+This stops any prior QA indexer and runs **`docker compose down`** (volumes **preserved**), then starts **localterra** + **postgres**, waits for health, then deploys:
+
+- **Skip deploy** when **`.qa-deploy-stamp`** `git_sha` == **`HEAD`**, env factory matches, wasm artifacts exist, and the factory LCD probe passes (**Q1** — GitLab [**#325**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)).
+- Otherwise **`make deploy-local-no-build`** when optimizer wasm is already on disk, or **`make deploy-local`** (optimizer + deploy).
+
+Optional: **`QA_FETCH_CI_ARTIFACTS=1 make start-qa`** tries GitLab generic packages for wasm/indexer before deploy. Set **`INDEXER_QA_BIN`** to a prebuilt **`cl8y-dex-indexer`** to skip release compile.
+
+Then **`make qa-verify-deploy`** (schema + deploy-stamp — [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), indexer background start (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), **`/health`**, and laptop steps (**`make qa-tunnel-help`**).
+
+**Which reset level after code changes?** See [`skills/AGENTS_QA_REDEPLOY_DECISION.md`](../../skills/AGENTS_QA_REDEPLOY_DECISION.md) ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)).
 
 ### Fresh volumes (empty chain + Postgres)
 
@@ -83,7 +92,12 @@ Canonical root cause: [`docs/frontend.md` § Station extension signing](../../do
 
 | Target              | Purpose                                      |
 | ------------------- | -------------------------------------------- |
-| `make start-qa`     | Full QA bring-up on the server (keep volumes) |
+| `make start-qa`     | Full QA bring-up (skips deploy when stamp + LCD probe match HEAD) |
+| `make deploy-local-no-build` | Deploy only — wasm artifacts must already exist |
+| `QA_DEPLOY_SEED=minimal\|charts\|wallet\|full` | Lighter **`deploy-dex-local`** seed profiles ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)) |
+| `QA_FETCH_CI_ARTIFACTS=1 make start-qa` | Try GitLab wasm/indexer packages before deploy |
+| `make fetch-qa-ci-artifacts` | Download wasm/indexer for current **`HEAD`** sha |
+| `make build-indexer-release` | Build **`indexer/target/release/cl8y-dex-indexer`** for **`INDEXER_QA_BIN`** |
 | `make qa-start`     | Same as `start-qa`                           |
 | `make reset-qa`     | Wipe LocalTerra + Postgres volumes, then `start-qa` |
 | `QA_FRESH_VOLUMES=1 make start-qa` | Same as `reset-qa`              |

@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-309 verify-issue-313 verify-issue-295 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-309 verify-issue-313 verify-issue-295 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra
 
 # Infrastructure
 start:
@@ -89,6 +89,10 @@ test-qa-verify-deploy:
 	./scripts/qa/test-verify-deploy.sh
 	./scripts/qa/test-localterra-host-curl.sh
 
+test-qa-redeploy-decision:
+	@chmod +x scripts/qa/test-qa-redeploy-decision.sh
+	./scripts/qa/test-qa-redeploy-decision.sh
+
 test-localterra-host-curl:
 	@chmod +x scripts/qa/test-localterra-host-curl.sh scripts/lib/localterra-host-curl.sh
 	./scripts/qa/test-localterra-host-curl.sh
@@ -160,8 +164,9 @@ setup-cloud-localterra:
 
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
-	@echo "QA server:       make start-qa (alias qa-start) | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-verify-deploy | qa-tunnel-help"
-	@echo "Contracts:       make build-optimized | deploy-local | deploy-testnet | deploy-mainnet"
+	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-redeploy-decision"
+	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet"
+	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
 	@echo "Cloud Agent:     make setup-cloud-localterra | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev"
@@ -215,8 +220,20 @@ check-route-solver-docs:
 	python3 scripts/check_route_solver_docs.py
 
 # Deployment
-deploy-local: build-optimized
+deploy-local-no-build:
+	@chmod +x scripts/deploy-dex-local.sh scripts/lib/terrad-wait-tx.sh scripts/lib/qa-phase-timing.sh
 	./scripts/deploy-dex-local.sh
+
+deploy-local: build-optimized
+	@chmod +x scripts/deploy-dex-local.sh scripts/lib/terrad-wait-tx.sh scripts/lib/qa-phase-timing.sh
+	./scripts/deploy-dex-local.sh
+
+build-indexer-release:
+	cd indexer && cargo build --release
+
+fetch-qa-ci-artifacts:
+	@chmod +x scripts/qa/fetch-qa-ci-artifacts.sh
+	./scripts/qa/fetch-qa-ci-artifacts.sh
 
 deploy-testnet:
 	cd smartcontracts && ./scripts/deploy.sh testnet
