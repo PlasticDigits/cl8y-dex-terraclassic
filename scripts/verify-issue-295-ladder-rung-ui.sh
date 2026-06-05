@@ -23,8 +23,8 @@ export PATH="$HOME/.nvm/versions/node/$(tr -d '[:space:]' <"$REPO_ROOT/.nvmrc")/
 
 export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:5173}"
 
-# Cloud Agent VMs may not have browsers cached yet (~200MB download first run).
-if [[ ! -d "$HOME/.cache/ms-playwright/chromium-"* ]] 2>/dev/null; then
+# Cloud Agent VMs may not have browsers cached yet (~280MB download first run).
+if ! compgen -G "$HOME/.cache/ms-playwright/chromium-*" >/dev/null; then
   echo "[verify-295] installing Playwright Chromium (one-time; may take several minutes)…"
   bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- npx playwright install chromium
 fi

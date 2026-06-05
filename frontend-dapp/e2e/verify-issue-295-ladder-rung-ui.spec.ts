@@ -7,6 +7,13 @@ import { gotoAndCaptureFactoryPairsPage } from './helpers/lcd'
 import { selectLimitPairByFactoryIndex } from './helpers/limit-e2e'
 
 test.describe('Limit ladder rung count (#295)', () => {
+  test.beforeEach(async ({ page }) => {
+    // make dev on :5173 does not set VITE_PLAYWRIGHT_E2E; pre-seed risk ack (GitLab #138).
+    await page.addInitScript(() => {
+      window.localStorage.setItem('cl8y-dex-risk-ack', JSON.stringify({ v: 1 }))
+    })
+  })
+
   test('clear, type, over-max message, blur clamp', async ({ page, connectWallet }) => {
     await connectWallet
 
