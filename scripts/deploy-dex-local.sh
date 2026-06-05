@@ -245,7 +245,8 @@ echo "  Fee Discount Code ID: $FEE_DISCOUNT_CODE_ID"
 
 echo ""
 echo "[8] Instantiating Factory..."
-FACTORY_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TEST_ADDRESS\",\"default_fee_bps\":180,\"pair_code_id\":$PAIR_CODE_ID,\"lp_token_code_id\":$CW20_CODE_ID,\"whitelisted_code_ids\":[$CW20_CODE_ID]}"
+# Local dev: pair_creation_fee_uluna=0 so seed scripts need not attach uluna on every CreatePair (GitLab #276).
+FACTORY_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TEST_ADDRESS\",\"default_fee_bps\":180,\"pair_code_id\":$PAIR_CODE_ID,\"lp_token_code_id\":$CW20_CODE_ID,\"whitelisted_code_ids\":[$CW20_CODE_ID],\"pair_creation_fee_uluna\":\"0\"}"
 TX_HASH=$(terrad_tx wasm instantiate "$FACTORY_CODE_ID" "$FACTORY_INIT_MSG" \
     --label "cl8y-dex-factory" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
