@@ -140,8 +140,12 @@ verify-issue-276:
 
 # GitLab #285 — lifecycle emitter scoping (_contract_address only) + live hybrid fill proof.
 verify-issue-285:
-	@chmod +x scripts/qa/verify-issue-285.sh scripts/lib/lcd-smart-query.sh scripts/lib/e2e-terrad-tx.sh scripts/e2e-start-indexer.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh
-	./scripts/qa/verify-issue-285.sh
+	@chmod +x scripts/qa/verify-issue-285.sh scripts/lib/lcd-smart-query.sh scripts/lib/localterra-host-curl.sh scripts/lib/e2e-terrad-tx.sh scripts/e2e-start-indexer.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh
+	@if docker info >/dev/null 2>&1; then \
+		./scripts/qa/verify-issue-285.sh; \
+	else \
+		sg docker -c './scripts/qa/verify-issue-285.sh'; \
+	fi
 
 # GitLab #309 — live LocalTerra gas: MAX_EXPIRED_PARKS_PER_SWAP vs 15M envelope.
 verify-issue-309:
