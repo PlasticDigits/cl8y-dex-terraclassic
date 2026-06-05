@@ -1,6 +1,7 @@
 //! Global best-execution route solver: top-K path enumeration + joint hybrid optimization (GitLab #209).
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::api::db_orderbook_sim::{self, MirrorLoadMeta};
 use crate::api::hybrid_route_opt::{
@@ -17,13 +18,16 @@ use axum::http::StatusCode;
 use sqlx::PgPool;
 
 /// LCD-grid solver generation (legacy).
-pub const SOLVER_VERSION_LCD: &str = "global_v1";
+pub const SOLVER_VERSION_LCD: &str = "global_v3";
 
-/// Postgres-mirror hybrid grid (#319 Phase 1c).
-pub const SOLVER_VERSION_DB: &str = "global_v2";
+/// Postgres-mirror hybrid grid (#319 Phase 1c; cache-key bump #324).
+pub const SOLVER_VERSION_DB: &str = "global_v4";
 
 /// Max simple paths evaluated per request (hop-count order).
 pub const MAX_PATH_CANDIDATES: usize = 5;
+
+/// Bounded concurrent path-candidate evaluations per request (GitLab #324).
+pub const SOLVE_CONCURRENCY: usize = MAX_PATH_CANDIDATES;
 
 /// Documented optimality scope for clients.
 pub const OPTIMALITY_SCOPE: &str =
@@ -64,6 +68,8 @@ pub struct BestExecutionMeta {
     pub max_snapshot_age_ms: u64,
     pub fidelity_check: FidelityCheck,
     pub db_optimized_amount_out: Option<u128>,
+    /// True when fewer path candidates were evaluated than enumerated (concurrency cap).
+    pub search_truncated: bool,
 }
 
 pub fn solver_version_for(state: &AppState) -> &'static str {
@@ -80,12 +86,17 @@ pub fn hybrid_notes_for_global(meta: &BestExecutionMeta, solver_version: &str) -
     } else {
         "pair-level hybrid simulations via LCD"
     };
+    let truncation = if meta.search_truncated {
+        " Search was truncated by the concurrency cap — result is not guaranteed optimal over all enumerated paths."
+    } else {
+        ""
+    };
     format!(
         "Global best-execution solver ({solver_version}): {OPTIMALITY_SCOPE}. \
          Evaluated {} path(s); {} db-hybrid + {} lcd-hybrid grid evals. \
          {pricing}. \
          Final output validated via router simulate_swap_operations when configured (fidelity_check={}). \
-         Execution on-chain may differ from mirror/LCD snapshots.",
+         Execution on-chain may differ from mirror/LCD snapshots.{truncation}",
         meta.paths_considered,
         meta.db_hybrid_queries,
         meta.lcd_hybrid_queries,
@@ -93,6 +104,7 @@ pub fn hybrid_notes_for_global(meta: &BestExecutionMeta, solver_version: &str) -
     )
 }
 
+#[derive(Clone)]
 struct PathCandidate {
     hops: Vec<RouteHop>,
     ops: Vec<serde_json::Value>,
@@ -234,6 +246,306 @@ fn apply_fidelity_guard(
     estimated.clone()
 }
 
+#[derive(Clone)]
+struct CandidateEval {
+    index: usize,
+    body: RouteSolveResponse,
+    out_u: u128,
+    grid_out: u128,
+    lcd_delta: u32,
+    db_delta: u32,
+    degraded: bool,
+    any_book_leg: bool,
+    mirror_stale: bool,
+    mirror_missing: bool,
+    max_snapshot_age_ms: u64,
+}
+
+/// Merge per-candidate results: max `out_u` with first-seen (lowest index) tie-break; cumulative
+/// query counts through the winner index match the serial loop (#324).
+fn merge_candidate_evaluations(
+    evals: &[CandidateEval],
+    paths_enumerated: usize,
+    search_truncated: bool,
+) -> Option<(RouteSolveResponse, u128, u128, BestExecutionMeta)> {
+    if evals.is_empty() {
+        return None;
+    }
+    let mut sorted: Vec<_> = evals.to_vec();
+    sorted.sort_by_key(|e| e.index);
+
+    let mut winner: Option<&CandidateEval> = None;
+    for ev in &sorted {
+        let replace = winner.map(|w| ev.out_u > w.out_u).unwrap_or(true);
+        if replace {
+            winner = Some(ev);
+        }
+    }
+    let winner = winner?;
+
+    let mut lcd_total = 0u32;
+    let mut db_total = 0u32;
+    for ev in &sorted {
+        lcd_total = lcd_total.saturating_add(ev.lcd_delta);
+        db_total = db_total.saturating_add(ev.db_delta);
+        if ev.index == winner.index {
+            break;
+        }
+    }
+
+    let meta = BestExecutionMeta {
+        paths_considered: paths_enumerated as u32,
+        lcd_hybrid_queries: lcd_total,
+        db_hybrid_queries: db_total,
+        degraded: winner.degraded,
+        any_book_leg: winner.any_book_leg,
+        mirror_stale: winner.mirror_stale,
+        mirror_missing: winner.mirror_missing,
+        mirror_max_block_lag: None,
+        max_snapshot_age_ms: winner.max_snapshot_age_ms,
+        fidelity_check: FidelityCheck::Skipped,
+        db_optimized_amount_out: None,
+        search_truncated,
+    };
+
+    Some((
+        winner.body.clone(),
+        winner.out_u,
+        winner.grid_out,
+        meta,
+    ))
+}
+
+async fn evaluate_candidate(
+    state: Arc<AppState>,
+    index: usize,
+    cand: PathCandidate,
+    token_in: String,
+    token_out: String,
+    amount_in: u128,
+    amount_raw: String,
+    max_maker_fills: u32,
+    quote_trader: hybrid_route_opt::QuoteTrader,
+    db_mode: bool,
+    discount_bps: u16,
+    mirrors: Arc<HashMap<String, db_orderbook_sim::HopMirror>>,
+    solver_version: &'static str,
+) -> Result<CandidateEval, (StatusCode, String)> {
+    let hops_desc: Vec<HopDescriptor> = cand
+        .hops
+        .iter()
+        .map(|h| HopDescriptor {
+            pair: h.pair.clone(),
+            offer_token: h.offer_token.clone(),
+            ask_token: h.ask_token.clone(),
+        })
+        .collect();
+
+    let mut mirror_meta = MirrorLoadMeta::default();
+
+    let source = if db_mode {
+        HybridSimSource::Db {
+            lcd_fallback: &state.lcd,
+            mirrors: &mirrors,
+            discount_bps,
+        }
+    } else {
+        HybridSimSource::Lcd(&state.lcd)
+    };
+
+    let mm = if db_mode {
+        Some(&mut mirror_meta)
+    } else {
+        None
+    };
+
+    let (hybrid_plan, opt_meta, grid_out) = hybrid_route_opt::optimize_multihop_hybrid_joint(
+        &source,
+        mm,
+        &hops_desc,
+        amount_in,
+        max_maker_fills,
+        &quote_trader,
+    )
+    .await
+    .map_err(hybrid_sim_gateway_err)?;
+
+    let lcd_delta = if db_mode {
+        mirror_meta.lcd_fallback_queries
+    } else {
+        estimate_lcd_calls(hops_desc.len())
+    };
+    let db_delta = if db_mode {
+        mirror_meta.db_hybrid_queries
+    } else {
+        0
+    };
+
+    let hops = cand.hops.clone();
+    let ops = apply_hybrid_by_hop(cand.ops, &hybrid_plan)?;
+    let estimated =
+        crate::api::route_solver::maybe_simulate(&state, Some(&amount_raw), &ops, &quote_trader)
+            .await?;
+
+    let out_u = estimated
+        .as_ref()
+        .and_then(|s| s.parse::<u128>().ok())
+        .unwrap_or(0);
+
+    let grid_out = if db_mode { grid_out } else { out_u };
+
+    let quote_kind = quote_kind_for(&opt_meta, &estimated, db_mode);
+    let resolved_route = crate::api::route_solver::ResolvedRoute {
+        token_in: token_in.clone(),
+        token_out: token_out.clone(),
+        hops: hops.clone(),
+        ops: ops.clone(),
+    };
+    let intermediate_tokens = build_intermediate_tokens(&resolved_route);
+    let body = RouteSolveResponse {
+        token_in,
+        token_out,
+        hops,
+        intermediate_tokens,
+        quote_kind,
+        hybrid_notes: None,
+        router_operations: ops,
+        estimated_amount_out: estimated,
+        solver_version: Some(solver_version.to_string()),
+        paths_considered: None,
+        optimality_scope: None,
+        lcd_hybrid_queries: None,
+        db_hybrid_queries: None,
+        fidelity_check: None,
+        mirror_max_block_lag: None,
+        search_truncated: None,
+    };
+
+    Ok(CandidateEval {
+        index,
+        body,
+        out_u,
+        grid_out,
+        lcd_delta,
+        db_delta,
+        degraded: opt_meta.degraded,
+        any_book_leg: opt_meta.any_book_leg,
+        mirror_stale: mirror_meta.mirror_stale_hops > 0,
+        mirror_missing: mirror_meta.mirror_missing_hops > 0,
+        max_snapshot_age_ms: mirror_meta.max_snapshot_age_ms,
+    })
+}
+
+/// Fan out path-candidate evaluation under `concurrency_cap` (#324). Fail-fast on first error.
+async fn run_concurrent_candidate_evaluations(
+    state: &AppState,
+    candidates: &[PathCandidate],
+    token_in: &str,
+    token_out: &str,
+    amount_in: u128,
+    amount_raw: &str,
+    max_maker_fills: u32,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
+    db_mode: bool,
+    discount_bps: u16,
+    mirrors: Arc<HashMap<String, db_orderbook_sim::HopMirror>>,
+    solver_version: &'static str,
+    concurrency_cap: usize,
+) -> Result<(Vec<CandidateEval>, bool), (StatusCode, String)> {
+    let cap = concurrency_cap.max(1);
+    let search_truncated = candidates.len() > cap;
+    let eval_count = candidates.len().min(cap);
+
+    let state = Arc::new(state.clone());
+    let token_in = token_in.trim().to_string();
+    let token_out = token_out.trim().to_string();
+    let amount_raw = amount_raw.to_string();
+    let quote_trader = quote_trader.clone();
+
+    let mut join_set = tokio::task::JoinSet::new();
+    let mut next_idx = 0usize;
+
+    while next_idx < eval_count.min(cap) {
+        let cand = candidates[next_idx].clone();
+        let idx = next_idx;
+        let st = Arc::clone(&state);
+        let mirrors = Arc::clone(&mirrors);
+        let ti = token_in.clone();
+        let to = token_out.clone();
+        let ar = amount_raw.clone();
+        let qt = quote_trader.clone();
+        let sv = solver_version;
+        join_set.spawn(async move {
+            evaluate_candidate(
+                st,
+                idx,
+                cand,
+                ti,
+                to,
+                amount_in,
+                ar,
+                max_maker_fills,
+                qt,
+                db_mode,
+                discount_bps,
+                mirrors,
+                sv,
+            )
+            .await
+        });
+        next_idx += 1;
+    }
+
+    let mut evals = Vec::with_capacity(eval_count);
+    while let Some(joined) = join_set.join_next().await {
+        match joined {
+            Ok(Ok(eval)) => {
+                evals.push(eval);
+                if next_idx < eval_count {
+                    let cand = candidates[next_idx].clone();
+                    let idx = next_idx;
+                    let st = Arc::clone(&state);
+                    let mirrors = Arc::clone(&mirrors);
+                    let ti = token_in.clone();
+                    let to = token_out.clone();
+                    let ar = amount_raw.clone();
+                    let qt = quote_trader.clone();
+                    let sv = solver_version;
+                    join_set.spawn(async move {
+                        evaluate_candidate(
+                            st,
+                            idx,
+                            cand,
+                            ti,
+                            to,
+                            amount_in,
+                            ar,
+                            max_maker_fills,
+                            qt,
+                            db_mode,
+                            discount_bps,
+                            mirrors,
+                            sv,
+                        )
+                        .await
+                    });
+                    next_idx += 1;
+                }
+            }
+            Ok(Err(e)) => {
+                join_set.abort_all();
+                return Err(e);
+            }
+            Err(e) => {
+                join_set.abort_all();
+                return Err(crate::api::internal_err(e));
+            }
+        }
+    }
+
+    Ok((evals, search_truncated))
+}
+
 /// Pick the path + hybrid plan maximizing router `estimated_amount_out`.
 pub async fn solve_global_best_execution(
     state: &AppState,
@@ -274,124 +586,30 @@ pub async fn solve_global_best_execution(
         .map_err(crate::api::internal_err)?;
     }
 
-    let mut best: Option<(RouteSolveResponse, u128, u128, BestExecutionMeta)> = None;
-    let mut lcd_queries: u32 = 0;
-    let mut db_queries: u32 = 0;
+    let mirrors = Arc::new(mirrors);
+    let (evals, search_truncated) = run_concurrent_candidate_evaluations(
+        state,
+        &candidates,
+        token_in,
+        token_out,
+        amount_in,
+        amount_raw,
+        max_maker_fills,
+        quote_trader,
+        db_mode,
+        discount_bps,
+        mirrors,
+        solver_version,
+        SOLVE_CONCURRENCY,
+    )
+    .await?;
 
-    for cand in &candidates {
-        let hops_desc: Vec<HopDescriptor> = cand
-            .hops
-            .iter()
-            .map(|h| HopDescriptor {
-                pair: h.pair.clone(),
-                offer_token: h.offer_token.clone(),
-                ask_token: h.ask_token.clone(),
-            })
-            .collect();
-
-        let queries_before_lcd = lcd_queries;
-        let queries_before_db = db_queries;
-        let mut mirror_meta = MirrorLoadMeta::default();
-
-        let source = if db_mode {
-            HybridSimSource::Db {
-                lcd_fallback: &state.lcd,
-                mirrors: &mirrors,
-                discount_bps,
-            }
-        } else {
-            HybridSimSource::Lcd(&state.lcd)
-        };
-
-        let mm = if db_mode {
-            Some(&mut mirror_meta)
-        } else {
-            None
-        };
-
-        let (hybrid_plan, opt_meta, grid_out) = hybrid_route_opt::optimize_multihop_hybrid_joint(
-            &source,
-            mm,
-            &hops_desc,
-            amount_in,
-            max_maker_fills,
-            quote_trader,
-        )
-        .await
-        .map_err(hybrid_sim_gateway_err)?;
-
-        if db_mode {
-            db_queries = queries_before_db.saturating_add(mirror_meta.db_hybrid_queries);
-            lcd_queries = queries_before_lcd.saturating_add(mirror_meta.lcd_fallback_queries);
-        } else {
-            lcd_queries = queries_before_lcd.saturating_add(estimate_lcd_calls(hops_desc.len()));
-        }
-
-        let token_in_t = token_in.trim().to_string();
-        let token_out_t = token_out.trim().to_string();
-        let hops = cand.hops.clone();
-        let ops = apply_hybrid_by_hop(cand.ops.clone(), &hybrid_plan)?;
-        let estimated =
-            crate::api::route_solver::maybe_simulate(state, Some(amount_raw), &ops, quote_trader)
-                .await?;
-
-        let out_u = estimated
-            .as_ref()
-            .and_then(|s| s.parse::<u128>().ok())
-            .unwrap_or(0);
-
-        let grid_out = if db_mode { grid_out } else { out_u };
-
-        let mut path_meta = BestExecutionMeta {
-            paths_considered: candidates.len() as u32,
-            lcd_hybrid_queries: lcd_queries,
-            db_hybrid_queries: db_queries,
-            degraded: opt_meta.degraded,
-            any_book_leg: opt_meta.any_book_leg,
-            mirror_stale: mirror_meta.mirror_stale_hops > 0,
-            mirror_missing: mirror_meta.mirror_missing_hops > 0,
-            mirror_max_block_lag: None,
-            max_snapshot_age_ms: mirror_meta.max_snapshot_age_ms,
-            fidelity_check: FidelityCheck::Skipped,
-            db_optimized_amount_out: None,
-        };
-
-        let quote_kind = quote_kind_for(&opt_meta, &estimated, db_mode);
-        let resolved_route = crate::api::route_solver::ResolvedRoute {
-            token_in: token_in_t.clone(),
-            token_out: token_out_t.clone(),
-            hops: hops.clone(),
-            ops: ops.clone(),
-        };
-        let intermediate_tokens = build_intermediate_tokens(&resolved_route);
-        let body = RouteSolveResponse {
-            token_in: token_in_t,
-            token_out: token_out_t,
-            hops,
-            intermediate_tokens,
-            quote_kind,
-            hybrid_notes: None,
-            router_operations: ops,
-            estimated_amount_out: estimated.clone(),
-            solver_version: Some(solver_version.to_string()),
-            paths_considered: None,
-            optimality_scope: None,
-            lcd_hybrid_queries: None,
-            db_hybrid_queries: None,
-            fidelity_check: None,
-            mirror_max_block_lag: None,
-        };
-
-        let replace = best
-            .as_ref()
-            .map(|(_, prev_out, _, _)| out_u > *prev_out)
-            .unwrap_or(true);
-        if replace {
-            best = Some((body, out_u, grid_out, path_meta));
-        }
-    }
-
-    let (mut body, _router_out, grid_out, mut meta) = best.expect("candidates non-empty");
+    let (mut body, _router_out, grid_out, mut meta) = merge_candidate_evaluations(
+        &evals,
+        candidates.len(),
+        search_truncated,
+    )
+    .expect("candidates non-empty and at least one evaluated");
 
     if db_mode {
         let final_est = apply_fidelity_guard(
@@ -434,6 +652,7 @@ pub async fn solve_global_best_execution(
     body.db_hybrid_queries = Some(meta.db_hybrid_queries);
     body.fidelity_check = Some(meta.fidelity_check);
     body.mirror_max_block_lag = meta.mirror_max_block_lag;
+    body.search_truncated = Some(meta.search_truncated);
 
     tracing::info!(
         solver_version,
@@ -443,8 +662,166 @@ pub async fn solve_global_best_execution(
         degraded = meta.degraded,
         mirror_stale = meta.mirror_stale,
         fidelity_check = meta.fidelity_check.as_str(),
+        search_truncated = meta.search_truncated,
         "route best execution"
     );
 
     Ok((body, meta))
+}
+
+#[cfg(test)]
+mod concurrent_solve_tests {
+    use super::{merge_candidate_evaluations, CandidateEval, RouteHop, SOLVE_CONCURRENCY};
+    use crate::api::route_solver::{RouteQuoteKind, RouteSolveResponse};
+    use std::time::{Duration, Instant};
+
+    fn stub_eval(index: usize, out_u: u128, lcd_delta: u32, db_delta: u32) -> CandidateEval {
+        CandidateEval {
+            index,
+            body: RouteSolveResponse {
+                token_in: "in".into(),
+                token_out: "out".into(),
+                hops: vec![RouteHop {
+                    pair: format!("pair{index}"),
+                    offer_token: "in".into(),
+                    ask_token: "out".into(),
+                }],
+                intermediate_tokens: vec!["in".into(), "out".into()],
+                quote_kind: RouteQuoteKind::IndexerHybridLcd,
+                hybrid_notes: None,
+                router_operations: vec![],
+                estimated_amount_out: Some(out_u.to_string()),
+                solver_version: None,
+                paths_considered: None,
+                optimality_scope: None,
+                lcd_hybrid_queries: None,
+                db_hybrid_queries: None,
+                fidelity_check: None,
+                mirror_max_block_lag: None,
+                search_truncated: None,
+            },
+            out_u,
+            grid_out: out_u,
+            lcd_delta,
+            db_delta,
+            degraded: index % 2 == 1,
+            any_book_leg: index > 0,
+            mirror_stale: false,
+            mirror_missing: false,
+            max_snapshot_age_ms: 0,
+        }
+    }
+
+    #[test]
+    fn merge_picks_max_output_with_first_seen_tie_break() {
+        let evals = vec![
+            stub_eval(0, 100, 10, 1),
+            stub_eval(1, 200, 20, 2),
+            stub_eval(2, 200, 30, 3),
+        ];
+        let (_, out, _, meta) = merge_candidate_evaluations(&evals, 3, false).unwrap();
+        assert_eq!(out, 200);
+        assert_eq!(meta.lcd_hybrid_queries, 30, "cumulative through winner index 1");
+        assert_eq!(meta.db_hybrid_queries, 3);
+        assert!(meta.degraded, "winner index 1 has degraded=true");
+    }
+
+    #[test]
+    fn merge_equal_output_keeps_first_seen_candidate() {
+        let evals = vec![stub_eval(0, 500, 5, 0), stub_eval(1, 500, 7, 0)];
+        let (body, _, _, meta) = merge_candidate_evaluations(&evals, 2, false).unwrap();
+        assert_eq!(body.hops[0].pair, "pair0");
+        assert_eq!(meta.lcd_hybrid_queries, 5);
+    }
+
+    #[test]
+    fn merge_winner_at_end_uses_cumulative_queries() {
+        let evals = vec![
+            stub_eval(0, 100, 10, 0),
+            stub_eval(1, 150, 15, 0),
+            stub_eval(2, 300, 25, 0),
+        ];
+        let (_, _, _, meta) = merge_candidate_evaluations(&evals, 3, false).unwrap();
+        assert_eq!(meta.lcd_hybrid_queries, 50);
+    }
+
+    #[test]
+    fn merge_sets_search_truncated_flag() {
+        let evals = vec![stub_eval(0, 100, 10, 0)];
+        let (_, _, _, meta) = merge_candidate_evaluations(&evals, 5, true).unwrap();
+        assert!(meta.search_truncated);
+        assert_eq!(meta.paths_considered, 5);
+    }
+
+    #[test]
+    fn hybrid_notes_warn_when_search_truncated() {
+        use super::hybrid_notes_for_global;
+        let meta = super::BestExecutionMeta {
+            paths_considered: 5,
+            search_truncated: true,
+            ..Default::default()
+        };
+        let notes = hybrid_notes_for_global(&meta, "global_v4");
+        assert!(
+            notes.contains("truncated"),
+            "hybrid_notes must warn when search_truncated: {notes}"
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_fanout_latency_tracks_max_not_sum() {
+        let delay = Duration::from_millis(80);
+        let n = 5usize;
+        let cap = SOLVE_CONCURRENCY;
+        let start = Instant::now();
+        let mut join_set = tokio::task::JoinSet::new();
+        let mut next = 0usize;
+        while next < n.min(cap) {
+            let idx = next;
+            join_set.spawn(async move {
+                tokio::time::sleep(delay).await;
+                idx
+            });
+            next += 1;
+        }
+        while let Some(res) = join_set.join_next().await {
+            let _ = res.expect("task join");
+            if next < n {
+                let idx = next;
+                join_set.spawn(async move {
+                    tokio::time::sleep(delay).await;
+                    idx
+                });
+                next += 1;
+            }
+        }
+        let elapsed = start.elapsed();
+        let serial_floor = delay * n as u32;
+        assert!(
+            elapsed < serial_floor,
+            "expected ~{delay:?} concurrent wall time, got {elapsed:?} (serial would be ~{serial_floor:?})"
+        );
+        assert!(
+            elapsed >= delay,
+            "expected at least one full delay, got {elapsed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_eval_fail_fast_aborts_remaining_tasks() {
+        let mut join_set = tokio::task::JoinSet::new();
+        join_set.spawn(async {
+            Err::<u32, _>((
+                axum::http::StatusCode::BAD_REQUEST,
+                "router simulation failed".into(),
+            ))
+        });
+        join_set.spawn(async {
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            Ok::<_, (axum::http::StatusCode, String)>(1)
+        });
+        let first = join_set.join_next().await.unwrap().unwrap();
+        assert!(first.is_err(), "fail-fast: first candidate error propagates");
+        join_set.abort_all();
+    }
 }

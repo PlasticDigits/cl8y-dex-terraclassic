@@ -83,8 +83,8 @@ def main() -> int:
     lcd_budget = max_paths * default_hops * (grid_points + 2 * 2 * grid_points)
 
     checks: list[tuple[str, list[str]]] = [
-        ("solver_version_lcd", [solver_version_lcd, "global_v1"]),
-        ("solver_version_db", [solver_version_db, "global_v2"]),
+        ("solver_version_lcd", [solver_version_lcd, "global_v3"]),
+        ("solver_version_db", [solver_version_db, "global_v4"]),
         ("max_paths", [str(max_paths), "top-5", "five"]),
         ("optimality", [optimality]),
         ("lcd_budget", [str(lcd_budget), "1700"]),

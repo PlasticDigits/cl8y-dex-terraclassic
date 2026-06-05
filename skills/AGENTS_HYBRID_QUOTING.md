@@ -31,7 +31,8 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 ## Tests to run after changes
 
 ```bash
-cd indexer && cargo test hybrid_cache_key --lib   # #283 discount tier in hybrid GET cache key
+cd indexer && cargo test hybrid_cache_key --lib   # #283 discount bps in hybrid GET cache key; #324 mmf bucketing
+cd indexer && cargo test concurrent_solve --lib   # #324 bounded concurrent candidate eval
 cd indexer && cargo test route_solve_get_cache_tier -j 1 -- --test-threads=1   # #306 HTTP tier cache isolation
 cd smartcontracts && cargo test -p cl8y-dex-pair aggregation_tests
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_swap_two_makers
