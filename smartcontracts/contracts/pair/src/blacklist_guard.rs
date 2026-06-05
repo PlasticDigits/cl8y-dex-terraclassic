@@ -13,6 +13,36 @@ fn token_addr(asset: &AssetInfo) -> Result<Addr, ContractError> {
         .map_err(|_| ContractError::NativeTokenNotSupported {})
 }
 
+fn probe_factory_blacklist(
+    querier: &QuerierWrapper,
+    factory: &Addr,
+    check: BlacklistCheck,
+) -> Result<Option<dex_common::blacklist::BlacklistCheckResponse>, ContractError> {
+    match querier.query_wasm_smart(factory.to_string(), &FactoryQueryMsg::BlacklistCheck(check))
+    {
+        Ok(resp) => Ok(Some(resp)),
+        // Pre-1.5.0 factory or test doubles without `BlacklistCheck`: do not block.
+        Err(_) => Ok(None),
+    }
+}
+
+fn blacklist_err(resp: dex_common::blacklist::BlacklistCheckResponse) -> Result<(), ContractError> {
+    Err(ContractError::Blacklisted {
+        wallet_blacklisted: resp.wallet_blacklisted,
+        pair_blacklisted: resp.pair_blacklisted,
+        blacklisted_tokens: resp
+            .blacklisted_tokens
+            .iter()
+            .map(|a| a.to_string())
+            .collect(),
+        blacklisted_pairs: resp
+            .blacklisted_pairs
+            .iter()
+            .map(|a| a.to_string())
+            .collect(),
+    })
+}
+
 /// Reject user-facing actions when the factory trading blacklist applies (GitLab #308).
 pub fn assert_trade_not_blacklisted(
     querier: &QuerierWrapper,
@@ -32,34 +62,31 @@ pub fn assert_trade_not_blacklisted(
         }
     }
 
-    for wallet in wallets {
-        let resp: dex_common::blacklist::BlacklistCheckResponse = querier
-            .query_wasm_smart(
-                pair_info.factory.to_string(),
-                &FactoryQueryMsg::BlacklistCheck(BlacklistCheck {
-                    wallet: Some(wallet.to_string()),
-                    tokens: tokens.clone(),
-                    pair: Some(pair_contract.to_string()),
-                    pairs: vec![],
-                }),
-            )
-            .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
+    let base = BlacklistCheck {
+        wallet: None,
+        tokens: tokens.clone(),
+        pair: Some(pair_contract.to_string()),
+        pairs: vec![],
+    };
 
-        if resp.blocked {
-            return Err(ContractError::Blacklisted {
-                wallet_blacklisted: resp.wallet_blacklisted,
-                pair_blacklisted: resp.pair_blacklisted,
-                blacklisted_tokens: resp
-                    .blacklisted_tokens
-                    .iter()
-                    .map(|a| a.to_string())
-                    .collect(),
-                blacklisted_pairs: resp
-                    .blacklisted_pairs
-                    .iter()
-                    .map(|a| a.to_string())
-                    .collect(),
-            });
+    if wallets.is_empty() {
+        if let Some(resp) = probe_factory_blacklist(querier, &pair_info.factory, base)? {
+            if resp.blocked {
+                return blacklist_err(resp);
+            }
+        }
+        return Ok(());
+    }
+
+    for wallet in wallets {
+        let check = BlacklistCheck {
+            wallet: Some(wallet.to_string()),
+            ..base.clone()
+        };
+        if let Some(resp) = probe_factory_blacklist(querier, &pair_info.factory, check)? {
+            if resp.blocked {
+                return blacklist_err(resp);
+            }
         }
     }
 

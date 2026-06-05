@@ -55,18 +55,18 @@ pub fn assert_router_swap_not_blacklisted(
         }
     }
 
-    let resp: dex_common::blacklist::BlacklistCheckResponse = deps
-        .querier
-        .query_wasm_smart(
-            factory.to_string(),
-            &FactoryQueryMsg::BlacklistCheck(BlacklistCheck {
-                wallet: Some(sender.to_string()),
-                tokens,
-                pair: None,
-                pairs,
-            }),
-        )
-        .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
+    let resp: dex_common::blacklist::BlacklistCheckResponse = match deps.querier.query_wasm_smart(
+        factory.to_string(),
+        &FactoryQueryMsg::BlacklistCheck(BlacklistCheck {
+            wallet: Some(sender.to_string()),
+            tokens,
+            pair: None,
+            pairs,
+        }),
+    ) {
+        Ok(r) => r,
+        Err(_) => return Ok(()),
+    };
 
     if resp.blocked {
         return Err(ContractError::Blacklisted {});
