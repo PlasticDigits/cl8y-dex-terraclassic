@@ -155,10 +155,12 @@ fn hybrid_swap_a_to_b(
     taker: &Addr,
     book_input: Uint128,
     max_maker_fills: u32,
+    min_return: Option<Uint128>,
 ) -> AppResponse {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return,
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -189,10 +191,12 @@ fn hybrid_swap_b_to_a(
     taker: &Addr,
     book_input: Uint128,
     max_maker_fills: u32,
+    min_return: Option<Uint128>,
 ) -> AppResponse {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return,
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -290,6 +294,17 @@ fn place_ask(
     parse_limit_order_placed(&res.events)
 }
 
+fn hybrid_min_return_for_execute(hybrid: &Option<HybridSwapParams>) -> Option<Uint128> {
+    hybrid
+        .as_ref()
+        .filter(|h| !h.book_input.is_zero())
+        .map(|_| Uint128::one())
+}
+
+fn router_hop_min_return(hybrid: &Option<HybridSwapParams>) -> Option<Uint128> {
+    hybrid_min_return_for_execute(hybrid)
+}
+
 fn swap_a_to_b_hybrid(
     app: &mut App,
     pair: &cosmwasm_std::Addr,
@@ -301,6 +316,7 @@ fn swap_a_to_b_hybrid(
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: hybrid_min_return_for_execute(&hybrid),
         to: None,
         deadline: None,
         hybrid,
@@ -331,6 +347,7 @@ fn swap_b_to_a_hybrid(
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: hybrid_min_return_for_execute(&hybrid),
         to: None,
         deadline: None,
         hybrid,
@@ -444,6 +461,7 @@ fn hybrid_swap_emits_limit_order_fill_events() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -528,6 +546,7 @@ fn hybrid_swap_accepts_max_maker_fills_at_hard_cap() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -660,6 +679,7 @@ fn hybrid_book_fill_uses_taker_discounted_effective_fee_bps() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -839,6 +859,7 @@ fn hybrid_simulation_matches_execute_with_fee_discount() {
         let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: Some(hybrid),
@@ -968,6 +989,7 @@ fn hybrid_swap_two_makers_emits_two_fill_events() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -1352,6 +1374,7 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -1482,7 +1505,14 @@ fn hybrid_walk_parks_at_most_max_expired_bids_per_swap() {
         b.time = b.time.plus_seconds(10_000);
     });
 
-    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+    let hybrid_res = hybrid_swap_a_to_b(
+        &mut app,
+        &env,
+        &taker,
+        Uint128::new(50_000),
+        8,
+        Some(Uint128::one()),
+    );
 
     assert_eq!(
         count_limit_order_expired_parked_events(&hybrid_res.events),
@@ -1571,7 +1601,14 @@ fn hybrid_walk_three_expired_bids_all_parked_then_fills_live_bid() {
         b.time = b.time.plus_seconds(10_000);
     });
 
-    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(10_000), 8);
+    let hybrid_res = hybrid_swap_a_to_b(
+        &mut app,
+        &env,
+        &taker,
+        Uint128::new(10_000),
+        8,
+        Some(Uint128::one()),
+    );
 
     assert_eq!(
         count_limit_order_expired_parked_events(&hybrid_res.events),
@@ -1611,7 +1648,14 @@ fn hybrid_walk_twenty_expired_asks_parks_cap_skips_remainder() {
         b.time = b.time.plus_seconds(10_000);
     });
 
-    let hybrid_res = hybrid_swap_b_to_a(&mut app, &env, &taker, Uint128::new(50_000), 8);
+    let hybrid_res = hybrid_swap_b_to_a(
+        &mut app,
+        &env,
+        &taker,
+        Uint128::new(50_000),
+        8,
+        Some(Uint128::one()),
+    );
 
     assert_eq!(
         count_limit_order_expired_parked_events(&hybrid_res.events),
@@ -1652,7 +1696,14 @@ fn hybrid_walk_at_cap_parks_all_expired_bids_without_capped_attr() {
         b.time = b.time.plus_seconds(10_000);
     });
 
-    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+    let hybrid_res = hybrid_swap_a_to_b(
+        &mut app,
+        &env,
+        &taker,
+        Uint128::new(50_000),
+        8,
+        Some(Uint128::one()),
+    );
 
     assert_eq!(
         count_limit_order_expired_parked_events(&hybrid_res.events),
@@ -1700,6 +1751,7 @@ fn hybrid_walk_pool_only_swap_has_no_expired_park_attrs() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: None,
         to: None,
         deadline: None,
         hybrid: Some(pool_only_hybrid_params(pool_in)),
@@ -1758,7 +1810,14 @@ fn expired_parks_benchmark_event_counts_sweep() {
             b.time = b.time.plus_seconds(10_000);
         });
 
-        let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+        let hybrid_res = hybrid_swap_a_to_b(
+            &mut app,
+            &env,
+            &taker,
+            Uint128::new(50_000),
+            8,
+            Some(Uint128::one()),
+        );
 
         let expected_parks = n.min(cap);
         let expected_skipped = n.saturating_sub(cap);
@@ -1822,7 +1881,14 @@ fn skipped_expired_bid_cancelable_by_maker() {
         b.time = b.time.plus_seconds(10_000);
     });
 
-    hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+    hybrid_swap_a_to_b(
+        &mut app,
+        &env,
+        &taker,
+        Uint128::new(50_000),
+        8,
+        Some(Uint128::one()),
+    );
 
     let skipped_id = order_ids[MAX_EXPIRED_PARKS_PER_SWAP as usize];
     app.execute_contract(
@@ -1901,6 +1967,7 @@ fn hybrid_simulation_matches_execute_with_expired_park_cap() {
         &taker,
         hybrid.book_input,
         hybrid.max_maker_fills,
+        Some(Uint128::one()),
     );
     let taker_b_after = query_cw20_balance(&app, &env.token_b, &taker);
 
@@ -1943,7 +2010,8 @@ fn hybrid_walk_scan_steps_cap_bounds_expired_prefix_and_spills_to_pool() {
     });
 
     let book_input = Uint128::new(50_000);
-    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, book_input, 8);
+    let hybrid_res =
+        hybrid_swap_a_to_b(&mut app, &env, &taker, book_input, 8, Some(Uint128::one()));
 
     assert_eq!(
         wasm_attr_in_action_event(&hybrid_res.events, "swap", "scan_steps_capped"),
@@ -2008,6 +2076,7 @@ fn claim_expired_limit_order_blocked_while_pair_paused_then_succeeds_after_unpau
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -2296,6 +2365,7 @@ fn hybrid_split_mismatch_rejected() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -2343,6 +2413,7 @@ fn hybrid_max_maker_zero_with_book_rejected() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -2425,6 +2496,7 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: None,
         to: None,
         deadline: None,
         hybrid: None,
@@ -2566,6 +2638,7 @@ fn fifo_two_bids_same_price_older_filled_first() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -2708,6 +2781,7 @@ fn hybrid_pool_and_book_legs_one_swap() {
         let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: Some(hybrid),
@@ -2822,6 +2896,7 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(exact_max),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
@@ -2882,6 +2957,7 @@ fn hybrid_max_spread_tighter_than_simulation_rejected() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::zero()),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
@@ -2949,6 +3025,7 @@ fn hybrid_belief_price_max_spread_rejects_shortfall_on_total_output() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: Some(Decimal::from_ratio(Uint128::one(), Uint128::new(2))),
         max_spread: Some(Decimal::permille(1)),
+        min_return: None,
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
@@ -3036,6 +3113,7 @@ fn hybrid_hook_commission_includes_pool_and_book() {
         let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: Some(hybrid),
@@ -3118,6 +3196,7 @@ fn pool_only_hook_commission_unchanged() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::one()),
+        min_return: None,
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
@@ -3449,6 +3528,7 @@ fn hybrid_no_belief_book_far_below_pool_rejected() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::percent(1)),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -3482,6 +3562,97 @@ fn hybrid_no_belief_book_far_below_pool_rejected() {
             || msg.contains("InsufficientPoolLeg"),
         "expected #307 or #273 slippage rejection, got: {msg}"
     );
+}
+
+// GitLab #334 — pure-book hybrid without belief_price or min_return must fail at execute.
+#[test]
+fn hybrid_pure_book_requires_slippage_floor_without_belief() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let _bid = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_334_floor");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(20_000),
+    );
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::percent(1)),
+        min_return: None,
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(5_000),
+            max_maker_fills: 1,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    let res = app.execute_contract(
+        taker.clone(),
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(5_000),
+            msg: swap_msg,
+        },
+        &[],
+    );
+    assert!(res.is_err(), "pure-book without floor must revert");
+    let msg = res.unwrap_err().root_cause().to_string();
+    assert!(
+        msg.contains("belief_price") || msg.contains("min_return"),
+        "expected slippage floor error, got: {msg}"
+    );
+
+    let swap_ok = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::percent(1)),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(5_000),
+            max_maker_fills: 1,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker,
+        env.token_a,
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(5_000),
+            msg: swap_ok,
+        },
+        &[],
+    )
+    .unwrap();
 }
 
 // GitLab #307 — fair book at pool rate but pool leg below 10% of offer must fail without belief.
@@ -3519,6 +3690,7 @@ fn hybrid_no_belief_dust_pool_leg_rejected() {
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(Decimal::percent(1)),
+        min_return: Some(Uint128::one()),
         to: None,
         deadline: None,
         hybrid: Some(HybridSwapParams {
@@ -3622,6 +3794,7 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
         offer_asset_info: asset_info_token(&env.token_a),
         ask_asset_info: asset_info_token(&env.token_b),
         hybrid: None,
+        min_return: None,
     };
     let sim_none: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
         .wrap()
@@ -3645,6 +3818,7 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        min_return: None,
     };
     let sim_hybrid: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
         .wrap()
@@ -3702,6 +3876,7 @@ fn router_single_hop_forwards_hybrid_to_pair() {
                 max_maker_fills: 8,
                 book_start_hint: None,
             }),
+            min_return: Some(Uint128::one()),
         }],
         max_spread: Decimal::one(),
         minimum_receive: None,
@@ -3755,16 +3930,19 @@ fn router_two_hop_first_leg_hybrid_matches_simulate() {
         max_maker_fills: 8,
         book_start_hint: None,
     };
+    let hop1_min = router_hop_min_return(&Some(hop1_hybrid.clone()));
     let operations = vec![
         cl8y_dex_router::msg::SwapOperation::TerraSwap {
             offer_asset_info: asset_info_token(&env.token_a),
             ask_asset_info: asset_info_token(&env.token_b),
             hybrid: Some(hop1_hybrid),
+            min_return: hop1_min,
         },
         cl8y_dex_router::msg::SwapOperation::TerraSwap {
             offer_asset_info: asset_info_token(&env.token_b),
             ask_asset_info: asset_info_token(&abc.token_c),
             hybrid: None,
+            min_return: None,
         },
     ];
 
@@ -3886,6 +4064,7 @@ fn router_three_hop_two_legs_hybrid_matches_simulate() {
         offer_asset_info: asset_info_token(&env.token_a),
         ask_asset_info: asset_info_token(&env.token_b),
         hybrid: Some(hop1_hybrid.clone()),
+        min_return: None,
     }];
     let offer_b = router_simulate_amount(&app, &env.router, offer_a, &hop1_only);
 
@@ -3894,12 +4073,14 @@ fn router_three_hop_two_legs_hybrid_matches_simulate() {
         cl8y_dex_router::msg::SwapOperation::TerraSwap {
             offer_asset_info: asset_info_token(&env.token_a),
             ask_asset_info: asset_info_token(&env.token_b),
-            hybrid: Some(hop1_hybrid),
+            hybrid: Some(hop1_hybrid.clone()),
+            min_return: router_hop_min_return(&Some(hop1_hybrid.clone())),
         },
         cl8y_dex_router::msg::SwapOperation::TerraSwap {
             offer_asset_info: asset_info_token(&env.token_b),
             ask_asset_info: asset_info_token(&abc.token_c),
-            hybrid: Some(hop2_hybrid),
+            hybrid: Some(hop2_hybrid.clone()),
+            min_return: router_hop_min_return(&Some(hop2_hybrid)),
         },
     ];
     let _offer_c = router_simulate_amount(&app, &env.router, offer_a, &hops_ab);
@@ -3911,6 +4092,7 @@ fn router_three_hop_two_legs_hybrid_matches_simulate() {
             offer_asset_info: asset_info_token(&abc.token_c),
             ask_asset_info: asset_info_token(&abcd.token_d),
             hybrid: None,
+            min_return: None,
         },
     ];
 
@@ -5201,6 +5383,7 @@ fn batch_claim_expired_two_orders_one_tx() {
         let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: Some(HybridSwapParams {
@@ -5846,7 +6029,7 @@ fn match_dust_flush_bid_hybrid_then_maker_claims() {
         fill.checked_mul(Uint128::new(5)).unwrap(),
     );
 
-    let res = hybrid_swap_a_to_b(&mut app, &env, &taker, fill, 8);
+    let res = hybrid_swap_a_to_b(&mut app, &env, &taker, fill, 8, Some(Uint128::one()));
     assert!(
         res.events.iter().any(|e| {
             e.attributes

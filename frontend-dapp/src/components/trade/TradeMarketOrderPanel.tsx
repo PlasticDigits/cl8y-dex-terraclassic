@@ -7,7 +7,11 @@ import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, simulateHybridSwap, swap } from '@/services/terraclassic/pair'
-import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
+import {
+  enrichSwapOperationsWithHopMinReturns,
+  preflightSwapRouteSpread,
+  type SwapRoutePreflightSpread,
+} from '@/services/terraclassic/swapRoutePreflight'
 import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
@@ -350,11 +354,17 @@ export function TradeMarketOrderPanel({
       const submitHybrid = hybrid ? hybridParamsWithSubmitCap(hybrid) : undefined
       return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, raw, async () => {
         if (swapOpsRequireRouter(idxOps)) {
+          const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
+            idxOps!,
+            raw,
+            slippageTolerance,
+            address ? { trader: address } : undefined
+          )
           return executeMultiHopSwap(
             address,
             fromToken,
             raw,
-            idxOps!,
+            opsForSubmit,
             maxSpread,
             minReceived ?? undefined,
             undefined,
@@ -362,8 +372,10 @@ export function TradeMarketOrderPanel({
           )
         }
         const hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? submitHybrid
+        const bookIn = hopHybrid ? BigInt(hopHybrid.book_input) : 0n
         return swap(address, fromToken, selectedPair.contract_addr, raw, undefined, maxSpread, undefined, {
           hybrid: hopHybrid,
+          minReturn: bookIn > 0n ? (minReceived ?? undefined) : undefined,
           deadline,
         })
       })

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   hybridMaxSpreadRealizedLegs,
+  hybridBookRequiresSlippageFloor,
   hybridNoBeliefMaterialPoolReject,
   hybridSpreadCmpAndTotal,
   minPoolInputForBookHybrid,
@@ -86,6 +87,13 @@ describe('swapMaxSpread', () => {
       poolInput: 6000n,
       bookInput: 5000n,
     })
+  })
+
+  it('flags missing slippage floor when book leg has no belief or min_return (#334)', () => {
+    expect(hybridBookRequiresSlippageFloor(1000n, null, null)).toBe(true)
+    expect(hybridBookRequiresSlippageFloor(1000n, null, '1')).toBe(false)
+    expect(hybridBookRequiresSlippageFloor(1000n, '1.0', null)).toBe(false)
+    expect(hybridBookRequiresSlippageFloor(0n, null, null)).toBe(false)
   })
 
   it('requires at least 10% pool leg when book leg is set (#307)', () => {

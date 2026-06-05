@@ -193,11 +193,14 @@ fn execute_swap_operations(
         });
     }
 
-    let first_hybrid_precheck = match &operations[0] {
-        SwapOperation::TerraSwap { hybrid, .. } => hybrid.clone(),
+    let (first_hybrid_precheck, first_hop_min_return) = match &operations[0] {
+        SwapOperation::TerraSwap {
+            hybrid, min_return, ..
+        } => (hybrid.clone(), *min_return),
         SwapOperation::NativeSwap { .. } => return Err(ContractError::NativeSwapNotSupported {}),
     };
     validate_hybrid_declared_split_for_no_belief(amount, &first_hybrid_precheck)?;
+    validate_hybrid_hop_execute_slippage_floor(&first_hybrid_precheck, first_hop_min_return)?;
 
     if SWAP_STATE.may_load(deps.storage)?.is_some() {
         return Err(ContractError::SwapInProgress {});
@@ -250,14 +253,17 @@ fn execute_swap_operations(
         },
     )?;
 
-    let first_hybrid = match &first_op {
-        SwapOperation::TerraSwap { hybrid, .. } => hybrid.clone(),
-        SwapOperation::NativeSwap { .. } => None,
+    let (first_hybrid, first_min_return) = match &first_op {
+        SwapOperation::TerraSwap {
+            hybrid, min_return, ..
+        } => (hybrid.clone(), *min_return),
+        SwapOperation::NativeSwap { .. } => (None, None),
     };
 
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(max_spread),
+        min_return: first_min_return,
         to: None,
         deadline: None,
         trader: Some(sender.to_string()),
@@ -297,6 +303,7 @@ fn resolve_operation(
             offer_asset_info,
             ask_asset_info,
             hybrid: _,
+            ..
         } => {
             offer_asset_info
                 .assert_is_token()
@@ -405,15 +412,19 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     SWAP_STATE.save(deps.storage, &state)?;
 
-    let hop_hybrid = match &next_op {
-        SwapOperation::TerraSwap { hybrid, .. } => hybrid.clone(),
-        SwapOperation::NativeSwap { .. } => None,
+    let (hop_hybrid, hop_min_return) = match &next_op {
+        SwapOperation::TerraSwap {
+            hybrid, min_return, ..
+        } => (hybrid.clone(), *min_return),
+        SwapOperation::NativeSwap { .. } => (None, None),
     };
     validate_hybrid_declared_split_for_no_belief(hop_output, &hop_hybrid)?;
+    validate_hybrid_hop_execute_slippage_floor(&hop_hybrid, hop_min_return)?;
 
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
         max_spread: Some(state.max_spread),
+        min_return: hop_min_return,
         to: None,
         deadline: None,
         trader: Some(state.sender.to_string()),
@@ -500,6 +511,17 @@ fn validate_hybrid_declared_split_for_no_belief(
     Ok(())
 }
 
+fn validate_hybrid_hop_execute_slippage_floor(
+    hybrid: &Option<pair::HybridSwapParams>,
+    min_return: Option<Uint128>,
+) -> Result<(), ContractError> {
+    if let Some(h) = hybrid {
+        max_spread::validate_hybrid_book_requires_slippage_floor(h.book_input, None, min_return)
+            .map_err(hybrid_book_slippage_floor_router_error)?;
+    }
+    Ok(())
+}
+
 fn hybrid_pool_leg_router_error(e: CheckMaxSpreadError) -> ContractError {
     match e {
         CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
@@ -510,6 +532,18 @@ fn hybrid_pool_leg_router_error(e: CheckMaxSpreadError) -> ContractError {
             "Hybrid swap requires a material pool leg without belief_price: pool_input \
              {pool_input} is below minimum {min_pool_input} (book_input {book_input})"
         ))),
+        other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
+    }
+}
+
+fn hybrid_book_slippage_floor_router_error(e: CheckMaxSpreadError) -> ContractError {
+    match e {
+        CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input } => {
+            ContractError::Std(cosmwasm_std::StdError::generic_err(format!(
+                "Hybrid swap with book_input {book_input} requires per-hop min_return \
+                 without belief_price"
+            )))
+        }
         other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
     }
 }
@@ -551,6 +585,7 @@ fn query_simulate_swap_operations(
                 offer_asset_info,
                 ask_asset_info,
                 hybrid,
+                ..
             } => {
                 let pair_response: dex_common::factory::PairResponse =
                     deps.querier.query_wasm_smart(
@@ -635,6 +670,7 @@ fn query_reverse_simulate_swap_operations(
                 offer_asset_info,
                 ask_asset_info,
                 hybrid,
+                ..
             } => {
                 let pair_response: dex_common::factory::PairResponse =
                     deps.querier.query_wasm_smart(
