@@ -32,6 +32,7 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
 
 ```bash
 cd indexer && cargo test hybrid_cache_key --lib   # #283 discount tier in hybrid GET cache key
+cd indexer && cargo test route_solve_get_cache_tier -j 1 -- --test-threads=1   # #306 HTTP tier cache isolation
 cd smartcontracts && cargo test -p cl8y-dex-pair aggregation_tests
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_swap_two_makers
 cd smartcontracts && cargo test -p dex-common max_spread

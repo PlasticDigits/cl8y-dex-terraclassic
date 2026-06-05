@@ -16,8 +16,9 @@
 //! cg/historical_trades) only assert status, since their row counts are nested.
 //!
 //! LCD-backed routes (`limit-book`, `limit-book-shallow`, `/cg/orderbook`, `/cmc/orderbook/*`)
-//! are NOT covered here — they need a wiremock LCD harness and live in
-//! `tests/api_orderbook_lcd_mock.rs` (depth).
+//! are NOT covered here — they need a wiremock LCD harness: `limit-book` / `limit-book-shallow`
+//! in [`api_limit_book_lcd_mock.rs`](api_limit_book_lcd_mock.rs); CG/CMC orderbook `depth` in
+//! [`api_orderbook_lcd_mock.rs`](api_orderbook_lcd_mock.rs).
 
 mod common;
 

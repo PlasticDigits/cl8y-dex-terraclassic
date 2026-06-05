@@ -83,6 +83,18 @@ One taker swap matches two makers → two `limit_order_fill` wasm events, **one*
 
 **24h volume:** still **one** swap row. Use `limit_order_fills` with `swap_event_id` for maker-level detail; **do not** add fill notionals to pair volume.
 
+### Fill ↔ swap linkage (`swap_event_id`)
+
+Each `limit_order_fills` row may set optional **`swap_event_id`** → parent `swap_events.id`. The indexer resolves this by the fill's per-pair **`swap_index`** (0-based ordinal of swaps on that pair within the tx, matching parser walk order and the unique key `(tx_hash, pair_id, swap_index)` from GitLab [#287](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)) — **not** by `MIN(id)` on swap rows ([GitLab #316](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/316)).
+
+| Scenario | `swap_index` | `swap_event_id` target |
+|----------|--------------|------------------------|
+| 1 swap, N fills | `0` for all fills | The single swap row |
+| 2+ swaps on same pair in one tx | Each fill carries the ordinal of the swap that produced it (fills precede their `swap` action in wasm event order) | The matching `swap_events` row for that ordinal |
+| Pool-only swap (no fills) | — | N/A |
+
+**Integrator joins:** `limit_order_fills.swap_event_id = swap_events.id` and verify `swap_events.swap_index` matches the fill's ordinal when attributing per-fill leg attrs (`book_input`, `expired_parks_*`, etc.) to the parent swap. Do **not** assume the first swap row (`ORDER BY id`) when multiple swaps share `(tx_hash, pair_id)`.
+
 ---
 
 ## Null / legacy matrix
@@ -146,7 +158,7 @@ These use **consolidated** `swap_events` amounts (same rule as CG/CMC):
 - [ ] CG/CMC `cl8y_extensions` present; standard volume fields unchanged.
 - [ ] Internal `/api/v1/pairs/{addr}/trades` leg aliases match CG/CMC when indexed.
 
-Tests: `indexer/tests/swap_events_hybrid_columns.rs`, `indexer/tests/api_consolidated_reporting.rs`, `indexer/tests/api_integrator_hybrid_volume.rs`.
+Tests: `indexer/tests/swap_events_hybrid_columns.rs`, `indexer/tests/api_consolidated_reporting.rs`, `indexer/tests/api_integrator_hybrid_volume.rs`, `indexer/tests/limit_fill_swap_linkage.rs` (fill ↔ swap ordinal linkage, #316).
 
 ---
 

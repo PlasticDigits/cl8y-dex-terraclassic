@@ -104,22 +104,8 @@ _ensure_rust() {
   fi
 }
 
-_deploy_up_to_date() {
-  [[ -f "$STAMP" && -f "$ENV_LOCAL" ]] || return 1
-  local head stamp_sha factory_stamp factory_env
-  head="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
-  stamp_sha="$(grep -E '^git_sha=' "$STAMP" | tail -n1 | sed 's/^git_sha=//')"
-  [[ -n "$head" && "$head" = "$stamp_sha" ]] || return 1
-  factory_stamp="$(grep -E '^factory_address=' "$STAMP" | tail -n1 | sed 's/^factory_address=//')"
-  factory_env="$(grep -E '^VITE_FACTORY_ADDRESS=' "$ENV_LOCAL" | tail -n1 | sed 's/^VITE_FACTORY_ADDRESS=//')"
-  [[ -n "$factory_stamp" && "$factory_stamp" = "$factory_env" ]] || return 1
-  compgen -G "$REPO_ROOT/smartcontracts/artifacts/*.wasm" >/dev/null || return 1
-  # Stamp/env survive `make reset`; confirm factory still answers on the live chain.
-  # shellcheck source=scripts/lib/lcd-smart-query.sh
-  source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
-  local lcd="http://127.0.0.1:${DEX_TERRA_LCD_PORT:-1317}"
-  lcd_smart_query_ok "$lcd" "$factory_stamp" '{"pairs":{"start_after":null,"limit":1}}'
-}
+# shellcheck source=scripts/lib/deploy-up-to-date.sh
+source "$REPO_ROOT/scripts/lib/deploy-up-to-date.sh"
 
 _start_indexer_tmux() {
   local session=indexer-dev restart="${1:-0}"
@@ -179,7 +165,7 @@ if [[ "$INFRA_ONLY" -eq 1 ]]; then
 fi
 
 DEPLOY_RAN=0
-if [[ "$FRESH_VOLUMES" -eq 0 ]] && _deploy_up_to_date; then
+if [[ "$FRESH_VOLUMES" -eq 0 ]] && deploy_up_to_date "$REPO_ROOT"; then
   echo "[setup-cloud-localterra] deploy stamp matches HEAD and artifacts present — skipping build/deploy"
 else
   if [[ "$SKIP_BUILD" -eq 0 ]]; then

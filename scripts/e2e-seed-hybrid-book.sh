@@ -33,7 +33,9 @@ fi
 LCD="${VITE_TERRA_LCD_URL:-http://localhost:1317}"
 LCD="${LCD%/}"
 
-CONTAINER="$(docker compose -f "$REPO_ROOT/docker-compose.yml" ps -q localterra 2>/dev/null | head -1 || true)"
+# shellcheck source=scripts/lib/localterra-host-curl.sh
+source "$REPO_ROOT/scripts/lib/localterra-host-curl.sh"
+CONTAINER="$(localterra_container_id "$REPO_ROOT")"
 if [[ -z "$CONTAINER" ]]; then
   echo "e2e-seed-hybrid-book: localterra container not running." >&2
   exit 1

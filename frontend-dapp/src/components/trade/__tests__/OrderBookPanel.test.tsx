@@ -146,6 +146,21 @@ describe('OrderBookPanel', () => {
     )
   })
 
+  it('renders empty book when indexer page omits orders (GitLab #327)', async () => {
+    vi.mocked(getPairLimitBookPage).mockResolvedValue({
+      side: 'bid',
+      orders: undefined as never,
+      has_more: false,
+      next_after_order_id: null,
+    })
+
+    renderWithProviders(<OrderBookPanel pairAddress={pair.pair_address} pair={pair} />)
+
+    const bids = screen.getByText('Bids').closest('.card-neo') as HTMLElement
+    expect(await within(bids).findByText(/No resting bids yet/i)).toBeInTheDocument()
+    expect(within(bids).queryByRole('row', { name: /order #/i })).not.toBeInTheDocument()
+  })
+
   it('Edit invokes onPrefillLimitTicket with side, price, and remaining size (GitLab #178)', async () => {
     const user = userEvent.setup()
     const onPrefill = vi.fn()

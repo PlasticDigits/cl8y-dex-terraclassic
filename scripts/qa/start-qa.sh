@@ -7,6 +7,10 @@ cd "$REPO_ROOT"
 
 # shellcheck source=scripts/qa/lib/qa-env.sh
 source "$REPO_ROOT/scripts/qa/lib/qa-env.sh"
+# shellcheck source=scripts/lib/qa-phase-timing.sh
+source "$REPO_ROOT/scripts/lib/qa-phase-timing.sh"
+# shellcheck source=scripts/lib/deploy-up-to-date.sh
+source "$REPO_ROOT/scripts/lib/deploy-up-to-date.sh"
 
 PIDFILE="${REPO_ROOT}/.indexer-qa.pid"
 LOGFILE="${REPO_ROOT}/.indexer-qa.log"
@@ -24,6 +28,7 @@ printf '%b\n' "${_QA_HI}┗━━━━━━━━━━━━━━━━━�
 echo ""
 
 qa_load_env
+qa_timing_begin_session
 
 if qa_is_fresh_volumes; then
   chmod +x "$REPO_ROOT/scripts/qa/lib/print-fresh-volumes-banner.sh" 2>/dev/null || true
@@ -34,6 +39,7 @@ if [ "${QA_SHARED_HOST:-}" = "1" ]; then
   echo "[start-qa] QA_SHARED_HOST=1 — using ${COMPOSE_FILE}"
 fi
 
+qa_timing_phase_start "infra"
 echo "==> Tearing down prior QA stack (indexer + compose) if present..."
 "$REPO_ROOT/scripts/qa/stop-qa.sh"
 
@@ -75,15 +81,41 @@ for i in $(seq 1 30); do
 done
 
 docker compose ps
+qa_timing_phase_end
 
-echo "==> Build optimized wasm + deploy to LocalTerra (deploy-dex-local)..."
+if [ "${QA_FETCH_CI_ARTIFACTS:-0}" = "1" ]; then
+  qa_timing_phase_start "fetch-ci-artifacts"
+  chmod +x "$REPO_ROOT/scripts/qa/fetch-qa-ci-artifacts.sh"
+  "$REPO_ROOT/scripts/qa/fetch-qa-ci-artifacts.sh" || true
+  qa_timing_phase_end
+fi
+
+qa_timing_phase_start "deploy"
 export TERRA_RPC_URL TERRA_LCD_URL DEX_TERRA_RPC_PORT DEX_TERRA_LCD_PORT
-make deploy-local
+
+DEPLOY_SKIPPED=0
+if deploy_up_to_date "$REPO_ROOT"; then
+  echo "[start-qa] deploy stamp matches HEAD + factory LCD probe — skipping make deploy-local"
+  DEPLOY_SKIPPED=1
+else
+  # shellcheck source=scripts/lib/wasm-artifacts-stale.sh
+  source "$REPO_ROOT/scripts/lib/wasm-artifacts-stale.sh"
+  if compgen -G "$REPO_ROOT/smartcontracts/artifacts/cl8y_dex_*.wasm" >/dev/null \
+    && dex_wasm_stale_vs_sources "$REPO_ROOT"; then
+    echo "[start-qa] fresh wasm artifacts present — make deploy-local-no-build"
+    make deploy-local-no-build
+  else
+    echo "[start-qa] no fresh wasm artifacts — make deploy-local (optimizer + deploy)"
+    make deploy-local
+  fi
+fi
+qa_timing_phase_end
 
 echo "==> Verifying deployed contracts match current tree (qa-verify-deploy)..."
 chmod +x "$REPO_ROOT/scripts/qa/verify-deploy.sh" "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 "$REPO_ROOT/scripts/qa/verify-deploy.sh"
 
+qa_timing_phase_start "indexer"
 echo "==> Starting indexer (release, background)..."
 if [ -f "$PIDFILE" ]; then
   old="$(cat "$PIDFILE" 2>/dev/null || true)"
@@ -96,6 +128,19 @@ if [ -f "$PIDFILE" ]; then
 fi
 
 INDEXER_BIN="${INDEXER_QA_BIN:-}"
+if [ -z "$INDEXER_BIN" ] || [ ! -x "$INDEXER_BIN" ]; then
+  _default_indexer="${REPO_ROOT}/indexer/target/release/cl8y-dex-indexer"
+  if [ -x "$_default_indexer" ]; then
+    INDEXER_BIN="$_default_indexer"
+  fi
+fi
+
+if [ -z "$INDEXER_BIN" ] || [ ! -x "$INDEXER_BIN" ]; then
+  echo "[start-qa] building indexer release binary (set INDEXER_QA_BIN to skip)..."
+  (cd "$REPO_ROOT/indexer" && cargo build --release)
+  INDEXER_BIN="${REPO_ROOT}/indexer/target/release/cl8y-dex-indexer"
+fi
+
 if [ -n "$INDEXER_BIN" ] && [ -x "$INDEXER_BIN" ]; then
   nohup sh -c "cd \"$REPO_ROOT/indexer\" && set -a && [ -f .env ] && . ./.env && set +a && exec \"$INDEXER_BIN\"" >>"$LOGFILE" 2>&1 &
 else
@@ -119,10 +164,15 @@ if [ "$ok" != 1 ]; then
   exit 1
 fi
 echo "==> Indexer healthy."
+qa_timing_phase_end
+qa_timing_session_end
 
 echo ""
 echo "========================================================================"
 echo "  start-qa finished successfully on this host."
+if [ "$DEPLOY_SKIPPED" = "1" ]; then
+  echo "  (deploy skipped — stamp matched HEAD)"
+fi
 echo "========================================================================"
 chmod +x "$REPO_ROOT/scripts/qa/print-qa-tunnel-instructions.sh" 2>/dev/null || true
 "$REPO_ROOT/scripts/qa/print-qa-tunnel-instructions.sh"
