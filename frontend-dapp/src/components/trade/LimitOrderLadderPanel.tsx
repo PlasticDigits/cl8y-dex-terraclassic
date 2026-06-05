@@ -378,9 +378,7 @@ export function LimitOrderLadderPanel({
         {placeMutation.isPending ? 'Placing ladder…' : `Place ${rungCount}-rung ladder`}
       </button>
       {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
-      {placeMutation.isSuccess && (
-        <TxResultAlert type="success" message="Ladder placed." txHash={placeMutation.data} />
-      )}
+      {placeMutation.isSuccess && <TxResultAlert type="success" message="Ladder placed." txHash={placeMutation.data} />}
     </div>
   )
 }

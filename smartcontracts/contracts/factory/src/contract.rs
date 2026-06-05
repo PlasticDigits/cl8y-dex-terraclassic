@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order,
+    Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
@@ -127,6 +127,12 @@ pub fn execute(
             start_after,
             limit,
         } => execute_set_discount_registry_batch(deps, info, registry, start_after, limit),
+        ExecuteMsg::SetLpAdminAll { admin } => execute_set_lp_admin_all(deps, info, admin),
+        ExecuteMsg::SetLpAdminBatch {
+            admin,
+            start_after,
+            limit,
+        } => execute_set_lp_admin_batch(deps, info, admin, start_after, limit),
         ExecuteMsg::SetPairPaused { pair, paused } => {
             execute_set_pair_paused(deps, info, pair, paused)
         }
@@ -537,6 +543,107 @@ fn execute_set_discount_registry_batch(
     Ok(resp)
 }
 
+/// Update the LP-token CosmWasm admin on all registered pairs in ONE bounded tx (GitLab #277).
+/// Governance only. Bounded to `calc_limit(None)` pairs; if `PAIR_COUNT` exceeds that, returns
+/// [`ContractError::LpAdminAllTooManyPairs`] so operators use [`execute_set_lp_admin_batch`].
+fn execute_set_lp_admin_all(
+    deps: DepsMut,
+    info: MessageInfo,
+    admin: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    deps.api.addr_validate(&admin)?;
+
+    let max_pairs = calc_limit(None);
+    let count = PAIR_COUNT.load(deps.storage)?;
+    if count > max_pairs as u64 {
+        return Err(ContractError::LpAdminAllTooManyPairs {
+            pair_count: count,
+            max: max_pairs as u32,
+        });
+    }
+
+    let mut messages = Vec::new();
+    for idx in 0..count {
+        if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+            messages.push(WasmMsg::Execute {
+                contract_addr: pair_info.contract_addr.to_string(),
+                msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetLpAdmin {
+                    admin: admin.clone(),
+                })?,
+                funds: vec![],
+            });
+        }
+    }
+
+    let pairs_updated = messages.len();
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "set_lp_admin_all")
+        .add_attribute("admin", admin)
+        .add_attribute("pairs_updated", pairs_updated.to_string()))
+}
+
+/// Update the LP-token CosmWasm admin on registered pairs in bounded chunks (`PAIR_INDEX` order).
+/// Governance only. Scans contiguous indices upwards from `(start_after + 1)` (or `0`) and attaches
+/// at most `calc_limit(limit)` Wasm messages; rerun with `next_start_after` until `has_more=false`.
+fn execute_set_lp_admin_batch(
+    deps: DepsMut,
+    info: MessageInfo,
+    admin: String,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    deps.api.addr_validate(&admin)?;
+
+    let batch_limit = calc_limit(limit);
+    let count = PAIR_COUNT.load(deps.storage)?;
+    let start_idx = start_after.map_or(0u64, |s| s.saturating_add(1));
+
+    if start_idx >= count {
+        return Ok(Response::new()
+            .add_attribute("action", "set_lp_admin_batch")
+            .add_attribute("admin", admin)
+            .add_attribute("pairs_updated", "0")
+            .add_attribute("has_more", "false"));
+    }
+
+    let mut idx = start_idx;
+    let mut messages = Vec::new();
+    while idx < count && messages.len() < batch_limit {
+        if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+            messages.push(WasmMsg::Execute {
+                contract_addr: pair_info.contract_addr.to_string(),
+                msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetLpAdmin {
+                    admin: admin.clone(),
+                })?,
+                funds: vec![],
+            });
+        }
+        idx += 1;
+    }
+
+    let has_more = idx < count;
+    let next_start_after = has_more.then_some(idx.saturating_sub(1));
+    let last_scanned = idx.saturating_sub(1);
+    let pairs_updated = messages.len();
+
+    let mut resp = Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "set_lp_admin_batch")
+        .add_attribute("admin", admin)
+        .add_attribute("pairs_updated", pairs_updated.to_string())
+        .add_attribute("has_more", has_more.to_string())
+        .add_attribute("scanned_through_index", last_scanned.to_string());
+
+    if let Some(n) = next_start_after {
+        resp = resp.add_attribute("next_start_after", n.to_string());
+    }
+
+    Ok(resp)
+}
+
 /// Emergency pause/unpause a specific pair. Governance only.
 fn execute_set_pair_paused(
     deps: DepsMut,
@@ -654,7 +761,6 @@ fn execute_update_config(
     ensure_governance(&deps, &info)?;
 
     let mut config = CONFIG.load(deps.storage)?;
-    let old_governance = config.governance.clone();
 
     if let Some(gov) = governance {
         config.governance = deps.api.addr_validate(&gov)?;
@@ -672,29 +778,11 @@ fn execute_update_config(
         config.default_limit_batch_max_rungs = clamp_max_batch_rungs(max_rungs);
     }
 
-    let new_governance = config.governance.clone();
     CONFIG.save(deps.storage, &config)?;
 
-    let mut messages: Vec<CosmosMsg> = vec![];
-
-    if new_governance != old_governance {
-        let pair_count = PAIR_COUNT.load(deps.storage)?;
-        for idx in 0..pair_count {
-            if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
-                messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: pair_info.contract_addr.to_string(),
-                    msg: to_json_binary(&dex_common::pair::ExecuteMsg::SetLpAdmin {
-                        admin: new_governance.to_string(),
-                    })?,
-                    funds: vec![],
-                }));
-            }
-        }
-    }
-
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attribute("action", "update_config"))
+    // GitLab #277: governance rotation no longer fans a SetLpAdmin to every pair in one tx
+    // (unbounded). Rotate LP-token admins explicitly afterward via SetLpAdminAll / SetLpAdminBatch.
+    Ok(Response::new().add_attribute("action", "update_config"))
 }
 
 // ---------------------------------------------------------------------------
