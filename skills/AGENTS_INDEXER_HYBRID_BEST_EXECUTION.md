@@ -6,7 +6,7 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 
 | Endpoint | When to use |
 |----------|-------------|
-| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — **global best execution** (`solver_version`: `global_v1`): top-5 paths by hop count, joint hybrid splits, max **3 hops** when `amount_in` is set ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)). Optional **`trader`** / **`sender`** for CL8Y fee-tier quote parity — pair `HybridSimulation` discount math ([#238](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)); indexer/frontend wiring ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). See [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md). |
+| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — **global best execution** (`solver_version`: `global_v1` or `global_v2`): top-5 paths by hop count, joint hybrid splits, max **4 hops** when `amount_in` is set ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191), [#323](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/323)). Optional **`trader`** / **`sender`** for CL8Y fee-tier quote parity — pair `HybridSimulation` discount math ([#238](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)); indexer/frontend wiring ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). See [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md). |
 | `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Alias** — requires `amount_in` ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)). Accepts same optional **`trader`** / **`sender`**. |
 | `GET /api/v1/route/solve?hybrid_optimize=true&amount_in=` | Deprecated explicit opt-in; equivalent to default GET with `amount_in`. |
 | `GET /api/v1/route/solve?pool_only=true&amount_in=` | Pool-only opt-out (max 4 hops, no global solver). |
@@ -54,6 +54,14 @@ Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route
 - `GET /route/solve` and `/route/solve/best` are **LCD-heavy** (stricter **10 RPS** per IP by default).
 - Hybrid optimization is bounded by **`LCD_HYBRID_SIM_BUDGET`**; LCD failures return generic **502** (`Upstream LCD query failed`), not raw `LcdError` text.
 - Agent playbook: [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md).
+
+## `book_start_hint` on optimized hops ([#332](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/332))
+
+When `solver_version` is **`global_v2`** and a hop has `book_input > 0` with a **fresh** Postgres mirror, `optimize_hop_hybrid` sets `book_start_hint` to the first live resting order on the taker's match side (from `resting_limit_orders`, expired rows filtered). Stale/missing mirror → `null` (LCD fallback grid omits hint). Pool-only hops → `null`. The same hint is forwarded to mirror `HybridSimulation` math and LCD fallback is hint-free.
+
+Side safety: hint rows must match bid/ask for the offer token; corrupt wrong-side mirror rows are skipped. On-chain **L17** ([#272](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) still validates at execute — see [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md).
+
+Regression: `route_solve_db_hybrid_book_start_hint_paths` in `indexer/tests/api_route_solve_db_hybrid.rs`.
 
 ## Related invariants
 

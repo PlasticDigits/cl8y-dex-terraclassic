@@ -64,5 +64,5 @@ LCD stubs: [`indexer/tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock
 Add cases here (not ad-hoc one-offs) when changing:
 
 - Router multi-hop `hybrid` forwarding or simulate loop
-- Indexer `apply_hybrid_by_hop` or default GET hybrid hop cap (currently **3 hops** on GET, **4 hops** on POST discovery) — [GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)
+- Indexer `apply_hybrid_by_hop` or default GET hybrid hop cap (**4 hops** on GET and POST discovery; [#323](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/323)) — [GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)
 - Frontend/indexer merge of `hybrid_by_hop` for routes with **>2** hybrid legs

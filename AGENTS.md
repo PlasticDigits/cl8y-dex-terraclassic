@@ -67,6 +67,31 @@ Idempotent deploy skip also probes the factory on LCD ([Q1](skills/AGENTS_QA_DEP
 
 **tmux sessions:** `indexer-dev`, `frontend-dev`, `dockerd` — attach with `tmux -f /exec-daemon/tmux.portal.conf attach -t <name>`.
 
+### Indexer integration tests (Postgres-only)
+
+For **indexer-only** work (no frontend, no wasm deploy), provision Postgres + `indexer/.env` in one step ([#335](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335)):
+
+```bash
+make setup-indexer-postgres
+# equivalent: ./scripts/setup-cloud-agent-indexer-postgres.sh
+# or: ./scripts/setup-cloud-agent-localterra.sh --postgres-only
+```
+
+| Output | Purpose |
+|--------|---------|
+| `indexer/.env` | `DATABASE_URL`, `TEST_DATABASE_URL` (minimum for integration tests) |
+
+Does **not** start LocalTerra, build optimized wasm, or run `deploy-dex-local`. Host `psql` is optional — scripts fall back to `docker compose exec` when `postgresql-client` is missing.
+
+```bash
+export PATH="/usr/local/cargo/bin:$PATH"
+make test-indexer-integration          # full suite, serialized
+make verify-issue-324                    # #324 lib + route_solve_get_cache integration
+cd indexer && cargo test --test api_route_solve -- --test-threads=1
+```
+
+Use **`make setup-cloud-localterra`** when you need `frontend-dapp/.env.local`, chain LCD, and a running indexer. See [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
+
 ### Full local stack (manual — same as setup script steps)
 
 | Step | Command |
@@ -96,7 +121,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Indexer lib | `cd indexer && cargo test --lib` |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
-Frontend unit tests need Node **24** on `PATH`. Indexer integration tests need Postgres + `indexer/.env` — see [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
+Frontend unit tests need Node **24** on `PATH`. Indexer integration tests need Postgres + `indexer/.env` — Cloud Agent: `make setup-indexer-postgres` (Postgres-only); full stack: [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
 
 ### Browser / E2E on Cloud Agent
 

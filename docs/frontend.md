@@ -531,7 +531,7 @@ Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/
 | **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query uses `sort=volume_24h&order=desc` (high-liquidity defaults). |
 | **Min query length** | ≥2 chars unless the query looks like a `terra1…` address ([`pairSearchQuery.ts`](../frontend-dapp/src/utils/pairSearchQuery.ts)). |
 | **Factory gate** | Results are filtered to factory-registered pairs (`factoryPairs` prop) so only routable pairs appear. |
-| **Degraded mode** | When the indexer errors, client-side substring filter on cached factory labels (`filterPairsByLocalSearch`). |
+| **Degraded mode** | After the first indexer error in the session, combobox search uses `filterFactoryPairsByLocalSearch` on factory pairs (menu label, display symbols, contract/denom ids, two-token `XXX YYY` / `XXX/YYY` queries) without further indexer calls. |
 | **Accessibility** | Input uses `role="combobox"` + portaled `listbox`; Arrow keys / Enter / Escape match portal listbox keyboard patterns. |
 | **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`. |
 

@@ -200,6 +200,49 @@ fn filter_live_orders(
         .collect()
 }
 
+/// Expected matcher side for a taker offering `offer_token` on this pair mirror.
+fn match_side_for_offer(mirror: &HopMirror, offer_token: &str) -> &'static str {
+    if offer_token.eq_ignore_ascii_case(&mirror.asset_0_addr) {
+        "bid"
+    } else {
+        "ask"
+    }
+}
+
+/// First live order id on the taker's match side when the mirror snapshot is fresh (GitLab #332).
+/// Omits hint for stale/missing mirrors or when no live liquidity exists on that side.
+pub fn first_live_book_start_hint(mirror: &HopMirror, offer_token: &str) -> Option<u64> {
+    if mirror.freshness != MirrorFreshness::Fresh {
+        return None;
+    }
+    let expected_side = match_side_for_offer(mirror, offer_token);
+    let orders = if expected_side == "bid" {
+        &mirror.bids
+    } else {
+        &mirror.asks
+    };
+    orders
+        .iter()
+        .find(|o| o.side == expected_side && parse_u128(&o.remaining).unwrap_or(0) > 0)
+        .map(|o| o.order_id as u64)
+}
+
+/// Slice book walk order list from a validated same-side hint, else from head (contract parity).
+fn book_orders_from_hint<'a>(
+    orders: &'a [resting_orders::RestingOrderRow],
+    book_start_hint: Option<u64>,
+    expected_side: &str,
+) -> &'a [resting_orders::RestingOrderRow] {
+    if let Some(hint) = book_start_hint {
+        if let Some(pos) = orders.iter().position(|o| {
+            o.order_id as u64 == hint && o.side == expected_side && parse_u128(&o.remaining).unwrap_or(0) > 0
+        }) {
+            return &orders[pos..];
+        }
+    }
+    orders
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 struct BookSimResult {
     return_net: u128,
@@ -211,7 +254,9 @@ fn simulate_match_bids(
     token0_budget: u128,
     max_maker_fills: u32,
     effective_fee_bps: u16,
+    book_start_hint: Option<u64>,
 ) -> Result<BookSimResult, DbSimError> {
+    let orders = book_orders_from_hint(orders, book_start_hint, "bid");
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token0_left = token0_budget;
@@ -225,6 +270,9 @@ fn simulate_match_bids(
         }
         if makers_used >= cap || token0_left == 0 {
             break;
+        }
+        if order.side != "bid" {
+            continue;
         }
         let price = &order.price;
         if price <= &BigDecimal::from(0u32) {
@@ -268,7 +316,9 @@ fn simulate_match_asks(
     token1_budget: u128,
     max_maker_fills: u32,
     effective_fee_bps: u16,
+    book_start_hint: Option<u64>,
 ) -> Result<BookSimResult, DbSimError> {
+    let orders = book_orders_from_hint(orders, book_start_hint, "ask");
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token1_left = token1_budget;
@@ -282,6 +332,9 @@ fn simulate_match_asks(
         }
         if makers_used >= cap || token1_left == 0 {
             break;
+        }
+        if order.side != "ask" {
+            continue;
         }
         let price = &order.price;
         if price <= &BigDecimal::from(0u32) {
@@ -354,6 +407,7 @@ pub fn simulate_hybrid_from_mirror(
     book_input: u128,
     max_maker_fills: u32,
     discount_bps: u16,
+    book_start_hint: Option<u64>,
 ) -> Result<u128, DbSimError> {
     if offer_amount == 0 {
         return Ok(0);
@@ -383,9 +437,21 @@ pub fn simulate_hybrid_from_mirror(
 
     if book_input > 0 {
         let book_sim = if offer_is_token0 {
-            simulate_match_bids(&mirror.bids, book_input, max_maker_fills, eff_fee)?
+            simulate_match_bids(
+                &mirror.bids,
+                book_input,
+                max_maker_fills,
+                eff_fee,
+                book_start_hint,
+            )?
         } else {
-            simulate_match_asks(&mirror.asks, book_input, max_maker_fills, eff_fee)?
+            simulate_match_asks(
+                &mirror.asks,
+                book_input,
+                max_maker_fills,
+                eff_fee,
+                book_start_hint,
+            )?
         };
         book_return = book_sim.return_net;
         offer_consumed_by_book = book_sim.offer_consumed;
@@ -470,6 +536,7 @@ pub fn simulate_pool_only_from_mirror(
         0,
         1,
         discount_bps,
+        None,
     )
 }
 
@@ -523,11 +590,59 @@ mod tests {
     #[test]
     fn bid_book_adds_return() {
         let m = mirror_with_book(vec![resting(1, "bid", "2", "1000")]);
-        let pool_only =
-            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 100_000, 0, 8, 0).unwrap();
-        let hybrid =
-            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 50_000, 50_000, 8, 0).unwrap();
+        let pool_only = simulate_hybrid_from_mirror(
+            &m, "terra1token0", 100_000, 100_000, 0, 8, 0, None,
+        )
+        .unwrap();
+        let hybrid = simulate_hybrid_from_mirror(
+            &m, "terra1token0", 100_000, 50_000, 50_000, 8, 0, None,
+        )
+        .unwrap();
         assert!(hybrid >= pool_only);
+    }
+
+    #[test]
+    fn first_live_book_start_hint_picks_match_side() {
+        let m = HopMirror {
+            bids: vec![resting(10, "bid", "2", "1000")],
+            asks: vec![resting(20, "ask", "3", "1000")],
+            ..mirror_with_book(vec![])
+        };
+        assert_eq!(
+            first_live_book_start_hint(&m, "terra1token0"),
+            Some(10)
+        );
+        assert_eq!(
+            first_live_book_start_hint(&m, "terra1token1"),
+            Some(20)
+        );
+    }
+
+    #[test]
+    fn first_live_book_start_hint_omits_wrong_side_in_bid_list() {
+        // Corrupt mirror row on wrong side in bids vec — skip when resolving hint.
+        let m = mirror_with_book(vec![
+            resting(99, "ask", "2", "1000"),
+            resting(10, "bid", "2", "1000"),
+        ]);
+        assert_eq!(first_live_book_start_hint(&m, "terra1token0"), Some(10));
+    }
+
+    #[test]
+    fn book_start_hint_skips_orders_before_hint() {
+        let m = mirror_with_book(vec![
+            resting(1, "bid", "1", "100"),
+            resting(2, "bid", "2", "10000"),
+        ]);
+        let head_only = simulate_hybrid_from_mirror(
+            &m, "terra1token0", 100_000, 0, 100_000, 8, 0, None,
+        )
+        .unwrap();
+        let from_hint = simulate_hybrid_from_mirror(
+            &m, "terra1token0", 100_000, 0, 100_000, 8, 0, Some(2),
+        )
+        .unwrap();
+        assert!(from_hint > head_only);
     }
 
     #[test]

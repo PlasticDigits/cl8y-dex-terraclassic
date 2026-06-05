@@ -52,6 +52,14 @@ pub enum ContractError {
         book_input: String,
     },
 
+    #[error(
+        "Hybrid swap with book_input {book_input} requires belief_price or min_return without belief_price"
+    )]
+    BookHybridRequiresSlippageFloor { book_input: String },
+
+    #[error("Min return assertion: expected at least {minimum}, received {actual}")]
+    MinReturnAssertion { minimum: String, actual: String },
+
     #[error("Insufficient LP tokens: expected at least {min}, got {actual}")]
     InsufficientLpTokens { min: String, actual: String },
 

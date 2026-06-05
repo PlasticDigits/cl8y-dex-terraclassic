@@ -88,6 +88,17 @@ pub struct ExpiredLimitRefund {
 
 pub const EXPIRED_LIMIT_CLAIMS: Map<u64, ExpiredLimitRefund> = Map::new("exp_limit_cl");
 
+/// Scope for per-transaction swap ordinals (GitLab #331).
+#[cw_serde]
+pub struct TxSwapScope {
+    pub height: u64,
+    pub tx_index: u32,
+}
+
+/// Resets when [`TxSwapScope`] changes; counts completed swaps in the current tx.
+pub const TX_SWAP_SCOPE: Item<TxSwapScope> = Item::new("tx_swap_scope");
+pub const TX_SWAP_COUNTER: Item<u32> = Item::new("tx_swap_counter");
+
 #[cw_serde]
 pub struct LimitOrder {
     pub owner: Addr,

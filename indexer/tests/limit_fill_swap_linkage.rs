@@ -1,4 +1,4 @@
-//! GitLab #316 — limit_order_fill -> swap_events linkage by per-pair swap ordinal.
+//! GitLab #316 / #331 — limit_order_fill -> swap_events linkage by per-pair swap ordinal.
 //!
 //! The old `swap_id_for_tx_pair` used `ORDER BY id ASC LIMIT 1`, so every fill in a tx linked to
 //! the FIRST swap on the pair. When a tx had multiple swaps on the same pair (router revisit /
@@ -62,4 +62,47 @@ async fn fill_links_to_its_own_swap_not_the_first_on_the_pair() {
         .await
         .unwrap();
     assert_eq!(missing, None);
+}
+
+/// GitLab #331 — explicit on-chain `swap_index` wasm attrs resolve to the same swap rows as
+/// parser-inferred ordinals when attrs match walk order (see `parse_limit_order_fills_*` unit tests
+/// for attr parsing and forged/missing attr cases).
+#[tokio::test]
+async fn explicit_swap_index_attrs_link_to_matching_swap_rows() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let tx_hash = "TX331_EXPLICIT_SWAP_INDEX";
+    let amt = BigDecimal::from_str("50").unwrap();
+    let price = BigDecimal::from_str("1").unwrap();
+
+    let id0 = swap_events::insert_swap(
+        &pool, seed.pair_id, 0, 1, Utc::now(), tx_hash, "terra1taker", None,
+        seed.asset_0_id, seed.asset_1_id, &amt, &amt, None, None, None, &price, None, None, None,
+        None,
+    )
+    .await
+    .unwrap()
+    .expect("swap 0");
+    let id1 = swap_events::insert_swap(
+        &pool, seed.pair_id, 1, 1, Utc::now(), tx_hash, "terra1taker", None,
+        seed.asset_0_id, seed.asset_1_id, &amt, &amt, None, None, None, &price, None, None, None,
+        None,
+    )
+    .await
+    .unwrap()
+    .expect("swap 1");
+
+    // On-chain attrs `swap_index=0` / `1` (post #331) map to the same rows as inference.
+    assert_eq!(
+        limit_order_fills::swap_id_for_tx_pair_index(&pool, tx_hash, seed.pair_id, 0)
+            .await
+            .unwrap(),
+        Some(id0)
+    );
+    assert_eq!(
+        limit_order_fills::swap_id_for_tx_pair_index(&pool, tx_hash, seed.pair_id, 1)
+            .await
+            .unwrap(),
+        Some(id1)
+    );
 }

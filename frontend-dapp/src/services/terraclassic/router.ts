@@ -15,6 +15,8 @@ export interface SwapOperation {
     offer_asset_info: AssetInfo
     ask_asset_info: AssetInfo
     hybrid?: HybridSwapParams | null
+    /** Per-hop floor when `book_input > 0` without `belief_price` (GitLab #334). */
+    min_return?: string | null
   }
 }
 
@@ -30,6 +32,9 @@ function serializeTerraSwap(ts: SwapOperation['terra_swap']) {
       max_maker_fills: ts.hybrid.max_maker_fills,
       book_start_hint: ts.hybrid.book_start_hint ?? undefined,
     }
+  }
+  if (ts.min_return != null && ts.min_return !== '') {
+    out.min_return = ts.min_return
   }
   return out
 }

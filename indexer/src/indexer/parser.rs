@@ -216,12 +216,12 @@ struct ParsedLimitOrderFill {
     token0_amount: BigDecimal,
     token1_amount: BigDecimal,
     commission_amount: BigDecimal,
-    /// GitLab #316: 0-based ordinal of the swap (on this pair, within the tx) that produced this
-    /// fill, derived from parser walk order — maker fills are emitted before their `swap` action
-    /// in the same execute. Links the fill to the correct `swap_events` row via
-    /// `(tx_hash, pair_id, swap_index)` when a tx has multiple swaps on the same pair. Assigned in
-    /// [`parse_limit_order_fills`]; the segment/columnar builders leave it 0.
+    /// GitLab #316 / #331: 0-based ordinal of the swap (on this pair, within the tx) that produced
+    /// this fill. Post-upgrade contracts emit `swap_index` on the wasm event; legacy txs rely on
+    /// parser walk-order inference in [`parse_limit_order_fills`].
     swap_index: i32,
+    /// When set, taken from on-chain `swap_index` wasm attr (GitLab #331).
+    swap_index_from_chain: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -596,6 +596,9 @@ fn parse_limit_order_fill_segment(
     let token0_amount = seg.get("token0_amount")?.parse::<BigDecimal>().ok()?;
     let token1_amount = seg.get("token1_amount")?.parse::<BigDecimal>().ok()?;
     let commission_amount = seg.get("commission_amount")?.parse::<BigDecimal>().ok()?;
+    let swap_index_from_chain = seg
+        .get("swap_index")
+        .and_then(|s| s.parse::<i32>().ok());
     Some(ParsedLimitOrderFill {
         pair_address: contract.to_string(),
         order_id,
@@ -605,7 +608,8 @@ fn parse_limit_order_fill_segment(
         token0_amount,
         token1_amount,
         commission_amount,
-        swap_index: 0, // assigned by parse_limit_order_fills (GitLab #316)
+        swap_index: swap_index_from_chain.unwrap_or(0),
+        swap_index_from_chain,
     })
 }
 
@@ -649,6 +653,10 @@ fn parse_limit_order_fills_columnar(attrs: &[Attribute]) -> Option<Vec<ParsedLim
         .iter()
         .filter_map(|s| BigDecimal::from_str(s).ok())
         .collect();
+    let swap_indices: Vec<i32> = wasm_attr_values(attrs, "swap_index")
+        .iter()
+        .filter_map(|s| s.parse().ok())
+        .collect();
 
     let n = fill_count;
     if prices.len() != n
@@ -666,6 +674,7 @@ fn parse_limit_order_fills_columnar(attrs: &[Attribute]) -> Option<Vec<ParsedLim
             return None;
         }
         let maker = makers.get(i).copied().or_else(|| makers.first().copied())?;
+        let swap_index_from_chain = swap_indices.get(i).copied();
         out.push(ParsedLimitOrderFill {
             pair_address: contract.to_string(),
             order_id: order_ids[i],
@@ -675,7 +684,8 @@ fn parse_limit_order_fills_columnar(attrs: &[Attribute]) -> Option<Vec<ParsedLim
             token0_amount: token0_amounts[i].clone(),
             token1_amount: token1_amounts[i].clone(),
             commission_amount: commission_amounts[i].clone(),
-            swap_index: 0, // assigned by parse_limit_order_fills (GitLab #316)
+            swap_index: swap_index_from_chain.unwrap_or(0),
+            swap_index_from_chain,
         });
     }
     Some(out)
@@ -730,10 +740,11 @@ fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
         let attrs = &event.attributes;
         let mut fills = parse_limit_order_fills_from_wasm_attrs(attrs);
         for fill in &mut fills {
-            fill.swap_index = per_pair_swap_seen
+            let inferred = per_pair_swap_seen
                 .get(&fill.pair_address)
                 .copied()
                 .unwrap_or(0);
+            fill.swap_index = fill.swap_index_from_chain.unwrap_or(inferred);
         }
         out.append(&mut fills);
 
@@ -1734,6 +1745,32 @@ mod tests {
         // both fills of swap 1
         assert_eq!((fills[1].order_id, fills[1].swap_index), (21, 1));
         assert_eq!((fills[2].order_id, fills[2].swap_index), (22, 1));
+    }
+
+    #[test]
+    fn parse_limit_order_fills_prefers_on_chain_swap_index_attr() {
+        // GitLab #331: post-upgrade fills carry `swap_index` on wasm attrs; parser uses the emitted
+        // value instead of walk-order inference (legacy txs without the attr still infer).
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "limit_order_fill"),
+            ("order_id", "42"),
+            ("side", "bid"),
+            ("maker", "terra1mk"),
+            ("price", "1.0"),
+            ("token0_amount", "10"),
+            ("token1_amount", "10"),
+            ("commission_amount", "0.1"),
+            ("swap_index", "1"),
+            ("action", "swap"),
+            ("sender", "terra1taker"),
+            ("offer_amount", "100"),
+            ("return_amount", "95"),
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 1);
+        assert_eq!(fills[0].swap_index, 1);
+        assert_eq!(fills[0].swap_index_from_chain, Some(1));
     }
 
     #[test]

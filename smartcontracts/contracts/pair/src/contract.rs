@@ -612,6 +612,7 @@ pub fn execute(
             offer_asset,
             belief_price: _,
             max_spread: _,
+            min_return: _,
             to: _,
             deadline: _,
         } => {
@@ -748,6 +749,7 @@ fn execute_receive(
         Cw20HookMsg::Swap {
             belief_price,
             max_spread,
+            min_return,
             to,
             deadline,
             trader,
@@ -762,6 +764,7 @@ fn execute_receive(
                 cw20_msg.amount,
                 belief_price,
                 max_spread,
+                min_return,
                 to,
                 trader,
                 hybrid,
@@ -865,7 +868,23 @@ fn assert_max_spread(
             pool_input: pool_input.to_string(),
             book_input: book_input.to_string(),
         },
+        CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input } => {
+            ContractError::BookHybridRequiresSlippageFloor {
+                book_input: book_input.to_string(),
+            }
+        }
     })
+}
+
+fn book_hybrid_slippage_floor_pair_error(e: CheckMaxSpreadError) -> ContractError {
+    match e {
+        CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input } => {
+            ContractError::BookHybridRequiresSlippageFloor {
+                book_input: book_input.to_string(),
+            }
+        }
+        other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
+    }
 }
 
 /// Execute a constant-product swap.
@@ -887,6 +906,7 @@ fn execute_swap(
     input_amount: Uint128,
     belief_price: Option<Decimal>,
     max_spread: Option<Decimal>,
+    min_return: Option<Uint128>,
     to: Option<String>,
     trader: Option<String>,
     hybrid: Option<HybridSwapParams>,
@@ -907,6 +927,12 @@ fn execute_swap(
                 });
             }
             if belief_price.is_none() {
+                max_spread::validate_hybrid_book_requires_slippage_floor(
+                    h.book_input,
+                    belief_price,
+                    min_return,
+                )
+                .map_err(book_hybrid_slippage_floor_pair_error)?;
                 max_spread::validate_declared_hybrid_pool_leg_for_no_belief(
                     input_amount,
                     h.pool_input,
@@ -983,6 +1009,7 @@ fn execute_swap(
 
     let ask_token_addr = token_addr(&ask_asset_info);
 
+    let swap_index = crate::tx_swap_index::current_tx_swap_index(deps.storage, &env)?;
     let mut book_fill_events: Vec<Event> = vec![];
     let mut book_return_net = Uint128::zero();
     let mut book_commission_total = Uint128::zero();
@@ -1007,7 +1034,10 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_fill_events = book_match.fill_events;
+            book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
+                book_match.fill_events,
+                swap_index,
+            );
             book_return_net = book_match.return_net;
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
@@ -1029,7 +1059,10 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
             )?;
-            book_fill_events = book_match.fill_events;
+            book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
+                book_match.fill_events,
+                swap_index,
+            );
             book_return_net = book_match.return_net;
             book_commission_total = book_match.commission_total;
             offer_consumed_by_book = book_match.offer_consumed;
@@ -1111,6 +1144,15 @@ fn execute_swap(
 
     let total_return = book_return_net.checked_add(return_amount)?;
     let total_commission = book_commission_total.checked_add(pool_commission_amount)?;
+
+    if let Some(min) = min_return {
+        if total_return < min {
+            return Err(ContractError::MinReturnAssertion {
+                minimum: min.to_string(),
+                actual: total_return.to_string(),
+            });
+        }
+    }
 
     assert_max_spread(
         belief_price,
@@ -1213,6 +1255,8 @@ fn execute_swap(
             resp = resp.add_attribute("scan_steps_capped", "true");
         }
     }
+
+    crate::tx_swap_index::advance_tx_swap_index(deps.storage, &env)?;
 
     Ok(resp)
 }
