@@ -2142,6 +2142,23 @@ fn simulate_hybrid_swap_with_fee(
             reason: "max_maker_fills must be > 0 when book_input > 0".into(),
         });
     }
+    max_spread::validate_declared_hybrid_pool_leg_for_no_belief(
+        input_amount,
+        hybrid.pool_input,
+        hybrid.book_input,
+    )
+    .map_err(|e| match e {
+        CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+            pool_input,
+            min_pool_input,
+            book_input,
+        } => ContractError::InsufficientPoolLegForHybrid {
+            pool_input: pool_input.to_string(),
+            min_pool_input: min_pool_input.to_string(),
+            book_input: book_input.to_string(),
+        },
+        other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
+    })?;
     let pool_leg = hybrid.pool_input;
     let book_leg = hybrid.book_input;
     let max_makers = hybrid.max_maker_fills;
