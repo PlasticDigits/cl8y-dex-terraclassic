@@ -226,10 +226,11 @@ export default function LimitOrdersPage() {
       setSide(draft.side)
       setPrice(draft.price)
       setLimitEscrowAmountFromDraft(draft.amountHuman)
+      setExpiresAt(draft.expiresAt ?? null)
       setEditContext(buildLimitBookEditContext(draft))
       setEditHintAfterOrderId(draft.hintAfterOrderId ?? null)
     },
-    [setLimitEscrowAmountFromDraft]
+    [setLimitEscrowAmountFromDraft, setExpiresAt]
   )
 
   const placeEscrowGate = useMemo(
