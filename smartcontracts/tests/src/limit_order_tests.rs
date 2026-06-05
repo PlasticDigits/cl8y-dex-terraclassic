@@ -10,11 +10,11 @@ use dex_common::limit_placement::{
     LimitLadderDistribution, LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
 use dex_common::pair::{
-    pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse,
-    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
-    LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide,
-    PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
-    MAX_MAKER_FILLS_HARD_CAP,
+    pool_only_hybrid_params, pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg,
+    ExpiredLimitRefundResponse, HybridReverseSimulationResponse, HybridSimulationResponse,
+    HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse,
+    LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -1621,6 +1621,177 @@ fn hybrid_walk_twenty_expired_asks_parks_cap_skips_remainder() {
         wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_skipped"),
         Some("5".into())
     );
+}
+
+/// GitLab #309 — at exactly `MAX_EXPIRED_PARKS_PER_SWAP`, all expired head orders park in one swap.
+#[test]
+fn hybrid_walk_at_cap_parks_all_expired_bids_without_capped_attr() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp_at_cap");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    let cap = MAX_EXPIRED_PARKS_PER_SWAP as usize;
+    place_expired_bids(&mut app, &env, cap, Uint128::new(5_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        cap
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used"),
+        Some(MAX_EXPIRED_PARKS_PER_SWAP.to_string())
+    );
+    assert!(
+        wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped").is_none(),
+        "cap attr only when additional expired orders remain skipped"
+    );
+}
+
+/// GitLab #309 — pool-only hybrid (`book_input = 0`) has no expired-park overhead.
+#[test]
+fn hybrid_walk_pool_only_swap_has_no_expired_park_attrs() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_pool_only");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 120;
+    place_expired_bids(&mut app, &env, 10, Uint128::new(5_000), exp);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(10_000);
+    });
+
+    let pool_in = Uint128::new(50_000);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(pool_only_hybrid_params(pool_in)),
+        trader: None,
+    })
+    .unwrap();
+    let hybrid_res = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: pool_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(
+        count_limit_order_expired_parked_events(&hybrid_res.events),
+        0
+    );
+    assert!(wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used").is_none());
+}
+
+/// GitLab #309 — event-count sweep for N expired head orders (1..30); parks clamp at cap.
+#[test]
+fn expired_parks_benchmark_event_counts_sweep() {
+    const SWEEP: [usize; 7] = [1, 5, 10, 15, 20, 25, 30];
+    let cap = MAX_EXPIRED_PARKS_PER_SWAP as usize;
+
+    for &n in &SWEEP {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let taker = cosmwasm_std::Addr::unchecked(format!("taker_exp_sweep_{n}"));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        transfer_tokens(
+            &mut app,
+            &env.token_a,
+            &env.user,
+            &taker,
+            Uint128::new(500_000),
+        );
+
+        let exp = app.block_info().time.seconds() + 120;
+        place_expired_bids(&mut app, &env, n, Uint128::new(5_000), exp);
+
+        app.update_block(|b| {
+            b.time = b.time.plus_seconds(10_000);
+        });
+
+        let hybrid_res = hybrid_swap_a_to_b(&mut app, &env, &taker, Uint128::new(50_000), 8);
+
+        let expected_parks = n.min(cap);
+        let expected_skipped = n.saturating_sub(cap);
+
+        assert_eq!(
+            count_limit_order_expired_parked_events(&hybrid_res.events),
+            expected_parks,
+            "N={n}: park event count"
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_used"),
+            Some(expected_parks.to_string()),
+            "N={n}: expired_parks_used attr"
+        );
+        if expected_skipped > 0 {
+            assert_eq!(
+                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped"),
+                Some("true".into()),
+                "N={n}: cap attr"
+            );
+            assert_eq!(
+                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_skipped"),
+                Some(expected_skipped.to_string()),
+                "N={n}: skipped attr"
+            );
+        } else {
+            assert!(
+                wasm_attr_in_action_event(&hybrid_res.events, "swap", "expired_parks_capped")
+                    .is_none(),
+                "N={n}: no cap attr below cap"
+            );
+        }
+    }
 }
 
 #[test]

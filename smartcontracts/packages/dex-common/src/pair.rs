@@ -33,9 +33,13 @@ pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 100;
 pub const MAX_SCAN_STEPS: u32 = 500;
 /// Maximum expired limit orders parked into `EXPIRED_LIMIT_CLAIMS` per book walk during hybrid swap
 /// ([GitLab #250](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/250),
-/// raised in [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254)).
+/// raised in [#254](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/254),
+/// benchmarked [#309](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/309)).
 /// Additional expired orders at the book head are skipped without storage writes until a later tx.
 /// Kept well below [`MAX_SCAN_STEPS`] — parking is write-heavy (unlink + claim row + event).
+/// Value **15** retained after LocalTerra optimized-wasm sweep (N=1..30): gas stays under 12M
+/// headroom vs 15M dApp ceiling; raising parks trades maker UX for marginal gain while scan-step
+/// budget (500 × ~19k) remains the binding hybrid envelope — see `docs/limit-orders.md` § Expired-park benchmark.
 pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 15;
 
 /// Post-fill rounding can leave 1–9 smallest-unit remainders on limit orders. Match walks
