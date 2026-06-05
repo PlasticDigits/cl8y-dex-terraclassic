@@ -21,7 +21,7 @@ Authoritative reference for contributors and integrators using **`GET` / `POST /
 | **`indexer_pool_lcd`** | Pool-only router ops; LCD `simulate_swap_operations` when configured. | |
 | **`indexer_hybrid_lcd`** | At least one hop has a non-zero book leg after optimization. | |
 | **`indexer_hybrid_lcd_degraded`** | Hybrid grid failed on at least one hop; fell back to pool-only `HybridSimulation` (`book_input: 0`). | `OptimizationMeta.degraded` |
-| **`solver_version`** | Solver generation label on global best-execution GET responses. Shipped: **`global_v1`**. | `best_execution::SOLVER_VERSION` |
+| **`solver_version`** | Solver generation label on global best-execution GET responses. **`global_v1`** (LCD grid) or **`global_v2`** (Postgres mirror grid when `ROUTE_SOLVER_DB_HYBRID=1`). | `best_execution::SOLVER_VERSION_LCD` / `SOLVER_VERSION_DB` |
 | **`optimality_scope`** | Human-readable bound on what was searched — **not** a guarantee of global optimum over all paths or splits. | `best_execution::OPTIMALITY_SCOPE` |
 | **`hybrid_notes`** | Model limits, degradation, and liability boundary for clients. | Built in `hybrid_notes_for_global` |
 | **Degraded hybrid** | Per-hop: all 17 grid `HybridSimulation` candidates failed; solver uses pool-only fallback for that hop. | `quote_kind` → `indexer_hybrid_lcd_degraded` |
@@ -36,7 +36,7 @@ Applies when **`GET /api/v1/route/solve`** (or **`/best`**) is called with **`am
 flowchart TD
     A[Request: token_in, token_out, amount_in] --> B[Load assets + pairs from Postgres]
     B --> C[Build token graph adjacency]
-    C --> D["find_paths_top_k (≤5 paths, ≤3 hops, shortest first)"]
+    C --> D["find_paths_top_k (≤5 paths, ≤4 hops, shortest first)"]
     D --> E{For each path candidate}
     E --> F["optimize_multihop_hybrid_joint: sequential baseline + 2× coordinate descent"]
     F --> G[Pair HybridSimulation grid: 17 book_input fractions per hop]
@@ -70,7 +70,7 @@ flowchart TD
 
 | | **GET** (default) | **GET** `pool_only=true` | **GET** `/best` | **POST** |
 |--|-------------------|--------------------------|-----------------|----------|
-| **Hop cap** | 3 (hybrid) / 3 (discovery) | 4 | 3 | 4 |
+| **Hop cap** | 4 (hybrid) / 4 (discovery) | 4 | 4 | 4 |
 | **Path selection** | Top-5 by hop count + max `estimated_amount_out` when `amount_in` set; else first BFS | First BFS | Same as GET + `amount_in` | First BFS only |
 | **Hybrid splits** | Server `global_v1` optimizer when `amount_in` set | None (`hybrid: null`) | Server optimizer | Client `hybrid_by_hop` optional |
 | **`amount_in`** | Optional (required for optimization) | Optional | **Required** | Optional |
@@ -94,7 +94,7 @@ token_in=terra1...&token_out=terra1...&amount_in=1000000" | jq .
 
 Read the response using this doc:
 
-- **`hops`** / **`intermediate_tokens`** — chosen path (≤ 3 hops for optimized GET).
+- **`hops`** / **`intermediate_tokens`** — chosen path (≤ 4 hops for optimized GET).
 - **`router_operations`** — submit-ready `ExecuteSwapOperations` shape; inspect `terra_swap.hybrid` per hop.
 - **`estimated_amount_out`** — LCD router sim snapshot; **not** a guaranteed fill.
 - **`quote_kind`** — whether hybrid legs were used or degraded.
@@ -107,7 +107,8 @@ Read the response using this doc:
 
 | Constant | Value | Location |
 |----------|-------|----------|
-| `SOLVER_VERSION` | `global_v1` | `best_execution.rs` |
+| `SOLVER_VERSION_LCD` | `global_v1` | `best_execution.rs` |
+| `SOLVER_VERSION_DB` | `global_v2` | `best_execution.rs` |
 | `MAX_PATH_CANDIDATES` | 5 | `best_execution.rs` |
 | `GET_DEFAULT_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GET_POOL_ONLY_MAX_HOPS` | 4 | `route_solver.rs` |
