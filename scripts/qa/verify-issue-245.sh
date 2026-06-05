@@ -48,7 +48,7 @@ run_step "frontend unit tests (pair, preflight, indexer client)" \
     src/services/indexer/__tests__/client.test.ts'
 
 run_step "indexer hybrid_cache_key unit test" \
-  bash -c 'cd indexer && cargo test hybrid_cache_key_includes_trader --lib -- --quiet'
+  bash -c 'cd indexer && cargo test hybrid_cache_key_same_tier_traders_share_key --lib -- --quiet'
 
 run_step "indexer api_route_solve integration tests" \
   bash -c 'cd indexer && cargo test --test api_route_solve -- --test-threads=1 --quiet'

@@ -107,9 +107,10 @@ Read the response using this doc:
 
 | Constant | Value | Location |
 |----------|-------|----------|
-| `SOLVER_VERSION_LCD` | `global_v1` | `best_execution.rs` |
-| `SOLVER_VERSION_DB` | `global_v2` | `best_execution.rs` |
+| `SOLVER_VERSION_LCD` | `global_v3` | `best_execution.rs` |
+| `SOLVER_VERSION_DB` | `global_v4` | `best_execution.rs` |
 | `MAX_PATH_CANDIDATES` | 5 | `best_execution.rs` |
+| `SOLVE_CONCURRENCY` | 5 (bounded concurrent candidate eval; #324) | `best_execution.rs` |
 | `GET_DEFAULT_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GET_POOL_ONLY_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GRID_POINTS` | 17 | `hybrid_route_opt.rs` |
@@ -121,7 +122,7 @@ Read the response using this doc:
 | `LCD_HYBRID_SIM_BUDGET` | 1700 (= 5×4×85) | `best_execution.rs` |
 | `OPTIMALITY_SCOPE` | See [optimality scope](#optimality-scope-string) | `best_execution.rs` |
 
-Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `amount_in`, `max_maker_fills`, normalized `trader` (or `none`), **`discount_tier`** (`traders.tier_id` for discount subject — `trader` if set, else `sender`; unknown → 0). Same-tier callers share cache ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)).
+Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `amount_in`, **bucketed** `max_maker_fills` (retail 1–8 → 8; see `cache_key_maker_fills`), **`discount_bps`** from resolved tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283), [#324](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/324)). Trader address is **not** keyed — same-tier wallets share cache.
 
 **Rate limits:** `route/solve` and `route/solve/best` are LCD-heavy (**10 RPS** default per IP). LCD upstream failures → **502** `Upstream LCD query failed` (sanitized).
 

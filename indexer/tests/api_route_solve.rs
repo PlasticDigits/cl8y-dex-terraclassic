@@ -454,7 +454,7 @@ async fn route_solve_global_picks_best_path_not_shortest() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v1");
+    assert_eq!(j["solver_version"], "global_v3");
     assert_eq!(j["paths_considered"], 2);
     assert_eq!(j["hops"].as_array().unwrap().len(), 2, "2-hop path beats 1-hop");
     assert_eq!(j["estimated_amount_out"], "9000000");
@@ -484,7 +484,7 @@ async fn route_solve_global_response_metadata_contract() {
         seed.token_a, seed.token_c
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v1");
+    assert_eq!(j["solver_version"], "global_v3");
     assert!(j["paths_considered"].as_u64().unwrap_or(0) >= 1);
     assert!(!j["hybrid_notes"].as_str().unwrap_or("").is_empty());
     assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);

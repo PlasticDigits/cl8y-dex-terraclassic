@@ -31,7 +31,7 @@ async fn route_solve_db_hybrid_no_pair_level_lcd_calls() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v2");
+    assert_eq!(j["solver_version"], "global_v4");
     let kind = j["quote_kind"].as_str().unwrap_or("");
     assert!(
         kind == "indexer_pool_db" || kind == "indexer_hybrid_db",

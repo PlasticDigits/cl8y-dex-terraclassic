@@ -223,14 +223,14 @@ fn hop_count(prev: &HashMap<i32, (i32, String)>, start: i32, mut u: i32) -> usiz
     n
 }
 
-#[derive(Serialize, ToSchema, Clone)]
+#[derive(Debug, Serialize, ToSchema, Clone)]
 pub struct RouteHop {
     pub pair: String,
     pub offer_token: String,
     pub ask_token: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct RouteSolveResponse {
     pub token_in: String,
     pub token_out: String,
@@ -269,6 +269,9 @@ pub struct RouteSolveResponse {
     /// Reserved: max chain lag vs mirror `block_height` (future).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mirror_max_block_lag: Option<i64>,
+    /// True when path search was truncated by the concurrency cap (#324).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_truncated: Option<bool>,
 }
 
 pub(crate) fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
@@ -554,6 +557,18 @@ fn amount_cache_key(amount: u128) -> u128 {
     }
 }
 
+/// Coarse bucket for hybrid GET cache keys — normal retail range 1–8 maps to default 8 (#324).
+pub(crate) fn cache_key_maker_fills(max_maker_fills: u32) -> u32 {
+    let m = max_maker_fills.max(1);
+    if m <= 8 {
+        8
+    } else if m <= 16 {
+        16
+    } else {
+        30
+    }
+}
+
 /// GitLab #283: the on-chain discount is determined by the tier of the discount subject —
 /// `trader` when set (the #245 off-chain forwarding), otherwise `sender` — and the router
 /// simulate forwards both. The route cache must key on that resolved tier, or two senders on
@@ -626,22 +641,16 @@ fn hybrid_cache_key(
     token_out: &str,
     amount_bucket: u128,
     max_maker_fills: u32,
-    quote_trader: &hybrid_route_opt::QuoteTrader,
     discount_bps: u16,
 ) -> String {
-    let trader_key = quote_trader
-        .trader
-        .as_deref()
-        .map(|t| t.trim().to_lowercase())
-        .unwrap_or_else(|| "none".to_string());
+    let mmf_key = cache_key_maker_fills(max_maker_fills);
     format!(
-        "{}|{}|{}|{}|{}|{}|d{}",
+        "{}|{}|{}|{}|{}|d{}",
         solver_version,
         token_in.trim().to_lowercase(),
         token_out.trim().to_lowercase(),
         amount_bucket,
-        max_maker_fills,
-        trader_key,
+        mmf_key,
         discount_bps
     )
 }
@@ -700,7 +709,6 @@ async fn execute_hybrid_route_solve(
         token_out,
         bucket,
         max_makers,
-        quote_trader,
         discount_bps,
     );
     if let Some(cached) = cache_get(&ck) {
@@ -833,6 +841,7 @@ pub async fn solve_route(
         db_hybrid_queries: None,
         fidelity_check: None,
         mirror_max_block_lag: None,
+        search_truncated: None,
     };
 
     Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
@@ -896,6 +905,7 @@ pub async fn solve_route_post(
         db_hybrid_queries: None,
         fidelity_check: None,
         mirror_max_block_lag: None,
+        search_truncated: None,
     };
 
     Ok(Json(serde_json::to_value(out).map_err(internal_err)?))
@@ -930,60 +940,56 @@ mod quote_trader_tests {
 
 #[cfg(test)]
 mod hybrid_cache_key_tests {
-    use super::hybrid_cache_key;
-    use crate::api::hybrid_route_opt::QuoteTrader;
+    use super::{amount_cache_key, cache_key_maker_fills, hybrid_cache_key};
 
     const TIN: &str = "terra1tokenin000000000000000000000000000";
     const TOUT: &str = "terra1tokenout00000000000000000000000000";
+    const SV: &str = "global_v4";
 
     #[test]
-    fn hybrid_cache_key_includes_trader_or_none() {
-        let none = QuoteTrader {
-            trader: None,
-            sender: None,
-        };
-        let discounted = QuoteTrader {
-            trader: Some("terra1discountwallet000000000000000000000".into()),
-            sender: None,
-        };
-        let other = QuoteTrader {
-            trader: Some("terra1otherwallet00000000000000000000000".into()),
-            sender: None,
-        };
-        let base = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &none, 0);
-        let d1 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &discounted, 0);
-        let d2 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &other, 0);
-        assert_ne!(base, d1, "full-fee cache must not share key with trader");
-        assert_ne!(d1, d2, "distinct traders must not share cache key");
-        assert_ne!(base, d2);
+    fn hybrid_cache_key_same_tier_traders_share_key() {
+        let key7 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 7, 5_000);
+        let key8 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000);
+        assert_eq!(key7, key8, "mmf 7 and 8 bucket to the same cache key");
+        let other_wallet = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000);
+        assert_eq!(key8, other_wallet, "trader address is not part of the key");
     }
 
-    // GitLab #283: the resolved discount tier is part of the key, so two callers on different
-    // tiers can never collide and be served each other's quote — and two callers on the SAME
-    // tier still share the cache.
+    #[test]
+    fn hybrid_cache_key_maker_fills_distinct_buckets() {
+        let retail = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0);
+        let mid = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 12, 0);
+        let high = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 25, 0);
+        assert_ne!(retail, mid);
+        assert_ne!(mid, high);
+        assert_eq!(cache_key_maker_fills(7), 8);
+        assert_eq!(cache_key_maker_fills(12), 16);
+        assert_eq!(cache_key_maker_fills(25), 30);
+    }
+
+    // GitLab #283: the resolved discount bps is part of the key, so two callers on different
+    // tiers can never collide — and two callers on the SAME tier still share the cache.
     #[test]
     fn hybrid_cache_key_distinguishes_discount_bps() {
-        let qt = QuoteTrader {
-            trader: None,
-            sender: Some("terra1sender0000000000000000000000000000".into()),
-        };
-        let tier0 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 10_000);
-        let tier5 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 5_000);
-        let tier9 = hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &qt, 9_500);
+        let tier0 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 10_000);
+        let tier5 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000);
+        let tier9 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 9_500);
         assert_ne!(
             tier0, tier5,
             "different discount bps must not share a cache key"
         );
         assert_ne!(tier5, tier9);
-        // Same discount (even from a different sender address) shares the key by design.
-        let other_sender = QuoteTrader {
-            trader: None,
-            sender: Some("terra1othersender000000000000000000000000".into()),
-        };
         assert_eq!(
             tier5,
-            hybrid_cache_key("global_v1", TIN, TOUT, 1_000_000, 8, &other_sender, 5_000),
+            hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000),
             "same-discount callers should reuse the cache regardless of address"
         );
+    }
+
+    #[test]
+    fn hybrid_cache_key_amount_bucket_regression() {
+        let a = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_500_000), 8, 0);
+        let b = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_900_000), 8, 0);
+        assert_eq!(a, b, "micro-variation within one amount bucket shares key");
     }
 }
