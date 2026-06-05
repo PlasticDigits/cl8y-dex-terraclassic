@@ -55,4 +55,4 @@ Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route
 
 ## Related invariants
 
-[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), CG/CMC consolidated reporting rows.
+[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), hybrid GET cache tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)), CG/CMC consolidated reporting rows.

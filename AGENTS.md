@@ -13,6 +13,7 @@ These are **not** in the startup update script; install once when provisioning a
 - **Node 24**: `nvm install` from repo `.nvmrc`. Cloud VMs may ship `/exec-daemon/node` (v22) **before** nvm on `PATH` — prepend the nvm bin dir or `hash -r` after `nvm use`, or `scripts/with-node.sh` may run the wrong Node.
 - **Docker access**: `sudo usermod -aG docker $USER` then use `sg docker -c '…'` in non-login shells.
 - **GitLab CLI (`glab`)**: Not preinstalled on Cloud Agent VMs. After `GITLAB_TOKEN` is available, run `./scripts/setup-glab-cloud-agent.sh` once per checkout (installs `glab`, authenticates, sets `remote.origin_url`, writes `.env.glab` with `GITLAB_REPO`). Cloud Agent git remotes use `https://x-access-token:…@gitlab.com/PlasticDigits/<repo>.git`, which breaks `glab repo view` / issue commands unless `GITLAB_REPO` is set — `source .env.glab` in the shell or re-run the setup script. Verify: `glab api "projects/PlasticDigits%2F<repo>"` (encode `/` as `%2F`).
+- **Chrome + Keplr**: Run `./scripts/setup-browser-cloud-agent.sh` once per VM (or when Keplr is missing). Installs **google-chrome-stable** when absent, downloads Keplr from the Chrome Web Store, and registers it under `~/.config/google-chrome/Default/Extensions/`. Idempotent — safe to re-run. Regression: `make test-setup-browser`.
 
 ### Docker daemon
 
@@ -99,13 +100,19 @@ Frontend unit tests need Node **24** on `PATH`. Indexer integration tests need P
 
 ### Browser / E2E on Cloud Agent
 
+One-time browser wallet setup (replaces manual `cp` into `~/.config/google-chrome/Default/Extensions/…`):
+
+```bash
+./scripts/setup-browser-cloud-agent.sh
+```
+
 Launch Chrome with container flags:
 
 ```bash
 google-chrome --no-sandbox --disable-dev-shm-usage --disable-gpu http://127.0.0.1:5173
 ```
 
-Use **Simulated Wallet** (dev mnemonic in `frontend-dapp/.env.development` after `make deploy-local`) for on-chain swaps against LocalTerra.
+Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (dev mnemonic in `frontend-dapp/.env.development` after `make deploy-local`) for on-chain swaps without an extension. Playwright E2E uses the simulated wallet, not Keplr.
 
 ### Related playbooks
 

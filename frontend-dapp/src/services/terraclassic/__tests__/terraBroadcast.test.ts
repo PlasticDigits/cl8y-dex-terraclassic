@@ -48,6 +48,58 @@ describe('broadcastTerraExecuteContracts (GitLab #127)', () => {
     ).rejects.toThrow(/Station closed the signing popup/)
   })
 
+  it('fires phase callbacks in order and skips confirming on broadcast failure (GitLab #305)', async () => {
+    const phases: Array<{ phase: string; txHash?: string }> = []
+    const onPhaseChange = vi.fn((phase: string, ctx?: { txHash?: string }) => {
+      phases.push({ phase, txHash: ctx?.txHash })
+    })
+
+    await broadcastTerraExecuteContracts(
+      mockWallet as never,
+      'terra1sender',
+      [{ contract: 'terra1a', msg: { swap: {} } }],
+      { onPhaseChange }
+    )
+
+    expect(phases).toEqual([{ phase: 'signing' }, { phase: 'broadcasting' }, { phase: 'confirming', txHash: 'HASH1' }])
+
+    vi.clearAllMocks()
+    phases.length = 0
+    mockBroadcastTx.mockRejectedValueOnce(new Error('User rejected the request'))
+
+    await expect(
+      broadcastTerraExecuteContracts(
+        mockWallet as never,
+        'terra1sender',
+        [{ contract: 'terra1a', msg: { swap: {} } }],
+        { onPhaseChange }
+      )
+    ).rejects.toThrow()
+
+    expect(phases.some((p) => p.phase === 'confirming')).toBe(false)
+    expect(phases.filter((p) => p.phase === 'signing')).toHaveLength(1)
+  })
+
+  it('enters confirming on poll failure without re-firing signing (GitLab #305)', async () => {
+    const phases: string[] = []
+    mockPollTx.mockRejectedValueOnce(new Error('not found'))
+
+    await expect(
+      broadcastTerraExecuteContracts(
+        mockWallet as never,
+        'terra1sender',
+        [{ contract: 'terra1a', msg: { swap: {} } }],
+        {
+          onPhaseChange: (phase) => {
+            phases.push(phase)
+          },
+        }
+      )
+    ).rejects.toThrow()
+
+    expect(phases).toEqual(['signing', 'broadcasting', 'confirming'])
+  })
+
   it('surfaces post-sign fee guard before generic user-denied copy (GitLab #127)', async () => {
     mockBroadcastTx.mockRejectedValueOnce(
       new Error(

@@ -97,9 +97,6 @@ PAIR_CONFIGS=(
 )
 PAIR_ADDRESSES=()
 
-# Factory forwards this to treasury on create_pair (dex-common DEFAULT_PAIR_CREATION_FEE_ULUNA; GitLab #276).
-PAIR_CREATION_FEE_ULUNA=100000000
-
 terrad_tx() {
     docker exec "$CONTAINER_NAME" terrad tx "$@" \
         --from test1 \
@@ -107,7 +104,7 @@ terrad_tx() {
         --chain-id "$CHAIN_ID" \
         --gas auto \
         --gas-adjustment 1.3 \
-        --fees 500000000uluna \
+        --gas-prices "${DEPLOY_GAS_PRICES:-28.325uluna}" \
         --node "$TERRAD_NODE" \
         --broadcast-mode sync \
         -y --output json
@@ -248,13 +245,53 @@ echo "  Fee Discount Code ID: $FEE_DISCOUNT_CODE_ID"
 
 echo ""
 echo "[8] Instantiating Factory..."
-FACTORY_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TEST_ADDRESS\",\"default_fee_bps\":180,\"pair_code_id\":$PAIR_CODE_ID,\"lp_token_code_id\":$CW20_CODE_ID,\"whitelisted_code_ids\":[$CW20_CODE_ID]}"
+# GitLab #276/#318: the factory charges a governance-settable pair-creation fee (uluna) forwarded to
+# treasury. Deploy with the real fee so local matches mainnet economics and exercises the #276 fee
+# path end to end. Treasury == test1 here, so the fee returns to the deployer (net cost is gas plus
+# the chain's ~0.5% transfer tax on each fee send — a few LUNC across the whole deploy).
+# Set LOCAL_PAIR_CREATION_FEE_ULUNA=0 for a fee-free local chain.
+FACTORY_PAIR_CREATION_FEE="${LOCAL_PAIR_CREATION_FEE_ULUNA:-100000000}"
+FACTORY_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TEST_ADDRESS\",\"default_fee_bps\":180,\"pair_code_id\":$PAIR_CODE_ID,\"lp_token_code_id\":$CW20_CODE_ID,\"whitelisted_code_ids\":[$CW20_CODE_ID],\"pair_creation_fee_uluna\":\"$FACTORY_PAIR_CREATION_FEE\"}"
 TX_HASH=$(terrad_tx wasm instantiate "$FACTORY_CODE_ID" "$FACTORY_INIT_MSG" \
     --label "cl8y-dex-factory" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 FACTORY_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Factory Address: $FACTORY_ADDRESS"
+
+# GitLab #318: read the authoritative pair-creation fee from the factory config so every create_pair
+# attaches exactly what the contract requires — even if governance changes it on a long-lived chain.
+PAIR_CREATION_FEE_ULUNA=$(terrad_query wasm contract-state smart "$FACTORY_ADDRESS" '{"config":{}}' \
+  | jq -r '.data.pair_creation_fee_uluna // "0"')
+echo "  Pair creation fee: ${PAIR_CREATION_FEE_ULUNA} uluna"
+
+# Attach the on-chain pair-creation fee on every factory create_pair (GitLab #276/#318). FEE_ARGS stays
+# empty when the fee is disabled (0), so a fee-free local chain still works.
+factory_create_pair() {
+    local CREATE_MSG="$1"
+    local FEE_ARGS=()
+    if [ -n "$PAIR_CREATION_FEE_ULUNA" ] && [ "$PAIR_CREATION_FEE_ULUNA" != "0" ]; then
+        FEE_ARGS=(--amount "${PAIR_CREATION_FEE_ULUNA}uluna")
+    fi
+    terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" "${FEE_ARGS[@]}"
+}
+
+# Pre-flight: make sure test1 can cover the fee for every pair we create (Phase 4/4b/4c =
+# PAIR_CONFIGS + 3 unpaired + 2 wrapped-native). The fee returns to treasury (== test1), so this is a
+# generous headroom check; it fails fast with an actionable message instead of dying mid-Phase-4.
+if [ "$PAIR_CREATION_FEE_ULUNA" != "0" ]; then
+    PAIRS_TO_CREATE=$(( ${#PAIR_CONFIGS[@]} + 5 ))
+    FEE_NEEDED=$(( PAIR_CREATION_FEE_ULUNA * PAIRS_TO_CREATE + 5000000000 ))
+    TEST1_ULUNA=$(terrad_query bank balances "$TEST_ADDRESS" \
+      | jq -r '(.balances[]? | select(.denom=="uluna") | .amount) // empty' | head -1)
+    if [ -n "$TEST1_ULUNA" ] && [ "$TEST1_ULUNA" -lt "$FEE_NEEDED" ] 2>/dev/null; then
+        echo "  ERROR: test1 uluna ($TEST1_ULUNA) < pair-creation fee headroom ($FEE_NEEDED for" \
+             "$PAIRS_TO_CREATE pairs at ${PAIR_CREATION_FEE_ULUNA}uluna). Re-fund test1 or set" \
+             "LOCAL_PAIR_CREATION_FEE_ULUNA=0." >&2
+        exit 1
+    fi
+    echo "  test1 uluna OK for $PAIRS_TO_CREATE pairs (${TEST1_ULUNA:-unknown} available)."
+fi
 
 echo ""
 echo "[9] Instantiating Router..."
@@ -386,7 +423,9 @@ sleep 3
 if terrad_query tx "$TX_HASH" | jq -e '.code == 0' >/dev/null 2>&1; then
   echo "  Treasury funded: $TREASURY_FUND_COINS"
 else
-  echo "  WARNING: Treasury fund tx may have failed (code != 0). Wrap E2E may need manual bank send."
+  echo "  ERROR: Treasury fund tx failed (code != 0). Wrap E2E cannot proceed; aborting." >&2
+  terrad_query tx "$TX_HASH" | jq -r '.raw_log // "no log"' >&2
+  exit 1
 fi
 
 # ── Phase 2: Tokens ─────────────────────────────────────────────────────
@@ -525,8 +564,7 @@ for p in "${!PAIR_CONFIGS[@]}"; do
 
     # Create pair via factory
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" \
-        --amount "${PAIR_CREATION_FEE_ULUNA}uluna" | jq -r '.txhash')
+    TX_HASH=$(factory_create_pair "$CREATE_MSG" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
@@ -636,8 +674,7 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
     echo "[14b.$UNPAIRED_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
 
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" \
-        --amount "${PAIR_CREATION_FEE_ULUNA}uluna" | jq -r '.txhash')
+    TX_HASH=$(factory_create_pair "$CREATE_MSG" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
@@ -684,8 +721,7 @@ do
   echo "[14c.$WRAP_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
 
   CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-  TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" \
-      --amount "${PAIR_CREATION_FEE_ULUNA}uluna" | jq -r '.txhash')
+  TX_HASH=$(factory_create_pair "$CREATE_MSG" | jq -r '.txhash')
   echo "  TX: $TX_HASH"
   sleep 3
   PAIR_RESULT=$(terrad_query tx "$TX_HASH")

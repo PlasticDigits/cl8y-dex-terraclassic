@@ -23,15 +23,17 @@ mod tokens;
 mod traders;
 
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::time::{Duration, Instant};
 
+use axum::extract::ConnectInfo;
 use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::routing::get;
 use axum::Router;
 use sqlx::PgPool;
 use tower_governor::governor::GovernorConfigBuilder;
-use tower_governor::GovernorLayer;
+use tower_governor::key_extractor::KeyExtractor;
+use tower_governor::{GovernorError, GovernorLayer};
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::timeout::TimeoutLayer;
@@ -103,6 +105,41 @@ pub(crate) fn aggregator_cache_put(key: &str, value: serde_json::Value) {
     }
 }
 
+/// Collapse an IPv6 address to its `/64` network prefix (zero the low 64 host bits); IPv4 is
+/// returned unchanged. A single `/64` is the smallest block a host is typically allocated, so
+/// without this an IPv6 client could rotate through addresses in its own `/64` to multiply its
+/// rate limit (GitLab #282).
+fn rate_limit_ip_key(ip: IpAddr) -> IpAddr {
+    match ip {
+        IpAddr::V4(_) => ip,
+        IpAddr::V6(v6) => {
+            let mut octets = v6.octets();
+            octets[8..].fill(0);
+            IpAddr::V6(Ipv6Addr::from(octets))
+        }
+    }
+}
+
+/// Rate-limit key extractor (GitLab #282). Keys on the socket peer IP — per the deployment topology
+/// there is no trusted forwarded header (`CF-Connecting-IP` / `X-Forwarded-For`), so the peer IP is
+/// the real client and a forwarded-header extractor would only add a spoofable bucket key. IPv6
+/// clients are bucketed by their `/64` prefix ([`rate_limit_ip_key`]); IPv4 by the full address.
+#[derive(Clone)]
+struct PeerIpV6Slash64KeyExtractor;
+
+impl KeyExtractor for PeerIpV6Slash64KeyExtractor {
+    type Key = IpAddr;
+
+    fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
+        let ip = req
+            .extensions()
+            .get::<ConnectInfo<SocketAddr>>()
+            .map(|ci| ci.0.ip())
+            .ok_or(GovernorError::UnableToExtractKey)?;
+        Ok(rate_limit_ip_key(ip))
+    }
+}
+
 fn apply_rate_limit_layer<S>(router: Router<S>, rps: u64) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -111,6 +148,7 @@ where
         return router;
     }
     let governor_conf = GovernorConfigBuilder::default()
+        .key_extractor(PeerIpV6Slash64KeyExtractor)
         .per_second(rps)
         .burst_size(rps.saturating_mul(2) as u32)
         .use_headers()
@@ -555,5 +593,66 @@ mod cg_ticker_proptest {
             let t = format!("{}_{}_{}", a, b, c);
             prop_assert!(cg_ticker_segments(&t).is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod rate_limit_key_tests {
+    //! GitLab #282: the rate-limit key buckets IPv6 clients by their /64 prefix so a single /64
+    //! can't rotate addresses past the limit; IPv4 keys on the full address.
+    use super::{rate_limit_ip_key, PeerIpV6Slash64KeyExtractor};
+    use axum::extract::ConnectInfo;
+    use std::net::{IpAddr, SocketAddr};
+    use tower_governor::key_extractor::KeyExtractor;
+
+    fn ip(s: &str) -> IpAddr {
+        s.parse().unwrap()
+    }
+
+    /// Run the real extractor against a request carrying `addr` as the socket peer.
+    fn extractor_key(addr: &str) -> IpAddr {
+        let sock: SocketAddr = addr.parse().unwrap();
+        let mut req = axum::http::Request::new(());
+        req.extensions_mut().insert(ConnectInfo(sock));
+        PeerIpV6Slash64KeyExtractor.extract(&req).unwrap()
+    }
+
+    #[test]
+    fn ipv6_same_slash64_collapses_to_one_key() {
+        let a = rate_limit_ip_key(ip("2001:db8:abcd:1::1"));
+        let b = rate_limit_ip_key(ip("2001:db8:abcd:1:ffff:ffff:ffff:ffff"));
+        assert_eq!(a, b, "addresses in the same /64 must share a bucket");
+        assert_eq!(a, ip("2001:db8:abcd:1::"), "key is the /64 network prefix");
+    }
+
+    #[test]
+    fn ipv6_different_slash64_stay_independent() {
+        assert_ne!(
+            rate_limit_ip_key(ip("2001:db8:abcd:1::1")),
+            rate_limit_ip_key(ip("2001:db8:abcd:2::1")),
+        );
+    }
+
+    #[test]
+    fn ipv4_keys_on_the_full_address() {
+        let a = rate_limit_ip_key(ip("203.0.113.7"));
+        assert_eq!(a, ip("203.0.113.7"));
+        assert_ne!(a, rate_limit_ip_key(ip("203.0.113.8")));
+    }
+
+    #[test]
+    fn extractor_reads_connect_info_and_buckets_by_slash64() {
+        // two distinct peers in the same /64 -> identical extractor key
+        assert_eq!(
+            extractor_key("[2001:db8:abcd:1::1]:40000"),
+            extractor_key("[2001:db8:abcd:1::2]:51000"),
+        );
+        // different /64 -> distinct
+        assert_ne!(
+            extractor_key("[2001:db8:abcd:1::1]:40000"),
+            extractor_key("[2001:db8:abcd:9::1]:40000"),
+        );
+        // v4 keyed on the full address
+        assert_ne!(extractor_key("198.51.100.1:1"), extractor_key("198.51.100.2:1"));
     }
 }

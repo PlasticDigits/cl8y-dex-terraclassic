@@ -78,6 +78,13 @@ decode_smart_payload() {
 LCD="${VITE_TERRA_LCD_URL:-http://localhost:1317}"
 LCD="${LCD%/}"
 
+factory_pair_creation_fee_uluna() {
+  decode_smart_payload "$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"config":{}}')" \
+    | jq -r '.pair_creation_fee_uluna // "0"'
+}
+
+PAIR_CREATION_FEE_ULUNA="$(factory_pair_creation_fee_uluna)"
+
 factory_has_pair_with_token() {
   local token="$1"
   local pairs_doc
@@ -139,9 +146,12 @@ create_wrap_pair() {
   fi
 
   echo "e2e-seed-wrap-pairs: creating $wrap_sym/$partner_sym pair..."
-  local create_msg pair_addr tx_hash
+  local create_msg pair_addr tx_hash fee_args=()
   create_msg="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$wrap_addr\"}},{\"token\":{\"contract_addr\":\"$partner_addr\"}}]}}"
-  if ! tx_hash="$(terrad_tx wasm execute "$VITE_FACTORY_ADDRESS" "$create_msg" | jq -r '.txhash')"; then
+  if [[ "$PAIR_CREATION_FEE_ULUNA" != "0" && -n "$PAIR_CREATION_FEE_ULUNA" ]]; then
+    fee_args=(--amount "${PAIR_CREATION_FEE_ULUNA}uluna")
+  fi
+  if ! tx_hash="$(terrad_tx wasm execute "$VITE_FACTORY_ADDRESS" "$create_msg" "${fee_args[@]}" | jq -r '.txhash')"; then
     if factory_has_pair_with_token "$wrap_addr"; then
       echo "e2e-seed-wrap-pairs: $wrap_sym/$partner_sym already on factory; skipping create."
       return 0

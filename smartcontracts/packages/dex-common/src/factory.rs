@@ -102,6 +102,20 @@ pub enum ExecuteMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
+    /// Set the LP-token CosmWasm admin on all registered pairs in one bounded tx (GitLab #277).
+    /// Governance only. Fails when `PAIR_COUNT` exceeds the pagination cap; use
+    /// [`SetLpAdminBatch`](ExecuteMsg::SetLpAdminBatch) for larger factories. Replaces the old
+    /// unbounded fanout that `UpdateConfig` did on every governance change.
+    SetLpAdminAll {
+        admin: String,
+    },
+    /// Paginated rollout of the LP-token admin update across indexed pairs (`PAIR_INDEX`).
+    /// Governance only. Rerun with `next_start_after` until the response reports `has_more=false`.
+    SetLpAdminBatch {
+        admin: String,
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
     /// Emergency pause/unpause a pair. Only governance can call this.
     SetPairPaused {
         pair: String,

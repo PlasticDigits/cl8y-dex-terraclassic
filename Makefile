@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-295 swarm-local swarm-launch swarm-stop setup-cloud-localterra
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-295 swarm-local swarm-launch swarm-stop setup-cloud-localterra
 
 # Infrastructure
 start:
@@ -90,6 +90,10 @@ test-setup-postgres:
 	@chmod +x scripts/test-setup-postgres-dev-databases.sh scripts/lib/postgres-bootstrap-role.sh scripts/setup-postgres-dev-databases.sh
 	./scripts/test-setup-postgres-dev-databases.sh
 
+test-setup-browser:
+	@chmod +x scripts/test-setup-browser-cloud-agent.sh scripts/setup-browser-cloud-agent.sh scripts/lib/keplr-chrome-extension.sh
+	./scripts/test-setup-browser-cloud-agent.sh
+
 qa-tunnel-help:
 	@chmod +x scripts/qa/print-qa-tunnel-instructions.sh scripts/qa/write-frontend-env-local.sh
 	./scripts/qa/print-qa-tunnel-instructions.sh
@@ -112,6 +116,16 @@ verify-issue-238:
 verify-issue-245:
 	@chmod +x scripts/qa/verify-issue-245.sh scripts/qa/verify-issue-238.sh scripts/lib/lcd-smart-query.sh
 	./scripts/qa/verify-issue-245.sh
+
+# GitLab #274 — live LocalTerra gas: CleanLimitBook traversal cap + resume cursor.
+verify-issue-274:
+	@chmod +x scripts/qa/verify-issue-274.sh scripts/lib/lcd-smart-query.sh scripts/lib/e2e-terrad-tx.sh scripts/lib/localterra-host-curl.sh scripts/e2e-provision-dev-wallet.sh
+	./scripts/qa/verify-issue-274.sh
+
+# GitLab #276 — pair-creation fee (contract tests + doc cross-links).
+verify-issue-276:
+	@chmod +x scripts/qa/verify-issue-276.sh
+	./scripts/qa/verify-issue-276.sh
 
 # GitLab #295 — limit ladder rung count UI (Playwright against make dev on :5173).
 verify-issue-295:
