@@ -96,6 +96,7 @@ terrad tx wasm execute <factory_addr> '{
 Pairs are created through the Factory:
 
 ```bash
+# Attach uluna >= factory Config.pair_creation_fee_uluna (default 100 LUNC = 100000000uluna; GitLab #276).
 terrad tx wasm execute <factory_addr> '{
   "create_pair": {
     "asset_infos": [
@@ -103,7 +104,8 @@ terrad tx wasm execute <factory_addr> '{
       { "token": { "contract_addr": "<token_b_addr>" } }
     ]
   }
-}' --from <wallet> --gas auto --gas-adjustment 1.4 \
+}' --amount 100000000uluna \
+  --from <wallet> --gas auto --gas-adjustment 1.4 \
   --fees 500000uluna --chain-id <chain-id> --node <rpc-url>
 ```
 

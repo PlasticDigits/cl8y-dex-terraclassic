@@ -44,15 +44,17 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `pair_code_id`         | `u64`      | Stored code ID for Pair contract     |
 | `lp_token_code_id`     | `u64`      | Stored code ID for CW20 LP token     |
 | `whitelisted_code_ids` | `Vec<u64>` | Initial CW20 code IDs allowed        |
+| `pair_creation_fee_uluna` | `Uint128` | uluna required on `CreatePair`, forwarded to treasury (default **100 LUNC**; GitLab [#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)) |
 
 ### ExecuteMsg
 
 | Variant                    | Fields                                             | Auth        |
 |----------------------------|----------------------------------------------------|-------------|
-| `CreatePair`               | `asset_infos: [AssetInfo; 2]`                      | Anyone ([one create flow per block](./security-model.md#createpair-rate-limit-and-pending-state); see [#121](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/121)) |
+| `CreatePair`               | `asset_infos: [AssetInfo; 2]`                      | Anyone — attach **uluna** ≥ `pair_creation_fee_uluna` ([one create flow per block](./security-model.md#createpair-rate-limit-and-pending-state); [#121](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/121), [#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)) |
 | `AddWhitelistedCodeId`     | `code_id: u64`                                     | Governance  |
 | `RemoveWhitelistedCodeId`  | `code_id: u64`                                     | Governance  |
 | `SetPairFee`               | `pair: String`, `fee_bps: u16`                     | Governance  |
+| `SetPairCreationFee`       | `fee_uluna: Uint128`                               | Governance — set uluna fee for `CreatePair` ([#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)) |
 | `SetPairHooks`             | `pair: String`, `hooks: Vec<String>`               | Governance  |
 | `SetDiscountRegistry`      | `pair: String`, `registry: Option<String>`         | Governance  |
 | `SetDiscountRegistryAll` | `registry: Option<String>`                         | Governance — **≤10 pairs** only ([rollout invariants](#factory-discount-registry-rollout-invariants-glab-123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)) |
@@ -69,7 +71,7 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `GetWhitelistedCodeIds`  | `start_after?`, `limit?`               | `CodeIdsResponse`  |
 | `GetPairCount`           | —                                      | `PairCountResponse`|
 
-**`CreatePair`** rejects if either asset CW20 declares `decimals` greater than **`MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`** (see `dex_common::pair`, default **18**). This aligns with empty-pool `provide_liquidity` guards ([issue #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)).
+**`CreatePair`** rejects if either asset CW20 declares `decimals` greater than **`MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`** (see `dex_common::pair`, default **18**). This aligns with empty-pool `provide_liquidity` guards ([issue #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)). When `pair_creation_fee_uluna > 0`, the caller must attach at least that much **uluna** (only uluna accepted; overpay refunded) or the tx fails with `InsufficientPairCreationFee` ([#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)).
 
 ### Factory storage & upgrades
 
@@ -80,7 +82,7 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `pair_key_idx` | Canonical pair key → numeric index; **O(1)** resolve of `Pairs { start_after: [AssetInfo; 2] }` cursor ([GitLab #258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)) |
 | `pair_addr_reg` | Pair contract `Addr` → `true`; **O(1)** membership for governance paths that validate a single pair address |
 
-**Invariant:** For each index `i` in `0..pair_count`, `pair_index[i].contract_addr` has a `true` entry in `pair_addr_reg`, and `pair_key_idx[pair_key(pair_index[i].asset_infos)] == i`. Maintained when pairs register in `reply_instantiate_pair`. Legacy factory instances on wasm **1.0.0** must migrate once to **1.1.0** so `pair_addr_reg` is backfilled from `pair_index` ([GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)); instances on **1.2.0** or older must migrate to **1.3.0** so `pair_key_idx` is backfilled ([GitLab #258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)).
+**Invariant:** For each index `i` in `0..pair_count`, `pair_index[i].contract_addr` has a `true` entry in `pair_addr_reg`, and `pair_key_idx[pair_key(pair_index[i].asset_infos)] == i`. Maintained when pairs register in `reply_instantiate_pair`. Legacy factory instances on wasm **1.0.0** must migrate once to **1.1.0** so `pair_addr_reg` is backfilled from `pair_index` ([GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)); instances on **1.2.0** or older must migrate to **1.3.0** so `pair_key_idx` is backfilled ([GitLab #258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)); instances on **1.3.x** must migrate to **1.4.0** so stored `Config` picks up `pair_creation_fee_uluna` default **100 LUNC** via `#[serde(default)]` ([#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)).
 
 **Gas / iteration:** Per-pair governance messages use **O(1)** `pair_addr_reg` where applicable ([#122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)). **`Pairs` pagination** resolves `start_after` via **O(1)** `pair_key_idx` lookup, then reads at most `limit` entries from `pair_index` ([#258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)). For **broadcasting** discount-registry updates across the factory, use **`SetDiscountRegistryBatch`** ([#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)) so each transaction carries a bounded Wasm message list. **`SetDiscountRegistryAll`** is a single-tx shortcut only when `PAIR_COUNT` ≤ the default pagination cap (**10**); otherwise the contract returns `DiscountRegistryAllTooManyPairs` and operators must paginate. Other full-registry passes (e.g. propagating governance to LP admins on governance change) still iterate `pair_index` by design where no batched API exists. Indexers or LCD clients listing pairs should paginate rather than relying on unbounded queries. Off-chain operators and automation: [Indexer invariants — Factory LCD](./indexer-invariants.md#factory-lcd-pair-enumeration-vs-governance-gas-agents).
 
