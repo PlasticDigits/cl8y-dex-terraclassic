@@ -3,8 +3,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::api::db_orderbook_sim::{self, MirrorLoadMeta};
-use crate::api::hybrid_route_opt::{self, HopDescriptor, HybridSimError, HybridSimSource, OptimizationMeta};
-use axum::http::StatusCode;
+use crate::api::hybrid_route_opt::{
+    self, HopDescriptor, HybridSimError, HybridSimSource, OptimizationMeta,
+};
 use crate::api::route_paths;
 use crate::api::route_solver::{
     apply_hybrid_by_hop, build_hops_and_ops, build_intermediate_tokens, quote_kind_after_sim,
@@ -12,6 +13,7 @@ use crate::api::route_solver::{
 };
 use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
+use axum::http::StatusCode;
 use sqlx::PgPool;
 
 /// LCD-grid solver generation (legacy).
@@ -154,7 +156,11 @@ fn estimate_lcd_calls(hop_count: usize) -> u32 {
     (hop_count as u32).saturating_mul(per_hop)
 }
 
-fn quote_kind_for(meta: &OptimizationMeta, estimated: &Option<String>, db_mode: bool) -> RouteQuoteKind {
+fn quote_kind_for(
+    meta: &OptimizationMeta,
+    estimated: &Option<String>,
+    db_mode: bool,
+) -> RouteQuoteKind {
     let mirror_degraded = meta.mirror_stale || meta.mirror_missing;
     let kind = if meta.degraded || mirror_degraded {
         if db_mode {
@@ -192,11 +198,12 @@ fn apply_fidelity_guard(
         return estimated.clone();
     };
     if sim_u == 0 {
-        meta.fidelity_check = if db_out == 0 {
-            FidelityCheck::Passed
+        if db_out == 0 {
+            meta.fidelity_check = FidelityCheck::Passed;
         } else {
-            FidelityCheck::Drift
-        };
+            meta.fidelity_check = FidelityCheck::Drift;
+            meta.degraded = true;
+        }
         return estimated.clone();
     }
     if db_out > sim_u {
@@ -317,7 +324,8 @@ pub async fn solve_global_best_execution(
         let hops = cand.hops.clone();
         let ops = apply_hybrid_by_hop(cand.ops.clone(), &hybrid_plan)?;
         let estimated =
-            crate::api::route_solver::maybe_simulate(state, Some(amount_raw), &ops, quote_trader).await?;
+            crate::api::route_solver::maybe_simulate(state, Some(amount_raw), &ops, quote_trader)
+                .await?;
 
         let out_u = estimated
             .as_ref()
@@ -388,7 +396,7 @@ pub async fn solve_global_best_execution(
         if meta.fidelity_check == FidelityCheck::Drift {
             body.quote_kind = quote_kind_for(
                 &OptimizationMeta {
-                    degraded: meta.degraded && meta.any_book_leg,
+                    degraded: meta.degraded,
                     any_book_leg: meta.any_book_leg,
                     mirror_stale: meta.mirror_stale,
                     mirror_missing: meta.mirror_missing,
