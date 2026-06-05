@@ -39,8 +39,8 @@ test.describe('Limit placement gas presets → CW20 hook max_adjust_steps (GitLa
       await connectWallet
 
       const pairs = await gotoAndCaptureFactoryPairsPage(page, '/limits')
-      const { index } = await requireLimitTxPair(request, pairs)
-      await selectLimitPairByFactoryIndex(page, index)
+      const { pair } = await requireLimitTxPair(request, pairs)
+      await selectLimitPairByFactoryIndex(page, pair.contract_addr)
 
       const card = placeLimitCard(page)
       await fillValidLimitPrice(page, 'bid')

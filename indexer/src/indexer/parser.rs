@@ -273,35 +273,52 @@ pub async fn process_block_txs(
         }
 
         let liq_events = parse_liquidity_events(tx);
+        let factory_addr = config.factory_address.as_str();
         for liq in &liq_events {
-            process_liquidity_event(pool, lcd, liq, height, block_time, &tx.txhash).await?;
+            process_liquidity_event(
+                pool, lcd, factory_addr, liq, height, block_time, &tx.txhash,
+            )
+            .await?;
         }
 
         let lo_fills = parse_limit_order_fills(tx);
         for fill in &lo_fills {
-            process_limit_order_fill(pool, lcd, fill, height, block_time, &tx.txhash).await?;
+            process_limit_order_fill(
+                pool, lcd, factory_addr, fill, height, block_time, &tx.txhash,
+            )
+            .await?;
         }
 
         let placements = parse_limit_order_placements(tx);
         for p in &placements {
-            process_limit_order_placement(pool, lcd, p, height, block_time, &tx.txhash).await?;
+            process_limit_order_placement(
+                pool, lcd, factory_addr, p, height, block_time, &tx.txhash,
+            )
+            .await?;
         }
 
         let cancellations = parse_limit_order_cancellations(tx);
         for c in &cancellations {
-            process_limit_order_cancellation(pool, lcd, c, height, block_time, &tx.txhash).await?;
+            process_limit_order_cancellation(
+                pool, lcd, factory_addr, c, height, block_time, &tx.txhash,
+            )
+            .await?;
         }
 
         let parked = parse_limit_order_expired_parked(tx);
         for p in &parked {
-            process_limit_order_expired_parked(pool, lcd, p, height, block_time, &tx.txhash)
-                .await?;
+            process_limit_order_expired_parked(
+                pool, lcd, factory_addr, p, height, block_time, &tx.txhash,
+            )
+            .await?;
         }
 
         let claims = parse_claim_expired_limit_orders(tx);
         for c in &claims {
-            process_claim_expired_limit_order(pool, lcd, c, height, block_time, &tx.txhash)
-                .await?;
+            process_claim_expired_limit_order(
+                pool, lcd, factory_addr, c, height, block_time, &tx.txhash,
+            )
+            .await?;
         }
 
         let hook_events = parse_hook_events(tx);
@@ -347,7 +364,14 @@ async fn process_swap(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &swap.pair_address).await? {
         Some(p) => p,
-        None => match pair_discovery::discover_new_pair(pool, lcd, &swap.pair_address).await {
+        None => match pair_discovery::discover_new_pair(
+            pool,
+            lcd,
+            &config.factory_address,
+            &swap.pair_address,
+        )
+        .await
+        {
             Ok(p) => p,
             Err(e) => {
                 tracing::warn!("Could not discover pair {}: {}", swap.pair_address, e);
@@ -731,6 +755,7 @@ fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
 async fn process_limit_order_fill(
     pool: &PgPool,
     lcd: &LcdClient,
+    factory_addr: &str,
     fill: &ParsedLimitOrderFill,
     height: i64,
     block_time: DateTime<Utc>,
@@ -738,7 +763,9 @@ async fn process_limit_order_fill(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &fill.pair_address).await? {
         Some(p) => p,
-        None => match pair_discovery::discover_new_pair(pool, lcd, &fill.pair_address).await {
+        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &fill.pair_address)
+            .await
+        {
             Ok(p) => p,
             Err(e) => {
                 tracing::warn!("Could not discover pair {}: {}", fill.pair_address, e);
@@ -1019,6 +1046,7 @@ fn parse_limit_order_cancellations(tx: &TxResponse) -> Vec<ParsedLimitOrderCance
 async fn process_limit_order_placement(
     pool: &PgPool,
     lcd: &LcdClient,
+    factory_addr: &str,
     p: &ParsedLimitOrderPlacement,
     height: i64,
     block_time: DateTime<Utc>,
@@ -1026,7 +1054,9 @@ async fn process_limit_order_placement(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &p.pair_address).await? {
         Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, &p.pair_address).await {
+        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &p.pair_address)
+            .await
+        {
             Ok(pair) => pair,
             Err(e) => {
                 tracing::warn!("Could not discover pair {}: {}", p.pair_address, e);
@@ -1054,6 +1084,7 @@ async fn process_limit_order_placement(
 async fn process_limit_order_cancellation(
     pool: &PgPool,
     lcd: &LcdClient,
+    factory_addr: &str,
     c: &ParsedLimitOrderCancellation,
     height: i64,
     block_time: DateTime<Utc>,
@@ -1061,7 +1092,9 @@ async fn process_limit_order_cancellation(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &c.pair_address).await? {
         Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, &c.pair_address).await {
+        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &c.pair_address)
+            .await
+        {
             Ok(pair) => pair,
             Err(e) => {
                 tracing::warn!("Could not discover pair {}: {}", c.pair_address, e);
@@ -1128,6 +1161,7 @@ fn parse_claim_expired_limit_orders(tx: &TxResponse) -> Vec<ParsedClaimExpiredLi
 async fn process_limit_order_expired_parked(
     pool: &PgPool,
     lcd: &LcdClient,
+    factory_addr: &str,
     p: &ParsedLimitOrderExpiredParked,
     height: i64,
     block_time: DateTime<Utc>,
@@ -1135,7 +1169,9 @@ async fn process_limit_order_expired_parked(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &p.pair_address).await? {
         Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, &p.pair_address).await {
+        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &p.pair_address)
+            .await
+        {
             Ok(pair) => pair,
             Err(e) => {
                 tracing::warn!("Could not discover pair {}: {}", p.pair_address, e);
@@ -1160,6 +1196,7 @@ async fn process_limit_order_expired_parked(
 async fn process_claim_expired_limit_order(
     pool: &PgPool,
     lcd: &LcdClient,
+    factory_addr: &str,
     c: &ParsedClaimExpiredLimitOrder,
     height: i64,
     block_time: DateTime<Utc>,
@@ -1167,7 +1204,9 @@ async fn process_claim_expired_limit_order(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &c.pair_address).await? {
         Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, &c.pair_address).await {
+        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &c.pair_address)
+            .await
+        {
             Ok(pair) => pair,
             Err(e) => {
                 tracing::warn!("Could not discover pair {}: {}", c.pair_address, e);
@@ -1259,6 +1298,7 @@ fn parse_asset_amounts(assets_str: &str) -> (BigDecimal, BigDecimal) {
 async fn process_liquidity_event(
     pool: &PgPool,
     lcd: &LcdClient,
+    factory_addr: &str,
     event: &ParsedLiquidityEvent,
     height: i64,
     block_time: DateTime<Utc>,
@@ -1266,7 +1306,14 @@ async fn process_liquidity_event(
 ) -> Result<(), BoxError> {
     let pair = match pairs::get_pair_by_address(pool, &event.pair_address).await? {
         Some(p) => p,
-        None => match pair_discovery::discover_new_pair(pool, lcd, &event.pair_address).await {
+        None => match pair_discovery::discover_new_pair(
+            pool,
+            lcd,
+            factory_addr,
+            &event.pair_address,
+        )
+        .await
+        {
             Ok(p) => p,
             Err(e) => {
                 tracing::warn!("Could not discover pair {}: {}", event.pair_address, e);

@@ -9,7 +9,7 @@ use crate::state::PairInfoState;
 fn token_addr(asset: &AssetInfo) -> Result<Addr, ContractError> {
     asset
         .assert_is_token()
-        .map(|s| Addr::unchecked(s))
+        .map(Addr::unchecked)
         .map_err(|_| ContractError::NativeTokenNotSupported {})
 }
 
@@ -18,8 +18,7 @@ fn probe_factory_blacklist(
     factory: &Addr,
     check: BlacklistCheck,
 ) -> Result<Option<dex_common::blacklist::BlacklistCheckResponse>, ContractError> {
-    match querier.query_wasm_smart(factory.to_string(), &FactoryQueryMsg::BlacklistCheck(check))
-    {
+    match querier.query_wasm_smart(factory.to_string(), &FactoryQueryMsg::BlacklistCheck(check)) {
         Ok(resp) => Ok(Some(resp)),
         // Pre-1.5.0 factory or test doubles without `BlacklistCheck`: do not block.
         Err(_) => Ok(None),

@@ -1,29 +1,22 @@
-# Agent playbook: Swap MEV / submission posture disclosure
+# Agent playbook: MEV / submission posture (docs-only)
 
-Use when changing **public mempool disclosure**, **`MevPostureNotice`**, **`mevPosture.ts` copy**, or Swap **Settings** layout next to routing controls ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), W10-C3).
+Use when changing **MEV / public mempool documentation** or reviewing whether swap/trade UI should surface submission posture ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), [**#299**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)).
 
 ## Product invariant
 
-- Traders must see **how** swaps are submitted (wallet → public mempool) and that **no** MEV-protection or private-RPC path exists in this build.
+- Swaps and trades are signed in the wallet and broadcast to the **public** Terra Classic mempool. This build has **no** private RPC, bundle relay, or MEV-protection path.
+- **Do not** add MEV posture UI (informational cards, toggles, or settings) on Swap (`/`) or Trade (`/trade`) — it would imply a user-controllable setting that does not exist ([#299](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)).
 - **Do not** add a fake/disabled “MEV protection” toggle; add a real control only when submission code uses a protected path end-to-end.
-- **Slippage tolerance** is the on-chain sandwich guard — keep copy aligned with [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) (GitLab #134).
+- **Slippage tolerance** remains the on-chain sandwich guard — keep aligned with [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) (GitLab #134). Swap Settings still exposes slippage presets and the high-slippage front-running warning.
 
-## Code map
+## Docs map
 
 | Concern | Location |
 |--------|----------|
-| Copy constants | [`frontend-dapp/src/utils/mevPosture.ts`](../frontend-dapp/src/utils/mevPosture.ts) |
-| Unit tests | [`frontend-dapp/src/utils/mevPosture.test.ts`](../frontend-dapp/src/utils/mevPosture.test.ts) |
-| Settings UI | [`frontend-dapp/src/components/swap/MevPostureNotice.tsx`](../frontend-dapp/src/components/swap/MevPostureNotice.tsx) |
-| Mount (Settings open) | [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — after slippage card, before limit-book leg |
-| Vitest | [`frontend-dapp/src/pages/SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) |
-| Playwright | [`frontend-dapp/e2e/swap.spec.ts`](../frontend-dapp/e2e/swap.spec.ts) |
-
-## Docs cross-links
-
-- [`docs/frontend.md` § Swap page — MEV / submission posture](../docs/frontend.md#swap-mev-posture) — canonical invariants table.
-- [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) — slippage / price impact (complementary, not duplicate).
-- [`docs/limit-orders.md`](../docs/limit-orders.md) — hybrid routing disclosure (GitLab #111).
+| Canonical MEV / submission posture | [`docs/frontend.md` § Swap page — MEV / submission posture](../docs/frontend.md#swap-mev-posture) |
+| Slippage / price impact | [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) |
+| Hybrid routing disclosure | [`docs/limit-orders.md`](../docs/limit-orders.md) (GitLab #111) |
+| Slippage UI + front-running warning | [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — Settings slippage card only |
 
 ## Related skills
 
@@ -32,8 +25,7 @@ Use when changing **public mempool disclosure**, **`MevPostureNotice`**, **`mevP
 
 ## Regression checklist (manual)
 
-1. Open `/`, click **Settings** — **Transaction submission (MEV)** card visible (`swap-mev-posture-notice`).
-2. Confirm copy mentions **public mempool** and **no** private RPC / MEV toggle.
-3. Change slippage preset — notice shows updated **%** in the slippage sentence.
-4. Collapse Settings — notice hidden.
-5. With a direct CW20 pair, confirm **limit book leg** and **Indexer route check** still appear below the MEV card.
+1. Open `/` — **no** `swap-mev-posture-notice` or “Transaction submission (MEV)” card anywhere (including Settings).
+2. Open `/trade/:pairAddr` — same; no MEV posture UI.
+3. Open Settings on `/` — slippage presets and limit-book controls still work; high slippage (>5%) still shows front-running warning.
+4. Confirm [`docs/frontend.md#swap-mev-posture`](../docs/frontend.md#swap-mev-posture) documents public mempool risks and the no-toggle policy.

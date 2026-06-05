@@ -292,6 +292,107 @@ pub async fn start_hybrid_orderbook_mock() -> MockServer {
     server
 }
 
+/// Book snapshot loop mock: pool + fee + small two-sided resting book; optional latest block height.
+pub async fn start_book_snapshot_mock(block_height: Option<&str>) -> MockServer {
+    let height = block_height.map(str::to_string);
+    let book_responder = |req: &Request| {
+        let q = smart_query_from_request(req);
+        let data = if q.get("pool").is_some() {
+            json!({
+                "assets": [
+                    { "info": { "native_token": { "denom": "uluna" } }, "amount": "1000000" },
+                    { "info": { "token": { "contract_addr": "terra1ustctoken" } }, "amount": "2000000" }
+                ],
+                "total_share": "1"
+            })
+        } else if q.get("get_fee_config").is_some() {
+            json!({ "fee_config": { "fee_bps": 25, "treasury": "terra1treasury" } })
+        } else if q.get("order_book_head").is_some() {
+            let side = q["order_book_head"]["side"].as_str().unwrap_or("");
+            if side == "bid" {
+                json!(102u64)
+            } else {
+                json!(201u64)
+            }
+        } else if q.get("limit_order").is_some() {
+            let id = q["limit_order"]["order_id"].as_u64().unwrap();
+            match id {
+                102 => json!({
+                    "order_id": 102,
+                    "owner": "terra1bid2",
+                    "side": "bid",
+                    "price": "1.05",
+                    "remaining": "100",
+                    "expires_at": 999,
+                    "prev": null,
+                    "next": 101
+                }),
+                101 => json!({
+                    "order_id": 101,
+                    "owner": "terra1bid1",
+                    "side": "bid",
+                    "price": "1.05",
+                    "remaining": "200",
+                    "expires_at": null,
+                    "prev": 102,
+                    "next": 100
+                }),
+                100 => json!({
+                    "order_id": 100,
+                    "owner": "terra1bid0",
+                    "side": "bid",
+                    "price": "1.00",
+                    "remaining": "300",
+                    "expires_at": null,
+                    "prev": 101,
+                    "next": null
+                }),
+                201 => json!({
+                    "order_id": 201,
+                    "owner": "terra1ask1",
+                    "side": "ask",
+                    "price": "1.10",
+                    "remaining": "400",
+                    "expires_at": null,
+                    "prev": null,
+                    "next": 202
+                }),
+                202 => json!({
+                    "order_id": 202,
+                    "owner": "terra1ask2",
+                    "side": "ask",
+                    "price": "1.20",
+                    "remaining": "500",
+                    "expires_at": null,
+                    "prev": 201,
+                    "next": null
+                }),
+                _ => Value::Null,
+            }
+        } else {
+            Value::Null
+        };
+        ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+    };
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(book_responder)
+        .mount(&server)
+        .await;
+    if let Some(height) = height {
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/cosmos/base/tendermint/v1beta1/blocks/latest$"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "block": { "header": { "height": height, "time": "2026-06-05T00:00:00Z" } }
+            })))
+            .mount(&server)
+            .await;
+    }
+    server
+}
+
 /// Base URL for [`LcdClient::new`](cl8y_dex_indexer::lcd::LcdClient::new) (no trailing slash).
 pub fn lcd_base_url(server: &MockServer) -> String {
     server.uri().trim_end_matches('/').to_string()

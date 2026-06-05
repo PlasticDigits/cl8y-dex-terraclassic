@@ -600,7 +600,12 @@ pub fn execute(
         } => {
             assert_not_paused(deps.storage)?;
             assert_deadline(&env, deadline)?;
-            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_provide_liquidity(deps, env, info, assets, slippage_tolerance, receiver)
         }
         ExecuteMsg::Swap {
@@ -631,22 +636,42 @@ pub fn execute(
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
         ExecuteMsg::CancelLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
-            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_cancel_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::CancelLimitOrders { order_ids } => {
             assert_not_paused(deps.storage)?;
-            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_cancel_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::ClaimExpiredLimitOrder { order_id } => {
             assert_not_paused(deps.storage)?;
-            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_claim_expired_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::ClaimExpiredLimitOrders { order_ids } => {
             assert_not_paused(deps.storage)?;
-            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_claim_expired_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::UpdateLimitOrderPrice {
@@ -656,7 +681,12 @@ pub fn execute(
             max_adjust_steps,
         } => {
             assert_not_paused(deps.storage)?;
-            gate_trading_blacklist(deps.as_ref(), &env.contract.address, &[info.sender.clone()], &[])?;
+            gate_trading_blacklist(
+                deps.as_ref(),
+                &env.contract.address,
+                std::slice::from_ref(&info.sender),
+                &[],
+            )?;
             execute_update_limit_order_price(
                 deps,
                 env,
@@ -701,16 +731,17 @@ fn execute_receive(
     let token_sender = deps.api.addr_validate(&cw20_msg.sender)?;
 
     let mut wallets = vec![token_sender.clone()];
-    if let Cw20HookMsg::Swap { trader, .. } = &hook_msg {
-        if let Some(t) = trader {
-            wallets.push(deps.api.addr_validate(t)?);
-        }
+    if let Cw20HookMsg::Swap {
+        trader: Some(t), ..
+    } = &hook_msg
+    {
+        wallets.push(deps.api.addr_validate(t)?);
     }
     gate_trading_blacklist(
         deps.as_ref(),
         &env.contract.address,
         &wallets,
-        &[info.sender.clone()],
+        std::slice::from_ref(&info.sender),
     )?;
 
     match hook_msg {

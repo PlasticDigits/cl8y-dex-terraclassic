@@ -9,12 +9,12 @@ test.describe('Limit orders page', () => {
     await expect(page.getByText('Cancel limit')).toBeVisible()
   })
 
-  test('pair control is portaled MenuSelect (listbox), not native select', async ({ page }) => {
+  test('pair control is searchable combobox (listbox), not native select', async ({ page }) => {
     await page.goto('/limits')
     await page.waitForLoadState('networkidle')
     const pairControl = page.locator('#limit-pair')
     await expect(pairControl).toBeVisible()
-    await expect(pairControl).toHaveAttribute('aria-haspopup', 'listbox')
+    await expect(pairControl).toHaveAttribute('role', 'combobox')
     await expect(page.locator('select#limit-pair')).toHaveCount(0)
   })
 

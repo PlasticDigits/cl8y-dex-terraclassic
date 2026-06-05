@@ -11,7 +11,7 @@ use crate::msg::{
     PairsResponse, QueryMsg,
 };
 use crate::state::{
-    Config, CONFIG, BLACKLISTED_PAIRS, BLACKLISTED_TOKENS, BLACKLISTED_WALLETS, PAIRS,
+    Config, BLACKLISTED_PAIRS, BLACKLISTED_TOKENS, BLACKLISTED_WALLETS, CONFIG, PAIRS,
     PAIR_ADDR_REGISTERED, PAIR_COUNT, PAIR_CREATION_BLOCK, PAIR_INDEX, PAIR_KEY_INDEX,
     PENDING_PAIR, REPLY_INSTANTIATE_PAIR, WHITELISTED_CODE_IDS,
 };
@@ -143,9 +143,7 @@ pub fn execute(
             token,
             recipient,
         } => execute_sweep_pair(deps, info, pair, token, recipient),
-        ExecuteMsg::BlacklistWallet { address } => {
-            execute_blacklist_wallet(deps, info, address)
-        }
+        ExecuteMsg::BlacklistWallet { address } => execute_blacklist_wallet(deps, info, address),
         ExecuteMsg::UnblacklistWallet { address } => {
             execute_unblacklist_wallet(deps, info, address)
         }
@@ -929,9 +927,7 @@ fn query_blacklist_check(deps: Deps, check: BlacklistCheck) -> StdResult<Blackli
     }
     let pair_blacklisted = !blacklisted_pairs.is_empty();
 
-    let blocked = wallet_blacklisted
-        || pair_blacklisted
-        || !blacklisted_tokens.is_empty();
+    let blocked = wallet_blacklisted || pair_blacklisted || !blacklisted_tokens.is_empty();
 
     Ok(BlacklistCheckResponse {
         blocked,

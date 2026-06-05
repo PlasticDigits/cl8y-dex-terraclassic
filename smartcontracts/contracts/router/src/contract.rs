@@ -5,12 +5,12 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
+use crate::blacklist_guard;
 use crate::error::ContractError;
 use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     SimulateSwapOperationsResponse, SwapOperation,
 };
-use crate::blacklist_guard;
 use crate::state::{SwapState, FACTORY, SWAP_STATE, WRAP_MAPPER};
 use dex_common::pair;
 use dex_common::types::Asset;

@@ -18,11 +18,7 @@ fn is_blacklisted_err(err: &dyn std::error::Error) -> bool {
     s.contains("Trading blacklist") || s.contains("Blacklisted")
 }
 
-fn batch_place_msg(
-    side: LimitOrderSide,
-    price: Decimal,
-    amount: Uint128,
-) -> cosmwasm_std::Binary {
+fn batch_place_msg(side: LimitOrderSide, price: Decimal, amount: Uint128) -> cosmwasm_std::Binary {
     to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
         side,
         orders: vec![LimitOrderPlacementItem {

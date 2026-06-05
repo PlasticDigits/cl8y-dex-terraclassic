@@ -23,7 +23,7 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 | `hybrid_notes` | Degradation + liability boundary |
 | `quote_kind` | `indexer_hybrid_lcd`, `indexer_hybrid_lcd_degraded`, etc. |
 
-Read `optimality_scope` before marketing “best price” — optimality is **within documented search bounds** only ([ADR 0002](../docs/adr/0002-global-best-execution-route-solver.md)).
+Read `optimality_scope` before marketing “best price” — optimality is **within documented search bounds** only ([ADR 0002](../docs/adr/0002-global-best-execution-route-solver.md), full guide: [route-solver.md](../docs/route-solver.md)).
 
 ## Terraport-compatible swap events
 

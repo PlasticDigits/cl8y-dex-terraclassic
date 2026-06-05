@@ -131,17 +131,29 @@ pub enum ExecuteMsg {
         recipient: String,
     },
     /// Governance-only: block all protocol actions for a wallet (GitLab #308).
-    BlacklistWallet { address: String },
+    BlacklistWallet {
+        address: String,
+    },
     /// Governance-only: restore a previously blacklisted wallet.
-    UnblacklistWallet { address: String },
+    UnblacklistWallet {
+        address: String,
+    },
     /// Governance-only: block trades involving a CW20 token on any pair.
-    BlacklistToken { token: String },
+    BlacklistToken {
+        token: String,
+    },
     /// Governance-only: remove a token from the trading blacklist.
-    UnblacklistToken { token: String },
+    UnblacklistToken {
+        token: String,
+    },
     /// Governance-only: block all actions on a registered pair contract.
-    BlacklistPair { pair: String },
+    BlacklistPair {
+        pair: String,
+    },
     /// Governance-only: remove a pair from the trading blacklist.
-    UnblacklistPair { pair: String },
+    UnblacklistPair {
+        pair: String,
+    },
 }
 
 #[cw_serde]

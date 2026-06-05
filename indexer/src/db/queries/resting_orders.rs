@@ -27,18 +27,16 @@ pub struct RestingOrderInput {
     pub expires_at: Option<i64>,
 }
 
-/// Replace a pair's entire materialized resting book with `orders`, atomically (the snapshot loop
-/// produces the full current book per pair, so the table always reflects one consistent snapshot).
-pub async fn replace_pair_resting_orders(
-    pool: &PgPool,
+/// Replace a pair's entire materialized resting book with `orders` (caller owns the transaction).
+pub async fn replace_pair_resting_orders_in_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     pair_id: i32,
     block_height: Option<i64>,
     orders: &[RestingOrderInput],
 ) -> Result<(), sqlx::Error> {
-    let mut tx = pool.begin().await?;
     sqlx::query("DELETE FROM resting_limit_orders WHERE pair_id = $1")
         .bind(pair_id)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     for o in orders {
         sqlx::query(
@@ -54,9 +52,22 @@ pub async fn replace_pair_resting_orders(
         .bind(&o.owner)
         .bind(o.expires_at)
         .bind(block_height)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
+    Ok(())
+}
+
+/// Replace a pair's entire materialized resting book with `orders`, atomically (the snapshot loop
+/// produces the full current book per pair, so the table always reflects one consistent snapshot).
+pub async fn replace_pair_resting_orders(
+    pool: &PgPool,
+    pair_id: i32,
+    block_height: Option<i64>,
+    orders: &[RestingOrderInput],
+) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    replace_pair_resting_orders_in_tx(&mut tx, pair_id, block_height, orders).await?;
     tx.commit().await?;
     Ok(())
 }

@@ -32,7 +32,7 @@ async function openSeededTradePair(page: Page, request: import('@playwright/test
   const pairs = await gotoAndCaptureFactoryPairsPage(page, `/trade/${SEEDED_PAIR}`)
   const hit = await requireLimitTxPair(request, pairs)
   if (hit.pair.contract_addr !== SEEDED_PAIR) {
-    await selectLimitPairByFactoryIndex(page, hit.index)
+    await selectLimitPairByFactoryIndex(page, hit.pair.contract_addr)
   }
 }
 

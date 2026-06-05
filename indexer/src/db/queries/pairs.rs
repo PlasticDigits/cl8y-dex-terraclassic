@@ -32,6 +32,8 @@ pub enum PairListSort {
     Created,
     Symbol,
     Volume24h,
+    /// Match-quality tiers when `q` is set; falls back to 24h volume when `q` is empty.
+    Relevance,
 }
 
 pub struct PairListParams<'a> {
@@ -43,27 +45,156 @@ pub struct PairListParams<'a> {
     pub offset: i64,
 }
 
+/// Split `XXX YYY` or `XXX/YYY` pair-symbol queries into two lowercase tokens.
+fn parse_pair_symbol_tokens(q: &str) -> Option<(String, String)> {
+    let trimmed = q.trim();
+    let parts: Vec<&str> = if trimmed.contains('/') {
+        trimmed.split('/').collect()
+    } else {
+        trimmed.split_whitespace().collect()
+    };
+    if parts.len() != 2 {
+        return None;
+    }
+    let t0 = parts[0].trim().to_ascii_lowercase();
+    let t1 = parts[1].trim().to_ascii_lowercase();
+    if t0.is_empty() || t1.is_empty() {
+        return None;
+    }
+    Some((t0, t1))
+}
+
+fn push_asset_leg_exact_match(qb: &mut QueryBuilder<'_, Postgres>, alias: &str, token: String) {
+    qb.push("(LOWER(");
+    qb.push(alias);
+    qb.push(".symbol) = ");
+    qb.push_bind(token.clone());
+    qb.push(" OR LOWER(");
+    qb.push(alias);
+    qb.push(".name) = ");
+    qb.push_bind(token);
+    qb.push(")");
+}
+
+fn push_pair_symbol_pair_exact_match(
+    qb: &mut QueryBuilder<'_, Postgres>,
+    t0: String,
+    t1: String,
+) {
+    qb.push("((");
+    push_asset_leg_exact_match(qb, "a0", t0.clone());
+    qb.push(" AND ");
+    push_asset_leg_exact_match(qb, "a1", t1.clone());
+    qb.push(") OR (");
+    push_asset_leg_exact_match(qb, "a0", t1);
+    qb.push(" AND ");
+    push_asset_leg_exact_match(qb, "a1", t0);
+    qb.push("))");
+}
+
+fn push_pair_relevance_score(qb: &mut QueryBuilder<'_, Postgres>, q: &str) {
+    let trimmed = q.trim();
+    let q_lower = trimmed.to_ascii_lowercase();
+    let pattern = format!("%{}%", trimmed);
+
+    qb.push(" GREATEST(");
+    // Tier 5: exact pair address or exact two-token pair symbol/name match.
+    qb.push("(CASE WHEN LOWER(p.contract_address) = ");
+    qb.push_bind(q_lower.clone());
+    qb.push(" THEN 5 ELSE 0 END)");
+    if let Some((t0, t1)) = parse_pair_symbol_tokens(trimmed) {
+        qb.push(", (CASE WHEN ");
+        push_pair_symbol_pair_exact_match(&mut *qb, t0, t1);
+        qb.push(" THEN 5 ELSE 0 END)");
+    }
+    // Tier 4: exact token contract or native denom.
+    qb.push(", (CASE WHEN LOWER(COALESCE(a0.contract_address, '')) = ");
+    qb.push_bind(q_lower.clone());
+    qb.push(" OR LOWER(COALESCE(a1.contract_address, '')) = ");
+    qb.push_bind(q_lower.clone());
+    qb.push(" OR LOWER(COALESCE(a0.denom, '')) = ");
+    qb.push_bind(q_lower.clone());
+    qb.push(" OR LOWER(COALESCE(a1.denom, '')) = ");
+    qb.push_bind(q_lower.clone());
+    qb.push(" THEN 4 ELSE 0 END)");
+    // Tier 3: exact token symbol on either leg.
+    qb.push(", (CASE WHEN LOWER(a0.symbol) = ");
+    qb.push_bind(q_lower.clone());
+    qb.push(" OR LOWER(a1.symbol) = ");
+    qb.push_bind(q_lower.clone());
+    qb.push(" THEN 3 ELSE 0 END)");
+    // Tier 2: token name substring on either leg.
+    qb.push(", (CASE WHEN a0.name ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR a1.name ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" THEN 2 ELSE 0 END)");
+    // Tier 1: general substring fallback (also covers partial symbol/address matches).
+    qb.push(", (CASE WHEN p.contract_address ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR a0.symbol ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR a1.symbol ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR COALESCE(a0.contract_address, '') ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR COALESCE(a1.contract_address, '') ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR COALESCE(a0.denom, '') ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR COALESCE(a1.denom, '') ILIKE ");
+    qb.push_bind(pattern);
+    qb.push(" THEN 1 ELSE 0 END)");
+    qb.push(")");
+}
+
+fn push_asset_leg_ilike_match(qb: &mut QueryBuilder<'_, Postgres>, alias: &str, pattern: String) {
+    qb.push("(LOWER(");
+    qb.push(alias);
+    qb.push(".symbol) ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR LOWER(");
+    qb.push(alias);
+    qb.push(".name) ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR LOWER(COALESCE(");
+    qb.push(alias);
+    qb.push(".contract_address, '')) ILIKE ");
+    qb.push_bind(pattern.clone());
+    qb.push(" OR LOWER(COALESCE(");
+    qb.push(alias);
+    qb.push(".denom, '')) ILIKE ");
+    qb.push_bind(pattern);
+    qb.push(")");
+}
+
 fn push_pair_list_filters(
     qb: &mut QueryBuilder<'_, Postgres>,
     q: Option<&str>,
     asset: Option<&str>,
 ) {
     if let Some(q) = q.filter(|s| !s.trim().is_empty()) {
-        let pattern = format!("%{}%", q.trim());
+        let trimmed = q.trim();
+        let pattern = format!("%{}%", trimmed.to_ascii_lowercase());
         qb.push(" AND (p.contract_address ILIKE ");
         qb.push_bind(pattern.clone());
-        qb.push(" OR a0.symbol ILIKE ");
-        qb.push_bind(pattern.clone());
-        qb.push(" OR a1.symbol ILIKE ");
-        qb.push_bind(pattern.clone());
-        qb.push(" OR COALESCE(a0.contract_address, '') ILIKE ");
-        qb.push_bind(pattern.clone());
-        qb.push(" OR COALESCE(a1.contract_address, '') ILIKE ");
-        qb.push_bind(pattern.clone());
-        qb.push(" OR COALESCE(a0.denom, '') ILIKE ");
-        qb.push_bind(pattern.clone());
-        qb.push(" OR COALESCE(a1.denom, '') ILIKE ");
-        qb.push_bind(pattern);
+        qb.push(" OR ");
+        push_asset_leg_ilike_match(qb, "a0", pattern.clone());
+        qb.push(" OR ");
+        push_asset_leg_ilike_match(qb, "a1", pattern.clone());
+        if let Some((t0, t1)) = parse_pair_symbol_tokens(trimmed) {
+            let p0 = format!("%{}%", t0);
+            let p1 = format!("%{}%", t1);
+            qb.push(" OR ((");
+            push_asset_leg_ilike_match(qb, "a0", p0.clone());
+            qb.push(" AND ");
+            push_asset_leg_ilike_match(qb, "a1", p1.clone());
+            qb.push(") OR (");
+            push_asset_leg_ilike_match(qb, "a0", p1);
+            qb.push(" AND ");
+            push_asset_leg_ilike_match(qb, "a1", p0);
+            qb.push("))");
+        }
         qb.push(")");
     }
 
@@ -85,10 +216,20 @@ fn push_pair_list_order_by(
     qb: &mut QueryBuilder<'_, Postgres>,
     sort: PairListSort,
     sort_desc: bool,
+    q: Option<&str>,
 ) {
     qb.push(" ORDER BY ");
     let desc = if sort_desc { " DESC" } else { " ASC" };
     match sort {
+        PairListSort::Relevance => {
+            if let Some(q) = q.filter(|s| !s.trim().is_empty()) {
+                push_pair_relevance_score(qb, q);
+                qb.push(desc);
+                qb.push(", COALESCE(pv.volume_quote, 0) DESC, p.id ASC");
+            } else {
+                qb.push("COALESCE(pv.volume_quote, 0) DESC, p.id ASC");
+            }
+        }
         PairListSort::Id => {
             qb.push("p.id");
             qb.push(desc);
@@ -146,7 +287,7 @@ pub async fn list_pairs_filtered(
          WHERE 1=1",
     );
     push_pair_list_filters(&mut qb, params.q, params.asset);
-    push_pair_list_order_by(&mut qb, params.sort, params.sort_desc);
+    push_pair_list_order_by(&mut qb, params.sort, params.sort_desc, params.q);
     qb.push(" LIMIT ");
     qb.push_bind(params.limit);
     qb.push(" OFFSET ");
