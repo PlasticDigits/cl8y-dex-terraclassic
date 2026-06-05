@@ -96,6 +96,12 @@ pub struct PairsResponse {
     pub pairs: Vec<PairInfo>,
 }
 
+/// Factory `QueryMsg::Pair { asset_infos }` response.
+#[derive(Debug, Clone, Deserialize)]
+pub struct FactoryPairResponse {
+    pub pair: PairInfo,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct PoolResponse {
     pub assets: [Asset; 2],
