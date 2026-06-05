@@ -24,19 +24,16 @@ export async function requireLimitTxPair(
 }
 
 /**
- * Select a factory pair in the Limits page MenuSelect.
- * `factoryIndex` is the index in the factory `pairs` array; option `nth(factoryIndex + 1)` skips the placeholder row.
+ * Select a factory pair in the Limits page pair combobox.
+ * `factoryIndex` is the index in the factory `pairs` array (sorted by indexer volume in the dropdown).
  */
 export async function selectLimitPairByFactoryIndex(page: Page, factoryIndex: number): Promise<void> {
   const pairTrigger = page.locator('#limit-pair')
   await expect(pairTrigger).toBeVisible({ timeout: 60_000 })
   await expect(pairTrigger).toBeEnabled({ timeout: 60_000 })
   await pairTrigger.click()
-  await page
-    .getByRole('option')
-    .nth(factoryIndex + 1)
-    .click()
-  await expect(pairTrigger).toContainText(/\//, { timeout: 30_000 })
+  await page.getByRole('option').nth(factoryIndex).click()
+  await expect(pairTrigger).toHaveValue(/\//, { timeout: 30_000 })
   await skipOrFailIfPairPaused(page)
 }
 

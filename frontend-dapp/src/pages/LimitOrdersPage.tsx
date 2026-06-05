@@ -9,7 +9,7 @@ import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terracla
 import { estimateLimitOrderPlaceSequenceUlunaFeesTotal } from '@/services/terraclassic/transactions'
 import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
-import { MenuSelect, TxResultAlert, Spinner } from '@/components/ui'
+import { PairSearchSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
@@ -23,7 +23,6 @@ import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
-import { pairInfosToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
@@ -89,8 +88,6 @@ export default function LimitOrdersPage() {
   })
 
   const pairs = pairsQuery.data?.pairs ?? []
-
-  const pairMenuOptions = useMemo(() => pairInfosToMenuSelectOptions(pairs, { variant: 'full' }), [pairs])
 
   const selectedPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
 
@@ -410,12 +407,13 @@ export default function LimitOrdersPage() {
                 <label className="label-neo" htmlFor="limit-pair">
                   Pair
                 </label>
-                <MenuSelect
+                <PairSearchSelect
                   id="limit-pair"
                   className="relative w-full"
                   aria-label="Trading pair"
                   value={pairAddr}
-                  options={pairMenuOptions}
+                  factoryPairs={pairs}
+                  placeholder="Search or select pair…"
                   emptyLabel="No pairs on factory"
                   onChange={setPairAddr}
                 />
