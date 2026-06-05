@@ -124,7 +124,8 @@ export default function SwapPage() {
 
   const tradingBlacklist = useTradingBlacklist({
     wallet: address,
-    tokens: [fromToken, toToken].filter((t) => t.startsWith('terra1')),
+    token0: fromToken?.startsWith('terra1') ? fromToken : null,
+    token1: toToken?.startsWith('terra1') ? toToken : null,
     enabled: isWalletConnected,
   })
 
