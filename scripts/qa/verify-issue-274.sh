@@ -125,8 +125,9 @@ tx_wasm_attr() {
 
 tx_wasm_order_ids() {
   local txhash="$1"
-  docker exec "$CONTAINER_NAME" terrad query tx "$txhash" --node "$TERRAD_NODE" --output json 2>/dev/null \
-    | jq -r '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == "order_id") | .value] | .[]'
+  local json
+  json="$(query_tx_json "$txhash")" || return 1
+  echo "$json" | jq -r '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == "order_id") | .value] | .[]'
 }
 
 max_order_id_from_tx() {
