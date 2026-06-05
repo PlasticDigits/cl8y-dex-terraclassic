@@ -826,6 +826,7 @@ fn hybrid_simulation_matches_execute_with_fee_discount() {
                     hybrid: hybrid.clone(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -1717,6 +1718,7 @@ fn hybrid_simulation_matches_execute_with_expired_park_cap() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2521,6 +2523,7 @@ fn hybrid_pool_and_book_legs_one_swap() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2618,6 +2621,7 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2851,6 +2855,7 @@ fn hybrid_hook_commission_includes_pool_and_book() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -2933,6 +2938,7 @@ fn pool_only_hook_commission_unchanged() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3294,7 +3300,10 @@ fn hybrid_no_belief_book_far_below_pool_rejected() {
         &[],
     );
 
-    assert!(res.is_err(), "toxic book + dust pool hybrid must be rejected without belief");
+    assert!(
+        res.is_err(),
+        "toxic book + dust pool hybrid must be rejected without belief"
+    );
     let msg = res.unwrap_err().root_cause().to_string();
     assert!(
         msg.contains("material pool leg")
@@ -3361,7 +3370,10 @@ fn hybrid_no_belief_dust_pool_leg_rejected() {
         &[],
     );
 
-    assert!(res.is_err(), "dust pool leg with book must be rejected (#307)");
+    assert!(
+        res.is_err(),
+        "dust pool leg with book must be rejected (#307)"
+    );
     let msg = res.unwrap_err().root_cause().to_string();
     assert!(
         msg.contains("material pool leg") || msg.contains("InsufficientPoolLeg"),
@@ -3490,6 +3502,7 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
                 hybrid: dex_common::pair::pool_only_hybrid_params(offer),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3791,6 +3804,7 @@ fn hybrid_reverse_pool_only_template_is_stable() {
                 hybrid: dex_common::pair::pool_only_hybrid_template(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3852,6 +3866,7 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                     hybrid: hybrid.clone(),
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -3883,6 +3898,7 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                     hybrid: fwd_hybrid,
                     trader: None,
                     sender: None,
+                    belief_price: None,
                 },
             )
             .unwrap();
@@ -3918,6 +3934,7 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                         hybrid: fwd_lo_hybrid,
                         trader: None,
                         sender: None,
+                        belief_price: None,
                     },
                 )
                 .unwrap();
@@ -3960,6 +3977,7 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                 hybrid: hybrid.clone(),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();
@@ -3975,6 +3993,7 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                 hybrid: dex_common::pair::pool_only_hybrid_params(offer),
                 trader: None,
                 sender: None,
+                belief_price: None,
             },
         )
         .unwrap();

@@ -559,8 +559,11 @@ fn query_simulate_swap_operations(
                                 "hybrid pool_input + book_input must equal simulated offer amount for this hop",
                             ));
                         }
-                        validate_hybrid_declared_split_for_no_belief(current_amount, &Some(h.clone()))
-                            .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+                        validate_hybrid_declared_split_for_no_belief(
+                            current_amount,
+                            &Some(h.clone()),
+                        )
+                        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
                         h.clone()
                     }
                 };
@@ -574,6 +577,7 @@ fn query_simulate_swap_operations(
                         hybrid: hybrid_params,
                         trader: trader.clone(),
                         sender: sender.clone(),
+                        belief_price: None,
                     },
                 )?;
                 current_amount = sim.return_amount;
@@ -645,6 +649,7 @@ fn query_reverse_simulate_swap_operations(
                         hybrid: hybrid_params,
                         trader: trader.clone(),
                         sender: sender.clone(),
+                        belief_price: None,
                     },
                 )?;
                 current_amount = sim.offer_amount;
