@@ -97,6 +97,9 @@ PAIR_CONFIGS=(
 )
 PAIR_ADDRESSES=()
 
+# Factory forwards this to treasury on create_pair (dex-common DEFAULT_PAIR_CREATION_FEE_ULUNA; GitLab #276).
+PAIR_CREATION_FEE_ULUNA=100000000
+
 terrad_tx() {
     docker exec "$CONTAINER_NAME" terrad tx "$@" \
         --from test1 \
@@ -522,7 +525,8 @@ for p in "${!PAIR_CONFIGS[@]}"; do
 
     # Create pair via factory
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" \
+        --amount "${PAIR_CREATION_FEE_ULUNA}uluna" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
@@ -632,7 +636,8 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
     echo "[14b.$UNPAIRED_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
 
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" \
+        --amount "${PAIR_CREATION_FEE_ULUNA}uluna" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
@@ -679,7 +684,8 @@ do
   echo "[14c.$WRAP_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
 
   CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-  TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+  TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" \
+      --amount "${PAIR_CREATION_FEE_ULUNA}uluna" | jq -r '.txhash')
   echo "  TX: $TX_HASH"
   sleep 3
   PAIR_RESULT=$(terrad_query tx "$TX_HASH")
