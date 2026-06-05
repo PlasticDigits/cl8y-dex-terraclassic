@@ -17,15 +17,57 @@ These are **not** in the startup update script; install once when provisioning a
 
 ### Docker daemon
 
-If `docker info` fails, start the daemon in tmux:
+If `docker info` fails, start the daemon in tmux (Cloud VMs use the portal tmux config when present):
 
 ```bash
-tmux new-session -d -s dockerd 'sudo dockerd > /tmp/dockerd.log 2>&1'
+tmux -f /exec-daemon/tmux.portal.conf new-session -d -s dockerd 'sudo dockerd > /tmp/dockerd.log 2>&1'
 ```
 
 Use `sg docker -c 'docker compose …'` when the current shell is not in the `docker` group.
 
-### Full local stack (manual — not in update script)
+### LocalTerra + `.env.local` (per session)
+
+**One command** (infra → optimized wasm build → deploy → writes env files; starts indexer in tmux `indexer-dev`):
+
+```bash
+chmod +x scripts/setup-cloud-agent-localterra.sh
+make setup-cloud-localterra
+# or: ./scripts/setup-cloud-agent-localterra.sh --start-frontend
+```
+
+| Output | Purpose |
+|--------|---------|
+| `frontend-dapp/.env.local` | Vite contract addresses, LCD/RPC, `VITE_INDEXER_URL` (required for `make dev`) |
+| `frontend-dapp/.env.development` | `VITE_DEV_MNEMONIC` for **Simulated Wallet** |
+| `indexer/.env` | Indexer Postgres + chain endpoints |
+
+**Node 24:** After `nvm use`, prepend `$(nvm which node | xargs dirname)` to `PATH` so `scripts/with-node.sh` and Playwright do not pick `/exec-daemon/node` (v22).
+
+**Frontend + manual QA:**
+
+```bash
+export PATH="$HOME/.nvm/versions/node/$(cat .nvmrc)/bin:$PATH"
+make dev   # http://127.0.0.1:5173
+google-chrome --no-sandbox --disable-dev-shm-usage --disable-gpu http://127.0.0.1:5173/limits
+```
+
+**Automated #295 ladder rung UI check** (needs `make dev` + deploy env; first run downloads Playwright Chromium):
+
+```bash
+make verify-issue-295
+```
+
+**Manual Chrome #295 walkthrough** (same steps as issue): open `/limits` → Ladder tab → clear rung count (must stay empty) → type `3` → type `25` (inline max error) → blur (clamps to `20`).
+
+**Flags:** `--skip-build` (artifacts already built), `--fresh` (wipe volumes before start), `--infra-only`, `--no-indexer`, `--start-frontend` (also tmux `frontend-dev`).
+
+If deploy fails mid-run (e.g. stale chain state), rerun with `./scripts/setup-cloud-agent-localterra.sh --fresh --skip-build`.
+
+Idempotent deploy skip also probes the factory on LCD ([Q1](skills/AGENTS_QA_DEPLOY_VERIFY.md)); after `make reset` without `--fresh`, stale `.qa-deploy-stamp` / `.env.local` alone do not skip redeploy.
+
+**tmux sessions:** `indexer-dev`, `frontend-dev`, `dockerd` — attach with `tmux -f /exec-daemon/tmux.portal.conf attach -t <name>`.
+
+### Full local stack (manual — same as setup script steps)
 
 | Step | Command |
 |------|---------|
