@@ -498,7 +498,9 @@ async def lp_worker_loop(
         if not fresh:
             continue
         m = fresh
-        scaled = pick_scaled_provide_amounts(m.reserve0, m.reserve1, fraction_ppm)
+        scaled = pick_scaled_provide_amounts(
+            m.reserve0, m.reserve1, fraction_ppm, min_reserve_per_side=_min_reserve_per_side()
+        )
         if not scaled:
             continue
         amount0, amount1 = scaled
@@ -553,8 +555,9 @@ async def worker_loop(
             m = rng.choice(metas)
 
         fresh = _load_pair_meta(lcd, m.pair_addr)
-        if fresh:
-            m = fresh
+        if not fresh:
+            continue
+        m = fresh
         floor = _min_reserve_per_side()
         if m.reserve0 < floor or m.reserve1 < floor:
             continue

@@ -8,18 +8,27 @@ MIN_PROVIDE_LIQUIDITY_LEG = 5_000_000
 LP_FRACTION_PPM = 3_000  # 0.3% of pool reserves per provide_liquidity action
 
 
-def pool_reserves_ok(reserve0: int, reserve1: int) -> bool:
+def pool_reserves_ok(
+    reserve0: int,
+    reserve1: int,
+    *,
+    min_reserve_per_side: int = MIN_RESERVE_PER_SIDE_FOR_SWAP,
+) -> bool:
     return (
-        reserve0 >= MIN_RESERVE_PER_SIDE_FOR_SWAP
-        and reserve1 >= MIN_RESERVE_PER_SIDE_FOR_SWAP
+        reserve0 >= min_reserve_per_side
+        and reserve1 >= min_reserve_per_side
     )
 
 
 def pick_scaled_provide_amounts(
-    reserve0: int, reserve1: int, fraction_ppm: int = LP_FRACTION_PPM
+    reserve0: int,
+    reserve1: int,
+    fraction_ppm: int = LP_FRACTION_PPM,
+    *,
+    min_reserve_per_side: int = MIN_RESERVE_PER_SIDE_FOR_SWAP,
 ) -> tuple[int, int] | None:
     """Proportional add amounts for an existing pool (keeps spot price)."""
-    if not pool_reserves_ok(reserve0, reserve1):
+    if not pool_reserves_ok(reserve0, reserve1, min_reserve_per_side=min_reserve_per_side):
         return None
     amount0 = (reserve0 * fraction_ppm) // 1_000_000
     amount1 = (reserve1 * fraction_ppm) // 1_000_000
