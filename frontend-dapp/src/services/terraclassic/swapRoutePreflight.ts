@@ -2,7 +2,7 @@ import { getPair } from './factory'
 import { simulateHybridSwap, type QuoteTraderOptions } from './pair'
 import { poolOnlyHybridParams } from './poolOnlyHybrid'
 import type { SwapOperation } from './router'
-import type { AssetInfo } from '@/types'
+import type { AssetInfo, HybridSwapParams } from '@/types'
 import {
   hybridBookRequiresSlippageFloor,
   hybridMaxSpreadRealizedLegs,
@@ -94,6 +94,20 @@ export async function preflightSwapRouteSpread(
     anyHopExceedsMaxSpread: anyExceeds,
     anyHopMissingSlippageFloor: anyMissingFloor,
   }
+}
+
+/** Slippage floor from `hybrid_simulation` with the submit hybrid split (GitLab #334 direct single-hop). */
+export async function computeDirectHybridMinReturn(
+  pairAddress: string,
+  offerAssetInfo: AssetInfo,
+  offerAmount: string,
+  hybrid: HybridSwapParams,
+  slippagePercent: number,
+  quoteTrader?: QuoteTraderOptions
+): Promise<string | undefined> {
+  if (BigInt(hybrid.book_input) === 0n) return undefined
+  const sim = await simulateHybridSwap(pairAddress, offerAssetInfo, offerAmount, hybrid, quoteTrader)
+  return applySlippagePercentFloor(sim.return_amount, slippagePercent) ?? undefined
 }
 
 /** Attach per-hop `min_return` from slippage on simulated hop output (GitLab #334). */

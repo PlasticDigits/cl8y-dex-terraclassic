@@ -8,6 +8,7 @@ import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, simulateHybridSwap, swap } from '@/services/terraclassic/pair'
 import {
+  computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
   preflightSwapRouteSpread,
   type SwapRoutePreflightSpread,
@@ -372,10 +373,20 @@ export function TradeMarketOrderPanel({
           )
         }
         const hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? submitHybrid
-        const bookIn = hopHybrid ? BigInt(hopHybrid.book_input) : 0n
+        const directMinReturn =
+          hopHybrid && BigInt(hopHybrid.book_input) > 0n
+            ? await computeDirectHybridMinReturn(
+                selectedPair.contract_addr,
+                tokenAssetInfo(fromToken),
+                raw,
+                hopHybrid,
+                slippageTolerance,
+                quoteTrader
+              )
+            : undefined
         return swap(address, fromToken, selectedPair.contract_addr, raw, undefined, maxSpread, undefined, {
           hybrid: hopHybrid,
-          minReturn: bookIn > 0n ? (minReceived ?? undefined) : undefined,
+          minReturn: directMinReturn,
           deadline,
         })
       })

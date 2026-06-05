@@ -7,6 +7,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
 import {
+  computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
   preflightSwapRouteSpread,
   type SwapRoutePreflightSpread,
@@ -615,7 +616,17 @@ export default function SwapPage() {
         if (hybrid) {
           hybrid = hybridParamsWithSubmitCap(hybrid)
         }
-        const directMinReturn = hybrid && BigInt(hybrid.book_input) > 0n ? (minReceived ?? undefined) : undefined
+        const directMinReturn =
+          hybrid && BigInt(hybrid.book_input) > 0n
+            ? await computeDirectHybridMinReturn(
+                directPair.contract_addr,
+                tokenAssetInfo(fromToken),
+                rawInputAmount,
+                hybrid,
+                slippageTolerance,
+                quoteTrader
+              )
+            : undefined
         return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread, undefined, {
           hybrid,
           minReturn: directMinReturn,
