@@ -85,17 +85,42 @@ tx_hash_from_json() {
   sed -n '/^{/,$p' | tail -1 | jq -r '.txhash // .tx_response.txhash // empty'
 }
 
+query_tx_json() {
+  local txhash="$1"
+  local attempts=0
+  local max="${VERIFY274_TX_QUERY_ATTEMPTS:-15}"
+  local json=""
+
+  [[ -n "$txhash" ]] || return 1
+
+  while (( attempts < max )); do
+    json="$(docker exec "$CONTAINER_NAME" terrad query tx "$txhash" --node "$TERRAD_NODE" --output json 2>/dev/null || true)"
+    if [[ -n "$json" ]] && echo "$json" | jq -e '.txhash // .tx_response.txhash // .hash' >/dev/null 2>&1; then
+      echo "$json"
+      return 0
+    fi
+    sleep 2
+    attempts=$((attempts + 1))
+  done
+  return 1
+}
+
 tx_gas_used() {
-  docker exec "$CONTAINER_NAME" terrad query tx "$1" --node "$TERRAD_NODE" --output json 2>/dev/null \
-    | jq -r '.gas_used // .tx_response.gas_used // "0"'
+  local txhash="$1"
+  local json gas
+  json="$(query_tx_json "$txhash")" || return 1
+  gas="$(echo "$json" | jq -r '.gas_used // .tx_response.gas_used // empty')"
+  [[ -n "$gas" && "$gas" =~ ^[0-9]+$ && "$gas" != "0" ]] || return 1
+  echo "$gas"
 }
 
 tx_wasm_attr() {
   local txhash="$1"
   local key="$2"
-  docker exec "$CONTAINER_NAME" terrad query tx "$txhash" --node "$TERRAD_NODE" --output json 2>/dev/null \
-    | jq -r --arg k "$key" \
-      '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == $k) | .value] | last // empty'
+  local json
+  json="$(query_tx_json "$txhash")" || return 1
+  echo "$json" | jq -r --arg k "$key" \
+    '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == $k) | .value] | last // empty'
 }
 
 resolve_pair() {
@@ -214,11 +239,11 @@ fi
 
 echo "==> CleanLimitBook max_steps=$MAX_STEPS_CAP against ${HEALTHY_COUNT}+${EXPIRED_TAIL_COUNT} book"
 execute_clean "$MAX_STEPS_CAP"
-GAS="$(tx_gas_used "$CLEAN_TX")"
-SCAN_CAPPED="$(tx_wasm_attr "$CLEAN_TX" scan_capped)"
-CLEANED="$(tx_wasm_attr "$CLEAN_TX" cleaned_count)"
-RESUME="$(tx_wasm_attr "$CLEAN_TX" resume_cursor)"
-echo "    tx=$CLEAN_TX gas_used=$GAS scan_capped=$SCAN_CAPPED cleaned_count=$CLEANED resume_cursor=$RESUME"
+GAS="$(tx_gas_used "$CLEAN_TX" || true)"
+SCAN_CAPPED="$(tx_wasm_attr "$CLEAN_TX" scan_capped || true)"
+CLEANED="$(tx_wasm_attr "$CLEAN_TX" cleaned_count || true)"
+RESUME="$(tx_wasm_attr "$CLEAN_TX" resume_cursor || true)"
+echo "    tx=$CLEAN_TX gas_used=${GAS:-<unavailable>} scan_capped=$SCAN_CAPPED cleaned_count=$CLEANED resume_cursor=$RESUME"
 
 if [[ "$SCAN_CAPPED" == "true" ]]; then
   ok "scan_capped=true on capped clean (traversal bounded)"
@@ -238,10 +263,14 @@ else
   bad "resume_cursor missing on scan-capped clean"
 fi
 
-if [[ "$GAS" =~ ^[0-9]+$ ]] && (( GAS < GAS_CEILING )); then
+if [[ -z "${CLEAN_TX:-}" ]]; then
+  bad "clean tx hash missing — CleanLimitBook never recorded"
+elif [[ -n "$GAS" ]] && (( GAS < GAS_CEILING )); then
   ok "gas_used=$GAS < ceiling=$GAS_CEILING (bounded vs ${HEALTHY_COUNT}+ node walk)"
-else
+elif [[ -n "$GAS" ]]; then
   bad "gas_used=$GAS exceeds ceiling=$GAS_CEILING — traversal may still scale with book depth"
+else
+  bad "gas_used unavailable for tx=$CLEAN_TX (query failed or gas missing/zero)"
 fi
 
 echo "==> Resume clean from resume_cursor until expired tail parked"
@@ -250,9 +279,9 @@ resume="$RESUME"
 total_parked=0
 while (( pass <= 20 )); do
   execute_clean 500 "$resume"
-  cleaned="$(tx_wasm_attr "$CLEAN_TX" cleaned_count)"
-  scan="$(tx_wasm_attr "$CLEAN_TX" scan_capped)"
-  resume="$(tx_wasm_attr "$CLEAN_TX" resume_cursor)"
+  cleaned="$(tx_wasm_attr "$CLEAN_TX" cleaned_count || true)"
+  scan="$(tx_wasm_attr "$CLEAN_TX" scan_capped || true)"
+  resume="$(tx_wasm_attr "$CLEAN_TX" resume_cursor || true)"
   echo "    pass=$pass tx=$CLEAN_TX cleaned=$cleaned scan_capped=$scan resume=$resume"
   total_parked=$((total_parked + cleaned))
   if [[ "$scan" != "true" && -z "$resume" ]]; then
