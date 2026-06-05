@@ -210,10 +210,12 @@ pub fn check_max_spread(
             .book_net_return
             .checked_add(inputs.pool_net_return)
             .and_then(|v| v.checked_add(inputs.pool_commission))
-            .map_err(|_| CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
-                max_allowed,
-                actual: Decimal::zero(),
-            }))?;
+            .map_err(|_| {
+                CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                    max_allowed,
+                    actual: Decimal::zero(),
+                })
+            })?;
         let spread = if expected_return > actual_return {
             expected_return - actual_return
         } else {
@@ -252,16 +254,20 @@ pub fn check_max_spread(
         let pool_gross = inputs
             .pool_net_return
             .checked_add(inputs.pool_commission)
-            .map_err(|_| CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
-                max_allowed,
-                actual: Decimal::zero(),
-            }))?;
+            .map_err(|_| {
+                CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                    max_allowed,
+                    actual: Decimal::zero(),
+                })
+            })?;
         let total_gross_out = pool_gross
             .checked_add(inputs.book_net_return)
-            .map_err(|_| CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
-                max_allowed,
-                actual: Decimal::zero(),
-            }))?;
+            .map_err(|_| {
+                CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                    max_allowed,
+                    actual: Decimal::zero(),
+                })
+            })?;
         let spread_cmp = inputs.pool_spread.min(pool_gross);
 
         // GitLab #273: bound the book leg too. Its shortfall against the pool's realized net
@@ -276,19 +282,20 @@ pub fn check_max_spread(
             let fair_net_book = inputs
                 .pool_net_return
                 .checked_multiply_ratio(inputs.book_input, inputs.pool_input)
-                .map_err(|_| CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
-                    max_allowed,
-                    actual: Decimal::zero(),
-                }))?;
+                .map_err(|_| {
+                    CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                        max_allowed,
+                        actual: Decimal::zero(),
+                    })
+                })?;
             fair_net_book.saturating_sub(inputs.book_net_return)
         };
-        let spread_total =
-            spread_cmp
-                .checked_add(book_shortfall)
-                .map_err(|_| CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
-                    max_allowed,
-                    actual: Decimal::zero(),
-                }))?;
+        let spread_total = spread_cmp.checked_add(book_shortfall).map_err(|_| {
+            CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
+                max_allowed,
+                actual: Decimal::zero(),
+            })
+        })?;
 
         if total_gross_out > Uint128::zero()
             && Decimal::from_ratio(spread_total, total_gross_out) > max_allowed
@@ -359,7 +366,8 @@ mod tests {
                 Uint128::new(150),
             ),
         )
-        .unwrap_err() {
+        .unwrap_err()
+        {
             CheckMaxSpreadError::SpreadExceeded(v) => v,
             other => panic!("expected spread exceeded, got {other:?}"),
         };
@@ -454,8 +462,8 @@ mod tests {
             Uint128::new(3),
             Uint128::new(1),
             Uint128::new(4935),
-            Uint128::new(1_100),  // pool_input (≥ 10% of offer)
-            Uint128::new(9_900),  // book_input
+            Uint128::new(1_100), // pool_input (≥ 10% of offer)
+            Uint128::new(9_900), // book_input
         );
         let err = match check_max_spread(None, Some(Decimal::percent(1)), &inputs).unwrap_err() {
             CheckMaxSpreadError::SpreadExceeded(v) => v,

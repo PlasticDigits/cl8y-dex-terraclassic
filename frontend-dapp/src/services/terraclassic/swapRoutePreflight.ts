@@ -4,6 +4,7 @@ import { poolOnlyHybridParams } from './poolOnlyHybrid'
 import type { SwapOperation } from './router'
 import type { AssetInfo } from '@/types'
 import {
+  hybridMaxSpreadRealizedLegs,
   hybridNoBeliefMaterialPoolReject,
   hybridSpreadCmpAndTotal,
   spreadPercentOfGross,
@@ -55,13 +56,19 @@ export async function preflightSwapRouteSpread(
       offerBn,
       poolIn,
       bookIn,
-      BigInt(sim.pool_return_amount),
+      BigInt(sim.pool_return_amount)
     )
     if (materialRejectAfterSim != null) {
       anyExceeds = true
     }
-    const legs =
-      bookIn > 0n && poolIn > 0n ? { poolInput: poolIn, bookInput: bookIn } : undefined
+    const bookNet = BigInt(sim.book_return_amount)
+    const bookComm = BigInt((sim as { book_commission_amount?: string }).book_commission_amount ?? '0')
+    const offerConsumed = BigInt(
+      (sim as { limit_book_offer_consumed?: string }).limit_book_offer_consumed ??
+        (bookNet === 0n && bookComm === 0n ? '0' : hybrid.book_input)
+    )
+    const realized = hybridMaxSpreadRealizedLegs(poolIn, bookIn, offerConsumed)
+    const legs = realized.bookInput > 0n && realized.poolInput > 0n ? realized : undefined
     const { spreadCmp, totalGrossOut } = hybridSpreadCmpAndTotal(sim, legs)
     if (spreadRatioStrictlyExceedsMax(spreadCmp, totalGrossOut, maxSpreadDecimalStr)) {
       anyExceeds = true

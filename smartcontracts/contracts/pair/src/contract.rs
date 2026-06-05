@@ -2142,6 +2142,7 @@ fn simulate_hybrid_swap_with_fee(
             book_commission_amount: Uint128::zero(),
             book_return_amount: Uint128::zero(),
             pool_return_amount: Uint128::zero(),
+            limit_book_offer_consumed: Uint128::zero(),
         });
     }
     if hybrid.pool_input.checked_add(hybrid.book_input)? != input_amount {
@@ -2261,6 +2262,7 @@ fn simulate_hybrid_swap_with_fee(
         book_commission_amount: book_commission_total,
         book_return_amount: book_return_net,
         pool_return_amount: return_amount,
+        limit_book_offer_consumed: offer_consumed_by_book,
     })
 }
 

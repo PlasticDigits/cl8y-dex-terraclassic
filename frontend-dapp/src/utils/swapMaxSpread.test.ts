@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  hybridMaxSpreadRealizedLegs,
   hybridNoBeliefMaterialPoolReject,
   hybridSpreadCmpAndTotal,
   minPoolInputForBookHybrid,
@@ -50,16 +51,48 @@ describe('swapMaxSpread', () => {
         pool_return_amount: '997',
         book_return_amount: '4985',
       },
-      { poolInput: 1000n, bookInput: 10000n },
+      { poolInput: 1000n, bookInput: 10000n }
     )
     expect(spreadCmp).toBeGreaterThan(4000n)
   })
 
+  it('folds book shortfall when book net is zero (#273)', () => {
+    const { spreadCmp } = hybridSpreadCmpAndTotal(
+      {
+        spread_amount: '1',
+        commission_amount: '3',
+        pool_return_amount: '1097',
+        book_return_amount: '0',
+      },
+      { poolInput: 1100n, bookInput: 9900n }
+    )
+    expect(spreadCmp).toBeGreaterThan(4900n)
+  })
+
+  it('uses realized legs for max-spread shortfall (#273)', () => {
+    expect(hybridMaxSpreadRealizedLegs(1000n, 10000n, 0n)).toEqual({
+      poolInput: 11000n,
+      bookInput: 0n,
+    })
+    expect(hybridMaxSpreadRealizedLegs(1000n, 10000n, 10000n)).toEqual({
+      poolInput: 1000n,
+      bookInput: 10000n,
+    })
+    expect(hybridMaxSpreadRealizedLegs(0n, 100000n, 60000n)).toEqual({
+      poolInput: 40000n,
+      bookInput: 60000n,
+    })
+    expect(hybridMaxSpreadRealizedLegs(1000n, 10000n, 5000n)).toEqual({
+      poolInput: 6000n,
+      bookInput: 5000n,
+    })
+  })
+
   it('requires at least 10% pool leg when book leg is set (#307)', () => {
     expect(minPoolInputForBookHybrid(11000n)).toBe(1100n)
-    expect(
-      hybridNoBeliefMaterialPoolReject(11000n, 1000n, 10000n, 997n),
-    ).toMatchObject({ kind: 'insufficient_pool_leg' })
+    expect(hybridNoBeliefMaterialPoolReject(11000n, 1000n, 10000n, 997n)).toMatchObject({
+      kind: 'insufficient_pool_leg',
+    })
     expect(hybridNoBeliefMaterialPoolReject(10000n, 6000n, 4000n, 5947n)).toBeNull()
   })
 

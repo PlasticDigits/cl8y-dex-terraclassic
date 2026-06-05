@@ -60,6 +60,21 @@ export function hybridNoBeliefMaterialPoolReject(
   return null
 }
 
+/** Realized pool/book legs for #273 shortfall (mirrors `execute_swap` → `assert_max_spread`). */
+export function hybridMaxSpreadRealizedLegs(
+  poolLeg: bigint,
+  bookLeg: bigint,
+  offerConsumedByBook: bigint
+): { poolInput: bigint; bookInput: bigint } {
+  if (bookLeg === 0n) {
+    return { poolInput: poolLeg, bookInput: 0n }
+  }
+  return {
+    poolInput: poolLeg + bookLeg - offerConsumedByBook,
+    bookInput: offerConsumedByBook,
+  }
+}
+
 export function poolOnlySpreadCmpAndTotal(sim: {
   return_amount: string
   spread_amount: string
@@ -88,7 +103,7 @@ export function hybridSpreadCmpAndTotal(
   const bookNet = BigInt(sim.book_return_amount)
   const poolGross = poolRet + comm
   let spreadCmp = spr < poolGross ? spr : poolGross
-  if (legs && legs.poolInput > 0n && legs.bookInput > 0n && poolRet > 0n && bookNet > 0n) {
+  if (legs && legs.poolInput > 0n && legs.bookInput > 0n) {
     const fairNetBook = (poolRet * legs.bookInput) / legs.poolInput
     const bookShortfall = fairNetBook > bookNet ? fairNetBook - bookNet : 0n
     spreadCmp += bookShortfall

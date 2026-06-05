@@ -456,6 +456,8 @@ pub struct HybridSimulationResponse {
     pub book_commission_amount: Uint128,
     pub book_return_amount: Uint128,
     pub pool_return_amount: Uint128,
+    /// Offer-side amount matched on the book (same attr as execute `limit_book_offer_consumed`).
+    pub limit_book_offer_consumed: Uint128,
 }
 
 #[cw_serde]
