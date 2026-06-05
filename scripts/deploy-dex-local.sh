@@ -26,6 +26,9 @@ CONTRACTS_DIR="$(cd "$(dirname "$0")/../smartcontracts/contracts" && pwd)"
 # shellcheck source=scripts/lib/terrad-tx-events.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/terrad-tx-events.sh"
 
+# GitLab #276: factory `create_pair` requires attached uluna (default 100_000_000).
+PAIR_CREATION_FEE_COINS="${PAIR_CREATION_FEE_COINS:-100000000uluna}"
+
 # ── Staleness check ────────────────────────────────────────────────────
 # Fail fast if any WASM artifact is older than its source, so QA doesn't
 # chase phantom contract errors from a stale build.
@@ -522,7 +525,7 @@ for p in "${!PAIR_CONFIGS[@]}"; do
 
     # Create pair via factory
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" --amount "$PAIR_CREATION_FEE_COINS" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
@@ -632,7 +635,7 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
     echo "[14b.$UNPAIRED_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
 
     CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+    TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" --amount "$PAIR_CREATION_FEE_COINS" | jq -r '.txhash')
     echo "  TX: $TX_HASH"
     sleep 3
     PAIR_RESULT=$(terrad_query tx "$TX_HASH")
@@ -679,7 +682,7 @@ do
   echo "[14c.$WRAP_PAIR_NUM] Creating pair $SYM_A/$SYM_B..."
 
   CREATE_MSG="{\"create_pair\":{\"asset_infos\":[{\"token\":{\"contract_addr\":\"$ADDR_A\"}},{\"token\":{\"contract_addr\":\"$ADDR_B\"}}]}}"
-  TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" | jq -r '.txhash')
+  TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" --amount "$PAIR_CREATION_FEE_COINS" | jq -r '.txhash')
   echo "  TX: $TX_HASH"
   sleep 3
   PAIR_RESULT=$(terrad_query tx "$TX_HASH")
