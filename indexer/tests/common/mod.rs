@@ -54,6 +54,7 @@ pub fn test_config() -> Config {
         rate_limit_rps: 0,
         rate_limit_lcd_heavy_rps: 0,
         oracle_poll_interval_ms: 30000,
+        book_snapshot_interval_ms: 10_000,
         ustc_denom: None,
         router_address: None,
         block_tx_page_limit: 100,

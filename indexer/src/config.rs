@@ -70,6 +70,8 @@ pub struct Config {
     /// Stricter per-IP limit for LCD-heavy routes (limit-book, route solve). Default **10** RPS.
     pub rate_limit_lcd_heavy_rps: u64,
     pub oracle_poll_interval_ms: u64,
+    /// Background mirror snapshot cadence for pair reserves + resting books (GitLab #322).
+    pub book_snapshot_interval_ms: u64,
     pub ustc_denom: Option<String>,
     /// Router contract for `SimulateSwapOperations` in route solver (optional).
     pub router_address: Option<String>,
@@ -191,6 +193,10 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(30000),
+            book_snapshot_interval_ms: env::var("BOOK_SNAPSHOT_INTERVAL_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(10_000),
             ustc_denom: env::var("USTC_DENOM").ok(),
             router_address: env::var("ROUTER_ADDRESS").ok().filter(|s| !s.is_empty()),
             block_tx_page_limit: env::var("BLOCK_TX_PAGE_LIMIT")
