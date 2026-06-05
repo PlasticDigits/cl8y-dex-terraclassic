@@ -35,4 +35,6 @@ pub enum ContractError {
         "SetDiscountRegistryAll supports at most {max} pairs per transaction (factory has {pair_count}); use SetDiscountRegistryBatch with start_after and limit"
     )]
     DiscountRegistryAllTooManyPairs { pair_count: u64, max: u32 },
+    #[error("Too many pairs ({pair_count}) for SetLpAdminAll; max {max} — use SetLpAdminBatch")]
+    LpAdminAllTooManyPairs { pair_count: u64, max: u32 },
 }

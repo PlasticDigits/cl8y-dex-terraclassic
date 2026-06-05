@@ -10855,7 +10855,7 @@ mod new_feature_tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn factory_governance_change_updates_lp_admin() {
+    fn factory_lp_admin_rotation_via_set_lp_admin_all() {
         let mut app = App::default();
 
         let governance = Addr::unchecked("governance");
@@ -10934,9 +10934,8 @@ mod new_feature_tests {
             "LP token admin should initially be the pair contract"
         );
 
-        // UpdateConfig propagates SetLpAdmin → UpdateAdmin on LP token.
-        // The pair contract is the LP token's CosmWasm admin, so it can
-        // call UpdateAdmin to change the admin to the new governance.
+        // GitLab #277: changing governance no longer auto-rotates the LP-token admin (that was the
+        // unbounded fanout). It stays on the pair until an explicit SetLpAdminAll / SetLpAdminBatch.
         app.execute_contract(
             governance.clone(),
             factory.clone(),
@@ -10956,8 +10955,45 @@ mod new_feature_tests {
             .unwrap();
         assert_eq!(
             lp_contract_info.admin,
+            Some(pair.to_string()),
+            "UpdateConfig must NOT auto-rotate the LP admin (#277)"
+        );
+
+        // Explicit bounded rotation by the new governance flips the LP-token admin.
+        app.execute_contract(
+            new_governance.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetLpAdminAll {
+                admin: new_governance.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let lp_contract_info = app
+            .wrap()
+            .query_wasm_contract_info(lp_token.to_string())
+            .unwrap();
+        assert_eq!(
+            lp_contract_info.admin,
             Some(new_governance.to_string()),
-            "LP token admin should be updated to new governance"
+            "SetLpAdminAll should rotate the LP token admin to the new governance"
+        );
+
+        // Non-governance cannot rotate.
+        let err = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetLpAdminAll {
+                    admin: user.to_string(),
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().contains("Unauthorized"),
+            "{err}"
         );
     }
 
