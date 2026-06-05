@@ -73,7 +73,7 @@ vi.mock('@/lib/sounds', () => ({
 }))
 
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { findRoute, getAllTokens } from '@/services/terraclassic/router'
+import { findRoute, getAllTokens, simulateMultiHopSwap } from '@/services/terraclassic/router'
 import { simulateSwap } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
@@ -279,6 +279,127 @@ describe('SwapPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
     expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
+  })
+
+  it('shows client BFS fallback label when multihop submit uses client graph without indexer ops (#329)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    const terraA = 'terra1aa0000000000000000000000000000000001'
+    const terraB = 'terra1bb0000000000000000000000000000000001'
+    const terraC = 'terra1cc0000000000000000000000000000000001'
+    const multihopRoute = [
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraB } },
+          ask_asset_info: { token: { contract_addr: terraC } },
+        },
+      },
+    ] as never
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pairab000000000000000000000000000001',
+          liquidity_token: 'terra1lpab000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+        {
+          contract_addr: 'terra1pairbc000000000000000000000000000001',
+          liquidity_token: 'terra1lpbc000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB, terraC])
+    vi.mocked(findRoute).mockReturnValue(multihopRoute)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+    const fromSelect = screen.getAllByRole('combobox')[0]
+    const toSelect = screen.getAllByRole('combobox')[1]
+    await user.selectOptions(fromSelect, terraA)
+    await user.selectOptions(toSelect, terraC)
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    expect(await screen.findByTestId('swap-route-summary')).toBeInTheDocument()
+    expect(await screen.findByTestId('swap-route-source-client-fallback')).toHaveTextContent(/client graph/i)
+  })
+
+  it('does not show client BFS fallback label when indexer multihop ops are used (#329)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    const terraA = 'terra1aa0000000000000000000000000000000001'
+    const terraB = 'terra1bb0000000000000000000000000000000001'
+    const terraC = 'terra1cc0000000000000000000000000000000001'
+    const multihopRoute = [
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraB } },
+          ask_asset_info: { token: { contract_addr: terraC } },
+        },
+      },
+    ] as never
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pairab000000000000000000000000000001',
+          liquidity_token: 'terra1lpab000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+        {
+          contract_addr: 'terra1pairbc000000000000000000000000000001',
+          liquidity_token: 'terra1lpbc000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB, terraC])
+    vi.mocked(findRoute).mockReturnValue(multihopRoute)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
+      token_in: terraA,
+      token_out: terraC,
+      hops: [
+        { offer_token: terraA, ask_token: terraB },
+        { offer_token: terraB, ask_token: terraC },
+      ],
+      router_operations: multihopRoute,
+      quote_kind: 'indexer_hybrid_lcd',
+      estimated_amount_out: '1000000',
+      intermediate_tokens: [terraA, terraB, terraC],
+    })
+    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+    const fromSelect = screen.getAllByRole('combobox')[0]
+    const toSelect = screen.getAllByRole('combobox')[1]
+    await user.selectOptions(fromSelect, terraA)
+    await user.selectOptions(toSelect, terraC)
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    await screen.findByTestId('swap-route-summary')
+    expect(screen.queryByTestId('swap-route-source-client-fallback')).not.toBeInTheDocument()
   })
 
   it('rejects invalid characters in book leg amount without surfacing BigInt errors', async () => {

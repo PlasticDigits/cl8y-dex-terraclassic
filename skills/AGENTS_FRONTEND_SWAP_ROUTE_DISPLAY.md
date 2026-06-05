@@ -13,6 +13,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
   - **Swap:** `SwapPage` `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`.
   - **Trade market:** `TradeMarketOrderPanel` `swapMutation` uses `indexerOperations` via `swapOpsRequireRouter` → `executeMultiHopSwap`, else pair `swap` with hybrid params.
 - **Indexer op precedence (#158):** When `indexerOperations` is non-empty, that path wins over any client BFS graph (Swap passes `clientRoute`; Trade passes `clientRoute: null` because the ticket is always a direct pair context).
+- **Client BFS fallback label (#329):** When Swap **submit** uses client multihop `findRoute` without indexer `router_operations` (≥2 hops), a brief warning line appears under **`swap-route-summary`**: `data-testid="swap-route-source-client-fallback"`. Not shown for indexer, direct pair, or native wrap paths. Trade market: N/A (`clientRoute: null`).
 - **Trade pool-only / hybrid-off:** With hybrid disabled or when the quote is pool-only (no indexer `router_operations`), `computeSwapRouteDisplay` still returns a direct `from → to` line via `isDirect: true` — the row renders whenever the market quote card is visible and `marketRouteLine` is non-null.
 
 ## Code map
@@ -20,10 +21,12 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | Concern | Location |
 |--------|----------|
 | Route string + precedence | [`frontend-dapp/src/utils/swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts) — `computeSwapRouteDisplay` |
-| Unit tests | [`frontend-dapp/src/utils/swapRouteDisplay.test.ts`](../frontend-dapp/src/utils/swapRouteDisplay.test.ts) |
-| **Swap** layout (trade summary grid) | [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `data-testid="swap-route-summary"` |
-| **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route` |
-| **Trade market** layout (quote card) | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `trade-market-quote` |
+| Submit route source + client fallback copy | Same file — `deriveSwapSubmitRouteSource`, `SWAP_CLIENT_BFS_FALLBACK_COPY` |
+| Unit tests | [`frontend-dapp/src/utils/swapRouteDisplay.test.ts`](../frontend-dapp/src/utils/swapRouteDisplay.test.ts), [`frontend-dapp/src/pages/SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) (`swap-route-source-client-fallback`) |
+| **Swap** route row | [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `data-testid="swap-route-summary"` (trade summary grid) |
+| **Swap** client BFS fallback label | Same file — under route row: `data-testid="swap-route-source-client-fallback"` when submit uses client multihop without indexer ops |
+| **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches |
+| **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote"` |
 | **Trade market** quote source | Same file — `simQuery` calls `postRouteSolve` when hybrid on (`useHybridBook` + `willSubmitHybrid`); sets `indexerOperations` from `router_operations` |
 | **Trade market** submit (must stay in sync with display) | Same file — `swapMutation` → `swapOpsRequireRouter` / `executeMultiHopSwap` or pair `swap` with hybrid |
 
@@ -51,13 +54,15 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 ### Swap (`/`)
 
 1. Pick a CW20 pair that quotes via **indexer hybrid** with **≥ 2 hops** where the client BFS also finds a path.
-2. Confirm **exactly one** **Route** row in the trade summary (no `Route (indexer)` duplicate, no second route card above the grid).
+2. Confirm **exactly one** **Route** row in the trade summary (`swap-route-summary`; no `Route (indexer)` duplicate, no second route card above the grid).
 3. Confirm **no** “Quote source:” strip on the main page (execution/hybrid callouts in `swap-execution-summary` may still appear when relevant).
-4. Submit a small test swap (localnet) and confirm the on-chain path matches the displayed symbols (same hop count / ends).
+4. **Indexer multihop:** With indexer `router_operations` (≥2 hops), confirm **no** `swap-route-source-client-fallback` label.
+5. **Client BFS fallback:** Stop indexer or force a path with client multihop only → confirm `swap-route-source-client-fallback` appears under the route row; copy mentions client graph / not best execution.
+6. Submit a small test swap (localnet) and confirm the on-chain path matches the displayed symbols (same hop count / ends).
 
 ### Trade market (`/trade/:pairAddr` → Market tab)
 
-5. Open `/trade/<pairAddr>` → **Market** tab → enable **Use hybrid book + pool routing** → enter amount `1` → confirm `trade-market-route-summary` is visible with a **Route** label inside `trade-market-quote`.
-6. **Multihop:** On a pair where indexer returns **≥ 2 hops** (e.g. EMBER→COBALT via `POST /route/solve`), confirm the route shows **≥ 3** token symbols and matches a small on-chain market submit hop count.
-7. **Pool-only:** Hybrid off, amount set → quote card shows; route line is direct `PAY → RECEIVE` (or row absent only when `marketRouteLine` is null per table above).
-8. Confirm **no** duplicate route labels on the market quote card (single **Route** row only).
+7. Open `/trade/<pairAddr>` → **Market** tab → enable **Use hybrid book + pool routing** → enter amount `1` → confirm **`trade-market-route-summary`** is visible with a **Route** label inside **`trade-market-quote`**.
+8. **Multihop:** On a pair where indexer returns **≥ 2 hops** (e.g. EMBER→COBALT via `POST /route/solve`), confirm the route shows **≥ 3** token symbols and matches a small on-chain market submit hop count.
+9. **Pool-only:** Hybrid off, amount set → quote card shows; route line is direct `PAY → RECEIVE` (or row absent only when `marketRouteLine` is null per table above).
+10. Confirm **no** duplicate route labels on the market quote card (single **Route** row only; no client BFS fallback label — trade market does not submit via client BFS today).

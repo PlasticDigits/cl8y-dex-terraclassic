@@ -1,5 +1,6 @@
 import { assetInfoLabel } from '@/types'
 import type { SwapOperation } from '@/services/terraclassic/router'
+import { swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 
 /** Router / indexer multihop: token contract addresses in execution order (inclusive of ends). */
 export function tokenPathFromSwapOperations(operations: SwapOperation[]): string[] {
@@ -107,3 +108,27 @@ export function computeSwapRouteDisplay(args: SwapRouteDisplayArgs): string | nu
 
   return null
 }
+
+/** Submit path for Swap `swapMutation` — must stay aligned with `SwapPage` mutation branches. */
+export type SwapSubmitRouteSource = 'indexer' | 'client_bfs' | 'direct' | 'native_wrap'
+
+export function deriveSwapSubmitRouteSource(args: {
+  isWrapOrUnwrap: boolean
+  nativeRouteInfo: NativeRouteForDisplay | null
+  indexerOperations?: SwapOperation[]
+  clientRoute: SwapOperation[] | null
+  isDirect: boolean
+  isMultiHop: boolean
+}): SwapSubmitRouteSource | null {
+  const { isWrapOrUnwrap, nativeRouteInfo, indexerOperations, clientRoute, isDirect, isMultiHop } = args
+
+  if (isWrapOrUnwrap || nativeRouteInfo) return 'native_wrap'
+  if (swapOpsRequireRouter(indexerOperations)) return 'indexer'
+  if (!clientRoute) return null
+  if (isDirect) return 'direct'
+  if (isMultiHop) return 'client_bfs'
+  return null
+}
+
+/** Brief label when submit uses client BFS multihop (GitLab #302 / #329). */
+export const SWAP_CLIENT_BFS_FALLBACK_COPY = 'Route source: client graph (shortest path; not best execution).'
