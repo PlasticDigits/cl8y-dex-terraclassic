@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-309 verify-issue-313 verify-issue-295 swarm-local swarm-launch swarm-stop setup-cloud-localterra
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-testnet deploy-mainnet dev dev-full indexer-dev test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks wait-localterra wait-healthy help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-localterra-host-curl test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-309 verify-issue-313 verify-issue-295 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra
 
 # Infrastructure
 start:
@@ -31,10 +31,17 @@ swarm-local:
 	@chmod +x scripts/bots/swarm.py
 	python3 scripts/bots/swarm.py
 
-# 30 processes (5 swap types × 5 replicas + 5 limit makers); see scripts/bots/launch-swarm.sh
+# 33 processes (5 swap types × 5 replicas + 5 limit + 3 lp); see scripts/bots/launch-swarm.sh
 swarm-launch:
-	@chmod +x scripts/bots/launch-swarm.sh
+	@chmod +x scripts/bots/launch-swarm.sh scripts/bots/bootstrap-swarm-liquidity.sh
 	./scripts/bots/launch-swarm.sh
+
+swarm-bootstrap-liquidity:
+	@chmod +x scripts/bots/bootstrap-swarm-liquidity.sh
+	./scripts/bots/bootstrap-swarm-liquidity.sh
+
+test-swarm-liquidity:
+	cd scripts/bots && python3 -m unittest test_swarm_liquidity.py -v
 
 swarm-stop:
 	@chmod +x scripts/bots/stop-swarm.sh
@@ -126,6 +133,11 @@ verify-issue-274:
 verify-issue-276:
 	@chmod +x scripts/qa/verify-issue-276.sh
 	./scripts/qa/verify-issue-276.sh
+
+# GitLab #285 — lifecycle emitter scoping (_contract_address only) + live hybrid fill proof.
+verify-issue-285:
+	@chmod +x scripts/qa/verify-issue-285.sh scripts/lib/lcd-smart-query.sh scripts/lib/e2e-terrad-tx.sh scripts/e2e-start-indexer.sh scripts/e2e-provision-dev-wallet.sh scripts/e2e-seed-hybrid-book.sh
+	./scripts/qa/verify-issue-285.sh
 
 # GitLab #309 — live LocalTerra gas: MAX_EXPIRED_PARKS_PER_SWAP vs 15M envelope.
 verify-issue-309:

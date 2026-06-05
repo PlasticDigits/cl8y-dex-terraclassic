@@ -109,7 +109,7 @@ Read the response using this doc:
 |----------|-------|----------|
 | `SOLVER_VERSION` | `global_v1` | `best_execution.rs` |
 | `MAX_PATH_CANDIDATES` | 5 | `best_execution.rs` |
-| `GET_DEFAULT_MAX_HOPS` | 3 | `route_solver.rs` |
+| `GET_DEFAULT_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GET_POOL_ONLY_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GRID_POINTS` | 17 | `hybrid_route_opt.rs` |
 | Coordinate descent passes | 2 | `hybrid_route_opt.rs` (`COORDINATE_PASSES`) |
@@ -117,7 +117,7 @@ Read the response using this doc:
 | `ROUTE_CACHE_TTL` | 12 s | `route_solver.rs` |
 | `ROUTE_CACHE_MAX_ENTRIES` | 512 | `route_solver.rs` |
 | `AMOUNT_CACHE_BUCKET` | 1_000_000 (raw offer units) | `route_solver.rs` |
-| `LCD_HYBRID_SIM_BUDGET` | 1275 (= 5×3×85) | `best_execution.rs` |
+| `LCD_HYBRID_SIM_BUDGET` | 1700 (= 5×4×85) | `best_execution.rs` |
 | `OPTIMALITY_SCOPE` | See [optimality scope](#optimality-scope-string) | `best_execution.rs` |
 
 Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `amount_in`, `max_maker_fills`, normalized `trader` (or `none`), **`discount_tier`** (`traders.tier_id` for discount subject — `trader` if set, else `sender`; unknown → 0). Same-tier callers share cache ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)).
@@ -169,7 +169,7 @@ References are **explanatory** — they do not imply the implementation is prova
 
 ### 2. Constrained routing (hop cap, asset continuity)
 
-| Shipped | `max_hops` = 3 (hybrid GET) or 4 (pool-only / POST); simple paths only; CW20 continuity enforced per hop |
+| Shipped | `max_hops` = 4 (hybrid GET / pool-only / POST); simple paths only; CW20 continuity enforced per hop |
 | Research | **Resource-constrained shortest path** (OR / networks); **label-setting** multicommodity routing |
 | Relevance | Hop cap matches router `MAX_HOPS`; path must be simple to avoid token cycles |
 
@@ -199,7 +199,7 @@ References are **explanatory** — they do not imply the implementation is prova
 
 ### LCD query budget
 
-Documented upper bound: `LCD_HYBRID_SIM_BUDGET = MAX_PATH_CANDIDATES × GET_DEFAULT_MAX_HOPS × (17 + 2×2×17) = **1275**` pair-level simulations per request (worst-case estimate). Response field `lcd_hybrid_queries` is an approximate running count during evaluation.
+Documented upper bound: `LCD_HYBRID_SIM_BUDGET = MAX_PATH_CANDIDATES × GET_DEFAULT_MAX_HOPS × (17 + 2×2×17) = **1700**` pair-level simulations per request (worst-case estimate). Post-#319 each hop is priced from the DB orderbook mirror rather than live LCD; `lcd_hybrid_queries` is an approximate running count during evaluation.
 
 ---
 

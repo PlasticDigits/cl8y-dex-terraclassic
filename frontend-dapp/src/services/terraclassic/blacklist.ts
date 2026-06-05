@@ -25,9 +25,7 @@ function requireFactoryAddress(): string {
 }
 
 /** Factory `BlacklistCheck` query (GitLab #308). */
-export async function getTradingBlacklistCheck(
-  params: BlacklistCheckParams
-): Promise<BlacklistCheckResponse> {
+export async function getTradingBlacklistCheck(params: BlacklistCheckParams): Promise<BlacklistCheckResponse> {
   return queryContract<BlacklistCheckResponse>(requireFactoryAddress(), {
     blacklist_check: {
       wallet: params.wallet ?? null,
