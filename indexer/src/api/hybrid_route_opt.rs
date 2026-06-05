@@ -499,7 +499,7 @@ async fn propagate_offer_through_plan(
                     source,
                     mirror_meta.as_deref_mut(),
                     hop,
-                    if book > 0 { pool } else { offer },
+                    offer,
                     1,
                     quote_trader,
                 )
