@@ -260,13 +260,9 @@ function TradeOrderTicketContent({
   const isPaused = pausedQuery.data?.paused === true
 
   const token0Addr =
-    selectedPair && 'token' in selectedPair.asset_infos[0]
-      ? selectedPair.asset_infos[0].token.contract_addr
-      : null
+    selectedPair && 'token' in selectedPair.asset_infos[0] ? selectedPair.asset_infos[0].token.contract_addr : null
   const token1Addr =
-    selectedPair && 'token' in selectedPair.asset_infos[1]
-      ? selectedPair.asset_infos[1].token.contract_addr
-      : null
+    selectedPair && 'token' in selectedPair.asset_infos[1] ? selectedPair.asset_infos[1].token.contract_addr : null
   const tradingBlacklist = useTradingBlacklist({
     wallet: address,
     token0: token0Addr,
@@ -946,7 +942,10 @@ function TradeOrderTicketContent({
             data-testid="trade-cancel-submit"
             className="btn-primary btn-cta w-full !text-xs"
             disabled={
-              cancelMutation.isPending || !pairAddr || isTradeBlocked || (isWalletConnected && cancelIdIndexedAsCancelled)
+              cancelMutation.isPending ||
+              !pairAddr ||
+              isTradeBlocked ||
+              (isWalletConnected && cancelIdIndexedAsCancelled)
             }
             onClick={() => {
               if (!isWalletConnected) openWalletModal()
@@ -981,7 +980,8 @@ function TradeOrderTicketContent({
               rows={myPlacements}
               isLoading={placementsQuery.isLoading}
               isWalletConnected={isWalletConnected}
-              isPairPaused={isTradeBlocked}
+              isPairPaused={isPaused}
+              claimsDisabled={tradingBlacklist.blocked}
               openWalletModal={openWalletModal}
               highlightOrderId={highlightPlacementOrderId}
             />
