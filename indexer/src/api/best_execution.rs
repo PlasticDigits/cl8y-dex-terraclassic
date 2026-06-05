@@ -21,18 +21,25 @@ pub const MAX_PATH_CANDIDATES: usize = 5;
 pub const OPTIMALITY_SCOPE: &str =
     "optimal within top-5 simple paths by hop count and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops";
 
-/// Upper bound on pair-level `HybridSimulation` LCD calls per request (worst-case estimate for docs/tests).
-/// Documented upper bound: top-K paths × hops × (grid + coordinate passes).
+/// Upper bound on pair-level hybrid simulations per request (worst-case estimate for docs/tests).
+/// Post-#319 each hop is priced from the DB orderbook mirror, not live LCD; this constant
+/// documents the theoretical sim budget if every candidate path used the full grid + coordinate
+/// passes on every hop: `5 × 4 × 85 = 1700`.
 pub const LCD_HYBRID_SIM_BUDGET: usize =
     MAX_PATH_CANDIDATES * GET_DEFAULT_MAX_HOPS * (17 + 2 * 2 * 17);
 
 #[cfg(test)]
 mod budget_tests {
-    use super::LCD_HYBRID_SIM_BUDGET;
+    use super::{LCD_HYBRID_SIM_BUDGET, MAX_PATH_CANDIDATES};
+    use crate::api::route_solver::GET_DEFAULT_MAX_HOPS;
 
     #[test]
     fn lcd_budget_is_documented_constant() {
-        assert!(LCD_HYBRID_SIM_BUDGET > 0);
+        assert_eq!(
+            LCD_HYBRID_SIM_BUDGET,
+            MAX_PATH_CANDIDATES * GET_DEFAULT_MAX_HOPS * (17 + 2 * 2 * 17)
+        );
+        assert_eq!(LCD_HYBRID_SIM_BUDGET, 5 * 4 * 85);
     }
 }
 
