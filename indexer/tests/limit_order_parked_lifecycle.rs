@@ -21,7 +21,10 @@ fn wasm_park_tx(pair: &str, order_id: &str, remaining: &str, txhash: &str) -> Tx
                 event_type: "wasm".into(),
                 attributes: vec![
                     Attribute {
-                        key: "contract_address".into(),
+                        // GitLab #285: lifecycle events are scoped by the runtime-reserved
+                        // `_contract_address` key only (wasm_contract_addr), so fixtures must use
+                        // it — the unreserved `contract_address` is no longer matched.
+                        key: "_contract_address".into(),
                         value: pair.into(),
                     },
                     Attribute {
@@ -61,7 +64,10 @@ fn wasm_claim_tx(pair: &str, order_id: &str, txhash: &str) -> TxResponse {
                 event_type: "wasm".into(),
                 attributes: vec![
                     Attribute {
-                        key: "contract_address".into(),
+                        // GitLab #285: lifecycle events are scoped by the runtime-reserved
+                        // `_contract_address` key only (wasm_contract_addr), so fixtures must use
+                        // it — the unreserved `contract_address` is no longer matched.
+                        key: "_contract_address".into(),
                         value: pair.into(),
                     },
                     Attribute {
