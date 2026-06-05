@@ -11,7 +11,8 @@
 LOCALTERRA_CURL_CONNECT_TIMEOUT="${LOCALTERRA_CURL_CONNECT_TIMEOUT:-2}"
 LOCALTERRA_CURL_MAX_TIME="${LOCALTERRA_CURL_MAX_TIME:-8}"
 # Set when localterra_container_id resolved via sg docker (Cloud Agent shells).
-LOCALTERRA_DOCKER_VIA_SG=""
+# Preserve across re-source (lcd-smart-query.sh re-sources this lib after container discovery).
+: "${LOCALTERRA_DOCKER_VIA_SG:=}"
 
 # Resolve running localterra container id (empty if compose stack down).
 localterra_container_id() {
