@@ -194,37 +194,6 @@ export default function SwapPage() {
     return (a === fromToken && b === toToken) || (b === fromToken && a === toToken)
   })
 
-  const swapPairAddresses = useMemo(() => {
-    const addresses = new Set<string>()
-    const routeOps = route ?? nativeRouteInfo?.operations
-    if (routeOps && routeOps.length > 0) {
-      for (const op of routeOps) {
-        const offer = assetInfoLabel(op.terra_swap.offer_asset_info)
-        const ask = assetInfoLabel(op.terra_swap.ask_asset_info)
-        const matched = pairs.find((p) => {
-          const a = assetInfoLabel(p.asset_infos[0])
-          const b = assetInfoLabel(p.asset_infos[1])
-          return (a === offer && b === ask) || (b === offer && a === ask)
-        })
-        if (matched?.contract_addr.startsWith('terra1')) {
-          addresses.add(matched.contract_addr)
-        }
-      }
-    } else if (directPair?.contract_addr.startsWith('terra1')) {
-      addresses.add(directPair.contract_addr)
-    }
-    return [...addresses]
-  }, [route, nativeRouteInfo, directPair, pairs])
-
-  const tradingBlacklist = useTradingBlacklist({
-    wallet: address,
-    token0: fromToken?.startsWith('terra1') ? fromToken : null,
-    token1: toToken?.startsWith('terra1') ? toToken : null,
-    pairAddress: swapPairAddresses.length === 1 ? swapPairAddresses[0] : null,
-    pairs: swapPairAddresses.length > 1 ? swapPairAddresses : null,
-    enabled: isWalletConnected,
-  })
-
   const offerAssetInfo = fromToken ? tokenAssetInfo(fromToken) : null
   const receiveAssetInfo = toToken ? tokenAssetInfo(toToken) : null
 
@@ -538,6 +507,43 @@ export default function SwapPage() {
     },
     enabled: hasRoute && !!inputAmount && parseFloat(inputAmount) > 0,
     refetchInterval: 10_000,
+  })
+
+  const swapBlacklistProbe = useMemo(() => {
+    const routeOps = route ?? nativeRouteInfo?.operations ?? simQuery.data?.indexerOperations
+    const tokens = new Set<string>()
+    if (fromToken?.startsWith('terra1')) tokens.add(fromToken)
+    if (toToken?.startsWith('terra1')) tokens.add(toToken)
+
+    const addresses = new Set<string>()
+    if (routeOps && routeOps.length > 0) {
+      for (const op of routeOps) {
+        const offer = assetInfoLabel(op.terra_swap.offer_asset_info)
+        const ask = assetInfoLabel(op.terra_swap.ask_asset_info)
+        if (offer.startsWith('terra1')) tokens.add(offer)
+        if (ask.startsWith('terra1')) tokens.add(ask)
+        const matched = pairs.find((p) => {
+          const a = assetInfoLabel(p.asset_infos[0])
+          const b = assetInfoLabel(p.asset_infos[1])
+          return (a === offer && b === ask) || (b === offer && a === ask)
+        })
+        if (matched?.contract_addr.startsWith('terra1')) {
+          addresses.add(matched.contract_addr)
+        }
+      }
+    } else if (directPair?.contract_addr.startsWith('terra1')) {
+      addresses.add(directPair.contract_addr)
+    }
+    const pairAddresses = [...addresses]
+    return { tokens: [...tokens], pairAddresses }
+  }, [route, nativeRouteInfo, simQuery.data?.indexerOperations, directPair, pairs, fromToken, toToken])
+
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    tokens: swapBlacklistProbe.tokens,
+    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
+    pairs: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
+    enabled: isWalletConnected,
   })
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)

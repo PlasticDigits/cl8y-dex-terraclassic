@@ -9,6 +9,8 @@ export interface UseTradingBlacklistParams {
   wallet?: string | null
   token0?: string | null
   token1?: string | null
+  /** When set, used instead of deriving from token0/token1 (e.g. multihop route tokens). */
+  tokens?: string[] | null
   pairAddress?: string | null
   pairs?: string[] | null
   enabled?: boolean
@@ -18,11 +20,14 @@ export function useTradingBlacklist({
   wallet,
   token0,
   token1,
+  tokens: tokensOverride,
   pairAddress,
   pairs,
   enabled = true,
 }: UseTradingBlacklistParams) {
-  const tokens = [token0, token1].filter((t): t is string => !!t && t.startsWith('terra1'))
+  const tokens = [
+    ...new Set((tokensOverride ?? [token0, token1]).filter((t): t is string => !!t && t.startsWith('terra1'))),
+  ]
   const pairList = pairs?.filter((p) => p.startsWith('terra1')) ?? []
   const canQuery =
     enabled &&
