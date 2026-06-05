@@ -559,8 +559,9 @@ fn amount_cache_key(amount: u128) -> u128 {
 /// simulate forwards both. The route cache must key on that resolved tier, or two senders on
 /// different tiers (e.g. both with `trader` unset) collide and the wrong-discount quote is
 /// served. Per Plastik's direction we key on the tier (not the raw address) so same-tier
-/// callers still share the cache. Tier comes from the already-synced `traders.tier_id` — no
-/// extra LCD call; absent/unknown subject resolves to [`FULL_FEE_TIER_SENTINEL`].
+/// callers still share the cache. Tier comes from synced `traders.tier_id` when
+/// `registered` is true — no extra LCD call; absent/unknown/unregistered subject resolves to
+/// [`FULL_FEE_TIER_SENTINEL`].
 pub const FULL_FEE_TIER_SENTINEL: i16 = -1;
 
 pub(crate) async fn resolve_discount_tier(
@@ -575,7 +576,7 @@ pub(crate) async fn resolve_discount_tier(
         return FULL_FEE_TIER_SENTINEL;
     };
     match crate::db::queries::traders::get_trader(&state.pool, addr.trim()).await {
-        Ok(Some(t)) => t.tier_id,
+        Ok(Some(t)) if t.registered => t.tier_id,
         _ => FULL_FEE_TIER_SENTINEL,
     }
 }
