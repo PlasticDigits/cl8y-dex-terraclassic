@@ -37,6 +37,27 @@ pub async fn resolve_asset(
                             asset.id,
                             e
                         );
+                        let fallback_name = if asset.name.trim().is_empty() {
+                            contract_addr.as_str()
+                        } else {
+                            asset.name.as_str()
+                        };
+                        let fallback_symbol = if asset.symbol.trim().is_empty() {
+                            contract_addr.as_str()
+                        } else {
+                            asset.symbol.as_str()
+                        };
+                        assets::upsert_asset(
+                            pool,
+                            Some(contract_addr),
+                            None,
+                            true,
+                            fallback_name,
+                            fallback_symbol,
+                            asset.decimals,
+                            asset.first_seen_block,
+                        )
+                        .await?;
                         return Ok(asset.id);
                     }
                     return Err(e.into());
