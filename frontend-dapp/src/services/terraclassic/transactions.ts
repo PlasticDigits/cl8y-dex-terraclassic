@@ -8,8 +8,12 @@ import {
   getGasLimitForTx,
   totalGasLimitForExecuteMsgs,
 } from './terraGas'
-import { broadcastTerraExecuteContracts, type TerraExecuteContractEntry } from './terraBroadcast'
-import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
+import {
+  broadcastTerraExecuteContracts,
+  type TerraBroadcastOptions,
+  type TerraExecuteContractEntry,
+} from './terraBroadcast'
+import { getTerraBroadcastScopeOptions, withTerraBroadcastScope } from './terraBroadcastScope'
 
 function requireConnectedWalletForAddress(walletAddress: string) {
   const wallet = getConnectedWallet()
@@ -152,9 +156,19 @@ export async function executeCw20AllowanceThen(
   amountRaw: string,
   runAfterAllowance: () => Promise<string>
 ): Promise<string> {
-  await executeTerraContract(walletAddress, tokenAddress, {
-    increase_allowance: { spender, amount: amountRaw },
-  })
+  const broadcastOptions = getTerraBroadcastScopeOptions()
+  await executeTerraContract(
+    walletAddress,
+    tokenAddress,
+    {
+      increase_allowance: { spender, amount: amountRaw },
+    },
+    undefined,
+    broadcastOptions
+  )
+  if (broadcastOptions) {
+    return withTerraBroadcastScope(broadcastOptions, runAfterAllowance)
+  }
   return runAfterAllowance()
 }
 
@@ -170,23 +184,30 @@ export async function executeTerraContract(
   walletAddress: string,
   contractAddress: string,
   executeMsg: Record<string, unknown>,
-  coins?: Array<{ denom: string; amount: string }>
+  coins?: Array<{ denom: string; amount: string }>,
+  broadcastOptions?: TerraBroadcastOptions
 ): Promise<string> {
   const wallet = requireConnectedWalletForAddress(walletAddress)
   return broadcastTerraExecuteContracts(
     wallet,
     walletAddress,
     [{ contract: contractAddress, msg: executeMsg, coins }],
-    getTerraBroadcastScopeOptions()
+    broadcastOptions ?? getTerraBroadcastScopeOptions()
   )
 }
 
 export async function executeTerraContractMulti(
   walletAddress: string,
-  messages: TerraExecuteContractEntry[]
+  messages: TerraExecuteContractEntry[],
+  broadcastOptions?: TerraBroadcastOptions
 ): Promise<string> {
   const wallet = requireConnectedWalletForAddress(walletAddress)
-  return broadcastTerraExecuteContracts(wallet, walletAddress, messages, getTerraBroadcastScopeOptions())
+  return broadcastTerraExecuteContracts(
+    wallet,
+    walletAddress,
+    messages,
+    broadcastOptions ?? getTerraBroadcastScopeOptions()
+  )
 }
 
 export type { TerraBroadcastOptions, TerraBroadcastPhase } from './terraBroadcast'
