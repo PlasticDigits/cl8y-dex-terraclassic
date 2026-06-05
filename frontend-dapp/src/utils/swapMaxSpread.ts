@@ -47,7 +47,7 @@ export function hybridNoBeliefMaterialPoolReject(
   offerAmount: bigint,
   poolInput: bigint,
   bookInput: bigint,
-  poolNetReturn: bigint,
+  poolNetReturn: bigint
 ): HybridNoBeliefMaterialPoolReject | null {
   if (bookInput === 0n || poolInput === 0n) return null
   const minPool = minPoolInputForBookHybrid(offerAmount)
@@ -80,7 +80,7 @@ export function hybridSpreadCmpAndTotal(
     pool_return_amount: string
     book_return_amount: string
   },
-  legs?: { poolInput: bigint; bookInput: bigint },
+  legs?: { poolInput: bigint; bookInput: bigint }
 ): { spreadCmp: bigint; totalGrossOut: bigint } {
   const poolRet = BigInt(sim.pool_return_amount)
   const comm = BigInt(sim.commission_amount)
@@ -88,7 +88,7 @@ export function hybridSpreadCmpAndTotal(
   const bookNet = BigInt(sim.book_return_amount)
   const poolGross = poolRet + comm
   let spreadCmp = spr < poolGross ? spr : poolGross
-  if (legs && legs.poolInput > 0n && legs.bookInput > 0n && poolRet > 0n) {
+  if (legs && legs.poolInput > 0n && legs.bookInput > 0n && poolRet > 0n && bookNet > 0n) {
     const fairNetBook = (poolRet * legs.bookInput) / legs.poolInput
     const bookShortfall = fairNetBook > bookNet ? fairNetBook - bookNet : 0n
     spreadCmp += bookShortfall
