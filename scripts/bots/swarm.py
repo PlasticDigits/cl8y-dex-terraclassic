@@ -7,6 +7,9 @@ Continuous LocalTerra swap bot swarm (+ optional resting limit orders).
   (Recent trades move; **order book** stays empty).
 - `launch-swarm.sh` also starts **five** `--worker limit N` processes that place **resting**
   `place_limit_order` bids/asks so `/trade` order book panels are populated for QA.
+- **Three** `--worker lp N` processes periodically `provide_liquidity` so swap-only bots do not
+  drain LocalTerra test pools (GitLab #293). `launch-swarm.sh` runs `bootstrap-swarm-liquidity.sh`
+  once before workers unless `BOTS_SKIP_BOOTSTRAP=1`.
 
 Requires: docker, Python 3.10+ (stdlib `decimal` + asyncio). LocalTerra container must be running.
 Prerequisites: `make start` + `make deploy-local` (or equivalent) so factory + pairs exist.
@@ -16,6 +19,8 @@ Environment (optional overrides):
   TERRA_LCD_URL — REST LCD (default http://127.0.0.1:1317)
   BOTS_MEAN_INTERVAL_SEC — base mean wait between swaps per worker (default 45)
   BOTS_LIMIT_MEAN_INTERVAL_SEC — mean wait for **limit** workers (default 120)
+  BOTS_LP_MEAN_INTERVAL_SEC — mean wait for **lp** workers (default 90)
+  BOTS_MIN_RESERVE_PER_SIDE — skip swaps on pairs thinner than this (default 10_000_000)
   BOTS_REPLICAS_PER_TYPE — workers per type (default 5)
   BOTS_DIRECTED_SYMBOLS — comma symbols for "directed" bot pair, default OPAL,AMBER
   BOTS_DRY_RUN — set to 1 to log actions without broadcasting txs
@@ -37,6 +42,12 @@ import urllib.request
 from dataclasses import dataclass
 from decimal import Decimal, getcontext
 from typing import Any
+
+from swarm_liquidity import (
+    MIN_RESERVE_PER_SIDE_FOR_SWAP,
+    pick_scaled_provide_amounts,
+    pool_reserves_ok,
+)
 
 
 def _env(name: str, default: str | None = None) -> str | None:
@@ -213,24 +224,21 @@ async def _terrad_tx(container: str, args: list[str]) -> tuple[int, str]:
     return proc.returncode or 0, text
 
 
-async def swap_cw20_send(
-    container: str,
-    token: str,
-    pair: str,
-    amount: int,
-    dry_run: bool,
-) -> None:
-    if amount < 1:
-        amount = 1000
-    hook = _swap_hook_b64()
-    exec_msg = json.dumps(
-        {"send": {"contract": pair, "amount": str(amount), "msg": hook}},
-        separators=(",", ":"),
-    )
+def _min_reserve_per_side() -> int:
+    raw = _env("BOTS_MIN_RESERVE_PER_SIDE")
+    if raw:
+        try:
+            return max(int(raw), 1)
+        except ValueError:
+            pass
+    return MIN_RESERVE_PER_SIDE_FOR_SWAP
+
+
+async def _wasm_execute(container: str, contract: str, exec_msg: str, dry_run: bool, label: str) -> None:
     base = [
         "wasm",
         "execute",
-        token,
+        contract,
         exec_msg,
         "--from",
         "test1",
@@ -253,11 +261,66 @@ async def swap_cw20_send(
         "json",
     ]
     if dry_run:
-        print(f"[dry-run] terrad tx wasm execute {token} send->{pair} amount={amount}")
+        print(f"[dry-run] terrad tx wasm execute {contract} {label}")
         return
     code, out = await _terrad_tx(container, base)
     if code != 0:
         print(f"[warn] terrad exit {code}: {out[:500]}")
+
+
+async def provide_liquidity_pair(
+    container: str,
+    token0: str,
+    token1: str,
+    pair: str,
+    amount0: int,
+    amount1: int,
+    dry_run: bool,
+) -> None:
+    if amount0 < 1 or amount1 < 1:
+        return
+    allow0 = json.dumps(
+        {"increase_allowance": {"spender": pair, "amount": str(amount0), "expires": {"never": {}}}},
+        separators=(",", ":"),
+    )
+    allow1 = json.dumps(
+        {"increase_allowance": {"spender": pair, "amount": str(amount1), "expires": {"never": {}}}},
+        separators=(",", ":"),
+    )
+    provide = json.dumps(
+        {
+            "provide_liquidity": {
+                "assets": [
+                    {"info": {"token": {"contract_addr": token0}}, "amount": str(amount0)},
+                    {"info": {"token": {"contract_addr": token1}}, "amount": str(amount1)},
+                ],
+                "slippage_tolerance": None,
+                "receiver": None,
+                "deadline": None,
+            }
+        },
+        separators=(",", ":"),
+    )
+    await _wasm_execute(container, token0, allow0, dry_run, f"allow->{pair[:12]}… amt0={amount0}")
+    await _wasm_execute(container, token1, allow1, dry_run, f"allow->{pair[:12]}… amt1={amount1}")
+    await _wasm_execute(container, pair, provide, dry_run, f"provide_liquidity amt0={amount0} amt1={amount1}")
+
+
+async def swap_cw20_send(
+    container: str,
+    token: str,
+    pair: str,
+    amount: int,
+    dry_run: bool,
+) -> None:
+    if amount < 1:
+        amount = 1000
+    hook = _swap_hook_b64()
+    exec_msg = json.dumps(
+        {"send": {"contract": pair, "amount": str(amount), "msg": hook}},
+        separators=(",", ":"),
+    )
+    await _wasm_execute(container, token, exec_msg, dry_run, f"send->{pair[:12]}… amount={amount}")
 
 
 def _amount_from_reserves(reserve: int, mult: float, jitter: float) -> int:
@@ -409,7 +472,47 @@ async def limit_order_worker_loop(
 
 
 SWAP_BOT_TYPES = ("offer0", "offer1", "heavy", "light", "directed")
-WORKER_TYPES = SWAP_BOT_TYPES + ("limit",)
+WORKER_TYPES = SWAP_BOT_TYPES + ("limit", "lp")
+
+
+async def lp_worker_loop(
+    name: str,
+    replica_idx: int,
+    metas: list[PairMeta],
+    lcd: str,
+    container: str,
+    mean_base: float,
+    dry: bool,
+) -> None:
+    """Periodically add proportional liquidity so swap bots do not leave thin pools (GitLab #293)."""
+    rng = random.Random(abs(hash(name)) % (2**31))
+    env_amt = _env("BOTS_LP_FRACTION_PPM")
+    fraction_ppm = int(env_amt) if env_amt else 3_000
+
+    while True:
+        wait = rng.expovariate(1.0 / mean_base)
+        await asyncio.sleep(min(max(wait, 1.0), 600.0))
+
+        m = rng.choice(metas)
+        fresh = _load_pair_meta(lcd, m.pair_addr)
+        if not fresh:
+            continue
+        m = fresh
+        scaled = pick_scaled_provide_amounts(m.reserve0, m.reserve1, fraction_ppm)
+        if not scaled:
+            continue
+        amount0, amount1 = scaled
+        try:
+            await provide_liquidity_pair(
+                container, m.token0, m.token1, m.pair_addr, amount0, amount1, dry
+            )
+            print(
+                f"[{name}] provide_liquidity pair={m.sym0}/{m.sym1} "
+                f"amt0={amount0} amt1={amount1}",
+                flush=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[{name}] error: {exc}", file=sys.stderr)
 
 
 async def worker_loop(
@@ -418,6 +521,7 @@ async def worker_loop(
     replica_idx: int,
     metas: list[PairMeta],
     directed: PairMeta | None,
+    lcd: str,
     container: str,
     mean_base: float,
     dry_run: bool,
@@ -447,6 +551,13 @@ async def worker_loop(
             m = directed
         else:
             m = rng.choice(metas)
+
+        fresh = _load_pair_meta(lcd, m.pair_addr)
+        if fresh:
+            m = fresh
+        floor = _min_reserve_per_side()
+        if m.reserve0 < floor or m.reserve1 < floor:
+            continue
 
         jitter = 0.85 + rng.random() * 0.3
         try:
@@ -480,6 +591,22 @@ async def worker_loop(
             print(f"[{name}] error: {exc}", file=sys.stderr)
 
 
+async def main_async_lp_only(replica_idx: int) -> None:
+    """Single-process LP bot (`--worker lp N`)."""
+    lcd = _lcd_base()
+    factory = _factory_addr()
+    container = _docker_localterra_id()
+    mean_base = float(_env("BOTS_LP_MEAN_INTERVAL_SEC", "90") or "90")
+    dry = (_env("BOTS_DRY_RUN", "0") or "0") == "1"
+    metas = _collect_pair_metas(lcd, factory)
+    if len(metas) < 1:
+        print("ERROR: could not load any CW20/CW20 pair metadata from LCD.", file=sys.stderr)
+        sys.exit(1)
+    name = f"lp-{replica_idx}"
+    print(f"[{name}] provide_liquidity worker mean={mean_base}s dry_run={dry}", flush=True)
+    await lp_worker_loop(name, replica_idx, metas, lcd, container, mean_base, dry)
+
+
 async def main_async_limit_only(replica_idx: int) -> None:
     """Single-process limit bot (`--worker limit N`)."""
     lcd = _lcd_base()
@@ -500,6 +627,9 @@ async def main_async_single(bot_type: str, replica_idx: int) -> None:
     """Run one worker process (used by launch-swarm.sh)."""
     if bot_type == "limit":
         await main_async_limit_only(replica_idx)
+        return
+    if bot_type == "lp":
+        await main_async_lp_only(replica_idx)
         return
     if bot_type not in SWAP_BOT_TYPES:
         print(
@@ -526,7 +656,7 @@ async def main_async_single(bot_type: str, replica_idx: int) -> None:
     name = f"{bot_type}-{replica_idx}"
     print(f"[{name}] single-worker mode mean_env=BOTS_MEAN_INTERVAL_SEC={mean_base} dry_run={dry}", flush=True)
     await worker_loop(
-        name, bot_type, replica_idx, metas, directed, container, mean_base, dry, fixed_mean=True
+        name, bot_type, replica_idx, metas, directed, lcd, container, mean_base, dry, fixed_mean=True
     )
 
 
@@ -573,7 +703,7 @@ async def main_async() -> None:
             tag = f"{btype}-{i}"
             tasks.append(
                 asyncio.create_task(
-                    worker_loop(tag, btype, i, metas, directed, container, mean_base, dry, fixed_mean=False),
+                    worker_loop(tag, btype, i, metas, directed, lcd, container, mean_base, dry, fixed_mean=False),
                     name=tag,
                 )
             )

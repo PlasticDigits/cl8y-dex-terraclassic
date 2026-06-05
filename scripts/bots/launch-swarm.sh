@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Launch swap workers (5 types × 5 replicas = 25) plus five dedicated limit-order makers
-# (resting bids/asks so the /trade order book is not empty). Each process uses a slightly
-# different Poisson mean (BOTS_MEAN_INTERVAL_SEC for swaps; BOTS_LIMIT_MEAN_INTERVAL_SEC for limits)
-# and amount multiplier (BOTS_WORKER_AMOUNT_MULT).
+# Launch swap workers (5 types × 5 replicas = 25), five limit-order makers, and three
+# provide_liquidity workers so LocalTerra test pools stay deep enough for swap QA (#293).
+# Runs bootstrap-swarm-liquidity once first unless BOTS_SKIP_BOOTSTRAP=1.
 #
 # Usage (from repo root):
 #   ./scripts/bots/launch-swarm.sh
 #   BOTS_MEAN_INTERVAL_SEC=60 ./scripts/bots/launch-swarm.sh
 #   BOTS_DRY_RUN=1 ./scripts/bots/launch-swarm.sh   # log only
+#   BOTS_SKIP_BOOTSTRAP=1 ./scripts/bots/launch-swarm.sh
 #
 # Stop: ./scripts/bots/stop-swarm.sh
 # Requires: make start + make deploy-local, Python 3, docker.
@@ -15,6 +15,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SWARM_PY="$REPO_ROOT/scripts/bots/swarm.py"
+BOOTSTRAP_SH="$REPO_ROOT/scripts/bots/bootstrap-swarm-liquidity.sh"
 RUNDIR="$REPO_ROOT/scripts/bots/run"
 LOGDIR="$RUNDIR/logs"
 PIDFILE="$RUNDIR/pids.txt"
@@ -24,12 +25,23 @@ mkdir -p "$LOGDIR"
 
 BASE_MEAN="${BOTS_MEAN_INTERVAL_SEC:-45}"
 LIMIT_MEAN="${BOTS_LIMIT_MEAN_INTERVAL_SEC:-120}"
+LP_MEAN="${BOTS_LP_MEAN_INTERVAL_SEC:-90}"
 DRY="${BOTS_DRY_RUN:-0}"
+SKIP_BOOTSTRAP="${BOTS_SKIP_BOOTSTRAP:-0}"
 
 SWAP_TYPES=(offer0 offer1 heavy light directed)
 
+if [[ "$SKIP_BOOTSTRAP" != "1" ]]; then
+  echo "Running bootstrap-swarm-liquidity (set BOTS_SKIP_BOOTSTRAP=1 to skip)…"
+  chmod +x "$BOOTSTRAP_SH"
+  BOTS_DRY_RUN="$DRY" "$BOOTSTRAP_SH"
+else
+  echo "Skipping bootstrap-swarm-liquidity (BOTS_SKIP_BOOTSTRAP=1)."
+fi
+
 echo "Launching ${#SWAP_TYPES[@]} swap types × 5 replicas → $((${#SWAP_TYPES[@]} * 5)) processes"
 echo "  plus 5 limit-order workers (mean ${LIMIT_MEAN}s)"
+echo "  plus 3 provide_liquidity workers (mean ${LP_MEAN}s)"
 echo "  swap base mean interval: ${BASE_MEAN}s  dry_run: ${DRY}"
 echo "  logs: $LOGDIR  pids: $PIDFILE"
 
@@ -66,6 +78,19 @@ for i in 0 1 2 3 4; do
   ) >>"$log" 2>&1 &
   echo $! >>"$PIDFILE"
   echo "  started limit-${i} pid=$! mean=${mean}s amt_mult=${amt_mult} -> $log"
+done
+
+for i in 0 1 2; do
+  mean="$(python3 -c "print(round(float('${LP_MEAN}') * (0.8 + int('${i}') * 0.12), 2))")"
+  log="$LOGDIR/lp-${i}.log"
+  (
+    cd "$REPO_ROOT"
+    export BOTS_LP_MEAN_INTERVAL_SEC="$mean"
+    export BOTS_DRY_RUN="$DRY"
+    exec python3 "$SWARM_PY" --worker lp "$i"
+  ) >>"$log" 2>&1 &
+  echo $! >>"$PIDFILE"
+  echo "  started lp-${i} pid=$! mean=${mean}s -> $log"
 done
 
 echo "Done. $(wc -l <"$PIDFILE") PIDs recorded. Stop with: $REPO_ROOT/scripts/bots/stop-swarm.sh"
