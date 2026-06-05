@@ -883,7 +883,10 @@ mod factory_tests {
             &[cosmwasm_std::Coin::new(fee.u128(), "uluna")],
         )
         .unwrap();
-        let bal = app.wrap().query_balance(treasury.as_str(), "uluna").unwrap();
+        let bal = app
+            .wrap()
+            .query_balance(treasury.as_str(), "uluna")
+            .unwrap();
         assert_eq!(bal.amount, fee, "treasury should receive the creation fee");
 
         // Governance can raise the fee; it shows up in Config.
@@ -918,6 +921,95 @@ mod factory_tests {
         assert!(
             err.root_cause().to_string().contains("Unauthorized"),
             "{err}"
+        );
+    }
+
+    /// GitLab #276 hardening — with the fee disabled (0), uluna attached by mistake is refunded,
+    /// not stuck in the factory.
+    #[test]
+    fn create_pair_refunds_uluna_when_fee_disabled() {
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let mut app = App::new(|router, _api, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &user,
+                    vec![cosmwasm_std::Coin::new(1_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let token_a = create_cw20_token(&mut app, cw20_code_id, &user, "Token A", "AAA", initial);
+        let token_b = create_cw20_token(&mut app, cw20_code_id, &user, "Token B", "BBB", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: Uint128::zero(),
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        // Fee disabled, but the caller attaches uluna anyway -> it must be refunded, not stuck.
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::CreatePair {
+                asset_infos: [
+                    AssetInfo::Token {
+                        contract_addr: token_a.to_string(),
+                    },
+                    AssetInfo::Token {
+                        contract_addr: token_b.to_string(),
+                    },
+                ],
+            },
+            &[cosmwasm_std::Coin::new(250_000u128, "uluna")],
+        )
+        .unwrap();
+
+        let bal = |addr: &Addr| {
+            app.wrap()
+                .query_balance(addr.as_str(), "uluna")
+                .unwrap()
+                .amount
+        };
+        assert_eq!(
+            bal(&treasury),
+            Uint128::zero(),
+            "treasury not credited when fee is disabled"
+        );
+        assert_eq!(
+            bal(&factory),
+            Uint128::zero(),
+            "no uluna stuck in the factory"
+        );
+        assert_eq!(
+            bal(&user),
+            Uint128::new(1_000_000),
+            "the mistakenly-attached uluna is fully refunded"
         );
     }
 
@@ -10985,7 +11077,7 @@ mod new_feature_tests {
     // -----------------------------------------------------------------------
 
     #[test]
-    fn factory_governance_change_updates_lp_admin() {
+    fn factory_lp_admin_rotation_via_set_lp_admin_all() {
         let mut app = App::default();
 
         let governance = Addr::unchecked("governance");
@@ -11065,9 +11157,8 @@ mod new_feature_tests {
             "LP token admin should initially be the pair contract"
         );
 
-        // UpdateConfig propagates SetLpAdmin → UpdateAdmin on LP token.
-        // The pair contract is the LP token's CosmWasm admin, so it can
-        // call UpdateAdmin to change the admin to the new governance.
+        // GitLab #277: changing governance no longer auto-rotates the LP-token admin (that was the
+        // unbounded fanout). It stays on the pair until an explicit SetLpAdminAll / SetLpAdminBatch.
         app.execute_contract(
             governance.clone(),
             factory.clone(),
@@ -11087,8 +11178,45 @@ mod new_feature_tests {
             .unwrap();
         assert_eq!(
             lp_contract_info.admin,
+            Some(pair.to_string()),
+            "UpdateConfig must NOT auto-rotate the LP admin (#277)"
+        );
+
+        // Explicit bounded rotation by the new governance flips the LP-token admin.
+        app.execute_contract(
+            new_governance.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetLpAdminAll {
+                admin: new_governance.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let lp_contract_info = app
+            .wrap()
+            .query_wasm_contract_info(lp_token.to_string())
+            .unwrap();
+        assert_eq!(
+            lp_contract_info.admin,
             Some(new_governance.to_string()),
-            "LP token admin should be updated to new governance"
+            "SetLpAdminAll should rotate the LP token admin to the new governance"
+        );
+
+        // Non-governance cannot rotate.
+        let err = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetLpAdminAll {
+                    admin: user.to_string(),
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().contains("Unauthorized"),
+            "{err}"
         );
     }
 

@@ -112,6 +112,8 @@ async fn clean_db_tables(pool: &PgPool) {
             liquidity_events,
             token_volume_stats,
             pair_volume_24h,
+            pair_reserves,
+            resting_limit_orders,
             trader_positions,
             traders,
             pairs,

@@ -3263,7 +3263,13 @@ fn hybrid_no_belief_book_far_below_pool_rejected() {
     );
 
     let taker = cosmwasm_std::Addr::unchecked("taker_273");
-    transfer_tokens(&mut app, &env.token_a, &env.user, &taker, Uint128::new(20_000));
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(20_000),
+    );
 
     // No belief_price, 1% max_spread; route most input (10_000) to the far-below-pool book,
     // a small pool leg (1_000) so a pool fair-rate reference exists.

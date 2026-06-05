@@ -170,12 +170,13 @@ pub fn check_max_spread(
                 })?;
             fair_net_book.saturating_sub(inputs.book_net_return)
         };
-        let spread_total = spread_cmp
-            .checked_add(book_shortfall)
-            .map_err(|_| MaxSpreadViolation {
-                max_allowed,
-                actual: Decimal::zero(),
-            })?;
+        let spread_total =
+            spread_cmp
+                .checked_add(book_shortfall)
+                .map_err(|_| MaxSpreadViolation {
+                    max_allowed,
+                    actual: Decimal::zero(),
+                })?;
 
         if total_gross_out > Uint128::zero()
             && Decimal::from_ratio(spread_total, total_gross_out) > max_allowed

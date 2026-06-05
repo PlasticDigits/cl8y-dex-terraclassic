@@ -407,6 +407,40 @@ async fn lcd_heavy_route_rate_limit_returns_429() {
     );
 }
 
+/// GitLab #278: CG/CMC orderbook mirrors share `lcd_heavy_router` with native book routes.
+#[tokio::test]
+async fn cg_cmc_orderbook_lcd_heavy_rate_limit_returns_429() {
+    let mock = common::lcd_mock::start_pool_query_mock().await;
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = 5;
+    config.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    for path in [
+        "/cg/orderbook?ticker_id=LUNC_USTC&depth=5",
+        "/cmc/orderbook/LUNC_USTC?depth=5",
+    ] {
+        let mut saw_429 = false;
+        for _ in 0..80 {
+            let resp = server.get(path).await;
+            if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+                saw_429 = true;
+                break;
+            }
+        }
+        assert!(
+            saw_429,
+            "LCD-heavy governor should return 429 on {path} when global RATE_LIMIT_RPS=0 (#278)"
+        );
+    }
+}
+
 #[tokio::test]
 async fn rate_limit_returns_429_when_exceeded() {
     let pool = common::setup_pool().await;
