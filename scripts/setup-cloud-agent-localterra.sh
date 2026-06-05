@@ -104,11 +104,28 @@ _ensure_rust() {
   fi
 }
 
+_deploy_up_to_date() {
+  [[ -f "$STAMP" && -f "$ENV_LOCAL" ]] || return 1
+  local head stamp_sha factory_stamp factory_env
+  head="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+  stamp_sha="$(grep -E '^git_sha=' "$STAMP" | tail -n1 | sed 's/^git_sha=//')"
+  [[ -n "$head" && "$head" = "$stamp_sha" ]] || return 1
+  factory_stamp="$(grep -E '^factory_address=' "$STAMP" | tail -n1 | sed 's/^factory_address=//')"
+  factory_env="$(grep -E '^VITE_FACTORY_ADDRESS=' "$ENV_LOCAL" | tail -n1 | sed 's/^VITE_FACTORY_ADDRESS=//')"
+  [[ -n "$factory_stamp" && "$factory_stamp" = "$factory_env" ]] || return 1
+  compgen -G "$REPO_ROOT/smartcontracts/artifacts/*.wasm" >/dev/null
+}
+
 _start_indexer_tmux() {
-  local session=indexer-dev
+  local session=indexer-dev restart="${1:-0}"
   if tmux_cmd has-session -t "$session" 2>/dev/null; then
-    echo "[setup-cloud-localterra] tmux session '$session' already exists (restart: tmux kill-session -t $session)"
-    return 0
+    if [[ "$restart" -eq 1 ]]; then
+      echo "[setup-cloud-localterra] restarting tmux session '$session' after deploy…"
+      tmux_cmd kill-session -t "$session"
+    else
+      echo "[setup-cloud-localterra] tmux session '$session' already exists (restart: tmux kill-session -t $session)"
+      return 0
+    fi
   fi
   tmux_cmd new-session -d -s "$session" -c "$REPO_ROOT/indexer" \
     "export PATH=\"/usr/local/cargo/bin:\$HOME/.cargo/bin:\$PATH\"; cargo run --release; exec bash -l"
@@ -156,18 +173,24 @@ if [[ "$INFRA_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-if [[ "$SKIP_BUILD" -eq 0 ]]; then
-  echo "[setup-cloud-localterra] building optimized wasm (Docker; first run ~10–15 min)…"
-  _run_make build-optimized
+DEPLOY_RAN=0
+if [[ "$FRESH_VOLUMES" -eq 0 ]] && _deploy_up_to_date; then
+  echo "[setup-cloud-localterra] deploy stamp matches HEAD and artifacts present — skipping build/deploy"
 else
-  echo "[setup-cloud-localterra] --skip-build: skipping make build-optimized"
-fi
+  if [[ "$SKIP_BUILD" -eq 0 ]]; then
+    echo "[setup-cloud-localterra] building optimized wasm (Docker; first run ~10–15 min)…"
+    _run_make build-optimized
+  else
+    echo "[setup-cloud-localterra] --skip-build: skipping make build-optimized"
+  fi
 
-echo "[setup-cloud-localterra] deploying contracts + writing .env.local / indexer/.env…"
-if groups 2>/dev/null | grep -qw docker; then
-  bash scripts/deploy-dex-local.sh
-else
-  sg docker -c "bash scripts/deploy-dex-local.sh"
+  echo "[setup-cloud-localterra] deploying contracts + writing .env.local / indexer/.env…"
+  if groups 2>/dev/null | grep -qw docker; then
+    bash scripts/deploy-dex-local.sh
+  else
+    sg docker -c "bash scripts/deploy-dex-local.sh"
+  fi
+  DEPLOY_RAN=1
 fi
 
 [[ -f "$ENV_LOCAL" ]] || {
@@ -185,7 +208,7 @@ fi
 
 if [[ "$START_INDEXER" -eq 1 ]]; then
   _ensure_rust
-  _start_indexer_tmux
+  _start_indexer_tmux "$DEPLOY_RAN"
   _wait_indexer
 fi
 
