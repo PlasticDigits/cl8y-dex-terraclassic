@@ -135,6 +135,19 @@ max_order_id_from_tx() {
   tx_wasm_order_ids "$txhash" | sort -n | tail -1
 }
 
+bid_book_tail_order_id() {
+  local cur next payload
+  cur="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR" '{"order_book_head":{"side":"bid"}}')" | jq -r 'if type == "number" then . else .head_order_id // empty end')"
+  [[ -n "$cur" && "$cur" != "null" ]] || return 0
+  while :; do
+    payload="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR" "$(jq -nc --argjson id "$cur" '{limit_order:{order_id:$id}}')")")"
+    next="$(echo "$payload" | jq -r '.next // empty')"
+    [[ -n "$next" && "$next" != "null" ]] || break
+    cur="$next"
+  done
+  echo "$cur"
+}
+
 resolve_pair() {
   local pairs_doc pair="" t0="" t1="" idx=0 want="$PAIR_INDEX"
   pairs_doc="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$FACTORY" '{"pairs":{"start_after":null,"limit":60}}')")"
@@ -244,7 +257,7 @@ while (( remaining > 0 )); do
 done
 else
   echo "==> Skip healthy seed (VERIFY274_HEALTHY_COUNT=0); using existing book depth"
-  TAIL_HINT_ORDER_ID="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR" '{"order_book_head":{"side":"bid"}}')" | jq -r 'if type == "number" then . else .head_order_id // empty end')"
+  TAIL_HINT_ORDER_ID="$(bid_book_tail_order_id)"
 fi
 
 # Recompute short expiry after seeding — a 100-order book can take >45s to place.
