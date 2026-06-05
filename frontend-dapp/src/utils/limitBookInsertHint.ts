@@ -55,7 +55,7 @@ export function flattenLimitBookPages(pages: { orders: IndexerShallowLimitOrder[
   hasMore: boolean
 } {
   if (!pages?.length) return { orders: [], hasMore: false }
-  const orders = pages.flatMap((p) => p.orders)
+  const orders = pages.flatMap((p) => p.orders ?? [])
   const last = pages[pages.length - 1]
   return { orders, hasMore: last?.has_more ?? false }
 }

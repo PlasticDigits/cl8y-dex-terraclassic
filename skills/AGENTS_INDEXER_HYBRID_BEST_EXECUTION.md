@@ -16,12 +16,14 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 
 | Field | Meaning |
 |-------|---------|
-| `solver_version` | e.g. `global_v1` |
+| `solver_version` | `global_v1` (LCD grid) or `global_v2` (Postgres mirror grid, `ROUTE_SOLVER_DB_HYBRID=1`) |
 | `paths_considered` | Simple paths evaluated (≤ 5) |
 | `optimality_scope` | Human-readable bound (not unbounded “global optimal”) |
-| `lcd_hybrid_queries` | Approximate pair-level `HybridSimulation` call count |
+| `lcd_hybrid_queries` | LCD `HybridSimulation` calls during optimization (legacy / per-hop fallback) |
+| `db_hybrid_queries` | Postgres mirror grid evals (`global_v2`) |
+| `fidelity_check` | `passed` \| `drift` \| `skipped` — router sim vs mirror grid (#319) |
 | `hybrid_notes` | Degradation + liability boundary |
-| `quote_kind` | `indexer_hybrid_lcd`, `indexer_hybrid_lcd_degraded`, etc. |
+| `quote_kind` | `indexer_hybrid_db`, `indexer_hybrid_db_degraded`, `indexer_pool_db`, or legacy `*_lcd` kinds |
 
 Read `optimality_scope` before marketing “best price” — optimality is **within documented search bounds** only ([ADR 0002](../docs/adr/0002-global-best-execution-route-solver.md), full guide: [route-solver.md](../docs/route-solver.md)).
 
@@ -42,7 +44,7 @@ Full spec: [docs/CG_CMC_COMPLIANCE.md](../docs/CG_CMC_COMPLIANCE.md#consolidated
 ## Tests to run after changes
 
 ```bash
-cd indexer && cargo test --test api_route_solve -- --test-threads=1
+cd indexer && cargo test --test api_route_solve --test api_route_solve_db_hybrid --test db_orderbook_mirror -- --test-threads=1
 ```
 
 Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route_solve_global_response_metadata_contract`.

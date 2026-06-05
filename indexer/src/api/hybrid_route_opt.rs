@@ -1,9 +1,12 @@
-//! Per-hop hybrid split search using pair `HybridSimulation` (pool-only fallback uses zero book leg).
+//! Per-hop hybrid split search using pair `HybridSimulation` or Postgres mirror (Phase 1c).
+
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::ToSchema;
 
+use crate::api::db_orderbook_sim::{self, HopMirror, MirrorFreshness, MirrorLoadMeta};
 use crate::lcd::LcdClient;
 
 /// Optional wallet forwarded to pair `HybridSimulation` / router sim for CL8Y fee-tier parity (GitLab #245).
@@ -38,10 +41,42 @@ pub struct HopDescriptor {
 
 #[derive(Clone, Debug, Default)]
 pub struct OptimizationMeta {
-    /// A hop used pool-only because `HybridSimulation` failed for all split candidates.
+    /// A hop used pool-only because grid / mirror sim failed for all split candidates.
     pub degraded: bool,
     /// At least one hop has a non-zero book leg in the chosen params.
     pub any_book_leg: bool,
+    /// Mirror was stale on at least one hop (LCD fallback may have been used).
+    pub mirror_stale: bool,
+    /// Mirror reserves missing on at least one hop.
+    pub mirror_missing: bool,
+}
+
+/// Hybrid grid pricing source: LCD `HybridSimulation` (legacy) or Postgres mirror (#319).
+pub enum HybridSimSource<'a> {
+    Lcd(&'a LcdClient),
+    Db {
+        lcd_fallback: &'a LcdClient,
+        mirrors: &'a HashMap<String, HopMirror>,
+        discount_bps: u16,
+    },
+}
+
+#[derive(Debug)]
+pub enum HybridSimError {
+    Lcd(crate::lcd::LcdError),
+    Db(db_orderbook_sim::DbSimError),
+}
+
+impl From<crate::lcd::LcdError> for HybridSimError {
+    fn from(e: crate::lcd::LcdError) -> Self {
+        HybridSimError::Lcd(e)
+    }
+}
+
+impl From<db_orderbook_sim::DbSimError> for HybridSimError {
+    fn from(e: db_orderbook_sim::DbSimError) -> Self {
+        HybridSimError::Db(e)
+    }
 }
 
 #[derive(Deserialize)]
@@ -84,27 +119,7 @@ fn hybrid_sim_query(
     json!({ "hybrid_simulation": sim })
 }
 
-async fn query_pool_only_hybrid(
-    lcd: &LcdClient,
-    pair: &str,
-    offer_token: &str,
-    offer_amount: u128,
-    quote_trader: &QuoteTrader,
-) -> Result<u128, crate::lcd::LcdError> {
-    query_hybrid_sim(
-        lcd,
-        pair,
-        offer_token,
-        offer_amount,
-        offer_amount,
-        0,
-        1,
-        quote_trader,
-    )
-    .await
-}
-
-async fn query_hybrid_sim(
+async fn query_hybrid_sim_lcd(
     lcd: &LcdClient,
     pair: &str,
     offer_token: &str,
@@ -128,16 +143,117 @@ async fn query_hybrid_sim(
         .map_err(|e| crate::lcd::LcdError::Deserialize(format!("return_amount: {}", e)))
 }
 
+async fn query_hybrid_sim_unified(
+    source: &HybridSimSource<'_>,
+    mut mirror_meta: Option<&mut MirrorLoadMeta>,
+    hop: &HopDescriptor,
+    offer_amount: u128,
+    pool_input: u128,
+    book_input: u128,
+    max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
+) -> Result<u128, HybridSimError> {
+    match source {
+        HybridSimSource::Lcd(lcd) => query_hybrid_sim_lcd(
+            lcd,
+            &hop.pair,
+            &hop.offer_token,
+            offer_amount,
+            pool_input,
+            book_input,
+            max_maker_fills,
+            quote_trader,
+        )
+        .await
+        .map_err(HybridSimError::from),
+        HybridSimSource::Db {
+            lcd_fallback,
+            mirrors,
+            discount_bps,
+        } => {
+            let mirror_meta = mirror_meta
+                .as_mut()
+                .expect("db hybrid requires mirror_meta");
+            let mirror = mirrors.get(&hop.pair);
+            if let Some(m) = mirror {
+                if m.freshness == MirrorFreshness::Fresh {
+                    mirror_meta.db_hybrid_queries = mirror_meta.db_hybrid_queries.saturating_add(1);
+                    mirror_meta.max_snapshot_age_ms = mirror_meta
+                        .max_snapshot_age_ms
+                        .max(db_orderbook_sim::snapshot_age_ms(m.snapshot_at));
+                    return db_orderbook_sim::simulate_hybrid_from_mirror(
+                        m,
+                        &hop.offer_token,
+                        offer_amount,
+                        pool_input,
+                        book_input,
+                        max_maker_fills,
+                        *discount_bps,
+                    )
+                    .map_err(HybridSimError::from);
+                }
+                if m.freshness == MirrorFreshness::Stale {
+                    mirror_meta.mirror_stale_hops = mirror_meta.mirror_stale_hops.saturating_add(1);
+                    tracing::warn!(
+                        pair = %hop.pair,
+                        age_ms = db_orderbook_sim::snapshot_age_ms(m.snapshot_at),
+                        "mirror stale — LCD fallback for hop"
+                    );
+                } else {
+                    mirror_meta.mirror_missing_hops =
+                        mirror_meta.mirror_missing_hops.saturating_add(1);
+                }
+            } else {
+                mirror_meta.mirror_missing_hops = mirror_meta.mirror_missing_hops.saturating_add(1);
+            }
+            mirror_meta.lcd_fallback_queries = mirror_meta.lcd_fallback_queries.saturating_add(1);
+            query_hybrid_sim_lcd(
+                lcd_fallback,
+                &hop.pair,
+                &hop.offer_token,
+                offer_amount,
+                pool_input,
+                book_input,
+                max_maker_fills,
+                quote_trader,
+            )
+            .await
+            .map_err(HybridSimError::from)
+        }
+    }
+}
+
+async fn query_pool_only_unified(
+    source: &HybridSimSource<'_>,
+    mut mirror_meta: Option<&mut MirrorLoadMeta>,
+    hop: &HopDescriptor,
+    offer_amount: u128,
+    max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
+) -> Result<u128, HybridSimError> {
+    query_hybrid_sim_unified(
+        source,
+        mirror_meta,
+        hop,
+        offer_amount,
+        offer_amount,
+        0,
+        max_maker_fills.max(1),
+        quote_trader,
+    )
+    .await
+}
+
 /// Grid search over `book_input`; picks the split maximizing `return_amount`.
-/// On persistent LCD failure, falls back to pool-only hybrid for this hop (`degraded`).
 async fn optimize_one_hop(
-    lcd: &LcdClient,
+    source: &HybridSimSource<'_>,
+    mut mirror_meta: Option<&mut MirrorLoadMeta>,
     hop: &HopDescriptor,
     offer_amount: u128,
     max_maker_fills: u32,
     meta: &mut OptimizationMeta,
     quote_trader: &QuoteTrader,
-) -> Result<(Option<HybridHopJson>, u128), crate::lcd::LcdError> {
+) -> Result<(Option<HybridHopJson>, u128), HybridSimError> {
     if offer_amount == 0 {
         return Ok((None, 0));
     }
@@ -154,10 +270,10 @@ async fn optimize_one_hop(
             offer_amount.saturating_mul(i as u128) / (GRID_POINTS - 1) as u128
         };
         let pool = offer_amount.saturating_sub(book);
-        match query_hybrid_sim(
-            lcd,
-            &hop.pair,
-            &hop.offer_token,
+        match query_hybrid_sim_unified(
+            source,
+            mirror_meta.as_deref_mut(),
+            hop,
             offer_amount,
             pool,
             book,
@@ -173,7 +289,7 @@ async fn optimize_one_hop(
                     best_book = book;
                 }
             }
-            Err(e) => {
+            Err(HybridSimError::Lcd(e)) => {
                 tracing::debug!(
                     pair = %hop.pair,
                     book,
@@ -182,13 +298,22 @@ async fn optimize_one_hop(
                     e
                 );
             }
+            Err(HybridSimError::Db(e)) => {
+                tracing::debug!(
+                    pair = %hop.pair,
+                    book,
+                    pool,
+                    "db hybrid candidate failed: {}",
+                    e
+                );
+            }
         }
     }
 
     if !any_candidate_ok {
         meta.degraded = true;
-        // HybridSimulation grid failed — pool-only hybrid (`book_input: 0`) for this hop.
-        let out = query_pool_only_hybrid(lcd, &hop.pair, &hop.offer_token, offer_amount, quote_trader).await?;
+        let out = query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader)
+            .await?;
         return Ok((None, out));
     }
 
@@ -204,52 +329,38 @@ async fn optimize_one_hop(
         return Ok((Some(h), best_out));
     }
 
-    // Prefer explicit pool-only hybrid (book=0) vs null: both are valid; use null for fewer bytes.
-    let out = query_hybrid_sim(
-        lcd,
-        &hop.pair,
-        &hop.offer_token,
-        offer_amount,
-        offer_amount,
-        0,
-        1,
-        quote_trader,
-    )
-    .await?;
+    let out =
+        query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
     Ok((None, out))
-}
-
-/// Sequential per-hop optimization: output of hop *i* is the offer amount for hop *i+1*.
-#[allow(dead_code)]
-pub async fn optimize_multihop_hybrid(
-    lcd: &LcdClient,
-    hops: &[HopDescriptor],
-    amount_in: u128,
-    max_maker_fills: u32,
-    quote_trader: &QuoteTrader,
-) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta), crate::lcd::LcdError> {
-    let mut meta = OptimizationMeta::default();
-    let plan = optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta, quote_trader).await?;
-    Ok((plan, meta))
 }
 
 /// Coordinate-descent refinement on top of the sequential baseline (GitLab #209).
 pub async fn optimize_multihop_hybrid_joint(
-    lcd: &LcdClient,
+    source: &HybridSimSource<'_>,
+    mut mirror_meta: Option<&mut MirrorLoadMeta>,
     hops: &[HopDescriptor],
     amount_in: u128,
     max_maker_fills: u32,
     quote_trader: &QuoteTrader,
-) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta), crate::lcd::LcdError> {
+) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta, u128), HybridSimError> {
     let mut meta = OptimizationMeta::default();
-    let mut plan =
-        optimize_multihop_hybrid_with_plan(lcd, hops, amount_in, max_maker_fills, &mut meta, quote_trader).await?;
+    let mut plan = optimize_multihop_hybrid_with_plan(
+        source,
+        mirror_meta.as_deref_mut(),
+        hops,
+        amount_in,
+        max_maker_fills,
+        &mut meta,
+        quote_trader,
+    )
+    .await?;
 
     const COORDINATE_PASSES: u32 = 2;
     for _ in 0..COORDINATE_PASSES {
         for hop_idx in 0..hops.len() {
             let offer = propagate_offer_through_plan(
-                lcd,
+                source,
+                mirror_meta.as_deref_mut(),
                 hops,
                 &plan,
                 amount_in,
@@ -258,29 +369,84 @@ pub async fn optimize_multihop_hybrid_joint(
                 quote_trader,
             )
             .await?;
-            let (hybrid, _) = optimize_one_hop(lcd, &hops[hop_idx], offer, max_maker_fills, &mut meta, quote_trader)
-                .await?;
+            let (hybrid, _) = optimize_one_hop(
+                source,
+                mirror_meta.as_deref_mut(),
+                &hops[hop_idx],
+                offer,
+                max_maker_fills,
+                &mut meta,
+                quote_trader,
+            )
+            .await?;
             plan[hop_idx] = hybrid;
         }
     }
 
-    Ok((plan, meta))
+    let final_out = propagate_offer_through_plan(
+        source,
+        mirror_meta,
+        hops,
+        &plan,
+        amount_in,
+        hops.len(),
+        max_maker_fills,
+        quote_trader,
+    )
+    .await?;
+
+    Ok((plan, meta, final_out))
+}
+
+/// Forward-simulate a fixed plan through all hops (output of final hop).
+/// Legacy LCD-only entry (pool-only tests / POST overrides).
+pub async fn optimize_multihop_hybrid_joint_lcd(
+    lcd: &LcdClient,
+    hops: &[HopDescriptor],
+    amount_in: u128,
+    max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
+) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta), crate::lcd::LcdError> {
+    let source = HybridSimSource::Lcd(lcd);
+    optimize_multihop_hybrid_joint(
+        &source,
+        None,
+        hops,
+        amount_in,
+        max_maker_fills,
+        quote_trader,
+    )
+    .await
+    .map(|(plan, meta, _)| (plan, meta))
+    .map_err(|e| match e {
+        HybridSimError::Lcd(le) => le,
+        HybridSimError::Db(_) => crate::lcd::LcdError::Deserialize("unexpected db sim".into()),
+    })
 }
 
 async fn optimize_multihop_hybrid_with_plan(
-    lcd: &LcdClient,
+    source: &HybridSimSource<'_>,
+    mut mirror_meta: Option<&mut MirrorLoadMeta>,
     hops: &[HopDescriptor],
     amount_in: u128,
     max_maker_fills: u32,
     meta: &mut OptimizationMeta,
     quote_trader: &QuoteTrader,
-) -> Result<Vec<Option<HybridHopJson>>, crate::lcd::LcdError> {
+) -> Result<Vec<Option<HybridHopJson>>, HybridSimError> {
     let mut out_vec = Vec::with_capacity(hops.len());
     let mut running = amount_in;
 
     for hop in hops {
-        let (hybrid, next_in) =
-            optimize_one_hop(lcd, hop, running, max_maker_fills, meta, quote_trader).await?;
+        let (hybrid, next_in) = optimize_one_hop(
+            source,
+            mirror_meta.as_deref_mut(),
+            hop,
+            running,
+            max_maker_fills,
+            meta,
+            quote_trader,
+        )
+        .await?;
         out_vec.push(hybrid);
         running = next_in;
     }
@@ -289,14 +455,15 @@ async fn optimize_multihop_hybrid_with_plan(
 }
 
 async fn propagate_offer_through_plan(
-    lcd: &LcdClient,
+    source: &HybridSimSource<'_>,
+    mut mirror_meta: Option<&mut MirrorLoadMeta>,
     hops: &[HopDescriptor],
     plan: &[Option<HybridHopJson>],
     amount_in: u128,
     target_hop: usize,
     max_maker_fills: u32,
     quote_trader: &QuoteTrader,
-) -> Result<u128, crate::lcd::LcdError> {
+) -> Result<u128, HybridSimError> {
     let mut running = amount_in;
     for (idx, hop) in hops.iter().enumerate().take(target_hop) {
         let (pool, book) = plan
@@ -313,17 +480,32 @@ async fn propagate_offer_through_plan(
         if offer == 0 {
             offer = running;
         }
-        running = query_hybrid_sim(
-            lcd,
-            &hop.pair,
-            &hop.offer_token,
+        running = match query_hybrid_sim_unified(
+            source,
+            mirror_meta.as_deref_mut(),
+            hop,
             offer,
             pool,
             book,
             max_maker_fills.max(1),
             quote_trader,
         )
-        .await?;
+        .await
+        {
+            Ok(v) => v,
+            // Degraded plans may reference book legs that no longer simulate (#190).
+            Err(HybridSimError::Lcd(_)) | Err(HybridSimError::Db(_)) => {
+                query_pool_only_unified(
+                    source,
+                    mirror_meta.as_deref_mut(),
+                    hop,
+                    offer,
+                    1,
+                    quote_trader,
+                )
+                .await?
+            }
+        };
     }
     Ok(running)
 }

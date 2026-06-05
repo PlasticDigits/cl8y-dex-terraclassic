@@ -55,6 +55,8 @@ pub fn test_config() -> Config {
         rate_limit_lcd_heavy_rps: 0,
         oracle_poll_interval_ms: 30000,
         book_snapshot_interval_ms: 10_000,
+        route_solver_db_hybrid: false,
+        route_fidelity_drift_bps: 100,
         ustc_denom: None,
         router_address: None,
         block_tx_page_limit: 100,
@@ -308,6 +310,8 @@ pub struct RouteSolveSeed {
     pub token_c: String,
     /// Present when the seed includes a fourth asset and C/D pair (3-hop A→B→C→D).
     pub token_d: Option<String>,
+    /// Present when the seed includes a fifth asset and D/E pair (4-hop A→B→C→D→E).
+    pub token_e: Option<String>,
 }
 
 pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
@@ -361,8 +365,38 @@ pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
         token_b,
         token_c,
         token_d: None,
+        token_e: None,
     }
 }
+
+/// Route solve seed + fresh `pair_reserves` mirror for Phase 1c DB hybrid tests.
+pub async fn seed_route_solve_with_mirror(pool: &PgPool) -> RouteSolveSeed {
+    use bigdecimal::BigDecimal;
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+    use std::str::FromStr;
+
+    let seed = seed_route_solve(pool).await;
+    let pair_id: i32 = sqlx::query_scalar(
+        "SELECT id FROM pairs WHERE contract_address = 'terra1pairrouteabc'",
+    )
+    .fetch_one(pool)
+    .await
+    .expect("route pair id");
+
+    let bd = |s: &str| BigDecimal::from_str(s).unwrap();
+    pair_reserves::upsert_pair_reserves(
+        pool,
+        pair_id,
+        &bd("10000000000000"),
+        &bd("10000000000000"),
+        30,
+        Some(100),
+    )
+    .await
+    .expect("upsert reserves");
+    seed
+}
+
 pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;
 
@@ -425,6 +459,23 @@ pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
         token_b,
         token_c,
         token_d: None,
+        token_e: None,
+    }
+}
+
+/// Insert or update `traders` rows with explicit `tier_id` (GitLab #306 / #283 HTTP cache tests).
+pub async fn seed_traders_with_tiers(pool: &PgPool, traders: &[(&str, i16)]) {
+    for (address, tier_id) in traders {
+        sqlx::query(
+            "INSERT INTO traders (address, total_trades, total_volume, volume_24h, volume_7d, volume_30d, registered, tier_id)
+             VALUES ($1, 0, 0, 0, 0, 0, true, $2)
+             ON CONFLICT (address) DO UPDATE SET tier_id = EXCLUDED.tier_id",
+        )
+        .bind(*address)
+        .bind(*tier_id)
+        .execute(pool)
+        .await
+        .expect("seed trader with tier");
     }
 }
 
@@ -502,6 +553,7 @@ pub async fn seed_route_solve_multi_path(pool: &PgPool) -> RouteSolveSeed {
         token_b,
         token_c,
         token_d: None,
+        token_e: None,
     }
 }
 
@@ -589,6 +641,116 @@ pub async fn seed_route_solve_3hop(pool: &PgPool) -> RouteSolveSeed {
         token_b,
         token_c,
         token_d: Some(token_d),
+        token_e: None,
+    }
+}
+
+/// A→B→C→D→E chain (four hops, no shortcut) for default hybrid GET regression (#323).
+pub async fn seed_route_solve_4hop(pool: &PgPool) -> RouteSolveSeed {
+    clean_db(pool).await;
+
+    let token_a = "terra1route4hopaaaa".to_string();
+    let token_b = "terra1route4hopbbbb".to_string();
+    let token_c = "terra1route4hopcccc".to_string();
+    let token_d = "terra1route4hopdddd".to_string();
+    let token_e = "terra1route4hopeeee".to_string();
+
+    let asset_a_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route 4H A', 'R4A', 6)
+         RETURNING id",
+    )
+    .bind(&token_a)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset a");
+
+    let asset_b_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route 4H B', 'R4B', 6)
+         RETURNING id",
+    )
+    .bind(&token_b)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset b");
+
+    let asset_c_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route 4H C', 'R4C', 6)
+         RETURNING id",
+    )
+    .bind(&token_c)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset c");
+
+    let asset_d_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route 4H D', 'R4D', 6)
+         RETURNING id",
+    )
+    .bind(&token_d)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset d");
+
+    let asset_e_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route 4H E', 'R4E', 6)
+         RETURNING id",
+    )
+    .bind(&token_e)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset e");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pair4hopab', $1, $2, 'terra1lp4hopab', 30)",
+    )
+    .bind(asset_a_id)
+    .bind(asset_b_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair ab");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pair4hopbc', $1, $2, 'terra1lp4hopbc', 30)",
+    )
+    .bind(asset_b_id)
+    .bind(asset_c_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair bc");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pair4hopcd', $1, $2, 'terra1lp4hopcd', 30)",
+    )
+    .bind(asset_c_id)
+    .bind(asset_d_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair cd");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pair4hopde', $1, $2, 'terra1lp4hopde', 30)",
+    )
+    .bind(asset_d_id)
+    .bind(asset_e_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair de");
+
+    RouteSolveSeed {
+        token_a,
+        token_b,
+        token_c,
+        token_d: Some(token_d),
+        token_e: Some(token_e),
     }
 }
 
@@ -625,6 +787,10 @@ pub async fn build_test_app_with_price_and_config(
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
+        fee_discount_address: config.fee_discount_address.clone(),
+        route_solver_db_hybrid: config.route_solver_db_hybrid,
+        book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
+        route_fidelity_drift_bps: config.route_fidelity_drift_bps,
     };
     build_router(state, &config)
 }

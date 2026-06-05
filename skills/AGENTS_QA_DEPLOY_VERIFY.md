@@ -10,7 +10,7 @@ You are changing **`scripts/qa/start-qa.sh`**, **`scripts/deploy-dex-local.sh`**
 |----|-----------|
 | **Q1** | After **`make deploy-local`** on a QA path, the deployed pair at addresses in **`indexer/.env`** / **`.qa-deploy-stamp`** must accept current-schema smart queries. Fresh wasm on disk does **not** imply fresh on-chain behaviour when **`localterra-data`** / **`postgres-data`** volumes are reused without a full redeploy aligned to **`HEAD`**. |
 
-Parent: [GitLab **#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120). Implementation: [GitLab **#203**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203). Volume reset: [`AGENTS_QA_FRESH_VOLUMES.md`](./AGENTS_QA_FRESH_VOLUMES.md) ([#202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)).
+Parent: [GitLab **#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120). Implementation: [GitLab **#203**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203). Volume reset: [`AGENTS_QA_FRESH_VOLUMES.md`](./AGENTS_QA_FRESH_VOLUMES.md) ([#202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)). **Change-type → reset level:** [`AGENTS_QA_REDEPLOY_DECISION.md`](./AGENTS_QA_REDEPLOY_DECISION.md) ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)).
 
 ## Automated check
 

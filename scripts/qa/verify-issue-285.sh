@@ -16,6 +16,8 @@ cd "$REPO_ROOT"
 
 # shellcheck source=scripts/lib/lcd-smart-query.sh
 source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
+# shellcheck source=scripts/lib/localterra-host-curl.sh
+source "$REPO_ROOT/scripts/lib/localterra-host-curl.sh"
 # shellcheck source=scripts/lib/e2e-terrad-tx.sh
 source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
 
@@ -51,7 +53,7 @@ run_step "parser forged-attack + regression unit tests" \
 run_step "integration limit_order_parked_lifecycle (_contract_address fixtures)" \
   bash -c 'cd indexer && cargo test --test limit_order_parked_lifecycle -j 1 -- --test-threads=1 --quiet'
 
-CONTAINER_NAME="$(docker compose ps -q localterra 2>/dev/null | head -1 || true)"
+CONTAINER_NAME="$(localterra_container_id "$REPO_ROOT")"
 IDX_ENV="$REPO_ROOT/indexer/.env"
 FE_ENV="$REPO_ROOT/frontend-dapp/.env.local"
 
@@ -98,7 +100,7 @@ else
     local max="${VERIFY285_TX_QUERY_ATTEMPTS:-20}"
     while (( attempts < max )); do
       local json
-      json="$(curl -sf "${LCD}/cosmos/tx/v1beta1/txs/${txhash}" 2>/dev/null || true)"
+      json="$(localterra_lcd_curl "$LCD" "/cosmos/tx/v1beta1/txs/${txhash}" 2>/dev/null || true)"
       if [[ -n "$json" ]] && echo "$json" | jq -e '.tx_response.txhash // .txhash' >/dev/null 2>&1; then
         echo "$json"
         return 0
@@ -190,7 +192,7 @@ else
 
   echo ""
   echo "[live] Broadcasting hybrid swap (book leg fills resting bid)..."
-  SWAP_TX="$(terrad_tx wasm execute "$TOKEN0" "$SEND_MSG" | tx_hash_from_json)"
+  SWAP_TX="$(terrad_tx wasm execute "$TOKEN0" "$SEND_MSG" | tx_hash_from_json)" || SWAP_TX=""
   wait_tx
   if [[ -z "$SWAP_TX" ]]; then
     bad "live: hybrid swap broadcast (no txhash)"

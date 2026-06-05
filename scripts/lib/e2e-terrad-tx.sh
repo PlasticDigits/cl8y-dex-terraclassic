@@ -3,6 +3,14 @@
 # Retries on account sequence mismatch when LocalTerra has concurrent traffic (bot swarm).
 # shellcheck shell=bash
 
+_e2e_docker_exec() {
+  if declare -F localterra_docker_exec >/dev/null 2>&1; then
+    localterra_docker_exec "$@"
+  else
+    docker exec "$@"
+  fi
+}
+
 e2e_terrad_tx() {
   local container="$1"
   shift
@@ -11,7 +19,7 @@ e2e_terrad_tx() {
   local out=""
 
   while (( attempt <= max_attempts )); do
-    if out=$(docker exec "$container" terrad tx "$@" \
+    if out=$(_e2e_docker_exec "$container" terrad tx "$@" \
       --from test1 \
       --keyring-backend test \
       --chain-id localterra \

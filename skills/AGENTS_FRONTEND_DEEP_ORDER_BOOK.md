@@ -14,7 +14,7 @@ Use when changing **paginated book depth** on **`/trade` or `/limits`**, indexer
 | [docs/indexer-invariants.md](../docs/indexer-invariants.md) | Indexer caps, 429, test mapping |
 | `indexer/tests/api_limit_book_deep.rs` | Deep pagination + concurrent page stress (wiremock LCD) |
 | `frontend-dapp/src/hooks/useLimitBookInfinite.ts` | Shared infinite query for one book side |
-| `frontend-dapp/src/utils/limitBookPagination.ts` | `LIMIT_BOOK_UI_PAGE_SIZE`, `limitBookPageQueryKey` |
+| `frontend-dapp/src/utils/limitBookPagination.ts` | `LIMIT_BOOK_UI_PAGE_SIZE`, `limitBookPageQueryKey`, **`normalizeLimitBookPageResponse`** |
 | `frontend-dapp/src/utils/limitBookInsertHint.ts` | **`resolveLimitInsertHintAfter`** — client fallback; prefer indexer **`GET .../limit-book/insert-hints`** ([#267](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/267)) |
 | [integrators.md § Insert hints & price window](../docs/integrators.md#insert-hints-price-window-gitlab-267) | Batch hints + `price_from`/`price_to` window (**#267**) |
 | `indexer/tests/api_limit_book_insert_hints.rs` | Resolver parity + HTTP regression (**#267**) |
@@ -33,6 +33,7 @@ Use when changing **paginated book depth** on **`/trade` or `/limits`**, indexer
 6. After API or cursor semantics change, run **`cargo test -p indexer api_limit_book_deep`** and frontend **`OrderBookPanel.test.tsx`** + **`useLimitBookInfinite.test.tsx`** + **`limitBookInsertHint.test.ts`**.
 7. **Insert hints ([#261](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/261), indexer **#267**):** prefer **`GET .../limit-book/insert-hints`** for ladder bands; until wired, **`resolveLimitInsertHintAfter`** over merged pages. Wire via **`placeLimitOrderWithAllowance(..., hintAfterOrderId)`**. Omit hint when `resolved: false` / `pagination_gap` — never guess. Invariant **L14**; [integrators.md § Insert hints & price window](../docs/integrators.md#insert-hints-price-window-gitlab-267).
 8. **Ladder depth probe ([#268](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/268)):** **`LimitOrderLadderPanel`** uses **`useLimitLadderPlacementPlan`** — indexer **`price_from`/`price_to`** window + **`insert-hints`** only (no LCD). Playbook: [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) §12.
+9. **Missing `orders` on a page ([#327](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/327)):** treat as **`[]`** at **`getPairLimitBookPage`** (`normalizeLimitBookPageResponse`) and when flattening pages (`flattenLimitBookPages` / **`OrderBookPanel`**). Never `flatMap` bare `p.orders` — that yields `[undefined]` and can surface raw JS errors via the error boundary on `/limits`.
 
 ## Related
 

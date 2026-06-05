@@ -74,19 +74,25 @@ export type IndexerHybridExecution = {
 export function getIndexerHybridExecutionSummary(
   kind: IndexerRouteQuoteKind | undefined
 ): IndexerHybridExecution | { show: false } {
-  if (kind === 'indexer_hybrid_lcd') {
+  if (kind === 'indexer_hybrid_lcd' || kind === 'indexer_hybrid_db') {
     return {
       show: true,
       title: 'Indexer hybrid',
-      line: 'Route uses pool + limit book legs; quote is your wallet’s LCD `simulate_swap_operations` (matches submit shape on success).',
+      line:
+        kind === 'indexer_hybrid_db'
+          ? 'Route uses pool + limit book legs priced from the indexer’s Postgres mirror; final amount validated with router `simulate_swap_operations` when configured.'
+          : 'Route uses pool + limit book legs; quote is your wallet’s LCD `simulate_swap_operations` (matches submit shape on success).',
       degraded: false,
     }
   }
-  if (kind === 'indexer_hybrid_lcd_degraded') {
+  if (kind === 'indexer_hybrid_lcd_degraded' || kind === 'indexer_hybrid_db_degraded') {
     return {
       show: true,
       title: 'Indexer hybrid',
-      line: 'At least one hop was pool-only on the indexer; remaining legs may still use the book per hop.',
+      line:
+        kind === 'indexer_hybrid_db_degraded'
+          ? 'Mirror/grid was degraded or router sim disagreed with the indexed quote — treat output as conservative.'
+          : 'At least one hop was pool-only on the indexer; remaining legs may still use the book per hop.',
       degraded: true,
     }
   }

@@ -80,6 +80,10 @@ pub struct Config {
     pub oracle_poll_interval_ms: u64,
     /// Background mirror snapshot cadence for pair reserves + resting books (GitLab #322).
     pub book_snapshot_interval_ms: u64,
+    /// When true, global route solver prices hybrid grids from Postgres mirror (#319); LCD only for per-hop fallback + winning-route router sim.
+    pub route_solver_db_hybrid: bool,
+    /// Max relative drift (bps) between DB grid output and router `simulate_swap_operations` before fidelity downgrade (#319).
+    pub route_fidelity_drift_bps: u32,
     pub ustc_denom: Option<String>,
     /// Router contract for `SimulateSwapOperations` in route solver (optional).
     pub router_address: Option<String>,
@@ -205,6 +209,14 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(10_000),
+            route_solver_db_hybrid: env::var("ROUTE_SOLVER_DB_HYBRID")
+                .ok()
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
+            route_fidelity_drift_bps: env::var("ROUTE_FIDELITY_DRIFT_BPS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(100),
             ustc_denom: env::var("USTC_DENOM").ok(),
             router_address: env::var("ROUTER_ADDRESS").ok().filter(|s| !s.is_empty()),
             block_tx_page_limit: env::var("BLOCK_TX_PAGE_LIMIT")
