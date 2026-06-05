@@ -92,15 +92,12 @@ export function PairSearchSelect({
   }, [searchText])
 
   useEffect(() => {
-    if (!open) setSearchText(selectedLabel)
-  }, [open, selectedLabel])
-
-  useEffect(() => {
     activeIndexRef.current = activeIndex
   }, [activeIndex])
 
   const queryReady = isPairSearchQueryReady(debouncedSearch)
-  const useIndexerSearch = queryReady && (debouncedSearch.length > 0 || open)
+  const useIndexerSearch = queryReady && open
+  const inputValue = open ? searchText : selectedLabel
 
   const pairsQuery = useQuery({
     queryKey: ['pair-search', debouncedSearch, open],
@@ -154,7 +151,11 @@ export function PairSearchSelect({
     if (open) setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0)
   }, [open, selectedIndex, options.length])
 
-  const close = useCallback(() => setOpen(false), [])
+  const close = useCallback(() => {
+    setOpen(false)
+    setSearchText('')
+    setDebouncedSearch('')
+  }, [])
 
   const selectIndex = useCallback(
     (index: number) => {
@@ -239,7 +240,7 @@ export function PairSearchSelect({
         aria-activedescendant={activeOptionId}
         disabled={!canOpen}
         placeholder={canOpen ? placeholder : emptyLabel}
-        value={searchText}
+        value={inputValue}
         onChange={(e) => {
           setSearchText(e.target.value)
           if (!open) setOpen(true)
