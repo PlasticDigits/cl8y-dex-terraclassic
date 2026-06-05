@@ -924,6 +924,82 @@ mod factory_tests {
         );
     }
 
+    /// GitLab #276 hardening — with the fee disabled (0), uluna attached by mistake is refunded,
+    /// not stuck in the factory.
+    #[test]
+    fn create_pair_refunds_uluna_when_fee_disabled() {
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let mut app = App::new(|router, _api, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &user,
+                    vec![cosmwasm_std::Coin::new(1_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let token_a = create_cw20_token(&mut app, cw20_code_id, &user, "Token A", "AAA", initial);
+        let token_b = create_cw20_token(&mut app, cw20_code_id, &user, "Token B", "BBB", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: Uint128::zero(),
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        // Fee disabled, but the caller attaches uluna anyway -> it must be refunded, not stuck.
+        app.execute_contract(
+            user.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::CreatePair {
+                asset_infos: [
+                    AssetInfo::Token {
+                        contract_addr: token_a.to_string(),
+                    },
+                    AssetInfo::Token {
+                        contract_addr: token_b.to_string(),
+                    },
+                ],
+            },
+            &[cosmwasm_std::Coin::new(250_000u128, "uluna")],
+        )
+        .unwrap();
+
+        let bal = |addr: &Addr| app.wrap().query_balance(addr.as_str(), "uluna").unwrap().amount;
+        assert_eq!(bal(&treasury), Uint128::zero(), "treasury not credited when fee is disabled");
+        assert_eq!(bal(&factory), Uint128::zero(), "no uluna stuck in the factory");
+        assert_eq!(
+            bal(&user),
+            Uint128::new(1_000_000),
+            "the mistakenly-attached uluna is fully refunded"
+        );
+    }
+
     /// Regression for GitLab #122: governance paths must not linear-scan `PAIR_INDEX`
     /// for membership checks at scale (reverse map keeps lookup bounded).
     ///
