@@ -9,6 +9,7 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import {
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateUpdateLimitOrderPriceUlunaFeesTotal,
@@ -257,6 +258,23 @@ function TradeOrderTicketContent({
   })
 
   const isPaused = pausedQuery.data?.paused === true
+
+  const token0Addr =
+    selectedPair && 'token' in selectedPair.asset_infos[0]
+      ? selectedPair.asset_infos[0].token.contract_addr
+      : null
+  const token1Addr =
+    selectedPair && 'token' in selectedPair.asset_infos[1]
+      ? selectedPair.asset_infos[1].token.contract_addr
+      : null
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    token0: token0Addr,
+    token1: token1Addr,
+    pairAddress: pairAddr,
+    enabled: pairAddr.startsWith('terra1'),
+  })
+  const isTradeBlocked = isPaused || tradingBlacklist.blocked
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr)
   const limitBookQuery = useLimitBookInfinite(pairAddr, side)
@@ -665,6 +683,15 @@ function TradeOrderTicketContent({
           </div>
         )}
 
+        {selectedPair && tradingBlacklist.blocked && tradingBlacklist.message && (
+          <div className="alert-error text-xs space-y-2" role="alert">
+            <p>{tradingBlacklist.message}</p>
+            <p className="text-[10px] opacity-90">
+              Restrictions are enforced on-chain by governance. Funds remain recoverable when the restriction is lifted.
+            </p>
+          </div>
+        )}
+
         {selectedPair && pairAddr.startsWith('terra1') && (
           <div
             className="grid grid-cols-2 gap-1 rounded-2xl border border-white/10 p-1"
@@ -729,7 +756,12 @@ function TradeOrderTicketContent({
         {orderTab === 'market' && selectedPair && (
           <div role="tabpanel" id={marketOrderPanelId} aria-labelledby={marketOrderTabId}>
             <TicketSection eyebrow="Take liquidity" title={`${sideAction.verb} now`} tone="action">
-              <TradeMarketOrderPanel pairAddr={pairAddr} selectedPair={selectedPair} side={side} isPaused={isPaused} />
+              <TradeMarketOrderPanel
+                pairAddr={pairAddr}
+                selectedPair={selectedPair}
+                side={side}
+                isPaused={isTradeBlocked}
+              />
             </TicketSection>
           </div>
         )}
@@ -809,11 +841,11 @@ function TradeOrderTicketContent({
                   priceOnlyEdit
                     ? updatePriceMutation.isPending ||
                       !selectedPair ||
-                      isPaused ||
+                      isTradeBlocked ||
                       (isWalletConnected && !updatePriceCombinedOk)
                     : placeMutation.isPending ||
                       !selectedPair ||
-                      isPaused ||
+                      isTradeBlocked ||
                       editNonPriceChanged ||
                       (isWalletConnected && !placeLimitCombinedOk)
                 }
@@ -914,7 +946,7 @@ function TradeOrderTicketContent({
             data-testid="trade-cancel-submit"
             className="btn-primary btn-cta w-full !text-xs"
             disabled={
-              cancelMutation.isPending || !pairAddr || isPaused || (isWalletConnected && cancelIdIndexedAsCancelled)
+              cancelMutation.isPending || !pairAddr || isTradeBlocked || (isWalletConnected && cancelIdIndexedAsCancelled)
             }
             onClick={() => {
               if (!isWalletConnected) openWalletModal()
@@ -949,7 +981,7 @@ function TradeOrderTicketContent({
               rows={myPlacements}
               isLoading={placementsQuery.isLoading}
               isWalletConnected={isWalletConnected}
-              isPairPaused={isPaused}
+              isPairPaused={isTradeBlocked}
               openWalletModal={openWalletModal}
               highlightOrderId={highlightPlacementOrderId}
             />

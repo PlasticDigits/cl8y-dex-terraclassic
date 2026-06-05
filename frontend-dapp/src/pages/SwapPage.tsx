@@ -56,6 +56,7 @@ import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { MevPostureNotice } from '@/components/swap/MevPostureNotice'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
@@ -120,6 +121,12 @@ export default function SwapPage() {
   }, [pairs, fromToken])
 
   const allTokens = useMemo(() => (pairs.length > 0 ? getAllTokens(pairs) : []), [pairs])
+
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    tokens: [fromToken, toToken].filter((t) => t.startsWith('terra1')),
+    enabled: isWalletConnected,
+  })
 
   useEffect(() => {
     const cw20Tokens = allTokens.filter((tokenId) => tokenId.startsWith('terra1'))
@@ -689,6 +696,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (isWrapPaused) {
     buttonText = 'Wrapping is Temporarily Paused'
+    buttonDisabled = true
+  } else if (tradingBlacklist.blocked) {
+    buttonText = 'Trading restricted'
     buttonDisabled = true
   } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
     buttonText = 'Enter Amount'
@@ -1333,6 +1343,11 @@ export default function SwapPage() {
                 </a>{' '}
                 for integrator semantics.
               </p>
+            </div>
+          )}
+          {tradingBlacklist.blocked && tradingBlacklist.message && (
+            <div className="alert-error mb-3 text-xs" role="alert">
+              <p>{tradingBlacklist.message}</p>
             </div>
           )}
           {/* Swap Button */}
