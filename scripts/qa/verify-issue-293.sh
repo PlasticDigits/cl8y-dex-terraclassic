@@ -119,7 +119,7 @@ for a, b in PAIRS:
     print(f"           rev={hr:.4f} ({hops_r}h) {route_str(rev.get('router_operations'), addr_to_sym)}")
     print(f"           reciprocal-of-fwd={exp:.6f}  rev/reciprocal={ratio:.1f}x (asymmetric routes, not a decimal bug)")
 PY
-)"
+)" || true
   echo "$PY_GLOBAL"
 
   echo ""
