@@ -123,6 +123,31 @@ tx_wasm_attr() {
     '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == $k) | .value] | last // empty'
 }
 
+tx_wasm_order_ids() {
+  local txhash="$1"
+  local json
+  json="$(query_tx_json "$txhash")" || return 1
+  echo "$json" | jq -r '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == "order_id") | .value] | .[]'
+}
+
+max_order_id_from_tx() {
+  local txhash="$1"
+  tx_wasm_order_ids "$txhash" | sort -n | tail -1
+}
+
+bid_book_tail_order_id() {
+  local cur next payload
+  cur="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR" '{"order_book_head":{"side":"bid"}}')" | jq -r 'if type == "number" then . else .head_order_id // empty end')"
+  [[ -n "$cur" && "$cur" != "null" ]] || return 0
+  while :; do
+    payload="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR" "$(jq -nc --argjson id "$cur" '{limit_order:{order_id:$id}}')")")"
+    next="$(echo "$payload" | jq -r '.next // empty')"
+    [[ -n "$next" && "$next" != "null" ]] || break
+    cur="$next"
+  done
+  echo "$cur"
+}
+
 resolve_pair() {
   local pairs_doc pair="" t0="" t1="" idx=0 want="$PAIR_INDEX"
   pairs_doc="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$FACTORY" '{"pairs":{"start_after":null,"limit":60}}')")"
@@ -152,14 +177,26 @@ place_bid_batch() {
   local price="$2"
   local amount="$3"
   local expires="$4"
+  local hint_after="${5:-}"
   local hook total_escrow txjson txhash
-  hook="$(jq -nc \
-    --argjson exp "$expires" \
-    --arg price "$price" \
-    --arg amt "$amount" \
-    --argjson n "$count" \
-    --argjson steps "$MAX_ADJUST_STEPS" \
-    '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | {price:$price, amount:$amt, max_adjust_steps:$steps, expires_at:$exp}]}}')"
+  if [[ -n "$hint_after" ]]; then
+    hook="$(jq -nc \
+      --argjson exp "$expires" \
+      --arg price "$price" \
+      --arg amt "$amount" \
+      --argjson n "$count" \
+      --argjson steps "$MAX_ADJUST_STEPS" \
+      --argjson hint "$hint_after" \
+      '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | ({price:$price, amount:$amt, max_adjust_steps:$steps, expires_at:$exp} + (if . == 0 then {hint_after_order_id:$hint} else {} end))]}}')"
+  else
+    hook="$(jq -nc \
+      --argjson exp "$expires" \
+      --arg price "$price" \
+      --arg amt "$amount" \
+      --argjson n "$count" \
+      --argjson steps "$MAX_ADJUST_STEPS" \
+      '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | {price:$price, amount:$amt, max_adjust_steps:$steps, expires_at:$exp}]}}')"
+  fi
   # Batch CW20 send must equal the sum of per-rung `amount` fields (token1 escrow for bids).
   total_escrow=$((count * amount))
   txjson="$(terrad_tx wasm execute "$TOKEN1" "$(jq -nc \
@@ -170,6 +207,7 @@ place_bid_batch() {
   txhash="$(echo "$txjson" | tx_hash_from_json)"
   [[ -n "$txhash" ]] || { echo "$txjson" >&2; return 1; }
   sleep 2
+  PLACE_TX="$txhash"
 }
 
 execute_clean() {
@@ -200,8 +238,8 @@ bash "$REPO_ROOT/scripts/e2e-provision-dev-wallet.sh"
 
 NOW_SEC="$(latest_block_unix)"
 FAR_EXPIRY=$((NOW_SEC + 1000000))
-SHORT_EXPIRY=$((NOW_SEC + EXPIRY_LEAD_SEC))
 
+TAIL_HINT_ORDER_ID=""
 if (( HEALTHY_COUNT > 0 )); then
 echo "==> Seed $HEALTHY_COUNT healthy far-future bids (head prefix; distinct prices per batch)"
 remaining="$HEALTHY_COUNT"
@@ -213,15 +251,32 @@ while (( remaining > 0 )); do
   batch_price="$(awk -v b="$batch_num" 'BEGIN{printf "%.2f", 10.0 - b * 0.5}')"
   echo "    placing batch of $batch healthy bids at price $batch_price..."
   place_bid_batch "$batch" "$batch_price" "$BID_ESCROW_RAW" "$FAR_EXPIRY"
+  TAIL_HINT_ORDER_ID="$(max_order_id_from_tx "$PLACE_TX")"
   remaining=$((remaining - batch))
   batch_num=$((batch_num + 1))
 done
 else
   echo "==> Skip healthy seed (VERIFY274_HEALTHY_COUNT=0); using existing book depth"
+  TAIL_HINT_ORDER_ID="$(bid_book_tail_order_id)"
 fi
 
-echo "==> Seed $EXPIRED_TAIL_COUNT expired bids at tail price $TAIL_PRICE"
-place_bid_batch "$EXPIRED_TAIL_COUNT" "$TAIL_PRICE" "$BID_ESCROW_RAW" "$SHORT_EXPIRY"
+# Recompute short expiry after seeding — a 100-order book can take >45s to place.
+NOW_SEC="$(latest_block_unix)"
+SHORT_EXPIRY=$((NOW_SEC + EXPIRY_LEAD_SEC))
+
+echo "==> Seed $EXPIRED_TAIL_COUNT expired bids at tail price $TAIL_PRICE (hint_after=${TAIL_HINT_ORDER_ID:-head})"
+if [[ -n "$TAIL_HINT_ORDER_ID" ]]; then
+  place_bid_batch "$EXPIRED_TAIL_COUNT" "$TAIL_PRICE" "$BID_ESCROW_RAW" "$SHORT_EXPIRY" "$TAIL_HINT_ORDER_ID"
+else
+  place_bid_batch "$EXPIRED_TAIL_COUNT" "$TAIL_PRICE" "$BID_ESCROW_RAW" "$SHORT_EXPIRY"
+fi
+TAIL_ORDER_IDS="$(tx_wasm_order_ids "$PLACE_TX" | sort -n | tr '\n' ' ')"
+TAIL_ORDER_COUNT="$(echo "$TAIL_ORDER_IDS" | wc -w | tr -d ' ')"
+if (( TAIL_ORDER_COUNT >= EXPIRED_TAIL_COUNT )); then
+  ok "expired tail placement created $TAIL_ORDER_COUNT orders (ids: ${TAIL_ORDER_IDS})"
+else
+  bad "expired tail placement created $TAIL_ORDER_COUNT orders (expected $EXPIRED_TAIL_COUNT)"
+fi
 
 echo "==> Wait for chain time >= $SHORT_EXPIRY"
 waited=0
@@ -235,6 +290,13 @@ if (( NOW_SEC < SHORT_EXPIRY )); then
   bad "chain time did not reach expires_at within 120s"
 else
   ok "chain time past expired tail expires_at"
+fi
+
+if (( NOW_SEC < SHORT_EXPIRY )); then
+  echo ""
+  echo "==> Summary ($PASS passed, $FAIL failed)"
+  printf '%s\n' "${RESULTS[@]}"
+  exit 1
 fi
 
 echo "==> CleanLimitBook max_steps=$MAX_STEPS_CAP against ${HEALTHY_COUNT}+${EXPIRED_TAIL_COUNT} book"
@@ -273,27 +335,29 @@ else
   bad "gas_used unavailable for tx=$CLEAN_TX (query failed or gas missing/zero)"
 fi
 
-echo "==> Resume clean from resume_cursor until expired tail parked"
-pass=2
-resume="$RESUME"
-total_parked=0
-while (( pass <= 20 )); do
-  execute_clean 500 "$resume"
-  cleaned="$(tx_wasm_attr "$CLEAN_TX" cleaned_count || true)"
-  scan="$(tx_wasm_attr "$CLEAN_TX" scan_capped || true)"
-  resume="$(tx_wasm_attr "$CLEAN_TX" resume_cursor || true)"
-  echo "    pass=$pass tx=$CLEAN_TX cleaned=$cleaned scan_capped=$scan resume=$resume"
-  total_parked=$((total_parked + cleaned))
-  if [[ "$scan" != "true" && -z "$resume" ]]; then
-    break
-  fi
-  ((pass++))
-done
+if [[ -n "$RESUME" ]]; then
+  echo "==> Resume clean from resume_cursor until expired tail parked"
+  pass=2
+  resume="$RESUME"
+  total_parked=0
+  while (( pass <= 20 )); do
+    execute_clean 500 "$resume"
+    cleaned="$(tx_wasm_attr "$CLEAN_TX" cleaned_count || true)"
+    scan="$(tx_wasm_attr "$CLEAN_TX" scan_capped || true)"
+    resume="$(tx_wasm_attr "$CLEAN_TX" resume_cursor || true)"
+    echo "    pass=$pass tx=$CLEAN_TX cleaned=$cleaned scan_capped=$scan resume=$resume"
+    total_parked=$((total_parked + cleaned))
+    if [[ "$scan" != "true" && -z "$resume" ]]; then
+      break
+    fi
+    ((pass++))
+  done
 
-if (( total_parked >= EXPIRED_TAIL_COUNT )); then
-  ok "resumed clean parked $total_parked expired tail orders (expected >= $EXPIRED_TAIL_COUNT)"
-else
-  bad "resumed clean parked only $total_parked (expected >= $EXPIRED_TAIL_COUNT)"
+  if (( total_parked >= EXPIRED_TAIL_COUNT )); then
+    ok "resumed clean parked $total_parked expired tail orders (expected >= $EXPIRED_TAIL_COUNT)"
+  else
+    bad "resumed clean parked only $total_parked (expected >= $EXPIRED_TAIL_COUNT)"
+  fi
 fi
 
 echo ""
