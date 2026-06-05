@@ -123,6 +123,17 @@ tx_wasm_attr() {
     '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == $k) | .value] | last // empty'
 }
 
+tx_wasm_order_ids() {
+  local txhash="$1"
+  docker exec "$CONTAINER_NAME" terrad query tx "$txhash" --node "$TERRAD_NODE" --output json 2>/dev/null \
+    | jq -r '[(.events // .logs[0].events // [])[] | select(.type | test("wasm")) | .attributes[] | select(.key == "order_id") | .value] | .[]'
+}
+
+max_order_id_from_tx() {
+  local txhash="$1"
+  tx_wasm_order_ids "$txhash" | sort -n | tail -1
+}
+
 resolve_pair() {
   local pairs_doc pair="" t0="" t1="" idx=0 want="$PAIR_INDEX"
   pairs_doc="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$FACTORY" '{"pairs":{"start_after":null,"limit":60}}')")"
@@ -152,14 +163,26 @@ place_bid_batch() {
   local price="$2"
   local amount="$3"
   local expires="$4"
+  local hint_after="${5:-}"
   local hook total_escrow txjson txhash
-  hook="$(jq -nc \
-    --argjson exp "$expires" \
-    --arg price "$price" \
-    --arg amt "$amount" \
-    --argjson n "$count" \
-    --argjson steps "$MAX_ADJUST_STEPS" \
-    '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | {price:$price, amount:$amt, max_adjust_steps:$steps, expires_at:$exp}]}}')"
+  if [[ -n "$hint_after" ]]; then
+    hook="$(jq -nc \
+      --argjson exp "$expires" \
+      --arg price "$price" \
+      --arg amt "$amount" \
+      --argjson n "$count" \
+      --argjson steps "$MAX_ADJUST_STEPS" \
+      --argjson hint "$hint_after" \
+      '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | ({price:$price, amount:$amt, max_adjust_steps:$steps, expires_at:$exp} + (if . == 0 then {hint_after_order_id:$hint} else {} end))]}}')"
+  else
+    hook="$(jq -nc \
+      --argjson exp "$expires" \
+      --arg price "$price" \
+      --arg amt "$amount" \
+      --argjson n "$count" \
+      --argjson steps "$MAX_ADJUST_STEPS" \
+      '{place_limit_order_batch:{side:"bid",orders:[range(0; $n) | {price:$price, amount:$amt, max_adjust_steps:$steps, expires_at:$exp}]}}')"
+  fi
   # Batch CW20 send must equal the sum of per-rung `amount` fields (token1 escrow for bids).
   total_escrow=$((count * amount))
   txjson="$(terrad_tx wasm execute "$TOKEN1" "$(jq -nc \
@@ -170,6 +193,7 @@ place_bid_batch() {
   txhash="$(echo "$txjson" | tx_hash_from_json)"
   [[ -n "$txhash" ]] || { echo "$txjson" >&2; return 1; }
   sleep 2
+  PLACE_TX="$txhash"
 }
 
 execute_clean() {
@@ -200,8 +224,8 @@ bash "$REPO_ROOT/scripts/e2e-provision-dev-wallet.sh"
 
 NOW_SEC="$(latest_block_unix)"
 FAR_EXPIRY=$((NOW_SEC + 1000000))
-SHORT_EXPIRY=$((NOW_SEC + EXPIRY_LEAD_SEC))
 
+TAIL_HINT_ORDER_ID=""
 if (( HEALTHY_COUNT > 0 )); then
 echo "==> Seed $HEALTHY_COUNT healthy far-future bids (head prefix; distinct prices per batch)"
 remaining="$HEALTHY_COUNT"
@@ -213,15 +237,32 @@ while (( remaining > 0 )); do
   batch_price="$(awk -v b="$batch_num" 'BEGIN{printf "%.2f", 10.0 - b * 0.5}')"
   echo "    placing batch of $batch healthy bids at price $batch_price..."
   place_bid_batch "$batch" "$batch_price" "$BID_ESCROW_RAW" "$FAR_EXPIRY"
+  TAIL_HINT_ORDER_ID="$(max_order_id_from_tx "$PLACE_TX")"
   remaining=$((remaining - batch))
   batch_num=$((batch_num + 1))
 done
 else
   echo "==> Skip healthy seed (VERIFY274_HEALTHY_COUNT=0); using existing book depth"
+  TAIL_HINT_ORDER_ID="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR" '{"order_book_head":{"side":"bid"}}')" | jq -r 'if type == "number" then . else .head_order_id // empty end')"
 fi
 
-echo "==> Seed $EXPIRED_TAIL_COUNT expired bids at tail price $TAIL_PRICE"
-place_bid_batch "$EXPIRED_TAIL_COUNT" "$TAIL_PRICE" "$BID_ESCROW_RAW" "$SHORT_EXPIRY"
+# Recompute short expiry after seeding — a 100-order book can take >45s to place.
+NOW_SEC="$(latest_block_unix)"
+SHORT_EXPIRY=$((NOW_SEC + EXPIRY_LEAD_SEC))
+
+echo "==> Seed $EXPIRED_TAIL_COUNT expired bids at tail price $TAIL_PRICE (hint_after=${TAIL_HINT_ORDER_ID:-head})"
+if [[ -n "$TAIL_HINT_ORDER_ID" ]]; then
+  place_bid_batch "$EXPIRED_TAIL_COUNT" "$TAIL_PRICE" "$BID_ESCROW_RAW" "$SHORT_EXPIRY" "$TAIL_HINT_ORDER_ID"
+else
+  place_bid_batch "$EXPIRED_TAIL_COUNT" "$TAIL_PRICE" "$BID_ESCROW_RAW" "$SHORT_EXPIRY"
+fi
+TAIL_ORDER_IDS="$(tx_wasm_order_ids "$PLACE_TX" | sort -n | tr '\n' ' ')"
+TAIL_ORDER_COUNT="$(echo "$TAIL_ORDER_IDS" | wc -w | tr -d ' ')"
+if (( TAIL_ORDER_COUNT >= EXPIRED_TAIL_COUNT )); then
+  ok "expired tail placement created $TAIL_ORDER_COUNT orders (ids: ${TAIL_ORDER_IDS})"
+else
+  bad "expired tail placement created $TAIL_ORDER_COUNT orders (expected $EXPIRED_TAIL_COUNT)"
+fi
 
 echo "==> Wait for chain time >= $SHORT_EXPIRY"
 waited=0
