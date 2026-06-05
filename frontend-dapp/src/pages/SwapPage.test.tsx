@@ -52,6 +52,13 @@ vi.mock('@/services/terraclassic/feeDiscount', () => ({
   getRegistration: vi.fn().mockResolvedValue({ registered: false }),
 }))
 
+vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
+  preflightSwapRouteSpread: vi.fn().mockResolvedValue({
+    worstSpreadPercent: '0.50',
+    anyHopExceedsMaxSpread: false,
+  }),
+}))
+
 vi.mock('@/services/terraclassic/router', () => ({
   findRoute: vi.fn().mockReturnValue(null),
   getAllTokens: vi.fn().mockReturnValue([]),
