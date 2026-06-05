@@ -68,7 +68,7 @@ async def _bootstrap_pair(
     target_per_side: int,
     hub_fraction_ppm: int,
     dry: bool,
-) -> str | None:
+) -> tuple[str | None, bool]:
     top = bootstrap_top_up_amounts(
         meta.reserve0,
         meta.reserve1,
@@ -77,19 +77,23 @@ async def _bootstrap_pair(
     )
     if top:
         a0, a1 = top
-        await provide_liquidity_pair(container, meta.token0, meta.token1, meta.pair_addr, a0, a1, dry)
-        return f"top-up {meta.sym0}/{meta.sym1} +{a0}/+{a1}"
+        if await provide_liquidity_pair(
+            container, meta.token0, meta.token1, meta.pair_addr, a0, a1, dry
+        ):
+            return f"top-up {meta.sym0}/{meta.sym1} +{a0}/+{a1}", False
+        return None, True
 
     if _is_hub(meta):
         scaled = pick_scaled_provide_amounts(meta.reserve0, meta.reserve1, hub_fraction_ppm)
         if scaled:
             a0, a1 = scaled
             if a0 >= MIN_PROVIDE_LIQUIDITY_LEG and a1 >= MIN_PROVIDE_LIQUIDITY_LEG:
-                await provide_liquidity_pair(
+                if await provide_liquidity_pair(
                     container, meta.token0, meta.token1, meta.pair_addr, a0, a1, dry
-                )
-                return f"hub deepen {meta.sym0}/{meta.sym1} +{a0}/+{a1}"
-    return None
+                ):
+                    return f"hub deepen {meta.sym0}/{meta.sym1} +{a0}/+{a1}", False
+                return None, True
+    return None, False
 
 
 async def main_async() -> int:
@@ -113,8 +117,9 @@ async def main_async() -> int:
     )
 
     actions = 0
+    failures = 0
     for meta in metas:
-        note = await _bootstrap_pair(
+        note, failed = await _bootstrap_pair(
             container,
             meta,
             floor_per_side=floor,
@@ -122,12 +127,19 @@ async def main_async() -> int:
             hub_fraction_ppm=hub_ppm,
             dry=dry,
         )
+        if failed:
+            failures += 1
+            print(
+                f"  provide_liquidity failed {meta.sym0}/{meta.sym1}",
+                file=sys.stderr,
+                flush=True,
+            )
         if note:
             actions += 1
             print(f"  {note}", flush=True)
 
     print(f"bootstrap-swarm-liquidity: done ({actions} provide_liquidity action(s))", flush=True)
-    return 0
+    return 1 if failures else 0
 
 
 def main() -> None:
