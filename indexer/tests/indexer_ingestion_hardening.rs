@@ -62,7 +62,9 @@ async fn mount_block_at_height(server: &MockServer, height: i64, hash: &str) {
 async fn mount_block_txs_json(server: &MockServer, height: i64, body: serde_json::Value) {
     Mock::given(method("GET"))
         .and(path("/cosmos/tx/v1beta1/txs"))
-        .and(query_param("events", format!("tx.height={}", height)))
+        .and(query_param("query", format!("tx.height={}", height)))
+        .and(query_param("page", "1"))
+        .and(query_param("limit", "100"))
         .respond_with(ResponseTemplate::new(200).set_body_json(body))
         .mount(server)
         .await;
@@ -258,20 +260,20 @@ async fn multi_page_block_txs_ingested_count_matches_lcd_total() {
 
     Mock::given(method("GET"))
         .and(path("/cosmos/tx/v1beta1/txs"))
-        .and(query_param("pagination.offset", "0"))
+        .and(query_param("page", "1"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "tx_responses": page1,
-            "pagination": { "total": "155" }
+            "total": "155"
         })))
         .mount(&server)
         .await;
 
     Mock::given(method("GET"))
         .and(path("/cosmos/tx/v1beta1/txs"))
-        .and(query_param("pagination.offset", "100"))
+        .and(query_param("page", "2"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "tx_responses": page2,
-            "pagination": { "total": "155" }
+            "total": "155"
         })))
         .mount(&server)
         .await;
