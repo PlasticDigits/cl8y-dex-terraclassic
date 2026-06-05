@@ -19,6 +19,10 @@ pub async fn run_volume_refresh_loop(pool: PgPool) {
             tracing::error!("Failed to refresh pair 24h volumes: {}", e);
         }
 
+        if let Err(e) = volume::refresh_global_stats(&pool).await {
+            tracing::error!("Failed to refresh global 24h stats: {}", e);
+        }
+
         if let Err(e) = traders::refresh_rolling_volumes(&pool).await {
             tracing::error!("Failed to refresh rolling trader volumes: {}", e);
         }

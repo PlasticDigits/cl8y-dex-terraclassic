@@ -10,8 +10,8 @@ use utoipa::ToSchema;
 use super::{internal_err, AppState};
 use crate::db::queries::{assets, volume};
 
-// GitLab #281: /overview aggregates over swap_events on every hit; cache the whole
-// response for 1 minute so a request burst can't repeatedly scan the table.
+// GitLab #281 / #333: /overview reads materialized global_stats_24h on cache miss;
+// cache the whole response for 1 minute so a request burst can't hammer the DB.
 const OVERVIEW_CACHE_TTL: Duration = Duration::from_secs(60);
 
 fn overview_cache() -> &'static Mutex<Option<(OverviewResponse, Instant)>> {
