@@ -36,16 +36,23 @@ pub async fn fill_exists(
     Ok(n > 0)
 }
 
-pub async fn swap_id_for_tx_pair(
+/// Resolve the `swap_events.id` for a maker fill by its per-pair swap ordinal within the tx
+/// (GitLab #316). Replaces the old `ORDER BY id ASC LIMIT 1` (always the FIRST swap), which
+/// mis-linked fills when a tx had multiple swaps on the same pair. `swap_index` is the deterministic
+/// parser walk ordinal carried on the fill; `(tx_hash, pair_id, swap_index)` is unique (GitLab
+/// #287), so this returns the exact swap row that produced the fill, or `None` if absent.
+pub async fn swap_id_for_tx_pair_index(
     pool: &PgPool,
     tx_hash: &str,
     pair_id: i32,
+    swap_index: i32,
 ) -> Result<Option<i64>, sqlx::Error> {
     sqlx::query_scalar::<_, i64>(
-        "SELECT id FROM swap_events WHERE tx_hash = $1 AND pair_id = $2 ORDER BY id ASC LIMIT 1",
+        "SELECT id FROM swap_events WHERE tx_hash = $1 AND pair_id = $2 AND swap_index = $3",
     )
     .bind(tx_hash)
     .bind(pair_id)
+    .bind(swap_index)
     .fetch_optional(pool)
     .await
 }
