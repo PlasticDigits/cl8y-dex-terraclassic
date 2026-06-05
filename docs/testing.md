@@ -316,7 +316,7 @@ The [`@cl8y-dex/localnet-trading-swarm`](../packages/localnet-trading-swarm) pac
 
 Contract message shapes align with [`docs/contracts-terraclassic.md`](./contracts-terraclassic.md), [`docs/limit-orders.md`](./limit-orders.md), and frontend Terra services. Full invariants: [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md); agent playbook: [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md). Issue: [GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119).
 
-**Python QA swarm (`make swarm-launch`):** separate from the TypeScript package — **25** swap workers + **5** limit makers + **3** `provide_liquidity` workers. `launch-swarm.sh` runs `bootstrap-swarm-liquidity` once so OE-1 swap pairs (EMBER/CORAL, TOPAZ/ONYX, ONYX/CORAL) stay deep after swap-only volume ([#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)). Unit tests: `make test-swarm-liquidity`.
+**Python QA swarm (`make swarm-launch`):** separate from the TypeScript package — **25** swap workers + **5** limit makers + **3** `provide_liquidity` workers. `launch-swarm.sh` runs `bootstrap-swarm-liquidity` once so OE-1 swap pairs (EMBER/CORAL, TOPAZ/ONYX, ONYX/CORAL) stay deep after swap-only volume ([#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)). Unit tests: `make test-swarm-liquidity`. Live OE-1 quote check (needs LocalTerra + indexer): `make verify-issue-293`.
 
 ### Fee Discount Contract Tests
 

@@ -227,6 +227,18 @@ async def _terrad_tx(container: str, args: list[str]) -> tuple[int, str]:
     return proc.returncode or 0, text
 
 
+async def _terrad_query(container: str, args: list[str]) -> tuple[int, str]:
+    cmd = ["docker", "exec", container, "terrad", "query", *args]
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+    out_b, _ = await proc.communicate()
+    text = (out_b or b"").decode("utf-8", errors="replace")
+    return proc.returncode or 0, text
+
+
 def _min_reserve_per_side() -> int:
     raw = _env("BOTS_MIN_RESERVE_PER_SIDE")
     if raw:
@@ -238,9 +250,9 @@ def _min_reserve_per_side() -> int:
 
 
 def _txhash_from_terrad_json(text: str) -> str | None:
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
+    # terrad may prefix stderr ("gas estimate: …") on the same stream as JSON stdout.
+    data = _json_from_terrad_output(text)
+    if data is None:
         return None
     txhash = data.get("txhash")
     if isinstance(txhash, str) and txhash:
@@ -263,17 +275,28 @@ def _tx_query_succeeded(data: dict) -> bool:
     return not codes or all(c == 0 for c in codes)
 
 
+def _json_from_terrad_output(text: str) -> dict | None:
+    stripped = text.strip()
+    json_start = stripped.find("{")
+    if json_start > 0:
+        stripped = stripped[json_start:]
+    try:
+        data = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 async def _poll_tx_inclusion(container: str, txhash: str, *, timeout_sec: float = 90.0) -> bool:
     deadline = asyncio.get_running_loop().time() + timeout_sec
     while asyncio.get_running_loop().time() < deadline:
-        code, out = await _terrad_tx(
+        code, out = await _terrad_query(
             container,
-            ["query", "tx", txhash, "--node", "http://127.0.0.1:26657", "--output", "json"],
+            ["tx", txhash, "--node", "http://127.0.0.1:26657", "--output", "json"],
         )
         if code == 0:
-            try:
-                data = json.loads(out)
-            except json.JSONDecodeError:
+            data = _json_from_terrad_output(out)
+            if data is None:
                 await asyncio.sleep(1.0)
                 continue
             if not _tx_query_succeeded(data):
