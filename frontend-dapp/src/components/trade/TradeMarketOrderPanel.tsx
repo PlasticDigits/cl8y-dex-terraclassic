@@ -36,6 +36,7 @@ import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/ut
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 
 interface MarketSimData {
   return_amount: string
@@ -381,6 +382,23 @@ export function TradeMarketOrderPanel({
     [simQuery.data?.indexerQuoteKind]
   )
 
+  /** One execution-aligned route line for the market quote card (GitLab #302 — mirrors /swap swap-route-summary). */
+  const marketRouteLine = useMemo(
+    () =>
+      computeSwapRouteDisplay({
+        fromToken,
+        toToken,
+        isWrapOrUnwrap: false,
+        nativeRouteInfo: null,
+        indexerOperations: simQuery.data?.indexerOperations,
+        clientRoute: null,
+        isMultiHop: false,
+        isDirect: true,
+        displaySymbol: getTokenDisplaySymbol,
+      }),
+    [fromToken, toToken, simQuery.data?.indexerOperations]
+  )
+
   const receiveHuman =
     simQuery.data?.return_amount != null && simQuery.data.return_amount !== ''
       ? formatTokenAmount(simQuery.data.return_amount, receiveDecimals, 6)
@@ -541,6 +559,16 @@ export function TradeMarketOrderPanel({
             <p style={{ color: 'var(--ink-dim)' }}>
               Worst hop spread (sim): {simQuery.data.routePreflight.worstSpreadPercent}%
             </p>
+          )}
+          {marketRouteLine && (
+            <div
+              data-testid="trade-market-route-summary"
+              className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between pt-1 border-t border-white/10"
+              style={{ color: 'var(--ink-dim)' }}
+            >
+              <span className="uppercase text-[10px] tracking-wide font-medium shrink-0">Route</span>
+              <span className="font-mono text-[10px] sm:text-right break-words min-w-0">{marketRouteLine}</span>
+            </div>
           )}
         </div>
       )}
