@@ -17,7 +17,13 @@ localterra_container_id() {
   if [ -z "$repo_root" ]; then
     repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   fi
-  docker compose -f "$repo_root/docker-compose.yml" ps -q localterra 2>/dev/null | head -1
+  local cid
+  cid="$(docker compose -f "$repo_root/docker-compose.yml" ps -q localterra 2>/dev/null | head -1 || true)"
+  # Cloud Agent shells may lack docker.sock; sg docker is the standard workaround (AGENTS.md).
+  if [[ -z "$cid" ]] && command -v sg >/dev/null 2>&1; then
+    cid="$(sg docker -c "docker compose -f \"$repo_root/docker-compose.yml\" ps -q localterra 2>/dev/null | head -1" 2>/dev/null | head -1 || true)"
+  fi
+  printf '%s' "$cid"
 }
 
 # curl inside the localterra container (RPC/LCD listen on 127.0.0.1 there).

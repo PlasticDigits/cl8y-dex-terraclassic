@@ -16,6 +16,8 @@ cd "$REPO_ROOT"
 
 # shellcheck source=scripts/lib/lcd-smart-query.sh
 source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
+# shellcheck source=scripts/lib/localterra-host-curl.sh
+source "$REPO_ROOT/scripts/lib/localterra-host-curl.sh"
 # shellcheck source=scripts/lib/e2e-terrad-tx.sh
 source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
 
@@ -51,7 +53,7 @@ run_step "parser forged-attack + regression unit tests" \
 run_step "integration limit_order_parked_lifecycle (_contract_address fixtures)" \
   bash -c 'cd indexer && cargo test --test limit_order_parked_lifecycle -j 1 -- --test-threads=1 --quiet'
 
-CONTAINER_NAME="$(docker compose ps -q localterra 2>/dev/null | head -1 || true)"
+CONTAINER_NAME="$(localterra_container_id "$REPO_ROOT")"
 IDX_ENV="$REPO_ROOT/indexer/.env"
 FE_ENV="$REPO_ROOT/frontend-dapp/.env.local"
 
