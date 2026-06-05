@@ -629,7 +629,7 @@ Retail surfaces that depend on **indexer HTTP** share banner and loading primiti
 
 | Invariant | Meaning |
 |-----------|---------|
-| **404 vs outage** | Use [`isIndexerUnavailableError`](../frontend-dapp/src/utils/indexerErrors.ts) at query boundaries. **404** → not-found / retry panels, **not** the global market-data banner ([GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)). |
+| **4xx vs outage** | Use [`isIndexerUnavailableError`](../frontend-dapp/src/utils/indexerErrors.ts) at query boundaries. **4xx** (404 pair miss, **400** route-solve simulation failure, etc.) → not-found / retry / LCD fallback — **not** the global market-data banner ([GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177), **#326**). Outage = transport errors or **5xx** only. |
 | **LCD vs market data** | [`LcdConnectivityBanner`](../frontend-dapp/src/components/common/LcdConnectivityBanner.tsx) / [`LcdQueryGate`](../frontend-dapp/src/components/common/LcdQueryGate.tsx) cover **chain LCD** only — do not label RPC failures as “market data service.” |
 | **Retail copy** | No `VITE_INDEXER_URL`, hostnames, or “indexer unavailable” in user-visible banners ([GitLab **#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174)). Strings: [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); trade panel lines stay in [`indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts). |
 | **Detection** | [`detectMarketDataOutage`](../frontend-dapp/src/utils/marketDataOutage.ts) ORs transport errors across passed queries (trade re-exports as `detectTradeIndexerOutage`). |
@@ -642,11 +642,11 @@ Retail surfaces that depend on **indexer HTTP** share banner and loading primiti
 
 ### Swap page (`/` and `/swap`) — market data outage {#swap-page-market-data-outage}
 
-When the swap **`simulation`** query observes **indexer transport / non-OK** errors (`isIndexerUnavailableError` or `indexerTransportFailed` on pool fallback — [GitLab **#241**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241)), the page shows a stacked [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) above the form (`data-testid="swap-market-data-outage-banner"`).
+When the swap **`simulation`** query observes **indexer transport / 5xx** errors (`isIndexerUnavailableError` or `indexerTransportFailed` on pool fallback — [GitLab **#241**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241); **not** **400** route-solve failures — [GitLab **#326**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/326)), the page shows a stacked [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) above the form (`data-testid="swap-market-data-outage-banner"`).
 
 | Invariant | Meaning |
 |-----------|---------|
-| **404 vs outage** | Indexer **404** on route solve does **not** show the global banner — same boundary as `/trade` ([#177](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177)). |
+| **4xx vs outage** | Indexer **404** / **400** on route solve do **not** show the global banner — LCD fallback or retry paths ([#177](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177), [#326](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/326)). |
 | **No stale quotes** | When `simQuery.isError`, receive line and fee/slippage blocks hide prior cached data; CTA reads **Quote unavailable** and stays disabled until a fresh sim succeeds. |
 | **Pool fallback** | Indexer failure during quote sets `indexerTransportFailed` on successful LCD pool sim — banner still shows; CTA may remain enabled when the pool quote is valid (parity with Trade market panel). |
 | **Wrap / unwrap** | Wrap-only sim does not call indexer — no outage banner on pure wrap paths; swap CTA stays available when other gates pass. |

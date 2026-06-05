@@ -326,6 +326,46 @@ async fn route_solve_get_hybrid_optimize_three_hops() {
 
 #[serial]
 #[tokio::test]
+async fn route_solve_get_default_hybrid_four_hops() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_4hop(&pool).await;
+    let token_e = seed.token_e.as_ref().expect("4-hop seed includes token_e");
+    let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in={}",
+        seed.token_a, token_e, "1000000"
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_ok();
+    let j: Value = resp.json();
+    assert_eq!(j["hops"].as_array().unwrap().len(), 4);
+    assert_eq!(
+        j["intermediate_tokens"],
+        json!([
+            seed.token_a,
+            seed.token_b,
+            seed.token_c,
+            seed.token_d.as_ref().unwrap(),
+            token_e
+        ])
+    );
+    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd");
+    assert_eq!(j["estimated_amount_out"], "8888888");
+    let ops = j["router_operations"].as_array().unwrap();
+    assert_eq!(ops.len(), 4);
+    for op in ops {
+        assert!(!op["terra_swap"]["hybrid"].is_null());
+    }
+}
+
+#[serial]
+#[tokio::test]
 async fn route_solve_best_requires_amount_in() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;

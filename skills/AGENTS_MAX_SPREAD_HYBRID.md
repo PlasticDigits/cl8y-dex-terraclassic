@@ -42,6 +42,8 @@ Integration tests live in [`smartcontracts/tests/src/limit_order_tests.rs`](../s
 - `hybrid_max_spread_exact_tolerance_succeeds`
 - `hybrid_max_spread_tighter_than_simulation_rejected`
 - `hybrid_belief_price_max_spread_rejects_shortfall_on_total_output`
+- `hybrid_no_belief_book_far_below_pool_rejected` ([#273](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/273))
+- `hybrid_no_belief_dust_pool_leg_rejected` ([#307](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/307))
 
 Pool-only regression: `test_swap_max_spread` in [`smartcontracts/tests/src/lib.rs`](../smartcontracts/tests/src/lib.rs).
 

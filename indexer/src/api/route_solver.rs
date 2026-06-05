@@ -1,6 +1,6 @@
 //! Multihop route discovery and optional LCD simulation.
 //!
-//! - `GET /api/v1/route/solve`: **global best execution** when `amount_in` is set (top-K paths + joint hybrid, max **3 hops**; GitLab #209).
+//! - `GET /api/v1/route/solve`: **global best execution** when `amount_in` is set (top-K paths + joint hybrid, max **4 hops**; GitLab #209, #323).
 //!   Use `pool_only=true` for legacy pool-only ops (max **4 hops**). Without `amount_in`, returns route discovery only.
 //! - `GET /api/v1/route/solve/best`: **retail / Vyntrex best-execution alias** — same engine as default GET with `amount_in` (GitLab #189).
 //! - `POST /api/v1/route/solve`: BFS discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
@@ -28,7 +28,7 @@ pub use hybrid_route_opt::HybridHopJson;
 const ROUTE_CACHE_TTL: Duration = Duration::from_secs(12);
 const ROUTE_CACHE_MAX_ENTRIES: usize = 512;
 /// Default GET hop cap (hybrid-aware routing per ADR 0001 / GitLab #191).
-pub(crate) const GET_DEFAULT_MAX_HOPS: usize = 3;
+pub(crate) const GET_DEFAULT_MAX_HOPS: usize = 4;
 /// Legacy pool-only GET escape hatch (`pool_only=true`).
 const GET_POOL_ONLY_MAX_HOPS: usize = 4;
 /// Coarse bucketing for hybrid GET cache keys (reduces LCD load).
@@ -40,7 +40,7 @@ pub struct SolveRouteParams {
     pub token_in: String,
     /// CW20 contract address for the output asset (indexed `assets.contract_address`).
     pub token_out: String,
-    /// Raw integer offer amount (optional). When set on GET (and `pool_only` is not true), runs **global_v1** best execution: top-5 paths, joint hybrid optimization, max **3 hops**. Required for `/route/solve/best`.
+    /// Raw integer offer amount (optional). When set on GET (and `pool_only` is not true), runs **global_v1** best execution: top-5 paths, joint hybrid optimization, max **4 hops**. Required for `/route/solve/best`.
     pub amount_in: Option<String>,
     /// Deprecated alias: `hybrid_optimize=false` or `pool_only=true` for pool-only routing.
     #[serde(default)]
@@ -692,7 +692,7 @@ async fn execute_hybrid_route_solve(
     responses(
         (status = 200, description = "Hybrid best-execution route with merged router operations", body = RouteSolveResponse),
         (status = 400, description = "Missing or invalid amount_in, or unknown token"),
-        (status = 404, description = "No route within 3 hops"),
+        (status = 404, description = "No route within 4 hops"),
         (status = 502, description = "Hybrid optimization LCD failure (sanitized body)"),
     ),
     tag = "Routing"
@@ -725,7 +725,7 @@ pub async fn solve_route_best(
     .await
 }
 
-/// Multihop route discovery (GET default **3 hops**, hybrid when `amount_in` set; `pool_only=true` → **4 hops** pool-only). Returns `router_operations`.
+/// Multihop route discovery (GET default **4 hops**, hybrid when `amount_in` set; `pool_only=true` → **4 hops** pool-only). Returns `router_operations`.
 #[utoipa::path(
     get,
     path = "/api/v1/route/solve",
