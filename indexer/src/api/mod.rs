@@ -1,6 +1,7 @@
 //! HTTP API: routing, CORS, rate limits, timeouts, and ticker/orderbook caches.
 //! Invariants and threat model: see repository `docs/indexer-invariants.md`.
 
+mod aggregator_snapshot;
 mod cg;
 mod cmc;
 mod errors;
@@ -76,9 +77,8 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 
 pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 
-// GitLab #288: 60s TTL cache for the CG/CMC aggregator endpoints (tickers/summary),
-// whose per-pair N+1 fanout could pin the DB pool under a request burst. Caches the
-// serialized response per endpoint so the fanout runs at most once per minute.
+// GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
+// (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
 const AGGREGATOR_CACHE_TTL: Duration = Duration::from_secs(60);
 
 fn aggregator_cache() -> &'static std::sync::Mutex<HashMap<String, (serde_json::Value, Instant)>> {
