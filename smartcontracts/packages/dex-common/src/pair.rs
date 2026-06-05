@@ -6,7 +6,8 @@ use crate::oracle::{ObserveResponse, OracleInfoResponse};
 use crate::types::{Asset, AssetInfo, FeeConfig};
 
 pub use crate::limit_clean::{
-    clamp_max_clean_orders, LimitCleanConfigResponse, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
+    clamp_max_clean_orders, clamp_max_clean_scan_steps, LimitCleanConfigResponse,
+    MAX_CLEAN_SCAN_STEPS, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
 };
 pub use crate::limit_placement::{
     clamp_max_batch_rungs, expand_limit_ladder, LimitLadderDistribution, LimitOrderConfigResponse,
@@ -252,6 +253,11 @@ pub enum ExecuteMsg {
         max_orders: u32,
         /// Optional order id to start the walk; when absent or not on-book, walk from head.
         start_hint: Option<u64>,
+        /// Optional traversal budget (nodes visited before exiting). Absent or `0` →
+        /// `MAX_CLEAN_SCAN_STEPS`; clamped to that hard cap. Bounds scan gas independently of
+        /// `max_orders`, so a keeper can resume from the emitted `resume_cursor` (GitLab #274).
+        #[serde(default)]
+        max_steps: Option<u32>,
     },
     /// Set per-side min remaining notionals for force-clean (factory only). `0` disables force-clean
     /// on that side; only time-expired orders are eligible.

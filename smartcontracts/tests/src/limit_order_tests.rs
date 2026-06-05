@@ -5011,6 +5011,33 @@ fn execute_clean_limit_book(
             side,
             max_orders,
             start_hint,
+            max_steps: None,
+        },
+        &[],
+    )
+    .unwrap()
+}
+
+/// GitLab #274 — like [`execute_clean_limit_book`] but with an explicit traversal budget, and
+/// returns the full response so a test can read `scan_capped` / `resume_cursor` attrs.
+#[allow(clippy::too_many_arguments)]
+fn execute_clean_limit_book_steps(
+    app: &mut App,
+    pair: &Addr,
+    sender: &Addr,
+    side: LimitOrderSide,
+    max_orders: u32,
+    start_hint: Option<u64>,
+    max_steps: Option<u32>,
+) -> AppResponse {
+    app.execute_contract(
+        sender.clone(),
+        pair.clone(),
+        &ExecuteMsg::CleanLimitBook {
+            side,
+            max_orders,
+            start_hint,
+            max_steps,
         },
         &[],
     )
@@ -5074,6 +5101,213 @@ fn clean_limit_book_parks_expired_head_default_config() {
             "order {id} should be off book"
         );
     }
+}
+
+/// GitLab #274 — the walk is bounded by `max_steps` even when NOTHING is parked. Before the fix
+/// only parks were capped, so a book of healthy orders got traversed end-to-end (the gas DoS).
+#[test]
+fn clean_limit_book_traversal_bounded_when_nothing_parked() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    // Far-future bids, time NOT advanced and force-dust config zero → none are eligible to park.
+    let far = app.block_info().time.seconds() + 1_000_000;
+    let ids = place_expired_bids(&mut app, &env, 5, Uint128::new(10_000), far);
+
+    let keeper = cosmwasm_std::Addr::unchecked("keeper");
+    let res = execute_clean_limit_book_steps(
+        &mut app,
+        &env.pair,
+        &keeper,
+        LimitOrderSide::Bid,
+        10,
+        None,
+        Some(2),
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "cleaned_count").as_deref(),
+        Some("0"),
+        "nothing eligible to park"
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "scan_capped").as_deref(),
+        Some("true"),
+        "walk must stop at the traversal cap, not run the whole book"
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "resume_cursor").as_deref(),
+        Some(ids[2].to_string().as_str()),
+        "resume cursor is the first UNVISITED order (2 visited)"
+    );
+}
+
+/// GitLab #274 — a scan-capped clean resumes from `resume_cursor` and reaches the expired tail.
+#[test]
+fn clean_limit_book_scan_cap_resume_reaches_tail() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 60;
+    let ids = place_expired_bids(&mut app, &env, 5, Uint128::new(10_000), exp);
+    app.update_block(|b| b.time = b.time.plus_seconds(120));
+
+    let keeper = cosmwasm_std::Addr::unchecked("keeper");
+    let res1 = execute_clean_limit_book_steps(
+        &mut app,
+        &env.pair,
+        &keeper,
+        LimitOrderSide::Bid,
+        10,
+        None,
+        Some(2),
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res1.events, "clean_limit_book", "cleaned_count").as_deref(),
+        Some("2")
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res1.events, "clean_limit_book", "scan_capped").as_deref(),
+        Some("true")
+    );
+    let rc: u64 = wasm_attr_in_action_event(&res1.events, "clean_limit_book", "resume_cursor")
+        .expect("resume_cursor")
+        .parse()
+        .unwrap();
+    assert_eq!(rc, ids[2]);
+
+    let res2 = execute_clean_limit_book_steps(
+        &mut app,
+        &env.pair,
+        &keeper,
+        LimitOrderSide::Bid,
+        10,
+        Some(rc),
+        Some(10),
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res2.events, "clean_limit_book", "cleaned_count").as_deref(),
+        Some("3"),
+        "resume cleans the remaining tail"
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res2.events, "clean_limit_book", "scan_capped").as_deref(),
+        Some("false"),
+        "the resumed pass reaches the end of the book"
+    );
+    assert!(
+        wasm_attr_in_action_event(&res2.events, "clean_limit_book", "resume_cursor").is_none(),
+        "no resume cursor once the book is fully walked"
+    );
+    for id in &ids {
+        let row: Option<ExpiredLimitRefundResponse> = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::ExpiredLimitRefund { order_id: *id },
+            )
+            .unwrap();
+        assert!(row.is_some(), "order {id} should be parked after resume");
+    }
+}
+
+/// GitLab #274 — `max_steps = 0` (or an absent field) means the FULL cap, not zero steps.
+#[test]
+fn clean_limit_book_zero_max_steps_means_full_cap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 60;
+    place_expired_bids(&mut app, &env, 5, Uint128::new(10_000), exp);
+    app.update_block(|b| b.time = b.time.plus_seconds(120));
+
+    let keeper = cosmwasm_std::Addr::unchecked("keeper");
+    let res = execute_clean_limit_book_steps(
+        &mut app,
+        &env.pair,
+        &keeper,
+        LimitOrderSide::Bid,
+        10,
+        None,
+        Some(0),
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "cleaned_count").as_deref(),
+        Some("5"),
+        "max_steps 0 walks the full cap, not zero nodes"
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "scan_capped").as_deref(),
+        Some("false")
+    );
+}
+
+/// GitLab #274 — the park cap and the traversal cap are independent: a small `max_orders` still
+/// stops via `cap_hit` (not `scan_capped`) under a generous `max_steps`.
+#[test]
+fn clean_limit_book_park_cap_independent_of_scan_cap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let exp = app.block_info().time.seconds() + 60;
+    let ids = place_expired_bids(&mut app, &env, 5, Uint128::new(10_000), exp);
+    app.update_block(|b| b.time = b.time.plus_seconds(120));
+
+    let keeper = cosmwasm_std::Addr::unchecked("keeper");
+    let res = execute_clean_limit_book_steps(
+        &mut app,
+        &env.pair,
+        &keeper,
+        LimitOrderSide::Bid,
+        3,
+        None,
+        Some(500),
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "cleaned_count").as_deref(),
+        Some("3")
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "cap_hit").as_deref(),
+        Some("true"),
+        "the park cap is the limiter here"
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "scan_capped").as_deref(),
+        Some("false"),
+        "not the traversal cap"
+    );
+    assert_eq!(
+        wasm_attr_in_action_event(&res.events, "clean_limit_book", "resume_cursor").as_deref(),
+        Some(ids[3].to_string().as_str())
+    );
 }
 
 /// GitLab #263 — live non-expired orders are not removed when thresholds are zero.
@@ -5229,6 +5463,7 @@ fn clean_limit_book_rejects_max_orders_above_hard_cap() {
                 side: LimitOrderSide::Bid,
                 max_orders: MAX_LIMIT_CLEAN_ORDERS_HARD_CAP + 1,
                 start_hint: None,
+                max_steps: None,
             },
             &[],
         )
@@ -5275,6 +5510,7 @@ fn clean_limit_book_blocked_while_pair_paused() {
                 side: LimitOrderSide::Bid,
                 max_orders: 5,
                 start_hint: None,
+                max_steps: None,
             },
             &[],
         )

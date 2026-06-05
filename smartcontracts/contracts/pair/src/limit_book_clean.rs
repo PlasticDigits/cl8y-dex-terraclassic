@@ -1,7 +1,10 @@
 //! Permissionless limit book clean — park expired/dust orders (GitLab #263).
 
 use cosmwasm_std::{Event, Storage, Uint128};
-use dex_common::pair::{clamp_max_clean_orders, LimitOrderSide, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP};
+use dex_common::pair::{
+    clamp_max_clean_orders, clamp_max_clean_scan_steps, LimitOrderSide,
+    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
+};
 
 use crate::error::ContractError;
 use crate::orderbook::park_limit_order_for_clean;
@@ -11,7 +14,14 @@ pub struct CleanLimitBookResult {
     pub cleaned_count: u32,
     pub time_expired_count: u32,
     pub force_expired_count: u32,
+    /// Park cap (`max_orders`) reached before the end of the book.
     pub cap_hit: bool,
+    /// GitLab #274: traversal cap (`max_steps`) reached before the end of the book.
+    pub scan_capped: bool,
+    /// GitLab #274: first UNVISITED order id when the walk stopped early (either cap), so a
+    /// keeper resumes by re-submitting with `start_hint = resume_cursor`. `None` = reached the
+    /// end of the book, nothing left to clean.
+    pub resume_cursor: Option<u64>,
     pub events: Vec<Event>,
 }
 
@@ -87,12 +97,15 @@ fn resolve_start(
     book_head(storage, side)
 }
 
-/// Walk the limit book from `start_hint` or head; park eligible orders up to `max_orders`.
+/// Walk the limit book from `start_hint` or head; park eligible orders up to `max_orders`,
+/// visiting at most `max_steps` nodes (GitLab #274 — bounds scan gas independently of the park
+/// cap). On an early exit `resume_cursor` is the first unvisited order id for keeper resume.
 pub fn clean_limit_book(
     storage: &mut dyn Storage,
     now: u64,
     side: LimitOrderSide,
     max_orders: u32,
+    max_steps: u32,
     start_hint: Option<u64>,
     pair_contract: &str,
 ) -> Result<CleanLimitBookResult, ContractError> {
@@ -108,6 +121,7 @@ pub fn clean_limit_book(
         });
     }
     let cap = clamp_max_clean_orders(max_orders);
+    let step_cap = clamp_max_clean_scan_steps(max_steps);
     let (min_t0, min_t1) = load_limit_clean_config(storage)?;
     let min_remaining = min_remaining_for_side(&side, min_t0, min_t1);
 
@@ -116,13 +130,25 @@ pub fn clean_limit_book(
     let mut time_expired_count = 0u32;
     let mut force_expired_count = 0u32;
     let mut cap_hit = false;
+    let mut scan_capped = false;
+    let mut resume_cursor: Option<u64> = None;
+    let mut steps = 0u32;
     let mut events = Vec::new();
 
     while let Some(oid) = cur {
         if cleaned_count >= cap {
             cap_hit = true;
+            resume_cursor = Some(oid);
             break;
         }
+        // GitLab #274: bound traversal. Count EVERY visited node (zero-remaining skips, healthy
+        // fall-through, and parked alike); the first unvisited oid becomes the resume cursor.
+        if steps >= step_cap {
+            scan_capped = true;
+            resume_cursor = Some(oid);
+            break;
+        }
+        steps += 1;
 
         let order = ORDERS.load(storage, oid)?;
         let next_ptr = order.next;
@@ -160,6 +186,8 @@ pub fn clean_limit_book(
         time_expired_count,
         force_expired_count,
         cap_hit,
+        scan_capped,
+        resume_cursor,
         events,
     })
 }
