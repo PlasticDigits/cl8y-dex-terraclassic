@@ -498,4 +498,31 @@ mod tests {
         let paths2 = find_paths_top_k(0, 3, &pairs, 2, 5);
         assert!(paths2.is_empty());
     }
+
+    #[test]
+    fn four_hop_only_route_within_budget_is_found() {
+        // A 4-hop-only route must survive: 0-1-2-3-4 with no shortcut, max_hops=4 (#323).
+        let pairs = vec![
+            mk_pair(1, 0, 1),
+            mk_pair(2, 1, 2),
+            mk_pair(3, 2, 3),
+            mk_pair(4, 3, 4),
+        ];
+        let paths = find_paths_top_k(0, 4, &pairs, 4, 5);
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].len(), 4);
+        // Excluded when the budget is one hop short.
+        let paths3 = find_paths_top_k(0, 4, &pairs, 3, 5);
+        assert!(paths3.is_empty());
+    }
+
+    #[test]
+    fn unreachable_goal_at_four_hops_does_zero_enumeration() {
+        // Reachability gate at max_hops=4: unreachable goal must not enumerate (#286, #323).
+        let pairs = complete_graph(50);
+        let goal = 9999;
+        let (paths, expansions) = find_paths_top_k_instrumented(0, goal, &pairs, 4, 5);
+        assert!(paths.is_empty());
+        assert_eq!(expansions, 0, "unreachable goal must not enumerate at 4 hops");
+    }
 }
