@@ -25,6 +25,7 @@ These paths use **`RATE_LIMIT_LCD_HEAVY_RPS`** (default **10**) in addition to *
 - `GET /api/v1/pairs/{addr}/limit-book/insert-hints` ([#267](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/267))
 - `GET|POST /api/v1/route/solve`
 - `GET /api/v1/route/solve/best`
+- `GET /cg/orderbook` and `GET /cmc/orderbook/{market_pair}` — same `orderbook_sim` LCD fanout as native book routes ([#278](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/278))
 
 Legitimate frontend polling (e.g. deep book, route preview) should stay under **10 RPS per client IP**; use indexer caches on CG/CMC orderbook paths instead of hammering limit-book.
 
@@ -45,7 +46,7 @@ cd indexer && cargo test --lib
 cd indexer && cargo test --test security -j 1 -- --test-threads=1
 ```
 
-Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off, global 429 burst.
+Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**), global 429 burst.
 
 Manual check (failing LCD):
 
