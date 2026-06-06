@@ -554,6 +554,7 @@ pub(crate) fn quote_kind_after_sim(
 struct CacheEntry {
     at: Instant,
     body: serde_json::Value,
+    amount_in: u128,
 }
 
 fn route_hybrid_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
@@ -667,17 +668,17 @@ fn hybrid_cache_key(
     )
 }
 
-fn cache_get(key: &str) -> Option<serde_json::Value> {
+fn cache_get(key: &str) -> Option<(serde_json::Value, u128)> {
     let mut g = route_hybrid_cache().lock().ok()?;
     let e = g.get(key)?;
     if Instant::now().duration_since(e.at) > ROUTE_CACHE_TTL {
         g.remove(key);
         return None;
     }
-    Some(e.body.clone())
+    Some((e.body.clone(), e.amount_in))
 }
 
-fn cache_put(key: String, body: serde_json::Value) {
+fn cache_put(key: String, body: serde_json::Value, amount_in: u128) {
     if let Ok(mut g) = route_hybrid_cache().lock() {
         let now = Instant::now();
         g.retain(|_, v| now.duration_since(v.at) <= ROUTE_CACHE_TTL);
@@ -686,7 +687,11 @@ fn cache_put(key: String, body: serde_json::Value) {
                 g.remove(&oldest_k);
             }
         }
-        g.insert(key, CacheEntry { at: now, body });
+        g.insert(key, CacheEntry {
+            at: now,
+            body,
+            amount_in,
+        });
     }
 }
 
@@ -723,7 +728,7 @@ async fn execute_hybrid_route_solve(
         max_makers,
         discount_bps,
     );
-    if let Some(cached) = cache_get(&ck) {
+    if let Some((cached, cached_amount_in)) = cache_get(&ck) {
         let mut body: RouteSolveResponse =
             serde_json::from_value(cached).map_err(crate::api::internal_err)?;
         crate::api::route_slippage::enrich_route_slippage(
@@ -732,6 +737,7 @@ async fn execute_hybrid_route_solve(
             amount_raw,
             quote_trader,
             max_makers,
+            Some(cached_amount_in),
         )
         .await;
         return Ok(Json(
@@ -751,7 +757,7 @@ async fn execute_hybrid_route_solve(
     .await?;
 
     let json_body = serde_json::to_value(&body).map_err(internal_err)?;
-    cache_put(ck, json_body.clone());
+    cache_put(ck, json_body.clone(), amount_u);
     Ok(Json(json_body))
 }
 
@@ -879,6 +885,7 @@ pub async fn solve_route(
             amount_raw,
             &quote_trader,
             q.max_maker_fills.unwrap_or(8),
+            None,
         )
         .await;
     }
@@ -963,6 +970,7 @@ pub async fn solve_route_post(
             amount_raw,
             &quote_trader,
             max_maker_fills,
+            None,
         )
         .await;
     }

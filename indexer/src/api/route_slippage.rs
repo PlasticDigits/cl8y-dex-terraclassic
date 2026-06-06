@@ -173,12 +173,16 @@ async fn token_price_in_quote(
 }
 
 /// Attach `spot_amount_out`, `slippage_percent`, and per-token quote prices when computable.
+///
+/// When `estimated_for_amount_in` is set and differs from `amount_in_raw` (hybrid GET cache hit
+/// within the same amount bucket), `estimated_amount_out` is scaled linearly for slippage only.
 pub async fn enrich_route_slippage(
     state: &AppState,
     body: &mut RouteSolveResponse,
     amount_in_raw: &str,
     quote_trader: &QuoteTrader,
     max_maker_fills: u32,
+    estimated_for_amount_in: Option<u128>,
 ) {
     let Ok(amount_u) = amount_in_raw.parse::<u128>() else {
         return;
@@ -186,7 +190,7 @@ pub async fn enrich_route_slippage(
     if amount_u == 0 {
         return;
     }
-    let Some(out_raw) = body
+    let Some(mut out_raw) = body
         .estimated_amount_out
         .as_ref()
         .and_then(|s| s.parse::<u128>().ok())
@@ -195,6 +199,11 @@ pub async fn enrich_route_slippage(
     };
     if out_raw == 0 {
         return;
+    }
+    if let Some(solve_amt) = estimated_for_amount_in {
+        if solve_amt > 0 && solve_amt != amount_u {
+            out_raw = out_raw.saturating_mul(amount_u) / solve_amt;
+        }
     }
 
     let Ok(all_assets) = assets::get_all_assets(&state.pool).await else {

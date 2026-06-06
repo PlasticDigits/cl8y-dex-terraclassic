@@ -700,6 +700,7 @@ pub(crate) async fn solve_global_best_execution_inner(
             amount_raw,
             quote_trader,
             max_maker_fills,
+            None,
         )
         .await;
     }
