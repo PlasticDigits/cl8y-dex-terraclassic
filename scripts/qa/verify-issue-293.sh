@@ -296,7 +296,7 @@ PY
   echo "$PY_SLIP"
 
   if echo "$PY_SLIP" | grep -q 'ALL_PASS=true'; then
-    ok "route slippage enrichment (global extreme, pool_only low)"
+    ok "route slippage enrichment (fields present, math consistent, retail guard exercisable)"
   else
     bad "route slippage enrichment failed (see [3c] above)"
   fi
