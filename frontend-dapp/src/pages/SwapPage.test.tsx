@@ -476,7 +476,8 @@ describe('SwapPage', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
-    expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('99.97%')
+    // Wallet-aligned slippage (return vs spot) rounds to 100% for this arb-sized gap.
+    expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('100.00%')
     expect(screen.getByTestId('swap-slippage-blocked')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Slippage is too high' })).toBeDisabled()
     expect(screen.getByTestId('swap-extreme-slippage-warning')).toBeInTheDocument()
