@@ -4,7 +4,7 @@ import { StrictMode } from 'react'
 import { render, waitFor } from '@testing-library/react'
 import { CandlestickSeries, createChart, HistogramSeries, LineSeries } from 'lightweight-charts'
 import { PriceChartLightweightCanvas } from '../PriceChartLightweightCanvas'
-import { chartBundleFromCandles, makeChartCandlePoints } from '@/test/chartTestFixtures'
+import { chartBundleFromCandles } from '@/test/chartTestFixtures'
 import { lwChartTestDouble } from '@/test/lightweightChartsJsdomMock'
 
 function setElementClientSize(el: HTMLElement, width: number, height: number) {
@@ -418,9 +418,56 @@ describe('PriceChartLightweightCanvas createChart contract (stub, GitLab #227)',
     await waitFor(() => expect(chart.removePane).toHaveBeenCalledWith(2))
   })
 
-  it('prop change updates setData without a second createChart', async () => {
+  it('background data refresh does not call fitContent (GitLab #336)', async () => {
     const bundle = chartBundleFromCandles(12)
-    const nextCandles = makeChartCandlePoints(12)
+    const nextCandles = bundle.candlePoints.map((p, i) =>
+      i === bundle.candlePoints.length - 1 ? { ...p, close: p.close + 0.5 } : p
+    )
+
+    const { rerender } = render(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          candlePoints={bundle.candlePoints}
+          volumePoints={bundle.volumePoints}
+          sma7Points={bundle.sma7Points}
+          sma25Points={bundle.sma25Points}
+          rsiPoints={bundle.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+    await waitFor(() => expect(lwChartTestDouble.lastChart()).toBeDefined())
+
+    const chart = lwChartTestDouble.lastChart()!
+    const fitContent = chart.timeScale().fitContent
+    vi.mocked(fitContent).mockClear()
+
+    rerender(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          candlePoints={nextCandles}
+          volumePoints={bundle.volumePoints}
+          sma7Points={bundle.sma7Points}
+          sma25Points={bundle.sma25Points}
+          rsiPoints={bundle.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+
+    await waitFor(() => expect(lwChartTestDouble.seriesSpies[0]!.update).toHaveBeenCalled())
+    expect(fitContent).not.toHaveBeenCalled()
+  })
+
+  it('prop change updates series without a second createChart', async () => {
+    const bundle = chartBundleFromCandles(12)
+    const nextCandles = bundle.candlePoints.map((p, i) =>
+      i === bundle.candlePoints.length - 1 ? { ...p, close: p.close + 0.25 } : p
+    )
     const { rerender } = render(
       <div style={{ width: 640, height: 400 }}>
         <PriceChartLightweightCanvas
@@ -437,7 +484,7 @@ describe('PriceChartLightweightCanvas createChart contract (stub, GitLab #227)',
     )
     await waitFor(() => expect(lwChartTestDouble.seriesSpies.length).toBeGreaterThanOrEqual(2))
 
-    const candleSetData = lwChartTestDouble.seriesSpies[0]!.setData
+    const candleUpdate = lwChartTestDouble.seriesSpies[0]!.update
     vi.mocked(createChart).mockClear()
 
     rerender(
@@ -455,7 +502,7 @@ describe('PriceChartLightweightCanvas createChart contract (stub, GitLab #227)',
       </div>
     )
 
-    await waitFor(() => expect(candleSetData).toHaveBeenCalledWith(nextCandles))
+    await waitFor(() => expect(candleUpdate).toHaveBeenCalledWith(nextCandles[11]))
     expect(vi.mocked(createChart)).not.toHaveBeenCalled()
   })
 

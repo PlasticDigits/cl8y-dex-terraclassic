@@ -5,6 +5,7 @@ import type { IndicatorLinePoint } from './priceChartIndicators'
 import { rsiPaneHeightPx, volumePaneHeightPx } from './priceChartPaneHeights'
 import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from './priceChartPriceScale'
 import { syncPriceChartIndicatorOverlays, type IndicatorSeriesRefs } from './priceChartLightweightIndicatorSync'
+import { syncCandleSeriesData, syncHistogramSeriesData, syncLineSeriesData } from './priceChartLightweightSeriesSync'
 import { loadPriceChartLightweightModule } from './priceChartLightweightModule'
 
 export interface PriceChartLightweightCanvasProps {
@@ -57,6 +58,11 @@ export function PriceChartLightweightCanvas({
 
   const applyLayoutRef = useRef<(() => void) | null>(null)
   const chartInitIdRef = useRef(0)
+  const previousCandlePointsRef = useRef<ChartCandlePoint[]>([])
+  const previousVolumePointsRef = useRef<typeof volumePoints>([])
+  const previousSma7PointsRef = useRef<IndicatorLinePoint[]>([])
+  const previousSma25PointsRef = useRef<IndicatorLinePoint[]>([])
+  const previousRsiPointsRef = useRef<IndicatorLinePoint[]>([])
   const [chartModelReady, setChartModelReady] = useState(false)
 
   useEffect(() => {
@@ -129,6 +135,7 @@ export function PriceChartLightweightCanvas({
         0
       )
       candleSeriesRef.current.setData(candlePointsRef.current)
+      previousCandlePointsRef.current = candlePointsRef.current
 
       chart.addPane()
       chart.panes()[1]?.setHeight(volumePaneHeightPx(h))
@@ -145,6 +152,7 @@ export function PriceChartLightweightCanvas({
         1
       )
       volumeSeriesRef.current.setData(volumePointsRef.current)
+      previousVolumePointsRef.current = volumePointsRef.current
 
       chart.timeScale().fitContent()
 
@@ -196,6 +204,11 @@ export function PriceChartLightweightCanvas({
       candleSeriesRef.current = null
       volumeSeriesRef.current = null
       indicatorRefs.current = { sma7: null, sma25: null, rsi: null }
+      previousCandlePointsRef.current = []
+      previousVolumePointsRef.current = []
+      previousSma7PointsRef.current = []
+      previousSma25PointsRef.current = []
+      previousRsiPointsRef.current = []
       lcRef.current = null
       if (chart) {
         chart.remove()
@@ -215,23 +228,69 @@ export function PriceChartLightweightCanvas({
       showSma7,
       showSma25,
       showRsi,
-      sma7Points,
-      sma25Points,
-      rsiPoints,
+      sma7Points: sma7PointsRef.current,
+      sma25Points: sma25PointsRef.current,
+      rsiPoints: rsiPointsRef.current,
       chartHeightPx: h,
     })
+    if (showSma7 && indicatorRefs.current.sma7) {
+      previousSma7PointsRef.current = sma7PointsRef.current
+    } else {
+      previousSma7PointsRef.current = []
+    }
+    if (showSma25 && indicatorRefs.current.sma25) {
+      previousSma25PointsRef.current = sma25PointsRef.current
+    } else {
+      previousSma25PointsRef.current = []
+    }
+    if (showRsi && indicatorRefs.current.rsi) {
+      previousRsiPointsRef.current = rsiPointsRef.current
+    } else {
+      previousRsiPointsRef.current = []
+    }
     applyLayoutRef.current?.()
     chart.timeScale().fitContent()
-  }, [chartModelReady, showSma7, showSma25, showRsi, sma7Points, sma25Points, rsiPoints])
+  }, [chartModelReady, showSma7, showSma25, showRsi])
 
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return
-    candleSeriesRef.current.setData(candlePoints)
-    volumeSeriesRef.current.setData(volumePoints)
-    if (indicatorRefs.current.sma7) indicatorRefs.current.sma7.setData(sma7Points)
-    if (indicatorRefs.current.sma25) indicatorRefs.current.sma25.setData(sma25Points)
-    if (indicatorRefs.current.rsi) indicatorRefs.current.rsi.setData(rsiPoints)
-    chartRef.current?.timeScale().fitContent()
+    previousCandlePointsRef.current = syncCandleSeriesData(
+      candleSeriesRef.current,
+      previousCandlePointsRef.current,
+      candlePoints
+    )
+    previousVolumePointsRef.current = syncHistogramSeriesData(
+      volumeSeriesRef.current,
+      previousVolumePointsRef.current,
+      volumePoints
+    )
+    if (indicatorRefs.current.sma7) {
+      previousSma7PointsRef.current = syncLineSeriesData(
+        indicatorRefs.current.sma7,
+        previousSma7PointsRef.current,
+        sma7Points
+      )
+    } else {
+      previousSma7PointsRef.current = []
+    }
+    if (indicatorRefs.current.sma25) {
+      previousSma25PointsRef.current = syncLineSeriesData(
+        indicatorRefs.current.sma25,
+        previousSma25PointsRef.current,
+        sma25Points
+      )
+    } else {
+      previousSma25PointsRef.current = []
+    }
+    if (indicatorRefs.current.rsi) {
+      previousRsiPointsRef.current = syncLineSeriesData(
+        indicatorRefs.current.rsi,
+        previousRsiPointsRef.current,
+        rsiPoints
+      )
+    } else {
+      previousRsiPointsRef.current = []
+    }
   }, [candlePoints, volumePoints, sma7Points, sma25Points, rsiPoints])
 
   return (
