@@ -60,7 +60,9 @@ Requires a reachable Postgres on `127.0.0.1:5432`. Uses host **`psql`** when ins
 
 ### Cursor Cloud Agent (Postgres-only, no wasm deploy)
 
-On Cloud Agent VMs, use the lightweight bootstrap ([#335](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335)) — does **not** start LocalTerra or run `deploy-dex-local`:
+**Indexer-only scope** — this path does **not** mean “Cloud Agent VMs lack LocalTerra”. VMs **can** run the full chain via `make setup-cloud-localterra` (see [`AGENTS.md`](../AGENTS.md) § LocalTerra — do not skip chain work).
+
+On Cloud Agent VMs, use the lightweight bootstrap ([#335](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335)) when you **only** need indexer integration tests — it does **not** start LocalTerra or run `deploy-dex-local`:
 
 ```bash
 make setup-indexer-postgres

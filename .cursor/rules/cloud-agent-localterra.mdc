@@ -1,0 +1,41 @@
+---
+description: Cloud Agent LocalTerra — do not skip chain work; use correct Docker probes
+globs:
+alwaysApply: true
+---
+
+# Cloud Agent LocalTerra
+
+**Cloud Agent VMs can run LocalTerra** via Docker. Do **not** report `SKIP (no LocalTerra in agent VM)` without provisioning first.
+
+## Wrong probes (false negatives)
+
+- `docker compose ps` / `docker info` **without** `sg docker` → permission denied on Cloud VMs even when the stack is up.
+- Host `curl http://127.0.0.1:1317` may hang; use `scripts/lib/localterra-host-curl.sh` helpers or `make wait-localterra`.
+
+## Correct probe
+
+```bash
+make has-localterra          # exit 0 = chain up
+make status                  # uses sg docker fallback on Cloud VMs
+```
+
+## Provision full stack (first time ~10–15 min)
+
+```bash
+make setup-cloud-localterra
+```
+
+Writes `frontend-dapp/.env.local`, starts indexer (tmux `indexer-dev`). Then `make dev` for the frontend.
+
+## Postgres-only is not “no LocalTerra”
+
+`make setup-indexer-postgres` is for **indexer integration tests only**. For swap/E2E/frontend chain work, use `make setup-cloud-localterra`.
+
+## Docker in non-login shells
+
+```bash
+sg docker -c 'docker compose ps'
+```
+
+Or start dockerd: see `AGENTS.md` § Docker daemon.

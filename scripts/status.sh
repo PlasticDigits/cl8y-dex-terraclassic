@@ -41,6 +41,18 @@ PIDFILE="${REPO_ROOT}/.indexer-qa.pid"
 
 # shellcheck source=scripts/lib/localterra-host-curl.sh
 source "$REPO_ROOT/scripts/lib/localterra-host-curl.sh"
+# shellcheck source=scripts/lib/cloud-agent-docker.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh"
+
+docker_reachable() {
+  if docker info >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v sg >/dev/null 2>&1 && sg docker -c 'docker info' >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
 
 log_line() {
   local name="$1"
@@ -63,10 +75,10 @@ echo "========================================"
 echo ""
 
 echo -e "${BLUE}Docker compose:${NC}"
-if docker info >/dev/null 2>&1; then
-  docker compose ps
+if docker_reachable; then
+  cloud_agent_docker_compose ps
 else
-  log_line "Docker" "down" "(docker not reachable)"
+  log_line "Docker" "down" "(docker not reachable — see AGENTS.md § Docker daemon)"
 fi
 echo ""
 
@@ -80,7 +92,7 @@ else
   log_line "LocalTerra" "down" "(${TERRA_RPC_URL})"
 fi
 
-if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
+if docker_reachable && cloud_agent_docker_compose exec -T postgres pg_isready -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
   log_line "Postgres" "ok" "(compose service postgres)"
 elif pg_isready -h localhost -U "${POSTGRES_USER:-cl8y_legal}" >/dev/null 2>&1; then
   log_line "Postgres" "ok" "(host localhost:5432)"

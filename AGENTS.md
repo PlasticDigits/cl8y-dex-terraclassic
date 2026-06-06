@@ -4,6 +4,18 @@ Guidance for AI coding agents working in this repository.
 
 ## Cursor Cloud specific instructions
 
+### LocalTerra — do not skip chain work
+
+**Cloud Agent VMs can run LocalTerra in Docker.** Do **not** report `SKIP (no LocalTerra in agent VM)` without provisioning first.
+
+| Mistake | Why it fails | Fix |
+|---------|--------------|-----|
+| `docker compose ps` without `sg docker` | Permission denied on docker.sock | `sg docker -c 'docker compose ps'` or `make status` |
+| `curl http://127.0.0.1:1317` hangs | Host userland-proxy quirk on Linux | `make has-localterra` or `make wait-localterra` (exec fallback) |
+| Only ran `make setup-indexer-postgres` | Postgres-only path — **no chain deploy** | `make setup-cloud-localterra` for swap/E2E/frontend |
+
+**Probe:** `make has-localterra` (exit 0 = chain up). **Provision:** `make setup-cloud-localterra` (~10–15 min first run).
+
 ### VM prerequisites (one-time per snapshot)
 
 These are **not** in the startup update script; install once when provisioning a new Cloud Agent VM:

@@ -56,7 +56,7 @@ echo ""
 echo "[3] Live OE-1 quotes (indexer route/solve, 1.0 token)"
 CONTAINER="$(sg docker -c 'docker compose ps -q localterra' 2>/dev/null | head -1 || true)"
 if [[ -z "$CONTAINER" ]] || ! curl -sf "${INDEXER}/health" >/dev/null 2>&1; then
-  skip "LocalTerra/indexer not running (make setup-cloud-localterra)"
+  skip "LocalTerra/indexer not running — run: make setup-cloud-localterra (Cloud Agent VMs support LocalTerra; probe: make has-localterra)"
 else
   if sg docker -c 'make swarm-bootstrap-liquidity' >/tmp/verify293-bootstrap.log 2>&1; then
     ok "make swarm-bootstrap-liquidity"
