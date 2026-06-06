@@ -30,17 +30,23 @@ Bump procedure: [`docs/local-development.md`](./local-development.md) § Docker 
 | **LT8** | Treasury bank send uses **`DEPLOY_TREASURY_FUND_COINS`** default **2M USTC + 200k LUNC** | Genesis is **1M LUNC**; legacy 10M LUNC send fails on SDK 0.53 LocalTerra |
 | **LT9** | E2E `global-setup.ts` falls back to **`docker exec` LCD** when host `:1317` fetch times out | Same userland-proxy pattern as [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh) |
 | **LT10** | Indexer integration wiremocks for tx search use **`query` + `page` + `limit`** (not legacy `events=` / `pagination.offset`) | Matches terrad v4 `GetTxsEvent`; see `indexer/src/lcd/mod.rs` tests and `indexer/tests/indexer_ingestion_hardening.rs` |
+| **LT11** | Strict E2E: **one** `make deploy-local` per chain volume, then **`bash scripts/e2e-start-indexer.sh`** before `make test-e2e` | `make deploy-local` does not restart the indexer ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)); a second deploy on the same volume orphans prior pair rows. **`make test-e2e-tx`** runs `deploy-dex-local.sh` again — prefer CI order below or `make reset-qa` first |
 
 ## Verification commands
 
 ```bash
 make reset && make start && make wait-healthy
-make deploy-local
+make build-optimized && make deploy-local
+bash scripts/e2e-start-indexer.sh   # after deploy; see LT11
 make test-contracts
 make test-frontend
 make test-qa-verify-deploy
-make test-e2e-tx    # strict on-chain; long-running
+make test-indexer-integration
+# Cloud Agent: sg docker -c 'make test-e2e'  (docker group for global-setup scripts)
+make test-e2e                     # smoke (5 workers) + e2e-tx (1 worker); CI reference job
 ```
+
+**Do not** run `make test-e2e-tx` after an earlier `make deploy-local` on the same volumes without restarting the indexer (LT11) or wiping Postgres (`make reset-qa`).
 
 ## Agent playbooks
 

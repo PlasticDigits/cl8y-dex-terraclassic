@@ -29,10 +29,14 @@ You are changing **strict Playwright automation wiring**, **`e2e/helpers/chain.t
 Node **24** via **nvm** (`.nvmrc`); local commands use [`scripts/with-node.sh`](../scripts/with-node.sh) — not bare system `npm`.
 
 ```bash
-make test-e2e-tx
+make deploy-local
+bash scripts/e2e-start-indexer.sh
+make test-e2e
 ```
 
-**Cloud Agent VM:** run `make test-e2e-tx` inside `sg docker -c '…'` (docker group). Install browsers once: `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright install chromium` (if `browserType.launch` fails). Use `CI=1` to avoid the HTML report server hanging on exit. Tx project stays at **1 worker** (not 5) — shared dev account sequence ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)).
+**CI reference job `e2e`** uses the order above (`deploy` → `e2e-start-indexer` → `make test-e2e`). **`make test-e2e-tx`** runs `deploy-dex-local.sh` again without restarting the indexer — only use it on a fresh chain or after `make reset-qa` ([#292](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292) **LT11**).
+
+**Cloud Agent VM:** run `make test-e2e` (or the three-step order above) inside `sg docker -c '…'` (docker group) — global setup calls deploy/e2e shell scripts that need `docker exec` when host `:1317` hangs. Install browsers once: `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright install chromium` (if `browserType.launch` fails). Use `CI=1` to avoid the HTML report server hanging on exit. Tx project stays at **1 worker** (not 5) — shared dev account sequence ([#201](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/201)).
 
 Or manually:
 
