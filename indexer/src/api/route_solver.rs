@@ -272,6 +272,18 @@ pub struct RouteSolveResponse {
     /// True when path search was truncated by the concurrency cap (#324).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search_truncated: Option<bool>,
+    /// Fair output at best-route token cross-rate (raw integer, output token decimals). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spot_amount_out: Option<String>,
+    /// Symmetric deviation vs `spot_amount_out` (percent string, e.g. `"99.97"`). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slippage_percent: Option<String>,
+    /// Input token price in the quote asset (best-route valuation). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_in_price_quote: Option<String>,
+    /// Output token price in the quote asset (best-route valuation). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_out_price_quote: Option<String>,
 }
 
 pub(crate) fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
@@ -825,7 +837,7 @@ pub async fn solve_route(
     );
 
     let intermediate_tokens = build_intermediate_tokens(&resolved);
-    let body = RouteSolveResponse {
+    let mut body = RouteSolveResponse {
         token_in: resolved.token_in,
         token_out: resolved.token_out,
         intermediate_tokens,
@@ -842,7 +854,15 @@ pub async fn solve_route(
         fidelity_check: None,
         mirror_max_block_lag: None,
         search_truncated: None,
+        spot_amount_out: None,
+        slippage_percent: None,
+        token_in_price_quote: None,
+        token_out_price_quote: None,
     };
+
+    if let Some(amount_raw) = amount_raw {
+        crate::api::route_slippage::enrich_route_slippage(&state, &mut body, amount_raw, &quote_trader).await;
+    }
 
     Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
 }
@@ -889,7 +909,7 @@ pub async fn solve_route_post(
     };
     let quote_kind = quote_kind_after_sim(&estimated, base_kind);
 
-    let out = RouteSolveResponse {
+    let mut out = RouteSolveResponse {
         token_in: resolved.token_in,
         token_out: resolved.token_out,
         hops: resolved.hops,
@@ -906,7 +926,15 @@ pub async fn solve_route_post(
         fidelity_check: None,
         mirror_max_block_lag: None,
         search_truncated: None,
+        spot_amount_out: None,
+        slippage_percent: None,
+        token_in_price_quote: None,
+        token_out_price_quote: None,
     };
+
+    if let Some(ref amount_raw) = body.amount_in {
+        crate::api::route_slippage::enrich_route_slippage(&state, &mut out, amount_raw, &quote_trader).await;
+    }
 
     Ok(Json(serde_json::to_value(out).map_err(internal_err)?))
 }
