@@ -1,6 +1,6 @@
 import '@/test/lightweightChartsJsdomMock'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
@@ -281,6 +281,80 @@ describe('TradePage', () => {
     resolvePair(mockIndexerPair)
     await waitFor(() => {
       expect(screen.queryByText(/Loading chart/i)).not.toBeInTheDocument()
+    })
+  })
+
+  it('switches trade workspace when a different pair is selected from search (GitLab #301)', async () => {
+    const PAIR_B = 'terra1pair0000000000000000000000000000000002'
+    const mockIndexerPairB: IndexerPair = {
+      ...mockIndexerPair,
+      pair_address: PAIR_B,
+      asset_0: { symbol: 'CCC', contract_addr: 'terra1ccc0000000000000000000000000000003', denom: null, decimals: 6 },
+      asset_1: { symbol: 'DDD', contract_addr: 'terra1ddd0000000000000000000000000000004', denom: null, decimals: 6 },
+    }
+
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: PAIR,
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [
+            { token: { contract_addr: 'terra1aaa0000000000000000000000000000001' } },
+            { token: { contract_addr: 'terra1bbb0000000000000000000000000000002' } },
+          ],
+        },
+        {
+          contract_addr: PAIR_B,
+          liquidity_token: 'terra1lp000000000000000000000000000000002',
+          asset_infos: [
+            { token: { contract_addr: 'terra1ccc0000000000000000000000000000003' } },
+            { token: { contract_addr: 'terra1ddd0000000000000000000000000000004' } },
+          ],
+        },
+      ],
+    })
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({
+      items: [mockIndexerPair, mockIndexerPairB],
+      total: 2,
+      limit: 20,
+      offset: 0,
+    })
+    vi.mocked(indexerClient.getPair).mockImplementation(async (addr) =>
+      addr === PAIR_B ? mockIndexerPairB : mockIndexerPair
+    )
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders: [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter(
+      [
+        { path: '/trade', element: <TradePage /> },
+        { path: '/trade/:pairAddr', element: <TradePage /> },
+      ],
+      { initialEntries: [`/trade/${PAIR}`] }
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    await screen.findByTestId('trade-sub-lg-workspace')
+    const pairInput = screen.getByRole('combobox', { name: 'Trading pair' })
+    expect(pairInput).toHaveAttribute('type', 'text')
+
+    await user.click(pairInput)
+    const listbox = await screen.findByRole('listbox')
+    await user.click(within(listbox).getByRole('option', { name: /CCC/i }))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/trade/${PAIR_B}`)
+      expect(vi.mocked(indexerClient.getPair)).toHaveBeenCalledWith(PAIR_B)
     })
   })
 
