@@ -41,7 +41,7 @@ make setup-cloud-localterra
 | `frontend-dapp/.env.development` | `VITE_DEV_MNEMONIC` for **Simulated Wallet** |
 | `indexer/.env` | Indexer Postgres + chain endpoints |
 
-**Node 24:** After `nvm use`, prepend `$(nvm which node | xargs dirname)` to `PATH` so `scripts/with-node.sh` and Playwright do not pick `/exec-daemon/node` (v22).
+**Node 24:** After `nvm use`, prepend `$(nvm which node | xargs dirname)` to `PATH` so `scripts/with-node.sh` and Playwright do not pick `/exec-daemon/node` (v22). **Always start Vite via `make dev` or `bash scripts/dev-frontend-local.sh`** (they wrap `with-node.sh`). A Vite process started with `/exec-daemon/node` v22 can make Chrome show **“Aw, Snap!”** on `http://127.0.0.1:5173` — this is often misreported as a Keplr/wallet bug. Fix: kill stale Vite, restart with `make dev`.
 
 **Frontend + manual QA:**
 
@@ -140,6 +140,8 @@ google-chrome --no-sandbox --disable-dev-shm-usage --disable-gpu http://127.0.0.
 ```
 
 Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (dev mnemonic in `frontend-dapp/.env.development` after `make deploy-local`) for on-chain swaps without an extension. Playwright E2E uses the simulated wallet, not Keplr.
+
+**Keplr agent pitfalls:** (1) Extension missing until `./scripts/setup-browser-cloud-agent.sh` runs (`make test-setup-browser`). (2) **Do not use Terra Station on LocalTerra** for fee/signing QA — use Keplr or Simulated Wallet ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)). (3) Blank/crashed Chrome on the dApp URL is usually **wrong Node for Vite** (see Node 24 note above), not Keplr itself.
 
 ### Related playbooks
 
