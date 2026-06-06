@@ -51,7 +51,7 @@ make dev   # http://127.0.0.1:5173
 google-chrome --no-sandbox --disable-dev-shm-usage --disable-gpu http://127.0.0.1:5173/limits
 ```
 
-**Strict E2E (#292):** after `make deploy-local`, run `bash scripts/e2e-start-indexer.sh` then `sg docker -c 'CI=1 make test-e2e'` — see **LT11** in [`docs/localterra-sdk53.md`](docs/localterra-sdk53.md). Do not chain `make test-e2e-tx` after an earlier deploy on the same volumes without resetting the indexer DB.
+**Strict E2E (#292):** after `make deploy-local`, `(cd indexer && cargo build --release)` if needed, then `bash scripts/e2e-start-indexer.sh`, then `sg docker -c 'CI=1 make test-e2e'` — see **LT11** / **LT12** in [`docs/localterra-sdk53.md`](docs/localterra-sdk53.md). Install Playwright via `bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright install chromium` (not bare `npx playwright`). Do not chain `make test-e2e-tx` after an earlier deploy on the same volumes without resetting the indexer DB.
 
 **Automated #295 ladder rung UI check** (needs `make dev` + deploy env; first run downloads Playwright Chromium):
 

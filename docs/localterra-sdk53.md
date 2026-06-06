@@ -31,22 +31,35 @@ Bump procedure: [`docs/local-development.md`](./local-development.md) § Docker 
 | **LT9** | E2E `global-setup.ts` falls back to **`docker exec` LCD** when host `:1317` fetch times out | Same userland-proxy pattern as [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh) |
 | **LT10** | Indexer integration wiremocks for tx search use **`query` + `page` + `limit`** (not legacy `events=` / `pagination.offset`) | Matches terrad v4 `GetTxsEvent`; see `indexer/src/lcd/mod.rs` tests and `indexer/tests/indexer_ingestion_hardening.rs` |
 | **LT11** | Strict E2E: **one** `make deploy-local` per chain volume, then **`bash scripts/e2e-start-indexer.sh`** before `make test-e2e` | `make deploy-local` does not restart the indexer ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)); a second deploy on the same volume orphans prior pair rows. **`make test-e2e-tx`** runs `deploy-dex-local.sh` again — prefer CI order below or `make reset-qa` first |
+| **LT12** | Playwright browsers: install via **locked** `frontend-dapp` dependency (`./node_modules/.bin/playwright install chromium`), not bare `npx playwright` | Global `npx` can download a newer Chromium than `@playwright/test` expects → `browserType.launch: Executable doesn't exist at …chromium_headless_shell-1208…` and all E2E specs fail |
 
 ## Verification commands
 
 ```bash
 make reset && make start && make wait-healthy
 make build-optimized && make deploy-local
+(cd indexer && cargo build --release)   # required before e2e-start-indexer on fresh VM
 bash scripts/e2e-start-indexer.sh   # after deploy; see LT11
+bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright install chromium  # LT12
 make test-contracts
 make test-frontend
 make test-qa-verify-deploy
 make test-indexer-integration
-# Cloud Agent: sg docker -c 'make test-e2e'  (docker group for global-setup scripts)
+# Cloud Agent: sg docker -c 'CI=1 make test-e2e'  (docker group for global-setup scripts)
 make test-e2e                     # smoke (5 workers) + e2e-tx (1 worker); CI reference job
 ```
 
 **Do not** run `make test-e2e-tx` after an earlier `make deploy-local` on the same volumes without restarting the indexer (LT11) or wiping Postgres (`make reset-qa`).
+
+### #292 acceptance status (SDK 53 scope vs separate issues)
+
+| Layer | Command | SDK 53 / v4 scope |
+| ----- | ------- | ----------------- |
+| Infra + deploy | `reset` → `start` → `wait-healthy` → `deploy-local` | **In scope** — digest pin, terrad **4.0.1**, wasm upload/instantiate/execute on wasmvm v3 |
+| Unit | `make test-contracts`, `make test-indexer-integration` | **In scope** |
+| QA | `make test-qa-verify-deploy` | **In scope** |
+| Frontend unit | `make test-frontend` | **Out of scope** when failures are tracked elsewhere (e.g. [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/293) slippage display) |
+| Strict E2E | `make test-e2e` | **Mixed** — on-chain tx specs exercise v4 signing/broadcast; smoke UI regressions ([#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186), [#178](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178), [#179](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179)) are not SDK 53 blockers |
 
 ## Agent playbooks
 
