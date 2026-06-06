@@ -11,8 +11,9 @@ use serial_test::serial;
 use std::str::FromStr;
 
 fn wasm_tx_hybrid_swap(pair_addr: &str) -> TxResponse {
+    // #285: parser scopes wasm events via runtime-stamped `_contract_address` only.
     let attrs = vec![
-        ("contract_address", pair_addr),
+        ("_contract_address", pair_addr),
         ("action", "swap"),
         ("sender", "terra1traderxyz"),
         ("offer_amount", "100"),
