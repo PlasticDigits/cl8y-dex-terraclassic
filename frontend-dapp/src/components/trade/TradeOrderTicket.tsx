@@ -55,6 +55,7 @@ import {
   isPriceOnlyLimitEdit,
   LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE,
 } from '@/utils/limitOrderPriceEdit'
+import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 
 function TicketSection({
   eyebrow,
@@ -606,6 +607,10 @@ function TradeOrderTicketContent({
 
   const token0Display = indexerPair?.asset_0.symbol ?? getTokenDisplaySymbol(token0 || 'token0')
   const token1Display = indexerPair?.asset_1.symbol ?? getTokenDisplaySymbol(token1 || 'token1')
+  const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(
+    token0Display,
+    token1Display
+  )
   const sideAction =
     side === 'bid'
       ? { verb: 'Buy', receive: token0Display, pay: token1Display, tone: 'bid' as const }
@@ -734,8 +739,8 @@ function TradeOrderTicketContent({
             compact
             side={side}
             onSideChange={handleSideChange}
-            bidLabel={`Buy ${token0Display}`}
-            askLabel={`Sell ${token0Display}`}
+            bidLabel={directionBidLabel}
+            askLabel={directionAskLabel}
           />
           {selectedPair && pairAddr.startsWith('terra1') && (
             <div className="grid grid-cols-2 gap-2">
