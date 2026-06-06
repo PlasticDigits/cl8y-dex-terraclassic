@@ -10,6 +10,8 @@
 #             LocalTerra lopsided topology — NOT a decimal bug; see #293).
 #        [3b] pool_only=true direct-pool quotes are near-inverse (≤5% off
 #             reciprocal; fees/spread) — OE-1 acceptance for direct pairs.
+#        [3c] route/solve slippage_percent enrichment (GitLab #293): global
+#             arb routes show extreme slippage (≥99%); pool_only stays ≤5%.
 #
 # Refs: docs/testing.md, skills/AGENTS_LOCALNET_TRADING_SWARM.md
 set -euo pipefail
@@ -186,6 +188,81 @@ PY
     ok "global route asymmetry documented (see [3a] — different best paths per direction)"
   else
     bad "global route asymmetry trace failed (see [3a] output above)"
+  fi
+
+  echo ""
+  echo "  [3c] Route slippage enrichment (slippage_percent vs best-route token prices)"
+  set +e
+  PY_SLIP="$(VERIFY293_INDEXER_URL="$INDEXER" python3 - <<'PY'
+import json, os, sys, time, urllib.error, urllib.request
+
+INDEXER = os.environ.get("VERIFY293_INDEXER_URL", "http://127.0.0.1:3001")
+AMOUNT_IN = 1_000_000
+GLOBAL_MIN_SLIP = 99.0
+POOL_MAX_SLIP = 5.0
+
+def fetch(url):
+    time.sleep(0.6)
+    with urllib.request.urlopen(url) as r:
+        return json.load(r)
+
+def solve(token_in, token_out, pool_only=False):
+    url = f"{INDEXER}/api/v1/route/solve?token_in={token_in}&token_out={token_out}&amount_in={AMOUNT_IN}"
+    if pool_only:
+        url += "&pool_only=true"
+    return fetch(url)
+
+tokens = {t["symbol"]: t["contract_address"] for t in fetch(f"{INDEXER}/api/v1/tokens")}
+ember, coral = tokens["EMBER"], tokens["CORAL"]
+all_pass = True
+lines = []
+
+def slip_pct(body):
+    raw = body.get("slippage_percent")
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+for label, pool_only, expect in [
+    ("EMBER→CORAL global", False, "high"),
+    ("EMBER→CORAL pool_only", True, "low"),
+]:
+    try:
+        body = solve(ember, coral, pool_only=pool_only)
+        slip = slip_pct(body)
+        spot = body.get("spot_amount_out")
+        if slip is None or not spot:
+            all_pass = False
+            lines.append(f"  {label}: missing slippage_percent or spot_amount_out")
+            continue
+        if expect == "high":
+            ok = slip >= GLOBAL_MIN_SLIP
+            lines.append(f"  {label}: slippage={slip:.2f}% spot_out={spot} {'PASS' if ok else 'FAIL'} (expect ≥{GLOBAL_MIN_SLIP}%)")
+        else:
+            ok = slip <= POOL_MAX_SLIP
+            lines.append(f"  {label}: slippage={slip:.2f}% spot_out={spot} {'PASS' if ok else 'FAIL'} (expect ≤{POOL_MAX_SLIP}%)")
+        if not ok:
+            all_pass = False
+    except (urllib.error.URLError, KeyError, TypeError, ValueError) as e:
+        all_pass = False
+        lines.append(f"  {label}: ERROR {e}")
+
+print("\n".join(lines))
+print(f"ALL_PASS={'true' if all_pass else 'false'}")
+sys.exit(0 if all_pass else 1)
+PY
+)"
+  PY_SLIP_RC=$?
+  set -e
+  echo "$PY_SLIP"
+
+  if echo "$PY_SLIP" | grep -q 'ALL_PASS=true'; then
+    ok "route slippage enrichment (global extreme, pool_only low)"
+  else
+    bad "route slippage enrichment failed (see [3c] above)"
   fi
 
   sg docker -c './scripts/bots/stop-swarm.sh' >/dev/null 2>&1 || true
