@@ -67,8 +67,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 9. **Pool-only:** Hybrid off, amount set → quote card shows; route line is direct `PAY → RECEIVE` (or row absent only when `marketRouteLine` is null per table above).
 10. Confirm **no** duplicate route labels on the market quote card (single **Route** row only; no client BFS fallback label — trade market does not submit via client BFS today).
 
-## Open scope (GitLab #302 — verification)
+## Closed scope (GitLab #302 / #329)
 
 - **Client BFS fallback indicator (Swap — #329):** When submit uses client multihop `findRoute` without indexer `router_operations`, **`swap-route-source-client-fallback`** appears under **`swap-route-summary`**. **Trade market** passes `clientRoute: null` — indexer/pool-only direct line only; no client-BFS fallback label there unless product extends hybrid-off multihop.
-- **Explainability:** Token arrow only; no “best route” rationale beyond existing hybrid execution callouts.
-- Keep **#302** open until `/trade` route display acceptance is fully met on LocalTerra and any remaining explainability items are implemented or explicitly descoped on the issue.
+- **Explainability (descoped for #302):** Token arrow only; no separate "best route" rationale beyond existing hybrid execution callouts and the client-BFS warning copy above.
