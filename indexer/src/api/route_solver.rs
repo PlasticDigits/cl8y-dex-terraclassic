@@ -96,7 +96,7 @@ pub enum RouteQuoteKind {
     IndexerHybridDbDegraded,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FidelityCheck {
     Passed,
@@ -223,14 +223,14 @@ fn hop_count(prev: &HashMap<i32, (i32, String)>, start: i32, mut u: i32) -> usiz
     n
 }
 
-#[derive(Debug, Serialize, ToSchema, Clone)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct RouteHop {
     pub pair: String,
     pub offer_token: String,
     pub ask_token: String,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RouteSolveResponse {
     pub token_in: String,
     pub token_out: String,
@@ -272,6 +272,18 @@ pub struct RouteSolveResponse {
     /// True when path search was truncated by the concurrency cap (#324).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search_truncated: Option<bool>,
+    /// Fair output at best-route token cross-rate (raw integer, output token decimals). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spot_amount_out: Option<String>,
+    /// Symmetric deviation vs `spot_amount_out` (percent string, e.g. `"99.97"`). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slippage_percent: Option<String>,
+    /// Input token price in the quote asset (best-route valuation). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_in_price_quote: Option<String>,
+    /// Output token price in the quote asset (best-route valuation). GitLab #293.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_out_price_quote: Option<String>,
 }
 
 pub(crate) fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
@@ -542,6 +554,7 @@ pub(crate) fn quote_kind_after_sim(
 struct CacheEntry {
     at: Instant,
     body: serde_json::Value,
+    amount_in: u128,
 }
 
 fn route_hybrid_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
@@ -655,17 +668,17 @@ fn hybrid_cache_key(
     )
 }
 
-fn cache_get(key: &str) -> Option<serde_json::Value> {
+fn cache_get(key: &str) -> Option<(serde_json::Value, u128)> {
     let mut g = route_hybrid_cache().lock().ok()?;
     let e = g.get(key)?;
     if Instant::now().duration_since(e.at) > ROUTE_CACHE_TTL {
         g.remove(key);
         return None;
     }
-    Some(e.body.clone())
+    Some((e.body.clone(), e.amount_in))
 }
 
-fn cache_put(key: String, body: serde_json::Value) {
+fn cache_put(key: String, body: serde_json::Value, amount_in: u128) {
     if let Ok(mut g) = route_hybrid_cache().lock() {
         let now = Instant::now();
         g.retain(|_, v| now.duration_since(v.at) <= ROUTE_CACHE_TTL);
@@ -674,7 +687,11 @@ fn cache_put(key: String, body: serde_json::Value) {
                 g.remove(&oldest_k);
             }
         }
-        g.insert(key, CacheEntry { at: now, body });
+        g.insert(key, CacheEntry {
+            at: now,
+            body,
+            amount_in,
+        });
     }
 }
 
@@ -711,8 +728,21 @@ async fn execute_hybrid_route_solve(
         max_makers,
         discount_bps,
     );
-    if let Some(cached) = cache_get(&ck) {
-        return Ok(Json(cached));
+    if let Some((cached, cached_amount_in)) = cache_get(&ck) {
+        let mut body: RouteSolveResponse =
+            serde_json::from_value(cached).map_err(crate::api::internal_err)?;
+        crate::api::route_slippage::enrich_route_slippage(
+            state,
+            &mut body,
+            amount_raw,
+            quote_trader,
+            max_makers,
+            Some(cached_amount_in),
+        )
+        .await;
+        return Ok(Json(
+            serde_json::to_value(body).map_err(crate::api::internal_err)?,
+        ));
     }
 
     let (body, _meta) = crate::api::best_execution::solve_global_best_execution(
@@ -727,7 +757,7 @@ async fn execute_hybrid_route_solve(
     .await?;
 
     let json_body = serde_json::to_value(&body).map_err(internal_err)?;
-    cache_put(ck, json_body.clone());
+    cache_put(ck, json_body.clone(), amount_u);
     Ok(Json(json_body))
 }
 
@@ -825,7 +855,7 @@ pub async fn solve_route(
     );
 
     let intermediate_tokens = build_intermediate_tokens(&resolved);
-    let body = RouteSolveResponse {
+    let mut body = RouteSolveResponse {
         token_in: resolved.token_in,
         token_out: resolved.token_out,
         intermediate_tokens,
@@ -842,7 +872,23 @@ pub async fn solve_route(
         fidelity_check: None,
         mirror_max_block_lag: None,
         search_truncated: None,
+        spot_amount_out: None,
+        slippage_percent: None,
+        token_in_price_quote: None,
+        token_out_price_quote: None,
     };
+
+    if let Some(amount_raw) = amount_raw {
+        crate::api::route_slippage::enrich_route_slippage(
+            &state,
+            &mut body,
+            amount_raw,
+            &quote_trader,
+            q.max_maker_fills.unwrap_or(8),
+            None,
+        )
+        .await;
+    }
 
     Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
 }
@@ -889,7 +935,7 @@ pub async fn solve_route_post(
     };
     let quote_kind = quote_kind_after_sim(&estimated, base_kind);
 
-    let out = RouteSolveResponse {
+    let mut out = RouteSolveResponse {
         token_in: resolved.token_in,
         token_out: resolved.token_out,
         hops: resolved.hops,
@@ -906,7 +952,28 @@ pub async fn solve_route_post(
         fidelity_check: None,
         mirror_max_block_lag: None,
         search_truncated: None,
+        spot_amount_out: None,
+        slippage_percent: None,
+        token_in_price_quote: None,
+        token_out_price_quote: None,
     };
+
+    if let Some(ref amount_raw) = body.amount_in {
+        let max_maker_fills = body
+            .hybrid_by_hop
+            .as_ref()
+            .and_then(|hops| hops.iter().flatten().map(|h| h.max_maker_fills).max())
+            .unwrap_or(8);
+        crate::api::route_slippage::enrich_route_slippage(
+            &state,
+            &mut out,
+            amount_raw,
+            &quote_trader,
+            max_maker_fills,
+            None,
+        )
+        .await;
+    }
 
     Ok(Json(serde_json::to_value(out).map_err(internal_err)?))
 }

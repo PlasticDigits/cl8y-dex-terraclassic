@@ -65,11 +65,22 @@ import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
+import {
+  SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
+  SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
+  resolveRouteSlippagePercent,
+  resolveSwapExpectedSlippagePercent,
+  slippageSeverityClass,
+} from '@/utils/swapRouteSlippage'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   return_amount: string
   spread_amount: string
   commission_amount: string
+  /** Indexer best-route cross-rate slippage (GitLab #293). */
+  routeSlippagePercent?: string
+  spotAmountOut?: string
   indexerQuoteKind?: IndexerRouteQuoteKind
   indexerOperations?: SwapOperation[]
   indexerIntermediateTokens?: string[]
@@ -88,7 +99,7 @@ export default function SwapPage() {
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
-  const { slippageTolerance, setSlippageTolerance, deadlineSeconds } = useDexStore()
+  const { slippageTolerance, setSlippageTolerance, deadlineSeconds, expertMode, setExpertMode } = useDexStore()
   const queryClient = useQueryClient()
 
   const swapCustomSlippagePctInputId = useId()
@@ -100,6 +111,7 @@ export default function SwapPage() {
   const [fromToken, setFromToken] = useState<string>('')
   const [toToken, setToToken] = useState<string>('')
   const [showSettings, setShowSettings] = useState(false)
+  const [showExpertModeModal, setShowExpertModeModal] = useState(false)
   const [customSlippage, setCustomSlippage] = useState('')
   const [showImpactConfirm, setShowImpactConfirm] = useState(false)
   const [indexerRouteResult, setIndexerRouteResult] = useState<IndexerRouteSolveResponse | null>(null)
@@ -434,6 +446,8 @@ export default function SwapPage() {
                   return_amount: idx.estimated_amount_out,
                   spread_amount: '0',
                   commission_amount: '0',
+                  routeSlippagePercent: idx.slippage_percent,
+                  spotAmountOut: idx.spot_amount_out,
                   indexerQuoteKind: idx.quote_kind,
                   receiveQuoteIsPoolOnlyWithConfiguredBookLeg: false,
                   indexerOperations: ops.length > 0 ? ops : undefined,
@@ -469,6 +483,12 @@ export default function SwapPage() {
               return_amount: result.amount,
               spread_amount: '0',
               commission_amount: '0',
+              routeSlippagePercent: resolveRouteSlippagePercent(
+                result.amount,
+                idx.spot_amount_out,
+                idx.slippage_percent
+              ),
+              spotAmountOut: idx.spot_amount_out,
               indexerQuoteKind: idx.quote_kind,
               indexerOperations: ops,
               indexerIntermediateTokens: intermediates,
@@ -681,7 +701,7 @@ export default function SwapPage() {
   const outputAmount = simData?.return_amount ?? ''
   const commissionAmount = simData?.commission_amount ?? ''
 
-  const priceImpact = simData
+  const hopSpreadPercent = simData
     ? simData.routePreflight != null
       ? simData.routePreflight.worstSpreadPercent
       : (() => {
@@ -693,6 +713,17 @@ export default function SwapPage() {
           return ((parseFloat(simData.spread_amount) / total) * 100).toFixed(2)
         })()
     : null
+
+  const expectedSlippagePct = simData
+    ? resolveSwapExpectedSlippagePercent(simData.routeSlippagePercent, hopSpreadPercent)
+    : null
+
+  const priceImpact = expectedSlippagePct != null ? expectedSlippagePct.toFixed(2) : hopSpreadPercent
+
+  const routeSlippageBlocked =
+    expectedSlippagePct != null && expectedSlippagePct > SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT && !expertMode
+
+  const extremeSlippageWarning = expectedSlippagePct != null && expectedSlippagePct >= SWAP_EXTREME_SLIPPAGE_WARNING_PCT
 
   const minReceived = simData ? applySlippagePercentFloor(simData.return_amount, slippageTolerance) : null
 
@@ -788,6 +819,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (simQuoteUnavailable) {
     buttonText = 'Quote unavailable'
+    buttonDisabled = true
+  } else if (routeSlippageBlocked) {
+    buttonText = 'Slippage is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Price impact too high for this trade'
@@ -947,6 +981,27 @@ export default function SwapPage() {
                     High slippage increases front-running risk
                   </p>
                 )}
+                <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={expertMode}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setShowExpertModeModal(true)
+                        } else {
+                          setExpertMode(false)
+                        }
+                      }}
+                      data-testid="swap-expert-mode-toggle"
+                    />
+                    Expert Mode
+                  </label>
+                  <p className="mt-1 text-[10px] leading-relaxed" style={{ color: 'var(--ink-subtle)' }}>
+                    When off, swaps with expected slippage above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% (vs best-route
+                    token prices) are blocked.
+                  </p>
+                </div>
               </div>
               {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
                 <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
@@ -1331,23 +1386,32 @@ export default function SwapPage() {
                   <div
                     className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
                     style={{ color: 'var(--ink-dim)' }}
+                    data-testid="swap-expected-slippage"
                   >
-                    <span className="uppercase text-xs tracking-wide font-medium">Price Impact</span>
-                    <span
-                      className={
-                        parseFloat(priceImpact) > 5
-                          ? 'text-red-400 font-semibold'
-                          : parseFloat(priceImpact) > 1
-                            ? 'text-amber-400'
-                            : 'text-green-400'
-                      }
-                    >
-                      {priceImpact}%
-                    </span>
+                    <span className="uppercase text-xs tracking-wide font-medium">Expected slippage</span>
+                    <span className={slippageSeverityClass(parseFloat(priceImpact))}>{priceImpact}%</span>
                   </div>
+                  {simData?.routeSlippagePercent && (
+                    <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
+                      vs best-route token prices (indexer). Hop spread: {hopSpreadPercent ?? '—'}%.
+                    </p>
+                  )}
                   {parseFloat(priceImpact) > 5 && (
                     <div className="col-span-2 alert-error !text-xs">
-                      High price impact! You may receive significantly fewer tokens than expected.
+                      High expected slippage! The quoted route deviates significantly from fair cross-rate token prices.
+                    </div>
+                  )}
+                  {extremeSlippageWarning && (
+                    <div
+                      className="col-span-2 alert-error !text-xs"
+                      data-testid="swap-extreme-slippage-warning"
+                      role="alert"
+                    >
+                      <p className="font-semibold mb-1">Extreme slippage ({priceImpact}%)</p>
+                      <p>
+                        This quote is far from the fair cross-rate. It may exploit mispriced pools or show a
+                        misleadingly good multi-hop path. Proceed only if you understand the risk.
+                      </p>
                     </div>
                   )}
                 </>
@@ -1400,6 +1464,27 @@ export default function SwapPage() {
               .
             </div>
           )}
+          {routeSlippageBlocked && (
+            <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-slippage-blocked">
+              <p className="font-semibold mb-1">Slippage is too high</p>
+              <p className="mb-2">
+                Expected slippage is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% vs best-route token
+                prices). This swap is blocked until you enable Expert Mode.
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
+                Dangerous: Enable Expert Mode to Swap Anyway:{' '}
+                <button
+                  type="button"
+                  className="underline font-semibold uppercase tracking-wide"
+                  style={{ color: 'var(--cyan)' }}
+                  onClick={() => setShowExpertModeModal(true)}
+                  data-testid="swap-enable-expert-mode"
+                >
+                  Enable Expert Mode
+                </button>
+              </p>
+            </div>
+          )}
           {simData?.routePreflight?.anyHopExceedsMaxSpread && (
             <div className="alert-error mb-3 text-xs" role="alert">
               <p className="font-semibold mb-1">Insufficient liquidity for this trade size</p>
@@ -1436,12 +1521,12 @@ export default function SwapPage() {
             </div>
           )}
           {/* Swap Button */}
-          {showImpactConfirm && (
+          {showImpactConfirm && !routeSlippageBlocked && (
             <div className="alert-error mb-3 text-xs">
-              <p className="font-semibold mb-1">High Price Impact Warning</p>
+              <p className="font-semibold mb-1">High expected slippage warning</p>
               <p>
-                This trade has a {priceImpact}% price impact. You may receive significantly fewer tokens than expected.
-                Click the button again to confirm.
+                This trade has {priceImpact}% expected slippage vs best-route token prices. Click the button again to
+                confirm.
               </p>
             </div>
           )}
@@ -1486,6 +1571,14 @@ export default function SwapPage() {
           )}
         </div>
       </LcdQueryGate>
+      <ExpertModeModal
+        isOpen={showExpertModeModal}
+        onClose={() => setShowExpertModeModal(false)}
+        onEnable={() => {
+          setExpertMode(true)
+          setShowExpertModeModal(false)
+        }}
+      />
     </div>
   )
 }

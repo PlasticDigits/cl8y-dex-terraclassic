@@ -7,7 +7,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 ## Product invariant
 
 - The dApp shows **one** human-readable **Route** (`TOKEN_A → TOKEN_B → …`) per active quote — no standalone “quote source” strip and no paired `Route (indexer)` / `Route` labels.
-- **Swap** (`/`): the row lives in the **trade summary** card alongside **Price impact** and **Min received** (`data-testid="swap-route-summary"`).
+- **Swap** (`/`): the row lives in the **trade summary** card alongside **Expected slippage** (route-based when indexer provides `slippage_percent` — GitLab **#293**) and **Min received** (`data-testid="swap-route-summary"`).
 - **Trade market** (`/trade`): the row lives inside the market quote card (`data-testid="trade-market-quote"`) when `marketRouteLine` is truthy (`data-testid="trade-market-route-summary"`). GitLab **#302** — mirrors swap layout.
 - **Execution-aligned path:** Display must match submit on each surface:
   - **Swap:** `SwapPage` `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`.

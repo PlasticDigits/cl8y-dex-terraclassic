@@ -419,6 +419,10 @@ async fn evaluate_candidate(
         fidelity_check: None,
         mirror_max_block_lag: None,
         search_truncated: None,
+        spot_amount_out: None,
+        slippage_percent: None,
+        token_in_price_quote: None,
+        token_out_price_quote: None,
     };
 
     Ok(CandidateEval {
@@ -556,6 +560,29 @@ pub async fn solve_global_best_execution(
     max_maker_fills: u32,
     quote_trader: &hybrid_route_opt::QuoteTrader,
 ) -> Result<(RouteSolveResponse, BestExecutionMeta), (StatusCode, String)> {
+    solve_global_best_execution_inner(
+        state,
+        token_in,
+        token_out,
+        amount_in,
+        amount_raw,
+        max_maker_fills,
+        quote_trader,
+        true,
+    )
+    .await
+}
+
+pub(crate) async fn solve_global_best_execution_inner(
+    state: &AppState,
+    token_in: &str,
+    token_out: &str,
+    amount_in: u128,
+    amount_raw: &str,
+    max_maker_fills: u32,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
+    enrich_slippage: bool,
+) -> Result<(RouteSolveResponse, BestExecutionMeta), (StatusCode, String)> {
     let solver_version = solver_version_for(state);
     let db_mode = state.route_solver_db_hybrid;
     let candidates =
@@ -666,6 +693,18 @@ pub async fn solve_global_best_execution(
         "route best execution"
     );
 
+    if enrich_slippage {
+        crate::api::route_slippage::enrich_route_slippage(
+            state,
+            &mut body,
+            amount_raw,
+            quote_trader,
+            max_maker_fills,
+            None,
+        )
+        .await;
+    }
+
     Ok((body, meta))
 }
 
@@ -699,6 +738,10 @@ mod concurrent_solve_tests {
                 fidelity_check: None,
                 mirror_max_block_lag: None,
                 search_truncated: None,
+                spot_amount_out: None,
+                slippage_percent: None,
+                token_in_price_quote: None,
+                token_out_price_quote: None,
             },
             out_u,
             grid_out: out_u,

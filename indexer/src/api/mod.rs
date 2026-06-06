@@ -20,6 +20,7 @@ pub mod orderbook_sim;
 mod overview;
 mod pairs;
 mod route_paths;
+mod route_slippage;
 mod route_solver;
 mod text_csv;
 mod tokens;

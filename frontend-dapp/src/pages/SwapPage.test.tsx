@@ -433,4 +433,61 @@ describe('SwapPage', () => {
     expect(screen.queryByText(/Cannot convert/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Something went wrong/i)).not.toBeInTheDocument()
   })
+
+  it('blocks swap above 30% route slippage unless Expert Mode is enabled (GitLab #293)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue(null)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
+      token_in: terraA,
+      token_out: terraB,
+      hops: [{ pair: 'terra1pair', offer_token: terraA, ask_token: terraB }],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ],
+      quote_kind: 'indexer_hybrid_lcd',
+      estimated_amount_out: '36000000000',
+      slippage_percent: '99.97',
+      spot_amount_out: '960000',
+    })
+    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '36000000000' })
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('99.97%')
+    expect(screen.getByTestId('swap-slippage-blocked')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Slippage is too high' })).toBeDisabled()
+    expect(screen.getByTestId('swap-extreme-slippage-warning')).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('swap-enable-expert-mode'))
+    const modal = await screen.findByRole('dialog')
+    await user.click(within(modal).getByRole('button', { name: 'Enable Expert Mode' }))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('swap-slippage-blocked')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Slippage is too high' })).not.toBeInTheDocument()
+    })
+  })
 })
