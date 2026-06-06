@@ -1,8 +1,38 @@
 import { useMutation, type UseMutationOptions, type UseMutationResult } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useReducer } from 'react'
 import { flushSync } from 'react-dom'
 import type { TerraBroadcastOptions, TerraBroadcastPhase } from '@/services/terraclassic/terraBroadcast'
 import { withTerraBroadcastScope } from '@/services/terraclassic/terraBroadcastScope'
+
+type BroadcastUiState = {
+  phase: TerraBroadcastPhase | null
+  pendingTxHash: string | null
+}
+
+type BroadcastUiAction =
+  | { type: 'phase'; phase: TerraBroadcastPhase; txHash?: string }
+  | { type: 'reset' }
+
+function broadcastUiReducer(state: BroadcastUiState, action: BroadcastUiAction): BroadcastUiState {
+  switch (action.type) {
+    case 'reset':
+      return { phase: null, pendingTxHash: null }
+    case 'phase':
+      if (action.phase === 'signing') {
+        // onMutate reset clears stale hashes; keep in-flight hash across nested broadcasts (allowance → send).
+        return { phase: action.phase, pendingTxHash: state.pendingTxHash }
+      }
+      if (action.phase === 'confirming') {
+        return {
+          phase: action.phase,
+          pendingTxHash: action.txHash ?? state.pendingTxHash,
+        }
+      }
+      return { phase: action.phase, pendingTxHash: state.pendingTxHash }
+    default:
+      return state
+  }
+}
 
 export type UseTerraBroadcastMutationResult<TData, TVariables, TContext> = UseMutationResult<
   TData,
@@ -24,27 +54,24 @@ export function useTerraBroadcastMutation<TData = string, TVariables = void, TCo
     mutationFn: (variables: TVariables) => Promise<TData>
   }
 ): UseTerraBroadcastMutationResult<TData, TVariables, TContext> {
-  const [phase, setPhase] = useState<TerraBroadcastPhase | null>(null)
-  const [pendingTxHash, setPendingTxHash] = useState<string | null>(null)
+  const [{ phase, pendingTxHash }, dispatchBroadcastUi] = useReducer(broadcastUiReducer, {
+    phase: null,
+    pendingTxHash: null,
+  })
 
   const broadcastOptions = useMemo<TerraBroadcastOptions>(
     () => ({
       onPhaseChange: (nextPhase, ctx) => {
-        // Async mutationFn batches updates; flush confirming+hash before pollTx (GitLab #330).
+        // Atomic phase+hash commit before pollTx; flushSync paints confirming+TX link (GitLab #305/#330).
         flushSync(() => {
-          setPhase(nextPhase)
-          if (nextPhase === 'signing') {
-            setPendingTxHash(null)
-          } else if (ctx?.txHash) {
-            setPendingTxHash(ctx.txHash)
-          }
+          dispatchBroadcastUi({ type: 'phase', phase: nextPhase, txHash: ctx?.txHash })
         })
       },
     }),
     []
   )
 
-  const { mutationFn, onSettled, ...rest } = options
+  const { mutationFn, onMutate, onSettled, ...rest } = options
 
   const wrappedMutationFn = useCallback(
     (variables: TVariables) => withTerraBroadcastScope(broadcastOptions, () => mutationFn(variables)),
@@ -54,9 +81,12 @@ export function useTerraBroadcastMutation<TData = string, TVariables = void, TCo
   const mutation = useMutation({
     ...rest,
     mutationFn: wrappedMutationFn,
+    onMutate: (...args) => {
+      dispatchBroadcastUi({ type: 'reset' })
+      onMutate?.(...args)
+    },
     onSettled: (...args) => {
-      setPhase(null)
-      setPendingTxHash(null)
+      dispatchBroadcastUi({ type: 'reset' })
       onSettled?.(...args)
     },
   })
