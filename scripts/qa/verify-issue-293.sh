@@ -63,12 +63,12 @@ if [[ -z "$CONTAINER" ]] || ! curl -sf "${INDEXER}/health" >/dev/null 2>&1; then
 else
   echo "  [3-preflight] Indexer quote-asset rows (stale duplicates break slippage enrichment)"
   USTC_ROWS="$(sg docker -c 'docker compose exec -T postgres psql -U cl8y_legal -d dex_indexer -tAc "SELECT COUNT(*) FROM assets WHERE symbol='"'"'USTC-C'"'"';"' 2>/dev/null | tr -d '[:space:]' || true)"
-  if [[ -n "$USTC_ROWS" && "$USTC_ROWS" -gt 1 ]]; then
-    bad "indexer DB has $USTC_ROWS USTC-C asset rows (want 1) — rerun: make setup-cloud-localterra --fresh"
-  elif [[ -n "$USTC_ROWS" ]]; then
+  if [[ -z "$USTC_ROWS" ]]; then
+    skip "could not probe indexer assets table for duplicate quote rows"
+  elif [[ "$USTC_ROWS" -eq 1 ]]; then
     ok "indexer quote asset rows unique (USTC-C count=$USTC_ROWS)"
   else
-    skip "could not probe indexer assets table for duplicate quote rows"
+    bad "indexer DB has $USTC_ROWS USTC-C asset rows (want 1) — rerun: make setup-cloud-localterra --fresh"
   fi
 
   if sg docker -c 'make swarm-bootstrap-liquidity' >/tmp/verify293-bootstrap.log 2>&1; then
