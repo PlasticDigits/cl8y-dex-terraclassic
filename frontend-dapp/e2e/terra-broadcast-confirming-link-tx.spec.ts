@@ -4,15 +4,28 @@ import { clickSwapSubmit, swapActionPanel, swapYouReceiveAmountDisplay } from '.
 import { expectAtLeastTwoPayTokenOptions } from './helpers/token-select'
 import { headerConnectedWalletButton } from './helpers/wallet-ui'
 
-/** Delay LCD tx lookup so confirming-phase UI is observable on fast LocalTerra (GitLab #330). */
+/** Delay RPC tx lookup (`pollTx` uses JSON-RPC `abci_query`, not LCD REST — GitLab #305/#330). */
 const CONFIRMING_POLL_DELAY_MS = 4_000
+
+function isPollTxAbciQuery(postData: string | null): boolean {
+  if (!postData) return false
+  try {
+    const body = JSON.parse(postData) as { method?: string; params?: { path?: string } }
+    return body.method === 'abci_query' && (body.params?.path?.includes('GetTx') ?? false)
+  } catch {
+    return false
+  }
+}
 
 test.describe('Terra broadcast confirming TX link', () => {
   test('shows Confirming… button and in-flight TX link during poll', async ({ page, connectWallet, request }) => {
     await skipIfLcdUnreachable(request)
 
-    await page.route('**/cosmos/tx/v1beta1/txs/**', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, CONFIRMING_POLL_DELAY_MS))
+    await page.route('**/*', async (route) => {
+      const request = route.request()
+      if (request.method() === 'POST' && isPollTxAbciQuery(request.postData())) {
+        await new Promise((resolve) => setTimeout(resolve, CONFIRMING_POLL_DELAY_MS))
+      }
       await route.continue()
     })
 
