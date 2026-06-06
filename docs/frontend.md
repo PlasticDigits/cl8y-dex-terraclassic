@@ -524,7 +524,7 @@ Custom pair/token pickers use a **portaled** `<ul role="listbox">` positioned wi
 
 ### Pair search combobox (`PairSearchSelect`) — Trade / Limits {#pair-search-combobox}
 
-Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/trade/PairSearchSelect.tsx) instead of a full factory pair dropdown ([GitLab **#314**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/314)).
+Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/trade/PairSearchSelect.tsx) instead of a full factory pair dropdown ([GitLab **#314**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/314), pair switching regression [**#301**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/301)).
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -537,7 +537,7 @@ Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/
 
 Charts keeps its separate search + sort + `MenuSelect` layout (unchanged).
 
-**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
+**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); [`PairSearchSelect.issue301.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue301.test.tsx); Trade page pair-switch test in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
 
 ### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
 
