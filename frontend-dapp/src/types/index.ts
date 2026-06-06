@@ -446,6 +446,12 @@ export interface IndexerRouteSolveResponse {
   hybrid_notes?: string | null
   router_operations: unknown[]
   estimated_amount_out?: string
+  /** Fair output at best-route token cross-rate (raw integer). GitLab #293. */
+  spot_amount_out?: string
+  /** Symmetric deviation vs spot cross-rate (percent string). GitLab #293. */
+  slippage_percent?: string
+  token_in_price_quote?: string
+  token_out_price_quote?: string
   /** `global_v2` when DB mirror grid is enabled. */
   solver_version?: string
   fidelity_check?: 'passed' | 'drift' | 'skipped'
