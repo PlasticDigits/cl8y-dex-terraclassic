@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::api::best_execution::solve_global_best_execution_inner;
 use crate::api::hybrid_route_opt::QuoteTrader;
-use crate::api::route_solver::RouteSolveResponse;
+use crate::api::route_solver::{cache_key_maker_fills, resolve_discount_bps, RouteSolveResponse};
 use crate::api::AppState;
 use crate::db::queries::assets;
 
@@ -126,12 +126,15 @@ async fn token_price_in_quote(
     quote_addr: &str,
     quote_decimals: i16,
     quote_trader: &QuoteTrader,
+    max_maker_fills: u32,
 ) -> Option<f64> {
     if token_addr.eq_ignore_ascii_case(quote_addr) {
         return Some(1.0);
     }
 
-    let cache_key = format!("{token_addr}->{quote_addr}");
+    let discount_bps = resolve_discount_bps(state, quote_trader).await;
+    let maker_key = cache_key_maker_fills(max_maker_fills);
+    let cache_key = format!("{token_addr}->{quote_addr}|d{discount_bps}|m{maker_key}");
     if let Some(price) = price_cache_get(&cache_key) {
         return Some(price);
     }
@@ -141,6 +144,7 @@ async fn token_price_in_quote(
         return None;
     }
     let amount_raw = one_unit.to_string();
+    let max_makers = max_maker_fills.max(1);
 
     let (body, _) = Box::pin(solve_global_best_execution_inner(
         state,
@@ -148,7 +152,7 @@ async fn token_price_in_quote(
         quote_addr,
         one_unit,
         &amount_raw,
-        8,
+        max_makers,
         quote_trader,
         false,
     ))
@@ -174,6 +178,7 @@ pub async fn enrich_route_slippage(
     body: &mut RouteSolveResponse,
     amount_in_raw: &str,
     quote_trader: &QuoteTrader,
+    max_maker_fills: u32,
 ) {
     let Ok(amount_u) = amount_in_raw.parse::<u128>() else {
         return;
@@ -206,6 +211,7 @@ pub async fn enrich_route_slippage(
         return;
     };
 
+    let max_makers = max_maker_fills.max(1);
     let Some(price_in) = token_price_in_quote(
         state,
         &body.token_in,
@@ -213,6 +219,7 @@ pub async fn enrich_route_slippage(
         &quote_addr,
         quote_decimals,
         quote_trader,
+        max_makers,
     )
     .await
     else {
@@ -225,6 +232,7 @@ pub async fn enrich_route_slippage(
         &quote_addr,
         quote_decimals,
         quote_trader,
+        max_makers,
     )
     .await
     else {

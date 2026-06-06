@@ -10,6 +10,32 @@ export function parseSlippagePercent(raw: string | undefined | null): number | n
   return Number.isFinite(n) ? n : null
 }
 
+/** Symmetric slippage vs a reference output (matches indexer `symmetric_slippage_percent`). */
+export function symmetricSlippagePercentFromRaw(actualOutRaw: string, expectedOutRaw: string): string | null {
+  const actual = parseFloat(actualOutRaw)
+  const expected = parseFloat(expectedOutRaw)
+  if (!Number.isFinite(actual) || !Number.isFinite(expected) || actual <= 0 || expected <= 0) {
+    return null
+  }
+  const lo = Math.min(actual, expected)
+  const hi = Math.max(actual, expected)
+  return ((1 - lo / hi) * 100).toFixed(2)
+}
+
+/** Prefer wallet receive vs indexer spot; fall back to indexer slippage when spot is missing. */
+export function resolveRouteSlippagePercent(
+  walletReturnRaw: string,
+  spotAmountOutRaw: string | undefined | null,
+  indexerSlippagePercent: string | undefined | null
+): string | undefined {
+  if (spotAmountOutRaw?.trim()) {
+    const fromSpot = symmetricSlippagePercentFromRaw(walletReturnRaw, spotAmountOutRaw.trim())
+    if (fromSpot != null) return fromSpot
+  }
+  const idx = indexerSlippagePercent?.trim()
+  return idx || undefined
+}
+
 /** Prefer indexer route-based slippage; fall back to hop spread price impact. */
 export function resolveSwapExpectedSlippagePercent(
   routeSlippagePercent: string | undefined | null,

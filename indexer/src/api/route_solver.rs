@@ -96,7 +96,7 @@ pub enum RouteQuoteKind {
     IndexerHybridDbDegraded,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FidelityCheck {
     Passed,
@@ -223,14 +223,14 @@ fn hop_count(prev: &HashMap<i32, (i32, String)>, start: i32, mut u: i32) -> usiz
     n
 }
 
-#[derive(Debug, Serialize, ToSchema, Clone)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct RouteHop {
     pub pair: String,
     pub offer_token: String,
     pub ask_token: String,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RouteSolveResponse {
     pub token_in: String,
     pub token_out: String,
@@ -724,7 +724,19 @@ async fn execute_hybrid_route_solve(
         discount_bps,
     );
     if let Some(cached) = cache_get(&ck) {
-        return Ok(Json(cached));
+        let mut body: RouteSolveResponse =
+            serde_json::from_value(cached).map_err(crate::api::internal_err)?;
+        crate::api::route_slippage::enrich_route_slippage(
+            state,
+            &mut body,
+            amount_raw,
+            quote_trader,
+            max_makers,
+        )
+        .await;
+        return Ok(Json(
+            serde_json::to_value(body).map_err(crate::api::internal_err)?,
+        ));
     }
 
     let (body, _meta) = crate::api::best_execution::solve_global_best_execution(
@@ -861,7 +873,14 @@ pub async fn solve_route(
     };
 
     if let Some(amount_raw) = amount_raw {
-        crate::api::route_slippage::enrich_route_slippage(&state, &mut body, amount_raw, &quote_trader).await;
+        crate::api::route_slippage::enrich_route_slippage(
+            &state,
+            &mut body,
+            amount_raw,
+            &quote_trader,
+            q.max_maker_fills.unwrap_or(8),
+        )
+        .await;
     }
 
     Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
@@ -933,7 +952,19 @@ pub async fn solve_route_post(
     };
 
     if let Some(ref amount_raw) = body.amount_in {
-        crate::api::route_slippage::enrich_route_slippage(&state, &mut out, amount_raw, &quote_trader).await;
+        let max_maker_fills = body
+            .hybrid_by_hop
+            .as_ref()
+            .and_then(|hops| hops.iter().flatten().map(|h| h.max_maker_fills).max())
+            .unwrap_or(8);
+        crate::api::route_slippage::enrich_route_slippage(
+            &state,
+            &mut out,
+            amount_raw,
+            &quote_trader,
+            max_maker_fills,
+        )
+        .await;
     }
 
     Ok(Json(serde_json::to_value(out).map_err(internal_err)?))

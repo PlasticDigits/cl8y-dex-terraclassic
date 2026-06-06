@@ -3,7 +3,9 @@ import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
   SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
   parseSlippagePercent,
+  resolveRouteSlippagePercent,
   resolveSwapExpectedSlippagePercent,
+  symmetricSlippagePercentFromRaw,
 } from './swapRouteSlippage'
 
 describe('swapRouteSlippage (GitLab #293)', () => {
@@ -23,5 +25,14 @@ describe('swapRouteSlippage (GitLab #293)', () => {
   it('documents retail guard thresholds', () => {
     expect(SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT).toBe(30)
     expect(SWAP_EXTREME_SLIPPAGE_WARNING_PCT).toBe(99)
+  })
+
+  it('computes symmetric slippage from raw amounts', () => {
+    expect(symmetricSlippagePercentFromRaw('970000', '1000000')).toBe('3.00')
+  })
+
+  it('prefers wallet receive vs indexer spot for route slippage', () => {
+    expect(resolveRouteSlippagePercent('970000', '1000000', '1.00')).toBe('3.00')
+    expect(resolveRouteSlippagePercent('970000', undefined, '1.00')).toBe('1.00')
   })
 })

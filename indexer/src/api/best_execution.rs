@@ -694,8 +694,14 @@ pub(crate) async fn solve_global_best_execution_inner(
     );
 
     if enrich_slippage {
-        crate::api::route_slippage::enrich_route_slippage(state, &mut body, amount_raw, quote_trader)
-            .await;
+        crate::api::route_slippage::enrich_route_slippage(
+            state,
+            &mut body,
+            amount_raw,
+            quote_trader,
+            max_maker_fills,
+        )
+        .await;
     }
 
     Ok((body, meta))

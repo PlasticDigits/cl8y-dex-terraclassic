@@ -69,6 +69,7 @@ import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
   SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
+  resolveRouteSlippagePercent,
   resolveSwapExpectedSlippagePercent,
   slippageSeverityClass,
 } from '@/utils/swapRouteSlippage'
@@ -482,7 +483,11 @@ export default function SwapPage() {
               return_amount: result.amount,
               spread_amount: '0',
               commission_amount: '0',
-              routeSlippagePercent: idx.slippage_percent,
+              routeSlippagePercent: resolveRouteSlippagePercent(
+                result.amount,
+                idx.spot_amount_out,
+                idx.slippage_percent
+              ),
               spotAmountOut: idx.spot_amount_out,
               indexerQuoteKind: idx.quote_kind,
               indexerOperations: ops,
@@ -713,16 +718,12 @@ export default function SwapPage() {
     ? resolveSwapExpectedSlippagePercent(simData.routeSlippagePercent, hopSpreadPercent)
     : null
 
-  const priceImpact =
-    expectedSlippagePct != null ? expectedSlippagePct.toFixed(2) : hopSpreadPercent
+  const priceImpact = expectedSlippagePct != null ? expectedSlippagePct.toFixed(2) : hopSpreadPercent
 
   const routeSlippageBlocked =
-    expectedSlippagePct != null &&
-    expectedSlippagePct > SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT &&
-    !expertMode
+    expectedSlippagePct != null && expectedSlippagePct > SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT && !expertMode
 
-  const extremeSlippageWarning =
-    expectedSlippagePct != null && expectedSlippagePct >= SWAP_EXTREME_SLIPPAGE_WARNING_PCT
+  const extremeSlippageWarning = expectedSlippagePct != null && expectedSlippagePct >= SWAP_EXTREME_SLIPPAGE_WARNING_PCT
 
   const minReceived = simData ? applySlippagePercentFloor(simData.return_amount, slippageTolerance) : null
 
