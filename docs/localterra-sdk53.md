@@ -29,6 +29,7 @@ Bump procedure: [`docs/local-development.md`](./local-development.md) § Docker 
 | **LT7** | `terrad query tx` wasm events live at **`.events`** (not `.logs[0].events`) | Use [`scripts/lib/terrad-tx-events.sh`](../scripts/lib/terrad-tx-events.sh) in deploy/e2e scripts |
 | **LT8** | Treasury bank send uses **`DEPLOY_TREASURY_FUND_COINS`** default **2M USTC + 200k LUNC** | Genesis is **1M LUNC**; legacy 10M LUNC send fails on SDK 0.53 LocalTerra |
 | **LT9** | E2E `global-setup.ts` falls back to **`docker exec` LCD** when host `:1317` fetch times out | Same userland-proxy pattern as [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh) |
+| **LT10** | Indexer integration wiremocks for tx search use **`query` + `page` + `limit`** (not legacy `events=` / `pagination.offset`) | Matches terrad v4 `GetTxsEvent`; see `indexer/src/lcd/mod.rs` tests and `indexer/tests/indexer_ingestion_hardening.rs` |
 
 ## Verification commands
 
