@@ -1,5 +1,7 @@
 # Testing
 
+**Master verification checklist:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — executable Local/QA scenarios and **REG-00** / **LR-00** regression gates referenced below.
+
 ## Philosophy
 
 CL8Y DEX tests focus on real contract behavior — no blockchain mocks. Unit tests exercise pure logic, integration tests deploy to a simulated chain environment, and E2E tests drive the actual frontend against LocalTerra.

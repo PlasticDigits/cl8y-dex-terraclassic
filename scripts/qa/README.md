@@ -1,5 +1,7 @@
 # QA server + laptop (Yield Omega DEX)
 
+**Master checklist:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — executable verification scenarios for LocalTerra and this QA stack (**INF-00-03**, **Q1** / **INF-00-02**).
+
 ## On the QA server
 
 ### One-time
