@@ -10,8 +10,11 @@
 #             LocalTerra lopsided topology — NOT a decimal bug; see #293).
 #        [3b] pool_only=true direct-pool quotes are near-inverse (≤5% off
 #             reciprocal; fees/spread) — OE-1 acceptance for direct pairs.
-#        [3c] route/solve slippage_percent enrichment (GitLab #293): global
-#             arb routes show extreme slippage (≥99%); pool_only stays ≤5%.
+#        [3c] route/solve slippage_percent enrichment (GitLab #293): both global
+#             and pool_only return spot_amount_out + slippage_percent; values
+#             match symmetric deviation vs spot; at least one hub direction shows
+#             >30% (retail Expert Mode guard). Prerequisite: single quote asset
+#             row per symbol in indexer DB (stale duplicates break enrichment).
 #
 # Refs: docs/testing.md, skills/AGENTS_LOCALNET_TRADING_SWARM.md
 set -euo pipefail
@@ -58,6 +61,16 @@ CONTAINER="$(sg docker -c 'docker compose ps -q localterra' 2>/dev/null | head -
 if [[ -z "$CONTAINER" ]] || ! curl -sf "${INDEXER}/health" >/dev/null 2>&1; then
   skip "LocalTerra/indexer not running — run: make setup-cloud-localterra (Cloud Agent VMs support LocalTerra; probe: make has-localterra)"
 else
+  echo "  [3-preflight] Indexer quote-asset rows (stale duplicates break slippage enrichment)"
+  USTC_ROWS="$(sg docker -c 'docker compose exec -T postgres psql -U cl8y_legal -d dex_indexer -tAc "SELECT COUNT(*) FROM assets WHERE symbol='"'"'USTC-C'"'"';"' 2>/dev/null | tr -d '[:space:]' || true)"
+  if [[ -z "$USTC_ROWS" ]]; then
+    skip "could not probe indexer assets table for duplicate quote rows"
+  elif [[ "$USTC_ROWS" -eq 1 ]]; then
+    ok "indexer quote asset rows unique (USTC-C count=$USTC_ROWS)"
+  else
+    bad "indexer DB has $USTC_ROWS USTC-C asset rows (want 1) — rerun: make setup-cloud-localterra --fresh"
+  fi
+
   if sg docker -c 'make swarm-bootstrap-liquidity' >/tmp/verify293-bootstrap.log 2>&1; then
     ok "make swarm-bootstrap-liquidity"
   else
@@ -198,8 +211,8 @@ import json, os, sys, time, urllib.error, urllib.request
 
 INDEXER = os.environ.get("VERIFY293_INDEXER_URL", "http://127.0.0.1:3001")
 AMOUNT_IN = 1_000_000
-GLOBAL_MIN_SLIP = 99.0
-POOL_MAX_SLIP = 5.0
+RETAIL_BLOCK_PCT = 30.0
+MATH_TOL_PCT = 1.0
 
 def fetch(url):
     time.sleep(0.6)
@@ -212,10 +225,17 @@ def solve(token_in, token_out, pool_only=False):
         url += "&pool_only=true"
     return fetch(url)
 
+def symmetric_slippage(actual_raw: int, spot_raw: int) -> float:
+    if actual_raw <= 0 or spot_raw <= 0:
+        return 0.0
+    lo, hi = min(actual_raw, spot_raw), max(actual_raw, spot_raw)
+    return (1.0 - lo / hi) * 100.0
+
 tokens = {t["symbol"]: t["contract_address"] for t in fetch(f"{INDEXER}/api/v1/tokens")}
 ember, coral = tokens["EMBER"], tokens["CORAL"]
 all_pass = True
 lines = []
+retail_guard_scenario = False
 
 def slip_pct(body):
     raw = body.get("slippage_percent")
@@ -226,29 +246,45 @@ def slip_pct(body):
     except (TypeError, ValueError):
         return None
 
-for label, pool_only, expect in [
-    ("EMBER→CORAL global", False, "high"),
-    ("EMBER→CORAL pool_only", True, "low"),
+for label, pool_only in [
+    ("EMBER→CORAL global", False),
+    ("EMBER→CORAL pool_only", True),
 ]:
     try:
         body = solve(ember, coral, pool_only=pool_only)
         slip = slip_pct(body)
         spot = body.get("spot_amount_out")
-        if slip is None or not spot:
+        est = body.get("estimated_amount_out")
+        if slip is None or not spot or not est:
             all_pass = False
-            lines.append(f"  {label}: missing slippage_percent or spot_amount_out")
+            lines.append(f"  {label}: missing slippage_percent, spot_amount_out, or estimated_amount_out")
             continue
-        if expect == "high":
-            ok = slip >= GLOBAL_MIN_SLIP
-            lines.append(f"  {label}: slippage={slip:.2f}% spot_out={spot} {'PASS' if ok else 'FAIL'} (expect ≥{GLOBAL_MIN_SLIP}%)")
-        else:
-            ok = slip <= POOL_MAX_SLIP
-            lines.append(f"  {label}: slippage={slip:.2f}% spot_out={spot} {'PASS' if ok else 'FAIL'} (expect ≤{POOL_MAX_SLIP}%)")
-        if not ok:
+        est_i = int(est)
+        spot_i = int(spot)
+        recomputed = symmetric_slippage(est_i, spot_i)
+        math_ok = abs(recomputed - slip) <= MATH_TOL_PCT
+        if slip > RETAIL_BLOCK_PCT:
+            retail_guard_scenario = True
+        lines.append(
+            f"  {label}: slippage={slip:.2f}% spot_out={spot} est_out={est} "
+            f"recomputed={recomputed:.2f}% {'PASS' if math_ok else 'FAIL'} (math ±{MATH_TOL_PCT}%)"
+        )
+        if not math_ok:
             all_pass = False
     except (urllib.error.URLError, KeyError, TypeError, ValueError) as e:
         all_pass = False
         lines.append(f"  {label}: ERROR {e}")
+
+if not retail_guard_scenario:
+    all_pass = False
+    lines.append(
+        f"  retail guard scenario: FAIL (neither global nor pool_only EMBER→CORAL exceeded {RETAIL_BLOCK_PCT}% — "
+        "Expert Mode block would not be exercisable on this pair)"
+    )
+else:
+    lines.append(
+        f"  retail guard scenario: PASS (≥1 direction >{RETAIL_BLOCK_PCT}% — dApp blocks submit unless Expert Mode)"
+    )
 
 print("\n".join(lines))
 print(f"ALL_PASS={'true' if all_pass else 'false'}")
@@ -260,7 +296,7 @@ PY
   echo "$PY_SLIP"
 
   if echo "$PY_SLIP" | grep -q 'ALL_PASS=true'; then
-    ok "route slippage enrichment (global extreme, pool_only low)"
+    ok "route slippage enrichment (fields present, math consistent, retail guard exercisable)"
   else
     bad "route slippage enrichment failed (see [3c] above)"
   fi
