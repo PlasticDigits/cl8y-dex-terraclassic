@@ -2,6 +2,16 @@
 
 Guidance for AI coding agents working in this repository.
 
+## Git commits
+
+**Do not put emails, co-authors, or author attribution in commit messages.** The message body must not contain:
+
+- Email addresses (including `name@domain` in trailers)
+- `Co-authored-by`, `Signed-off-by: Author`, or similar attribution lines
+- The word **author** (e.g. “original author”, “Co-authored-by”)
+
+Write only the subject and a short technical description of the change. A local `commit-msg` hook (`.githooks/commit-msg`) rejects body lines that violate this; do not use `COMMIT_MSG_POLICY=strip` to bypass it.
+
 ## Cursor Cloud specific instructions
 
 ### LocalTerra — do not skip chain work
