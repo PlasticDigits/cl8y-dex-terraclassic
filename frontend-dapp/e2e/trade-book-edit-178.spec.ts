@@ -60,8 +60,6 @@ test.describe('Trade book Edit prefill (GitLab #178)', () => {
     await openSeededTradePair(page, request)
     await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
 
-    await expect(page.getByText(/cancel the resting order before placing a replacement/i)).toBeVisible()
-
     const editBtn = await waitForOwnedBidEditButton(page)
     const editTestId = (await editBtn.getAttribute('data-testid')) ?? ''
     const orderId = editTestId.replace('trade-book-edit-bid-', '')
@@ -80,8 +78,17 @@ test.describe('Trade book Edit prefill (GitLab #178)', () => {
     await expect(page.getByTestId('trade-order-tab-limit')).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('limit-order-price-input')).toHaveValue(order.price)
     await expect(page.getByTestId('limit-order-escrow-amount-input')).toHaveValue(expectedAmount)
+    const editContext = page.getByTestId('trade-limit-edit-context')
+    await expect(editContext).toBeVisible()
+    await expect(editContext).toContainText(`#${orderId}`)
+    await expect(editContext).toContainText(/adjust price to update in one tx/i)
     page.off('request', onRequest)
     expect(postRequests, 'Edit alone must not POST (no on-chain amend)').toHaveLength(0)
+
+    const amountInput = page.getByTestId('limit-order-escrow-amount-input')
+    await amountInput.fill('999')
+    await expect(editContext).toContainText(/cancel this order first, then place a new limit/i)
+    await expect(page.getByTestId('trade-limit-submit')).toBeDisabled()
 
     page.once('dialog', (dialog) => dialog.accept())
     const cancelBtn = page.getByTestId(`trade-book-cancel-bid-${orderId}`)
@@ -110,5 +117,9 @@ test.describe('Trade book Edit prefill (GitLab #178)', () => {
     await expect(page.getByTestId('trade-order-tab-limit')).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('limit-order-price-input')).toHaveValue(order.price)
     await expect(page.getByTestId('limit-order-escrow-amount-input')).toHaveValue(expectedAmount)
+    const editContext = page.getByTestId('trade-limit-edit-context')
+    await expect(editContext).toBeVisible()
+    await expect(editContext).toContainText(`#${orderId}`)
+    await expect(editContext).toContainText(/adjust price to update in one tx/i)
   })
 })
