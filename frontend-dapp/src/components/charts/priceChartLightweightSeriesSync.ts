@@ -1,8 +1,8 @@
-import type { HistogramData, ISeriesApi, Time } from 'lightweight-charts'
+import type { HistogramData, ISeriesApi, SeriesType, Time } from 'lightweight-charts'
 import type { ChartCandlePoint } from './priceChartCandles'
 import type { IndicatorLinePoint } from './priceChartIndicators'
 
-type SeriesApi<T> = Pick<ISeriesApi<T>, 'setData' | 'update'>
+type SeriesApi<T extends SeriesType> = Pick<ISeriesApi<T>, 'setData' | 'update'>
 
 function candlePointEqual(a: ChartCandlePoint, b: ChartCandlePoint): boolean {
   return a.time === b.time && a.open === b.open && a.high === b.high && a.low === b.low && a.close === b.close
