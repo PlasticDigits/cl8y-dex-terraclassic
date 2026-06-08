@@ -71,6 +71,11 @@ ensure_node() {
 
 log "repo: ${REPO_ROOT}"
 ensure_apt_packages
-cloud_agent_install_docker || true
+docker_ok=true
+cloud_agent_install_docker || docker_ok=false
 ensure_node
+if [[ "$docker_ok" != "true" ]]; then
+  log "Docker setup incomplete"
+  exit 1
+fi
 log "OK"

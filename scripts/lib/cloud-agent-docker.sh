@@ -32,7 +32,22 @@ cloud_agent_docker_daemon_responds() {
 }
 
 cloud_agent_docker_run_hello() {
-  cloud_agent_docker_cmd run --rm hello-world >/dev/null 2>&1
+  local attempt
+  for attempt in 1 2 3; do
+    cloud_agent_docker_cmd run --rm hello-world >/dev/null 2>&1 && return 0
+    [[ "$attempt" -lt 3 ]] && sleep 2
+  done
+  return 1
+}
+
+cloud_agent_docker_run_hello_err() {
+  cloud_agent_docker_cmd run --rm hello-world 2>&1
+}
+
+cloud_agent_docker_hello_err_storage_related() {
+  local err="${1:-}"
+  [[ -n "$err" ]] || return 1
+  echo "$err" | grep -qiE 'storage-driver|fuse-overlayfs|overlay.*mount|OCI runtime create|failed to (start|create|register).*(container|layer|shim)'
 }
 
 cloud_agent_fix_docker_socket_permissions() {
@@ -113,19 +128,25 @@ cloud_agent_install_docker() {
   fi
 
   cloud_agent_fix_docker_socket_permissions || true
+  local tried_fuse_overlayfs=false
   if ! cloud_agent_docker_daemon_responds; then
     cloud_agent_write_docker_storage_driver "fuse-overlayfs"
+    tried_fuse_overlayfs=true
     cloud_agent_start_dockerd_if_needed || true
     cloud_agent_fix_docker_socket_permissions || true
   fi
 
   if cloud_agent_docker_daemon_responds && ! cloud_agent_docker_run_hello; then
-    echo "[cloud-agent] Docker hello-world failed with fuse-overlayfs — trying vfs…"
-    cloud_agent_run_as_root pkill -x dockerd 2>/dev/null || true
-    sleep 2
-    cloud_agent_write_docker_storage_driver "vfs"
-    cloud_agent_start_dockerd_if_needed || true
-    cloud_agent_fix_docker_socket_permissions || true
+    local hello_err
+    hello_err="$(cloud_agent_docker_run_hello_err || true)"
+    if [[ "$tried_fuse_overlayfs" == "true" ]] || cloud_agent_docker_hello_err_storage_related "$hello_err"; then
+      echo "[cloud-agent] Docker hello-world failed with fuse-overlayfs — trying vfs…"
+      cloud_agent_run_as_root pkill -x dockerd 2>/dev/null || true
+      sleep 2
+      cloud_agent_write_docker_storage_driver "vfs"
+      cloud_agent_start_dockerd_if_needed || true
+      cloud_agent_fix_docker_socket_permissions || true
+    fi
   fi
 
   if cloud_agent_docker_daemon_responds && cloud_agent_docker_run_hello; then
