@@ -81,6 +81,17 @@ fi
 
 install_glab
 
+configure_git_identity() {
+  git config --global user.name "PlasticDigits"
+  git config --global user.email "plasticdigits@protonmail.com"
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git config user.name "PlasticDigits"
+    git config user.email "plasticdigits@protonmail.com"
+  fi
+}
+
+configure_git_identity
+
 origin_url="$(git remote get-url origin 2>/dev/null || true)"
 if [[ -z "$origin_url" ]]; then
   echo "[setup-glab] no git remote named 'origin'." >&2
