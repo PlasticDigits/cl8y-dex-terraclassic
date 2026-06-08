@@ -27,6 +27,8 @@ log() {
 
 log "repo: ${REPO_ROOT}"
 
+cloud_agent_ensure_apt_packages
+
 if ! cloud_agent_install_docker; then
   log "Docker setup incomplete" >&2
   exit 1

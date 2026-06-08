@@ -59,9 +59,12 @@ cloud_agent_node_bin_dir() {
   cloud_agent_load_nvm || return 1
   if [[ -n "$repo_root" ]]; then
     ver="$(cloud_agent_nvmrc_version "$repo_root")"
-    nvm install "$ver" >/dev/null 2>&1
-    nvm use "$ver" >/dev/null 2>&1
-    bin="$(nvm which "$ver" 2>/dev/null || nvm which current 2>/dev/null || true)"
+    bin="$(nvm which "$ver" 2>/dev/null || true)"
+    if [[ -z "$bin" || ! -x "$bin" ]]; then
+      nvm install "$ver" >/dev/null 2>&1
+      nvm use "$ver" >/dev/null 2>&1
+      bin="$(nvm which "$ver" 2>/dev/null || nvm which current 2>/dev/null || true)"
+    fi
   else
     bin="$(nvm which current 2>/dev/null || true)"
   fi
@@ -110,6 +113,7 @@ cloud_agent_node_path_export() {
 
 cloud_agent_ensure_apt_packages() {
   local missing=()
+  dpkg -s curl >/dev/null 2>&1 || missing+=(curl)
   dpkg -s libssl-dev >/dev/null 2>&1 || missing+=(libssl-dev)
   dpkg -s pkg-config >/dev/null 2>&1 || missing+=(pkg-config)
   if [[ ${#missing[@]} -eq 0 ]]; then
