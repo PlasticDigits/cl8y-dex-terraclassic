@@ -107,6 +107,17 @@ _ensure_rust() {
   fi
 }
 
+_ensure_playwright_browsers() {
+  _ensure_node
+  local fe="$REPO_ROOT/frontend-dapp"
+  if [[ ! -d "$fe/node_modules/@playwright/test" ]]; then
+    echo "[setup-cloud-localterra] installing frontend deps (npm ci)…"
+    bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- npm ci
+  fi
+  echo "[setup-cloud-localterra] installing Playwright chromium + headless shell (LT12)…"
+  bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- ./node_modules/.bin/playwright install chromium
+}
+
 # shellcheck source=scripts/lib/deploy-up-to-date.sh
 source "$REPO_ROOT/scripts/lib/deploy-up-to-date.sh"
 
@@ -226,6 +237,8 @@ if [[ "$START_FRONTEND" -eq 1 ]]; then
     sleep 2
   done
 fi
+
+_ensure_playwright_browsers
 
 echo ""
 echo "Next:"

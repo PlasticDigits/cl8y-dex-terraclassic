@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
 
-const PAIR = process.env.E2E_TRADE_PAIR ?? 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+import { e2eTradePairFromDeploy } from './helpers/deploy-pair'
+
+const PAIR = e2eTradePairFromDeploy()
 
 /**
  * Indexer stopped + E2E_INDEXER_OUTAGE=1 (GitLab #165, #219).

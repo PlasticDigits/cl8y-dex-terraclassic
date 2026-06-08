@@ -40,7 +40,7 @@ test.describe('Trade page initial load (GitLab #179)', () => {
     }).toPass({ timeout: 8_000 })
 
     await expect(async () => {
-      await expect(page.getByRole('heading', { name: 'Trade' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Trade', exact: true })).toBeVisible()
       await expect(legalNotice.first()).toBeVisible()
     }).toPass({ timeout: 90_000 })
   })

@@ -9,7 +9,9 @@ import {
   waitForTradeChartToolbar,
 } from './helpers/price-chart'
 
-const TRADE_PAIR = process.env.E2E_TRADE_PAIR ?? 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+import { e2eTradePairFromDeploy } from './helpers/deploy-pair'
+
+const TRADE_PAIR = e2eTradePairFromDeploy()
 
 /**
  * Browser smoke for lightweight-charts canvas + fullscreen handler (GitLab #228).
