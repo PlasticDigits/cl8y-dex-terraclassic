@@ -11,7 +11,7 @@ Guidance for AI coding agents working in this repository.
 | Environment | Use |
 |-------------|-----|
 | **Local dev machine** | The developer’s normal `git config user.name` / `user.email` for that checkout |
-| **Cloud Agent VM** | The **GitLab user tied to `GITLAB_TOKEN`** (or the project’s designated dev/bot service account if explicitly configured for deploys — not a generic AI agent login) |
+| **Cloud Agent VM** | **`GIT_USERNAME` / `GIT_EMAIL`** (Cursor Cloud Agent secrets) — applied automatically by `scripts/setup-cloud-agent-env.sh` on VM startup (see `.cursor/environment.json`). Do **not** commit as the GitLab project-bot clone identity (`project_*_bot_*@noreply.gitlab.com`) or any AI vendor login. |
 
 Before committing, verify:
 
@@ -34,6 +34,31 @@ Write only the subject and a short technical description of the change. A local 
 
 ## Cursor Cloud specific instructions
 
+### Cloud Agent startup (GitLab + git identity)
+
+**`.cursor/environment.json`** runs `scripts/setup-cloud-agent-env.sh` on **every VM boot** (after git pull). This script is idempotent and **must succeed** — it:
+
+1. Requires **`GITLAB_TOKEN`**, **`GIT_USERNAME`**, and **`GIT_EMAIL`** (configure in Cursor Cloud Agent secrets).
+2. Validates **`GIT_USERNAME` / `GIT_EMAIL`** are set and not a bot/service identity, then sets **`git config user.name` / `user.email`** from them (global + repo), overwriting the default GitLab project-bot clone identity. Writes **`.env.git`** for shell sessions.
+3. Runs **`scripts/setup-glab-cloud-agent.sh`** (installs `glab`, authenticates, writes `.env.glab` with `GITLAB_REPO`).
+4. Installs a **`~/.bashrc` hook** that sources `scripts/cloud-agent-shell-init.sh` so new shells keep the identity and `GITLAB_REPO`.
+
+**Verify after startup:**
+
+```bash
+test -n "$GIT_USERNAME" && test -n "$GIT_EMAIL"
+git config user.name    # matches $GIT_USERNAME
+git config user.email   # matches $GIT_EMAIL
+command -v glab
+test -n "$GITLAB_TOKEN"
+source .env.glab && echo "$GITLAB_REPO"
+glab api "projects/PlasticDigits%2Fcl8y-dex-terraclassic" >/dev/null && echo OK
+```
+
+**Manual re-run** (if startup failed or identity drifted): `./scripts/setup-cloud-agent-env.sh`
+
+Regression: `make test-setup-cloud-agent-env`
+
 ### LocalTerra — do not skip chain work
 
 **Cloud Agent VMs can run LocalTerra in Docker.** Do **not** report `SKIP (no LocalTerra in agent VM)` without provisioning first.
@@ -54,7 +79,7 @@ These are **not** in the startup update script; install once when provisioning a
 - **Rust**: Use `rustup default stable` (1.96+ as of 2026). Indexer build needs `libssl-dev` and `pkg-config`.
 - **Node 24**: `nvm install` from repo `.nvmrc`. Cloud VMs may ship `/exec-daemon/node` (v22) **before** nvm on `PATH` — prepend the nvm bin dir or `hash -r` after `nvm use`, or `scripts/with-node.sh` may run the wrong Node.
 - **Docker access**: `sudo usermod -aG docker $USER` then use `sg docker -c '…'` in non-login shells.
-- **GitLab CLI (`glab`)**: Not preinstalled on Cloud Agent VMs. After `GITLAB_TOKEN` is available, run `./scripts/setup-glab-cloud-agent.sh` once per checkout (installs `glab`, authenticates, sets `remote.origin_url`, writes `.env.glab` with `GITLAB_REPO`). Cloud Agent git remotes use `https://x-access-token:…@gitlab.com/PlasticDigits/<repo>.git`, which breaks `glab repo view` / issue commands unless `GITLAB_REPO` is set — `source .env.glab` in the shell or re-run the setup script. Verify: `glab api "projects/PlasticDigits%2F<repo>"` (encode `/` as `%2F`).
+- **GitLab CLI (`glab`)**: Provisioned by **`scripts/setup-cloud-agent-env.sh`** on VM startup (also `./scripts/setup-glab-cloud-agent.sh` standalone). Writes `.env.glab` with `GITLAB_REPO`. Cloud Agent git remotes use `https://x-access-token:…@gitlab.com/PlasticDigits/<repo>.git`, which breaks `glab repo view` unless `GITLAB_REPO` is set — `source .env.glab` or re-run setup. Verify: `glab api "projects/PlasticDigits%2F<repo>"` (encode `/` as `%2F`).
 - **Chrome + Keplr**: Run `./scripts/setup-browser-cloud-agent.sh` once per VM (or when Keplr is missing). Installs **google-chrome-stable** when absent, downloads Keplr from the Chrome Web Store, and registers it under `~/.config/google-chrome/Default/Extensions/`. Idempotent — safe to re-run. Regression: `make test-setup-browser`.
 
 ### Docker daemon

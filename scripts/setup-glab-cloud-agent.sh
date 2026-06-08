@@ -81,6 +81,16 @@ fi
 
 install_glab
 
+_ENV_GIT="${REPO_ROOT}/.env.git"
+if [[ -f "$_ENV_GIT" ]]; then
+  # shellcheck disable=SC1090
+  . "$_ENV_GIT"
+fi
+
+# shellcheck source=scripts/lib/cloud-agent-env.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-env.sh"
+cloud_agent_configure_git_identity
+
 origin_url="$(git remote get-url origin 2>/dev/null || true)"
 if [[ -z "$origin_url" ]]; then
   echo "[setup-glab] no git remote named 'origin'." >&2
