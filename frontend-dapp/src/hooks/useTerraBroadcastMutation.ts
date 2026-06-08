@@ -83,7 +83,8 @@ export function useTerraBroadcastMutation<TData = string, TVariables = void, TCo
     mutationFn: wrappedMutationFn,
     onMutate: (...args) => {
       dispatchBroadcastUi({ type: 'reset' })
-      onMutate?.(...args)
+      // Preserve the caller's onMutate context (react-query forwards it to onError/onSettled).
+      return onMutate?.(...args) as TContext | Promise<TContext>
     },
     onSettled: (...args) => {
       dispatchBroadcastUi({ type: 'reset' })
