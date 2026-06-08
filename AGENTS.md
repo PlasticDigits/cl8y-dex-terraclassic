@@ -42,6 +42,9 @@ Write only the subject and a short technical description of the change. A local 
 2. Validates **`GIT_USERNAME` / `GIT_EMAIL`** are set and not a bot/service identity, then sets **`git config user.name` / `user.email`** from them (global + repo), overwriting the default GitLab project-bot clone identity. Writes **`.env.git`** for shell sessions.
 3. Runs **`scripts/setup-glab-cloud-agent.sh`** (installs `glab`, authenticates, writes `.env.glab` with `GITLAB_REPO`).
 4. Installs a **`~/.bashrc` hook** that sources `scripts/cloud-agent-shell-init.sh` so new shells keep the identity and `GITLAB_REPO`.
+5. Runs **`scripts/setup-cloud-agent-toolchain.sh`** (Docker CE, Node from `.nvmrc`, `libssl-dev`).
+6. Runs **`scripts/setup-browser-cloud-agent.sh`** (Chrome + Keplr).
+7. Runs **`scripts/setup-cloud-agent-localterra.sh`** (LocalTerra, deploy, Playwright chromium, indexer tmux).
 
 **Verify after startup:**
 
@@ -80,7 +83,7 @@ These are **not** in the startup update script; install once when provisioning a
 - **Node 24**: `nvm install` from repo `.nvmrc`. Cloud VMs may ship `/exec-daemon/node` (v22) **before** nvm on `PATH` — prepend the nvm bin dir or `hash -r` after `nvm use`, or `scripts/with-node.sh` may run the wrong Node.
 - **Docker access**: `sudo usermod -aG docker $USER` then use `sg docker -c '…'` in non-login shells.
 - **GitLab CLI (`glab`)**: Provisioned by **`scripts/setup-cloud-agent-env.sh`** on VM startup (also `./scripts/setup-glab-cloud-agent.sh` standalone). Writes `.env.glab` with `GITLAB_REPO`. Cloud Agent git remotes use `https://x-access-token:…@gitlab.com/PlasticDigits/<repo>.git`, which breaks `glab repo view` unless `GITLAB_REPO` is set — `source .env.glab` or re-run setup. Verify: `glab api "projects/PlasticDigits%2F<repo>"` (encode `/` as `%2F`).
-- **Chrome + Keplr**: Run `./scripts/setup-browser-cloud-agent.sh` once per VM (or when Keplr is missing). Installs **google-chrome-stable** when absent, downloads Keplr from the Chrome Web Store, and registers it under `~/.config/google-chrome/Default/Extensions/`. Idempotent — safe to re-run. Regression: `make test-setup-browser`.
+- **Chrome + Keplr**: Provisioned by **`scripts/setup-cloud-agent-env.sh`** on VM startup (also `./scripts/setup-browser-cloud-agent.sh` standalone). Installs **google-chrome-stable** when absent, downloads Keplr from the Chrome Web Store, and registers it under `~/.config/google-chrome/Default/Extensions/`. Idempotent — safe to re-run. Regression: `make test-setup-browser`.
 
 ### Docker daemon
 
