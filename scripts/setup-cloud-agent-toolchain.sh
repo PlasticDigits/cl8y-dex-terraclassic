@@ -71,6 +71,6 @@ ensure_node() {
 
 log "repo: ${REPO_ROOT}"
 ensure_apt_packages
-cloud_agent_install_docker
+cloud_agent_install_docker || true
 ensure_node
 log "OK"
