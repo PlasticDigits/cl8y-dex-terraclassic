@@ -8,6 +8,7 @@ import {
   poolWithdrawSubmitButton,
   poolReceiveWrappedCheckbox,
 } from './helpers/pool-ui'
+import { gotoWrapPoolLuncCard } from './helpers/pool-nav'
 
 test.describe('Pool with native token wrapping — UI', () => {
   test.beforeEach(async ({ page }) => {
@@ -109,7 +110,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E7: provide liquidity with native token (auto-wrap)', async ({ page }) => {
-    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    const pairCard = await gotoWrapPoolLuncCard(page)
     await poolProvideExpandButton(pairCard).click()
 
     await requirePoolCardWithNativeWrap(pairCard)
@@ -133,7 +134,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E8: provide liquidity with wrapped CW20 directly', async ({ page }) => {
-    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    const pairCard = await gotoWrapPoolLuncCard(page)
     await poolProvideExpandButton(pairCard).click()
 
     const inputs = pairCard.locator('input[placeholder="0.00"]')
@@ -152,7 +153,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E9: withdraw liquidity with auto-unwrap to native', async ({ page }) => {
-    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    const pairCard = await gotoWrapPoolLuncCard(page)
     await expect(poolWithdrawExpandButton(pairCard)).toBeVisible({ timeout: 90_000 })
     await poolWithdrawExpandButton(pairCard).click()
 
@@ -189,7 +190,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
   })
 
   test('E10: withdraw liquidity — receive as wrapped tokens', async ({ page }) => {
-    const pairCard = page.locator('.shell-panel-strong').filter({ hasText: 'LUNC-C' }).first()
+    const pairCard = await gotoWrapPoolLuncCard(page)
     await expect(poolWithdrawExpandButton(pairCard)).toBeVisible({ timeout: 90_000 })
     await poolWithdrawExpandButton(pairCard).click()
 

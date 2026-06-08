@@ -29,6 +29,10 @@ function applyViteEnvFromEnvLocal(envLocalPath: string): void {
     if (idx) {
       process.env.VITE_INDEXER_URL = idx[1].trim().replace(/^["']|["']$/g, '')
     }
+    const luncC = line.match(/^VITE_LUNC_C_TOKEN_ADDRESS=(.+)$/)
+    if (luncC) {
+      process.env.VITE_LUNC_C_TOKEN_ADDRESS = luncC[1].trim().replace(/^["']|["']$/g, '')
+    }
   }
 }
 
