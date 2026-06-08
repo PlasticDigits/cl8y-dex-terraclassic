@@ -45,16 +45,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# shellcheck source=scripts/lib/cloud-agent-docker.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh"
+# shellcheck source=scripts/lib/cloud-agent-toolchain.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-toolchain.sh"
+
 ENV_LOCAL="$REPO_ROOT/frontend-dapp/.env.local"
 STAMP="$REPO_ROOT/.qa-deploy-stamp"
-TMUX_CONF="${TMUX_CONF:-/exec-daemon/tmux.portal.conf}"
-tmux_cmd() {
-  if [[ -f "$TMUX_CONF" ]]; then
-    tmux -f "$TMUX_CONF" "$@"
-  else
-    tmux "$@"
-  fi
-}
 
 _run_make() {
   if groups 2>/dev/null | grep -qw docker; then
@@ -64,56 +61,9 @@ _run_make() {
   fi
 }
 
-_ensure_dockerd() {
-  if sg docker -c 'docker info' >/dev/null 2>&1; then
-    return 0
-  fi
-  echo "[setup-cloud-localterra] starting dockerd in tmux session 'dockerd'…"
-  if ! tmux_cmd has-session -t dockerd 2>/dev/null; then
-    tmux_cmd new-session -d -s dockerd "sudo dockerd > /tmp/dockerd.log 2>&1"
-  fi
-  for _ in $(seq 1 60); do
-    if sg docker -c 'docker info' >/dev/null 2>&1; then
-      echo "[setup-cloud-localterra] dockerd ready"
-      return 0
-    fi
-    sleep 2
-  done
-  echo "[setup-cloud-localterra] ERROR: dockerd did not become ready. See /tmp/dockerd.log" >&2
-  exit 1
-}
-
-_ensure_node() {
-  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-  if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-    # shellcheck source=/dev/null
-    . "$NVM_DIR/nvm.sh"
-    nvm install >/dev/null 2>&1 || true
-    nvm use --silent
-  fi
-  local want got
-  want="$(tr -d '[:space:]' <"$REPO_ROOT/.nvmrc")"
-  got="$(node -v 2>/dev/null | sed 's/^v//' || true)"
-  if [[ "$got" != "$want" ]]; then
-    echo "[setup-cloud-localterra] WARNING: node v${got:-?} on PATH; want v${want} from .nvmrc" >&2
-    echo "[setup-cloud-localterra]          prepend: export PATH=\"\$HOME/.nvm/versions/node/v${want}/bin:\$PATH\"" >&2
-  fi
-}
-
-_ensure_rust() {
-  if ! command -v cargo >/dev/null 2>&1; then
-    echo "[setup-cloud-localterra] ERROR: cargo not found. Install rustup stable (1.96+) and libssl-dev." >&2
-    exit 1
-  fi
-}
-
 _ensure_playwright_browsers() {
-  _ensure_node
-  local fe="$REPO_ROOT/frontend-dapp"
-  if [[ ! -d "$fe/node_modules/@playwright/test" ]]; then
-    echo "[setup-cloud-localterra] installing frontend deps (npm ci)…"
-    bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- npm ci
-  fi
+  cloud_agent_ensure_node "$REPO_ROOT"
+  cloud_agent_ensure_frontend_deps "$REPO_ROOT"
   echo "[setup-cloud-localterra] installing Playwright chromium + headless shell (LT12)…"
   bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- ./node_modules/.bin/playwright install chromium
 }
@@ -123,28 +73,28 @@ source "$REPO_ROOT/scripts/lib/deploy-up-to-date.sh"
 
 _start_indexer_tmux() {
   local session=indexer-dev restart="${1:-0}"
-  if tmux_cmd has-session -t "$session" 2>/dev/null; then
+  if cloud_agent_tmux_cmd has-session -t "$session" 2>/dev/null; then
     if [[ "$restart" -eq 1 ]]; then
       echo "[setup-cloud-localterra] restarting tmux session '$session' after deploy…"
-      tmux_cmd kill-session -t "$session"
+      cloud_agent_tmux_cmd kill-session -t "$session"
     else
       echo "[setup-cloud-localterra] tmux session '$session' already exists (restart: tmux kill-session -t $session)"
       return 0
     fi
   fi
-  tmux_cmd new-session -d -s "$session" -c "$REPO_ROOT/indexer" \
+  cloud_agent_tmux_cmd new-session -d -s "$session" -c "$REPO_ROOT/indexer" \
     "export PATH=\"/usr/local/cargo/bin:\$HOME/.cargo/bin:\$PATH\"; cargo run --release; exec bash -l"
   echo "[setup-cloud-localterra] indexer starting in tmux '$session' (port 3001)"
 }
 
 _start_frontend_tmux() {
   local session=frontend-dev
-  if tmux_cmd has-session -t "$session" 2>/dev/null; then
+  if cloud_agent_tmux_cmd has-session -t "$session" 2>/dev/null; then
     echo "[setup-cloud-localterra] tmux session '$session' already exists"
     return 0
   fi
-  tmux_cmd new-session -d -s "$session" -c "$REPO_ROOT" \
-    "export PATH=\"\$HOME/.nvm/versions/node/$(tr -d '[:space:]' <.nvmrc)/bin:\$PATH\"; ./scripts/dev-frontend-local.sh; exec bash -l"
+  cloud_agent_tmux_cmd new-session -d -s "$session" -c "$REPO_ROOT" \
+    "eval \"\$(bash scripts/with-node.sh --print-env)\"; ./scripts/dev-frontend-local.sh; exec bash -l"
   echo "[setup-cloud-localterra] frontend starting in tmux '$session' (http://127.0.0.1:5173)"
 }
 
@@ -164,15 +114,15 @@ echo "[setup-cloud-localterra] repo: $REPO_ROOT"
 
 if [[ "$POSTGRES_ONLY" -eq 1 ]]; then
   if [[ "$FRESH_VOLUMES" -eq 1 ]]; then
-    _ensure_dockerd
+    cloud_agent_ensure_dockerd
     echo "[setup-cloud-localterra] --fresh: wiping docker volumes…"
     _run_make reset
   fi
   exec "$REPO_ROOT/scripts/setup-cloud-agent-indexer-postgres.sh"
 fi
 
-_ensure_dockerd
-_ensure_node
+cloud_agent_ensure_dockerd
+cloud_agent_ensure_node "$REPO_ROOT"
 
 if [[ "$FRESH_VOLUMES" -eq 1 ]]; then
   echo "[setup-cloud-localterra] --fresh: wiping docker volumes…"
@@ -222,7 +172,7 @@ if [[ -f "$STAMP" ]]; then
 fi
 
 if [[ "$START_INDEXER" -eq 1 ]]; then
-  _ensure_rust
+  cloud_agent_ensure_rust
   _start_indexer_tmux "$DEPLOY_RAN"
   _wait_indexer
 fi

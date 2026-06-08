@@ -14,6 +14,10 @@ cd "$REPO_ROOT"
 
 # shellcheck source=scripts/lib/cloud-agent-env.sh
 source "$REPO_ROOT/scripts/lib/cloud-agent-env.sh"
+# shellcheck source=scripts/lib/cloud-agent-docker.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh"
+# shellcheck source=scripts/lib/cloud-agent-toolchain.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-toolchain.sh"
 
 BASHRC="${HOME}/.bashrc"
 BEGIN_MARKER='# >>> cl8y cloud-agent env >>>'
@@ -92,6 +96,15 @@ fi
 
 install_shell_init
 
+echo "[cloud-agent-env] provisioning VM toolchain (Node, Rust, Docker)…"
+cloud_agent_ensure_vm_toolchain "$REPO_ROOT"
+cloud_agent_ensure_dockerd
+if [[ "${CLOUD_AGENT_SKIP_FRONTEND_CI:-0}" != "1" ]]; then
+  cloud_agent_ensure_frontend_deps "$REPO_ROOT" || {
+    echo "[cloud-agent-env] WARNING: frontend npm ci failed (set CLOUD_AGENT_SKIP_FRONTEND_CI=1 to skip)" >&2
+  }
+fi
+
 echo "[cloud-agent-env] verifying…"
 cloud_agent_verify_git_identity
 cloud_agent_verify_glab
@@ -101,3 +114,6 @@ echo "[cloud-agent-env]   glab:     $(command -v glab) ($(glab version 2>/dev/nu
 echo "[cloud-agent-env]   git name: $(git config user.name)"
 echo "[cloud-agent-env]   git mail: $(git config user.email)"
 echo "[cloud-agent-env]   GITLAB_REPO: ${GITLAB_REPO:-unset}"
+echo "[cloud-agent-env]   node:      $(command -v node 2>/dev/null || echo missing) ($(node -v 2>/dev/null || echo ?))"
+echo "[cloud-agent-env]   cargo:     $(command -v cargo 2>/dev/null || echo missing) ($(cargo --version 2>/dev/null | awk '{print $2}' || echo ?))"
+echo "[cloud-agent-env]   docker:    $(docker --version 2>/dev/null | head -1 || echo not reachable)"
