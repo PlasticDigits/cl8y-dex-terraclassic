@@ -153,8 +153,9 @@ cloud_agent_ensure_dockerd() {
   echo "[cloud-agent] starting dockerd…"
   if ! pgrep -x dockerd >/dev/null 2>&1; then
     if cloud_agent_tmux_cmd has-session -t dockerd 2>/dev/null; then
-      :
-    elif [[ -f /exec-daemon/tmux.portal.conf ]]; then
+      cloud_agent_tmux_cmd kill-session -t dockerd 2>/dev/null || true
+    fi
+    if [[ -f /exec-daemon/tmux.portal.conf ]]; then
       cloud_agent_tmux_cmd new-session -d -s dockerd "sudo dockerd > /tmp/dockerd.log 2>&1"
     else
       cloud_agent_run_as_root nohup dockerd >"${CLOUD_AGENT_DOCKERD_LOG}" 2>&1 &
