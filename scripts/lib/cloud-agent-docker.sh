@@ -99,6 +99,14 @@ cloud_agent_install_docker_packages() {
   cloud_agent_run_as_root update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy 2>/dev/null || true
 }
 
+cloud_agent_stop_unresponsive_dockerd() {
+  if pgrep -x dockerd >/dev/null 2>&1 && ! cloud_agent_docker_daemon_responds; then
+    echo "[cloud-agent] stopping unresponsive dockerd…"
+    cloud_agent_run_as_root pkill -x dockerd 2>/dev/null || true
+    sleep 2
+  fi
+}
+
 cloud_agent_start_dockerd_if_needed() {
   if cloud_agent_docker_daemon_responds; then
     return 0
@@ -107,6 +115,7 @@ cloud_agent_start_dockerd_if_needed() {
   if ! command -v dockerd >/dev/null 2>&1; then
     return 1
   fi
+  cloud_agent_stop_unresponsive_dockerd
   echo "[cloud-agent] starting dockerd (systemd unavailable on some Cloud VMs)…"
   if ! pgrep -x dockerd >/dev/null 2>&1; then
     cloud_agent_run_as_root nohup dockerd >"${CLOUD_AGENT_DOCKERD_LOG}" 2>&1 &
@@ -117,6 +126,7 @@ cloud_agent_start_dockerd_if_needed() {
     cloud_agent_docker_daemon_responds && return 0
   done
   echo "[cloud-agent] dockerd failed to start (see ${CLOUD_AGENT_DOCKERD_LOG})." >&2
+  cloud_agent_stop_unresponsive_dockerd
   return 1
 }
 
@@ -154,6 +164,7 @@ cloud_agent_install_docker() {
     return 0
   fi
 
+  cloud_agent_stop_unresponsive_dockerd
   echo "[cloud-agent] Docker not usable for agent user — LocalTerra stack will be skipped." >&2
   return 1
 }
@@ -171,6 +182,7 @@ cloud_agent_ensure_dockerd() {
   if cloud_agent_docker_daemon_responds; then
     return 0
   fi
+  cloud_agent_stop_unresponsive_dockerd
   echo "[cloud-agent] starting dockerd…"
   if ! pgrep -x dockerd >/dev/null 2>&1; then
     if cloud_agent_tmux_cmd has-session -t dockerd 2>/dev/null; then
@@ -190,6 +202,7 @@ cloud_agent_ensure_dockerd() {
     sleep 2
   done
   echo "[cloud-agent] ERROR: dockerd did not become ready. See ${CLOUD_AGENT_DOCKERD_LOG} or /tmp/dockerd.log" >&2
+  cloud_agent_stop_unresponsive_dockerd
   return 1
 }
 
