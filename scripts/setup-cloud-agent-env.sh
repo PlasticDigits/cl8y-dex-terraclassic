@@ -2,8 +2,8 @@
 # Cloud Agent VM startup / install script.
 #
 # Cursor runs this from .cursor/environment.json on every VM boot (after git pull).
-# Must be idempotent. Ensures glab, GITLAB_TOKEN, and PlasticDigits git identity
-# are always configured — overwriting the default GitLab project-bot clone identity.
+# Must be idempotent. Ensures glab, GITLAB_TOKEN, GIT_USERNAME, GIT_EMAIL,
+# and git identity are always configured — overwriting the default GitLab
 #
 # Usage (from repo root):
 #   ./scripts/setup-cloud-agent-env.sh
@@ -69,11 +69,14 @@ if [[ -z "${GITLAB_TOKEN:-}" ]]; then
   exit 1
 fi
 
+cloud_agent_require_git_identity
+
 echo "[cloud-agent-env] configuring git hooks…"
 git config core.hooksPath .githooks 2>/dev/null || true
 
-echo "[cloud-agent-env] configuring PlasticDigits git identity…"
+echo "[cloud-agent-env] configuring git identity from GIT_USERNAME / GIT_EMAIL…"
 cloud_agent_configure_git_identity
+cloud_agent_write_git_env_file "$REPO_ROOT"
 
 echo "[cloud-agent-env] configuring glab…"
 chmod +x "$REPO_ROOT/scripts/setup-glab-cloud-agent.sh"

@@ -3,8 +3,9 @@
 # Sourced by setup-cloud-agent-env.sh and cloud-agent-shell-init.sh.
 set -euo pipefail
 
-CLOUD_AGENT_GIT_USER_NAME="${CLOUD_AGENT_GIT_USER_NAME:-PlasticDigits}"
-CLOUD_AGENT_GIT_USER_EMAIL="${CLOUD_AGENT_GIT_USER_EMAIL:-plasticdigits@protonmail.com}"
+CLOUD_AGENT_GIT_USER_NAME=""
+CLOUD_AGENT_GIT_USER_EMAIL=""
+CLOUD_AGENT_GIT_ENV_FILE="${CLOUD_AGENT_GIT_ENV_FILE:-.env.git}"
 
 cloud_agent_is_bot_git_identity() {
   local name="${1:-}"
@@ -22,7 +23,47 @@ cloud_agent_is_bot_git_identity() {
   return 1
 }
 
+cloud_agent_resolve_git_identity() {
+  local name="${GIT_USERNAME:-}"
+  local email="${GIT_EMAIL:-}"
+
+  if [[ -z "$name" ]]; then
+    echo "[cloud-agent-env] GIT_USERNAME is not set" >&2
+    return 1
+  fi
+  if [[ -z "$email" ]]; then
+    echo "[cloud-agent-env] GIT_EMAIL is not set" >&2
+    return 1
+  fi
+  if cloud_agent_is_bot_git_identity "$name" "$email"; then
+    echo "[cloud-agent-env] GIT_USERNAME/GIT_EMAIL look like a bot or service account" >&2
+    return 1
+  fi
+
+  CLOUD_AGENT_GIT_USER_NAME="$name"
+  CLOUD_AGENT_GIT_USER_EMAIL="$email"
+  return 0
+}
+
+cloud_agent_require_git_identity() {
+  if ! cloud_agent_resolve_git_identity; then
+    echo "[cloud-agent-env] Configure GIT_USERNAME and GIT_EMAIL in Cursor Cloud Agent secrets." >&2
+    exit 1
+  fi
+}
+
+cloud_agent_write_git_env_file() {
+  local repo_root="${1:-}"
+  local env_file="${repo_root}/${CLOUD_AGENT_GIT_ENV_FILE}"
+  cloud_agent_resolve_git_identity || return 1
+  mkdir -p "$(dirname "$env_file")"
+  # shellcheck disable=SC2016
+  printf 'export GIT_USERNAME=%q\nexport GIT_EMAIL=%q\n' \
+    "$CLOUD_AGENT_GIT_USER_NAME" "$CLOUD_AGENT_GIT_USER_EMAIL" >"$env_file"
+}
+
 cloud_agent_configure_git_identity() {
+  cloud_agent_resolve_git_identity || return 1
   git config --global user.name "$CLOUD_AGENT_GIT_USER_NAME"
   git config --global user.email "$CLOUD_AGENT_GIT_USER_EMAIL"
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -33,6 +74,7 @@ cloud_agent_configure_git_identity() {
 
 cloud_agent_verify_git_identity() {
   local name email global_name global_email
+  cloud_agent_resolve_git_identity || return 1
   name="$(git config user.name 2>/dev/null || true)"
   email="$(git config user.email 2>/dev/null || true)"
   global_name="$(git config --global user.name 2>/dev/null || true)"

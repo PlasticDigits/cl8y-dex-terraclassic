@@ -24,36 +24,40 @@ _assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
   'setup-cloud-agent-env.sh must require GITLAB_TOKEN'
 
 _assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
+  'cloud_agent_require_git_identity' \
+  'setup-cloud-agent-env.sh must require GIT_USERNAME/GIT_EMAIL'
+
+_assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
   'setup-glab-cloud-agent.sh' \
   'setup-cloud-agent-env.sh must invoke setup-glab-cloud-agent.sh'
 
 _assert_file_contains "$REPO_ROOT/scripts/lib/cloud-agent-env.sh" \
-  'PlasticDigits' \
-  'cloud-agent-env lib must pin PlasticDigits git user.name'
+  'GIT_USERNAME' \
+  'cloud-agent-env lib must read GIT_USERNAME'
 
 _assert_file_contains "$REPO_ROOT/scripts/lib/cloud-agent-env.sh" \
-  'plasticdigits@protonmail.com' \
-  'cloud-agent-env lib must pin plasticdigits@protonmail.com git email'
+  'GIT_EMAIL' \
+  'cloud-agent-env lib must read GIT_EMAIL'
 
 _assert_file_contains "$REPO_ROOT/scripts/lib/cloud-agent-env.sh" \
   'cloud_agent_is_bot_git_identity' \
   'cloud-agent-env lib must detect bot git identities'
 
 _assert_file_contains "$REPO_ROOT/scripts/cloud-agent-shell-init.sh" \
-  'cloud-agent-env.sh' \
-  'shell init must source cloud-agent-env lib'
+  '.env.git' \
+  'shell init must source .env.git'
 
 _assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
   'cloud-agent-shell-init.sh' \
   'setup-cloud-agent-env.sh must install shell init hook'
 
 _assert_file_contains "$REPO_ROOT/AGENTS.md" \
-  'setup-cloud-agent-env.sh' \
-  'AGENTS.md must document setup-cloud-agent-env.sh'
+  'GIT_USERNAME' \
+  'AGENTS.md must document GIT_USERNAME'
 
 _assert_file_contains "$REPO_ROOT/AGENTS.md" \
-  'plasticdigits@protonmail.com' \
-  'AGENTS.md must document PlasticDigits git email default'
+  'GIT_EMAIL' \
+  'AGENTS.md must document GIT_EMAIL'
 
 # shellcheck source=scripts/lib/cloud-agent-env.sh
 source "$REPO_ROOT/scripts/lib/cloud-agent-env.sh"
@@ -64,8 +68,17 @@ else
   _fail 'must detect GitLab project bot identity'
 fi
 
-if cloud_agent_is_bot_git_identity 'PlasticDigits' 'plasticdigits@protonmail.com'; then
-  _fail 'must not flag PlasticDigits identity as bot'
+export GIT_USERNAME='PlasticDigits'
+export GIT_EMAIL='plasticdigits@protonmail.com'
+if cloud_agent_is_bot_git_identity "$GIT_USERNAME" "$GIT_EMAIL"; then
+  _fail 'must not flag valid GIT_USERNAME/GIT_EMAIL as bot'
+fi
+if ! cloud_agent_resolve_git_identity; then
+  _fail 'must resolve identity when GIT_USERNAME/GIT_EMAIL are set'
+fi
+unset GIT_USERNAME GIT_EMAIL
+if cloud_agent_resolve_git_identity 2>/dev/null; then
+  _fail 'must reject missing GIT_USERNAME/GIT_EMAIL'
 fi
 
 echo "OK: setup-cloud-agent-env static checks"

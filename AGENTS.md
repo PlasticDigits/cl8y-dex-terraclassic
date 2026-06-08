@@ -11,7 +11,7 @@ Guidance for AI coding agents working in this repository.
 | Environment | Use |
 |-------------|-----|
 | **Local dev machine** | The developer’s normal `git config user.name` / `user.email` for that checkout |
-| **Cloud Agent VM** | **`PlasticDigits` / `plasticdigits@protonmail.com`** — applied automatically by `scripts/setup-cloud-agent-env.sh` on VM startup (see `.cursor/environment.json`). Do **not** commit as the GitLab project-bot clone identity (`project_*_bot_*@noreply.gitlab.com`) or any AI vendor login. |
+| **Cloud Agent VM** | **`GIT_USERNAME` / `GIT_EMAIL`** (Cursor Cloud Agent secrets) — applied automatically by `scripts/setup-cloud-agent-env.sh` on VM startup (see `.cursor/environment.json`). Do **not** commit as the GitLab project-bot clone identity (`project_*_bot_*@noreply.gitlab.com`) or any AI vendor login. |
 
 Before committing, verify:
 
@@ -38,16 +38,17 @@ Write only the subject and a short technical description of the change. A local 
 
 **`.cursor/environment.json`** runs `scripts/setup-cloud-agent-env.sh` on **every VM boot** (after git pull). This script is idempotent and **must succeed** — it:
 
-1. Requires **`GITLAB_TOKEN`** (configure in Cursor Cloud Agent secrets).
-2. Sets **`git config user.name` / `user.email`** to **`PlasticDigits` / `plasticdigits@protonmail.com`** (global + repo), overwriting the default GitLab project-bot clone identity.
+1. Requires **`GITLAB_TOKEN`**, **`GIT_USERNAME`**, and **`GIT_EMAIL`** (configure in Cursor Cloud Agent secrets).
+2. Validates **`GIT_USERNAME` / `GIT_EMAIL`** are set and not a bot/service identity, then sets **`git config user.name` / `user.email`** from them (global + repo), overwriting the default GitLab project-bot clone identity. Writes **`.env.git`** for shell sessions.
 3. Runs **`scripts/setup-glab-cloud-agent.sh`** (installs `glab`, authenticates, writes `.env.glab` with `GITLAB_REPO`).
 4. Installs a **`~/.bashrc` hook** that sources `scripts/cloud-agent-shell-init.sh` so new shells keep the identity and `GITLAB_REPO`.
 
 **Verify after startup:**
 
 ```bash
-git config user.name    # PlasticDigits
-git config user.email   # plasticdigits@protonmail.com
+test -n "$GIT_USERNAME" && test -n "$GIT_EMAIL"
+git config user.name    # matches $GIT_USERNAME
+git config user.email   # matches $GIT_EMAIL
 command -v glab
 test -n "$GITLAB_TOKEN"
 source .env.glab && echo "$GITLAB_REPO"
