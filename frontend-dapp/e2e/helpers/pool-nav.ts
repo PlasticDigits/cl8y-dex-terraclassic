@@ -76,6 +76,7 @@ async function paginateToPoolCard(page: Page, symbol: string): Promise<Locator |
     if (found) return found
     if (!(await nextButton.isEnabled())) break
     await nextButton.click()
+    await waitForPoolListSettled(page)
   }
   return null
 }
