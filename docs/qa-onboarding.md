@@ -1,5 +1,7 @@
 # QA Onboarding
 
+**Master executable checklist:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — Automation Verification Engineer master Local/QA checklist (INF/CFG/WL/NAV/SW/TR/LT/PL/CP/FT/PF/CH/PR/IDX/ONC/ERR/CON/XBR/RES/A11Y/PERF/SEC/OBS/REG/EDGE/INT/LR sections). Use for launch sign-off; pair with [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) and [`docs/runbooks/launch-checklist.md`](./runbooks/launch-checklist.md).
+
 ## Prerequisites
 
 - **git** and **gh** CLI installed and authenticated

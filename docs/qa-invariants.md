@@ -58,6 +58,7 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 
 ## Related docs
 
+- [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
 - [`scripts/qa/README.md`](../scripts/qa/README.md) — server + laptop workflow
 - [`docs/qa-onboarding.md`](./qa-onboarding.md) — human QA onboarding
 - [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md) — post-deploy schema check ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203))

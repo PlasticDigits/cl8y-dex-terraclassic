@@ -1,5 +1,7 @@
 # Testing
 
+**Master verification checklist:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — executable Local/QA scenarios and **REG-00** / **LR-00** regression gates referenced below.
+
 ## Philosophy
 
 CL8Y DEX tests focus on real contract behavior — no blockchain mocks. Unit tests exercise pure logic, integration tests deploy to a simulated chain environment, and E2E tests drive the actual frontend against LocalTerra.
@@ -275,6 +277,8 @@ LocalTerra must be **terrad v4 / SDK 0.53** with a fresh volume after digest bum
 1. `docker compose up -d localterra` (or `make reset && make start && make wait-healthy` after image bump)
 2. From repo root: `bash scripts/deploy-dex-local.sh` (writes `frontend-dapp/.env.local`, deploys contracts, seeds CW20 balances on the dev account `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v`).
 3. `make test-e2e` or `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e`
+
+**Cloud Agent VM:** global setup runs deploy/e2e shell scripts that need `docker exec` when host `:1317` hangs — wrap as `sg docker -c 'CI=1 make test-e2e'` (see [`AGENTS.md`](../AGENTS.md) and [`docs/localterra-sdk53.md`](./localterra-sdk53.md) **LT11** / **LT12**). Install Playwright Chromium via `./node_modules/.bin/playwright install chromium` (not bare `npx playwright`). Tx project stays at **1 worker**; smoke uses **5 workers**.
 
 Before tests, **`e2e/global-setup.ts`** waits for the LCD and runs **`scripts/e2e-provision-dev-wallet.sh`**, which **mints factory CW20s** to the dev wallet when any listed token balance is below **`E2E_DEV_MIN_CW20_U128`** (default `1000000000000` raw units), then **`scripts/e2e-seed-hybrid-book.sh`**, which idempotently places a **resting bid** on the first dual-CW20 pair when the bid book head is empty (GitLab [**#193**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)). **Invariant:** pair `OrderBookHead` returns a bare **`u64`** on LCD (`{"data":13}`), not `{ head_order_id }`; the seed script must treat an existing head as success so global setup can re-run ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)). Native gas denoms **uluna** / **uusd** are expected from genesis ([`docker/init-chain.sh`](../docker/init-chain.sh) — **1M LUNC** on SDK 0.53 LocalTerra), not from the provision script.
 
