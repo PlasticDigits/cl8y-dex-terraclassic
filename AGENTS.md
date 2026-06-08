@@ -4,6 +4,26 @@ Guidance for AI coding agents working in this repository.
 
 ## Git commits
 
+### Commit identity (who signs the commit)
+
+**Do not commit as an AI or automation product account** (Cursor, Claude, Codex, Copilot, or similar agent/bot identities). Commits must use a **human dev identity**:
+
+| Environment | Use |
+|-------------|-----|
+| **Local dev machine** | The developer’s normal `git config user.name` / `user.email` for that checkout |
+| **Cloud Agent VM** | The **GitLab user tied to `GITLAB_TOKEN`** (or the project’s designated dev/bot service account if explicitly configured for deploys — not a generic AI agent login) |
+
+Before committing, verify:
+
+```bash
+git config user.name
+git config user.email
+```
+
+If either shows an AI vendor name, `noreply` agent email, or a Cursor/Claude/Codex-style identity, **stop** and set the correct identity for this repo (local dev config, or the token owner on Cloud Agent). Do not amend history to add AI co-attribution.
+
+### Commit message content
+
 **Do not put emails, co-authors, or author attribution in commit messages.** The message body must not contain:
 
 - Email addresses (including `name@domain` in trailers)
