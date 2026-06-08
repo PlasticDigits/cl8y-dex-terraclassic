@@ -93,7 +93,7 @@ cloud_agent_ensure_node() {
   nvm alias default "$ver" >/dev/null 2>&1 || true
   nvm use "$ver" >/dev/null 2>&1
   cloud_agent_prepend_node_path "$repo_root"
-  got="${NODE_VERSION:-$(node -v 2>/dev/null || true)}"
+  got="$(node -v 2>/dev/null || true)"
   got="${got#v}"
   if [[ "$got" != "$ver" && "$got" != "${ver}"* ]]; then
     echo "[cloud-agent-toolchain] ERROR: node v${got:-?} on PATH; want v${ver} from .nvmrc" >&2
