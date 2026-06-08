@@ -1,0 +1,4 @@
+{
+  "$schema": "https://cursor.com/schemas/environment.schema.json",
+  "install": "bash scripts/setup-cloud-agent-env.sh"
+}
