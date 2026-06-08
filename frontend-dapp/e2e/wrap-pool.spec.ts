@@ -164,16 +164,14 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
       await receiveWrapped.click({ force: true })
     }
 
-    const maxButton = pairCard.locator('button', { hasText: /^\d/ })
-    const maxCount = await maxButton.count()
-    if (maxCount > 0) {
-      await maxButton.first().click()
-      const lpInput = pairCard.getByPlaceholder('0.00').first()
+    const lpInput = pairCard.getByPlaceholder('0.00').first()
+    const maxButton = pairCard.getByTitle('Use max balance')
+    if ((await maxButton.count()) > 0) {
+      await maxButton.click()
       const maxVal = await lpInput.inputValue()
       const partial = (parseFloat(maxVal) / 2).toFixed(6)
       await lpInput.fill(partial)
     } else {
-      const lpInput = pairCard.getByPlaceholder('0.00').first()
       await lpInput.fill('0.001')
     }
 
@@ -195,9 +193,9 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     await poolWithdrawExpandButton(pairCard).click()
 
     const lpInput = pairCard.getByPlaceholder('0.00').first()
-    const maxButton = pairCard.locator('button', { hasText: /^\d/ })
+    const maxButton = pairCard.getByTitle('Use max balance')
     if ((await maxButton.count()) > 0) {
-      await maxButton.first().click()
+      await maxButton.click()
     } else {
       await lpInput.fill('0.001')
     }
