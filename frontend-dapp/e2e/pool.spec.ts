@@ -10,7 +10,7 @@ test.describe('Pool Page', () => {
     test('loads and displays at least one pair', async ({ page }) => {
       await page.goto('/pool')
       await expect(async () => {
-        const pairCount = await page.getByText(/pair\(s\)/i).textContent()
+        const pairCount = await page.getByText(/pair\(s\) \(indexer total\)/i).textContent()
         expect(pairCount).toMatch(/[\d,]+\s*pair/i)
         const m = pairCount?.match(/([\d,]+)\s*pair/i)
         expect(m).toBeTruthy()

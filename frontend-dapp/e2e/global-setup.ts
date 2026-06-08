@@ -136,6 +136,15 @@ export default async function globalSetup(): Promise<void> {
   }
 
   applyViteEnvFromEnvLocal(envLocal)
+
+  const stampPath = path.join(repoRoot, '.qa-deploy-stamp')
+  if (fs.existsSync(stampPath)) {
+    const pairLine = fs.readFileSync(stampPath, 'utf8').match(/^pair_address=(.+)$/m)
+    if (pairLine?.[1]) {
+      process.env.E2E_TRADE_PAIR = pairLine[1].trim()
+    }
+  }
+
   const base = lcdBaseUrlForSetup()
   await waitForLcd(base, 120_000, repoRoot)
   await ensureE2eLcdProxy(repoRoot, base)

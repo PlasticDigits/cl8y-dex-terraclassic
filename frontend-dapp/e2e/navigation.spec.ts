@@ -283,7 +283,9 @@ test.describe('Connected wallet chip network (GitLab #186)', () => {
   test('mobile chip keeps LUNC on trigger and hides network text label', async ({ page, connectWallet }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await connectWallet
-    await expect(page.getByTestId('wallet-lunc-balance').first()).toBeVisible()
+    await expect(
+      headerConnectedWalletButton(page).locator('.sm\\:hidden').getByTestId('wallet-lunc-balance')
+    ).toBeVisible()
     await expect(headerConnectedWalletButton(page).getByTestId('wallet-network-short-label')).toBeHidden()
   })
 

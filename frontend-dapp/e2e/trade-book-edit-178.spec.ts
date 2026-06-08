@@ -1,10 +1,11 @@
 import { test, expect, type Page, type APIRequestContext } from './fixtures/dev-wallet'
 import { assertTxResultAlert, skipIfLcdUnreachable } from './helpers/chain'
 import { requireLimitTxPair, selectLimitPairByFactoryIndex } from './helpers/limit-e2e'
+import { e2eTradePairFromDeploy } from './helpers/deploy-pair'
 import { gotoAndCaptureFactoryPairsPage } from './helpers/lcd'
 
 /** EMBER/CORAL pair — hybrid book seed keeps dev-wallet bids here (e2e global setup). */
-const SEEDED_PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+const SEEDED_PAIR = e2eTradePairFromDeploy()
 const INDEXER = process.env.VITE_INDEXER_URL ?? 'http://127.0.0.1:3001'
 
 async function fetchBidOrder(request: APIRequestContext, orderId: string) {
