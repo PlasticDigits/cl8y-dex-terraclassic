@@ -26,6 +26,13 @@ cloud_agent_load_nvm() {
       return 0
     fi
   fi
+  echo "[cloud-agent-toolchain] installing nvm…"
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+  if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+    # shellcheck source=/dev/null
+    . "$NVM_DIR/nvm.sh"
+    return 0
+  fi
   echo "[cloud-agent-toolchain] nvm not found at ${NVM_DIR}/nvm.sh" >&2
   return 1
 }
