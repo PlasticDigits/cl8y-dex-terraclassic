@@ -35,4 +35,4 @@ if [[ -f "$_TOOLCHAIN" && -f "${_REPO_ROOT}/.nvmrc" && -s "${NVM_DIR:-$HOME/.nvm
   fi
 fi
 
-export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
+export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH}"

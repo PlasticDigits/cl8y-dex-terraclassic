@@ -17,6 +17,14 @@ cloud_agent_load_nvm() {
     # shellcheck source=/dev/null
     . "$NVM_DIR/nvm.sh"
     return 0
+  elif command -v brew >/dev/null 2>&1; then
+    local brew_nvm
+    brew_nvm="$(brew --prefix nvm 2>/dev/null || true)"
+    if [[ -n "$brew_nvm" && -s "$brew_nvm/nvm.sh" ]]; then
+      # shellcheck source=/dev/null
+      . "$brew_nvm/nvm.sh"
+      return 0
+    fi
   fi
   echo "[cloud-agent-toolchain] nvm not found at ${NVM_DIR}/nvm.sh" >&2
   return 1
@@ -107,6 +115,10 @@ cloud_agent_ensure_apt_packages() {
 
 cloud_agent_ensure_rustup() {
   if command -v rustup >/dev/null 2>&1; then
+    echo "[cloud-agent-toolchain] updating rustup stable toolchain…"
+    rustup update stable >/dev/null || {
+      echo "[cloud-agent-toolchain] WARNING: rustup update failed; using installed toolchain" >&2
+    }
     return 0
   fi
   echo "[cloud-agent-toolchain] installing rustup (stable)…"
@@ -117,7 +129,7 @@ cloud_agent_ensure_rust() {
   local cargo_ver major_minor
   cloud_agent_ensure_apt_packages
   cloud_agent_ensure_rustup
-  export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
+  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH}"
   if command -v rustup >/dev/null 2>&1; then
     echo "[cloud-agent-toolchain] rustup default stable…"
     rustup default stable >/dev/null
