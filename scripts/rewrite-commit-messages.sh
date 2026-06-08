@@ -19,12 +19,9 @@ fi
 
 replace_file=$(mktemp)
 trap 'rm -f "$replace_file"' EXIT
+# Scrub patterns for orphaned agent co-author trailers (no tracked literals).
 cat >"$replace_file" <<'EOF'
-literal:contact@example.com==>contact@example.com
-literal:==>
-literal:Co-authored-by: default avatarrawr <contact@example.com>==>
-literal:==>
-regex:
+regex:Co-authored-by:[^\n]*<[^>\n]*@[^>\n]*>==>
 EOF
 
 export FILTER_REPO_ROOT="$REPO_ROOT"
