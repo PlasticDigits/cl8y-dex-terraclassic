@@ -2,6 +2,15 @@
 # Shared Node / Rust / apt toolchain helpers for Cursor Cloud Agent VMs.
 # shellcheck shell=bash
 
+# nvm.sh references optional vars; disable nounset while invoking nvm.
+cloud_agent_nvm() {
+  set +u
+  local rc=0
+  "$@" || rc=$?
+  set -u
+  return "$rc"
+}
+
 cloud_agent_nvmrc_version() {
   local repo_root="${1:-}"
   if [[ -z "$repo_root" ]]; then
@@ -59,14 +68,14 @@ cloud_agent_node_bin_dir() {
   cloud_agent_load_nvm || return 1
   if [[ -n "$repo_root" ]]; then
     ver="$(cloud_agent_nvmrc_version "$repo_root")"
-    bin="$(nvm which "$ver" 2>/dev/null || true)"
+    bin="$(cloud_agent_nvm nvm which "$ver" 2>/dev/null || true)"
     if [[ -z "$bin" || ! -x "$bin" ]]; then
-      nvm install "$ver" >/dev/null 2>&1
-      nvm use "$ver" >/dev/null 2>&1
-      bin="$(nvm which "$ver" 2>/dev/null || nvm which current 2>/dev/null || true)"
+      cloud_agent_nvm nvm install "$ver" >/dev/null 2>&1
+      cloud_agent_nvm nvm use "$ver" >/dev/null 2>&1
+      bin="$(cloud_agent_nvm nvm which "$ver" 2>/dev/null || cloud_agent_nvm nvm which current 2>/dev/null || true)"
     fi
   else
-    bin="$(nvm which current 2>/dev/null || true)"
+    bin="$(cloud_agent_nvm nvm which current 2>/dev/null || true)"
   fi
   if [[ -z "$bin" || ! -x "$bin" ]]; then
     echo "[cloud-agent-toolchain] could not resolve nvm node binary" >&2
@@ -89,9 +98,9 @@ cloud_agent_ensure_node() {
   cloud_agent_load_nvm || return 1
   ver="$(cloud_agent_nvmrc_version "$repo_root")"
   echo "[cloud-agent-toolchain] ensuring Node ${ver} (nvm)…"
-  nvm install "$ver" >/dev/null 2>&1
-  nvm alias default "$ver" >/dev/null 2>&1 || true
-  nvm use "$ver" >/dev/null 2>&1
+  cloud_agent_nvm nvm install "$ver" >/dev/null 2>&1
+  cloud_agent_nvm nvm alias default "$ver" >/dev/null 2>&1 || true
+  cloud_agent_nvm nvm use "$ver" >/dev/null 2>&1
   cloud_agent_prepend_node_path "$repo_root"
   got="$(node -v 2>/dev/null || true)"
   got="${got#v}"

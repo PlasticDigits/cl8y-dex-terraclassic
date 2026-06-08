@@ -87,6 +87,20 @@ _assert_file_contains "$REPO_ROOT/scripts/cloud-agent-shell-init.sh" \
   'cloud-agent-toolchain.sh' \
   'shell init must prefer nvm node over /exec-daemon'
 
+_assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
+  'core.hooksPath .githooks' \
+  'setup-cloud-agent-env.sh must configure git hooks'
+
+_assert_file_contains "$REPO_ROOT/scripts/cloud-agent-shell-init.sh" \
+  'core.hooksPath .githooks' \
+  'shell init must configure git hooks'
+
+[[ -x "$REPO_ROOT/.githooks/pre-push" ]] \
+  || _fail '.githooks/pre-push must exist and be executable'
+
+[[ -x "$REPO_ROOT/.githooks/prepare-commit-msg" ]] \
+  || _fail '.githooks/prepare-commit-msg must exist and be executable'
+
 _assert_file_contains "$REPO_ROOT/AGENTS.md" \
   'GIT_USERNAME' \
   'AGENTS.md must document GIT_USERNAME'
