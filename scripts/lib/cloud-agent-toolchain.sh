@@ -116,7 +116,9 @@ cloud_agent_ensure_apt_packages() {
 cloud_agent_ensure_rustup() {
   if command -v rustup >/dev/null 2>&1; then
     echo "[cloud-agent-toolchain] updating rustup stable toolchain…"
-    rustup update stable >/dev/null
+    rustup update stable >/dev/null || {
+      echo "[cloud-agent-toolchain] WARNING: rustup update failed; using installed toolchain" >&2
+    }
     return 0
   fi
   echo "[cloud-agent-toolchain] installing rustup (stable)…"
@@ -127,7 +129,7 @@ cloud_agent_ensure_rust() {
   local cargo_ver major_minor
   cloud_agent_ensure_apt_packages
   cloud_agent_ensure_rustup
-  export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
+  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH}"
   if command -v rustup >/dev/null 2>&1; then
     echo "[cloud-agent-toolchain] rustup default stable…"
     rustup default stable >/dev/null
