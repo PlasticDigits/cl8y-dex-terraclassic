@@ -101,7 +101,8 @@ echo "[cloud-agent-env] VM toolchain (Docker, Node)…"
 chmod +x "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh" \
   "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh"
 if ! "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh"; then
-  echo "[cloud-agent-env] WARNING: toolchain setup incomplete (Docker/Node)." >&2
+  echo "[cloud-agent-env] ERROR: toolchain setup failed (Docker/Node)." >&2
+  exit 1
 fi
 
 echo "[cloud-agent-env] Chrome + Keplr…"
