@@ -36,14 +36,17 @@ ${END_MARKER}"
   fi
 
   # Drop legacy ad-hoc Cloud Agent block from earlier agent sessions.
-  if grep -qF '# Cloud Agent GitLab / git defaults (PlasticDigits)' "$BASHRC"; then
+  if grep -qF '# Cloud Agent GitLab / git defaults (PlasticDigits)' "$BASHRC" \
+    && grep -qE '^if ! command -v glab' "$BASHRC" \
+    && grep -qE '^fi$' "$BASHRC"; then
     tmp="$(mktemp)"
     awk '
-      /^# Cloud Agent GitLab \/ git defaults \(PlasticDigits\)/ { skip=1; next }
-      skip && /^if ! command -v glab/ { skip=2; next }
-      skip == 2 && /^fi$/ { skip=0; next }
-      skip { next }
-      { print }
+        /^# Cloud Agent GitLab \/ git defaults \(PlasticDigits\)/ { skip=1; next }
+        skip == 1 && /^if ! command -v glab/ { skip=2; next }
+        skip == 2 && /^fi$/ { skip=0; next }
+        skip == 2 { next }
+        skip == 1 { next }
+        { print }
     ' "$BASHRC" >"$tmp"
     mv "$tmp" "$BASHRC"
   fi

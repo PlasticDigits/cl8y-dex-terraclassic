@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shared Cloud Agent GitLab / git identity helpers.
 # Sourced by setup-cloud-agent-env.sh and cloud-agent-shell-init.sh.
-set -euo pipefail
+# Callers that need strict mode (e.g. setup-cloud-agent-env.sh) set -euo pipefail themselves.
 
 CLOUD_AGENT_GIT_USER_NAME=""
 CLOUD_AGENT_GIT_USER_EMAIL=""

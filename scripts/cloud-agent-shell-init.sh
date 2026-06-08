@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lightweight per-shell Cloud Agent init (sourced from ~/.bashrc).
 # Full provisioning runs via scripts/setup-cloud-agent-env.sh on VM startup.
-set -euo pipefail
+# Do not enable errexit here — this file is dotted into interactive shells.
 
 _REPO_ROOT="${CLOUD_AGENT_REPO_ROOT:-/workspace}"
 _ENV_GLIB="${_REPO_ROOT}/.env.glab"
