@@ -17,7 +17,7 @@ write_msg() {
 
 assert_ok() {
   local name=$1 file=$2
-  COMMIT_MSG_POLICY=reject validate_commit_message "$file" || {
+  validate_commit_message "$file" || {
     echo "FAIL: expected accept: $name" >&2
     exit 1
   }
@@ -26,7 +26,7 @@ assert_ok() {
 
 assert_reject() {
   local name=$1 file=$2
-  if COMMIT_MSG_POLICY=reject validate_commit_message "$file"; then
+  if validate_commit_message "$file"; then
     echo "FAIL: expected reject: $name" >&2
     exit 1
   fi
@@ -35,7 +35,7 @@ assert_reject() {
 
 assert_strip() {
   local name=$1 file=$2 expected=$3
-  COMMIT_MSG_POLICY=strip validate_commit_message "$file" || {
+  strip_commit_message_file "$file" || {
     echo "FAIL: strip failed: $name" >&2
     exit 1
   }
@@ -43,6 +43,7 @@ assert_strip() {
     echo "FAIL: strip output mismatch: $name" >&2
     exit 1
   fi
+  assert_ok "strip result validates: $name" "$file"
   echo "OK strip: $name"
 }
 
@@ -77,5 +78,22 @@ assert_ok "authoritative does not match author keyword" "$f"
 f="$tmpdir/strip"
 write_msg "$f" "fix: thing" "" "Good line." "Co-authored-by: x <x@y.com>" "Also good."
 assert_strip "strip offending lines" "$f" $'fix: thing\n\nGood line.\nAlso good.\n'
+
+f="$tmpdir/cursor-trailer"
+write_msg "$f" "fix: e2e" "" "Real description." "Co-authored-by: Cursor <cursoragent@cursor.com>"
+assert_strip "strip Cursor co-author trailer" "$f" $'fix: e2e\n\nReal description.\n'
+
+f="$tmpdir/no-blank-after-subject"
+write_msg "$f" "fix: charts" "Body without blank line after subject." "Co-authored-by: Cursor <cursoragent@cursor.com>"
+assert_reject "co-author without blank line after subject" "$f"
+
+[[ -x "$REPO_ROOT/.githooks/pre-push" ]] || {
+  echo "FAIL: .githooks/pre-push must be executable" >&2
+  exit 1
+}
+[[ -x "$REPO_ROOT/.githooks/prepare-commit-msg" ]] || {
+  echo "FAIL: .githooks/prepare-commit-msg must be executable" >&2
+  exit 1
+}
 
 echo "All commit-msg hook checks passed."

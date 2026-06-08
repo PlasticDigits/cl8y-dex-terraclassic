@@ -30,7 +30,15 @@ If either shows an AI vendor name, `noreply` agent email, or a Cursor/Claude/Cod
 - `Co-authored-by`, `Signed-off-by: Author`, or similar attribution lines
 - The word **author** (e.g. “original author”, “Co-authored-by”)
 
-Write only the subject and a short technical description of the change. A local `commit-msg` hook (`.githooks/commit-msg`) rejects body lines that violate this; do not use `COMMIT_MSG_POLICY=strip` to bypass it.
+Write only the subject and a short technical description of the change. Hooks in `.githooks/` enforce this:
+
+- **`prepare-commit-msg`** — strips agent-injected `Co-authored-by` / email lines from the body before the commit is recorded.
+- **`commit-msg`** — rejects any remaining violations.
+- **`pre-push`** — blocks pushes that include commits whose bodies still violate the policy (catches `git commit --no-verify`).
+
+**Never use `git commit --no-verify` or `git push --no-verify`** to skip these hooks. Cursor may append `Co-authored-by` trailers automatically; the hooks remove them — do not re-add them manually.
+
+Enable hooks locally: `make setup-hooks` (Cloud Agent: `scripts/setup-cloud-agent-env.sh` sets `core.hooksPath` on VM startup).
 
 ## Cursor Cloud specific instructions
 

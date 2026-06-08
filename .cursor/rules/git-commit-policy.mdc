@@ -1,0 +1,28 @@
+---
+description: Git commit message and hook policy — no Co-authored-by, no --no-verify
+alwaysApply: true
+---
+
+# Git commit policy
+
+## Message body
+
+Commit message **bodies** must not contain:
+
+- Email addresses (`name@domain`)
+- `Co-authored-by` or any line containing the word **author**
+- AI/agent attribution trailers (Cursor, Claude, Codex, etc.)
+
+Write only a short technical description in the body.
+
+## Hooks (do not bypass)
+
+`.githooks/prepare-commit-msg` strips agent-injected trailers. `commit-msg` rejects violations. `pre-push` blocks pushes with bad messages.
+
+**Never run `git commit --no-verify` or `git push --no-verify`.** Agents often use `--no-verify` to skip slow `pre-commit` checks; that also skips message policy hooks and is how `Co-authored-by: … <contact@example.com>` trailers reach the remote.
+
+If `pre-commit` is too slow, fix or scope the change — do not skip hooks for commits.
+
+## Identity
+
+Use the human dev identity (`GIT_USERNAME` / `GIT_EMAIL` on Cloud Agent). Do not commit as Cursor, Claude, GitLab project-bot, or similar.

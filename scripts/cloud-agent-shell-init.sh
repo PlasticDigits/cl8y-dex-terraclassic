@@ -18,6 +18,10 @@ if [[ -f "$_ENV_GLIB" ]]; then
   . "$_ENV_GLIB"
 fi
 
+if [[ -d "$_REPO_ROOT/.githooks" ]]; then
+  git -C "$_REPO_ROOT" config core.hooksPath .githooks 2>/dev/null || true
+fi
+
 if [[ -f "$_LIB" ]]; then
   # shellcheck disable=SC1090
   . "$_LIB"
