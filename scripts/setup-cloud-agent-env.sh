@@ -110,6 +110,7 @@ fi
 # shellcheck source=scripts/lib/cloud-agent-toolchain.sh
 source "$REPO_ROOT/scripts/lib/cloud-agent-toolchain.sh"
 cloud_agent_prepend_node_path "$REPO_ROOT" 2>/dev/null || true
+export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH}"
 
 echo "[cloud-agent-env] Chrome + Keplr…"
 chmod +x "$REPO_ROOT/scripts/setup-browser-cloud-agent.sh" \
