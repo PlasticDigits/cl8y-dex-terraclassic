@@ -119,7 +119,7 @@ test-setup-cloud-agent-env:
 	./scripts/test-setup-cloud-agent-env.sh
 
 setup-cloud-agent-env:
-	@chmod +x scripts/setup-cloud-agent-env.sh scripts/cloud-agent-shell-init.sh scripts/lib/cloud-agent-env.sh scripts/setup-glab-cloud-agent.sh
+	@chmod +x scripts/setup-cloud-agent-env.sh scripts/setup-cloud-agent-toolchain.sh scripts/setup-cloud-agent-localterra.sh scripts/setup-browser-cloud-agent.sh scripts/cloud-agent-shell-init.sh scripts/lib/cloud-agent-env.sh scripts/lib/cloud-agent-docker.sh scripts/setup-glab-cloud-agent.sh
 	./scripts/setup-cloud-agent-env.sh
 
 qa-tunnel-help:

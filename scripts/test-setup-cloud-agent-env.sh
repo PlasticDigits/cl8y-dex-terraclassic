@@ -31,6 +31,18 @@ _assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
   'setup-glab-cloud-agent.sh' \
   'setup-cloud-agent-env.sh must invoke setup-glab-cloud-agent.sh'
 
+_assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
+  'setup-cloud-agent-toolchain.sh' \
+  'setup-cloud-agent-env.sh must invoke setup-cloud-agent-toolchain.sh'
+
+_assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
+  'setup-browser-cloud-agent.sh' \
+  'setup-cloud-agent-env.sh must invoke setup-browser-cloud-agent.sh'
+
+_assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
+  'setup-cloud-agent-localterra.sh' \
+  'setup-cloud-agent-env.sh must invoke setup-cloud-agent-localterra.sh'
+
 _assert_file_contains "$REPO_ROOT/scripts/lib/cloud-agent-env.sh" \
   'GIT_USERNAME' \
   'cloud-agent-env lib must read GIT_USERNAME'

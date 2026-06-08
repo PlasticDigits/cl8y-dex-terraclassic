@@ -3,7 +3,8 @@
 #
 # Cursor runs this from .cursor/environment.json on every VM boot (after git pull).
 # Must be idempotent. Ensures glab, GITLAB_TOKEN, GIT_USERNAME, GIT_EMAIL,
-# and git identity are always configured — overwriting the default GitLab
+# git identity, VM toolchain (Docker, Node), Chrome + Keplr, Playwright, and
+# LocalTerra stack — overwriting the default GitLab project-bot clone identity.
 #
 # Usage (from repo root):
 #   ./scripts/setup-cloud-agent-env.sh
@@ -92,9 +93,30 @@ fi
 
 install_shell_init
 
-echo "[cloud-agent-env] verifying…"
+echo "[cloud-agent-env] verifying git + glab…"
 cloud_agent_verify_git_identity
 cloud_agent_verify_glab
+
+echo "[cloud-agent-env] VM toolchain (Docker, Node)…"
+chmod +x "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh" \
+  "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh"
+if ! "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh"; then
+  echo "[cloud-agent-env] ERROR: toolchain setup failed (Docker/Node)." >&2
+  exit 1
+fi
+
+echo "[cloud-agent-env] Chrome + Keplr…"
+chmod +x "$REPO_ROOT/scripts/setup-browser-cloud-agent.sh" \
+  "$REPO_ROOT/scripts/lib/keplr-chrome-extension.sh"
+"$REPO_ROOT/scripts/setup-browser-cloud-agent.sh"
+
+echo "[cloud-agent-env] LocalTerra + Playwright + deploy…"
+chmod +x "$REPO_ROOT/scripts/setup-cloud-agent-localterra.sh" \
+  "$REPO_ROOT/scripts/setup-cloud-agent-indexer-postgres.sh"
+if ! "$REPO_ROOT/scripts/setup-cloud-agent-localterra.sh"; then
+  echo "[cloud-agent-env] ERROR: LocalTerra stack setup failed." >&2
+  exit 1
+fi
 
 echo "[cloud-agent-env] OK"
 echo "[cloud-agent-env]   glab:     $(command -v glab) ($(glab version 2>/dev/null | head -1))"
