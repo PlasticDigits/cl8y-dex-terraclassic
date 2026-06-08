@@ -184,9 +184,9 @@ else
   HYBRID_JSON="$(jq -nc --arg amt "$BOOK_INPUT" \
     '{pool_input:"0",book_input:$amt,max_maker_fills:8,book_start_hint:null}')"
   SWAP_HOOK="$(jq -nc --argjson hybrid "$HYBRID_JSON" \
-    '{swap:{belief_price:null,max_spread:"0.5",to:null,deadline:null,hybrid:$hybrid,trader:null}}' \
+    '{swap:{belief_price:null,min_return:"1",max_spread:"0.5",to:null,deadline:null,hybrid:$hybrid,trader:null}}' \
     | base64 -w0 2>/dev/null || jq -nc --argjson hybrid "$HYBRID_JSON" \
-    '{swap:{belief_price:null,max_spread:"0.5",to:null,deadline:null,hybrid:$hybrid,trader:null}}' | base64)"
+    '{swap:{belief_price:null,min_return:"1",max_spread:"0.5",to:null,deadline:null,hybrid:$hybrid,trader:null}}' | base64)"
   SEND_MSG="$(jq -nc --arg pair "$PAIR_ADDR" --arg amt "$BOOK_INPUT" --arg hook "$SWAP_HOOK" \
     '{send:{contract:$pair,amount:$amt,msg:$hook}}')"
 
