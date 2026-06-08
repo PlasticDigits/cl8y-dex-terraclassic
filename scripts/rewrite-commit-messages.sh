@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rewrite all commit messages: strip email/author violations from bodies (history cleanup).
+# Rewrite all commit messages and blobs: strip email/author violations (history cleanup).
 # Requires git-filter-repo. Re-adds origin remote after rewrite.
 set -euo pipefail
 
@@ -17,10 +17,21 @@ if [[ -z "$origin_url" ]]; then
   exit 1
 fi
 
+replace_file=$(mktemp)
+trap 'rm -f "$replace_file"' EXIT
+cat >"$replace_file" <<'EOF'
+literal:contact@example.com==>contact@example.com
+literal:==>
+literal:Co-authored-by: default avatarrawr <contact@example.com>==>
+literal:==>
+regex:
+EOF
+
 export FILTER_REPO_ROOT="$REPO_ROOT"
 
-echo "[rewrite-commit-messages] stripping policy violations from all commit messages…"
+echo "[rewrite-commit-messages] stripping policy violations from commit messages and blobs…"
 git filter-repo --force \
+  --replace-text "$replace_file" \
   --message-callback "
 import os, subprocess
 root = os.environ['FILTER_REPO_ROOT']
@@ -33,4 +44,8 @@ return proc.stdout
 
 git remote add origin "$origin_url" 2>/dev/null || git remote set-url origin "$origin_url"
 
-echo "[rewrite-commit-messages] done — verify with: ./scripts/verify-commit-messages.sh HEAD"
+echo "[rewrite-commit-messages] pruning unreachable objects locally…"
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+
+echo "[rewrite-commit-messages] done — verify with: ./scripts/verify-commit-messages.sh --all"
