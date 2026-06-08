@@ -44,11 +44,16 @@ ensure_apt_packages() {
   for pkg in libssl-dev pkg-config curl; do
     apt_packages_present "$pkg" || pkgs+=("$pkg")
   done
-  if [[ ${#pkgs[@]} -gt 0 ]] && need_sudo; then
-    log "apt packages: ${pkgs[*]}"
-    run_as_root apt-get update -qq
-    run_as_root DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}"
+  if [[ ${#pkgs[@]} -eq 0 ]]; then
+    return 0
   fi
+  if ! need_sudo; then
+    log "required apt packages missing (${pkgs[*]}) and no sudo" >&2
+    return 1
+  fi
+  log "apt packages: ${pkgs[*]}"
+  run_as_root apt-get update -qq
+  run_as_root DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}"
 }
 
 ensure_node() {

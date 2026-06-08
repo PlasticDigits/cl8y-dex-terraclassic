@@ -18,9 +18,16 @@ cloud_agent_run_as_root() {
   fi
 }
 
+cloud_agent_can_run_docker_directly() {
+  if groups 2>/dev/null | grep -qw docker; then
+    return 0
+  fi
+  [[ -w "${CLOUD_AGENT_DOCKER_SOCK}" ]]
+}
+
 cloud_agent_docker_cmd() {
   local timeout_s="${CLOUD_AGENT_DOCKER_TIMEOUT_S:-15}"
-  if groups 2>/dev/null | grep -qw docker; then
+  if cloud_agent_can_run_docker_directly; then
     timeout "$timeout_s" docker "$@"
     return $?
   fi
@@ -67,8 +74,23 @@ cloud_agent_fix_docker_socket_permissions() {
 cloud_agent_write_docker_storage_driver() {
   local driver="$1"
   cloud_agent_run_as_root mkdir -p /etc/docker
-  printf '%s\n' '{' "  \"storage-driver\": \"${driver}\"" '}' \
-    | cloud_agent_run_as_root tee "${CLOUD_AGENT_DOCKER_DAEMON_JSON}" >/dev/null
+  cloud_agent_run_as_root python3 - "$driver" "${CLOUD_AGENT_DOCKER_DAEMON_JSON}" <<'PY'
+import json, sys
+
+driver, path = sys.argv[1], sys.argv[2]
+cfg = {}
+try:
+    with open(path) as f:
+        data = json.load(f)
+    if isinstance(data, dict):
+        cfg = data
+except (FileNotFoundError, json.JSONDecodeError):
+    pass
+cfg["storage-driver"] = driver
+with open(path, "w") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+PY
   echo "[cloud-agent] Docker storage-driver: ${driver}"
 }
 
