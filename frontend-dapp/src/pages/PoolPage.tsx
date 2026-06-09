@@ -286,8 +286,8 @@ const PoolCard = memo(function PoolCard({
   const addMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      let rawA = toRawAmount(amountA, decimalsA)
-      let rawB = toRawAmount(amountB, decimalsB)
+      const rawA = toRawAmount(amountA, decimalsA)
+      const rawB = toRawAmount(amountB, decimalsB)
 
       if (!needsWrapA && !needsWrapB) {
         const gasGate = evaluateProvideLiquidityCw20NativeGasGate(
