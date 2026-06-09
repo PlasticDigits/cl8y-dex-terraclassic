@@ -8,6 +8,7 @@ import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import PriceChart from '@/components/charts/PriceChart'
 import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelectOption } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
+import { PnlValue } from '@/components/trader/PnlValue'
 import { formatNum } from '@/utils/formatAmount'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { shortenAddress } from '@/utils/tokenDisplay'
@@ -538,7 +539,6 @@ export default function ChartsPage() {
                 {leaderboardQuery.data.map((trader: IndexerTrader, i: number) => {
                   const metricValue = getLeaderboardMetric(trader, leaderboardSort)
                   const isPnl = leaderboardSort !== 'total_volume'
-                  const numVal = parseFloat(metricValue) || 0
                   return (
                     <tr key={trader.address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       <td className="py-1.5 px-2 font-semibold" style={{ color: 'var(--ink-subtle)' }}>
@@ -556,15 +556,13 @@ export default function ChartsPage() {
                       </td>
                       <td
                         className="py-1.5 px-2 text-right font-medium"
-                        style={{
-                          color: isPnl
-                            ? numVal >= 0
-                              ? 'var(--color-positive)'
-                              : 'var(--color-negative)'
-                            : 'var(--ink)',
-                        }}
+                        style={{ color: isPnl ? undefined : 'var(--ink)' }}
                       >
-                        {formatNum(metricValue)}
+                        {isPnl ? (
+                          <PnlValue value={getLeaderboardPnlValue(trader, leaderboardSort)} />
+                        ) : (
+                          formatNum(metricValue)
+                        )}
                       </td>
                       <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
                         {trader.total_trades.toLocaleString()}
@@ -584,12 +582,25 @@ export default function ChartsPage() {
 function getLeaderboardMetric(trader: IndexerTrader, sort: string): string {
   switch (sort) {
     case 'best_trade_pnl':
+      return trader.best_trade_pnl ?? ''
+    case 'total_realized_pnl':
+      return trader.total_realized_pnl
+    case 'worst_trade_pnl':
+      return trader.worst_trade_pnl ?? ''
+    default:
+      return trader.total_volume
+  }
+}
+
+function getLeaderboardPnlValue(trader: IndexerTrader, sort: string): string | null {
+  switch (sort) {
+    case 'best_trade_pnl':
       return trader.best_trade_pnl
     case 'total_realized_pnl':
       return trader.total_realized_pnl
     case 'worst_trade_pnl':
       return trader.worst_trade_pnl
     default:
-      return trader.total_volume
+      return null
   }
 }

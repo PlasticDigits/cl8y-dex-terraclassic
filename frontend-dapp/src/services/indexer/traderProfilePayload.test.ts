@@ -47,6 +47,16 @@ describe('parseIndexerTraderPayload', () => {
     expect(t.total_volume).toBe('99')
   })
 
+  it('preserves null best/worst trade pnl (#344)', () => {
+    const t = parseIndexerTraderPayload({
+      ...minimal,
+      best_trade_pnl: null,
+      worst_trade_pnl: null,
+    })
+    expect(t.best_trade_pnl).toBe(null)
+    expect(t.worst_trade_pnl).toBe(null)
+  })
+
   it('maps tier_id to null when invalid', () => {
     const t = parseIndexerTraderPayload({
       ...minimal,

@@ -86,8 +86,24 @@ pub async fn update_trader_pnl(
     sqlx::query(
         "UPDATE traders SET
            total_realized_pnl = total_realized_pnl + $2,
-           best_trade_pnl = GREATEST(best_trade_pnl, $2),
-           worst_trade_pnl = LEAST(worst_trade_pnl, $2),
+           best_trade_pnl = CASE
+             WHEN best_trade_pnl IS NULL THEN GREATEST($2, COALESCE(worst_trade_pnl, $2))
+             WHEN best_trade_pnl = 0
+               AND worst_trade_pnl IS NOT NULL
+               AND worst_trade_pnl < 0
+               AND total_realized_pnl = worst_trade_pnl
+               THEN GREATEST($2, worst_trade_pnl)
+             WHEN best_trade_pnl = 0
+               AND worst_trade_pnl IS NOT NULL
+               AND worst_trade_pnl < 0
+               AND total_realized_pnl < worst_trade_pnl
+               THEN GREATEST($2, worst_trade_pnl, total_realized_pnl - worst_trade_pnl)
+             ELSE GREATEST(best_trade_pnl, $2)
+           END,
+           worst_trade_pnl = CASE
+             WHEN worst_trade_pnl IS NULL THEN $2
+             ELSE LEAST(worst_trade_pnl, $2)
+           END,
            total_fees_paid = total_fees_paid + $3,
            updated_at = NOW()
          WHERE address = $1",

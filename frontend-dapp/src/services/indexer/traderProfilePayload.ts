@@ -65,8 +65,10 @@ export function parseIndexerTraderPayload(data: unknown): IndexerTrader {
     last_trade_at:
       data.last_trade_at === null || data.last_trade_at === undefined ? null : asNullableString(data.last_trade_at),
     total_realized_pnl: asString(data.total_realized_pnl, '0'),
-    best_trade_pnl: asString(data.best_trade_pnl, '0'),
-    worst_trade_pnl: asString(data.worst_trade_pnl, '0'),
+    best_trade_pnl:
+      data.best_trade_pnl === null || data.best_trade_pnl === undefined ? null : asString(data.best_trade_pnl, '0'),
+    worst_trade_pnl:
+      data.worst_trade_pnl === null || data.worst_trade_pnl === undefined ? null : asString(data.worst_trade_pnl, '0'),
     total_fees_paid: asString(data.total_fees_paid, '0'),
   }
 }

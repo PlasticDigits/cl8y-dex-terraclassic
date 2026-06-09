@@ -83,8 +83,8 @@ pub struct TraderResponse {
     pub first_trade_at: Option<String>,
     pub last_trade_at: Option<String>,
     pub total_realized_pnl: String,
-    pub best_trade_pnl: String,
-    pub worst_trade_pnl: String,
+    pub best_trade_pnl: Option<String>,
+    pub worst_trade_pnl: Option<String>,
     pub total_fees_paid: String,
 }
 
@@ -103,8 +103,8 @@ impl From<&db_traders::TraderRow> for TraderResponse {
             first_trade_at: t.first_trade_at.map(|d| d.to_rfc3339()),
             last_trade_at: t.last_trade_at.map(|d| d.to_rfc3339()),
             total_realized_pnl: t.total_realized_pnl.to_string(),
-            best_trade_pnl: t.best_trade_pnl.to_string(),
-            worst_trade_pnl: t.worst_trade_pnl.to_string(),
+            best_trade_pnl: t.best_trade_pnl.as_ref().map(|v| v.to_string()),
+            worst_trade_pnl: t.worst_trade_pnl.as_ref().map(|v| v.to_string()),
             total_fees_paid: t.total_fees_paid.to_string(),
         }
     }
