@@ -139,8 +139,9 @@ if (( NOW_SEC < EXPIRES )); then
   exit 1
 fi
 
+# Pure-book hybrid requires belief_price or min_return on execute (GitLab #334 / L9).
 SWAP_HOOK="$(jq -nc --arg book "$HYBRID_BOOK_INPUT" \
-  '{swap:{max_spread:"1",hybrid:{pool_input:"0",book_input:$book,max_maker_fills:8}}}')"
+  '{swap:{belief_price:null,max_spread:"1",min_return:"1",to:null,deadline:null,hybrid:{pool_input:"0",book_input:$book,max_maker_fills:8,book_start_hint:null},trader:null}}')"
 SWAP_HOOK_B64="$(echo -n "$SWAP_HOOK" | base64 -w0 2>/dev/null || echo -n "$SWAP_HOOK" | base64)"
 SEND_SWAP="$(jq -nc --arg pair "$PAIR_ADDR" --arg amt "$HYBRID_BOOK_INPUT" --arg hook "$SWAP_HOOK_B64" \
   '{send:{contract:$pair,amount:$amt,msg:$hook}}')"

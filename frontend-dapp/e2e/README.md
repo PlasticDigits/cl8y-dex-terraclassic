@@ -86,7 +86,7 @@ UI smoke (no chain): `e2e/limit-orders.spec.ts` in `e2e-smoke` project.
 
 ## Claim all parked tx E2E (`limit-orders-claim-all-tx.spec.ts`, GitLab **#259**)
 
-End-to-end **place → expire → hybrid park → indexer `parked_expired` → Claim all parked → `claim_expired_limit_orders_batch`**. The spec calls **`scripts/e2e-seed-expired-parked-claim-all.sh`** (terrad: two expired bids, wait for `block_time`, hybrid swap parks) then drives the `/limits` UI confirm (must include **est. LUNC gas** copy).
+End-to-end **place → expire → hybrid park → indexer `parked_expired` → Claim all parked → `claim_expired_limit_orders_batch`**. The spec calls **`scripts/e2e-seed-expired-parked-claim-all.sh`** (terrad: two expired bids, wait for `block_time`, hybrid swap parks) then drives the `/limits` UI confirm (must include **est. LUNC gas** copy). Pure-book park swap sets **`min_return: "1"`** on the hook to satisfy execute slippage floor ([#334](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334)).
 
 **Prerequisites:** same stack as other `e2e-tx` specs — LocalTerra, deploy, **indexer running** with CORS for the Vite origin ([`docs/frontend.md` § Local dev indexer CORS](../../docs/frontend.md)).
 

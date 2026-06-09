@@ -26,7 +26,7 @@ Set **`PLAYWRIGHT_SKIP_CHAIN=1`** (or legacy `REQUIRE_LOCALTERRA=0`) only for UI
 | [`frontend-dapp/e2e/limit-orders-claim-all-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-claim-all-tx.spec.ts) | **#259** — expiry park harness + Claim all parked batch tx |
 | [`frontend-dapp/e2e/limit-orders-gas-presets-tx.spec.ts`](../frontend-dapp/e2e/limit-orders-gas-presets-tx.spec.ts) | **#204** — each preset → hook `max_adjust_steps` on `/limits` |
 | [`frontend-dapp/e2e/helpers/limit-expiry-park-e2e.ts`](../frontend-dapp/e2e/helpers/limit-expiry-park-e2e.ts) | Indexer poll + seed script wrapper ([#259](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/259)) |
-| [`scripts/e2e-seed-expired-parked-claim-all.sh`](../scripts/e2e-seed-expired-parked-claim-all.sh) | Terrad: 2 expired bids → wait → hybrid park |
+| [`scripts/e2e-seed-expired-parked-claim-all.sh`](../scripts/e2e-seed-expired-parked-claim-all.sh) | Terrad: 2 expired bids → wait → hybrid park (`min_return` floor — [#334](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334)) |
 | [`frontend-dapp/e2e/limit-orders.spec.ts`](../frontend-dapp/e2e/limit-orders.spec.ts) | UI smoke (no chain) |
 | [`frontend-dapp/e2e/helpers/limit-e2e.ts`](../frontend-dapp/e2e/helpers/limit-e2e.ts) | Pair pick + CTA guards |
 | [`frontend-dapp/e2e/helpers/lcd.ts`](../frontend-dapp/e2e/helpers/lcd.ts) | `queryPairPaused`, `firstUnpausedDualCwPair` |

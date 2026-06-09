@@ -203,7 +203,7 @@ hybrid_swap_book_only() {
   swap_hook="$(jq -nc \
     --argjson book "$book_input" \
     --argjson fills "$MAX_MAKER_FILLS" \
-    '{swap:{belief_price:null,max_spread:"1",to:null,deadline:null,hybrid:{pool_input:"0",book_input:($book|tostring),max_maker_fills:$fills,book_start_hint:null},trader:null}}')"
+    '{swap:{belief_price:null,max_spread:"1",min_return:"1",to:null,deadline:null,hybrid:{pool_input:"0",book_input:($book|tostring),max_maker_fills:$fills,book_start_hint:null},trader:null}}')"
   txjson="$(terrad_tx wasm execute "$TOKEN0" "$(jq -nc \
     --arg pair "$PAIR" \
     --arg amt "$book_input" \
