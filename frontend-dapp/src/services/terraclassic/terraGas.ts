@@ -30,7 +30,7 @@ export const CANCEL_LIMIT_ORDER_BATCH_PER_ORDER_GAS_LIMIT = 80000
 /** In-place limit price relink — one pair execute, no CW20 (GitLab #247; ≪ cancel+place). */
 export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = 350000
 export const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
-export const ADD_LIQUIDITY_GAS_LIMIT = 500000
+export const ADD_LIQUIDITY_GAS_LIMIT = 650000
 export const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
 export const CREATE_PAIR_GAS_LIMIT = 800000
 

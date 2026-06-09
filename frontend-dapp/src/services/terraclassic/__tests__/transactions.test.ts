@@ -244,7 +244,7 @@ describe('gas limit selection (tested indirectly)', () => {
 
   it('uses ADD_LIQUIDITY_GAS_LIMIT for provide_liquidity', async () => {
     const fee = await getFeeForMsg({ provide_liquidity: {} })
-    expect(fee.gasLimit).toBe(BigInt(500000))
+    expect(fee.gasLimit).toBe(BigInt(650000))
   })
 
   it('uses REMOVE_LIQUIDITY_GAS_LIMIT for withdraw_liquidity', async () => {
