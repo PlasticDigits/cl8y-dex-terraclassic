@@ -304,11 +304,15 @@ const PoolCard = memo(function PoolCard({
       }
 
       if (needsWrapA || needsWrapB) {
+        const grossA = rawA
+        const grossB = rawB
+        let netA = rawA
+        let netB = rawB
         if (needsWrapA && nativeEquivA) {
-          rawA = (await netUlunaAfterTransferTaxAsync(BigInt(rawA), nativeEquivA)).toString()
+          netA = (await netUlunaAfterTransferTaxAsync(BigInt(grossA), nativeEquivA)).toString()
         }
         if (needsWrapB && nativeEquivB) {
-          rawB = (await netUlunaAfterTransferTaxAsync(BigInt(rawB), nativeEquivB)).toString()
+          netB = (await netUlunaAfterTransferTaxAsync(BigInt(grossB), nativeEquivB)).toString()
         }
         const msgs: Array<{
           contract: string
@@ -320,14 +324,14 @@ const PoolCard = memo(function PoolCard({
           msgs.push({
             contract: TREASURY_CONTRACT_ADDRESS,
             msg: { wrap_deposit: {} },
-            coins: [{ denom: nativeEquivA!, amount: rawA }],
+            coins: [{ denom: nativeEquivA!, amount: grossA }],
           })
         }
         if (needsWrapB) {
           msgs.push({
             contract: TREASURY_CONTRACT_ADDRESS,
             msg: { wrap_deposit: {} },
-            coins: [{ denom: nativeEquivB!, amount: rawB }],
+            coins: [{ denom: nativeEquivB!, amount: grossB }],
           })
         }
 
@@ -336,7 +340,7 @@ const PoolCard = memo(function PoolCard({
           msg: {
             increase_allowance: {
               spender: pair.contract_addr,
-              amount: rawA,
+              amount: netA,
               expires: { never: {} },
             },
           },
@@ -346,7 +350,7 @@ const PoolCard = memo(function PoolCard({
           msg: {
             increase_allowance: {
               spender: pair.contract_addr,
-              amount: rawB,
+              amount: netB,
               expires: { never: {} },
             },
           },
@@ -356,8 +360,8 @@ const PoolCard = memo(function PoolCard({
           msg: {
             provide_liquidity: {
               assets: [
-                { info: { token: { contract_addr: tokenA } }, amount: rawA },
-                { info: { token: { contract_addr: tokenB } }, amount: rawB },
+                { info: { token: { contract_addr: tokenA } }, amount: netA },
+                { info: { token: { contract_addr: tokenB } }, amount: netB },
               ],
               slippage_tolerance: null,
               receiver: null,

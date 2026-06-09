@@ -27,6 +27,7 @@ import {
   executeNativeSwap,
 } from '@/services/terraclassic/router'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
+import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
@@ -395,9 +396,13 @@ export default function SwapPage() {
         const result = await simulateNativeSwap(rawInputAmount, fromToken, toToken, pairs)
         let routePreflight: SwapRoutePreflightSpread | undefined
         if (nativeRouteInfo.operations.length > 0) {
+          let preflightOffer = rawInputAmount
+          if (nativeRouteInfo.needsWrapInput) {
+            preflightOffer = (await netUlunaAfterTransferTaxAsync(BigInt(rawInputAmount), fromToken)).toString()
+          }
           routePreflight = await preflightSwapRouteSpread(
             nativeRouteInfo.operations,
-            rawInputAmount,
+            preflightOffer,
             maxSpreadStr,
             quoteTrader
           )

@@ -9,7 +9,7 @@ export type NativeTransferTaxParams = {
 const DEFAULT_TAX_RATE = '0.005'
 const DEFAULT_TAX_CAP_ULUNA = 1_000_000_000_000_000n
 
-let cachedTax: { at: number; params: NativeTransferTaxParams } | null = null
+const cachedTaxByDenom = new Map<string, { at: number; params: NativeTransferTaxParams }>()
 const CACHE_MS = 60_000
 
 /**
@@ -49,7 +49,8 @@ function parseTaxRateToScaled(rate: string): { num: bigint; den: bigint } {
 /** Fetch tax rate + cap for `uluna` (cached 60s). */
 export async function fetchNativeTransferTaxParams(denom = 'uluna'): Promise<NativeTransferTaxParams> {
   const now = Date.now()
-  if (cachedTax && now - cachedTax.at < CACHE_MS) return cachedTax.params
+  const cached = cachedTaxByDenom.get(denom)
+  if (cached && now - cached.at < CACHE_MS) return cached.params
 
   let rate = DEFAULT_TAX_RATE
   let capUluna = DEFAULT_TAX_CAP_ULUNA
@@ -69,7 +70,7 @@ export async function fetchNativeTransferTaxParams(denom = 'uluna'): Promise<Nat
   }
 
   const params = { rate, capUluna }
-  cachedTax = { at: now, params }
+  cachedTaxByDenom.set(denom, { at: now, params })
   return params
 }
 
