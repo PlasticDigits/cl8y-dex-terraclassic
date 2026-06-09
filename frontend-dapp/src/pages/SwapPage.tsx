@@ -31,6 +31,7 @@ import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import {
   assetInfoLabel,
   tokenAssetInfo,
