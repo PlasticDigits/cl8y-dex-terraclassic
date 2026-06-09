@@ -55,11 +55,6 @@ export async function preflightSwapRouteSpread(
     if (hybridBookRequiresSlippageFloor(bookIn, null, ts.min_return)) {
       anyMissingFloor = true
     }
-    const declaredMaterialReject = hybridNoBeliefMaterialPoolReject(offerBn, poolIn, bookIn, 1n)
-    if (declaredMaterialReject?.kind === 'insufficient_pool_leg') {
-      anyExceeds = true
-      break
-    }
     const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
     const materialRejectAfterSim = hybridNoBeliefMaterialPoolReject(
       offerBn,

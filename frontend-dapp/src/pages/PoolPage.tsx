@@ -13,6 +13,7 @@ import {
   executeTerraContractMulti,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
+import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import {
   FEE_DISCOUNT_CONTRACT_ADDRESS,
@@ -285,8 +286,8 @@ const PoolCard = memo(function PoolCard({
   const addMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      const rawA = toRawAmount(amountA, decimalsA)
-      const rawB = toRawAmount(amountB, decimalsB)
+      let rawA = toRawAmount(amountA, decimalsA)
+      let rawB = toRawAmount(amountB, decimalsB)
 
       if (!needsWrapA && !needsWrapB) {
         const gasGate = evaluateProvideLiquidityCw20NativeGasGate(
@@ -303,6 +304,16 @@ const PoolCard = memo(function PoolCard({
       }
 
       if (needsWrapA || needsWrapB) {
+        const grossA = rawA
+        const grossB = rawB
+        let netA = rawA
+        let netB = rawB
+        if (needsWrapA && nativeEquivA) {
+          netA = (await netUlunaAfterTransferTaxAsync(BigInt(grossA), nativeEquivA)).toString()
+        }
+        if (needsWrapB && nativeEquivB) {
+          netB = (await netUlunaAfterTransferTaxAsync(BigInt(grossB), nativeEquivB)).toString()
+        }
         const msgs: Array<{
           contract: string
           msg: Record<string, unknown>
@@ -313,14 +324,14 @@ const PoolCard = memo(function PoolCard({
           msgs.push({
             contract: TREASURY_CONTRACT_ADDRESS,
             msg: { wrap_deposit: {} },
-            coins: [{ denom: nativeEquivA!, amount: rawA }],
+            coins: [{ denom: nativeEquivA!, amount: grossA }],
           })
         }
         if (needsWrapB) {
           msgs.push({
             contract: TREASURY_CONTRACT_ADDRESS,
             msg: { wrap_deposit: {} },
-            coins: [{ denom: nativeEquivB!, amount: rawB }],
+            coins: [{ denom: nativeEquivB!, amount: grossB }],
           })
         }
 
@@ -329,7 +340,7 @@ const PoolCard = memo(function PoolCard({
           msg: {
             increase_allowance: {
               spender: pair.contract_addr,
-              amount: rawA,
+              amount: netA,
               expires: { never: {} },
             },
           },
@@ -339,7 +350,7 @@ const PoolCard = memo(function PoolCard({
           msg: {
             increase_allowance: {
               spender: pair.contract_addr,
-              amount: rawB,
+              amount: netB,
               expires: { never: {} },
             },
           },
@@ -349,8 +360,8 @@ const PoolCard = memo(function PoolCard({
           msg: {
             provide_liquidity: {
               assets: [
-                { info: { token: { contract_addr: tokenA } }, amount: rawA },
-                { info: { token: { contract_addr: tokenB } }, amount: rawB },
+                { info: { token: { contract_addr: tokenA } }, amount: netA },
+                { info: { token: { contract_addr: tokenB } }, amount: netB },
               ],
               slippage_tolerance: null,
               receiver: null,

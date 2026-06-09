@@ -614,7 +614,7 @@ export function TradeMarketOrderPanel({
           : terraBroadcastPendingButtonLabel(
               swapMutation.phase,
               swapMutation.isPending,
-              priceImpactTooHigh ? 'Price impact too high' : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+              priceImpactTooHigh ? 'Hop spread exceeds tolerance' : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
               'Submitting…'
             )}
       </button>

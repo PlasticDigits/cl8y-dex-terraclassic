@@ -252,6 +252,14 @@ Add `simulateNativeSwap()`:
 
 For direct wrap/unwrap (LUNC<->LUNC-C), return 1:1 rate with a note about burn tax.
 
+### Tax-aware CW20 amounts after wrap (GitLab #342)
+
+`wrap_deposit` sends **gross** native `uluna`; treasury mints **net** CW20 after Classic burn tax. The dApp must not use gross native raw units for the subsequent CW20 `send` / `provide_liquidity` asset amounts.
+
+- Helper: [`frontend-dapp/src/utils/nativeTransferTax.ts`](frontend-dapp/src/utils/nativeTransferTax.ts) — LCD `terra/tax/v1beta1/tax_rate` + Terraswap-style `gross - gross/(1+rate)` (capped).
+- Apply in [`executeNativeSwap`](frontend-dapp/src/services/terraclassic/router.ts) (`send.amount` after wrap) and [`PoolPage.tsx`](frontend-dapp/src/pages/PoolPage.tsx) native-wrap provide path.
+- Agent playbook: [`skills/AGENTS_NATIVE_WRAP_TAX.md`](skills/AGENTS_NATIVE_WRAP_TAX.md).
+
 ## 8. Frontend: Swap UI Changes (`frontend-dapp/src/pages/SwapPage.tsx`)
 
 ### 8.1 Token selector
