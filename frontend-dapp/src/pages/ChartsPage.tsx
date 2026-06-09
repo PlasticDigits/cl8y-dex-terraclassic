@@ -584,11 +584,11 @@ export default function ChartsPage() {
 function getLeaderboardMetric(trader: IndexerTrader, sort: string): string {
   switch (sort) {
     case 'best_trade_pnl':
-      return trader.best_trade_pnl
+      return trader.best_trade_pnl ?? ''
     case 'total_realized_pnl':
       return trader.total_realized_pnl
     case 'worst_trade_pnl':
-      return trader.worst_trade_pnl
+      return trader.worst_trade_pnl ?? ''
     default:
       return trader.total_volume
   }

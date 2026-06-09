@@ -1,7 +1,14 @@
 import { formatNum } from '@/utils/formatAmount'
 
 /** Realized P&amp;L display with sign and color (shared by trader profile and portfolio). */
-export function PnlValue({ value }: { value: string }) {
+export function PnlValue({ value }: { value: string | null }) {
+  if (value == null || value === '') {
+    return (
+      <span style={{ color: 'var(--ink-subtle)' }} className="font-bold font-heading">
+        N/A
+      </span>
+    )
+  }
   const n = parseFloat(value)
   const color = n > 0 ? 'var(--color-positive)' : n < 0 ? 'var(--color-negative)' : 'var(--ink-subtle)'
   const prefix = n > 0 ? '+' : ''
