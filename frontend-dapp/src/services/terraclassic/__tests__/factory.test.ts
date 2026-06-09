@@ -8,6 +8,10 @@ vi.mock('@/services/terraclassic/transactions', () => ({
   executeTerraContract: vi.fn(),
 }))
 
+vi.mock('@/services/terraclassic/settings', () => ({
+  getFactoryConfig: vi.fn(),
+}))
+
 vi.mock('@/utils/constants', () => ({
   FACTORY_CONTRACT_ADDRESS: 'terra1factory',
   FEE_DISCOUNT_CONTRACT_ADDRESS: 'terra1feediscount',
@@ -16,11 +20,13 @@ vi.mock('@/utils/constants', () => ({
 
 import { queryContract } from '@/services/terraclassic/queries'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
+import { getFactoryConfig } from '@/services/terraclassic/settings'
 import { getAllPairs, getAllPairsPaginated, getPair, getWhitelistedCodeIds, createPair } from '../factory'
 import type { AssetInfo, PairInfo } from '@/types'
 
 const mockedQuery = vi.mocked(queryContract)
 const mockedExecute = vi.mocked(executeTerraContract)
+const mockedFactoryConfig = vi.mocked(getFactoryConfig)
 
 const FACTORY = 'terra1factory'
 const WALLET = 'terra1wallet'
@@ -183,16 +189,57 @@ describe('getWhitelistedCodeIds', () => {
 })
 
 describe('createPair', () => {
-  it('executes create_pair with token asset infos', async () => {
+  beforeEach(() => {
+    mockedFactoryConfig.mockResolvedValue({
+      governance: 'terra1gov',
+      treasury: 'terra1treasury',
+      default_fee_bps: 18,
+      pair_code_id: 1,
+      lp_token_code_id: 2,
+      pair_creation_fee_uluna: '100000000',
+    })
+  })
+
+  it('executes create_pair with token asset infos and creation fee coins (#345)', async () => {
     mockedExecute.mockResolvedValueOnce('txhash_create')
 
     const result = await createPair(WALLET, TOKEN_A, TOKEN_B)
 
     expect(result).toBe('txhash_create')
-    expect(mockedExecute).toHaveBeenCalledWith(WALLET, FACTORY, {
-      create_pair: {
-        asset_infos: [{ token: { contract_addr: TOKEN_A } }, { token: { contract_addr: TOKEN_B } }],
+    expect(mockedExecute).toHaveBeenCalledWith(
+      WALLET,
+      FACTORY,
+      {
+        create_pair: {
+          asset_infos: [{ token: { contract_addr: TOKEN_A } }, { token: { contract_addr: TOKEN_B } }],
+        },
       },
+      [{ denom: 'uluna', amount: '100000000' }]
+    )
+  })
+
+  it('omits coins when pair_creation_fee_uluna is zero', async () => {
+    mockedFactoryConfig.mockResolvedValueOnce({
+      governance: 'terra1gov',
+      treasury: 'terra1treasury',
+      default_fee_bps: 18,
+      pair_code_id: 1,
+      lp_token_code_id: 2,
+      pair_creation_fee_uluna: '0',
     })
+    mockedExecute.mockResolvedValueOnce('txhash_create')
+
+    await createPair(WALLET, TOKEN_A, TOKEN_B)
+
+    expect(mockedExecute).toHaveBeenCalledWith(
+      WALLET,
+      FACTORY,
+      {
+        create_pair: {
+          asset_infos: [{ token: { contract_addr: TOKEN_A } }, { token: { contract_addr: TOKEN_B } }],
+        },
+      },
+      undefined
+    )
   })
 })

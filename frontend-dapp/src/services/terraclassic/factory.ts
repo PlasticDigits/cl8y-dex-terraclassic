@@ -1,5 +1,6 @@
 import { queryContract } from './queries'
 import { executeTerraContract } from './transactions'
+import { getFactoryConfig } from './settings'
 import { FACTORY_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { AssetInfo, PairInfo } from '@/types'
 
@@ -66,9 +67,23 @@ export async function getWhitelistedCodeIds(startAfter?: number, limit?: number)
 }
 
 export async function createPair(walletAddress: string, tokenA: string, tokenB: string): Promise<string> {
-  return executeTerraContract(walletAddress, requireFactoryAddress(), {
-    create_pair: {
-      asset_infos: [tokenAssetInfo(tokenA), tokenAssetInfo(tokenB)],
+  const config = await getFactoryConfig()
+  const feeRaw = config.pair_creation_fee_uluna?.trim() ?? '0'
+  let feeBn = 0n
+  try {
+    feeBn = BigInt(feeRaw)
+  } catch {
+    feeBn = 0n
+  }
+  const coins = feeBn > 0n ? [{ denom: 'uluna', amount: feeBn.toString() }] : undefined
+  return executeTerraContract(
+    walletAddress,
+    requireFactoryAddress(),
+    {
+      create_pair: {
+        asset_infos: [tokenAssetInfo(tokenA), tokenAssetInfo(tokenB)],
+      },
     },
-  })
+    coins
+  )
 }

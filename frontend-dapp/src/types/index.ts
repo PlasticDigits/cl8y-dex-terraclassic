@@ -116,6 +116,8 @@ export interface FactoryConfigResponse {
   default_fee_bps: number
   pair_code_id: number
   lp_token_code_id: number
+  /** Uluna attached on `create_pair` when > 0 (GitLab #276, #345). */
+  pair_creation_fee_uluna: string
 }
 
 /** Hooks response from pair contract */
@@ -471,8 +473,8 @@ export interface IndexerTrader {
   first_trade_at: string | null
   last_trade_at: string | null
   total_realized_pnl: string
-  best_trade_pnl: string
-  worst_trade_pnl: string
+  best_trade_pnl: string | null
+  worst_trade_pnl: string | null
   total_fees_paid: string
 }
 
