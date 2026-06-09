@@ -18,6 +18,22 @@ Use when changing **`OrderBookPanel.tsx`** row layout, **cancel / edit / cancel-
 | `frontend-dapp/src/components/trade/TradeOrderTicket.tsx` | Optional injected cancel mutation; consumes book draft; **Update price** vs **Place limit** submit |
 | `frontend-dapp/src/types/limitBookTicketDraft.ts` | `LimitBookTicketDraft` + `LimitBookEditContext` |
 | `frontend-dapp/src/services/terraclassic/pair.ts` | **`updateLimitOrderPrice`** |
+| `frontend-dapp/e2e/trade-book-edit-178.spec.ts` | Smoke E2E for book **Edit** prefill + cancel ([GitLab **#338**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/338), [#292](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292) AC-3) |
+| [frontend-dapp/e2e/README.md § Trade book Edit smoke](../frontend-dapp/e2e/README.md#trade-book-edit-smoke-gitlab-338) | Run command, seeded pair, assertion invariants |
+
+## E2E — `trade-limit-edit-context` (GitLab #338)
+
+Playwright smoke **`trade-book-edit-178.spec.ts`** (`e2e-smoke`, 5 workers). Requires LocalTerra + deploy + indexer + global hybrid book seed (`scripts/e2e-seed-hybrid-book.sh`).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **No pre-Edit copy** | Do **not** assert cancel-first guidance before **Edit** is clicked — banner renders only when `editContext` is set ([#338](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/338)). |
+| **After Edit** | Assert `data-testid="trade-limit-edit-context"` visible, contains `#order_id`, default hint `/adjust price to update in one tx/i`. |
+| **Non-price drift** | Change `limit-order-escrow-amount-input` → assert `LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE` substring (`/cancel this order first/i`) and `trade-limit-submit` disabled. |
+| **Edit must not POST** | Edit alone emits zero HTTP POST (no on-chain amend). |
+| **Prefer testids** | Use `trade-limit-edit-context` over brittle full-string regex on page load. |
+
+Canonical copy: [`limitOrderPriceEdit.ts`](../frontend-dapp/src/utils/limitOrderPriceEdit.ts) **`LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE`**.
 
 ## Rules of thumb
 
@@ -25,7 +41,8 @@ Use when changing **`OrderBookPanel.tsx`** row layout, **cancel / edit / cancel-
 2. **Never** mount two `TradeOrderTicket` instances on `/trade` (even if CSS-hidden). Book **Edit** uses `limitBookDraftKey` + `onLimitBookDraftConsumed`; a hidden ticket can clear the draft before the visible ticket applies it ([#178](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178)).
 3. **Edit** prefills the ticket (no modal). **Price-only** change → **`UpdateLimitOrderPrice`** via **`useLimitOrderUpdatePriceMutation`** ([#247](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/247)). **Size / side / expiry** change → block with **`LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE`**; user must cancel then place.
 4. **Cancel-all** uses indexer **active** placements only; if the indexer lags the chain, the button may omit very new orders — same limitation as “My limits (indexer)”.
-5. When changing column grids or `data-testid`s, update **`OrderBookPanel.test.tsx`**, **`TradePage.test.tsx`** (desktop **Edit** prefill), **`limitOrderPriceEdit.test.ts`**, and the invariants table in **`docs/frontend.md`**.
+5. When changing column grids or `data-testid`s, update **`OrderBookPanel.test.tsx`**, **`TradePage.test.tsx`** (desktop **Edit** prefill), **`limitOrderPriceEdit.test.ts`**, **`trade-book-edit-178.spec.ts`**, and the invariants table in **`docs/frontend.md`**.
+6. When changing **`LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE`** or edit-context branches, update Vitest + **`trade-book-edit-178.spec.ts`** in the same MR ([#338](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/338)).
 
 ## Related
 

@@ -84,6 +84,22 @@ Playbook: [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../../skills/AGENTS_E2E_LIMIT
 
 UI smoke (no chain): `e2e/limit-orders.spec.ts` in `e2e-smoke` project.
 
+## Trade book Edit smoke (GitLab #338) {#trade-book-edit-smoke-gitlab-338}
+
+Smoke E2E for order-book **Edit** prefill, `trade-limit-edit-context` banner, non-price block, and cancel-from-book ([GitLab **#338**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/338), unblocks [#292](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292) AC-3).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Seeded pair** | EMBER/CORAL via `e2eTradePairFromDeploy()` + global `e2e-seed-hybrid-book.sh` dev-wallet bids |
+| **No stale pre-Edit assertion** | Cancel-first copy appears only **after** Edit (or after amount drift), not on workspace load |
+| **Both viewports** | Desktop ≥1440px (`trade-desktop-workspace`) and sub-desktop &lt;1024px (`trade-sub-lg-workspace`) |
+
+```bash
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/trade-book-edit-178.spec.ts --project=e2e-smoke
+```
+
+Playbook: [`skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](../../skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md).
+
 ## Claim all parked tx E2E (`limit-orders-claim-all-tx.spec.ts`, GitLab **#259**)
 
 End-to-end **place → expire → hybrid park → indexer `parked_expired` → Claim all parked → `claim_expired_limit_orders_batch`**. The spec calls **`scripts/e2e-seed-expired-parked-claim-all.sh`** (terrad: two expired bids, wait for `block_time`, hybrid swap parks) then drives the `/limits` UI confirm (must include **est. LUNC gas** copy). Pure-book park swap sets **`min_return: "1"`** on the hook to satisfy execute slippage floor ([#334](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334)).

@@ -48,6 +48,33 @@ async function waitForOwnedBidEditButton(page: Page) {
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Trade book Edit prefill (GitLab #178)', () => {
+  // Sub-desktop runs first: desktop test cancels the seeded bid at the end (#338 serial order).
+  test('sub-desktop <1024px: Edit prefills the single visible ticket', async ({ page, connectWallet, request }) => {
+    test.setTimeout(360_000)
+    await page.setViewportSize({ width: 820, height: 1180 })
+    await skipIfLcdUnreachable(request)
+    await connectWallet
+    await openSeededTradePair(page, request)
+    await expect(page.getByTestId('trade-sub-lg-workspace')).toBeVisible({ timeout: 90_000 })
+
+    const editBtn = await waitForOwnedBidEditButton(page)
+    const editTestId = (await editBtn.getAttribute('data-testid')) ?? ''
+    const orderId = editTestId.replace('trade-book-edit-bid-', '')
+    const order = await fetchBidOrder(request, orderId)
+    const expectedAmount = fromRawAmount(order.remaining, 6)
+
+    await page.getByTestId('trade-order-tab-market').click()
+    await editBtn.click()
+
+    await expect(page.getByTestId('trade-order-tab-limit')).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('limit-order-price-input')).toHaveValue(order.price)
+    await expect(page.getByTestId('limit-order-escrow-amount-input')).toHaveValue(expectedAmount)
+    const editContext = page.getByTestId('trade-limit-edit-context')
+    await expect(editContext).toBeVisible()
+    await expect(editContext).toContainText(`#${orderId}`)
+    await expect(editContext).toContainText(/adjust price to update in one tx/i)
+  })
+
   test('desktop ≥1440px: Edit prefills limit ticket; no tx on Edit; cancel still works', async ({
     page,
     connectWallet,
@@ -95,31 +122,5 @@ test.describe('Trade book Edit prefill (GitLab #178)', () => {
     await expect(cancelBtn).toBeVisible()
     await cancelBtn.click()
     await assertTxResultAlert(page)
-  })
-
-  test('sub-desktop <1024px: Edit prefills the single visible ticket', async ({ page, connectWallet, request }) => {
-    test.setTimeout(360_000)
-    await page.setViewportSize({ width: 820, height: 1180 })
-    await skipIfLcdUnreachable(request)
-    await connectWallet
-    await openSeededTradePair(page, request)
-    await expect(page.getByTestId('trade-sub-lg-workspace')).toBeVisible({ timeout: 90_000 })
-
-    const editBtn = await waitForOwnedBidEditButton(page)
-    const editTestId = (await editBtn.getAttribute('data-testid')) ?? ''
-    const orderId = editTestId.replace('trade-book-edit-bid-', '')
-    const order = await fetchBidOrder(request, orderId)
-    const expectedAmount = fromRawAmount(order.remaining, 6)
-
-    await page.getByTestId('trade-order-tab-market').click()
-    await editBtn.click()
-
-    await expect(page.getByTestId('trade-order-tab-limit')).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByTestId('limit-order-price-input')).toHaveValue(order.price)
-    await expect(page.getByTestId('limit-order-escrow-amount-input')).toHaveValue(expectedAmount)
-    const editContext = page.getByTestId('trade-limit-edit-context')
-    await expect(editContext).toBeVisible()
-    await expect(editContext).toContainText(`#${orderId}`)
-    await expect(editContext).toContainText(/adjust price to update in one tx/i)
   })
 })
