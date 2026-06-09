@@ -3,8 +3,8 @@
 #
 # Installs system deps agents need every session:
 #   - Docker CE (fuse-overlayfs or vfs fallback) + dockerd when systemd cannot start it
-#   - Node from .nvmrc via nvm
-#   - apt: libssl-dev, pkg-config (indexer build)
+#   - Node from .nvmrc via nvm (strips /exec-daemon/node v22 from PATH)
+#   - Rust stable 1.96+ and apt: libssl-dev, pkg-config (indexer build)
 #
 # Does NOT run npm ci, Playwright, browser, or LocalTerra deploy — those run from
 # setup-cloud-agent-env.sh after this script.
@@ -18,69 +18,30 @@ cd "$REPO_ROOT"
 
 # shellcheck source=scripts/lib/cloud-agent-docker.sh
 source "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh"
+# shellcheck source=scripts/lib/cloud-agent-toolchain.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-toolchain.sh"
 
 log() {
   echo "[cloud-agent-toolchain] $*"
 }
 
-need_sudo() {
-  [[ "$(id -u)" -eq 0 ]] || command -v sudo >/dev/null 2>&1
-}
-
-run_as_root() {
-  if [[ "$(id -u)" -eq 0 ]]; then
-    "$@"
-  else
-    sudo "$@"
-  fi
-}
-
-apt_packages_present() {
-  dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "install ok installed"
-}
-
-ensure_apt_packages() {
-  local pkgs=()
-  for pkg in libssl-dev pkg-config curl; do
-    apt_packages_present "$pkg" || pkgs+=("$pkg")
-  done
-  if [[ ${#pkgs[@]} -eq 0 ]]; then
-    return 0
-  fi
-  if ! need_sudo; then
-    log "required apt packages missing (${pkgs[*]}) and no sudo" >&2
-    return 1
-  fi
-  log "apt packages: ${pkgs[*]}"
-  run_as_root apt-get update -qq
-  run_as_root DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}"
-}
-
-ensure_node() {
-  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-  if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
-    log "installing nvm…"
-    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-  fi
-  # shellcheck source=/dev/null
-  . "$NVM_DIR/nvm.sh"
-  local want
-  want="$(tr -d '[:space:]' <"$REPO_ROOT/.nvmrc")"
-  log "Node v${want} (nvm)…"
-  nvm install "$want"
-  nvm use --silent "$want"
-  local node_bin
-  node_bin="$(dirname "$(nvm which current)")"
-  export PATH="${node_bin}:${PATH}"
-}
-
 log "repo: ${REPO_ROOT}"
-ensure_apt_packages
-docker_ok=true
-cloud_agent_install_docker || docker_ok=false
-ensure_node
-if [[ "$docker_ok" != "true" ]]; then
-  log "Docker setup incomplete"
+
+cloud_agent_ensure_apt_packages
+
+if ! cloud_agent_install_docker; then
+  log "Docker setup incomplete" >&2
   exit 1
 fi
+
+if ! cloud_agent_ensure_rust; then
+  log "Rust setup failed" >&2
+  exit 1
+fi
+
+if ! cloud_agent_ensure_node "$REPO_ROOT"; then
+  log "Node setup failed" >&2
+  exit 1
+fi
+
 log "OK"

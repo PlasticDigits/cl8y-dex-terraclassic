@@ -97,13 +97,20 @@ echo "[cloud-agent-env] verifying git + glab…"
 cloud_agent_verify_git_identity
 cloud_agent_verify_glab
 
-echo "[cloud-agent-env] VM toolchain (Docker, Node)…"
+echo "[cloud-agent-env] VM toolchain (Docker, Node, Rust)…"
 chmod +x "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh" \
-  "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh"
+  "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh" \
+  "$REPO_ROOT/scripts/lib/cloud-agent-toolchain.sh" \
+  "$REPO_ROOT/scripts/with-node.sh"
 if ! "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh"; then
-  echo "[cloud-agent-env] ERROR: toolchain setup failed (Docker/Node)." >&2
+  echo "[cloud-agent-env] ERROR: toolchain setup failed (Docker/Node/Rust)." >&2
   exit 1
 fi
+
+# shellcheck source=scripts/lib/cloud-agent-toolchain.sh
+source "$REPO_ROOT/scripts/lib/cloud-agent-toolchain.sh"
+cloud_agent_prepend_node_path "$REPO_ROOT" 2>/dev/null || true
+export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH}"
 
 echo "[cloud-agent-env] Chrome + Keplr…"
 chmod +x "$REPO_ROOT/scripts/setup-browser-cloud-agent.sh" \
@@ -123,3 +130,6 @@ echo "[cloud-agent-env]   glab:     $(command -v glab) ($(glab version 2>/dev/nu
 echo "[cloud-agent-env]   git name: $(git config user.name)"
 echo "[cloud-agent-env]   git mail: $(git config user.email)"
 echo "[cloud-agent-env]   GITLAB_REPO: ${GITLAB_REPO:-unset}"
+echo "[cloud-agent-env]   node:      $(command -v node 2>/dev/null || echo missing) ($(node -v 2>/dev/null || echo ?))"
+echo "[cloud-agent-env]   cargo:     $(command -v cargo 2>/dev/null || echo missing) ($(cargo --version 2>/dev/null | awk '{print $2}' || echo ?))"
+echo "[cloud-agent-env]   docker:    $(docker --version 2>/dev/null | head -1 || echo not reachable)"

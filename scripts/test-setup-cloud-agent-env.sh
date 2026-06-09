@@ -63,6 +63,30 @@ _assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
   'cloud-agent-shell-init.sh' \
   'setup-cloud-agent-env.sh must install shell init hook'
 
+_assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh" \
+  'cloud_agent_ensure_node' \
+  'setup-cloud-agent-toolchain.sh must ensure nvm Node from .nvmrc'
+
+_assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-toolchain.sh" \
+  'cloud_agent_ensure_rust' \
+  'setup-cloud-agent-toolchain.sh must ensure rustup stable'
+
+_assert_file_contains "$REPO_ROOT/scripts/lib/cloud-agent-toolchain.sh" \
+  'cloud_agent_strip_exec_daemon_from_path' \
+  'toolchain lib must strip /exec-daemon from PATH'
+
+_assert_file_contains "$REPO_ROOT/scripts/with-node.sh" \
+  'cloud-agent-toolchain.sh' \
+  'with-node.sh must use cloud-agent-toolchain helpers'
+
+_assert_file_contains "$REPO_ROOT/scripts/lib/cloud-agent-docker.sh" \
+  'cloud_agent_install_docker' \
+  'docker lib must install Docker CE when missing'
+
+_assert_file_contains "$REPO_ROOT/scripts/cloud-agent-shell-init.sh" \
+  'cloud-agent-toolchain.sh' \
+  'shell init must prefer nvm node over /exec-daemon'
+
 _assert_file_contains "$REPO_ROOT/scripts/setup-cloud-agent-env.sh" \
   'core.hooksPath .githooks' \
   'setup-cloud-agent-env.sh must configure git hooks'

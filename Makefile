@@ -115,11 +115,11 @@ test-setup-browser:
 	./scripts/test-setup-browser-cloud-agent.sh
 
 test-setup-cloud-agent-env:
-	@chmod +x scripts/test-setup-cloud-agent-env.sh scripts/setup-cloud-agent-env.sh scripts/cloud-agent-shell-init.sh scripts/lib/cloud-agent-env.sh scripts/setup-glab-cloud-agent.sh
+	@chmod +x scripts/test-setup-cloud-agent-env.sh scripts/setup-cloud-agent-env.sh scripts/cloud-agent-shell-init.sh scripts/lib/cloud-agent-env.sh scripts/lib/cloud-agent-toolchain.sh scripts/lib/cloud-agent-docker.sh scripts/with-node.sh scripts/setup-glab-cloud-agent.sh
 	./scripts/test-setup-cloud-agent-env.sh
 
 setup-cloud-agent-env:
-	@chmod +x scripts/setup-cloud-agent-env.sh scripts/setup-cloud-agent-toolchain.sh scripts/setup-cloud-agent-localterra.sh scripts/setup-browser-cloud-agent.sh scripts/cloud-agent-shell-init.sh scripts/lib/cloud-agent-env.sh scripts/lib/cloud-agent-docker.sh scripts/setup-glab-cloud-agent.sh
+	@chmod +x scripts/setup-cloud-agent-env.sh scripts/setup-cloud-agent-toolchain.sh scripts/setup-cloud-agent-localterra.sh scripts/setup-browser-cloud-agent.sh scripts/cloud-agent-shell-init.sh scripts/lib/cloud-agent-env.sh scripts/lib/cloud-agent-toolchain.sh scripts/lib/cloud-agent-docker.sh scripts/with-node.sh scripts/setup-glab-cloud-agent.sh
 	./scripts/setup-cloud-agent-env.sh
 
 qa-tunnel-help:
@@ -185,7 +185,7 @@ verify-issue-295:
 
 # Cloud Agent: dockerd + LocalTerra + deploy + .env.local (+ optional indexer/frontend tmux).
 setup-cloud-localterra:
-	@chmod +x scripts/setup-cloud-agent-localterra.sh scripts/setup-cloud-agent-indexer-postgres.sh
+	@chmod +x scripts/setup-cloud-agent-localterra.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/lib/cloud-agent-toolchain.sh scripts/lib/cloud-agent-docker.sh scripts/with-node.sh
 	./scripts/setup-cloud-agent-localterra.sh
 
 # Cloud Agent: Postgres + indexer/.env only — indexer integration tests without wasm deploy (#335).
