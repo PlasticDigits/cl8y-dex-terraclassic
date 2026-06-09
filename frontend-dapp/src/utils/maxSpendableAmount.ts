@@ -21,6 +21,8 @@ export type MaxAmountContext =
 export type NativeSwapMaxHints = {
   isDirectWrap: boolean
   needsWrapInput: boolean
+  /** Router `unwrap_output` sub-message (CW20→native, GitLab #343). */
+  needsUnwrapOutput?: boolean
   hopCount?: number
 }
 
