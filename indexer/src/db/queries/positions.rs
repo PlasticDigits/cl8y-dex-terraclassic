@@ -88,6 +88,8 @@ pub async fn update_trader_pnl(
            total_realized_pnl = total_realized_pnl + $2,
            best_trade_pnl = CASE
              WHEN best_trade_pnl IS NULL THEN GREATEST($2, COALESCE(worst_trade_pnl, $2))
+             -- Legacy sentinel 0 with total = worst: GREATEST($2, worst) keeps break-even (0)
+             -- over worst loss; do not copy worst into best (see migration 20260609140000).
              WHEN best_trade_pnl = 0
                AND worst_trade_pnl IS NOT NULL
                AND worst_trade_pnl < 0
