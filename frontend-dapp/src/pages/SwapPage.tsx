@@ -286,6 +286,7 @@ export default function SwapPage() {
         ? {
             isDirectWrap: wrapUnwrapType === 'wrap',
             needsWrapInput: nativeRouteInfo?.needsWrapInput ?? false,
+            needsUnwrapOutput: nativeRouteInfo?.needsUnwrapOutput ?? false,
             hopCount: nativeRouteInfo?.operations?.length,
           }
         : undefined,
@@ -296,6 +297,7 @@ export default function SwapPage() {
     payIsNativeUluna,
     wrapUnwrapType,
     nativeRouteInfo?.needsWrapInput,
+    nativeRouteInfo?.needsUnwrapOutput,
     nativeRouteInfo?.operations?.length,
   ])
 
