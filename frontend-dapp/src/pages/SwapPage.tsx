@@ -473,8 +473,19 @@ export default function SwapPage() {
           const tout = idx.token_out.trim().toLowerCase()
           if (tin === fromToken.trim().toLowerCase() && tout === toToken.trim().toLowerCase()) {
             const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-            const result = await simulateMultiHopSwap(rawInputAmount, ops, quoteTrader)
-            const routePreflight = await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr, quoteTrader)
+            const opsForQuote = await enrichSwapOperationsWithHopMinReturns(
+              ops,
+              rawInputAmount,
+              slippageTolerance,
+              quoteTrader
+            )
+            const result = await simulateMultiHopSwap(rawInputAmount, opsForQuote, quoteTrader)
+            const routePreflight = await preflightSwapRouteSpread(
+              opsForQuote,
+              rawInputAmount,
+              maxSpreadStr,
+              quoteTrader
+            )
             const intermediates =
               idx.intermediate_tokens?.length === idx.hops.length + 1
                 ? idx.intermediate_tokens
@@ -490,7 +501,7 @@ export default function SwapPage() {
               ),
               spotAmountOut: idx.spot_amount_out,
               indexerQuoteKind: idx.quote_kind,
-              indexerOperations: ops,
+              indexerOperations: opsForQuote,
               indexerIntermediateTokens: intermediates,
               routePreflight,
             }
@@ -824,7 +835,7 @@ export default function SwapPage() {
     buttonText = 'Slippage is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
-    buttonText = 'Price impact too high for this trade'
+    buttonText = 'Hop spread exceeds slippage tolerance'
     buttonDisabled = true
   } else if (simQuery.isLoading) {
     buttonText = 'Calculating...'

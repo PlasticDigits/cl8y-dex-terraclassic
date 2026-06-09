@@ -19,6 +19,10 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
           High slippage often means the quoted route exploits thin or mispriced pools. You may receive far fewer tokens
           than the fair cross-rate, or a quote that looks too good to be true on multi-hop paths.
         </p>
+        <p>
+          Expert Mode does <strong style={{ color: 'var(--ink)' }}>not</strong> override your Settings slippage
+          tolerance or per-hop max-spread checks — those still block when on-chain spread would exceed your limit.
+        </p>
         <p className="font-semibold" style={{ color: 'var(--color-warning, #f59e0b)' }}>
           Only enable Expert Mode if you understand the execution risk.
         </p>

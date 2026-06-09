@@ -55,4 +55,34 @@ describe('preflightSwapRouteSpread', () => {
       { trader: WALLET }
     )
   })
+
+  it('does not reject pool-only multihop before simulation (#341)', async () => {
+    mockedGetPair.mockResolvedValue({ contract_addr: PAIR } as never)
+    mockedSim.mockResolvedValue({
+      return_amount: '900',
+      spread_amount: '2',
+      commission_amount: '5',
+      book_return_amount: '0',
+      pool_return_amount: '900',
+    })
+
+    const ops: SwapOperation[] = [
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: TOKEN_A } },
+          ask_asset_info: { token: { contract_addr: TOKEN_B } },
+          hybrid: { pool_input: '1000', book_input: '0', max_maker_fills: 1, book_start_hint: null },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: TOKEN_B } },
+          ask_asset_info: { token: { contract_addr: TOKEN_A } },
+        },
+      },
+    ]
+
+    const result = await preflightSwapRouteSpread(ops, '1000', '0.005', { trader: WALLET })
+    expect(result.anyHopExceedsMaxSpread).toBe(false)
+  })
 })
