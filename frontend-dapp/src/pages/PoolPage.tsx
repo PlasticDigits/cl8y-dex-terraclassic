@@ -13,6 +13,7 @@ import {
   executeTerraContractMulti,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
+import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import {
   FEE_DISCOUNT_CONTRACT_ADDRESS,
@@ -285,8 +286,8 @@ const PoolCard = memo(function PoolCard({
   const addMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      const rawA = toRawAmount(amountA, decimalsA)
-      const rawB = toRawAmount(amountB, decimalsB)
+      let rawA = toRawAmount(amountA, decimalsA)
+      let rawB = toRawAmount(amountB, decimalsB)
 
       if (!needsWrapA && !needsWrapB) {
         const gasGate = evaluateProvideLiquidityCw20NativeGasGate(
@@ -303,6 +304,12 @@ const PoolCard = memo(function PoolCard({
       }
 
       if (needsWrapA || needsWrapB) {
+        if (needsWrapA && nativeEquivA) {
+          rawA = (await netUlunaAfterTransferTaxAsync(BigInt(rawA), nativeEquivA)).toString()
+        }
+        if (needsWrapB && nativeEquivB) {
+          rawB = (await netUlunaAfterTransferTaxAsync(BigInt(rawB), nativeEquivB)).toString()
+        }
         const msgs: Array<{
           contract: string
           msg: Record<string, unknown>

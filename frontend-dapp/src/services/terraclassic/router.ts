@@ -9,6 +9,7 @@ import {
 } from '@/utils/constants'
 import type { AssetInfo, HybridSwapParams, PairInfo } from '@/types'
 import { tokenAssetInfo, assetInfoLabel, isNativeDenom, getWrappedEquivalent } from '@/types'
+import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 
 export interface SwapOperation {
   terra_swap: {
@@ -225,7 +226,12 @@ export async function simulateNativeSwap(
     throw new Error('No route found')
   }
 
-  const result = await simulateMultiHopSwap(offerAmount, routeInfo.operations)
+  let simOffer = offerAmount
+  if (routeInfo.needsWrapInput) {
+    simOffer = (await netUlunaAfterTransferTaxAsync(BigInt(offerAmount), fromToken)).toString()
+  }
+
+  const result = await simulateMultiHopSwap(simOffer, routeInfo.operations)
   return { amount: result.amount, isDirectWrapUnwrap: false }
 }
 
@@ -275,6 +281,11 @@ export async function executeNativeSwap(
   const needsUnwrap = routeInfo.needsUnwrapOutput
   const wrappedInput = needsWrap ? getWrappedEquivalent(fromToken)! : fromToken
 
+  let cw20SendAmount = amount
+  if (needsWrap) {
+    cw20SendAmount = (await netUlunaAfterTransferTaxAsync(BigInt(amount), fromToken)).toString()
+  }
+
   const swapHookMsg = {
     execute_swap_operations: {
       operations: routeInfo.operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
@@ -289,7 +300,7 @@ export async function executeNativeSwap(
   const sendToRouterMsg = {
     send: {
       contract: ROUTER_CONTRACT_ADDRESS,
-      amount,
+      amount: cw20SendAmount,
       msg: btoa(JSON.stringify(swapHookMsg)),
     },
   }
