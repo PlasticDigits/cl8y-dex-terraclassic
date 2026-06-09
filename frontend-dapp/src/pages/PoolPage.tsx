@@ -13,7 +13,11 @@ import {
   executeTerraContractMulti,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
+import {
+  fetchNativeTransferTaxParams,
+  netUlunaAfterTransferTax,
+  netUlunaAfterTransferTaxAsync,
+} from '@/utils/nativeTransferTax'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import {
   FEE_DISCOUNT_CONTRACT_ADDRESS,
@@ -192,6 +196,36 @@ const PoolCard = memo(function PoolCard({
   const rawAddA = amountA ? toRawAmount(amountA, decimalsA) : '0'
   const rawAddB = amountB ? toRawAmount(amountB, decimalsB) : '0'
 
+  const needsWrapA = hasNativeOptionA && useNativeA
+  const needsWrapB = hasNativeOptionB && useNativeB
+
+  const wrapTaxParamsAQuery = useQuery({
+    queryKey: ['nativeTransferTax', nativeEquivA],
+    queryFn: () => fetchNativeTransferTaxParams(nativeEquivA!),
+    enabled: expanded === 'add' && hasNativeOptionA && !!nativeEquivA,
+    staleTime: 60_000,
+  })
+  const wrapTaxParamsBQuery = useQuery({
+    queryKey: ['nativeTransferTax', nativeEquivB],
+    queryFn: () => fetchNativeTransferTaxParams(nativeEquivB!),
+    enabled: expanded === 'add' && hasNativeOptionB && !!nativeEquivB,
+    staleTime: 60_000,
+  })
+
+  const provideRawAddA = useMemo(() => {
+    if (!needsWrapA || !nativeEquivA || rawAddA === '0') return rawAddA
+    const params = wrapTaxParamsAQuery.data
+    if (!params) return rawAddA
+    return netUlunaAfterTransferTax(BigInt(rawAddA), params).toString()
+  }, [needsWrapA, nativeEquivA, rawAddA, wrapTaxParamsAQuery.data])
+
+  const provideRawAddB = useMemo(() => {
+    if (!needsWrapB || !nativeEquivB || rawAddB === '0') return rawAddB
+    const params = wrapTaxParamsBQuery.data
+    if (!params) return rawAddB
+    return netUlunaAfterTransferTax(BigInt(rawAddB), params).toString()
+  }, [needsWrapB, nativeEquivB, rawAddB, wrapTaxParamsBQuery.data])
+
   const insufficientAddA =
     !!address &&
     !!amountA &&
@@ -211,9 +245,6 @@ const PoolCard = memo(function PoolCard({
     BigInt(rawAddB) > BigInt(balanceBQuery.data)
 
   const insufficientAdd = insufficientAddA || insufficientAddB
-
-  const needsWrapA = hasNativeOptionA && useNativeA
-  const needsWrapB = hasNativeOptionB && useNativeB
 
   const nativeWrapDepositCount = useMemo((): 1 | 2 => {
     if (needsWrapA && needsWrapB) return 2
@@ -278,10 +309,14 @@ const PoolCard = memo(function PoolCard({
   ])
 
   const estimatedUserLp =
-    poolQuery.data && amountA && amountB ? estimateProvideLiquidityUserLp(rawAddA, rawAddB, poolQuery.data) : null
+    poolQuery.data && amountA && amountB
+      ? estimateProvideLiquidityUserLp(provideRawAddA, provideRawAddB, poolQuery.data)
+      : null
 
   const ratioBalanced =
-    poolQuery.data && amountA && amountB ? isProportionalAddAmounts(rawAddA, rawAddB, poolQuery.data) : null
+    poolQuery.data && amountA && amountB
+      ? isProportionalAddAmounts(provideRawAddA, provideRawAddB, poolQuery.data)
+      : null
 
   const addMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
