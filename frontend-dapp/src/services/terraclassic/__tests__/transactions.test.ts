@@ -252,9 +252,23 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
-  it('uses CREATE_PAIR_GAS_LIMIT for create_pair', async () => {
+  it('uses CREATE_PAIR_GAS_LIMIT for create_pair (#345)', async () => {
     const fee = await getFeeForMsg({ create_pair: {} })
-    expect(fee.gasLimit).toBe(BigInt(800000))
+    expect(fee.gasLimit).toBe(BigInt(1_000_000))
+  })
+
+  it('adds UNWRAP_GAS_LIMIT when execute_swap_operations has unwrap_output (#343)', async () => {
+    const inner = btoa(
+      JSON.stringify({
+        execute_swap_operations: {
+          operations: [{ terra_swap: {} }],
+          max_spread: '0.01',
+          unwrap_output: true,
+        },
+      })
+    )
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBeGreaterThanOrEqual(BigInt(840_000 + 400_000))
   })
 
   it('uses buffered pool-only gas for send with inner swap msg (GitLab #134)', async () => {

@@ -2,6 +2,8 @@ import { useState, useId } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { createPair, getWhitelistedCodeIds } from '@/services/terraclassic/factory'
+import { getFactoryConfig } from '@/services/terraclassic/settings'
+import { formatTokenAmount } from '@/utils/formatAmount'
 import { getChainContractInfo } from '@/services/terraclassic/queries'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert } from '@/components/ui'
@@ -38,6 +40,21 @@ export default function CreatePairPage() {
 
   const checkA = useCodeIdCheck(tokenA)
   const checkB = useCodeIdCheck(tokenB)
+
+  const factoryConfigQuery = useQuery({
+    queryKey: ['factoryConfig'],
+    queryFn: getFactoryConfig,
+    staleTime: 60_000,
+  })
+
+  const pairCreationFeeUluna = factoryConfigQuery.data?.pair_creation_fee_uluna?.trim() ?? '0'
+  const pairCreationFeeBn = (() => {
+    try {
+      return BigInt(pairCreationFeeUluna || '0')
+    } catch {
+      return 0n
+    }
+  })()
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -146,6 +163,12 @@ export default function CreatePairPage() {
                 <li>Both tokens must be valid CW20 contracts</li>
                 <li>The token code IDs must be whitelisted by governance</li>
                 <li>A pair for these tokens must not already exist</li>
+                {pairCreationFeeBn > 0n && (
+                  <li>
+                    Pair creation fee: {formatTokenAmount(pairCreationFeeUluna, 6)} LUNC (attached from wallet on
+                    submit)
+                  </li>
+                )}
               </ul>
             </div>
 

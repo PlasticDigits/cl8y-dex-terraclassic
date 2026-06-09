@@ -5,6 +5,7 @@ import {
   SWAP_GAS_PER_HOP,
   SWAP_GAS_SAFETY_MARGIN,
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
+  UNWRAP_GAS_LIMIT,
   WRAP_GAS_LIMIT,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
@@ -32,7 +33,8 @@ export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = 350000
 export const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
 export const ADD_LIQUIDITY_GAS_LIMIT = 650000
 export const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
-export const CREATE_PAIR_GAS_LIMIT = 800000
+/** Pair + LP instantiate; measured ~871,552 on LocalTerra (GitLab #345). */
+export const CREATE_PAIR_GAS_LIMIT = 1_000_000
 
 /** Uluna in `Fee.amount` for one message at `gasLimit` (same math as {@link buildTerraClassicFee}). */
 export function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
@@ -90,13 +92,21 @@ function gasLimitForHybridRouterOperations(msg: Record<string, unknown>): number
   return total
 }
 
+function unwrapOutputFromExecuteSwapOps(msg: Record<string, unknown>): boolean {
+  const e = msg.execute_swap_operations as { unwrap_output?: boolean } | undefined
+  return e?.unwrap_output === true
+}
+
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
-  const poolOnly = gasLimitForExecuteSwapOperations(hops)
+  let limit = gasLimitForExecuteSwapOperations(hops)
   if (executeSwapOpsUsesHybrid(msg)) {
-    return Math.max(poolOnly, gasLimitForHybridRouterOperations(msg))
+    limit = Math.max(limit, gasLimitForHybridRouterOperations(msg))
   }
-  return poolOnly
+  if (unwrapOutputFromExecuteSwapOps(msg)) {
+    limit += UNWRAP_GAS_LIMIT
+  }
+  return limit
 }
 
 /** Buffered estimate + per-hop padding, floored at min gas per hop (see constants). */
@@ -174,7 +184,9 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
           return gasLimitForExecuteSwapOperations(1)
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
-        if ('execute_swap_operations' in inner) return gasLimitForSwapOperationsMsg(inner)
+        if ('execute_swap_operations' in inner) {
+          return gasLimitForSwapOperationsMsg(inner)
+        }
       } catch {
         // fall through to base
       }
