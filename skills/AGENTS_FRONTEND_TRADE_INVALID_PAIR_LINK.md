@@ -8,7 +8,7 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 |------------|---------|
 | [docs/frontend.md § invalid pair deep link](../docs/frontend.md#trade-page-invalid-pair-link) | Charset-invalid `terra1…` invariants |
 | [docs/frontend.md § unknown pair deep link](../docs/frontend.md#trade-page-unknown-pair-link) | Valid-format but not on factory ([#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175)) |
-| [`frontend-dapp/src/utils/tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts) | `isTradePairRouteParam`, `getInvalidTradePairRouteParam`, `getUnknownTradePairRouteParam`, `isKnownFactoryTradePair` (**type predicate** — narrows `string \| undefined` to `string`), `isPendingTradePairRouteResolution`, `shouldShowTradeWorkspace` |
+| [`frontend-dapp/src/utils/tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts) | `isTradePairRouteParam`, `getInvalidTradePairRouteParam`, `getUnknownTradePairRouteParam`, `isKnownFactoryTradePair` (**type predicate** — narrows `string \| undefined` to `string`), `isPendingTradePairRouteResolution`, `shouldAutoPickDefaultTradePair`, `shouldShowTradeWorkspace` |
 | [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts) | `isIndexerPairNotFoundError` (404) vs `isIndexerUnavailableError` (outage) |
 | [`InvalidPairLinkNotice.tsx`](../frontend-dapp/src/components/trade/InvalidPairLinkNotice.tsx) | Invalid charset / format |
 | [`PairNotFoundLinkNotice.tsx`](../frontend-dapp/src/components/trade/PairNotFoundLinkNotice.tsx) | Pair not on factory |
@@ -30,6 +30,12 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 4. Manual repro: `http://localhost:3000/trade/terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` with LocalTerra + factory pairs loaded.
 5. **Do not mount trade workspace** while `isPendingTradePairRouteResolution` or link notices are active — use `shouldShowTradeWorkspace` so book/chart/ticket never render empty when `getPair` has no pair ([#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175) follow-up).
 6. **Indexer 404 fallback** — `isIndexerPairNotFoundError` + factory check: unknown segment that slipped through must show **Pair not found**, not indexer outage or blank workspace.
+
+## Known pair deep link (GitLab #357)
+
+1. **Default-pick is bare `/trade` only** — when `:pairAddr` is a valid `terra1…` segment, [`shouldAutoPickDefaultTradePair`](../frontend-dapp/src/utils/tradePairRoute.ts) returns false so the route→state sync effect owns `pairAddr` (including non-default factory pairs).
+2. **Do not race default-pick on mount** — the default-pick effect must not call `navigate('/trade/<pairs[0]>')` while a known deep link is resolving; that clobbers share URLs and pair-selector switches.
+3. Manual repro: open `/trade/<non-default-factory-pair>` in a fresh tab; URL and pair selector must stay on the requested pair after `allPairs` resolves.
 
 ## Regression tests
 

@@ -49,6 +49,22 @@ export function isPendingTradePairRouteResolution(
   return !factoryPairsResolved
 }
 
+/**
+ * Whether `/trade` (no deep link to honor) should navigate to the first factory pair.
+ * Skips when a valid `:pairAddr` segment is present — known-pair sync owns that case
+ * (GitLab #357).
+ */
+export function shouldAutoPickDefaultTradePair(opts: {
+  routePair: string | undefined
+  invalidRoutePair: string | null
+  unknownRoutePair: string | null
+  pendingDeepLinkPair: boolean
+}): boolean {
+  if (opts.invalidRoutePair || opts.unknownRoutePair || opts.pendingDeepLinkPair) return false
+  if (isTradePairRouteParam(opts.routePair?.trim())) return false
+  return true
+}
+
 /** Whether book/chart/ticket workspace should mount (pair selected and no link-error notices). */
 export function shouldShowTradeWorkspace(opts: {
   pairRouteReady: boolean

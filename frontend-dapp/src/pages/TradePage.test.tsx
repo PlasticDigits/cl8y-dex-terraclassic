@@ -284,6 +284,83 @@ describe('TradePage', () => {
     })
   })
 
+  it('keeps non-default deep link after factory pairs resolve (GitLab #357)', async () => {
+    const PAIR_B = 'terra1pair0000000000000000000000000000000002'
+    const mockIndexerPairB: IndexerPair = {
+      ...mockIndexerPair,
+      pair_address: PAIR_B,
+      asset_0: { symbol: 'CCC', contract_addr: 'terra1ccc0000000000000000000000000000003', denom: null, decimals: 6 },
+      asset_1: { symbol: 'DDD', contract_addr: 'terra1ddd0000000000000000000000000000004', denom: null, decimals: 6 },
+    }
+
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: PAIR,
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [
+            { token: { contract_addr: 'terra1aaa0000000000000000000000000000001' } },
+            { token: { contract_addr: 'terra1bbb0000000000000000000000000000002' } },
+          ],
+        },
+        {
+          contract_addr: PAIR_B,
+          liquidity_token: 'terra1lp000000000000000000000000000000002',
+          asset_infos: [
+            { token: { contract_addr: 'terra1ccc0000000000000000000000000000003' } },
+            { token: { contract_addr: 'terra1ddd0000000000000000000000000000004' } },
+          ],
+        },
+      ],
+    })
+    vi.mocked(indexerClient.getPair).mockImplementation(async (addr) =>
+      addr === PAIR_B ? mockIndexerPairB : mockIndexerPair
+    )
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter(
+      [
+        { path: '/trade', element: <TradePage /> },
+        { path: '/trade/:pairAddr', element: <TradePage /> },
+      ],
+      { initialEntries: [`/trade/${PAIR_B}`] }
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    await screen.findByTestId('trade-sub-lg-workspace')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/trade/${PAIR_B}`)
+    })
+    expect(vi.mocked(indexerClient.getPair)).toHaveBeenCalledWith(PAIR_B)
+    const pairInput = screen.getByRole('combobox', { name: 'Trading pair' }) as HTMLInputElement
+    expect(pairInput.value).toContain('000002')
+  })
+
+  it('auto-picks first factory pair on bare /trade (GitLab #357)', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter(
+      [
+        { path: '/trade', element: <TradePage /> },
+        { path: '/trade/:pairAddr', element: <TradePage /> },
+      ],
+      { initialEntries: ['/trade'] }
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    })
+    await screen.findByTestId('trade-sub-lg-workspace')
+  })
+
   it('switches trade workspace when a different pair is selected from search (GitLab #301)', async () => {
     const PAIR_B = 'terra1pair0000000000000000000000000000000002'
     const mockIndexerPairB: IndexerPair = {

@@ -5,10 +5,12 @@ import {
   isKnownFactoryTradePair,
   isPendingTradePairRouteResolution,
   isTradePairRouteParam,
+  shouldAutoPickDefaultTradePair,
   shouldShowTradeWorkspace,
 } from '@/utils/tradePairRoute'
 
 const VALID = 'terra1pair0000000000000000000000000000000001'
+const VALID_B = 'terra1pair0000000000000000000000000000000002'
 const UNKNOWN_FORMAT = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
 describe('tradePairRoute', () => {
@@ -71,6 +73,49 @@ describe('tradePairRoute', () => {
         invalidLinkNotice: null,
         unknownPairNotice: null,
         pendingDeepLinkPair: true,
+      })
+    ).toBe(false)
+  })
+
+  it('auto-picks default pair only for bare /trade (GitLab #357)', () => {
+    expect(
+      shouldAutoPickDefaultTradePair({
+        routePair: undefined,
+        invalidRoutePair: null,
+        unknownRoutePair: null,
+        pendingDeepLinkPair: false,
+      })
+    ).toBe(true)
+    expect(
+      shouldAutoPickDefaultTradePair({
+        routePair: VALID_B,
+        invalidRoutePair: null,
+        unknownRoutePair: null,
+        pendingDeepLinkPair: false,
+      })
+    ).toBe(false)
+    expect(
+      shouldAutoPickDefaultTradePair({
+        routePair: VALID_B,
+        invalidRoutePair: null,
+        unknownRoutePair: null,
+        pendingDeepLinkPair: true,
+      })
+    ).toBe(false)
+    expect(
+      shouldAutoPickDefaultTradePair({
+        routePair: UNKNOWN_FORMAT,
+        invalidRoutePair: null,
+        unknownRoutePair: UNKNOWN_FORMAT,
+        pendingDeepLinkPair: false,
+      })
+    ).toBe(false)
+    expect(
+      shouldAutoPickDefaultTradePair({
+        routePair: 'lilwayne babyyy',
+        invalidRoutePair: 'lilwayne babyyy',
+        unknownRoutePair: null,
+        pendingDeepLinkPair: false,
       })
     ).toBe(false)
   })

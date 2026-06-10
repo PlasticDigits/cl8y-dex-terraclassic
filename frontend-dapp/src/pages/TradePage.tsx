@@ -36,6 +36,7 @@ import {
   isKnownFactoryTradePair,
   isPendingTradePairRouteResolution,
   isTradePairRouteParam,
+  shouldAutoPickDefaultTradePair,
   shouldShowTradeWorkspace,
 } from '@/utils/tradePairRoute'
 import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
@@ -169,10 +170,14 @@ export default function TradePage() {
     if (
       pairAddr ||
       pairs.length === 0 ||
-      invalidRoutePair ||
-      unknownRoutePair ||
       invalidLinkNotice ||
-      unknownPairNotice
+      unknownPairNotice ||
+      !shouldAutoPickDefaultTradePair({
+        routePair,
+        invalidRoutePair,
+        unknownRoutePair,
+        pendingDeepLinkPair,
+      })
     ) {
       return
     }
@@ -181,7 +186,17 @@ export default function TradePage() {
       setPairAddr(first)
       navigate(`/trade/${first}`, { replace: true })
     }
-  }, [pairAddr, pairs, navigate, invalidRoutePair, unknownRoutePair, invalidLinkNotice, unknownPairNotice])
+  }, [
+    pairAddr,
+    pairs,
+    navigate,
+    routePair,
+    invalidRoutePair,
+    unknownRoutePair,
+    pendingDeepLinkPair,
+    invalidLinkNotice,
+    unknownPairNotice,
+  ])
 
   useEffect(() => {
     if (!pairRouteReady) return
