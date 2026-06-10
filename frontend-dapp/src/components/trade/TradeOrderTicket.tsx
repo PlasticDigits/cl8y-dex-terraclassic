@@ -620,7 +620,7 @@ function TradeOrderTicketContent({
   const bestAskLabel = bestBookLoading ? '…' : (bestAsk ?? '—')
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-y-auto card-neo !p-0">
+    <div className="flex flex-col h-full min-h-0 card-neo !p-0">
       <div
         className="p-4 border-b border-white/10"
         style={{
@@ -636,7 +636,7 @@ function TradeOrderTicketContent({
             <h3 className="mt-1 text-base font-semibold font-heading truncate" style={{ color: 'var(--ink)' }}>
               {selectedPair ? `${sideAction.verb} ${sideAction.receive}` : 'Select a pair'}
             </h3>
-            <p className="mt-1 text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+            <p className="mt-1 text-[10px] leading-snug hidden lg:block" style={{ color: 'var(--ink-dim)' }}>
               {selectedPair
                 ? `${sideAction.pay} funds the order. Resting limits appear in the book; market orders take available liquidity.`
                 : 'Choose a trading pair from the selector to place orders.'}
@@ -666,7 +666,7 @@ function TradeOrderTicketContent({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-1 flex-col gap-3 min-h-0 overflow-y-auto p-4">
         {selectedPair && isPaused && (
           <div className="alert-error text-xs space-y-2" role="alert">
             <p>
@@ -748,7 +748,7 @@ function TradeOrderTicketContent({
               <TicketStat label="Best ask" value={bestAskLabel} tone="ask" />
             </div>
           )}
-          <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+          <p className="text-[10px] leading-snug hidden lg:block" style={{ color: 'var(--ink-dim)' }}>
             Prices are quoted in {token1Display} per {token0Display}. Buy limits should sit below the reference; sell
             limits above it.
           </p>
@@ -834,6 +834,12 @@ function TradeOrderTicketContent({
                       : ' — adjust price to update in one tx.'}
                 </p>
               )}
+            </TicketSection>
+            <div
+              className="sticky bottom-0 z-10 -mx-4 px-4 py-3 space-y-2 border-t border-white/10"
+              style={{ background: 'color-mix(in srgb, var(--card) 92%, transparent)' }}
+              data-testid="trade-limit-submit-sticky"
+            >
               <button
                 type="button"
                 data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
@@ -889,43 +895,43 @@ function TradeOrderTicketContent({
               {placeMutation.isSuccess && (
                 <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
               )}
-              {placeMutation.isSuccess && (
-                <div className="space-y-2" data-testid="trade-limit-post-place-actions">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      data-testid="trade-limit-view-order-btn"
-                      className="btn-primary btn-cta flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
-                      onClick={onViewPlacedLimitOrder}
-                    >
-                      View order
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="trade-limit-place-another-btn"
-                      className="btn-muted flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
-                      onClick={onPlaceAnotherLimit}
-                    >
-                      Place another
-                    </button>
-                  </div>
-                  {lastIndexedOrderId == null && (
-                    <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-                      If your new row is not listed yet, the indexer is still catching up — tap{' '}
-                      <span className="font-medium" style={{ color: 'var(--ink)' }}>
-                        View order
-                      </span>{' '}
-                      again after a moment to jump to the highlighted line in <strong>My limits</strong> below.
-                    </p>
-                  )}
+            </div>
+            {placeMutation.isSuccess && (
+              <div className="space-y-2" data-testid="trade-limit-post-place-actions">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="trade-limit-view-order-btn"
+                    className="btn-primary btn-cta flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
+                    onClick={onViewPlacedLimitOrder}
+                  >
+                    View order
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="trade-limit-place-another-btn"
+                    className="btn-muted flex-1 min-w-[7.5rem] !text-[10px] !py-2 !px-3"
+                    onClick={onPlaceAnotherLimit}
+                  >
+                    Place another
+                  </button>
                 </div>
-              )}
-              {lastIndexedOrderId != null && (
-                <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
-                  Last indexed: #{lastIndexedOrderId}
-                </p>
-              )}
-            </TicketSection>
+                {lastIndexedOrderId == null && (
+                  <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+                    If your new row is not listed yet, the indexer is still catching up — tap{' '}
+                    <span className="font-medium" style={{ color: 'var(--ink)' }}>
+                      View order
+                    </span>{' '}
+                    again after a moment to jump to the highlighted line in <strong>My limits</strong> below.
+                  </p>
+                )}
+              </div>
+            )}
+            {lastIndexedOrderId != null && (
+              <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
+                Last indexed: #{lastIndexedOrderId}
+              </p>
+            )}
           </div>
         )}
 
