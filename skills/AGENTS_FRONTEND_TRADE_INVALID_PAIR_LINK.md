@@ -35,7 +35,7 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 
 1. **Default-pick is bare `/trade` only** — when `:pairAddr` is a valid `terra1…` segment, [`shouldAutoPickDefaultTradePair`](../frontend-dapp/src/utils/tradePairRoute.ts) returns false so the route→state sync effect owns `pairAddr` (including non-default factory pairs).
 2. **Do not race default-pick on mount** — the default-pick effect must not call `navigate('/trade/<pairs[0]>')` while a known deep link is resolving; that clobbers share URLs and pair-selector switches.
-3. Manual repro: open `/trade/<non-default-factory-pair>` in a fresh tab; URL and pair selector must stay on the requested pair after `allPairs` resolves.
+3. Manual repro: open `/trade/<non-default-factory-pair>` in a fresh tab; URL and pair selector must stay on the requested pair after `allPairs` resolves. Use a pair from **current factory LCD** (`getAllPairsPaginated`), not indexer-only addresses — stale indexer rows that are absent from the factory list correctly show [unknown pair](#trade-page-unknown-pair-link) instead of staying on the URL.
 
 ## Regression tests
 
