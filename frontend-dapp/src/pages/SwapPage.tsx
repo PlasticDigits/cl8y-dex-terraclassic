@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { isSimQuoteStaleForSubmit, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
@@ -50,7 +51,6 @@ import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataSer
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
-import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -587,10 +587,26 @@ export default function SwapPage() {
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
+  const {
+    submitPayRaw,
+    simData,
+    minReceived,
+    isQuoteStale: simQuoteStale,
+  } = useSubmitAlignedSimQuote({
+    rawInputAmount,
+    debouncedRawInputAmount,
+    simQuery,
+    slippageTolerance,
+  })
+
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Swap submitted.',
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
+      assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
+      if (!simData) throw new Error('Quote unavailable')
+      const payRaw = submitPayRaw
+      const submitMinReceived = minReceived
       const maxSpread = (slippageTolerance / 100).toString()
 
       if (isWrapOrUnwrap || nativeRouteInfo) {
@@ -599,31 +615,31 @@ export default function SwapPage() {
           address,
           fromToken,
           toToken,
-          rawInputAmount,
+          payRaw,
           pairs,
           maxSpread,
-          minReceived ?? undefined,
+          submitMinReceived ?? undefined,
           deadline
         )
       }
 
-      const idxOps = simData?.indexerOperations
+      const idxOps = simData.indexerOperations
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
 
       if (swapOpsRequireRouter(idxOps)) {
         const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
           idxOps!,
-          rawInputAmount,
+          payRaw,
           slippageTolerance,
           quoteTrader
         )
         return executeMultiHopSwap(
           address,
           fromToken,
-          rawInputAmount,
+          payRaw,
           opsForSubmit,
           maxSpread,
-          minReceived ?? undefined,
+          submitMinReceived ?? undefined,
           undefined,
           deadline
         )
@@ -636,7 +652,7 @@ export default function SwapPage() {
         if (!hybrid && useHybridBook && fromToken.startsWith('terra1')) {
           const payDec = getDecimals(tokenAssetInfo(fromToken))
           const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
-          const total = BigInt(rawInputAmount)
+          const total = BigInt(payRaw)
           const book = BigInt(bookRaw)
           if (book > total) throw new Error('Book leg cannot exceed pay amount')
           if (book > 0n && hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
@@ -658,13 +674,13 @@ export default function SwapPage() {
             ? await computeDirectHybridMinReturn(
                 directPair.contract_addr,
                 tokenAssetInfo(fromToken),
-                rawInputAmount,
+                payRaw,
                 hybrid,
                 slippageTolerance,
                 quoteTrader
               )
             : undefined
-        return swap(address, fromToken, directPair.contract_addr, rawInputAmount, undefined, maxSpread, undefined, {
+        return swap(address, fromToken, directPair.contract_addr, payRaw, undefined, maxSpread, undefined, {
           hybrid,
           minReturn: directMinReturn,
           deadline,
@@ -672,14 +688,14 @@ export default function SwapPage() {
       }
 
       if (isMultiHop && route) {
-        const minReceive = minReceived ?? undefined
+        const minReceive = submitMinReceived ?? undefined
         const routeForSubmit = await enrichSwapOperationsWithHopMinReturns(
           route,
-          rawInputAmount,
+          payRaw,
           slippageTolerance,
           quoteTrader
         )
-        return executeMultiHopSwap(address, fromToken, rawInputAmount, routeForSubmit, maxSpread, minReceive)
+        return executeMultiHopSwap(address, fromToken, payRaw, routeForSubmit, maxSpread, minReceive)
       }
 
       throw new Error('No route found')
@@ -696,13 +712,6 @@ export default function SwapPage() {
     },
   })
 
-  const simQuoteStale = isSimQuoteStaleForSubmit(
-    rawInputAmount,
-    debouncedRawInputAmount,
-    simQuery.isPlaceholderData
-  )
-
-  const simData = simQuery.isError ? undefined : simQuery.data
   const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
   const simQuoteUnavailable =
     !isWrapOrUnwrap &&
@@ -743,8 +752,6 @@ export default function SwapPage() {
     expectedSlippagePct != null && expectedSlippagePct > SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT && !expertMode
 
   const extremeSlippageWarning = expectedSlippagePct != null && expectedSlippagePct >= SWAP_EXTREME_SLIPPAGE_WARNING_PCT
-
-  const minReceived = simData ? applySlippagePercentFloor(simData.return_amount, slippageTolerance) : null
 
   const directHybridBookSplit = useMemo(
     () =>
