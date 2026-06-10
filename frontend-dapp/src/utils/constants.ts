@@ -23,7 +23,18 @@ export const WRAPPED_NATIVE_PAIRS: Record<string, string> = {
   [USTC_C_TOKEN_ADDRESS]: 'uusd',
 }
 
-export const WRAP_GAS_LIMIT = 300000
+/** Measured wrap_deposit ~301k on LocalTerra (#353). */
+export const WRAP_GAS_LIMIT = 400000
+/**
+ * Router-mediated single-hop `execute_swap_operations` (native wrap path, CW20 send→router).
+ * Direct-to-pair `swap` stays on {@link gasLimitForExecuteSwapOperations}(1) = 840k (#249).
+ * Measured ~1.28M (#353).
+ */
+export const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
+/**
+ * Per-hop floor for multi-hop router `execute_swap_operations`. Measured 2-hop ~1.72M (#353).
+ */
+export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 900_000
 export const UNWRAP_GAS_LIMIT = 400000
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'

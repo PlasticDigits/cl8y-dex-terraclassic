@@ -23,6 +23,10 @@ const REMOVE_LIQUIDITY_GAS_LIMIT = 600_000
 const SWAP_GAS_BUFFER = 1.3
 const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50_000
 const EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP = 661_000
+/** Keep in sync with `ROUTER_SINGLE_HOP_GAS_LIMIT` in `frontend-dapp/src/utils/constants.ts` (#353). */
+const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
+/** Keep in sync with `ROUTER_SWAP_OPS_MIN_GAS_PER_HOP` (#353). */
+const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 900_000
 /** Keep in sync with `SWAP_GAS_SAFETY_MARGIN` in `frontend-dapp/src/utils/constants.ts`. */
 const SWAP_GAS_SAFETY_MARGIN = 10_000
 
@@ -49,6 +53,15 @@ function gasLimitForExecuteSwapOperations(hops: number): number {
   const scaled = Math.round(600_000 * hopCount * SWAP_GAS_BUFFER)
   const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
   const floor = hopCount * EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP
+  return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
+}
+
+function gasLimitForRouterExecuteSwapOperations(hops: number): number {
+  const hopCount = Math.max(hops, 1)
+  if (hopCount === 1) return ROUTER_SINGLE_HOP_GAS_LIMIT
+  const scaled = Math.round(600_000 * hopCount * SWAP_GAS_BUFFER)
+  const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
+  const floor = hopCount * ROUTER_SWAP_OPS_MIN_GAS_PER_HOP
   return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
 }
 
@@ -87,7 +100,7 @@ function gasForHybridRecord(hybrid: Record<string, unknown> | undefined): number
 
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
-  const poolOnly = gasLimitForExecuteSwapOperations(hops)
+  const poolOnly = gasLimitForRouterExecuteSwapOperations(hops)
   if (!executeSwapOpsUsesHybrid(msg)) return poolOnly
   const e = msg.execute_swap_operations as { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> } | undefined
   let total = 0

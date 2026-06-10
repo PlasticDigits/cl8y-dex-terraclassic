@@ -1,6 +1,8 @@
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 import {
   EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP,
+  ROUTER_SINGLE_HOP_GAS_LIMIT,
+  ROUTER_SWAP_OPS_MIN_GAS_PER_HOP,
   SWAP_GAS_BUFFER,
   SWAP_GAS_PER_HOP,
   SWAP_GAS_SAFETY_MARGIN,
@@ -99,7 +101,7 @@ function unwrapOutputFromExecuteSwapOps(msg: Record<string, unknown>): boolean {
 
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
-  let limit = gasLimitForExecuteSwapOperations(hops)
+  let limit = gasLimitForRouterExecuteSwapOperations(hops)
   if (executeSwapOpsUsesHybrid(msg)) {
     limit = Math.max(limit, gasLimitForHybridRouterOperations(msg))
   }
@@ -109,12 +111,22 @@ function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   return limit
 }
 
-/** Buffered estimate + per-hop padding, floored at min gas per hop (see constants). */
+/** Buffered estimate + per-hop padding, floored at min gas per hop (direct pair `swap`). */
 export function gasLimitForExecuteSwapOperations(hops: number): number {
   const hopCount = Math.max(hops, 1)
   const scaled = Math.round(SWAP_GAS_PER_HOP * hopCount * SWAP_GAS_BUFFER)
   const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
   const floor = hopCount * EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP
+  return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
+}
+
+/** Router `execute_swap_operations` — higher than direct pair; measured on LocalTerra (#353). */
+export function gasLimitForRouterExecuteSwapOperations(hops: number): number {
+  const hopCount = Math.max(hops, 1)
+  if (hopCount === 1) return ROUTER_SINGLE_HOP_GAS_LIMIT
+  const scaled = Math.round(SWAP_GAS_PER_HOP * hopCount * SWAP_GAS_BUFFER)
+  const padded = scaled + hopCount * SWAP_MULTIHOP_GAS_PADDING_PER_HOP
+  const floor = hopCount * ROUTER_SWAP_OPS_MIN_GAS_PER_HOP
   return Math.max(padded, floor) + SWAP_GAS_SAFETY_MARGIN
 }
 
