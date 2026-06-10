@@ -1,7 +1,7 @@
 import { useMemo, useState, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { isSimQuoteStaleForSubmit, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
@@ -322,6 +322,12 @@ export function TradeMarketOrderPanel({
     refetchInterval: 10_000,
   })
 
+  const simQuoteStale = isSimQuoteStaleForSubmit(
+    rawInputAmount,
+    debouncedRawInputAmount,
+    simQuery.isPlaceholderData
+  )
+
   const minReceived = useMemo(() => {
     if (!simQuery.data?.return_amount) return null
     return applySlippagePercentFloor(simQuery.data.return_amount, slippageTolerance)
@@ -442,6 +448,7 @@ export function TradeMarketOrderPanel({
     !swapMutation.isPending &&
     !!selectedPair &&
     rawInputAmount !== '0' &&
+    !simQuoteStale &&
     !simQuery.isLoading &&
     !simQuery.isError &&
     !!simQuery.data &&

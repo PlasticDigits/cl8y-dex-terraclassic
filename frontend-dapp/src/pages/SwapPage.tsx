@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { isSimQuoteStaleForSubmit, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
@@ -695,6 +695,12 @@ export default function SwapPage() {
     },
   })
 
+  const simQuoteStale = isSimQuoteStaleForSubmit(
+    rawInputAmount,
+    debouncedRawInputAmount,
+    simQuery.isPlaceholderData
+  )
+
   const simData = simQuery.isError ? undefined : simQuery.data
   const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
   const simQuoteUnavailable =
@@ -838,7 +844,7 @@ export default function SwapPage() {
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Hop spread exceeds slippage tolerance'
     buttonDisabled = true
-  } else if (simQuery.isLoading) {
+  } else if (simQuery.isLoading || simQuoteStale) {
     buttonText = 'Calculating...'
     buttonDisabled = true
   } else if (swapMutation.isPending) {
