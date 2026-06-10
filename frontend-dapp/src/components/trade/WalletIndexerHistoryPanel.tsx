@@ -159,30 +159,32 @@ export function WalletIndexerHistoryPanel({
           emptyLabel="No indexed swaps for this wallet on this pair."
         >
           {(rows: IndexerTrade[]) => (
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                  <th className="py-1.5 pr-2 font-medium">Time</th>
-                  <th className="py-1.5 pr-2 font-medium">Side</th>
-                  <th className="py-1.5 pr-2 font-medium">Price</th>
-                  <th className="py-1.5 pr-2 font-medium">Fee</th>
-                  <th className="py-1.5 font-medium">Tx</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((t) => (
-                  <tr key={t.id} className="border-b border-white/5 font-mono">
-                    <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(t.block_timestamp)}</td>
-                    <td className="py-1.5 pr-2">
-                      {t.offer_asset} → {t.ask_asset}
-                    </td>
-                    <td className="py-1.5 pr-2">{t.price}</td>
-                    <td className="py-1.5 pr-2">{swapFeeLabel(t)}</td>
-                    <td className="py-1.5">{txCell(t.tx_hash)}</td>
+            <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">
+              <table className="w-full text-left text-xs border-collapse min-w-[28rem]">
+                <thead>
+                  <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
+                    <th className="py-1.5 pr-2 font-medium">Time</th>
+                    <th className="py-1.5 pr-2 font-medium">Side</th>
+                    <th className="py-1.5 pr-2 font-medium">Price</th>
+                    <th className="py-1.5 pr-2 font-medium">Fee</th>
+                    <th className="py-1.5 font-medium">Tx</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((t) => (
+                    <tr key={t.id} className="border-b border-white/5 font-mono">
+                      <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(t.block_timestamp)}</td>
+                      <td className="py-1.5 pr-2">
+                        {t.offer_asset} → {t.ask_asset}
+                      </td>
+                      <td className="py-1.5 pr-2">{t.price}</td>
+                      <td className="py-1.5 pr-2">{swapFeeLabel(t)}</td>
+                      <td className="py-1.5">{txCell(t.tx_hash)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </HistoryBlock>
       )}
@@ -195,30 +197,32 @@ export function WalletIndexerHistoryPanel({
           emptyLabel="No indexed limit fills for this wallet on this pair."
         >
           {(rows: IndexerLimitFill[]) => (
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                  <th className="py-1.5 pr-2 font-medium">Time</th>
-                  <th className="py-1.5 pr-2 font-medium">Order</th>
-                  <th className="py-1.5 pr-2 font-medium">Side</th>
-                  <th className="py-1.5 pr-2 font-medium">Price</th>
-                  <th className="py-1.5 pr-2 font-medium">Commission</th>
-                  <th className="py-1.5 font-medium">Tx</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-white/5 font-mono">
-                    <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(r.block_timestamp)}</td>
-                    <td className="py-1.5 pr-2">#{r.order_id}</td>
-                    <td className="py-1.5 pr-2">{r.side}</td>
-                    <td className="py-1.5 pr-2">{r.price}</td>
-                    <td className="py-1.5 pr-2">{r.commission_amount}</td>
-                    <td className="py-1.5">{txCell(r.tx_hash)}</td>
+            <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">
+              <table className="w-full text-left text-xs border-collapse min-w-[32rem]">
+                <thead>
+                  <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
+                    <th className="py-1.5 pr-2 font-medium">Time</th>
+                    <th className="py-1.5 pr-2 font-medium">Order</th>
+                    <th className="py-1.5 pr-2 font-medium">Side</th>
+                    <th className="py-1.5 pr-2 font-medium">Price</th>
+                    <th className="py-1.5 pr-2 font-medium">Commission</th>
+                    <th className="py-1.5 font-medium">Tx</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} className="border-b border-white/5 font-mono">
+                      <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(r.block_timestamp)}</td>
+                      <td className="py-1.5 pr-2">#{r.order_id}</td>
+                      <td className="py-1.5 pr-2">{r.side}</td>
+                      <td className="py-1.5 pr-2">{r.price}</td>
+                      <td className="py-1.5 pr-2">{r.commission_amount}</td>
+                      <td className="py-1.5">{txCell(r.tx_hash)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </HistoryBlock>
       )}
@@ -231,24 +235,26 @@ export function WalletIndexerHistoryPanel({
           emptyLabel="No indexed cancellations for this wallet on this pair."
         >
           {(rows: IndexerLimitCancellation[]) => (
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                  <th className="py-1.5 pr-2 font-medium">Time</th>
-                  <th className="py-1.5 pr-2 font-medium">Order</th>
-                  <th className="py-1.5 font-medium">Tx</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-white/5 font-mono">
-                    <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(r.block_timestamp)}</td>
-                    <td className="py-1.5 pr-2">#{r.order_id}</td>
-                    <td className="py-1.5">{txCell(r.tx_hash)}</td>
+            <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">
+              <table className="w-full text-left text-xs border-collapse min-w-[20rem]">
+                <thead>
+                  <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
+                    <th className="py-1.5 pr-2 font-medium">Time</th>
+                    <th className="py-1.5 pr-2 font-medium">Order</th>
+                    <th className="py-1.5 font-medium">Tx</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} className="border-b border-white/5 font-mono">
+                      <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(r.block_timestamp)}</td>
+                      <td className="py-1.5 pr-2">#{r.order_id}</td>
+                      <td className="py-1.5">{txCell(r.tx_hash)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </HistoryBlock>
       )}
