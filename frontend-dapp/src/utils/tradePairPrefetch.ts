@@ -31,13 +31,17 @@ export function prefetchTradePairWorkspace(
   })
 
   for (const side of ['bid', 'ask'] as const) {
-    void queryClient.prefetchQuery({
+    // Must use prefetchInfiniteQuery — useLimitBookInfinite consumes the same key as useInfiniteQuery.
+    void queryClient.prefetchInfiniteQuery({
       queryKey: limitBookPageQueryKey(pairAddr, side),
-      queryFn: () =>
+      queryFn: ({ pageParam }) =>
         getPairLimitBookPage(pairAddr, side, {
           limit: LIMIT_BOOK_UI_PAGE_SIZE,
-          afterOrderId: undefined,
+          afterOrderId: pageParam,
         }),
+      initialPageParam: undefined as number | undefined,
+      getNextPageParam: (last) =>
+        last.has_more && last.next_after_order_id != null ? last.next_after_order_id : undefined,
       staleTime: 10_000,
     })
   }
