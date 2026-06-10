@@ -1,7 +1,8 @@
 import { useMemo, useState, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { isSimQuoteStaleForSubmit, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
@@ -36,7 +37,6 @@ import {
   type PairInfo,
 } from '@/types'
 import { getDecimals, toRawAmount, fromRawAmount, formatTokenAmount } from '@/utils/formatAmount'
-import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -151,14 +151,19 @@ export function TradeMarketOrderPanel({
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, fromToken)
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
-  const { hybrid, willSubmitHybrid } = useMemo(
+  const { hybrid: liveHybrid, willSubmitHybrid } = useMemo(
     () => computeHybridParams(rawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers),
     [rawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers]
   )
 
+  const { hybrid: debouncedHybrid, willSubmitHybrid: debouncedWillSubmitHybrid } = useMemo(
+    () => computeHybridParams(debouncedRawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers),
+    [debouncedRawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers]
+  )
+
   const marketGasMin = useMemo(
-    () => estimateMarketPairSwapSequenceUlunaFeesTotal(willSubmitHybrid, hybrid),
-    [willSubmitHybrid, hybrid]
+    () => estimateMarketPairSwapSequenceUlunaFeesTotal(willSubmitHybrid, liveHybrid),
+    [willSubmitHybrid, liveHybrid]
   )
 
   const bookLegMaxResult = useMemo(() => {
@@ -239,7 +244,7 @@ export function TradeMarketOrderPanel({
       const offerInfo = tokenAssetInfo(fromToken)
       const askInfo = tokenAssetInfo(toToken)
 
-      if (useHybridBook && hybrid && willSubmitHybrid) {
+      if (useHybridBook && debouncedHybrid && debouncedWillSubmitHybrid) {
         try {
           const idx = await postRouteSolve(
             fromToken,
@@ -247,10 +252,10 @@ export function TradeMarketOrderPanel({
             simRaw,
             [
               {
-                pool_input: hybrid.pool_input,
-                book_input: hybrid.book_input,
-                max_maker_fills: hybrid.max_maker_fills,
-                book_start_hint: hybrid.book_start_hint,
+                pool_input: debouncedHybrid.pool_input,
+                book_input: debouncedHybrid.book_input,
+                max_maker_fills: debouncedHybrid.max_maker_fills,
+                book_start_hint: debouncedHybrid.book_start_hint,
               },
             ],
             quoteTrader
@@ -274,13 +279,19 @@ export function TradeMarketOrderPanel({
           /* fall through */
         }
         try {
-          const sim = await simulateHybridSwap(selectedPair.contract_addr, offerInfo, simRaw, hybrid, quoteTrader)
+          const sim = await simulateHybridSwap(
+            selectedPair.contract_addr,
+            offerInfo,
+            simRaw,
+            debouncedHybrid,
+            quoteTrader
+          )
           const ops: SwapOperation[] = [
             {
               terra_swap: {
                 offer_asset_info: offerInfo,
                 ask_asset_info: askInfo,
-                hybrid,
+                hybrid: debouncedHybrid,
               },
             },
           ]
@@ -322,35 +333,37 @@ export function TradeMarketOrderPanel({
     refetchInterval: 10_000,
   })
 
-  const simQuoteStale = isSimQuoteStaleForSubmit(
+  const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true
+
+  const { submitPayRaw, simData, minReceived, isSubmitReady } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
-    simQuery.isPlaceholderData
-  )
-
-  const minReceived = useMemo(() => {
-    if (!simQuery.data?.return_amount) return null
-    return applySlippagePercentFloor(simQuery.data.return_amount, slippageTolerance)
-  }, [simQuery.data?.return_amount, slippageTolerance])
+    simQuery,
+    slippageTolerance,
+    extraSubmitBlocked: priceImpactTooHigh,
+  })
 
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Market swap submitted.',
     mutationFn: async () => {
       if (!address || !selectedPair) throw new Error('Connect wallet')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')
+      assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
+      if (!simData) throw new Error('Quote unavailable')
+      const payRaw = submitPayRaw
+      const submitMinReceived = minReceived
       const escrowGate = evaluateLimitOrderEscrowPlaceGate(marketAmountHuman, offerDecimals, escrowBalanceQuery)
       if (!escrowGate.canPlaceLimit) {
         if (!escrowGate.userMessage) throw new Error('Enter amount')
         throw new Error(escrowGate.userMessage)
       }
-      const raw = toRawAmount(marketAmountHuman.trim(), offerDecimals)
-      if (raw === '0') throw new Error('Enter amount')
+      if (payRaw === '0') throw new Error('Enter amount')
       const nativeGate = evaluateMarketSwapNativeGasPlaceGate(
         marketAmountHuman,
         offerDecimals,
         nativeUlunaQuery,
         marketGasMin,
-        willSubmitHybrid ? 'hybrid swap' : 'swap'
+        debouncedWillSubmitHybrid ? 'hybrid swap' : 'swap'
       )
       if (!nativeGate.canPlaceLimit) {
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
@@ -358,23 +371,23 @@ export function TradeMarketOrderPanel({
       }
       const maxSpread = maxSpreadStr
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
-      const idxOps = simQuery.data?.indexerOperations
-      const submitHybrid = hybrid ? hybridParamsWithSubmitCap(hybrid) : undefined
-      return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, raw, async () => {
+      const idxOps = simData.indexerOperations
+      const submitHybrid = debouncedHybrid ? hybridParamsWithSubmitCap(debouncedHybrid) : undefined
+      return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, payRaw, async () => {
         if (swapOpsRequireRouter(idxOps)) {
           const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
             idxOps!,
-            raw,
+            payRaw,
             slippageTolerance,
             address ? { trader: address } : undefined
           )
           return executeMultiHopSwap(
             address,
             fromToken,
-            raw,
+            payRaw,
             opsForSubmit,
             maxSpread,
-            minReceived ?? undefined,
+            submitMinReceived ?? undefined,
             undefined,
             deadline
           )
@@ -385,13 +398,13 @@ export function TradeMarketOrderPanel({
             ? await computeDirectHybridMinReturn(
                 selectedPair.contract_addr,
                 tokenAssetInfo(fromToken),
-                raw,
+                payRaw,
                 hopHybrid,
                 slippageTolerance,
                 quoteTrader
               )
             : undefined
-        return swap(address, fromToken, selectedPair.contract_addr, raw, undefined, maxSpread, undefined, {
+        return swap(address, fromToken, selectedPair.contract_addr, payRaw, undefined, maxSpread, undefined, {
           hybrid: hopHybrid,
           minReturn: directMinReturn,
           deadline,
@@ -433,14 +446,12 @@ export function TradeMarketOrderPanel({
   )
 
   const receiveHuman =
-    simQuery.data?.return_amount != null && simQuery.data.return_amount !== ''
-      ? formatTokenAmount(simQuery.data.return_amount, receiveDecimals, 6)
+    simData?.return_amount != null && simData.return_amount !== ''
+      ? formatTokenAmount(simData.return_amount, receiveDecimals, 6)
       : '—'
 
   const minReceiveHuman =
     minReceived != null && minReceived !== '' ? formatTokenAmount(minReceived, receiveDecimals, 6) : '—'
-
-  const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true
 
   const canSubmit =
     isWalletConnected &&
@@ -449,11 +460,7 @@ export function TradeMarketOrderPanel({
     !swapMutation.isPending &&
     !!selectedPair &&
     rawInputAmount !== '0' &&
-    !simQuoteStale &&
-    !simQuery.isLoading &&
-    !simQuery.isError &&
-    !!simQuery.data &&
-    !priceImpactTooHigh
+    isSubmitReady
 
   if (!selectedPair) return null
 

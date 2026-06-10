@@ -966,6 +966,14 @@ The Swap page displays the effective fee after discount. When a connected wallet
 
 **Route preview (GitLab [#158](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/158)):** The **Route** line lives in the same trade-summary card as **Price impact** and **Min received** (no separate “quote source” strip, no paired `Route (indexer)` / `Route` labels). The displayed token path follows the same precedence as submit: indexer-shaped `router_operations` when present, otherwise the client BFS route, native wrap path, or a direct `from → to`. Code: [`swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts). Agent checklist: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md).
 
+**Submit–quote alignment (GitLab [#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356)):** Sim queries debounce pay amount (**350ms**, [#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346)). Submit must use the **same** debounced pay raw as the displayed quote — not the live typed amount while debounce, placeholder, or refetch is in flight. [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) bundles `submitPayRaw`, `minReceived`, and `simData` for Swap and Trade market `swapMutation`; [`isSubmitQuoteStale`](../frontend-dapp/src/utils/quoteDebounce.ts) gates the submit button. Hybrid book-leg splits for Trade market sim/submit use the debounced pay total.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Single submit snapshot** | Pay raw, min received, indexer ops, hybrid params, and route display refer to one settled sim result. |
+| **No live/debounced skew** | `swapMutation` reads `submitPayRaw` (debounced), not live `inputAmount` / `marketAmountHuman`, when min received comes from `simQuery.data`. |
+| **Stale submit blocked** | Submit disabled when typed raw ≠ debounced key, `isPlaceholderData`, or `simQuery.isFetching` for the active debounced key. |
+
 ### Swap page — MEV / submission posture {#swap-mev-posture}
 
 This section documents how swaps reach the chain and the MEV/front-running risks traders should understand. It is **documentation only** — there is no MEV-protection setting in the dApp UI ([GitLab **#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168), [**#299**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)).

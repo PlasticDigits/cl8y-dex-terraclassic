@@ -22,14 +22,15 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 |--------|----------|
 | Route string + precedence | [`frontend-dapp/src/utils/swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts) — `computeSwapRouteDisplay` |
 | Submit route source + client fallback copy | Same file — `deriveSwapSubmitRouteSource`, `SWAP_CLIENT_BFS_FALLBACK_COPY` |
-| Unit tests | [`frontend-dapp/src/utils/swapRouteDisplay.test.ts`](../frontend-dapp/src/utils/swapRouteDisplay.test.ts), [`frontend-dapp/src/pages/SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) (`swap-route-source-client-fallback`) |
+| Unit tests | [`frontend-dapp/src/utils/swapRouteDisplay.test.ts`](../frontend-dapp/src/utils/swapRouteDisplay.test.ts), [`frontend-dapp/src/pages/SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) (`swap-route-source-client-fallback`), [`frontend-dapp/src/utils/quoteDebounce.test.ts`](../frontend-dapp/src/utils/quoteDebounce.test.ts), [`frontend-dapp/src/hooks/useSubmitAlignedSimQuote.test.ts`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.test.ts) (**#356**) |
 | **Swap** route row | [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `data-testid="swap-route-summary"` (trade summary grid) |
 | **Swap** client BFS fallback label | Same file — under route row: `data-testid="swap-route-source-client-fallback"` when submit uses client multihop without indexer ops |
-| **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches |
+| **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches; pay amount and quote fields from `useSubmitAlignedSimQuote` (**#356**) |
 | **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote"` |
 | **Trade market** quote source | Same file — `simQuery` calls `postRouteSolve` when hybrid on (`useHybridBook` + `willSubmitHybrid`); sets `indexerOperations` from `router_operations` |
 | **Quote debounce ([#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346))** | Swap + Trade market sim queries debounce amount input (**350ms**, `useDebouncedValue`) and use `placeholderData: keepPreviousData` — see [`quoteDebounce.ts`](../frontend-dapp/src/utils/quoteDebounce.ts) |
-| **Trade market** submit (must stay in sync with display) | Same file — `swapMutation` → `swapOpsRequireRouter` / `executeMultiHopSwap` or pair `swap` with hybrid |
+| **Submit–quote alignment ([#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356))** | When submit is allowed, on-chain pay raw, `minReceived`, `indexerOperations`, hybrid params, and route display all come from one debounced snapshot via [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts). Submit stays disabled while typed raw ≠ debounced key, placeholder data is shown, or `simQuery.isFetching` for the active key. |
+| **Trade market** submit (must stay in sync with display) | Same file — `swapMutation` → `swapOpsRequireRouter` / `executeMultiHopSwap` or pair `swap` with hybrid; consumes `submitPayRaw` + matching `simData` from `useSubmitAlignedSimQuote` |
 
 ## When the trade market route row appears
 
@@ -67,6 +68,13 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 8. **Multihop:** On a pair where indexer returns **≥ 2 hops** (e.g. EMBER→COBALT via `POST /route/solve`), confirm the route shows **≥ 3** token symbols and matches a small on-chain market submit hop count.
 9. **Pool-only:** Hybrid off, amount set → quote card shows; route line is direct `PAY → RECEIVE` (or row absent only when `marketRouteLine` is null per table above).
 10. Confirm **no** duplicate route labels on the market quote card (single **Route** row only; no client BFS fallback label — trade market does not submit via client BFS today).
+
+### Submit–quote alignment (GitLab #356)
+
+11. **Swap debounce skew:** Type `1`, wait for quote, append `0` quickly (`10`) → Swap stays **Calculating…** / disabled until quote refreshes for `10`; only then re-enables.
+12. **Swap on-chain match:** With settled quote at amount A, submit → on-chain pay matches displayed quote amount (tx / balance).
+13. **Trade market:** Repeat (11–12) on `/trade/:pairAddr` Market tab with hybrid on.
+14. **Refetch guard:** With stable amount, during 10s sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes.
 
 ## Closed scope (GitLab #302 / #329)
 
