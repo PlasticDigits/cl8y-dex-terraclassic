@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
+import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 
 export type ToastKind = 'success' | 'error'
 
@@ -27,5 +27,5 @@ export function useOptionalToast(): ToastContextValue | null {
 }
 
 export function toastErrorMessage(error: unknown): string {
-  return humanizeUserFacingError(error instanceof Error ? error : new Error(String(error)))
+  return humanizeUserFacingErrorFromUnknown(error)
 }
