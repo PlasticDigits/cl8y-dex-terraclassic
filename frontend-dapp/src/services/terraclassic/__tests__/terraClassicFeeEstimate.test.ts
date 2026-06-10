@@ -19,7 +19,7 @@ describe('terraClassicFeeEstimate (GitLab #127)', () => {
       { contract: 'terra1a', msg: { wrap_deposit: {} } },
       { contract: 'terra1b', msg: { swap: {} } },
     ])
-    expect(est.gasLimit).toBe(300000 + 840000)
+    expect(est.gasLimit).toBe(400_000 + 840_000)
     expect(est.feeUluna).toBeGreaterThan(0n)
   })
 

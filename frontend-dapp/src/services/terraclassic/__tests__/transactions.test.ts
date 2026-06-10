@@ -210,10 +210,9 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(840000))
   })
 
-  it('uses buffered estimate + per-hop padding and floor for single-hop execute_swap_operations', async () => {
+  it('uses router single-hop budget for execute_swap_operations (#353)', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }] } })
-    // round(600k×SWAP_GAS_BUFFER) + 50k padding + safety margin; floor 661k×1 (see constants.ts)
-    expect(fee.gasLimit).toBe(BigInt(840000))
+    expect(fee.gasLimit).toBe(BigInt(1_400_000))
   })
 
   it('single-hop execute_swap_operations gas stays above #115 observed gasUsed (753_321)', async () => {
@@ -226,20 +225,20 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBeGreaterThan(BigInt(830102))
   })
 
-  it('scales gas by hop count with buffer, padding, and floor for multi-hop execute_swap_operations', async () => {
+  it('scales gas by hop count with router floor for multi-hop execute_swap_operations (#353)', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }] } })
-    // round(600k×2×SWAP_GAS_BUFFER) + 2×50k + safety margin; floor 661k×2 = 1.322M
-    expect(fee.gasLimit).toBe(BigInt(1670000))
+    // floor 900k×2 + safety margin
+    expect(fee.gasLimit).toBe(BigInt(1_810_000))
   })
 
-  it('2-hop gas limit stays above observed out-of-gas usage from #39 (1,320,097)', async () => {
+  it('2-hop gas limit stays above observed out-of-gas usage from #39 and #353 (~1,718,000)', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }] } })
-    expect(fee.gasLimit).toBeGreaterThan(BigInt(1320097))
+    expect(fee.gasLimit).toBeGreaterThan(BigInt(1_718_000))
   })
 
-  it('defaults to 1 hop with padding/floor when operations missing', async () => {
+  it('defaults to 1 hop router budget when operations missing', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: {} })
-    expect(fee.gasLimit).toBe(BigInt(840000))
+    expect(fee.gasLimit).toBe(BigInt(1_400_000))
   })
 
   it('uses ADD_LIQUIDITY_GAS_LIMIT for provide_liquidity', async () => {
@@ -268,7 +267,7 @@ describe('gas limit selection (tested indirectly)', () => {
       })
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBeGreaterThanOrEqual(BigInt(840_000 + 400_000))
+    expect(fee.gasLimit).toBeGreaterThanOrEqual(BigInt(1_400_000 + 400_000))
   })
 
   it('uses buffered pool-only gas for send with inner swap msg (GitLab #134)', async () => {
@@ -308,9 +307,9 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
-  it('uses WRAP_GAS_LIMIT for wrap_deposit messages', async () => {
+  it('uses WRAP_GAS_LIMIT for wrap_deposit messages (#353)', async () => {
     const fee = await getFeeForMsg({ wrap_deposit: {} })
-    expect(fee.gasLimit).toBe(BigInt(300000))
+    expect(fee.gasLimit).toBe(BigInt(400_000))
   })
 
   it('scales gas for send with inner execute_swap_operations', async () => {
@@ -318,7 +317,7 @@ describe('gas limit selection (tested indirectly)', () => {
       JSON.stringify({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }, { swap: {} }] } })
     )
     const fee = await getFeeForMsg({ send: { msg: innerMsg } })
-    expect(fee.gasLimit).toBe(BigInt(2500000))
+    expect(fee.gasLimit).toBe(BigInt(2_710_000))
   })
 
   it('uses CANCEL_LIMIT_ORDER_GAS_LIMIT for cancel_limit_order', async () => {
@@ -486,8 +485,8 @@ describe('estimateMarketPairSwapSequenceUlunaFeesTotal', () => {
 describe('estimateProvideLiquidityCw20SequenceUlunaFeesTotal', () => {
   it('sums fee uluna for two increase_allowance + provide_liquidity gas limits at effective gas price', () => {
     const total = estimateProvideLiquidityCw20SequenceUlunaFeesTotal()
-    // 2×(200k × 28.325) + 500k × 28.325 = 25_492_500 uluna (GitLab #147)
-    expect(total).toBe(25_492_500n)
+    // 2×(200k × 28.325) + 650k × 28.325 = 29_741_250 uluna (ADD_LIQUIDITY_GAS_LIMIT)
+    expect(total).toBe(29_741_250n)
   })
 })
 
@@ -560,7 +559,7 @@ describe('executeTerraContractMulti', () => {
     ])
 
     const feeCall = MockFee.mock.calls[0][0] as { gasLimit: bigint }
-    expect(feeCall.gasLimit).toBe(BigInt(300000 + 840000))
+    expect(feeCall.gasLimit).toBe(BigInt(400_000 + 840_000))
   })
 
   it('throws when wallet is not connected', async () => {
