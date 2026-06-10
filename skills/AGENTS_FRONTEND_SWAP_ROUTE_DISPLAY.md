@@ -28,6 +28,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches |
 | **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote"` |
 | **Trade market** quote source | Same file — `simQuery` calls `postRouteSolve` when hybrid on (`useHybridBook` + `willSubmitHybrid`); sets `indexerOperations` from `router_operations` |
+| **Quote debounce ([#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346))** | Swap + Trade market sim queries debounce amount input (**350ms**, `useDebouncedValue`) and use `placeholderData: keepPreviousData` — see [`quoteDebounce.ts`](../frontend-dapp/src/utils/quoteDebounce.ts) |
 | **Trade market** submit (must stay in sync with display) | Same file — `swapMutation` → `swapOpsRequireRouter` / `executeMultiHopSwap` or pair `swap` with hybrid |
 
 ## When the trade market route row appears

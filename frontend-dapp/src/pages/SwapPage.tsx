@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { isSimQuoteStaleForSubmit, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
@@ -268,6 +270,8 @@ export default function SwapPage() {
 
   const offerDecimals = offerAssetInfo ? getDecimals(offerAssetInfo) : 6
   const rawInputAmount = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
+  const debouncedInputAmount = useDebouncedValue(inputAmount, SIM_QUOTE_DEBOUNCE_MS)
+  const debouncedRawInputAmount = debouncedInputAmount ? toRawAmount(debouncedInputAmount, offerDecimals) : '0'
 
   const needsWrapCheck = isWrapOrUnwrap ? wrapUnwrapType === 'wrap' : (nativeRouteInfo?.needsWrapInput ?? false)
   const wrapDenom = needsWrapCheck ? (isNativeDenom(fromToken) ? fromToken : null) : null
@@ -344,7 +348,7 @@ export default function SwapPage() {
         'simulation',
         fromToken,
         toToken,
-        rawInputAmount,
+        debouncedRawInputAmount,
         JSON.stringify(route),
         wrapUnwrapType,
         JSON.stringify(nativeRouteInfo),
@@ -357,7 +361,7 @@ export default function SwapPage() {
     [
       fromToken,
       toToken,
-      rawInputAmount,
+      debouncedRawInputAmount,
       route,
       wrapUnwrapType,
       nativeRouteInfo,
@@ -373,9 +377,11 @@ export default function SwapPage() {
 
   const simQuery = useQuery({
     queryKey: simQueryKey,
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<SwapSimData> => {
-      if (!inputAmount || parseFloat(inputAmount) <= 0) throw new Error('Missing params')
+      if (!debouncedInputAmount || parseFloat(debouncedInputAmount) <= 0) throw new Error('Missing params')
 
+      const simRaw = debouncedRawInputAmount
       const maxSpreadStr = (slippageTolerance / 100).toString()
       let indexerTransportFailed = false
 
@@ -388,19 +394,19 @@ export default function SwapPage() {
 
       if (isWrapOrUnwrap) {
         return {
-          return_amount: rawInputAmount,
+          return_amount: simRaw,
           spread_amount: '0',
           commission_amount: '0',
         }
       }
 
       if (nativeRouteInfo) {
-        const result = await simulateNativeSwap(rawInputAmount, fromToken, toToken, pairs)
+        const result = await simulateNativeSwap(simRaw, fromToken, toToken, pairs)
         let routePreflight: SwapRoutePreflightSpread | undefined
         if (nativeRouteInfo.operations.length > 0) {
-          let preflightOffer = rawInputAmount
+          let preflightOffer = simRaw
           if (nativeRouteInfo.needsWrapInput) {
-            preflightOffer = (await netUlunaAfterTransferTaxAsync(BigInt(rawInputAmount), fromToken)).toString()
+            preflightOffer = (await netUlunaAfterTransferTaxAsync(BigInt(simRaw), fromToken)).toString()
           }
           routePreflight = await preflightSwapRouteSpread(
             nativeRouteInfo.operations,
@@ -422,7 +428,7 @@ export default function SwapPage() {
         if (useHybridBook && fromToken.startsWith('terra1')) {
           const payDec = getDecimals(tokenAssetInfo(fromToken))
           const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
-          const total = BigInt(rawInputAmount)
+          const total = BigInt(simRaw)
           const book = BigInt(bookRaw)
           if (book > 0n) {
             if (book > total) throw new Error('Book leg cannot exceed pay amount')
@@ -432,7 +438,7 @@ export default function SwapPage() {
               const idx = await postRouteSolve(
                 fromToken,
                 toToken,
-                rawInputAmount,
+                simRaw,
                 [
                   {
                     pool_input: pool.toString(),
@@ -446,9 +452,7 @@ export default function SwapPage() {
               if (idx.estimated_amount_out?.trim()) {
                 const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
                 const routePreflight =
-                  ops.length > 0
-                    ? await preflightSwapRouteSpread(ops, rawInputAmount, maxSpreadStr, quoteTrader)
-                    : undefined
+                  ops.length > 0 ? await preflightSwapRouteSpread(ops, simRaw, maxSpreadStr, quoteTrader) : undefined
                 return {
                   return_amount: idx.estimated_amount_out,
                   spread_amount: '0',
@@ -470,9 +474,9 @@ export default function SwapPage() {
       }
 
       // Default CW20↔CW20: indexer hybrid optimization (≤3 hops) + wallet `simulate_swap_operations`.
-      if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && rawInputAmount !== '0') {
+      if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && simRaw !== '0') {
         try {
-          const idx = await getRouteSolve(fromToken, toToken, rawInputAmount, {
+          const idx = await getRouteSolve(fromToken, toToken, simRaw, {
             maxMakerFills: hybridMaxMakers,
             trader: quoteTrader?.trader,
           })
@@ -480,19 +484,9 @@ export default function SwapPage() {
           const tout = idx.token_out.trim().toLowerCase()
           if (tin === fromToken.trim().toLowerCase() && tout === toToken.trim().toLowerCase()) {
             const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-            const opsForQuote = await enrichSwapOperationsWithHopMinReturns(
-              ops,
-              rawInputAmount,
-              slippageTolerance,
-              quoteTrader
-            )
-            const result = await simulateMultiHopSwap(rawInputAmount, opsForQuote, quoteTrader)
-            const routePreflight = await preflightSwapRouteSpread(
-              opsForQuote,
-              rawInputAmount,
-              maxSpreadStr,
-              quoteTrader
-            )
+            const opsForQuote = await enrichSwapOperationsWithHopMinReturns(ops, simRaw, slippageTolerance, quoteTrader)
+            const result = await simulateMultiHopSwap(simRaw, opsForQuote, quoteTrader)
+            const routePreflight = await preflightSwapRouteSpread(opsForQuote, simRaw, maxSpreadStr, quoteTrader)
             const intermediates =
               idx.intermediate_tokens?.length === idx.hops.length + 1
                 ? idx.intermediate_tokens
@@ -522,13 +516,13 @@ export default function SwapPage() {
       if (!route) throw new Error('No route found')
       if (isDirect && directPair) {
         const offerInfo = tokenAssetInfo(fromToken)
-        const r = await simulateSwap(directPair.contract_addr, offerInfo, rawInputAmount, quoteTrader)
+        const r = await simulateSwap(directPair.contract_addr, offerInfo, simRaw, quoteTrader)
         const hybridSplit = getDirectHybridBookSplit({
           isDirect: true,
           useHybridBook,
           fromToken,
           bookInputHuman,
-          rawInputAmount,
+          rawInputAmount: simRaw,
           hybridMaxMakers,
         })
         return withIndexerOutageFlag({
@@ -539,8 +533,8 @@ export default function SwapPage() {
         })
       }
       if (isMultiHop && route) {
-        const result = await simulateMultiHopSwap(rawInputAmount, route, quoteTrader)
-        const routePreflight = await preflightSwapRouteSpread(route, rawInputAmount, maxSpreadStr, quoteTrader)
+        const result = await simulateMultiHopSwap(simRaw, route, quoteTrader)
+        const routePreflight = await preflightSwapRouteSpread(route, simRaw, maxSpreadStr, quoteTrader)
         return withIndexerOutageFlag({
           return_amount: result.amount,
           spread_amount: '0',
@@ -550,7 +544,7 @@ export default function SwapPage() {
       }
       throw new Error('No route found')
     },
-    enabled: hasRoute && !!inputAmount && parseFloat(inputAmount) > 0,
+    enabled: hasRoute && !!debouncedInputAmount && parseFloat(debouncedInputAmount) > 0,
     refetchInterval: 10_000,
   })
 
@@ -701,6 +695,12 @@ export default function SwapPage() {
     },
   })
 
+  const simQuoteStale = isSimQuoteStaleForSubmit(
+    rawInputAmount,
+    debouncedRawInputAmount,
+    simQuery.isPlaceholderData
+  )
+
   const simData = simQuery.isError ? undefined : simQuery.data
   const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
   const simQuoteUnavailable =
@@ -844,7 +844,7 @@ export default function SwapPage() {
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Hop spread exceeds slippage tolerance'
     buttonDisabled = true
-  } else if (simQuery.isLoading) {
+  } else if (simQuery.isLoading || simQuoteStale) {
     buttonText = 'Calculating...'
     buttonDisabled = true
   } else if (swapMutation.isPending) {
