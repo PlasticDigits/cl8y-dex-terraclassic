@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
@@ -85,6 +85,7 @@ import { simulateSwap } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
+import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 
 describe('SwapPage', () => {
   beforeEach(() => {
@@ -489,6 +490,65 @@ describe('SwapPage', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('swap-slippage-blocked')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Slippage is too high' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('submit–quote stale gate (GitLab #356)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('disables Swap with Calculating… while typed amount differs from debounced quote', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+      const wallet = 'terra1wallet000000000000000000000000000001'
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      const terraA = 'terra1from00000000000000000000000000000001'
+      const terraB = 'terra1to00000000000000000000000000000001'
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+      vi.mocked(simulateSwap).mockResolvedValue({
+        return_amount: '1000000',
+        spread_amount: '100',
+        commission_amount: '3000',
+      })
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      const payInput = screen.getByPlaceholderText('0.00')
+      await user.type(payInput, '1')
+      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+
+      await user.type(payInput, '0')
+
+      expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
+
+      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
     })
   })
 })
