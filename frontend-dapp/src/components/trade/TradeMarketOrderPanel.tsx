@@ -328,6 +328,7 @@ export function TradeMarketOrderPanel({
   }, [simQuery.data?.return_amount, slippageTolerance])
 
   const swapMutation = useTerraBroadcastMutation({
+    toastSuccess: 'Market swap submitted.',
     mutationFn: async () => {
       if (!address || !selectedPair) throw new Error('Connect wallet')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')

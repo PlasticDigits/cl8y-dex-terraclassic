@@ -594,6 +594,7 @@ export default function SwapPage() {
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
   const swapMutation = useTerraBroadcastMutation({
+    toastSuccess: 'Swap submitted.',
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
       const maxSpread = (slippageTolerance / 100).toString()

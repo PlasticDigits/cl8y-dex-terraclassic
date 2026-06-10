@@ -417,6 +417,7 @@ function TradeOrderTicketContent({
   }, [])
 
   const placeMutation = useTerraBroadcastMutation({
+    toastSuccess: 'Limit order placed.',
     mutationFn: async () => {
       if (!address) throw new Error('Connect wallet')
       if (!selectedPair) throw new Error('Select a pair')

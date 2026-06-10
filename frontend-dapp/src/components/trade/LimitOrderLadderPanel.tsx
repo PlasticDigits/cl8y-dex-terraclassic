@@ -164,6 +164,7 @@ export function LimitOrderLadderPanel({
   }, [preview.error, preview.rungs, side, bestBid, bestAsk])
 
   const placeMutation = useTerraBroadcastMutation({
+    toastSuccess: 'Limit ladder placed.',
     mutationFn: async () => {
       if (preview.error || preview.rungs.length < 2) {
         throw new Error(preview.error ?? 'Invalid ladder')

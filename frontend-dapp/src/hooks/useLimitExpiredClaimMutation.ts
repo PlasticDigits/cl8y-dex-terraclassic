@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { claimExpiredLimitOrder, claimExpiredLimitOrders } from '@/services/terraclassic/pair'
 import { sounds } from '@/lib/sounds'
 import { normalizeExpiredClaimOrderIds, type LimitExpiredClaimInput } from '@/utils/limitExpiredClaimBatch'
@@ -11,6 +12,7 @@ export type { LimitExpiredClaimInput }
  */
 export function useLimitExpiredClaimMutation(pairAddr: string, walletAddress: string | undefined) {
   const queryClient = useQueryClient()
+  const toastApi = useOptionalToast()
 
   return useMutation({
     mutationFn: async (orderIdOrIds: LimitExpiredClaimInput) => {
@@ -24,11 +26,15 @@ export function useLimitExpiredClaimMutation(pairAddr: string, walletAddress: st
     },
     onSuccess: () => {
       sounds.playSuccess()
+      toastApi?.pushToast('success', 'Expired limit order claimed.')
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
     },
-    onError: () => sounds.playError(),
+    onError: (error) => {
+      sounds.playError()
+      toastApi?.pushToast('error', toastErrorMessage(error))
+    },
   })
 }

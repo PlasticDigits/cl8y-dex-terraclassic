@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ToastProvider } from '@/contexts/ToastContext'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import Layout from './components/common/Layout'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -35,32 +36,38 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<LazyRoute loader={() => import('./pages/SwapPage')} />} />
-              <Route path="/pool" element={<LazyRoute loader={() => import('./pages/PoolPage')} />} />
-              <Route path="/create" element={<LazyRoute loader={() => import('./pages/CreatePairPage')} />} />
-              <Route path="/tiers" element={<LazyRoute loader={() => import('./pages/TiersPage')} />} />
-              <Route path="/charts" element={<LazyRoute loader={() => import('./pages/ChartsPage')} />} />
-              <Route path="/portfolio" element={<LazyRoute loader={() => import('./pages/PortfolioPage')} />} />
-              <Route path="/my-portfolio" element={<Navigate to="/portfolio" replace />} />
-              <Route path="/trader" element={<TraderRouteShell />} />
-              <Route path="/trader/:address" element={<TraderRouteShell />} />
-              <Route path="/limits" element={<LazyRoute loader={() => import('./pages/LimitOrdersPage')} />} />
-              <Route
-                path="/trade"
-                element={<LazyRoute loader={() => import('./pages/TradePage')} fallback={<TradePageRouteFallback />} />}
-              />
-              <Route
-                path="/trade/:pairAddr"
-                element={<LazyRoute loader={() => import('./pages/TradePage')} fallback={<TradePageRouteFallback />} />}
-              />
-              <Route path="/protocol" element={<LazyRoute loader={() => import('./pages/ProtocolPage')} />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<LazyRoute loader={() => import('./pages/SwapPage')} />} />
+                <Route path="/pool" element={<LazyRoute loader={() => import('./pages/PoolPage')} />} />
+                <Route path="/create" element={<LazyRoute loader={() => import('./pages/CreatePairPage')} />} />
+                <Route path="/tiers" element={<LazyRoute loader={() => import('./pages/TiersPage')} />} />
+                <Route path="/charts" element={<LazyRoute loader={() => import('./pages/ChartsPage')} />} />
+                <Route path="/portfolio" element={<LazyRoute loader={() => import('./pages/PortfolioPage')} />} />
+                <Route path="/my-portfolio" element={<Navigate to="/portfolio" replace />} />
+                <Route path="/trader" element={<TraderRouteShell />} />
+                <Route path="/trader/:address" element={<TraderRouteShell />} />
+                <Route path="/limits" element={<LazyRoute loader={() => import('./pages/LimitOrdersPage')} />} />
+                <Route
+                  path="/trade"
+                  element={
+                    <LazyRoute loader={() => import('./pages/TradePage')} fallback={<TradePageRouteFallback />} />
+                  }
+                />
+                <Route
+                  path="/trade/:pairAddr"
+                  element={
+                    <LazyRoute loader={() => import('./pages/TradePage')} fallback={<TradePageRouteFallback />} />
+                  }
+                />
+                <Route path="/protocol" element={<LazyRoute loader={() => import('./pages/ProtocolPage')} />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   )
