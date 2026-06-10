@@ -441,6 +441,42 @@ async fn cg_cmc_orderbook_lcd_heavy_rate_limit_returns_429() {
     }
 }
 
+/// GitLab #355: after burst drain, replenish must match configured RPS (not 1 token / RPS seconds).
+#[tokio::test]
+async fn rate_limit_sustained_throughput_matches_rps() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 5;
+    config.rate_limit_lcd_heavy_rps = 0;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    for _ in 0..12 {
+        let _ = server.get("/health").await;
+    }
+    assert_eq!(
+        server.get("/health").await.status_code(),
+        StatusCode::TOO_MANY_REQUESTS,
+        "burst should be exhausted at 5 RPS (burst 10)"
+    );
+
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+
+    let mut ok = 0u32;
+    for _ in 0..5 {
+        if server.get("/health").await.status_code() == StatusCode::OK {
+            ok += 1;
+        }
+    }
+    assert!(
+        ok >= 4,
+        "expected ~5 successful requests after 1.1s at 5 RPS, got {ok}"
+    );
+}
+
 #[tokio::test]
 async fn rate_limit_returns_429_when_exceeded() {
     let pool = common::setup_pool().await;
