@@ -9,8 +9,9 @@ import RiskAcknowledgementModal from '@/components/legal/RiskAcknowledgementModa
 import { ThemeSegmentedControl, type ThemeMode } from '@/components/common/ThemeSegmentedControl'
 import {
   getHeaderMoreMenuItems,
+  getMobileMoreMenuItems,
   HEADER_FULL_NAV_MIN_WIDTH_PX,
-  MORE_NAV_ITEMS,
+  MOBILE_BOTTOM_NAV_ITEMS,
   PRIMARY_NAV_ITEMS,
 } from '@/components/common/navItems'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -79,12 +80,14 @@ export default function Layout() {
     [location.pathname, headerMoreMenuItems]
   )
 
+  const mobileMoreMenuItems = useMemo(() => getMobileMoreMenuItems(), [])
+
   const isMobileMoreSheetRoute = useMemo(
     () =>
-      MORE_NAV_ITEMS.some((item) =>
+      mobileMoreMenuItems.some((item) =>
         item.end === false ? location.pathname.startsWith(item.path) : location.pathname === item.path
       ),
-    [location.pathname]
+    [location.pathname, mobileMoreMenuItems]
   )
 
   return (
@@ -209,7 +212,7 @@ export default function Layout() {
       </footer>
 
       <nav ref={mobileNavRef} className="app-mobile-nav-shell" aria-label="Primary">
-        {PRIMARY_NAV_ITEMS.map((item) => (
+        {MOBILE_BOTTOM_NAV_ITEMS.map((item) => (
           <AppShellNavLink
             key={item.path}
             item={item}
@@ -233,7 +236,7 @@ export default function Layout() {
 
       {isMobileMoreOpen && (
         <section className="app-mobile-more-sheet" aria-label="More pages">
-          {MORE_NAV_ITEMS.map((item) => (
+          {mobileMoreMenuItems.map((item) => (
             <AppShellNavLink
               key={item.path}
               item={item}

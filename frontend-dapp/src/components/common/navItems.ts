@@ -41,3 +41,18 @@ export const TABLET_COMPACT_HEADER_NAV_ROW_LABELS = ['Swap', 'More'] as const
 export function getHeaderMoreMenuItems(fullDesktopHeader: boolean): NavItem[] {
   return fullDesktopHeader ? MORE_NAV_ITEMS : [...PRIMARY_NAV_ITEMS.slice(1), ...MORE_NAV_ITEMS]
 }
+
+/** Bottom tab bar on viewports ≤767px — core trade routes only (GitLab #347). */
+export const MOBILE_BOTTOM_NAV_ITEMS: NavItem[] = [
+  { path: '/', label: 'Swap', end: true },
+  { path: '/trade', label: 'Trade', end: false },
+  { path: '/pool', label: 'Pool' },
+  { path: '/limits', label: 'Limits' },
+]
+
+/** Overflow primaries + secondary routes in the mobile More sheet. */
+export function getMobileMoreMenuItems(): NavItem[] {
+  const bottomPaths = new Set(MOBILE_BOTTOM_NAV_ITEMS.map((item) => item.path))
+  const overflowPrimaries = PRIMARY_NAV_ITEMS.filter((item) => !bottomPaths.has(item.path))
+  return [...overflowPrimaries, ...MORE_NAV_ITEMS]
+}

@@ -321,6 +321,31 @@ test.describe('Connected wallet chip network (GitLab #186)', () => {
   }
 })
 
+test.describe('Mobile bottom nav (GitLab #347)', () => {
+  test('five tab items fit without horizontal overlap at 390px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    const nav = page.locator('nav.app-mobile-nav-shell')
+    await expect(nav).toBeVisible()
+
+    const labels = ['Swap', 'Trade', 'Pool', 'Limits', 'More'] as const
+    const boxes: { x: number; width: number }[] = []
+    for (const name of labels) {
+      const loc = name === 'More' ? nav.getByRole('button', { name: 'More' }) : nav.getByRole('link', { name })
+      const b = await loc.boundingBox()
+      expect(b, `bounding box for ${name}`).toBeTruthy()
+      boxes.push({ x: b!.x, width: b!.width })
+    }
+
+    const epsilon = 2
+    for (let i = 0; i < boxes.length - 1; i++) {
+      expect(boxes[i].x + boxes[i].width).toBeLessThanOrEqual(boxes[i + 1].x + epsilon)
+    }
+  })
+})
+
 test.describe('Wallet Connection', () => {
   test('shows connect control in header when disconnected', async ({ page }) => {
     await page.goto('/')
