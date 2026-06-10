@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { ToastProvider } from '@/contexts/ToastContext'
 import { resetTerraBroadcastScopeForTests } from '@/services/terraclassic/terraBroadcastScope'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
 import { useTerraBroadcastMutation } from '../useTerraBroadcastMutation'
@@ -19,6 +20,15 @@ vi.mock('@/services/terraclassic/wallet', () => ({
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
+}
+
+function toastWrapper({ children }: { children: React.ReactNode }) {
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  return (
+    <QueryClientProvider client={client}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  )
 }
 
 describe('useTerraBroadcastMutation (GitLab #305)', () => {
@@ -71,6 +81,23 @@ describe('useTerraBroadcastMutation (GitLab #305)', () => {
 
     resolvePoll({ txResponse: { code: 0, rawLog: '', logs: [] } })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
+  it('pushes success toast when toastSuccess is set (GitLab #351)', async () => {
+    const { result } = renderHook(
+      () =>
+        useTerraBroadcastMutation({
+          toastSuccess: 'Swap submitted.',
+          mutationFn: () => executeTerraContract('terra1sender', 'terra1contract', { swap: {} }),
+        }),
+      { wrapper: toastWrapper }
+    )
+
+    result.current.mutate()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await waitFor(() =>
+      expect(document.querySelector('[data-testid="toast-success"]')).toHaveTextContent('Swap submitted.')
+    )
   })
 
   it('clears phase after settlement', async () => {

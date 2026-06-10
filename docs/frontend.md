@@ -308,6 +308,16 @@ Friendly failure copy should flow through **`humanizeUserFacingError`** ([`front
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
+### Transaction toast notifications {#tx-toast-notifications}
+
+Floating success/error toasts supplement inline **`TxResultAlert`** banners on tx surfaces ([GitLab **#351**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/351)). **`ToastProvider`** ([`ToastContext.tsx`](../frontend-dapp/src/contexts/ToastContext.tsx), hooks in [`toastContextState.ts`](../frontend-dapp/src/contexts/toastContextState.ts)) portals a top-right viewport (`aria-live`, ~6s auto-dismiss, dismiss button). **`useTerraBroadcastMutation`** accepts optional **`toastSuccess`** and defaults **`toastOnError`** to `true`; plain limit mutations use **`useOptionalToast()`** so tests without the provider still pass.
+
+| Invariant | Meaning |
+|-----------|---------|
+| Dual feedback | Do not remove inline **`TxResultAlert`** on forms when adding toasts. |
+| Error copy | Toast errors use **`toastErrorMessage`** / **`humanizeUserFacingError`**. |
+| Agent playbook | [`skills/AGENTS_FRONTEND_TX_TOASTS.md`](../skills/AGENTS_FRONTEND_TX_TOASTS.md). |
+
 ### Decimal amount inputs {#decimal-amount-inputs}
 
 Retail **human amount** fields (Swap **You Pay**, Settings **book leg amount**, Trade market **book leg override**, etc.) must not pass invalid keystrokes into **`toRawAmount`** / **`BigInt()`** — users must never see raw JS errors such as `Cannot convert … to a BigInt` ([GitLab **#169**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169), W10-C4 locale / number format).

@@ -1,5 +1,6 @@
 import { useState, useId } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { useWalletStore } from '@/hooks/useWallet'
 import { createPair, getWhitelistedCodeIds } from '@/services/terraclassic/factory'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
@@ -33,6 +34,7 @@ function useCodeIdCheck(tokenAddr: string) {
 
 export default function CreatePairPage() {
   const address = useWalletStore((s) => s.address)
+  const toastApi = useOptionalToast()
   const tokenAInputId = useId()
   const tokenBInputId = useId()
   const [tokenA, setTokenA] = useState('')
@@ -64,8 +66,14 @@ export default function CreatePairPage() {
       if (tokenA === tokenB) throw new Error('Token addresses must be different')
       return createPair(address, tokenA, tokenB)
     },
-    onSuccess: () => sounds.playSuccess(),
-    onError: () => sounds.playError(),
+    onSuccess: () => {
+      sounds.playSuccess()
+      toastApi?.pushToast('success', 'Trading pair created.')
+    },
+    onError: (error) => {
+      sounds.playError()
+      toastApi?.pushToast('error', toastErrorMessage(error))
+    },
   })
 
   const tokenAValid = isValidTerraAddress(tokenA)

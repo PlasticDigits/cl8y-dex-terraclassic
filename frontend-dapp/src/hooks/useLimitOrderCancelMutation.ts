@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { cancelLimitOrder, cancelLimitOrders } from '@/services/terraclassic/pair'
 import { sounds } from '@/lib/sounds'
 import type { IndexerLimitCancellation } from '@/types'
@@ -7,9 +8,7 @@ import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessa
 export type LimitOrderCancelInput = number | number[]
 
 function normalizeCancelOrderIds(input: LimitOrderCancelInput): number[] {
-  const ids = (Array.isArray(input) ? input : [input]).filter(
-    (id) => Number.isFinite(id) && id >= 1
-  )
+  const ids = (Array.isArray(input) ? input : [input]).filter((id) => Number.isFinite(id) && id >= 1)
   if (ids.length === 0) {
     throw new Error('Invalid order id')
   }
@@ -22,6 +21,7 @@ function normalizeCancelOrderIds(input: LimitOrderCancelInput): number[] {
  */
 export function useLimitOrderCancelMutation(pairAddr: string, walletAddress: string | undefined) {
   const queryClient = useQueryClient()
+  const toastApi = useOptionalToast()
 
   return useMutation({
     mutationFn: async (orderIdOrIds: LimitOrderCancelInput) => {
@@ -41,6 +41,7 @@ export function useLimitOrderCancelMutation(pairAddr: string, walletAddress: str
     },
     onSuccess: () => {
       sounds.playSuccess()
+      toastApi?.pushToast('success', 'Limit order cancelled.')
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['limitCancellations', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
@@ -48,6 +49,9 @@ export function useLimitOrderCancelMutation(pairAddr: string, walletAddress: str
       queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['wallet-indexer-history'] })
     },
-    onError: () => sounds.playError(),
+    onError: (error) => {
+      sounds.playError()
+      toastApi?.pushToast('error', toastErrorMessage(error))
+    },
   })
 }

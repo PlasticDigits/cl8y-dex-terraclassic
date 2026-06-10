@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { updateLimitOrderPrice } from '@/services/terraclassic/pair'
 import { sounds } from '@/lib/sounds'
 
@@ -14,6 +15,7 @@ export type LimitOrderUpdatePriceInput = {
  */
 export function useLimitOrderUpdatePriceMutation(pairAddr: string, walletAddress: string | undefined) {
   const queryClient = useQueryClient()
+  const toastApi = useOptionalToast()
 
   return useMutation({
     mutationFn: async ({ orderId, price, maxAdjustSteps, hintAfterOrderId }: LimitOrderUpdatePriceInput) => {
@@ -24,12 +26,16 @@ export function useLimitOrderUpdatePriceMutation(pairAddr: string, walletAddress
     },
     onSuccess: () => {
       sounds.playSuccess()
+      toastApi?.pushToast('success', 'Limit order price updated.')
       queryClient.invalidateQueries({ queryKey: ['limitPlacements'] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPage', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['limitBookPagePreview', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['tradeBestBook', pairAddr] })
       queryClient.invalidateQueries({ queryKey: ['wallet-indexer-history'] })
     },
-    onError: () => sounds.playError(),
+    onError: (error) => {
+      sounds.playError()
+      toastApi?.pushToast('error', toastErrorMessage(error))
+    },
   })
 }

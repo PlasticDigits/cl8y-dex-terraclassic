@@ -319,6 +319,7 @@ const PoolCard = memo(function PoolCard({
       : null
 
   const addMutation = useTerraBroadcastMutation({
+    toastSuccess: 'Liquidity added.',
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
       const rawA = toRawAmount(amountA, decimalsA)
@@ -422,6 +423,7 @@ const PoolCard = memo(function PoolCard({
   })
 
   const removeMutation = useTerraBroadcastMutation({
+    toastSuccess: 'Liquidity removed.',
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
       const rawLp = toRawAmount(lpAmount, LP_DECIMALS)
