@@ -158,7 +158,9 @@ export function PairSearchSelect({
       }
     }
 
-    if (value && factorySet.has(value) && !result.some((o) => o.value === value)) {
+    // Empty query: keep current pair at index 0 so Enter without typing re-selects it (#350).
+    // Typed query: omit prepend so Enter commits the first search hit, not the current pair.
+    if (!debouncedSearch && value && factorySet.has(value) && !result.some((o) => o.value === value)) {
       const factory = factoryPairs.find((p) => p.contract_addr === value)
       if (factory) {
         result = [factoryPairToOption(factory, variant), ...result]
@@ -171,8 +173,13 @@ export function PairSearchSelect({
   const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value])
 
   useEffect(() => {
-    if (open) setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0)
-  }, [open, selectedIndex, options.length])
+    if (!open) return
+    if (debouncedSearch) {
+      setActiveIndex(0)
+    } else {
+      setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0)
+    }
+  }, [open, selectedIndex, options.length, debouncedSearch])
 
   const close = useCallback(() => {
     setOpen(false)
