@@ -39,6 +39,19 @@ describe('prefetchTradePairWorkspace', () => {
     })
   })
 
+  it('seeds limit-book cache as InfiniteData for useLimitBookInfinite (GitLab #354)', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    prefetchTradePairWorkspace(queryClient, PAIR)
+
+    await vi.waitFor(() => {
+      const bidData = queryClient.getQueryData(['limitBookPage', PAIR, 'bid'])
+      expect(bidData).toBeDefined()
+      expect(bidData).toHaveProperty('pages')
+      expect(bidData).toHaveProperty('pageParams')
+      expect((bidData as { pages: unknown[] }).pages).toHaveLength(1)
+    })
+  })
+
   it('ignores invalid pair addresses', async () => {
     const queryClient = new QueryClient()
     prefetchTradePairWorkspace(queryClient, 'not-a-pair')

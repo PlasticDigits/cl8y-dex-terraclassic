@@ -27,7 +27,7 @@ Use when changing **paginated book depth** on **`/trade` or `/limits`**, indexer
 
 1. **Do not** reintroduce **`limit-book-shallow`** in retail **`OrderBookPanel`** — shallow is integrator/legacy only (max 20).
 2. **Do not** walk the book synchronously in the UI — use **`useInfiniteQuery`** / **`fetchNextPage`** only.
-3. Keep **`LIMIT_BOOK_UI_PAGE_SIZE`** in one module; prefetch ([`tradePairPrefetch.ts`](../frontend-dapp/src/utils/tradePairPrefetch.ts)) and the hook must stay aligned.
+3. Keep **`LIMIT_BOOK_UI_PAGE_SIZE`** in one module; prefetch ([`tradePairPrefetch.ts`](../frontend-dapp/src/utils/tradePairPrefetch.ts)) and the hook must stay aligned — **`prefetchInfiniteQuery`** with the same **`initialPageParam`** / **`getNextPageParam`** as [`useLimitBookInfinite`](../frontend-dapp/src/hooks/useLimitBookInfinite.ts) (**[#354](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/354)**). Never seed a flat page object under the infinite key.
 4. Best bid/ask preflight (**`limit=1`**) uses **`useTradeBestBookPrices`** — separate keys from **`limitBookPage`**.
 5. When changing invalidations, update **`useLimitOrderCancelMutation`**, place/cancel/claim success handlers, and docs in **`docs/frontend.md`**.
 6. After API or cursor semantics change, run **`cargo test -p indexer api_limit_book_deep`** and frontend **`OrderBookPanel.test.tsx`** + **`useLimitBookInfinite.test.tsx`** + **`limitBookInsertHint.test.ts`**.

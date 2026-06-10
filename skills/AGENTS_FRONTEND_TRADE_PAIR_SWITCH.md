@@ -8,7 +8,7 @@ Use when changing **`TradePage.tsx`**, **`TradePairSwitchStatus.tsx`**, **`trade
 |------------|---------|
 | [docs/frontend.md § Trade page — pair switch latency](../docs/frontend.md#trade-page-pair-switch-latency) | Invariants: parallel fetch, loading status, prefetch, no `getPair` gate on chart mount |
 | `frontend-dapp/src/pages/TradePage.tsx` | `TradeChartSlot`, `useIsFetching` + `isTradePairWorkspaceQuery`, `prefetchTradePairWorkspace` on route/change/hover |
-| `frontend-dapp/src/utils/tradePairPrefetch.ts` | Prefetch `getPair`, `getCandles`, `getTrades`, both `limitBookPage` sides |
+| `frontend-dapp/src/utils/tradePairPrefetch.ts` | Prefetch `getPair`, `getCandles`, `getTrades`, both `limitBookPage` sides via **`prefetchInfiniteQuery`** ([#354](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/354)) |
 | `frontend-dapp/src/components/trade/TradePairSwitchStatus.tsx` | `data-testid="trade-pair-switch-loading"` |
 | `frontend-dapp/src/pages/TradePage.test.tsx` | Regression: chart before `getPair`, loading banner, prefetch on select |
 
