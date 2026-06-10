@@ -51,7 +51,7 @@ describe('AppShellNavLink', () => {
       <MemoryRouter initialEntries={[`/trade/${PAIR}`]}>
         <AppShellNavLink
           item={{ path: '/trade', label: 'Trade', end: false }}
-          className={(active) => (active ? 'app-nav-link-active' : 'app-nav-link')}
+          className={({ isActive }) => (isActive ? 'app-nav-link-active' : 'app-nav-link')}
         />
         <Routes>
           <Route path="/trade/:pairAddr" element={null} />
