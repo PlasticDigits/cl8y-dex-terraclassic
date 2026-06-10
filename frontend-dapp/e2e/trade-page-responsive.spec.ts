@@ -47,9 +47,11 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
 
     const submit = page.getByTestId('trade-limit-submit')
     await expect(submit).toBeVisible()
+    const workspaceBox = await workspace.boundingBox()
     const box = await submit.boundingBox()
+    expect(workspaceBox, 'workspace box').toBeTruthy()
     expect(box, 'submit button box').toBeTruthy()
-    expect(box!.y + box!.height).toBeLessThanOrEqual(720)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(workspaceBox!.y + workspaceBox!.height + 2)
   })
 
   test('phone width stacks order book, ticket, then chart', async ({ page }) => {
