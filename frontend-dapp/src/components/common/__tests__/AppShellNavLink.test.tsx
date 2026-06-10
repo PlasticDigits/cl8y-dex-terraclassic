@@ -44,4 +44,21 @@ describe('AppShellNavLink', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Pool' }), { metaKey: true })
     expect(screen.getByTestId('pathname')).toHaveTextContent('/')
   })
+
+  it('marks Trade active on /trade/:pairAddr when end is false (GitLab #349)', () => {
+    const PAIR = 'terra1pair0000000000000000000000000000000001'
+    render(
+      <MemoryRouter initialEntries={[`/trade/${PAIR}`]}>
+        <AppShellNavLink
+          item={{ path: '/trade', label: 'Trade', end: false }}
+          className={(active) => (active ? 'app-nav-link-active' : 'app-nav-link')}
+        />
+        <Routes>
+          <Route path="/trade/:pairAddr" element={null} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('link', { name: 'Trade' })).toHaveClass('app-nav-link-active')
+  })
 })
