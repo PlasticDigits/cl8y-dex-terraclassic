@@ -37,6 +37,21 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     expect(bookBox!.y, 'order book sits below the chart/ticket row').toBeGreaterThanOrEqual(rowBottom - 48)
   })
 
+  test('desktop limit submit stays visible without scrolling the ticket (#348)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+
+    const workspace = page.getByTestId('trade-desktop-workspace')
+    await expect(workspace).toBeVisible({ timeout: 90_000 })
+
+    const submit = page.getByTestId('trade-limit-submit')
+    await expect(submit).toBeVisible()
+    const box = await submit.boundingBox()
+    expect(box, 'submit button box').toBeTruthy()
+    expect(box!.y + box!.height).toBeLessThanOrEqual(720)
+  })
+
   test('phone width stacks order book, ticket, then chart', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/trade')
