@@ -115,6 +115,12 @@ pub(crate) fn aggregator_cache_put(key: &str, value: serde_json::Value) {
     }
 }
 
+/// Replenishment period for `rps` requests per second.
+/// tower_governor `per_second(n)` sets one token every `n` seconds — not `n` tokens/sec ([#355](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/355)).
+fn replenish_period_for_rps(rps: u64) -> Duration {
+    Duration::from_nanos(1_000_000_000 / rps.max(1))
+}
+
 fn apply_rate_limit_layer<S>(router: Router<S>, rps: u64) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -127,7 +133,7 @@ where
     // IPv6 is disabled by default (`API_IPV6_ENABLED`); see `bind_api_listener`.
     let governor_conf = GovernorConfigBuilder::default()
         .key_extractor(PeerIpKeyExtractor)
-        .per_second(rps)
+        .period(replenish_period_for_rps(rps))
         .burst_size(rps.saturating_mul(2) as u32)
         .use_headers()
         .finish()
@@ -680,5 +686,16 @@ mod rate_limit_key_tests {
             extractor_key("203.0.113.7:1", None),
             extractor_key("203.0.113.8:1", None),
         );
+    }
+}
+
+#[cfg(test)]
+mod rate_limit_quota_tests {
+    use super::replenish_period_for_rps;
+
+    #[test]
+    fn replenish_period_targets_requests_per_second() {
+        assert_eq!(replenish_period_for_rps(10), std::time::Duration::from_millis(100));
+        assert_eq!(replenish_period_for_rps(60), std::time::Duration::from_nanos(16_666_666));
     }
 }
