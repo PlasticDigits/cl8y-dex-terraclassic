@@ -21,6 +21,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListboxKeyboa
 4. **Preserve** click selection, Escape dismiss, portal positioning (`usePortalListbox`), and CLS invariants from [`AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md).
 5. **Visual active row** — `.token-select-option-keyboard-active` (distinct from `.token-select-option-active` selected state).
 6. **Guard duplicate select** — `selectingRef` prevents Enter key-repeat from spamming `onChange`.
+7. **Pair search combobox ([#350](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/350))** — `PairSearchSelect`: empty query may prepend the current pair so Enter re-selects it; **typed query** must highlight index **0** (first hit) and **not** prepend the current pair. Regression: `PairSearchSelect.issue350.test.tsx`.
 
 ## Verification
 
