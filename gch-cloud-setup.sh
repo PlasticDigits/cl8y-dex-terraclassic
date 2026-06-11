@@ -8,6 +8,7 @@ export DEBIAN_FRONTEND=noninteractive
 WORKSPACE="${WORKSPACE:-/home/agent/workspace}"
 AGENT_USER="${AGENT_USER:-agent}"
 GCH_RUNNER_URL="${GCH_RUNNER_URL:-https://gitlab.com/plasticdigits/gitlab-cursor-webhook/-/raw/main/scripts/gch-cloud-init-runner.sh}"
+GCH_IDLE_WRAP_URL="${GCH_IDLE_WRAP_URL:-https://gitlab.com/plasticdigits/gitlab-cursor-webhook/-/raw/main/scripts/gch-agent-idle-wrap.py}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_HOME="/home/${AGENT_USER}"
 GCH_GOLDEN_IMAGE_MODEL="${GCH_GOLDEN_IMAGE_MODEL:-composer-2.5}"
@@ -145,6 +146,17 @@ elif curl -fsSL "${GCH_RUNNER_URL}" -o "${RUNNER_DST}"; then
 else
   echo "ERROR: add gch-cloud-init-runner.sh next to gch-cloud-setup.sh in the project repo." >&2
   exit 1
+fi
+
+IDLE_WRAP_DST="${AGENT_HOME}/gch-agent-idle-wrap.py"
+if [[ -f "${SCRIPT_DIR}/gch-agent-idle-wrap.py" ]]; then
+  install -m 755 -o "${AGENT_USER}" -g "${AGENT_USER}" \
+    "${SCRIPT_DIR}/gch-agent-idle-wrap.py" "${IDLE_WRAP_DST}"
+elif curl -fsSL "${GCH_IDLE_WRAP_URL}" -o "${IDLE_WRAP_DST}"; then
+  chown "${AGENT_USER}:${AGENT_USER}" "${IDLE_WRAP_DST}"
+  chmod 755 "${IDLE_WRAP_DST}"
+else
+  echo "WARN: gch-agent-idle-wrap.py not installed; agent may hang after job completes." >&2
 fi
 
 echo "==> Workspace"

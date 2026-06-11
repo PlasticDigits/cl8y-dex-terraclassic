@@ -63,6 +63,7 @@ run_cursor_agent() {
   local prompt="$2"
   local model="$3"
 
+  # Agent shell tools must inherit GitLab credentials (job.env is not automatic).
   if [[ -f /etc/gch/job.env ]]; then
     set -a
     # shellcheck source=/dev/null
@@ -80,12 +81,37 @@ run_cursor_agent() {
   fi
 
   cd "${workspace}"
-  agent -p "${prompt}" \
-    --model "${model}" \
-    --force \
-    --trust \
-    --workspace "${workspace}" \
+
+  # Long idle: no stream-json while a shell command runs (playwright, npm, etc.).
+  local idle_secs="${GCH_AGENT_IDLE_TIMEOUT_SECS:-1200}"
+  # Short idle: after a thinking/completed line, CLI hang is likely if still silent.
+  local idle_after_thinking_secs="${GCH_AGENT_IDLE_AFTER_THINKING_SECS:-60}"
+  local max_secs="${GCH_AGENT_MAX_TIMEOUT_SECS:-10800}"
+  local agent_cmd=(
+    agent -p "${prompt}"
+    --model "${model}"
+    --force
+    --trust
+    --workspace "${workspace}"
     --output-format stream-json
+  )
+
+  # Cursor CLI `agent -p` is supposed to exit when done but often hangs (worker /
+  # background shell tasks). Stop after idle_secs with no stdout so the runner
+  # can POST /complete and the controller can destroy the VM.
+  local runner_dir wrap_py
+  runner_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  wrap_py="${runner_dir}/gch-agent-idle-wrap.py"
+  if [[ -x "${wrap_py}" ]] || [[ -f "${wrap_py}" ]]; then
+    python3 "${wrap_py}" "${idle_secs}" "${idle_after_thinking_secs}" "${max_secs}" -- "${agent_cmd[@]}"
+  else
+    agent -p "${prompt}" \
+      --model "${model}" \
+      --force \
+      --trust \
+      --workspace "${workspace}" \
+      --output-format stream-json
+  fi
 }
 
 gch_run_job() {
