@@ -63,6 +63,14 @@ run_cursor_agent() {
   local prompt="$2"
   local model="$3"
 
+  if [[ -f /etc/gch/job.env ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source /etc/gch/job.env
+    set +a
+  fi
+  export GLAB_TOKEN="${GITLAB_TOKEN:-}"
+
   export CURSOR_API_KEY
   export DISPLAY="${DISPLAY:-:99}"
 
@@ -88,7 +96,7 @@ gch_run_job() {
   workspace="$(echo "${job_json}" | jq -r .workspace)"
   prompt="$(echo "${job_json}" | jq -r .prompt)"
   model="$(echo "${job_json}" | jq -r .model)"
-  git_ref="$(echo "${job_json}" | jq -r .git_ref // empty)"
+  git_ref="$(echo "${job_json}" | jq -r '.git_ref // empty')"
 
   post_status "boot" "cloud-init runner started"
   start_heartbeat

@@ -64,7 +64,9 @@ _run_make() {
 _ensure_playwright_browsers() {
   cloud_agent_ensure_node "$REPO_ROOT"
   cloud_agent_ensure_frontend_deps "$REPO_ROOT"
-  echo "[setup-cloud-localterra] installing Playwright chromium + headless shell (LT12)…"
+  # Playwright has no ubuntu26.04-x64 build yet; golden images may run 26.04 (LT12).
+  export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="${PLAYWRIGHT_HOST_PLATFORM_OVERRIDE:-ubuntu24.04-x64}"
+  echo "[setup-cloud-localterra] installing Playwright chromium + headless shell (LT12, platform=$PLAYWRIGHT_HOST_PLATFORM_OVERRIDE)…"
   bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- ./node_modules/.bin/playwright install chromium
 }
 
