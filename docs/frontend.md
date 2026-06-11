@@ -817,7 +817,7 @@ When `/trade/:pairAddr` contains a segment that is **not** a valid Terra pair co
 
 | Invariant | Meaning |
 |-----------|---------|
-| **URL cleanup** | On invalid segment, `navigate('/trade', { replace: true })` so share links do not keep non-`terra1` garbage in the address bar. |
+| **URL cleanup** | On invalid segment, `navigate('/trade', { replace: true, state: { invalidPair } })` so share links do not keep non-`terra1` garbage in the address bar. Notice state survives [`Layout`](../frontend-dapp/src/components/common/Layout.tsx) keyed-`<Outlet key={location.pathname} />` remount ([#358](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/358)). |
 | **Notice + CTA** | [`InvalidPairLinkNotice`](../frontend-dapp/src/components/trade/InvalidPairLinkNotice.tsx) renders **`role="alert"`** with title **Invalid pair link**, quotes the bad segment (truncated when long), and a **Select a trading pair** button that scrolls to and focuses `#trade-pair-select`. |
 | **Selector value** | `pairAddr` state stays **empty** until the user picks a pair or a valid deep link loads — `MenuSelect` must not display the raw invalid segment as the trigger label. |
 | **Queries disabled** | Indexer / LCD pair queries use **`isTradePairRouteParam(pairAddr)`** (not bare `startsWith('terra1')`) so malformed `terra1…` prefixes do not fire API calls. |
@@ -835,7 +835,7 @@ When `/trade/:pairAddr` passes [`isValidTerraAddress`](../frontend-dapp/src/util
 | Invariant | Meaning |
 |-----------|---------|
 | **Factory gate** | After `allPairs` succeeds, unknown detection compares `routePair` to `pairs[].contract_addr` only — do not set `pairAddr` until the segment is known. |
-| **URL cleanup** | Same as [invalid pair deep link](#trade-page-invalid-pair-link): `navigate('/trade', { replace: true })`. |
+| **URL cleanup** | Same as [invalid pair deep link](#trade-page-invalid-pair-link): `navigate('/trade', { replace: true, state: { unknownPair } })` (location state survives Layout keyed-Outlet remount — [#358](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/358)). |
 | **Notice + CTA** | [`PairNotFoundLinkNotice`](../frontend-dapp/src/components/trade/PairNotFoundLinkNotice.tsx) — title **Pair not found**, quotes the segment, CTA focuses `#trade-pair-select`. |
 | **Queries disabled** | Indexer / LCD workspace queries stay off while `pairAddr` is empty (no 404 storm for regex-valid garbage). |
 | **Auto-pick guard** | Blocked while `unknownPairNotice` is set (mirror invalid-link notice). Also blocked while any valid-format `:pairAddr` is in the URL — known-pair route sync owns that case ([GitLab **#357**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/357); [`shouldAutoPickDefaultTradePair`](../frontend-dapp/src/utils/tradePairRoute.ts)). |

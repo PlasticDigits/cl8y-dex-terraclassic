@@ -1,5 +1,21 @@
 import { isValidTerraAddress } from '@/utils/constants'
 
+/** Router location state for invalid/unknown pair notices (survives Layout keyed-Outlet remount — GitLab #358). */
+export type TradePageLocationState = {
+  invalidPair?: string
+  unknownPair?: string
+}
+
+export function getTradePageInvalidLinkNotice(state: unknown): string | null {
+  const s = state as TradePageLocationState | null | undefined
+  return s?.invalidPair ?? null
+}
+
+export function getTradePageUnknownPairNotice(state: unknown): string | null {
+  const s = state as TradePageLocationState | null | undefined
+  return s?.unknownPair ?? null
+}
+
 /** Whether a `/trade/:pairAddr` route segment is a pair contract address. */
 export function isTradePairRouteParam(addr: string | undefined): addr is string {
   return !!addr && isValidTerraAddress(addr)
