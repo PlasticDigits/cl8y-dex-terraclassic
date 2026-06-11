@@ -18,9 +18,6 @@ export async function pollTxUntilRecoveryDeadline(
 ): Promise<Required<GetTxResponse>> {
   while (true) {
     const nowSec = Math.floor(Date.now() / 1000)
-    if (nowSec >= deadlineUnixSec) {
-      throw new Error(TERRA_TX_POST_SIGN_NOT_FOUND_MESSAGE)
-    }
 
     try {
       const res = await getTx(rpcEndpoint, { hash: txHash })
@@ -29,6 +26,10 @@ export async function pollTxUntilRecoveryDeadline(
       }
     } catch {
       // Tx not indexed yet — keep polling through the deadline window.
+    }
+
+    if (nowSec >= deadlineUnixSec) {
+      throw new Error(TERRA_TX_POST_SIGN_NOT_FOUND_MESSAGE)
     }
 
     const remainingMs = Math.max(0, (deadlineUnixSec - nowSec) * 1000)
