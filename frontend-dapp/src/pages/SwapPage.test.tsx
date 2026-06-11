@@ -553,5 +553,60 @@ describe('SwapPage', () => {
       await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
     })
+
+    it('disables Swap with Calculating… while book leg differs from debounced hybrid quote (#360)', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+      const wallet = 'terra1wallet000000000000000000000000000001'
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      const terraA = 'terra1from00000000000000000000000000000001'
+      const terraB = 'terra1to00000000000000000000000000000001'
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+      vi.mocked(simulateSwap).mockResolvedValue({
+        return_amount: '1000000',
+        spread_amount: '100',
+        commission_amount: '3000',
+      })
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+      await user.click(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i }))
+
+      const payInput = screen.getByPlaceholderText('0.00')
+      await user.type(payInput, '10')
+      const bookInput = screen.getByPlaceholderText('0.0')
+      await user.type(bookInput, '2')
+      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+
+      await user.clear(bookInput)
+      await user.type(bookInput, '5')
+
+      expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
+
+      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+    })
   })
 })
