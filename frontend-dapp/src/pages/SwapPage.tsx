@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { assertSubmitHybridAligned, assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -123,6 +123,8 @@ export default function SwapPage() {
   const [useHybridBook, setUseHybridBook] = useState(false)
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
+  const debouncedBookInputHuman = useDebouncedValue(bookInputHuman, SIM_QUOTE_DEBOUNCE_MS)
+  const debouncedHybridMaxMakers = useDebouncedValue(hybridMaxMakers, SIM_QUOTE_DEBOUNCE_MS)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -353,8 +355,8 @@ export default function SwapPage() {
         wrapUnwrapType,
         JSON.stringify(nativeRouteInfo),
         useHybridBook,
-        bookInputHuman,
-        hybridMaxMakers,
+        debouncedBookInputHuman,
+        debouncedHybridMaxMakers,
         slippageTolerance,
         address,
       ] as const,
@@ -366,8 +368,8 @@ export default function SwapPage() {
       wrapUnwrapType,
       nativeRouteInfo,
       useHybridBook,
-      bookInputHuman,
-      hybridMaxMakers,
+      debouncedBookInputHuman,
+      debouncedHybridMaxMakers,
       slippageTolerance,
       address,
     ]
@@ -427,12 +429,12 @@ export default function SwapPage() {
       if (isDirect && directPair) {
         if (useHybridBook && fromToken.startsWith('terra1')) {
           const payDec = getDecimals(tokenAssetInfo(fromToken))
-          const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
+          const bookRaw = debouncedBookInputHuman.trim() ? toRawAmount(debouncedBookInputHuman.trim(), payDec) : '0'
           const total = BigInt(simRaw)
           const book = BigInt(bookRaw)
           if (book > 0n) {
             if (book > total) throw new Error('Book leg cannot exceed pay amount')
-            if (hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
+            if (debouncedHybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
             const pool = total - book
             try {
               const idx = await postRouteSolve(
@@ -443,7 +445,7 @@ export default function SwapPage() {
                   {
                     pool_input: pool.toString(),
                     book_input: book.toString(),
-                    max_maker_fills: hybridMaxMakers,
+                    max_maker_fills: debouncedHybridMaxMakers,
                     book_start_hint: null,
                   },
                 ],
@@ -477,7 +479,7 @@ export default function SwapPage() {
       if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && simRaw !== '0') {
         try {
           const idx = await getRouteSolve(fromToken, toToken, simRaw, {
-            maxMakerFills: hybridMaxMakers,
+            maxMakerFills: debouncedHybridMaxMakers,
             trader: quoteTrader?.trader,
           })
           const tin = idx.token_in.trim().toLowerCase()
@@ -521,9 +523,9 @@ export default function SwapPage() {
           isDirect: true,
           useHybridBook,
           fromToken,
-          bookInputHuman,
+          bookInputHuman: debouncedBookInputHuman,
           rawInputAmount: simRaw,
-          hybridMaxMakers,
+          hybridMaxMakers: debouncedHybridMaxMakers,
         })
         return withIndexerOutageFlag({
           ...r,
@@ -587,16 +589,50 @@ export default function SwapPage() {
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
+  const hybridSubmitSnapshot = useMemo(
+    () => ({
+      bookInputHuman: debouncedBookInputHuman,
+      hybridMaxMakers: debouncedHybridMaxMakers,
+    }),
+    [debouncedBookInputHuman, debouncedHybridMaxMakers]
+  )
+
+  const submitDirectHybrid = useMemo(() => {
+    const split = getDirectHybridBookSplit({
+      isDirect,
+      useHybridBook,
+      fromToken,
+      bookInputHuman: debouncedBookInputHuman,
+      rawInputAmount: debouncedRawInputAmount,
+      hybridMaxMakers: debouncedHybridMaxMakers,
+    })
+    if (!split?.willSubmitHybrid) return undefined
+    return {
+      pool_input: split.poolRaw,
+      book_input: split.bookRaw,
+      max_maker_fills: debouncedHybridMaxMakers,
+      book_start_hint: null,
+    } satisfies HybridSwapParams
+  }, [isDirect, useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers])
+
   const {
     submitPayRaw,
     simData,
     minReceived,
     isQuoteStale: simQuoteStale,
+    snapshottedHybrid,
   } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
     simQuery,
     slippageTolerance,
+    hybrid: useHybridBook
+      ? {
+          enabled: true,
+          live: { bookInputHuman, hybridMaxMakers },
+          snapshotted: hybridSubmitSnapshot,
+        }
+      : undefined,
   })
 
   const swapMutation = useTerraBroadcastMutation({
@@ -604,6 +640,9 @@ export default function SwapPage() {
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
+      if (snapshottedHybrid) {
+        assertSubmitHybridAligned({ bookInputHuman, hybridMaxMakers }, snapshottedHybrid)
+      }
       if (!simData) throw new Error('Quote unavailable')
       const payRaw = submitPayRaw
       const submitMinReceived = minReceived
@@ -649,22 +688,8 @@ export default function SwapPage() {
 
       if (isDirect && directPair) {
         let hybrid: HybridSwapParams | undefined = hybridFromSingleHopIndexerOps(idxOps)
-        if (!hybrid && useHybridBook && fromToken.startsWith('terra1')) {
-          const payDec = getDecimals(tokenAssetInfo(fromToken))
-          const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
-          const total = BigInt(payRaw)
-          const book = BigInt(bookRaw)
-          if (book > total) throw new Error('Book leg cannot exceed pay amount')
-          if (book > 0n && hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
-          if (book > 0n) {
-            const pool = total - book
-            hybrid = {
-              pool_input: pool.toString(),
-              book_input: book.toString(),
-              max_maker_fills: hybridMaxMakers,
-              book_start_hint: null,
-            }
-          }
+        if (!hybrid && submitDirectHybrid) {
+          hybrid = submitDirectHybrid
         }
         if (hybrid) {
           hybrid = hybridParamsWithSubmitCap(hybrid)
@@ -759,11 +784,11 @@ export default function SwapPage() {
         isDirect,
         useHybridBook,
         fromToken,
-        bookInputHuman,
-        rawInputAmount,
-        hybridMaxMakers,
+        bookInputHuman: debouncedBookInputHuman,
+        rawInputAmount: debouncedRawInputAmount,
+        hybridMaxMakers: debouncedHybridMaxMakers,
       }),
-    [isDirect, useHybridBook, fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers]
+    [isDirect, useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
   )
 
   const indexerHybridExec = useMemo(
