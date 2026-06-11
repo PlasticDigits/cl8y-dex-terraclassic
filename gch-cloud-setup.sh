@@ -159,19 +159,24 @@ if [[ -f "${WORKSPACE}/scripts/setup-cloud-agent-toolchain.sh" ]]; then
   sudo -u "${AGENT_USER}" bash -lc "bash '${WORKSPACE}/scripts/setup-cloud-agent-toolchain.sh'"
 fi
 
-echo "==> Playwright"
-_agent_nvm_sh '
-  export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
-  mkdir -p ~/.gch/playwright
-  cd ~/.gch/playwright
-  npm init -y
-  npm install @playwright/test
-  npx playwright install chromium
-'
-
 if [[ -d "${WORKSPACE}/frontend-dapp" ]]; then
   echo "==> Frontend dependencies"
   _agent_nvm_sh "cd '${WORKSPACE}/frontend-dapp' && npm ci"
+
+  # Browsers land in ~/.cache/ms-playwright (default). Install from frontend-dapp so
+  # versions match package-lock (@playwright/test). Includes chromium_headless_shell.
+  echo "==> Frontend Playwright browsers"
+  if [[ -f "${WORKSPACE}/scripts/with-node.sh" ]]; then
+    _agent_nvm_sh "
+      export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
+      bash '${WORKSPACE}/scripts/with-node.sh' --cwd frontend-dapp -- npx playwright install
+    "
+  else
+    _agent_nvm_sh "
+      export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
+      cd '${WORKSPACE}/frontend-dapp' && npx playwright install
+    "
+  fi
 fi
 
 echo "==> Golden image finalize (Cursor agent)"
