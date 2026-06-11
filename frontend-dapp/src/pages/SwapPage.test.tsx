@@ -57,6 +57,8 @@ vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
     worstSpreadPercent: '0.50',
     anyHopExceedsMaxSpread: false,
   }),
+  // Quote path calls this since #341 (76723cf); without it the mock throws and quotes die (GitLab #337).
+  enrichSwapOperationsWithHopMinReturns: vi.fn(async (operations: SwapOperation[]) => operations),
 }))
 
 vi.mock('@/services/terraclassic/router', () => ({
@@ -81,6 +83,7 @@ vi.mock('@/lib/sounds', () => ({
 
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens, simulateMultiHopSwap } from '@/services/terraclassic/router'
+import type { SwapOperation } from '@/services/terraclassic/router'
 import { simulateSwap } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
