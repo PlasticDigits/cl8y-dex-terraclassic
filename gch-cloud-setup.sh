@@ -13,6 +13,15 @@ AGENT_HOME="/home/${AGENT_USER}"
 GCH_GOLDEN_IMAGE_MODEL="${GCH_GOLDEN_IMAGE_MODEL:-composer-2.5}"
 FINALIZE_PROMPT="${SCRIPT_DIR}/gch-golden-image-finalize.md"
 
+# Ubuntu bash -lc is non-interactive; .profile skips .bashrc, so nvm is not on PATH.
+_agent_nvm_sh() {
+  sudo -u "${AGENT_USER}" bash -lc "
+    export NVM_DIR=\"\${HOME}/.nvm\"
+    [ -s \"\${NVM_DIR}/nvm.sh\" ] && . \"\${NVM_DIR}/nvm.sh\"
+    ${1}
+  "
+}
+
 echo "==> Base packages"
 apt-get update
 apt-get upgrade -y
@@ -151,7 +160,7 @@ if [[ -f "${WORKSPACE}/scripts/setup-cloud-agent-toolchain.sh" ]]; then
 fi
 
 echo "==> Playwright"
-sudo -u "${AGENT_USER}" bash -lc '
+_agent_nvm_sh '
   export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
   mkdir -p ~/.gch/playwright
   cd ~/.gch/playwright
@@ -162,7 +171,7 @@ sudo -u "${AGENT_USER}" bash -lc '
 
 if [[ -d "${WORKSPACE}/frontend-dapp" ]]; then
   echo "==> Frontend dependencies"
-  sudo -u "${AGENT_USER}" bash -lc "cd '${WORKSPACE}/frontend-dapp' && npm ci"
+  _agent_nvm_sh "cd '${WORKSPACE}/frontend-dapp' && npm ci"
 fi
 
 echo "==> Golden image finalize (Cursor agent)"
