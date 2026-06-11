@@ -17,8 +17,8 @@ echo "==> Base packages"
 apt-get update
 apt-get upgrade -y
 apt-get install -y \
-  build-essential git curl jq sqlite3 postgresql postgresql-contrib \
-  docker.io xvfb chromium-browser unzip ca-certificates \
+  build-essential git curl jq sqlite3 ripgrep file \
+  xvfb chromium-browser unzip ca-certificates \
   libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
   libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
   libgbm1 libasound2t64 libpango-1.0-0 libcairo2 libatspi2.0-0 fonts-liberation
@@ -36,7 +36,14 @@ passwd -l "${AGENT_USER}"
 echo "${AGENT_USER} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/"${AGENT_USER}"
 chmod 440 /etc/sudoers.d/"${AGENT_USER}"
 
-echo "==> Docker"
+echo "==> Docker (CE + compose plugin)"
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${VERSION_CODENAME}") stable" \
+  >/etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 systemctl enable --now docker
 usermod -aG docker "${AGENT_USER}"
 
@@ -56,19 +63,10 @@ echo "==> LocalTerra / Terra tooling"
 # Admin: install localterra or Terrad per project docs
 sudo -u "${AGENT_USER}" bash -lc 'mkdir -p ~/.local/bin'
 
-echo "==> Node + Playwright"
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-sudo -u "${AGENT_USER}" bash -lc '
-  export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
-  mkdir -p ~/.gch/playwright
-  cd ~/.gch/playwright
-  npm init -y
-  npm install @playwright/test
-  npx playwright install chromium
-'
 echo "==> glab"
-curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/v1.58.0/downloads/glab_1.58.0_linux_amd64.deb -o /tmp/glab.deb
+GLAB_VERSION="${GLAB_VERSION:-1.102.0}"
+curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_amd64.deb" \
+  -o /tmp/glab.deb
 dpkg -i /tmp/glab.deb || apt-get install -f -y
 
 echo "==> Cursor CLI"
@@ -131,6 +129,26 @@ if [[ -d "${SCRIPT_DIR}/.git" ]]; then
 fi
 chown -R "${AGENT_USER}:${AGENT_USER}" "${WORKSPACE}"
 
+if [[ -f "${WORKSPACE}/scripts/setup-cloud-agent-toolchain.sh" ]]; then
+  echo "==> Project toolchain (nvm, Node per .nvmrc)"
+  sudo -u "${AGENT_USER}" bash -lc "bash '${WORKSPACE}/scripts/setup-cloud-agent-toolchain.sh'"
+fi
+
+echo "==> Playwright"
+sudo -u "${AGENT_USER}" bash -lc '
+  export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
+  mkdir -p ~/.gch/playwright
+  cd ~/.gch/playwright
+  npm init -y
+  npm install @playwright/test
+  npx playwright install chromium
+'
+
+if [[ -d "${WORKSPACE}/frontend-dapp" ]]; then
+  echo "==> Frontend dependencies"
+  sudo -u "${AGENT_USER}" bash -lc "cd '${WORKSPACE}/frontend-dapp' && npm ci"
+fi
+
 echo "==> Golden image finalize (Cursor agent)"
 if [[ ! -f "${FINALIZE_PROMPT}" ]]; then
   echo "ERROR: missing ${FINALIZE_PROMPT} in the project repo." >&2
@@ -155,7 +173,7 @@ sudo -u "${AGENT_USER}" env \
       --model '${GCH_GOLDEN_IMAGE_MODEL}' \
       --force --trust \
       --workspace '${WORKSPACE}' \
-      --output-format stream-json
+      --output-format text
   "
 
 echo "Setup complete. Review ${AGENT_HOME}/.gch/golden-image-verify.log, then run pre-snapshot cleanup."
