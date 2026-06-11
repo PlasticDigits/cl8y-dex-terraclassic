@@ -10,9 +10,12 @@ AGENT_USER="${AGENT_USER:-agent}"
 GCH_RUNNER_URL="${GCH_RUNNER_URL:-https://gitlab.com/plasticdigits/gitlab-cursor-webhook/-/raw/main/scripts/gch-cloud-init-runner.sh}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_HOME="/home/${AGENT_USER}"
+GCH_GOLDEN_IMAGE_MODEL="${GCH_GOLDEN_IMAGE_MODEL:-composer-2.5}"
+FINALIZE_PROMPT="${SCRIPT_DIR}/gch-golden-image-finalize.md"
 
 echo "==> Base packages"
 apt-get update
+apt-get upgrade -y
 apt-get install -y \
   build-essential git curl jq sqlite3 postgresql postgresql-contrib \
   docker.io xvfb chromium-browser unzip ca-certificates \
@@ -76,6 +79,23 @@ if [[ ! -x "${AGENT_HOME}/.local/bin/agent" ]]; then
 fi
 ln -sf "${AGENT_HOME}/.local/bin/agent" /usr/local/bin/agent
 
+echo "==> Cursor CLI config"
+mkdir -p "${AGENT_HOME}/.cursor"
+cat >"${AGENT_HOME}/.cursor/cli-config.json" <<'EOF'
+{
+  "version": 1,
+  "editor": { "vimMode": false },
+  "permissions": { "allow": [], "deny": [] },
+  "approvalMode": "unrestricted",
+  "attribution": {
+    "attributeCommitsToAgent": false,
+    "attributePRsToAgent": false
+  }
+}
+EOF
+chown -R "${AGENT_USER}:${AGENT_USER}" "${AGENT_HOME}/.cursor"
+chmod 600 "${AGENT_HOME}/.cursor/cli-config.json"
+
 echo "==> Agent shell env"
 touch "${AGENT_HOME}/.bashrc"
 if ! grep -q PLAYWRIGHT_HOST_PLATFORM_OVERRIDE "${AGENT_HOME}/.bashrc"; then
@@ -86,9 +106,10 @@ if ! grep -q '\.local/bin' "${AGENT_HOME}/.bashrc"; then
 fi
 chown "${AGENT_USER}:${AGENT_USER}" "${AGENT_HOME}/.bashrc"
 
-echo "==> Browser profile + Keplr (Terra)"
-sudo -u "${AGENT_USER}" mkdir -p "${AGENT_HOME}/.gch/browser-profile"
-# Admin: download Keplr unpacked extension into /home/agent/.gch/extensions/keplr
+echo "==> GCH agent directories"
+sudo -u "${AGENT_USER}" mkdir -p \
+  "${AGENT_HOME}/.gch/browser-profile" \
+  "${AGENT_HOME}/.gch/extensions"
 
 echo "==> Shared cloud-init runner"
 RUNNER_DST="${AGENT_HOME}/gch-cloud-init-runner.sh"
@@ -105,6 +126,36 @@ fi
 
 echo "==> Workspace"
 mkdir -p "${WORKSPACE}"
+if [[ -d "${SCRIPT_DIR}/.git" ]]; then
+  rsync -a "${SCRIPT_DIR}/" "${WORKSPACE}/"
+fi
 chown -R "${AGENT_USER}:${AGENT_USER}" "${WORKSPACE}"
 
-echo "Setup complete. Clone repo into ${WORKSPACE}, install Keplr extension, configure localterra, then run pre-snapshot cleanup."
+echo "==> Golden image finalize (Cursor agent)"
+if [[ ! -f "${FINALIZE_PROMPT}" ]]; then
+  echo "ERROR: missing ${FINALIZE_PROMPT} in the project repo." >&2
+  exit 1
+fi
+if [[ -z "${CURSOR_API_KEY:-}" ]]; then
+  echo "ERROR: export CURSOR_API_KEY before running setup (needed for golden-image finalize agent)." >&2
+  exit 1
+fi
+if ! pgrep -x Xvfb >/dev/null 2>&1; then
+  Xvfb :99 -screen 0 1920x1080x24 &
+  sleep 1
+fi
+sudo -u "${AGENT_USER}" env \
+  CURSOR_API_KEY="${CURSOR_API_KEY}" \
+  DISPLAY=:99 \
+  PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 \
+  bash -lc "
+    set -euo pipefail
+    cd '${WORKSPACE}'
+    agent -p \"\$(cat '${FINALIZE_PROMPT}')\" \
+      --model '${GCH_GOLDEN_IMAGE_MODEL}' \
+      --force --trust \
+      --workspace '${WORKSPACE}' \
+      --output-format stream-json
+  "
+
+echo "Setup complete. Review ${AGENT_HOME}/.gch/golden-image-verify.log, then run pre-snapshot cleanup."
