@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { getCandles, getPair, getPairLimitBookPage, getTrades } from '@/services/indexer/client'
+import type { IndexerLimitBookPageResponse } from '@/types'
 import { LIMIT_BOOK_UI_PAGE_SIZE, limitBookPageQueryKey } from '@/utils/limitBookPagination'
 import { isTradePairRouteParam } from '@/utils/tradePairRoute'
 
@@ -40,7 +41,7 @@ export function prefetchTradePairWorkspace(
           afterOrderId: pageParam,
         }),
       initialPageParam: undefined as number | undefined,
-      getNextPageParam: (last) =>
+      getNextPageParam: (last: IndexerLimitBookPageResponse) =>
         last.has_more && last.next_after_order_id != null ? last.next_after_order_id : undefined,
       staleTime: 10_000,
     })
