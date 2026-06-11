@@ -7,7 +7,9 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 WORKSPACE="${WORKSPACE:-/home/agent/workspace}"
 AGENT_USER="${AGENT_USER:-agent}"
-GCH_RUNNER_URL="${GCH_RUNNER_URL:-https://raw.githubusercontent.com/plasticdigits/gitlab-cursor-webhook/main/scripts/gch-cloud-init-runner.sh}"
+GCH_RUNNER_URL="${GCH_RUNNER_URL:-https://gitlab.com/plasticdigits/gitlab-cursor-webhook/-/raw/main/scripts/gch-cloud-init-runner.sh}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENT_HOME="/home/${AGENT_USER}"
 
 echo "==> Base packages"
 apt-get update
@@ -22,8 +24,11 @@ echo "==> Agent user"
 if ! id "${AGENT_USER}" &>/dev/null; then
   useradd -m -s /bin/bash "${AGENT_USER}" 2>/dev/null || useradd -s /bin/bash "${AGENT_USER}"
 fi
-mkdir -p "/home/${AGENT_USER}"
-chown -R "${AGENT_USER}:${AGENT_USER}" "/home/${AGENT_USER}"
+mkdir -p "${AGENT_HOME}"
+if [[ ! -f "${AGENT_HOME}/.bashrc" ]]; then
+  cp -a /etc/skel/. "${AGENT_HOME}/"
+fi
+chown -R "${AGENT_USER}:${AGENT_USER}" "${AGENT_HOME}"
 passwd -l "${AGENT_USER}"
 echo "${AGENT_USER} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/"${AGENT_USER}"
 chmod 440 /etc/sudoers.d/"${AGENT_USER}"
@@ -59,26 +64,38 @@ sudo -u "${AGENT_USER}" bash -lc '
   npm install @playwright/test
   npx playwright install chromium
 '
-if ! grep -q PLAYWRIGHT_HOST_PLATFORM_OVERRIDE "/home/${AGENT_USER}/.bashrc"; then
-  echo 'export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64' >>"/home/${AGENT_USER}/.bashrc"
-fi
-
 echo "==> glab"
 curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/v1.58.0/downloads/glab_1.58.0_linux_amd64.deb -o /tmp/glab.deb
 dpkg -i /tmp/glab.deb || apt-get install -f -y
 
 echo "==> Cursor CLI"
 sudo -u "${AGENT_USER}" bash -lc 'curl https://cursor.com/install -fsS | bash'
-echo 'export PATH="$HOME/.cursor/bin:$PATH"' >>"/home/${AGENT_USER}/.bashrc"
+
+echo "==> Agent shell env"
+if ! grep -q PLAYWRIGHT_HOST_PLATFORM_OVERRIDE "${AGENT_HOME}/.bashrc"; then
+  cat >>"${AGENT_HOME}/.bashrc" <<'EOF'
+export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
+export PATH="$HOME/.cursor/bin:$HOME/.local/bin:$PATH"
+EOF
+fi
+chown "${AGENT_USER}:${AGENT_USER}" "${AGENT_HOME}/.bashrc"
 
 echo "==> Browser profile + Keplr (Terra)"
-sudo -u "${AGENT_USER}" mkdir -p "/home/${AGENT_USER}/.gch/browser-profile"
+sudo -u "${AGENT_USER}" mkdir -p "${AGENT_HOME}/.gch/browser-profile"
 # Admin: download Keplr unpacked extension into /home/agent/.gch/extensions/keplr
 
 echo "==> Shared cloud-init runner"
-curl -fsSL "${GCH_RUNNER_URL}" -o "/home/${AGENT_USER}/gch-cloud-init-runner.sh"
-chmod +x "/home/${AGENT_USER}/gch-cloud-init-runner.sh"
-chown "${AGENT_USER}:${AGENT_USER}" "/home/${AGENT_USER}/gch-cloud-init-runner.sh"
+RUNNER_DST="${AGENT_HOME}/gch-cloud-init-runner.sh"
+if [[ -f "${SCRIPT_DIR}/gch-cloud-init-runner.sh" ]]; then
+  install -m 755 -o "${AGENT_USER}" -g "${AGENT_USER}" \
+    "${SCRIPT_DIR}/gch-cloud-init-runner.sh" "${RUNNER_DST}"
+elif curl -fsSL "${GCH_RUNNER_URL}" -o "${RUNNER_DST}"; then
+  chown "${AGENT_USER}:${AGENT_USER}" "${RUNNER_DST}"
+  chmod 755 "${RUNNER_DST}"
+else
+  echo "ERROR: add gch-cloud-init-runner.sh next to gch-cloud-setup.sh in the project repo." >&2
+  exit 1
+fi
 
 echo "==> Workspace"
 mkdir -p "${WORKSPACE}"
