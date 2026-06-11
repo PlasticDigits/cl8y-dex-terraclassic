@@ -271,14 +271,16 @@ Wallet **`broadcastTx`** and LCD **`pollTx`** must not hang indefinitely when th
 |-----------|---------|
 | Broadcast cap | **`executeTerraContract`** / **`executeTerraContractMulti`** wrap **`wallet.broadcastTx`** with **`withPromiseTimeout`** and **`TERRA_TX_BROADCAST_TIMEOUT_MS`** (default **30s**, override **`VITE_TERRA_TX_BROADCAST_TIMEOUT_MS`**). |
 | Poll cap | **`wallet.pollTx`** uses **`TERRA_TX_POLL_TIMEOUT_MS`** (default **90s**, override **`VITE_TERRA_TX_POLL_TIMEOUT_MS`**) so slow LocalTerra blocks can still confirm while offline hangs still surface. |
-| Broadcast copy | Timeout message: **`TERRA_TX_BROADCAST_TIMEOUT_MESSAGE`** — *"Could not broadcast the transaction. Check your connection and try again."* |
-| Poll copy | Timeout message: **`TERRA_TX_POLL_TIMEOUT_MESSAGE`** — *"Transaction confirmation timed out. Check your connection and try again."* |
-| Pass-through errors | **`handleTransactionError`** returns timeout messages unchanged (no `Transaction failed:` prefix); **`TxResultAlert`** still humanizes via the standard funnel. |
+| Broadcast copy (pre-sign) | **`TERRA_TX_BROADCAST_TIMEOUT_MESSAGE`** — *"Could not broadcast the transaction. Check your connection and try again."* — only when signing did **not** complete (atomic WC `post` path or transport failure before a signed tx exists). Safe to retry immediately. |
+| Poll copy | Timeout message: **`TERRA_TX_POLL_TIMEOUT_MESSAGE`** — *"Transaction confirmation timed out. Check your connection and try again."* — when a hash exists, split-path wallets enter recovery instead of surfacing this as the final error ([GitLab **#359**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)). |
+| Post-sign broadcast unknown | After signing, hung RPC may still deliver the tx. Split-path wallets compute the hash from signed bytes, show **`TERRA_TX_POST_SIGN_BROADCAST_UNKNOWN_MESSAGE`** during phase **`recovering`**, and poll LCD until the swap **`deadline`** (or default **300s**). Submit stays disabled until recovery resolves. |
+| Post-sign not found | **`TERRA_TX_POST_SIGN_NOT_FOUND_MESSAGE`** — only after the deadline poll finds no tx; **then** invite retry (avoids double-execution inside the deadline window, [#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)). |
+| Pass-through errors | **`handleBroadcastError`** returns timeout / recovery messages unchanged (no `Transaction failed:` prefix); **`TxResultAlert`** still humanizes via the standard funnel. |
 | All on-chain submits | Applies to limit place/cancel, swaps, pool add/withdraw, and any path using **`broadcastTerraExecuteContracts`** — not only `/trade`. |
 
-Implementation: [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.ts), [`withPromiseTimeout.ts`](../frontend-dapp/src/utils/withPromiseTimeout.ts), [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) (canonical sign/broadcast/poll), [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts) (gas + `Fee` build), [`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) (public `executeTerraContract*` wrappers).
+Implementation: [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.ts), [`withPromiseTimeout.ts`](../frontend-dapp/src/utils/withPromiseTimeout.ts), [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) (canonical sign/broadcast/poll + post-sign recovery), [`terraWalletSignTxRaw.ts`](../frontend-dapp/src/services/terraclassic/terraWalletSignTxRaw.ts), [`terraTxRecoveryPoll.ts`](../frontend-dapp/src/services/terraclassic/terraTxRecoveryPoll.ts), [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts) (gas + `Fee` build), [`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) (public `executeTerraContract*` wrappers).
 
-Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases).
+Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases), [`terraBroadcastRecovery.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/terraBroadcastRecovery.test.ts) ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)).
 
 ### Broadcast phase UI (signing → confirming) {#broadcast-phase-ui}
 
@@ -289,8 +291,9 @@ Retail submit buttons distinguish wallet signing from on-chain confirmation ([Gi
 | `signing` | Before `wallet.broadcastTx` enters the sign lock | Signing… |
 | `broadcasting` | Inside `broadcastTx` (sign + submit) | Broadcasting… |
 | `confirming` | After tx hash, during `pollTx` | Confirming… (+ explorer link) |
+| `recovering` | Post-sign broadcast/poll timeout — LCD deadline poll ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)) | Checking broadcast… (+ unknown-status copy + explorer link) |
 
-**Invariants:** `broadcastTerraExecuteContracts` accepts optional `onPhaseChange`; failed broadcast never enters `confirming`; failed poll does not re-fire `signing`. React mutations use [`useTerraBroadcastMutation`](../frontend-dapp/src/hooks/useTerraBroadcastMutation.ts) + [`terraBroadcastScope`](../frontend-dapp/src/services/terraclassic/terraBroadcastScope.ts) so service layers stay unchanged. **`isPending`** remains the disable guard.
+**Invariants:** `broadcastTerraExecuteContracts` accepts optional `onPhaseChange`; failed **pre-sign** broadcast never enters `confirming`; post-sign hung RPC enters **`recovering`** before retry is offered. Failed poll does not re-fire `signing`. React mutations use [`useTerraBroadcastMutation`](../frontend-dapp/src/hooks/useTerraBroadcastMutation.ts) + [`terraBroadcastScope`](../frontend-dapp/src/services/terraclassic/terraBroadcastScope.ts) so service layers stay unchanged. **`isPending`** remains the disable guard.
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](../skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md).
 
