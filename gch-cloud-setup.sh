@@ -52,12 +52,16 @@ echo "==> Node + Playwright"
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y nodejs
 sudo -u "${AGENT_USER}" bash -lc '
+  export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
   mkdir -p ~/.gch/playwright
   cd ~/.gch/playwright
   npm init -y
   npm install @playwright/test
   npx playwright install chromium
 '
+if ! grep -q PLAYWRIGHT_HOST_PLATFORM_OVERRIDE "/home/${AGENT_USER}/.bashrc"; then
+  echo 'export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64' >>"/home/${AGENT_USER}/.bashrc"
+fi
 
 echo "==> glab"
 curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/v1.58.0/downloads/glab_1.58.0_linux_amd64.deb -o /tmp/glab.deb
