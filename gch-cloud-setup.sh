@@ -70,13 +70,19 @@ dpkg -i /tmp/glab.deb || apt-get install -f -y
 
 echo "==> Cursor CLI"
 sudo -u "${AGENT_USER}" bash -lc 'curl https://cursor.com/install -fsS | bash'
+if [[ ! -x "${AGENT_HOME}/.local/bin/agent" ]]; then
+  echo "ERROR: Cursor CLI not found at ${AGENT_HOME}/.local/bin/agent" >&2
+  exit 1
+fi
+ln -sf "${AGENT_HOME}/.local/bin/agent" /usr/local/bin/agent
 
 echo "==> Agent shell env"
+touch "${AGENT_HOME}/.bashrc"
 if ! grep -q PLAYWRIGHT_HOST_PLATFORM_OVERRIDE "${AGENT_HOME}/.bashrc"; then
-  cat >>"${AGENT_HOME}/.bashrc" <<'EOF'
-export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64
-export PATH="$HOME/.cursor/bin:$HOME/.local/bin:$PATH"
-EOF
+  echo 'export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64' >>"${AGENT_HOME}/.bashrc"
+fi
+if ! grep -q '\.local/bin' "${AGENT_HOME}/.bashrc"; then
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >>"${AGENT_HOME}/.bashrc"
 fi
 chown "${AGENT_USER}:${AGENT_USER}" "${AGENT_HOME}/.bashrc"
 

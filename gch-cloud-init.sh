@@ -4,7 +4,7 @@
 set -euo pipefail
 
 source /etc/gch/job.env
-export PATH="/home/agent/.cursor/bin:$PATH"
+export PATH="/home/agent/.local/bin:$PATH"
 
 # Start local Terra node if project uses docker-compose localterra
 # sudo -u agent docker compose -f /home/agent/workspace/docker-compose.localterra.yml up -d
