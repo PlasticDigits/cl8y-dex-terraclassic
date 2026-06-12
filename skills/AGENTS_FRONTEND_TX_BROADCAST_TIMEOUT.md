@@ -24,12 +24,29 @@ Use when trade or other wallet submits **hang silently** with no error after the
 5. **LCD outage is separate** — frozen **queries** use [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md); this playbook is **wallet broadcast / tx poll** only.
 6. **Lazy route chunks are separate** — offline navigation to uncached pages uses [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md) ([GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172)).
 
+## Post-sign broadcast recovery (GitLab #359 / #368)
+
+When the wallet has **already signed** but `broadcast_tx_sync` hangs or fails, the dApp must **not** invite an immediate retry (double-execution risk inside the swap msg deadline).
+
+| Code | Role |
+|------|------|
+| [`terraWalletSignTxRaw.ts`](../frontend-dapp/src/services/terraclassic/terraWalletSignTxRaw.ts) | Split sign + hash before RPC broadcast (extension / dev mnemonic) |
+| [`terraTxRecoveryPoll.ts`](../frontend-dapp/src/services/terraclassic/terraTxRecoveryPoll.ts) | Poll LCD `getTx` through msg deadline — no re-broadcast |
+| [`terraMsgDeadline.ts`](../frontend-dapp/src/services/terraclassic/terraMsgDeadline.ts) | Recovery window from execute `deadline` fields |
+| [`terraBroadcastRecovery.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/terraBroadcastRecovery.test.ts) | Unit regressions |
+
+**UX:** `recovering` phase → button **Checking broadcast…** (disabled) + `terra-broadcast-recovery-status` copy (**Broadcast status unknown…**). Pre-sign failures still use **`Could not broadcast the transaction…`**.
+
+**E2E (Simulated Wallet):** [`terra-broadcast-recovery.spec.ts`](../frontend-dapp/e2e/terra-broadcast-recovery.spec.ts) in `e2e-tx` (`make test-e2e-tx`).
+
+**Keplr parity (manual / optional):** same recovery path applies to extension wallets (hash captured in cosmes broadcast). Manual QA: freeze LocalTerra RPC after Keplr approve → expect recovery copy until tx lands; do not click Swap again while button shows **Broadcast status unknown…**. Optional flag: `E2E_KEPLR_BROADCAST_RECOVERY=1` with Keplr extension (not in default CI).
+
 ## Manual QA (local)
 
 1. `make start` + `make deploy-local` + `VITE_NETWORK=local npm run dev`, connect **Simulated Wallet**.
 2. `/trade` → valid limit → DevTools **Offline** → **Place limit** → approve wallet if prompted.
 3. **Pre-sign offline:** within ~30s expect **`Could not broadcast the transaction…`** and **Place limit** enabled again.
-4. **Post-sign hung RPC (swap with Simulated Wallet / Keplr extension):** after wallet approval, block RPC (not wallet) → expect **`Broadcast status unknown…`**, phase **`recovering`**, submit disabled until deadline poll resolves ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)).
+4. **Post-sign hung RPC (swap with Simulated Wallet / Keplr extension):** after wallet approval, block RPC (not wallet) → expect **`Broadcast status unknown…`**, phase **`recovering`**, submit disabled until deadline poll resolves ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359), [#368](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/368)).
 
 ## Related
 

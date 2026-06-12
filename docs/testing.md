@@ -16,20 +16,21 @@ Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./re
 | Book-leg fee discount | [#83](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/83) | `limit_order_tests::hybrid_book_fill_uses_taker_discounted_effective_fee_bps` | Same `effective_fee_bps` as pool path |
 | Frontend hybrid message shape | [#84](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/84) | [`pair.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/pair.test.ts), [`router.hybrid.test.ts`](../frontend-dapp/src/services/terraclassic/router.hybrid.test.ts) | Direct pair + router `execute_swap_operations` |
 | Pause blocks swap + limits | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `pause_blocks_swap_and_place_cancel_refunds_escrow`; [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) | L6 — see [`contracts-security-audit.md`](./contracts-security-audit.md) |
-| Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | Manual: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) | LCD `pool` + optional `simulation`; run after deploy |
+| Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86), [#368](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/368) | [`make smoke-pool-swap`](../Makefile); wired in [`make start-qa`](../scripts/qa/start-qa.sh) (`QA_SKIP_SMOKE=1` to skip) | LCD `pool` + optional `hybrid_simulation`; pair from `.qa-deploy-stamp` |
 | Stubs / mocks catalog | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy below + issue #105 | LCD stub vs AMM-sim orderbook |
 | Charts integration (indexer HTTP) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | Reference job `frontend-charts-integration` → `make test-charts-integration`; **stubbed** `lightweight-charts` — not canvas |
 | Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | Reference job `frontend-charts-vitest` → `make test-frontend-charts`; large-candle + real visible-range autoscale ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) |
 | Price chart candle parsing + stale pair race | [#226](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/226) | [`priceChartCandles.test.ts`](../frontend-dapp/src/components/charts/__tests__/priceChartCandles.test.ts), [`PriceChart.test.tsx`](../frontend-dapp/src/components/charts/__tests__/PriceChart.test.tsx) | Default `npm run test:run`; no Postgres |
 
-**Post-deploy smoke (#86):**
+**Post-deploy smoke (#86 / #368):**
 
 ```bash
-export PAIR_ADDR=terra1...          # required
-export OFFER_TOKEN=terra1...        # optional — enables Simulation query
-export TERRA_LCD_URL=http://127.0.0.1:1317
-./scripts/smoke-pool-swap.sh
+make smoke-pool-swap
+# or manually after deploy:
+# source scripts/lib/smoke-deploy-env.sh && ./scripts/smoke-pool-swap.sh
 ```
+
+`make start-qa` runs smoke after `qa-verify-deploy` (skip with `QA_SKIP_SMOKE=1`). `scripts/lib/smoke-deploy-env.sh` resolves `PAIR_ADDR` from `.qa-deploy-stamp` and `OFFER_TOKEN` from the pair `pool` query — no hardcoded testnet addresses.
 
 See also [`docs/deployment-guide.md`](./deployment-guide.md) and [`docs/runbooks/launch-checklist.md`](./runbooks/launch-checklist.md).
 
