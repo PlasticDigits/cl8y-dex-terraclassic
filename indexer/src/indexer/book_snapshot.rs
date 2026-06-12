@@ -38,8 +38,6 @@ type BoxError = Box<dyn std::error::Error + Send + Sync>;
 /// Default snapshot cadence when `BOOK_SNAPSHOT_INTERVAL_MS` is unset (10s).
 pub const BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS: u64 = 10_000;
 
-pub use crate::config::BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES;
-
 /// Max wall-clock staleness at default cadence; equals [`book_snapshot_max_staleness_ms`] with default interval.
 pub const BOOK_SNAPSHOT_MAX_STALENESS_MS: u64 =
     crate::config::book_snapshot_max_staleness_ms(BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS);

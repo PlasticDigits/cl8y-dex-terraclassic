@@ -279,7 +279,7 @@ async fn query_hybrid_sim_unified(
 
 async fn query_pool_only_unified(
     source: &HybridSimSource<'_>,
-    mut mirror_meta: Option<&mut MirrorLoadMeta>,
+    mirror_meta: Option<&mut MirrorLoadMeta>,
     hop: &HopDescriptor,
     offer_amount: u128,
     max_maker_fills: u32,

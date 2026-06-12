@@ -45,6 +45,11 @@ grep -q 'qa-wasm-artifacts' "$REPO_ROOT/.gitlab-ci.yml" \
 grep -q 'qa-indexer-binary' "$REPO_ROOT/.gitlab-ci.yml" \
   || _fail '.gitlab-ci.yml must publish qa-indexer binary'
 
+# base64ct 1.8+ needs edition 2024 (Rust 1.85+); see GitLab #370.
+if grep -qE 'rust:1\.8[0-4]-' "$REPO_ROOT/.gitlab-ci.yml"; then
+  _fail 'qa-indexer-binary image must be rust:1.85-bookworm or newer (edition 2024 deps)'
+fi
+
 grep -q 'make reset-qa' "$REPO_ROOT/skills/AGENTS_QA_REDEPLOY_DECISION.md" \
   || _fail 'decision guide must document reset-qa'
 
