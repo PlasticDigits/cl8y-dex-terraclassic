@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration
 
 # Infrastructure
 start:
@@ -134,6 +134,11 @@ qa-verify-deploy:
 	@chmod +x scripts/qa/verify-deploy.sh scripts/lib/lcd-smart-query.sh
 	./scripts/qa/verify-deploy.sh
 
+# Post-deploy pool LCD smoke — reads PAIR_ADDR / OFFER_TOKEN from deploy stamp (GitLab #368 / #86).
+smoke-pool-swap:
+	@chmod +x scripts/smoke-pool-swap.sh scripts/lib/smoke-deploy-env.sh
+	@bash -c 'set -a; source scripts/lib/smoke-deploy-env.sh; set +a; ./scripts/smoke-pool-swap.sh'
+
 # On-chain E2E for GitLab #238 (hybrid sim CL8Y fee-discount parity). Requires a
 # fresh deploy (make deploy-local) + running indexer for the route/solve check.
 verify-issue-238:
@@ -178,6 +183,11 @@ verify-issue-293:
 	@chmod +x scripts/qa/verify-issue-293.sh
 	./scripts/qa/verify-issue-293.sh
 
+# GitLab #372 — LocalTerra genesis/deploy/swarm funding headroom
+verify-localterra-funding-headroom:
+	@chmod +x scripts/qa/verify-localterra-funding-headroom.sh scripts/bots/preflight-test1-uluna.sh
+	./scripts/qa/verify-localterra-funding-headroom.sh
+
 # GitLab #295 — limit ladder rung count UI (Playwright against make dev on :5173).
 verify-issue-295:
 	@chmod +x scripts/verify-issue-295-ladder-rung-ui.sh scripts/with-node.sh
@@ -200,12 +210,16 @@ verify-issue-324:
 	@chmod +x scripts/qa/verify-issue-324.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/qa/verify-issue-324.sh
 
+verify-issue-369:
+	@chmod +x scripts/qa/verify-issue-369.sh scripts/setup-cloud-agent-indexer-postgres.sh
+	./scripts/qa/verify-issue-369.sh
+
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-redeploy-decision"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
-	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-295 (needs make dev)"
+	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-369 | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration"
 	@echo "Docs:            scripts/qa/README.md"
@@ -321,6 +335,14 @@ lint-frontend:
 # Indexer
 indexer-dev:
 	cd indexer && cargo run
+
+# Operator recovery after reorg halt (dry-run unless HEIGHT=… APPLY=1 CLEANUP=1)
+indexer-reorg-recover:
+	@test -n "$(HEIGHT)" || (echo "Usage: make indexer-reorg-recover HEIGHT=<fork_height> [APPLY=1] [CLEANUP=1]" && exit 1)
+	@args="--height $(HEIGHT)"; \
+	[ "$(APPLY)" = "1" ] && args="$$args --apply"; \
+	[ "$(CLEANUP)" = "1" ] && args="$$args --cleanup-derived"; \
+	./scripts/indexer-reorg-recover.sh $$args
 
 # Full devnet lifecycle: start infra, build, deploy, start indexer & frontend
 dev-full: start wait-healthy build-optimized deploy-local

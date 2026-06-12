@@ -115,6 +115,18 @@ echo "==> Verifying deployed contracts match current tree (qa-verify-deploy)..."
 chmod +x "$REPO_ROOT/scripts/qa/verify-deploy.sh" "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 "$REPO_ROOT/scripts/qa/verify-deploy.sh"
 
+if [ "${QA_SKIP_SMOKE:-0}" != "1" ]; then
+  qa_timing_phase_start "smoke"
+  echo "==> Post-deploy pool smoke (smoke-pool-swap)..."
+  chmod +x "$REPO_ROOT/scripts/smoke-pool-swap.sh" "$REPO_ROOT/scripts/lib/smoke-deploy-env.sh"
+  # shellcheck source=scripts/lib/smoke-deploy-env.sh
+  source "$REPO_ROOT/scripts/lib/smoke-deploy-env.sh"
+  "$REPO_ROOT/scripts/smoke-pool-swap.sh"
+  qa_timing_phase_end
+else
+  echo "[start-qa] QA_SKIP_SMOKE=1 — skipping post-deploy smoke-pool-swap"
+fi
+
 qa_timing_phase_start "indexer"
 echo "==> Starting indexer (release, background)..."
 if [ -f "$PIDFILE" ]; then

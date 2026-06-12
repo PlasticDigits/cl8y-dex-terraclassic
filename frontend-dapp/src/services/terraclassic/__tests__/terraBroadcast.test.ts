@@ -110,6 +110,9 @@ describe('broadcastTerraExecuteContracts (GitLab #127)', () => {
       broadcastTerraExecuteContracts(mockWallet as never, 'terra1sender', [
         { contract: 'terra1a', msg: { increase_allowance: { spender: 'terra1p', amount: '1' } } },
       ])
-    ).rejects.toThrow(/Transaction fee mismatch/)
+    ).rejects.toSatisfy((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      return /Transaction fee mismatch/.test(msg) && !/GitLab #127/.test(msg) && !/uluna/.test(msg)
+    })
   })
 })

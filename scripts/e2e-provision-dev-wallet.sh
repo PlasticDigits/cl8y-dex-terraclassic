@@ -7,8 +7,8 @@ set -euo pipefail
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_LOCAL="$REPO_ROOT/frontend-dapp/.env.local"
 DEV_ADDR="terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
-MIN_RAW_BALANCE="${E2E_DEV_MIN_CW20_U128:-1000000000000}"
-MINT_TOPUP="${E2E_DEV_CW20_MINT_TOPUP:-10000000000000000}"
+MIN_RAW_BALANCE="${E2E_DEV_MIN_CW20_U128:-10000000000000}"
+MINT_TOPUP="${E2E_DEV_CW20_MINT_TOPUP:-100000000000000000}"
 
 if [[ ! -f "$ENV_LOCAL" ]]; then
   echo "e2e-provision: missing $ENV_LOCAL (run scripts/deploy-dex-local.sh first)." >&2
