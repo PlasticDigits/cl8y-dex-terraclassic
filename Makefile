@@ -196,6 +196,13 @@ setup-indexer-postgres:
 test-indexer-integration: setup-indexer-postgres
 	@export PATH="/usr/local/cargo/bin:$$HOME/.cargo/bin:$$PATH"; cd indexer && cargo test --tests -j 1 -- --test-threads=1
 
+# Usage: make indexer-reorg-recover HEIGHT=1234567 [APPLY=1] [CLEANUP_DERIVED=1]
+indexer-reorg-recover:
+	@chmod +x scripts/indexer-reorg-recover.sh
+	@./scripts/indexer-reorg-recover.sh --height "$(HEIGHT)" \
+	  $(if $(CLEANUP_DERIVED),--cleanup-derived,) \
+	  $(if $(APPLY),--apply,)
+
 verify-issue-324:
 	@chmod +x scripts/qa/verify-issue-324.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/qa/verify-issue-324.sh
@@ -207,7 +214,7 @@ help:
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
 	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
-	@echo "Indexer:         make indexer-dev | test-indexer-integration"
+	@echo "Indexer:         make indexer-dev | test-indexer-integration | indexer-reorg-recover HEIGHT=<H>"
 	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:

@@ -7,6 +7,7 @@ pub mod pair_discovery;
 pub mod parser;
 pub mod poller;
 pub mod position_tracker;
+pub mod reorg_alert;
 pub mod seed_qa;
 pub mod trader_tracker;
 pub mod volume_aggregator;

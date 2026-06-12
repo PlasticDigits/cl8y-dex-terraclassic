@@ -1,4 +1,4 @@
-# Agent playbook: indexer ingestion hardening (GitLab #236)
+# Agent playbook: indexer ingestion hardening (GitLab #236, #362)
 
 ## When to use
 
@@ -49,11 +49,16 @@ cd indexer && cargo test --test indexer_ingestion_hardening -j 1 -- --test-threa
 
 If host `psql` to `127.0.0.1:5432` hangs (Docker pg_hba), run the test binary from the postgres network namespace — see [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md).
 
-## Operator recovery
+## Operator recovery (#362)
+
+Reorg halt emits structured `indexer_reorg_halt` (target `indexer::reorg_alert`); optional `REORG_ALERT_WEBHOOK_URL` POST.
 
 ```bash
-./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT   # dry-run
+./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT              # dry-run + row-impact preview
 ./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT --apply
+./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT --cleanup-derived --apply  # deep/shallow with derived DELETE
+make indexer-reorg-recover HEIGHT=FORK_HEIGHT
+make indexer-reorg-recover HEIGHT=FORK_HEIGHT APPLY=1 CLEANUP_DERIVED=1
 # restart indexer
 ```
 

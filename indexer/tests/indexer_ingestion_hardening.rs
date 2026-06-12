@@ -1,5 +1,5 @@
-//! Integration tests for indexer ingestion hardening (GitLab #236): cursor-on-error,
-//! tx pagination, reorg hash guard.
+//! Integration tests for indexer ingestion hardening (GitLab #236, #362): cursor-on-error,
+//! tx pagination, reorg hash guard, swap replay dedup.
 
 mod common;
 
@@ -374,4 +374,65 @@ async fn invalid_tx_and_header_timestamp_fails_block() {
         cursor_before,
         "cursor must not advance when chain time is unavailable"
     );
+}
+
+#[tokio::test]
+async fn swap_replay_does_not_duplicate_rows() {
+    use bigdecimal::BigDecimal;
+    use chrono::Utc;
+    use cl8y_dex_indexer::db::queries::swap_events;
+
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+    seed_minimal_pair(&pool, "terra1pair362").await;
+
+    let pair_id: i32 = sqlx::query_scalar("SELECT id FROM pairs LIMIT 1")
+        .fetch_one(&pool)
+        .await
+        .expect("pair");
+    let asset_0: i32 = sqlx::query_scalar("SELECT id FROM assets WHERE denom = 'uluna'")
+        .fetch_one(&pool)
+        .await
+        .expect("asset_0");
+    let asset_1: i32 = sqlx::query_scalar("SELECT id FROM assets WHERE symbol = 'USTC'")
+        .fetch_one(&pool)
+        .await
+        .expect("asset_1");
+
+    let amount = BigDecimal::from(1000);
+    let price = BigDecimal::from(1);
+    let ts = Utc::now();
+
+    for _ in 0..2 {
+        swap_events::insert_swap(
+            &pool,
+            pair_id,
+            0,
+            100,
+            ts,
+            "tx362",
+            "sender",
+            None,
+            asset_0,
+            asset_1,
+            &amount,
+            &amount,
+            None,
+            None,
+            None,
+            &price,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .expect("insert swap");
+    }
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM swap_events WHERE tx_hash = 'tx362'")
+        .fetch_one(&pool)
+        .await
+        .expect("count");
+    assert_eq!(count, 1, "replay must not duplicate swap rows");
 }
