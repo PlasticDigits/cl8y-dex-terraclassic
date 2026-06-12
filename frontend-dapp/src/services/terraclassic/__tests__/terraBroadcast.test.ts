@@ -100,7 +100,7 @@ describe('broadcastTerraExecuteContracts (GitLab #127)', () => {
     expect(phases).toEqual(['signing', 'broadcasting', 'confirming'])
   })
 
-  it('surfaces post-sign fee guard before generic user-denied copy (GitLab #127)', async () => {
+  it('humanizes post-sign fee guard before generic user-denied copy (GitLab #127, #371)', async () => {
     mockBroadcastTx.mockRejectedValueOnce(
       new Error(
         'Wallet signed a fee far below what this dApp submitted (GitLab #127). Expected at least ~5665000 uluna; wallet returned ~3000 uluna.'
@@ -110,6 +110,9 @@ describe('broadcastTerraExecuteContracts (GitLab #127)', () => {
       broadcastTerraExecuteContracts(mockWallet as never, 'terra1sender', [
         { contract: 'terra1a', msg: { increase_allowance: { spender: 'terra1p', amount: '1' } } },
       ])
-    ).rejects.toThrow(/GitLab #127/)
+    ).rejects.toSatisfy((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      return /Transaction fee mismatch/.test(msg) && !/GitLab #127/.test(msg) && !/uluna/.test(msg)
+    })
   })
 })

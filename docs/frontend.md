@@ -332,7 +332,7 @@ Friendly failure copy should flow through **`humanizeUserFacingError`** ([`front
 | Invariant | Meaning |
 |-----------|---------|
 | Single funnel | Call **`humanizeUserFacingError`** / **`humanizeUserFacingErrorFromUnknown`** at leaf call sites, or rely on components that already apply it: **`RetryError`**, **`TxResultAlert`** (`type === 'error'` only), and the **`useWalletStore.connect`** catch (wallet modal). |
-| Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block (chunk failures scrub dev URLs — see [§ Lazy route chunks](#lazy-route-chunks)). |
+| Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block (chunk failures scrub dev URLs — see [§ Lazy route chunks](#lazy-route-chunks)). Post-sign fee/gas guard failures ([`extensionSignedFeeGuard.ts`](../frontend-dapp/src/utils/extensionSignedFeeGuard.ts), [GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)) keep developer diagnostics in logs; UI shows **`EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE`** via **`tryHumanizeTerraTxMessage`** ([GitLab #371](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/371)). |
 | Success strings | **`TxResultAlert`** must not rewrite **`type === 'success'`** messages. |
 | Regression tests | [`frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts`](../frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts). |
 

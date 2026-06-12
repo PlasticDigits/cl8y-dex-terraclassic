@@ -12,7 +12,6 @@ import {
   walletSupportsSplitSignBroadcast,
 } from '@/services/terraclassic/terraWalletSignTxRaw'
 import { resolveTerraTxRecoveryDeadlineUnix } from '@/utils/terraMsgDeadline'
-import { EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX } from '@/utils/extensionSignedFeeGuard'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 import {
   isTerraTxTimeoutMessage,
@@ -69,10 +68,6 @@ function handleBroadcastError(error: unknown): Error {
     const errorMessage = error.message
 
     if (isTerraTxTimeoutMessage(errorMessage)) {
-      return error
-    }
-
-    if (errorMessage.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX)) {
       return error
     }
 
