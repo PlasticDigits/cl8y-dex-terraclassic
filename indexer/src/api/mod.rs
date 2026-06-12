@@ -6,6 +6,7 @@ mod cg;
 mod compliance;
 mod cmc;
 mod errors;
+mod fee_discount_health;
 mod listing_timestamps;
 mod consolidated_stats;
 pub mod hooks;
@@ -46,6 +47,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
+use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 use crate::indexer::oracle::SharedPrice;
 use crate::lcd::LcdClient;
 
@@ -71,6 +73,8 @@ pub struct AppState {
     pub factory_address: Option<String>,
     /// CL8Y fee-discount registry for on-chain `GetDiscount` (mirror grid fee parity with LCD).
     pub fee_discount_address: Option<String>,
+    /// Cached LCD probe for fee-discount registry reachability (GitLab #365).
+    pub fee_discount_registry_health: FeeDiscountRegistryHealth,
     /// Postgres-backed hybrid grid for `/route/solve` (GitLab #319).
     pub route_solver_db_hybrid: bool,
     pub book_snapshot_max_staleness_ms: u64,
@@ -414,6 +418,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     let api_router = Router::new()
         .route("/health", get(health))
         .route(
+            "/api/v1/health/fee-discount",
+            get(fee_discount_health::get_fee_discount_health),
+        )
+        .route(
             "/api/v1/compliance/blacklist-check",
             get(compliance::blacklist_check),
         )
@@ -536,6 +544,7 @@ pub async fn serve(
     lcd: LcdClient,
     config: Config,
     ustc_price: SharedPrice,
+    fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router_address = config.router_address.clone();
     let factory_address = Some(config.factory_address.clone());
@@ -548,6 +557,7 @@ pub async fn serve(
         router_address,
         factory_address,
         fee_discount_address: config.fee_discount_address.clone(),
+        fee_discount_registry_health,
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,

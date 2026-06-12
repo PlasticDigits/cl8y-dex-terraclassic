@@ -7,9 +7,10 @@ use crate::db::queries::{state, volume};
 use crate::lcd::LcdClient;
 
 use super::{
-    block_indexer, book_snapshot, oracle, pair_discovery, reorg_alert, trader_tracker,
-    volume_aggregator,
+    block_indexer, book_snapshot, fee_discount_registry_health, oracle, pair_discovery,
+    reorg_alert, trader_tracker, volume_aggregator,
 };
+use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -19,6 +20,7 @@ pub async fn run_indexer(
     config: Config,
     cancel: tokio_util::sync::CancellationToken,
     ustc_price: oracle::SharedPrice,
+    fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), BoxError> {
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
@@ -51,6 +53,25 @@ pub async fn run_indexer(
         )
         .await;
     });
+
+    if let Some(fee_addr) = config
+        .fee_discount_address
+        .clone()
+        .filter(|a| !a.is_empty())
+    {
+        let probe_lcd = lcd.clone();
+        let probe_health = fee_discount_registry_health.clone();
+        let probe_cancel = cancel.clone();
+        tokio::spawn(async move {
+            fee_discount_registry_health::run_fee_discount_registry_probe_loop(
+                probe_lcd,
+                fee_addr,
+                probe_health,
+                probe_cancel,
+            )
+            .await;
+        });
+    }
 
     let oracle_pool = pool.clone();
     let oracle_interval = config.oracle_poll_interval_ms;

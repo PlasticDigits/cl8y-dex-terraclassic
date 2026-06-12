@@ -823,6 +823,13 @@ pub async fn build_test_app_with_price_and_config(
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
         fee_discount_address: config.fee_discount_address.clone(),
+        fee_discount_registry_health:
+            cl8y_dex_indexer::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::new(
+                config
+                    .fee_discount_address
+                    .as_ref()
+                    .is_some_and(|a| !a.is_empty()),
+            ),
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,

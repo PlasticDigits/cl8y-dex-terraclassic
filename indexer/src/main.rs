@@ -129,12 +129,19 @@ async fn run_server() -> anyhow::Result<()> {
 
     let cancel = CancellationToken::new();
     let ustc_price = indexer::oracle::new_shared_price();
+    let fee_discount_registry_health = indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::new(
+        config
+            .fee_discount_address
+            .as_ref()
+            .is_some_and(|a| !a.is_empty()),
+    );
 
     let indexer_pool = pool.clone();
     let indexer_lcd = lcd_client.clone();
     let indexer_config = config.clone();
     let indexer_cancel = cancel.clone();
     let indexer_ustc = ustc_price.clone();
+    let indexer_fee_discount_health = fee_discount_registry_health.clone();
     let indexer_handle = tokio::spawn(async move {
         if let Err(e) = indexer::poller::run_indexer(
             indexer_pool,
@@ -142,6 +149,7 @@ async fn run_server() -> anyhow::Result<()> {
             indexer_config,
             indexer_cancel,
             indexer_ustc,
+            indexer_fee_discount_health,
         )
         .await
         {
@@ -153,8 +161,17 @@ async fn run_server() -> anyhow::Result<()> {
     let api_lcd = lcd_client.clone();
     let api_config = config.clone();
     let api_ustc = ustc_price.clone();
+    let api_fee_discount_health = fee_discount_registry_health.clone();
     let api_handle = tokio::spawn(async move {
-        if let Err(e) = api::serve(api_pool, api_lcd, api_config, api_ustc).await {
+        if let Err(e) = api::serve(
+            api_pool,
+            api_lcd,
+            api_config,
+            api_ustc,
+            api_fee_discount_health,
+        )
+        .await
+        {
             tracing::error!("API server exited with error: {}", e);
         }
     });

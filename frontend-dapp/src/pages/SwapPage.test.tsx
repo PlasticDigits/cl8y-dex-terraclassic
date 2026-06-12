@@ -99,6 +99,11 @@ describe('SwapPage', () => {
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+    vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
+      configured: true,
+      fee_discount_registry_ok: true,
+      consecutive_lcd_failures: 0,
+    })
   })
 
   it('renders without crashing', async () => {
