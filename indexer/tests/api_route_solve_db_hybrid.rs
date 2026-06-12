@@ -1,6 +1,6 @@
 //! GitLab #319: DB-backed hybrid route solver (Phase 1c).
 //! GitLab #332: `book_start_hint` on optimized hybrid hops.
-//! GitLab #369: zero-reserve pair on a candidate path must not 502 the whole solve.
+//! GitLab #369: skip zero-reserve path candidates instead of 502 on viable direct route.
 
 mod common;
 
@@ -46,6 +46,40 @@ async fn route_solve_db_hybrid_no_pair_level_lcd_calls() {
     assert_eq!(j["fidelity_check"], "passed");
     assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
     assert!(j["db_hybrid_queries"].as_u64().unwrap_or(0) > 0);
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_db_hybrid_skips_zero_reserve_path_candidate() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_zero_reserve_poison(&pool).await;
+    let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
+    let app = common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let server = TestServer::new(app);
+
+    for path in [
+        format!(
+            "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+            seed.token_a, seed.token_c
+        ),
+        format!(
+            "/api/v1/route/solve/best?token_in={}&token_out={}&amount_in=1000000",
+            seed.token_c, seed.token_a
+        ),
+    ] {
+        let resp = server.get(&path).await;
+        resp.assert_status_ok();
+        let j: Value = resp.json();
+        assert_eq!(j["solver_version"], "global_v4");
+        assert_eq!(
+            j["hops"].as_array().unwrap().len(),
+            1,
+            "direct funded pair must win over poisoned multi-hop path: {j:?}"
+        );
+        assert_eq!(j["estimated_amount_out"], "8888888");
+    }
+    // Poisoned multi-hop may trigger LCD fallback grid evals before skip; direct path must not need them.
+    let _ = hybrid_hits;
 }
 
 #[serial]

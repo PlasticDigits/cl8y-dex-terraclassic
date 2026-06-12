@@ -65,6 +65,15 @@ pub enum HybridSimSource<'a> {
 pub enum HybridSimError {
     Lcd(crate::lcd::LcdError),
     Db(db_orderbook_sim::DbSimError),
+    /// Hop cannot be simulated (e.g. zero-reserve pool with no viable book leg).
+    PathUnusable,
+}
+
+fn is_infra_lcd_error(e: &crate::lcd::LcdError) -> bool {
+    matches!(
+        e,
+        crate::lcd::LcdError::AllEndpointsFailed(_) | crate::lcd::LcdError::Request(_)
+    )
 }
 
 impl From<crate::lcd::LcdError> for HybridSimError {
@@ -245,7 +254,7 @@ async fn query_hybrid_sim_unified(
                     mirror_meta.max_snapshot_age_ms = mirror_meta
                         .max_snapshot_age_ms
                         .max(db_orderbook_sim::snapshot_age_ms(m.snapshot_at));
-                    return db_orderbook_sim::simulate_hybrid_from_mirror(
+                    match db_orderbook_sim::simulate_hybrid_from_mirror(
                         m,
                         &hop.offer_token,
                         offer_amount,
@@ -254,10 +263,19 @@ async fn query_hybrid_sim_unified(
                         max_maker_fills,
                         *discount_bps,
                         hint,
-                    )
-                    .map_err(HybridSimError::from);
-                }
-                if m.freshness == MirrorFreshness::Stale {
+                    ) {
+                        Ok(v) => return Ok(v),
+                        Err(db_orderbook_sim::DbSimError::InsufficientLiquidity) => {
+                            mirror_meta.mirror_missing_hops =
+                                mirror_meta.mirror_missing_hops.saturating_add(1);
+                            tracing::debug!(
+                                pair = %hop.pair,
+                                "mirror zero pool reserves — LCD fallback for hop"
+                            );
+                        }
+                        Err(e) => return Err(HybridSimError::from(e)),
+                    }
+                } else if m.freshness == MirrorFreshness::Stale {
                     mirror_meta.mirror_stale_hops = mirror_meta.mirror_stale_hops.saturating_add(1);
                     tracing::warn!(
                         pair = %hop.pair,
@@ -267,6 +285,12 @@ async fn query_hybrid_sim_unified(
                 } else {
                     mirror_meta.mirror_missing_hops =
                         mirror_meta.mirror_missing_hops.saturating_add(1);
+                    if m.freshness == MirrorFreshness::EmptyPool {
+                        tracing::debug!(
+                            pair = %hop.pair,
+                            "mirror empty pool — LCD fallback for hop"
+                        );
+                    }
                 }
             } else {
                 mirror_meta.mirror_missing_hops = mirror_meta.mirror_missing_hops.saturating_add(1);
@@ -291,7 +315,7 @@ async fn query_hybrid_sim_unified(
 
 async fn query_pool_only_unified(
     source: &HybridSimSource<'_>,
-    mut mirror_meta: Option<&mut MirrorLoadMeta>,
+    mirror_meta: Option<&mut MirrorLoadMeta>,
     hop: &HopDescriptor,
     offer_amount: u128,
     max_maker_fills: u32,
@@ -330,6 +354,8 @@ async fn optimize_one_hop(
     let mut best_book = 0u128;
     let mut best_out = 0u128;
     let mut any_candidate_ok = false;
+    let mut saw_infra_lcd = false;
+    let mut first_infra_lcd: Option<crate::lcd::LcdError> = None;
 
     for i in 0..GRID_POINTS {
         let book = if GRID_POINTS <= 1 {
@@ -366,6 +392,12 @@ async fn optimize_one_hop(
                     "hybrid_simulation candidate failed: {}",
                     e
                 );
+                if is_infra_lcd_error(&e) {
+                    saw_infra_lcd = true;
+                    if first_infra_lcd.is_none() {
+                        first_infra_lcd = Some(e);
+                    }
+                }
             }
             Err(HybridSimError::Db(e)) => {
                 tracing::debug!(
@@ -376,10 +408,16 @@ async fn optimize_one_hop(
                     e
                 );
             }
+            Err(HybridSimError::PathUnusable) => {}
         }
     }
 
     if !any_candidate_ok {
+        if saw_infra_lcd {
+            return Err(HybridSimError::Lcd(
+                first_infra_lcd.expect("saw_infra_lcd implies error"),
+            ));
+        }
         meta.degraded = true;
         let out =
             pool_only_or_zero(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
@@ -489,6 +527,9 @@ pub async fn optimize_multihop_hybrid_joint_lcd(
     .map_err(|e| match e {
         HybridSimError::Lcd(le) => le,
         HybridSimError::Db(_) => crate::lcd::LcdError::Deserialize("unexpected db sim".into()),
+        HybridSimError::PathUnusable => {
+            crate::lcd::LcdError::Deserialize("unexpected path unusable".into())
+        }
     })
 }
 
@@ -564,7 +605,9 @@ async fn propagate_offer_through_plan(
         {
             Ok(v) => v,
             // Degraded plans may reference book legs that no longer simulate (#190).
-            Err(HybridSimError::Lcd(_)) | Err(HybridSimError::Db(_)) => {
+            Err(HybridSimError::Lcd(_))
+            | Err(HybridSimError::Db(_))
+            | Err(HybridSimError::PathUnusable) => {
                 pool_only_or_zero(
                     source,
                     mirror_meta.as_deref_mut(),

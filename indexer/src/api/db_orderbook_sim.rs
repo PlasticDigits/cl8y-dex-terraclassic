@@ -84,6 +84,13 @@ pub enum MirrorFreshness {
     Fresh,
     MissingReserves,
     Stale,
+    /// Indexed reserves exist but at least one side is zero (unfunded pair).
+    EmptyPool,
+}
+
+/// True when the mirror row has no constant-product liquidity on either side.
+pub fn mirror_pool_is_empty(mirror: &HopMirror) -> bool {
+    mirror.reserve_0 == 0 || mirror.reserve_1 == 0
 }
 
 #[derive(Debug, Clone)]
@@ -168,7 +175,9 @@ pub async fn load_hop_mirror(
     let reserve_1 = parse_u128(&reserves.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
 
     let stale = is_snapshot_stale(reserves.snapshot_at, max_staleness_ms);
-    let freshness = if stale {
+    let freshness = if reserve_0 == 0 || reserve_1 == 0 {
+        MirrorFreshness::EmptyPool
+    } else if stale {
         MirrorFreshness::Stale
     } else if pool_reserves_unusable(reserve_0, reserve_1) {
         MirrorFreshness::MissingReserves
@@ -427,6 +436,7 @@ pub fn simulate_hybrid_from_mirror(
         return Err(match mirror.freshness {
             MirrorFreshness::Stale => DbSimError::StaleMirror,
             MirrorFreshness::MissingReserves => DbSimError::MissingMirror,
+            MirrorFreshness::EmptyPool => DbSimError::InsufficientLiquidity,
             MirrorFreshness::Fresh => unreachable!(),
         });
     }

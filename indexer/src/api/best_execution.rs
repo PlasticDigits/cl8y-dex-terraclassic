@@ -168,6 +168,10 @@ fn hybrid_sim_gateway_err(e: HybridSimError) -> (StatusCode, String) {
                 "Route mirror simulation failed".to_string(),
             )
         }
+        HybridSimError::PathUnusable => (
+            StatusCode::NOT_FOUND,
+            format!("no route within {} hops", GET_DEFAULT_MAX_HOPS),
+        ),
     }
 }
 
@@ -330,7 +334,7 @@ async fn evaluate_candidate(
     discount_bps: u16,
     mirrors: Arc<HashMap<String, db_orderbook_sim::HopMirror>>,
     solver_version: &'static str,
-) -> Result<CandidateEval, (StatusCode, String)> {
+) -> Result<Option<CandidateEval>, (StatusCode, String)> {
     let hops_desc: Vec<HopDescriptor> = cand
         .hops
         .iter()
@@ -359,16 +363,28 @@ async fn evaluate_candidate(
         None
     };
 
-    let (hybrid_plan, opt_meta, grid_out) = hybrid_route_opt::optimize_multihop_hybrid_joint(
-        &source,
-        mm,
-        &hops_desc,
-        amount_in,
-        max_maker_fills,
-        &quote_trader,
-    )
-    .await
-    .map_err(hybrid_sim_gateway_err)?;
+    let (hybrid_plan, opt_meta, grid_out) =
+        match hybrid_route_opt::optimize_multihop_hybrid_joint(
+            &source,
+            mm,
+            &hops_desc,
+            amount_in,
+            max_maker_fills,
+            &quote_trader,
+        )
+        .await
+        {
+            Ok(v) => v,
+            Err(HybridSimError::PathUnusable) => {
+                tracing::debug!(
+                    path_index = index,
+                    hops = hops_desc.len(),
+                    "skipping path candidate: unusable pool liquidity on hop"
+                );
+                return Ok(None);
+            }
+            Err(e) => return Err(hybrid_sim_gateway_err(e)),
+        };
 
     let lcd_delta = if db_mode {
         mirror_meta.lcd_fallback_queries
@@ -425,7 +441,7 @@ async fn evaluate_candidate(
         token_out_price_quote: None,
     };
 
-    Ok(CandidateEval {
+    Ok(Some(CandidateEval {
         index,
         body,
         out_u,
@@ -437,7 +453,7 @@ async fn evaluate_candidate(
         mirror_stale: mirror_meta.mirror_stale_hops > 0,
         mirror_missing: mirror_meta.mirror_missing_hops > 0,
         max_snapshot_age_ms: mirror_meta.max_snapshot_age_ms,
-    })
+    }))
 }
 
 /// Fan out path-candidate evaluation under `concurrency_cap` (#324).
@@ -504,7 +520,7 @@ async fn run_concurrent_candidate_evaluations(
     let mut evals = Vec::with_capacity(eval_count);
     while let Some(joined) = join_set.join_next().await {
         match joined {
-            Ok(Ok(eval)) => {
+            Ok(Ok(Some(eval))) => {
                 let viable = !db_mode || eval.grid_out > 0;
                 if viable {
                     evals.push(eval);
@@ -514,6 +530,38 @@ async fn run_concurrent_candidate_evaluations(
                         "skip route candidate: zero DB hybrid output"
                     );
                 }
+                if next_idx < eval_count {
+                    let cand = candidates[next_idx].clone();
+                    let idx = next_idx;
+                    let st = Arc::clone(&state);
+                    let mirrors = Arc::clone(&mirrors);
+                    let ti = token_in.clone();
+                    let to = token_out.clone();
+                    let ar = amount_raw.clone();
+                    let qt = quote_trader.clone();
+                    let sv = solver_version;
+                    join_set.spawn(async move {
+                        evaluate_candidate(
+                            st,
+                            idx,
+                            cand,
+                            ti,
+                            to,
+                            amount_in,
+                            ar,
+                            max_maker_fills,
+                            qt,
+                            db_mode,
+                            discount_bps,
+                            mirrors,
+                            sv,
+                        )
+                        .await
+                    });
+                    next_idx += 1;
+                }
+            }
+            Ok(Ok(None)) => {
                 if next_idx < eval_count {
                     let cand = candidates[next_idx].clone();
                     let idx = next_idx;
@@ -681,10 +729,7 @@ pub(crate) async fn solve_global_best_execution_inner(
     .ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
-            format!(
-                "no viable route within {} hops",
-                crate::api::route_solver::GET_DEFAULT_MAX_HOPS
-            ),
+            format!("no viable route within {} hops", GET_DEFAULT_MAX_HOPS),
         )
     })?;
 

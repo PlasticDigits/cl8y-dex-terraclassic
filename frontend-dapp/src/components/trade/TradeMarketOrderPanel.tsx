@@ -1,7 +1,7 @@
 import { useMemo, useState, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { assertSubmitHybridAligned, assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -135,6 +135,8 @@ export function TradeMarketOrderPanel({
   const [useHybridBook, setUseHybridBook] = useState(true)
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
+  const debouncedBookInputHuman = useDebouncedValue(bookInputHuman, SIM_QUOTE_DEBOUNCE_MS)
+  const debouncedHybridMaxMakers = useDebouncedValue(hybridMaxMakers, SIM_QUOTE_DEBOUNCE_MS)
 
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
@@ -157,8 +159,15 @@ export function TradeMarketOrderPanel({
   )
 
   const { hybrid: debouncedHybrid, willSubmitHybrid: debouncedWillSubmitHybrid } = useMemo(
-    () => computeHybridParams(debouncedRawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers),
-    [debouncedRawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers]
+    () =>
+      computeHybridParams(
+        debouncedRawInputAmount,
+        fromToken,
+        useHybridBook,
+        debouncedBookInputHuman,
+        debouncedHybridMaxMakers
+      ),
+    [debouncedRawInputAmount, fromToken, useHybridBook, debouncedBookInputHuman, debouncedHybridMaxMakers]
   )
 
   const marketGasMin = useMemo(
@@ -232,8 +241,8 @@ export function TradeMarketOrderPanel({
       side,
       debouncedRawInputAmount,
       useHybridBook,
-      bookInputHuman,
-      hybridMaxMakers,
+      debouncedBookInputHuman,
+      debouncedHybridMaxMakers,
       slippageTolerance,
       address,
     ],
@@ -314,9 +323,9 @@ export function TradeMarketOrderPanel({
         isDirect: true,
         useHybridBook,
         fromToken,
-        bookInputHuman: bookInputHuman.trim() ? bookInputHuman : fromRawAmount(simRaw, offerDecimals),
+        bookInputHuman: debouncedBookInputHuman.trim() ? debouncedBookInputHuman : fromRawAmount(simRaw, offerDecimals),
         rawInputAmount: simRaw,
-        hybridMaxMakers,
+        hybridMaxMakers: debouncedHybridMaxMakers,
       })
       return {
         ...sim,
@@ -335,12 +344,27 @@ export function TradeMarketOrderPanel({
 
   const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true
 
-  const { submitPayRaw, simData, minReceived, isSubmitReady } = useSubmitAlignedSimQuote({
+  const hybridSubmitSnapshot = useMemo(
+    () => ({
+      bookInputHuman: debouncedBookInputHuman,
+      hybridMaxMakers: debouncedHybridMaxMakers,
+    }),
+    [debouncedBookInputHuman, debouncedHybridMaxMakers]
+  )
+
+  const { submitPayRaw, simData, minReceived, isSubmitReady, snapshottedHybrid } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
     simQuery,
     slippageTolerance,
     extraSubmitBlocked: priceImpactTooHigh,
+    hybrid: useHybridBook
+      ? {
+          enabled: true,
+          live: { bookInputHuman, hybridMaxMakers },
+          snapshotted: hybridSubmitSnapshot,
+        }
+      : undefined,
   })
 
   const swapMutation = useTerraBroadcastMutation({
@@ -349,6 +373,9 @@ export function TradeMarketOrderPanel({
       if (!address || !selectedPair) throw new Error('Connect wallet')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
+      if (snapshottedHybrid) {
+        assertSubmitHybridAligned({ bookInputHuman, hybridMaxMakers }, snapshottedHybrid)
+      }
       if (!simData) throw new Error('Quote unavailable')
       const payRaw = submitPayRaw
       const submitMinReceived = minReceived

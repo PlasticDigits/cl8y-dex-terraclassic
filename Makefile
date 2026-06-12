@@ -326,6 +326,13 @@ lint-frontend:
 indexer-dev:
 	cd indexer && cargo run
 
+# Operator recovery after reorg halt (dry-run unless HEIGHT=… APPLY=1 CLEANUP=1)
+indexer-reorg-recover:
+	@args="--height $(HEIGHT)"; \
+	[ -n "$(APPLY)" ] && args="$$args --apply"; \
+	[ -n "$(CLEANUP)" ] && args="$$args --cleanup-derived"; \
+	./scripts/indexer-reorg-recover.sh $$args
+
 # Full devnet lifecycle: start infra, build, deploy, start indexer & frontend
 dev-full: start wait-healthy build-optimized deploy-local
 	@echo ""
