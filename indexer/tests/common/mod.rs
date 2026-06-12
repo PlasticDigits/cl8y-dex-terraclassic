@@ -40,6 +40,8 @@ pub fn test_config() -> Config {
         lcd_urls: vec!["http://localhost:9999".to_string()],
         factory_address: "terra1factory".to_string(),
         fee_discount_address: None,
+        tier_sync_reconcile_interval_secs:
+            cl8y_dex_indexer::indexer::trader_tracker::DEFAULT_TIER_RECONCILE_INTERVAL_SECS,
         poll_interval_ms: 6000,
         api_port: 0,
         api_bind: "127.0.0.1".to_string(),

@@ -70,6 +70,8 @@ pub struct Config {
     pub lcd_urls: Vec<String>,
     pub factory_address: String,
     pub fee_discount_address: Option<String>,
+    /// Drift-correction full reconcile interval (seconds). Event-driven updates are primary (GitLab #364).
+    pub tier_sync_reconcile_interval_secs: u64,
     pub poll_interval_ms: u64,
     pub api_port: u16,
     pub api_bind: String,
@@ -166,6 +168,10 @@ impl Config {
             lcd_urls,
             factory_address,
             fee_discount_address: env::var("FEE_DISCOUNT_ADDRESS").ok(),
+            tier_sync_reconcile_interval_secs: env::var("TIER_SYNC_RECONCILE_INTERVAL")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(crate::indexer::trader_tracker::DEFAULT_TIER_RECONCILE_INTERVAL_SECS),
             poll_interval_ms: env::var("POLL_INTERVAL_MS")
                 .ok()
                 .and_then(|v| v.parse().ok())

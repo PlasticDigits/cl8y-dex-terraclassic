@@ -41,8 +41,15 @@ pub async fn run_indexer(
     let tier_pool = pool.clone();
     let tier_lcd = lcd.clone();
     let fee_addr = config.fee_discount_address.clone();
+    let tier_reconcile_secs = config.tier_sync_reconcile_interval_secs;
     tokio::spawn(async move {
-        trader_tracker::run_tier_sync_loop(tier_pool, tier_lcd, fee_addr).await;
+        trader_tracker::run_tier_reconcile_loop(
+            tier_pool,
+            tier_lcd,
+            fee_addr,
+            tier_reconcile_secs,
+        )
+        .await;
     });
 
     let oracle_pool = pool.clone();
