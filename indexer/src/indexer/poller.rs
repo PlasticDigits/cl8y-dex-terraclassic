@@ -7,7 +7,8 @@ use crate::db::queries::{state, volume};
 use crate::lcd::LcdClient;
 
 use super::{
-    block_indexer, book_snapshot, oracle, pair_discovery, trader_tracker, volume_aggregator,
+    block_indexer, book_snapshot, oracle, pair_discovery, reorg_alert, trader_tracker,
+    volume_aggregator,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -40,8 +41,15 @@ pub async fn run_indexer(
     let tier_pool = pool.clone();
     let tier_lcd = lcd.clone();
     let fee_addr = config.fee_discount_address.clone();
+    let tier_reconcile_secs = config.tier_sync_reconcile_interval_secs;
     tokio::spawn(async move {
-        trader_tracker::run_tier_sync_loop(tier_pool, tier_lcd, fee_addr).await;
+        trader_tracker::run_tier_reconcile_loop(
+            tier_pool,
+            tier_lcd,
+            fee_addr,
+            tier_reconcile_secs,
+        )
+        .await;
     });
 
     let oracle_pool = pool.clone();
@@ -111,11 +119,19 @@ pub async fn run_indexer(
             if let Err(e) =
                 block_indexer::verify_checkpoint_unchanged(&lcd, &pool, last_indexed).await
             {
-                tracing::error!(
-                    last_indexed,
-                    error = %e,
-                    "Reorg detected — halting indexer (see docs/runbooks/indexer-reorg-replay-dedup.md)"
-                );
+                if let block_indexer::BlockIndexError::ReorgDetected {
+                    height,
+                    stored,
+                    canonical,
+                } = &e
+                {
+                    reorg_alert::emit_reorg_halt(&reorg_alert::ReorgHaltDetails::new(
+                        *height,
+                        stored.clone(),
+                        canonical.clone(),
+                    ))
+                    .await;
+                }
                 return Err(e.into());
             }
 
@@ -139,12 +155,12 @@ pub async fn run_indexer(
                     stored,
                     canonical,
                 }) => {
-                    tracing::error!(
+                    reorg_alert::emit_reorg_halt(&reorg_alert::ReorgHaltDetails::new(
                         reorg_height,
-                        stored_hash = %stored,
-                        canonical_hash = %canonical,
-                        "Reorg detected — halting indexer"
-                    );
+                        stored.clone(),
+                        canonical.clone(),
+                    ))
+                    .await;
                     return Err(block_indexer::BlockIndexError::ReorgDetected {
                         height: reorg_height,
                         stored,

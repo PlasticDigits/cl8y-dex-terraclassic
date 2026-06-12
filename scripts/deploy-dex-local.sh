@@ -969,9 +969,9 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:4173,h
 API_PORT=${API_PORT:-3001}
 API_BIND=127.0.0.1
 POLL_INTERVAL_MS=2000
-# 0 disables tower-governor locally so Playwright + React Query bursts do not 429 the UI.
+# 0 disables the global tower-governor locally so Playwright + React Query bursts do not 429 the UI.
 RATE_LIMIT_RPS=0
-# LCD-heavy routes keep default 10 RPS (unset = 10); explicit for QA template (#363).
+# LCD-heavy routes keep explicit 10 RPS cap for QA template (#363); applies even when global RATE_LIMIT_RPS=0.
 RATE_LIMIT_LCD_HEAVY_RPS=10
 ENVEOF
 echo "  Written to indexer/.env"

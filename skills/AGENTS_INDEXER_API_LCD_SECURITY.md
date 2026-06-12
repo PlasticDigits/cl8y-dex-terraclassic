@@ -40,7 +40,9 @@ Legitimate frontend polling (e.g. deep book, route preview) should stay under **
 | `API_IPV6_ENABLED` | off | When off (default), API binds **IPv4-only** and rejects IPv6 `API_BIND` ([#282](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/282)) |
 | `RUN_MODE=prod` | — | Requires operator `LCD_URLS` (no public defaults) |
 
-See [`indexer/.env.example`](../indexer/.env.example).
+See [`indexer/.env.example`](../indexer/.env.example) and [`docs/operator-secrets.md`](../docs/operator-secrets.md) (prod vs QA vs local profiles, GitLab **#363**).
+
+**429 shape:** HTTP **429** with `Retry-After` and `x-ratelimit-*` headers; minimal body. Burst size = `2 × RPS` per governor layer.
 
 ## Tests
 

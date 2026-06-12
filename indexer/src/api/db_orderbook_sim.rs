@@ -78,6 +78,13 @@ pub enum MirrorFreshness {
     Fresh,
     MissingReserves,
     Stale,
+    /// Indexed reserves exist but at least one side is zero (unfunded pair).
+    EmptyPool,
+}
+
+/// True when the mirror row has no constant-product liquidity on either side.
+pub fn mirror_pool_is_empty(mirror: &HopMirror) -> bool {
+    mirror.reserve_0 == 0 || mirror.reserve_1 == 0
 }
 
 #[derive(Debug, Clone)]
@@ -158,15 +165,17 @@ pub async fn load_hop_mirror(
         .await?
         .ok_or(DbSimError::MissingMirror)?;
 
+    let reserve_0 = parse_u128(&reserves.reserve_0).ok_or(DbSimError::InvalidNumeric)?;
+    let reserve_1 = parse_u128(&reserves.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
+
     let stale = is_snapshot_stale(reserves.snapshot_at, max_staleness_ms);
-    let freshness = if stale {
+    let freshness = if reserve_0 == 0 || reserve_1 == 0 {
+        MirrorFreshness::EmptyPool
+    } else if stale {
         MirrorFreshness::Stale
     } else {
         MirrorFreshness::Fresh
     };
-
-    let reserve_0 = parse_u128(&reserves.reserve_0).ok_or(DbSimError::InvalidNumeric)?;
-    let reserve_1 = parse_u128(&reserves.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
 
     let bids = resting_orders::get_pair_resting_book(&mut *tx, pair_row.id, "bid").await?;
     let asks = resting_orders::get_pair_resting_book(&mut *tx, pair_row.id, "ask").await?;
@@ -419,6 +428,7 @@ pub fn simulate_hybrid_from_mirror(
         return Err(match mirror.freshness {
             MirrorFreshness::Stale => DbSimError::StaleMirror,
             MirrorFreshness::MissingReserves => DbSimError::MissingMirror,
+            MirrorFreshness::EmptyPool => DbSimError::InsufficientLiquidity,
             MirrorFreshness::Fresh => unreachable!(),
         });
     }
@@ -643,6 +653,18 @@ mod tests {
         )
         .unwrap();
         assert!(from_hint > head_only);
+    }
+
+    #[test]
+    fn zero_reserve_mirror_rejects_pool_leg() {
+        let m = HopMirror {
+            reserve_0: 0,
+            reserve_1: 0,
+            freshness: MirrorFreshness::EmptyPool,
+            ..mirror_with_book(vec![])
+        };
+        let err = simulate_pool_only_from_mirror(&m, "terra1token0", 100_000, 0).unwrap_err();
+        assert!(matches!(err, DbSimError::InsufficientLiquidity));
     }
 
     #[test]

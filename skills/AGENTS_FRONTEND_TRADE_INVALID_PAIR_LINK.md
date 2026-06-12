@@ -18,7 +18,7 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 ## Invalid pair (GitLab #176)
 
 1. **Validate with `isValidTerraAddress`** — do not gate only on `startsWith('terra1')`; short garbage like `terra1` must be treated as invalid.
-2. **Never keep garbage in URL or selector** — replace to `/trade` and keep `pairAddr` empty until user selection.
+2. **Never keep garbage in URL or selector** — replace to `/trade` with `state: { invalidPair }` / `{ unknownPair }` and keep `pairAddr` empty until user selection. Notices live in **router location state**, not component `useState` — [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) keys `<Outlet>` on `pathname` and remounts on `/trade/:addr` → `/trade` ([#358](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/358)).
 3. **Do not auto-redirect to first pair** while the invalid-link notice is visible unless product explicitly changes that invariant.
 4. Manual repro: `http://localhost:3000/trade/lilwayne%20babyyy` or `terra1damThat'scrazy` (charset fails regex).
 
@@ -26,7 +26,7 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 
 1. **Factory list is the gate** — after `getAllPairsPaginated` succeeds, if `routePair` is valid-format but not in `pairs[].contract_addr`, show **Pair not found** (`PairNotFoundLinkNotice`). **No bech32 checksum** on URL segments.
 2. **Do not set `pairAddr` until known** — avoids indexer 404 loops and ambiguous “not indexed yet” copy for regex-valid garbage (e.g. `terra1` + 38× `x`).
-3. **Same URL/selector hygiene** as invalid links: `navigate('/trade', { replace: true })`, empty `MenuSelect` value, block auto-pick while notice is visible.
+3. **Same URL/selector hygiene** as invalid links: `navigate('/trade', { replace: true, state: { unknownPair } })`, empty `MenuSelect` value, block auto-pick while notice is visible.
 4. Manual repro: `http://localhost:3000/trade/terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` with LocalTerra + factory pairs loaded.
 5. **Do not mount trade workspace** while `isPendingTradePairRouteResolution` or link notices are active — use `shouldShowTradeWorkspace` so book/chart/ticket never render empty when `getPair` has no pair ([#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175) follow-up).
 6. **Indexer 404 fallback** — `isIndexerPairNotFoundError` + factory check: unknown segment that slipped through must show **Pair not found**, not indexer outage or blank workspace.
@@ -39,7 +39,7 @@ Use when changing **`/trade/:pairAddr`** routing, pair selector sync, or empty-s
 
 ## Regression tests
 
-Extend [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) and [`tradePairRoute.test.ts`](../frontend-dapp/src/utils/__tests__/tradePairRoute.test.ts).
+Extend [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) and [`tradePairRoute.test.ts`](../frontend-dapp/src/utils/__tests__/tradePairRoute.test.ts). **Layout-parity** tests mount trade routes under `<Outlet key={location.pathname} />` — flat routers cannot catch notice loss on remount ([#358](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/358)).
 
 ## Related
 
