@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -8,12 +8,26 @@ const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../
 const patchesDir = resolve(frontendRoot, 'patches')
 const patchHashFile = resolve(patchesDir, '.cosmes-patch-sha256')
 
-function findCosmesPatchFile(): string {
-  const match = readdirSync(patchesDir).find((name) => name.startsWith('@goblinhunt+cosmes') && name.endsWith('.patch'))
-  if (!match) {
-    throw new Error('No @goblinhunt/cosmes patch file under frontend-dapp/patches/')
+function cosmesLockfileVersion(): string {
+  const lock = JSON.parse(readFileSync(resolve(frontendRoot, 'package-lock.json'), 'utf8')) as {
+    packages?: Record<string, { version?: string }>
   }
-  return resolve(patchesDir, match)
+  const version = lock.packages?.['node_modules/@goblinhunt/cosmes']?.version
+  if (!version) {
+    throw new Error('Could not resolve @goblinhunt/cosmes version from package-lock.json')
+  }
+  return version
+}
+
+function findCosmesPatchFile(): string {
+  const version = cosmesLockfileVersion()
+  const patchPath = resolve(patchesDir, `@goblinhunt+cosmes+${version}.patch`)
+  if (!existsSync(patchPath)) {
+    throw new Error(
+      `No patch file for @goblinhunt/cosmes@${version} (expected patches/@goblinhunt+cosmes+${version}.patch)`
+    )
+  }
+  return patchPath
 }
 
 function sha256HexFile(path: string): string {
