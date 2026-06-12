@@ -15,6 +15,9 @@ import {
 import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
 import { buildTerraClassicFee } from './terraGas'
 import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
+import { terraRecoveryPollDeadlineUnix } from './terraMsgDeadline'
+import { pollTerraTxRecovery } from './terraTxRecoveryPoll'
+import { installSignedTxHashCapture } from './terraWalletSignTxRaw'
 import { withTerraWalletSignLock } from './terraWalletSignLock'
 
 export type TerraExecuteContractEntry = {
@@ -23,7 +26,7 @@ export type TerraExecuteContractEntry = {
   coins?: Array<{ denom: string; amount: string }>
 }
 
-export type TerraBroadcastPhase = 'signing' | 'broadcasting' | 'confirming'
+export type TerraBroadcastPhase = 'signing' | 'broadcasting' | 'confirming' | 'recovering'
 
 export type TerraBroadcastPhaseChangeContext = {
   txHash?: string
@@ -31,6 +34,15 @@ export type TerraBroadcastPhaseChangeContext = {
 
 export type TerraBroadcastOptions = {
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
+}
+
+function isPostSignBroadcastFailure(error: unknown, signedTxHash: string | null): boolean {
+  if (!signedTxHash) return false
+  if (!(error instanceof Error)) return true
+  const msg = error.message
+  if (msg === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE) return true
+  if (/failed to fetch|networkerror|network error/i.test(msg)) return true
+  return false
 }
 
 function handleBroadcastError(error: unknown): Error {
@@ -117,16 +129,29 @@ export async function broadcastTerraExecuteContracts(
     await prepareStationExtensionForTerraClassicSign(wallet)
   }
 
+  const capture = installSignedTxHashCapture()
   try {
     onPhaseChange?.('signing')
-    const txHash = await withTerraWalletSignLock(() => {
-      onPhaseChange?.('broadcasting')
-      return withPromiseTimeout(
-        wallet.broadcastTx(unsignedTx, fee),
-        TERRA_TX_BROADCAST_TIMEOUT_MS,
-        TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
-      )
-    })
+    let txHash: string
+    try {
+      txHash = await withTerraWalletSignLock(() => {
+        onPhaseChange?.('broadcasting')
+        return withPromiseTimeout(
+          wallet.broadcastTx(unsignedTx, fee),
+          TERRA_TX_BROADCAST_TIMEOUT_MS,
+          TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+        )
+      })
+    } catch (broadcastError: unknown) {
+      const signedHash = capture.signedTxHash
+      if (isPostSignBroadcastFailure(broadcastError, signedHash)) {
+        onPhaseChange?.('recovering', { txHash: signedHash! })
+        await pollTerraTxRecovery(wallet, signedHash!, terraRecoveryPollDeadlineUnix(entries))
+        return signedHash!
+      }
+      throw broadcastError
+    }
+
     onPhaseChange?.('confirming', { txHash })
     const { txResponse } = await withPromiseTimeout(
       wallet.pollTx(txHash),
@@ -144,5 +169,7 @@ export async function broadcastTerraExecuteContracts(
   } catch (error: unknown) {
     console.error('Terra Classic transaction error:', error)
     throw handleBroadcastError(error)
+  } finally {
+    capture.restore()
   }
 }

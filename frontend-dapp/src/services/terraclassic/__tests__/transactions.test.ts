@@ -26,6 +26,7 @@ vi.mock('@/services/terraclassic/wallet', () => ({
 
 vi.mock('@goblinhunt/cosmes/client', () => ({
   MsgExecuteContract: MockMsgExecuteContract,
+  RpcClient: { broadcastTx: vi.fn().mockResolvedValue('MOCK_TX_HASH') },
 }))
 
 vi.mock('@goblinhunt/cosmes/protobufs', () => ({

@@ -15,6 +15,8 @@ export function terraBroadcastPendingButtonLabel(
       return 'Broadcasting…'
     case 'confirming':
       return 'Confirming…'
+    case 'recovering':
+      return 'Broadcast status unknown…'
     default:
       return pendingFallback ?? idleLabel
   }

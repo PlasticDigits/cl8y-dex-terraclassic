@@ -10,6 +10,7 @@ describe('terraBroadcastPendingButtonLabel (GitLab #305)', () => {
     expect(terraBroadcastPendingButtonLabel('signing', true, 'Swap', 'Swapping…')).toBe('Signing…')
     expect(terraBroadcastPendingButtonLabel('broadcasting', true, 'Swap', 'Swapping…')).toBe('Broadcasting…')
     expect(terraBroadcastPendingButtonLabel('confirming', true, 'Swap', 'Swapping…')).toBe('Confirming…')
+    expect(terraBroadcastPendingButtonLabel('recovering', true, 'Swap', 'Swapping…')).toBe('Broadcast status unknown…')
   })
 
   it('falls back when pending without a tracked phase', () => {
