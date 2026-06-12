@@ -1,6 +1,6 @@
 # Agent playbook: accessibility CI (axe + critical routes)
 
-Use when adding **retail-critical UI** on `/trade`, `/charts`, or the **header wallet** flows, or when changing **ARIA** on chart, order book, or order ticket widgets.
+Use when adding **retail-critical UI** on `/trade`, `/charts`, `/swap`, `/limits`, `/pool`, `/portfolio`, or the **header wallet** flows, or when changing **ARIA** on chart, order book, or order ticket widgets.
 
 ## Canonical references
 
@@ -17,7 +17,7 @@ Use when adding **retail-critical UI** on `/trade`, `/charts`, or the **header w
 2. **Order book structure** — `OrderBookPanel` uses `<table>` / `<th scope="col">` per side; depth bars are `aria-hidden`; row actions keep `aria-label` with `order_id`. Each side’s `overflow-y-auto` list is a focusable `role="region"` (`tabIndex={0}`) for keyboard scroll per axe `scrollable-region-focusable`.
 3. **Order type tabs** — `TradeOrderTicket` limit/market: `tablist` + `tab` + `tabpanel` with `aria-controls` / `aria-labelledby`; pair-paused banner uses `role="alert"`.
 4. **Wallet menu** — `role="menu"` wraps **menuitems only** (header `AddressRow` sits outside); focus moves to first `menuitem` on open and returns to trigger on Escape/close ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)).
-5. **axe gate** — WCAG 2.1 A+AA tags; **zero critical/serious** on scanned routes. Canvas excluded via `[data-testid="price-chart-lightweight-canvas"] canvas` only.
+5. **axe gate** — WCAG 2.1 A+AA tags; **zero critical/serious** on scanned routes (`/trade`, `/charts`, `/swap`, `/limits`, `/pool`, `/portfolio`, wallet chrome — [#366](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/366)). Canvas excluded via `[data-testid="price-chart-lightweight-canvas"] canvas` only.
 6. **No silent rule disables** — document any `disableRules` in spec comments + `docs/frontend.md`.
 
 ## Related skills

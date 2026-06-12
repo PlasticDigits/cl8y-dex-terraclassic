@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDecimalAmountDraft, tryParseBigInt } from './decimalAmountInput'
+import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from './decimalAmountInput'
 
 describe('isDecimalAmountDraft', () => {
   it('accepts empty, integers, and a single decimal point', () => {
@@ -18,6 +18,29 @@ describe('isDecimalAmountDraft', () => {
     expect(isDecimalAmountDraft('4\\000000')).toBe(false)
     expect(isDecimalAmountDraft('abc')).toBe(false)
     expect(isDecimalAmountDraft('1.2.3')).toBe(false)
+  })
+})
+
+describe('isPositiveDecimalAmount', () => {
+  const aboveSafeInt = '9007199254740992'
+
+  it('is false for empty, zero, and invalid drafts', () => {
+    expect(isPositiveDecimalAmount('')).toBe(false)
+    expect(isPositiveDecimalAmount('0')).toBe(false)
+    expect(isPositiveDecimalAmount('0.0')).toBe(false)
+    expect(isPositiveDecimalAmount('1,5')).toBe(false)
+  })
+
+  it('is true for positive drafts including above Number.MAX_SAFE_INTEGER', () => {
+    expect(isPositiveDecimalAmount('0.01')).toBe(true)
+    expect(isPositiveDecimalAmount(aboveSafeInt)).toBe(true)
+    expect(isPositiveDecimalAmount(`${aboveSafeInt}.5`)).toBe(true)
+  })
+
+  it('does not rely on parseFloat for integers above MAX_SAFE_INTEGER', () => {
+    expect(parseFloat('9007199254740993')).toBe(9007199254740992)
+    expect(isPositiveDecimalAmount('9007199254740993')).toBe(true)
+    expect(isPositiveDecimalAmount(`${aboveSafeInt}1`)).toBe(true)
   })
 })
 

@@ -64,10 +64,10 @@ pub async fn verify_checkpoint_unchanged(
             source: e,
         })?;
 
-    let Some(stored_hash) = stored else {
+    let Some(stored_hash) = stored.filter(|h| !h.is_empty()) else {
         tracing::warn!(
             height,
-            "No last_indexed_block_hash stored; skipping reorg check (legacy cursor)"
+            "No last_indexed_block_hash stored; skipping reorg check (legacy cursor or post-recovery)"
         );
         return Ok(());
     };

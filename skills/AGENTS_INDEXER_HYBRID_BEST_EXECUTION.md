@@ -41,6 +41,15 @@ Key invariant: **`return_amount` is the consolidated total**; do not add `limit_
 
 Full spec: [docs/CG_CMC_COMPLIANCE.md](../docs/CG_CMC_COMPLIANCE.md#consolidated-hybrid--pool-only-reporting-gitlab-189).
 
+## Zero-reserve pairs (GitLab #369)
+
+Under `ROUTE_SOLVER_DB_HYBRID=1`, indexed pairs with **zero** `pair_reserves` on either side are normal (unfunded `create_pair`). The global solver must **not** return **502** when a longer candidate path touches such a pair but a **shorter funded path** exists (e.g. direct pool). Behavior:
+
+- Mirror load marks `0/0` reserves as `EmptyPool` freshness → per-hop LCD fallback (same degradation bucket as missing mirror).
+- Path candidates that cannot simulate any hop (zero pool + no viable book) are **skipped**; the request succeeds on the best remaining path or **404** when every enumerated path is unusable.
+
+Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`.
+
 ## Tests to run after changes
 
 ```bash
