@@ -11,10 +11,27 @@ This document describes **how to handle secrets** when operating the indexer and
 | `CORS_ORIGINS` | Browser origin allowlist | Not a substitute for auth; restrict to your frontends. |
 | `FACTORY_ADDRESS` | On-chain factory | Public address; not secret. |
 | `FEE_DISCOUNT_ADDRESS`, `ROUTER_ADDRESS`, `USTC_DENOM` | Optional config | Same as factory—addresses are public. |
+| `RATE_LIMIT_RPS` | Global per-IP API governor | Default **60** RPS. **`RUN_MODE=prod`:** `0` is clamped to **60** with a startup warning. Set both env vars to **`0`** in dev only to disable all governors. |
+| `RATE_LIMIT_LCD_HEAVY_RPS` | Stricter per-IP limit on LCD-heavy routes | Default **10** RPS. **`RUN_MODE=prod`:** `0` is clamped to **10** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). |
+
+## Rate limits (production)
+
+LCD-heavy routes fan out multiple upstream LCD `smart` queries per HTTP request. They use a **separate** `tower_governor` layer in addition to the global limit. Full route list and invariants: [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md), [`indexer-invariants.md`](./indexer-invariants.md).
+
+| Profile | `RATE_LIMIT_RPS` | `RATE_LIMIT_LCD_HEAVY_RPS` | Notes |
+|---------|------------------|----------------------------|--------|
+| **Mainnet / prod** | **60** (min) | **10** (min) | Set `RUN_MODE=prod`. Do not set either to `0`. |
+| **QA / staging** | **60** | **10** | Match prod limits unless load-testing with isolated infra. |
+| **Local dev / Playwright** | **0** (global off) | **10** (default) | `deploy-dex-local.sh` writes `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=10` so UI bursts do not 429 on `/health` while route/solve stays bounded. |
+
+**429 response:** HTTP **429 Too Many Requests** with `Retry-After` and `x-ratelimit-*` headers (`tower_governor` `use_headers()`). Empty or minimal body — clients should back off and respect `Retry-After`. Keys on **socket peer IP** only (no trusted `X-Forwarded-For`).
+
+**Integrator guidance:** debounced swap/trade quotes (`/api/v1/route/solve/best`) should stay under **10 RPS per IP**; use CG/CMC orderbook caches instead of hammering `limit-book` walks. See [`integrators.md`](./integrators.md).
 
 ## `RUN_MODE=prod`
 
 - `RUN_MODE=prod` requires non-empty `DATABASE_URL`, `FACTORY_ADDRESS`, `CORS_ORIGINS`, and **LCD URLs that are not the built-in public default list** (`indexer/src/config.rs`).
+- Production startup logs effective `RATE_LIMIT_RPS` and `RATE_LIMIT_LCD_HEAVY_RPS`; warnings are emitted if env had `0` for either knob.
 
 ## Observability
 

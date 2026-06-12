@@ -26,6 +26,11 @@ const DEFAULT_LCD_URLS: &str = "https://terra-classic-lcd.publicnode.com,\
              https://columbus-lcd.terra.dev,\
              https://lcd.terra-classic.hexxagon.io";
 
+/// Default global API rate limit (requests per second per client IP).
+pub const DEFAULT_RATE_LIMIT_RPS: u64 = 60;
+/// Default LCD-heavy route rate limit (requests per second per client IP).
+pub const DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS: u64 = 10;
+
 fn normalized_lcd_url_list(s: &str) -> String {
     s.split(',')
         .map(|p| p.trim())
@@ -185,9 +190,12 @@ impl Config {
                 let mut rps = env::var("RATE_LIMIT_RPS")
                     .ok()
                     .and_then(|v| v.parse().ok())
-                    .unwrap_or(60);
+                    .unwrap_or(DEFAULT_RATE_LIMIT_RPS);
                 if run_mode == RunMode::Prod && rps == 0 {
-                    rps = 60;
+                    tracing::warn!(
+                        "RUN_MODE=prod: RATE_LIMIT_RPS=0 is not allowed; using {DEFAULT_RATE_LIMIT_RPS} RPS"
+                    );
+                    rps = DEFAULT_RATE_LIMIT_RPS;
                 }
                 rps
             },
@@ -195,9 +203,12 @@ impl Config {
                 let mut rps = env::var("RATE_LIMIT_LCD_HEAVY_RPS")
                     .ok()
                     .and_then(|v| v.parse().ok())
-                    .unwrap_or(10);
+                    .unwrap_or(DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS);
                 if run_mode == RunMode::Prod && rps == 0 {
-                    rps = 10;
+                    tracing::warn!(
+                        "RUN_MODE=prod: RATE_LIMIT_LCD_HEAVY_RPS=0 is not allowed; using {DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS} RPS (GitLab #363)"
+                    );
+                    rps = DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS;
                 }
                 rps
             },
