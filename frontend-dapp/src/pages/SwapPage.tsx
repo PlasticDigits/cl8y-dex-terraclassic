@@ -51,7 +51,8 @@ import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataSer
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
-import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
+import { isDecimalAmountDraft, isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
+import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
@@ -72,6 +73,7 @@ import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
   SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
+  parseSlippagePercent,
   resolveRouteSlippagePercent,
   resolveSwapExpectedSlippagePercent,
   slippageSeverityClass,
@@ -169,8 +171,7 @@ export default function SwapPage() {
     if (!isDirect || !useHybridBook || !fromToken.startsWith('terra1')) return false
     const t = bookInputHuman.trim()
     if (!t) return false
-    const n = parseFloat(t)
-    return !Number.isNaN(n) && n > 0
+    return isPositiveDecimalAmount(t)
   }, [isDirect, useHybridBook, fromToken, bookInputHuman])
 
   /** CW20-only paths may be solvable via indexer hybrid graph even when the local pair list BFS misses (e.g. hop cap). */
@@ -381,7 +382,7 @@ export default function SwapPage() {
     queryKey: simQueryKey,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<SwapSimData> => {
-      if (!debouncedInputAmount || parseFloat(debouncedInputAmount) <= 0) throw new Error('Missing params')
+      if (!isPositiveDecimalAmount(debouncedInputAmount)) throw new Error('Missing params')
 
       const simRaw = debouncedRawInputAmount
       const maxSpreadStr = (slippageTolerance / 100).toString()
@@ -546,7 +547,7 @@ export default function SwapPage() {
       }
       throw new Error('No route found')
     },
-    enabled: hasRoute && !!debouncedInputAmount && parseFloat(debouncedInputAmount) > 0,
+    enabled: hasRoute && isPositiveDecimalAmount(debouncedInputAmount),
     refetchInterval: 10_000,
   })
 
@@ -738,16 +739,13 @@ export default function SwapPage() {
   })
 
   const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
+  const hasPositiveInputAmount = isPositiveDecimalAmount(inputAmount)
   const simQuoteUnavailable =
-    !isWrapOrUnwrap &&
-    !!inputAmount &&
-    parseFloat(inputAmount) > 0 &&
-    (simQuery.isError || (!simQuery.isLoading && !simData))
+    !isWrapOrUnwrap && hasPositiveInputAmount && (simQuery.isError || (!simQuery.isLoading && !simData))
   const showSimRetryError =
     simQuery.isError &&
     !isWrapOrUnwrap &&
-    !!inputAmount &&
-    parseFloat(inputAmount) > 0 &&
+    hasPositiveInputAmount &&
     !indexerOutage &&
     !isIndexerPairNotFoundError(simQuery.error)
 
@@ -757,14 +755,7 @@ export default function SwapPage() {
   const hopSpreadPercent = simData
     ? simData.routePreflight != null
       ? simData.routePreflight.worstSpreadPercent
-      : (() => {
-          const total =
-            parseFloat(simData.return_amount) +
-            parseFloat(simData.commission_amount) +
-            parseFloat(simData.spread_amount)
-          if (total === 0) return '0'
-          return ((parseFloat(simData.spread_amount) / total) * 100).toFixed(2)
-        })()
+      : spreadPercentFromRawSim(simData.return_amount, simData.commission_amount, simData.spread_amount)
     : null
 
   const expectedSlippagePct = simData
@@ -840,10 +831,7 @@ export default function SwapPage() {
   const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
 
   const insufficientBalance =
-    !!inputAmount &&
-    parseFloat(inputAmount) > 0 &&
-    balanceQuery.data !== undefined &&
-    BigInt(rawInputAmount) > BigInt(balanceQuery.data)
+    hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
 
   let buttonText = 'Swap'
   let buttonDisabled = false
@@ -859,7 +847,7 @@ export default function SwapPage() {
   } else if (tradingBlacklist.blocked) {
     buttonText = 'Trading restricted'
     buttonDisabled = true
-  } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
+  } else if (!hasPositiveInputAmount) {
     buttonText = 'Enter Amount'
     buttonDisabled = true
   } else if (isRateLimitExceeded) {
@@ -973,7 +961,7 @@ export default function SwapPage() {
             />
           )}
 
-          {simQuery.isError && indexerOutage && !isWrapOrUnwrap && !!inputAmount && parseFloat(inputAmount) > 0 && (
+          {simQuery.isError && indexerOutage && !isWrapOrUnwrap && hasPositiveInputAmount && (
             <p className="alert-error text-xs mb-4" data-testid="swap-quote-unavailable">
               {humanizeUserFacingErrorFromUnknown(simQuery.error)}
             </p>
@@ -1440,14 +1428,16 @@ export default function SwapPage() {
                     data-testid="swap-expected-slippage"
                   >
                     <span className="uppercase text-xs tracking-wide font-medium">Expected slippage</span>
-                    <span className={slippageSeverityClass(parseFloat(priceImpact))}>{priceImpact}%</span>
+                    <span className={slippageSeverityClass(parseSlippagePercent(priceImpact) ?? 0)}>
+                      {priceImpact}%
+                    </span>
                   </div>
                   {simData?.routeSlippagePercent && (
                     <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
                       vs best-route token prices (indexer). Hop spread: {hopSpreadPercent ?? '—'}%.
                     </p>
                   )}
-                  {parseFloat(priceImpact) > 5 && (
+                  {(parseSlippagePercent(priceImpact) ?? 0) > 5 && (
                     <div className="col-span-2 alert-error !text-xs">
                       High expected slippage! The quoted route deviates significantly from fair cross-rate token prices.
                     </div>
@@ -1588,7 +1578,7 @@ export default function SwapPage() {
                 openWalletModal()
                 return
               }
-              if (priceImpact && parseFloat(priceImpact) > 5 && !showImpactConfirm) {
+              if (priceImpact && (parseSlippagePercent(priceImpact) ?? 0) > 5 && !showImpactConfirm) {
                 setShowImpactConfirm(true)
                 return
               }
