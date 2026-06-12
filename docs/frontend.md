@@ -59,6 +59,33 @@ The dApp connects to Terra Classic wallets using the Station browser extension o
 - **Network detection:** the `VITE_NETWORK` env var controls which chain the dApp targets (`mainnet`, `testnet`, `local`).
 - **Signing:** all transactions use the connected wallet's signer. The dApp never handles private keys in production; the Simulated Wallet (dev only) is an exception and is described below.
 
+### Forked `@goblinhunt/cosmes` and patch-package {#cosmes-fork-patches}
+
+Wallet signing uses the fork **`@goblinhunt/cosmes`** (`frontend-dapp/package.json`, exact version pinned in `package-lock.json`). Upstream cosmes does not ship the Terra Classic extension mitigations we need ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127), [#208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)). Local changes are applied with **`patch-package`** on every install:
+
+| Artifact | Purpose |
+|----------|---------|
+| [`patches/@goblinhunt+cosmes+*.patch`](../frontend-dapp/patches/) | `KeplrExtension`: per-sign **`preferNoSetFee`**, post-sign fee guard vs **`stdDoc.fee`**; `StationController`: extension → **amino always** |
+| [`patches/.cosmes-patch-sha256`](../frontend-dapp/patches/.cosmes-patch-sha256) | Committed SHA-256 of the patch file — CI fails if the patch changes without updating this hash ([#367](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/367)) |
+| [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts) | Regression: hash gate + asserts patched symbols exist in **built** `node_modules/@goblinhunt/cosmes/dist/...` after `postinstall` |
+
+| Invariant | Meaning |
+|-----------|---------|
+| **`postinstall` required** | `package.json` runs `patch-package` in **`postinstall`**. **`npm ci --ignore-scripts`**, broken CI caches, or copying `node_modules` without install **skips patches** — wallet fee guards silently disappear. Production and CI installs must run scripts. |
+| **Lockfile pin** | Do not rely on mutable dist tags; keep `@goblinhunt/cosmes` pinned in `package-lock.json`. |
+| **No casual upgrades** | Do not bump the fork major/minor without re-running Keplr E2E ([#361](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/361) H12). Track upstream `@goblinhunt/cosmes` for eventual un-fork. |
+| **CI gate** | `make test-frontend` includes `cosmesPatch127.test.ts` (content hash + patched `node_modules` symbols). |
+
+**Patch upgrade checklist**
+
+1. Edit `node_modules/@goblinhunt/cosmes` (or bump the dependency if upstream merged fixes), then `cd frontend-dapp && npx patch-package @goblinhunt/cosmes`.
+2. Update the hash: `sha256sum patches/@goblinhunt+cosmes+*.patch` → write hex to [`patches/.cosmes-patch-sha256`](../frontend-dapp/patches/.cosmes-patch-sha256).
+3. Fresh install: `npm ci` (runs `postinstall` / `patch-package`).
+4. Verify: `make test-frontend` — `cosmesPatch127.test.ts` must pass.
+5. Re-run Keplr / Station extension signing QA on columbus-5 or staging before release.
+
+**Third-party / agent context:** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) · [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../skills/AGENTS_FRONTEND_STATION_SIGNING.md).
+
 ### Connect modal: extension install detection {#connect-modal-extension-install}
 
 Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExtension`](../frontend-dapp/src/services/terraclassic/keplrLikeExtension.ts) plus **`'station' in window`** for Station ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)). When an extension is detected, the row shows a **Ready** pill next to the **Extension** pill; when it is not, the row is visually subdued and an **Install** link appears — there is **no** separate **Not installed** pill (redundant with **Install**; frees horizontal space on narrow modals, [GitLab #160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)). Long wallet names truncate with an ellipsis; the full name is available via **`title`** on the label. **WalletConnect** rows are unchanged (no extension install check). **Leap** is not listed ([GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). Implementation: [`walletExtensionInstall.ts`](../frontend-dapp/src/services/terraclassic/walletExtensionInstall.ts), [`WalletModal.tsx`](../frontend-dapp/src/components/wallet/WalletModal.tsx), [`useWalletExtensionInstallSnapshot.ts`](../frontend-dapp/src/hooks/useWalletExtensionInstallSnapshot.ts).

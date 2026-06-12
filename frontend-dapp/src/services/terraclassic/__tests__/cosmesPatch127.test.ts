@@ -1,15 +1,37 @@
-import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
+const patchesDir = resolve(frontendRoot, 'patches')
+const patchHashFile = resolve(patchesDir, '.cosmes-patch-sha256')
+
+function findCosmesPatchFile(): string {
+  const match = readdirSync(patchesDir).find((name) => name.startsWith('@goblinhunt+cosmes') && name.endsWith('.patch'))
+  if (!match) {
+    throw new Error('No @goblinhunt/cosmes patch file under frontend-dapp/patches/')
+  }
+  return resolve(patchesDir, match)
+}
+
+function sha256HexFile(path: string): string {
+  return createHash('sha256').update(readFileSync(path)).digest('hex')
+}
 
 function readCosmes(relPath: string): string {
   return readFileSync(resolve(frontendRoot, 'node_modules/@goblinhunt/cosmes', relPath), 'utf8')
 }
 
-describe('cosmes patch-package (GitLab #127)', () => {
+describe('cosmes patch-package (GitLab #127, #367)', () => {
+  it('patch file SHA-256 matches committed patches/.cosmes-patch-sha256', () => {
+    const patchPath = findCosmesPatchFile()
+    const actual = sha256HexFile(patchPath)
+    const expected = readFileSync(patchHashFile, 'utf8').trim().split(/\s+/)[0]
+    expect(actual).toBe(expected)
+  })
+
   it('KeplrExtension passes per-sign preferNoSetFee and post-sign fee guard', () => {
     const src = readCosmes('dist/wallet/wallets/keplr/KeplrExtension.js')
     expect(src).toContain('EXTENSION_SIGN_OPTIONS')
