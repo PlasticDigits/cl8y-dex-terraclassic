@@ -36,13 +36,29 @@ export type TerraBroadcastOptions = {
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
 }
 
+/** CheckTx / mempool rejections — tx never entered the mempool; safe to fail without recovery. */
+function isDefiniteBroadcastRejection(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const msg = error.message
+  return (
+    /account sequence mismatch|incorrect account sequence/i.test(msg) ||
+    /signature verification failed|pubkey does not match/i.test(msg) ||
+    /invalid chain[- ]?id|wrong chain/i.test(msg) ||
+    /tx too large|memo too large/i.test(msg) ||
+    /failed to decode tx|decode tx|invalid transaction/i.test(msg) ||
+    /insufficient fees?|minimum fee|auth info validation|signatures validation/i.test(msg) ||
+    /tx already exists in cache/i.test(msg)
+  )
+}
+
+/**
+ * After sign, ambiguous RPC failures may still have submitted the tx — poll until deadline.
+ * Definite CheckTx rejections skip recovery so the user gets the original error promptly.
+ */
 function isPostSignBroadcastFailure(error: unknown, signedTxHash: string | null): boolean {
   if (!signedTxHash) return false
-  if (!(error instanceof Error)) return true
-  const msg = error.message
-  if (msg === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE) return true
-  if (/failed to fetch|networkerror|network error/i.test(msg)) return true
-  return false
+  if (isDefiniteBroadcastRejection(error)) return false
+  return true
 }
 
 function handleBroadcastError(error: unknown): Error {

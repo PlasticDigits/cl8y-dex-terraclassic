@@ -3,7 +3,11 @@ import * as CosmesClient from '@goblinhunt/cosmes/client'
 import type { CosmosTxV1beta1TxRaw as ProtoTxRaw } from 'cosmes/protobufs'
 import { broadcastTerraExecuteContracts } from '../terraBroadcast'
 import { terraRecoveryDeadlineUnixFromEntries, terraRecoveryPollDeadlineUnix } from '../terraMsgDeadline'
-import { pollTerraTxRecovery } from '../terraTxRecoveryPoll'
+import {
+  pollTerraTxRecovery,
+  TERRA_TX_RECOVERY_EXPIRED_MESSAGE,
+  TerraOnChainBroadcastFailure,
+} from '../terraTxRecoveryPoll'
 import { installSignedTxHashCapture, txHashFromTxRaw } from '../terraWalletSignTxRaw'
 import { TERRA_TX_BROADCAST_TIMEOUT_MESSAGE } from '@/utils/terraTxTimeout'
 
@@ -86,6 +90,28 @@ describe('pollTerraTxRecovery', () => {
     await expect(pending).resolves.toBeUndefined()
     expect(mockPollTx).toHaveBeenCalledTimes(2)
   })
+
+  it('retries transient poll errors until deadline instead of aborting recovery', async () => {
+    vi.useFakeTimers()
+    mockPollTx
+      .mockRejectedValueOnce(new Error('Failed to fetch'))
+      .mockRejectedValueOnce(new Error('502 Bad Gateway'))
+      .mockResolvedValueOnce({ txResponse: { code: 0, rawLog: '', logs: [] } })
+
+    const pending = pollTerraTxRecovery(mockWallet as never, 'HASH1', Math.floor(Date.now() / 1000) + 30)
+    await vi.advanceTimersByTimeAsync(5_000)
+    await expect(pending).resolves.toBeUndefined()
+    expect(mockPollTx).toHaveBeenCalledTimes(3)
+  })
+
+  it('throws immediately when poll finds an on-chain failure', async () => {
+    mockPollTx.mockResolvedValueOnce({ txResponse: { code: 5, rawLog: 'Max spread assertion', logs: [] } })
+
+    await expect(pollTerraTxRecovery(mockWallet as never, 'HASH1', Math.floor(Date.now() / 1000) + 30)).rejects.toThrow(
+      TerraOnChainBroadcastFailure
+    )
+    expect(mockPollTx).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('broadcastTerraExecuteContracts post-sign recovery (GitLab #359 / #368)', () => {
@@ -135,6 +161,100 @@ describe('broadcastTerraExecuteContracts post-sign recovery (GitLab #359 / #368)
 
     expect(phases).not.toContain('recovering')
     expect(mockPollTx).not.toHaveBeenCalled()
+  })
+
+  it('enters recovery on non-timeout RPC errors after hash capture', async () => {
+    const phases: string[] = []
+    const rpc = (CosmesClient as { RpcClient: { broadcastTx: RpcBroadcastFn } }).RpcClient
+    const txRaw = mockTxRaw([4, 5, 6])
+    const signedHash = txHashFromTxRaw(txRaw)
+    const originalBroadcast = rpc.broadcastTx.bind(rpc)
+
+    mockBroadcastTx.mockImplementation(async () => {
+      await rpc.broadcastTx('http://rpc', txRaw)
+      return signedHash
+    })
+    rpc.broadcastTx = vi.fn(async () => {
+      throw new Error('502 Bad Gateway')
+    }) as RpcBroadcastFn
+
+    mockPollTx.mockResolvedValue({ txResponse: { code: 0, rawLog: '', logs: [] } })
+
+    const txHash = await broadcastTerraExecuteContracts(
+      mockWallet as never,
+      'terra1sender',
+      [{ contract: 'terra1a', msg: { swap: { deadline: Math.floor(Date.now() / 1000) + 600 } } }],
+      { onPhaseChange: (phase) => phases.push(phase) }
+    )
+
+    expect(phases).toContain('recovering')
+    expect(txHash).toBe(signedHash)
+    rpc.broadcastTx = originalBroadcast
+  })
+
+  it('does not enter recovery on definite CheckTx rejection after hash capture', async () => {
+    const phases: string[] = []
+    const rpc = (CosmesClient as { RpcClient: { broadcastTx: RpcBroadcastFn } }).RpcClient
+    const txRaw = mockTxRaw([7, 8, 9])
+    const originalBroadcast = rpc.broadcastTx.bind(rpc)
+
+    mockBroadcastTx.mockImplementation(async () => {
+      await rpc.broadcastTx('http://rpc', txRaw)
+      return txHashFromTxRaw(txRaw)
+    })
+    rpc.broadcastTx = vi.fn(async () => {
+      throw new Error('account sequence mismatch, expected 2, got 3')
+    }) as RpcBroadcastFn
+
+    await expect(
+      broadcastTerraExecuteContracts(
+        mockWallet as never,
+        'terra1sender',
+        [{ contract: 'terra1a', msg: { swap: {} } }],
+        { onPhaseChange: (phase) => phases.push(phase) }
+      )
+    ).rejects.toThrow(/sequence mismatch/i)
+
+    expect(phases).not.toContain('recovering')
+    expect(mockPollTx).not.toHaveBeenCalled()
+    rpc.broadcastTx = originalBroadcast
+  })
+
+  it('throws recovery expiry message when poll window elapses', async () => {
+    vi.useFakeTimers({ now: new Date('2026-06-01T00:00:00Z') })
+    mockPollTx.mockRejectedValue(new Error('Tx not found'))
+    const deadline = Math.floor(Date.now() / 1000) + 4
+
+    const pending = pollTerraTxRecovery(mockWallet as never, 'HASH1', deadline)
+    const assertion = expect(pending).rejects.toThrow(TERRA_TX_RECOVERY_EXPIRED_MESSAGE)
+    await vi.advanceTimersByTimeAsync(5_000)
+    await assertion
+  })
+
+  it('preserves recovery expiry message through handleBroadcastError', async () => {
+    vi.useFakeTimers({ now: new Date('2026-06-01T00:00:00Z') })
+    const rpc = (CosmesClient as { RpcClient: { broadcastTx: RpcBroadcastFn } }).RpcClient
+    const txRaw = mockTxRaw([10, 11, 12])
+    const signedHash = txHashFromTxRaw(txRaw)
+    const originalBroadcast = rpc.broadcastTx.bind(rpc)
+    const deadline = Math.floor(Date.now() / 1000) + 4
+
+    mockBroadcastTx.mockImplementation(async () => {
+      await rpc.broadcastTx('http://rpc', txRaw)
+      return signedHash
+    })
+    rpc.broadcastTx = vi.fn(async () => {
+      throw new Error('Failed to fetch')
+    }) as RpcBroadcastFn
+    mockPollTx.mockRejectedValue(new Error('Tx not found'))
+
+    const pending = broadcastTerraExecuteContracts(mockWallet as never, 'terra1sender', [
+      { contract: 'terra1a', msg: { swap: { deadline } } },
+    ])
+    const assertion = expect(pending).rejects.toThrow(TERRA_TX_RECOVERY_EXPIRED_MESSAGE)
+    await vi.advanceTimersByTimeAsync(5_000)
+    await assertion
+    rpc.broadcastTx = originalBroadcast
   })
 
   it('keeps pre-sign broadcast timeout copy when no signed hash exists', async () => {

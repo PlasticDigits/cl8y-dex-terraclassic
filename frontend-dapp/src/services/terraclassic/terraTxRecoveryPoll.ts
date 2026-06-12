@@ -5,6 +5,14 @@ export const TERRA_TX_RECOVERY_UNKNOWN_MESSAGE = 'Broadcast status unknown — t
 export const TERRA_TX_RECOVERY_EXPIRED_MESSAGE =
   'Transaction was not confirmed before the deadline. You may retry if the swap did not execute.'
 
+/** Thrown when poll finds an included tx with a non-zero ABCI code — do not retry until deadline. */
+export class TerraOnChainBroadcastFailure extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TerraOnChainBroadcastFailure'
+  }
+}
+
 const RECOVERY_POLL_INTERVAL_MS = 2_000
 
 function sleep(ms: number): Promise<void> {
@@ -25,13 +33,14 @@ export async function pollTerraTxRecovery(
       const { txResponse } = await wallet.pollTx(txHash, { maxAttempts: 1, intervalSeconds: 1 })
       if (txResponse.code !== 0) {
         const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
-        throw new Error(raw)
+        throw new TerraOnChainBroadcastFailure(raw)
       }
       return
     } catch (error: unknown) {
-      if (error instanceof Error && !/not found|tx not found/i.test(error.message)) {
+      if (error instanceof TerraOnChainBroadcastFailure) {
         throw error
       }
+      // Retry transient and unknown poll errors until the msg deadline.
     }
     await sleep(RECOVERY_POLL_INTERVAL_MS)
   }
