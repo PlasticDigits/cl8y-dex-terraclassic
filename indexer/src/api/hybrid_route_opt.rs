@@ -244,7 +244,9 @@ async fn query_hybrid_sim_unified(
                 .expect("db hybrid requires mirror_meta");
             let mirror = mirrors.get(&hop.pair);
             if let Some(m) = mirror {
-                if db_orderbook_sim::pool_reserves_unusable(m.reserve_0, m.reserve_1) {
+                if db_orderbook_sim::pool_reserves_unusable(m.reserve_0, m.reserve_1)
+                    && m.freshness != MirrorFreshness::MissingReserves
+                {
                     mirror_meta.mirror_missing_hops =
                         mirror_meta.mirror_missing_hops.saturating_add(1);
                     return Ok(0);
