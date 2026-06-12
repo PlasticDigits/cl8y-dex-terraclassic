@@ -168,6 +168,10 @@ fn hybrid_sim_gateway_err(e: HybridSimError) -> (StatusCode, String) {
                 "Route mirror simulation failed".to_string(),
             )
         }
+        HybridSimError::PathUnusable => (
+            StatusCode::NOT_FOUND,
+            format!("no route within {} hops", GET_DEFAULT_MAX_HOPS),
+        ),
     }
 }
 
@@ -330,7 +334,7 @@ async fn evaluate_candidate(
     discount_bps: u16,
     mirrors: Arc<HashMap<String, db_orderbook_sim::HopMirror>>,
     solver_version: &'static str,
-) -> Result<CandidateEval, (StatusCode, String)> {
+) -> Result<Option<CandidateEval>, (StatusCode, String)> {
     let hops_desc: Vec<HopDescriptor> = cand
         .hops
         .iter()
@@ -359,16 +363,28 @@ async fn evaluate_candidate(
         None
     };
 
-    let (hybrid_plan, opt_meta, grid_out) = hybrid_route_opt::optimize_multihop_hybrid_joint(
-        &source,
-        mm,
-        &hops_desc,
-        amount_in,
-        max_maker_fills,
-        &quote_trader,
-    )
-    .await
-    .map_err(hybrid_sim_gateway_err)?;
+    let (hybrid_plan, opt_meta, grid_out) =
+        match hybrid_route_opt::optimize_multihop_hybrid_joint(
+            &source,
+            mm,
+            &hops_desc,
+            amount_in,
+            max_maker_fills,
+            &quote_trader,
+        )
+        .await
+        {
+            Ok(v) => v,
+            Err(HybridSimError::PathUnusable) => {
+                tracing::debug!(
+                    path_index = index,
+                    hops = hops_desc.len(),
+                    "skipping path candidate: unusable pool liquidity on hop"
+                );
+                return Ok(None);
+            }
+            Err(e) => return Err(hybrid_sim_gateway_err(e)),
+        };
 
     let lcd_delta = if db_mode {
         mirror_meta.lcd_fallback_queries
@@ -425,7 +441,7 @@ async fn evaluate_candidate(
         token_out_price_quote: None,
     };
 
-    Ok(CandidateEval {
+    Ok(Some(CandidateEval {
         index,
         body,
         out_u,
@@ -437,10 +453,11 @@ async fn evaluate_candidate(
         mirror_stale: mirror_meta.mirror_stale_hops > 0,
         mirror_missing: mirror_meta.mirror_missing_hops > 0,
         max_snapshot_age_ms: mirror_meta.max_snapshot_age_ms,
-    })
+    }))
 }
 
-/// Fan out path-candidate evaluation under `concurrency_cap` (#324). Fail-fast on first error.
+/// Fan out path-candidate evaluation under `concurrency_cap` (#324).
+/// Skips candidates that fail simulation or yield zero DB-hybrid output (#369).
 async fn run_concurrent_candidate_evaluations(
     state: &AppState,
     candidates: &[PathCandidate],
@@ -501,10 +518,52 @@ async fn run_concurrent_candidate_evaluations(
     }
 
     let mut evals = Vec::with_capacity(eval_count);
+    let mut gateway_err: Option<(StatusCode, String)> = None;
+    let mut gateway_err_count = 0u32;
     while let Some(joined) = join_set.join_next().await {
         match joined {
-            Ok(Ok(eval)) => {
-                evals.push(eval);
+            Ok(Ok(Some(eval))) => {
+                let viable = !db_mode || eval.grid_out > 0;
+                if viable {
+                    evals.push(eval);
+                } else {
+                    tracing::debug!(
+                        index = eval.index,
+                        "skip route candidate: zero DB hybrid output"
+                    );
+                }
+                if next_idx < eval_count {
+                    let cand = candidates[next_idx].clone();
+                    let idx = next_idx;
+                    let st = Arc::clone(&state);
+                    let mirrors = Arc::clone(&mirrors);
+                    let ti = token_in.clone();
+                    let to = token_out.clone();
+                    let ar = amount_raw.clone();
+                    let qt = quote_trader.clone();
+                    let sv = solver_version;
+                    join_set.spawn(async move {
+                        evaluate_candidate(
+                            st,
+                            idx,
+                            cand,
+                            ti,
+                            to,
+                            amount_in,
+                            ar,
+                            max_maker_fills,
+                            qt,
+                            db_mode,
+                            discount_bps,
+                            mirrors,
+                            sv,
+                        )
+                        .await
+                    });
+                    next_idx += 1;
+                }
+            }
+            Ok(Ok(None)) => {
                 if next_idx < eval_count {
                     let cand = candidates[next_idx].clone();
                     let idx = next_idx;
@@ -537,14 +596,58 @@ async fn run_concurrent_candidate_evaluations(
                 }
             }
             Ok(Err(e)) => {
-                join_set.abort_all();
-                return Err(e);
+                tracing::debug!(
+                    status = %e.0,
+                    detail = %e.1,
+                    "skip route candidate: evaluation failed"
+                );
+                gateway_err_count = gateway_err_count.saturating_add(1);
+                if gateway_err.is_none() {
+                    gateway_err = Some(e);
+                }
+                if next_idx < eval_count {
+                    let cand = candidates[next_idx].clone();
+                    let idx = next_idx;
+                    let st = Arc::clone(&state);
+                    let mirrors = Arc::clone(&mirrors);
+                    let ti = token_in.clone();
+                    let to = token_out.clone();
+                    let ar = amount_raw.clone();
+                    let qt = quote_trader.clone();
+                    let sv = solver_version;
+                    join_set.spawn(async move {
+                        evaluate_candidate(
+                            st,
+                            idx,
+                            cand,
+                            ti,
+                            to,
+                            amount_in,
+                            ar,
+                            max_maker_fills,
+                            qt,
+                            db_mode,
+                            discount_bps,
+                            mirrors,
+                            sv,
+                        )
+                        .await
+                    });
+                    next_idx += 1;
+                }
             }
             Err(e) => {
                 join_set.abort_all();
                 return Err(crate::api::internal_err(e));
             }
         }
+    }
+
+    if evals.is_empty()
+        && gateway_err_count > 0
+        && gateway_err_count == eval_count as u32
+    {
+        return Err(gateway_err.expect("gateway_err_count > 0"));
     }
 
     Ok((evals, search_truncated))
@@ -636,7 +739,12 @@ pub(crate) async fn solve_global_best_execution_inner(
         candidates.len(),
         search_truncated,
     )
-    .expect("candidates non-empty and at least one evaluated");
+    .ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("no viable route within {} hops", GET_DEFAULT_MAX_HOPS),
+        )
+    })?;
 
     if db_mode {
         let final_est = apply_fidelity_guard(
@@ -851,7 +959,7 @@ mod concurrent_solve_tests {
     }
 
     #[tokio::test]
-    async fn concurrent_eval_fail_fast_aborts_remaining_tasks() {
+    async fn concurrent_eval_skips_failed_candidates_and_continues() {
         let mut join_set = tokio::task::JoinSet::new();
         join_set.spawn(async {
             Err::<u32, _>((
@@ -860,11 +968,16 @@ mod concurrent_solve_tests {
             ))
         });
         join_set.spawn(async {
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            Ok::<_, (axum::http::StatusCode, String)>(1)
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            Ok::<_, (axum::http::StatusCode, String)>(2)
         });
-        let first = join_set.join_next().await.unwrap().unwrap();
-        assert!(first.is_err(), "fail-fast: first candidate error propagates");
-        join_set.abort_all();
+        let mut evals = Vec::new();
+        while let Some(joined) = join_set.join_next().await {
+            match joined.unwrap() {
+                Ok(v) => evals.push(v),
+                Err(_) => {}
+            }
+        }
+        assert_eq!(evals, vec![2], "failed candidate skipped; later candidate kept");
     }
 }

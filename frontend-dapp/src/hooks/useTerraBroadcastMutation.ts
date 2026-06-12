@@ -21,7 +21,7 @@ function broadcastUiReducer(state: BroadcastUiState, action: BroadcastUiAction):
         // onMutate reset clears stale hashes; keep in-flight hash across nested broadcasts (allowance → send).
         return { phase: action.phase, pendingTxHash: state.pendingTxHash }
       }
-      if (action.phase === 'confirming') {
+      if (action.phase === 'confirming' || action.phase === 'recovering') {
         return {
           phase: action.phase,
           pendingTxHash: action.txHash ?? state.pendingTxHash,
