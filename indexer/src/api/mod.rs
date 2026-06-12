@@ -89,6 +89,7 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
     )
 }
 
+#[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
 pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats

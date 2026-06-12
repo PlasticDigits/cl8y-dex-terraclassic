@@ -23,6 +23,18 @@ Do **not** duplicate numeric tier tables in [`docs/deployment-guide.md`](../docs
 - **Pair cache ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)):** `execute_swap` and limit placement cache registry `GetDiscount` for **300s** per `(trader, sender)`; sim reads cache only. Do not assume quotes re-query registry every block within TTL — document **I9** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md). Constant: `dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`.
 - **Registry outage observability ([GitLab #365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365)):** On-chain **fail-closed** to full pair fee when registry `GetDiscount` errors — do not change without ADR. Off-chain: indexer background LCD `config` probe → `GET /api/v1/health/fee-discount` (`fee_discount_registry_ok`, `consecutive_lcd_failures`; no per-trader errors). dApp Swap shows a non-blocking amber warning when LCD registration/discount queries fail or indexer health is down. Utility: [`frontend-dapp/src/utils/feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts). Invariant **I10** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md).
 
+## Indexer tier sync (GitLab #364)
+
+When `FEE_DISCOUNT_ADDRESS` is set:
+
+| Path | Behavior |
+|------|----------|
+| **Block parsing** | `register`, `register_wallet`, `deregister`, `deregister_wallet` wasm events on the fee-discount contract update `traders.tier_id` / `tier_name` / `registered` within the indexed block (no periodic LCD scan). |
+| **First swap** | New `traders` row from swap ingestion triggers one `get_registration` LCD query (lazy hydrate). |
+| **Reconcile** | Background full-table `get_registration` loop defaults to **24h** (`TIER_SYNC_RECONCILE_INTERVAL`, min 60s) for drift correction only. |
+
+Route solver GET cache keys on resolved `discount_tier` from synced `traders.tier_id` ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283), [#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). Integration tests: [`indexer/tests/indexer_tier_sync.rs`](../indexer/tests/indexer_tier_sync.rs). Invariants: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md).
+
 ## Verification
 
 ```bash

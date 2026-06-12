@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -32,6 +32,8 @@ import {
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import {
   getInvalidTradePairRouteParam,
+  getTradePageInvalidLinkNotice,
+  getTradePageUnknownPairNotice,
   getUnknownTradePairRouteParam,
   isKnownFactoryTradePair,
   isPendingTradePairRouteResolution,
@@ -105,12 +107,17 @@ function TradeChartSlot({
 
 export default function TradePage() {
   const { pairAddr: routePair } = useParams<{ pairAddr?: string }>()
+  const location = useLocation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const invalidRoutePair = useMemo(() => getInvalidTradePairRouteParam(routePair), [routePair])
-  const [invalidLinkNotice, setInvalidLinkNotice] = useState<string | null>(null)
-  const [unknownPairNotice, setUnknownPairNotice] = useState<string | null>(null)
+  const invalidLinkNotice = getTradePageInvalidLinkNotice(location.state)
+  const unknownPairNotice = getTradePageUnknownPairNotice(location.state)
   const [pairAddr, setPairAddr] = useState('')
+
+  const clearLinkNotices = useCallback(() => {
+    navigate('/trade', { replace: true, state: null })
+  }, [navigate])
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -142,27 +149,21 @@ export default function TradePage() {
 
   useEffect(() => {
     if (invalidRoutePair) {
-      setInvalidLinkNotice(invalidRoutePair)
-      setUnknownPairNotice(null)
       setPairAddr('')
       if (routePair) {
-        navigate('/trade', { replace: true })
+        navigate('/trade', { replace: true, state: { invalidPair: invalidRoutePair } })
       }
       return
     }
     if (unknownRoutePair) {
-      setUnknownPairNotice(unknownRoutePair)
-      setInvalidLinkNotice(null)
       setPairAddr('')
       if (routePair) {
-        navigate('/trade', { replace: true })
+        navigate('/trade', { replace: true, state: { unknownPair: unknownRoutePair } })
       }
       return
     }
     if (isKnownFactoryTradePair(routePair, pairs)) {
       setPairAddr(routePair)
-      setInvalidLinkNotice(null)
-      setUnknownPairNotice(null)
     }
   }, [invalidRoutePair, unknownRoutePair, routePair, pairs, navigate])
 
@@ -226,10 +227,8 @@ export default function TradePage() {
     if (!factoryPairsResolved || !routePair || invalidRoutePair) return
     if (isKnownFactoryTradePair(routePair, pairs)) return
     if (!indexerPairQuery.isError || !isIndexerPairNotFoundError(indexerPairQuery.error)) return
-    setUnknownPairNotice(routePair)
-    setInvalidLinkNotice(null)
     setPairAddr('')
-    navigate('/trade', { replace: true })
+    navigate('/trade', { replace: true, state: { unknownPair: routePair } })
   }, [
     factoryPairsResolved,
     routePair,
@@ -323,8 +322,6 @@ export default function TradePage() {
   const onPairChange = useCallback(
     (addr: string) => {
       sounds.playButtonPress()
-      setInvalidLinkNotice(null)
-      setUnknownPairNotice(null)
       if (isTradePairRouteParam(addr)) {
         prefetchTradePairWorkspace(queryClient, addr)
         setPairAddr(addr)
@@ -349,7 +346,7 @@ export default function TradePage() {
         <InvalidPairLinkNotice
           invalidParam={invalidLinkNotice}
           pairSelectId={TRADE_PAIR_SELECT_ID}
-          onDismiss={() => setInvalidLinkNotice(null)}
+          onDismiss={clearLinkNotices}
         />
       )}
 
@@ -357,7 +354,7 @@ export default function TradePage() {
         <PairNotFoundLinkNotice
           unknownParam={unknownPairNotice}
           pairSelectId={TRADE_PAIR_SELECT_ID}
-          onDismiss={() => setUnknownPairNotice(null)}
+          onDismiss={clearLinkNotices}
         />
       )}
 
