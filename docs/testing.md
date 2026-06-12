@@ -100,6 +100,8 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run
 
 Config: `vitest.config.ts`
 
+**Cosmes fork patch verification ([GitLab #367](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/367)):** `make test-frontend` runs [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts), which (1) SHA-256-hashes `patches/@goblinhunt+cosmes+*.patch` against committed [`patches/.cosmes-patch-sha256`](../frontend-dapp/patches/.cosmes-patch-sha256) and (2) asserts patched fee-guard symbols exist in `node_modules/@goblinhunt/cosmes/dist/...` after `postinstall` / `patch-package`. Requires a normal `npm ci` (not `--ignore-scripts`). Operator docs: [`docs/frontend.md` § Forked cosmes](./frontend.md#cosmes-fork-patches).
+
 **Regression:** Trade/Charts **price chart** empty-candle UX and `getPairStats` fallback are covered in `src/components/charts/__tests__/PriceChart.test.tsx` (see GitLab [**#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113) and [Trade page — price chart invariants](./frontend.md#trade-page--price-chart-invariants)).
 
 #### Real `lightweight-charts` in Vitest (GitLab #211)

@@ -18,9 +18,9 @@ describe('TerraBroadcastPendingLink (GitLab #305 / #330)', () => {
     expect(link.textContent).toMatch(/ABCDEF12/)
   })
 
-  it('shows recovery copy during recovering phase (GitLab #368)', () => {
+  it('renders recovery status and tx link during recovering (GitLab #359)', () => {
     render(<TerraBroadcastPendingLink phase="recovering" txHash={SAMPLE_HASH} />)
-    expect(screen.getByTestId('terra-broadcast-recovery-status')).toHaveTextContent(/broadcast status unknown/i)
+    expect(screen.getByTestId('terra-broadcast-recovery-status')).toHaveTextContent(/Broadcast status unknown/)
     expect(screen.getByTestId('terra-broadcast-pending-tx')).toBeInTheDocument()
   })
 

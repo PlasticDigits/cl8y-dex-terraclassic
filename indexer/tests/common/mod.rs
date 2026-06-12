@@ -40,6 +40,8 @@ pub fn test_config() -> Config {
         lcd_urls: vec!["http://localhost:9999".to_string()],
         factory_address: "terra1factory".to_string(),
         fee_discount_address: None,
+        tier_sync_reconcile_interval_secs:
+            cl8y_dex_indexer::indexer::trader_tracker::DEFAULT_TIER_RECONCILE_INTERVAL_SECS,
         poll_interval_ms: 6000,
         api_port: 0,
         api_bind: "127.0.0.1".to_string(),
@@ -63,6 +65,7 @@ pub fn test_config() -> Config {
         block_tx_max_pages: 50,
         block_process_max_retries: 5,
         block_process_retry_backoff_ms: 2000,
+        reorg_alert_webhook_url: None,
     }
 }
 
@@ -561,6 +564,35 @@ pub async fn seed_route_solve_multi_path(pool: &PgPool) -> RouteSolveSeed {
     }
 }
 
+/// Like [`seed_route_solve_multi_path`] but seeds Postgres mirrors: direct A↔C and A↔B are
+/// funded; B↔C is zero-reserve (unfunded). Used for GitLab #369 DB-hybrid path skipping.
+pub async fn seed_route_solve_zero_reserve_poison(pool: &PgPool) -> RouteSolveSeed {
+    use bigdecimal::BigDecimal;
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+    use std::str::FromStr;
+
+    let seed = seed_route_solve_multi_path(pool).await;
+    let bd = |s: &str| BigDecimal::from_str(s).unwrap();
+    let healthy = bd("10000000000000");
+
+    for (addr, r0, r1) in [
+        ("terra1pairroutempac", healthy.clone(), healthy.clone()),
+        ("terra1pairroutempab", healthy.clone(), healthy.clone()),
+        ("terra1pairroutempbc", bd("0"), bd("0")),
+    ] {
+        let pair_id: i32 = sqlx::query_scalar("SELECT id FROM pairs WHERE contract_address = $1")
+            .bind(addr)
+            .fetch_one(pool)
+            .await
+            .expect("pair id");
+        pair_reserves::upsert_pair_reserves(pool, pair_id, &r0, &r1, 30, Some(100))
+            .await
+            .expect("upsert reserves");
+    }
+
+    seed
+}
+
 /// A→B→C→D chain (three hops) for multihop hybrid regression tests (GitLab #192).
 pub async fn seed_route_solve_3hop(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;
@@ -792,6 +824,13 @@ pub async fn build_test_app_with_price_and_config(
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
         fee_discount_address: config.fee_discount_address.clone(),
+        fee_discount_registry_health:
+            cl8y_dex_indexer::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::new(
+                config
+                    .fee_discount_address
+                    .as_ref()
+                    .is_some_and(|a| !a.is_empty()),
+            ),
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
