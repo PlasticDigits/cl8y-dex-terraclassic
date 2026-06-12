@@ -42,6 +42,28 @@ export type TerraBroadcastOptions = {
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
 }
 
+/** CheckTx / mempool rejections — tx never entered the mempool; safe to fail without recovery. */
+function isDefiniteBroadcastRejection(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const msg = error.message
+  return (
+    /account sequence mismatch|incorrect account sequence/i.test(msg) ||
+    /signature verification failed|pubkey does not match/i.test(msg) ||
+    /invalid chain[- ]?id|wrong chain/i.test(msg) ||
+    /tx too large|memo too large/i.test(msg) ||
+    /failed to decode tx|decode tx|invalid transaction/i.test(msg) ||
+    /insufficient fees?|minimum fee|auth info validation|signatures validation/i.test(msg)
+  )
+}
+
+/**
+ * After sign, ambiguous RPC failures may still have submitted the tx — poll until deadline.
+ * Definite CheckTx rejections skip recovery so the user gets the original error promptly.
+ */
+function shouldRecoverPostSignBroadcast(error: unknown): boolean {
+  return !isDefiniteBroadcastRejection(error)
+}
+
 function handleBroadcastError(error: unknown): Error {
   if (error instanceof Error) {
     const errorMessage = error.message
@@ -137,7 +159,10 @@ async function broadcastSignedSplitPath(
       TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
     )
     bumpWalletCachedSequence(wallet, sequence)
-  } catch {
+  } catch (error: unknown) {
+    if (!shouldRecoverPostSignBroadcast(error)) {
+      throw error
+    }
     onPhaseChange?.('confirming', { txHash })
     return recoverPostSignBroadcast(wallet, txHash, sequence, recoveryDeadlineUnix, onPhaseChange)
   }

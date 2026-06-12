@@ -110,6 +110,72 @@ describe('broadcastTerraExecuteContracts post-sign recovery (GitLab #359)', () =
     vi.useRealTimers()
   })
 
+  it('recovers when broadcast RPC fails with an ambiguous error after sign', async () => {
+    mockRpcBroadcastTx.mockRejectedValueOnce(new Error('502 Bad Gateway'))
+    mockPollTxUntilRecoveryDeadline.mockResolvedValueOnce({
+      txResponse: { code: 0, rawLog: '', logs: [] },
+    })
+
+    const phases: string[] = []
+    const txHash = await broadcastTerraExecuteContracts(
+      mockWallet as never,
+      'terra1sender',
+      [{ contract: 'terra1a', msg: { swap: { deadline: Math.floor(Date.now() / 1000) + 120 } } }],
+      {
+        onPhaseChange: (phase) => {
+          phases.push(phase)
+        },
+      }
+    )
+
+    expect(phases).toContain('recovering')
+    expect(txHash).toBe('SIGNEDHASH')
+    expect(mockPollTxUntilRecoveryDeadline).toHaveBeenCalled()
+  })
+
+  it('does not enter recovery on definite CheckTx rejection after sign', async () => {
+    mockRpcBroadcastTx.mockRejectedValueOnce(new Error('account sequence mismatch, expected 2, got 3'))
+
+    const phases: string[] = []
+    await expect(
+      broadcastTerraExecuteContracts(
+        mockWallet as never,
+        'terra1sender',
+        [{ contract: 'terra1a', msg: { swap: {} } }],
+        {
+          onPhaseChange: (phase) => {
+            phases.push(phase)
+          },
+        }
+      )
+    ).rejects.toThrow(/sequence mismatch/i)
+
+    expect(phases).not.toContain('recovering')
+    expect(mockPollTxUntilRecoveryDeadline).not.toHaveBeenCalled()
+  })
+
+  it('recovers when mempool reports tx already in cache after sign', async () => {
+    mockRpcBroadcastTx.mockRejectedValueOnce(new Error('tx already exists in cache'))
+    mockPollTxUntilRecoveryDeadline.mockResolvedValueOnce({
+      txResponse: { code: 0, rawLog: '', logs: [] },
+    })
+
+    const phases: string[] = []
+    const txHash = await broadcastTerraExecuteContracts(
+      mockWallet as never,
+      'terra1sender',
+      [{ contract: 'terra1a', msg: { swap: { deadline: Math.floor(Date.now() / 1000) + 120 } } }],
+      {
+        onPhaseChange: (phase) => {
+          phases.push(phase)
+        },
+      }
+    )
+
+    expect(phases).toContain('recovering')
+    expect(txHash).toBe('SIGNEDHASH')
+  })
+
   it('recovers when pollTx times out after broadcast returns hash', async () => {
     vi.useFakeTimers()
     mockPollTx.mockImplementation(() => new Promise(() => {}))
