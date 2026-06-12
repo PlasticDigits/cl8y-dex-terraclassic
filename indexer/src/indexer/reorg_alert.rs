@@ -35,8 +35,9 @@ impl ReorgHaltDetails {
     }
 }
 
-/// Structured log + optional webhook. Webhook delivery is best-effort (spawned, non-blocking).
-pub fn emit_reorg_halt(details: &ReorgHaltDetails) {
+/// Structured log + optional webhook. Webhook delivery is best-effort but awaited so
+/// the POST can finish before the indexer task exits on reorg halt.
+pub async fn emit_reorg_halt(details: &ReorgHaltDetails) {
     tracing::error!(
         target: "indexer.reorg_halt",
         event = "indexer_reorg_halt",
@@ -55,15 +56,13 @@ pub fn emit_reorg_halt(details: &ReorgHaltDetails) {
     };
 
     let payload = WebhookPayload::from_details(details);
-    tokio::spawn(async move {
-        if let Err(e) = post_webhook(&webhook_url, &payload).await {
-            tracing::warn!(
-                target: "indexer.reorg_halt",
-                error = %e,
-                "Failed to deliver reorg alert webhook"
-            );
-        }
-    });
+    if let Err(e) = post_webhook(&webhook_url, &payload).await {
+        tracing::warn!(
+            target: "indexer.reorg_halt",
+            error = %e,
+            "Failed to deliver reorg alert webhook"
+        );
+    }
 }
 
 #[derive(Debug, Serialize)]

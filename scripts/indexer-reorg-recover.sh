@@ -104,10 +104,10 @@ for label_table in \
 done
 
 CANDLE_COUNT="$(psql_query "
-  SELECT COUNT(*) FROM ohlcv_candles
+  SELECT COUNT(*) FROM candles
   WHERE pair_id IN (SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT});
 " 2>/dev/null || echo 'ERR')"
-echo "  ohlcv_candles (pairs with swaps >= ${HEIGHT}): ${CANDLE_COUNT} rows"
+echo "  candles (pairs with swaps >= ${HEIGHT}): ${CANDLE_COUNT} rows"
 echo "  indexer_failed_blocks: $(psql_query 'SELECT COUNT(*) FROM indexer_failed_blocks;' 2>/dev/null || echo 'ERR') rows (truncated on cursor reset)"
 echo ""
 echo "NOTE: swap_events are kept on cursor-only replay (ON CONFLICT dedup). Use --cleanup-derived"
@@ -128,7 +128,7 @@ if [[ "$CLEANUP_DERIVED" -eq 1 ]]; then
 BEGIN;
 CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
   SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
-DELETE FROM ohlcv_candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
+DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_cancellations WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_placements WHERE block_height >= ${HEIGHT};
@@ -161,13 +161,32 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   exit 0
 fi
 
-echo ""
-echo "--- Applying cursor reset ---"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -c "$CURSOR_SQL"
-
+APPLY_SQL="$CURSOR_SQL"
 if [[ "$CLEANUP_DERIVED" -eq 1 ]]; then
-  echo "--- Applying derived cleanup ---"
-  psql "$DB_URL" -v ON_ERROR_STOP=1 -c "$DERIVED_SQL"
+  APPLY_SQL="
+BEGIN;
+CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
+  SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
+DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
+DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
+DELETE FROM limit_order_cancellations WHERE block_height >= ${HEIGHT};
+DELETE FROM limit_order_placements WHERE block_height >= ${HEIGHT};
+DELETE FROM limit_order_fills WHERE block_height >= ${HEIGHT};
+DELETE FROM liquidity_events WHERE block_height >= ${HEIGHT};
+DELETE FROM swap_events WHERE block_height >= ${HEIGHT};
+UPDATE indexer_state SET value = '${PREV}', updated_at = NOW() WHERE key = 'last_indexed_height';
+UPDATE indexer_state SET value = '', updated_at = NOW() WHERE key = 'last_indexed_block_hash';
+TRUNCATE indexer_failed_blocks;
+COMMIT;
+"
 fi
+
+echo ""
+if [[ "$CLEANUP_DERIVED" -eq 1 ]]; then
+  echo "--- Applying cursor reset + derived cleanup (single transaction) ---"
+else
+  echo "--- Applying cursor reset ---"
+fi
+psql "$DB_URL" -v ON_ERROR_STOP=1 -c "$APPLY_SQL"
 
 echo "Done. Restart the indexer to replay from height ${HEIGHT}."

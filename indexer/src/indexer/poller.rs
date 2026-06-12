@@ -122,7 +122,8 @@ pub async fn run_indexer(
                         *height,
                         stored.clone(),
                         canonical.clone(),
-                    ));
+                    ))
+                    .await;
                 }
                 return Err(e.into());
             }
@@ -151,7 +152,8 @@ pub async fn run_indexer(
                         reorg_height,
                         stored.clone(),
                         canonical.clone(),
-                    ));
+                    ))
+                    .await;
                     return Err(block_indexer::BlockIndexError::ReorgDetected {
                         height: reorg_height,
                         stored,

@@ -15,8 +15,7 @@ async fn reorg_halt_webhook_delivered_when_url_set() {
 
     std::env::set_var("REORG_ALERT_WEBHOOK_URL", server.uri());
     let details = ReorgHaltDetails::new(42, "old".into(), "new".into());
-    emit_reorg_halt(&details);
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    emit_reorg_halt(&details).await;
     std::env::remove_var("REORG_ALERT_WEBHOOK_URL");
 
     let requests = server.received_requests().await.expect("requests");
