@@ -36,8 +36,13 @@ export type TerraBroadcastOptions = {
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
 }
 
-function isPostSignBroadcastFailure(_error: unknown, signedTxHash: string | null): boolean {
-  return signedTxHash !== null
+function isPostSignBroadcastFailure(error: unknown, signedTxHash: string | null): boolean {
+  if (!signedTxHash) return false
+  if (!(error instanceof Error)) return true
+  const msg = error.message
+  if (msg === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE) return true
+  if (/failed to fetch|networkerror|network error/i.test(msg)) return true
+  return false
 }
 
 function handleBroadcastError(error: unknown): Error {
