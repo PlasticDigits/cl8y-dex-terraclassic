@@ -227,13 +227,15 @@ describe('gas limit selection (tested indirectly)', () => {
 
   it('scales gas by hop count with router floor for multi-hop execute_swap_operations (#353)', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }] } })
-    // floor 900k×2 + safety margin
-    expect(fee.gasLimit).toBe(BigInt(1_810_000))
+    // floor 950k×2 + safety margin
+    expect(fee.gasLimit).toBe(BigInt(1_910_000))
   })
 
-  it('2-hop gas limit stays above observed out-of-gas usage from #39 and #353 (~1,718,000)', async () => {
+  it('2-hop gas limit stays above live observed out-of-gas usage (1,810,206; #353 reopen)', async () => {
     const fee = await getFeeForMsg({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }] } })
-    expect(fee.gasLimit).toBeGreaterThan(BigInt(1_718_000))
+    // EMBER->JADE->RUBY OOG'd at gasUsed up to 1,810,206 vs 1,810,000 granted (code 11) — the old
+    // ~1,718,000 guard was stale and let the knife-edge 1,810,000 budget through.
+    expect(fee.gasLimit).toBeGreaterThan(BigInt(1_810_206))
   })
 
   it('defaults to 1 hop router budget when operations missing', async () => {
@@ -317,7 +319,8 @@ describe('gas limit selection (tested indirectly)', () => {
       JSON.stringify({ execute_swap_operations: { operations: [{ swap: {} }, { swap: {} }, { swap: {} }] } })
     )
     const fee = await getFeeForMsg({ send: { msg: innerMsg } })
-    expect(fee.gasLimit).toBe(BigInt(2_710_000))
+    // 3 hops × floor 950k + safety margin
+    expect(fee.gasLimit).toBe(BigInt(2_860_000))
   })
 
   it('uses CANCEL_LIMIT_ORDER_GAS_LIMIT for cancel_limit_order', async () => {

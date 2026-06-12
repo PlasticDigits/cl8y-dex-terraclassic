@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import PoolPage from './PoolPage'
@@ -120,6 +120,25 @@ describe('PoolPage', () => {
   it('renders without crashing', () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
     expect(screen.getByText(/liquidity pools/i)).toBeTruthy()
+  })
+
+  it('shows impermanent loss notice when provide panel is open (GitLab #366)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    expect(screen.queryByTestId('pool-il-risk-notice')).not.toBeInTheDocument()
+
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+
+    const notice = await screen.findByTestId('pool-il-risk-notice')
+    expect(notice).toHaveTextContent(/Impermanent loss risk/i)
+    expect(notice).toHaveTextContent(/diverge from simply holding/i)
+    expect(within(notice).getByRole('link', { name: /Learn more/i })).toHaveAttribute(
+      'href',
+      'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#pool-lp-risk-disclosure'
+    )
   })
 
   it('add-LP: shows per-asset balance and estimated LP when provide panel is open', async () => {

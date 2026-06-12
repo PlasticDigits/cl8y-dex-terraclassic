@@ -1,12 +1,21 @@
-import { MsgExecuteContract } from '@goblinhunt/cosmes/client'
+import { MsgExecuteContract, RpcClient } from '@goblinhunt/cosmes/client'
 import type { ConnectedWallet } from '@goblinhunt/cosmes/wallet'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 import { prepareStationExtensionForTerraClassicSign } from '@/services/terraclassic/stationExtensionConfig'
 import { estimateTerraClassicFeeForEntries } from '@/services/terraclassic/terraClassicFeeEstimate'
+import { pollTxUntilRecoveryDeadline } from '@/services/terraclassic/terraTxRecoveryPoll'
+import {
+  bumpWalletCachedSequence,
+  isAtomicWalletConnectPost,
+  signTerraTxRaw,
+  walletSupportsSplitSignBroadcast,
+} from '@/services/terraclassic/terraWalletSignTxRaw'
+import { resolveTerraTxRecoveryDeadlineUnix } from '@/utils/terraMsgDeadline'
 import { EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX } from '@/utils/extensionSignedFeeGuard'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 import {
+  isTerraTxTimeoutMessage,
   TERRA_TX_BROADCAST_TIMEOUT_MESSAGE,
   TERRA_TX_BROADCAST_TIMEOUT_MS,
   TERRA_TX_POLL_TIMEOUT_MESSAGE,
@@ -23,7 +32,7 @@ export type TerraExecuteContractEntry = {
   coins?: Array<{ denom: string; amount: string }>
 }
 
-export type TerraBroadcastPhase = 'signing' | 'broadcasting' | 'confirming'
+export type TerraBroadcastPhase = 'signing' | 'broadcasting' | 'confirming' | 'recovering'
 
 export type TerraBroadcastPhaseChangeContext = {
   txHash?: string
@@ -33,11 +42,33 @@ export type TerraBroadcastOptions = {
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
 }
 
+/** CheckTx / mempool rejections — tx never entered the mempool; safe to fail without recovery. */
+function isDefiniteBroadcastRejection(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const msg = error.message
+  return (
+    /account sequence mismatch|incorrect account sequence/i.test(msg) ||
+    /signature verification failed|pubkey does not match/i.test(msg) ||
+    /invalid chain[- ]?id|wrong chain/i.test(msg) ||
+    /tx too large|memo too large/i.test(msg) ||
+    /failed to decode tx|decode tx|invalid transaction/i.test(msg) ||
+    /insufficient fees?|minimum fee|auth info validation|signatures validation/i.test(msg)
+  )
+}
+
+/**
+ * After sign, ambiguous RPC failures may still have submitted the tx — poll until deadline.
+ * Definite CheckTx rejections skip recovery so the user gets the original error promptly.
+ */
+function shouldRecoverPostSignBroadcast(error: unknown): boolean {
+  return !isDefiniteBroadcastRejection(error)
+}
+
 function handleBroadcastError(error: unknown): Error {
   if (error instanceof Error) {
     const errorMessage = error.message
 
-    if (errorMessage === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || errorMessage === TERRA_TX_POLL_TIMEOUT_MESSAGE) {
+    if (isTerraTxTimeoutMessage(errorMessage)) {
       return error
     }
 
@@ -79,6 +110,108 @@ function handleBroadcastError(error: unknown): Error {
   return new Error(`Transaction failed: ${String(error)}`)
 }
 
+async function pollTxWithTimeout(
+  wallet: ConnectedWallet,
+  txHash: string
+): Promise<{ txResponse: { code: number; rawLog?: string; logs?: Array<{ log?: string }> } }> {
+  return withPromiseTimeout(wallet.pollTx(txHash), TERRA_TX_POLL_TIMEOUT_MS, TERRA_TX_POLL_TIMEOUT_MESSAGE)
+}
+
+async function recoverPostSignBroadcast(
+  wallet: ConnectedWallet,
+  txHash: string,
+  signedSequence: bigint,
+  recoveryDeadlineUnix: number,
+  onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
+): Promise<string> {
+  onPhaseChange?.('recovering', { txHash })
+  const { txResponse } = await pollTxUntilRecoveryDeadline(wallet.rpc, txHash, recoveryDeadlineUnix)
+  bumpWalletCachedSequence(wallet, signedSequence)
+
+  if (txResponse.code !== 0) {
+    const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+    const human = tryHumanizeTerraTxMessage(raw)
+    throw new Error(human ?? `Transaction failed: ${raw}`)
+  }
+
+  return txHash
+}
+
+async function broadcastSignedSplitPath(
+  wallet: ConnectedWallet,
+  unsignedTx: UnsignedTx,
+  fee: ReturnType<typeof buildTerraClassicFee>,
+  entries: TerraExecuteContractEntry[],
+  onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
+): Promise<string> {
+  onPhaseChange?.('signing')
+
+  const { txRaw, txHash, sequence } = await withTerraWalletSignLock(() => signTerraTxRaw(wallet, unsignedTx, fee))
+
+  onPhaseChange?.('broadcasting')
+
+  const recoveryDeadlineUnix = resolveTerraTxRecoveryDeadlineUnix(entries)
+
+  try {
+    await withPromiseTimeout(
+      RpcClient.broadcastTx(wallet.rpc, txRaw),
+      TERRA_TX_BROADCAST_TIMEOUT_MS,
+      TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+    )
+    bumpWalletCachedSequence(wallet, sequence)
+  } catch (error: unknown) {
+    if (!shouldRecoverPostSignBroadcast(error)) {
+      throw error
+    }
+    onPhaseChange?.('confirming', { txHash })
+    return recoverPostSignBroadcast(wallet, txHash, sequence, recoveryDeadlineUnix, onPhaseChange)
+  }
+
+  onPhaseChange?.('confirming', { txHash })
+
+  let txResponse: Awaited<ReturnType<typeof pollTxWithTimeout>>['txResponse']
+  try {
+    ;({ txResponse } = await pollTxWithTimeout(wallet, txHash))
+  } catch {
+    return recoverPostSignBroadcast(wallet, txHash, sequence, recoveryDeadlineUnix, onPhaseChange)
+  }
+
+  if (txResponse.code !== 0) {
+    const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+    const human = tryHumanizeTerraTxMessage(raw)
+    throw new Error(human ?? `Transaction failed: ${raw}`)
+  }
+
+  return txHash
+}
+
+async function broadcastAtomicWalletPath(
+  wallet: ConnectedWallet,
+  unsignedTx: UnsignedTx,
+  fee: ReturnType<typeof buildTerraClassicFee>,
+  onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
+): Promise<string> {
+  onPhaseChange?.('signing')
+  const txHash = await withTerraWalletSignLock(() => {
+    onPhaseChange?.('broadcasting')
+    return withPromiseTimeout(
+      wallet.broadcastTx(unsignedTx, fee),
+      TERRA_TX_BROADCAST_TIMEOUT_MS,
+      TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
+    )
+  })
+  onPhaseChange?.('confirming', { txHash })
+
+  const { txResponse } = await pollTxWithTimeout(wallet, txHash)
+  if (txResponse.code !== 0) {
+    const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+    const human = tryHumanizeTerraTxMessage(raw)
+    throw new Error(human ?? `Transaction failed: ${raw}`)
+  }
+
+  return txHash
+}
+
 /**
  * Canonical Terra Classic broadcast path: build msgs + fee, sign/broadcast, poll, map errors.
  * All `executeTerraContract*` entry points use this (GitLab #127).
@@ -117,30 +250,14 @@ export async function broadcastTerraExecuteContracts(
     await prepareStationExtensionForTerraClassicSign(wallet)
   }
 
-  try {
-    onPhaseChange?.('signing')
-    const txHash = await withTerraWalletSignLock(() => {
-      onPhaseChange?.('broadcasting')
-      return withPromiseTimeout(
-        wallet.broadcastTx(unsignedTx, fee),
-        TERRA_TX_BROADCAST_TIMEOUT_MS,
-        TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
-      )
-    })
-    onPhaseChange?.('confirming', { txHash })
-    const { txResponse } = await withPromiseTimeout(
-      wallet.pollTx(txHash),
-      TERRA_TX_POLL_TIMEOUT_MS,
-      TERRA_TX_POLL_TIMEOUT_MESSAGE
-    )
+  const useSplitPath = walletSupportsSplitSignBroadcast(wallet) && !isAtomicWalletConnectPost(wallet)
 
-    if (txResponse.code !== 0) {
-      const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
-      const human = tryHumanizeTerraTxMessage(raw)
-      throw new Error(human ?? `Transaction failed: ${raw}`)
+  try {
+    if (useSplitPath) {
+      return await broadcastSignedSplitPath(wallet, unsignedTx, fee, entries, onPhaseChange)
     }
 
-    return txHash
+    return await broadcastAtomicWalletPath(wallet, unsignedTx, fee, onPhaseChange)
   } catch (error: unknown) {
     console.error('Terra Classic transaction error:', error)
     throw handleBroadcastError(error)

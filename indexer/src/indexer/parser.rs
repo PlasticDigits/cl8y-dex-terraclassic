@@ -264,6 +264,16 @@ pub async fn process_block_txs(
     ustc_price: &oracle::SharedPrice,
 ) -> Result<(), BoxError> {
     for tx in txs {
+        if let Some(ref fee_addr) = config.fee_discount_address {
+            if !fee_addr.is_empty() {
+                let tier_events =
+                    trader_tracker::parse_fee_discount_registry_events(tx, fee_addr);
+                if !tier_events.is_empty() {
+                    trader_tracker::apply_registry_tier_events(pool, &tier_events).await?;
+                }
+            }
+        }
+
         let swaps = parse_swaps(tx);
         for swap in &swaps {
             process_swap(
@@ -441,7 +451,14 @@ async fn process_swap(
     )
     .await?;
 
-    trader_tracker::update_trader_on_swap(pool, &swap.sender, &swap.offer_amount).await?;
+    trader_tracker::update_trader_on_swap(
+        pool,
+        lcd,
+        config.fee_discount_address.as_deref(),
+        &swap.sender,
+        &swap.offer_amount,
+    )
+    .await?;
 
     position_tracker::update_position_on_swap(
         pool,
