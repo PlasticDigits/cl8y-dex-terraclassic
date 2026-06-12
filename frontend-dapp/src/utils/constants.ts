@@ -32,9 +32,11 @@ export const WRAP_GAS_LIMIT = 400000
  */
 export const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
 /**
- * Per-hop floor for multi-hop router `execute_swap_operations`. Measured 2-hop ~1.72M (#353).
+ * Per-hop floor for multi-hop router `execute_swap_operations`. At 900k/hop the 2-hop budget was
+ * exactly 1,810,000 and live EMBER->JADE->RUBY swaps OOG deterministically (code 11, gasUsed
+ * 1,810,064-1,810,206 vs 1,810,000 granted; #353), so the floor is 950k/hop for real headroom.
  */
-export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 900_000
+export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
 export const UNWRAP_GAS_LIMIT = 400000
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
