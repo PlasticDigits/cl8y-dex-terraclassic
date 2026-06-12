@@ -28,8 +28,8 @@ pub async fn upsert_trader(
     pool: &PgPool,
     address: &str,
     trade_volume: &BigDecimal,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
+) -> Result<bool, sqlx::Error> {
+    let row = sqlx::query_scalar::<_, bool>(
         "INSERT INTO traders (address, total_trades, total_volume, first_trade_at, last_trade_at)
          VALUES ($1, 1, $2, NOW(), NOW())
          ON CONFLICT (address)
@@ -37,10 +37,37 @@ pub async fn upsert_trader(
                         total_volume = traders.total_volume + $2,
                         first_trade_at = COALESCE(traders.first_trade_at, EXCLUDED.first_trade_at),
                         last_trade_at = NOW(),
-                        updated_at = NOW()",
+                        updated_at = NOW()
+         RETURNING (xmax = 0) AS inserted",
     )
     .bind(address)
     .bind(trade_volume)
+    .fetch_one(pool)
+    .await?;
+    Ok(row)
+}
+
+/// Insert or update tier fields for a trader (registration events or LCD hydrate).
+pub async fn upsert_trader_tier(
+    pool: &PgPool,
+    address: &str,
+    tier_id: i16,
+    tier_name: &str,
+    registered: bool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO traders (address, tier_id, tier_name, registered, total_trades, total_volume)
+         VALUES ($1, $2, $3, $4, 0, 0)
+         ON CONFLICT (address)
+           DO UPDATE SET tier_id = EXCLUDED.tier_id,
+                        tier_name = EXCLUDED.tier_name,
+                        registered = EXCLUDED.registered,
+                        updated_at = NOW()",
+    )
+    .bind(address)
+    .bind(tier_id)
+    .bind(tier_name)
+    .bind(registered)
     .execute(pool)
     .await?;
     Ok(())
@@ -85,16 +112,7 @@ pub async fn update_trader_tier(
     tier_name: &str,
     registered: bool,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "UPDATE traders SET tier_id = $2, tier_name = $3, registered = $4, updated_at = NOW()
-         WHERE address = $1",
-    )
-    .bind(address)
-    .bind(tier_id)
-    .bind(tier_name)
-    .bind(registered)
-    .execute(pool)
-    .await?;
+    upsert_trader_tier(pool, address, tier_id, tier_name, registered).await?;
     Ok(())
 }
 
