@@ -9,6 +9,13 @@ export function isDecimalAmountDraft(value: string): boolean {
   return DECIMAL_AMOUNT_DRAFT_RE.test(value)
 }
 
+/** True when `value` is a positive human decimal draft (no `parseFloat`; safe above 2⁵³). */
+export function isPositiveDecimalAmount(value: string): boolean {
+  const t = value.trim()
+  if (!t || !isDecimalAmountDraft(t)) return false
+  return /[1-9]/.test(t.replace('.', ''))
+}
+
 /** Parse a raw integer string for chain math; returns `null` on invalid input instead of throwing. */
 export function tryParseBigInt(raw: string): bigint | null {
   const s = raw.trim()

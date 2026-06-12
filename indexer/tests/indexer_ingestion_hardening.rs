@@ -512,3 +512,72 @@ async fn invalid_tx_and_header_timestamp_fails_block() {
         "cursor must not advance when chain time is unavailable"
     );
 }
+
+#[tokio::test]
+async fn swap_replay_does_not_duplicate_rows() {
+    use bigdecimal::BigDecimal;
+    use chrono::Utc;
+    use cl8y_dex_indexer::db::queries::swap_events;
+
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+    seed_minimal_pair(&pool, "terra1pairreplay362").await;
+
+    let pair_id: i32 = sqlx::query_scalar("SELECT id FROM pairs LIMIT 1")
+        .fetch_one(&pool)
+        .await
+        .expect("pair");
+
+    let offer_asset: i32 = sqlx::query_scalar("SELECT asset_0_id FROM pairs WHERE id = $1")
+        .bind(pair_id)
+        .fetch_one(&pool)
+        .await
+        .expect("offer");
+    let ask_asset: i32 = sqlx::query_scalar("SELECT asset_1_id FROM pairs WHERE id = $1")
+        .bind(pair_id)
+        .fetch_one(&pool)
+        .await
+        .expect("ask");
+
+    let height = 900i64;
+    let ts = Utc::now();
+    let amount = BigDecimal::from(1_000_000i64);
+    let price = BigDecimal::from(1i64);
+
+    for _ in 0..2 {
+        swap_events::insert_swap(
+            &pool,
+            pair_id,
+            0,
+            height,
+            ts,
+            "replay_tx_362",
+            "terra1sender",
+            None,
+            offer_asset,
+            ask_asset,
+            &amount,
+            &amount,
+            None,
+            None,
+            None,
+            &price,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .expect("insert");
+    }
+
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM swap_events WHERE tx_hash = 'replay_tx_362' AND pair_id = $1",
+    )
+    .bind(pair_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count");
+
+    assert_eq!(count, 1, "ON CONFLICT DO NOTHING must dedupe replayed swaps");
+}

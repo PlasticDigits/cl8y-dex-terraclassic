@@ -1,93 +1,122 @@
-//! Operator-actionable reorg halt signal (GitLab #362).
+//! Operator alerting when the indexer halts on chain reorg (GitLab #362).
 //!
-//! Emits a machine-parseable stderr line (`INDEXER_REORG_HALT`) for log routers and an optional
-//! webhook POST when `REORG_ALERT_WEBHOOK_URL` is set.
+//! Emits structured `tracing` events, a machine-parseable stderr line (`INDEXER_REORG_HALT`),
+//! and optionally POSTs JSON to `REORG_ALERT_WEBHOOK_URL` (PagerDuty, Slack, custom ops hook).
 
 use serde::Serialize;
-use tracing::error;
 
-const RUNBOOK: &str = "docs/runbooks/indexer-reorg-replay-dedup.md";
-
-#[derive(Debug, Serialize)]
-pub struct ReorgHaltEvent {
-    pub event: &'static str,
+/// Details captured when the reorg guard halts indexing.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReorgHaltDetails {
+    /// Height where stored vs canonical block hash diverged.
     pub height: i64,
     pub stored_hash: String,
     pub canonical_hash: String,
-    pub recovery_height: i64,
-    pub recovery_cmd: String,
-    pub runbook: &'static str,
+    /// First height to replay after cursor rewind (`height` when mismatch is at committed tip).
+    pub recovery_fork_height: i64,
+    pub recovery_command: String,
+    pub runbook_path: &'static str,
 }
 
-/// Structured halt signal: tracing target + stderr JSON + optional webhook.
-pub async fn emit_reorg_halt(
-    height: i64,
-    stored_hash: &str,
-    canonical_hash: &str,
-    webhook_url: Option<&str>,
-) {
-    let recovery_height = height;
-    let recovery_cmd = format!(
-        "./scripts/indexer-reorg-recover.sh --height {}",
-        recovery_height
-    );
-    let event = ReorgHaltEvent {
-        event: "indexer_reorg_halt",
-        height,
-        stored_hash: stored_hash.to_string(),
-        canonical_hash: canonical_hash.to_string(),
-        recovery_height,
-        recovery_cmd: recovery_cmd.clone(),
-        runbook: RUNBOOK,
-    };
+impl ReorgHaltDetails {
+    pub fn new(height: i64, stored_hash: String, canonical_hash: String) -> Self {
+        let recovery_fork_height = height;
+        Self {
+            height,
+            stored_hash,
+            canonical_hash,
+            recovery_fork_height,
+            recovery_command: format!(
+                "./scripts/indexer-reorg-recover.sh --height {}",
+                recovery_fork_height
+            ),
+            runbook_path: "docs/runbooks/indexer-reorg-replay-dedup.md",
+        }
+    }
+}
 
-    error!(
+/// Structured log + stderr JSON + optional webhook. Webhook delivery is best-effort but awaited
+/// so the POST can finish before the indexer task exits on reorg halt.
+pub async fn emit_reorg_halt(details: &ReorgHaltDetails) {
+    tracing::error!(
         target: "indexer_reorg_halt",
-        event = event.event,
-        height = event.height,
-        stored_hash = %event.stored_hash,
-        canonical_hash = %event.canonical_hash,
-        recovery_height = event.recovery_height,
-        recovery_cmd = %event.recovery_cmd,
-        runbook = event.runbook,
-        "Indexer halted: chain reorg detected — run recovery script (dry-run first)"
+        event = "indexer_reorg_halt",
+        height = details.height,
+        stored_hash = %details.stored_hash,
+        canonical_hash = %details.canonical_hash,
+        recovery_fork_height = details.recovery_fork_height,
+        recovery_command = %details.recovery_command,
+        runbook = details.runbook_path,
+        "Indexer halted: chain reorg detected — operator recovery required"
     );
 
-    match serde_json::to_string(&event) {
+    let payload = WebhookPayload::from_details(details);
+    match serde_json::to_string(&payload) {
         Ok(json) => eprintln!("INDEXER_REORG_HALT {json}"),
         Err(e) => tracing::warn!(error = %e, "Failed to serialize reorg halt event"),
     }
 
-    if let Some(url) = webhook_url.filter(|u| !u.is_empty()) {
-        post_webhook(url, &event).await;
+    let webhook_url = match std::env::var("REORG_ALERT_WEBHOOK_URL") {
+        Ok(url) if !url.trim().is_empty() => url,
+        _ => return,
+    };
+
+    if let Err(e) = post_webhook(&webhook_url, &payload).await {
+        tracing::warn!(
+            target: "indexer_reorg_halt",
+            error = %e,
+            "Failed to deliver reorg alert webhook"
+        );
     }
 }
 
-async fn post_webhook(url: &str, event: &ReorgHaltEvent) {
-    let client = match reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-    {
-        Ok(c) => c,
-        Err(e) => {
-            tracing::warn!(error = %e, "Reorg webhook client build failed");
-            return;
-        }
-    };
+#[derive(Debug, Serialize)]
+struct WebhookPayload {
+    event: &'static str,
+    height: i64,
+    stored_hash: String,
+    canonical_hash: String,
+    recovery_fork_height: i64,
+    recovery_command: String,
+    runbook: &'static str,
+}
 
-    match client.post(url).json(event).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            tracing::info!(status = %resp.status(), "Reorg alert webhook delivered");
+impl WebhookPayload {
+    fn from_details(details: &ReorgHaltDetails) -> Self {
+        Self {
+            event: "indexer_reorg_halt",
+            height: details.height,
+            stored_hash: details.stored_hash.clone(),
+            canonical_hash: details.canonical_hash.clone(),
+            recovery_fork_height: details.recovery_fork_height,
+            recovery_command: details.recovery_command.clone(),
+            runbook: details.runbook_path,
         }
-        Ok(resp) => {
-            tracing::warn!(
-                status = %resp.status(),
-                "Reorg alert webhook returned non-success status"
-            );
-        }
-        Err(e) => {
-            tracing::warn!(error = %e, "Reorg alert webhook request failed");
-        }
+    }
+}
+
+async fn post_webhook(url: &str, payload: &WebhookPayload) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .post(url)
+        .json(payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.status().is_success() {
+        tracing::info!(
+            target: "indexer_reorg_halt",
+            status = %resp.status(),
+            "Reorg alert webhook delivered"
+        );
+        Ok(())
+    } else {
+        Err(format!("webhook returned {}", resp.status()))
     }
 }
 
@@ -96,19 +125,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn reorg_halt_event_serializes_required_fields() {
-        let event = ReorgHaltEvent {
-            event: "indexer_reorg_halt",
-            height: 42,
-            stored_hash: "OLD".into(),
-            canonical_hash: "NEW".into(),
-            recovery_height: 42,
-            recovery_cmd: "./scripts/indexer-reorg-recover.sh --height 42".into(),
-            runbook: RUNBOOK,
-        };
-        let json = serde_json::to_string(&event).expect("serialize");
-        assert!(json.contains("\"event\":\"indexer_reorg_halt\""));
-        assert!(json.contains("\"height\":42"));
-        assert!(json.contains("indexer-reorg-recover.sh"));
+    fn recovery_command_matches_fork_height() {
+        let d = ReorgHaltDetails::new(1_234_567, "OLD".into(), "NEW".into());
+        assert_eq!(d.recovery_fork_height, 1_234_567);
+        assert!(d.recovery_command.contains("--height 1234567"));
+    }
+
+    #[test]
+    fn webhook_payload_serializes_event_type() {
+        let d = ReorgHaltDetails::new(100, "a".into(), "b".into());
+        let p = WebhookPayload::from_details(&d);
+        let json = serde_json::to_value(&p).expect("serialize");
+        assert_eq!(json["event"], "indexer_reorg_halt");
+        assert_eq!(json["height"], 100);
+        assert_eq!(json["stored_hash"], "a");
+        assert_eq!(json["canonical_hash"], "b");
     }
 }

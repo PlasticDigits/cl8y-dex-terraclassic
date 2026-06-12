@@ -70,7 +70,7 @@ Frontend / docs / QA scripts only?       → no redeploy
 | Skip redundant deploy | `start-qa` probes stamp + factory LCD (**Q1**); skips `deploy-local` when aligned |
 | Skip optimizer when wasm fresh | `make deploy-local-no-build` or `QA_FETCH_CI_ARTIFACTS=1 make start-qa` |
 | Reuse indexer binary | `cd indexer && cargo build --release`; `export INDEXER_QA_BIN=$PWD/target/release/cl8y-dex-indexer` |
-| CI wasm / indexer packages | GitLab generic packages `qa-wasm/{sha}`, `qa-indexer/{sha}` — see `.gitlab-ci.yml` |
+| CI wasm / indexer packages | GitLab generic packages `qa-wasm/{sha}`, `qa-indexer/{sha}` — see `.gitlab-ci.yml` (`qa-indexer-binary` uses **Rust 1.85+** for edition-2024 crates; [#370](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/370)) |
 | Lighter deploy seed | `QA_DEPLOY_SEED=minimal\|charts\|wallet\|full` (default `full`) |
 | Tx poll vs fixed sleep | `scripts/lib/terrad-wait-tx.sh` in `deploy-dex-local.sh` |
 | Phase timing logs | `[timing]` lines in `start-qa` and `deploy-dex-local` |

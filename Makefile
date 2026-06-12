@@ -322,10 +322,13 @@ lint-frontend:
 indexer-dev:
 	cd indexer && cargo run
 
-# Dry-run by default; pass APPLY=1 to mutate indexer_state (GitLab #362).
+# Operator recovery after reorg halt (dry-run unless HEIGHT=… APPLY=1 CLEANUP=1)
 indexer-reorg-recover:
-	@test -n "$(HEIGHT)" || (echo "Usage: make indexer-reorg-recover HEIGHT=<fork_height> [APPLY=1]" && exit 1)
-	./scripts/indexer-reorg-recover.sh --height $(HEIGHT) $(if $(filter 1,$(APPLY)),--apply,)
+	@test -n "$(HEIGHT)" || (echo "Usage: make indexer-reorg-recover HEIGHT=<fork_height> [APPLY=1] [CLEANUP=1]" && exit 1)
+	@args="--height $(HEIGHT)"; \
+	[ "$(APPLY)" = "1" ] && args="$$args --apply"; \
+	[ "$(CLEANUP)" = "1" ] && args="$$args --cleanup-derived"; \
+	./scripts/indexer-reorg-recover.sh $$args
 
 # Full devnet lifecycle: start infra, build, deploy, start indexer & frontend
 dev-full: start wait-healthy build-optimized deploy-local

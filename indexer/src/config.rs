@@ -26,6 +26,11 @@ const DEFAULT_LCD_URLS: &str = "https://terra-classic-lcd.publicnode.com,\
              https://columbus-lcd.terra.dev,\
              https://lcd.terra-classic.hexxagon.io";
 
+/// Default global API rate limit (requests per second per client IP).
+pub const DEFAULT_RATE_LIMIT_RPS: u64 = 60;
+/// Default LCD-heavy route rate limit (requests per second per client IP).
+pub const DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS: u64 = 10;
+
 fn normalized_lcd_url_list(s: &str) -> String {
     s.split(',')
         .map(|p| p.trim())
@@ -65,6 +70,8 @@ pub struct Config {
     pub lcd_urls: Vec<String>,
     pub factory_address: String,
     pub fee_discount_address: Option<String>,
+    /// Drift-correction full reconcile interval (seconds). Event-driven updates are primary (GitLab #364).
+    pub tier_sync_reconcile_interval_secs: u64,
     pub poll_interval_ms: u64,
     pub api_port: u16,
     pub api_bind: String,
@@ -163,6 +170,10 @@ impl Config {
             lcd_urls,
             factory_address,
             fee_discount_address: env::var("FEE_DISCOUNT_ADDRESS").ok(),
+            tier_sync_reconcile_interval_secs: env::var("TIER_SYNC_RECONCILE_INTERVAL")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(crate::indexer::trader_tracker::DEFAULT_TIER_RECONCILE_INTERVAL_SECS),
             poll_interval_ms: env::var("POLL_INTERVAL_MS")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -187,9 +198,12 @@ impl Config {
                 let mut rps = env::var("RATE_LIMIT_RPS")
                     .ok()
                     .and_then(|v| v.parse().ok())
-                    .unwrap_or(60);
+                    .unwrap_or(DEFAULT_RATE_LIMIT_RPS);
                 if run_mode == RunMode::Prod && rps == 0 {
-                    rps = 60;
+                    tracing::warn!(
+                        "RUN_MODE=prod: RATE_LIMIT_RPS=0 is not allowed; using {DEFAULT_RATE_LIMIT_RPS} RPS"
+                    );
+                    rps = DEFAULT_RATE_LIMIT_RPS;
                 }
                 rps
             },
@@ -197,9 +211,12 @@ impl Config {
                 let mut rps = env::var("RATE_LIMIT_LCD_HEAVY_RPS")
                     .ok()
                     .and_then(|v| v.parse().ok())
-                    .unwrap_or(10);
+                    .unwrap_or(DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS);
                 if run_mode == RunMode::Prod && rps == 0 {
-                    rps = 10;
+                    tracing::warn!(
+                        "RUN_MODE=prod: RATE_LIMIT_LCD_HEAVY_RPS=0 is not allowed; using {DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS} RPS (GitLab #363)"
+                    );
+                    rps = DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS;
                 }
                 rps
             },

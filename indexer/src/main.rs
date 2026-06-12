@@ -107,6 +107,11 @@ async fn run_server() -> anyhow::Result<()> {
     tracing::info!("Starting CL8Y DEX indexer (RUN_MODE={:?})", config.run_mode);
     tracing::info!("LCD endpoints: {:?}", config.lcd_urls);
     tracing::info!("Factory: {}", config.factory_address);
+    tracing::info!(
+        "Rate limits: global={} RPS, LCD-heavy={} RPS",
+        config.rate_limit_rps,
+        config.rate_limit_lcd_heavy_rps
+    );
 
     let pool = PgPoolOptions::new()
         .max_connections(10)
