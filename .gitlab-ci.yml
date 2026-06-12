@@ -39,7 +39,7 @@ qa-wasm-artifacts:
 
 qa-indexer-binary:
   stage: build
-  image: rust:1.83-bookworm
+  image: rust:1.85-bookworm
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
