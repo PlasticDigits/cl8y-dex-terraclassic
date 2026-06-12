@@ -160,7 +160,7 @@ pub fn parse_fee_discount_registry_events(
             if contract != fee_discount_addr {
                 continue;
             }
-            if wasm_attr_last(attrs, "skipped").is_some() {
+            if segment_kv_map_after_action(attrs, i).contains_key("skipped") {
                 tracing::debug!(
                     action = %attr.value,
                     "Skipping fee-discount registry event with skipped attribute"
