@@ -390,6 +390,7 @@ async fn optimize_one_hop(
             Err(HybridSimError::Lcd(e)) if is_infra_lcd_error(&e) => {
                 return Err(HybridSimError::Lcd(e));
             }
+            Err(HybridSimError::Db(e)) => return Err(HybridSimError::Db(e)),
             Err(_) => return Err(HybridSimError::PathUnusable),
         }
     }
@@ -409,6 +410,7 @@ async fn optimize_one_hop(
     match query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader).await {
         Ok(out) => Ok((None, out)),
         Err(HybridSimError::Lcd(e)) if is_infra_lcd_error(&e) => Err(HybridSimError::Lcd(e)),
+        Err(HybridSimError::Db(e)) => Err(HybridSimError::Db(e)),
         Err(_) => Err(HybridSimError::PathUnusable),
     }
 }
