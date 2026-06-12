@@ -88,13 +88,6 @@ function handleBroadcastError(error: unknown): Error {
   return new Error(`Transaction failed: ${String(error)}`)
 }
 
-function isBroadcastOrPollTimeout(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.message === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || error.message === TERRA_TX_POLL_TIMEOUT_MESSAGE)
-  )
-}
-
 async function pollTxWithTimeout(
   wallet: ConnectedWallet,
   txHash: string
@@ -137,8 +130,6 @@ async function broadcastSignedSplitPath(
 
   const recoveryDeadlineUnix = resolveTerraTxRecoveryDeadlineUnix(entries)
 
-  let broadcastTimedOut = false
-
   try {
     await withPromiseTimeout(
       RpcClient.broadcastTx(wallet.rpc, txRaw),
@@ -146,33 +137,27 @@ async function broadcastSignedSplitPath(
       TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
     )
     bumpWalletCachedSequence(wallet, sequence)
-  } catch (error: unknown) {
-    if (!isBroadcastOrPollTimeout(error)) {
-      throw error
-    }
-    broadcastTimedOut = true
+  } catch {
     onPhaseChange?.('confirming', { txHash })
+    return recoverPostSignBroadcast(wallet, txHash, sequence, recoveryDeadlineUnix, onPhaseChange)
   }
 
-  if (!broadcastTimedOut) {
-    onPhaseChange?.('confirming', { txHash })
+  onPhaseChange?.('confirming', { txHash })
 
-    try {
-      const { txResponse } = await pollTxWithTimeout(wallet, txHash)
-      if (txResponse.code !== 0) {
-        const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
-        const human = tryHumanizeTerraTxMessage(raw)
-        throw new Error(human ?? `Transaction failed: ${raw}`)
-      }
-      return txHash
-    } catch (error: unknown) {
-      if (!isBroadcastOrPollTimeout(error)) {
-        throw error
-      }
-    }
+  let txResponse: Awaited<ReturnType<typeof pollTxWithTimeout>>['txResponse']
+  try {
+    ;({ txResponse } = await pollTxWithTimeout(wallet, txHash))
+  } catch {
+    return recoverPostSignBroadcast(wallet, txHash, sequence, recoveryDeadlineUnix, onPhaseChange)
   }
 
-  return recoverPostSignBroadcast(wallet, txHash, sequence, recoveryDeadlineUnix, onPhaseChange)
+  if (txResponse.code !== 0) {
+    const raw = txResponse.rawLog || txResponse.logs?.[0]?.log || `Transaction failed with code ${txResponse.code}`
+    const human = tryHumanizeTerraTxMessage(raw)
+    throw new Error(human ?? `Transaction failed: ${raw}`)
+  }
+
+  return txHash
 }
 
 async function broadcastAtomicWalletPath(
