@@ -106,14 +106,15 @@ function walletUsesAmino(wallet: SplittableWallet): boolean {
 /** Wallets that sign locally then RPC-broadcast (not atomic WC `post`). */
 export function walletSupportsSplitSignBroadcast(wallet: ConnectedWallet): boolean {
   const w = wallet as SplittableWallet
-  if (w.id === 'mnemonic' || w.privateKey) return true
+  // dev MnemonicWallet sets id 'mnemonic', outside the cosmes WalletName enum — compare as string.
+  if ((w.id as string) === 'mnemonic' || w.privateKey) return true
   if (w.ext?.signAmino || w.ext?.signDirect) return true
   if (w.wc?.signAmino || w.wc?.signDirect) return true
   return false
 }
 
 export function bumpWalletCachedSequence(wallet: ConnectedWallet, signedSequence: bigint): void {
-  const w = wallet as { sequence?: bigint }
+  const w = wallet as unknown as { sequence?: bigint }
   if (w.sequence !== undefined) {
     w.sequence = signedSequence + 1n
   }
