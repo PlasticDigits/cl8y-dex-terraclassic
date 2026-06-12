@@ -70,6 +70,18 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
     })
   })
 
+  describe('extension signed fee undershoot (GitLab #371)', () => {
+    it('humanizes post-sign fee guard diagnostic copy', () => {
+      const raw =
+        'Wallet signed a fee far below what this dApp submitted (GitLab #127). On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run `cd frontend-dapp && npm ci` so the cosmes patch is applied, then retry. Expected at least ~50985000 uluna; wallet returned ~29 uluna. Expected gas at least ~1800000; wallet returned ~1.'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).toBe(
+        'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
+      )
+      expect(out).not.toMatch(/GitLab|uluna|npm ci|Station/)
+    })
+  })
+
   describe('insufficient fees (GitLab #127)', () => {
     it('humanizes LocalTerra Station stale gas price repro', () => {
       const raw = 'insufficient fees; got: "3000uluna", required: "5665000uluna" (gas) [+ ""(tax)]: insufficient fee'
