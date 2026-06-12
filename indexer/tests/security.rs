@@ -415,7 +415,12 @@ async fn prod_lcd_heavy_rate_limit_enforced_when_config_clamped() {
     let mut config = common::test_config();
     config.run_mode = cl8y_dex_indexer::config::RunMode::Prod;
     config.rate_limit_rps = 0;
-    config.rate_limit_lcd_heavy_rps = 10;
+    config.rate_limit_lcd_heavy_rps = 0;
+    // Integration tests skip Config::from_env; mirror prod clamp (#363) before build_router.
+    if config.run_mode == cl8y_dex_indexer::config::RunMode::Prod && config.rate_limit_lcd_heavy_rps == 0
+    {
+        config.rate_limit_lcd_heavy_rps = 10;
+    }
     let app = common::build_test_app_with_price_and_config(pool, None, config).await;
     let server = TestServer::builder()
         .http_transport()
