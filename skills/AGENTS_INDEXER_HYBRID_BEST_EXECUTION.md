@@ -63,6 +63,12 @@ Side safety: hint rows must match bid/ask for the offer token; corrupt wrong-sid
 
 Regression: `route_solve_db_hybrid_book_start_hint_paths` in `indexer/tests/api_route_solve_db_hybrid.rs`.
 
+## Zero-reserve path candidates ([#369](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/369))
+
+Unfunded pairs (`pair_reserves` with `reserve_0 = reserve_1 = 0`) are normal after `create_pair` until LP is added. Under `ROUTE_SOLVER_DB_HYBRID=1`, a path candidate that includes a zero-reserve hop must be **skipped** during concurrent evaluation — not fail the whole `GET /route/solve` with **502** "Route mirror simulation failed" when a direct pool route is viable.
+
+Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`; `make verify-issue-369`.
+
 ## Related invariants
 
 [docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), hybrid GET cache tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)), CG/CMC consolidated reporting rows.
