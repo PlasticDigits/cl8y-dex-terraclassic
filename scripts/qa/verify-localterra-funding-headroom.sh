@@ -17,6 +17,13 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+# shellcheck source=scripts/qa/lib/qa-env.sh
+source "$REPO_ROOT/scripts/qa/lib/qa-env.sh"
+qa_load_env
+
+LCD="${TERRA_LCD_URL:-http://127.0.0.1:${DEX_TERRA_LCD_PORT:-1317}}"
+LCD="${LCD%/}"
+
 TEST1_ADDR="terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
 # ~10M genesis − 2M treasury LUNC − deploy gas ≈ 7.99M (GitLab #372).
 POST_DEPLOY_MIN="${VERIFY372_POST_DEPLOY_MIN_ULUNA:-7900000000000}"
@@ -35,10 +42,8 @@ skip() { RESULTS+=("SKIP  $1"); SKIP=$((SKIP+1)); echo "  [SKIP] $1"; }
 query_test1_uluna() {
   # shellcheck source=scripts/lib/localterra-host-curl.sh
   source "$REPO_ROOT/scripts/lib/localterra-host-curl.sh"
-  local lcd="${VITE_TERRA_LCD_URL:-http://127.0.0.1:1317}"
-  lcd="${lcd%/}"
   local raw amount
-  raw="$(localterra_lcd_curl "$lcd" "/cosmos/bank/v1beta1/balances/${TEST1_ADDR}" 2>/dev/null || true)"
+  raw="$(localterra_lcd_curl "$LCD" "/cosmos/bank/v1beta1/balances/${TEST1_ADDR}" 2>/dev/null || true)"
   amount="$(echo "$raw" | jq -r '.balances[]? | select(.denom=="uluna") | .amount' | head -1)"
   if [[ -z "$amount" || "$amount" == "null" ]]; then
     echo "0"
