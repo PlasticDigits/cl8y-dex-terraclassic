@@ -20,6 +20,8 @@ This document describes **how to handle secrets** when operating the indexer and
 
 The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)). Use **`tracing` logs** (configure `RUST_LOG` / log collectors) for block processing errors, LCD failures, and block timestamp fallback warnings — see [`indexer-invariants.md`](./indexer-invariants.md) and [`runbooks/indexer-reorg-replay-dedup.md`](./runbooks/indexer-reorg-replay-dedup.md).
 
+**Reorg halt alerting (#362):** Alert on structured log field `event=indexer_reorg_halt` (target `indexer.reorg_halt`). Optionally set **`REORG_ALERT_WEBHOOK_URL`** on the indexer process for JSON webhook delivery (PagerDuty, Slack, etc.). Recovery: [`scripts/indexer-reorg-recover.sh`](../scripts/indexer-reorg-recover.sh) — dry-run first, `--apply` only after review.
+
 ## Chain signing keys
 
 - **Hot wallets** for `terrad tx` should use hardware wallets or HSM-backed keys where possible.
