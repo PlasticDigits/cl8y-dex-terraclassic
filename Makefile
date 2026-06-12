@@ -200,12 +200,16 @@ verify-issue-324:
 	@chmod +x scripts/qa/verify-issue-324.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/qa/verify-issue-324.sh
 
+verify-issue-369:
+	@chmod +x scripts/qa/verify-issue-369.sh scripts/setup-cloud-agent-indexer-postgres.sh
+	./scripts/qa/verify-issue-369.sh
+
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-redeploy-decision"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
-	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-295 (needs make dev)"
+	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-369 | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration"
 	@echo "Docs:            scripts/qa/README.md"

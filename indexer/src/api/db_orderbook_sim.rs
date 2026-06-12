@@ -57,6 +57,12 @@ pub fn parse_u128(bd: &BigDecimal) -> Option<u128> {
     bd.with_scale(0).to_string().parse().ok()
 }
 
+/// True when mirrored pool reserves cannot support a constant-product swap leg (#369).
+#[inline]
+pub fn pool_reserves_unusable(reserve_0: u128, reserve_1: u128) -> bool {
+    reserve_0 == 0 || reserve_1 == 0
+}
+
 fn mul_floor_u128(a: u128, price: &BigDecimal) -> Option<u128> {
     if price <= &BigDecimal::from(0u32) {
         return None;
@@ -173,6 +179,8 @@ pub async fn load_hop_mirror(
         MirrorFreshness::EmptyPool
     } else if stale {
         MirrorFreshness::Stale
+    } else if pool_reserves_unusable(reserve_0, reserve_1) {
+        MirrorFreshness::MissingReserves
     } else {
         MirrorFreshness::Fresh
     };
@@ -656,15 +664,24 @@ mod tests {
     }
 
     #[test]
-    fn zero_reserve_mirror_rejects_pool_leg() {
+    fn pool_reserves_unusable_detects_empty_pool() {
+        assert!(pool_reserves_unusable(0, 0));
+        assert!(pool_reserves_unusable(0, 100));
+        assert!(pool_reserves_unusable(100, 0));
+        assert!(!pool_reserves_unusable(100, 100));
+    }
+
+    #[test]
+    fn zero_reserve_mirror_returns_no_output() {
         let m = HopMirror {
             reserve_0: 0,
             reserve_1: 0,
-            freshness: MirrorFreshness::EmptyPool,
+            freshness: MirrorFreshness::MissingReserves,
             ..mirror_with_book(vec![])
         };
-        let err = simulate_pool_only_from_mirror(&m, "terra1token0", 100_000, 0).unwrap_err();
-        assert!(matches!(err, DbSimError::InsufficientLiquidity));
+        let out =
+            simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 0).unwrap_err();
+        assert!(matches!(out, DbSimError::InsufficientLiquidity));
     }
 
     #[test]
