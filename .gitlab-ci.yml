@@ -6,7 +6,8 @@ stages:
 
 variables:
   CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
-  RUSTFLAGS: "-D warnings"
+  # -A dead_code: binary target has many intentional stubs (LCD types, sqlx rows); #325 never got a green run before #370.
+  RUSTFLAGS: "-D warnings -A dead_code"
 
 qa-wasm-artifacts:
   stage: build
@@ -39,7 +40,8 @@ qa-wasm-artifacts:
 
 qa-indexer-binary:
   stage: build
-  image: rust:1.85-bookworm
+  # base64ct 1.8+ needs edition 2024 (Rust 1.85+); align with AGENTS.md 1.96+ local toolchain.
+  image: rust:1.96-bookworm
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
