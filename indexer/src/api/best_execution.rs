@@ -383,6 +383,14 @@ async fn evaluate_candidate(
                 );
                 return Ok(None);
             }
+            Err(HybridSimError::Db(db_orderbook_sim::DbSimError::InsufficientLiquidity)) => {
+                tracing::debug!(
+                    path_index = index,
+                    hops = hops_desc.len(),
+                    "skip path candidate: zero-reserve pool leg"
+                );
+                return Ok(None);
+            }
             Err(e) => return Err(hybrid_sim_gateway_err(e)),
         };
 
@@ -457,7 +465,8 @@ async fn evaluate_candidate(
 }
 
 /// Fan out path-candidate evaluation under `concurrency_cap` (#324).
-/// Skips candidates that fail simulation or yield zero DB-hybrid output (#369).
+/// Skips candidates with unusable/zero-reserve pool legs or zero DB-hybrid output (#369).
+/// Fail-fast only when every evaluated candidate hits a fatal gateway error.
 async fn run_concurrent_candidate_evaluations(
     state: &AppState,
     candidates: &[PathCandidate],

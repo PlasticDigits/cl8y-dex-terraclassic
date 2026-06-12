@@ -45,7 +45,10 @@ run_step "indexer lib: pool_reserves_unusable" \
 run_step "indexer lib: concurrent_eval_skips failed candidates" \
   bash -c 'cd indexer && cargo test concurrent_eval_skips --lib -- --quiet'
 
-run_step "indexer integration: route_solve_db_hybrid zero-reserve candidate" \
+run_step "indexer lib: concurrent_solve (fail-fast preserved)" \
+  bash -c 'cd indexer && cargo test concurrent_solve --lib -- --quiet'
+
+run_step "indexer integration: zero-reserve path skip (api_route_solve_db_hybrid)" \
   bash -c 'cd indexer && cargo test --test api_route_solve_db_hybrid route_solve_db_hybrid_skips_zero_reserve -- --test-threads=1 --quiet'
 
 echo ""
