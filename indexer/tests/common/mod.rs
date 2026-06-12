@@ -563,6 +563,35 @@ pub async fn seed_route_solve_multi_path(pool: &PgPool) -> RouteSolveSeed {
     }
 }
 
+/// Like [`seed_route_solve_multi_path`] but seeds Postgres mirrors: direct A↔C and A↔B are
+/// funded; B↔C is zero-reserve (unfunded). Used for GitLab #369 DB-hybrid path skipping.
+pub async fn seed_route_solve_zero_reserve_poison(pool: &PgPool) -> RouteSolveSeed {
+    use bigdecimal::BigDecimal;
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+    use std::str::FromStr;
+
+    let seed = seed_route_solve_multi_path(pool).await;
+    let bd = |s: &str| BigDecimal::from_str(s).unwrap();
+    let healthy = bd("10000000000000");
+
+    for (addr, r0, r1) in [
+        ("terra1pairroutempac", healthy.clone(), healthy.clone()),
+        ("terra1pairroutempab", healthy.clone(), healthy.clone()),
+        ("terra1pairroutempbc", bd("0"), bd("0")),
+    ] {
+        let pair_id: i32 = sqlx::query_scalar("SELECT id FROM pairs WHERE contract_address = $1")
+            .bind(addr)
+            .fetch_one(pool)
+            .await
+            .expect("pair id");
+        pair_reserves::upsert_pair_reserves(pool, pair_id, &r0, &r1, 30, Some(100))
+            .await
+            .expect("upsert reserves");
+    }
+
+    seed
+}
+
 /// A→B→C→D chain (three hops) for multihop hybrid regression tests (GitLab #192).
 pub async fn seed_route_solve_3hop(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;
