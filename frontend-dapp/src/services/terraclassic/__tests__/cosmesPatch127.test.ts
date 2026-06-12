@@ -17,6 +17,7 @@ describe('cosmes patch-package (GitLab #127)', () => {
     expect(src).toContain('assertExtensionSignedFeeMeetsExpected')
     expect(src).toContain('assertExtensionSignedDirectFeeMeetsExpected')
     expect(src).toContain('EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX')
+    expect(src).toContain('EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE')
     expect(src).toContain('meetsMinSignedRatio')
     expect(src).toContain('ulunaFromAminoFee')
     expect(src).toContain('ulunaFromDirectSignedAuthInfoBytes')

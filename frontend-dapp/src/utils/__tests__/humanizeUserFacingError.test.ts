@@ -111,4 +111,14 @@ describe('humanizeUserFacingError', () => {
   it('humanizeUserFacingErrorFromUnknown handles non-Error throws', () => {
     expect(humanizeUserFacingErrorFromUnknown('Failed to fetch')).toMatch(/Network request/)
   })
+
+  it('humanizes legacy extension signed fee undershoot diagnostics (GitLab #371)', () => {
+    const raw =
+      'Wallet signed a fee far below what this dApp submitted (GitLab #127). Expected at least ~50985000 uluna; wallet returned ~29 uluna.'
+    const out = humanizeUserFacingError(raw)
+    expect(out).toBe(
+      'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
+    )
+    expect(out).not.toMatch(/GitLab|uluna|npm ci/)
+  })
 })
