@@ -14,6 +14,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/lib/postgres-dev.env
 source "${REPO_ROOT}/scripts/lib/postgres-dev.env"
+# shellcheck source=scripts/lib/postgres-psql.sh
+source "${REPO_ROOT}/scripts/lib/postgres-psql.sh"
 
 HEIGHT=""
 DRY_RUN=1
@@ -32,6 +34,7 @@ Environment:
   DATABASE_URL          Postgres connection (or postgres-dev defaults).
   REORG_ALERT_WEBHOOK_URL  (indexer process) optional webhook on reorg halt.
 
+Also: make indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]
 Recovery runbook: docs/runbooks/indexer-reorg-replay-dedup.md
 EOF
 }
@@ -71,7 +74,31 @@ PREV=$((HEIGHT - 1))
 DB_URL="${DATABASE_URL:-postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}}"
 
 psql_query() {
-  psql "$DB_URL" -v ON_ERROR_STOP=1 -At -c "$1"
+  local query="$1"
+  if postgres_psql_init; then
+    if [[ "${POSTGRES_PSQL_MODE:-host}" == compose ]]; then
+      export PGPASSWORD="${POSTGRES_PASSWORD}"
+      postgres_psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -At -c "$query"
+    else
+      postgres_psql "$DB_URL" -v ON_ERROR_STOP=1 -At -c "$query"
+    fi
+  else
+    psql "$DB_URL" -v ON_ERROR_STOP=1 -At -c "$query"
+  fi
+}
+
+psql_exec() {
+  local sql="$1"
+  if postgres_psql_init; then
+    if [[ "${POSTGRES_PSQL_MODE:-host}" == compose ]]; then
+      export PGPASSWORD="${POSTGRES_PASSWORD}"
+      postgres_psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -c "$sql"
+    else
+      postgres_psql "$DB_URL" -v ON_ERROR_STOP=1 -c "$sql"
+    fi
+  else
+    psql "$DB_URL" -v ON_ERROR_STOP=1 -c "$sql"
+  fi
 }
 
 echo "=== Indexer reorg recovery (GitLab #236 / #362) ==="
@@ -187,6 +214,6 @@ if [[ "$CLEANUP_DERIVED" -eq 1 ]]; then
 else
   echo "--- Applying cursor reset ---"
 fi
-psql "$DB_URL" -v ON_ERROR_STOP=1 -c "$APPLY_SQL"
+psql_exec "$APPLY_SQL"
 
 echo "Done. Restart the indexer to replay from height ${HEIGHT}."

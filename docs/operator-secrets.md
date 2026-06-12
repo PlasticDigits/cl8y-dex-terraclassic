@@ -11,6 +11,7 @@ This document describes **how to handle secrets** when operating the indexer and
 | `CORS_ORIGINS` | Browser origin allowlist | Not a substitute for auth; restrict to your frontends. |
 | `FACTORY_ADDRESS` | On-chain factory | Public address; not secret. |
 | `FEE_DISCOUNT_ADDRESS`, `ROUTER_ADDRESS`, `USTC_DENOM` | Optional config | Same as factory—addresses are public. |
+| `REORG_ALERT_WEBHOOK_URL` | Reorg halt webhook | Optional. POST JSON on chain reorg halt (GitLab #362). Use your paging/Slack endpoint; not a public API. |
 | `RATE_LIMIT_RPS` | Global per-IP API governor | Default **60** RPS. **`RUN_MODE=prod`:** `0` is clamped to **60** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Dev/QA may set `0` to disable the global layer (e.g. Playwright bursts). |
 | `RATE_LIMIT_LCD_HEAVY_RPS` | Stricter per-IP limit on LCD-heavy routes | Default **10** RPS. **`RUN_MODE=prod`:** `0` is clamped to **10** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). |
 
@@ -35,7 +36,7 @@ LCD-heavy routes fan out multiple upstream LCD `smart` queries per HTTP request.
 
 ## Observability
 
-The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)). Use **`tracing` logs** (configure `RUST_LOG` / log collectors) for block processing errors, LCD failures, and block timestamp fallback warnings — see [`indexer-invariants.md`](./indexer-invariants.md) and [`runbooks/indexer-reorg-replay-dedup.md`](./runbooks/indexer-reorg-replay-dedup.md).
+The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)). Use **`tracing` logs** (configure `RUST_LOG` / log collectors) for block processing errors, LCD failures, and block timestamp fallback warnings — see [`indexer-invariants.md`](./indexer-invariants.md) and [`runbooks/indexer-reorg-replay-dedup.md`](./runbooks/indexer-reorg-replay-dedup.md). On reorg halt, alert on stderr prefix **`INDEXER_REORG_HALT`** or tracing target **`indexer_reorg_halt`**; optional `REORG_ALERT_WEBHOOK_URL` for webhook delivery.
 
 **Reorg halt alerting (#362):** Alert on structured log field `event=indexer_reorg_halt` (target `indexer.reorg_halt`). Optionally set **`REORG_ALERT_WEBHOOK_URL`** on the indexer process for JSON webhook delivery (PagerDuty, Slack, etc.). Recovery: [`scripts/indexer-reorg-recover.sh`](../scripts/indexer-reorg-recover.sh) — dry-run first, `--apply` only after review.
 

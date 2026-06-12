@@ -518,6 +518,8 @@ async fn run_concurrent_candidate_evaluations(
     }
 
     let mut evals = Vec::with_capacity(eval_count);
+    let mut gateway_err: Option<(StatusCode, String)> = None;
+    let mut gateway_err_count = 0u32;
     while let Some(joined) = join_set.join_next().await {
         match joined {
             Ok(Ok(Some(eval))) => {
@@ -599,6 +601,10 @@ async fn run_concurrent_candidate_evaluations(
                     detail = %e.1,
                     "skip route candidate: evaluation failed"
                 );
+                gateway_err_count = gateway_err_count.saturating_add(1);
+                if gateway_err.is_none() {
+                    gateway_err = Some(e);
+                }
                 if next_idx < eval_count {
                     let cand = candidates[next_idx].clone();
                     let idx = next_idx;
@@ -635,6 +641,13 @@ async fn run_concurrent_candidate_evaluations(
                 return Err(crate::api::internal_err(e));
             }
         }
+    }
+
+    if evals.is_empty()
+        && gateway_err_count > 0
+        && gateway_err_count == eval_count as u32
+    {
+        return Err(gateway_err.expect("gateway_err_count > 0"));
     }
 
     Ok((evals, search_truncated))

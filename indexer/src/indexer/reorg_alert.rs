@@ -1,7 +1,7 @@
 //! Operator alerting when the indexer halts on chain reorg (GitLab #362).
 //!
-//! Emits structured `tracing` events (for log collectors / alerts) and optionally POSTs
-//! JSON to `REORG_ALERT_WEBHOOK_URL` (PagerDuty, Slack, custom ops hook).
+//! Emits structured `tracing` events, a machine-parseable stderr line (`INDEXER_REORG_HALT`),
+//! and optionally POSTs JSON to `REORG_ALERT_WEBHOOK_URL` (PagerDuty, Slack, custom ops hook).
 
 use serde::Serialize;
 
@@ -35,11 +35,11 @@ impl ReorgHaltDetails {
     }
 }
 
-/// Structured log + optional webhook. Webhook delivery is best-effort but awaited so
-/// the POST can finish before the indexer task exits on reorg halt.
+/// Structured log + stderr JSON + optional webhook. Webhook delivery is best-effort but awaited
+/// so the POST can finish before the indexer task exits on reorg halt.
 pub async fn emit_reorg_halt(details: &ReorgHaltDetails) {
     tracing::error!(
-        target: "indexer.reorg_halt",
+        target: "indexer_reorg_halt",
         event = "indexer_reorg_halt",
         height = details.height,
         stored_hash = %details.stored_hash,
@@ -50,15 +50,20 @@ pub async fn emit_reorg_halt(details: &ReorgHaltDetails) {
         "Indexer halted: chain reorg detected — operator recovery required"
     );
 
+    let payload = WebhookPayload::from_details(details);
+    match serde_json::to_string(&payload) {
+        Ok(json) => eprintln!("INDEXER_REORG_HALT {json}"),
+        Err(e) => tracing::warn!(error = %e, "Failed to serialize reorg halt event"),
+    }
+
     let webhook_url = match std::env::var("REORG_ALERT_WEBHOOK_URL") {
         Ok(url) if !url.trim().is_empty() => url,
         _ => return,
     };
 
-    let payload = WebhookPayload::from_details(details);
     if let Err(e) = post_webhook(&webhook_url, &payload).await {
         tracing::warn!(
-            target: "indexer.reorg_halt",
+            target: "indexer_reorg_halt",
             error = %e,
             "Failed to deliver reorg alert webhook"
         );
@@ -105,7 +110,7 @@ async fn post_webhook(url: &str, payload: &WebhookPayload) -> Result<(), String>
 
     if resp.status().is_success() {
         tracing::info!(
-            target: "indexer.reorg_halt",
+            target: "indexer_reorg_halt",
             status = %resp.status(),
             "Reorg alert webhook delivered"
         );
@@ -121,11 +126,7 @@ mod tests {
 
     #[test]
     fn recovery_command_matches_fork_height() {
-        let d = ReorgHaltDetails::new(
-            1_234_567,
-            "OLD".into(),
-            "NEW".into(),
-        );
+        let d = ReorgHaltDetails::new(1_234_567, "OLD".into(), "NEW".into());
         assert_eq!(d.recovery_fork_height, 1_234_567);
         assert!(d.recovery_command.contains("--height 1234567"));
     }

@@ -30,13 +30,13 @@
 - [ ] **DB:** `DATABASE_URL` reachable; migrations applied?
 - [ ] **LCD:** Matches chain; `RUN_MODE=prod` uses correct `LCD_URLS`?
 - [ ] **Logs:** `tracing` errors from LCD or parser; block timestamp fallback warnings (`Invalid block timestamp` / `Missing block timestamp`) — see [`docs/operator-secrets.md`](../operator-secrets.md), [GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200).
-- [ ] **Reorg halt:** `event=indexer_reorg_halt` or `target=indexer.reorg_halt` in logs / webhook; note `height`, `stored_hash`, `canonical_hash`, `recovery_command` — [GitLab #362](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/362).
+- [ ] **Reorg halt:** `INDEXER_REORG_HALT` stderr line or `target=indexer_reorg_halt` in logs / webhook; note `height`, `stored_hash`, `canonical_hash`, `recovery_command` — dry-run [`indexer-reorg-recover.sh`](../../scripts/indexer-reorg-recover.sh) before `--apply` ([runbook](../runbooks/indexer-reorg-replay-dedup.md), [GitLab #362](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/362)).
 
 ## Mitigation
 
 - **Swap / contract issues:** Follow [Security model](../security-model.md) (pause, governance).
 - **Indexer stale / wrong data:** [Indexer reorg / replay runbook](../runbooks/indexer-reorg-replay-dedup.md), [Wasm admin runbook](../runbooks/wasm-admin-migration.md) if contract-side.
-- **Reorg halt (hash mismatch):** Stop indexer → dry-run `./scripts/indexer-reorg-recover.sh --height H` (add `--cleanup-derived` for true fork) → `--apply` → restart. Shallow vs deep steps in [runbook § Reorg handling](../runbooks/indexer-reorg-replay-dedup.md#reorg-handling).
+- **Reorg halt (hash mismatch):** Stop indexer → dry-run `make indexer-reorg-recover HEIGHT=H` or `./scripts/indexer-reorg-recover.sh --height H` (add `CLEANUP=1` / `--cleanup-derived` for true fork) → `APPLY=1` / `--apply` → restart. Shallow vs deep steps in [runbook § Reorg handling](../runbooks/indexer-reorg-replay-dedup.md#reorg-handling).
 
 ## Communications
 

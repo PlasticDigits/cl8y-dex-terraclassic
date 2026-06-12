@@ -2,13 +2,13 @@
 
 This runbook is for **operators** running [`indexer/`](../../indexer/). It complements [Indexer invariants](../indexer-invariants.md) and addresses **IX-03** (chain reorg / tx reorder) in [`docs/reviews/20260409T030009Z/SECURITY_REVIEW.md`](../reviews/20260409T030009Z/SECURITY_REVIEW.md).
 
-Implementation: GitLab [**#236**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/236), alerting/recovery automation [**#362**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/362). Agent playbook: [`skills/AGENTS_INDEXER_INGESTION_HARDENING.md`](../skills/AGENTS_INDEXER_INGESTION_HARDENING.md).
+Implementation: GitLab [**#236**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/236) (detection + cursor guard), [**#362**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/362) (operator alert + recovery preview). Agent playbook: [`skills/AGENTS_INDEXER_INGESTION_HARDENING.md`](../skills/AGENTS_INDEXER_INGESTION_HARDENING.md).
 
 ## Facts
 
 - The indexer **polls the LCD** and advances a cursor stored as `last_indexed_height` plus **`last_indexed_block_hash`** in Postgres ([`indexer/src/db/queries/state.rs`](../../indexer/src/db/queries/state.rs)).
 - **Automatic reorg detection:** before each new height, the poller re-fetches the hash at the last committed height; mismatch **halts** the indexer (no silent skip).
-- **Operator alert on halt:** structured `tracing` event `indexer_reorg_halt` (target `indexer.reorg_halt`) plus optional webhook — see [Alerting](#alerting-on-reorg-halt).
+- **Operator alert on halt:** structured `tracing` event `indexer_reorg_halt` (target `indexer_reorg_halt`), stderr prefix `INDEXER_REORG_HALT`, plus optional webhook — see [Alerting](#alerting-on-reorg-halt).
 - **Block processing errors** do **not** advance the cursor; retries use `BLOCK_PROCESS_MAX_RETRIES` / `BLOCK_PROCESS_RETRY_BACKOFF_MS`; persistent failures are recorded in **`indexer_failed_blocks`**.
 
 ## Dedup and replay
@@ -23,9 +23,10 @@ When the hash guard fires, [`reorg_alert::emit_reorg_halt`](../../indexer/src/in
 | Signal | Content |
 |--------|---------|
 | **Structured log** | `event=indexer_reorg_halt`, `height`, `stored_hash`, `canonical_hash`, `recovery_fork_height`, `recovery_command`, `runbook` |
+| **Stderr JSON** | `INDEXER_REORG_HALT {"event":"indexer_reorg_halt",...}` including `recovery_command` and `runbook` |
 | **Webhook** (optional) | JSON POST to `REORG_ALERT_WEBHOOK_URL` (PagerDuty Events, Slack incoming webhook, etc.) |
 
-Wire log collectors to alert on `event="indexer_reorg_halt"` or `target="indexer.reorg_halt"`.
+Wire log collectors to alert on `INDEXER_REORG_HALT` prefix, `event="indexer_reorg_halt"`, or `target="indexer_reorg_halt"`.
 
 Example recovery command in the payload:
 
@@ -62,7 +63,7 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
    ```
 
    - Sets `last_indexed_height` to `H - 1`, clears `last_indexed_block_hash`, truncates `indexer_failed_blocks`.
-   - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `ohlcv_candles` for affected pairs.
+   - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `candles` for affected pairs.
 
 4. **Restart** the indexer; confirm `last_indexed_height` advances and API pair/candle data matches LCD tip within normal lag.
 5. **Verify** swap count stable on replay (dedup) when **not** using `--cleanup-derived` and txs are unchanged; after cleanup, swaps are re-ingested fresh.

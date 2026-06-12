@@ -1,10 +1,13 @@
-//! Integration tests for indexer ingestion hardening (GitLab #236): cursor-on-error,
-//! tx pagination, reorg hash guard.
+//! Integration tests for indexer ingestion hardening (GitLab #236, #362): cursor-on-error,
+//! tx pagination, reorg hash guard, replay dedup, recovery rewind.
 
 mod common;
 
 use cl8y_dex_indexer::config::Config;
-use cl8y_dex_indexer::db::queries::state;
+use bigdecimal::BigDecimal;
+use chrono::Utc;
+use cl8y_dex_indexer::db::queries::{state, swap_events};
+use std::str::FromStr;
 use cl8y_dex_indexer::indexer::block_indexer;
 use cl8y_dex_indexer::indexer::oracle;
 use cl8y_dex_indexer::lcd::LcdClient;
@@ -242,6 +245,140 @@ async fn reorg_detection_halts_on_hash_mismatch() {
         .await
         .unwrap_err();
     assert!(err.to_string().contains("reorg"), "got: {err}");
+}
+
+#[tokio::test]
+async fn swap_replay_is_idempotent_on_conflict() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+    seed_minimal_pair(&pool, "terra1pair362").await;
+
+    let pair_row: (i32, i32, i32) = sqlx::query_as(
+        "SELECT id, asset_0_id, asset_1_id FROM pairs WHERE contract_address = $1",
+    )
+    .bind("terra1pair362")
+    .fetch_one(&pool)
+    .await
+    .expect("pair");
+
+    let (pair_id, asset_0_id, asset_1_id) = pair_row;
+    let amt = BigDecimal::from_str("1000").unwrap();
+    let price = BigDecimal::from_str("1").unwrap();
+    let tx_hash = "TX362_REPLAY_DEDUP";
+
+    let first = swap_events::insert_swap(
+        &pool,
+        pair_id,
+        0,
+        500,
+        Utc::now(),
+        tx_hash,
+        "terra1taker",
+        None,
+        asset_0_id,
+        asset_1_id,
+        &amt,
+        &amt,
+        None,
+        None,
+        None,
+        &price,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap()
+    .expect("first insert");
+
+    let second = swap_events::insert_swap(
+        &pool,
+        pair_id,
+        0,
+        500,
+        Utc::now(),
+        tx_hash,
+        "terra1taker",
+        None,
+        asset_0_id,
+        asset_1_id,
+        &amt,
+        &amt,
+        None,
+        None,
+        None,
+        &price,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(second, None, "replay must not insert duplicate swap row");
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM swap_events WHERE tx_hash = $1")
+        .bind(tx_hash)
+        .fetch_one(&pool)
+        .await
+        .expect("count");
+    assert_eq!(count, 1);
+    assert!(first > 0);
+}
+
+#[tokio::test]
+async fn reorg_recovery_rewind_allows_catch_up() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+
+    let server = MockServer::start().await;
+    let height = 900i64;
+    let old_hash = "OLD900";
+    let new_hash = "NEW900";
+
+    state::set_indexer_checkpoint(&pool, height, old_hash)
+        .await
+        .expect("seed checkpoint");
+
+    mount_block_at_height(&server, height, new_hash).await;
+    let lcd = lcd_client(&server);
+    assert!(
+        block_indexer::verify_checkpoint_unchanged(&lcd, &pool, height)
+            .await
+            .is_err(),
+        "mismatch must halt before catch-up"
+    );
+
+    // Mirrors scripts/indexer-reorg-recover.sh --height 900 --apply
+    state::set_last_indexed_height(&pool, height - 1)
+        .await
+        .expect("rewind cursor");
+    state::set_state(&pool, state::KEY_LAST_INDEXED_BLOCK_HASH, "")
+        .await
+        .expect("clear hash");
+
+    block_indexer::verify_checkpoint_unchanged(&lcd, &pool, height - 1)
+        .await
+        .expect("legacy cursor without hash skips reorg guard");
+
+    mount_empty_block_txs(&server, height).await;
+    let price = oracle::new_shared_price();
+    block_indexer::index_block(&pool, &lcd, &test_config(), height, &price)
+        .await
+        .expect("re-index after recovery");
+
+    assert_eq!(
+        state::get_last_indexed_height(&pool).await.unwrap(),
+        height
+    );
+    assert_eq!(
+        state::get_last_indexed_block_hash(&pool)
+            .await
+            .unwrap()
+            .as_deref(),
+        Some(new_hash)
+    );
 }
 
 #[tokio::test]

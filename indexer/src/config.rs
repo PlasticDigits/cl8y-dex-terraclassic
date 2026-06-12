@@ -102,6 +102,8 @@ pub struct Config {
     pub block_process_max_retries: u32,
     /// Base backoff ms multiplied by attempt number between block retries.
     pub block_process_retry_backoff_ms: u64,
+    /// Optional webhook URL for reorg halt alerts (GitLab #362). POST JSON `indexer_reorg_halt` event.
+    pub reorg_alert_webhook_url: Option<String>,
 }
 
 impl Config {
@@ -252,6 +254,9 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(2000),
+            reorg_alert_webhook_url: env::var("REORG_ALERT_WEBHOOK_URL")
+                .ok()
+                .filter(|s| !s.trim().is_empty()),
         })
     }
 

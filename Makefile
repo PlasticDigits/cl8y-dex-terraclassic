@@ -328,9 +328,10 @@ indexer-dev:
 
 # Operator recovery after reorg halt (dry-run unless HEIGHT=… APPLY=1 CLEANUP=1)
 indexer-reorg-recover:
+	@test -n "$(HEIGHT)" || (echo "Usage: make indexer-reorg-recover HEIGHT=<fork_height> [APPLY=1] [CLEANUP=1]" && exit 1)
 	@args="--height $(HEIGHT)"; \
-	[ -n "$(APPLY)" ] && args="$$args --apply"; \
-	[ -n "$(CLEANUP)" ] && args="$$args --cleanup-derived"; \
+	[ "$(APPLY)" = "1" ] && args="$$args --apply"; \
+	[ "$(CLEANUP)" = "1" ] && args="$$args --cleanup-derived"; \
 	./scripts/indexer-reorg-recover.sh $$args
 
 # Full devnet lifecycle: start infra, build, deploy, start indexer & frontend
