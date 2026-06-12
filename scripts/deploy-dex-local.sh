@@ -400,7 +400,7 @@ echo "  Wrap-Mapper Address: $WRAP_MAPPER_ADDRESS"
 
 echo ""
 echo "[9b.5] Creating LUNC-C (Wrapped Luna Classic) CW20 token..."
-LUNC_C_INIT_MSG="{\"name\":\"Wrapped Luna Classic\",\"symbol\":\"LUNC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"100000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+LUNC_C_INIT_MSG="{\"name\":\"Wrapped Luna Classic\",\"symbol\":\"LUNC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
 TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$LUNC_C_INIT_MSG" \
     --label "lunc-c-token" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
@@ -410,7 +410,7 @@ echo "  LUNC-C Address: $LUNC_C_ADDRESS"
 
 echo ""
 echo "[9b.6] Creating USTC-C (Wrapped TerraClassicUSD) CW20 token..."
-USTC_C_INIT_MSG="{\"name\":\"Wrapped TerraClassicUSD\",\"symbol\":\"USTC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"100000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+USTC_C_INIT_MSG="{\"name\":\"Wrapped TerraClassicUSD\",\"symbol\":\"USTC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
 TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$USTC_C_INIT_MSG" \
     --label "ustc-c-token" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
@@ -448,8 +448,8 @@ echo "  Set wrap-mapper: $TX_HASH"
 wait_tx "$TX_HASH"
 
 echo ""
-# SDK 0.53 LocalTerra genesis: 1M LUNC + 10M USTC on test1 (GitLab #292). Keep headroom for deploy gas.
-TREASURY_FUND_COINS="${DEPLOY_TREASURY_FUND_COINS:-2000000000000uusd,200000000000uluna}"
+# SDK 0.53 LocalTerra genesis: 10M LUNC + 100M USTC on test1 (GitLab #292, #372). Keep headroom for deploy gas.
+TREASURY_FUND_COINS="${DEPLOY_TREASURY_FUND_COINS:-20000000000000uusd,2000000000000uluna}"
 echo "[9b.10] Funding Treasury ($TREASURY_FUND_COINS)..."
 TX_HASH=$(terrad_tx bank send test1 "$TREASURY_ADDRESS" \
   "$TREASURY_FUND_COINS" | jq -r '.txhash')
@@ -481,7 +481,7 @@ for i in "${!TOKEN_NAMES[@]}"; do
     SYM="${TOKEN_SYMBOLS[$i]}"
     echo ""
     echo "[10.$((i+1))] Instantiating $NAME ($SYM)..."
-    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
+    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"10000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
     TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$INIT_MSG" \
         --label "test-token-$(to_lower "$SYM")" \
         --admin "$TEST_ADDRESS" | jq -r '.txhash')
@@ -506,7 +506,7 @@ for i in "${!NOWHITELIST_NAMES[@]}"; do
     SYM="${NOWHITELIST_SYMBOLS[$i]}"
     echo ""
     echo "[10b.$((i+1))] Instantiating $NAME ($SYM) — NOT whitelisted..."
-    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
+    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"10000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
     TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID_NOWHITELIST" "$INIT_MSG" \
         --label "test-token-$(to_lower "$SYM")" \
         --admin "$TEST_ADDRESS" | jq -r '.txhash')
@@ -532,7 +532,7 @@ for i in "${!UNPAIRED_NAMES[@]}"; do
     SYM="${UNPAIRED_SYMBOLS[$i]}"
     echo ""
     echo "[10c.$((i+1))] Instantiating $NAME ($SYM)..."
-    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
+    INIT_MSG="{\"name\":\"$NAME\",\"symbol\":\"$SYM\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"10000000000000\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
     TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$INIT_MSG" \
         --label "test-token-$(to_lower "$SYM")" \
         --admin "$TEST_ADDRESS" | jq -r '.txhash')

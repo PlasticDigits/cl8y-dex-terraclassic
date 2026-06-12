@@ -183,6 +183,11 @@ verify-issue-293:
 	@chmod +x scripts/qa/verify-issue-293.sh
 	./scripts/qa/verify-issue-293.sh
 
+# GitLab #372 — LocalTerra genesis/deploy/swarm funding headroom
+verify-localterra-funding-headroom:
+	@chmod +x scripts/qa/verify-localterra-funding-headroom.sh scripts/bots/preflight-test1-uluna.sh
+	./scripts/qa/verify-localterra-funding-headroom.sh
+
 # GitLab #295 — limit ladder rung count UI (Playwright against make dev on :5173).
 verify-issue-295:
 	@chmod +x scripts/verify-issue-295-ladder-rung-ui.sh scripts/with-node.sh
