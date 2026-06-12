@@ -164,8 +164,11 @@ export default function TradePage() {
     }
     if (isKnownFactoryTradePair(routePair, pairs)) {
       setPairAddr(routePair)
+      if (invalidLinkNotice || unknownPairNotice) {
+        navigate(`/trade/${routePair}`, { replace: true, state: null })
+      }
     }
-  }, [invalidRoutePair, unknownRoutePair, routePair, pairs, navigate])
+  }, [invalidRoutePair, unknownRoutePair, routePair, pairs, navigate, invalidLinkNotice, unknownPairNotice])
 
   useEffect(() => {
     if (
@@ -325,7 +328,7 @@ export default function TradePage() {
       if (isTradePairRouteParam(addr)) {
         prefetchTradePairWorkspace(queryClient, addr)
         setPairAddr(addr)
-        navigate(`/trade/${addr}`)
+        navigate(`/trade/${addr}`, { state: null })
       }
     },
     [navigate, queryClient]
