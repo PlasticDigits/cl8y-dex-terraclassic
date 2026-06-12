@@ -88,6 +88,37 @@ impl From<db_orderbook_sim::DbSimError> for HybridSimError {
     }
 }
 
+fn is_empty_pool_err(e: &HybridSimError) -> bool {
+    matches!(
+        e,
+        HybridSimError::Db(db_orderbook_sim::DbSimError::InsufficientLiquidity)
+    )
+}
+
+async fn pool_only_or_zero(
+    source: &HybridSimSource<'_>,
+    mirror_meta: Option<&mut MirrorLoadMeta>,
+    hop: &HopDescriptor,
+    offer_amount: u128,
+    max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
+) -> Result<u128, HybridSimError> {
+    match query_pool_only_unified(
+        source,
+        mirror_meta,
+        hop,
+        offer_amount,
+        max_maker_fills,
+        quote_trader,
+    )
+    .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) if is_empty_pool_err(&e) => Ok(0),
+        Err(e) => Err(e),
+    }
+}
+
 #[derive(Deserialize)]
 struct HybridSimResp {
     return_amount: String,
@@ -213,6 +244,11 @@ async fn query_hybrid_sim_unified(
                 .expect("db hybrid requires mirror_meta");
             let mirror = mirrors.get(&hop.pair);
             if let Some(m) = mirror {
+                if db_orderbook_sim::pool_reserves_unusable(m.reserve_0, m.reserve_1) {
+                    mirror_meta.mirror_missing_hops =
+                        mirror_meta.mirror_missing_hops.saturating_add(1);
+                    return Ok(0);
+                }
                 if m.freshness == MirrorFreshness::Fresh {
                     mirror_meta.db_hybrid_queries = mirror_meta.db_hybrid_queries.saturating_add(1);
                     mirror_meta.max_snapshot_age_ms = mirror_meta
@@ -383,16 +419,9 @@ async fn optimize_one_hop(
             ));
         }
         meta.degraded = true;
-        match query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader)
-            .await
-        {
-            Ok(out) => return Ok((None, out)),
-            Err(HybridSimError::Lcd(e)) if is_infra_lcd_error(&e) => {
-                return Err(HybridSimError::Lcd(e));
-            }
-            Err(HybridSimError::Db(e)) => return Err(HybridSimError::Db(e)),
-            Err(_) => return Err(HybridSimError::PathUnusable),
-        }
+        let out =
+            pool_only_or_zero(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
+        return Ok((None, out));
     }
 
     if best_book > 0 {
@@ -407,12 +436,8 @@ async fn optimize_one_hop(
         return Ok((Some(h), best_out));
     }
 
-    match query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader).await {
-        Ok(out) => Ok((None, out)),
-        Err(HybridSimError::Lcd(e)) if is_infra_lcd_error(&e) => Err(HybridSimError::Lcd(e)),
-        Err(HybridSimError::Db(e)) => Err(HybridSimError::Db(e)),
-        Err(_) => Err(HybridSimError::PathUnusable),
-    }
+    let out = pool_only_or_zero(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
+    Ok((None, out))
 }
 
 /// Coordinate-descent refinement on top of the sequential baseline (GitLab #209).
@@ -583,7 +608,7 @@ async fn propagate_offer_through_plan(
             Err(HybridSimError::Lcd(_))
             | Err(HybridSimError::Db(_))
             | Err(HybridSimError::PathUnusable) => {
-                query_pool_only_unified(
+                pool_only_or_zero(
                     source,
                     mirror_meta.as_deref_mut(),
                     hop,
