@@ -200,6 +200,10 @@ verify-issue-324:
 	@chmod +x scripts/qa/verify-issue-324.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/qa/verify-issue-324.sh
 
+verify-issue-369:
+	@chmod +x scripts/qa/verify-issue-369.sh scripts/setup-cloud-agent-indexer-postgres.sh
+	./scripts/qa/verify-issue-369.sh
+
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-redeploy-decision"

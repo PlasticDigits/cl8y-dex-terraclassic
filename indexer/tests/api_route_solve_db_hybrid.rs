@@ -231,3 +231,66 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         }
     }
 }
+
+/// GitLab #369: a zero-reserve pair on an alternate path must not 502 the whole solve when the
+/// direct pool route is healthy.
+#[serial]
+#[tokio::test]
+async fn route_solve_db_hybrid_skips_zero_reserve_path_candidate() {
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_multi_path(&pool).await;
+
+    let pair_ac: i32 = sqlx::query_scalar(
+        "SELECT id FROM pairs WHERE contract_address = 'terra1pairroutempac'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("direct ac pair");
+    let pair_ab: i32 = sqlx::query_scalar(
+        "SELECT id FROM pairs WHERE contract_address = 'terra1pairroutempab'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("ab pair");
+    let pair_bc: i32 = sqlx::query_scalar(
+        "SELECT id FROM pairs WHERE contract_address = 'terra1pairroutempbc'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("bc pair");
+
+    let deep = bd("10000000000000");
+    let zero = bd("0");
+    pair_reserves::upsert_pair_reserves(&pool, pair_ac, &deep, &deep, 30, Some(100))
+        .await
+        .expect("direct ac reserves");
+    pair_reserves::upsert_pair_reserves(&pool, pair_ab, &deep, &deep, 30, Some(100))
+        .await
+        .expect("ab reserves");
+    pair_reserves::upsert_pair_reserves(&pool, pair_bc, &zero, &zero, 30, Some(100))
+        .await
+        .expect("zero bc reserves");
+
+    let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
+    let app = common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_ok();
+    let j: Value = resp.json();
+    assert_eq!(j["solver_version"], "global_v4");
+    assert_eq!(j["hops"].as_array().map(|a| a.len()), Some(1));
+    assert_eq!(
+        j["hops"][0]["pair"].as_str(),
+        Some("terra1pairroutempac"),
+        "must pick direct healthy pool, not poisoned multihop"
+    );
+    assert!(j["estimated_amount_out"].as_str().unwrap_or("0").parse::<u128>().unwrap_or(0) > 0);
+    assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
