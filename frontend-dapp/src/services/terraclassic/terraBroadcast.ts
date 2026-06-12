@@ -46,8 +46,7 @@ function isDefiniteBroadcastRejection(error: unknown): boolean {
     /invalid chain[- ]?id|wrong chain/i.test(msg) ||
     /tx too large|memo too large/i.test(msg) ||
     /failed to decode tx|decode tx|invalid transaction/i.test(msg) ||
-    /insufficient fees?|minimum fee|auth info validation|signatures validation/i.test(msg) ||
-    /tx already exists in cache/i.test(msg)
+    /insufficient fees?|minimum fee|auth info validation|signatures validation/i.test(msg)
   )
 }
 
