@@ -11,6 +11,7 @@ This document describes **how to handle secrets** when operating the indexer and
 | `CORS_ORIGINS` | Browser origin allowlist | Not a substitute for auth; restrict to your frontends. |
 | `FACTORY_ADDRESS` | On-chain factory | Public address; not secret. |
 | `FEE_DISCOUNT_ADDRESS`, `ROUTER_ADDRESS`, `USTC_DENOM` | Optional config | Same as factory—addresses are public. |
+| `REORG_ALERT_WEBHOOK_URL` | Reorg halt webhook | Optional. POST JSON on chain reorg halt (GitLab #362). Use your paging/Slack endpoint; not a public API. |
 
 ## `RUN_MODE=prod`
 
@@ -18,7 +19,7 @@ This document describes **how to handle secrets** when operating the indexer and
 
 ## Observability
 
-The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)). Use **`tracing` logs** (configure `RUST_LOG` / log collectors) for block processing errors, LCD failures, and block timestamp fallback warnings — see [`indexer-invariants.md`](./indexer-invariants.md) and [`runbooks/indexer-reorg-replay-dedup.md`](./runbooks/indexer-reorg-replay-dedup.md).
+The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)). Use **`tracing` logs** (configure `RUST_LOG` / log collectors) for block processing errors, LCD failures, and block timestamp fallback warnings — see [`indexer-invariants.md`](./indexer-invariants.md) and [`runbooks/indexer-reorg-replay-dedup.md`](./runbooks/indexer-reorg-replay-dedup.md). On reorg halt, alert on stderr prefix **`INDEXER_REORG_HALT`** or tracing target **`indexer_reorg_halt`**; optional `REORG_ALERT_WEBHOOK_URL` for webhook delivery.
 
 ## Chain signing keys
 

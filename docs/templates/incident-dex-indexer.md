@@ -30,11 +30,12 @@
 - [ ] **DB:** `DATABASE_URL` reachable; migrations applied?
 - [ ] **LCD:** Matches chain; `RUN_MODE=prod` uses correct `LCD_URLS`?
 - [ ] **Logs:** `tracing` errors from LCD or parser; block timestamp fallback warnings (`Invalid block timestamp` / `Missing block timestamp`) — see [`docs/operator-secrets.md`](../operator-secrets.md), [GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200).
+- [ ] **Reorg halt:** `INDEXER_REORG_HALT` stderr line or `target=indexer_reorg_halt` in logs — use `recovery_cmd` from JSON payload; dry-run [`indexer-reorg-recover.sh`](../../scripts/indexer-reorg-recover.sh) before `--apply` ([runbook](../runbooks/indexer-reorg-replay-dedup.md), GitLab #362).
 
 ## Mitigation
 
 - **Swap / contract issues:** Follow [Security model](../security-model.md) (pause, governance).
-- **Indexer stale / wrong data:** [Indexer reorg / replay runbook](../runbooks/indexer-reorg-replay-dedup.md), [Wasm admin runbook](../runbooks/wasm-admin-migration.md) if contract-side.
+- **Indexer stale / wrong data:** [Indexer reorg / replay runbook](../runbooks/indexer-reorg-replay-dedup.md) (shallow: `make indexer-reorg-recover HEIGHT=H` then `APPLY=1`; deep: snapshot restore), [Wasm admin runbook](../runbooks/wasm-admin-migration.md) if contract-side.
 
 ## Communications
 

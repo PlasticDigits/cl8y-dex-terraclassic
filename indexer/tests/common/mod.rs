@@ -63,6 +63,7 @@ pub fn test_config() -> Config {
         block_tx_max_pages: 50,
         block_process_max_retries: 5,
         block_process_retry_backoff_ms: 2000,
+        reorg_alert_webhook_url: None,
     }
 }
 
