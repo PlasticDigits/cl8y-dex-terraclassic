@@ -192,6 +192,36 @@ describe('broadcastTerraExecuteContracts post-sign recovery (GitLab #359 / #368)
     rpc.broadcastTx = originalBroadcast
   })
 
+  it('enters recovery when mempool reports tx already in cache after hash capture', async () => {
+    const phases: string[] = []
+    const rpc = (CosmesClient as { RpcClient: { broadcastTx: RpcBroadcastFn } }).RpcClient
+    const txRaw = mockTxRaw([13, 14, 15])
+    const signedHash = txHashFromTxRaw(txRaw)
+    const originalBroadcast = rpc.broadcastTx.bind(rpc)
+
+    mockBroadcastTx.mockImplementation(async () => {
+      await rpc.broadcastTx('http://rpc', txRaw)
+      return signedHash
+    })
+    rpc.broadcastTx = vi.fn(async () => {
+      throw new Error('tx already exists in cache')
+    }) as RpcBroadcastFn
+
+    mockPollTx.mockResolvedValue({ txResponse: { code: 0, rawLog: '', logs: [] } })
+
+    const txHash = await broadcastTerraExecuteContracts(
+      mockWallet as never,
+      'terra1sender',
+      [{ contract: 'terra1a', msg: { swap: { deadline: Math.floor(Date.now() / 1000) + 600 } } }],
+      { onPhaseChange: (phase) => phases.push(phase) }
+    )
+
+    expect(phases).toContain('recovering')
+    expect(txHash).toBe(signedHash)
+    expect(mockPollTx).toHaveBeenCalledWith(signedHash, expect.any(Object))
+    rpc.broadcastTx = originalBroadcast
+  })
+
   it('does not enter recovery on definite CheckTx rejection after hash capture', async () => {
     const phases: string[] = []
     const rpc = (CosmesClient as { RpcClient: { broadcastTx: RpcBroadcastFn } }).RpcClient
