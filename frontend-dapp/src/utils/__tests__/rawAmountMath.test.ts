@@ -4,10 +4,46 @@ import {
   applySlippagePercentFloor,
   withdrawMinAssetAmounts,
   isLpBurnExceedsBalance,
+  isPositiveRawAmount,
   slippagePercentToBps,
+  spreadPercentFromRawSim,
 } from '../rawAmountMath'
 
 const TWO_53_PLUS_1 = '9007199254740993'
+
+describe('isPositiveRawAmount', () => {
+  it('accepts positive uint strings above 2^53', () => {
+    expect(isPositiveRawAmount(TWO_53_PLUS_1)).toBe(true)
+    expect(isPositiveRawAmount('1')).toBe(true)
+  })
+
+  it('rejects zero and invalid strings', () => {
+    expect(isPositiveRawAmount('0')).toBe(false)
+    expect(isPositiveRawAmount('')).toBe(false)
+    expect(isPositiveRawAmount('abc')).toBe(false)
+  })
+})
+
+describe('spreadPercentFromRawSim', () => {
+  it('computes spread percent with two decimal places', () => {
+    expect(spreadPercentFromRawSim('1000000', '3000', '100')).toBe('0.01')
+  })
+
+  it('handles raw amounts above Number.MAX_SAFE_INTEGER', () => {
+    const spread = '891712726219358'
+    const ret = '8917127262193583'
+    const comm = '0'
+    const total = BigInt(ret) + BigInt(comm) + BigInt(spread)
+    const scaled = (BigInt(spread) * 10000n + total / 2n) / total
+    const expected = `${scaled / 100n}.${(scaled % 100n).toString().padStart(2, '0')}`
+    expect(spreadPercentFromRawSim(ret, comm, spread)).toBe(expected)
+    expect(spreadPercentFromRawSim(ret, comm, spread)).toBe('9.09')
+  })
+
+  it('returns 0.00 when gross is zero', () => {
+    expect(spreadPercentFromRawSim('0', '0', '0')).toBe('0.00')
+  })
+})
 
 describe('slippagePercentToBps', () => {
   it('converts percent to bps', () => {

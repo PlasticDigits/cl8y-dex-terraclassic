@@ -464,7 +464,7 @@ Automated **WCAG 2.1 A + AA** checks on retail-critical routes via **`@axe-core/
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Routes scanned** | `/trade`, `/charts` (full page; chart canvas excluded), header **Connect wallet** dialog, connected **wallet menu** (`include: header`). |
+| **Routes scanned** | `/` (Swap), `/trade`, `/charts` (chart canvas excluded), `/limits`, `/pool`, `/portfolio`, header **Connect wallet** dialog, connected **wallet menu** (`include: header`) ([#366](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/366)). |
 | **Severity gate** | `assertNoCriticalA11yViolations` fails on **critical** or **serious** axe impacts only. |
 | **Canvas exclusion** | Only `[data-testid="price-chart-lightweight-canvas"] canvas` — never exclude interactive controls. |
 | **TradingView attribution** | `layout.attributionLogo: false` on lightweight-charts; visible **Charting by TradingView** link on `PriceChart` (outside `aria-hidden` canvas) satisfies Apache NOTICE without `aria-hidden-focus` on `#tv-attr-logo`. |
@@ -893,6 +893,18 @@ Retail sizing for the **Amount** field on **`/trade`** and **`/limits`** ([GitLa
 Implementation: [`useLimitOrderForm.ts`](../frontend-dapp/src/hooks/useLimitOrderForm.ts) (`LimitEscrowAmountSource`, `onLimitAmountInputChange`, `onLimitAmountMax`, `resetLimitEscrowAmount`, `setLimitEscrowAmountFromDraft`, `setLimitEscrowAmountFromMaxReapply`), [`LimitOrderEscrowAmountField.tsx`](../frontend-dapp/src/components/trade/LimitOrderEscrowAmountField.tsx), [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md), [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+
+### Pool page — LP risk disclosure {#pool-lp-risk-disclosure}
+
+When the **Provide Liquidity** panel is open on `/pool`, a short **impermanent loss** notice appears before amount inputs ([#366](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/366)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Copy** | States that LP value can **diverge** from simply holding the underlying assets when pool prices move — directional risk, not guaranteed yield. |
+| **Placement** | Visible in the add-liquidity card (`data-testid="pool-il-risk-notice"`) without wallet connect. |
+| **Docs link** | `Learn more` → this section (`#pool-lp-risk-disclosure`). |
+
+**Code:** `frontend-dapp/src/pages/PoolPage.tsx` (`POOL_LP_RISK_DOC`).
 
 ### Pool page — provide liquidity (UI invariants)
 
