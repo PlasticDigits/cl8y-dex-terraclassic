@@ -407,6 +407,38 @@ async fn lcd_heavy_route_rate_limit_returns_429() {
     );
 }
 
+/// GitLab #363: prod profile clamps `RATE_LIMIT_LCD_HEAVY_RPS=0` → 10 at config load; HTTP governor must still 429.
+#[tokio::test]
+async fn prod_lcd_heavy_rate_limit_enforced_when_config_clamped() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.run_mode = cl8y_dex_indexer::config::RunMode::Prod;
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = 10;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    let url = format!(
+        "/api/v1/pairs/{}/order-book-head?side=bid",
+        seed.pair_address
+    );
+    let mut saw_429 = false;
+    for _ in 0..80 {
+        let resp = server.get(&url).await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            break;
+        }
+    }
+    assert!(
+        saw_429,
+        "prod-clamped LCD-heavy governor should return 429 when global RATE_LIMIT_RPS=0 (#363)"
+    );
+}
+
 /// GitLab #278: CG/CMC orderbook mirrors share `lcd_heavy_router` with native book routes.
 #[tokio::test]
 async fn cg_cmc_orderbook_lcd_heavy_rate_limit_returns_429() {

@@ -11,10 +11,13 @@ This document describes **how to handle secrets** when operating the indexer and
 | `CORS_ORIGINS` | Browser origin allowlist | Not a substitute for auth; restrict to your frontends. |
 | `FACTORY_ADDRESS` | On-chain factory | Public address; not secret. |
 | `FEE_DISCOUNT_ADDRESS`, `ROUTER_ADDRESS`, `USTC_DENOM` | Optional config | Same as factory—addresses are public. |
+| `RATE_LIMIT_RPS` | Global per-IP API governor | Default **60** RPS. **`RUN_MODE=prod`:** `0` is clamped to **60** at startup ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Dev/QA may set `0` to disable the global layer (e.g. Playwright bursts). |
+| `RATE_LIMIT_LCD_HEAVY_RPS` | Stricter per-IP limit on LCD-heavy routes | Default **10** RPS. **`RUN_MODE=prod`:** `0` is clamped to **10** ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Routes: limit-book family, `route/solve`, `route/solve/best`, `/cg/orderbook`, `/cmc/orderbook/*` — see [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md). |
 
 ## `RUN_MODE=prod`
 
 - `RUN_MODE=prod` requires non-empty `DATABASE_URL`, `FACTORY_ADDRESS`, `CORS_ORIGINS`, and **LCD URLs that are not the built-in public default list** (`indexer/src/config.rs`).
+- Production cannot disable rate limiting: `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=0` are clamped to **60** and **10** respectively at config load ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)).
 
 ## Observability
 

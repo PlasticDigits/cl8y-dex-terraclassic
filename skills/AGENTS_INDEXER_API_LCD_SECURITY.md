@@ -34,7 +34,7 @@ Legitimate frontend polling (e.g. deep book, route preview) should stay under **
 | Env | Default (dev) | Prod note |
 |-----|---------------|-----------|
 | `RATE_LIMIT_RPS` | 60 | If set to `0`, prod forces **60** |
-| `RATE_LIMIT_LCD_HEAVY_RPS` | 10 | If set to `0`, prod forces **10** |
+| `RATE_LIMIT_LCD_HEAVY_RPS` | 10 | If set to `0`, prod forces **10** ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)) |
 
 **Dev disable ([#355](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/355)):** `RATE_LIMIT_RPS=0` disables only the **global** layer. LCD-heavy routes stay limited unless **`RATE_LIMIT_LCD_HEAVY_RPS=0`** too. Set **both** to `0` for fully unlimited local QA.
 | `API_IPV6_ENABLED` | off | When off (default), API binds **IPv4-only** and rejects IPv6 `API_BIND` ([#282](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/282)) |
