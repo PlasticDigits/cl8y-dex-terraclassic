@@ -79,6 +79,37 @@ impl From<db_orderbook_sim::DbSimError> for HybridSimError {
     }
 }
 
+fn is_empty_pool_err(e: &HybridSimError) -> bool {
+    matches!(
+        e,
+        HybridSimError::Db(db_orderbook_sim::DbSimError::InsufficientLiquidity)
+    )
+}
+
+async fn pool_only_or_zero(
+    source: &HybridSimSource<'_>,
+    mirror_meta: Option<&mut MirrorLoadMeta>,
+    hop: &HopDescriptor,
+    offer_amount: u128,
+    max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
+) -> Result<u128, HybridSimError> {
+    match query_pool_only_unified(
+        source,
+        mirror_meta,
+        hop,
+        offer_amount,
+        max_maker_fills,
+        quote_trader,
+    )
+    .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) if is_empty_pool_err(&e) => Ok(0),
+        Err(e) => Err(e),
+    }
+}
+
 #[derive(Deserialize)]
 struct HybridSimResp {
     return_amount: String,
@@ -204,6 +235,11 @@ async fn query_hybrid_sim_unified(
                 .expect("db hybrid requires mirror_meta");
             let mirror = mirrors.get(&hop.pair);
             if let Some(m) = mirror {
+                if db_orderbook_sim::pool_reserves_unusable(m.reserve_0, m.reserve_1) {
+                    mirror_meta.mirror_missing_hops =
+                        mirror_meta.mirror_missing_hops.saturating_add(1);
+                    return Ok(0);
+                }
                 if m.freshness == MirrorFreshness::Fresh {
                     mirror_meta.db_hybrid_queries = mirror_meta.db_hybrid_queries.saturating_add(1);
                     mirror_meta.max_snapshot_age_ms = mirror_meta
@@ -345,8 +381,8 @@ async fn optimize_one_hop(
 
     if !any_candidate_ok {
         meta.degraded = true;
-        let out = query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader)
-            .await?;
+        let out =
+            pool_only_or_zero(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
         return Ok((None, out));
     }
 
@@ -362,8 +398,7 @@ async fn optimize_one_hop(
         return Ok((Some(h), best_out));
     }
 
-    let out =
-        query_pool_only_unified(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
+    let out = pool_only_or_zero(source, mirror_meta, hop, offer_amount, 1, quote_trader).await?;
     Ok((None, out))
 }
 
@@ -530,7 +565,7 @@ async fn propagate_offer_through_plan(
             Ok(v) => v,
             // Degraded plans may reference book legs that no longer simulate (#190).
             Err(HybridSimError::Lcd(_)) | Err(HybridSimError::Db(_)) => {
-                query_pool_only_unified(
+                pool_only_or_zero(
                     source,
                     mirror_meta.as_deref_mut(),
                     hop,
