@@ -68,7 +68,7 @@ export function buildSubmitAlignedSimPayload<T extends { return_amount: string; 
   payRaw: string,
   simData: T,
   slippageTolerance: number,
-  applySlippageFloor: (returnAmount: string, slippagePct: number) => string
+  applySlippageFloor: (returnAmount: string, slippagePct: number) => string | null
 ): SubmitAlignedSimPayload<T> {
   return {
     payRaw,
