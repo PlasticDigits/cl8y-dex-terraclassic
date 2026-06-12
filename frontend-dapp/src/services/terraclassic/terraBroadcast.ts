@@ -88,13 +88,6 @@ function handleBroadcastError(error: unknown): Error {
   return new Error(`Transaction failed: ${String(error)}`)
 }
 
-function isBroadcastOrPollTimeout(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.message === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || error.message === TERRA_TX_POLL_TIMEOUT_MESSAGE)
-  )
-}
-
 async function pollTxWithTimeout(
   wallet: ConnectedWallet,
   txHash: string
@@ -144,10 +137,7 @@ async function broadcastSignedSplitPath(
       TERRA_TX_BROADCAST_TIMEOUT_MESSAGE
     )
     bumpWalletCachedSequence(wallet, sequence)
-  } catch (error: unknown) {
-    if (!isBroadcastOrPollTimeout(error)) {
-      throw error
-    }
+  } catch {
     onPhaseChange?.('confirming', { txHash })
     return recoverPostSignBroadcast(wallet, txHash, sequence, recoveryDeadlineUnix, onPhaseChange)
   }
