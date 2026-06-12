@@ -18,6 +18,11 @@ import {
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
+import { getFeeDiscountHealth } from '@/services/indexer/client'
+import {
+  FEE_DISCOUNT_REGISTRY_WARNING_TEXT,
+  shouldShowFeeDiscountRegistryWarning,
+} from '@/utils/feeDiscountRegistryWarning'
 import {
   findRoute,
   getAllTokens,
@@ -256,6 +261,23 @@ export default function SwapPage() {
     },
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
+  })
+
+  const feeDiscountHealthQuery = useQuery({
+    queryKey: ['feeDiscountRegistryHealth'],
+    queryFn: getFeeDiscountHealth,
+    enabled: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    staleTime: 30_000,
+    retry: false,
+  })
+
+  const showFeeDiscountRegistryWarning = shouldShowFeeDiscountRegistryWarning({
+    feeDiscountContractConfigured: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    registration: registrationQuery.data,
+    discount: discountQuery.data,
+    registrationQueryError: registrationQuery.isError,
+    discountQueryError: discountQuery.isError,
+    indexerHealth: feeDiscountHealthQuery.data,
   })
 
   const balanceQuery = useQuery({
@@ -1353,20 +1375,36 @@ export default function SwapPage() {
                   />
                 </div>
               )}
-              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
+              {showFeeDiscountRegistryWarning && (
                 <div
+                  data-testid="fee-discount-registry-warning"
                   className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
                   style={{
-                    borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
-                    background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
-                    color: 'var(--cyan)',
+                    borderColor: 'color-mix(in srgb, var(--color-warning, #f59e0b) 45%, transparent)',
+                    background: 'color-mix(in srgb, var(--color-warning, #f59e0b) 8%, transparent)',
+                    color: 'var(--color-warning, #f59e0b)',
                   }}
                 >
-                  <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
-                    Hold CL8Y to reduce swap fees &rarr;
-                  </a>
+                  {FEE_DISCOUNT_REGISTRY_WARNING_TEXT}
                 </div>
               )}
+              {address &&
+                FEE_DISCOUNT_CONTRACT_ADDRESS &&
+                !registrationQuery.data?.registered &&
+                !showFeeDiscountRegistryWarning && (
+                  <div
+                    className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
+                    style={{
+                      borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
+                      background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
+                      color: 'var(--cyan)',
+                    }}
+                  >
+                    <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
+                      Hold CL8Y to reduce swap fees &rarr;
+                    </a>
+                  </div>
+                )}
               {swapRouteLine && (
                 <div
                   data-testid="swap-route-summary"
