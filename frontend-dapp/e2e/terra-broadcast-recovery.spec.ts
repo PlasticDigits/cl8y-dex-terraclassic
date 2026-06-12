@@ -78,11 +78,11 @@ test.describe('Terra broadcast post-sign recovery (GitLab #368)', () => {
 
     await clickSwapSubmit(page, swapPanel)
 
-    await expect(swapPanel.getByRole('button', { name: 'Broadcast status unknown…' })).toBeVisible({
+    await expect(swapPanel.getByRole('button', { name: 'Checking broadcast…' })).toBeVisible({
       timeout: 45_000,
     })
     await expect(page.getByTestId('terra-broadcast-recovery-status')).toContainText(/broadcast status unknown/i)
-    await expect(swapPanel.getByRole('button', { name: 'Broadcast status unknown…' })).toBeDisabled()
+    await expect(swapPanel.getByRole('button', { name: 'Checking broadcast…' })).toBeDisabled()
 
     const pendingTx = page.getByTestId('terra-broadcast-pending-tx')
     await expect(pendingTx).toBeVisible({ timeout: 10_000 })
