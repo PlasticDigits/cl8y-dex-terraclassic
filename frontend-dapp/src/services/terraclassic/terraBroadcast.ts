@@ -16,7 +16,7 @@ import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
 import { buildTerraClassicFee } from './terraGas'
 import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
 import { terraRecoveryPollDeadlineUnix } from './terraMsgDeadline'
-import { pollTerraTxRecovery } from './terraTxRecoveryPoll'
+import { pollTerraTxRecovery, TERRA_TX_RECOVERY_EXPIRED_MESSAGE } from './terraTxRecoveryPoll'
 import { installSignedTxHashCapture } from './terraWalletSignTxRaw'
 import { withTerraWalletSignLock } from './terraWalletSignLock'
 
@@ -36,20 +36,19 @@ export type TerraBroadcastOptions = {
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
 }
 
-function isPostSignBroadcastFailure(error: unknown, signedTxHash: string | null): boolean {
-  if (!signedTxHash) return false
-  if (!(error instanceof Error)) return true
-  const msg = error.message
-  if (msg === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE) return true
-  if (/failed to fetch|networkerror|network error/i.test(msg)) return true
-  return false
+function isPostSignBroadcastFailure(_error: unknown, signedTxHash: string | null): boolean {
+  return signedTxHash !== null
 }
 
 function handleBroadcastError(error: unknown): Error {
   if (error instanceof Error) {
     const errorMessage = error.message
 
-    if (errorMessage === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || errorMessage === TERRA_TX_POLL_TIMEOUT_MESSAGE) {
+    if (
+      errorMessage === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE ||
+      errorMessage === TERRA_TX_POLL_TIMEOUT_MESSAGE ||
+      errorMessage === TERRA_TX_RECOVERY_EXPIRED_MESSAGE
+    ) {
       return error
     }
 
