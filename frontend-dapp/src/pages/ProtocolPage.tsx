@@ -8,6 +8,13 @@ import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import { formatNum } from '@/utils/formatAmount'
 import { formatDateTime } from '@/utils/formatDate'
 import { shortenAddress } from '@/utils/tokenDisplay'
+import {
+  FACTORY_CONTRACT_ADDRESS,
+  ROUTER_CONTRACT_ADDRESS,
+  TERRA_LCD_URL,
+  TERRA_RPC_URL,
+  DEFAULT_NETWORK,
+} from '@/utils/constants'
 
 function formatHookAmount(amount: string | number | null | undefined): string {
   if (amount == null || amount === '') return '—'
@@ -62,6 +69,50 @@ export default function ProtocolPage() {
         USTC/USD reference from the indexer&apos;s polled oracle (distinct from per-pair TWAP on the Charts page). Hook
         events show burn/tax and other post-swap hooks as recorded by the indexer.
       </p>
+
+      <div className="shell-panel" data-testid="protocol-deploy-addresses">
+        <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
+          Deployed contracts (audit)
+        </h2>
+        <p className="text-xs leading-relaxed mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
+          Factory and router addresses baked into this build ({DEFAULT_NETWORK}). Compare against your wallet or block
+          explorer before trusting swaps — not shown on swap confirmation to reduce noise.
+        </p>
+        <dl className="grid grid-cols-1 gap-2 text-xs font-mono">
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              Factory
+            </dt>
+            <dd style={{ color: 'var(--ink)' }} data-testid="protocol-factory-address">
+              {FACTORY_CONTRACT_ADDRESS || '—'}
+            </dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              Router
+            </dt>
+            <dd style={{ color: 'var(--ink)' }} data-testid="protocol-router-address">
+              {ROUTER_CONTRACT_ADDRESS || '—'}
+            </dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              LCD
+            </dt>
+            <dd className="break-all" style={{ color: 'var(--ink-subtle)' }}>
+              {TERRA_LCD_URL}
+            </dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              RPC
+            </dt>
+            <dd className="break-all" style={{ color: 'var(--ink-subtle)' }}>
+              {TERRA_RPC_URL}
+            </dd>
+          </div>
+        </dl>
+      </div>
 
       {marketDataDown && (
         <MarketDataServiceOutageBanner
