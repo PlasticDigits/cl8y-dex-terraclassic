@@ -106,17 +106,27 @@ async function topUpBankDenom(opts: {
     faucetBal = 0n
   }
 
+  const needs = deficits.map(({ addr, deficit }) => ({ addr, deficit }))
   let remaining = faucetBal
-  for (let i = 0; i < deficits.length; i++) {
-    if (remaining <= 0n) break
-    const { addr, deficit } = deficits[i]!
-    const slotsLeft = BigInt(deficits.length - i)
-    const fairShare = remaining / slotsLeft
-    const send = deficit < fairShare ? deficit : fairShare
-    if (send <= 0n) continue
-    terradTx(opts.v, ['bank', 'send', 'test1', addr, `${send}${opts.denom}`])
-    remaining -= send
-    await pauseFunding(opts.sleepMs)
+  while (remaining > 0n) {
+    const activeCount = needs.reduce((n, entry) => n + (entry.deficit > 0n ? 1 : 0), 0)
+    if (activeCount === 0) break
+
+    let progress = false
+    let slotsLeft = BigInt(activeCount)
+    for (const entry of needs) {
+      if (remaining <= 0n || entry.deficit <= 0n) continue
+      const fairShare = remaining / slotsLeft
+      const send = entry.deficit < fairShare ? entry.deficit : fairShare
+      slotsLeft -= 1n
+      if (send <= 0n) continue
+      terradTx(opts.v, ['bank', 'send', 'test1', entry.addr, `${send}${opts.denom}`])
+      remaining -= send
+      entry.deficit -= send
+      progress = true
+      await pauseFunding(opts.sleepMs)
+    }
+    if (!progress) break
   }
 }
 
