@@ -26,6 +26,8 @@ The Factory maintains a whitelist of CW20 code IDs. When `CreatePair` is called 
 
 **Rationale:** this prevents pairs from being created with malicious CW20 contracts that could manipulate balances, re-enter, or steal funds.
 
+**Fee-on-transfer prohibition (GitLab [#377](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/377)):** do **not** whitelist CW20 templates that skim on `transfer` / `send`. Pair reserves credit declared amounts, not balance deltas — fee-on-transfer tokens desync reserves (invariant **P2**). Ops runbook: [`docs/runbooks/cw20-whitelist-policy.md`](runbooks/cw20-whitelist-policy.md). Verify production GDEX/TerraPort code IDs via [`scripts/verify-cw20-code-ids.sh`](../scripts/verify-cw20-code-ids.sh) before `AddWhitelistedCodeId`.
+
 ## `CreatePair` rate limit and pending state
 
 `CreatePair` is **permissionless** (any address may call it, subject to whitelist checks). The factory keeps a single `PENDING_PAIR` slot while a pair `Instantiate` submessage is in flight inside **that** transaction.
@@ -48,12 +50,14 @@ Hooks are external contracts invoked via `AfterSwap` after every swap completes.
 
 | Risk                    | Mitigation                                              |
 |-------------------------|---------------------------------------------------------|
-| Hook reverts -> swap fails| By design: hooks are not `reply_on_error`, so a reverting hook blocks the swap. Only register trusted hooks. |
-| Reentrancy              | CosmWasm's actor model prevents cross-contract reentrancy within a single transaction. |
+| Hook reverts -> swap fails| By design: hooks are not `reply_on_error`, so a reverting hook blocks the swap. Only register trusted hooks. Intentional blocking (AML/incident) is allowed — see [hook registration runbook](runbooks/hook-registration.md). |
+| Reentrancy              | Cosmwasm's actor model prevents cross-contract reentrancy within a single transaction. |
 | Gas griefing             | Hooks consume gas from the swap caller. Only register hooks with bounded execution cost. |
 | Data integrity           | Hook receives read-only data (amounts, addresses). It cannot modify pair state. |
+| LP-burn spoofing        | LP-burn hook requires `AfterSwap.pair == info.sender` and queries pair `liquidity_token` (**H-03**). Allowlist only real pair contracts. |
+| Tax/burn treasury drain | Tax and burn hooks charge from swap ask-token settlement forwarded by the pair (**I-02**); pre-funded hook balances are not required for normal fees. |
 
-**Best practice:** only governance should register hooks (enforced by the Factory auth check), and hooks should be audited before registration.
+**Best practice:** only governance should register hooks (enforced by the Factory auth check), and hooks should be audited before registration. Full playbook: [`docs/runbooks/hook-registration.md`](runbooks/hook-registration.md).
 
 ## Fee Discount Security
 

@@ -6349,7 +6349,7 @@ mod hook_coverage_tests {
         .unwrap();
 
         let other = Addr::unchecked("other_pair");
-        let res = app
+        let err = app
             .execute_contract(
                 env.pair.clone(),
                 lp_burn_hook,
@@ -6373,19 +6373,12 @@ mod hook_coverage_tests {
                 }),
                 &[],
             )
-            .unwrap();
-
-        let attrs: String = res
-            .events
-            .iter()
-            .flat_map(|e| e.attributes.iter())
-            .map(|a| format!("{}={}", a.key, a.value))
-            .collect::<Vec<_>>()
-            .join(";");
+            .unwrap_err();
+        let s = err.root_cause().to_string();
         assert!(
-            attrs.contains("skipped") && attrs.contains("target_pair"),
-            "attrs={}",
-            attrs
+            s.contains("does not match caller") || s.contains("PairSenderMismatch"),
+            "expected pair/sender mismatch rejection, got: {}",
+            s
         );
     }
 

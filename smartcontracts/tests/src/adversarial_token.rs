@@ -598,7 +598,7 @@ mod adversarial_tests {
     }
 
     #[test]
-    fn lp_burn_hook_accepts_spoofed_pair_when_spoofer_allowlisted() {
+    fn lp_burn_hook_rejects_spoofed_pair_when_spoofer_allowlisted() {
         let mut app = App::default();
         let env = crate::helpers::setup_full_env(&mut app);
         let hook_code = app.store_code(lp_burn_hook_contract());
@@ -659,7 +659,7 @@ mod adversarial_tests {
             },
             &[],
         )
-        .unwrap();
+        .unwrap_err();
 
         app.execute_contract(
             env.user.clone(),
@@ -673,22 +673,243 @@ mod adversarial_tests {
         .unwrap();
 
         let lp_before = query_cw20_balance(&app, &env.lp_token, &hook);
+        let err = app
+            .execute_contract(
+                spoofer.clone(),
+                hook.clone(),
+                &cl8y_dex_lp_burn_hook::msg::ExecuteMsg::Hook(HookExecuteMsg::AfterSwap {
+                    pair: env.pair.clone(),
+                    sender: env.user.clone(),
+                    offer_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_a.to_string(),
+                        },
+                        amount: Uint128::zero(),
+                    },
+                    return_asset: Asset {
+                        info: AssetInfo::Token {
+                            contract_addr: env.token_b.to_string(),
+                        },
+                        amount: Uint128::new(1_000_000),
+                    },
+                    commission_amount: Uint128::zero(),
+                    spread_amount: Uint128::zero(),
+                }),
+                &[],
+            )
+            .unwrap_err();
+        let lp_after = query_cw20_balance(&app, &env.lp_token, &hook);
+        let s = err.root_cause().to_string();
+        assert!(
+            s.contains("Unauthorized hook caller")
+                || s.contains("does not match caller")
+                || s.contains("PairSenderMismatch"),
+            "expected spoof rejection, got: {}",
+            s
+        );
+        assert_eq!(
+            lp_after, lp_before,
+            "allowlisted non-pair must not drive LP burns by spoofing `pair` in AfterSwap"
+        );
+    }
+
+    #[test]
+    fn tax_hook_collects_from_swap_flow_with_zero_treasury_balance() {
+        use crate::helpers::{query_cw20_balance, swap_a_to_b, tax_hook_contract_with_reply};
+
+        let mut app = App::default();
+        let env = crate::helpers::setup_full_env(&mut app);
+        let tax_hook_code = app.store_code(tax_hook_contract_with_reply());
+        let tax_recipient = Addr::unchecked("tax_collector");
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        let tax_hook = app
+            .instantiate_contract(
+                tax_hook_code,
+                env.governance.clone(),
+                &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                    recipient: tax_recipient.to_string(),
+                    tax_percentage_bps: 1000, // 10%
+                    tax_token: env.token_b.to_string(),
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "taxhook",
+                None,
+            )
+            .unwrap();
+
         app.execute_contract(
-            spoofer.clone(),
-            spoofer.clone(),
-            &SpooferExecuteMsg::SpoofLpBurnHook {
-                hook: hook.to_string(),
-                claimed_pair: env.pair.to_string(),
-                return_token: env.token_b.to_string(),
-                output_amount: Uint128::new(1_000_000),
+            env.governance.clone(),
+            tax_hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
             },
             &[],
         )
         .unwrap();
-        let lp_after = query_cw20_balance(&app, &env.lp_token, &hook);
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: env.pair.to_string(),
+                hooks: vec![tax_hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        let hook_b_before = query_cw20_balance(&app, &env.token_b, &tax_hook);
+        assert_eq!(hook_b_before, Uint128::zero());
+
+        let recipient_before = query_cw20_balance(&app, &env.token_b, &tax_recipient);
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+        let swap_in = Uint128::new(100_000);
+        swap_a_to_b(&mut app, &env, &env.user, swap_in);
+
+        let recipient_after = query_cw20_balance(&app, &env.token_b, &tax_recipient);
+        let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+        let hook_b_after = query_cw20_balance(&app, &env.token_b, &tax_hook);
+
+        let tax_received = recipient_after.checked_sub(recipient_before).unwrap();
+        let user_received = user_b_after.checked_sub(user_b_before).unwrap();
+        let gross = tax_received.checked_add(user_received).unwrap();
+
         assert!(
-            lp_after < lp_before,
-            "allowlisted non-pair can drive LP burns by spoofing `pair` in AfterSwap"
+            !tax_received.is_zero(),
+            "tax must be collected from swap output without hook treasury balance"
+        );
+        assert_eq!(
+            hook_b_after,
+            Uint128::zero(),
+            "tax hook must not subsidize from its own balance"
+        );
+        assert_eq!(
+            tax_received,
+            gross.multiply_ratio(Uint128::new(1000), Uint128::new(10_000)),
+            "tax should be 10% of gross swap output"
+        );
+    }
+
+    #[test]
+    fn tax_hook_min_return_checked_against_net_payout() {
+        use crate::helpers::{query_cw20_balance, tax_hook_contract_with_reply};
+
+        let mut app = App::default();
+        let env = crate::helpers::setup_full_env(&mut app);
+        let tax_hook_code = app.store_code(tax_hook_contract_with_reply());
+        let tax_recipient = Addr::unchecked("tax_collector");
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        let tax_hook = app
+            .instantiate_contract(
+                tax_hook_code,
+                env.governance.clone(),
+                &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                    recipient: tax_recipient.to_string(),
+                    tax_percentage_bps: 1000,
+                    tax_token: env.token_b.to_string(),
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "taxhook",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            tax_hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: env.pair.to_string(),
+                hooks: vec![tax_hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        let swap_in = Uint128::new(100_000);
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        let tax_before = query_cw20_balance(&app, &env.token_b, &tax_recipient);
+        swap_a_to_b(&mut app, &env, &env.user, swap_in);
+        let net_payout = query_cw20_balance(&app, &env.token_b, &env.user)
+            .checked_sub(user_b_before)
+            .unwrap();
+        let gross_payout = query_cw20_balance(&app, &env.token_b, &tax_recipient)
+            .checked_sub(tax_before)
+            .unwrap()
+            .checked_add(net_payout)
+            .unwrap();
+        assert!(
+            gross_payout > net_payout,
+            "tax hook must reduce net below gross for this regression"
+        );
+
+        let min_between_net_and_gross = net_payout
+            .checked_add(
+                gross_payout
+                    .checked_sub(net_payout)
+                    .unwrap()
+                    .multiply_ratio(Uint128::one(), Uint128::new(2)),
+            )
+            .unwrap();
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: Some(min_between_net_and_gross),
+            to: None,
+            deadline: None,
+            hybrid: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: swap_in,
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let s = err.root_cause().to_string();
+        assert!(
+            s.contains("Min return assertion"),
+            "min_return between net and gross must fail after hook fees, got: {}",
+            s
         );
     }
 
