@@ -16,6 +16,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SWARM_PY="$REPO_ROOT/scripts/bots/swarm.py"
 BOOTSTRAP_SH="$REPO_ROOT/scripts/bots/bootstrap-swarm-liquidity.sh"
+PREFLIGHT_SH="$REPO_ROOT/scripts/bots/preflight-test1-uluna.sh"
 RUNDIR="$REPO_ROOT/scripts/bots/run"
 LOGDIR="$RUNDIR/logs"
 PIDFILE="$RUNDIR/pids.txt"
@@ -33,6 +34,9 @@ echo "Preflight: test1 gas balance…"
 python3 "$SWARM_PY" --preflight-gas
 
 SWAP_TYPES=(offer0 offer1 heavy light directed)
+
+chmod +x "$PREFLIGHT_SH"
+"$PREFLIGHT_SH"
 
 if [[ "$SKIP_BOOTSTRAP" != "1" ]]; then
   echo "Running bootstrap-swarm-liquidity (set BOTS_SKIP_BOOTSTRAP=1 to skip)…"

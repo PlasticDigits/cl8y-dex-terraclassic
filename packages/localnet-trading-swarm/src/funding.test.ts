@@ -2,18 +2,30 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { defaultFundingOptions } from './funding.js'
 
 describe('defaultFundingOptions', () => {
-  const keys = [
-    'SWARM_ULUNA_TOPUP',
-    'SWARM_UUSD_TOPUP',
-    'SWARM_CW20_MINT_TOPUP',
-    'SWARM_MIN_CW20_BALANCE',
-  ] as const
+  const saved: Record<string, string | undefined> = {}
 
   afterEach(() => {
-    for (const k of keys) delete process.env[k]
+    for (const key of [
+      'SWARM_ULUNA_TOPUP',
+      'SWARM_UUSD_TOPUP',
+      'SWARM_CW20_MINT_TOPUP',
+      'SWARM_MIN_CW20_BALANCE',
+    ]) {
+      if (saved[key] === undefined) delete process.env[key]
+      else process.env[key] = saved[key]
+    }
   })
 
   it('uses 10× LocalTerra genesis defaults (GitLab #372)', () => {
+    for (const key of [
+      'SWARM_ULUNA_TOPUP',
+      'SWARM_UUSD_TOPUP',
+      'SWARM_CW20_MINT_TOPUP',
+      'SWARM_MIN_CW20_BALANCE',
+    ]) {
+      saved[key] = process.env[key]
+      delete process.env[key]
+    }
     const f = defaultFundingOptions()
     expect(f.ulunaTopup).toBe('20000000000000')
     expect(f.uusdTopup).toBe('10000000000000')

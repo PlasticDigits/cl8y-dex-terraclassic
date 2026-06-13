@@ -18,7 +18,7 @@ export interface FundingOptions {
 }
 
 export const defaultFundingOptions = (): FundingOptions => ({
-  /** Defaults sized for LocalTerra genesis `test1` balances (10M LUNC / 100M USTC, GitLab #372); override with SWARM_* env if needed. */
+  /** Defaults sized for LocalTerra genesis `test1` balances (11M LUNC / 100M USTC, GitLab #372); override with SWARM_* env if needed. */
   ulunaTopup: process.env.SWARM_ULUNA_TOPUP ?? '20000000000000',
   uusdTopup: process.env.SWARM_UUSD_TOPUP ?? '10000000000000',
   cw20MintTopup: process.env.SWARM_CW20_MINT_TOPUP ?? '100000000000000000',

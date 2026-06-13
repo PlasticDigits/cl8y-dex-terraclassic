@@ -18,6 +18,8 @@ QA_FRESH_VOLUMES=1 make start-qa
 
 Expect a **red banner** when volumes are wiped. Do **not** assume `deploy-local` alone resets chain state. Genesis balance changes (e.g. GitLab #372 **10×** `test1` funding) require **`make reset-qa`** / fresh `localterra-data` — see **LT6** in [`docs/localterra-sdk53.md`](../docs/localterra-sdk53.md).
 
+**Genesis funding (#372):** [`docker/init-chain.sh`](../docker/init-chain.sh) balances (e.g. **10M LUNC** on `test1`) apply only on a **fresh** `localterra-data` volume — use `make reset` / `make reset-qa` after pulling genesis changes, then `make deploy-local`.
+
 ## Invariants
 
 See [`docs/qa-invariants.md`](../docs/qa-invariants.md). Summary:

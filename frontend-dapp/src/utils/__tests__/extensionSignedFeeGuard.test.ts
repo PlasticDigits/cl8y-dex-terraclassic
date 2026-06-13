@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
+  EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE,
   extensionSignedFeeUndershootMessage,
   gasFromAminoFee,
   isLocalTerraChainId,
@@ -17,15 +18,18 @@ describe('extensionSignedFeeGuard (GitLab #127)', () => {
     expect(ulunaFromAminoFee({ amount: [{ denom: 'uluna', amount: '5665000' }] })).toBe(5665000n)
   })
 
-  it('flags Station-style undershoot (3000 vs 5665000)', () => {
+  it('returns retail copy for Station-style undershoot (3000 vs 5665000)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const msg = extensionSignedFeeUndershootMessage(
       { fee: { amount: [{ denom: 'uluna', amount: '3000' }] } },
       { amount: [{ denom: 'uluna', amount: '5665000' }] },
       'localterra'
     )
-    expect(msg).toMatch(/GitLab #127/)
-    expect(msg).toMatch(/5665000/)
-    expect(msg).toMatch(/3000/)
+    expect(msg).toBe(EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE)
+    expect(msg).not.toMatch(/GitLab #127/)
+    expect(msg).not.toMatch(/uluna/)
+    expect(warnSpy.mock.calls[0]?.[1]).toMatch(/5665000/)
+    warnSpy.mockRestore()
   })
 
   it('parses gas from amino fee', () => {
@@ -42,35 +46,39 @@ describe('extensionSignedFeeGuard (GitLab #127)', () => {
     ).toBeNull()
   })
 
-  it('flags Station-style partial fee rewrite (~23 LUNC vs ~36 LUNC, GitLab #134)', () => {
+  it('returns retail copy for partial fee rewrite (~23 LUNC vs ~36 LUNC, GitLab #134)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const msg = extensionSignedFeeUndershootMessage(
       { fee: { amount: [{ denom: 'uluna', amount: '23000000' }], gas: '600000' } },
       { amount: [{ denom: 'uluna', amount: '36000000' }], gas: '840000' },
       'localterra'
     )
-    expect(msg).toMatch(/GitLab #127/)
-    expect(msg).toMatch(/840000/)
-    expect(msg).toMatch(/600000/)
+    expect(msg).toBe(EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE)
+    expect(warnSpy.mock.calls[0]?.[1]).toMatch(/840000/)
+    warnSpy.mockRestore()
   })
 
-  it('flags missing signed fee on LocalTerra', () => {
+  it('returns retail copy when signed fee is missing on LocalTerra', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const msg = extensionSignedFeeUndershootMessage(
       {},
       { amount: [{ denom: 'uluna', amount: '5665000' }] },
       'localterra'
     )
-    expect(msg).toMatch(/GitLab #127/)
-    expect(msg).toMatch(/returned ~0 uluna/)
+    expect(msg).toBe(EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE)
+    expect(warnSpy.mock.calls[0]?.[1]).toMatch(/returned ~0 uluna/)
+    warnSpy.mockRestore()
   })
 
-  it('flags zero uluna signed fee on LocalTerra', () => {
+  it('returns retail copy for zero uluna signed fee on LocalTerra', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const msg = extensionSignedFeeUndershootMessage(
       { fee: { amount: [{ denom: 'uluna', amount: '0' }] } },
       { amount: [{ denom: 'uluna', amount: '5665000' }] },
       'localterra'
     )
-    expect(msg).toMatch(/GitLab #127/)
-    expect(msg).toMatch(/returned ~0 uluna/)
+    expect(msg).toBe(EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE)
+    warnSpy.mockRestore()
   })
 
   it('skips validation on mainnet chain id', () => {
