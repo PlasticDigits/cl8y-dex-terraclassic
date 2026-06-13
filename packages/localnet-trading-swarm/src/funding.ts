@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process'
-import { queryWasmSmart } from './lcd.js'
+import { lcdFetchJson, queryWasmSmart } from './lcd.js'
 import type { LocalnetValidation } from './validateLocalnet.js'
 
 const TERRAD_NODE = 'http://127.0.0.1:26657'
 const CHAIN_ID = 'localterra'
+/** Leave headroom on test1 for gas while funding bots (500k LUNC). */
+const TEST1_ULUNA_GAS_RESERVE = 500_000_000_000n
 
 export interface FundingOptions {
   ulunaTopup: string
@@ -59,6 +61,65 @@ async function pauseFunding(ms: number): Promise<void> {
   if (ms > 0) await new Promise((r) => setTimeout(r, ms))
 }
 
+function test1Address(v: LocalnetValidation): string {
+  return execFileSync(
+    'docker',
+    ['exec', v.containerId, 'terrad', 'keys', 'show', 'test1', '-a', '--keyring-backend', 'test'],
+    { encoding: 'utf8' }
+  ).trim()
+}
+
+async function bankBalance(lcdBase: string, address: string, denom: string): Promise<bigint> {
+  const body = await lcdFetchJson<{ balances?: Array<{ denom: string; amount: string }> }>(
+    lcdBase,
+    `/cosmos/bank/v1beta1/balances/${address}`
+  )
+  const coin = body.balances?.find((b) => b.denom === denom)
+  try {
+    return BigInt(coin?.amount ?? '0')
+  } catch {
+    return 0n
+  }
+}
+
+async function topUpBankDenom(opts: {
+  v: LocalnetValidation
+  lcdBase: string
+  faucetAddr: string
+  botAddresses: string[]
+  denom: string
+  targetBalance: string
+  sleepMs: number
+}): Promise<void> {
+  const target = BigInt(opts.targetBalance)
+  const deficits: Array<{ addr: string; deficit: bigint }> = []
+  for (const addr of opts.botAddresses) {
+    const bal = await bankBalance(opts.lcdBase, addr, opts.denom)
+    if (bal < target) deficits.push({ addr, deficit: target - bal })
+  }
+  if (deficits.length === 0) return
+
+  let faucetBal = await bankBalance(opts.lcdBase, opts.faucetAddr, opts.denom)
+  if (opts.denom === 'uluna' && faucetBal > TEST1_ULUNA_GAS_RESERVE) {
+    faucetBal -= TEST1_ULUNA_GAS_RESERVE
+  } else if (opts.denom === 'uluna') {
+    faucetBal = 0n
+  }
+
+  let remaining = faucetBal
+  for (let i = 0; i < deficits.length; i++) {
+    if (remaining <= 0n) break
+    const { addr, deficit } = deficits[i]!
+    const slotsLeft = BigInt(deficits.length - i)
+    const fairShare = remaining / slotsLeft
+    const send = deficit < fairShare ? deficit : fairShare
+    if (send <= 0n) continue
+    terradTx(opts.v, ['bank', 'send', 'test1', addr, `${send}${opts.denom}`])
+    remaining -= send
+    await pauseFunding(opts.sleepMs)
+  }
+}
+
 async function cw20Balance(
   lcdBase: string,
   token: string,
@@ -82,13 +143,26 @@ export async function fundBotWallets(opts: {
   funding: FundingOptions
 }): Promise<void> {
   const { v, lcdBase, botAddresses, cw20Tokens, funding } = opts
+  const faucetAddr = test1Address(v)
 
-  for (const addr of botAddresses) {
-    terradTx(v, ['bank', 'send', 'test1', addr, `${funding.ulunaTopup}uluna`])
-    await pauseFunding(funding.sleepMsBetweenFundingTx)
-    terradTx(v, ['bank', 'send', 'test1', addr, `${funding.uusdTopup}uusd`])
-    await pauseFunding(funding.sleepMsBetweenFundingTx)
-  }
+  await topUpBankDenom({
+    v,
+    lcdBase,
+    faucetAddr,
+    botAddresses,
+    denom: 'uluna',
+    targetBalance: funding.ulunaTopup,
+    sleepMs: funding.sleepMsBetweenFundingTx,
+  })
+  await topUpBankDenom({
+    v,
+    lcdBase,
+    faucetAddr,
+    botAddresses,
+    denom: 'uusd',
+    targetBalance: funding.uusdTopup,
+    sleepMs: funding.sleepMsBetweenFundingTx,
+  })
 
   const minB = BigInt(funding.minCw20Balance)
 
