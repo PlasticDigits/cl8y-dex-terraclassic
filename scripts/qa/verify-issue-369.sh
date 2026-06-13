@@ -51,6 +51,9 @@ run_step "indexer lib: concurrent_solve (fail-fast preserved)" \
 run_step "indexer integration: zero-reserve path skip (api_route_solve_db_hybrid)" \
   bash -c 'cd indexer && cargo test --test api_route_solve_db_hybrid route_solve_db_hybrid_skips_zero_reserve -- --test-threads=1 --quiet'
 
+run_step "indexer integration: api_route_solve_db_hybrid full suite" \
+  bash -c 'cd indexer && cargo test --test api_route_solve_db_hybrid -- --test-threads=1 --quiet'
+
 echo ""
 echo "════════════════════════════════════════════════════════════════"
 echo "  RESULTS: $PASS passed, $FAIL failed"
