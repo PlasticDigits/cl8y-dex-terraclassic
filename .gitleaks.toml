@@ -22,7 +22,7 @@ regexTarget = "secret"
 paths = [
   # Single known CI fixture for bip39-like-phrase-frontend-src (GitLab #380).
   # Do not allowlist the whole fixture tree — verify-gitleaks uses gitleaks-fixture.toml.
-  '''scripts/ci/gitleaks-fixture/frontend-dapp/src/bip39-violation\.ts$''',
+  '''^scripts/ci/gitleaks-fixture/frontend-dapp/src/bip39-violation\.ts$''',
   # Rust/npm build outputs (false positives on "private-key" in .rmeta / bundles).
   '''(?:^|/)(?:target|node_modules|dist|coverage)(?:/|$)''',
 ]
