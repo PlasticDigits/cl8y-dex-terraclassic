@@ -1146,15 +1146,6 @@ fn execute_swap(
     let total_return = book_return_net.checked_add(return_amount)?;
     let total_commission = book_commission_total.checked_add(pool_commission_amount)?;
 
-    if let Some(min) = min_return {
-        if total_return < min {
-            return Err(ContractError::MinReturnAssertion {
-                minimum: min.to_string(),
-                actual: total_return.to_string(),
-            });
-        }
-    }
-
     assert_max_spread(
         belief_price,
         max_spread,
@@ -1185,6 +1176,15 @@ fn execute_swap(
         });
     }
     let net_return = total_return.checked_sub(hook_fee_total)?;
+
+    if let Some(min) = min_return {
+        if net_return < min {
+            return Err(ContractError::MinReturnAssertion {
+                minimum: min.to_string(),
+                actual: net_return.to_string(),
+            });
+        }
+    }
 
     let mut hook_messages: Vec<CosmosMsg> = vec![];
     for hook in hooks {
