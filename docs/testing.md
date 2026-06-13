@@ -329,7 +329,7 @@ Contract message shapes align with [`docs/contracts-terraclassic.md`](./contract
 
 ### Fee Discount Contract Tests
 
-Canonical tier numbers: [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md) (GitLab [#198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). Drift check: `make check-fee-discount-tier-docs`. Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
+Canonical tier numbers: [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md) (GitLab [#198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). Drift check: `make check-fee-discount-tier-docs`. Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md). **Registry outage observability** ([#365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365), [#375](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/375)): integrator guidance in [`docs/integrators.md` § Fee-discount registry outage](./integrators.md#fee-discount-registry-outage); regression ladder `make verify-issue-365` (contract P5 test + indexer health API + frontend warning util — Postgres bootstrap via `make setup-indexer-postgres` when `indexer/.env` is missing; no LocalTerra).
 
 The fee-discount contract has unit tests covering:
 
