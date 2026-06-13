@@ -53,7 +53,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 | Factory pair CW20s | `E2E_DEV_MIN_CW20_U128` | `10000000000000` (\(10^7\) @ 6 decimals; GitLab #372) |
 | CL8Y (fee tier Register) | `E2E_DEV_MIN_CL8Y_U128` | `1000000000000000000` (tier 1 min) |
 
-Native **uluna** / **uusd** for gas come from LocalTerra genesis on the dev mnemonic (**10M LUNC** after GitLab #372; run `make reset` after genesis changes).
+Native **uluna** / **uusd** for gas come from LocalTerra genesis on the dev mnemonic (**11M LUNC** after GitLab #372; run `make reset` after genesis changes).
 
 Workers are fixed at **5** in `playwright.config.ts`; funding runs **once** in global setup.
 

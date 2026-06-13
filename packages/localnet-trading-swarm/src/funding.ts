@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process'
-import { queryWasmSmart } from './lcd.js'
+import { lcdFetchJson, queryWasmSmart } from './lcd.js'
 import type { LocalnetValidation } from './validateLocalnet.js'
 
 const TERRAD_NODE = 'http://127.0.0.1:26657'
 const CHAIN_ID = 'localterra'
+/** Leave headroom on test1 for gas while funding bots (500k LUNC). */
+const TEST1_ULUNA_GAS_RESERVE = 500_000_000_000n
 
 export interface FundingOptions {
   ulunaTopup: string
@@ -16,7 +18,7 @@ export interface FundingOptions {
 }
 
 export const defaultFundingOptions = (): FundingOptions => ({
-  /** Defaults sized for typical LocalTerra genesis `test1` balances (~1e13 uluna / ~1e14 uusd); override with SWARM_* env if needed. GitLab #372. */
+  /** Defaults sized for LocalTerra genesis `test1` balances (11M LUNC / 100M USTC, GitLab #372); override with SWARM_* env if needed. */
   ulunaTopup: process.env.SWARM_ULUNA_TOPUP ?? '20000000000000',
   uusdTopup: process.env.SWARM_UUSD_TOPUP ?? '10000000000000',
   cw20MintTopup: process.env.SWARM_CW20_MINT_TOPUP ?? '100000000000000000',
@@ -59,6 +61,75 @@ async function pauseFunding(ms: number): Promise<void> {
   if (ms > 0) await new Promise((r) => setTimeout(r, ms))
 }
 
+function test1Address(v: LocalnetValidation): string {
+  return execFileSync(
+    'docker',
+    ['exec', v.containerId, 'terrad', 'keys', 'show', 'test1', '-a', '--keyring-backend', 'test'],
+    { encoding: 'utf8' }
+  ).trim()
+}
+
+async function bankBalance(lcdBase: string, address: string, denom: string): Promise<bigint> {
+  const body = await lcdFetchJson<{ balances?: Array<{ denom: string; amount: string }> }>(
+    lcdBase,
+    `/cosmos/bank/v1beta1/balances/${address}`
+  )
+  const coin = body.balances?.find((b) => b.denom === denom)
+  try {
+    return BigInt(coin?.amount ?? '0')
+  } catch {
+    return 0n
+  }
+}
+
+async function topUpBankDenom(opts: {
+  v: LocalnetValidation
+  lcdBase: string
+  faucetAddr: string
+  botAddresses: string[]
+  denom: string
+  targetBalance: string
+  sleepMs: number
+}): Promise<void> {
+  const target = BigInt(opts.targetBalance)
+  const deficits: Array<{ addr: string; deficit: bigint }> = []
+  for (const addr of opts.botAddresses) {
+    const bal = await bankBalance(opts.lcdBase, addr, opts.denom)
+    if (bal < target) deficits.push({ addr, deficit: target - bal })
+  }
+  if (deficits.length === 0) return
+
+  let faucetBal = await bankBalance(opts.lcdBase, opts.faucetAddr, opts.denom)
+  if (opts.denom === 'uluna' && faucetBal > TEST1_ULUNA_GAS_RESERVE) {
+    faucetBal -= TEST1_ULUNA_GAS_RESERVE
+  } else if (opts.denom === 'uluna') {
+    faucetBal = 0n
+  }
+
+  const needs = deficits.map(({ addr, deficit }) => ({ addr, deficit }))
+  let remaining = faucetBal
+  while (remaining > 0n) {
+    const activeCount = needs.reduce((n, entry) => n + (entry.deficit > 0n ? 1 : 0), 0)
+    if (activeCount === 0) break
+
+    let progress = false
+    let slotsLeft = BigInt(activeCount)
+    for (const entry of needs) {
+      if (remaining <= 0n || entry.deficit <= 0n) continue
+      const fairShare = remaining / slotsLeft
+      const send = entry.deficit < fairShare ? entry.deficit : fairShare
+      slotsLeft -= 1n
+      if (send <= 0n) continue
+      terradTx(opts.v, ['bank', 'send', 'test1', entry.addr, `${send}${opts.denom}`])
+      remaining -= send
+      entry.deficit -= send
+      progress = true
+      await pauseFunding(opts.sleepMs)
+    }
+    if (!progress) break
+  }
+}
+
 async function cw20Balance(
   lcdBase: string,
   token: string,
@@ -82,13 +153,26 @@ export async function fundBotWallets(opts: {
   funding: FundingOptions
 }): Promise<void> {
   const { v, lcdBase, botAddresses, cw20Tokens, funding } = opts
+  const faucetAddr = test1Address(v)
 
-  for (const addr of botAddresses) {
-    terradTx(v, ['bank', 'send', 'test1', addr, `${funding.ulunaTopup}uluna`])
-    await pauseFunding(funding.sleepMsBetweenFundingTx)
-    terradTx(v, ['bank', 'send', 'test1', addr, `${funding.uusdTopup}uusd`])
-    await pauseFunding(funding.sleepMsBetweenFundingTx)
-  }
+  await topUpBankDenom({
+    v,
+    lcdBase,
+    faucetAddr,
+    botAddresses,
+    denom: 'uluna',
+    targetBalance: funding.ulunaTopup,
+    sleepMs: funding.sleepMsBetweenFundingTx,
+  })
+  await topUpBankDenom({
+    v,
+    lcdBase,
+    faucetAddr,
+    botAddresses,
+    denom: 'uusd',
+    targetBalance: funding.uusdTopup,
+    sleepMs: funding.sleepMsBetweenFundingTx,
+  })
 
   const minB = BigInt(funding.minCw20Balance)
 

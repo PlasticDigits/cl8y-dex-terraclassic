@@ -4,7 +4,7 @@
 # Layers:
 #   1. Grep invariants: init-chain.sh + deploy defaults match 10× targets
 #   2. LCD balance (optional): test1 uluna >= post-deploy floor after reset+deploy
-#   3. Short swarm soak (optional): swarm-local 2 min without draining below soak floor
+#   3. Short Python swarm soak (optional): launch-swarm without draining below soak floor
 #
 # Env:
 #   VERIFY372_POST_DEPLOY_MIN_ULUNA — default 8000000000000 (8M LUNC)
@@ -12,6 +12,7 @@
 #   VERIFY372_SOAK_SEC             — default 120 (2 min; full QA soak is 4h manual)
 #   VERIFY372_SKIP_LCD=1           — skip live chain checks
 #   VERIFY372_SKIP_SOAK=1          — skip short swarm soak
+# Legacy aliases: VERIFY_FUNDING_MIN_ULUNA, VERIFY_FUNDING_SOAK_MIN_ULUNA, VERIFY_FUNDING_SOAK_SEC, VERIFY_FUNDING_SKIP_SOAK
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -25,10 +26,10 @@ LCD="${TERRA_LCD_URL:-http://127.0.0.1:${DEX_TERRA_LCD_PORT:-1317}}"
 LCD="${LCD%/}"
 
 TEST1_ADDR="terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
-# ~10M genesis − 2M treasury LUNC − deploy gas ≈ 7.99M (GitLab #372).
-POST_DEPLOY_MIN="${VERIFY372_POST_DEPLOY_MIN_ULUNA:-7900000000000}"
-SOAK_MIN="${VERIFY372_SOAK_MIN_ULUNA:-500000000000}"
-SOAK_SEC="${VERIFY372_SOAK_SEC:-120}"
+POST_DEPLOY_MIN="${VERIFY372_POST_DEPLOY_MIN_ULUNA:-${VERIFY_FUNDING_MIN_ULUNA:-8000000000000}}"
+SOAK_MIN="${VERIFY372_SOAK_MIN_ULUNA:-${VERIFY_FUNDING_SOAK_MIN_ULUNA:-500000000000}}"
+SOAK_SEC="${VERIFY372_SOAK_SEC:-${VERIFY_FUNDING_SOAK_SEC:-120}}"
+SKIP_SOAK="${VERIFY372_SKIP_SOAK:-${VERIFY_FUNDING_SKIP_SOAK:-0}}"
 
 PASS=0
 FAIL=0
@@ -58,10 +59,10 @@ echo "════════════════════════�
 
 echo ""
 echo "[1] Static invariants (genesis + deploy defaults)"
-if grep -q '10000000000000uluna' "$REPO_ROOT/docker/init-chain.sh"; then
-  ok "init-chain.sh genesis uluna = 10M LUNC"
+if grep -q '11000000000000uluna' "$REPO_ROOT/docker/init-chain.sh"; then
+  ok "init-chain.sh genesis uluna = 11M LUNC (10× + deploy headroom)"
 else
-  bad "init-chain.sh missing 10M LUNC genesis uluna"
+  bad "init-chain.sh missing 11M LUNC genesis uluna"
 fi
 if grep -q '20000000000000uusd,2000000000000uluna' "$REPO_ROOT/scripts/deploy-dex-local.sh"; then
   ok "deploy-dex-local.sh DEPLOY_TREASURY_FUND_COINS default 20M USTC + 2M LUNC"
@@ -84,7 +85,7 @@ else
     if [[ "$bal" =~ ^[0-9]+$ ]] && ((10#$bal >= 10#$POST_DEPLOY_MIN)); then
       ok "test1 uluna=${bal} >= ${POST_DEPLOY_MIN} (post-deploy floor)"
     elif [[ "$bal" =~ ^[0-9]+$ ]] && ((10#$bal >= 1000000000000)); then
-      skip "test1 uluna=${bal} < ${POST_DEPLOY_MIN} — run \`make reset && make deploy-local\` for fresh 10× genesis"
+      skip "test1 uluna=${bal} < ${POST_DEPLOY_MIN} — run \`make reset && make deploy-local\` for fresh 11M genesis"
     else
       bad "test1 uluna=${bal:-unknown} (chain up but balance below expectations)"
     fi
@@ -94,8 +95,8 @@ else
 fi
 
 echo ""
-echo "[3] Short swarm soak (optional)"
-if [[ "${VERIFY372_SKIP_SOAK:-0}" == "1" ]]; then
+echo "[3] Short Python swarm soak (optional)"
+if [[ "$SKIP_SOAK" == "1" ]]; then
   skip "swarm soak (VERIFY372_SKIP_SOAK=1)"
 elif ! make has-localterra >/dev/null 2>&1; then
   skip "swarm soak (LocalTerra down)"
@@ -103,14 +104,17 @@ elif [[ ! -f "$REPO_ROOT/frontend-dapp/.env.local" ]]; then
   skip "swarm soak (no frontend-dapp/.env.local — run make deploy-local)"
 else
   bal_before="$(query_test1_uluna)"
-  echo "    starting make swarm-local for ${SOAK_SEC}s (balance before: ${bal_before})…"
-  chmod +x "$REPO_ROOT/scripts/bots/swarm.py"
-  BOTS_DRY_RUN=0 timeout "$SOAK_SEC" make swarm-local >/tmp/verify372-swarm.log 2>&1 || true
+  echo "    starting Python swarm for ${SOAK_SEC}s (balance before: ${bal_before})…"
+  chmod +x "$REPO_ROOT/scripts/bots/launch-swarm.sh" "$REPO_ROOT/scripts/bots/stop-swarm.sh"
+  BOTS_MEAN_INTERVAL_SEC=15 BOTS_LIMIT_MEAN_INTERVAL_SEC=30 BOTS_LP_MEAN_INTERVAL_SEC=45 \
+    "$REPO_ROOT/scripts/bots/launch-swarm.sh"
+  sleep "$SOAK_SEC"
+  "$REPO_ROOT/scripts/bots/stop-swarm.sh" || true
   bal_after="$(query_test1_uluna)"
   if [[ "$bal_after" =~ ^[0-9]+$ ]] && ((10#$bal_after >= 10#$SOAK_MIN)); then
-    ok "after ${SOAK_SEC}s swarm-local: test1 uluna=${bal_after} >= ${SOAK_MIN}"
+    ok "after ${SOAK_SEC}s swarm: test1 uluna=${bal_after} >= ${SOAK_MIN}"
   else
-    bad "after ${SOAK_SEC}s swarm-local: test1 uluna=${bal_after:-unknown} < ${SOAK_MIN}"
+    bad "after ${SOAK_SEC}s swarm: test1 uluna=${bal_after:-unknown} < ${SOAK_MIN}"
   fi
 fi
 

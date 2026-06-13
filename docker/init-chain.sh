@@ -46,7 +46,7 @@ echo "Test account: $TEST_ADDRESS"
 # Add genesis account with funds
 echo "[3/8] Adding genesis account with funds..."
 terrad add-genesis-account "$TEST_ADDRESS" \
-    10000000000000uluna,\
+    11000000000000uluna,\
 100000000000000uusd,\
 100000000000000ukrw,\
 100000000000000usdr,\
@@ -149,7 +149,7 @@ echo "  Address:  $TEST_ADDRESS"
 echo "  Mnemonic: $TEST_MNEMONIC"
 echo ""
 echo "Balances:"
-echo "  10,000,000 LUNC (10000000000000 uluna)"
+echo "  11,000,000 LUNC (11000000000000 uluna) — 10× base + deploy headroom (#372)"
 echo "  100,000,000 USTC (100000000000000 uusd)"
 echo "  + other stablecoins"
 echo ""

@@ -638,6 +638,15 @@ export default function SwapPage() {
     [debouncedBookInputHuman, debouncedHybridMaxMakers]
   )
 
+  /** Book leg stale gate only applies on direct pairs — multi-hop quotes ignore bookInputHuman (#360). */
+  const hybridStaleLive = useMemo(
+    () => ({
+      bookInputHuman: isDirect ? bookInputHuman : debouncedBookInputHuman,
+      hybridMaxMakers,
+    }),
+    [isDirect, bookInputHuman, debouncedBookInputHuman, hybridMaxMakers]
+  )
+
   const submitDirectHybrid = useMemo(() => {
     const split = getDirectHybridBookSplit({
       isDirect,
@@ -670,7 +679,7 @@ export default function SwapPage() {
     hybrid: useHybridBook
       ? {
           enabled: true,
-          live: { bookInputHuman, hybridMaxMakers },
+          live: hybridStaleLive,
           snapshotted: hybridSubmitSnapshot,
         }
       : undefined,
@@ -682,7 +691,7 @@ export default function SwapPage() {
       if (!address || !inputAmount) throw new Error('Missing parameters')
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
       if (snapshottedHybrid) {
-        assertSubmitHybridAligned({ bookInputHuman, hybridMaxMakers }, snapshottedHybrid)
+        assertSubmitHybridAligned(hybridStaleLive, snapshottedHybrid)
       }
       if (!simData) throw new Error('Quote unavailable')
       const payRaw = submitPayRaw
