@@ -389,9 +389,9 @@ audit-frontend:
 	$(WITH_NODE) npm audit --audit-level=high --omit=dev
 
 gitleaks-detect:
-	@chmod +x scripts/ci/gitleaks-detect.sh
+	@chmod +x scripts/ci/gitleaks-detect.sh scripts/ci/gitleaks-scan-tracked.sh
 	@./scripts/ci/gitleaks-detect.sh
 
 verify-gitleaks:
-	@chmod +x scripts/ci/verify-gitleaks.sh
+	@chmod +x scripts/ci/verify-gitleaks.sh scripts/ci/gitleaks-scan-tracked.sh
 	@./scripts/ci/verify-gitleaks.sh

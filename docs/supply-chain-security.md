@@ -64,7 +64,7 @@ The frontend wallet stack pulls **`elliptic`** transitively through **`@cosmjs/c
 
 ## Gitleaks
 
-Config: [`.gitleaks.toml`](../.gitleaks.toml) — extends defaults plus `bip39-like-phrase-frontend-src` for `frontend-dapp/src` (GitLab #118). CI scans the **working tree** (`--no-git`); `target/`, `node_modules/`, and the single known fixture file `scripts/ci/gitleaks-fixture/frontend-dapp/src/bip39-violation.ts` are allowlisted.
+Config: [`.gitleaks.toml`](../.gitleaks.toml) — extends defaults plus `bip39-like-phrase-frontend-src` for `frontend-dapp/src` (GitLab #118). CI scans **git-tracked** files via `scripts/ci/gitleaks-scan-tracked.sh` (`--no-git` on a staged tree; excludes the fixture directory and untracked build outputs).
 
 Agent playbook: [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md).
 

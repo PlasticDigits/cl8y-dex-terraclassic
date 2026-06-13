@@ -32,6 +32,6 @@ fi
 echo "OK: fixture rejected (exit ${fixture_rc})"
 
 echo ""
-echo "== gitleaks: clean working tree must pass =="
-run_gitleaks "$CONFIG" "$ROOT"
-echo "OK: clean tree passed"
+echo "== gitleaks: clean tracked tree must pass =="
+"${ROOT}/scripts/ci/gitleaks-scan-tracked.sh"
+echo "OK: clean tracked tree passed"
