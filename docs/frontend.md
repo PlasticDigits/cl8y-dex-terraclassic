@@ -230,11 +230,51 @@ When `VITE_DEV_MODE=true`, the UI can offer a **Simulated Wallet** (no browser e
 |-----------|---------|
 | No seed in app source | There is **no** default mnemonic in TypeScript. `VITE_DEV_MNEMONIC` must be supplied at dev time (e.g. `.env.development`, which Vite loads for `vite` / `npm run dev` but not for the default production `vite build`). |
 | Same test vector as chain | For LocalTerra, use the same phrase as `TEST_MNEMONIC` in [`docker/init-chain.sh`](../docker/init-chain.sh). `scripts/deploy-dex-local.sh` writes it to `frontend-dapp/.env.development` after deploy. |
-| Production build guard | `vite.config.ts` throws if `VITE_DEV_MNEMONIC` is present in the merged production env (prevents inlining a real seed into `dist/`). Tracked in [GitLab #118](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/118). |
+| Production build guard | `vite.config.ts` throws if `VITE_DEV_MNEMONIC` is present for any non-`development` build (staging/production included). Isolated local builds may set `VITE_ALLOW_DEV_MNEMONIC=local-only` with `VITE_NETWORK=local` only. Tracked in [GitLab #118](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/118), [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378). |
+| WalletConnect project ID | Production `vite build` requires `VITE_WC_PROJECT_ID`; dev may use the shared default when unset ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
 | Address in UI | The connected address comes from the `MnemonicWallet` instance (`devWallet.address`), not a hardcoded constant, so a custom dev mnemonic is reflected correctly. |
 | Secret scanning | [`.gitleaks.toml`](../.gitleaks.toml) adds a custom rule for BIP39-like quoted phrases under `frontend-dapp/src` (default gitleaks rules do not cover this pattern). |
 
 **Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md).
+
+### Off-chain deploy checklist {#off-chain-deploy-checklist}
+
+Operators hardening the retail dApp against off-chain misconfiguration ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)):
+
+| Check | Requirement |
+|-------|-------------|
+| Indexer URL | `VITE_INDEXER_URL` must be **HTTPS** in production (`https://…`). HTTP is acceptable only for local dev (`127.0.0.1` / `localhost`). |
+| TLS | Terminate TLS at CDN or load balancer; optional **certificate pinning** for high-assurance deployments (document policy — no in-app pin store today). |
+| Factory / router | Pin `VITE_FACTORY_ADDRESS` and `VITE_ROUTER_ADDRESS` per network at build time; traders verify on **`/protocol`** (not swap confirmation). |
+| Optional LCD sanity | On startup, operators may compare pinned factory code hash / `get_config` governance against expected values (not enforced in client — document in runbook). |
+| Indexer CORS | `CORS_ORIGINS` lists every public frontend origin. |
+
+See [security-model.md § Off-chain trust boundaries](./security-model.md) and [runbooks/launch-checklist.md § Phase 4](./runbooks/launch-checklist.md).
+
+### Content-Security-Policy (CSP) {#content-security-policy}
+
+[`frontend-dapp/index.html`](../frontend-dapp/index.html) ships a meta CSP. **Local `vite`** keeps broad `connect-src … https: wss: http://localhost:*` so arbitrary LCD/indexer hosts work during dev.
+
+| Mode | `connect-src` |
+|------|---------------|
+| **`vite` dev server** | Broad `https:` / `wss:` plus localhost (see `cspDevHosts` plugin for LAN IPs). |
+| **`vite build --mode production`** | Narrowed to deploy env LCD/RPC/indexer origins + WalletConnect relays (`buildProductionConnectSrc` in [`cspConnectSrc.ts`](../frontend-dapp/src/utils/cspConnectSrc.ts)). |
+| **Render / CDN headers** | [`render.yaml`](../render.yaml) mirrors production policy — update host list when LCD/indexer domains change. |
+
+`script-src 'unsafe-inline'` remains for the theme bootstrap in `index.html`; moving bootstrap to bundled modules is a follow-up hardening item.
+
+### Protocol page — core contract audit surface {#protocol-core-contracts}
+
+[`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx) displays **factory** and **router** addresses from `VITE_FACTORY_ADDRESS` / `VITE_ROUTER_ADDRESS` (`data-testid="protocol-core-contracts"`). This is the **audit/settings** surface only — addresses are intentionally **not** repeated in swap confirmation UI (cognitive overload, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
+
+### Token logos — host allowlist {#token-logo-allowlist}
+
+[`TokenLogo.tsx`](../frontend-dapp/src/components/ui/TokenLogo.tsx) resolves `logo_url` through [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts). Untrusted hosts fall back to blockies. Indexer-sourced logos require operator **human review** before listing — [CG_CMC_COMPLIANCE.md § Token metadata](./CG_CMC_COMPLIANCE.md#token-metadata-human-review).
+
+### Expert mode {#expert-mode}
+
+Expert mode disables the automatic block on swaps with **>30%** expected slippage vs best-route prices; Settings still allow up to **50%** slippage tolerance when enabled. Enabling requires typing **`enable expert mode`** in [`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx) ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) / M-15).
+
 - **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
 
 ### LCD / RPC connectivity (W11-C2) {#lcd-rpc-connectivity}

@@ -132,3 +132,19 @@ Governance on the **factory** can block protocol interaction without bricking un
 Contracts have not yet been formally audited. A third-party audit is recommended before mainnet deployment with significant TVL.
 
 For an **in-repo** invariant matrix, trust assumptions, and mapping to automated tests, see [contracts-security-audit.md](./contracts-security-audit.md).
+
+## Off-chain trust boundaries (frontend / indexer)
+
+The on-chain contracts enforce slippage, pair existence, and CW20 whitelist rules at execution time. **Off-chain services** (indexer route solver, deploy-time `VITE_*` addresses, token metadata) influence what traders see before signing. A compromised or MITM'd off-chain layer can mislead users into signing valid but economically harmful transactions without breaking CosmWasm checks.
+
+| Surface | Trust assumption | Risk if violated | Mitigations |
+|---------|------------------|------------------|-------------|
+| **Indexer `router_operations`** | Indexer returns hops that exist on the configured factory and match LCD preflight | Malicious or stale indexer proposes routes through thin/mispriced pools; user signs a “valid” tx with extreme slippage | Human-readable route summary at confirmation (`data-testid="swap-route-summary"`); LCD `getPair()` preflight per hop; **no** client-side BFS fallback (RPC rate limits). Document risks for operators. |
+| **`VITE_INDEXER_URL`** | HTTPS endpoint under operator control | MITM swaps quotes / route JSON | **Production deploy:** HTTPS-only indexer URL; pin TLS at CDN/reverse proxy; list origin in indexer `CORS_ORIGINS`. See [frontend.md § Off-chain deploy checklist](./frontend.md#off-chain-deploy-checklist). |
+| **`VITE_FACTORY_ADDRESS` / `VITE_ROUTER_ADDRESS`** | Build-time pins match governance-deployed contracts | Phishing UI pointing at attacker contracts | Pin per-network addresses in deploy; display factory/router on **`/protocol`** (audit surface only, not swap confirmation). Optional startup LCD sanity check documented in [frontend.md](./frontend.md). |
+| **Indexer token `logo_url`** | Listing curated by operators | Logo phishing (fake brand imagery) | Host allowlist in `TokenLogo`; indexer token listing requires **human review** before `logo_url` is served — see [CG_CMC_COMPLIANCE.md § Token metadata](./CG_CMC_COMPLIANCE.md#token-metadata-human-review). |
+| **Expert mode** | User explicitly accepts >30% expected-slippage risk | One-click enable on toxic routes | Typed confirmation phrase before enable; 30% standard block / 50% max slippage tolerance unchanged. |
+
+**Explicitly out of scope (approved):** on-chain hop graph cross-check or client-side BFS route fallback — rate limits and duplicate indexer logic are rejected ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
+
+Parent remediation tracking: [GitLab #376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) (findings H-04, H-05, M-07–M-10, M-15).

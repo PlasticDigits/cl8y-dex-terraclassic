@@ -2,9 +2,10 @@ import { useState, useDeferredValue } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getHookEvents, getOraclePrice, getOracleHistory } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
-import { StatBox, RetryError, Skeleton } from '@/components/ui'
+import { AddressRow, StatBox, RetryError, Skeleton } from '@/components/ui'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, PROTOCOL_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { detectMarketDataOutage } from '@/utils/marketDataOutage'
+import { FACTORY_CONTRACT_ADDRESS, ROUTER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { formatNum } from '@/utils/formatAmount'
 import { formatDateTime } from '@/utils/formatDate'
 import { shortenAddress } from '@/utils/tokenDisplay'
@@ -74,6 +75,42 @@ export default function ProtocolPage() {
           }}
         />
       )}
+
+      <div className="shell-panel" data-testid="protocol-core-contracts">
+        <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
+          Core contracts
+        </h2>
+        <p className="text-xs leading-relaxed mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
+          Factory and router addresses from deploy-time configuration. Verify against governance records before trusting
+          swaps.
+        </p>
+        <dl className="space-y-3 text-sm">
+          <div>
+            <dt className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
+              Factory
+            </dt>
+            <dd>
+              {FACTORY_CONTRACT_ADDRESS ? (
+                <AddressRow address={FACTORY_CONTRACT_ADDRESS} copyAriaLabel="Copy factory address" />
+              ) : (
+                <span style={{ color: 'var(--ink-dim)' }}>Not configured (set VITE_FACTORY_ADDRESS)</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
+              Router
+            </dt>
+            <dd>
+              {ROUTER_CONTRACT_ADDRESS ? (
+                <AddressRow address={ROUTER_CONTRACT_ADDRESS} copyAriaLabel="Copy router address" />
+              ) : (
+                <span style={{ color: 'var(--ink-dim)' }}>Not configured (set VITE_ROUTER_ADDRESS)</span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </div>
 
       <div className="shell-panel">
         <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>

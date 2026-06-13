@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Blockies from 'react-blockies'
+import { resolveSafeLogoUrl } from '@/utils/tokenLogoAllowlist'
 
 export interface TokenLogoProps {
   addressForBlockie?: string
@@ -12,15 +13,16 @@ export interface TokenLogoProps {
 
 export function TokenLogo({ addressForBlockie, blockieSeed, logoURI, size = 20, className = '' }: TokenLogoProps) {
   const [imgFailed, setImgFailed] = useState(false)
+  const safeLogoURI = resolveSafeLogoUrl(logoURI)
 
   const wrapClass = `inline-block shrink-0 overflow-hidden rounded-full ${className}`
   const wrapStyle = { width: size, height: size }
 
-  if (logoURI && !imgFailed) {
+  if (safeLogoURI && !imgFailed) {
     return (
       <span className={wrapClass} style={wrapStyle}>
         <img
-          src={logoURI}
+          src={safeLogoURI}
           alt=""
           width={size}
           height={size}

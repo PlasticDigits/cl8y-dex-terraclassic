@@ -59,6 +59,9 @@ terrad query wasm contract-state smart <fee_discount> '{"is_trusted_router":{"ro
 
 - [ ] **Indexer:** `DATABASE_URL`, migrations, `FACTORY_ADDRESS`, LCD URLs, `CORS_ORIGINS`, optional `ROUTER_ADDRESS` per [`indexer/src/config.rs`](../../indexer/src/config.rs).
 - [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md).
+- [ ] **Indexer HTTPS:** `VITE_INDEXER_URL` must use **HTTPS** in production (no `http://` indexer for public deploys). TLS termination at CDN/load balancer; optional cert pinning for high-assurance deployments — [Security model § Off-chain trust](../security-model.md).
+- [ ] **Build guards:** production `vite build` must have `VITE_WC_PROJECT_ID` set and must **not** merge `VITE_DEV_MNEMONIC` ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
+- [ ] **Protocol audit UI:** factory/router visible on `/protocol` only; operators verify against on-chain `get_config` / `config` queries.
 
 ---
 

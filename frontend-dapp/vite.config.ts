@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { execSync } from 'child_process'
 import { networkInterfaces } from 'os'
+import { buildProductionConnectSrc } from './src/utils/cspConnectSrc'
 
 let gitSha = 'dev'
 try {
@@ -14,6 +15,21 @@ try {
 
 function isPrivateIP(addr: string): boolean {
   return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|fd[0-9a-f]{2}:|fe80:)/.test(addr)
+}
+
+function cspProductionConnectSrc(mode: string): Plugin {
+  return {
+    name: 'csp-production-connect-src',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html, ctx) {
+        if (ctx.server || mode !== 'production') return html
+        const env = loadEnv(mode, path.join(__dirname), 'VITE_')
+        const connectSrc = buildProductionConnectSrc(env)
+        return html.replace(/connect-src[^;]+;/, `connect-src ${connectSrc};`)
+      },
+    },
+  }
 }
 
 function cspDevHosts(): Plugin {
@@ -48,19 +64,36 @@ function cspDevHosts(): Plugin {
   }
 }
 
-export default defineConfig(({ mode, command }) => {
-  if (command === 'build' && mode === 'production') {
-    const env = loadEnv(mode, path.join(__dirname), 'VITE_')
-    if (env.VITE_DEV_MNEMONIC?.trim()) {
+function assertProductionBuildEnv(mode: string, command: string, env: Record<string, string>): void {
+  if (command !== 'build') return
+
+  if (env.VITE_DEV_MNEMONIC?.trim()) {
+    const localOnlyEscape =
+      env.VITE_ALLOW_DEV_MNEMONIC === 'local-only' &&
+      env.VITE_NETWORK === 'local' &&
+      mode !== 'production' &&
+      mode !== 'staging'
+    if (mode !== 'development' && !localOnlyEscape) {
       throw new Error(
-        'VITE_DEV_MNEMONIC must not be set for production builds — it would be inlined into the client bundle. ' +
-          'Remove it from .env, .env.local, .env.production, and your shell (GitLab #118).'
+        'VITE_DEV_MNEMONIC must not be set for non-development builds — it would be inlined into the client bundle. ' +
+          'Use `vite` / `npm run dev` with .env.development, or set VITE_ALLOW_DEV_MNEMONIC=local-only with VITE_NETWORK=local for isolated local builds only (GitLab #118, #378).'
       )
     }
   }
 
+  if (mode === 'production' && !env.VITE_WC_PROJECT_ID?.trim()) {
+    throw new Error(
+      'VITE_WC_PROJECT_ID is required for production builds — set a dedicated WalletConnect project ID in deploy env (GitLab #378).'
+    )
+  }
+}
+
+export default defineConfig(({ mode, command }) => {
+  const env = loadEnv(mode, path.join(__dirname), 'VITE_')
+  assertProductionBuildEnv(mode, command, env)
+
   return {
-    plugins: [react(), cspDevHosts()],
+    plugins: [react(), cspDevHosts(), cspProductionConnectSrc(mode)],
     resolve: {
       dedupe: ['react', 'react-dom'],
       alias: {

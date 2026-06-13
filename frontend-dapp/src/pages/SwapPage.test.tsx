@@ -510,7 +510,8 @@ describe('SwapPage', () => {
 
     await user.click(screen.getByTestId('swap-enable-expert-mode'))
     const modal = await screen.findByRole('dialog')
-    await user.click(within(modal).getByRole('button', { name: 'Enable Expert Mode' }))
+    await user.type(screen.getByTestId('expert-mode-confirm-input'), 'enable expert mode')
+    await user.click(within(modal).getByTestId('expert-mode-enable-button'))
 
     await waitFor(() => {
       expect(screen.queryByTestId('swap-slippage-blocked')).not.toBeInTheDocument()
