@@ -1145,15 +1145,6 @@ fn execute_swap(
     let total_return = book_return_net.checked_add(return_amount)?;
     let total_commission = book_commission_total.checked_add(pool_commission_amount)?;
 
-    if let Some(min) = min_return {
-        if total_return < min {
-            return Err(ContractError::MinReturnAssertion {
-                minimum: min.to_string(),
-                actual: total_return.to_string(),
-            });
-        }
-    }
-
     assert_max_spread(
         belief_price,
         max_spread,
@@ -1226,6 +1217,15 @@ fn execute_swap(
     }
     let receiver_return = total_return.checked_sub(hook_output_fee_total)?;
 
+    if let Some(min) = min_return {
+        if receiver_return < min {
+            return Err(ContractError::MinReturnAssertion {
+                minimum: min.to_string(),
+                actual: receiver_return.to_string(),
+            });
+        }
+    }
+
     // Aggregated CW20 transfers: maker payouts (offer) → hook fees (ask) → taker return (ask) → treasury (ask).
     let mut swap_transfer_messages: Vec<CosmosMsg> =
         orderbook::maker_payout_transfer_messages(&book_maker_payouts, &offer_token_addr)?;
@@ -1262,7 +1262,7 @@ fn execute_swap(
         .add_attribute("offer_asset", offer_asset_info.to_string())
         .add_attribute("ask_asset", ask_asset_info.to_string())
         .add_attribute("offer_amount", input_amount)
-        .add_attribute("return_amount", total_return)
+        .add_attribute("return_amount", receiver_return)
         .add_attribute("pool_return_amount", return_amount)
         .add_attribute("book_return_amount", book_return_net)
         .add_attribute("spread_amount", spread_amount)
