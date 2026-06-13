@@ -17,8 +17,14 @@ paths = [
 ]
 
 [allowlist]
-description = "Allow Terra Classic addresses and crypto type names"
+description = "Allow Terra Classic addresses, crypto type names, and CI fixtures"
 regexTarget = "secret"
+paths = [
+  # Intentional CI fixture for bip39-like-phrase-frontend-src (GitLab #380).
+  '''scripts/ci/gitleaks-fixture/''',
+  # Rust/npm build outputs (false positives on "private-key" in .rmeta / bundles).
+  '''(?:^|/)(?:target|node_modules|dist|coverage)(?:/|$)''',
+]
 regexes = [
   '''terra1[a-z0-9]{38,}''',
   '''Secp256k1PubKey''',

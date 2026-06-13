@@ -1,0 +1,13 @@
+# cargo-audit allowlist — smartcontracts workspace (GitLab #380 / H-06).
+# Run: cd smartcontracts && cargo audit --deny warnings
+# See docs/supply-chain-security.md for rationale and upgrade tracking.
+
+[advisories]
+ignore = [
+    # curve25519-dalek 3.2.0 via cosmwasm-std; upgrade requires cosmwasm ecosystem bump.
+    "RUSTSEC-2024-0344",
+    # derivative 2.x — transitive via cosmwasm; unmaintained, no drop-in yet.
+    "RUSTSEC-2024-0388",
+    # rand unsound only when a custom logger is installed; contracts do not configure one.
+    "RUSTSEC-2026-0097",
+]

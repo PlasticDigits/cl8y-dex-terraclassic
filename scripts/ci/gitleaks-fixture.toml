@@ -1,0 +1,8 @@
+# Minimal gitleaks config for CI fixture verification only (GitLab #380).
+# Main pipeline uses ../.gitleaks.toml (fixture path allowlisted there).
+
+[[rules]]
+id = "bip39-like-phrase-frontend-src"
+description = "Quoted BIP39-like multi-word line in frontend app source"
+regex = '''['\"]([a-z]{3,8}(?:\s[a-z]{3,8}){11,})['\"]'''
+path = '''(?i)(frontend-dapp|frontend)/src/.*\.(ts|tsx)$'''
