@@ -303,6 +303,7 @@ Friendly failure copy should flow through **`humanizeUserFacingError`** ([`front
 |-----------|---------|
 | Single funnel | Call **`humanizeUserFacingError`** / **`humanizeUserFacingErrorFromUnknown`** at leaf call sites, or rely on components that already apply it: **`RetryError`**, **`TxResultAlert`** (`type === 'error'` only), and the **`useWalletStore.connect`** catch (wallet modal). |
 | Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block (chunk failures scrub dev URLs — see [§ Lazy route chunks](#lazy-route-chunks)). |
+| Post-sign fee guard | Patched **`KeplrExtension`** / [`extensionSignedFeeGuard.ts`](../frontend-dapp/src/utils/extensionSignedFeeGuard.ts) may throw verbose diagnostics (GitLab refs, **`uluna`**, **`npm ci`**). **`tryHumanizeTerraTxMessage`** and **`broadcastTerraExecuteContracts`** must map those to **`EXTENSION_SIGNED_FEE_USER_MESSAGE`** before UI ([GitLab **#371**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/371)). |
 | Success strings | **`TxResultAlert`** must not rewrite **`type === 'success'`** messages. |
 | Regression tests | [`frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts`](../frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts). |
 
