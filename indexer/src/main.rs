@@ -129,12 +129,10 @@ async fn run_server() -> anyhow::Result<()> {
 
     let cancel = CancellationToken::new();
     let ustc_price = indexer::oracle::new_shared_price();
-    let fee_discount_registry_health = indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::new(
-        config
-            .fee_discount_address
-            .as_ref()
-            .is_some_and(|a| !a.is_empty()),
-    );
+    let fee_discount_registry_health =
+        indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::from_config(
+            config.fee_discount_address.as_deref(),
+        );
 
     let indexer_pool = pool.clone();
     let indexer_lcd = lcd_client.clone();

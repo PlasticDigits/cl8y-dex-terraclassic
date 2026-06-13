@@ -1,7 +1,7 @@
-//! Background LCD probe + in-memory state for fee-discount registry reachability (GitLab #365).
+//! Background LCD `config` probe for the fee-discount registry (GitLab #373).
 //!
-//! The pair contract fail-closes to full fee when `GetDiscount` errors; this module gives ops and
-//! integrators an off-chain signal when the registry LCD surface is unhealthy.
+//! Pairs fail-closed to full pair `fee_bps` when on-chain `GetDiscount` errors; this loop
+//! exposes a narrow ops signal without extending generic `GET /health`.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -10,13 +10,13 @@ use serde::Serialize;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use crate::lcd::LcdClient;
+use crate::lcd::{LcdClient, LcdError};
 
 const PROBE_INTERVAL: Duration = Duration::from_secs(60);
 /// Log at `error` when LCD config probes fail at least this many times in a row.
 const REPEATED_FAILURE_LOG_THRESHOLD: u32 = 2;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
 pub struct FeeDiscountRegistryHealthSnapshot {
     pub configured: bool,
     /// `null` when `FEE_DISCOUNT_ADDRESS` is unset; otherwise latest probe result.
@@ -38,11 +38,36 @@ pub struct FeeDiscountRegistryHealth {
 }
 
 impl FeeDiscountRegistryHealth {
+    pub fn from_config(fee_discount_address: Option<&str>) -> Self {
+        match fee_discount_address.filter(|a| !a.is_empty()) {
+            Some(_) => Self::configured(),
+            None => Self::unconfigured(),
+        }
+    }
+
     pub fn new(configured: bool) -> Self {
+        if configured {
+            Self::configured()
+        } else {
+            Self::unconfigured()
+        }
+    }
+
+    pub fn unconfigured() -> Self {
         Self {
             inner: Arc::new(RwLock::new(Inner {
-                configured,
-                registry_ok: if configured { Some(true) } else { None },
+                configured: false,
+                registry_ok: None,
+                ..Default::default()
+            })),
+        }
+    }
+
+    pub fn configured() -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(Inner {
+                configured: true,
+                registry_ok: None,
                 ..Default::default()
             })),
         }
@@ -57,31 +82,39 @@ impl FeeDiscountRegistryHealth {
         }
     }
 
-    pub(crate) async fn record_probe_success(&self) {
+    async fn record_probe_success(&self) {
         let mut g = self.inner.write().await;
         let was_failing = g.consecutive_lcd_failures >= REPEATED_FAILURE_LOG_THRESHOLD;
+        let had_failures = g.consecutive_lcd_failures > 0;
         g.registry_ok = Some(true);
         g.consecutive_lcd_failures = 0;
         g.last_probe_at = Some(Instant::now());
         if was_failing {
-            tracing::info!("Fee-discount registry LCD probe recovered");
+            tracing::info!(
+                "Fee-discount registry LCD config probe recovered; on-chain pairs use registry discounts when GetDiscount succeeds"
+            );
+        } else if had_failures {
+            tracing::info!("Fee-discount registry LCD config probe recovered");
         }
     }
 
-    pub(crate) async fn record_probe_failure(&self) {
+    async fn record_probe_failure(&self, err: &LcdError) {
         let mut g = self.inner.write().await;
         g.consecutive_lcd_failures = g.consecutive_lcd_failures.saturating_add(1);
         g.registry_ok = Some(false);
         g.last_probe_at = Some(Instant::now());
-        if g.consecutive_lcd_failures == REPEATED_FAILURE_LOG_THRESHOLD {
+        let failures = g.consecutive_lcd_failures;
+        if failures >= REPEATED_FAILURE_LOG_THRESHOLD {
             tracing::error!(
-                consecutive_failures = g.consecutive_lcd_failures,
-                "Fee-discount registry LCD probe failing repeatedly; pairs fail-closed to full fee on-chain"
+                consecutive_failures = failures,
+                "Fee-discount registry LCD config probe failing; on-chain pairs fail-closed to full pair fee when GetDiscount errors — poll GET /api/v1/health/fee-discount; upstream: {}",
+                err
             );
-        } else if g.consecutive_lcd_failures > REPEATED_FAILURE_LOG_THRESHOLD {
+        } else {
             tracing::warn!(
-                consecutive_failures = g.consecutive_lcd_failures,
-                "Fee-discount registry LCD probe still failing"
+                consecutive_failures = failures,
+                "Fee-discount registry LCD config probe failed; upstream: {}",
+                err
             );
         }
     }
@@ -125,26 +158,45 @@ pub async fn probe_fee_discount_registry(
         .await
     {
         Ok(_) => health.record_probe_success().await,
-        Err(e) => {
-            tracing::warn!(detail = %e, "Fee-discount registry LCD config probe failed");
-            health.record_probe_failure().await;
-        }
+        Err(e) => health.record_probe_failure(&e).await,
     }
+}
+
+/// Alias for integration tests (GitLab #373).
+pub async fn probe_fee_discount_registry_once(
+    lcd: &LcdClient,
+    fee_discount_addr: &str,
+    health: &FeeDiscountRegistryHealth,
+) {
+    probe_fee_discount_registry(lcd, fee_discount_addr, health).await;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wiremock::matchers::{method, path_regex};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn unconfigured_snapshot_is_null_ok_with_zero_failures() {
+        let health = FeeDiscountRegistryHealth::unconfigured();
+        let snap = health.snapshot().await;
+        assert!(!snap.configured);
+        assert_eq!(snap.fee_discount_registry_ok, None);
+        assert_eq!(snap.consecutive_lcd_failures, 0);
+    }
 
     #[tokio::test]
     async fn snapshot_reflects_configured_and_failures() {
-        let health = FeeDiscountRegistryHealth::new(true);
+        let health = FeeDiscountRegistryHealth::configured();
         let snap = health.snapshot().await;
         assert!(snap.configured);
-        assert_eq!(snap.fee_discount_registry_ok, Some(true));
+        assert_eq!(snap.fee_discount_registry_ok, None);
         assert_eq!(snap.consecutive_lcd_failures, 0);
 
-        health.record_probe_failure().await;
+        health
+            .record_probe_failure(&LcdError::AllEndpointsFailed("probe failed".into()))
+            .await;
         let snap = health.snapshot().await;
         assert_eq!(snap.fee_discount_registry_ok, Some(false));
         assert_eq!(snap.consecutive_lcd_failures, 1);
@@ -156,10 +208,48 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unconfigured_snapshot_has_null_ok() {
-        let health = FeeDiscountRegistryHealth::new(false);
+    async fn successful_probe_sets_ok_true() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "data": {
+                    "governance": "terra1gov",
+                    "cl8y_token": "terra1cl8y"
+                }
+            })))
+            .mount(&server)
+            .await;
+
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let health = FeeDiscountRegistryHealth::configured();
+        probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
+
         let snap = health.snapshot().await;
-        assert!(!snap.configured);
-        assert_eq!(snap.fee_discount_registry_ok, None);
+        assert!(snap.configured);
+        assert_eq!(snap.fee_discount_registry_ok, Some(true));
+        assert_eq!(snap.consecutive_lcd_failures, 0);
+    }
+
+    #[tokio::test]
+    async fn repeated_lcd_failure_increments_counter() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+            .respond_with(
+                ResponseTemplate::new(500)
+                    .set_body_string("All LCD endpoints failed; cosmwasm http://secret"),
+            )
+            .mount(&server)
+            .await;
+
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let health = FeeDiscountRegistryHealth::configured();
+        probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
+        probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
+
+        let snap = health.snapshot().await;
+        assert_eq!(snap.fee_discount_registry_ok, Some(false));
+        assert!(snap.consecutive_lcd_failures >= 2);
     }
 }

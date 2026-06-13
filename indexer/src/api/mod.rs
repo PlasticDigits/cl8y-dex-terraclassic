@@ -73,7 +73,7 @@ pub struct AppState {
     pub factory_address: Option<String>,
     /// CL8Y fee-discount registry for on-chain `GetDiscount` (mirror grid fee parity with LCD).
     pub fee_discount_address: Option<String>,
-    /// Cached LCD probe for fee-discount registry reachability (GitLab #365).
+    /// Shared snapshot for `GET /api/v1/health/fee-discount` (GitLab #373).
     pub fee_discount_registry_health: FeeDiscountRegistryHealth,
     /// Postgres-backed hybrid grid for `/route/solve` (GitLab #319).
     pub route_solver_db_hybrid: bool,

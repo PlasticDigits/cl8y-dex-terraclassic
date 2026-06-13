@@ -1,4 +1,4 @@
-//! Narrow fee-discount registry health surface for ops and integrators (GitLab #365).
+//! Narrow fee-discount registry health surface (GitLab #373).
 
 use axum::extract::State;
 use axum::Json;
