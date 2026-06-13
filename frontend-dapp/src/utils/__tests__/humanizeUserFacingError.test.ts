@@ -114,7 +114,7 @@ describe('humanizeUserFacingError', () => {
 
   it('humanizes extension signed fee undershoot diagnostics (GitLab #371)', () => {
     const raw =
-      'Wallet signed a fee far below what this dApp submitted (GitLab #127). Expected at least ~5665000 uluna; wallet returned ~3000 uluna.'
+      'Wallet signed a fee far below what this dApp submitted (GitLab #127). On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run `cd frontend-dapp && npm ci` so the cosmes patch is applied, then retry. Expected at least ~50985000 uluna; wallet returned ~29 uluna. Expected gas at least ~1800000; wallet returned ~1.'
     const out = humanizeUserFacingError(raw)
     expect(out).toBe(
       'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
