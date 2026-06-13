@@ -54,7 +54,7 @@ import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmoun
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
-import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
+import { getFeeDiscountHealth, getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import {
@@ -66,6 +66,11 @@ import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/u
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
+import {
+  FEE_DISCOUNT_REGISTRY_WARNING_TEXT,
+  resolveFeeDiscountRegistryStatus,
+  shouldShowFeeDiscountRegistryWarning,
+} from '@/utils/feeDiscountRegistryWarning'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
@@ -257,6 +262,35 @@ export default function SwapPage() {
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
+
+  const feeDiscountHealthQuery = useQuery({
+    queryKey: ['feeDiscountHealth'],
+    queryFn: getFeeDiscountHealth,
+    enabled: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    staleTime: 30_000,
+    retry: false,
+  })
+
+  const feeDiscountRegistryStatus = useMemo(
+    () =>
+      resolveFeeDiscountRegistryStatus({
+        registrationSucceeded: registrationQuery.isSuccess,
+        registered: registrationQuery.data?.registered ?? false,
+        registrationQueryError: registrationQuery.isError,
+        discountQueryError: discountQuery.isError,
+        indexerHealth: feeDiscountHealthQuery.isSuccess ? feeDiscountHealthQuery.data : null,
+      }),
+    [
+      registrationQuery.isSuccess,
+      registrationQuery.data?.registered,
+      registrationQuery.isError,
+      discountQuery.isError,
+      feeDiscountHealthQuery.isSuccess,
+      feeDiscountHealthQuery.data,
+    ]
+  )
+
+  const showFeeDiscountRegistryWarning = shouldShowFeeDiscountRegistryWarning(feeDiscountRegistryStatus)
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, fromToken],
@@ -939,6 +973,12 @@ export default function SwapPage() {
             />
           )}
 
+          {showFeeDiscountRegistryWarning && (
+            <div className="alert-warning text-sm mb-4" role="status" data-testid="swap-fee-discount-registry-warning">
+              {FEE_DISCOUNT_REGISTRY_WARNING_TEXT}
+            </div>
+          )}
+
           {showSimRetryError && (
             <RetryError
               data-testid="swap-quote-retry-error"
@@ -1353,7 +1393,7 @@ export default function SwapPage() {
                   />
                 </div>
               )}
-              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
+              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && feeDiscountRegistryStatus === 'unregistered' && (
                 <div
                   className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
                   style={{

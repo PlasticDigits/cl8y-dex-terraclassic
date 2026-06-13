@@ -50,3 +50,19 @@ Invariants and batch loop example: [docs/contracts-terraclassic.md § Factory di
 - [docs/architecture.md](../docs/architecture.md) — fee discount flow (no duplicate table)
 - [docs/security-model.md](../docs/security-model.md) — EOA registration, balance checks
 - [docs/testing.md](../docs/testing.md) — fee-discount test coverage
+
+## Registry outage observability (GitLab #365 / #374)
+
+When the fee-discount registry LCD is unreachable, on-chain swaps **fail closed to full pair fee** (`smartcontracts/contracts/pair/src/discount_cache.rs`). Traders must not confuse that with “not registered”.
+
+| Signal | Where |
+|--------|--------|
+| LCD `get_registration` / `get_discount` errors | `frontend-dapp/src/utils/feeDiscountRegistryWarning.ts` → amber banner on **Swap** (`SwapPage.tsx`) |
+| Indexer `GET /api/v1/health/fee-discount` (`fee_discount_registry_ok: false`) | Same banner when LCD reads still succeed |
+| Unregistered + healthy LCD | Existing “Hold CL8Y…” CTA — **no** outage banner |
+
+Frontend helpers: `resolveFeeDiscountRegistryStatus`, `shouldShowFeeDiscountRegistryWarning`, `FEE_DISCOUNT_REGISTRY_WARNING_TEXT`. Indexer client: `getFeeDiscountHealth()` in `frontend-dapp/src/services/indexer/client.ts`. Handler: `indexer/src/api/fee_discount_health.rs`.
+
+**Invariants:** warning is non-blocking (swap submit stays enabled); banner copy must not include raw LCD errors or wallet addresses; do not add public per-trader registry probe APIs from the frontend.
+
+**Verify:** `make test-frontend` (`feeDiscountRegistryWarning.test.ts`, `SwapPage.test.tsx`); indexer `cargo test --test api_fee_discount_health`.

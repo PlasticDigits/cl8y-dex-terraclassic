@@ -6,6 +6,7 @@ mod cg;
 mod compliance;
 mod cmc;
 mod errors;
+mod fee_discount_health;
 mod listing_timestamps;
 mod consolidated_stats;
 pub mod hooks;
@@ -412,6 +413,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
 
     let api_router = Router::new()
         .route("/health", get(health))
+        .route(
+            "/api/v1/health/fee-discount",
+            get(fee_discount_health::get_fee_discount_health),
+        )
         .route(
             "/api/v1/compliance/blacklist-check",
             get(compliance::blacklist_check),
