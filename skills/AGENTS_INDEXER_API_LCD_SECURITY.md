@@ -12,6 +12,7 @@ You are changing **LCD-proxied HTTP routes**, **rate limiting**, or **502 error 
 | **H7** | LCD-heavy routes rate-limited separately; prod cannot disable global/heavy limits with `0` | [`api/mod.rs`](../indexer/src/api/mod.rs), [`config.rs`](../indexer/src/config.rs) |
 | **H7b** | Deep `limit-book` / `insert-hints` / price-window ≤ **101** LCD queries per request | [`LIMIT_BOOK_LCD_QUERY_BUDGET`](../indexer/src/api/limit_book_lcd.rs); [integrators.md § #267](../docs/integrators.md#insert-hints-price-window-gitlab-267) |
 | **H7c** | Route `global_v1` documents ≤ **`LCD_HYBRID_SIM_BUDGET`** hybrid sims | [`best_execution.rs`](../indexer/src/api/best_execution.rs) |
+| **H6b** | `GET /api/v1/health/fee-discount` returns only `configured`, `fee_discount_registry_ok`, `consecutive_lcd_failures` — no LCD URLs, upstream bodies, or per-trader registry state ([#373](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/373)) | [`fee_discount_health.rs`](../indexer/src/api/fee_discount_health.rs), [`api_fee_discount_health.rs`](../indexer/tests/api_fee_discount_health.rs) |
 
 Human matrix: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md). Hybrid route behavior: [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md).
 
