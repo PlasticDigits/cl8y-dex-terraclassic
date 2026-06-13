@@ -195,6 +195,10 @@ impl Config {
             start_block: env::var("START_BLOCK").ok().and_then(|v| v.parse().ok()),
             cors_origins,
             rate_limit_rps: {
+                let raw_zero = env::var("RATE_LIMIT_RPS")
+                    .ok()
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .is_some_and(|v| v == 0);
                 let mut rps = env::var("RATE_LIMIT_RPS")
                     .ok()
                     .and_then(|v| v.parse().ok())
@@ -204,6 +208,16 @@ impl Config {
                         "RUN_MODE=prod: RATE_LIMIT_RPS=0 is not allowed; using {DEFAULT_RATE_LIMIT_RPS} RPS"
                     );
                     rps = DEFAULT_RATE_LIMIT_RPS;
+                }
+                let lcd_raw_zero = env::var("RATE_LIMIT_LCD_HEAVY_RPS")
+                    .ok()
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .is_some_and(|v| v == 0);
+                if raw_zero && lcd_raw_zero {
+                    tracing::warn!(
+                        "RATE_LIMIT_RPS=0 and RATE_LIMIT_LCD_HEAVY_RPS=0 — all API rate governors disabled (GitLab #379 M-05). \
+                         Set both only for local QA; prod clamps non-zero limits."
+                    );
                 }
                 rps
             },
@@ -366,6 +380,20 @@ mod tests {
         let c = Config::from_env().expect("ipv6 bind with flag");
         assert!(c.api_ipv6_enabled);
         assert_eq!(c.api_bind, "::");
+    }
+
+    #[test]
+    #[serial]
+    fn dev_allows_both_rate_limits_zero() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        let c = Config::from_env().expect("dev config with zero limits");
+        assert_eq!(c.rate_limit_rps, 0);
+        assert_eq!(c.rate_limit_lcd_heavy_rps, 0);
     }
 
     #[test]
