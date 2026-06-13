@@ -4,7 +4,6 @@ import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 import { prepareStationExtensionForTerraClassicSign } from '@/services/terraclassic/stationExtensionConfig'
 import { estimateTerraClassicFeeForEntries } from '@/services/terraclassic/terraClassicFeeEstimate'
-import { EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX } from '@/utils/extensionSignedFeeGuard'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 import {
   TERRA_TX_BROADCAST_TIMEOUT_MESSAGE,
@@ -38,10 +37,6 @@ function handleBroadcastError(error: unknown): Error {
     const errorMessage = error.message
 
     if (errorMessage === TERRA_TX_BROADCAST_TIMEOUT_MESSAGE || errorMessage === TERRA_TX_POLL_TIMEOUT_MESSAGE) {
-      return error
-    }
-
-    if (errorMessage.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX)) {
       return error
     }
 

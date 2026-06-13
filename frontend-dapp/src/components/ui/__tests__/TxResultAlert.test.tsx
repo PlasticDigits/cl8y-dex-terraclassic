@@ -49,4 +49,13 @@ describe('TxResultAlert', () => {
     expect(screen.getByText(/Trade rejected: price impact/)).toBeInTheDocument()
     expect(screen.queryByText(/execute wasm contract failed/)).not.toBeInTheDocument()
   })
+
+  it('humanizes extension signed fee undershoot for retail display (GitLab #371)', () => {
+    const raw =
+      'Wallet signed a fee far below what this dApp submitted (GitLab #127). On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run `cd frontend-dapp && npm ci` so the cosmes patch is applied, then retry. Expected at least ~50985000 uluna; wallet returned ~29 uluna. Expected gas at least ~1800000; wallet returned ~1.'
+    render(<TxResultAlert type="error" message={raw} />)
+    expect(screen.getByText(/Transaction fee mismatch/)).toBeInTheDocument()
+    expect(screen.queryByText(/GitLab #127/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/npm ci/)).not.toBeInTheDocument()
+  })
 })

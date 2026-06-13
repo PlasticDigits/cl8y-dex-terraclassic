@@ -11,6 +11,10 @@ export type AminoFeeLike = {
 export const EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX =
   'Wallet signed a fee far below what this dApp submitted (GitLab #127).'
 
+/** Retail copy for post-sign fee/gas mismatch — keep diagnostics in logs only (GitLab #371). */
+export const EXTENSION_SIGNED_FEE_USER_MESSAGE =
+  'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
+
 /** Minimum signed/expected ratio (percent). 50% allowed fee-only drift (#127); 95% blocks ~23 vs ~36 LUNC swap repro (#134). */
 export const EXTENSION_SIGNED_FEE_MIN_PERCENT = 95n
 
