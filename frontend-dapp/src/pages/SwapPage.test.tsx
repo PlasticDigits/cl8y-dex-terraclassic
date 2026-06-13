@@ -99,6 +99,7 @@ import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { FEE_DISCOUNT_REGISTRY_WARNING_TEXT } from '@/utils/feeDiscountRegistryWarning'
+import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 
 describe('SwapPage', () => {
   beforeEach(() => {
@@ -111,6 +112,7 @@ describe('SwapPage', () => {
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
+      consecutive_lcd_failures: 0,
     })
     vi.mocked(getRegistration).mockResolvedValue({ registered: false, tier_id: null, tier: null })
     vi.mocked(getTraderDiscount).mockResolvedValue({
@@ -516,6 +518,56 @@ describe('SwapPage', () => {
     })
   })
 
+  describe('large-amount precision (GitLab #366)', () => {
+    const aboveSafeInt = '9007199254740992'
+
+    it('gates positive human amounts above Number.MAX_SAFE_INTEGER without parseFloat loss', async () => {
+      const user = userEvent.setup()
+      const wallet = 'terra1wallet000000000000000000000000000001'
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      const terraA = 'terra1from00000000000000000000000000000001'
+      const terraB = 'terra1to00000000000000000000000000000001'
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+      const spread = '891712726219358'
+      const ret = '8917127262193583'
+      vi.mocked(simulateSwap).mockResolvedValue({
+        return_amount: ret,
+        spread_amount: spread,
+        commission_amount: '0',
+      })
+      vi.mocked(getTokenBalance).mockResolvedValue('999999999999999999999999')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      await user.type(screen.getByPlaceholderText('0.00'), aboveSafeInt)
+      await waitFor(() => expect(simulateSwap).toHaveBeenCalled())
+
+      expect(screen.queryByRole('button', { name: 'Enter Amount' })).not.toBeInTheDocument()
+      const expectedPct = spreadPercentFromRawSim(ret, '0', spread)
+      expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent(`${expectedPct}%`)
+    })
+  })
+
   describe('submit–quote stale gate (GitLab #356)', () => {
     beforeEach(() => {
       vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -567,6 +619,61 @@ describe('SwapPage', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
 
       await user.type(payInput, '0')
+
+      expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
+
+      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+    })
+
+    it('disables Swap with Calculating… while book leg differs from debounced hybrid quote (#360)', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+      const wallet = 'terra1wallet000000000000000000000000000001'
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      const terraA = 'terra1from00000000000000000000000000000001'
+      const terraB = 'terra1to00000000000000000000000000000001'
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+      vi.mocked(simulateSwap).mockResolvedValue({
+        return_amount: '1000000',
+        spread_amount: '100',
+        commission_amount: '3000',
+      })
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+      await user.click(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i }))
+
+      const payInput = screen.getByPlaceholderText('0.00')
+      await user.type(payInput, '10')
+      const bookInput = screen.getByPlaceholderText('0.0')
+      await user.type(bookInput, '2')
+      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+
+      await user.clear(bookInput)
+      await user.type(bookInput, '5')
 
       expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
 
@@ -637,6 +744,7 @@ describe('SwapPage', () => {
       vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
         configured: true,
         fee_discount_registry_ok: true,
+        consecutive_lcd_failures: 0,
       })
 
       await renderConnectedDirectSwap()
@@ -654,6 +762,7 @@ describe('SwapPage', () => {
       vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
         configured: true,
         fee_discount_registry_ok: false,
+        consecutive_lcd_failures: 2,
       })
 
       await renderConnectedDirectSwap()

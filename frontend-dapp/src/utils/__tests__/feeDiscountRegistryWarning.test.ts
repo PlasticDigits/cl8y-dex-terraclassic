@@ -11,12 +11,22 @@ describe('feeDiscountRegistryWarning', () => {
     expect(FEE_DISCOUNT_REGISTRY_WARNING_TEXT).not.toMatch(/terra1|@|error/i)
   })
 
+  it('returns unconfigured when fee-discount contract is absent', () => {
+    expect(
+      resolveFeeDiscountRegistryStatus({
+        feeDiscountContractConfigured: false,
+        registrationQueryError: false,
+        discountQueryError: false,
+      })
+    ).toBe('unconfigured')
+  })
+
   describe('resolveFeeDiscountRegistryStatus', () => {
     it('returns unregistered when registration succeeded and wallet is not registered', () => {
       expect(
         resolveFeeDiscountRegistryStatus({
-          registrationSucceeded: true,
-          registered: false,
+          feeDiscountContractConfigured: true,
+          registration: { registered: false, tier_id: null, tier: null },
           registrationQueryError: false,
           discountQueryError: false,
         })
@@ -26,8 +36,8 @@ describe('feeDiscountRegistryWarning', () => {
     it('returns registered when registration succeeded and wallet is registered', () => {
       expect(
         resolveFeeDiscountRegistryStatus({
-          registrationSucceeded: true,
-          registered: true,
+          feeDiscountContractConfigured: true,
+          registration: { registered: true, tier_id: 1, tier: null },
           registrationQueryError: false,
           discountQueryError: false,
         })
@@ -37,8 +47,7 @@ describe('feeDiscountRegistryWarning', () => {
     it('returns registry_unreachable when registration LCD query fails', () => {
       expect(
         resolveFeeDiscountRegistryStatus({
-          registrationSucceeded: false,
-          registered: false,
+          feeDiscountContractConfigured: true,
           registrationQueryError: true,
           discountQueryError: false,
         })
@@ -48,8 +57,8 @@ describe('feeDiscountRegistryWarning', () => {
     it('returns registry_unreachable when discount LCD query fails for a registered wallet', () => {
       expect(
         resolveFeeDiscountRegistryStatus({
-          registrationSucceeded: true,
-          registered: true,
+          feeDiscountContractConfigured: true,
+          registration: { registered: true, tier_id: 1, tier: null },
           registrationQueryError: false,
           discountQueryError: true,
         })
@@ -59,8 +68,8 @@ describe('feeDiscountRegistryWarning', () => {
     it('returns unregistered when only discount fails but registration succeeded as unregistered', () => {
       expect(
         resolveFeeDiscountRegistryStatus({
-          registrationSucceeded: true,
-          registered: false,
+          feeDiscountContractConfigured: true,
+          registration: { registered: false, tier_id: null, tier: null },
           registrationQueryError: false,
           discountQueryError: true,
         })
@@ -70,11 +79,15 @@ describe('feeDiscountRegistryWarning', () => {
     it('returns registry_unreachable when indexer reports registry down', () => {
       expect(
         resolveFeeDiscountRegistryStatus({
-          registrationSucceeded: true,
-          registered: true,
+          feeDiscountContractConfigured: true,
+          registration: { registered: true, tier_id: 1, tier: null },
           registrationQueryError: false,
           discountQueryError: false,
-          indexerHealth: { configured: true, fee_discount_registry_ok: false },
+          indexerHealth: {
+            configured: true,
+            fee_discount_registry_ok: false,
+            consecutive_lcd_failures: 2,
+          },
         })
       ).toBe('registry_unreachable')
     })
@@ -82,11 +95,15 @@ describe('feeDiscountRegistryWarning', () => {
     it('keeps unregistered when indexer reports registry down but LCD registration read succeeded as unregistered', () => {
       expect(
         resolveFeeDiscountRegistryStatus({
-          registrationSucceeded: true,
-          registered: false,
+          feeDiscountContractConfigured: true,
+          registration: { registered: false, tier_id: null, tier: null },
           registrationQueryError: false,
           discountQueryError: false,
-          indexerHealth: { configured: true, fee_discount_registry_ok: false },
+          indexerHealth: {
+            configured: true,
+            fee_discount_registry_ok: false,
+            consecutive_lcd_failures: 1,
+          },
         })
       ).toBe('unregistered')
     })
@@ -94,9 +111,35 @@ describe('feeDiscountRegistryWarning', () => {
 
   describe('shouldShowFeeDiscountRegistryWarning', () => {
     it('shows only for registry_unreachable', () => {
-      expect(shouldShowFeeDiscountRegistryWarning('registry_unreachable')).toBe(true)
-      expect(shouldShowFeeDiscountRegistryWarning('unregistered')).toBe(false)
-      expect(shouldShowFeeDiscountRegistryWarning('registered')).toBe(false)
+      expect(
+        shouldShowFeeDiscountRegistryWarning({
+          feeDiscountContractConfigured: true,
+          registrationQueryError: true,
+          discountQueryError: false,
+        })
+      ).toBe(true)
+      expect(
+        shouldShowFeeDiscountRegistryWarning({
+          feeDiscountContractConfigured: true,
+          registration: { registered: false, tier_id: null, tier: null },
+          registrationQueryError: false,
+          discountQueryError: false,
+        })
+      ).toBe(false)
+      expect(
+        shouldShowFeeDiscountRegistryWarning({
+          feeDiscountContractConfigured: true,
+          registration: { registered: true, tier_id: 1, tier: null },
+          discount: { discount_bps: 50, needs_deregister: false, registration_epoch: 1 },
+          registrationQueryError: false,
+          discountQueryError: false,
+          indexerHealth: {
+            configured: true,
+            fee_discount_registry_ok: true,
+            consecutive_lcd_failures: 0,
+          },
+        })
+      ).toBe(false)
     })
   })
 })

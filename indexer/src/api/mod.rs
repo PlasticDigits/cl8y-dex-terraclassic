@@ -47,6 +47,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
+use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 use crate::indexer::oracle::SharedPrice;
 use crate::lcd::LcdClient;
 
@@ -72,6 +73,8 @@ pub struct AppState {
     pub factory_address: Option<String>,
     /// CL8Y fee-discount registry for on-chain `GetDiscount` (mirror grid fee parity with LCD).
     pub fee_discount_address: Option<String>,
+    /// Shared snapshot for `GET /api/v1/health/fee-discount` (GitLab #373).
+    pub fee_discount_registry_health: FeeDiscountRegistryHealth,
     /// Postgres-backed hybrid grid for `/route/solve` (GitLab #319).
     pub route_solver_db_hybrid: bool,
     pub book_snapshot_max_staleness_ms: u64,
@@ -86,6 +89,7 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
     )
 }
 
+#[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
 pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
@@ -540,6 +544,7 @@ pub async fn serve(
     lcd: LcdClient,
     config: Config,
     ustc_price: SharedPrice,
+    fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router_address = config.router_address.clone();
     let factory_address = Some(config.factory_address.clone());
@@ -552,6 +557,7 @@ pub async fn serve(
         router_address,
         factory_address,
         fee_discount_address: config.fee_discount_address.clone(),
+        fee_discount_registry_health,
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,

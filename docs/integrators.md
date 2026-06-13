@@ -40,7 +40,7 @@ Resting **FIFO limit orders** live on each pair contract. The indexer exposes re
 | **`GET /api/v1/pairs/{addr}/limit-book/insert-hints?side=bid\|ask&prices=p1,p2,...`** | Batch **insert-hint** resolution in one LCD walk (max **100** prices). Response: `{ side, hints[], budget_exhausted }` per [§ Insert hints & price window](#insert-hints-price-window-gitlab-267). |
 | **`GET /api/v1/pairs/{addr}/limit-book-shallow?side=bid\|ask&depth=N`** | Legacy preview (default **10**, max **20**). Prefer **`limit-book`** for pro depth. |
 
-**Errors:** unknown pair → **404**; LCD failure → **502**; invalid cursor / side mismatch → **400**. When **`RATE_LIMIT_RPS > 0`**, sustained abuse → **429** ([indexer-invariants.md](./indexer-invariants.md)).
+**Errors:** unknown pair → **404**; LCD failure → **502**; invalid cursor / side mismatch → **400**. Sustained abuse → **429** (`Retry-After` + `x-ratelimit-*` headers; plain-text body): global **`RATE_LIMIT_RPS`** (default **60**) on all routes, plus **`RATE_LIMIT_LCD_HEAVY_RPS`** (default **10**) on the LCD-heavy paths above — production cannot disable either ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363); [`indexer-invariants.md`](./indexer-invariants.md), [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md)).
 
 **LCD cost:** each **`limit-book`** page costs up to **1 + limit** smart queries (head or cursor lookup + one `limit_order` per returned row). No server-side caching of arbitrary deep walks — **clients paginate**.
 
@@ -132,6 +132,37 @@ The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-
 | **`POST`** | BFS discovery (**max 4 hops**), plus optional **`hybrid_by_hop`** for **integrator overrides** (one entry per hop). Merges into `router_operations` and runs LCD `simulate_swap_operations` when configured. |
 
 **Invariant L8:** Pool-only quotes use `hybrid_simulation` with `book_input = 0` (helpers: `pool_only_hybrid_params`, `pool_only_hybrid_template`). Router ops with `hybrid: null` still get pool-only hybrid quotes on-chain. For book-inclusive quotes set non-zero `book_input` on the router op or pair query. **Fee discounts:** pass optional `trader` (and `sender` when the CW20 sender differs, e.g. trusted router) on `HybridSimulation` / router `SimulateSwapOperations` so quotes match execute for registered CL8Y tiers; omit `trader` for undiscounted (full fee) quotes ([#238](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)). Indexer **`GET/POST /api/v1/route/solve`** accept the same optional fields; hybrid GET cache keys include normalized `trader` when set ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)) and the resolved **`discount_tier`** from synced `traders.tier_id` for the discount subject (`trader` if set, else `sender`) so same-tier callers share the cache ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)). See [limit-orders.md](./limit-orders.md), [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md), [skills/AGENTS_HYBRID_QUOTING.md](../skills/AGENTS_HYBRID_QUOTING.md), [skills/AGENTS_FEE_DISCOUNT_TIERS.md](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
+
+## Fee-discount registry outage {#fee-discount-registry-outage}
+
+When a pair has a **`discount_registry`** configured, the pair queries the fee-discount contract on swap and limit placement. **Observed on-chain behavior** (invariant **P5** in [contracts-security-audit.md](./contracts-security-audit.md), **I10** in [fee-discount-tiers.md](./reference/fee-discount-tiers.md)):
+
+| Event | Pair behavior |
+|-------|---------------|
+| `GetDiscount` returns `Ok` with `discount_bps > 0` | Effective fee = `fee_bps × (10000 − discount_bps) / 10000` |
+| `GetDiscount` returns `Ok` with `discount_bps = 0` (unregistered or insufficient CL8Y) | Full pair **`fee_bps`** |
+| **`GetDiscount` smart query returns `Err`** (registry paused, migrating, wrong address, or LCD/querier failure) | **Full pair `fee_bps`** — swap or limit placement **still succeeds**; no on-chain revert |
+
+Do **not** assume a registered trader keeps their tier discount during a registry outage: execute is **fail-closed** to the undiscounted pair fee until the registry answers again. Changing this to revert-on-error requires an explicit ADR and governance review ([#365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365)).
+
+### Off-chain signals
+
+| Signal | Use |
+|--------|-----|
+| **`GET /api/v1/health/fee-discount`** (indexer) | Ops / integrator health poll. Response: `configured`, `fee_discount_registry_ok`, `consecutive_lcd_failures`. No per-trader fields, no raw LCD text — see [indexer-invariants.md](./indexer-invariants.md). |
+| LCD **`get_registration`** | `registered: false` → trader is **not** on the registry (full fee is expected). |
+| LCD **`get_discount`** / registration query **errors** | Registry **unreachable** or misconfigured — a wallet that *was* registered may still be charged full fee on-chain. |
+
+### Decision table: unregistered vs registry unreachable
+
+| Observation | Likely meaning | Integrator action |
+|-------------|----------------|-------------------|
+| `get_registration.registered = false` (query succeeds) | Trader **not registered** | Show tier ladder / hold-CL8Y UX; full fee is correct. |
+| `get_registration` or `get_discount` **LCD error** | Registry **unreachable** | Warn that discounts may be unavailable; quotes using indexer `traders.tier_id` can diverge from execute. Do **not** publish per-trader registry error strings on a public API ([#365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365)). |
+| `fee_discount_registry_ok: false` on indexer health | Background LCD `config` probe failing | Page ops; treat off-chain tier hints as stale until probe recovers. |
+| On-chain swap succeeds with `effective_fee_bps = fee_bps` | Full fee applied (registered or not) | Reconcile with LCD/health above — outage vs genuinely unregistered. |
+
+Canonical tier numbers remain only in [fee-discount-tiers.md](./reference/fee-discount-tiers.md) — do not duplicate the ladder here. Agent playbook: [skills/AGENTS_FEE_DISCOUNT_TIERS.md](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability. Regression: `make verify-issue-365`.
 
 ## Vyntrex / Terraport hybrid event mapping (GitLab #189)
 

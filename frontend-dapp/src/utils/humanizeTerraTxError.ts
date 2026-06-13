@@ -4,7 +4,10 @@
  * Wallet / fetch / indexer transport copy is classified in `humanizeOffChainError.ts` and composed via `humanizeUserFacingError.ts` ([GitLab #145](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/145)).
  */
 
-import { EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX } from './extensionSignedFeeGuard'
+import {
+  EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX,
+  EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE,
+} from './extensionSignedFeeGuard'
 import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUserMessage'
 import { humanizeExpiredLimitClaimMessage } from './limitClaimUserMessage'
 
@@ -62,8 +65,11 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   if (/\bUnauthorized\b/i.test(inner)) {
     return 'You do not have permission for this action.'
   }
-  if (inner.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX)) {
-    return inner
+  if (
+    inner.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX) ||
+    inner === EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE
+  ) {
+    return EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE
   }
   if (/insufficient fees/i.test(inner)) {
     const gotMatch = inner.match(/got:\s*"?(\d+)uluna"?/i)
