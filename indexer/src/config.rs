@@ -213,10 +213,10 @@ impl Config {
                     .ok()
                     .and_then(|v| v.parse::<u64>().ok())
                     .is_some_and(|v| v == 0);
-                if raw_zero && lcd_raw_zero {
+                if run_mode != RunMode::Prod && raw_zero && lcd_raw_zero {
                     tracing::warn!(
                         "RATE_LIMIT_RPS=0 and RATE_LIMIT_LCD_HEAVY_RPS=0 — all API rate governors disabled (GitLab #379 M-05). \
-                         Set both only for local QA; prod clamps non-zero limits."
+                         Set both only for local QA."
                     );
                 }
                 rps
