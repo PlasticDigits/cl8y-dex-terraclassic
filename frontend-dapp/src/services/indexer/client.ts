@@ -29,6 +29,11 @@ import type {
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://127.0.0.1:3001'
 
+/** Encode path segments (pair/trader addresses, denoms) — GitLab #379 L-09. */
+function encPath(segment: string): string {
+  return encodeURIComponent(segment)
+}
+
 const FETCH_TIMEOUT_MS = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 4_000 : 15_000
 const MAX_RETRIES = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 0 : 1
 
@@ -99,7 +104,7 @@ export async function getPairs(params?: GetPairsParams): Promise<IndexerPairsLis
 
 /** Single pair metadata from `GET /api/v1/pairs/{addr}`. */
 export async function getPair(pairAddr: string): Promise<IndexerPair> {
-  return fetchJson<IndexerPair>(`/api/v1/pairs/${pairAddr}`)
+  return fetchJson<IndexerPair>(`/api/v1/pairs/${encPath(pairAddr)}`)
 }
 
 /** Load up to `maxPairs` by paging the indexer (e.g. chart pair selector). */
@@ -126,19 +131,19 @@ export async function getCandles(
   const params = new URLSearchParams({ interval, limit: limit.toString() })
   if (from) params.set('from', from)
   if (to) params.set('to', to)
-  return fetchJson<IndexerCandle[]>(`/api/v1/pairs/${pairAddr}/candles?${params}`)
+  return fetchJson<IndexerCandle[]>(`/api/v1/pairs/${encPath(pairAddr)}/candles?${params}`)
 }
 
 /** Get recent trades for a pair. */
 export async function getTrades(pairAddr: string, limit = 50, before?: number): Promise<IndexerTrade[]> {
   const params = new URLSearchParams({ limit: limit.toString() })
   if (before) params.set('before', before.toString())
-  return fetchJson<IndexerTrade[]>(`/api/v1/pairs/${pairAddr}/trades?${params}`)
+  return fetchJson<IndexerTrade[]>(`/api/v1/pairs/${encPath(pairAddr)}/trades?${params}`)
 }
 
 /** Get 24h stats for a pair. */
 export async function getPairStats(pairAddr: string): Promise<IndexerPairStats> {
-  return fetchJson<IndexerPairStats>(`/api/v1/pairs/${pairAddr}/stats`)
+  return fetchJson<IndexerPairStats>(`/api/v1/pairs/${encPath(pairAddr)}/stats`)
 }
 
 export interface GetPairSubresourceParams {
@@ -160,7 +165,7 @@ export async function getPairLiquidityEvents(
   if (params?.limit != null) sp.set('limit', String(params.limit))
   if (params?.before != null) sp.set('before', String(params.before))
   const qs = sp.toString()
-  return fetchJson<IndexerLiquidityEvent[]>(`/api/v1/pairs/${pairAddr}/liquidity-events${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerLiquidityEvent[]>(`/api/v1/pairs/${encPath(pairAddr)}/liquidity-events${qs ? `?${qs}` : ''}`)
 }
 
 /** Per-maker limit fills for a pair. */
@@ -172,7 +177,7 @@ export async function getPairLimitFills(
   if (params?.limit != null) sp.set('limit', String(params.limit))
   if (params?.before != null) sp.set('before', String(params.before))
   const qs = sp.toString()
-  return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${pairAddr}/limit-fills${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${encPath(pairAddr)}/limit-fills${qs ? `?${qs}` : ''}`)
 }
 
 /** Fills for a single on-chain order id. */
@@ -182,7 +187,7 @@ export async function getPairOrderLimitFills(
   limit = 50
 ): Promise<IndexerLimitFill[]> {
   const sp = new URLSearchParams({ limit: String(limit) })
-  return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${pairAddr}/limit-orders/${orderId}/fills?${sp}`)
+  return fetchJson<IndexerLimitFill[]>(`/api/v1/pairs/${encPath(pairAddr)}/limit-orders/${orderId}/fills?${sp}`)
 }
 
 /** Indexed `place_limit_order` events excluding rows with an indexed `cancel_limit_order` for the same pair + `order_id` (GitLab #135). Default **`active` + `parked_expired`** (GitLab #142). */
@@ -195,7 +200,7 @@ export async function getPairLimitPlacements(
   if (params?.before != null) sp.set('before', String(params.before))
   if (params?.status != null && params.status.trim() !== '') sp.set('status', params.status.trim())
   const qs = sp.toString()
-  return fetchJson<IndexerLimitPlacement[]>(`/api/v1/pairs/${pairAddr}/limit-placements${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerLimitPlacement[]>(`/api/v1/pairs/${encPath(pairAddr)}/limit-placements${qs ? `?${qs}` : ''}`)
 }
 
 /** Indexed `cancel_limit_order` events for a pair. */
@@ -207,7 +212,9 @@ export async function getPairLimitCancellations(
   if (params?.limit != null) sp.set('limit', String(params.limit))
   if (params?.before != null) sp.set('before', String(params.before))
   const qs = sp.toString()
-  return fetchJson<IndexerLimitCancellation[]>(`/api/v1/pairs/${pairAddr}/limit-cancellations${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerLimitCancellation[]>(
+    `/api/v1/pairs/${encPath(pairAddr)}/limit-cancellations${qs ? `?${qs}` : ''}`
+  )
 }
 
 /** On-chain book head for `side` (`bid` | `ask`) via indexer LCD proxy. */
@@ -216,7 +223,7 @@ export async function getPairOrderBookHead(
   side: 'bid' | 'ask'
 ): Promise<IndexerOrderBookHeadResponse> {
   const sp = new URLSearchParams({ side })
-  return fetchJson<IndexerOrderBookHeadResponse>(`/api/v1/pairs/${pairAddr}/order-book-head?${sp}`)
+  return fetchJson<IndexerOrderBookHeadResponse>(`/api/v1/pairs/${encPath(pairAddr)}/order-book-head?${sp}`)
 }
 
 /** Shallow on-chain book walk from head (depth default 10, max 20). */
@@ -226,7 +233,7 @@ export async function getPairLimitBookShallow(
   depth = 10
 ): Promise<IndexerLimitBookShallowResponse> {
   const sp = new URLSearchParams({ side, depth: String(depth) })
-  return fetchJson<IndexerLimitBookShallowResponse>(`/api/v1/pairs/${pairAddr}/limit-book-shallow?${sp}`)
+  return fetchJson<IndexerLimitBookShallowResponse>(`/api/v1/pairs/${encPath(pairAddr)}/limit-book-shallow?${sp}`)
 }
 
 export interface GetPairLimitBookPageParams {
@@ -248,7 +255,7 @@ export async function getPairLimitBookPage(
   if (params?.afterOrderId != null) sp.set('after_order_id', String(params.afterOrderId))
   if (params?.priceFrom != null) sp.set('price_from', params.priceFrom)
   if (params?.priceTo != null) sp.set('price_to', params.priceTo)
-  const raw = await fetchJson<IndexerLimitBookPageResponse>(`/api/v1/pairs/${pairAddr}/limit-book?${sp}`)
+  const raw = await fetchJson<IndexerLimitBookPageResponse>(`/api/v1/pairs/${encPath(pairAddr)}/limit-book?${sp}`)
   return normalizeLimitBookPageResponse(raw)
 }
 
@@ -259,7 +266,9 @@ export async function getPairLimitBookInsertHints(
   prices: string[]
 ): Promise<IndexerLimitBookInsertHintsResponse> {
   const sp = new URLSearchParams({ side, prices: prices.join(',') })
-  return fetchJson<IndexerLimitBookInsertHintsResponse>(`/api/v1/pairs/${pairAddr}/limit-book/insert-hints?${sp}`)
+  return fetchJson<IndexerLimitBookInsertHintsResponse>(
+    `/api/v1/pairs/${encPath(pairAddr)}/limit-book/insert-hints?${sp}`
+  )
 }
 
 /** Get global DEX overview stats. */
@@ -278,7 +287,7 @@ export async function getFeeDiscountHealth(): Promise<{
 
 /** Get trader profile. */
 export async function getTrader(address: string): Promise<IndexerTrader> {
-  const raw = await fetchJson<unknown>(`/api/v1/traders/${address}`)
+  const raw = await fetchJson<unknown>(`/api/v1/traders/${encPath(address)}`)
   return parseIndexerTraderPayload(raw)
 }
 
@@ -291,7 +300,7 @@ export async function getTraderTrades(
   const params = new URLSearchParams({ limit: limit.toString() })
   if (opts?.before != null) params.set('before', String(opts.before))
   if (opts?.pair?.trim()) params.set('pair', opts.pair.trim())
-  return fetchJson<IndexerTrade[]>(`/api/v1/traders/${address}/trades?${params}`)
+  return fetchJson<IndexerTrade[]>(`/api/v1/traders/${encPath(address)}/trades?${params}`)
 }
 
 /** Per-wallet limit fills (indexed maker) — optional `pair` scopes to one pair contract. */
@@ -304,7 +313,7 @@ export async function getTraderLimitFills(
   if (opts?.before != null) sp.set('before', String(opts.before))
   if (opts?.pair?.trim()) sp.set('pair', opts.pair.trim())
   const qs = sp.toString()
-  return fetchJson<IndexerLimitFill[]>(`/api/v1/traders/${address}/limit-fills${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerLimitFill[]>(`/api/v1/traders/${encPath(address)}/limit-fills${qs ? `?${qs}` : ''}`)
 }
 
 /** Per-wallet indexed limit cancellations (owner attribute) — optional `pair` filter. */
@@ -317,7 +326,9 @@ export async function getTraderLimitCancellations(
   if (opts?.before != null) sp.set('before', String(opts.before))
   if (opts?.pair?.trim()) sp.set('pair', opts.pair.trim())
   const qs = sp.toString()
-  return fetchJson<IndexerLimitCancellation[]>(`/api/v1/traders/${address}/limit-cancellations${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerLimitCancellation[]>(
+    `/api/v1/traders/${encPath(address)}/limit-cancellations${qs ? `?${qs}` : ''}`
+  )
 }
 
 /** Wallet-wide open limit placements (indexed owner; GitLab #217). */
@@ -331,7 +342,7 @@ export async function getTraderLimitPlacements(
   if (opts?.status != null && opts.status.trim() !== '') sp.set('status', opts.status.trim())
   if (opts?.pair?.trim()) sp.set('pair', opts.pair.trim())
   const qs = sp.toString()
-  return fetchJson<IndexerLimitPlacement[]>(`/api/v1/traders/${address}/limit-placements${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerLimitPlacement[]>(`/api/v1/traders/${encPath(address)}/limit-placements${qs ? `?${qs}` : ''}`)
 }
 
 export type TraderHistoryCsvResource = 'trades' | 'limit-fills' | 'limit-cancellations'
@@ -350,8 +361,9 @@ export async function fetchTraderHistoryCsv(
   ) {
     sp.set('pair', opts.pair.trim())
   }
+  const encAddr = encPath(address)
   const path =
-    resource === 'trades' ? `/api/v1/traders/${address}/trades?${sp}` : `/api/v1/traders/${address}/${resource}?${sp}`
+    resource === 'trades' ? `/api/v1/traders/${encAddr}/trades?${sp}` : `/api/v1/traders/${encAddr}/${resource}?${sp}`
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   try {
@@ -387,7 +399,7 @@ export async function getLeaderboard(sort = 'total_volume', limit = 50): Promise
 
 /** Get trader's open positions with P&L. */
 export async function getTraderPositions(address: string): Promise<IndexerPosition[]> {
-  return fetchJson<IndexerPosition[]>(`/api/v1/traders/${address}/positions`)
+  return fetchJson<IndexerPosition[]>(`/api/v1/traders/${encPath(address)}/positions`)
 }
 
 /** All indexed tokens (metadata + ids for aggregators). */

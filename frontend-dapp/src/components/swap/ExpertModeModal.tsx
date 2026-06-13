@@ -10,12 +10,20 @@ export interface ExpertModeModalProps {
 }
 
 export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalProps) {
-  const [confirmText, setConfirmText] = useState('')
-  const phraseMatches = confirmText.trim().toLowerCase() === EXPERT_MODE_CONFIRM_PHRASE
+  const [typedPhrase, setTypedPhrase] = useState('')
+
+  const phraseMatches = typedPhrase.trim() === EXPERT_MODE_CONFIRM_PHRASE
 
   const handleClose = () => {
-    setConfirmText('')
+    setTypedPhrase('')
     onClose()
+  }
+
+  const handleEnable = () => {
+    if (!phraseMatches) return
+    sounds.playButtonPress()
+    setTypedPhrase('')
+    onEnable()
   }
 
   return (
@@ -36,42 +44,32 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
         <p className="font-semibold" style={{ color: 'var(--color-warning, #f59e0b)' }}>
           Only enable Expert Mode if you understand the execution risk.
         </p>
-        <label className="block space-y-2">
-          <span>
-            Type <strong style={{ color: 'var(--ink)' }}>{EXPERT_MODE_CONFIRM_PHRASE}</strong> to confirm:
-          </span>
+        <div className="space-y-2">
+          <label htmlFor="expert-mode-confirm" className="block text-xs font-medium uppercase tracking-wide">
+            Type <span className="font-mono normal-case">{EXPERT_MODE_CONFIRM_PHRASE}</span> to confirm
+          </label>
           <input
+            id="expert-mode-confirm"
             type="text"
-            className="input-field w-full font-mono text-sm"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
+            className="input-neo w-full"
+            value={typedPhrase}
+            onChange={(e) => setTypedPhrase(e.target.value)}
             autoComplete="off"
             spellCheck={false}
             data-testid="expert-mode-confirm-input"
           />
-        </label>
+        </div>
         <div className="flex flex-col sm:flex-row gap-2 pt-2">
           <button
             type="button"
             className="btn-primary flex-1"
             disabled={!phraseMatches}
-            onClick={() => {
-              sounds.playButtonPress()
-              setConfirmText('')
-              onEnable()
-            }}
-            data-testid="expert-mode-enable-button"
+            onClick={handleEnable}
+            data-testid="expert-mode-confirm-enable"
           >
             Enable Expert Mode
           </button>
-          <button
-            type="button"
-            className="btn-muted flex-1"
-            onClick={() => {
-              sounds.playButtonPress()
-              handleClose()
-            }}
-          >
+          <button type="button" className="btn-muted flex-1" onClick={handleClose}>
             Cancel
           </button>
         </div>

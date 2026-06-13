@@ -34,15 +34,8 @@ async function suggestChainToExtension(walletName: WalletName): Promise<void> {
 
 const networkConfig = NETWORKS[DEFAULT_NETWORK].terra
 const TERRA_CLASSIC_CHAIN_ID = networkConfig.chainId
-
-function resolveWcProjectId(): string {
-  const fromEnv = import.meta.env.VITE_WC_PROJECT_ID
-  if (typeof fromEnv === 'string' && fromEnv.trim()) return fromEnv.trim()
-  if (import.meta.env.DEV) return '2ce7811b869be33ffad28cff05c93c15'
-  throw new Error('VITE_WC_PROJECT_ID is required in production builds')
-}
-
-const WC_PROJECT_ID = resolveWcProjectId()
+const WC_PROJECT_ID =
+  import.meta.env.VITE_WC_PROJECT_ID || (import.meta.env.DEV ? '2ce7811b869be33ffad28cff05c93c15' : '')
 
 const GAS_PRICE = {
   amount: String(effectiveGasPriceUluna()),

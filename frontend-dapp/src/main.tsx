@@ -11,9 +11,18 @@ if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
+import { verifyDeployAddressesOnLcd } from '@/utils/deployAddressVerification'
 import './index.css'
 ;(globalThis as Record<string, unknown>).Buffer = Buffer
 ;(globalThis as Record<string, unknown>).process = { env: {} }
+
+if (import.meta.env.VITE_VERIFY_DEPLOY_ADDRESSES === 'true') {
+  void verifyDeployAddressesOnLcd().then((result) => {
+    if (!result.ok) {
+      console.warn('[deploy-address-verify]', result.error ?? 'LCD deploy address mismatch', result)
+    }
+  })
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

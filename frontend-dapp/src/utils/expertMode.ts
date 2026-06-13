@@ -1,8 +1,8 @@
 /** Bump when expert-mode disclaimer copy materially changes. */
-export const EXPERT_MODE_ACK_VERSION = 1
+export const EXPERT_MODE_ACK_VERSION = 2
 
-/** Typed confirmation phrase for enabling expert mode (GitLab #378 / M-15). */
-export const EXPERT_MODE_CONFIRM_PHRASE = 'enable expert mode'
+/** Typed confirmation required before enabling expert mode (GitLab #378). */
+export const EXPERT_MODE_CONFIRM_PHRASE = 'ENABLE EXPERT MODE'
 
 export const EXPERT_MODE_STORAGE_KEY = 'cl8y-dex-expert-mode'
 

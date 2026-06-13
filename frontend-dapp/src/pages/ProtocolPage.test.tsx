@@ -24,9 +24,11 @@ function renderPage() {
 describe('ProtocolPage core contracts (GitLab #378)', () => {
   it('renders factory and router audit section on protocol page', async () => {
     renderPage()
-    const section = await screen.findByTestId('protocol-core-contracts')
+    const section = await screen.findByTestId('protocol-deploy-addresses')
     expect(section).toBeInTheDocument()
     expect(within(section).getByText('Factory')).toBeInTheDocument()
     expect(within(section).getByText('Router')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-factory-address')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-router-address')).toBeInTheDocument()
   })
 })

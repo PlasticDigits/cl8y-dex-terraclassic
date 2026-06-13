@@ -10,8 +10,8 @@ Ordered checklist for **pool-only** swaps: direct pair and router paths with **`
 
 - [ ] Governance and treasury addresses are **multisigs or DAO** (not EOAs); see [Security model § Governance](../security-model.md).
 - [ ] **Wasm policy:** production code uploaded from **workspace-optimizer** artifacts (`make build-optimized`; reference spec [`.github/workflows/contracts-wasm-optimizer.yml`](../../.github/workflows/contracts-wasm-optimizer.yml)), not from dev `cargo` wasm alone — [docs/testing.md § CI](../testing.md#ci).
-- [ ] **Hook policy:** either **no hooks** on pairs, or only **audited** hook contracts with bounded gas (hook revert fails the whole swap — [Security model § Hook safety](../security-model.md)).
-- [ ] **Code ID whitelist** on the factory lists only intended CW20 code IDs for pair assets.
+- [ ] **Hook policy:** either **no hooks** on pairs, or only **audited** hook contracts with bounded gas (hook revert fails the whole swap — [Security model § Hook safety](../security-model.md)). Follow [hook registration runbook](./hook-registration.md).
+- [ ] **Code ID whitelist** on the factory lists only intended CW20 code IDs for pair assets. **No fee-on-transfer templates** — [CW20 whitelist policy](./cw20-whitelist-policy.md); run [`scripts/verify-cw20-code-ids.sh`](../../scripts/verify-cw20-code-ids.sh) for GDEX/TerraPort IDs before whitelist.
 
 ---
 
@@ -58,10 +58,9 @@ terrad query wasm contract-state smart <fee_discount> '{"is_trusted_router":{"ro
 ## Phase 4 — Off-chain stack (if applicable)
 
 - [ ] **Indexer:** `DATABASE_URL`, migrations, `FACTORY_ADDRESS`, LCD URLs, `CORS_ORIGINS`, optional `ROUTER_ADDRESS` per [`indexer/src/config.rs`](../../indexer/src/config.rs).
-- [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md).
-- [ ] **Indexer HTTPS:** `VITE_INDEXER_URL` must use **HTTPS** in production (no `http://` indexer for public deploys). TLS termination at CDN/load balancer; optional cert pinning for high-assurance deployments — [Security model § Off-chain trust](../security-model.md).
-- [ ] **Build guards:** production `vite build` must have `VITE_WC_PROJECT_ID` set and must **not** merge `VITE_DEV_MNEMONIC` ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
-- [ ] **Protocol audit UI:** factory/router visible on `/protocol` only; operators verify against on-chain `get_config` / `config` queries.
+- [ ] **Indexer URL (HTTPS):** production `VITE_INDEXER_URL` must use **`https://`** only — no plain HTTP to the quote API ([Security model § Off-chain trust](../security-model.md#off-chain-trust-boundaries-frontend--indexer), GitLab [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)).
+- [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md); `VITE_WC_PROJECT_ID` set for production builds; no `VITE_DEV_MNEMONIC` in release env.
+- [ ] **Frontend CSP:** `render.yaml` / CDN headers `connect-src` lists your LCD, RPC, indexer, and WalletConnect hosts (no blanket `https:`).
 
 ---
 

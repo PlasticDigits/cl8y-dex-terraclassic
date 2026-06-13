@@ -637,3 +637,55 @@ async fn openapi_spec_available() {
     assert!(body["paths"].is_object());
     assert!(body["paths"]["/api/v1/pairs"].is_object());
 }
+
+/// GitLab #379 L-05: blacklist-check maps LCD failure to sanitized 502 (not 500).
+#[tokio::test]
+async fn blacklist_check_lcd_failure_returns_502() {
+    let mock = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("internal LCD failure"))
+        .mount(&mock)
+        .await;
+
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get("/api/v1/compliance/blacklist-check?wallet=terra1wallet")
+        .await;
+    assert_eq!(resp.status_code(), StatusCode::BAD_GATEWAY);
+    let body = resp.text();
+    assert_eq!(body, LCD_UPSTREAM_GATEWAY_MSG);
+    assert!(!body.contains(&mock.uri()));
+    assert!(!body.contains("cosmwasm"));
+}
+
+/// GitLab #379 L-08: oversized POST /route/solve body returns 413.
+#[tokio::test]
+async fn post_route_solve_oversized_body_returns_413() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let oversized = "x".repeat(cl8y_dex_indexer::api::ROUTE_SOLVE_POST_BODY_LIMIT + 1);
+    let resp = server
+        .post("/api/v1/route/solve")
+        .json(&serde_json::json!({
+            "token_in": "terra1a",
+            "token_out": "terra1b",
+            "amount_in": "1",
+            "hybrid_by_hop": null,
+            "trader": null,
+            "sender": null,
+            "padding": oversized,
+        }))
+        .await;
+    assert_eq!(resp.status_code(), StatusCode::PAYLOAD_TOO_LARGE);
+}

@@ -7,9 +7,6 @@ services:
     staticPublishPath: dist
     headers:
       - path: /*
-        name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://terra-classic-lcd.publicnode.com https://terra-classic-rpc.publicnode.com:443 wss://terra-classic-rpc.publicnode.com:443 https://relay.walletconnect.com wss://relay.walletconnect.com https://relay.walletconnect.org wss://relay.walletconnect.org https://verify.walletconnect.com https://verify.walletconnect.org; img-src 'self' data: https:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
-      - path: /*
         name: X-Content-Type-Options
         value: nosniff
       - path: /*

@@ -2,13 +2,19 @@ import { useState, useDeferredValue } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getHookEvents, getOraclePrice, getOracleHistory } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
-import { AddressRow, StatBox, RetryError, Skeleton } from '@/components/ui'
+import { StatBox, RetryError, Skeleton } from '@/components/ui'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, PROTOCOL_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { detectMarketDataOutage } from '@/utils/marketDataOutage'
-import { FACTORY_CONTRACT_ADDRESS, ROUTER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { formatNum } from '@/utils/formatAmount'
 import { formatDateTime } from '@/utils/formatDate'
 import { shortenAddress } from '@/utils/tokenDisplay'
+import {
+  FACTORY_CONTRACT_ADDRESS,
+  ROUTER_CONTRACT_ADDRESS,
+  TERRA_LCD_URL,
+  TERRA_RPC_URL,
+  DEFAULT_NETWORK,
+} from '@/utils/constants'
 
 function formatHookAmount(amount: string | number | null | undefined): string {
   if (amount == null || amount === '') return '—'
@@ -64,6 +70,50 @@ export default function ProtocolPage() {
         events show burn/tax and other post-swap hooks as recorded by the indexer.
       </p>
 
+      <div className="shell-panel" data-testid="protocol-deploy-addresses">
+        <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
+          Deployed contracts (audit)
+        </h2>
+        <p className="text-xs leading-relaxed mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
+          Factory and router addresses baked into this build ({DEFAULT_NETWORK}). Compare against your wallet or block
+          explorer before trusting swaps — not shown on swap confirmation to reduce noise.
+        </p>
+        <dl className="grid grid-cols-1 gap-2 text-xs font-mono">
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              Factory
+            </dt>
+            <dd style={{ color: 'var(--ink)' }} data-testid="protocol-factory-address">
+              {FACTORY_CONTRACT_ADDRESS || '—'}
+            </dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              Router
+            </dt>
+            <dd style={{ color: 'var(--ink)' }} data-testid="protocol-router-address">
+              {ROUTER_CONTRACT_ADDRESS || '—'}
+            </dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              LCD
+            </dt>
+            <dd className="break-all" style={{ color: 'var(--ink-subtle)' }}>
+              {TERRA_LCD_URL}
+            </dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:gap-2">
+            <dt className="shrink-0 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+              RPC
+            </dt>
+            <dd className="break-all" style={{ color: 'var(--ink-subtle)' }}>
+              {TERRA_RPC_URL}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
       {marketDataDown && (
         <MarketDataServiceOutageBanner
           testId="protocol-market-data-outage-banner"
@@ -75,42 +125,6 @@ export default function ProtocolPage() {
           }}
         />
       )}
-
-      <div className="shell-panel" data-testid="protocol-core-contracts">
-        <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
-          Core contracts
-        </h2>
-        <p className="text-xs leading-relaxed mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-          Factory and router addresses from deploy-time configuration. Verify against governance records before trusting
-          swaps.
-        </p>
-        <dl className="space-y-3 text-sm">
-          <div>
-            <dt className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
-              Factory
-            </dt>
-            <dd>
-              {FACTORY_CONTRACT_ADDRESS ? (
-                <AddressRow address={FACTORY_CONTRACT_ADDRESS} copyAriaLabel="Copy factory address" />
-              ) : (
-                <span style={{ color: 'var(--ink-dim)' }}>Not configured (set VITE_FACTORY_ADDRESS)</span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
-              Router
-            </dt>
-            <dd>
-              {ROUTER_CONTRACT_ADDRESS ? (
-                <AddressRow address={ROUTER_CONTRACT_ADDRESS} copyAriaLabel="Copy router address" />
-              ) : (
-                <span style={{ color: 'var(--ink-dim)' }}>Not configured (set VITE_ROUTER_ADDRESS)</span>
-              )}
-            </dd>
-          </div>
-        </dl>
-      </div>
 
       <div className="shell-panel">
         <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
