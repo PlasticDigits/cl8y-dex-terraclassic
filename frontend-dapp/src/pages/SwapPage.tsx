@@ -268,6 +268,7 @@ export default function SwapPage() {
     queryFn: getFeeDiscountHealth,
     enabled: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 30_000,
+    refetchInterval: 30_000,
     retry: false,
   })
 
