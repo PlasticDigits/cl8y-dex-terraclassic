@@ -21,16 +21,18 @@ pub enum ContractError {
     #[error("Invalid BPS: {value} exceeds maximum of 10000")]
     InvalidBps { value: u16 },
 
-    #[error("AfterSwap pair {claimed} does not match caller {caller}")]
-    SpoofedPairCaller { claimed: String, caller: String },
+    #[error("AfterSwap pair address {pair} does not match caller {sender}")]
+    PairSenderMismatch { pair: String, sender: String },
 
-    #[error("Caller {caller} is not the configured target pair {expected}")]
-    UnexpectedPairCaller { caller: String, expected: String },
+    #[error("Caller {sender} is not a pair contract")]
+    InvalidPairContract { sender: String },
 
-    #[error("Pair {pair} liquidity token {actual} does not match hook config {expected}")]
+    #[error(
+        "Pair {pair} liquidity token {pair_lp} does not match configured lp_token {config_lp}"
+    )]
     PairLpTokenMismatch {
         pair: String,
-        actual: String,
-        expected: String,
+        pair_lp: String,
+        config_lp: String,
     },
 }

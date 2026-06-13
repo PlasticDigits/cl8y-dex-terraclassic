@@ -30,7 +30,8 @@ use crate::state::{
     TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
-use dex_common::hook::{HookCallMsg, HookExecuteMsg, HookFeeQueryMsg, HookOutputFeeResponse};
+use dex_common::hook::{HookCallMsg, HookExecuteMsg};
+use dex_common::hook_settlement::{collect_fee_hook_deductions, fee_settlement_transfer_messages};
 use dex_common::max_spread::{self, CheckMaxSpreadError, MaxSpreadInputs};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
@@ -1163,31 +1164,30 @@ fn execute_swap(
     let hook_commission_amount = total_commission;
 
     let hooks = HOOKS.load(deps.storage)?;
-    let ask_token_str = ask_token_addr.to_string();
-    let mut hook_output_fee_total = Uint128::zero();
-    let mut hook_fee_transfers: Vec<CosmosMsg> = vec![];
-    let mut hook_messages: Vec<CosmosMsg> = vec![];
-    for hook in &hooks {
-        if let Ok(fee) = deps.querier.query_wasm_smart::<HookOutputFeeResponse>(
-            hook.to_string(),
-            &HookFeeQueryMsg::OutputFee {
-                output_token: ask_token_str.clone(),
-                output_amount: total_return,
-            },
-        ) {
-            if !fee.fee_amount.is_zero() && fee.fee_token == ask_token_str {
-                hook_output_fee_total = hook_output_fee_total.checked_add(fee.fee_amount)?;
-                hook_fee_transfers.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: ask_token_str.clone(),
-                    msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                        recipient: fee.fee_recipient,
-                        amount: fee.fee_amount,
-                    })?,
-                    funds: vec![],
-                }));
-            }
-        }
+    let fee_deductions =
+        collect_fee_hook_deductions(deps.as_ref(), &hooks, ask_token_addr, total_return)?;
+    let hook_fee_total: Uint128 = fee_deductions
+        .iter()
+        .try_fold(Uint128::zero(), |acc, d| acc.checked_add(d.amount))?;
+    if hook_fee_total > total_return {
+        return Err(ContractError::HookFeeExceedsReturn {
+            deductions: hook_fee_total.to_string(),
+            total_return: total_return.to_string(),
+        });
+    }
+    let net_return = total_return.checked_sub(hook_fee_total)?;
 
+    if let Some(min) = min_return {
+        if net_return < min {
+            return Err(ContractError::MinReturnAssertion {
+                minimum: min.to_string(),
+                actual: net_return.to_string(),
+            });
+        }
+    }
+
+    let mut hook_messages: Vec<CosmosMsg> = vec![];
+    for hook in hooks {
         hook_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: hook.to_string(),
             msg: to_json_binary(&HookCallMsg::Hook(HookExecuteMsg::AfterSwap {
@@ -1208,34 +1208,16 @@ fn execute_swap(
         }));
     }
 
-    if hook_output_fee_total > total_return {
-        return Err(ContractError::HookFeesExceedReturn {
-            hook_fees: hook_output_fee_total.to_string(),
-            return_amount: total_return.to_string(),
-            ask_token: ask_token_str,
-        });
-    }
-    let receiver_return = total_return.checked_sub(hook_output_fee_total)?;
-
-    if let Some(min) = min_return {
-        if receiver_return < min {
-            return Err(ContractError::MinReturnAssertion {
-                minimum: min.to_string(),
-                actual: receiver_return.to_string(),
-            });
-        }
-    }
-
-    // Aggregated CW20 transfers: maker payouts (offer) → hook fees (ask) → taker return (ask) → treasury (ask).
+    // Aggregated CW20 transfers: maker payouts (offer) → fee hooks (ask) → taker return (ask) → treasury (ask).
     let mut swap_transfer_messages: Vec<CosmosMsg> =
         orderbook::maker_payout_transfer_messages(&book_maker_payouts, &offer_token_addr)?;
-    swap_transfer_messages.extend(hook_fee_transfers);
-    if !receiver_return.is_zero() {
+    swap_transfer_messages.extend(fee_settlement_transfer_messages(&fee_deductions));
+    if !net_return.is_zero() {
         swap_transfer_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: ask_token_addr.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: receiver.to_string(),
-                amount: receiver_return,
+                amount: net_return,
             })?,
             funds: vec![],
         }));
@@ -1262,7 +1244,9 @@ fn execute_swap(
         .add_attribute("offer_asset", offer_asset_info.to_string())
         .add_attribute("ask_asset", ask_asset_info.to_string())
         .add_attribute("offer_amount", input_amount)
-        .add_attribute("return_amount", receiver_return)
+        .add_attribute("return_amount", total_return)
+        .add_attribute("net_return_amount", net_return)
+        .add_attribute("hook_fee_amount", hook_fee_total)
         .add_attribute("pool_return_amount", return_amount)
         .add_attribute("book_return_amount", book_return_net)
         .add_attribute("spread_amount", spread_amount)

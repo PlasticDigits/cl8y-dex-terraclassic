@@ -60,6 +60,12 @@ pub enum ContractError {
     #[error("Min return assertion: expected at least {minimum}, received {actual}")]
     MinReturnAssertion { minimum: String, actual: String },
 
+    #[error("Hook fee deductions ({deductions}) exceed swap return ({total_return}) on ask token")]
+    HookFeeExceedsReturn {
+        deductions: String,
+        total_return: String,
+    },
+
     #[error("Insufficient LP tokens: expected at least {min}, got {actual}")]
     InsufficientLpTokens { min: String, actual: String },
 
@@ -147,14 +153,5 @@ pub enum ContractError {
         decimals0: u8,
         decimals1: u8,
         max: u8,
-    },
-
-    #[error(
-        "Hook output fees ({hook_fees}) exceed swap return ({return_amount}) on ask token {ask_token}"
-    )]
-    HookFeesExceedReturn {
-        hook_fees: String,
-        return_amount: String,
-        ask_token: String,
     },
 }

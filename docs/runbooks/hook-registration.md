@@ -1,72 +1,82 @@
-# Runbook: post-swap hook registration
+# Runbook: Post-swap hook registration
 
-Governance-only operation. Hooks run **after** swap settlement in the same transaction; a reverting hook **blocks the entire swap** (invariant H1). See [security model § Hook safety](../security-model.md).
+Governance playbook for factory `SetPairHooks` and per-hook `UpdateAllowedPairs`. Parent remediation: GitLab [#377](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/377) (**H-02**, **H-03**, **I-02**).
 
-**Related:** [hooks README](../../smartcontracts/contracts/hooks/README.md), [contracts security audit § H1/H2](../contracts-security-audit.md), [launch checklist](./launch-checklist.md).
+**Related:** [security-model.md § Hook safety](../security-model.md), [hooks README](../../smartcontracts/contracts/hooks/README.md), [launch-checklist.md](./launch-checklist.md).
 
----
-
-## Policy
+## Policy summary
 
 | Rule | Rationale |
 |------|-----------|
-| **Audit before registration** | Hooks receive swap amounts and can revert or mis-account fees. Only deploy wasm that passed code review and testnet soak. |
-| **Allowlist hygiene** | Each hook's `ALLOWED_PAIRS` must list **only real pair contract addresses** for that deployment. Never allowlist EOAs, routers, or helper contracts ([#377](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/377) H-03). |
-| **LP-burn: `pair == caller`** | LP-burn hook requires `AfterSwap.pair == info.sender` and validates pair `liquidity_token` on-chain. |
-| **Tax/burn: swap-flow fees** | Tax and burn hooks charge via pair-forwarded ask-token output during settlement (invariant I-02). Do not rely on pre-funded hook treasuries for normal fee collection. |
-| **Blocking hooks are allowed** | AML, sanctions, or incident-response hooks may intentionally `Err` to halt trading on a pair. Do **not** wrap hooks in `reply_on_error` unless product policy explicitly changes (H-02). |
+| **Audit before register** | Hook `Err` atomically reverts the entire swap (invariant **H1**). |
+| **Blocking hooks are allowed** | AML, compliance, or incident-response hooks may intentionally revert swaps. Do **not** wrap hooks in `reply_on_error` without explicit product approval. |
+| **Allowlist hygiene** | Each hook’s `UpdateAllowedPairs` must list **only verified pair contracts** — never routers, EOAs, or helper contracts. |
+| **LP-burn hook** | `pair` in `AfterSwap` must equal `info.sender`; hook queries pair `Pair {}` and matches `liquidity_token` to config (**H-03**). |
+| **Tax / burn hooks** | Fees are deducted from swap ask-token flow during pair settlement (**I-02**); hook treasury balance is **not** required for normal fee collection. |
 
----
+## Registration workflow
 
-## Pre-registration checklist
+### 1. Wasm review checklist
 
-- [ ] Wasm built from **`make build-optimized`** artifacts (not dev `cargo wasm` alone).
-- [ ] Source matches tagged release; checksum recorded in deploy log.
-- [ ] Unit + integration tests green (`cargo test` burn/tax/lp-burn hooks; `make test-contracts`).
-- [ ] Gas bounded — no unbounded loops; no unbounded external queries.
-- [ ] `UpdateAllowedPairs` lists **only** intended pair addresses (query `Pair {}` on each; confirm `liquidity_token` for LP-burn).
-- [ ] Tax/burn hook `OutputFee` query matches intended bps and token.
-- [ ] Staging swap with hook registered: receiver net, treasury commission, and hook fee/burn amounts reconcile.
+Before mainnet registration:
 
----
+- [ ] Source matches tagged release in this repo (optimizer build for first-party hooks).
+- [ ] `GetConfig` query documented; admin/multisig identified.
+- [ ] Gas bounded (no unbounded loops in `AfterSwap`).
+- [ ] Failure modes documented (revert vs skip).
+- [ ] For **tax-hook** / **burn-hook**: confirm pair forwards settlement (no treasury subsidy).
+- [ ] For **lp-burn-hook**: confirm `target_pair` + `lp_token` match on-chain pair state.
 
-## Registration steps
+### 2. Staging drill
 
-1. Upload hook wasm (if not already on chain) and instantiate with governance as admin.
-2. `UpdateAllowedPairs { add: [<pair_addr>], remove: [] }` on the hook — **pair addresses only**.
-3. Factory `SetPairHooks { pair, hooks: [<hook_addr>] }` (governance only).
-4. Verify: small staging swap; inspect wasm events and recipient balances.
+1. Instantiate hook on staging.
+2. `UpdateAllowedPairs { add: [<pair>] }` — **only** the pair address.
+3. Factory `SetPairHooks { pair, hooks: [<hook>] }`.
+4. Small swap — confirm expected attrs (`settled_by_pair` for tax/burn; LP burn only when pre-funded).
+5. Optional: register a **reverting** hook on a test pair; confirm swap fails atomically (`swap_fails_atomically_when_allowlisted_hook_reverts`).
+
+### 3. Production registration
 
 ```bash
-terrad query wasm contract-state smart <pair> '{"get_hooks":{}}' --node <lcd>
+# Verify hook config
 terrad query wasm contract-state smart <hook> '{"get_config":{}}' --node <lcd>
+
+# Governance tx: allow pair caller on hook
+terrad tx wasm execute <hook> '{"update_allowed_pairs":{"add":["<pair>"],"remove":[]}}' ...
+
+# Governance tx: register on pair via factory
+terrad tx wasm execute <factory> '{"set_pair_hooks":{"pair":"<pair>","hooks":["<hook>"]}}' ...
 ```
 
----
+### 4. Allowlist hygiene (ongoing)
 
-## Wasm review checklist (minimum)
+- Remove decommissioned pairs from hook allowlists before removing pair hooks.
+- Never add “helper” or “spoofer” contracts to `UpdateAllowedPairs`.
+- After pair migration, update hook `target_pair` / allowlists to the new address.
 
-- [ ] `Hook` execute gated by `assert_allowed_pair` (caller allowlist).
-- [ ] LP-burn: rejects `pair != info.sender`; queries pair `Pair {}` for `liquidity_token`.
-- [ ] Tax/burn: implements `OutputFee` query; does not subsidize from pre-funded balance on normal swaps.
-- [ ] No `SubMsg::reply_on_error` on the pair→hook dispatch (pair uses plain `WasmMsg::Execute`).
-- [ ] No arbitrary `Transfer`/`Send` to addresses from unverified user-supplied fields.
+## Intentional swap blocking
 
----
+Hooks that revert (e.g. compliance deny-list) are **by design**. Operators must:
 
-## Incident / rollback
+1. Document the hook’s revert conditions in the deployment record.
+2. Communicate user impact (swaps fail with hook error string).
+3. Plan removal path (`SetPairHooks` with empty list, or unblacklist + hook update).
 
-- Remove hook: factory `SetPairHooks { pair, hooks: [] }`.
-- Pausing the pair (factory pause) stops swaps including hook dispatch.
-- Document any intentional blocking hook in ops runbooks so on-call knows swap failures are expected.
+Pair dispatch uses plain `WasmMsg::Execute` — no `reply_on_error`. This preserves atomic rollback (invariant **H1**).
 
----
+## Migration: treasury-funded tax/burn deployments
 
-## Migration (treasury-funded tax/burn deployments)
+Legacy deployments that pre-funded tax/burn hook balances should:
 
-Legacy deployments that pre-funded hook contracts:
+1. Migrate to current hook wasm (pair-settled fees).
+2. Withdraw residual hook balances to treasury after cutover.
+3. Re-run staging swap with **zero** hook balance to confirm fees still collect.
 
-1. Deploy new hook wasm with I-02 swap-flow semantics.
-2. Register new hook; remove old hook from pair.
-3. Sweep remaining pre-funded balances from old hook via governance (if applicable).
-4. Update integrators: receiver net output is **gross return minus hook `OutputFee`** (pair deducts before transfer).
+## Verification commands
+
+```bash
+cd smartcontracts && cargo test adversarial
+cd smartcontracts && cargo test -p cl8y-dex-lp-burn-hook
+cd smartcontracts && cargo test -p cl8y-dex-tax-hook -p cl8y-dex-burn-hook
+make test-contracts
+```

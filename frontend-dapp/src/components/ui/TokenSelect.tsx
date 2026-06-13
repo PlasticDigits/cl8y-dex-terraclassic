@@ -5,6 +5,7 @@ import { usePortalListboxKeyboard } from './usePortalListboxKeyboard'
 import type { AssetInfo } from '@/types'
 import { tokenAssetInfo } from '@/types'
 import { getAddressForBlockie, getCachedTokenSymbol, getTokenLogoURI } from '@/utils/tokenDisplay'
+import { resolveTrustedTokenLogoUrl } from '@/utils/tokenLogoAllowlist'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { TokenLogo } from './TokenLogo'
 
@@ -15,7 +16,7 @@ function logoPropsForToken(tokenId: string): {
 } {
   const info: AssetInfo = tokenAssetInfo(tokenId)
   return {
-    logoURI: getTokenLogoURI(info),
+    logoURI: resolveTrustedTokenLogoUrl(getTokenLogoURI(info)),
     addressForBlockie: getAddressForBlockie(info),
     blockieSeed: 'token' in info ? undefined : tokenId,
   }

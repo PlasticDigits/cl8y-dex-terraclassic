@@ -34,7 +34,8 @@ async function suggestChainToExtension(walletName: WalletName): Promise<void> {
 
 const networkConfig = NETWORKS[DEFAULT_NETWORK].terra
 const TERRA_CLASSIC_CHAIN_ID = networkConfig.chainId
-const WC_PROJECT_ID = import.meta.env.VITE_WC_PROJECT_ID || '2ce7811b869be33ffad28cff05c93c15'
+const WC_PROJECT_ID =
+  import.meta.env.VITE_WC_PROJECT_ID || (import.meta.env.DEV ? '2ce7811b869be33ffad28cff05c93c15' : '')
 
 const GAS_PRICE = {
   amount: String(effectiveGasPriceUluna()),

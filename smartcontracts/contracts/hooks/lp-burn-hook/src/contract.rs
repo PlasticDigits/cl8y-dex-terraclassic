@@ -115,6 +115,43 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
     Ok(())
 }
 
+/// Validate that the hook caller is the real pair named in `AfterSwap`.
+fn assert_pair_caller(deps: Deps, info: &MessageInfo, pair: &Addr) -> Result<(), ContractError> {
+    if pair != info.sender {
+        return Err(ContractError::PairSenderMismatch {
+            pair: pair.to_string(),
+            sender: info.sender.to_string(),
+        });
+    }
+
+    let pair_info: PairInfo = deps
+        .querier
+        .query_wasm_smart(info.sender.to_string(), &PairQueryMsg::Pair {})
+        .map_err(|_| ContractError::InvalidPairContract {
+            sender: info.sender.to_string(),
+        })?;
+
+    let config = CONFIG.load(deps.storage)?;
+    if pair_info.liquidity_token != config.lp_token {
+        return Err(ContractError::PairLpTokenMismatch {
+            pair: info.sender.to_string(),
+            pair_lp: pair_info.liquidity_token.to_string(),
+            config_lp: config.lp_token.to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+fn assert_allowed_pair_contract(deps: Deps, pair: &Addr) -> Result<(), ContractError> {
+    deps.querier
+        .query_wasm_smart::<PairInfo>(pair.to_string(), &PairQueryMsg::Pair {})
+        .map_err(|_| ContractError::InvalidPairContract {
+            sender: pair.to_string(),
+        })?;
+    Ok(())
+}
+
 /// Core hook logic: burn LP tokens proportional to swap output volume.
 ///
 /// Burns `min(output_amount * percentage_bps / 10_000, lp_balance)` LP
@@ -128,31 +165,14 @@ fn execute_after_swap(
     pair: Addr,
     output_amount: Uint128,
 ) -> Result<Response, ContractError> {
+    assert_pair_caller(deps.as_ref(), info, &pair)?;
+
     let config = CONFIG.load(deps.storage)?;
 
-    if pair != info.sender {
-        return Err(ContractError::SpoofedPairCaller {
-            claimed: pair.to_string(),
-            caller: info.sender.to_string(),
-        });
-    }
-
     if info.sender != config.target_pair {
-        return Err(ContractError::UnexpectedPairCaller {
-            caller: info.sender.to_string(),
-            expected: config.target_pair.to_string(),
-        });
-    }
-
-    let pair_info: PairInfo = deps
-        .querier
-        .query_wasm_smart(info.sender.to_string(), &PairQueryMsg::Pair {})?;
-    if pair_info.liquidity_token != config.lp_token {
-        return Err(ContractError::PairLpTokenMismatch {
-            pair: info.sender.to_string(),
-            actual: pair_info.liquidity_token.to_string(),
-            expected: config.lp_token.to_string(),
-        });
+        return Ok(Response::new()
+            .add_attribute("action", "after_swap_lp_burn_hook")
+            .add_attribute("skipped", "pair does not match target_pair"));
     }
 
     let target_burn = output_amount
@@ -252,6 +272,7 @@ fn execute_update_allowed_pairs(
 
     for pair in &add {
         let addr = deps.api.addr_validate(pair)?;
+        assert_allowed_pair_contract(deps.as_ref(), &addr)?;
         ALLOWED_PAIRS.save(deps.storage, addr.as_str(), &true)?;
     }
     for pair in &remove {
