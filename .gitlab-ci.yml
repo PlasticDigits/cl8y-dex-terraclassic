@@ -52,7 +52,7 @@ cargo-audit-smartcontracts:
         - smartcontracts/.cargo/audit.toml
         - .gitlab-ci.yml
   before_script:
-    - command -v cargo-audit >/dev/null || cargo install cargo-audit --locked
+    - test -x "${CARGO_HOME}/bin/cargo-audit" || cargo install cargo-audit --locked
   script:
     - cd smartcontracts && cargo audit --deny warnings
   cache:
@@ -73,7 +73,7 @@ cargo-audit-indexer:
         - indexer/.cargo/audit.toml
         - .gitlab-ci.yml
   before_script:
-    - command -v cargo-audit >/dev/null || cargo install cargo-audit --locked
+    - test -x "${CARGO_HOME}/bin/cargo-audit" || cargo install cargo-audit --locked
   script:
     - cd indexer && cargo audit --deny warnings
   cache:
