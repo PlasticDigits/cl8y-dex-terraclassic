@@ -14,7 +14,10 @@ paths = [
   '''.*\.test\.tsx$''',
   '''.*\.spec\.ts$''',
   '''.*\.spec\.tsx$''',
-  '''scripts/ci/gitleaks-fixture/frontend-dapp/src/bip39-violation\.ts$''',
+]
+# CI fixture only (scripts/ci/gitleaks-fixture/.../bip39-violation.ts); not a path allowlist.
+regexes = [
+  '''abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about''',
 ]
 
 [allowlist]
