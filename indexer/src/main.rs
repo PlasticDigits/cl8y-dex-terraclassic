@@ -107,6 +107,11 @@ async fn run_server() -> anyhow::Result<()> {
     tracing::info!("Starting CL8Y DEX indexer (RUN_MODE={:?})", config.run_mode);
     tracing::info!("LCD endpoints: {:?}", config.lcd_urls);
     tracing::info!("Factory: {}", config.factory_address);
+    tracing::info!(
+        "Rate limits: global={} RPS, LCD-heavy={} RPS",
+        config.rate_limit_rps,
+        config.rate_limit_lcd_heavy_rps
+    );
 
     let pool = PgPoolOptions::new()
         .max_connections(10)
@@ -129,28 +134,12 @@ async fn run_server() -> anyhow::Result<()> {
             config.fee_discount_address.as_deref(),
         );
 
-    if let Some(addr) = config
-        .fee_discount_address
-        .clone()
-        .filter(|a| !a.is_empty())
-    {
-        let probe_lcd = lcd_client.clone();
-        let probe_health = fee_discount_registry_health.clone();
-        tokio::spawn(async move {
-            indexer::fee_discount_registry_health::run_fee_discount_registry_health_probe(
-                probe_lcd,
-                addr,
-                probe_health,
-            )
-            .await;
-        });
-    }
-
     let indexer_pool = pool.clone();
     let indexer_lcd = lcd_client.clone();
     let indexer_config = config.clone();
     let indexer_cancel = cancel.clone();
     let indexer_ustc = ustc_price.clone();
+    let indexer_fee_discount_health = fee_discount_registry_health.clone();
     let indexer_handle = tokio::spawn(async move {
         if let Err(e) = indexer::poller::run_indexer(
             indexer_pool,
@@ -158,6 +147,7 @@ async fn run_server() -> anyhow::Result<()> {
             indexer_config,
             indexer_cancel,
             indexer_ustc,
+            indexer_fee_discount_health,
         )
         .await
         {

@@ -76,7 +76,7 @@ def bootstrap_top_up_amounts(
         return None
     # Skewed factory pairs (e.g. ONYX/CORAL 1B vs 100B) often have only one leg
     # under the floor; proportional scaling to target then needs far more of the
-    # thick token than test1 holds (~1e12 minted). Hub deepen / LP workers handle those.
+    # thick token than test1 holds (~1e13 minted per deploy seed). Hub deepen / LP workers handle those.
     below0 = reserve0 < floor_per_side
     below1 = reserve1 < floor_per_side
     if below0 != below1:

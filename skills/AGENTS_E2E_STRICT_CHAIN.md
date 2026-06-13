@@ -20,7 +20,7 @@ You are changing **strict Playwright automation wiring**, **`e2e/helpers/chain.t
 | Project | Files | Purpose |
 |---------|-------|---------|
 | `e2e-smoke` | All except tx globs | UI/navigation without mandatory chain |
-| `e2e-tx` | `*-tx.spec.ts`, `hybrid-swap`, `wrap-pool`, `wrap-swap` | On-chain paths; strict by default; **1 worker** (shared dev account) |
+| `e2e-tx` | `*-tx.spec.ts`, `hybrid-swap`, `wrap-pool`, `wrap-swap`, `terra-broadcast-recovery` | On-chain paths; strict by default; **1 worker** (shared dev account) |
 | `e2e-indexer-outage` | `*-indexer-outage.spec.ts` | Market-data-down; **separate reference job** `frontend-e2e-indexer-outage` → `make test-e2e-indexer-outage` — not part of default `npm run test:e2e` ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 | `e2e-smoke` (strict) | `price-chart-smoke.spec.ts` | Canvas mount on `/charts` + `/trade`, fullscreen aria ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228)); skipped when `PLAYWRIGHT_SKIP_CHAIN=1` |
 

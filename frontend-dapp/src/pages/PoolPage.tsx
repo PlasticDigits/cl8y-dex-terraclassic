@@ -74,6 +74,9 @@ const ORDER_OPTIONS: MenuSelectOption[] = [
 const POOL_DATA_SOURCES_DOC =
   'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#liquidity-pools-list-indexer-vs-factory'
 
+const POOL_LP_RISK_DOC =
+  'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#pool-lp-risk-disclosure'
+
 const PoolCard = memo(function PoolCard({
   pair,
   volumeQuote24h,
@@ -593,6 +596,20 @@ const PoolCard = memo(function PoolCard({
 
       {expanded === 'add' && (
         <div className="card-neo space-y-3 animate-fade-in-up">
+          <p
+            className="text-[11px] sm:text-xs leading-relaxed"
+            style={{ color: 'var(--ink-dim)' }}
+            data-testid="pool-il-risk-notice"
+            role="note"
+          >
+            <span className="font-semibold" style={{ color: 'var(--ink-subtle)' }}>
+              Impermanent loss risk.
+            </span>{' '}
+            LP value can diverge from simply holding the underlying assets when pool prices move.{' '}
+            <a href={POOL_LP_RISK_DOC} target="_blank" rel="noopener noreferrer" className="underline">
+              Learn more
+            </a>
+          </p>
           {tradingBlacklist.blocked && tradingBlacklist.message && (
             <p className="alert-error text-xs" role="alert">
               {tradingBlacklist.message}
