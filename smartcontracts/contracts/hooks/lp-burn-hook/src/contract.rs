@@ -30,6 +30,8 @@ use crate::error::ContractError;
 use crate::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{LpBurnHookConfig, ALLOWED_PAIRS, CONFIG};
 use dex_common::hook::HookExecuteMsg;
+use dex_common::pair::QueryMsg as PairQueryMsg;
+use dex_common::types::PairInfo;
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-lp-burn-hook";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -86,7 +88,7 @@ pub fn execute(
                     return_asset,
                     commission_amount: _,
                     spread_amount: _,
-                } => execute_after_swap(deps, env, pair, return_asset.amount),
+                } => execute_after_swap(deps, env, &info, pair, return_asset.amount),
             }
         }
         ExecuteMsg::UpdateConfig {
@@ -122,15 +124,35 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
+    info: &MessageInfo,
     pair: Addr,
     output_amount: Uint128,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
 
-    if pair != config.target_pair {
-        return Ok(Response::new()
-            .add_attribute("action", "after_swap_lp_burn_hook")
-            .add_attribute("skipped", "pair does not match target_pair"));
+    if pair != info.sender {
+        return Err(ContractError::SpoofedPairCaller {
+            claimed: pair.to_string(),
+            caller: info.sender.to_string(),
+        });
+    }
+
+    if info.sender != config.target_pair {
+        return Err(ContractError::UnexpectedPairCaller {
+            caller: info.sender.to_string(),
+            expected: config.target_pair.to_string(),
+        });
+    }
+
+    let pair_info: PairInfo = deps
+        .querier
+        .query_wasm_smart(info.sender.to_string(), &PairQueryMsg::Pair {})?;
+    if pair_info.liquidity_token != config.lp_token {
+        return Err(ContractError::PairLpTokenMismatch {
+            pair: info.sender.to_string(),
+            actual: pair_info.liquidity_token.to_string(),
+            expected: config.lp_token.to_string(),
+        });
     }
 
     let target_burn = output_amount

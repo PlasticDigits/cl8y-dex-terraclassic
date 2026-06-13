@@ -1,7 +1,28 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
 
 use crate::types::Asset;
+
+/// Fee a post-swap hook deducts from the pair's ask-token output during settlement.
+/// Tax and burn hooks implement [`HookFeeQueryMsg::OutputFee`]; LP-burn hooks do not.
+#[cw_serde]
+pub struct HookOutputFeeResponse {
+    pub fee_token: String,
+    pub fee_amount: Uint128,
+    /// CW20 recipient of the fee transfer from the pair (tax recipient or hook for burn).
+    pub fee_recipient: String,
+}
+
+/// Standard query for hooks that charge a percentage of swap output (invariant I-02).
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum HookFeeQueryMsg {
+    #[returns(HookOutputFeeResponse)]
+    OutputFee {
+        output_token: String,
+        output_amount: Uint128,
+    },
+}
 
 #[cw_serde]
 pub enum HookExecuteMsg {

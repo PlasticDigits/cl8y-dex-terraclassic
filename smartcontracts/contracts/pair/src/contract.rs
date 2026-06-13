@@ -30,7 +30,7 @@ use crate::state::{
     TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
-use dex_common::hook::{HookCallMsg, HookExecuteMsg};
+use dex_common::hook::{HookCallMsg, HookExecuteMsg, HookFeeQueryMsg, HookOutputFeeResponse};
 use dex_common::max_spread::{self, CheckMaxSpreadError, MaxSpreadInputs};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
@@ -1172,8 +1172,31 @@ fn execute_swap(
     let hook_commission_amount = total_commission;
 
     let hooks = HOOKS.load(deps.storage)?;
+    let ask_token_str = ask_token_addr.to_string();
+    let mut hook_output_fee_total = Uint128::zero();
+    let mut hook_fee_transfers: Vec<CosmosMsg> = vec![];
     let mut hook_messages: Vec<CosmosMsg> = vec![];
-    for hook in hooks {
+    for hook in &hooks {
+        if let Ok(fee) = deps.querier.query_wasm_smart::<HookOutputFeeResponse>(
+            hook.to_string(),
+            &HookFeeQueryMsg::OutputFee {
+                output_token: ask_token_str.clone(),
+                output_amount: total_return,
+            },
+        ) {
+            if !fee.fee_amount.is_zero() && fee.fee_token == ask_token_str {
+                hook_output_fee_total = hook_output_fee_total.checked_add(fee.fee_amount)?;
+                hook_fee_transfers.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: ask_token_str.clone(),
+                    msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
+                        recipient: fee.fee_recipient,
+                        amount: fee.fee_amount,
+                    })?,
+                    funds: vec![],
+                }));
+            }
+        }
+
         hook_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: hook.to_string(),
             msg: to_json_binary(&HookCallMsg::Hook(HookExecuteMsg::AfterSwap {
@@ -1194,15 +1217,25 @@ fn execute_swap(
         }));
     }
 
-    // Aggregated CW20 transfers: maker payouts (offer) → taker return (ask) → treasury (ask).
+    if hook_output_fee_total > total_return {
+        return Err(ContractError::HookFeesExceedReturn {
+            hook_fees: hook_output_fee_total.to_string(),
+            return_amount: total_return.to_string(),
+            ask_token: ask_token_str,
+        });
+    }
+    let receiver_return = total_return.checked_sub(hook_output_fee_total)?;
+
+    // Aggregated CW20 transfers: maker payouts (offer) → hook fees (ask) → taker return (ask) → treasury (ask).
     let mut swap_transfer_messages: Vec<CosmosMsg> =
         orderbook::maker_payout_transfer_messages(&book_maker_payouts, &offer_token_addr)?;
-    if !total_return.is_zero() {
+    swap_transfer_messages.extend(hook_fee_transfers);
+    if !receiver_return.is_zero() {
         swap_transfer_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: ask_token_addr.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: receiver.to_string(),
-                amount: total_return,
+                amount: receiver_return,
             })?,
             funds: vec![],
         }));

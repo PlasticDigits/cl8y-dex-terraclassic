@@ -8,7 +8,7 @@ use cw20::Cw20ExecuteMsg;
 use crate::error::ContractError;
 use crate::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::state::{BurnHookConfig, ALLOWED_PAIRS, CONFIG};
-use dex_common::hook::HookExecuteMsg;
+use dex_common::hook::{HookExecuteMsg, HookOutputFeeResponse};
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-burn-hook";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -94,8 +94,8 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
 }
 
 /// Burn a percentage of the output token from this contract's balance.
-/// Skips gracefully if the output token doesn't match `burn_token`,
-/// the calculated amount is zero, or the balance is insufficient.
+/// The pair forwards `burn_amount` to this hook during swap settlement
+/// before invoking AfterSwap (invariant I-02).
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
@@ -128,11 +128,12 @@ fn execute_after_swap(
     )?;
 
     if balance.balance < burn_amount {
-        return Ok(Response::new()
-            .add_attribute("action", "after_swap_burn_hook")
-            .add_attribute("warning", "insufficient balance to burn")
-            .add_attribute("required", burn_amount)
-            .add_attribute("available", balance.balance));
+        return Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+            format!(
+                "insufficient burn balance: required {burn_amount}, available {}",
+                balance.balance
+            ),
+        )));
     }
 
     let burn_msg = SubMsg::reply_on_error(
@@ -150,7 +151,8 @@ fn execute_after_swap(
         .add_submessage(burn_msg)
         .add_attribute("action", "after_swap_burn_hook")
         .add_attribute("burn_token", config.burn_token)
-        .add_attribute("burn_amount", burn_amount))
+        .add_attribute("burn_amount", burn_amount)
+        .add_attribute("source", "swap_output"))
 }
 
 /// Update burn hook configuration. Admin only.
@@ -214,10 +216,35 @@ fn execute_update_allowed_pairs(
         .add_attribute("removed", remove.len().to_string()))
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::OutputFee {
+            output_token,
+            output_amount,
+        } => to_json_binary(&query_output_fee(deps, env, output_token, output_amount)?),
     }
+}
+
+fn query_output_fee(
+    deps: Deps,
+    env: Env,
+    output_token: String,
+    output_amount: Uint128,
+) -> StdResult<HookOutputFeeResponse> {
+    let config = CONFIG.load(deps.storage)?;
+    let fee_amount = if output_token == config.burn_token {
+        output_amount
+            .checked_mul(Uint128::from(config.burn_percentage_bps as u128))?
+            .checked_div(Uint128::new(10_000))?
+    } else {
+        Uint128::zero()
+    };
+    Ok(HookOutputFeeResponse {
+        fee_token: config.burn_token.to_string(),
+        fee_amount,
+        fee_recipient: env.contract.address.to_string(),
+    })
 }
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {

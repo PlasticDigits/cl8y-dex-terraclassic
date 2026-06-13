@@ -6349,7 +6349,7 @@ mod hook_coverage_tests {
         .unwrap();
 
         let other = Addr::unchecked("other_pair");
-        let res = app
+        let err = app
             .execute_contract(
                 env.pair.clone(),
                 lp_burn_hook,
@@ -6373,19 +6373,12 @@ mod hook_coverage_tests {
                 }),
                 &[],
             )
-            .unwrap();
-
-        let attrs: String = res
-            .events
-            .iter()
-            .flat_map(|e| e.attributes.iter())
-            .map(|a| format!("{}={}", a.key, a.value))
-            .collect::<Vec<_>>()
-            .join(";");
+            .unwrap_err();
+        let s = err.root_cause().to_string();
         assert!(
-            attrs.contains("skipped") && attrs.contains("target_pair"),
-            "attrs={}",
-            attrs
+            s.contains("does not match caller") || s.contains("SpoofedPairCaller"),
+            "expected forged pair rejection, got: {}",
+            s
         );
     }
 
@@ -8940,7 +8933,7 @@ mod hooks_integration_tests {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
 
-        let burn_hook_code_id = app.store_code(burn_hook_contract());
+        let burn_hook_code_id = app.store_code(burn_hook_contract_with_reply());
 
         let burn_hook = app
             .instantiate_contract(
@@ -8989,15 +8982,94 @@ mod hooks_integration_tests {
             Uint128::new(10_000_000),
         );
 
-        // The burn hook expects the return_asset info to match its burn_token.
-        // The hook is called AFTER the swap, and the return_asset is token_b.
-        // The hook checks its own balance and burns if possible.
-        // Since no tokens are sent to the hook, it should skip gracefully.
-        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
+        // Pair forwards 10% of swap output to the hook; hook burns from that balance (I-02).
+        let hook_balance_before = query_cw20_balance(&app, &env.token_b, &burn_hook);
+        assert_eq!(hook_balance_before, Uint128::zero());
 
-        // Swap should succeed even though hook has no balance to burn
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
+        let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+        let hook_balance_after = query_cw20_balance(&app, &env.token_b, &burn_hook);
+
+        assert!(
+            user_b_after > user_b_before,
+            "user should receive net swap output minus hook burn fee"
+        );
+        assert_eq!(
+            hook_balance_after,
+            Uint128::zero(),
+            "hook should burn forwarded output fee tokens"
+        );
+
         let pool = query_pool(&app, &env.pair);
         assert!(pool.assets[0].amount > Uint128::zero());
+    }
+
+    #[test]
+    fn test_tax_hook_collects_from_swap_output_with_zero_treasury_balance() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let tax_hook_code_id = app.store_code(tax_hook_contract_with_reply());
+        let tax_recipient = Addr::unchecked("tax_collector");
+
+        let tax_hook = app
+            .instantiate_contract(
+                tax_hook_code_id,
+                env.governance.clone(),
+                &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                    recipient: tax_recipient.to_string(),
+                    tax_percentage_bps: 500, // 5%
+                    tax_token: env.token_b.to_string(),
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "tax_hook",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            tax_hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: env.pair.to_string(),
+                hooks: vec![tax_hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        let hook_treasury_before = query_cw20_balance(&app, &env.token_b, &tax_hook);
+        let recipient_before = query_cw20_balance(&app, &env.token_b, &tax_recipient);
+        assert_eq!(hook_treasury_before, Uint128::zero());
+
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
+
+        let recipient_after = query_cw20_balance(&app, &env.token_b, &tax_recipient);
+        assert!(
+            recipient_after > recipient_before,
+            "tax recipient must receive fee forwarded from swap output without pre-funding hook"
+        );
     }
 
     #[test]
@@ -9054,8 +9126,11 @@ mod hooks_integration_tests {
             Uint128::new(10_000_000),
         );
 
-        // Swap should succeed; tax hook skips because it has no token balance
+        // Swap succeeds; pair forwards tax to recipient during settlement (I-02).
+        let recipient_before = query_cw20_balance(&app, &env.token_b, &tax_recipient);
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(100_000));
+        let recipient_after = query_cw20_balance(&app, &env.token_b, &tax_recipient);
+        assert!(recipient_after > recipient_before);
 
         let pool = query_pool(&app, &env.pair);
         assert!(pool.assets[0].amount > Uint128::zero());

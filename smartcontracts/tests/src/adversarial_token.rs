@@ -673,22 +673,29 @@ mod adversarial_tests {
         .unwrap();
 
         let lp_before = query_cw20_balance(&app, &env.lp_token, &hook);
-        app.execute_contract(
-            spoofer.clone(),
-            spoofer.clone(),
-            &SpooferExecuteMsg::SpoofLpBurnHook {
-                hook: hook.to_string(),
-                claimed_pair: env.pair.to_string(),
-                return_token: env.token_b.to_string(),
-                output_amount: Uint128::new(1_000_000),
-            },
-            &[],
-        )
-        .unwrap();
+        let err = app
+            .execute_contract(
+                spoofer.clone(),
+                spoofer.clone(),
+                &SpooferExecuteMsg::SpoofLpBurnHook {
+                    hook: hook.to_string(),
+                    claimed_pair: env.pair.to_string(),
+                    return_token: env.token_b.to_string(),
+                    output_amount: Uint128::new(1_000_000),
+                },
+                &[],
+            )
+            .unwrap_err();
         let lp_after = query_cw20_balance(&app, &env.lp_token, &hook);
+        assert_eq!(
+            lp_after, lp_before,
+            "spoofed AfterSwap must not burn LP when caller != claimed pair"
+        );
+        let s = err.root_cause().to_string();
         assert!(
-            lp_after < lp_before,
-            "allowlisted non-pair can drive LP burns by spoofing `pair` in AfterSwap"
+            s.contains("does not match caller") || s.contains("SpoofedPairCaller"),
+            "expected spoof rejection, got: {}",
+            s
         );
     }
 

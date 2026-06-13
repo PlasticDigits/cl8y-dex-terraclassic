@@ -17,4 +17,8 @@ These contracts implement `HookMsg::AfterSwap` callbacks registered on pairs via
 
 Swap **wasm event** attrs still expose pool-only `commission_amount` for Terraport baseline compatibility; hybrid txs also emit `book_commission_amount` when the book leg runs. Per-fill book fees remain on `limit_order_fill` events.
 
-Canonical references: **[`docs/integrators.md`](../../../docs/integrators.md)** (§ Hybrid swaps and post-swap hooks), **[`docs/contracts-security-audit.md`](../../../docs/contracts-security-audit.md)** (L7).
+Canonical references: **[`docs/integrators.md`](../../../docs/integrators.md)** (§ Hybrid swaps and post-swap hooks), **[`docs/contracts-security-audit.md`](../../../docs/contracts-security-audit.md)** (L7, H2, I-02), **[`docs/runbooks/hook-registration.md`](../../../docs/runbooks/hook-registration.md)**.
+
+## Tax / burn fees (invariant I-02)
+
+Tax and burn hooks expose `OutputFee` (see `dex_common::hook::HookFeeQueryMsg`). During swap settlement the **pair** forwards the fee from ask-token output to the hook (burn) or tax recipient **before** the receiver transfer, then invokes `AfterSwap`. Hooks must not subsidize fees from pre-funded treasuries on normal swaps. LP-burn hooks remain treasury-funded (LP tokens) but require `pair == info.sender` (H-03).

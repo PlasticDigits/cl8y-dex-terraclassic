@@ -148,4 +148,13 @@ pub enum ContractError {
         decimals1: u8,
         max: u8,
     },
+
+    #[error(
+        "Hook output fees ({hook_fees}) exceed swap return ({return_amount}) on ask token {ask_token}"
+    )]
+    HookFeesExceedReturn {
+        hook_fees: String,
+        return_amount: String,
+        ask_token: String,
+    },
 }
