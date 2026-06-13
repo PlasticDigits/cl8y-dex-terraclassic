@@ -91,7 +91,7 @@ npm-audit-frontend:
   before_script:
     - cd frontend-dapp && npm ci --omit=dev
   script:
-    - cd frontend-dapp && npm audit --audit-level=high --omit=dev
+    - npm audit --audit-level=high --omit=dev
   # Runtime-only audit; elliptic/cosmjs accepted risk documented in docs/supply-chain-security.md (#380 / L-12).
 
 # --- Build stage (#325) ---
