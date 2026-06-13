@@ -16,11 +16,11 @@ export interface FundingOptions {
 }
 
 export const defaultFundingOptions = (): FundingOptions => ({
-  /** Defaults sized for typical LocalTerra genesis `test1` balances (~1e14 uluna / ~1e13 uusd); override with SWARM_* env if needed. */
-  ulunaTopup: process.env.SWARM_ULUNA_TOPUP ?? '2000000000000',
-  uusdTopup: process.env.SWARM_UUSD_TOPUP ?? '1000000000000',
-  cw20MintTopup: process.env.SWARM_CW20_MINT_TOPUP ?? '10000000000000000',
-  minCw20Balance: process.env.SWARM_MIN_CW20_BALANCE ?? '1000000000000',
+  /** Defaults sized for LocalTerra genesis `test1` balances (10M LUNC / 100M USTC, GitLab #372); override with SWARM_* env if needed. */
+  ulunaTopup: process.env.SWARM_ULUNA_TOPUP ?? '20000000000000',
+  uusdTopup: process.env.SWARM_UUSD_TOPUP ?? '10000000000000',
+  cw20MintTopup: process.env.SWARM_CW20_MINT_TOPUP ?? '100000000000000000',
+  minCw20Balance: process.env.SWARM_MIN_CW20_BALANCE ?? '10000000000000',
   sleepMsBetweenFundingTx: Number(process.env.SWARM_FUNDING_TX_SLEEP_MS ?? '2000'),
   sleepMsBetweenMint: Number(process.env.SWARM_MINT_SLEEP_MS ?? '500'),
 })

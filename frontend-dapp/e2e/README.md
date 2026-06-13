@@ -50,7 +50,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 
 | Token / use | Env | Default |
 |-------------|-----|---------|
-| Factory pair CW20s | `E2E_DEV_MIN_CW20_U128` | `1000000000000` (\(10^6\) @ 6 decimals) |
+| Factory pair CW20s | `E2E_DEV_MIN_CW20_U128` | `10000000000000` (\(10^7\) @ 6 decimals) |
 | CL8Y (fee tier Register) | `E2E_DEV_MIN_CL8Y_U128` | `1000000000000000000` (tier 1 min) |
 
 Native **uluna** / **uusd** for gas come from LocalTerra genesis on the dev mnemonic.

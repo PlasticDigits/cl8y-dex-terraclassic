@@ -143,7 +143,7 @@ For Yield Omega DEX QA on a shared server, see [`scripts/qa/README.md`](../scrip
 1. Connect wallet
 2. Select input/output tokens from the dropdown
 3. Enter an amount — verify the estimated output updates
-4. Click Swap — confirm the transaction in your wallet (**Keplr** or **dev/simulated wallet** on LocalTerra; **Station** on columbus-5 only — [#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235))
+4. Click Swap — confirm the transaction in your wallet (**Keplr** or **dev/simulated wallet** on LocalTerra; **Station** on columbus-5 only — [#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)). On LocalTerra, the **Simulated Wallet** and the Python QA swarm (`make swarm-launch`) both spend from the same **`test1`** account — if swaps fail with insufficient gas after long swarm runs, run **`make reset-qa`** (GitLab #372).
 5. Verify balances updated correctly
 6. Verify the fee was deducted (check treasury balance or tx events)
 

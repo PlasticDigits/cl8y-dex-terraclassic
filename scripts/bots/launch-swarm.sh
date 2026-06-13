@@ -29,6 +29,9 @@ LP_MEAN="${BOTS_LP_MEAN_INTERVAL_SEC:-90}"
 DRY="${BOTS_DRY_RUN:-0}"
 SKIP_BOOTSTRAP="${BOTS_SKIP_BOOTSTRAP:-0}"
 
+echo "Preflight: test1 gas balance…"
+python3 "$SWARM_PY" --preflight-gas
+
 SWAP_TYPES=(offer0 offer1 heavy light directed)
 
 if [[ "$SKIP_BOOTSTRAP" != "1" ]]; then
