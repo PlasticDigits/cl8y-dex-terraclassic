@@ -12,6 +12,7 @@ const txSpecGlobs = [
   '**/fee-discount-quote-245.spec.ts',
   '**/wrap-pool.spec.ts',
   '**/wrap-swap.spec.ts',
+  '**/terra-broadcast-recovery.spec.ts',
 ]
 /** Market-data-down specs; require E2E_INDEXER_OUTAGE=1 and stopped indexer (GitLab #219). */
 const indexerOutageGlobs = ['**/*-indexer-outage.spec.ts']
@@ -54,6 +55,8 @@ export default defineConfig({
       VITE_PLAYWRIGHT_E2E: 'true',
       /** Fast indexer transport failure for outage project (GitLab #219). */
       VITE_E2E_INDEXER_OUTAGE: process.env.E2E_INDEXER_OUTAGE ?? '',
+      /** Short broadcast cap so post-sign recovery E2E can trigger (GitLab #368). */
+      VITE_TERRA_TX_BROADCAST_TIMEOUT_MS: process.env.VITE_TERRA_TX_BROADCAST_TIMEOUT_MS ?? '3000',
     },
   },
   projects: [

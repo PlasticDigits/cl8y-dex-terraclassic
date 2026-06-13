@@ -65,6 +65,38 @@ def _lcd_base() -> str:
     return (_env("TERRA_LCD_URL") or f"http://127.0.0.1:{port}").rstrip("/")
 
 
+TEST1_ADDR = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+# 100k LUNC — log WARN when test1 uluna drops below this (GitLab #372).
+_ULUNA_WARN_FLOOR = int(_env("BOTS_ULUNA_WARN_FLOOR", "100000000000") or "100000000000")
+
+
+def _query_test1_uluna(lcd: str) -> int | None:
+    try:
+        data = _lcd_get_json(f"{lcd}/cosmos/bank/v1beta1/balances/{TEST1_ADDR}")
+        for b in data.get("balances") or []:
+            if b.get("denom") == "uluna":
+                return int(b.get("amount", "0"))
+    except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, ValueError, TypeError):
+        return None
+    return 0
+
+
+def _warn_low_gas_balance(lcd: str) -> None:
+    bal = _query_test1_uluna(lcd)
+    if bal is None:
+        print(
+            "WARN: could not query test1 uluna balance; swarm may hit insufficient fee errors.",
+            file=sys.stderr,
+        )
+        return
+    if bal < _ULUNA_WARN_FLOOR:
+        print(
+            f"WARN: test1 uluna={bal} (< {_ULUNA_WARN_FLOOR} floor). "
+            "Run `make reset && make deploy-local` or reduce swarm workers. (GitLab #372)",
+            file=sys.stderr,
+        )
+
+
 def _docker_localterra_id() -> str:
     """Return docker container id for service localterra (compose v2)."""
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -738,6 +770,7 @@ async def main_async_limit_only(replica_idx: int) -> None:
 
 async def main_async_single(bot_type: str, replica_idx: int) -> None:
     """Run one worker process (used by launch-swarm.sh)."""
+    _warn_low_gas_balance(_lcd_base())
     if bot_type == "limit":
         await main_async_limit_only(replica_idx)
         return
@@ -775,6 +808,7 @@ async def main_async_single(bot_type: str, replica_idx: int) -> None:
 
 async def main_async() -> None:
     lcd = _lcd_base()
+    _warn_low_gas_balance(lcd)
     factory = _factory_addr()
     container = _docker_localterra_id()
     mean_base = float(_env("BOTS_MEAN_INTERVAL_SEC", "45") or "45")

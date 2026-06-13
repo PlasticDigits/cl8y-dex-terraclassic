@@ -8,12 +8,13 @@ export type AminoFeeLike = {
   gas?: string
 }
 
+/** Retail copy surfaced in the UI when the wallet rewrites fees far below the dApp envelope (GitLab #371). */
+export const EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE =
+  'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
+
+/** Legacy diagnostic prefix — kept for humanizing older throws and console diagnostics (GitLab #127). */
 export const EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX =
   'Wallet signed a fee far below what this dApp submitted (GitLab #127).'
-
-/** Retail copy for post-sign fee/gas mismatch — keep diagnostics in logs only (GitLab #371). */
-export const EXTENSION_SIGNED_FEE_USER_MESSAGE =
-  'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
 
 /** Minimum signed/expected ratio (percent). 50% allowed fee-only drift (#127); 95% blocks ~23 vs ~36 LUNC swap repro (#134). */
 export const EXTENSION_SIGNED_FEE_MIN_PERCENT = 95n
@@ -77,14 +78,19 @@ export function extensionSignedFeeUndershootMessage(
   if (expectedUluna <= 0n && expectedGas <= 0n) return null
 
   if (!signedDoc.fee) {
-    return extensionSignedFeeUndershootDetail(expectedUluna, expectedGas, 0n, 0n)
+    console.warn('[extensionSignedFeeGuard]', extensionSignedFeeUndershootDetail(expectedUluna, expectedGas, 0n, 0n))
+    return EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE
   }
 
   const signedUluna = ulunaFromAminoFee(signedDoc.fee)
   const signedGas = gasFromAminoFee(signedDoc.fee)
 
   if (!meetsMinSignedRatio(signedGas, expectedGas) || !meetsMinSignedRatio(signedUluna, expectedUluna)) {
-    return extensionSignedFeeUndershootDetail(expectedUluna, expectedGas, signedUluna, signedGas)
+    console.warn(
+      '[extensionSignedFeeGuard]',
+      extensionSignedFeeUndershootDetail(expectedUluna, expectedGas, signedUluna, signedGas)
+    )
+    return EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE
   }
 
   return null

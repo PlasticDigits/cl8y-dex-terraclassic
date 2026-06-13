@@ -1,9 +1,9 @@
 import '@/test/lightweightChartsJsdomMock'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { createMemoryRouter, Outlet, RouterProvider, useLocation } from 'react-router-dom'
 import TradePage from './TradePage'
 import { renderWithProviders } from '@/test-utils'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -14,6 +14,30 @@ import type { IndexerPair } from '@/types'
 
 const PAIR = 'terra1pair0000000000000000000000000000000001'
 const MAKER = 'terra1maker000000000000000000000000000001'
+
+/** Mirrors Layout.tsx keyed Outlet — pathname change remounts the route subtree (GitLab #358). */
+function LayoutParityShell() {
+  const location = useLocation()
+  return <Outlet key={location.pathname} />
+}
+
+function renderTradeRoutes(initialEntries: string[], opts?: { layoutParity?: boolean }) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  const tradeRoutes = [
+    { path: '/trade', element: <TradePage /> },
+    { path: '/trade/:pairAddr', element: <TradePage /> },
+  ]
+  const router = createMemoryRouter(
+    opts?.layoutParity ? [{ element: <LayoutParityShell />, children: tradeRoutes }] : tradeRoutes,
+    { initialEntries }
+  )
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  )
+  return router
+}
 
 function mockTradeDesktopLayout(matchesDesktop: boolean) {
   window.matchMedia = vi.fn((query: string) => {
@@ -450,6 +474,49 @@ describe('TradePage', () => {
     })
   })
 
+  it('keeps pair-not-found notice after Layout keyed-Outlet remount (GitLab #358)', async () => {
+    const unknownPair = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    vi.mocked(indexerClient.getPair).mockClear()
+    vi.mocked(indexerClient.getTrades).mockClear()
+    const router = renderTradeRoutes([`/trade/${unknownPair}`], { layoutParity: true })
+
+    const notice = await screen.findByTestId('trade-pair-not-found-link-notice')
+    expect(notice.textContent).toMatch(/pair not found/i)
+    expect(screen.getByTestId('trade-pair-not-found-link-value').textContent).toContain(unknownPair.slice(0, 12))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/trade')
+    })
+    expect(router.state.location.pathname).not.toBe(`/trade/${PAIR}`)
+    expect(screen.getByTestId('trade-pair-not-found-link-notice')).toBeInTheDocument()
+
+    const pairSelect = await screen.findByLabelText('Trading pair')
+    expect((pairSelect as HTMLInputElement).value).not.toContain(unknownPair)
+    expect(indexerClient.getPair).not.toHaveBeenCalled()
+    expect(indexerClient.getTrades).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+  })
+
+  it('keeps invalid pair link notice after Layout keyed-Outlet remount (GitLab #358)', async () => {
+    vi.mocked(indexerClient.getPair).mockClear()
+    vi.mocked(indexerClient.getTrades).mockClear()
+    const router = renderTradeRoutes(['/trade/lilwayne%20babyyy'], { layoutParity: true })
+
+    const notice = await screen.findByTestId('trade-invalid-pair-link-notice')
+    expect(notice.textContent).toMatch(/invalid pair link/i)
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/trade')
+    })
+    expect(router.state.location.pathname).not.toBe(`/trade/${PAIR}`)
+    expect(screen.getByTestId('trade-invalid-pair-link-notice')).toBeInTheDocument()
+
+    const pairSelect = await screen.findByLabelText('Trading pair')
+    expect((pairSelect as HTMLInputElement).value).not.toMatch(/lilwayne/i)
+    expect(indexerClient.getPair).not.toHaveBeenCalled()
+    expect(indexerClient.getTrades).not.toHaveBeenCalled()
+  })
+
   it('shows pair-not-found notice for valid-format deep links absent from factory (GitLab #175)', async () => {
     const unknownPair = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
     vi.mocked(indexerClient.getPair).mockClear()
@@ -581,6 +648,49 @@ describe('TradePage', () => {
     for (const btn of placeBtns) {
       expect(btn).toBeDisabled()
     }
+  })
+
+  it('clears pair-not-found notice when selecting a valid factory pair', async () => {
+    const unknownPair = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    const user = userEvent.setup()
+    const router = renderTradeRoutes([`/trade/${unknownPair}`])
+
+    await screen.findByTestId('trade-pair-not-found-link-notice')
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/trade')
+    })
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+
+    const pairSelect = await screen.findByLabelText('Trading pair')
+    await user.click(pairSelect)
+    const listbox = await screen.findByRole('listbox')
+    await user.click(within(listbox).getByRole('option', { name: /terra1aaa/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('trade-pair-not-found-link-notice')).not.toBeInTheDocument()
+    })
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    expect(router.state.location.state).toBeNull()
+    expect(await screen.findByTestId('trade-sub-lg-workspace')).toBeInTheDocument()
+  })
+
+  it('clears stale link notice when landing on a known factory deep link', async () => {
+    const unknownPair = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    const router = renderTradeRoutes([{ pathname: '/trade', state: { unknownPair } }])
+
+    await screen.findByTestId('trade-pair-not-found-link-notice')
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+
+    await act(async () => {
+      await router.navigate(`/trade/${PAIR}`)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('trade-pair-not-found-link-notice')).not.toBeInTheDocument()
+    })
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    expect(router.state.location.state).toBeNull()
+    expect(await screen.findByTestId('trade-sub-lg-workspace')).toBeInTheDocument()
   })
 
   it('chart Retry refetches indexer pair after 404 (GitLab #177)', async () => {

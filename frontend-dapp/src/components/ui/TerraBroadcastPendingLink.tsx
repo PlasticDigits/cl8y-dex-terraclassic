@@ -1,4 +1,5 @@
 import type { TerraBroadcastPhase } from '@/services/terraclassic/terraBroadcast'
+import { terraBroadcastPendingStatusMessage } from '@/utils/terraBroadcastUi'
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 
 export interface TerraBroadcastPendingLinkProps {
@@ -7,32 +8,44 @@ export interface TerraBroadcastPendingLinkProps {
   className?: string
 }
 
-/** Explorer link shown while {@link broadcastTerraExecuteContracts} polls on-chain confirmation (GitLab #305). */
+/** Explorer link + post-sign recovery copy during broadcast confirmation (GitLab #305, #359). */
 export function TerraBroadcastPendingLink({ phase, txHash, className }: TerraBroadcastPendingLinkProps) {
-  if (phase !== 'confirming' || !txHash) return null
+  const statusMessage = terraBroadcastPendingStatusMessage(phase)
+  const showTxLink = (phase === 'confirming' || phase === 'recovering') && txHash
 
-  const explorerUrl = getExplorerTxUrl(txHash)
-  const label = shortenTxHashForDisplay(txHash)
+  if (!statusMessage && !showTxLink) return null
+
+  const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
+  const label = txHash ? shortenTxHashForDisplay(txHash) : ''
 
   return (
-    <p className={className ?? 'text-[10px] font-mono break-all'} style={{ color: 'var(--ink-dim)' }}>
-      TX:{' '}
-      {explorerUrl ? (
-        <a
-          href={explorerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={txHash}
-          className="underline"
-          data-testid="terra-broadcast-pending-tx"
-        >
-          {label}
-        </a>
-      ) : (
-        <span title={txHash} data-testid="terra-broadcast-pending-tx">
-          {label}
-        </span>
-      )}
-    </p>
+    <div className={className ?? 'text-[10px] break-all'} style={{ color: 'var(--ink-dim)' }}>
+      {statusMessage ? (
+        <p className="mb-1" data-testid="terra-broadcast-recovery-status">
+          {statusMessage}
+        </p>
+      ) : null}
+      {showTxLink ? (
+        <p className="font-mono">
+          TX:{' '}
+          {explorerUrl ? (
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={txHash!}
+              className="underline"
+              data-testid="terra-broadcast-pending-tx"
+            >
+              {label}
+            </a>
+          ) : (
+            <span title={txHash!} data-testid="terra-broadcast-pending-tx">
+              {label}
+            </span>
+          )}
+        </p>
+      ) : null}
+    </div>
   )
 }
