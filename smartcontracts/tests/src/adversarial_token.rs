@@ -802,6 +802,118 @@ mod adversarial_tests {
     }
 
     #[test]
+    fn tax_hook_min_return_checked_against_net_payout() {
+        use crate::helpers::{query_cw20_balance, tax_hook_contract_with_reply};
+
+        let mut app = App::default();
+        let env = crate::helpers::setup_full_env(&mut app);
+        let tax_hook_code = app.store_code(tax_hook_contract_with_reply());
+        let tax_recipient = Addr::unchecked("tax_collector");
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        let tax_hook = app
+            .instantiate_contract(
+                tax_hook_code,
+                env.governance.clone(),
+                &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                    recipient: tax_recipient.to_string(),
+                    tax_percentage_bps: 1000,
+                    tax_token: env.token_b.to_string(),
+                    admin: env.governance.to_string(),
+                },
+                &[],
+                "taxhook",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            tax_hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![env.pair.to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: env.pair.to_string(),
+                hooks: vec![tax_hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+
+        let swap_in = Uint128::new(100_000);
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        let tax_before = query_cw20_balance(&app, &env.token_b, &tax_recipient);
+        swap_a_to_b(&mut app, &env, &env.user, swap_in);
+        let net_payout = query_cw20_balance(&app, &env.token_b, &env.user)
+            .checked_sub(user_b_before)
+            .unwrap();
+        let gross_payout = query_cw20_balance(&app, &env.token_b, &tax_recipient)
+            .checked_sub(tax_before)
+            .unwrap()
+            .checked_add(net_payout)
+            .unwrap();
+        assert!(
+            gross_payout > net_payout,
+            "tax hook must reduce net below gross for this regression"
+        );
+
+        let min_between_net_and_gross = net_payout
+            .checked_add(
+                gross_payout
+                    .checked_sub(net_payout)
+                    .unwrap()
+                    .multiply_ratio(Uint128::one(), Uint128::new(2)),
+            )
+            .unwrap();
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: Some(min_between_net_and_gross),
+            to: None,
+            deadline: None,
+            hybrid: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: swap_in,
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let s = err.root_cause().to_string();
+        assert!(
+            s.contains("Min return assertion"),
+            "min_return between net and gross must fail after hook fees, got: {}",
+            s
+        );
+    }
+
+    #[test]
     fn router_ignores_pre_existing_dust_on_output_token() {
         let mut app = App::default();
         let env = crate::helpers::setup_full_env(&mut app);
