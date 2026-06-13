@@ -93,9 +93,8 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
     Ok(())
 }
 
-/// Burn a percentage of the output token from this contract's balance.
-/// Skips gracefully if the output token doesn't match `burn_token`,
-/// the calculated amount is zero, or the balance is insufficient.
+/// Burn a percentage of the output token forwarded by the pair during swap
+/// settlement (invariant I-02). Burns `min(calculated, hook balance)`.
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
@@ -127,19 +126,19 @@ fn execute_after_swap(
         },
     )?;
 
-    if balance.balance < burn_amount {
-        return Ok(Response::new()
-            .add_attribute("action", "after_swap_burn_hook")
-            .add_attribute("warning", "insufficient balance to burn")
-            .add_attribute("required", burn_amount)
-            .add_attribute("available", balance.balance));
+    if balance.balance.is_zero() {
+        return Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+            "burn hook missing settlement tokens from pair",
+        )));
     }
+
+    let actual_burn = std::cmp::min(burn_amount, balance.balance);
 
     let burn_msg = SubMsg::reply_on_error(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.burn_token.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Burn {
-                amount: burn_amount,
+                amount: actual_burn,
             })?,
             funds: vec![],
         }),
@@ -149,8 +148,9 @@ fn execute_after_swap(
     Ok(Response::new()
         .add_submessage(burn_msg)
         .add_attribute("action", "after_swap_burn_hook")
+        .add_attribute("settled_by_pair", "true")
         .add_attribute("burn_token", config.burn_token)
-        .add_attribute("burn_amount", burn_amount))
+        .add_attribute("burn_amount", actual_burn))
 }
 
 /// Update burn hook configuration. Admin only.
