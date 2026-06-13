@@ -21,11 +21,29 @@ async function waitForTradeOrChartsShell(page: Page, heading: RegExp) {
   /* Indexer/LCD down in PLAYWRIGHT_SKIP_CHAIN=1 smoke — axe still runs on header + page chrome. */
 }
 
+/** Wait for route shell; outage-tolerant (indexer/LCD optional in smoke). */
+async function waitForRouteShell(page: Page, heading: RegExp | string) {
+  await expect(page.getByRole('heading', { name: heading })).toBeVisible({ timeout: 30_000 })
+}
+
+/** Swap is routed at `/` (nav label “Swap”); tolerate missing deploy env in PLAYWRIGHT_SKIP_CHAIN smoke. */
+async function waitForSwapShell(page: Page) {
+  const heading = page.getByRole('heading', { name: 'Swap' })
+  const deployEnvMissing = page.getByText(/VITE_FACTORY_ADDRESS is missing/i)
+  const deadline = Date.now() + 30_000
+  while (Date.now() < deadline) {
+    if (await heading.isVisible().catch(() => false)) return
+    if (await deployEnvMissing.isVisible().catch(() => false)) return
+    await page.waitForTimeout(250)
+  }
+  await expect(heading.or(deployEnvMissing)).toBeVisible({ timeout: 1_000 })
+}
+
 /**
- * Accessibility CI gate for retail-critical surfaces (GitLab #214).
+ * Accessibility CI gate for retail-critical surfaces (GitLab #214, #366).
  * Runs in e2e-smoke with VITE_PLAYWRIGHT_E2E=true (risk modal suppressed).
  */
-test.describe('Critical route accessibility (GitLab #214)', () => {
+test.describe('Critical route accessibility (GitLab #214, #366)', () => {
   test('trade page has no critical/serious axe violations', async ({ page }) => {
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
@@ -44,6 +62,38 @@ test.describe('Critical route accessibility (GitLab #214)', () => {
     await assertNoCriticalA11yViolations(page, {
       exclude: [...CHART_CANVAS_EXCLUDE],
     })
+  })
+
+  test('swap page has no critical/serious axe violations', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    await waitForSwapShell(page)
+
+    await assertNoCriticalA11yViolations(page)
+  })
+
+  test('limits page has no critical/serious axe violations', async ({ page }) => {
+    await page.goto('/limits')
+    await page.waitForLoadState('networkidle')
+    await waitForRouteShell(page, 'Limit Orders')
+
+    await assertNoCriticalA11yViolations(page)
+  })
+
+  test('pool page has no critical/serious axe violations', async ({ page }) => {
+    await page.goto('/pool')
+    await page.waitForLoadState('networkidle')
+    await waitForRouteShell(page, /Liquidity Pools/i)
+
+    await assertNoCriticalA11yViolations(page)
+  })
+
+  test('portfolio page has no critical/serious axe violations', async ({ page }) => {
+    await page.goto('/portfolio')
+    await page.waitForLoadState('networkidle')
+    await waitForRouteShell(page, /my portfolio/i)
+
+    await assertNoCriticalA11yViolations(page)
   })
 
   test('wallet connect modal is accessible when disconnected', async ({ page }) => {

@@ -41,13 +41,20 @@ Key invariant: **`return_amount` is the consolidated total**; do not add `limit_
 
 Full spec: [docs/CG_CMC_COMPLIANCE.md](../docs/CG_CMC_COMPLIANCE.md#consolidated-hybrid--pool-only-reporting-gitlab-189).
 
+## Zero-reserve pairs (GitLab #369)
+
+Under `ROUTE_SOLVER_DB_HYBRID=1`, indexed pairs with **zero** `pair_reserves` on either side are normal (unfunded `create_pair`). The global solver must **not** return **502** when a longer candidate path touches such a pair but a **shorter funded path** exists (e.g. direct pool). Behavior:
+
+- Mirror load marks `0/0` reserves as `EmptyPool` freshness → per-hop LCD fallback (same degradation bucket as missing mirror).
+- Path candidates that cannot simulate any hop (zero pool + no viable book) are **skipped**; the request succeeds on the best remaining path or **404** when every enumerated path is unusable.
+
+Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`.
+
 ## Tests to run after changes
 
 ```bash
 cd indexer && cargo test --test api_route_solve --test api_route_solve_db_hybrid --test db_orderbook_mirror -- --test-threads=1
 ```
-
-`route_solve_db_hybrid_skips_zero_reserve_path_candidate` covers [#369](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/369).
 
 Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route_solve_global_response_metadata_contract`.
 
@@ -67,9 +74,9 @@ Regression: `route_solve_db_hybrid_book_start_hint_paths` in `indexer/tests/api_
 
 ## Zero-reserve path candidates ([#369](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/369))
 
-Under `global_v2` / `global_v4`, a candidate path whose mirror sim hits **zero pool reserves** on any hop is **skipped** (not a request-level **502**). The solver picks the best remaining viable path — e.g. a direct pool when a multi-hop alternate touches an unfunded pair.
+Unfunded pairs (`pair_reserves` with `reserve_0 = reserve_1 = 0`) are normal after `create_pair` until LP is added. Under `ROUTE_SOLVER_DB_HYBRID=1`, a path candidate that includes a zero-reserve hop must be **skipped** during concurrent evaluation — not fail the whole `GET /route/solve` with **502** "Route mirror simulation failed" when a direct pool route is viable.
 
-Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`.
+Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`; `make verify-issue-369`.
 
 ## Related invariants
 

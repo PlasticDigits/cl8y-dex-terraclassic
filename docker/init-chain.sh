@@ -46,14 +46,14 @@ echo "Test account: $TEST_ADDRESS"
 # Add genesis account with funds
 echo "[3/8] Adding genesis account with funds..."
 terrad add-genesis-account "$TEST_ADDRESS" \
-    1000000000000uluna,\
-10000000000000uusd,\
-10000000000000ukrw,\
-10000000000000usdr,\
-10000000000000ueur,\
-10000000000000ugbp,\
-10000000000000ujpy,\
-10000000000000ucny \
+    10000000000000uluna,\
+100000000000000uusd,\
+100000000000000ukrw,\
+100000000000000usdr,\
+100000000000000ueur,\
+100000000000000ugbp,\
+100000000000000ujpy,\
+100000000000000ucny \
     --keyring-backend test \
     --home "$TERRA_HOME"
 
@@ -149,8 +149,8 @@ echo "  Address:  $TEST_ADDRESS"
 echo "  Mnemonic: $TEST_MNEMONIC"
 echo ""
 echo "Balances:"
-echo "  1,000,000 LUNC (1000000000000 uluna)"
-echo "  10,000,000 USTC (10000000000000 uusd)"
+echo "  10,000,000 LUNC (10000000000000 uluna)"
+echo "  100,000,000 USTC (100000000000000 uusd)"
 echo "  + other stablecoins"
 echo ""
 echo "Endpoints (after start):"
