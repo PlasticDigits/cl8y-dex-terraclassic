@@ -65,7 +65,10 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   if (/\bUnauthorized\b/i.test(inner)) {
     return 'You do not have permission for this action.'
   }
-  if (inner.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX)) {
+  if (
+    inner.includes(EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX) ||
+    inner === EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE
+  ) {
     return EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE
   }
   if (/insufficient fees/i.test(inner)) {

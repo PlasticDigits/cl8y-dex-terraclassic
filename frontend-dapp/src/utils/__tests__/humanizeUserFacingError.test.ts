@@ -116,7 +116,9 @@ describe('humanizeUserFacingError', () => {
     const raw =
       'Wallet signed a fee far below what this dApp submitted (GitLab #127). Expected at least ~5665000 uluna; wallet returned ~3000 uluna.'
     const out = humanizeUserFacingError(raw)
-    expect(out).toMatch(/Transaction fee mismatch/)
-    expect(out).not.toMatch(/GitLab|uluna|npm ci/)
+    expect(out).toBe(
+      'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
+    )
+    expect(out).not.toMatch(/GitLab|uluna|npm ci|Station/)
   })
 })

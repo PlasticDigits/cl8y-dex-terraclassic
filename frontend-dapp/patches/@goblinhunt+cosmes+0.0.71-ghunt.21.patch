@@ -1,8 +1,8 @@
 diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
-index bcfd177..cca2429 100644
+index bcfd177..d5e04a7 100644
 --- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
 +++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/keplr/KeplrExtension.js
-@@ -1,7 +1,104 @@
+@@ -1,7 +1,107 @@
  import { RpcClient, Tx, } from "../../../client/index.js";
 +import { CosmosTxV1beta1AuthInfo as ProtoAuthInfo, } from "../../../protobufs/index.js";
  import { WalletType } from "../../constants/WalletType.js";
@@ -13,13 +13,16 @@ index bcfd177..cca2429 100644
 +    preferNoSetFee: true,
 +    preferNoSetMemo: true,
 +};
++const EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE = "Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.";
 +const EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX = "Wallet signed a fee far below what this dApp submitted (GitLab #127).";
 +const EXTENSION_SIGNED_FEE_MIN_PERCENT = 95n;
 +function extensionSignedFeeUndershootError(expectedUluna, expectedGas, signedUluna, signedGas) {
 +    const gasNote = expectedGas > 0n && signedGas > 0n && signedGas < expectedGas
 +        ? ` Expected gas at least ~${expectedGas}; wallet returned ~${signedGas}.`
 +        : "";
-+    return new Error(`${EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX} On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run \`cd frontend-dapp && npm ci\` so the cosmes patch is applied, then retry. Expected at least ~${expectedUluna} uluna; wallet returned ~${signedUluna} uluna.${gasNote}`);
++    const detail = `${EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX} On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run \`cd frontend-dapp && npm ci\` so the cosmes patch is applied, then retry. Expected at least ~${expectedUluna} uluna; wallet returned ~${signedUluna} uluna.${gasNote}`;
++    console.warn("[KeplrExtension]", detail);
++    return new Error(EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE);
 +}
 +function meetsMinSignedRatio(signed, expected) {
 +    if (expected <= 0n)
@@ -107,17 +110,16 @@ index bcfd177..cca2429 100644
  export class KeplrExtension extends ConnectedWallet {
      constructor(walletName, label, ext, chainId, pubKey, address, rpc, gasPrice, useAmino) {
          super(walletName, WalletType.EXTENSION, label, chainId, pubKey, address, rpc, gasPrice);
-@@ -43,11 +124,15 @@ export class KeplrExtension extends ConnectedWallet {
+@@ -43,11 +143,15 @@ export class KeplrExtension extends ConnectedWallet {
          };
          let txRaw;
          if (this.useAmino) {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, tx.toStdSignDoc(params)));
--            txRaw = tx.toSignedAmino(signed, signature.signature);
 +            const stdDoc = toPlainAminoStdSignDoc(tx.toStdSignDoc(params));
 +            const { signed, signature } = await WalletError.wrap(this.ext.signAmino(this.chainId, this.address, stdDoc, EXTENSION_SIGN_OPTIONS));
 +            // Single sign only — a second signAmino after approval often yields "User denied, extension popup was closed" (GitLab #208).
 +            assertExtensionSignedFeeMeetsExpected(signed, stdDoc.fee, this.chainId);
-+            txRaw = tx.toSignedAmino(signed, signature.signature);
+             txRaw = tx.toSignedAmino(signed, signature.signature);
          }
          else {
 -            const { signed, signature } = await WalletError.wrap(this.ext.signDirect(this.chainId, this.address, tx.toSignDoc(params)));
@@ -161,7 +163,7 @@ index 641a1e0..37c6857 100644
          this.wc.cacheSession(wc);
          return { wallets, wc: this.wc };
 diff --git a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
-index 021a61a..bbf719c 100644
+index 021a61a..7ffb746 100644
 --- a/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
 +++ b/node_modules/@goblinhunt/cosmes/dist/wallet/wallets/station/StationController.js
 @@ -49,17 +49,22 @@ export class StationController extends WalletController {
