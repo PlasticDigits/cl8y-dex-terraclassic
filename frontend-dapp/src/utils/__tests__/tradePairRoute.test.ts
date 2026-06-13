@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   getInvalidTradePairRouteParam,
+  getTradePageInvalidLinkNotice,
+  getTradePageUnknownPairNotice,
   getUnknownTradePairRouteParam,
   isKnownFactoryTradePair,
   isPendingTradePairRouteResolution,
@@ -14,6 +16,14 @@ const VALID_B = 'terra1pair0000000000000000000000000000000002'
 const UNKNOWN_FORMAT = 'terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
 describe('tradePairRoute', () => {
+  it('reads invalid/unknown pair notices from router location state (GitLab #358)', () => {
+    expect(getTradePageInvalidLinkNotice({ invalidPair: 'lilwayne babyyy' })).toBe('lilwayne babyyy')
+    expect(getTradePageUnknownPairNotice({ unknownPair: UNKNOWN_FORMAT })).toBe(UNKNOWN_FORMAT)
+    expect(getTradePageInvalidLinkNotice(null)).toBeNull()
+    expect(getTradePageUnknownPairNotice(undefined)).toBeNull()
+    expect(getTradePageInvalidLinkNotice({ unknownPair: UNKNOWN_FORMAT })).toBeNull()
+  })
+
   it('accepts valid terra1 pair addresses', () => {
     expect(isTradePairRouteParam(VALID)).toBe(true)
     expect(getInvalidTradePairRouteParam(VALID)).toBeNull()

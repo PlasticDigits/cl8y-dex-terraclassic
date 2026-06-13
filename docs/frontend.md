@@ -59,6 +59,33 @@ The dApp connects to Terra Classic wallets using the Station browser extension o
 - **Network detection:** the `VITE_NETWORK` env var controls which chain the dApp targets (`mainnet`, `testnet`, `local`).
 - **Signing:** all transactions use the connected wallet's signer. The dApp never handles private keys in production; the Simulated Wallet (dev only) is an exception and is described below.
 
+### Forked `@goblinhunt/cosmes` and patch-package {#cosmes-fork-patches}
+
+Wallet signing uses the fork **`@goblinhunt/cosmes`** (`frontend-dapp/package.json`, exact version pinned in `package-lock.json`). Upstream cosmes does not ship the Terra Classic extension mitigations we need ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127), [#208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)). Local changes are applied with **`patch-package`** on every install:
+
+| Artifact | Purpose |
+|----------|---------|
+| [`patches/@goblinhunt+cosmes+*.patch`](../frontend-dapp/patches/) | `KeplrExtension`: per-sign **`preferNoSetFee`**, post-sign fee guard vs **`stdDoc.fee`**; `StationController`: extension → **amino always** |
+| [`patches/.cosmes-patch-sha256`](../frontend-dapp/patches/.cosmes-patch-sha256) | Committed SHA-256 of the patch file — CI fails if the patch changes without updating this hash ([#367](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/367)) |
+| [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts) | Regression: hash gate + asserts patched symbols exist in **built** `node_modules/@goblinhunt/cosmes/dist/...` after `postinstall` |
+
+| Invariant | Meaning |
+|-----------|---------|
+| **`postinstall` required** | `package.json` runs `patch-package` in **`postinstall`**. **`npm ci --ignore-scripts`**, broken CI caches, or copying `node_modules` without install **skips patches** — wallet fee guards silently disappear. Production and CI installs must run scripts. |
+| **Lockfile pin** | Do not rely on mutable dist tags; keep `@goblinhunt/cosmes` pinned in `package-lock.json`. |
+| **No casual upgrades** | Do not bump the fork major/minor without re-running Keplr E2E ([#361](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/361) H12). Track upstream `@goblinhunt/cosmes` for eventual un-fork. |
+| **CI gate** | `make test-frontend` includes `cosmesPatch127.test.ts` (content hash + patched `node_modules` symbols). |
+
+**Patch upgrade checklist**
+
+1. Edit `node_modules/@goblinhunt/cosmes` (or bump the dependency if upstream merged fixes), then `cd frontend-dapp && npx patch-package @goblinhunt/cosmes`.
+2. Update the hash: `sha256sum patches/@goblinhunt+cosmes+*.patch` → write hex to [`patches/.cosmes-patch-sha256`](../frontend-dapp/patches/.cosmes-patch-sha256).
+3. Fresh install: `npm ci` (runs `postinstall` / `patch-package`).
+4. Verify: `make test-frontend` — `cosmesPatch127.test.ts` must pass.
+5. Re-run Keplr / Station extension signing QA on columbus-5 or staging before release.
+
+**Third-party / agent context:** [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) · [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../skills/AGENTS_FRONTEND_STATION_SIGNING.md).
+
 ### Connect modal: extension install detection {#connect-modal-extension-install}
 
 Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExtension`](../frontend-dapp/src/services/terraclassic/keplrLikeExtension.ts) plus **`'station' in window`** for Station ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)). When an extension is detected, the row shows a **Ready** pill next to the **Extension** pill; when it is not, the row is visually subdued and an **Install** link appears — there is **no** separate **Not installed** pill (redundant with **Install**; frees horizontal space on narrow modals, [GitLab #160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)). Long wallet names truncate with an ellipsis; the full name is available via **`title`** on the label. **WalletConnect** rows are unchanged (no extension install check). **Leap** is not listed ([GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). Implementation: [`walletExtensionInstall.ts`](../frontend-dapp/src/services/terraclassic/walletExtensionInstall.ts), [`WalletModal.tsx`](../frontend-dapp/src/components/wallet/WalletModal.tsx), [`useWalletExtensionInstallSnapshot.ts`](../frontend-dapp/src/hooks/useWalletExtensionInstallSnapshot.ts).
@@ -271,14 +298,16 @@ Wallet **`broadcastTx`** and LCD **`pollTx`** must not hang indefinitely when th
 |-----------|---------|
 | Broadcast cap | **`executeTerraContract`** / **`executeTerraContractMulti`** wrap **`wallet.broadcastTx`** with **`withPromiseTimeout`** and **`TERRA_TX_BROADCAST_TIMEOUT_MS`** (default **30s**, override **`VITE_TERRA_TX_BROADCAST_TIMEOUT_MS`**). |
 | Poll cap | **`wallet.pollTx`** uses **`TERRA_TX_POLL_TIMEOUT_MS`** (default **90s**, override **`VITE_TERRA_TX_POLL_TIMEOUT_MS`**) so slow LocalTerra blocks can still confirm while offline hangs still surface. |
-| Broadcast copy | Timeout message: **`TERRA_TX_BROADCAST_TIMEOUT_MESSAGE`** — *"Could not broadcast the transaction. Check your connection and try again."* |
-| Poll copy | Timeout message: **`TERRA_TX_POLL_TIMEOUT_MESSAGE`** — *"Transaction confirmation timed out. Check your connection and try again."* |
-| Pass-through errors | **`handleTransactionError`** returns timeout messages unchanged (no `Transaction failed:` prefix); **`TxResultAlert`** still humanizes via the standard funnel. |
+| Broadcast copy (pre-sign) | **`TERRA_TX_BROADCAST_TIMEOUT_MESSAGE`** — *"Could not broadcast the transaction. Check your connection and try again."* — only when signing did **not** complete (atomic WC `post` path or transport failure before a signed tx exists). Safe to retry immediately. |
+| Poll copy | Timeout message: **`TERRA_TX_POLL_TIMEOUT_MESSAGE`** — *"Transaction confirmation timed out. Check your connection and try again."* — when a hash exists, split-path wallets enter recovery instead of surfacing this as the final error ([GitLab **#359**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)). |
+| Post-sign broadcast unknown | After signing, hung RPC may still deliver the tx. Split-path wallets compute the hash from signed bytes, show **`TERRA_TX_POST_SIGN_BROADCAST_UNKNOWN_MESSAGE`** during phase **`recovering`**, and poll LCD until the swap **`deadline`** (or default **300s**). Submit stays disabled until recovery resolves. |
+| Post-sign not found | **`TERRA_TX_POST_SIGN_NOT_FOUND_MESSAGE`** — only after the deadline poll finds no tx; **then** invite retry (avoids double-execution inside the deadline window, [#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)). |
+| Pass-through errors | **`handleBroadcastError`** returns timeout / recovery messages unchanged (no `Transaction failed:` prefix); **`TxResultAlert`** still humanizes via the standard funnel. |
 | All on-chain submits | Applies to limit place/cancel, swaps, pool add/withdraw, and any path using **`broadcastTerraExecuteContracts`** — not only `/trade`. |
 
-Implementation: [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.ts), [`withPromiseTimeout.ts`](../frontend-dapp/src/utils/withPromiseTimeout.ts), [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) (canonical sign/broadcast/poll), [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts) (gas + `Fee` build), [`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) (public `executeTerraContract*` wrappers).
+Implementation: [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.ts), [`withPromiseTimeout.ts`](../frontend-dapp/src/utils/withPromiseTimeout.ts), [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) (canonical sign/broadcast/poll + post-sign recovery), [`terraWalletSignTxRaw.ts`](../frontend-dapp/src/services/terraclassic/terraWalletSignTxRaw.ts), [`terraTxRecoveryPoll.ts`](../frontend-dapp/src/services/terraclassic/terraTxRecoveryPoll.ts), [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts) (gas + `Fee` build), [`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) (public `executeTerraContract*` wrappers).
 
-Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases).
+Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases), [`terraBroadcastRecovery.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/terraBroadcastRecovery.test.ts) ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)).
 
 ### Broadcast phase UI (signing → confirming) {#broadcast-phase-ui}
 
@@ -289,8 +318,9 @@ Retail submit buttons distinguish wallet signing from on-chain confirmation ([Gi
 | `signing` | Before `wallet.broadcastTx` enters the sign lock | Signing… |
 | `broadcasting` | Inside `broadcastTx` (sign + submit) | Broadcasting… |
 | `confirming` | After tx hash, during `pollTx` | Confirming… (+ explorer link) |
+| `recovering` | Post-sign broadcast/poll timeout — LCD deadline poll ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)) | Checking broadcast… (+ unknown-status copy + explorer link) |
 
-**Invariants:** `broadcastTerraExecuteContracts` accepts optional `onPhaseChange`; failed broadcast never enters `confirming`; failed poll does not re-fire `signing`. React mutations use [`useTerraBroadcastMutation`](../frontend-dapp/src/hooks/useTerraBroadcastMutation.ts) + [`terraBroadcastScope`](../frontend-dapp/src/services/terraclassic/terraBroadcastScope.ts) so service layers stay unchanged. **`isPending`** remains the disable guard.
+**Invariants:** `broadcastTerraExecuteContracts` accepts optional `onPhaseChange`; failed **pre-sign** broadcast never enters `confirming`; post-sign hung RPC enters **`recovering`** before retry is offered. Failed poll does not re-fire `signing`. React mutations use [`useTerraBroadcastMutation`](../frontend-dapp/src/hooks/useTerraBroadcastMutation.ts) + [`terraBroadcastScope`](../frontend-dapp/src/services/terraclassic/terraBroadcastScope.ts) so service layers stay unchanged. **`isPending`** remains the disable guard.
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](../skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md).
 
@@ -302,8 +332,7 @@ Friendly failure copy should flow through **`humanizeUserFacingError`** ([`front
 | Invariant | Meaning |
 |-----------|---------|
 | Single funnel | Call **`humanizeUserFacingError`** / **`humanizeUserFacingErrorFromUnknown`** at leaf call sites, or rely on components that already apply it: **`RetryError`**, **`TxResultAlert`** (`type === 'error'` only), and the **`useWalletStore.connect`** catch (wallet modal). |
-| Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block (chunk failures scrub dev URLs — see [§ Lazy route chunks](#lazy-route-chunks)). |
-| Post-sign fee guard | Patched **`KeplrExtension`** / [`extensionSignedFeeGuard.ts`](../frontend-dapp/src/utils/extensionSignedFeeGuard.ts) may throw verbose diagnostics (GitLab refs, **`uluna`**, **`npm ci`**). **`tryHumanizeTerraTxMessage`** and **`broadcastTerraExecuteContracts`** must map those to **`EXTENSION_SIGNED_FEE_USER_MESSAGE`** before UI ([GitLab **#371**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/371)). |
+| Diagnostics elsewhere | Full throws remain in **`console.error`** / devtools; **ErrorBoundary** adds a collapsed **Technical details** block (chunk failures scrub dev URLs — see [§ Lazy route chunks](#lazy-route-chunks)). Post-sign fee/gas guard failures ([`extensionSignedFeeGuard.ts`](../frontend-dapp/src/utils/extensionSignedFeeGuard.ts), [GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)) keep developer diagnostics in logs; UI shows **`EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE`** via **`tryHumanizeTerraTxMessage`** ([GitLab #371](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/371)). |
 | Success strings | **`TxResultAlert`** must not rewrite **`type === 'success'`** messages. |
 | Regression tests | [`frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts`](../frontend-dapp/src/utils/__tests__/humanizeUserFacingError.test.ts). |
 
@@ -465,7 +494,7 @@ Automated **WCAG 2.1 A + AA** checks on retail-critical routes via **`@axe-core/
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Routes scanned** | `/trade`, `/charts` (full page; chart canvas excluded), header **Connect wallet** dialog, connected **wallet menu** (`include: header`). |
+| **Routes scanned** | `/` (Swap), `/trade`, `/charts` (chart canvas excluded), `/limits`, `/pool`, `/portfolio`, header **Connect wallet** dialog, connected **wallet menu** (`include: header`) ([#366](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/366)). |
 | **Severity gate** | `assertNoCriticalA11yViolations` fails on **critical** or **serious** axe impacts only. |
 | **Canvas exclusion** | Only `[data-testid="price-chart-lightweight-canvas"] canvas` — never exclude interactive controls. |
 | **TradingView attribution** | `layout.attributionLogo: false` on lightweight-charts; visible **Charting by TradingView** link on `PriceChart` (outside `aria-hidden` canvas) satisfies Apache NOTICE without `aria-hidden-focus` on `#tv-attr-logo`. |
@@ -818,7 +847,7 @@ When `/trade/:pairAddr` contains a segment that is **not** a valid Terra pair co
 
 | Invariant | Meaning |
 |-----------|---------|
-| **URL cleanup** | On invalid segment, `navigate('/trade', { replace: true })` so share links do not keep non-`terra1` garbage in the address bar. |
+| **URL cleanup** | On invalid segment, `navigate('/trade', { replace: true, state: { invalidPair } })` so share links do not keep non-`terra1` garbage in the address bar. Notice state survives [`Layout`](../frontend-dapp/src/components/common/Layout.tsx) keyed-`<Outlet key={location.pathname} />` remount ([#358](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/358)). |
 | **Notice + CTA** | [`InvalidPairLinkNotice`](../frontend-dapp/src/components/trade/InvalidPairLinkNotice.tsx) renders **`role="alert"`** with title **Invalid pair link**, quotes the bad segment (truncated when long), and a **Select a trading pair** button that scrolls to and focuses `#trade-pair-select`. |
 | **Selector value** | `pairAddr` state stays **empty** until the user picks a pair or a valid deep link loads — `MenuSelect` must not display the raw invalid segment as the trigger label. |
 | **Queries disabled** | Indexer / LCD pair queries use **`isTradePairRouteParam(pairAddr)`** (not bare `startsWith('terra1')`) so malformed `terra1…` prefixes do not fire API calls. |
@@ -836,7 +865,7 @@ When `/trade/:pairAddr` passes [`isValidTerraAddress`](../frontend-dapp/src/util
 | Invariant | Meaning |
 |-----------|---------|
 | **Factory gate** | After `allPairs` succeeds, unknown detection compares `routePair` to `pairs[].contract_addr` only — do not set `pairAddr` until the segment is known. |
-| **URL cleanup** | Same as [invalid pair deep link](#trade-page-invalid-pair-link): `navigate('/trade', { replace: true })`. |
+| **URL cleanup** | Same as [invalid pair deep link](#trade-page-invalid-pair-link): `navigate('/trade', { replace: true, state: { unknownPair } })` (location state survives Layout keyed-Outlet remount — [#358](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/358)). |
 | **Notice + CTA** | [`PairNotFoundLinkNotice`](../frontend-dapp/src/components/trade/PairNotFoundLinkNotice.tsx) — title **Pair not found**, quotes the segment, CTA focuses `#trade-pair-select`. |
 | **Queries disabled** | Indexer / LCD workspace queries stay off while `pairAddr` is empty (no 404 storm for regex-valid garbage). |
 | **Auto-pick guard** | Blocked while `unknownPairNotice` is set (mirror invalid-link notice). Also blocked while any valid-format `:pairAddr` is in the URL — known-pair route sync owns that case ([GitLab **#357**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/357); [`shouldAutoPickDefaultTradePair`](../frontend-dapp/src/utils/tradePairRoute.ts)). |
@@ -894,6 +923,18 @@ Retail sizing for the **Amount** field on **`/trade`** and **`/limits`** ([GitLa
 Implementation: [`useLimitOrderForm.ts`](../frontend-dapp/src/hooks/useLimitOrderForm.ts) (`LimitEscrowAmountSource`, `onLimitAmountInputChange`, `onLimitAmountMax`, `resetLimitEscrowAmount`, `setLimitEscrowAmountFromDraft`, `setLimitEscrowAmountFromMaxReapply`), [`LimitOrderEscrowAmountField.tsx`](../frontend-dapp/src/components/trade/LimitOrderEscrowAmountField.tsx), [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md), [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+
+### Pool page — LP risk disclosure {#pool-lp-risk-disclosure}
+
+When the **Provide Liquidity** panel is open on `/pool`, a short **impermanent loss** notice appears before amount inputs ([#366](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/366)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Copy** | States that LP value can **diverge** from simply holding the underlying assets when pool prices move — directional risk, not guaranteed yield. |
+| **Placement** | Visible in the add-liquidity card (`data-testid="pool-il-risk-notice"`) without wallet connect. |
+| **Docs link** | `Learn more` → this section (`#pool-lp-risk-disclosure`). |
+
+**Code:** `frontend-dapp/src/pages/PoolPage.tsx` (`POOL_LP_RISK_DOC`).
 
 ### Pool page — provide liquidity (UI invariants)
 
@@ -963,17 +1004,19 @@ The Swap page displays the effective fee after discount. When a connected wallet
 - The discount percentage from the trader's tier
 - The effective fee after discount (e.g., 0.15% for a 50% discount)
 
+**Registry outage warning (GitLab [#374](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/374)):** When LCD `get_registration` / `get_discount` fails or the indexer reports `fee_discount_registry_ok: false` (`GET /api/v1/health/fee-discount`), registered traders see a non-blocking amber banner (`data-testid="swap-fee-discount-registry-warning"`) — swap submit stays enabled; on-chain execution may still charge full pair fee. Unregistered wallets with healthy LCD reads keep the **Hold CL8Y…** CTA instead. Logic: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability.
+
 **Expected slippage, Expert Mode & max spread (GitLab [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)):** When the indexer returns `slippage_percent` on `route/solve`, the trade summary shows **Expected slippage** — symmetric deviation vs fair cross-rate token prices (`spot_amount_out`). The dApp prefers wallet `return_amount` vs spot when both are present ([`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts)). **Expert Mode** (Settings checkbox, default **off**, persisted in `localStorage`) blocks submit when expected slippage **> 30%** with **Slippage is too high** and an **Enable Expert Mode** affordance that opens a warning modal ([`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx)). **≥ 99%** always shows an extreme-slippage alert, even with Expert Mode enabled. Multihop and indexer quotes also run **per-hop pair simulation** preflight (factory resolve + `simulation` / `hybrid_simulation`) so hop spread is visible as secondary context and submit is disabled when any hop would exceed the user’s **Slippage tolerance** (`max_spread`). Failed txs that still surface `Max spread assertion` from the chain are mapped to short retail copy in [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) via [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) and `TxResultAlert`. **Pool-only CW20 swap** gas uses the buffered one-hop router envelope (**830k**), not legacy **600k**, so wallet fee displays (~23 vs ~36 LUNC) stay aligned with on-chain headroom; LocalTerra post-sign guards reject fee/gas rewrites below **95%** of the dApp envelope ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). Full invariants: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
 
 **Route preview (GitLab [#158](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/158)):** The **Route** line lives in the same trade-summary card as **Price impact** and **Min received** (no separate “quote source” strip, no paired `Route (indexer)` / `Route` labels). The displayed token path follows the same precedence as submit: indexer-shaped `router_operations` when present, otherwise the client BFS route, native wrap path, or a direct `from → to`. Code: [`swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts). Agent checklist: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md).
 
-**Submit–quote alignment (GitLab [#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356)):** Sim queries debounce pay amount (**350ms**, [#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346)). Submit must use the **same** debounced pay raw as the displayed quote — not the live typed amount while debounce, placeholder, or refetch is in flight. [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) bundles `submitPayRaw`, `minReceived`, and `simData` for Swap and Trade market `swapMutation`; [`isSubmitQuoteStale`](../frontend-dapp/src/utils/quoteDebounce.ts) gates the submit button. Hybrid book-leg splits for Trade market sim/submit use the debounced pay total.
+**Submit–quote alignment (GitLab [#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356), [#360](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/360)):** Sim queries debounce pay amount and hybrid book leg (**350ms**, [#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346)). Submit must use the **same** debounced pay raw, book leg, and max-makers snapshot as the displayed quote — not live typed values while debounce, placeholder, or refetch is in flight. [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) bundles `submitPayRaw`, `minReceived`, `simData`, and `snapshottedHybrid` via [`buildSubmitAlignedSimPayload`](../frontend-dapp/src/utils/quoteDebounce.ts) for Swap and Trade market `swapMutation`; [`isSubmitQuoteStale`](../frontend-dapp/src/utils/quoteDebounce.ts) gates the submit button. Hybrid book-leg splits for sim/submit use debounced pay total, debounced book leg, and debounced max makers.
 
 | Invariant | Meaning |
 |-----------|---------|
 | **Single submit snapshot** | Pay raw, min received, indexer ops, hybrid params, and route display refer to one settled sim result. |
-| **No live/debounced skew** | `swapMutation` reads `submitPayRaw` (debounced), not live `inputAmount` / `marketAmountHuman`, when min received comes from `simQuery.data`. |
-| **Stale submit blocked** | Submit disabled when typed raw ≠ debounced key, `isPlaceholderData`, or `simQuery.isFetching` for the active debounced key. |
+| **No live/debounced skew** | `swapMutation` reads `submitPayRaw` (debounced), not live `inputAmount` / `marketAmountHuman`, when min received comes from `simQuery.data`; hybrid `book_input` / `max_maker_fills` come from the same debounced snapshot. |
+| **Stale submit blocked** | Submit disabled when typed raw ≠ debounced key, live book leg ≠ debounced book leg, live max makers ≠ snapshotted max makers, `isPlaceholderData`, or `simQuery.isFetching` for the active debounced key. |
 
 ### Swap page — MEV / submission posture {#swap-mev-posture}
 

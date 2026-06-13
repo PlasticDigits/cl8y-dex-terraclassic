@@ -65,6 +65,38 @@ def _lcd_base() -> str:
     return (_env("TERRA_LCD_URL") or f"http://127.0.0.1:{port}").rstrip("/")
 
 
+TEST1_ADDR = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+# 100k LUNC — log WARN when test1 uluna drops below this (GitLab #372).
+_ULUNA_WARN_FLOOR = int(_env("BOTS_ULUNA_WARN_FLOOR", "100000000000") or "100000000000")
+
+
+def _query_test1_uluna(lcd: str) -> int | None:
+    try:
+        data = _lcd_get_json(f"{lcd}/cosmos/bank/v1beta1/balances/{TEST1_ADDR}")
+        for b in data.get("balances") or []:
+            if b.get("denom") == "uluna":
+                return int(b.get("amount", "0"))
+    except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, ValueError, TypeError):
+        return None
+    return 0
+
+
+def _warn_low_gas_balance(lcd: str) -> None:
+    bal = _query_test1_uluna(lcd)
+    if bal is None:
+        print(
+            "WARN: could not query test1 uluna balance; swarm may hit insufficient fee errors.",
+            file=sys.stderr,
+        )
+        return
+    if bal < _ULUNA_WARN_FLOOR:
+        print(
+            f"WARN: test1 uluna={bal} (< {_ULUNA_WARN_FLOOR} floor). "
+            "Run `make reset && make deploy-local` or reduce swarm workers. (GitLab #372)",
+            file=sys.stderr,
+        )
+
+
 def _docker_localterra_id() -> str:
     """Return docker container id for service localterra (compose v2)."""
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -104,6 +136,42 @@ def _factory_addr() -> str:
 def _b64_json(obj: dict[str, Any]) -> str:
     raw = json.dumps(obj, separators=(",", ":")).encode("utf-8")
     return base64.b64encode(raw).decode("ascii")
+
+
+TEST1_ADDRESS = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+# 100k LUNC in uluna (6 decimals) — warn when QA swarm may soon fail signing (GitLab #372).
+LOW_GAS_WARN_ULUNA = 100_000 * 1_000_000
+
+
+def _query_test1_uluna(lcd: str) -> int | None:
+    """Return test1 uluna balance or None if LCD query fails."""
+    try:
+        url = f"{lcd}/cosmos/bank/v1beta1/balances/{TEST1_ADDRESS}"
+        data = _lcd_get_json(url)
+        for bal in data.get("balances") or []:
+            if bal.get("denom") == "uluna":
+                return int(bal.get("amount") or "0")
+        return 0
+    except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, ValueError):
+        return None
+
+
+def preflight_gas_balance() -> int:
+    """Query test1 uluna; warn below LOW_GAS_WARN_ULUNA. Returns balance or -1 on LCD failure."""
+    lcd = _lcd_base()
+    amount = _query_test1_uluna(lcd)
+    if amount is None:
+        print(f"WARN: could not query test1 uluna balance on {lcd}", file=sys.stderr)
+        return -1
+    lunc = amount / 1_000_000
+    print(f"[preflight] test1 uluna={amount} (~{lunc:,.0f} LUNC) LCD={lcd}", flush=True)
+    if amount < LOW_GAS_WARN_ULUNA:
+        print(
+            f"WARN: test1 uluna below {LOW_GAS_WARN_ULUNA} (~100k LUNC) — "
+            "swarm / simulated wallet may fail signing; run `make reset` (GitLab #372).",
+            file=sys.stderr,
+        )
+    return amount
 
 
 def _lcd_get_json(url: str) -> dict[str, Any]:
@@ -738,6 +806,7 @@ async def main_async_limit_only(replica_idx: int) -> None:
 
 async def main_async_single(bot_type: str, replica_idx: int) -> None:
     """Run one worker process (used by launch-swarm.sh)."""
+    _warn_low_gas_balance(_lcd_base())
     if bot_type == "limit":
         await main_async_limit_only(replica_idx)
         return
@@ -775,6 +844,7 @@ async def main_async_single(bot_type: str, replica_idx: int) -> None:
 
 async def main_async() -> None:
     lcd = _lcd_base()
+    _warn_low_gas_balance(lcd)
     factory = _factory_addr()
     container = _docker_localterra_id()
     mean_base = float(_env("BOTS_MEAN_INTERVAL_SEC", "45") or "45")
@@ -827,6 +897,11 @@ async def main_async() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="LocalTerra Poisson swap + optional limit-order swarm")
     parser.add_argument(
+        "--preflight-gas",
+        action="store_true",
+        help="Query test1 uluna and warn if below ~100k LUNC (GitLab #372); exit 0.",
+    )
+    parser.add_argument(
         "--worker",
         nargs=2,
         metavar=("TYPE", "REPLICA"),
@@ -834,6 +909,9 @@ def main() -> None:
     )
     args = parser.parse_args()
     try:
+        if args.preflight_gas:
+            preflight_gas_balance()
+            return
         if args.worker:
             btype, rid = args.worker[0], int(args.worker[1])
             asyncio.run(main_async_single(btype, rid))

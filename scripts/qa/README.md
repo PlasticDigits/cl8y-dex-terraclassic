@@ -106,7 +106,9 @@ Deploy seeds CW20 **`name`** / **`symbol`** in Phase 2 (`scripts/deploy-dex-loca
 
 | Target              | Purpose                                      |
 | ------------------- | -------------------------------------------- |
-| `make start-qa`     | Full QA bring-up (skips deploy when stamp + LCD probe match HEAD) |
+| `make start-qa`     | Full QA bring-up (skips deploy when stamp + LCD probe match HEAD); runs post-deploy smoke after verify |
+| `QA_SKIP_SMOKE=1 make start-qa` | Skip post-deploy `smoke-pool-swap` (indexer-only debugging) |
+| `make smoke-pool-swap` | Pool LCD smoke using deploy stamp pair ([#368](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/368)) |
 | `make deploy-local-no-build` | Deploy only — wasm artifacts must already exist |
 | `QA_DEPLOY_SEED=minimal\|charts\|wallet\|full` | Lighter **`deploy-dex-local`** seed profiles ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)) |
 | `QA_FETCH_CI_ARTIFACTS=1 make start-qa` | Try GitLab wasm/indexer packages before deploy |

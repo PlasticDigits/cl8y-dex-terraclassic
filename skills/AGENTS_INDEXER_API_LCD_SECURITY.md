@@ -12,6 +12,7 @@ You are changing **LCD-proxied HTTP routes**, **rate limiting**, or **502 error 
 | **H7** | LCD-heavy routes rate-limited separately; prod cannot disable global/heavy limits with `0` | [`api/mod.rs`](../indexer/src/api/mod.rs), [`config.rs`](../indexer/src/config.rs) |
 | **H7b** | Deep `limit-book` / `insert-hints` / price-window ≤ **101** LCD queries per request | [`LIMIT_BOOK_LCD_QUERY_BUDGET`](../indexer/src/api/limit_book_lcd.rs); [integrators.md § #267](../docs/integrators.md#insert-hints-price-window-gitlab-267) |
 | **H7c** | Route `global_v1` documents ≤ **`LCD_HYBRID_SIM_BUDGET`** hybrid sims | [`best_execution.rs`](../indexer/src/api/best_execution.rs) |
+| **H6b** | `GET /api/v1/health/fee-discount` returns only `configured`, `fee_discount_registry_ok`, `consecutive_lcd_failures` — no LCD URLs, upstream bodies, or per-trader registry state ([#373](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/373)) | [`fee_discount_health.rs`](../indexer/src/api/fee_discount_health.rs), [`api_fee_discount_health.rs`](../indexer/tests/api_fee_discount_health.rs) |
 
 Human matrix: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md). Hybrid route behavior: [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md).
 
@@ -34,13 +35,15 @@ Legitimate frontend polling (e.g. deep book, route preview) should stay under **
 | Env | Default (dev) | Prod note |
 |-----|---------------|-----------|
 | `RATE_LIMIT_RPS` | 60 | If set to `0`, prod forces **60** |
-| `RATE_LIMIT_LCD_HEAVY_RPS` | 10 | If set to `0`, prod forces **10** |
+| `RATE_LIMIT_LCD_HEAVY_RPS` | 10 | If set to `0`, prod forces **10** ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)) |
 
 **Dev disable ([#355](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/355)):** `RATE_LIMIT_RPS=0` disables only the **global** layer. LCD-heavy routes stay limited unless **`RATE_LIMIT_LCD_HEAVY_RPS=0`** too. Set **both** to `0` for fully unlimited local QA.
 | `API_IPV6_ENABLED` | off | When off (default), API binds **IPv4-only** and rejects IPv6 `API_BIND` ([#282](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/282)) |
 | `RUN_MODE=prod` | — | Requires operator `LCD_URLS` (no public defaults) |
 
-See [`indexer/.env.example`](../indexer/.env.example).
+See [`indexer/.env.example`](../indexer/.env.example) and [`docs/operator-secrets.md`](../docs/operator-secrets.md) (prod vs QA vs local profiles, GitLab **#363**).
+
+**429 shape:** HTTP **429** with `Retry-After` and `x-ratelimit-*` headers; minimal body. Burst size = `2 × RPS` per governor layer.
 
 ## Tests
 

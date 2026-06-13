@@ -28,6 +28,7 @@ import type {
 } from '@/types'
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://127.0.0.1:3001'
+
 const FETCH_TIMEOUT_MS = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 4_000 : 15_000
 const MAX_RETRIES = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 0 : 1
 
@@ -264,6 +265,15 @@ export async function getPairLimitBookInsertHints(
 /** Get global DEX overview stats. */
 export async function getOverview(): Promise<IndexerOverview> {
   return fetchJson<IndexerOverview>('/api/v1/overview')
+}
+
+/** Cached fee-discount registry LCD probe (GitLab #365). */
+export async function getFeeDiscountHealth(): Promise<{
+  configured: boolean
+  fee_discount_registry_ok: boolean | null
+  consecutive_lcd_failures: number
+}> {
+  return fetchJson('/api/v1/health/fee-discount')
 }
 
 /** Get trader profile. */

@@ -2,6 +2,29 @@ import { tryParseBigInt } from '@/utils/decimalAmountInput'
 import { toRawAmount } from '@/utils/formatAmount'
 
 const BPS_SCALE = 10000n
+const SPREAD_PERCENT_SCALE = 10000n
+
+/** True when `raw` is a positive uint string. */
+export function isPositiveRawAmount(raw: string): boolean {
+  const n = tryParseBigInt(raw)
+  return n !== null && n > 0n
+}
+
+/**
+ * Price-impact style spread % from simulation uint strings: `spread ÷ (return + commission + spread) × 100`.
+ * Uses BigInt only — no `parseFloat` (GitLab #366).
+ */
+export function spreadPercentFromRawSim(returnAmount: string, commissionAmount: string, spreadAmount: string): string {
+  const ret = tryParseBigInt(returnAmount) ?? 0n
+  const comm = tryParseBigInt(commissionAmount) ?? 0n
+  const spread = tryParseBigInt(spreadAmount) ?? 0n
+  const total = ret + comm + spread
+  if (total === 0n) return '0.00'
+  const scaled = (spread * SPREAD_PERCENT_SCALE + total / 2n) / total
+  const intPart = scaled / 100n
+  const frac = scaled % 100n
+  return `${intPart.toString()}.${frac.toString().padStart(2, '0')}`
+}
 
 /** Clamp slippage percent to [0, 100] and convert to basis points (floor-friendly integer). */
 export function slippagePercentToBps(slippagePercent: number): number {

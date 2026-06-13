@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { assertSubmitHybridAligned, assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -51,10 +51,11 @@ import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataSer
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
-import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
+import { isDecimalAmountDraft, isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
+import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
-import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
+import { getFeeDiscountHealth, getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import {
@@ -66,12 +67,18 @@ import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/u
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
+import {
+  FEE_DISCOUNT_REGISTRY_WARNING_TEXT,
+  resolveFeeDiscountRegistryStatus,
+  shouldShowFeeDiscountRegistryWarning,
+} from '@/utils/feeDiscountRegistryWarning'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
   SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
+  parseSlippagePercent,
   resolveRouteSlippagePercent,
   resolveSwapExpectedSlippagePercent,
   slippageSeverityClass,
@@ -123,6 +130,8 @@ export default function SwapPage() {
   const [useHybridBook, setUseHybridBook] = useState(false)
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
+  const debouncedBookInputHuman = useDebouncedValue(bookInputHuman, SIM_QUOTE_DEBOUNCE_MS)
+  const debouncedHybridMaxMakers = useDebouncedValue(hybridMaxMakers, SIM_QUOTE_DEBOUNCE_MS)
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
@@ -167,8 +176,7 @@ export default function SwapPage() {
     if (!isDirect || !useHybridBook || !fromToken.startsWith('terra1')) return false
     const t = bookInputHuman.trim()
     if (!t) return false
-    const n = parseFloat(t)
-    return !Number.isNaN(n) && n > 0
+    return isPositiveDecimalAmount(t)
   }, [isDirect, useHybridBook, fromToken, bookInputHuman])
 
   /** CW20-only paths may be solvable via indexer hybrid graph even when the local pair list BFS misses (e.g. hop cap). */
@@ -257,6 +265,41 @@ export default function SwapPage() {
     enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 15_000,
   })
+
+  const feeDiscountHealthQuery = useQuery({
+    queryKey: ['feeDiscountHealth'],
+    queryFn: getFeeDiscountHealth,
+    enabled: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    retry: false,
+  })
+
+  const feeDiscountRegistryInput = useMemo(
+    () => ({
+      feeDiscountContractConfigured: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+      registration: registrationQuery.data,
+      discount: discountQuery.data,
+      registrationQueryError: registrationQuery.isError,
+      discountQueryError: discountQuery.isError,
+      indexerHealth: feeDiscountHealthQuery.isSuccess ? feeDiscountHealthQuery.data : null,
+    }),
+    [
+      registrationQuery.data,
+      discountQuery.data,
+      registrationQuery.isError,
+      discountQuery.isError,
+      feeDiscountHealthQuery.isSuccess,
+      feeDiscountHealthQuery.data,
+    ]
+  )
+
+  const feeDiscountRegistryStatus = useMemo(
+    () => resolveFeeDiscountRegistryStatus(feeDiscountRegistryInput),
+    [feeDiscountRegistryInput]
+  )
+
+  const showFeeDiscountRegistryWarning = shouldShowFeeDiscountRegistryWarning(feeDiscountRegistryInput)
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, fromToken],
@@ -353,8 +396,8 @@ export default function SwapPage() {
         wrapUnwrapType,
         JSON.stringify(nativeRouteInfo),
         useHybridBook,
-        bookInputHuman,
-        hybridMaxMakers,
+        debouncedBookInputHuman,
+        debouncedHybridMaxMakers,
         slippageTolerance,
         address,
       ] as const,
@@ -366,8 +409,8 @@ export default function SwapPage() {
       wrapUnwrapType,
       nativeRouteInfo,
       useHybridBook,
-      bookInputHuman,
-      hybridMaxMakers,
+      debouncedBookInputHuman,
+      debouncedHybridMaxMakers,
       slippageTolerance,
       address,
     ]
@@ -379,7 +422,7 @@ export default function SwapPage() {
     queryKey: simQueryKey,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<SwapSimData> => {
-      if (!debouncedInputAmount || parseFloat(debouncedInputAmount) <= 0) throw new Error('Missing params')
+      if (!isPositiveDecimalAmount(debouncedInputAmount)) throw new Error('Missing params')
 
       const simRaw = debouncedRawInputAmount
       const maxSpreadStr = (slippageTolerance / 100).toString()
@@ -427,12 +470,12 @@ export default function SwapPage() {
       if (isDirect && directPair) {
         if (useHybridBook && fromToken.startsWith('terra1')) {
           const payDec = getDecimals(tokenAssetInfo(fromToken))
-          const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
+          const bookRaw = debouncedBookInputHuman.trim() ? toRawAmount(debouncedBookInputHuman.trim(), payDec) : '0'
           const total = BigInt(simRaw)
           const book = BigInt(bookRaw)
           if (book > 0n) {
             if (book > total) throw new Error('Book leg cannot exceed pay amount')
-            if (hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
+            if (debouncedHybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
             const pool = total - book
             try {
               const idx = await postRouteSolve(
@@ -443,7 +486,7 @@ export default function SwapPage() {
                   {
                     pool_input: pool.toString(),
                     book_input: book.toString(),
-                    max_maker_fills: hybridMaxMakers,
+                    max_maker_fills: debouncedHybridMaxMakers,
                     book_start_hint: null,
                   },
                 ],
@@ -477,7 +520,7 @@ export default function SwapPage() {
       if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && simRaw !== '0') {
         try {
           const idx = await getRouteSolve(fromToken, toToken, simRaw, {
-            maxMakerFills: hybridMaxMakers,
+            maxMakerFills: debouncedHybridMaxMakers,
             trader: quoteTrader?.trader,
           })
           const tin = idx.token_in.trim().toLowerCase()
@@ -521,9 +564,9 @@ export default function SwapPage() {
           isDirect: true,
           useHybridBook,
           fromToken,
-          bookInputHuman,
+          bookInputHuman: debouncedBookInputHuman,
           rawInputAmount: simRaw,
-          hybridMaxMakers,
+          hybridMaxMakers: debouncedHybridMaxMakers,
         })
         return withIndexerOutageFlag({
           ...r,
@@ -544,7 +587,7 @@ export default function SwapPage() {
       }
       throw new Error('No route found')
     },
-    enabled: hasRoute && !!debouncedInputAmount && parseFloat(debouncedInputAmount) > 0,
+    enabled: hasRoute && isPositiveDecimalAmount(debouncedInputAmount),
     refetchInterval: 10_000,
   })
 
@@ -587,16 +630,59 @@ export default function SwapPage() {
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
+  const hybridSubmitSnapshot = useMemo(
+    () => ({
+      bookInputHuman: debouncedBookInputHuman,
+      hybridMaxMakers: debouncedHybridMaxMakers,
+    }),
+    [debouncedBookInputHuman, debouncedHybridMaxMakers]
+  )
+
+  /** Book leg stale gate only applies on direct pairs — multi-hop quotes ignore bookInputHuman (#360). */
+  const hybridStaleLive = useMemo(
+    () => ({
+      bookInputHuman: isDirect ? bookInputHuman : debouncedBookInputHuman,
+      hybridMaxMakers,
+    }),
+    [isDirect, bookInputHuman, debouncedBookInputHuman, hybridMaxMakers]
+  )
+
+  const submitDirectHybrid = useMemo(() => {
+    const split = getDirectHybridBookSplit({
+      isDirect,
+      useHybridBook,
+      fromToken,
+      bookInputHuman: debouncedBookInputHuman,
+      rawInputAmount: debouncedRawInputAmount,
+      hybridMaxMakers: debouncedHybridMaxMakers,
+    })
+    if (!split?.willSubmitHybrid) return undefined
+    return {
+      pool_input: split.poolRaw,
+      book_input: split.bookRaw,
+      max_maker_fills: debouncedHybridMaxMakers,
+      book_start_hint: null,
+    } satisfies HybridSwapParams
+  }, [isDirect, useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers])
+
   const {
     submitPayRaw,
     simData,
     minReceived,
     isQuoteStale: simQuoteStale,
+    snapshottedHybrid,
   } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
     simQuery,
     slippageTolerance,
+    hybrid: useHybridBook
+      ? {
+          enabled: true,
+          live: hybridStaleLive,
+          snapshotted: hybridSubmitSnapshot,
+        }
+      : undefined,
   })
 
   const swapMutation = useTerraBroadcastMutation({
@@ -604,6 +690,9 @@ export default function SwapPage() {
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
+      if (snapshottedHybrid) {
+        assertSubmitHybridAligned(hybridStaleLive, snapshottedHybrid)
+      }
       if (!simData) throw new Error('Quote unavailable')
       const payRaw = submitPayRaw
       const submitMinReceived = minReceived
@@ -649,22 +738,8 @@ export default function SwapPage() {
 
       if (isDirect && directPair) {
         let hybrid: HybridSwapParams | undefined = hybridFromSingleHopIndexerOps(idxOps)
-        if (!hybrid && useHybridBook && fromToken.startsWith('terra1')) {
-          const payDec = getDecimals(tokenAssetInfo(fromToken))
-          const bookRaw = bookInputHuman.trim() ? toRawAmount(bookInputHuman.trim(), payDec) : '0'
-          const total = BigInt(payRaw)
-          const book = BigInt(bookRaw)
-          if (book > total) throw new Error('Book leg cannot exceed pay amount')
-          if (book > 0n && hybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
-          if (book > 0n) {
-            const pool = total - book
-            hybrid = {
-              pool_input: pool.toString(),
-              book_input: book.toString(),
-              max_maker_fills: hybridMaxMakers,
-              book_start_hint: null,
-            }
-          }
+        if (!hybrid && submitDirectHybrid) {
+          hybrid = submitDirectHybrid
         }
         if (hybrid) {
           hybrid = hybridParamsWithSubmitCap(hybrid)
@@ -713,16 +788,13 @@ export default function SwapPage() {
   })
 
   const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
+  const hasPositiveInputAmount = isPositiveDecimalAmount(inputAmount)
   const simQuoteUnavailable =
-    !isWrapOrUnwrap &&
-    !!inputAmount &&
-    parseFloat(inputAmount) > 0 &&
-    (simQuery.isError || (!simQuery.isLoading && !simData))
+    !isWrapOrUnwrap && hasPositiveInputAmount && (simQuery.isError || (!simQuery.isLoading && !simData))
   const showSimRetryError =
     simQuery.isError &&
     !isWrapOrUnwrap &&
-    !!inputAmount &&
-    parseFloat(inputAmount) > 0 &&
+    hasPositiveInputAmount &&
     !indexerOutage &&
     !isIndexerPairNotFoundError(simQuery.error)
 
@@ -732,14 +804,7 @@ export default function SwapPage() {
   const hopSpreadPercent = simData
     ? simData.routePreflight != null
       ? simData.routePreflight.worstSpreadPercent
-      : (() => {
-          const total =
-            parseFloat(simData.return_amount) +
-            parseFloat(simData.commission_amount) +
-            parseFloat(simData.spread_amount)
-          if (total === 0) return '0'
-          return ((parseFloat(simData.spread_amount) / total) * 100).toFixed(2)
-        })()
+      : spreadPercentFromRawSim(simData.return_amount, simData.commission_amount, simData.spread_amount)
     : null
 
   const expectedSlippagePct = simData
@@ -759,11 +824,11 @@ export default function SwapPage() {
         isDirect,
         useHybridBook,
         fromToken,
-        bookInputHuman,
-        rawInputAmount,
-        hybridMaxMakers,
+        bookInputHuman: debouncedBookInputHuman,
+        rawInputAmount: debouncedRawInputAmount,
+        hybridMaxMakers: debouncedHybridMaxMakers,
       }),
-    [isDirect, useHybridBook, fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers]
+    [isDirect, useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
   )
 
   const indexerHybridExec = useMemo(
@@ -815,10 +880,7 @@ export default function SwapPage() {
   const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
 
   const insufficientBalance =
-    !!inputAmount &&
-    parseFloat(inputAmount) > 0 &&
-    balanceQuery.data !== undefined &&
-    BigInt(rawInputAmount) > BigInt(balanceQuery.data)
+    hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
 
   let buttonText = 'Swap'
   let buttonDisabled = false
@@ -834,7 +896,7 @@ export default function SwapPage() {
   } else if (tradingBlacklist.blocked) {
     buttonText = 'Trading restricted'
     buttonDisabled = true
-  } else if (!inputAmount || isNaN(parseFloat(inputAmount)) || parseFloat(inputAmount) <= 0) {
+  } else if (!hasPositiveInputAmount) {
     buttonText = 'Enter Amount'
     buttonDisabled = true
   } else if (isRateLimitExceeded) {
@@ -939,6 +1001,12 @@ export default function SwapPage() {
             />
           )}
 
+          {showFeeDiscountRegistryWarning && (
+            <div className="alert-warning text-sm mb-4" role="status" data-testid="swap-fee-discount-registry-warning">
+              {FEE_DISCOUNT_REGISTRY_WARNING_TEXT}
+            </div>
+          )}
+
           {showSimRetryError && (
             <RetryError
               data-testid="swap-quote-retry-error"
@@ -948,7 +1016,7 @@ export default function SwapPage() {
             />
           )}
 
-          {simQuery.isError && indexerOutage && !isWrapOrUnwrap && !!inputAmount && parseFloat(inputAmount) > 0 && (
+          {simQuery.isError && indexerOutage && !isWrapOrUnwrap && hasPositiveInputAmount && (
             <p className="alert-error text-xs mb-4" data-testid="swap-quote-unavailable">
               {humanizeUserFacingErrorFromUnknown(simQuery.error)}
             </p>
@@ -1353,7 +1421,7 @@ export default function SwapPage() {
                   />
                 </div>
               )}
-              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && !registrationQuery.data?.registered && (
+              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && feeDiscountRegistryStatus === 'unregistered' && (
                 <div
                   className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
                   style={{
@@ -1415,14 +1483,16 @@ export default function SwapPage() {
                     data-testid="swap-expected-slippage"
                   >
                     <span className="uppercase text-xs tracking-wide font-medium">Expected slippage</span>
-                    <span className={slippageSeverityClass(parseFloat(priceImpact))}>{priceImpact}%</span>
+                    <span className={slippageSeverityClass(parseSlippagePercent(priceImpact) ?? 0)}>
+                      {priceImpact}%
+                    </span>
                   </div>
                   {simData?.routeSlippagePercent && (
                     <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
                       vs best-route token prices (indexer). Hop spread: {hopSpreadPercent ?? '—'}%.
                     </p>
                   )}
-                  {parseFloat(priceImpact) > 5 && (
+                  {(parseSlippagePercent(priceImpact) ?? 0) > 5 && (
                     <div className="col-span-2 alert-error !text-xs">
                       High expected slippage! The quoted route deviates significantly from fair cross-rate token prices.
                     </div>
@@ -1563,7 +1633,7 @@ export default function SwapPage() {
                 openWalletModal()
                 return
               }
-              if (priceImpact && parseFloat(priceImpact) > 5 && !showImpactConfirm) {
+              if (priceImpact && (parseSlippagePercent(priceImpact) ?? 0) > 5 && !showImpactConfirm) {
                 setShowImpactConfirm(true)
                 return
               }

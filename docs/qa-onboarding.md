@@ -119,6 +119,10 @@ page — you should see populated candles for all intervals including 1w.
 > address, so they are easy to distinguish from real on-chain activity. The
 > `--clean` flag removes only seeded data; real swap events are preserved.
 
+### Simulated Wallet and Python QA swarm share `test1`
+
+LocalTerra uses one well-known dev account everywhere: keyring name **`test1`**, address `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v`, same mnemonic as the frontend **Simulated Wallet** and Playwright E2E. The Python QA swarm (`make swarm-local` / `make swarm-launch`) also broadcasts from **`test1`** — there is no separate bot funding wallet. Genesis and deploy seeds were raised **10×** so a full QA day with swarm volume does not exhaust LUNC gas ([#372](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/372)); after genesis changes run **`make reset`** before redeploy.
+
 ### Useful Makefile commands
 
 | Command           | Description                                     |
@@ -143,7 +147,7 @@ For Yield Omega DEX QA on a shared server, see [`scripts/qa/README.md`](../scrip
 1. Connect wallet
 2. Select input/output tokens from the dropdown
 3. Enter an amount — verify the estimated output updates
-4. Click Swap — confirm the transaction in your wallet (**Keplr** or **dev/simulated wallet** on LocalTerra; **Station** on columbus-5 only — [#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235))
+4. Click Swap — confirm the transaction in your wallet (**Keplr** or **dev/simulated wallet** on LocalTerra; **Station** on columbus-5 only — [#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)). On LocalTerra, the **Simulated Wallet** and the Python QA swarm (`make swarm-launch`) both spend from the same **`test1`** account — if swaps fail with insufficient gas after long swarm runs, run **`make reset-qa`** (GitLab #372).
 5. Verify balances updated correctly
 6. Verify the fee was deducted (check treasury balance or tx events)
 
