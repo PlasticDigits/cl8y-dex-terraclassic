@@ -127,8 +127,46 @@ Governance on the **factory** can block protocol interaction without bricking un
 | UpdateHooks          | Factory only             |
 | SetDiscountRegistry  | Factory only             |
 
+## Off-chain trust boundaries (frontend / indexer)
+
+On-chain contracts enforce swap safety (whitelist, max spread, slippage min-return, pause). **Off-chain services can still mislead users** into signing transactions that are valid on-chain but economically harmful. Remediation tracked in GitLab [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) / [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378).
+
+### Indexer route quotes (H-04)
+
+The dApp **trusts the configured indexer** for multi-hop `router_operations` after JSON parsing and per-hop factory LCD `getPair()` preflight ([`swapRoutePreflight.ts`](../frontend-dapp/src/services/terraclassic/swapRoutePreflight.ts)). It does **not** re-derive routes client-side (RPC/LCD rate limits).
+
+| Risk | Mitigation |
+|------|------------|
+| MITM on indexer HTTP | Deploy **`VITE_INDEXER_URL` over HTTPS only**; terminate TLS at your edge; pin or monitor cert changes. |
+| Compromised indexer | Malicious but **valid** pools can appear in routes; user sees hop summary at confirmation (`data-testid="swap-route-summary"`). Operators must run a trusted indexer or accept quote risk. |
+| Stale / wrong indexer env | Pin factory/router in build env; verify on [`/protocol`](../frontend-dapp/src/pages/ProtocolPage.tsx) (audit surface only). Optional LCD check: `VITE_VERIFY_DEPLOY_ADDRESSES=true` + [`deployAddressVerification.ts`](../frontend-dapp/src/utils/deployAddressVerification.ts). |
+
+**Out of scope:** client-side BFS route fallback or on-chain hop graph cross-check in the browser.
+
+### Build-time secrets and addresses
+
+| Finding | Guard |
+|---------|--------|
+| Dev mnemonic inlined (H-05) | `vite build` fails when `VITE_DEV_MNEMONIC` is set outside `mode=development`, unless `VITE_ALLOW_DEV_MNEMONIC=local-only`. |
+| Shared WalletConnect ID (M-10) | Production `vite build` requires `VITE_WC_PROJECT_ID`; no shared default in production bundles. |
+| Wrong factory/router (M-08) | Set `VITE_FACTORY_ADDRESS` / `VITE_ROUTER_ADDRESS` per network; display on `/protocol` only. |
+
+### Token metadata (M-09)
+
+Indexer `logo_url` and symbols are **display hints**, not on-chain truth. Remote logos are allowlisted by hostname in [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts); untrusted URLs fall back to blockies. **Indexer token listing** (`assets.logo_url`) should be updated only after **human review** — see [`operator-secrets.md`](./operator-secrets.md) and [`indexer-invariants.md`](./indexer-invariants.md).
+
+### Expert mode (M-15)
+
+Retail swaps block above **30%** expected route slippage unless Expert Mode is enabled (typed confirmation `ENABLE EXPERT MODE`). Settings slippage tolerance remains capped at **50%** for expert users. Thresholds unchanged — friction added at enable only.
+
+### Content Security Policy (M-07)
+
+Production builds emit a **narrow `connect-src`** (LCD, RPC, indexer, WalletConnect relays) — no blanket `https:`. Vite dev server keeps a broader policy for HMR. Bootstrap scripts live under `/bootstrap/*.js` so production `script-src` is `'self'` only. See [`docs/frontend.md` § Trust boundaries](./frontend.md#frontend-trust-boundaries).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md).
+
 ## Audit Status
 
 Contracts have not yet been formally audited. A third-party audit is recommended before mainnet deployment with significant TVL.
 
-For an **in-repo** invariant matrix, trust assumptions, and mapping to automated tests, see [contracts-security-audit.md](./contracts-security-audit.md).
+For an **in-repo** invariant matrix, trust assumptions, and mapping to automated tests, see [contracts-security-audit.md](./contracts-security-audit.md). **Frontend / indexer off-chain trust** (remediation [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) / [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)): [security-model.md § Off-chain trust boundaries](./security-model.md#off-chain-trust-boundaries-frontend--indexer).
