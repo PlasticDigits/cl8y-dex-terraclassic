@@ -79,6 +79,14 @@ impl From<db_orderbook_sim::DbSimError> for HybridSimError {
     }
 }
 
+/// Path-local mirror sim failures that should skip a candidate, not fail the whole request (#369).
+pub fn is_unviable_path_sim_err(e: &HybridSimError) -> bool {
+    matches!(
+        e,
+        HybridSimError::Db(db_orderbook_sim::DbSimError::InsufficientLiquidity)
+    )
+}
+
 #[derive(Deserialize)]
 struct HybridSimResp {
     return_amount: String,

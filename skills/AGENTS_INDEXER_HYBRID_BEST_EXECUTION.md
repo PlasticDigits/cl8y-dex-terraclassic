@@ -47,6 +47,8 @@ Full spec: [docs/CG_CMC_COMPLIANCE.md](../docs/CG_CMC_COMPLIANCE.md#consolidated
 cd indexer && cargo test --test api_route_solve --test api_route_solve_db_hybrid --test db_orderbook_mirror -- --test-threads=1
 ```
 
+`route_solve_db_hybrid_skips_zero_reserve_path_candidate` covers [#369](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/369).
+
 Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route_solve_global_response_metadata_contract`.
 
 ## Rate limits and LCD budgets ([#239](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/239))
@@ -62,6 +64,12 @@ When `solver_version` is **`global_v2`** and a hop has `book_input > 0` with a *
 Side safety: hint rows must match bid/ask for the offer token; corrupt wrong-side mirror rows are skipped. On-chain **L17** ([#272](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) still validates at execute — see [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md).
 
 Regression: `route_solve_db_hybrid_book_start_hint_paths` in `indexer/tests/api_route_solve_db_hybrid.rs`.
+
+## Zero-reserve path candidates ([#369](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/369))
+
+Under `global_v2` / `global_v4`, a candidate path whose mirror sim hits **zero pool reserves** on any hop is **skipped** (not a request-level **502**). The solver picks the best remaining viable path — e.g. a direct pool when a multi-hop alternate touches an unfunded pair.
+
+Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`.
 
 ## Related invariants
 

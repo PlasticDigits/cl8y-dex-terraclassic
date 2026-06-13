@@ -231,3 +231,83 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         }
     }
 }
+
+async fn upsert_pair_reserves(
+    pool: &sqlx::PgPool,
+    contract: &str,
+    reserve_0: &str,
+    reserve_1: &str,
+) {
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+    let pair_id: i32 = sqlx::query_scalar("SELECT id FROM pairs WHERE contract_address = $1")
+        .bind(contract)
+        .fetch_one(pool)
+        .await
+        .expect("pair id");
+    pair_reserves::upsert_pair_reserves(
+        pool,
+        pair_id,
+        &bd(reserve_0),
+        &bd(reserve_1),
+        30,
+        Some(100),
+    )
+    .await
+    .expect("upsert reserves");
+}
+
+/// GitLab #369: zero-reserve pairs on an alternate path must not 502 when a direct route exists.
+#[serial]
+#[tokio::test]
+async fn route_solve_db_hybrid_skips_zero_reserve_path_candidate() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_multi_path(&pool).await;
+    upsert_pair_reserves(
+        &pool,
+        "terra1pairroutempac",
+        "10000000000000",
+        "10000000000000",
+    )
+    .await;
+    upsert_pair_reserves(
+        &pool,
+        "terra1pairroutempab",
+        "10000000000000",
+        "10000000000000",
+    )
+    .await;
+    upsert_pair_reserves(&pool, "terra1pairroutempbc", "0", "0").await;
+
+    let (mock, _) = lcd_mock::start_router_only_route_mock("5000000").await;
+    let app =
+        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let server = TestServer::new(app);
+
+    for path in ["/api/v1/route/solve", "/api/v1/route/solve/best"] {
+        let url = format!(
+            "{path}?token_in={}&token_out={}&amount_in=1000000",
+            seed.token_a, seed.token_c
+        );
+        let resp = server.get(&url).await;
+        resp.assert_status_ok();
+        let j: Value = resp.json();
+        assert_eq!(j["solver_version"], "global_v4");
+        assert_eq!(
+            j["hops"].as_array().unwrap().len(),
+            1,
+            "direct A→C path must win; got hops={:?} notes={:?}",
+            j["hops"],
+            j["hybrid_notes"]
+        );
+        assert!(
+            j["estimated_amount_out"]
+                .as_str()
+                .unwrap_or("0")
+                .parse::<u128>()
+                .unwrap_or(0)
+                > 0,
+            "expected non-zero quote: {j:?}"
+        );
+        assert_ne!(j["quote_kind"], "indexer_route_only");
+    }
+}
