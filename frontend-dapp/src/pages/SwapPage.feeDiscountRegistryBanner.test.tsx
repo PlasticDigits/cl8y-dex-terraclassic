@@ -149,7 +149,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
-    const banner = await screen.findByTestId('fee-discount-registry-warning')
+    const banner = await screen.findByTestId('swap-fee-discount-registry-warning')
     expect(banner).toHaveTextContent(FEE_DISCOUNT_REGISTRY_WARNING_TEXT)
     // Non-blocking: submit remains enabled while the warning is shown.
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
@@ -168,7 +168,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
-    expect(await screen.findByTestId('fee-discount-registry-warning')).toHaveTextContent(
+    expect(await screen.findByTestId('swap-fee-discount-registry-warning')).toHaveTextContent(
       FEE_DISCOUNT_REGISTRY_WARNING_TEXT
     )
   })
@@ -186,7 +186,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-    expect(screen.queryByTestId('fee-discount-registry-warning')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
   })
 
   it('does not show the warning for an unregistered trader on a healthy registry', async () => {
@@ -203,6 +203,6 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-    expect(screen.queryByTestId('fee-discount-registry-warning')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
   })
 })
