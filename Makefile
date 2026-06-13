@@ -216,7 +216,7 @@ verify-issue-369:
 
 # GitLab #365 / #375 — registry outage docs regression (contract P5 + indexer health + frontend warning).
 verify-issue-365:
-	@chmod +x scripts/qa/verify-issue-365.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	@chmod +x scripts/qa/verify-issue-365.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-365.sh
 
 help:
