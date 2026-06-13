@@ -18,11 +18,6 @@ import {
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
-import { getFeeDiscountHealth } from '@/services/indexer/client'
-import {
-  FEE_DISCOUNT_REGISTRY_WARNING_TEXT,
-  shouldShowFeeDiscountRegistryWarning,
-} from '@/utils/feeDiscountRegistryWarning'
 import {
   findRoute,
   getAllTokens,
@@ -60,7 +55,7 @@ import { isDecimalAmountDraft, isPositiveDecimalAmount } from '@/utils/decimalAm
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
-import { getRouteSolve, postRouteSolve } from '@/services/indexer/client'
+import { getFeeDiscountHealth, getRouteSolve, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import {
@@ -72,6 +67,11 @@ import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/u
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
+import {
+  FEE_DISCOUNT_REGISTRY_WARNING_TEXT,
+  resolveFeeDiscountRegistryStatus,
+  shouldShowFeeDiscountRegistryWarning,
+} from '@/utils/feeDiscountRegistryWarning'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
@@ -267,21 +267,39 @@ export default function SwapPage() {
   })
 
   const feeDiscountHealthQuery = useQuery({
-    queryKey: ['feeDiscountRegistryHealth'],
+    queryKey: ['feeDiscountHealth'],
     queryFn: getFeeDiscountHealth,
     enabled: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 30_000,
+    refetchInterval: 30_000,
     retry: false,
   })
 
-  const showFeeDiscountRegistryWarning = shouldShowFeeDiscountRegistryWarning({
-    feeDiscountContractConfigured: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
-    registration: registrationQuery.data,
-    discount: discountQuery.data,
-    registrationQueryError: registrationQuery.isError,
-    discountQueryError: discountQuery.isError,
-    indexerHealth: feeDiscountHealthQuery.data,
-  })
+  const feeDiscountRegistryInput = useMemo(
+    () => ({
+      feeDiscountContractConfigured: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+      registration: registrationQuery.data,
+      discount: discountQuery.data,
+      registrationQueryError: registrationQuery.isError,
+      discountQueryError: discountQuery.isError,
+      indexerHealth: feeDiscountHealthQuery.isSuccess ? feeDiscountHealthQuery.data : null,
+    }),
+    [
+      registrationQuery.data,
+      discountQuery.data,
+      registrationQuery.isError,
+      discountQuery.isError,
+      feeDiscountHealthQuery.isSuccess,
+      feeDiscountHealthQuery.data,
+    ]
+  )
+
+  const feeDiscountRegistryStatus = useMemo(
+    () => resolveFeeDiscountRegistryStatus(feeDiscountRegistryInput),
+    [feeDiscountRegistryInput]
+  )
+
+  const showFeeDiscountRegistryWarning = shouldShowFeeDiscountRegistryWarning(feeDiscountRegistryInput)
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, fromToken],
@@ -974,6 +992,12 @@ export default function SwapPage() {
             />
           )}
 
+          {showFeeDiscountRegistryWarning && (
+            <div className="alert-warning text-sm mb-4" role="status" data-testid="swap-fee-discount-registry-warning">
+              {FEE_DISCOUNT_REGISTRY_WARNING_TEXT}
+            </div>
+          )}
+
           {showSimRetryError && (
             <RetryError
               data-testid="swap-quote-retry-error"
@@ -1388,36 +1412,20 @@ export default function SwapPage() {
                   />
                 </div>
               )}
-              {showFeeDiscountRegistryWarning && (
+              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && feeDiscountRegistryStatus === 'unregistered' && (
                 <div
-                  data-testid="fee-discount-registry-warning"
                   className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
                   style={{
-                    borderColor: 'color-mix(in srgb, var(--color-warning, #f59e0b) 45%, transparent)',
-                    background: 'color-mix(in srgb, var(--color-warning, #f59e0b) 8%, transparent)',
-                    color: 'var(--color-warning, #f59e0b)',
+                    borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
+                    background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
+                    color: 'var(--cyan)',
                   }}
                 >
-                  {FEE_DISCOUNT_REGISTRY_WARNING_TEXT}
+                  <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
+                    Hold CL8Y to reduce swap fees &rarr;
+                  </a>
                 </div>
               )}
-              {address &&
-                FEE_DISCOUNT_CONTRACT_ADDRESS &&
-                !registrationQuery.data?.registered &&
-                !showFeeDiscountRegistryWarning && (
-                  <div
-                    className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
-                    style={{
-                      borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
-                      background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
-                      color: 'var(--cyan)',
-                    }}
-                  >
-                    <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
-                      Hold CL8Y to reduce swap fees &rarr;
-                    </a>
-                  </div>
-                )}
               {swapRouteLine && (
                 <div
                   data-testid="swap-route-summary"

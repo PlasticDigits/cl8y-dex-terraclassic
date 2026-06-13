@@ -52,6 +52,14 @@ vi.mock('@/services/terraclassic/feeDiscount', () => ({
   getRegistration: vi.fn().mockResolvedValue({ registered: false }),
 }))
 
+vi.mock('@/utils/constants', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/constants')>()
+  return {
+    ...actual,
+    FEE_DISCOUNT_CONTRACT_ADDRESS: 'terra1feediscount',
+  }
+})
+
 vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
   preflightSwapRouteSpread: vi.fn().mockResolvedValue({
     worstSpreadPercent: '0.50',
@@ -88,7 +96,9 @@ import { simulateSwap } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
+import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import { FEE_DISCOUNT_REGISTRY_WARNING_TEXT } from '@/utils/feeDiscountRegistryWarning'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 
 describe('SwapPage', () => {
@@ -103,6 +113,12 @@ describe('SwapPage', () => {
       configured: true,
       fee_discount_registry_ok: true,
       consecutive_lcd_failures: 0,
+    })
+    vi.mocked(getRegistration).mockResolvedValue({ registered: false, tier_id: null, tier: null })
+    vi.mocked(getTraderDiscount).mockResolvedValue({
+      discount_bps: 0,
+      needs_deregister: false,
+      registration_epoch: null,
     })
   })
 
@@ -663,6 +679,98 @@ describe('SwapPage', () => {
 
       await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+    })
+  })
+
+  describe('fee-discount registry outage warning (GitLab #374)', () => {
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+
+    async function renderConnectedDirectSwap() {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      const payInput = screen.getByPlaceholderText('0.00')
+      await user.type(payInput, '1')
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), {
+        timeout: 5000,
+      })
+      return { user }
+    }
+
+    it('shows outage warning when registration LCD fails for a registered wallet and keeps swap enabled', async () => {
+      vi.mocked(getRegistration).mockRejectedValue(new Error('LCD unavailable'))
+      vi.mocked(getTraderDiscount).mockResolvedValue({
+        discount_bps: 500,
+        needs_deregister: false,
+        registration_epoch: 1,
+      })
+
+      await renderConnectedDirectSwap()
+
+      expect(await screen.findByTestId('swap-fee-discount-registry-warning')).toHaveTextContent(
+        FEE_DISCOUNT_REGISTRY_WARNING_TEXT
+      )
+      expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled()
+      expect(screen.queryByText(/Hold CL8Y/i)).not.toBeInTheDocument()
+    })
+
+    it('shows Hold CL8Y CTA for unregistered wallet with healthy LCD and hides outage banner', async () => {
+      vi.mocked(getRegistration).mockResolvedValue({ registered: false, tier_id: null, tier: null })
+      vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
+        configured: true,
+        fee_discount_registry_ok: true,
+        consecutive_lcd_failures: 0,
+      })
+
+      await renderConnectedDirectSwap()
+
+      expect(await screen.findByText(/Hold CL8Y/i)).toBeInTheDocument()
+      expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
+    })
+
+    it('shows outage warning when indexer reports registry down even if LCD registration succeeded', async () => {
+      vi.mocked(getRegistration).mockResolvedValue({
+        registered: true,
+        tier_id: 1,
+        tier: { min_cl8y_balance: '0', discount_bps: 500, governance_only: false },
+      })
+      vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
+        configured: true,
+        fee_discount_registry_ok: false,
+        consecutive_lcd_failures: 2,
+      })
+
+      await renderConnectedDirectSwap()
+
+      expect(await screen.findByTestId('swap-fee-discount-registry-warning')).toHaveTextContent(
+        FEE_DISCOUNT_REGISTRY_WARNING_TEXT
+      )
+      expect(screen.queryByText(/Hold CL8Y/i)).not.toBeInTheDocument()
     })
   })
 })
