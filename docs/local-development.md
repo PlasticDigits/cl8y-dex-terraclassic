@@ -67,7 +67,7 @@ docker inspect ghcr.io/plasticdigits/localterra-cl8y:latest --format '{{index .R
 terrad version   # inside container: docker compose exec localterra terrad version
 ```
 
-Copy the `name@sha256:…` value into `docker-compose.yml`, sync [`docker/init-chain.sh`](../docker/init-chain.sh) with the image’s `/usr/local/bin/init-chain.sh` if genesis/CLI changed, then **`make reset`** before redeploy.
+Copy the `name@sha256:…` value into `docker-compose.yml`, sync [`docker/init-chain.sh`](../docker/init-chain.sh) with the image’s `/usr/local/bin/init-chain.sh` if genesis/CLI changed, then **`make reset`** before redeploy. Genesis `test1` balance is **10M LUNC** (GitLab [#372](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/372)); see **LT4** in [`docs/localterra-sdk53.md`](./localterra-sdk53.md).
 
 ```bash
 # Start

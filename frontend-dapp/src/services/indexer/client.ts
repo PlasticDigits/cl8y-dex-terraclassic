@@ -266,6 +266,15 @@ export async function getOverview(): Promise<IndexerOverview> {
   return fetchJson<IndexerOverview>('/api/v1/overview')
 }
 
+/** Cached fee-discount registry LCD probe (GitLab #365). */
+export async function getFeeDiscountHealth(): Promise<{
+  configured: boolean
+  fee_discount_registry_ok: boolean | null
+  consecutive_lcd_failures: number
+}> {
+  return fetchJson('/api/v1/health/fee-discount')
+}
+
 /** Get trader profile. */
 export async function getTrader(address: string): Promise<IndexerTrader> {
   const raw = await fetchJson<unknown>(`/api/v1/traders/${address}`)

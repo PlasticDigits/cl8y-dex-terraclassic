@@ -14,7 +14,7 @@ Use this when adding or extending coverage for hybrid indexing, fee discount on 
 | Fee discount on **book** leg | [#83](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/83) | `limit_order_tests::hybrid_book_fill_uses_taker_discounted_effective_fee_bps` | — |
 | `SwapPage` / router **hybrid message shape** | [#84](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/84) | [`pair.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/pair.test.ts) (direct CW20 `send` → `swap`); [`router.hybrid.test.ts`](../frontend-dapp/src/services/terraclassic/router.hybrid.test.ts) (`execute_swap_operations`); [`routeOperations.test.ts`](../frontend-dapp/src/services/indexer/__tests__/routeOperations.test.ts) (indexer merge) | — |
 | **Pause** blocks swap + limits + cancel UX | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `limit_order_tests::pause_blocks_swap_and_place_cancel_refunds_escrow` (L6); [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) pause banner + disabled limit CTA | E2E: strict specs skip/fail on paused pair via [`hybrid-e2e.ts`](../frontend-dapp/e2e/helpers/hybrid-e2e.ts) |
-| Post-deploy **smoke** | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86) | — | [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) after deploy |
+| Post-deploy **smoke** | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86), [#368](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/368) | `make smoke-pool-swap`; wired in `make start-qa` | [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) + [`scripts/lib/smoke-deploy-env.sh`](../scripts/lib/smoke-deploy-env.sh) |
 | **Stubs / mocks catalog** | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy in [`docs/testing.md`](../docs/testing.md) | Review stub list when adding new test doubles |
 | **Charts** integration (not jsdom-only) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx); reference job **`frontend-charts-integration`** | Local: `make test-charts-integration` — [`docs/testing.md` § Integration Tests (Frontend)](../docs/testing.md#integration-tests-frontend); GitLab [#205](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) |
 | **Charts** real library Vitest | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}`; reference job **`frontend-charts-vitest`** | Local: `make test-frontend-charts`; Ubuntu `canvas` deps in [`docs/testing.md`](../docs/testing.md#real-lightweight-charts-in-vitest-gitlab-211) |
@@ -57,8 +57,8 @@ make test-charts-integration
 # CHARTS_INT_DATABASE_URL=postgres://... VITE_INDEXER_URL=http://127.0.0.1:3001 make test-charts-integration
 
 # Post-deploy smoke (#86) — manual after deploy
-export PAIR_ADDR=terra1... OFFER_TOKEN=terra1...
-./scripts/smoke-pool-swap.sh
+make smoke-pool-swap
+# QA_SKIP_SMOKE=1 make start-qa  # skip smoke during indexer-only debugging
 ```
 
 ## Stub policy (summary)

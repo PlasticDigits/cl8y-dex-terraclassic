@@ -1,11 +1,14 @@
 mod common;
 
+use std::env;
 use std::net::SocketAddr;
 
 use axum::http::{header, HeaderValue, StatusCode};
 use axum_test::TestServer;
 use cl8y_dex_indexer::api::LCD_UPSTREAM_GATEWAY_MSG;
+use cl8y_dex_indexer::config::{Config, RunMode, DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS};
 use serde_json::Value;
+use serial_test::serial;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -377,6 +380,72 @@ async fn lcd_failure_returns_sanitized_502_body() {
     assert!(!body.contains("cosmwasm"), "must not leak LCD path details");
 }
 
+/// GitLab #363: production config path clamps `RATE_LIMIT_LCD_HEAVY_RPS=0` and still enforces 429.
+#[tokio::test]
+#[serial]
+async fn prod_lcd_heavy_rate_limit_enforced_when_env_zero() {
+    for key in [
+        "RUN_MODE",
+        "LCD_URLS",
+        "DATABASE_URL",
+        "FACTORY_ADDRESS",
+        "CORS_ORIGINS",
+        "RATE_LIMIT_RPS",
+        "RATE_LIMIT_LCD_HEAVY_RPS",
+    ] {
+        env::remove_var(key);
+    }
+    env::set_var("RUN_MODE", "prod");
+    env::set_var("LCD_URLS", "https://lcd.example.com");
+    env::set_var("DATABASE_URL", "postgres://localhost/db");
+    env::set_var("FACTORY_ADDRESS", "terra1factory");
+    env::set_var("CORS_ORIGINS", "https://app.example.com");
+    env::set_var("RATE_LIMIT_RPS", "0");
+    env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+
+    let prod_config = Config::from_env().expect("prod config from env");
+    assert_eq!(prod_config.run_mode, RunMode::Prod);
+    assert_eq!(
+        prod_config.rate_limit_lcd_heavy_rps,
+        DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS,
+        "prod must clamp LCD-heavy limit when env is 0"
+    );
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.run_mode = RunMode::Prod;
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = prod_config.rate_limit_lcd_heavy_rps;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    let url = format!(
+        "/api/v1/pairs/{}/order-book-head?side=bid",
+        seed.pair_address
+    );
+    let mut saw_429 = false;
+    for _ in 0..80 {
+        let resp = server.get(&url).await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            assert!(
+                resp.headers()
+                    .get(header::RETRY_AFTER)
+                    .is_some(),
+                "429 should include Retry-After header"
+            );
+            break;
+        }
+    }
+    assert!(
+        saw_429,
+        "prod-clamped LCD-heavy governor should return 429 when env had RATE_LIMIT_LCD_HEAVY_RPS=0"
+    );
+}
+
 #[tokio::test]
 async fn lcd_heavy_route_rate_limit_returns_429() {
     let pool = common::setup_pool().await;
@@ -404,6 +473,43 @@ async fn lcd_heavy_route_rate_limit_returns_429() {
     assert!(
         saw_429,
         "LCD-heavy governor should return 429 even when global RATE_LIMIT_RPS=0"
+    );
+}
+
+/// GitLab #363: prod profile clamps `RATE_LIMIT_LCD_HEAVY_RPS=0` → 10 at config load; HTTP governor must still 429.
+#[tokio::test]
+async fn prod_lcd_heavy_rate_limit_enforced_when_config_clamped() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.run_mode = cl8y_dex_indexer::config::RunMode::Prod;
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = 0;
+    // Integration tests skip Config::from_env; mirror prod clamp (#363) before build_router.
+    if config.run_mode == cl8y_dex_indexer::config::RunMode::Prod && config.rate_limit_lcd_heavy_rps == 0
+    {
+        config.rate_limit_lcd_heavy_rps = 10;
+    }
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    let url = format!(
+        "/api/v1/pairs/{}/order-book-head?side=bid",
+        seed.pair_address
+    );
+    let mut saw_429 = false;
+    for _ in 0..80 {
+        let resp = server.get(&url).await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            break;
+        }
+    }
+    assert!(
+        saw_429,
+        "prod-clamped LCD-heavy governor should return 429 when global RATE_LIMIT_RPS=0 (#363)"
     );
 }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  assertSubmitHybridAligned,
   assertSubmitQuotePayRawAligned,
   buildSubmitAlignedSimPayload,
   isSubmitQuoteStale,
@@ -22,12 +23,62 @@ describe('isSubmitQuoteStale', () => {
   it('is fresh when amounts match, not placeholder, and not fetching', () => {
     expect(isSubmitQuoteStale('100', '100', false, false)).toBe(false)
   })
+
+  it('is stale when live book leg differs from snapshotted book while pay is stable (#360)', () => {
+    expect(
+      isSubmitQuoteStale('100', '100', false, false, {
+        enabled: true,
+        live: { bookInputHuman: '5', hybridMaxMakers: 8 },
+        snapshotted: { bookInputHuman: '2', hybridMaxMakers: 8 },
+      })
+    ).toBe(true)
+  })
+
+  it('is stale when live max makers differs from snapshotted while pay and book are stable (#360)', () => {
+    expect(
+      isSubmitQuoteStale('100', '100', false, false, {
+        enabled: true,
+        live: { bookInputHuman: '2', hybridMaxMakers: 4 },
+        snapshotted: { bookInputHuman: '2', hybridMaxMakers: 8 },
+      })
+    ).toBe(true)
+  })
+
+  it('is fresh when hybrid snapshotted fields match live (#360)', () => {
+    expect(
+      isSubmitQuoteStale('100', '100', false, false, {
+        enabled: true,
+        live: { bookInputHuman: '2', hybridMaxMakers: 8 },
+        snapshotted: { bookInputHuman: '2', hybridMaxMakers: 8 },
+      })
+    ).toBe(false)
+  })
 })
 
 describe('isSimQuoteStaleForSubmit (legacy alias)', () => {
   it('defaults isFetching to false for backward compatibility', () => {
     expect(isSimQuoteStaleForSubmit('100', '100', false)).toBe(false)
     expect(isSimQuoteStaleForSubmit('100', '100', false, true)).toBe(true)
+  })
+})
+
+describe('assertSubmitHybridAligned', () => {
+  it('passes when book leg and max makers match snapshotted values', () => {
+    expect(() =>
+      assertSubmitHybridAligned(
+        { bookInputHuman: '2', hybridMaxMakers: 8 },
+        { bookInputHuman: '2', hybridMaxMakers: 8 }
+      )
+    ).not.toThrow()
+  })
+
+  it('throws when book leg differs from snapshotted values', () => {
+    expect(() =>
+      assertSubmitHybridAligned(
+        { bookInputHuman: '5', hybridMaxMakers: 8 },
+        { bookInputHuman: '2', hybridMaxMakers: 8 }
+      )
+    ).toThrow(/still updating/i)
   })
 })
 

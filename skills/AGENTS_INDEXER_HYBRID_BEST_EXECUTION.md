@@ -41,6 +41,15 @@ Key invariant: **`return_amount` is the consolidated total**; do not add `limit_
 
 Full spec: [docs/CG_CMC_COMPLIANCE.md](../docs/CG_CMC_COMPLIANCE.md#consolidated-hybrid--pool-only-reporting-gitlab-189).
 
+## Zero-reserve pairs (GitLab #369)
+
+Under `ROUTE_SOLVER_DB_HYBRID=1`, indexed pairs with **zero** `pair_reserves` on either side are normal (unfunded `create_pair`). The global solver must **not** return **502** when a longer candidate path touches such a pair but a **shorter funded path** exists (e.g. direct pool). Behavior:
+
+- Mirror load marks `0/0` reserves as `EmptyPool` freshness → per-hop LCD fallback (same degradation bucket as missing mirror).
+- Path candidates that cannot simulate any hop (zero pool + no viable book) are **skipped**; the request succeeds on the best remaining path or **404** when every enumerated path is unusable.
+
+Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`.
+
 ## Tests to run after changes
 
 ```bash
@@ -62,6 +71,12 @@ When `solver_version` is **`global_v2`** and a hop has `book_input > 0` with a *
 Side safety: hint rows must match bid/ask for the offer token; corrupt wrong-side mirror rows are skipped. On-chain **L17** ([#272](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) still validates at execute — see [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md).
 
 Regression: `route_solve_db_hybrid_book_start_hint_paths` in `indexer/tests/api_route_solve_db_hybrid.rs`.
+
+## Zero-reserve path candidates ([#369](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/369))
+
+Unfunded pairs (`pair_reserves` with `reserve_0 = reserve_1 = 0`) are normal after `create_pair` until LP is added. Under `ROUTE_SOLVER_DB_HYBRID=1`, a path candidate that includes a zero-reserve hop must be **skipped** during concurrent evaluation — not fail the whole `GET /route/solve` with **502** "Route mirror simulation failed" when a direct pool route is viable.
+
+Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`; `make verify-issue-369`.
 
 ## Related invariants
 

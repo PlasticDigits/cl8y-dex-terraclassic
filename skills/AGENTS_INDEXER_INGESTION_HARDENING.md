@@ -22,8 +22,9 @@ Parent gap analysis: [`gaps/GAP_1780200149.md`](../../gaps/GAP_1780200149.md). H
 | Block ingest | [`indexer/src/indexer/block_indexer.rs`](../../indexer/src/indexer/block_indexer.rs) |
 | LCD pagination | [`indexer/src/lcd/mod.rs`](../../indexer/src/lcd/mod.rs) |
 | Cursor + failed blocks | [`indexer/src/db/queries/state.rs`](../../indexer/src/db/queries/state.rs) |
-| Recovery script | [`scripts/indexer-reorg-recover.sh`](../../scripts/indexer-reorg-recover.sh) |
-| Tests | [`indexer/tests/indexer_ingestion_hardening.rs`](../../indexer/tests/indexer_ingestion_hardening.rs), `lcd/mod.rs` wiremock unit tests |
+| Recovery script | [`scripts/indexer-reorg-recover.sh`](../../scripts/indexer-reorg-recover.sh) (`make indexer-reorg-recover HEIGHT=H [APPLY=1] [CLEANUP=1]`) |
+| Reorg alerting | [`indexer/src/indexer/reorg_alert.rs`](../../indexer/src/indexer/reorg_alert.rs) — `INDEXER_REORG_HALT` + optional `REORG_ALERT_WEBHOOK_URL` |
+| Tests | [`indexer/tests/indexer_ingestion_hardening.rs`](../../indexer/tests/indexer_ingestion_hardening.rs), [`reorg_alert_webhook.rs`](../../indexer/tests/reorg_alert_webhook.rs), `scripts/test-indexer-reorg-recover.sh` |
 
 ## Tests
 
@@ -49,18 +50,19 @@ cd indexer && cargo test --test indexer_ingestion_hardening -j 1 -- --test-threa
 
 If host `psql` to `127.0.0.1:5432` hangs (Docker pg_hba), run the test binary from the postgres network namespace — see [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md).
 
-## Operator recovery (#362)
+## Operator recovery
 
-Reorg halt emits structured `indexer_reorg_halt` (target `indexer::reorg_alert`); optional `REORG_ALERT_WEBHOOK_URL` POST.
+On reorg halt, logs emit `event=indexer_reorg_halt` with `recovery_command`. Optional webhook via `REORG_ALERT_WEBHOOK_URL` (GitLab **#362**).
 
 ```bash
-./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT              # dry-run + row-impact preview
-./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT --apply
-./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT --cleanup-derived --apply  # deep/shallow with derived DELETE
-make indexer-reorg-recover HEIGHT=FORK_HEIGHT
-make indexer-reorg-recover HEIGHT=FORK_HEIGHT APPLY=1 CLEANUP_DERIVED=1
+make indexer-reorg-recover HEIGHT=FORK_HEIGHT                              # dry-run + row preview
+make indexer-reorg-recover HEIGHT=FORK_HEIGHT CLEANUP=1                      # preview derived deletes
+make indexer-reorg-recover HEIGHT=FORK_HEIGHT CLEANUP=1 APPLY=1              # apply cursor + cleanup
+# or: ./scripts/indexer-reorg-recover.sh --height FORK_HEIGHT [--cleanup-derived] [--apply]
 # restart indexer
 ```
+
+On halt, grep `INDEXER_REORG_HALT` or configure `REORG_ALERT_WEBHOOK_URL` (GitLab #362). Shallow vs deep reorg: [`docs/runbooks/indexer-reorg-replay-dedup.md`](../docs/runbooks/indexer-reorg-replay-dedup.md).
 
 Query failed blocks: `SELECT * FROM indexer_failed_blocks ORDER BY height;`
 
