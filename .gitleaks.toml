@@ -20,8 +20,9 @@ paths = [
 description = "Allow Terra Classic addresses, crypto type names, and CI fixtures"
 regexTarget = "secret"
 paths = [
-  # Intentional CI fixture for bip39-like-phrase-frontend-src (GitLab #380).
-  '''scripts/ci/gitleaks-fixture/''',
+  # Single known CI fixture for bip39-like-phrase-frontend-src (GitLab #380).
+  # Do not allowlist the whole fixture tree — verify-gitleaks uses gitleaks-fixture.toml.
+  '''scripts/ci/gitleaks-fixture/frontend-dapp/src/bip39-violation\.ts$''',
   # Rust/npm build outputs (false positives on "private-key" in .rmeta / bundles).
   '''(?:^|/)(?:target|node_modules|dist|coverage)(?:/|$)''',
 ]

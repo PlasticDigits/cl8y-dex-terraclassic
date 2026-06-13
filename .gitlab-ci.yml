@@ -30,6 +30,9 @@ gitleaks:
   image:
     name: $GITLEAKS_IMAGE
     entrypoint: [""]
+  rules:
+    - !reference [.security-rules-default-branch, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     # Working-tree only: git history predates #118 dev-wallet fix (see AGENTS_BUNDLE_DEV_WALLET.md).
     - gitleaks detect --source . --no-git --verbose --config .gitleaks.toml --redact
