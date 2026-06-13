@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
-# Scan git-tracked files only (excludes build artifacts and the known BIP39 fixture file).
+# Scan git-tracked files only (excludes build artifacts; BIP39 fixture phrase allowlisted in .gitleaks.toml).
 # Prevents global build-dir allowlists from bypassing mandatory gitleaks (#380 / M-13).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:v8.24.2}"
 CONFIG="${ROOT}/.gitleaks.toml"
-FIXTURE_FILE="scripts/ci/gitleaks-fixture/frontend-dapp/src/bip39-violation.ts"
 
 stage_tracked_tree() {
   local dest="$1"
   cd "$ROOT"
   while IFS= read -r -d '' path; do
-    [[ "$path" == "$FIXTURE_FILE" ]] && continue
     mkdir -p "${dest}/$(dirname "$path")"
     cp -a "$path" "${dest}/${path}"
   done < <(git -C "$ROOT" ls-files -z)

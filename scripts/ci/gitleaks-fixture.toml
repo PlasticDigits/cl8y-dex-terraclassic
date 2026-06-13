@@ -1,5 +1,5 @@
 # Minimal gitleaks config for CI fixture verification only (GitLab #380).
-# Main pipeline uses ../.gitleaks.toml (only bip39-violation.ts is allowlisted there).
+# Main pipeline uses ../.gitleaks.toml (BIP39 fixture phrase allowlisted via rule regex, not path).
 
 [[rules]]
 id = "bip39-like-phrase-frontend-src"

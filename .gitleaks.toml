@@ -15,6 +15,10 @@ paths = [
   '''.*\.spec\.ts$''',
   '''.*\.spec\.tsx$''',
 ]
+# CI fixture only (scripts/ci/gitleaks-fixture/.../bip39-violation.ts); not a path allowlist.
+regexes = [
+  '''abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about''',
+]
 
 [allowlist]
 description = "Allow Terra Classic addresses, crypto type names, and app-specific non-secrets"
