@@ -48,19 +48,20 @@ describe('vite.config production source maps', () => {
     }
   })
 
-  it('rejects staging build when VITE_DEV_MNEMONIC is set (GitLab #378)', async () => {
-    const prev = process.env.VITE_DEV_MNEMONIC
+  it('rejects staging build when VITE_DEV_MNEMONIC is set without local-only escape (GitLab #378)', async () => {
+    const prevMnemonic = process.env.VITE_DEV_MNEMONIC
+    const prevAllow = process.env.VITE_ALLOW_DEV_MNEMONIC
     process.env.VITE_DEV_MNEMONIC = 'insecure-inline-for-test'
+    delete process.env.VITE_ALLOW_DEV_MNEMONIC
     try {
       await expect(loadConfigFromFile({ command: 'build', mode: 'staging' }, viteConfigPath)).rejects.toThrow(
         /VITE_DEV_MNEMONIC must not be set/
       )
     } finally {
-      if (prev === undefined) {
-        delete process.env.VITE_DEV_MNEMONIC
-      } else {
-        process.env.VITE_DEV_MNEMONIC = prev
-      }
+      if (prevMnemonic === undefined) delete process.env.VITE_DEV_MNEMONIC
+      else process.env.VITE_DEV_MNEMONIC = prevMnemonic
+      if (prevAllow === undefined) delete process.env.VITE_ALLOW_DEV_MNEMONIC
+      else process.env.VITE_ALLOW_DEV_MNEMONIC = prevAllow
     }
   })
 

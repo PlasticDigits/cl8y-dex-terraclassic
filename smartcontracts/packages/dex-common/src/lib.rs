@@ -2,6 +2,7 @@ pub mod blacklist;
 pub mod factory;
 pub mod fee_discount;
 pub mod hook;
+pub mod hook_settlement;
 pub mod limit_clean;
 pub mod limit_placement;
 pub mod max_spread;

@@ -10,6 +10,8 @@ vi.mock('@/utils/constants', async (importOriginal) => {
     ...actual,
     FACTORY_CONTRACT_ADDRESS: 'terra1factory000000000000000000000000001',
     ROUTER_CONTRACT_ADDRESS: 'terra1router00000000000000000000000000001',
+    TERRA_LCD_URL: 'http://localhost:1317',
+    TERRA_RPC_URL: 'http://localhost:26657',
   }
 })
 
@@ -38,5 +40,7 @@ describe('ProtocolPage contract audit surface', () => {
     expect(await screen.findByTestId('protocol-contract-addresses')).toBeInTheDocument()
     expect(screen.getByTestId('protocol-factory-address')).toHaveTextContent('terra1factory000000000000000000000000001')
     expect(screen.getByTestId('protocol-router-address')).toHaveTextContent('terra1router00000000000000000000000000001')
+    expect(screen.getByText('http://localhost:1317')).toBeInTheDocument()
+    expect(screen.getByText('http://localhost:26657')).toBeInTheDocument()
   })
 })

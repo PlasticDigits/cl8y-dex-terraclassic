@@ -9,6 +9,9 @@ This document describes **how to handle secrets** when operating the indexer and
 | `DATABASE_URL` | Postgres connection | Use TLS to the DB provider when available; rotate credentials if leaked. |
 | `LCD_URLS` | Comma-separated LCD endpoints | **Production:** Set `RUN_MODE=prod` and use **operator-controlled** LCD URLs (not the built-in public defaults). Optional API keys if your provider uses them—pass via env or sidecar, not in repo. |
 | `CORS_ORIGINS` | Browser origin allowlist | Not a substitute for auth; restrict to your frontends. |
+| `VITE_INDEXER_URL` (frontend) | Browser quote / charts API | **Production:** HTTPS only. MITM or a compromised indexer can serve misleading routes while pools remain valid on-chain ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)). |
+| `VITE_WC_PROJECT_ID` (frontend) | WalletConnect project | Required for production `vite build`; do not rely on the dev-only shared default. |
+| Token `logo_url` (indexer DB) | Display metadata | Update only after **human review** of symbol + logo host (allowlisted in dApp). Untrusted URLs render as blockies. |
 | `FACTORY_ADDRESS` | On-chain factory | Public address; not secret. |
 | `FEE_DISCOUNT_ADDRESS`, `ROUTER_ADDRESS`, `USTC_DENOM` | Optional config | Same as factory—addresses are public. |
 | `REORG_ALERT_WEBHOOK_URL` | Reorg halt webhook | Optional. POST JSON on chain reorg halt (GitLab #362). Use your paging/Slack endpoint; not a public API. |

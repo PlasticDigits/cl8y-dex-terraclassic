@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use super::internal_err;
+use super::lcd_gateway_err;
 use super::AppState;
 
 #[derive(Debug, Deserialize, IntoParams, ToSchema)]
@@ -83,7 +83,7 @@ pub async fn blacklist_check(
         .lcd
         .query_contract(factory, &query)
         .await
-        .map_err(|e| internal_err(e))?;
+        .map_err(lcd_gateway_err)?;
 
     Ok(axum::Json(resp))
 }

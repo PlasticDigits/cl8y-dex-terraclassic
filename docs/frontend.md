@@ -50,7 +50,7 @@ Regression coverage: [`frontend-dapp/src/viteConfig.build.test.ts`](../frontend-
 |-----------|---------|
 | **`tsc -b` before Vite** | `npm run build` runs **`tsc -b`** then **`vite build`**. The TypeScript project includes **Vitest test files** — mocks and route helpers must satisfy strict checking (e.g. **`MediaQueryList`** event listener signatures in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), optional mock params in [`PriceChart.test.tsx`](../frontend-dapp/src/components/charts/__tests__/PriceChart.test.tsx), type predicates such as **`isKnownFactoryTradePair`** in [`tradePairRoute.ts`](../frontend-dapp/src/utils/tradePairRoute.ts)). QA gate: [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PRODUCTION_BUILD.md`](../skills/AGENTS_FRONTEND_PRODUCTION_BUILD.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PRODUCTION_BUILD.md`](../skills/AGENTS_FRONTEND_PRODUCTION_BUILD.md) · [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md) ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)).
 
 ## Wallet Integration
 
@@ -240,6 +240,22 @@ When `VITE_DEV_MODE=true`, the UI can offer a **Simulated Wallet** (no browser e
 | Secret scanning | [`.gitleaks.toml`](../.gitleaks.toml) adds a custom rule for BIP39-like quoted phrases under `frontend-dapp/src` (default gitleaks rules do not cover this pattern). |
 
 **Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md).
+
+### Frontend trust boundaries (GitLab #378) {#frontend-trust-boundaries}
+
+Off-chain hardening for [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) remediation ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)). Canonical security narrative: [`security-model.md` § Off-chain trust](./security-model.md#off-chain-trust-boundaries-frontend--indexer).
+
+| Area | Invariant | Code / doc |
+|------|-----------|------------|
+| Indexer quotes | HTTPS `VITE_INDEXER_URL` in prod; hop summary at swap confirm (`swap-route-summary`) | [`client.ts`](../frontend-dapp/src/services/indexer/client.ts), [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) |
+| Build guards | No `VITE_DEV_MNEMONIC` in non-dev builds; `VITE_WC_PROJECT_ID` required for production `vite build` | [`vite.config.ts`](../frontend-dapp/vite.config.ts), [`viteConfig.build.test.ts`](../frontend-dapp/src/viteConfig.build.test.ts) |
+| CSP | Production: `script-src 'self'`; `connect-src` = LCD + RPC + indexer + WalletConnect (no `https:` wildcard). Dev: broader policy for Vite HMR | [`index.html`](../frontend-dapp/index.html), [`render.yaml`](../render.yaml) |
+| Deploy addresses | Factory/router on `/protocol` only; optional LCD sanity check | [`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx), [`deployAddressVerification.ts`](../frontend-dapp/src/utils/deployAddressVerification.ts) |
+| Token logos | Host allowlist; evil URLs → blockie | [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts), [`TokenLogo.tsx`](../frontend-dapp/src/components/ui/TokenLogo.tsx) |
+| Expert mode | Type `ENABLE EXPERT MODE` to enable; 30% block / 50% settings cap unchanged | [`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx), [`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts) |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md).
+
 - **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
 
 ### LCD / RPC connectivity (W11-C2) {#lcd-rpc-connectivity}

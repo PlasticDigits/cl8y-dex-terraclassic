@@ -6,6 +6,8 @@ export const TOKEN_LOGO_ALLOWED_HOSTS = [
   'coin-images.coingecko.com',
   's2.coinmarketcap.com',
   'static.coinmarketcap.com',
+  'ipfs.io',
+  'cloudflare-ipfs.com',
 ] as const
 
 export function isAllowedTokenLogoHost(hostname: string): boolean {
@@ -24,4 +26,12 @@ export function resolveAllowedTokenLogoUri(uri: string | undefined | null): stri
   } catch {
     return undefined
   }
+}
+
+/** @deprecated Use `resolveAllowedTokenLogoUri` — kept for callers merged from main. */
+export const resolveTrustedTokenLogoUrl = resolveAllowedTokenLogoUri
+
+/** @deprecated Use `isAllowedTokenLogoHost` — kept for callers merged from main. */
+export function isTrustedTokenLogoUrl(url: string): boolean {
+  return resolveAllowedTokenLogoUri(url) !== undefined
 }

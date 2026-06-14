@@ -40,6 +40,7 @@ use tower_governor::key_extractor::PeerIpKeyExtractor;
 use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -95,6 +96,9 @@ pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
 const AGGREGATOR_CACHE_TTL: Duration = Duration::from_secs(60);
+
+/// Max JSON body size for `POST /api/v1/route/solve` (GitLab #379 L-08).
+pub const ROUTE_SOLVE_POST_BODY_LIMIT: usize = 128 * 1024;
 
 fn aggregator_cache() -> &'static std::sync::Mutex<HashMap<String, (serde_json::Value, Instant)>> {
     static CACHE: std::sync::OnceLock<
@@ -412,6 +416,8 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         // routes (orderbook_sim::simulate_orderbook_cached) — throttle them the same (#278).
         .route("/cg/orderbook", get(cg::cg_orderbook))
         .route("/cmc/orderbook/{market_pair}", get(cmc::cmc_orderbook));
+    let lcd_heavy_router = lcd_heavy_router
+        .layer(RequestBodyLimitLayer::new(ROUTE_SOLVE_POST_BODY_LIMIT));
     let lcd_heavy_router =
         apply_rate_limit_layer(lcd_heavy_router, config.rate_limit_lcd_heavy_rps);
 

@@ -1,9 +1,7 @@
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, Uint128, WasmMsg,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw20::Cw20ExecuteMsg;
 
 use crate::error::ContractError;
 use crate::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -94,12 +92,11 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
 }
 
 /// Transfer a percentage of the output token to the configured tax
-/// recipient. Skips gracefully if the output token doesn't match
-/// `tax_token`, the calculated amount is zero, or the balance is
-/// insufficient.
+/// recipient. The pair contract forwards the tax slice during swap
+/// settlement (invariant I-02); this callback records the event only.
 fn execute_after_swap(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     output_token: String,
     output_amount: Uint128,
 ) -> Result<Response, ContractError> {
@@ -121,36 +118,9 @@ fn execute_after_swap(
             .add_attribute("skipped", "tax_amount is zero"));
     }
 
-    let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
-        config.tax_token.to_string(),
-        &cw20::Cw20QueryMsg::Balance {
-            address: env.contract.address.to_string(),
-        },
-    )?;
-
-    if balance.balance < tax_amount {
-        return Ok(Response::new()
-            .add_attribute("action", "after_swap_tax_hook")
-            .add_attribute("warning", "insufficient balance to transfer tax")
-            .add_attribute("required", tax_amount)
-            .add_attribute("available", balance.balance));
-    }
-
-    let transfer_msg = SubMsg::reply_on_error(
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.tax_token.to_string(),
-            msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: config.recipient.to_string(),
-                amount: tax_amount,
-            })?,
-            funds: vec![],
-        }),
-        TAX_TRANSFER_REPLY_ID,
-    );
-
     Ok(Response::new()
-        .add_submessage(transfer_msg)
         .add_attribute("action", "after_swap_tax_hook")
+        .add_attribute("settled_by_pair", "true")
         .add_attribute("tax_token", config.tax_token)
         .add_attribute("tax_amount", tax_amount)
         .add_attribute("recipient", config.recipient))

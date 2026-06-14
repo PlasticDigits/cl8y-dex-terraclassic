@@ -9,7 +9,13 @@ import { formatNum } from '@/utils/formatAmount'
 import { formatDateTime } from '@/utils/formatDate'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { AddressRow } from '@/components/ui/AddressRow'
-import { FACTORY_CONTRACT_ADDRESS, ROUTER_CONTRACT_ADDRESS } from '@/utils/constants'
+import {
+  FACTORY_CONTRACT_ADDRESS,
+  ROUTER_CONTRACT_ADDRESS,
+  TERRA_LCD_URL,
+  TERRA_RPC_URL,
+  DEFAULT_NETWORK,
+} from '@/utils/constants'
 
 function formatHookAmount(amount: string | number | null | undefined): string {
   if (amount == null || amount === '') return '—'
@@ -70,8 +76,8 @@ export default function ProtocolPage() {
           On-chain contracts (audit)
         </h2>
         <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-          Factory and router addresses for this deployment. Compare against your governance records before signing swaps
-          elsewhere — these are not repeated on the swap confirmation card.
+          Factory and router addresses for this deployment ({DEFAULT_NETWORK}). Compare against your governance records
+          or block explorer before signing swaps — these are not repeated on the swap confirmation card.
         </p>
         <dl className="space-y-3 text-sm">
           <div>
@@ -108,6 +114,22 @@ export default function ProtocolPage() {
               ) : (
                 <span style={{ color: 'var(--ink-dim)' }}>Not configured</span>
               )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
+              LCD
+            </dt>
+            <dd className="break-all font-mono text-xs" style={{ color: 'var(--ink-subtle)' }}>
+              {TERRA_LCD_URL}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
+              RPC
+            </dt>
+            <dd className="break-all font-mono text-xs" style={{ color: 'var(--ink-subtle)' }}>
+              {TERRA_RPC_URL}
             </dd>
           </div>
         </dl>
