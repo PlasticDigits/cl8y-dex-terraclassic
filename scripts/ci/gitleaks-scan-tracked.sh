@@ -3,16 +3,33 @@
 # Prevents global build-dir allowlists from bypassing mandatory gitleaks (#380 / M-13).
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${GITLEAKS_SCAN_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:v8.24.2}"
-CONFIG="${ROOT}/.gitleaks.toml"
+CONFIG="${GITLEAKS_CONFIG:-${ROOT}/.gitleaks.toml}"
+
+# gitleaks useDefault inherits a global path allowlist for node_modules/ that cannot be
+# removed via TOML. Remap tracked dependency-tree paths (mid-path and root-level) so
+# force-committed secrets still fail CI.
+ci_stage_dest_path() {
+  local path="$1"
+  if [[ "$path" == */node_modules/* || "$path" == node_modules/* ]]; then
+    local remapped="${path//\/node_modules\//\/__tracked-nm__/}"
+    remapped="${remapped/#node_modules\//__tracked-nm__/}"
+    printf '%s\n' "_gitleaks-tracked/${remapped}"
+  else
+    printf '%s\n' "$path"
+  fi
+}
 
 stage_tracked_tree() {
   local dest="$1"
   cd "$ROOT"
   while IFS= read -r -d '' path; do
-    mkdir -p "${dest}/$(dirname "$path")"
-    cp -a "$path" "${dest}/${path}"
+    local dest_path
+    dest_path="$(ci_stage_dest_path "$path")"
+    mkdir -p "${dest}/$(dirname "$dest_path")"
+    cp -a "$path" "${dest}/${dest_path}"
   done < <(git -C "$ROOT" ls-files -z)
 }
 
