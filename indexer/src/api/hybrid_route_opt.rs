@@ -7,6 +7,7 @@ use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::api::db_orderbook_sim::{self, HopMirror, MirrorFreshness, MirrorLoadMeta};
+use crate::constants::clamp_max_maker_fills;
 use crate::lcd::LcdClient;
 
 /// Optional wallet forwarded to pair `HybridSimulation` / router sim for CL8Y fee-tier parity (GitLab #245).
@@ -330,7 +331,7 @@ async fn query_pool_only_unified(
         offer_amount,
         offer_amount,
         0,
-        max_maker_fills.max(1),
+        clamp_max_maker_fills(max_maker_fills),
         None,
         quote_trader,
     )
@@ -351,7 +352,7 @@ async fn optimize_one_hop(
         return Ok((None, 0));
     }
 
-    let max_maker_fills = max_maker_fills.max(1);
+    let max_maker_fills = clamp_max_maker_fills(max_maker_fills);
     let book_start_hint = resolve_hop_book_start_hint(source, hop);
     let mut best_book = 0u128;
     let mut best_out = 0u128;
@@ -599,7 +600,7 @@ async fn propagate_offer_through_plan(
             offer,
             pool,
             book,
-            max_maker_fills.max(1),
+            clamp_max_maker_fills(max_maker_fills),
             hint,
             quote_trader,
         )

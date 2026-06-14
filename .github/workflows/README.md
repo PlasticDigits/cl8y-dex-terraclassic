@@ -1,15 +1,13 @@
 # Workflow files (reference only)
 
-This repository is hosted on **GitLab** and does **not** run GitHub Actions or GitLab CI pipelines today.
-
-The YAML under this directory is a **portable checklist**: job names, service containers, and command order for local verification and agents. Run the equivalent via Makefile targets and `scripts/` (see [docs/testing.md § CI](../docs/testing.md#ci)).
+This repository is hosted on **GitLab**. **GitLab CI** runs supply-chain and QA artifact jobs — see [`.gitlab-ci.yml`](../.gitlab-ci.yml) and [docs/supply-chain-security.md](../docs/supply-chain-security.md). The YAML under this directory is a **portable checklist** for the broader test matrix: job names, service containers, and command order for local verification and agents.
 
 **Invariants (GitLab [#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)):**
 
-- **Execution path:** local / QA host — `make …`, `scripts/*.sh` — not a hosted runner.
+- **Execution path:** GitLab CI for security + QA artifacts; full matrix still **local / QA host** — `make …`, `scripts/*.sh`.
 - **Job names** (`e2e`, `frontend-charts-integration`, …) are **labels** for automation targets; prefer those names in docs when mapping to Make/scripts.
 - **Wasm:** fast `cargo wasm` in `test.yml` is for dev checks only; **mainnet uploads** use `make build-optimized` (workspace-optimizer). See [docs/deployment-guide.md § Build Optimized WASM](../docs/deployment-guide.md#1-build-optimized-wasm).
-- **Agents:** do not instruct third parties to wait for "GitHub Actions on `main`"; say **local checklist passed** or cite the Make target.
+- **Agents:** default-branch merges expect a **green GitLab pipeline** (gitleaks + audits). For contracts/frontend/indexer/E2E not in `.gitlab-ci.yml`, say **local checklist passed** or cite the Make target.
 
 ## `test.yml` — reference job → local command
 

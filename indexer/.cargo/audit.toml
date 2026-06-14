@@ -1,16 +1,11 @@
-# cargo-audit allowlist for indexer (GitLab #380 / H-06).
-# Run from this directory: cargo audit --deny warnings
+# cargo-audit allowlist — indexer (GitLab #380 / H-06).
+# Run: cd indexer && cargo audit --deny warnings
+# See docs/supply-chain-security.md for rationale and upgrade tracking.
 
 [advisories]
 ignore = [
-  # Marvin timing side-channel in rsa; no fixed upgrade on our dependency tree (sqlx/tls).
-  "RUSTSEC-2023-0071",
-  # Informational: rand unsound only with custom logger + rng(); indexer does not use that API.
-  "RUSTSEC-2026-0097",
+    # rsa 0.9.x — sqlx/mysql transitive; RustSec: no fixed upgrade available.
+    "RUSTSEC-2023-0071",
+    # rand unsound only when a custom logger is installed; indexer does not configure one.
+    "RUSTSEC-2026-0097",
 ]
-
-[output]
-deny = ["warnings", "unmaintained", "unsound", "yanked"]
-format = "terminal"
-quiet = false
-show_tree = true

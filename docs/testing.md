@@ -386,30 +386,31 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 
 ## CI {#ci}
 
-**Invariants ([GitLab #234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)):**
+**Invariants ([GitLab #234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234), [#380](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/380)):**
 
 | Concept | Canonical wording |
 |--------|-------------------|
-| Where checks run | **Local / QA host** — `make …`, `scripts/*.sh` |
-| [`.github/workflows/*.yml`](../.github/workflows/) | **Reference spec only** (job names, services, step order) |
+| Hosted GitLab CI | [`.gitlab-ci.yml`](../.gitlab-ci.yml) — `security` stage (gitleaks, cargo/npm audit) + `build` stage (QA wasm/indexer artifacts) |
+| Where full checks run | **GitLab** on default branch + change-gated MRs; **local / QA host** for everything in [`.github/workflows/test.yml`](../.github/workflows/test.yml) |
+| [`.github/workflows/*.yml`](../.github/workflows/) | **Reference spec only** (job names, services, step order) — not executed |
 | Job names (`e2e`, `frontend-charts-integration`, …) | **Labels** mapping to Make/scripts below |
-| “CI green on main” | **Local automation checklist passed** or the named Make target |
-| Hosted runners | **GitLab CI** on default branch — `security` stage ([#380](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/380)) + QA artifact jobs ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)); [`.github/workflows/`](../.github/workflows/) remain a **reference spec** for local Make targets |
+| “CI green on main” | **GitLab pipeline green** (security + artifact jobs) **and** local automation checklist when touching contracts/frontend/indexer |
+| Supply-chain local mirror | `make audit-smartcontracts`, `make audit-indexer`, `make audit-frontend`, `make gitleaks-detect` — see [supply-chain-security.md](./supply-chain-security.md) |
 
-**Agents:** Do not tell third parties to wait for GitHub Actions on `main`. Point to [`docs/testing.md` § CI](#ci), [`.github/workflows/README.md`](../.github/workflows/README.md), [`docs/supply-chain-security.md`](./supply-chain-security.md) (GitLab security jobs), and the relevant `skills/AGENTS_*.md` playbook.
+**Agents:** For GitLab-hosted gates use [docs/supply-chain-security.md](./supply-chain-security.md) and [`skills/AGENTS_SUPPLY_CHAIN_SECURITY.md`](../skills/AGENTS_SUPPLY_CHAIN_SECURITY.md). For the full portable checklist (contracts, frontend, indexer, E2E) use [`.github/workflows/README.md`](../.github/workflows/README.md) and the relevant `skills/AGENTS_*.md` playbook.
 
-### GitLab CI security jobs ([#380](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/380))
+### GitLab CI jobs (hosted)
 
-On every **default-branch** pipeline (not `allow_failure`):
+| Job | Local command |
+|-----|---------------|
+| `gitleaks` | `make gitleaks-detect` |
+| `cargo-audit-smartcontracts` | `make audit-smartcontracts` |
+| `cargo-audit-indexer` | `make audit-indexer` |
+| `npm-audit-frontend` | `make audit-frontend` |
+| `qa-wasm-artifacts` | `make build-optimized` (needs Docker; DinD TLS in CI) |
+| `qa-indexer-binary` | `cd indexer && cargo build --release` |
 
-| Job | Local mirror |
-|-----|----------------|
-| `gitleaks` | `./scripts/ci/gitleaks-detect.sh` |
-| `cargo-audit-smartcontracts` | `cd smartcontracts && cargo audit --deny warnings` |
-| `cargo-audit-indexer` | `cd indexer && cargo audit --deny warnings` |
-| `npm-audit-frontend` | `cd frontend-dapp && npm ci --omit=dev && npm audit --audit-level=high --omit=dev` |
-
-Attack/abuse check: `./scripts/ci/test-gitleaks-fixture.sh` (dummy secret must fail). Full doc: [`docs/supply-chain-security.md`](./supply-chain-security.md).
+Gitleaks abuse check: `make verify-gitleaks` (fixture must fail, clean tree must pass).
 
 ### Reference job → local command
 
@@ -429,7 +430,7 @@ Attack/abuse check: `./scripts/ci/test-gitleaks-fixture.sh` (dummy secret must f
 
 The reference workflow [`.github/workflows/test.yml`](../.github/workflows/test.yml) also documents step order for: contract `cargo fmt` / `clippy` / `llvm-cov`, indexer Postgres service container, and Playwright browser install. Full mapping: [`.github/workflows/README.md`](../.github/workflows/README.md).
 
-**Agent playbooks:** [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md), [`skills/AGENTS_E2E_INDEXER_OUTAGE.md`](../skills/AGENTS_E2E_INDEXER_OUTAGE.md), [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md), [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
+**Agent playbooks:** [`skills/AGENTS_E2E_STRICT_CHAIN.md`](../skills/AGENTS_E2E_STRICT_CHAIN.md), [`skills/AGENTS_E2E_INDEXER_OUTAGE.md`](../skills/AGENTS_E2E_INDEXER_OUTAGE.md), [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md), [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md), [`skills/AGENTS_SUPPLY_CHAIN_SECURITY.md`](../skills/AGENTS_SUPPLY_CHAIN_SECURITY.md).
 
 ## Writing Tests
 

@@ -560,6 +560,19 @@ Use after deploy or indexer release (GitLab **#224**, CMC orderbook array **#223
 
 ---
 
+## Token metadata human review {#token-metadata-human-review}
+
+Indexer token records may include `logo_url` served to the dApp `TokenLogo` component. **Operators must human-review** every token before publishing `logo_url` to production indexers ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) / M-09):
+
+1. Confirm the CW20 contract address matches the intended asset (factory whitelist / governance records).
+2. Verify symbol/name against an independent source (chain `token_info`, official project site).
+3. Only approve `logo_url` values on **allowlisted HTTPS hosts** (`tokenLogoAllowlist.ts` — e.g. `gitlab.com`, CoinGecko/CMC CDN). Reject arbitrary third-party image hosts.
+4. Re-review on metadata changes; remove or blank `logo_url` on delist.
+
+The retail UI does **not** add extra token detail beyond symbol/logo/blockie — listing quality is an operator responsibility.
+
+---
+
 ## Related References
 
 - [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — volume reconciliation guide (#216)
