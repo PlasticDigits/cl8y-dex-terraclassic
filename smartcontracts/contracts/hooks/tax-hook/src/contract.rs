@@ -91,9 +91,9 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
     Ok(())
 }
 
-/// Record tax collection during swap settlement. The pair transfers
-/// `fee_amount` to `recipient` before this callback; no hook treasury
-/// balance is required.
+/// Transfer a percentage of the output token to the configured tax
+/// recipient. The pair contract forwards the tax slice during swap
+/// settlement (invariant I-02); this callback records the event only.
 fn execute_after_swap(
     deps: DepsMut,
     _env: Env,
@@ -120,10 +120,10 @@ fn execute_after_swap(
 
     Ok(Response::new()
         .add_attribute("action", "after_swap_tax_hook")
+        .add_attribute("settled_by_pair", "true")
         .add_attribute("tax_token", config.tax_token)
         .add_attribute("tax_amount", tax_amount)
-        .add_attribute("recipient", config.recipient)
-        .add_attribute("settled_by_pair", "true"))
+        .add_attribute("recipient", config.recipient))
 }
 
 /// Update tax hook configuration. Admin only.
@@ -192,32 +192,7 @@ fn execute_update_allowed_pairs(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => to_json_binary(&query_config(deps)?),
-        QueryMsg::ComputeSwapFee {
-            output_token,
-            output_amount,
-        } => to_json_binary(&query_compute_swap_fee(deps, output_token, output_amount)?),
     }
-}
-
-fn query_compute_swap_fee(
-    deps: Deps,
-    output_token: String,
-    output_amount: Uint128,
-) -> StdResult<dex_common::hook::ComputeSwapFeeResponse> {
-    let config = CONFIG.load(deps.storage)?;
-    if output_token != config.tax_token {
-        return Ok(dex_common::hook::ComputeSwapFeeResponse {
-            fee_amount: Uint128::zero(),
-            settlement_recipient: None,
-        });
-    }
-    let tax_amount = output_amount
-        .checked_mul(Uint128::from(config.tax_percentage_bps as u128))?
-        .checked_div(Uint128::new(10_000))?;
-    Ok(dex_common::hook::ComputeSwapFeeResponse {
-        fee_amount: tax_amount,
-        settlement_recipient: Some(config.recipient.to_string()),
-    })
 }
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {

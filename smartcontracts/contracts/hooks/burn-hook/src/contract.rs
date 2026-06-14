@@ -93,8 +93,8 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
     Ok(())
 }
 
-/// Burn a percentage of the output token. The pair transfers the burn
-/// portion to this contract during swap settlement before `AfterSwap`.
+/// Burn a percentage of the output token forwarded by the pair during swap
+/// settlement (invariant I-02). Burns `min(calculated, hook balance)`.
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
@@ -126,13 +126,13 @@ fn execute_after_swap(
         },
     )?;
 
-    let actual_burn = std::cmp::min(burn_amount, balance.balance);
-    if actual_burn.is_zero() {
-        return Ok(Response::new()
-            .add_attribute("action", "after_swap_burn_hook")
-            .add_attribute("warning", "no output tokens received for burn")
-            .add_attribute("required", burn_amount));
+    if balance.balance.is_zero() {
+        return Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+            "burn hook missing settlement tokens from pair",
+        )));
     }
+
+    let actual_burn = std::cmp::min(burn_amount, balance.balance);
 
     let burn_msg = SubMsg::reply_on_error(
         CosmosMsg::Wasm(WasmMsg::Execute {
@@ -148,9 +148,9 @@ fn execute_after_swap(
     Ok(Response::new()
         .add_submessage(burn_msg)
         .add_attribute("action", "after_swap_burn_hook")
+        .add_attribute("settled_by_pair", "true")
         .add_attribute("burn_token", config.burn_token)
-        .add_attribute("burn_amount", actual_burn)
-        .add_attribute("settled_by_pair", "true"))
+        .add_attribute("burn_amount", actual_burn))
 }
 
 /// Update burn hook configuration. Admin only.
@@ -214,41 +214,10 @@ fn execute_update_allowed_pairs(
         .add_attribute("removed", remove.len().to_string()))
 }
 
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => to_json_binary(&query_config(deps)?),
-        QueryMsg::ComputeSwapFee {
-            output_token,
-            output_amount,
-        } => to_json_binary(&query_compute_swap_fee(
-            deps,
-            env,
-            output_token,
-            output_amount,
-        )?),
     }
-}
-
-fn query_compute_swap_fee(
-    deps: Deps,
-    env: Env,
-    output_token: String,
-    output_amount: Uint128,
-) -> StdResult<dex_common::hook::ComputeSwapFeeResponse> {
-    let config = CONFIG.load(deps.storage)?;
-    if output_token != config.burn_token {
-        return Ok(dex_common::hook::ComputeSwapFeeResponse {
-            fee_amount: Uint128::zero(),
-            settlement_recipient: None,
-        });
-    }
-    let burn_amount = output_amount
-        .checked_mul(Uint128::from(config.burn_percentage_bps as u128))?
-        .checked_div(Uint128::new(10_000))?;
-    Ok(dex_common::hook::ComputeSwapFeeResponse {
-        fee_amount: burn_amount,
-        settlement_recipient: Some(env.contract.address.to_string()),
-    })
 }
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {

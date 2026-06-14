@@ -182,6 +182,27 @@ describe('indexer client fetchJson', () => {
     expect(url).toContain('pool_only=true')
   })
 
+  it('encodes pair and trader path segments (GitLab #379)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }))
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          address: 'terra1trader000000000000000000000000000000',
+          total_volume: '0',
+          total_trades: 0,
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    const pair = 'terra1pair/with/slashes'
+    const trader = 'terra1trader+special'
+    await client.getPair(pair)
+    await client.getTrader(trader)
+    expect(vi.mocked(fetch).mock.calls[0][0]).toContain(`/api/v1/pairs/${encodeURIComponent(pair)}`)
+    expect(vi.mocked(fetch).mock.calls[1][0]).toContain(`/api/v1/traders/${encodeURIComponent(trader)}`)
+  })
+
   it('builds limit-fills and lifecycle URLs with query params', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
@@ -190,16 +211,17 @@ describe('indexer client fetchJson', () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
     const client = await loadModule()
     const pair = 'terra1pairaddr000000000000000000000000000'
+    const encPair = encodeURIComponent(pair)
     await client.getPairLimitFills(pair, { limit: 10, before: 99 })
     await client.getPairLiquidityEvents(pair, { limit: 5 })
     await client.getPairLimitPlacements(pair)
     await client.getPairLimitCancellations(pair)
     await client.getPairOrderLimitFills(pair, 42, 20)
-    expect(vi.mocked(fetch).mock.calls[0][0]).toContain(`/api/v1/pairs/${pair}/limit-fills?limit=10&before=99`)
-    expect(vi.mocked(fetch).mock.calls[1][0]).toContain(`/api/v1/pairs/${pair}/liquidity-events?limit=5`)
-    expect(vi.mocked(fetch).mock.calls[2][0]).toBe(`${client.INDEXER_URL}/api/v1/pairs/${pair}/limit-placements`)
-    expect(vi.mocked(fetch).mock.calls[3][0]).toBe(`${client.INDEXER_URL}/api/v1/pairs/${pair}/limit-cancellations`)
-    expect(vi.mocked(fetch).mock.calls[4][0]).toContain(`/api/v1/pairs/${pair}/limit-orders/42/fills?limit=20`)
+    expect(vi.mocked(fetch).mock.calls[0][0]).toContain(`/api/v1/pairs/${encPair}/limit-fills?limit=10&before=99`)
+    expect(vi.mocked(fetch).mock.calls[1][0]).toContain(`/api/v1/pairs/${encPair}/liquidity-events?limit=5`)
+    expect(vi.mocked(fetch).mock.calls[2][0]).toBe(`${client.INDEXER_URL}/api/v1/pairs/${encPair}/limit-placements`)
+    expect(vi.mocked(fetch).mock.calls[3][0]).toBe(`${client.INDEXER_URL}/api/v1/pairs/${encPair}/limit-cancellations`)
+    expect(vi.mocked(fetch).mock.calls[4][0]).toContain(`/api/v1/pairs/${encPair}/limit-orders/42/fills?limit=20`)
   })
 
   it('adds status query param to limit-placements when provided', async () => {
@@ -214,8 +236,9 @@ describe('indexer client fetchJson', () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
     const client = await loadModule()
     const addr = 'terra1trader000000000000000000000000000000'
+    const encAddr = encodeURIComponent(addr)
     await client.getTraderPositions(addr)
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe(`${client.INDEXER_URL}/api/v1/traders/${addr}/positions`)
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe(`${client.INDEXER_URL}/api/v1/traders/${encAddr}/positions`)
   })
 
   it('GET /traders/{addr}/limit-placements supports status and pair filters (GitLab #217)', async () => {
@@ -223,10 +246,11 @@ describe('indexer client fetchJson', () => {
     const client = await loadModule()
     const addr = 'terra1trader000000000000000000000000000000'
     const pair = 'terra1pair000000000000000000000000000000'
+    const encAddr = encodeURIComponent(addr)
     await client.getTraderLimitPlacements(addr, { limit: 50, status: 'active', pair })
     const url = vi.mocked(fetch).mock.calls[0][0] as string
     expect(url).toBe(
-      `${client.INDEXER_URL}/api/v1/traders/${addr}/limit-placements?limit=50&status=active&pair=${pair}`
+      `${client.INDEXER_URL}/api/v1/traders/${encAddr}/limit-placements?limit=50&status=active&pair=${pair}`
     )
   })
 

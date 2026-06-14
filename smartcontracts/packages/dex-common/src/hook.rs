@@ -1,29 +1,7 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Uint128};
 
 use crate::types::Asset;
-
-/// Standard query for pair swap settlement: how much of the ask-token output
-/// this hook deducts from the trader's `return_amount` before `AfterSwap`.
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum HookQueryMsg {
-    #[returns(ComputeSwapFeeResponse)]
-    ComputeSwapFee {
-        output_token: String,
-        output_amount: Uint128,
-    },
-}
-
-#[cw_serde]
-pub struct ComputeSwapFeeResponse {
-    /// Fee denominated in `output_token` raw units (0 when this hook skips).
-    pub fee_amount: Uint128,
-    /// When set, the pair transfers `fee_amount` of the ask token here during
-    /// swap settlement (before `AfterSwap`). Tax hooks use the recipient;
-    /// burn hooks use the hook contract address.
-    pub settlement_recipient: Option<String>,
-}
 
 #[cw_serde]
 pub enum HookExecuteMsg {

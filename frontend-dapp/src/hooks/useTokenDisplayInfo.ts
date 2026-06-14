@@ -9,6 +9,7 @@ import {
   shortenAddress,
   isAddressLike,
 } from '@/utils/tokenDisplay'
+import { resolveTrustedTokenLogoUrl } from '@/utils/tokenLogoAllowlist'
 
 export interface TokenDisplayInfo {
   displayLabel: string
@@ -68,7 +69,8 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
   const chainSymbol = resolved ?? (isAddressLike(tokenId) ? shortenAddress(tokenId) : tokenId)
   const symbol = indexerMeta?.symbol?.trim() || chainSymbol
   const addressForBlockie = isCw20 ? tokenId : undefined
-  const logoURI = indexerMeta?.logo_url?.trim() || (info ? getTokenLogoURI(info) : undefined) || undefined
+  const rawLogo = indexerMeta?.logo_url?.trim() || (info ? getTokenLogoURI(info) : undefined) || undefined
+  const logoURI = resolveTrustedTokenLogoUrl(rawLogo)
 
   return { displayLabel: symbol, symbol, addressForBlockie, logoURI }
 }

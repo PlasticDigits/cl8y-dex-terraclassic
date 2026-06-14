@@ -7,7 +7,7 @@ description = "CL8Y DEX indexer for Terra Classic — charting, analytics, CoinG
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["json", "query"] }
-tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "compression-full"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "compression-full", "limit"] }
 tower = { version = "0.5", features = ["limit", "util"] }
 governor = "0.8"
 tower_governor = "0.8"
