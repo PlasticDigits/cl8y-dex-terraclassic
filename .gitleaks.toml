@@ -26,7 +26,7 @@ regexes = [
   '''cl8y-dex-risk-ack''',
 ]
 paths = [
-  # Build / install trees are not committed; working-tree scans skip these (GitLab #380).
-  '''(?:^|/)target/''',
+  # node_modules/ is gitignored; allowlist applies to --no-git local working-tree scans (GitLab #380).
+  # Do not allowlist target/: force-committed secrets under */target/ must fail CI git-range scans.
   '''(?:^|/)node_modules/''',
 ]

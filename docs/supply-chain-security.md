@@ -27,7 +27,7 @@ Mirror CI before pushing:
 # Secrets (incremental — same as CI on a single commit)
 ./scripts/ci/gitleaks-detect.sh
 
-# Working tree only (excludes target/ and node_modules/ via .gitleaks.toml)
+# Working tree only (excludes node_modules/ via .gitleaks.toml; target/ is scanned)
 gitleaks detect --source . --no-git -c .gitleaks.toml
 
 # Attack/abuse fixture — must exit non-zero
