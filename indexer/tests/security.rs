@@ -637,3 +637,83 @@ async fn openapi_spec_available() {
     assert!(body["paths"].is_object());
     assert!(body["paths"]["/api/v1/pairs"].is_object());
 }
+
+/// GitLab #379 (M-05): dev config accepts dual-zero rate limits (governors disabled).
+#[test]
+#[serial]
+fn dev_dual_zero_rate_limits_load_without_clamp() {
+    for key in [
+        "RUN_MODE",
+        "LCD_URLS",
+        "DATABASE_URL",
+        "FACTORY_ADDRESS",
+        "CORS_ORIGINS",
+        "RATE_LIMIT_RPS",
+        "RATE_LIMIT_LCD_HEAVY_RPS",
+    ] {
+        env::remove_var(key);
+    }
+    env::set_var("DATABASE_URL", "postgres://localhost/db");
+    env::set_var("FACTORY_ADDRESS", "terra1factory");
+    env::set_var("CORS_ORIGINS", "http://localhost:5173");
+    env::set_var("RATE_LIMIT_RPS", "0");
+    env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+    let c = Config::from_env().expect("dev dual-zero config");
+    assert_eq!(c.run_mode, RunMode::Dev);
+    assert_eq!(c.rate_limit_rps, 0);
+    assert_eq!(c.rate_limit_lcd_heavy_rps, 0);
+}
+
+/// GitLab #379 (L-05): blacklist-check LCD failure → sanitized 502.
+#[tokio::test]
+async fn blacklist_check_lcd_failure_returns_sanitized_502() {
+    let mock = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(ResponseTemplate::new(503).set_body_string("upstream unavailable"))
+        .mount(&mock)
+        .await;
+
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get("/api/v1/compliance/blacklist-check?wallet=terra1wallet")
+        .await;
+    assert_eq!(resp.status_code(), StatusCode::BAD_GATEWAY);
+    let body = resp.text();
+    assert_eq!(body, LCD_UPSTREAM_GATEWAY_MSG);
+    assert!(!body.contains(&mock.uri()));
+    assert!(!body.contains("cosmwasm"));
+}
+
+/// GitLab #379 (L-08): POST route solve rejects oversized JSON bodies with 413.
+#[tokio::test]
+async fn route_solve_post_oversized_body_returns_413() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let pad = "x".repeat(cl8y_dex_indexer::config::ROUTE_SOLVE_POST_BODY_LIMIT_BYTES + 1);
+    let body = serde_json::json!({
+        "token_in": "terra1a",
+        "token_out": "terra1b",
+        "amount_in": "100",
+        "hybrid_by_hop": null,
+        "trader": null,
+        "sender": null,
+        "pad": pad,
+    });
+
+    let resp = server
+        .post("/api/v1/route/solve")
+        .json(&body)
+        .await;
+    assert_eq!(resp.status_code(), StatusCode::PAYLOAD_TOO_LARGE);
+}

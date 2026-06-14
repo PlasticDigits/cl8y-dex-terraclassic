@@ -10,9 +10,7 @@ use std::collections::HashMap;
 
 use crate::api::orderbook_sim::{ceil_div, swap_fee_amount};
 use crate::db::queries::{pair_reserves, pairs, resting_orders};
-
-/// Max maker fills per hop (on-chain hard cap).
-pub const MAX_MAKER_FILLS_HARD_CAP: u32 = 30;
+use crate::hybrid_limits::MAX_MAKER_FILLS_HARD_CAP;
 
 /// Book walk scan-step cap (matches pair contract).
 const MAX_SCAN_STEPS: u32 = 256;

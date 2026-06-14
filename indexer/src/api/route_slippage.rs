@@ -14,6 +14,7 @@ use crate::api::hybrid_route_opt::QuoteTrader;
 use crate::api::route_solver::{cache_key_maker_fills, resolve_discount_bps, RouteSolveResponse};
 use crate::api::AppState;
 use crate::db::queries::assets;
+use crate::hybrid_limits::clamp_max_maker_fills;
 
 const PRICE_CACHE_TTL: Duration = Duration::from_secs(30);
 const QUOTE_SYMBOLS: &[&str] = &["USTC-C", "USTC", "LUNC-C", "LUNC"];
@@ -144,7 +145,7 @@ async fn token_price_in_quote(
         return None;
     }
     let amount_raw = one_unit.to_string();
-    let max_makers = max_maker_fills.max(1);
+    let max_makers = clamp_max_maker_fills(max_maker_fills);
 
     let (body, _) = Box::pin(solve_global_best_execution_inner(
         state,
@@ -220,7 +221,7 @@ pub async fn enrich_route_slippage(
         return;
     };
 
-    let max_makers = max_maker_fills.max(1);
+    let max_makers = clamp_max_maker_fills(max_maker_fills);
     let Some(price_in) = token_price_in_quote(
         state,
         &body.token_in,

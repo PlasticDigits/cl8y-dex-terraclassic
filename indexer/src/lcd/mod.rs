@@ -92,8 +92,9 @@ impl LcdClient {
                     let status = resp.status();
                     if !status.is_success() {
                         let body = resp.text().await.unwrap_or_default();
-                        let msg = format!("{} returned {}: {}", full_url, status, body);
-                        tracing::warn!("{}", msg);
+                        let msg = format!("LCD smart query returned HTTP {}", status);
+                        tracing::warn!(http_status = %status, "{}", msg);
+                        tracing::debug!(url = %full_url, body_snippet = %body.chars().take(200).collect::<String>(), "LCD smart query failure detail");
                         errors.push(msg);
                         // Contract/query rejections (4xx/500) are not endpoint outages — keep trying
                         // this LCD for subsequent queries (e.g. hybrid sim fails, pool sim succeeds).
@@ -106,21 +107,22 @@ impl LcdClient {
                     match serde_json::from_str::<T>(&text) {
                         Ok(val) => return Ok(val),
                         Err(e) => {
-                            let msg = format!(
-                                "Deserialize error from {}: {} (body: {})",
-                                full_url,
-                                e,
-                                &text[..text.len().min(200)]
-                            );
+                            let msg = format!("LCD smart query deserialize error: {e}");
                             tracing::warn!("{}", msg);
+                            tracing::debug!(
+                                url = %full_url,
+                                body_snippet = %text.chars().take(200).collect::<String>(),
+                                "LCD smart query deserialize failure detail"
+                            );
                             errors.push(msg);
                             continue;
                         }
                     }
                 }
                 Err(e) => {
-                    let msg = format!("{}: {}", full_url, e);
-                    tracing::warn!("LCD request failed: {}", msg);
+                    let msg = format!("LCD request error: {e}");
+                    tracing::warn!("{}", msg);
+                    tracing::debug!(url = %full_url, "LCD request failure detail");
                     errors.push(msg);
                     self.mark_failed(idx).await;
                 }

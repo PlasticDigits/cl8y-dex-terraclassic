@@ -1,6 +1,7 @@
 mod api;
 mod config;
 mod db;
+mod hybrid_limits;
 mod indexer;
 mod lcd;
 

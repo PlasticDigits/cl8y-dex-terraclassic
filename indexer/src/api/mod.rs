@@ -40,6 +40,7 @@ use tower_governor::key_extractor::PeerIpKeyExtractor;
 use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -406,7 +407,11 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route(
             "/api/v1/route/solve",
-            get(route_solver::solve_route).post(route_solver::solve_route_post),
+            get(route_solver::solve_route)
+                .post(route_solver::solve_route_post)
+                .layer(RequestBodyLimitLayer::new(
+                    crate::config::ROUTE_SOLVE_POST_BODY_LIMIT_BYTES,
+                )),
         )
         // cg/cmc orderbook endpoints carry the same LCD fanout as the native limit-book
         // routes (orderbook_sim::simulate_orderbook_cached) — throttle them the same (#278).
