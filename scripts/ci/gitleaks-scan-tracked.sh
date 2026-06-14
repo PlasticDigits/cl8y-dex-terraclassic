@@ -9,11 +9,14 @@ GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:v8.24.2}"
 CONFIG="${GITLEAKS_CONFIG:-${ROOT}/.gitleaks.toml}"
 
 # gitleaks useDefault inherits a global path allowlist for node_modules/ that cannot be
-# removed via TOML. Remap tracked dependency-tree paths so force-committed secrets still fail CI.
+# removed via TOML. Remap tracked dependency-tree paths (mid-path and root-level) so
+# force-committed secrets still fail CI.
 ci_stage_dest_path() {
   local path="$1"
   if [[ "$path" == */node_modules/* || "$path" == node_modules/* ]]; then
-    printf '%s\n' "_gitleaks-tracked/${path//\/node_modules\//\/__tracked-nm__/}"
+    local remapped="${path//\/node_modules\//\/__tracked-nm__/}"
+    remapped="${remapped/#node_modules\//__tracked-nm__/}"
+    printf '%s\n' "_gitleaks-tracked/${remapped}"
   else
     printf '%s\n' "$path"
   fi

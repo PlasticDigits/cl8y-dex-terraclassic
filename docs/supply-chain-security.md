@@ -68,7 +68,7 @@ Config: [`.gitleaks.toml`](../.gitleaks.toml) — extends defaults plus `bip39-l
 
 Agent playbook: [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md).
 
-Attack/abuse checks: `make verify-gitleaks` runs a **fixture** that must trip the custom rule (see `scripts/ci/gitleaks-fixture/`) and a **force-tracked `node_modules/`** dummy PAT that must fail the CI scan path.
+Attack/abuse checks: `make verify-gitleaks` runs a **fixture** that must trip the custom rule (see `scripts/ci/gitleaks-fixture/`) and **force-tracked `node_modules/`** dummy PATs (nested and root-level) that must fail the CI scan path.
 
 ## Cross-links
 
