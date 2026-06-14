@@ -15,7 +15,7 @@ This document describes **how to handle secrets** when operating the indexer and
 | `FACTORY_ADDRESS` | On-chain factory | Public address; not secret. |
 | `FEE_DISCOUNT_ADDRESS`, `ROUTER_ADDRESS`, `USTC_DENOM` | Optional config | Same as factory—addresses are public. |
 | `REORG_ALERT_WEBHOOK_URL` | Reorg halt webhook | Optional. POST JSON on chain reorg halt (GitLab #362). Use your paging/Slack endpoint; not a public API. |
-| `RATE_LIMIT_RPS` | Global per-IP API governor | Default **60** RPS. **`RUN_MODE=prod`:** `0` is clamped to **60** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Dev/QA may set `0` to disable the global layer (e.g. Playwright bursts). |
+| `RATE_LIMIT_RPS` | Global per-IP API governor | Default **60** RPS. **`RUN_MODE=prod`:** `0` is clamped to **60** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Dev/QA may set `0` to disable the global layer (e.g. Playwright bursts). When **both** `RATE_LIMIT_RPS` and `RATE_LIMIT_LCD_HEAVY_RPS` are **0**, startup logs a **DoS-risk warning** regardless of mode ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)). |
 | `RATE_LIMIT_LCD_HEAVY_RPS` | Stricter per-IP limit on LCD-heavy routes | Default **10** RPS. **`RUN_MODE=prod`:** `0` is clamped to **10** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). |
 
 ## Rate limits (production)
@@ -35,7 +35,7 @@ LCD-heavy routes fan out multiple upstream LCD `smart` queries per HTTP request.
 ## `RUN_MODE=prod`
 
 - `RUN_MODE=prod` requires non-empty `DATABASE_URL`, `FACTORY_ADDRESS`, `CORS_ORIGINS`, and **LCD URLs that are not the built-in public default list** (`indexer/src/config.rs`).
-- Production cannot disable rate limiting: `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=0` are clamped to **60** and **10** respectively at config load ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Startup logs effective values; warnings are emitted if env had `0` for either knob.
+- Production cannot disable rate limiting: `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=0` are clamped to **60** and **10** respectively at config load ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Startup logs effective values; warnings are emitted if env had `0` for either knob. When **both** are `0` in env, an additional **dual-disable** warning is logged ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)).
 
 ## Observability
 
