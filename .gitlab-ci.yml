@@ -1,7 +1,8 @@
-# GitLab CI — QA artifact publishing (GitLab #325).
+# GitLab CI — QA artifact publishing (GitLab #325) + supply-chain security (#380 / #376).
 # Reference GitHub workflows in .github/workflows/ are not executed here.
 
 stages:
+  - security
   - build
 
 variables:
@@ -9,15 +10,57 @@ variables:
   # -A dead_code: binary target has many intentional stubs (LCD types, sqlx rows); #325 never got a green run before #370.
   RUSTFLAGS: "-D warnings -A dead_code"
 
+# --- Security stage (#380) ---------------------------------------------------
+# Budget target: security jobs add <5 min median vs pre-#380 pipelines (H-06).
+
+.security_on_default_branch:
+  stage: security
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+gitleaks:
+  extends: .security_on_default_branch
+  image:
+    name: zricethezav/gitleaks:v8.21.2
+    entrypoint: [""]
+  script:
+    - chmod +x scripts/ci/gitleaks-detect.sh
+    - ./scripts/ci/gitleaks-detect.sh
+
+cargo-audit-smartcontracts:
+  extends: .security_on_default_branch
+  image: rust:1.96-bookworm
+  script:
+    - cargo install cargo-audit --locked
+    - cd smartcontracts && cargo audit --deny warnings
+
+cargo-audit-indexer:
+  extends: .security_on_default_branch
+  image: rust:1.96-bookworm
+  script:
+    - cargo install cargo-audit --locked
+    - cd indexer && cargo audit --deny warnings
+
+npm-audit-frontend:
+  extends: .security_on_default_branch
+  image: node:24-bookworm
+  script:
+    - cd frontend-dapp && npm ci --omit=dev
+    - cd frontend-dapp && npm audit --audit-level=high --omit=dev
+
+# --- Build stage (#325) ------------------------------------------------------
+
 qa-wasm-artifacts:
   stage: build
   image: docker:24
   services:
     - name: docker:24-dind
       alias: docker
+  # DinD TLS (M-11): use GitLab defaults — DOCKER_TLS_CERTDIR=/certs, port 2376.
+  # Unencrypted tcp://docker:2375 allowed sibling containers in the job pod to control Docker.
   variables:
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: "/certs"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
@@ -27,6 +70,7 @@ qa-wasm-artifacts:
     - if: $CI_PIPELINE_SOURCE == "web"
   before_script:
     - apk add --no-cache bash curl make git jq
+    - until docker info; do sleep 1; done
   script:
     - make build-optimized
     - chmod +x scripts/qa/publish-qa-ci-artifacts.sh

@@ -394,9 +394,22 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 | [`.github/workflows/*.yml`](../.github/workflows/) | **Reference spec only** (job names, services, step order) |
 | Job names (`e2e`, `frontend-charts-integration`, …) | **Labels** mapping to Make/scripts below |
 | “CI green on main” | **Local automation checklist passed** or the named Make target |
-| Hosted runners | **None today** — this repo does **not** run GitHub Actions or GitLab CI |
+| Hosted runners | **GitLab CI** on default branch — `security` stage ([#380](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/380)) + QA artifact jobs ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)); [`.github/workflows/`](../.github/workflows/) remain a **reference spec** for local Make targets |
 
-**Agents:** Do not tell third parties to wait for GitHub Actions on `main`. Point to [`docs/testing.md` § CI](#ci), [`.github/workflows/README.md`](../.github/workflows/README.md), and the relevant `skills/AGENTS_*.md` playbook.
+**Agents:** Do not tell third parties to wait for GitHub Actions on `main`. Point to [`docs/testing.md` § CI](#ci), [`.github/workflows/README.md`](../.github/workflows/README.md), [`docs/supply-chain-security.md`](./supply-chain-security.md) (GitLab security jobs), and the relevant `skills/AGENTS_*.md` playbook.
+
+### GitLab CI security jobs ([#380](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/380))
+
+On every **default-branch** pipeline (not `allow_failure`):
+
+| Job | Local mirror |
+|-----|----------------|
+| `gitleaks` | `./scripts/ci/gitleaks-detect.sh` |
+| `cargo-audit-smartcontracts` | `cd smartcontracts && cargo audit --deny warnings` |
+| `cargo-audit-indexer` | `cd indexer && cargo audit --deny warnings` |
+| `npm-audit-frontend` | `cd frontend-dapp && npm ci --omit=dev && npm audit --audit-level=high --omit=dev` |
+
+Attack/abuse check: `./scripts/ci/test-gitleaks-fixture.sh` (dummy secret must fail). Full doc: [`docs/supply-chain-security.md`](./supply-chain-security.md).
 
 ### Reference job → local command
 

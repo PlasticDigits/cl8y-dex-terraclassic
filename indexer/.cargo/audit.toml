@@ -1,0 +1,16 @@
+# cargo-audit allowlist for indexer (GitLab #380 / H-06).
+# Run from this directory: cargo audit --deny warnings
+
+[advisories]
+ignore = [
+  # Marvin timing side-channel in rsa; no fixed upgrade on our dependency tree (sqlx/tls).
+  "RUSTSEC-2023-0071",
+  # Informational: rand unsound only with custom logger + rng(); indexer does not use that API.
+  "RUSTSEC-2026-0097",
+]
+
+[output]
+deny = ["warnings", "unmaintained", "unsound", "yanked"]
+format = "terminal"
+quiet = false
+show_tree = true

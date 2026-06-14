@@ -1,0 +1,18 @@
+# cargo-audit allowlist for smartcontracts (GitLab #380 / H-06).
+# Run from this directory: cargo audit --deny warnings
+
+[advisories]
+ignore = [
+  # Transitive via cosmwasm-std / ed25519-zebra; upgrade blocked on optimizer/toolchain pin.
+  "RUSTSEC-2024-0344",
+  # Informational: derivative unmaintained — no direct usage; cosmwasm transitive.
+  "RUSTSEC-2024-0388",
+  # Informational: rand unsound only with custom logger + rng(); contracts do not use that API.
+  "RUSTSEC-2026-0097",
+]
+
+[output]
+deny = ["warnings", "unmaintained", "unsound", "yanked"]
+format = "terminal"
+quiet = false
+show_tree = true

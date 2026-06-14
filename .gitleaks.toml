@@ -25,3 +25,8 @@ regexes = [
   # localStorage key for first-visit risk acknowledgement (GitLab #138); not a credential.
   '''cl8y-dex-risk-ack''',
 ]
+paths = [
+  # Build / install trees are not committed; working-tree scans skip these (GitLab #380).
+  '''(?:^|/)target/''',
+  '''(?:^|/)node_modules/''',
+]
