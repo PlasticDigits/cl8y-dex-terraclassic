@@ -35,3 +35,33 @@ echo ""
 echo "== gitleaks: clean tracked tree must pass =="
 "${ROOT}/scripts/ci/gitleaks-scan-tracked.sh"
 echo "OK: clean tracked tree passed"
+
+echo ""
+echo "== gitleaks: force-tracked node_modules secret must fail =="
+NM_REPO="$(mktemp -d)"
+cleanup_nm_repo() {
+  rm -rf "$NM_REPO"
+}
+trap cleanup_nm_repo EXIT
+
+cp "$CONFIG" "${NM_REPO}/.gitleaks.toml"
+printf '%s\n' 'node_modules/' >"${NM_REPO}/.gitignore"
+git -C "$NM_REPO" init -q
+git -C "$NM_REPO" config user.email "gitleaks-test@example.com"
+git -C "$NM_REPO" config user.name "gitleaks-test"
+mkdir -p "${NM_REPO}/frontend-dapp/node_modules/evil"
+printf '%s\n' "ghp_$(openssl rand -hex 20)" >"${NM_REPO}/frontend-dapp/node_modules/evil/leak.txt"
+git -C "$NM_REPO" add .gitignore .gitleaks.toml
+git -C "$NM_REPO" add -f frontend-dapp/node_modules/evil/leak.txt
+git -C "$NM_REPO" commit -q -m "gitleaks node_modules bypass regression"
+
+set +e
+GITLEAKS_SCAN_ROOT="$NM_REPO" GITLEAKS_CONFIG="${NM_REPO}/.gitleaks.toml" \
+  "${ROOT}/scripts/ci/gitleaks-scan-tracked.sh" --verbose
+nm_rc=$?
+set -e
+if [[ "$nm_rc" -eq 0 ]]; then
+  echo "FAIL: gitleaks did not detect force-tracked secret under node_modules/"
+  exit 1
+fi
+echo "OK: force-tracked node_modules secret rejected (exit ${nm_rc})"

@@ -23,8 +23,9 @@ regexes = [
 [allowlist]
 description = "Allow Terra Classic addresses, crypto type names, and app-specific non-secrets"
 regexTarget = "secret"
-# No path allowlist for build/dependency trees (target/, node_modules/): force-committed secrets
-# under those paths must fail CI (scripts/ci/gitleaks-scan-tracked.sh; GitLab #380).
+# No repo-local path allowlist for build/dependency trees. CI remaps tracked node_modules/
+# paths in scripts/ci/gitleaks-scan-tracked.sh because useDefault inherits a built-in
+# node_modules/ exclusion that cannot be overridden in TOML (GitLab #380).
 regexes = [
   '''terra1[a-z0-9]{38,}''',
   '''Secp256k1PubKey''',
