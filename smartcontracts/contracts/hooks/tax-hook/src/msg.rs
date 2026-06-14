@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
-use dex_common::hook::HookExecuteMsg;
+use cosmwasm_std::{Addr, Uint128};
+use dex_common::hook::{ComputeSwapFeeResponse, HookExecuteMsg};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -29,6 +29,11 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(ConfigResponse)]
     GetConfig {},
+    #[returns(ComputeSwapFeeResponse)]
+    ComputeSwapFee {
+        output_token: String,
+        output_amount: Uint128,
+    },
 }
 
 #[cw_serde]

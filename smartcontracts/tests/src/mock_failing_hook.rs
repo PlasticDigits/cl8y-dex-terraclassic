@@ -1,9 +1,12 @@
 //! Post-swap hook that always errors after caller check — for atomicity / griefing regressions.
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{
+    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult,
+    Uint128,
+};
 use cw_multi_test::{Contract, ContractWrapper};
 use cw_storage_plus::Item;
-use dex_common::hook::HookCallMsg;
+use dex_common::hook::{ComputeSwapFeeResponse, HookCallMsg};
 
 const ALLOWED_PAIR: Item<String> = Item::new("p");
 
@@ -11,6 +14,16 @@ const ALLOWED_PAIR: Item<String> = Item::new("p");
 pub struct InstantiateMsg {
     /// Only this pair may invoke `Hook`; invocation always fails (simulates reverting hook).
     pub pair: String,
+}
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    #[returns(ComputeSwapFeeResponse)]
+    ComputeSwapFee {
+        output_token: String,
+        output_amount: Uint128,
+    },
 }
 
 pub fn instantiate(
@@ -39,8 +52,16 @@ pub fn execute(
     }
 }
 
-pub fn query(_deps: Deps, _env: Env, _msg: Empty) -> StdResult<Binary> {
-    Ok(Binary::default())
+pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::ComputeSwapFee {
+            output_token: _,
+            output_amount: _,
+        } => to_json_binary(&ComputeSwapFeeResponse {
+            fee_amount: Uint128::zero(),
+            settlement_recipient: None,
+        }),
+    }
 }
 
 pub fn mock_failing_hook_contract() -> Box<dyn Contract<Empty>> {

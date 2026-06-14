@@ -17,4 +17,14 @@ These contracts implement `HookMsg::AfterSwap` callbacks registered on pairs via
 
 Swap **wasm event** attrs still expose pool-only `commission_amount` for Terraport baseline compatibility; hybrid txs also emit `book_commission_amount` when the book leg runs. Per-fill book fees remain on `limit_order_fill` events.
 
-Canonical references: **[`docs/integrators.md`](../../../docs/integrators.md)** (§ Hybrid swaps and post-swap hooks), **[`docs/contracts-security-audit.md`](../../../docs/contracts-security-audit.md)** (L7).
+Canonical references: **[`docs/integrators.md`](../../../docs/integrators.md)** (§ Hybrid swaps and post-swap hooks), **[`docs/contracts-security-audit.md`](../../../docs/contracts-security-audit.md)** (L7), **[`docs/runbooks/hook-registration.md`](../../../docs/runbooks/hook-registration.md)**.
+
+## Swap settlement (tax / burn)
+
+Tax and burn hooks expose `ComputeSwapFee` (see `dex_common::hook::HookQueryMsg`). During `execute_swap`, the pair:
+
+1. Queries each registered hook for `fee_amount` and `settlement_recipient`.
+2. Transfers hook fees from the pair's ask-token balance (deducted from the trader's `return_amount`).
+3. Invokes `AfterSwap` for attribution; tax hook records settlement, burn hook burns tokens received from the pair.
+
+LP-burn hook returns zero from `ComputeSwapFee`; it burns pre-funded LP tokens proportional to verified pair output only (`pair == info.sender`).

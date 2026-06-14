@@ -598,7 +598,7 @@ mod adversarial_tests {
     }
 
     #[test]
-    fn lp_burn_hook_accepts_spoofed_pair_when_spoofer_allowlisted() {
+    fn lp_burn_hook_rejects_spoofed_pair_when_spoofer_allowlisted() {
         let mut app = App::default();
         let env = crate::helpers::setup_full_env(&mut app);
         let hook_code = app.store_code(lp_burn_hook_contract());
@@ -673,22 +673,26 @@ mod adversarial_tests {
         .unwrap();
 
         let lp_before = query_cw20_balance(&app, &env.lp_token, &hook);
-        app.execute_contract(
-            spoofer.clone(),
-            spoofer.clone(),
-            &SpooferExecuteMsg::SpoofLpBurnHook {
-                hook: hook.to_string(),
-                claimed_pair: env.pair.to_string(),
-                return_token: env.token_b.to_string(),
-                output_amount: Uint128::new(1_000_000),
-            },
-            &[],
-        )
-        .unwrap();
+        let err = app
+            .execute_contract(
+                spoofer.clone(),
+                spoofer.clone(),
+                &SpooferExecuteMsg::SpoofLpBurnHook {
+                    hook: hook.to_string(),
+                    claimed_pair: env.pair.to_string(),
+                    return_token: env.token_b.to_string(),
+                    output_amount: Uint128::new(1_000_000),
+                },
+                &[],
+            )
+            .unwrap_err();
         let lp_after = query_cw20_balance(&app, &env.lp_token, &hook);
+        assert_eq!(lp_after, lp_before, "spoofed pair must not burn LP");
+        let s = err.root_cause().to_string();
         assert!(
-            lp_after < lp_before,
-            "allowlisted non-pair can drive LP burns by spoofing `pair` in AfterSwap"
+            s.contains("SpoofedPair") || s.contains("pair") && s.contains("caller"),
+            "expected spoof rejection, got: {}",
+            s
         );
     }
 

@@ -10,7 +10,7 @@ The Factory contract has a single `governance` address that controls:
 
 **Key management:** the governance address should be a multisig or DAO-controlled address in production. Never use a single EOA for mainnet governance.
 
-Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md).
+Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md). Hook registration: [`docs/runbooks/hook-registration.md`](runbooks/hook-registration.md). CW20 whitelist ops: [`docs/runbooks/cw20-whitelist-ops.md`](runbooks/cw20-whitelist-ops.md).
 
 ## Treasury Management
 
@@ -53,7 +53,9 @@ Hooks are external contracts invoked via `AfterSwap` after every swap completes.
 | Gas griefing             | Hooks consume gas from the swap caller. Only register hooks with bounded execution cost. |
 | Data integrity           | Hook receives read-only data (amounts, addresses). It cannot modify pair state. |
 
-**Best practice:** only governance should register hooks (enforced by the Factory auth check), and hooks should be audited before registration.
+**Best practice:** only governance should register hooks (enforced by the Factory auth check), and hooks should be audited before registration. See [`docs/runbooks/hook-registration.md`](runbooks/hook-registration.md).
+
+**Fee hooks (tax / burn):** the pair queries each hook's `ComputeSwapFee` during swap settlement and deducts fees from the trader's output before `AfterSwap` — hooks must not subsidize fees from pre-funded balances ([#377](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/377)).
 
 ## Fee Discount Security
 

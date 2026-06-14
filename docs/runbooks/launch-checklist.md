@@ -10,8 +10,8 @@ Ordered checklist for **pool-only** swaps: direct pair and router paths with **`
 
 - [ ] Governance and treasury addresses are **multisigs or DAO** (not EOAs); see [Security model § Governance](../security-model.md).
 - [ ] **Wasm policy:** production code uploaded from **workspace-optimizer** artifacts (`make build-optimized`; reference spec [`.github/workflows/contracts-wasm-optimizer.yml`](../../.github/workflows/contracts-wasm-optimizer.yml)), not from dev `cargo` wasm alone — [docs/testing.md § CI](../testing.md#ci).
-- [ ] **Hook policy:** either **no hooks** on pairs, or only **audited** hook contracts with bounded gas (hook revert fails the whole swap — [Security model § Hook safety](../security-model.md)).
-- [ ] **Code ID whitelist** on the factory lists only intended CW20 code IDs for pair assets.
+- [ ] **Hook policy:** either **no hooks** on pairs, or only **audited** hook contracts with bounded gas (hook revert fails the whole swap — [Security model § Hook safety](../security-model.md)). Follow [`hook-registration.md`](hook-registration.md).
+- [ ] **Code ID whitelist** on the factory lists only intended CW20 code IDs for pair assets. **Never** whitelist fee-on-transfer templates — see [`cw20-whitelist-ops.md`](cw20-whitelist-ops.md) and run `scripts/qa/verify-cw20-code-ids.sh` against production/staging code IDs before `AddWhitelistedCodeId`.
 
 ---
 

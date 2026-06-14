@@ -86,7 +86,7 @@ pub fn execute(
                     return_asset,
                     commission_amount: _,
                     spread_amount: _,
-                } => execute_after_swap(deps, env, pair, return_asset.amount),
+                } => execute_after_swap(deps, env, info, pair, return_asset.amount),
             }
         }
         ExecuteMsg::UpdateConfig {
@@ -122,15 +122,33 @@ fn assert_allowed_pair(deps: Deps, info: &MessageInfo) -> Result<(), ContractErr
 fn execute_after_swap(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     pair: Addr,
     output_amount: Uint128,
 ) -> Result<Response, ContractError> {
+    if pair != info.sender {
+        return Err(ContractError::SpoofedPair {
+            expected: info.sender.to_string(),
+            actual: pair.to_string(),
+        });
+    }
+
     let config = CONFIG.load(deps.storage)?;
 
     if pair != config.target_pair {
         return Ok(Response::new()
             .add_attribute("action", "after_swap_lp_burn_hook")
             .add_attribute("skipped", "pair does not match target_pair"));
+    }
+
+    let pair_info: dex_common::types::PairInfo = deps
+        .querier
+        .query_wasm_smart(pair.to_string(), &dex_common::pair::QueryMsg::Pair {})?;
+    if pair_info.liquidity_token != config.lp_token {
+        return Err(ContractError::LpTokenMismatch {
+            pair_lp: pair_info.liquidity_token.to_string(),
+            configured_lp: config.lp_token.to_string(),
+        });
     }
 
     let target_burn = output_amount
@@ -246,6 +264,17 @@ fn execute_update_allowed_pairs(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::ComputeSwapFee {
+            output_token: _,
+            output_amount: _,
+        } => to_json_binary(&query_compute_swap_fee()),
+    }
+}
+
+fn query_compute_swap_fee() -> dex_common::hook::ComputeSwapFeeResponse {
+    dex_common::hook::ComputeSwapFeeResponse {
+        fee_amount: Uint128::zero(),
+        settlement_recipient: None,
     }
 }
 
