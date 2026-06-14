@@ -23,15 +23,11 @@ regexes = [
 [allowlist]
 description = "Allow Terra Classic addresses, crypto type names, and app-specific non-secrets"
 regexTarget = "secret"
-# node_modules/ only for local --no-git scans; CI uses scripts/ci/gitleaks-scan-tracked.sh (git-tracked only).
+# No path allowlist for build/dependency trees (target/, node_modules/): force-committed secrets
+# under those paths must fail CI (scripts/ci/gitleaks-scan-tracked.sh; GitLab #380).
 regexes = [
   '''terra1[a-z0-9]{38,}''',
   '''Secp256k1PubKey''',
   # localStorage key for first-visit risk acknowledgement (GitLab #138); not a credential.
   '''cl8y-dex-risk-ack''',
-]
-paths = [
-  # node_modules/ is gitignored; allowlist applies to --no-git local working-tree scans (GitLab #380).
-  # Do not allowlist target/: force-committed secrets under */target/ must fail CI git-range scans.
-  '''(?:^|/)node_modules/''',
 ]
