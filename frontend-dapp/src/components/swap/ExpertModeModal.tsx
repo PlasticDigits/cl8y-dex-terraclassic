@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Modal } from '@/components/ui'
+import { EXPERT_MODE_CONFIRM_PHRASE } from '@/utils/expertMode'
 import { sounds } from '@/lib/sounds'
 
 export interface ExpertModeModalProps {
@@ -8,8 +10,16 @@ export interface ExpertModeModalProps {
 }
 
 export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalProps) {
+  const [confirmInput, setConfirmInput] = useState('')
+  const confirmMatches = confirmInput.trim() === EXPERT_MODE_CONFIRM_PHRASE
+
+  const handleClose = () => {
+    setConfirmInput('')
+    onClose()
+  }
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Enable Expert Mode" panelClassName="max-w-md">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Enable Expert Mode" panelClassName="max-w-md">
       <div className="space-y-4 text-sm leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
         <p>
           Expert Mode disables the automatic block on swaps with very high expected slippage (above{' '}
@@ -26,12 +36,30 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
         <p className="font-semibold" style={{ color: 'var(--color-warning, #f59e0b)' }}>
           Only enable Expert Mode if you understand the execution risk.
         </p>
+        <label className="block space-y-2">
+          <span>
+            Type <strong style={{ color: 'var(--ink)' }}>{EXPERT_MODE_CONFIRM_PHRASE}</strong> to confirm:
+          </span>
+          <input
+            type="text"
+            className="input-neo w-full"
+            value={confirmInput}
+            onChange={(e) => setConfirmInput(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            data-testid="expert-mode-confirm-input"
+            aria-label="Expert mode confirmation phrase"
+          />
+        </label>
         <div className="flex flex-col sm:flex-row gap-2 pt-2">
           <button
             type="button"
             className="btn-primary flex-1"
+            disabled={!confirmMatches}
+            data-testid="expert-mode-confirm-enable"
             onClick={() => {
               sounds.playButtonPress()
+              setConfirmInput('')
               onEnable()
             }}
           >
@@ -42,7 +70,7 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
             className="btn-muted flex-1"
             onClick={() => {
               sounds.playButtonPress()
-              onClose()
+              handleClose()
             }}
           >
             Cancel

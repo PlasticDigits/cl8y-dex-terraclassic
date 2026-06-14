@@ -560,6 +560,20 @@ Use after deploy or indexer release (GitLab **#224**, CMC orderbook array **#223
 
 ---
 
+---
+
+## Token listing review (logo metadata)
+
+Indexer token rows (`logo_url`, symbol, decimals) are **operator-curated** before they appear in the retail dApp. Listing a new CW20 requires human review of:
+
+- On-chain `token_info` (symbol/name vs contract intent)
+- `logo_url` host (must be `https:` on an allowlisted CDN — see [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts))
+- No look-alike tickers vs major assets without explicit governance approval
+
+The dApp does **not** add extra token detail to swap confirmation — logos use the allowlist with blockie fallback ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). Security context: [Security model § Off-chain trust boundaries](./security-model.md#off-chain-trust-boundaries-frontend).
+
+---
+
 ## Related References
 
 - [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — volume reconciliation guide (#216)

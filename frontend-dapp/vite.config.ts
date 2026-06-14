@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { execSync } from 'child_process'
 import { networkInterfaces } from 'os'
+import { buildProductionCspMetaContent } from './viteCsp'
 
 let gitSha = 'dev'
 try {
@@ -14,6 +15,27 @@ try {
 
 function isPrivateIP(addr: string): boolean {
   return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|fd[0-9a-f]{2}:|fe80:)/.test(addr)
+}
+
+function assertBuildEnvGuards(command: string, mode: string, env: Record<string, string>): void {
+  if (command !== 'build') return
+
+  const mnemonic = env.VITE_DEV_MNEMONIC?.trim()
+  if (mnemonic) {
+    const allowMnemonic = mode === 'development' || env.VITE_ALLOW_DEV_MNEMONIC === 'local-only'
+    if (!allowMnemonic) {
+      throw new Error(
+        'VITE_DEV_MNEMONIC must not be set for non-development vite builds unless VITE_ALLOW_DEV_MNEMONIC=local-only. ' +
+          'Remove it from .env, .env.local, .env.staging, and your shell (GitLab #378 / #118).'
+      )
+    }
+  }
+
+  if (mode === 'production' && !env.VITE_WC_PROJECT_ID?.trim()) {
+    throw new Error(
+      'VITE_WC_PROJECT_ID is required for production builds. Set it in .env.production or your CI/CD secret store (GitLab #378 / M-10).'
+    )
+  }
 }
 
 function cspDevHosts(): Plugin {
@@ -48,19 +70,29 @@ function cspDevHosts(): Plugin {
   }
 }
 
-export default defineConfig(({ mode, command }) => {
-  if (command === 'build' && mode === 'production') {
-    const env = loadEnv(mode, path.join(__dirname), 'VITE_')
-    if (env.VITE_DEV_MNEMONIC?.trim()) {
-      throw new Error(
-        'VITE_DEV_MNEMONIC must not be set for production builds — it would be inlined into the client bundle. ' +
-          'Remove it from .env, .env.local, .env.production, and your shell (GitLab #118).'
-      )
-    }
+function cspProductionPolicy(mode: string, env: Record<string, string>): Plugin {
+  return {
+    name: 'csp-production-policy',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        if (mode !== 'production') return html
+        const csp = buildProductionCspMetaContent(env)
+        return html.replace(
+          /<meta http-equiv="Content-Security-Policy"\s+content="[^"]*"\s*\/>/,
+          `<meta http-equiv="Content-Security-Policy" content="${csp}" />`
+        )
+      },
+    },
   }
+}
+
+export default defineConfig(({ mode, command }) => {
+  const env = loadEnv(mode, path.join(__dirname), 'VITE_')
+  assertBuildEnvGuards(command, mode, env)
 
   return {
-    plugins: [react(), cspDevHosts()],
+    plugins: [react(), cspDevHosts(), cspProductionPolicy(mode, env)],
     resolve: {
       dedupe: ['react', 'react-dom'],
       alias: {

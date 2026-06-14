@@ -58,8 +58,8 @@ terrad query wasm contract-state smart <fee_discount> '{"is_trusted_router":{"ro
 ## Phase 4 — Off-chain stack (if applicable)
 
 - [ ] **Indexer:** `DATABASE_URL`, migrations, `FACTORY_ADDRESS`, LCD URLs, `CORS_ORIGINS`, optional `ROUTER_ADDRESS` per [`indexer/src/config.rs`](../../indexer/src/config.rs).
-- [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md).
-
+- [ ] **Indexer URL (frontend):** `VITE_INDEXER_URL` must be **HTTPS** on public deployments (no mixed-content `http:`). See [Security model § Off-chain trust boundaries](../security-model.md#off-chain-trust-boundaries-frontend) ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
+- [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md); `VITE_WC_PROJECT_ID` set before `npm run build` (production guard).
 ---
 
 ## Rollback / incident
