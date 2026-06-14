@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Modal } from '@/components/ui'
-import { sounds } from '@/lib/sounds'
 import { EXPERT_MODE_CONFIRM_PHRASE } from '@/utils/expertMode'
+import { sounds } from '@/lib/sounds'
 
 export interface ExpertModeModalProps {
   isOpen: boolean
@@ -57,6 +57,7 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
             autoComplete="off"
             spellCheck={false}
             data-testid="expert-mode-confirm-input"
+            aria-label="Expert mode confirmation phrase"
           />
         </div>
         <div className="flex flex-col sm:flex-row gap-2 pt-2">

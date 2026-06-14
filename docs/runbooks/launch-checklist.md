@@ -58,10 +58,9 @@ terrad query wasm contract-state smart <fee_discount> '{"is_trusted_router":{"ro
 ## Phase 4 — Off-chain stack (if applicable)
 
 - [ ] **Indexer:** `DATABASE_URL`, migrations, `FACTORY_ADDRESS`, LCD URLs, `CORS_ORIGINS`, optional `ROUTER_ADDRESS` per [`indexer/src/config.rs`](../../indexer/src/config.rs).
-- [ ] **Indexer URL (HTTPS):** production `VITE_INDEXER_URL` must use **`https://`** only — no plain HTTP to the quote API ([Security model § Off-chain trust](../security-model.md#off-chain-trust-boundaries-frontend--indexer), GitLab [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)).
-- [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md); `VITE_WC_PROJECT_ID` set for production builds; no `VITE_DEV_MNEMONIC` in release env.
-- [ ] **Frontend CSP:** `render.yaml` / CDN headers `connect-src` lists your LCD, RPC, indexer, and WalletConnect hosts (no blanket `https:`).
-
+- [ ] **Indexer URL (frontend):** production `VITE_INDEXER_URL` must use **`https://`** only — no mixed-content `http:` to the quote API. See [Security model § Off-chain trust boundaries](../security-model.md#off-chain-trust-boundaries-frontend) ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
+- [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md); `VITE_WC_PROJECT_ID` set before `npm run build` (production guard); no `VITE_DEV_MNEMONIC` in release env.
+- [ ] **Frontend CSP:** production builds inject env-scoped `connect-src` via [`viteCsp.ts`](../../frontend-dapp/viteCsp.ts) (no blanket `https:`); `render.yaml` omits a static CSP header so policy stays build-time aware.
 ---
 
 ## Rollback / incident

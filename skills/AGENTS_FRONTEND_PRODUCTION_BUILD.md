@@ -8,7 +8,9 @@ Use when changing **Vite build output**, **source maps**, or reviewing PRs that 
 |------------|---------|
 | [docs/frontend.md § Production build — Vite source maps](../docs/frontend.md#vite-production-sourcemaps) | Invariants, prod vs non-prod `mode`, checklist pointer ([GitLab #117](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/117)) |
 | `frontend-dapp/vite.config.ts` | `build.sourcemap` — must stay **disabled for `mode === 'production'`** unless product/security explicitly approves a different strategy (e.g. hidden maps + upload-only tooling). |
-| `frontend-dapp/src/viteConfig.build.test.ts` | Vitest guard: `loadConfigFromFile` asserts prod `sourcemap === false`, mnemonic/WC build guards, production CSP shape ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)). |
+| `frontend-dapp/viteCsp.ts` | Production CSP `connect-src` / `img-src` builders — no blanket `https:` in prod ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
+| `frontend-dapp/src/viteConfig.build.test.ts` | Vitest guard: `loadConfigFromFile` asserts prod `sourcemap === false`, staging mnemonic rejection, and missing `VITE_WC_PROJECT_ID` on production builds. |
+| `frontend-dapp/src/utils/__tests__/viteCsp.test.ts` | Production CSP meta content, env host narrowing, and `render.yaml` static-header omission ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
 | [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139) | Connect-modal QA checklist includes **`npm run build`** / **`npx vitest run`** gates (see [docs/frontend.md § Connect modal](../docs/frontend.md#connect-modal-extension-install)). |
 
 ## Rules of thumb

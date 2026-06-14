@@ -7,7 +7,7 @@ use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::api::db_orderbook_sim::{self, HopMirror, MirrorFreshness, MirrorLoadMeta};
-use crate::constants::clamp_max_maker_fills;
+use crate::hybrid_limits::clamp_max_maker_fills;
 use crate::lcd::LcdClient;
 
 /// Optional wallet forwarded to pair `HybridSimulation` / router sim for CL8Y fee-tier parity (GitLab #245).

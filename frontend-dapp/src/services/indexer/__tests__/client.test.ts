@@ -312,4 +312,29 @@ describe('indexer client fetchJson', () => {
     expect(url).toContain('side=bid')
     expect(url).toContain('prices=0.95%2C1.05')
   })
+
+  it('URL-encodes pair and trader path segments (GitLab #379)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }))
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          address: 'terra1trader000000000000000000000000000000',
+          total_volume: '0',
+          total_trades: 0,
+        }),
+        { status: 200 }
+      )
+    )
+    const client = await loadModule()
+    const pairWithSlash = 'terra1pair/with/slash'
+    const traderWithSlash = 'terra1trader/with/slash'
+    await client.getPair(pairWithSlash)
+    await client.getTrader(traderWithSlash)
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe(
+      `${client.INDEXER_URL}/api/v1/pairs/${encodeURIComponent(pairWithSlash)}`
+    )
+    expect(vi.mocked(fetch).mock.calls[1][0]).toBe(
+      `${client.INDEXER_URL}/api/v1/traders/${encodeURIComponent(traderWithSlash)}`
+    )
+  })
 })

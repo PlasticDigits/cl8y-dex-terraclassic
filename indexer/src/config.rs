@@ -30,6 +30,8 @@ const DEFAULT_LCD_URLS: &str = "https://terra-classic-lcd.publicnode.com,\
 pub const DEFAULT_RATE_LIMIT_RPS: u64 = 60;
 /// Default LCD-heavy route rate limit (requests per second per client IP).
 pub const DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS: u64 = 10;
+/// Max JSON body size for `POST /api/v1/route/solve` (GitLab #379 / L-08).
+pub const ROUTE_SOLVE_POST_BODY_LIMIT_BYTES: usize = 128 * 1024;
 
 fn normalized_lcd_url_list(s: &str) -> String {
     s.split(',')
@@ -195,29 +197,25 @@ impl Config {
             start_block: env::var("START_BLOCK").ok().and_then(|v| v.parse().ok()),
             cors_origins,
             rate_limit_rps: {
-                let raw_zero = env::var("RATE_LIMIT_RPS")
-                    .ok()
-                    .and_then(|v| v.parse::<u64>().ok())
-                    .is_some_and(|v| v == 0);
-                let mut rps = env::var("RATE_LIMIT_RPS")
+                let rate_limit_rps_raw = env::var("RATE_LIMIT_RPS")
                     .ok()
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(DEFAULT_RATE_LIMIT_RPS);
+                let rate_limit_lcd_heavy_raw = env::var("RATE_LIMIT_LCD_HEAVY_RPS")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS);
+                if rate_limit_rps_raw == 0 && rate_limit_lcd_heavy_raw == 0 {
+                    tracing::warn!(
+                        "RATE_LIMIT_RPS=0 and RATE_LIMIT_LCD_HEAVY_RPS=0: all API rate governors are disabled (DoS risk — GitLab #379)"
+                    );
+                }
+                let mut rps = rate_limit_rps_raw;
                 if run_mode == RunMode::Prod && rps == 0 {
                     tracing::warn!(
                         "RUN_MODE=prod: RATE_LIMIT_RPS=0 is not allowed; using {DEFAULT_RATE_LIMIT_RPS} RPS"
                     );
                     rps = DEFAULT_RATE_LIMIT_RPS;
-                }
-                let lcd_raw_zero = env::var("RATE_LIMIT_LCD_HEAVY_RPS")
-                    .ok()
-                    .and_then(|v| v.parse::<u64>().ok())
-                    .is_some_and(|v| v == 0);
-                if run_mode != RunMode::Prod && raw_zero && lcd_raw_zero {
-                    tracing::warn!(
-                        "RATE_LIMIT_RPS=0 and RATE_LIMIT_LCD_HEAVY_RPS=0 — all API rate governors disabled (GitLab #379 M-05). \
-                         Set both only for local QA."
-                    );
                 }
                 rps
             },
@@ -338,6 +336,20 @@ mod tests {
         let c = Config::from_env().expect("prod config");
         assert_eq!(c.run_mode, RunMode::Prod);
         assert_eq!(c.lcd_urls, vec!["https://lcd.example.com".to_string()]);
+    }
+
+    #[test]
+    #[serial]
+    fn dev_dual_zero_rate_limits_still_loads() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        let c = Config::from_env().expect("dev dual-zero");
+        assert_eq!(c.rate_limit_rps, 0);
+        assert_eq!(c.rate_limit_lcd_heavy_rps, 0);
     }
 
     #[test]

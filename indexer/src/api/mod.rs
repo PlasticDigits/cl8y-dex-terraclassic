@@ -410,14 +410,16 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route(
             "/api/v1/route/solve",
-            get(route_solver::solve_route).post(route_solver::solve_route_post),
+            get(route_solver::solve_route)
+                .post(route_solver::solve_route_post)
+                .layer(RequestBodyLimitLayer::new(
+                    crate::config::ROUTE_SOLVE_POST_BODY_LIMIT_BYTES,
+                )),
         )
         // cg/cmc orderbook endpoints carry the same LCD fanout as the native limit-book
         // routes (orderbook_sim::simulate_orderbook_cached) — throttle them the same (#278).
         .route("/cg/orderbook", get(cg::cg_orderbook))
         .route("/cmc/orderbook/{market_pair}", get(cmc::cmc_orderbook));
-    let lcd_heavy_router = lcd_heavy_router
-        .layer(RequestBodyLimitLayer::new(ROUTE_SOLVE_POST_BODY_LIMIT));
     let lcd_heavy_router =
         apply_rate_limit_layer(lcd_heavy_router, config.rate_limit_lcd_heavy_rps);
 

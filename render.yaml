@@ -5,6 +5,9 @@ services:
     rootDir: frontend-dapp
     buildCommand: npm ci && NODE_OPTIONS=--max-old-space-size=4096 npm run build
     staticPublishPath: dist
+    # Production CSP is injected into dist/index.html at `vite build` (frontend-dapp/viteCsp.ts).
+    # No static Content-Security-Policy header here — browsers intersect header + meta policies,
+    # and this file cannot read operator VITE_* env (LCD/RPC/indexer) at deploy time.
     headers:
       - path: /*
         name: X-Content-Type-Options

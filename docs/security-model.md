@@ -12,6 +12,26 @@ The Factory contract has a single `governance` address that controls:
 
 Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md).
 
+## Off-chain trust boundaries (frontend)
+
+The on-chain contracts enforce swap math, whitelist, and auth — but the **browser dApp** also depends on off-chain services that are **not** cryptographically bound to chain state. Operators and users should understand these limits ([GitLab **#378**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378), parent [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376)).
+
+| Surface | Trust assumption | Risk if compromised | Mitigation |
+|---------|------------------|---------------------|------------|
+| **Indexer** (`VITE_INDEXER_URL`) | Route solve (`router_operations`), token metadata (`logo_url`), charts, oracle display | Malicious but **valid** pool routes, inflated quotes, phishing logos | Pin **HTTPS-only** indexer URL in deploy; TLS cert from your CA; human-readable **Route** row at swap confirmation (`swap-route-summary`); optional factory LCD `getPair()` preflight on hops ([`swapRoutePreflight.ts`](../frontend-dapp/src/services/terraclassic/swapRoutePreflight.ts)). **No** client-side BFS fallback vs indexer (RPC rate limits). |
+| **Build env** | `VITE_*` addresses, `VITE_WC_PROJECT_ID`, dev mnemonic | Wrong contracts inlined; shared WC project; seed in bundle | `vite build` guards: reject `VITE_DEV_MNEMONIC` outside `development` / `VITE_ALLOW_DEV_MNEMONIC=local-only`; require `VITE_WC_PROJECT_ID` in production. See [`docs/frontend.md`](./frontend.md#simulated-dev-wallet-and-vite_dev_mnemonic). |
+| **Token logos** | Indexer `logo_url` + static registry | Phishing imagery for look-alike tickers | Host allowlist in [`TokenLogo`](../frontend-dapp/src/components/ui/TokenLogo.tsx); indexer token listing requires **human review** ([`docs/CG_CMC_COMPLIANCE.md`](./CG_CMC_COMPLIANCE.md#token-listing-review)). |
+| **LCD / RPC** | `VITE_TERRA_LCD_URL`, `VITE_TERRA_RPC_URL` | MITM on queries/simulations | HTTPS endpoints; optional startup factory address sanity check documented in deploy checklist. |
+
+**Deploy checklist (frontend):**
+
+1. Set `VITE_INDEXER_URL` to your **HTTPS** indexer origin only (no mixed-content `http:` on public sites).
+2. Pin `VITE_FACTORY_ADDRESS`, `VITE_ROUTER_ADDRESS`, and related contract env vars per network; verify on [`/protocol`](../frontend-dapp/src/pages/ProtocolPage.tsx) (audit surface only — not swap confirmation).
+3. Set a dedicated `VITE_WC_PROJECT_ID` (WalletConnect Cloud) for production.
+4. Production CSP `connect-src` lists env LCD/RPC/indexer hosts + WalletConnect relay — not blanket `https:` ([`frontend-dapp/viteCsp.ts`](../frontend-dapp/viteCsp.ts)).
+
+TLS pinning guidance: use a managed TLS cert on the indexer load balancer; restrict DNS to operator-controlled records; monitor cert expiry. Full MITM resistance also depends on the user’s browser trust store — document honest limits in operator runbooks.
+
 ## Treasury Management
 
 All swap commissions are sent directly to the `treasury` address configured in the Factory. The Pair contract holds no fees — they are transferred atomically during each swap.

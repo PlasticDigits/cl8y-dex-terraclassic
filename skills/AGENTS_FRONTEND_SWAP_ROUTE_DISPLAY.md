@@ -48,6 +48,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 - **Hybrid book leg amount input (no raw `BigInt` errors):** [GitLab **#169**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169), [`AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md`](./AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md).
 - [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) — frontend invariant **#6** (route preview) and price-impact context (**#134**).
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md#frontend-expectations-read-path) — indexer `router_operations` vs LCD spread preflight; GET `/route/solve` hybrid default ([GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)).
+- [`docs/security-model.md`](../docs/security-model.md#off-chain-trust-boundaries-frontend) — indexer MITM / compromised route risks ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
 - [`docs/frontend.md`](../docs/frontend.md#swap-page-integration) — Swap page integration.
 - [`docs/frontend.md`](../docs/frontend.md#trade-page-market-context) — Trade market ticket + route preview (**#302**).
 

@@ -302,6 +302,9 @@ describe('TradePage', () => {
     })
     expect(await screen.findByText(/Loading chart/i)).toBeInTheDocument()
 
+    await waitFor(() => {
+      expect(vi.mocked(indexerClient.getPair)).toHaveBeenCalledWith(PAIR)
+    })
     resolvePair(mockIndexerPair)
     await waitFor(() => {
       expect(screen.queryByText(/Loading chart/i)).not.toBeInTheDocument()
