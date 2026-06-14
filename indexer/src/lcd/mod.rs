@@ -10,6 +10,19 @@ use tokio::sync::RwLock;
 
 pub use types::*;
 
+/// Redact LCD path for WARN logs (GitLab #379 L-04).
+fn lcd_log_path(path: &str) -> &'static str {
+    if path.starts_with("/cosmwasm/") {
+        "/cosmwasm/..."
+    } else if path.starts_with("/cosmos/tx/") {
+        "/cosmos/tx/..."
+    } else if path.starts_with("/cosmos/base/tendermint/") {
+        "/cosmos/base/tendermint/..."
+    } else {
+        "<lcd-path>"
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum LcdError {
     #[error("All LCD endpoints failed: {0}")]
@@ -87,14 +100,26 @@ impl LcdClient {
             }
 
             let full_url = format!("{}{}", url, path);
+            let log_path = lcd_log_path(path);
             match self.inner.client.get(&full_url).send().await {
                 Ok(resp) => {
                     let status = resp.status();
                     if !status.is_success() {
                         let body = resp.text().await.unwrap_or_default();
-                        let msg = format!("LCD smart query returned HTTP {}", status);
-                        tracing::warn!(http_status = %status, "{}", msg);
-                        tracing::debug!(url = %full_url, body_snippet = %body.chars().take(200).collect::<String>(), "LCD smart query failure detail");
+                        let body_snippet = body.chars().take(200).collect::<String>();
+                        tracing::warn!(
+                            endpoint_idx = idx,
+                            status = %status,
+                            path = log_path,
+                            "LCD upstream returned non-success status"
+                        );
+                        tracing::debug!(
+                            endpoint_idx = idx,
+                            path = log_path,
+                            body_snippet = %body_snippet,
+                            "LCD upstream error detail"
+                        );
+                        let msg = format!("endpoint[{idx}] {log_path} returned {status}");
                         errors.push(msg);
                         // Contract/query rejections (4xx/500) are not endpoint outages — keep trying
                         // this LCD for subsequent queries (e.g. hybrid sim fails, pool sim succeeds).
@@ -107,22 +132,39 @@ impl LcdClient {
                     match serde_json::from_str::<T>(&text) {
                         Ok(val) => return Ok(val),
                         Err(e) => {
-                            let msg = format!("LCD smart query deserialize error: {e}");
-                            tracing::warn!("{}", msg);
-                            tracing::debug!(
-                                url = %full_url,
-                                body_snippet = %text.chars().take(200).collect::<String>(),
-                                "LCD smart query deserialize failure detail"
+                            let body_snippet = text.chars().take(200).collect::<String>();
+                            tracing::warn!(
+                                endpoint_idx = idx,
+                                path = log_path,
+                                "LCD response deserialization failed"
                             );
+                            tracing::debug!(
+                                endpoint_idx = idx,
+                                path = log_path,
+                                error = %e,
+                                body_snippet = %body_snippet,
+                                "LCD deserialize error detail"
+                            );
+                            let msg = format!("endpoint[{idx}] {log_path} deserialize error: {e}");
                             errors.push(msg);
                             continue;
                         }
                     }
                 }
                 Err(e) => {
-                    let msg = format!("LCD request error: {e}");
-                    tracing::warn!("{}", msg);
-                    tracing::debug!(url = %full_url, "LCD request failure detail");
+                    tracing::warn!(
+                        endpoint_idx = idx,
+                        path = log_path,
+                        error = %e,
+                        "LCD request failed"
+                    );
+                    tracing::debug!(
+                        endpoint_idx = idx,
+                        path = log_path,
+                        error = %e,
+                        "LCD request failure detail"
+                    );
+                    let msg = format!("endpoint[{idx}] {log_path}: {e}");
                     errors.push(msg);
                     self.mark_failed(idx).await;
                 }

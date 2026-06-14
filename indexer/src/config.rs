@@ -396,6 +396,20 @@ mod tests {
 
     #[test]
     #[serial]
+    fn dev_allows_both_rate_limits_zero() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        let c = Config::from_env().expect("dev config with zero limits");
+        assert_eq!(c.rate_limit_rps, 0);
+        assert_eq!(c.rate_limit_lcd_heavy_rps, 0);
+    }
+
+    #[test]
+    #[serial]
     fn prod_rejects_empty_cors() {
         clear_config_env();
         env::set_var("RUN_MODE", "prod");

@@ -22,7 +22,7 @@ use crate::api::hybrid_route_opt;
 use crate::api::internal_err;
 use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
-use crate::hybrid_limits::{self, clamp_max_maker_fills};
+use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
 
 pub use hybrid_route_opt::HybridHopJson;
 
@@ -579,7 +579,7 @@ pub(crate) fn cache_key_maker_fills(max_maker_fills: u32) -> u32 {
     } else if m <= 16 {
         16
     } else {
-        hybrid_limits::MAX_MAKER_FILLS_HARD_CAP
+        MAX_MAKER_FILLS_HARD_CAP
     }
 }
 
@@ -797,7 +797,7 @@ pub async fn solve_route_best(
         &q.token_in,
         &q.token_out,
         amount_raw,
-        q.max_maker_fills.unwrap_or(8),
+        q.max_maker_fills.map(clamp_max_maker_fills).unwrap_or(8),
         &quote_trader,
     )
     .await
@@ -835,7 +835,7 @@ pub async fn solve_route(
             &q.token_in,
             &q.token_out,
             amount_raw.expect("checked above"),
-            q.max_maker_fills.unwrap_or(8),
+            q.max_maker_fills.map(clamp_max_maker_fills).unwrap_or(8),
             &quote_trader,
         )
         .await;
@@ -885,7 +885,7 @@ pub async fn solve_route(
             &mut body,
             amount_raw,
             &quote_trader,
-            q.max_maker_fills.unwrap_or(8),
+            q.max_maker_fills.map(clamp_max_maker_fills).unwrap_or(8),
             None,
         )
         .await;
@@ -1009,7 +1009,7 @@ mod quote_trader_tests {
 #[cfg(test)]
 mod hybrid_cache_key_tests {
     use super::{amount_cache_key, cache_key_maker_fills, hybrid_cache_key};
-    use crate::hybrid_limits;
+    use crate::hybrid_limits::MAX_MAKER_FILLS_HARD_CAP;
 
     const TIN: &str = "terra1tokenin000000000000000000000000000";
     const TOUT: &str = "terra1tokenout00000000000000000000000000";
@@ -1033,11 +1033,9 @@ mod hybrid_cache_key_tests {
         assert_ne!(mid, high);
         assert_eq!(cache_key_maker_fills(7), 8);
         assert_eq!(cache_key_maker_fills(12), 16);
-        assert_eq!(cache_key_maker_fills(25), hybrid_limits::MAX_MAKER_FILLS_HARD_CAP);
-        assert_eq!(
-            cache_key_maker_fills(4294967295),
-            hybrid_limits::MAX_MAKER_FILLS_HARD_CAP
-        );
+        assert_eq!(cache_key_maker_fills(25), MAX_MAKER_FILLS_HARD_CAP);
+        assert_eq!(cache_key_maker_fills(100), MAX_MAKER_FILLS_HARD_CAP);
+        assert_eq!(cache_key_maker_fills(4294967295), MAX_MAKER_FILLS_HARD_CAP);
     }
 
     // GitLab #283: the resolved discount bps is part of the key, so two callers on different

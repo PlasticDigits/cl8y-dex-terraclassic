@@ -97,6 +97,9 @@ pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
 const AGGREGATOR_CACHE_TTL: Duration = Duration::from_secs(60);
 
+/// Max JSON body size for `POST /api/v1/route/solve` (GitLab #379 L-08).
+pub const ROUTE_SOLVE_POST_BODY_LIMIT: usize = 128 * 1024;
+
 fn aggregator_cache() -> &'static std::sync::Mutex<HashMap<String, (serde_json::Value, Instant)>> {
     static CACHE: std::sync::OnceLock<
         std::sync::Mutex<HashMap<String, (serde_json::Value, Instant)>>,

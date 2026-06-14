@@ -55,7 +55,8 @@ test.describe('Terra broadcast post-sign recovery (GitLab #368)', () => {
         .catch(() => false)
     ) {
       await page.getByTestId('swap-enable-expert-mode').click()
-      await page.getByLabel('Enable Expert Mode').getByRole('button', { name: 'Enable Expert Mode' }).click()
+      await page.getByTestId('expert-mode-confirm-input').fill('ENABLE EXPERT MODE')
+      await page.getByTestId('expert-mode-confirm-enable').click()
       await openSwapSettingsAndSetSlippage(page, 50)
     }
 

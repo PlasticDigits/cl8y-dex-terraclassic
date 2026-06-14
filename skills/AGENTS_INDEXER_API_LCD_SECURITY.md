@@ -56,7 +56,7 @@ cd indexer && cargo test --lib
 cd indexer && cargo test --test security -j 1 -- --test-threads=1
 ```
 
-Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**), global 429 burst.
+Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**), global 429 burst, blacklist-check LCD **502** (**#379**), POST route solve oversized body **413** (**#379**).
 
 Manual check (failing LCD):
 
