@@ -8,6 +8,10 @@ const WALLETCONNECT_CONNECT_HOSTS = [
   'https://pulse.walletconnect.org',
 ] as const
 
+/** Mirrors `TERRA_LCD_URL` / `TERRA_RPC_URL` fallbacks in `src/utils/constants.ts`. */
+export const PRODUCTION_TERRA_LCD_FALLBACK = 'https://terra-classic-lcd.publicnode.com'
+export const PRODUCTION_TERRA_RPC_FALLBACK = 'https://terra-classic-rpc.publicnode.com:443'
+
 function originFromEnvUrl(raw: string | undefined): string | null {
   const trimmed = raw?.trim()
   if (!trimmed) return null
@@ -26,8 +30,8 @@ function uniqueHosts(hosts: Array<string | null | undefined>): string[] {
 /** Production connect-src: env LCD/RPC/indexer + WalletConnect relay (GitLab #378 / M-07). */
 export function buildProductionConnectSrc(env: Record<string, string>): string {
   const fromEnv = uniqueHosts([
-    originFromEnvUrl(env.VITE_TERRA_LCD_URL),
-    originFromEnvUrl(env.VITE_TERRA_RPC_URL),
+    originFromEnvUrl(env.VITE_TERRA_LCD_URL) ?? PRODUCTION_TERRA_LCD_FALLBACK,
+    originFromEnvUrl(env.VITE_TERRA_RPC_URL) ?? PRODUCTION_TERRA_RPC_FALLBACK,
     originFromEnvUrl(env.VITE_INDEXER_URL),
     ...WALLETCONNECT_CONNECT_HOSTS,
   ])

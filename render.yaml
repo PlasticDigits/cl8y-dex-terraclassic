@@ -5,10 +5,10 @@ services:
     rootDir: frontend-dapp
     buildCommand: npm ci && NODE_OPTIONS=--max-old-space-size=4096 npm run build
     staticPublishPath: dist
+    # Production CSP is injected into dist/index.html at `vite build` (frontend-dapp/viteCsp.ts).
+    # No static Content-Security-Policy header here — browsers intersect header + meta policies,
+    # and this file cannot read operator VITE_* env (LCD/RPC/indexer) at deploy time.
     headers:
-      - path: /*
-        name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://relay.walletconnect.com wss://relay.walletconnect.org https://verify.walletconnect.com https://explorer-api.walletconnect.com https://pulse.walletconnect.org; img-src 'self' data: https://gitlab.com https://raw.githubusercontent.com https://assets.coingecko.com https://coin-images.coingecko.com https://s2.coinmarketcap.com https://static.coinmarketcap.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
       - path: /*
         name: X-Content-Type-Options
         value: nosniff
