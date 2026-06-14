@@ -48,6 +48,14 @@ The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https:/
 - **Hot wallets** for `terrad tx` should use hardware wallets or HSM-backed keys where possible.
 - **Multisig** governance for factory/router/pair admin is required for production; see [Security model](../security-model.md).
 
+## Frontend deploy secrets
+
+| Variable | Role | Notes |
+|----------|------|--------|
+| `VITE_WC_PROJECT_ID` | WalletConnect Cloud project | **Required** for `vite build --mode production`. Do not rely on a shared default in source ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
+| `VITE_INDEXER_URL` | Browser → indexer API | **HTTPS only** on public sites. Pin to operator-controlled origin; see [Security model § Off-chain trust](./security-model.md#off-chain-trust-boundaries-frontend). |
+| `VITE_DEV_MNEMONIC` | Simulated wallet (dev only) | Must **not** be set for staging/production builds unless `VITE_ALLOW_DEV_MNEMONIC=local-only` with explicit operator approval. |
+
 ## Rotation
 
 - **Database:** Rotate DB password; update `DATABASE_URL` in your secret store / orchestrator; restart indexer.

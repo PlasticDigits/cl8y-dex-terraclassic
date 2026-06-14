@@ -17,6 +17,7 @@
     <meta name="twitter:description" content="CW20 token exchange on Terra Classic" />
     <meta http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:*; img-src 'self' data: https:; font-src 'self';" />
+    <!-- Dev CSP above: broad connect-src for local Vite. Production `vite build` replaces this via viteCsp.ts (GitLab #378). -->
     <title>CL8Y DEX</title>
     <link rel="stylesheet" href="/bootstrap/trade-bootstrap.css" />
     <script src="/bootstrap/theme.js"></script>

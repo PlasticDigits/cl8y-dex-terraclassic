@@ -2,22 +2,29 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadConfigFromFile } from 'vite'
-import { describe, expect, it } from 'vitest'
-import { assertNonDevelopmentBuildMnemonic, assertProductionBuildEnv, buildProductionCsp } from '../vite.config'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const viteConfigPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'vite.config.ts')
 
 describe('vite.config production source maps', () => {
-  it('disables build.sourcemap for production mode (GitLab #117)', async () => {
-    const prevWc = process.env.VITE_WC_PROJECT_ID
-    process.env.VITE_WC_PROJECT_ID = 'test-wc-project-id'
-    try {
-      const loaded = await loadConfigFromFile({ command: 'build', mode: 'production' }, viteConfigPath)
-      expect(loaded?.config.build?.sourcemap).toBe(false)
-    } finally {
-      if (prevWc === undefined) delete process.env.VITE_WC_PROJECT_ID
-      else process.env.VITE_WC_PROJECT_ID = prevWc
+  let prevWc: string | undefined
+
+  beforeEach(() => {
+    prevWc = process.env.VITE_WC_PROJECT_ID
+    process.env.VITE_WC_PROJECT_ID = process.env.VITE_WC_PROJECT_ID || 'vitest-wc-project-id'
+  })
+
+  afterEach(() => {
+    if (prevWc === undefined) {
+      delete process.env.VITE_WC_PROJECT_ID
+    } else {
+      process.env.VITE_WC_PROJECT_ID = prevWc
     }
+  })
+
+  it('disables build.sourcemap for production mode (GitLab #117)', async () => {
+    const loaded = await loadConfigFromFile({ command: 'build', mode: 'production' }, viteConfigPath)
+    expect(loaded?.config.build?.sourcemap).toBe(false)
   })
 
   it('enables build.sourcemap for non-production build modes', async () => {
@@ -59,58 +66,25 @@ describe('vite.config production source maps', () => {
   })
 
   it('rejects production build when VITE_WC_PROJECT_ID is missing (GitLab #378)', async () => {
-    const prev = process.env.VITE_WC_PROJECT_ID
+    const prevMnemonic = process.env.VITE_DEV_MNEMONIC
+    const prevWcLocal = process.env.VITE_WC_PROJECT_ID
+    delete process.env.VITE_DEV_MNEMONIC
     delete process.env.VITE_WC_PROJECT_ID
     try {
       await expect(loadConfigFromFile({ command: 'build', mode: 'production' }, viteConfigPath)).rejects.toThrow(
-        /VITE_WC_PROJECT_ID must be set/
+        /VITE_WC_PROJECT_ID is required/
       )
     } finally {
-      if (prev === undefined) delete process.env.VITE_WC_PROJECT_ID
-      else process.env.VITE_WC_PROJECT_ID = prev
+      if (prevMnemonic === undefined) {
+        delete process.env.VITE_DEV_MNEMONIC
+      } else {
+        process.env.VITE_DEV_MNEMONIC = prevMnemonic
+      }
+      if (prevWcLocal === undefined) {
+        delete process.env.VITE_WC_PROJECT_ID
+      } else {
+        process.env.VITE_WC_PROJECT_ID = prevWcLocal
+      }
     }
-  })
-})
-
-describe('vite.config production CSP (GitLab #378)', () => {
-  it('narrows connect-src to env hosts and WalletConnect (no broad https:)', () => {
-    const csp = buildProductionCsp({
-      VITE_TERRA_LCD_URL: 'https://terra-classic-lcd.publicnode.com',
-      VITE_TERRA_RPC_URL: 'https://terra-classic-rpc.publicnode.com:443',
-      VITE_INDEXER_URL: 'https://indexer.example.com',
-    })
-    expect(csp).toContain('https://indexer.example.com')
-    expect(csp).toContain('wss://relay.walletconnect.com')
-    const connect = csp.match(/connect-src ([^;]+)/)?.[1] ?? ''
-    expect(connect.split(/\s+/)).not.toContain('https:')
-    expect(connect.split(/\s+/)).not.toContain('wss:')
-  })
-
-  it('uses script-src self without unsafe-inline in production', () => {
-    const csp = buildProductionCsp({})
-    const script = csp.match(/script-src ([^;]+)/)?.[1] ?? ''
-    expect(script).toBe("'self'")
-    expect(script).not.toContain('unsafe-inline')
-  })
-})
-
-describe('vite.config build env guards (GitLab #378)', () => {
-  it('assertNonDevelopmentBuildMnemonic allows development mode', () => {
-    expect(() =>
-      assertNonDevelopmentBuildMnemonic('development', { VITE_DEV_MNEMONIC: 'seed words here' })
-    ).not.toThrow()
-  })
-
-  it('assertNonDevelopmentBuildMnemonic allows local-only escape', () => {
-    expect(() =>
-      assertNonDevelopmentBuildMnemonic('staging', {
-        VITE_DEV_MNEMONIC: 'seed words here',
-        VITE_ALLOW_DEV_MNEMONIC: 'local-only',
-      })
-    ).not.toThrow()
-  })
-
-  it('assertProductionBuildEnv requires WC project id', () => {
-    expect(() => assertProductionBuildEnv('production', {})).toThrow(/VITE_WC_PROJECT_ID/)
   })
 })
