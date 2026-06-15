@@ -48,6 +48,16 @@ terrad tx wasm execute <fee_discount_addr> '{
 | I8 | **Factory rollout:** point pairs at the fee-discount contract via factory `set_discount_registry` (one pair), `set_discount_registry_all` (≤10 pairs only), or paginated `set_discount_registry_batch` — see [contracts-terraclassic.md § Factory discount registry rollout](../contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123) ([#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)). |
 | I9 | **Pair discount cache ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)):** When `discount_registry` is set, the pair caches `GetDiscount` per `(trader, sender)` for **`DISCOUNT_CACHE_TTL_SECONDS` = 300** (`dex_common::pair`). Entries with `needs_deregister: true` are never cached; cache is cleared when a deregister submessage is emitted. Stale tier within TTL may still apply the prior discount (bounded 5 min). `HybridSimulation` with `trader` reads the cache; it does not write. Pairs without registry incur no cache storage. |
 | I10 | **Registry query failure → full fee (fail-closed, [#365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365)):** When the pair's registry `GetDiscount` smart query returns `Err`, execute and hybrid simulation use **full pair `fee_bps`** (no discount attrs). Swaps are **not** reverted. Integrators distinguish **unregistered** (`get_registration.registered = false`) from **registry unreachable** (LCD/`get_discount` errors, or indexer `GET /api/v1/health/fee-discount` → `fee_discount_registry_ok: false`). Decision table: [integrators.md § Fee-discount registry outage](../integrators.md#fee-discount-registry-outage). |
+| I11 | **LocalTerra CL8Y proxy ([#383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)):** `scripts/deploy-dex-local.sh` deploys **TCL8Y** (18 decimals, symbol `TCL8Y`) for fee-discount `cl8y_token` and `VITE_CL8Y_TOKEN_ADDRESS`. Trading tokens (EMBER, CORAL, …) stay at **6** decimals and must **not** be used as the CL8Y proxy. Regression: `make verify-issue-383`. |
+
+## LocalTerra TCL8Y (GitLab #383)
+
+`make deploy-local` instantiates **TCL8Y** (`Terra Classic CL8Y`, 18 decimals) and points the fee-discount contract plus `frontend-dapp/.env.local` `VITE_CL8Y_TOKEN_ADDRESS` at it. EMBER and other pair tokens remain 6-decimal QA liquidity assets only.
+
+```bash
+make deploy-local
+make verify-issue-383   # TCL8Y decimals, tier-1 register, deregister (FT-3 / FT-4)
+```
 
 ## Drift check
 

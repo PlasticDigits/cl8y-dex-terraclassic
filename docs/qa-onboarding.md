@@ -75,14 +75,15 @@ cd frontend-dapp && npm ci && npm run dev
 6. Creates wrapped-native CW20 tokens (LUNC-C, USTC-C) and registers denom mappings
 7. Registers the Wrap-Mapper on the Router (enables native denom swap path)
 8. Funds the Treasury with LUNC + USTC
-9. Creates 10 whitelisted test tokens (EMBER, CORAL, JADE, etc.)
-10. Creates 2 non-whitelisted tokens (ROGUE, BOGUS) under a separate code ID
-11. Creates 3 unpaired/minimally-paired tokens (ZINC, IRON, NEON)
-12. Instantiates the Fee Discount contract with 11 tiers
-13. Creates 23 trading pairs + 3 unpaired-token pairs, all with initial liquidity
-14. Executes ~60 test swaps to seed price history
-15. Writes `frontend-dapp/.env.local` (LCD/RPC URLs, all contract addresses including Treasury/Wrap-Mapper/wrapped tokens)
-16. Writes `indexer/.env` (Postgres connection, Factory address, API port)
+9. Creates 10 whitelisted test tokens (EMBER, CORAL, JADE, etc.) — **6 decimals**, for trading pairs only
+10. Creates **TCL8Y** (18-decimal CL8Y proxy for fee-discount tiers; `VITE_CL8Y_TOKEN_ADDRESS`) — see [GitLab #383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)
+11. Creates 2 non-whitelisted tokens (ROGUE, BOGUS) under a separate code ID
+12. Creates 3 unpaired/minimally-paired tokens (ZINC, IRON, NEON)
+13. Instantiates the Fee Discount contract with 11 tiers (wired to **TCL8Y**, not EMBER)
+14. Creates 23 trading pairs + 3 unpaired-token pairs, all with initial liquidity
+15. Executes ~60 test swaps to seed price history
+16. Writes `frontend-dapp/.env.local` (LCD/RPC URLs, all contract addresses including Treasury/Wrap-Mapper/wrapped tokens)
+17. Writes `indexer/.env` (Postgres connection, Factory address, API port)
 
 ### Verifying the indexer
 

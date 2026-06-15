@@ -62,7 +62,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 | [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh) | Local indexer stop + outage Playwright ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 | [`frontend-dapp/e2e/helpers/chain.ts`](../frontend-dapp/e2e/helpers/chain.ts) | `isChainOptional()`, LCD + CTA assertions |
 | [`frontend-dapp/e2e/global-setup.ts`](../frontend-dapp/e2e/global-setup.ts) | LCD wait + provision + hybrid book seed |
-| [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor; CL8Y ≥ tier-1 via `E2E_DEV_MIN_CL8Y_U128` |
+| [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor; TCL8Y (18-dec CL8Y) ≥ tier-1 via `E2E_DEV_MIN_CL8Y_U128` ([#383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)) |
 | [`scripts/with-node.sh`](../scripts/with-node.sh) | Local Node/npm via nvm (`.nvmrc`) |
 | [`.github/workflows/test.yml`](../.github/workflows/test.yml) | **Reference only** — step order for `e2e`; run via `make test-e2e` / [docs/testing.md § CI](../docs/testing.md#ci) ([#234](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/234)) |
 

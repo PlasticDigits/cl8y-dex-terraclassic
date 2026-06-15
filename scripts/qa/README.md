@@ -100,6 +100,15 @@ After **`make deploy-local`** (or QA deploy) and indexer sync, verify indexer **
 
 Deploy seeds CW20 **`name`** / **`symbol`** in Phase 2 (`scripts/deploy-dex-local.sh`). If `assets.name` is empty in Postgres, restart indexer after deploy so pair discovery re-resolves metadata.
 
+### Fee-discount TCL8Y proxy (LocalTerra, GitLab #383)
+
+Trading tokens (EMBER, CORAL, …) use **6** decimals. Fee-discount `min_cl8y_balance` values assume **18** decimals. Deploy creates **TCL8Y** and sets `VITE_CL8Y_TOKEN_ADDRESS` to it (not EMBER).
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-383` | TCL8Y `decimals=18`; tier-1 register + deregister on-chain (FT-3 / FT-4) |
+| `/tiers` + Keplr or Simulated Wallet | Register tier 1 succeeds when wallet holds ≥ 1 TCL8Y |
+
 ---
 
 ## Makefile reference
