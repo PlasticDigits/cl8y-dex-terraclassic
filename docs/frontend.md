@@ -460,6 +460,20 @@ The frontend uses TerraSwap-compatible message names:
 | `/`             | Swap interface — select tokens, enter amount, swap|
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/create`       | Create a new token pair via the Factory           |
+
+### Create pair — token address validation {#create-pair-address-validation}
+
+[`CreatePairPage`](../frontend-dapp/src/pages/CreatePairPage.tsx) validates both token contract fields with **`isValidTerraBech32Address`** / **`getTerraAddressInputError`** from [`terraAddressValidation.ts`](../frontend-dapp/src/utils/terraAddressValidation.ts) before enabling **Create Pair** ([GitLab **#382**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/382)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Format gate | Wrong prefix, charset, or length → **Invalid Terra address format** (same regex as **`isValidTerraAddress`**). |
+| Checksum gate | Structurally valid `terra1…` with bad bech32 checksum → **Invalid address: checksum does not match. Please check and re-enter the token address.** Submit stays disabled. |
+| Trade deep links unchanged | **`/trade/:pairAddr`** still uses format-only **`isValidTerraAddress`** — no checksum on URL segments ([§ Trade page unknown pair link](#trade-page-unknown-pair-link)). |
+| Tx fallback | If a checksum error still reaches the chain, **`tryHumanizeTerraTxMessage`** maps `addr_validate` / `decoding bech32 failed` to the same retail copy ([§ User-facing errors](#user-facing-errors-humanization)). |
+
+Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__tests__/terraAddressValidation.test.ts), [`CreatePairPage.test.tsx`](../frontend-dapp/src/pages/CreatePairPage.test.tsx).
+
 | `/charts`       | Pairs overview and per-pair charts (indexer)      |
 | `/portfolio`    | **My Portfolio** — connected wallet summary, open quote positions, wallet-wide open limits, LP overview, recent swaps ([GitLab **#212**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/212), phase 2 [**#217**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217)); alias `/my-portfolio` → `/portfolio` |
 | `/trader`       | Trader profile lookup (indexer); optional `/:address` |
