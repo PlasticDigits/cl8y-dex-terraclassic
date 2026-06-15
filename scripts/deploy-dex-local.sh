@@ -59,6 +59,9 @@ fi
 TOKEN_NAMES=("Ember" "Coral" "Jade" "Onyx" "Ruby" "Topaz" "Opal" "Cobalt" "Slate" "Amber")
 TOKEN_SYMBOLS=("EMBER" "CORAL" "JADE" "ONYX" "RUBY" "TOPAZ" "OPAL" "COBALT" "SLATE" "AMBER")
 TOKEN_ADDRESSES=()
+# 18-decimal CL8Y proxy for fee-discount tiers (not a trading pair token). GitLab #383.
+TCL8Y_ADDRESS=""
+TCL8Y_INITIAL_SUPPLY="10000000000000000000000000"  # 10^25 = 10M CL8Y at 18 decimals
 
 NOWHITELIST_NAMES=("Rogue" "Bogus")
 NOWHITELIST_SYMBOLS=("ROGUE" "BOGUS")
@@ -547,6 +550,23 @@ echo "  All ${#UNPAIRED_NAMES[@]} unpaired tokens created."
 echo "  ZINC: 0 pairs | IRON: will get 1 pair | NEON: will get 2 pairs"
 fi
 
+# ── Phase 2d: TCL8Y (18-decimal CL8Y proxy for fee-discount) ────────────
+# Trading tokens (EMBER, etc.) use 6 decimals; fee-discount min_cl8y_balance uses 18.
+
+echo ""
+echo "[Phase 2d] Creating TCL8Y (18-decimal CL8Y proxy for fee-discount tiers)"
+echo "----------------------------------------------"
+
+echo ""
+echo "[10d.1] Instantiating Terra Classic CL8Y (TCL8Y)..."
+TCL8Y_INIT_MSG="{\"name\":\"Terra Classic CL8Y\",\"symbol\":\"TCL8Y\",\"decimals\":18,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"$TCL8Y_INITIAL_SUPPLY\"}],\"mint\":{\"minter\":\"$TEST_ADDRESS\"}}"
+TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$TCL8Y_INIT_MSG" \
+    --label "tcl8y-fee-discount-proxy" \
+    --admin "$TEST_ADDRESS" | jq -r '.txhash')
+echo "  TX: $TX_HASH"
+TCL8Y_ADDRESS=$(get_contract_address "$TX_HASH")
+echo "  TCL8Y Address: $TCL8Y_ADDRESS (18 decimals, initial supply $TCL8Y_INITIAL_SUPPLY)"
+
 # ── Phase 3: Fee Discount ───────────────────────────────────────────────
 
 echo ""
@@ -555,7 +575,7 @@ echo "----------------------------------------------"
 
 echo ""
 echo "[11] Instantiating Fee Discount contract..."
-FEE_DISCOUNT_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"cl8y_token\":\"${TOKEN_ADDRESSES[0]}\"}"
+FEE_DISCOUNT_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"cl8y_token\":\"$TCL8Y_ADDRESS\"}"
 TX_HASH=$(terrad_tx wasm instantiate "$FEE_DISCOUNT_CODE_ID" "$FEE_DISCOUNT_INIT_MSG" \
     --label "cl8y-dex-fee-discount" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
@@ -877,6 +897,7 @@ echo ""
 echo "  Factory:       $FACTORY_ADDRESS"
 echo "  Router:        $ROUTER_ADDRESS"
 echo "  Fee Discount:  $FEE_DISCOUNT_ADDRESS"
+echo "  TCL8Y (CL8Y):  $TCL8Y_ADDRESS"
 echo "  Treasury:      $TREASURY_ADDRESS"
 echo "  Wrap-Mapper:   $WRAP_MAPPER_ADDRESS"
 echo "  LUNC-C:        $LUNC_C_ADDRESS"
@@ -920,7 +941,7 @@ VITE_NETWORK=local
 VITE_FACTORY_ADDRESS=$FACTORY_ADDRESS
 VITE_ROUTER_ADDRESS=$ROUTER_ADDRESS
 VITE_FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS
-VITE_CL8Y_TOKEN_ADDRESS=${TOKEN_ADDRESSES[0]}
+VITE_CL8Y_TOKEN_ADDRESS=$TCL8Y_ADDRESS
 VITE_TERRA_LCD_URL=$LCD
 VITE_TERRA_RPC_URL=$NODE
 VITE_GAS_PRICE_ULUNA=28.325

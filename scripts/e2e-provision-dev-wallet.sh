@@ -100,4 +100,18 @@ for TOKEN in "${TOKEN_ADDRS[@]}"; do
   sleep 2
 done
 
+# TCL8Y (VITE_CL8Y_TOKEN_ADDRESS) is not in factory pairs — mint separately (GitLab #383).
+if [[ -n "${VITE_CL8Y_TOKEN_ADDRESS:-}" ]]; then
+  CL8Y_MIN="${E2E_DEV_MIN_CL8Y_U128:-1000000000000000000}"
+  CL8Y_MINT="${E2E_DEV_CL8Y_MINT_TOPUP:-10000000000000000000000}"
+  RAW_BAL="$(lcd_smart_query_raw "$LCD" "$VITE_CL8Y_TOKEN_ADDRESS" "{\"balance\":{\"address\":\"$DEV_ADDR\"}}")"
+  BAL="$(decode_pairs_payload "$RAW_BAL" | jq -r '.balance // "0"')"
+  if [[ ! "$BAL" =~ ^[0-9]+$ ]] || ((10#$BAL < 10#$CL8Y_MIN)); then
+    echo "e2e-provision: minting $CL8Y_MINT TCL8Y units to dev wallet (balance was $BAL, min $CL8Y_MIN)."
+    terrad_tx wasm execute "$VITE_CL8Y_TOKEN_ADDRESS" \
+      "{\"mint\":{\"recipient\":\"$DEV_ADDR\",\"amount\":\"$CL8Y_MINT\"}}" >/dev/null
+    sleep 2
+  fi
+fi
+
 echo "e2e-provision: CW20 balances for factory tokens are at least $MIN_RAW_BALANCE (raw units) where minting is allowed."

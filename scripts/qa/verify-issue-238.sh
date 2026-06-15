@@ -151,7 +151,7 @@ fi
 echo ""
 echo "[2] Registering CL8Y fee-discount tier for trader ${TEST_ADDRESS}..."
 # Highest self-register tier (9 = 9500 bps) needs 7500 CL8Y = 7.5e21 base units.
-# CL8Y is the 6-decimal localnet test token; mint plenty so the wallet qualifies.
+# LocalTerra CL8Y is TCL8Y (18 decimals); mint plenty so the wallet qualifies (GitLab #383).
 TIER_ID="${TIER_ID:-9}"
 MINT_AMT="${MINT_AMT:-10000000000000000000000}"   # 1e22
 DISC_RAW="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$FEE_DISCOUNT" \
