@@ -8,6 +8,7 @@ import {
   EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX,
   EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE,
 } from './extensionSignedFeeGuard'
+import { INVALID_TERRA_ADDRESS_CHECKSUM_TX_MSG } from './terraAddressValidation'
 import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUserMessage'
 import { humanizeExpiredLimitClaimMessage } from './limitClaimUserMessage'
 
@@ -52,6 +53,9 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
       'Trade rejected: the pool leg produced no output while a book leg was requested. ' +
       'Check hybrid split and pool liquidity, or set a belief price for book-heavy routes.'
     )
+  }
+  if (/addr_validate errored|decoding bech32 failed|invalid checksum/i.test(inner)) {
+    return INVALID_TERRA_ADDRESS_CHECKSUM_TX_MSG
   }
   if (/assert_not_paused|contract is paused/i.test(inner)) {
     return 'This pool is currently paused by the operator. Try again later or pick a different pair.'

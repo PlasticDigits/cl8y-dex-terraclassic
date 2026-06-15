@@ -112,6 +112,14 @@ describe('humanizeUserFacingError', () => {
     expect(humanizeUserFacingErrorFromUnknown('Failed to fetch')).toMatch(/Network request/)
   })
 
+  it('humanizes bech32 checksum contract errors (GitLab #382)', () => {
+    const raw =
+      'failed to execute message; message index: 0: Generic error: addr_validate errored: decoding bech32 failed: invalid checksum (expected 3hz2wp got 3hz289): execute wasm contract failed'
+    const out = humanizeUserFacingError(raw)
+    expect(out).toMatch(/checksum does not match/i)
+    expect(out).not.toMatch(/addr_validate|execute wasm contract failed/)
+  })
+
   it('humanizes extension signed fee undershoot diagnostics (GitLab #371)', () => {
     const raw =
       'Wallet signed a fee far below what this dApp submitted (GitLab #127). On LocalTerra with Station: disconnect, reconnect, and approve any chain-update prompt. Run `cd frontend-dapp && npm ci` so the cosmes patch is applied, then retry. Expected at least ~50985000 uluna; wallet returned ~29 uluna. Expected gas at least ~1800000; wallet returned ~1.'

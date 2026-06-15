@@ -8,7 +8,7 @@ import { formatTokenAmount } from '@/utils/formatAmount'
 import { getChainContractInfo } from '@/services/terraclassic/queries'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert } from '@/components/ui'
-import { isValidTerraAddress } from '@/utils/constants'
+import { getTerraAddressInputError } from '@/utils/terraAddressValidation'
 
 function useCodeIdCheck(tokenAddr: string) {
   return useQuery({
@@ -61,8 +61,10 @@ export default function CreatePairPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
-      if (!tokenA.startsWith('terra1')) throw new Error('Token A must be a valid Terra address')
-      if (!tokenB.startsWith('terra1')) throw new Error('Token B must be a valid Terra address')
+      const tokenAError = getTerraAddressInputError(tokenA)
+      if (tokenAError) throw new Error(tokenAError)
+      const tokenBError = getTerraAddressInputError(tokenB)
+      if (tokenBError) throw new Error(tokenBError)
       if (tokenA === tokenB) throw new Error('Token addresses must be different')
       return createPair(address, tokenA, tokenB)
     },
@@ -76,9 +78,9 @@ export default function CreatePairPage() {
     },
   })
 
-  const tokenAValid = isValidTerraAddress(tokenA)
-  const tokenBValid = isValidTerraAddress(tokenB)
-  const isValid = tokenAValid && tokenBValid && tokenA !== tokenB
+  const tokenAError = getTerraAddressInputError(tokenA)
+  const tokenBError = getTerraAddressInputError(tokenB)
+  const isValid = !tokenAError && !tokenBError && tokenA !== tokenB
   const hasWhitelistWarning = (checkA.data && !checkA.data.valid) || (checkB.data && !checkB.data.valid)
 
   return (
@@ -109,10 +111,8 @@ export default function CreatePairPage() {
                 placeholder="terra1..."
                 className="input-neo font-mono"
               />
-              {tokenA.length > 0 && !tokenAValid && (
-                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">
-                  Invalid Terra address format
-                </p>
+              {tokenAError && (
+                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">{tokenAError}</p>
               )}
               {checkA.data && !checkA.data.valid && (
                 <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">
@@ -136,10 +136,8 @@ export default function CreatePairPage() {
                 placeholder="terra1..."
                 className="input-neo font-mono"
               />
-              {tokenB.length > 0 && !tokenBValid && (
-                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">
-                  Invalid Terra address format
-                </p>
+              {tokenBError && (
+                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">{tokenBError}</p>
               )}
               {checkB.data && !checkB.data.valid && (
                 <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">
