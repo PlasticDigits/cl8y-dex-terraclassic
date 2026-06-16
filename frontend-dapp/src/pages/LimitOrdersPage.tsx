@@ -602,6 +602,8 @@ export default function LimitOrdersPage() {
                     escrowDecimals={escrowDecimals}
                     token0Symbol={getTokenDisplaySymbol(token0 || 'token0')}
                     token1Symbol={getTokenDisplaySymbol(token1 || 'token1')}
+                    refToken1PerToken0={refToken1PerToken0}
+                    refResolutionLoading={refResolutionLoading}
                     disabled={!isWalletConnected || isPaused}
                     onPlaced={(ids) => {
                       if (ids.length > 0) setLastIndexedOrderId(Math.max(...ids))

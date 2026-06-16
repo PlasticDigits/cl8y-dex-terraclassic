@@ -18,7 +18,7 @@ import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrder
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
-import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
+import { describeLimitCrossingBlockerWithRef } from '@/utils/limitOrderNonCrossing'
 import { formatLimitBatchGasSavingsLine, formatLimitLadderPlacementSummary } from '@/utils/limitOrderBatchGasSummary'
 import { buildLadderSpecWire, ladderRungsToBatchItems } from '@/utils/limitLadderPlacementPlan'
 import {
@@ -38,6 +38,9 @@ export interface LimitOrderLadderPanelProps {
   escrowDecimals: number
   token0Symbol: string
   token1Symbol: string
+  /** Tape / pool reference when opposite book head is empty (GitLab #385). */
+  refToken1PerToken0?: number | null
+  refResolutionLoading?: boolean
   disabled?: boolean
   onPlaced?: (orderIds: number[]) => void
 }
@@ -49,6 +52,8 @@ export function LimitOrderLadderPanel({
   escrowDecimals,
   token0Symbol,
   token1Symbol,
+  refToken1PerToken0,
+  refResolutionLoading,
   disabled,
   onPlaced,
 }: LimitOrderLadderPanelProps) {
@@ -138,16 +143,29 @@ export function LimitOrderLadderPanel({
 
   const placeGates = useLimitLadderPlaceGates(walletAddress, escrowToken, totalHuman, escrowDecimals, rungCount)
 
-  const { bestBid, bestAsk } = useTradeBestBookPrices(pairAddress)
+  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddress)
 
   const ladderCrossingGate = useMemo(() => {
     if (preview.error || preview.rungs.length === 0) {
       return { canPlaceLimit: true, userMessage: null, tone: 'none' as const }
     }
+
+    const oppositeBookMissing = side === 'bid' ? !bestAsk?.trim() : !bestBid?.trim()
+    if (
+      bestBookLoading ||
+      (oppositeBookMissing && refResolutionLoading && (refToken1PerToken0 == null || !(refToken1PerToken0 > 0)))
+    ) {
+      return {
+        canPlaceLimit: false,
+        userMessage: 'Resolving market reference to check whether ladder rungs cross the spread…',
+        tone: 'warning' as const,
+      }
+    }
+
     let crossingCount = 0
     let firstReason: string | null = null
     for (const r of preview.rungs) {
-      const reason = describeLimitCrossingBlocker(side, r.price, bestBid, bestAsk)
+      const reason = describeLimitCrossingBlockerWithRef(side, r.price, bestBid, bestAsk, refToken1PerToken0)
       if (reason) {
         crossingCount += 1
         if (firstReason == null) firstReason = reason
@@ -161,7 +179,7 @@ export function LimitOrderLadderPanel({
       userMessage: `${crossingCount} of ${preview.rungs.length} rungs will cross the market and execute immediately as taker orders. ${firstReason}`,
       tone: 'warning' as const,
     }
-  }, [preview.error, preview.rungs, side, bestBid, bestAsk])
+  }, [preview.error, preview.rungs, side, bestBid, bestAsk, bestBookLoading, refToken1PerToken0, refResolutionLoading])
 
   const placeMutation = useTerraBroadcastMutation({
     toastSuccess: 'Limit ladder placed.',
@@ -183,7 +201,7 @@ export function LimitOrderLadderPanel({
         throw new Error(nativeGate.userMessage ?? 'Insufficient LUNC for gas')
       }
       for (const r of preview.rungs) {
-        const cross = describeLimitCrossingBlocker(side, r.price, bestBid, bestAsk)
+        const cross = describeLimitCrossingBlockerWithRef(side, r.price, bestBid, bestAsk, refToken1PerToken0)
         if (cross) {
           throw new Error(cross)
         }

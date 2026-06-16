@@ -1,10 +1,27 @@
-import { useQueries } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import { useQueries, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { getPairLimitBookPage } from '@/services/indexer/client'
+import type { IndexerLimitBookPageResponse } from '@/types'
+import { limitBookPageQueryKey } from '@/utils/limitBookPagination'
+
+function bestPriceFromLimitBookCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  pairAddr: string,
+  side: 'bid' | 'ask'
+): string | null {
+  const cached = queryClient.getQueryData<InfiniteData<IndexerLimitBookPageResponse>>(
+    limitBookPageQueryKey(pairAddr, side)
+  )
+  return cached?.pages?.[0]?.orders?.[0]?.price ?? null
+}
 
 /**
  * Best bid / ask prices from the first page of the indexer limit book (same ordering as on-chain head walk).
+ * Falls back to the paginated `limitBookPage` query cache when the dedicated head fetch has not resolved yet
+ * ([#385](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/385)).
  */
 export function useTradeBestBookPrices(pairAddr: string) {
+  const queryClient = useQueryClient()
   const [bidQ, askQ] = useQueries({
     queries: [
       {
@@ -22,8 +39,20 @@ export function useTradeBestBookPrices(pairAddr: string) {
     ],
   })
 
-  const bestBid = bidQ.data?.orders?.[0]?.price ?? null
-  const bestAsk = askQ.data?.orders?.[0]?.price ?? null
+  const bestBidFromQuery = bidQ.data?.orders?.[0]?.price ?? null
+  const bestAskFromQuery = askQ.data?.orders?.[0]?.price ?? null
+
+  const bestBidFromCache = useMemo(
+    () => (bestBidFromQuery ? null : bestPriceFromLimitBookCache(queryClient, pairAddr, 'bid')),
+    [bestBidFromQuery, queryClient, pairAddr]
+  )
+  const bestAskFromCache = useMemo(
+    () => (bestAskFromQuery ? null : bestPriceFromLimitBookCache(queryClient, pairAddr, 'ask')),
+    [bestAskFromQuery, queryClient, pairAddr]
+  )
+
+  const bestBid = bestBidFromQuery ?? bestBidFromCache
+  const bestAsk = bestAskFromQuery ?? bestAskFromCache
   const isLoading = bidQ.isLoading || askQ.isLoading
   const isError = bidQ.isError || askQ.isError
 
