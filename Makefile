@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-365 verify-issue-369 verify-issue-383 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration audit-smartcontracts audit-indexer audit-frontend gitleaks-detect verify-gitleaks
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-365 verify-issue-369 verify-issue-383 verify-issue-384 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration audit-smartcontracts audit-indexer audit-frontend gitleaks-detect verify-gitleaks
 
 # Infrastructure
 start:
@@ -149,6 +149,11 @@ verify-issue-238:
 verify-issue-383:
 	@chmod +x scripts/qa/verify-issue-383.sh scripts/lib/lcd-smart-query.sh scripts/lib/localterra-host-curl.sh
 	./scripts/qa/verify-issue-383.sh
+
+# GitLab #384 — fee-discount register/deregister gas limits (FT-3 / FT-4 UI).
+verify-issue-384:
+	@chmod +x scripts/qa/verify-issue-384.sh scripts/lib/lcd-smart-query.sh scripts/lib/terrad-wait-tx.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-384.sh
 
 # GitLab #245 — off-chain trader forwarding (unit tests + optional live stack via #238 script).
 verify-issue-245:

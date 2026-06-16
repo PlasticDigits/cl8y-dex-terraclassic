@@ -57,6 +57,7 @@ terrad tx wasm execute <fee_discount_addr> '{
 ```bash
 make deploy-local
 make verify-issue-383   # TCL8Y decimals, tier-1 register, deregister (FT-3 / FT-4)
+make verify-issue-384   # dApp gas limits for register/deregister (FT-3 / FT-4 UI)
 ```
 
 ## Drift check
