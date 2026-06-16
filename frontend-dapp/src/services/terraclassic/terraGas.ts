@@ -37,6 +37,10 @@ export const ADD_LIQUIDITY_GAS_LIMIT = 650000
 export const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
 /** Pair + LP instantiate; measured ~871,552 on LocalTerra (GitLab #345). */
 export const CREATE_PAIR_GAS_LIMIT = 1_000_000
+/** Fee-discount self-register; measured ~204,438 on LocalTerra tier-1 (GitLab #384, FT-3). */
+export const REGISTER_FEE_DISCOUNT_GAS_LIMIT = 300_000
+/** Fee-discount self-deregister; measured ~160,932 on LocalTerra (GitLab #384, FT-4). */
+export const DEREGISTER_FEE_DISCOUNT_GAS_LIMIT = 250_000
 
 /** Uluna in `Fee.amount` for one message at `gasLimit` (same math as {@link buildTerraClassicFee}). */
 export function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
@@ -175,6 +179,10 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     return REMOVE_LIQUIDITY_GAS_LIMIT
   } else if ('create_pair' in executeMsg) {
     return CREATE_PAIR_GAS_LIMIT
+  } else if ('register' in executeMsg) {
+    return REGISTER_FEE_DISCOUNT_GAS_LIMIT
+  } else if ('deregister' in executeMsg) {
+    return DEREGISTER_FEE_DISCOUNT_GAS_LIMIT
   } else if ('send' in executeMsg) {
     const sendMsg = executeMsg.send as { msg?: string } | undefined
     if (sendMsg?.msg) {

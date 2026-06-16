@@ -259,6 +259,16 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(1_000_000))
   })
 
+  it('uses REGISTER_FEE_DISCOUNT_GAS_LIMIT for register (#384, FT-3)', async () => {
+    const fee = await getFeeForMsg({ register: { tier_id: 1 } })
+    expect(fee.gasLimit).toBe(BigInt(300_000))
+  })
+
+  it('uses DEREGISTER_FEE_DISCOUNT_GAS_LIMIT for deregister (#384, FT-4)', async () => {
+    const fee = await getFeeForMsg({ deregister: {} })
+    expect(fee.gasLimit).toBe(BigInt(250_000))
+  })
+
   it('adds UNWRAP_GAS_LIMIT when execute_swap_operations has unwrap_output (#343)', async () => {
     const inner = btoa(
       JSON.stringify({
