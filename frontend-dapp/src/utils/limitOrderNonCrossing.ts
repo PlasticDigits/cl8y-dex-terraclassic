@@ -1,3 +1,5 @@
+import { isLimitPriceDirectionInvalid, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
+
 /**
  * Client-side checks so resting limits stay **strictly on the maker side** of the current
  * on-chain FIFO book (post-only style). The pair contract still inserts at the walked position;
@@ -11,6 +13,9 @@
  * - **Best ask** = lowest ask price = first row from `side=ask`.
  * - A **bid** crosses if `bid_price >= best_ask` (would immediately lift the ask stack).
  * - An **ask** crosses if `ask_price <= best_bid`.
+ * - When the opposite book head is **empty**, ladder / ticket UIs fall back to the indexed tape or
+ *   AMM pool **reference** (`refToken1PerToken0`) so BID ladders above market still block when
+ *   `best_ask` is missing ([#385](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/385)).
  * - Comparisons use normalized decimal strings (no scientific notation); invalid input yields
  *   `valid: false` so the UI can block submit without guessing.
  */
@@ -84,5 +89,35 @@ export function describeLimitCrossingBlocker(
     return `Ask price must stay above the best bid (${bestBid}) so the order does not cross the spread.`
   }
   if (x === null) return 'Enter a valid positive price.'
+  return null
+}
+
+/**
+ * Book-head crossing check with tape / pool reference fallback when the opposite side of the book
+ * has no resting orders. Matches {@link TradeOrderTicket} parity: book head first, then reference
+ * direction guard ([#385](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/385)).
+ */
+export function describeLimitCrossingBlockerWithRef(
+  side: 'bid' | 'ask',
+  price: string,
+  bestBid: string | null,
+  bestAsk: string | null,
+  refToken1PerToken0?: number | null
+): string | null {
+  const book = describeLimitCrossingBlocker(side, price, bestBid, bestAsk)
+  if (book) return book
+
+  const ref = refToken1PerToken0
+  if (ref == null || !(ref > 0) || !Number.isFinite(ref)) return null
+
+  const limit = parsePositivePriceHuman(price)
+  if (limit == null) return null
+
+  if (side === 'bid' && !bestAsk?.trim() && isLimitPriceDirectionInvalid('bid', limit, ref)) {
+    return `Bid price must stay below the market reference (${ref}) so the order does not cross the spread.`
+  }
+  if (side === 'ask' && !bestBid?.trim() && isLimitPriceDirectionInvalid('ask', limit, ref)) {
+    return `Ask price must stay above the market reference (${ref}) so the order does not cross the spread.`
+  }
   return null
 }

@@ -4,6 +4,7 @@ import {
   limitAskCrossesBestBid,
   limitBidCrossesBestAsk,
   describeLimitCrossingBlocker,
+  describeLimitCrossingBlockerWithRef,
 } from '@/utils/limitOrderNonCrossing'
 
 describe('limitOrderNonCrossing', () => {
@@ -33,5 +34,12 @@ describe('limitOrderNonCrossing', () => {
     expect(describeLimitCrossingBlocker('bid', '2', '1', '1.5')).toContain('best ask')
     expect(describeLimitCrossingBlocker('ask', '0.5', '1', '2')).toContain('best bid')
     expect(describeLimitCrossingBlocker('bid', '1', '2', '3')).toBeNull()
+  })
+
+  it('describeLimitCrossingBlockerWithRef falls back when opposite book head is empty (#385)', () => {
+    expect(describeLimitCrossingBlockerWithRef('bid', '15', '0.8', null, 1.1)).toContain('market reference')
+    expect(describeLimitCrossingBlockerWithRef('bid', '1', '0.8', null, 1.1)).toBeNull()
+    expect(describeLimitCrossingBlockerWithRef('ask', '0.5', null, '1.5', 1.1)).toContain('market reference')
+    expect(describeLimitCrossingBlockerWithRef('bid', '2', '1', '1.5', 1.1)).toContain('best ask')
   })
 })

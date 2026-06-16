@@ -112,6 +112,40 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
     expect(screen.getByTestId('ladder-place-submit')).toBeDisabled()
   })
 
+  it('blocks bid ladder when best ask is missing but reference price is below rungs (#385)', async () => {
+    bestBookMock.mockReturnValue({
+      bestBid: '0.8',
+      bestAsk: null,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+
+    const user = userEvent.setup()
+    renderWithProviders(
+      <LimitOrderLadderPanel
+        pairAddress={PAIR}
+        walletAddress="terra1wallet000000000000000000000000001"
+        escrowToken="terra1token00000000000000000000000000001"
+        escrowDecimals={6}
+        token0Symbol="CORAL"
+        token1Symbol="EMBER"
+        refToken1PerToken0={1.1}
+      />
+    )
+
+    await user.clear(screen.getByTestId('ladder-start-price'))
+    await user.type(screen.getByTestId('ladder-start-price'), '15')
+    await user.clear(screen.getByTestId('ladder-end-price'))
+    await user.type(screen.getByTestId('ladder-end-price'), '18')
+
+    const guard = await screen.findByTestId('ladder-crossing-guard')
+    await waitFor(() => {
+      expect(guard).toHaveTextContent(/5 of 5 rungs will cross the market/i)
+    })
+    expect(screen.getByTestId('ladder-place-submit')).toBeDisabled()
+  })
+
   it('allows non-crossing bid ladder within spread', async () => {
     renderWithProviders(
       <LimitOrderLadderPanel
