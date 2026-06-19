@@ -89,6 +89,10 @@ vi.mock('@/lib/sounds', () => ({
   },
 }))
 
+vi.mock('@/hooks/useTradingBlacklist', () => ({
+  useTradingBlacklist: vi.fn(),
+}))
+
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens, simulateMultiHopSwap } from '@/services/terraclassic/router'
 import type { SwapOperation } from '@/services/terraclassic/router'
@@ -100,9 +104,19 @@ import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeD
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { FEE_DISCOUNT_REGISTRY_WARNING_TEXT } from '@/utils/feeDiscountRegistryWarning'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import {
+  TRADING_BLACKLIST_ALLOWED,
+  pairBlacklistedResponse,
+  tokenBlacklistedResponse,
+  tradingBlacklistHookResult,
+  walletBlacklistedResponse,
+} from '@/test/tradingBlacklistMocks'
+import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
 
 describe('SwapPage', () => {
   beforeEach(() => {
+    vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     vi.mocked(findRoute).mockReturnValue(null)
     vi.mocked(getAllTokens).mockReturnValue([])
@@ -680,6 +694,56 @@ describe('SwapPage', () => {
 
       await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+    })
+  })
+
+  describe('trading blacklist UX (GitLab #388 / SEC-A02)', () => {
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+
+    async function renderConnectedDirectSwap() {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      return { user }
+    }
+
+    it.each([
+      ['wallet', walletBlacklistedResponse()],
+      ['pair', pairBlacklistedResponse()],
+      ['token', tokenBlacklistedResponse(terraA)],
+    ] as const)('shows %s blacklist alert copy and disables Swap CTA', async (_variant, resp) => {
+      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
+
+      await renderConnectedDirectSwap()
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      expect(screen.getByRole('button', { name: 'Trading restricted' })).toBeDisabled()
     })
   })
 
