@@ -33,6 +33,10 @@ function applyViteEnvFromEnvLocal(envLocalPath: string): void {
     if (luncC) {
       process.env.VITE_LUNC_C_TOKEN_ADDRESS = luncC[1].trim().replace(/^["']|["']$/g, '')
     }
+    const wrapMapper = line.match(/^VITE_WRAP_MAPPER_ADDRESS=(.+)$/)
+    if (wrapMapper) {
+      process.env.VITE_WRAP_MAPPER_ADDRESS = wrapMapper[1].trim().replace(/^["']|["']$/g, '')
+    }
   }
 }
 
