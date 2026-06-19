@@ -1,6 +1,6 @@
 # CL8Y DEX — Contracts Security Audit (Repository)
 
-This document is the **in-repo security audit and invariant matrix** for the CosmWasm contracts under `smartcontracts/`. It complements [security-model.md](./security-model.md) (operational trust assumptions) and [testing.md](./testing.md) (how to run tests and coverage).
+This document is the **in-repo security audit and invariant matrix** for the CosmWasm contracts under `smartcontracts/`. It complements [security-model.md](./security-model.md) (operational trust assumptions), [security-posture.md](./security-posture.md) (public launch posture linked from the dApp footer), and [testing.md](./testing.md) (how to run tests and coverage).
 
 ## Trust model (explicit)
 

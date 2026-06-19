@@ -1,5 +1,7 @@
 # Security Model
 
+Public **launch posture** (capped expectations, audit disclaimer, TVL-scaled controls): [`security-posture.md`](./security-posture.md) — linked from the dApp footer (SEC-A01, GitLab [#387](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/387)).
+
 ## User incident guide (pause, blacklist, rate limits)
 
 Traders and liquidity providers: see **[What happens during an incident?](user-incident-faq.md)** for plain-language impact on swaps, LP positions, limit-order escrow, and recovery after governance lifts a restriction. Linked from the dApp legal footer ([GitLab **#390**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/390), SEC-A03). Agent playbook: [`skills/AGENTS_USER_INCIDENT_FAQ.md`](../skills/AGENTS_USER_INCIDENT_FAQ.md).
@@ -210,5 +212,7 @@ End users who see suspicious trades, unexpected balances, or misleading UI state
 ## Audit Status
 
 Contracts have not yet been formally audited. A third-party audit is recommended before mainnet deployment with significant TVL.
+
+**User-facing summary:** [`security-posture.md`](./security-posture.md) (footer link from the dApp).
 
 For an **in-repo** invariant matrix, trust assumptions, and mapping to automated tests, see [contracts-security-audit.md](./contracts-security-audit.md). **Frontend / indexer off-chain trust** (remediation [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) / [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)): [security-model.md § Off-chain trust boundaries](./security-model.md#off-chain-trust-boundaries-frontend--indexer).

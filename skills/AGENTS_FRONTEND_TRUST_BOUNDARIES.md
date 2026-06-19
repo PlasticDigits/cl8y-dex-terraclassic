@@ -8,6 +8,7 @@ Parent remediation: GitLab [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 
 | Doc / code | Purpose |
 |------------|---------|
+| [docs/security-posture.md](../docs/security-posture.md) | Public launch posture; footer link (SEC-A01, [#387](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/387)) |
 | [docs/security-model.md § Off-chain trust](../docs/security-model.md#off-chain-trust-boundaries-frontend--indexer) | Risks, mitigations, out-of-scope items |
 | [docs/frontend.md § Trust boundaries](../docs/frontend.md#frontend-trust-boundaries) | Invariant table |
 | [docs/runbooks/launch-checklist.md § Phase 4](../docs/runbooks/launch-checklist.md) | HTTPS indexer, WC ID, CSP deploy checklist |
@@ -19,7 +20,7 @@ Parent remediation: GitLab [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 ```bash
 make test-frontend
 make lint-frontend
-cd frontend-dapp && npm run test:run -- src/viteConfig.build.test.ts src/utils/tokenLogoAllowlist.test.ts src/components/swap/ExpertModeModal.test.tsx src/components/ui/TokenLogo.test.tsx
+cd frontend-dapp && npm run test:run -- src/viteConfig.build.test.ts src/utils/tokenLogoAllowlist.test.ts src/components/swap/ExpertModeModal.test.tsx src/components/ui/TokenLogo.test.tsx src/components/legal/__tests__/LegalFooterNotice.test.tsx
 ```
 
 Attack/abuse spot checks:
