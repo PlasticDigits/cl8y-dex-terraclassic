@@ -150,6 +150,8 @@ Governance on the **factory** can block protocol interaction without bricking un
 
 **Frontend regression tests (SEC-A02, GitLab [#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)):** Vitest mocks `useTradingBlacklist` on Swap and Trade order ticket and asserts `describeTradingBlacklistBlock` copy in the alert plus disabled swap / limit-place CTAs for wallet, token, and pair dimensions. Copy source: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts); shared mocks: [`tradingBlacklistMocks.ts`](../frontend-dapp/src/test/tradingBlacklistMocks.ts).
 
+**Contract regression tests (SEC-B02, GitLab [#393](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/393)):** `blacklist_tests::wallet_blacklist_blocks_swap_lp_limits_and_unban_restores` asserts wallet blacklist rejection on swap, **hybrid swap**, provide/withdraw liquidity, limit place/cancel/**claim**/**update**, then unblacklist restores swap; `router_multihop_rejects_blacklisted_wallet` covers router multihop. Token/pair dimensions: `token_blacklist_blocks_swap_both_directions`, `pair_blacklist_blocks_swap_and_lp`. Matrix row **B1** in [contracts-security-audit.md](./contracts-security-audit.md).
+
 **Contract integration tests (SEC-B04, GitLab [#394](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/394)):** `pair_blacklist_blocks_target_pair_but_not_unrelated_control_pair` in [`blacklist_tests.rs`](../smartcontracts/tests/src/blacklist_tests.rs) blacklists pair A (A/B), asserts swap on A is blocked, then asserts swap on unrelated pair B (B/C) succeeds for the same user via `setup_router_abc_env`. Wallet-only isolation is covered separately by `unrelated_user_on_clean_pair_can_trade`.
 
 ## Pair Contract Auth
