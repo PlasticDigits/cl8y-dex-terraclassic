@@ -29,7 +29,7 @@ import { useLimitOrderPriceRefBundle } from '@/hooks/useLimitOrderPriceRefBundle
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { DOCS_GITLAB_BASE } from '@/utils/constants'
+import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { useLimitEscrowMaxReapply } from '@/hooks/useLimitEscrowMaxReapply'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
@@ -671,16 +671,16 @@ function TradeOrderTicketContent({
         {selectedPair && isPaused && (
           <div className="alert-error text-xs space-y-2" role="alert">
             <p>
-              Pair is paused — swaps, limit place, cancel, and parked-expiry claim are blocked until governance unpauses
-              (L6 / GitLab #120).
+              Pair is paused — swaps, limit place, cancel, and parked-expiry claim are blocked until governance
+              unpauses. Your funds and escrow remain in the pair contract.
             </p>
             <a
               className="underline text-[10px]"
-              href={`${DOCS_GITLAB_BASE}/contracts-security-audit.md`}
+              href={USER_INCIDENT_FAQ_HREF}
               target="_blank"
               rel="noopener noreferrer"
             >
-              L6 (audit)
+              What happens during an incident?
             </a>
           </div>
         )}

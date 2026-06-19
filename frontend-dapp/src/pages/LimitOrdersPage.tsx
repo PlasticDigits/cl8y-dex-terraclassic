@@ -29,6 +29,7 @@ import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPoll
 import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
+import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { useLimitOrderPriceRefBundle } from '@/hooks/useLimitOrderPriceRefBundle'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitEscrowMaxReapply } from '@/hooks/useLimitEscrowMaxReapply'
@@ -535,17 +536,16 @@ export default function LimitOrdersPage() {
                 <div className="alert-error text-sm space-y-2" role="status">
                   <p>
                     This pair is paused by governance. New limit orders, cancel, and parked-expiry Claim refund are
-                    unavailable until the pair is unpaused (invariant L6 / GitLab #120 — all maker withdrawals frozen).
-                    Escrow remains in the pair contract until unpause.
+                    unavailable until the pair is unpaused. Escrow remains in the pair contract until unpause.
                   </p>
                   <p className="text-xs opacity-90">
                     <a
                       className="underline hover:opacity-80"
-                      href={`${DOCS_GITLAB_BASE}/contracts-security-audit.md`}
+                      href={USER_INCIDENT_FAQ_HREF}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Security audit (L6)
+                      What happens during an incident?
                     </a>
                     {' · '}
                     <a
@@ -554,7 +554,7 @@ export default function LimitOrdersPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      limit-orders.md
+                      Limit orders (technical)
                     </a>
                   </p>
                 </div>

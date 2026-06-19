@@ -1,5 +1,9 @@
 # Security Model
 
+## User incident guide (pause, blacklist, rate limits)
+
+Traders and liquidity providers: see **[What happens during an incident?](user-incident-faq.md)** for plain-language impact on swaps, LP positions, limit-order escrow, and recovery after governance lifts a restriction. Linked from the dApp legal footer ([GitLab **#390**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/390), SEC-A03). Agent playbook: [`skills/AGENTS_USER_INCIDENT_FAQ.md`](../skills/AGENTS_USER_INCIDENT_FAQ.md).
+
 ## Governance Keys
 
 The Factory contract has a single `governance` address that controls:
@@ -136,7 +140,7 @@ Governance on the **factory** can block protocol interaction without bricking un
 
 **Not the same as Tier 255:** fee-discount tier 255 only removes discounts; trading continues. Use factory blacklist when trading must halt.
 
-**Recovery:** `UnblacklistWallet`, `UnblacklistToken`, or `UnblacklistPair` restores normal operation. Escrow and LP positions remain on-chain; only gated execute paths are rejected.
+**Recovery:** `UnblacklistWallet`, `UnblacklistToken`, or `UnblacklistPair` restores normal operation. Escrow and LP positions remain on-chain; only gated execute paths are rejected. User-facing explanation: [user-incident-faq.md](./user-incident-faq.md).
 
 **Queries:** `BlacklistCheck { wallet, tokens, pair, pairs }` on the factory. Indexer proxy: `GET /api/v1/compliance/blacklist-check`. dApp disables CTAs when blocked.
 
