@@ -17,6 +17,7 @@ Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./re
 | Frontend hybrid message shape | [#84](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/84) | [`pair.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/pair.test.ts), [`router.hybrid.test.ts`](../frontend-dapp/src/services/terraclassic/router.hybrid.test.ts) | Direct pair + router `execute_swap_operations` |
 | Pause blocks swap + limits | [#87](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/87) | `pause_blocks_swap_and_place_cancel_refunds_escrow`; [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) | L6 — see [`contracts-security-audit.md`](./contracts-security-audit.md) |
 | Post-deploy smoke | [#86](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/86), [#368](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/368) | [`make smoke-pool-swap`](../Makefile); wired in [`make start-qa`](../scripts/qa/start-qa.sh) (`QA_SKIP_SMOKE=1` to skip) | LCD `pool` + optional `hybrid_simulation`; pair from `.qa-deploy-stamp` |
+| Wrap-mapper pause on-chain | [#396](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/396) | [`make smoke-wrap-mapper-pause`](../Makefile); [`make verify-issue-396`](../Makefile) | Treasury `wrap_deposit` + LUNC-C `send` unwrap; governance `set_paused` on wrap-mapper (SEC-B06) |
 | Stubs / mocks catalog | [#105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) | Policy below + issue #105 | LCD stub vs AMM-sim orderbook |
 | Charts integration (indexer HTTP) | [#104](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/104), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | [`ChartsPage.integration.test.tsx`](../frontend-dapp/src/pages/ChartsPage.integration.test.tsx) | Reference job `frontend-charts-integration` → `make test-charts-integration`; **stubbed** `lightweight-charts` — not canvas |
 | Price chart real `lightweight-charts` (Vitest) | [#211](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/211), [#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229), [#230](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/230) | `*.charts.test.{ts,tsx}` via `npm run test:charts` | Reference job `frontend-charts-vitest` → `make test-frontend-charts`; large-candle + real visible-range autoscale ([#229](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/229)) |
@@ -291,6 +292,19 @@ Launch checklist **SEC-B05** requires LCD `is_paused` gating on `/` and `/pool` 
 Product invariants: [docs/frontend.md § Pair pause disabled CTAs](./frontend.md#pair-pause-disabled-ctas-sec-b05); agent: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md).
 
 Mocks: [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Product copy: [docs/frontend.md § Swap wrap safety CTA](./frontend.md#swap-wrap-safety-cta-sec-a02).
+
+### Wrap-mapper pause on-chain smoke (SEC-B06, GitLab #396) {#wrap-mapper-pause-smoke-sec-b06-gitlab-396}
+
+Launch checklist **SEC-B06** requires **contract-level** proof that wrap-mapper `SetPaused` blocks wrap and unwrap, and that unpausing restores both — not only the frontend LCD-mocked CTA ([SEC-A02](#swap-wrap-safety-cta-sec-a02-gitlab-389) above).
+
+The wrap-mapper wasm is deployed on LocalTerra from [`ustr-cmm`](https://gitlab.com/PlasticDigits/ustr-cmm) during `make deploy-local` (full seed). It is **not** an untestable external-only dependency on localnet.
+
+| Check | Command |
+|-------|---------|
+| On-chain pause cycle (wrap reject → unwrap reject → unpause → wrap OK → unwrap OK) | `make smoke-wrap-mapper-pause` (after `make deploy-local`) |
+| Full #396 acceptance (smoke + SEC-A02 Vitest) | `make verify-issue-396` |
+
+Script: [`scripts/smoke-wrap-mapper-pause.sh`](../scripts/smoke-wrap-mapper-pause.sh); env resolver: [`scripts/lib/smoke-wrap-env.sh`](../scripts/lib/smoke-wrap-env.sh). Manual QA template: [wrap-unwrap-test-pass.md § Paused State](./qa-templates/wrap-unwrap-test-pass.md). Audit invariant **W1**: [contracts-security-audit.md](./contracts-security-audit.md).
 
 **Header / tablet compact nav:** `e2e/navigation.spec.ts` asserts no horizontal overlap for the **Swap + More** row at 773×743, **1024–1098px** (follow-up cram band), and other tablet widths; the full primary row at 1280px; desktop **Swap → Pool → Trade** tab transitions without reload at 1440px ([GitLab **#182**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182)); and that **“Terra Classic ecosystem”** does not appear in the shell (header brand is logo + title only). Invariants: [docs/frontend.md § Responsive shell & header navigation](./frontend.md#responsive-header-navigation) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)); shell nav playbook [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md).
 

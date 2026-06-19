@@ -77,6 +77,8 @@ import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
+import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
+import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
   SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
@@ -1643,6 +1645,23 @@ export default function SwapPage() {
             <div className="alert-error mb-3 text-xs" role="alert">
               <p>{tradingBlacklist.message}</p>
             </div>
+          )}
+          {simData && hasPositiveInputAmount && fromToken && toToken && (
+            <SwapPreSubmitSummary
+              offerSymbol={getTokenDisplaySymbol(fromToken)}
+              receiveSymbol={getTokenDisplaySymbol(toToken)}
+              offerAmountHuman={inputAmount}
+              receiveAmountHuman={
+                outputAmount && receiveAssetInfo ? formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo)) : '—'
+              }
+              maxSpreadPercent={slippageTolerance}
+              minReceiveHuman={
+                minReceived != null && receiveAssetInfo
+                  ? formatTokenAmount(minReceived, getDecimals(receiveAssetInfo))
+                  : null
+              }
+              chainFullLabel={getNetworkBadgeCopy().fullLabel}
+            />
           )}
           {/* Swap Button */}
           {showImpactConfirm && !routeSlippageBlocked && (

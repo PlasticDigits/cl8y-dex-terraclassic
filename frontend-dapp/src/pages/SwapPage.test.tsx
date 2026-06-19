@@ -953,4 +953,53 @@ describe('SwapPage', () => {
       expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
     })
   })
+
+  describe('swap pre-sign confirmation panel (GitLab #409 / SEC-D11)', () => {
+    it('shows labeled action, pair, amounts, max spread, min return, and chain before wallet signing', async () => {
+      const user = userEvent.setup()
+      const wallet = 'terra1wallet000000000000000000000000000001'
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'keplr', error: null })
+      const terraA = 'terra1from00000000000000000000000000000001'
+      const terraB = 'terra1to00000000000000000000000000000001'
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+      vi.mocked(simulateSwap).mockResolvedValue({
+        return_amount: '1000000',
+        spread_amount: '100',
+        commission_amount: '3000',
+      })
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+      expect(await screen.findByTestId('swap-pre-submit-summary')).toBeInTheDocument()
+      expect(screen.getByTestId('swap-confirm-action')).toHaveTextContent('Swap')
+      expect(screen.getByTestId('swap-confirm-pair')).toHaveTextContent('→')
+      expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
+      expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('1')
+      expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('0.5%')
+      expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.995')
+      expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
+    })
+  })
 })
