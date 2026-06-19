@@ -17,7 +17,7 @@ Store blacklist state on the **factory** (central registry):
 | Token | `BLACKLISTED_TOKENS` | Blocks any trade touching the CW20 |
 | Pair | `BLACKLISTED_PAIRS` | Blocks all actions on that pair contract |
 
-Governance-only execute messages: `BlacklistWallet`, `UnblacklistWallet`, `BlacklistToken`, `UnblacklistToken`, `BlacklistPair`, `UnblacklistPair`.
+Governance-only execute messages: `BlacklistWallet`, `UnblacklistWallet`, `BlacklistToken`, `UnblacklistToken`, `BlacklistPair`, `UnblacklistPair`. Operator command cookbook: [`docs/runbooks/emergency-commands.md`](../runbooks/emergency-commands.md) ([SEC-B11](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399)).
 
 **Guards:** Pair and router call factory `BlacklistCheck` before user-facing executes. Pair also checks the optional `trader` field on router-originated swaps.
 
