@@ -23,11 +23,14 @@ Governance-only execute messages: `BlacklistWallet`, `UnblacklistWallet`, `Black
 
 **Recovery:** Governance `Unblacklist*` restores service; user funds in escrow or LP are not destroyed—only protocol paths are gated.
 
+**Operations:** incident classification criteria, severity hints, ToS/compliance escalation, and false-positive rollback checklist — [blacklist-decision runbook](../runbooks/blacklist-decision.md) (SEC-B12, GitLab [#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400)).
+
 ## Consequences
 
 - Deployed factories migrate to `1.5.0` with empty maps (no behavior change until governance acts).
 - Pairs upgrade to `1.8.0` for guard wiring; router includes multihop `pairs` probe.
 - dApp and indexer expose read-only `BlacklistCheck` for UX (LCD or `GET /api/v1/compliance/blacklist-check`).
+- Pair blacklist isolation (SEC-B04, [#394](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/394)): contract test `pair_blacklist_blocks_target_pair_but_not_unrelated_control_pair` in [`blacklist_tests.rs`](../../smartcontracts/tests/src/blacklist_tests.rs) — blacklists one pair, asserts blocked swap on that pair, asserts swap on a second registered pair succeeds for the same user. See [security-model.md § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response).
 
 ## Alternatives considered
 

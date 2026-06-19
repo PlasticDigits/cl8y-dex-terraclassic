@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs check-user-incident-faq-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs rehearse-governance-emergency setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-365 verify-issue-369 verify-issue-383 verify-issue-384 verify-issue-391 verify-issue-397 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration audit-smartcontracts audit-indexer audit-frontend gitleaks-detect verify-gitleaks
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs check-user-incident-faq-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-blacklist-decision-docs rehearse-governance-emergency setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-365 verify-issue-369 verify-issue-383 verify-issue-384 verify-issue-391 verify-issue-397 verify-issue-400 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration audit-smartcontracts audit-indexer audit-frontend gitleaks-detect verify-gitleaks
 
 # Infrastructure
 start:
@@ -242,12 +242,16 @@ rehearse-governance-emergency:
 	@chmod +x scripts/rehearse-governance-emergency-controls.sh scripts/lib/terrad-multisig-tx.sh scripts/lib/lcd-smart-query.sh scripts/lib/terrad-wait-tx.sh
 	./scripts/rehearse-governance-emergency-controls.sh
 
+verify-issue-400:
+	@chmod +x scripts/qa/verify-issue-400.sh
+	./scripts/qa/verify-issue-400.sh
+
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-redeploy-decision"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
-	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-295 (needs make dev)"
+	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-400 | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
 	@echo "Docs:            scripts/qa/README.md"
@@ -307,6 +311,9 @@ check-launch-go-no-go-docs:
 
 check-governance-emergency-rehearsal-docs:
 	python3 scripts/check_governance_emergency_rehearsal_docs.py
+
+check-blacklist-decision-docs:
+	python3 scripts/check_blacklist_decision_docs.py
 
 # Deployment
 deploy-local-no-build:
@@ -394,7 +401,7 @@ dev-full: start wait-healthy build-optimized deploy-local
 # Combined
 test: test-contracts test-frontend
 
-lint: lint-contracts lint-frontend check-fee-discount-tier-docs check-user-incident-faq-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs verify-commit-messages
+lint: lint-contracts lint-frontend check-fee-discount-tier-docs check-user-incident-faq-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-blacklist-decision-docs verify-commit-messages
 
 # Git hooks
 setup-hooks:
