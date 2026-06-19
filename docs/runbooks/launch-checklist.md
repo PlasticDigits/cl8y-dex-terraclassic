@@ -2,7 +2,9 @@
 
 Ordered checklist for **pool-only** swaps: direct pair and router paths with **`hybrid` unset** (no on-chain limit-book leg). For hybrid-specific launch, see [`docs/reviews/20260409T030009Z/REVIEW.md`](../reviews/20260409T030009Z/REVIEW.md) §11.
 
-**Related docs:** [`docs/deployment-guide.md`](../deployment-guide.md), [`docs/security-model.md`](../security-model.md), [`docs/architecture.md`](../architecture.md), fee tiers [`docs/reference/fee-discount-tiers.md`](../reference/fee-discount-tiers.md). **Full executable matrix:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (**LR-00** launch-readiness gate).
+**Related docs:** [`docs/deployment-guide.md`](../deployment-guide.md), [`docs/security-model.md`](../security-model.md), [`docs/architecture.md`](../architecture.md), fee tiers [`docs/reference/fee-discount-tiers.md`](../reference/fee-discount-tiers.md), QA sign-off [`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) § SIGN-OFF, agent playbook [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../../skills/AGENTS_LAUNCH_GO_NO_GO.md). **Full executable matrix:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (**LR-00** launch-readiness gate).
+
+**Mandatory gate:** [**Phase 5 — Go / no-go**](#phase-5--go--no-go-decision-required-before-production-mainnet) is a **required sign-off** before any **production mainnet** deploy. Complete Phases 0–4 on staging/testnet first; do **not** begin mainnet Phase 1 until Phase 5 records an explicit **GO** (or **GO with accepted risk**) on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).
 
 ---
 
@@ -61,6 +63,80 @@ terrad query wasm contract-state smart <fee_discount> '{"is_trusted_router":{"ro
 - [ ] **Indexer URL (frontend):** production `VITE_INDEXER_URL` must use **`https://`** only — no mixed-content `http:` to the quote API. See [Security model § Off-chain trust boundaries](../security-model.md#off-chain-trust-boundaries-frontend) ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
 - [ ] **Frontend:** `VITE_*` addresses per [`docs/frontend.md`](../frontend.md); `VITE_WC_PROJECT_ID` set before `npm run build` (production guard); no `VITE_DEV_MNEMONIC` in release env.
 - [ ] **Frontend CSP:** production builds inject env-scoped `connect-src` via [`viteCsp.ts`](../../frontend-dapp/viteCsp.ts) (no blanket `https:`); `render.yaml` omits a static CSP header so policy stays build-time aware.
+
+---
+
+## Phase 5 — Go / no-go decision (required before production mainnet)
+
+Consolidates launch criteria that were previously scattered across review artifacts ([`RELEASE_READINESS_MATRIX.md`](../reviews/20260409T030009Z/RELEASE_READINESS_MATRIX.md), [`REVIEW.md`](../reviews/20260409T030009Z/REVIEW.md)) and QA checklists. **One explicit decision** is required before production mainnet deploy.
+
+### Decision outcomes
+
+| Decision | When to choose | Action |
+|----------|----------------|--------|
+| **BLOCK** | Any **P0** blocker is open (see below) | Do **not** deploy to production mainnet. File or reopen issues; re-run Phases 0–4 on staging after fixes. |
+| **PAUSE** | No P0 blockers, but launch is not ready to proceed on schedule | Delay mainnet deploy. Document why, target resume date, and owners for each open pre-launch item. |
+| **GO** | All P0 items closed; all pre-launch items closed | Proceed to mainnet Phase 1. |
+| **GO with accepted risk** | All P0 items closed; some pre-launch items remain open with **documented** risk acceptance | Proceed only after named sign-off (below) records each accepted residual risk on the launch issue. |
+
+### BLOCK — do not launch (any P0 open)
+
+Choose **BLOCK** when **any** of these P0 categories has an open, unmitigated finding:
+
+| P0 category | Examples (not exhaustive) | Primary references |
+|-------------|---------------------------|-------------------|
+| **Admin controls** | Governance/treasury are EOAs; factory admin paths reachable by non-governance; hook allowlist missing for registered hooks; trusted-router or discount-registry miswired | [Security model § Governance](../security-model.md), [hook registration](./hook-registration.md), Phase 0–2 above |
+| **Value-flow invariants** | Failing contract audit invariants (P1–P7 pool path, L1–L10 limit/hybrid); fee-on-transfer or non-standard CW20 on whitelist; treasury/fee accounting mismatch on staging smoke | [`docs/contracts-security-audit.md`](../contracts-security-audit.md), [`scripts/smoke-pool-swap.sh`](../../scripts/smoke-pool-swap.sh), [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md) |
+| **Deploy / runbook** | Missing or unexecuted launch phases; optimizer wasm policy violated; `make check-fee-discount-tier-docs` or launch go/no-go doc check failing; no rollback/incident owner | This runbook, [deployment guide](../deployment-guide.md), [`make verify-issue-391`](../../Makefile) |
+| **User visibility of risk** | Users cannot see **pause**, **blacklist**, or **rate-limit / indexer outage** risk in the dApp or docs; mixed-content indexer URL; missing WalletConnect or CSP deploy guards | [Security model § Off-chain trust boundaries](../security-model.md#off-chain-trust-boundaries-frontend), [frontend.md § Paused pair](../frontend.md), indexer rate limits in [`indexer-invariants.md`](../indexer-invariants.md) |
+
+### PAUSE — delay launch
+
+Choose **PAUSE** when there is **no** open P0 blocker, but **any** of the following is true:
+
+- A **pre-launch** item from Phases 0–4 or [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) remains open **without** a linked risk-acceptance comment on the launch issue.
+- Production **governance multisig** has not rehearsed the deploy/admin txs (pause, fee update, hook registration) on staging.
+- **Incident / rollback** runbook gap: no on-call owner, or [`docs/templates/incident-dex-indexer.md`](../templates/incident-dex-indexer.md) not adapted for this network.
+- External dependency blocker (indexer DB migration, DNS/TLS, WalletConnect project) is unresolved.
+
+Record the pause reason and planned resume date on the launch tracking issue.
+
+### GO with accepted risk — residual risks documented
+
+Choose **GO with accepted risk** only when:
+
+1. **All P0 categories above are closed** (no BLOCK triggers).
+2. Every remaining pre-launch gap is either **closed** or **explicitly risk-accepted** in a named comment on the launch issue (link the GitLab issue or checklist row).
+3. **Residual risks** are listed in the sign-off comment (severity, owner, review date).
+
+**GO** (no qualifier) requires item 2 with **zero** open pre-launch gaps.
+
+### Mandatory sign-off gate (final step)
+
+**Do not begin mainnet Phase 1 until this step is complete.**
+
+1. Complete Phases **0–4** on staging/testnet and the [#337](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) matrix as applicable.
+2. Record the go/no-go decision using the role table from [`QA_TEMPLATE.md` § SIGN-OFF](../../QA_TEMPLATE.md#sign-off):
+
+| Role | Name | Date | Signature |
+|------|------|------|-----------|
+| QA Tester | | | |
+| Dev Lead | | | |
+| Product Owner | | | |
+
+3. **Post the sign-off on the launch tracking issue** (create one if needed). The issue comment must include:
+   - **Decision:** `BLOCK`, `PAUSE`, `GO`, or `GO with accepted risk`
+   - **Date** (UTC)
+   - **Open residual risks** (or `none`)
+   - **Risk acceptance statement** (required for `GO with accepted risk`; for `GO`, state that no residual pre-launch gaps remain)
+   - Links to any risk-accepted GitLab issues
+
+4. For **BLOCK** or **PAUSE**, stop here — do not deploy to production mainnet.
+
+5. For **GO** or **GO with accepted risk**, attach or link the completed QA summary table from [`QA_TEMPLATE.md` § Summary](../../QA_TEMPLATE.md#summary) when your process requires it, then proceed to mainnet Phase 1.
+
+**Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows.
+
 ---
 
 ## Rollback / incident

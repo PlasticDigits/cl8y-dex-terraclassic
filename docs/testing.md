@@ -32,7 +32,7 @@ make smoke-pool-swap
 
 `make start-qa` runs smoke after `qa-verify-deploy` (skip with `QA_SKIP_SMOKE=1`). `scripts/lib/smoke-deploy-env.sh` resolves `PAIR_ADDR` from `.qa-deploy-stamp` and `OFFER_TOKEN` from the pair `pool` query — no hardcoded testnet addresses.
 
-See also [`docs/deployment-guide.md`](./deployment-guide.md) and [`docs/runbooks/launch-checklist.md`](./runbooks/launch-checklist.md).
+See also [`docs/deployment-guide.md`](./deployment-guide.md) and [`docs/runbooks/launch-checklist.md`](./runbooks/launch-checklist.md) (Phase 5 go/no-go gate — `make verify-issue-391`).
 
 ## Test Types
 
@@ -417,6 +417,7 @@ Gitleaks abuse check: `make verify-gitleaks` (fixture must fail, clean tree must
 | Reference job (`test.yml`) | Local command |
 |--------------------------|---------------|
 | `docs-fee-discount-tiers` | `make check-fee-discount-tier-docs` |
+| `docs-launch-go-no-go` | `make check-launch-go-no-go-docs` / `make verify-issue-391` ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) |
 | `contracts-terra` | `make lint-contracts` && `make test-contracts` (optional LCOV: `make coverage-contracts`) |
 | `localnet-trading-swarm` | `cd packages/localnet-trading-swarm && npm ci && npx tsc -p tsconfig.json && npm run test:run` |
 | `frontend` | `bash scripts/with-node.sh --cwd frontend-dapp -- npx tsc --noEmit` && `make lint-frontend` && `make test-frontend` |
