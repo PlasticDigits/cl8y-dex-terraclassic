@@ -5,7 +5,12 @@ Use this checklist when **migrating** or **upgrading** CosmWasm contracts (facto
 ## Pre-flight
 
 - [ ] **Artifact:** Production wasm from **workspace-optimizer** only (`make build-optimized`). Do not upload ad-hoc `cargo wasm` from dev checks to mainnet ([docs/testing.md § CI](../testing.md#ci)).
-- [ ] **Checksums:** Record `wasm-checksums.txt` and code IDs for audit trail.
+- [ ] **Deploy trace (SEC-D12):** Record on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) using [`docs/templates/deploy-trace.md`](../templates/deploy-trace.md):
+  - [ ] **Git SHA:** `git rev-parse HEAD` — paste output
+  - [ ] **Terra Classic chain version:** `terrad version` or `terrad status --node <rpc> | jq -r .node_info.version` — paste output
+  - [ ] **Contract code IDs** for factory, pair, router, fee-discount (and hook contracts if migrated)
+  - [ ] **`wasm-checksums.txt`** artifact hashes from `smartcontracts/artifacts/wasm-checksums.txt`
+  - [ ] **Post-migration verification command output** (state queries + smoke script — paste or link log)
 - [ ] **Governance:** `admin` on contracts is the intended multisig or DAO; verify with `terrad query wasm contract <addr>`.
 
 ## Migration / upgrade steps
