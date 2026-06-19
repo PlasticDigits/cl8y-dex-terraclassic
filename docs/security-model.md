@@ -191,6 +191,18 @@ Production builds emit a **narrow `connect-src`** (LCD, RPC, indexer, WalletConn
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md).
 
+## User security contact (SEC-A07)
+
+End users who see suspicious trades, unexpected balances, or misleading UI states must have a published escalation path ([GitLab **#392**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392)):
+
+| Surface | Location |
+|---------|----------|
+| Policy | [`SECURITY.md`](../SECURITY.md) at repo root — email, GitLab template, responsible disclosure, **48–72 hour** acknowledgement window |
+| GitLab template | [`.gitlab/issue_templates/security_report.md`](../.gitlab/issue_templates/security_report.md) — `security` label, structured fields |
+| dApp footer | [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) — **Report suspicious activity** → GitLab security template (`SECURITY_REPORT_ISSUE_URL` in [`legalCopy.ts`](../frontend-dapp/src/components/legal/legalCopy.ts)) |
+
+**Third-party / agent context:** [`skills/AGENTS_SECURITY_CONTACT.md`](../skills/AGENTS_SECURITY_CONTACT.md).
+
 ## Audit Status
 
 Contracts have not yet been formally audited. A third-party audit is recommended before mainnet deployment with significant TVL.

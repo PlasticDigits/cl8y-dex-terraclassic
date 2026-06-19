@@ -9,6 +9,7 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 | [docs/frontend.md § Risk surfacing, NFA copy, and first-visit acknowledgement](../docs/frontend.md#legal-risk-surfacing) | Invariants, `VITE_PLAYWRIGHT_E2E`, storage key / version |
 | `frontend-dapp/src/utils/riskAcknowledgement.ts` | `localStorage` persistence and `RISK_ACK_VERSION` |
 | `frontend-dapp/src/components/legal/legalCopy.ts` | Single source for bullets and NFA strings shared by modal + footer |
+| `frontend-dapp/src/components/legal/LegalFooterNotice.tsx` | Footer NFA + **Report suspicious activity** link ([#392](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392)) |
 | `frontend-dapp/src/components/ui/Modal.tsx` | `dismissible` prop for blocking dialogs |
 | `frontend-dapp/playwright.config.ts` | Sets `VITE_PLAYWRIGHT_E2E=true` on `webServer` so E2E is not blocked |
 | `frontend-dapp/src/contexts/RouteContentReadyContext.tsx` | Pathname-scoped ready gate for deferred NFA footer (fixes missed `window` events on nav — [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)) |
@@ -28,6 +29,7 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 
 - **Responsive shell / header:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab #136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
 - **Production build / maps:** [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md).
+- **User security contact (SEC-A07):** [`AGENTS_SECURITY_CONTACT.md`](./AGENTS_SECURITY_CONTACT.md) ([#392](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392)).
 - **E2E verification blockers ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)):** [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) (`cosmesPatch127.test.ts`), [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) (`e2e-seed-hybrid-book.sh` idempotency), [`docs/testing.md`](../docs/testing.md) § E2E Tests — **#138 verification** checklist.
 
 ## Verification checklist (#138)

@@ -1,5 +1,11 @@
 /** Shared legal / risk copy for modal and footer (GitLab #138). */
 
+/** Public security escalation (GitLab #392, SEC-A07). */
+export const SECURITY_CONTACT_EMAIL = 'contact@ceramicliberty.com'
+export const SECURITY_REPORT_ISSUE_URL =
+  'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/new?issuable_template=security_report'
+export const SECURITY_RESPONSE_WINDOW = '48–72 hours'
+
 export const NFA_SHORT =
   'CL8Y DEX is experimental software. Nothing here is financial, investment, legal, or tax advice (NFA).'
 
