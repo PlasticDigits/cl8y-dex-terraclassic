@@ -31,7 +31,7 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, or **swap
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "SEC-A02"
 
 # E2E (needs deploy env + LocalTerra LCD)
-bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-smoke
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-tx
 ```
 
 ## Related

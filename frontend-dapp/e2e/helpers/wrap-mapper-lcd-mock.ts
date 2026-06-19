@@ -1,4 +1,13 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import type { Page, Route } from '@playwright/test'
+
+function repoRootFromE2e(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  return path.resolve(here, '..', '..', '..')
+}
 
 function decodeSmartQuery(url: string): { contract: string; query: Record<string, unknown> } | null {
   const match = url.match(/\/contract\/([^/]+)\/smart\/([^/?#]+)/)
@@ -88,7 +97,13 @@ export async function routeWrapMapperRateLimitExceeded(page: Page, wrapMapperAdd
 }
 
 export function wrapMapperAddressFromEnv(): string {
-  const addr = process.env.VITE_WRAP_MAPPER_ADDRESS?.trim() ?? ''
+  let addr = process.env.VITE_WRAP_MAPPER_ADDRESS?.trim() ?? ''
+  if (!addr.startsWith('terra1')) {
+    const envLocal = path.join(repoRootFromE2e(), 'frontend-dapp', '.env.local')
+    const text = fs.readFileSync(envLocal, 'utf8')
+    const m = text.match(/^VITE_WRAP_MAPPER_ADDRESS=(.+)$/m)
+    addr = m?.[1]?.trim().replace(/^["']|["']$/g, '') ?? ''
+  }
   if (!addr.startsWith('terra1')) {
     throw new Error('VITE_WRAP_MAPPER_ADDRESS missing — run make deploy-local (writes frontend-dapp/.env.local)')
   }
