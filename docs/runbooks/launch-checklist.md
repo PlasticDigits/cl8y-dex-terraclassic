@@ -39,6 +39,19 @@ Ordered checklist for **pool-only** swaps: direct pair and router paths with **`
 
 Follow [`docs/deployment-guide.md`](../deployment-guide.md): optimized wasm → store → instantiate factory (governance, treasury, fees, whitelist) → router → fee-discount → tiers → **trusted router** → `set_discount_registry_all` (or per-pair) → create pairs.
 
+### Deploy trace (audit record) — required before leaving Phase 1
+
+Record these fields on the **launch tracking issue** ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) using [`docs/templates/deploy-trace.md`](../templates/deploy-trace.md). Without this trace, operators cannot reliably determine which code was deployed or what chain version it ran against after a missed security patch (SEC-D12, [GitLab #410](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/410)).
+
+- [ ] **Git SHA** of the deployed build: `git rev-parse HEAD` — paste output into the launch tracking issue
+- [ ] **Terra Classic chain version** at deploy time: `terrad version` or `terrad status --node <rpc> | jq -r .node_info.version` — paste output
+- [ ] **Chain ID / network** (e.g. `columbus-5`, `rebel-2`, LocalTerra `localterra`)
+- [ ] **Contract code IDs** for factory, pair, router, fee-discount (and hook contracts if deployed)
+- [ ] **`wasm-checksums.txt`** artifact hashes from `smartcontracts/artifacts/wasm-checksums.txt`
+- [ ] **Post-deploy verification command output** (at minimum: factory `get_config` query and [`scripts/smoke-pool-swap.sh`](../../scripts/smoke-pool-swap.sh) — paste or link log)
+
+Agent playbook: [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md). Regression: `make verify-issue-410`.
+
 **Verify (replace placeholders, chain id, node, fees):**
 
 ```bash

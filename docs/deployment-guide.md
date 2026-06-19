@@ -129,9 +129,22 @@ Follow the same steps above, substituting:
 - RPC: testnet RPC endpoint
 - `VITE_NETWORK=testnet`
 
+## Deploy trace (audit record)
+
+Before closing a deploy or migration, record an auditable trace on the **launch tracking issue** ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) using [`docs/templates/deploy-trace.md`](templates/deploy-trace.md) (SEC-D12, [GitLab #410](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/410)):
+
+- [ ] **Git SHA:** `git rev-parse HEAD`
+- [ ] **Terra Classic chain version:** `terrad version` or `terrad status --node <rpc> | jq -r .node_info.version`
+- [ ] **Contract code IDs** (factory, pair, router, fee-discount)
+- [ ] **`wasm-checksums.txt`** from `smartcontracts/artifacts/wasm-checksums.txt`
+- [ ] **Post-deploy verification output** (queries + smoke script)
+
+See also: [Pool-only launch runbook § Phase 1 deploy trace](runbooks/launch-checklist.md#deploy-trace-audit-record--required-before-leaving-phase-1), [wasm admin migration Pre-flight](runbooks/wasm-admin-migration.md#pre-flight), [`skills/AGENTS_DEPLOY_TRACE.md`](../skills/AGENTS_DEPLOY_TRACE.md).
+
 ## Post-Deployment Checklist
 
 - [ ] **IBC-hooks chain exposure (SEC-D02):** record Terra Classic chain binary/SDK version and IBC-hooks module status at deploy time; attest that app contracts do not expose IBC receive/ack/timeout entry points (`make verify-no-ibc-hooks-in-contracts`). Re-run after chain upgrades or new contract modules — [launch checklist Phase 0](runbooks/launch-checklist.md#phase-0--preconditions), [security model § IBC hooks](security-model.md#ibc-hooks-chain-dependency-sec-d02) ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)).
+- [ ] **Deploy trace** posted on the launch tracking issue (see [Deploy trace](#deploy-trace-audit-record) above)
 - [ ] Run read-only pool checks: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) (`PAIR_ADDR`, optional `OFFER_TOKEN` / `TERRA_LCD_URL`)
 - [ ] Verify Factory config via `GetConfig` query
 - [ ] Create a test pair and verify it appears in `GetAllPairs`
