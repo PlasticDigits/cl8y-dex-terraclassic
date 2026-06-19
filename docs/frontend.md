@@ -733,6 +733,19 @@ When the swap **`simulation`** query observes **indexer transport / 5xx** errors
 
 **Third-party / agent context:** [§ Market data loading & outage (global)](#market-data-loading-outage), [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md).
 
+### Swap wrap safety CTA (SEC-A02) {#swap-wrap-safety-cta-sec-a02}
+
+Native wrap paths on `/` query the **wrap mapper** for governance pause and per-denom rate limits before enabling submit ([`wrapMapper.ts`](../frontend-dapp/src/services/terraclassic/wrapMapper.ts)).
+
+| Gate | Submit label | Disabled |
+|------|--------------|----------|
+| `config.paused === true` | **Wrapping is Temporarily Paused** | yes |
+| `used + wrap_amount > max_amount_per_window` | **Rate Limit Exceeded** | yes |
+
+Pause is evaluated **before** rate limit in the CTA precedence chain ([`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx)). This is **on-chain wrap quota**, not indexer HTTP **429**.
+
+**Regression tests:** [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) (`SEC-A02` / GitLab **#389**); Playwright LCD mocks in [`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts). Agent: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md); matrix: [docs/testing.md § Swap wrap safety CTA](./testing.md#swap-wrap-safety-cta-sec-a02-gitlab-389).
+
 ### Trade page — indexer outage banner {#trade-page-indexer-outage-banner}
 
 When the **`getPair`** query on `/trade` fails with an **indexer transport / non-OK** error (`isIndexerUnavailableError` in [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts)), the page shows a warning **above** the workspace (`data-testid="trade-indexer-outage-banner"`).

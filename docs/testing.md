@@ -269,6 +269,18 @@ After sanity on `:3001`, Playwright runs with **`OUTAGE_E2E_INDEXER_URL`** (defa
 
 Vitest covers Charts/Trader/Pool/**Limits**/ **Swap** outage banners with mocked transport errors (`npm run test:run`; `/limits`: [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx), GitLab **#218**; `/`: [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx), GitLab **#241**). Product invariants: [docs/frontend.md § Market data loading & outage](./frontend.md#market-data-loading-outage); agent: [`skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](../skills/AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md). Tracking: [GitLab **#219**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219).
 
+### Swap wrap safety CTA (SEC-A02, GitLab #389) {#swap-wrap-safety-cta-sec-a02-gitlab-389}
+
+Launch checklist **SEC-A02** requires retail copy **and** a disabled submit CTA for wrap-mapper pause and on-chain wrap rate limit on `/`.
+
+| Check | Command |
+|-------|---------|
+| Vitest — pause copy + disabled | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "SEC-A02"` |
+| Vitest — rate limit copy + disabled | same (both cases in one `describe`) |
+| Playwright — isolated LCD mocks | `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-smoke` |
+
+Mocks: [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Product copy: [docs/frontend.md § Swap wrap safety CTA](./frontend.md#swap-wrap-safety-cta-sec-a02).
+
 **Header / tablet compact nav:** `e2e/navigation.spec.ts` asserts no horizontal overlap for the **Swap + More** row at 773×743, **1024–1098px** (follow-up cram band), and other tablet widths; the full primary row at 1280px; desktop **Swap → Pool → Trade** tab transitions without reload at 1440px ([GitLab **#182**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182)); and that **“Terra Classic ecosystem”** does not appear in the shell (header brand is logo + title only). Invariants: [docs/frontend.md § Responsive shell & header navigation](./frontend.md#responsive-header-navigation) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)); shell nav playbook [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md).
 
 **Connected wallet chip — network label:** same spec file — desktop **`Local`** short label on the trigger at 1280px, mobile LUNC without visible network text, connected chip vs **More** non-overlap at 773px ([GitLab **#186**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186); [docs/frontend.md § Connected wallet chip — network & mobile](./frontend.md#connected-wallet-chip-network-mobile)).
