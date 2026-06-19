@@ -103,4 +103,24 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
   })
+
+  it('shows labeled pre-sign confirmation fields before market swap submit (GitLab #409 / SEC-D11)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    renderWithProviders(
+      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+    )
+
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
+    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+
+    expect(await screen.findByTestId('trade-market-pre-submit-summary')).toBeInTheDocument()
+    expect(screen.getByTestId('swap-confirm-action')).toHaveTextContent('Market swap')
+    expect(screen.getByTestId('swap-confirm-pair')).toHaveTextContent('→')
+    expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
+    expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('1')
+    expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('0.5%')
+    expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.995')
+    expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
+  })
 })

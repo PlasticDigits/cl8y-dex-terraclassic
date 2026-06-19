@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs check-user-incident-faq-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-blacklist-decision-docs rehearse-governance-emergency setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-365 verify-issue-369 verify-issue-383 verify-issue-384 verify-issue-391 verify-issue-397 verify-issue-400 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration audit-smartcontracts audit-indexer audit-frontend gitleaks-detect verify-gitleaks
+.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs check-user-incident-faq-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-blacklist-decision-docs rehearse-governance-emergency setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap smoke-wrap-mapper-pause test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-365 verify-issue-369 verify-issue-383 verify-issue-384 verify-issue-396 verify-issue-397 verify-issue-391 verify-issue-400 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration audit-smartcontracts audit-indexer audit-frontend gitleaks-detect verify-gitleaks
 
 # Infrastructure
 start:
@@ -139,6 +139,12 @@ smoke-pool-swap:
 	@chmod +x scripts/smoke-pool-swap.sh scripts/lib/smoke-deploy-env.sh
 	@bash -c 'set -a; source scripts/lib/smoke-deploy-env.sh; set +a; ./scripts/smoke-pool-swap.sh'
 
+# Post-deploy wrap-mapper pause/unpause on-chain smoke (GitLab #396 / SEC-B06).
+smoke-wrap-mapper-pause:
+	@chmod +x scripts/smoke-wrap-mapper-pause.sh scripts/lib/smoke-wrap-env.sh \
+		scripts/lib/lcd-smart-query.sh scripts/lib/e2e-terrad-tx.sh scripts/lib/terrad-wait-tx.sh
+	@bash -c 'set -a; source scripts/lib/smoke-wrap-env.sh; set +a; ./scripts/smoke-wrap-mapper-pause.sh'
+
 # On-chain E2E for GitLab #238 (hybrid sim CL8Y fee-discount parity). Requires a
 # fresh deploy (make deploy-local) + running indexer for the route/solve check.
 verify-issue-238:
@@ -154,6 +160,16 @@ verify-issue-383:
 verify-issue-384:
 	@chmod +x scripts/qa/verify-issue-384.sh scripts/lib/lcd-smart-query.sh scripts/lib/terrad-wait-tx.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-384.sh
+
+# GitLab #396 — wrap-mapper pause/unpause LocalTerra smoke (SEC-B06) + SEC-A02 Vitest.
+verify-issue-396:
+	@chmod +x scripts/qa/verify-issue-396.sh scripts/smoke-wrap-mapper-pause.sh scripts/lib/smoke-wrap-env.sh \
+		scripts/lib/lcd-smart-query.sh scripts/lib/e2e-terrad-tx.sh scripts/lib/terrad-wait-tx.sh scripts/with-node.sh
+	@if docker info >/dev/null 2>&1; then \
+		./scripts/qa/verify-issue-396.sh; \
+	else \
+		sg docker -c './scripts/qa/verify-issue-396.sh'; \
+	fi
 
 # GitLab #245 — off-chain trader forwarding (unit tests + optional live stack via #238 script).
 verify-issue-245:
