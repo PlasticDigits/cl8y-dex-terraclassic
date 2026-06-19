@@ -12,6 +12,8 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, or **swap
 | [`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts) | Playwright: LCD route mocks via [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts) |
 | [docs/frontend.md § Swap wrap safety CTA](../docs/frontend.md#swap-wrap-safety-cta-sec-a02) | Product copy table |
 | [docs/testing.md § Swap wrap safety CTA](../docs/testing.md#swap-wrap-safety-cta-sec-a02-gitlab-389) | Verification commands |
+| [docs/testing.md § Wrap-mapper pause smoke (SEC-B06)](../docs/testing.md#wrap-mapper-pause-smoke-sec-b06-gitlab-396) | On-chain pause cycle (`make smoke-wrap-mapper-pause`) |
+| [`smoke-wrap-mapper-pause.sh`](../scripts/smoke-wrap-mapper-pause.sh) | LocalTerra wrap/unwrap rejection + restore transcript |
 
 ## Invariants (SEC-A02)
 
@@ -32,6 +34,11 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/S
 
 # E2E (needs deploy env + LocalTerra LCD)
 bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-tx
+
+# On-chain wrap-mapper pause cycle (SEC-B06 / GitLab #396) — needs deploy-local full seed
+make smoke-wrap-mapper-pause
+# or full acceptance bundle:
+make verify-issue-396
 ```
 
 ## Related
