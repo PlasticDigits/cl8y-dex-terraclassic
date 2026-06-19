@@ -38,4 +38,5 @@ Install `cargo-audit` once: `cargo install cargo-audit --locked`.
 
 - Dev wallet / BIP39 gitleaks rule: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
 - QA wasm CI artifacts: [`AGENTS_QA_REDEPLOY_DECISION.md`](./AGENTS_QA_REDEPLOY_DECISION.md)
+- Deploy trace at release time (git SHA, chain version, code IDs): [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md)
 - Operator secrets: [docs/operator-secrets.md](../docs/operator-secrets.md)

@@ -6,6 +6,8 @@ Use this when implementing or verifying **pre-launch sign-off** before productio
 
 [`docs/runbooks/launch-checklist.md`](../docs/runbooks/launch-checklist.md) — **Phase 5** is the mandatory gate. Phases 0–4 are technical deploy/verify steps on staging; **do not start mainnet Phase 1** until Phase 5 records **GO** or **GO with accepted risk** on the launch tracking issue.
 
+**Phase 1 deploy trace:** Before leaving deploy Phase 1, record git SHA, Terra Classic chain version, code IDs, `wasm-checksums.txt`, and verification output on the launch tracking issue — see [`docs/templates/deploy-trace.md`](../docs/templates/deploy-trace.md) ([#410](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/410), [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md)).
+
 ## Three decisions
 
 | Decision | Meaning |
