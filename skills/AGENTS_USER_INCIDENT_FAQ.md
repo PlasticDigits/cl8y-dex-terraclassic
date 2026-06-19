@@ -10,6 +10,7 @@ Use when changing **user-facing copy** for **pause**, **trading blacklist**, or 
 | [docs/security-model.md](../docs/security-model.md) | Security entry point — must link to the FAQ |
 | [docs/contracts-security-audit.md](../docs/contracts-security-audit.md) | Invariant **L6** (pause), blacklist guards — technical, not user copy |
 | [docs/adr/0003-governance-trading-blacklist.md](../docs/adr/0003-governance-trading-blacklist.md) | Blacklist design (admin) |
+| [docs/runbooks/blacklist-decision.md](../docs/runbooks/blacklist-decision.md) | Operator decision tree + rollback (SEC-B12) |
 | `frontend-dapp/src/components/legal/legalCopy.ts` | `USER_INCIDENT_FAQ_HREF` / `USER_INCIDENT_FAQ_LABEL` |
 | `frontend-dapp/src/components/legal/LegalFooterNotice.tsx` | Footer link to FAQ |
 | `frontend-dapp/src/services/terraclassic/blacklist.ts` | `describeTradingBlacklistBlock` inline strings |
@@ -37,6 +38,7 @@ cd frontend-dapp && npm run test:unit -- src/components/legal/LegalFooterNotice.
 
 ## Related
 
+- Operator blacklist criteria: [`AGENTS_BLACKLIST_DECISION.md`](./AGENTS_BLACKLIST_DECISION.md)
 - Risk disclaimers / NFA footer: [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md)
 - Indexer API rate limits: [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md)
 - Limit order pause / parked expiry: [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md)

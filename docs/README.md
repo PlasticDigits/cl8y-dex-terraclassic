@@ -34,6 +34,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Operator secrets](./operator-secrets.md) — DB, LCD, keys, `RUN_MODE`; tracing-only observability ([glab#200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200))
 - [Runbook: indexer reorg, replay, dedup, backfill](./runbooks/indexer-reorg-replay-dedup.md)
 - [Runbook: Wasm admin migration](./runbooks/wasm-admin-migration.md)
+- [Runbook: trading blacklist decision tree](./runbooks/blacklist-decision.md) (SEC-B12, [#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400))
 - [Incident template (DEX + indexer)](./templates/incident-dex-indexer.md)
 
 ## QA
