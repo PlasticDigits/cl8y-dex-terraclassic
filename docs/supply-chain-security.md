@@ -74,5 +74,7 @@ Attack/abuse checks: `make verify-gitleaks` runs a **fixture** that must trip th
 
 - [docs/testing.md § CI](./testing.md#ci) — reference vs hosted jobs
 - [docs/operator-secrets.md](./operator-secrets.md) — runtime secrets handling
+- [docs/templates/deploy-trace.md](./templates/deploy-trace.md) — **deploy-time audit record** (git SHA, chain version, code IDs, wasm-checksums.txt; SEC-D12 [#410](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/410))
 - [`.github/workflows/README.md`](../.github/workflows/README.md) — portable job checklist (not executed on GitLab)
 - [`skills/AGENTS_SUPPLY_CHAIN_SECURITY.md`](../skills/AGENTS_SUPPLY_CHAIN_SECURITY.md) — agent playbook
+- [`skills/AGENTS_DEPLOY_TRACE.md`](../skills/AGENTS_DEPLOY_TRACE.md) — deploy trace recording playbook
