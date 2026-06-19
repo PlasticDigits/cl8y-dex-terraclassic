@@ -83,6 +83,8 @@ This repo is on **GitLab** and does **not** run GitHub Actions or GitLab CI. Che
 
 Project docs (architecture, integrators, runbooks, testing) are indexed in [`docs/README.md`](docs/README.md). For **local, testnet, and mainnet** chain IDs, LCD defaults, and indexer expectations (`RUN_MODE`, `LCD_URLS`, etc.), see the [environment matrix](docs/environment-matrix.md).
 
+**Security reports:** see [`SECURITY.md`](SECURITY.md) for how to report suspicious trades, UI issues, or vulnerabilities (email, GitLab template, response window).
+
 ## Development
 
 ### Git

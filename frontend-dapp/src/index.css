@@ -731,6 +731,16 @@
     color: var(--ink-subtle);
   }
 
+  .app-legal-footer-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .app-legal-footer-link:hover {
+    color: var(--ink);
+  }
+
   .app-brand {
     display: flex;
     align-items: center;

@@ -213,11 +213,15 @@ The short **`docs/qa-templates/qa-test-pass.md`** template includes condensed bu
 
 ## Security Escalation
 
-If you discover a potential security issue (e.g., unauthorized access, fund loss, contract exploit):
+If you discover a potential security issue (e.g., unauthorized access, fund loss, contract exploit, suspicious trade, or misleading UI):
 
-1. **Do NOT** file a public GitHub issue
-2. Contact `@PlasticDigits` directly via a private channel
-3. Include: steps to reproduce, affected contract/function, potential impact
+1. **Do NOT** file a public GitLab issue with exploit details before triage.
+2. Use the channels in [`SECURITY.md`](../SECURITY.md):
+   - [GitLab security report template](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/new?issuable_template=security_report) (preferred), or
+   - Email [contact@ceramicliberty.com](mailto:contact@ceramicliberty.com)
+3. Include: steps to reproduce, affected contract/function or UI surface, potential impact, tx hashes if applicable.
+
+**Response window:** initial acknowledgement within **48–72 hours** (see `SECURITY.md`).
 
 ## Device Checklist
 
