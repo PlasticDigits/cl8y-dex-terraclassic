@@ -42,6 +42,8 @@ TLS pinning guidance: use a managed TLS cert on the indexer load balancer; restr
 
 All swap commissions are sent directly to the `treasury` address configured in the Factory. The Pair contract holds no fees — they are transferred atomically during each swap.
 
+**Contract regression tests (SEC-C03, GitLab [#402](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/402)):** `audit_invariant_tests::commission_treasury_unchanged_after_max_spread_rejected_swap` and `commission_treasury_unchanged_after_deadline_rejected_swap` snapshot commission treasury (ask token) after a successful swap, then assert balances are unchanged when a subsequent swap reverts on `max_spread` or deadline. Hook-revert treasury snapshots: `new_feature_tests::test_state_consistent_after_hook_revert`. Matrix row **P10** in [contracts-security-audit.md](./contracts-security-audit.md).
+
 - The treasury address can be updated via `UpdateConfig` (governance only).
 - Fee rate is denominated in basis points (1 bps = 0.01%). Max is 10000 (100%).
 - Each pair can have an individually configured fee rate via `SetPairFee`.
