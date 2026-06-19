@@ -71,6 +71,10 @@ vi.mock('@/lib/sounds', () => ({
   sounds: { playButtonPress: vi.fn() },
 }))
 
+vi.mock('@/hooks/useTradingBlacklist', () => ({
+  useTradingBlacklist: vi.fn(),
+}))
+
 vi.mock('@/services/terraclassic/factory', () => ({
   getAllPairsPaginated: vi.fn(),
 }))
@@ -108,6 +112,15 @@ vi.mock('@/services/terraclassic/wallet', () => ({
 }))
 
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import {
+  TRADING_BLACKLIST_ALLOWED,
+  pairBlacklistedResponse,
+  tokenBlacklistedResponse,
+  tradingBlacklistHookResult,
+  walletBlacklistedResponse,
+} from '@/test/tradingBlacklistMocks'
+import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
 
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn().mockResolvedValue({}),
@@ -127,6 +140,7 @@ const emptyStats = {
 
 describe('TradePage', () => {
   beforeEach(() => {
+    vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     mockTradeDesktopLayout(false)
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
@@ -651,6 +665,27 @@ describe('TradePage', () => {
     for (const btn of placeBtns) {
       expect(btn).toBeDisabled()
     }
+  })
+
+  describe('trading blacklist UX on TradeOrderTicket (GitLab #388 / SEC-A02)', () => {
+    it.each([
+      ['wallet', walletBlacklistedResponse()],
+      ['pair', pairBlacklistedResponse(PAIR)],
+      ['token', tokenBlacklistedResponse('terra1aaa0000000000000000000000000000001')],
+    ] as const)('shows %s blacklist alert copy and disables limit Place CTA', async (_variant, resp) => {
+      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
+      renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      expect(alert).toHaveTextContent(/Restrictions are enforced on-chain by governance/i)
+
+      const placeBtns = screen.getAllByTestId('trade-limit-submit')
+      expect(placeBtns.length).toBeGreaterThan(0)
+      for (const btn of placeBtns) {
+        expect(btn).toBeDisabled()
+      }
+    })
   })
 
   it('clears pair-not-found notice when selecting a valid factory pair', async () => {
