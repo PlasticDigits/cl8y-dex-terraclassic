@@ -280,6 +280,17 @@ Launch checklist **SEC-A02** requires retail copy **and** a disabled submit CTA 
 | Vitest — rate limit copy + disabled | same (both cases in one `describe`) |
 | Playwright — isolated LCD mocks | `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-tx` |
 
+### Pair pause disabled CTAs (SEC-B05, GitLab #395) {#pair-pause-disabled-ctas-sec-b05-gitlab-395}
+
+Launch checklist **SEC-B05** requires LCD `is_paused` gating on `/` and `/pool` to match on-chain **L6** policy (swap + LP provide/withdraw disabled while paused).
+
+| Check | Command |
+|-------|---------|
+| Vitest — swap + pool pause CTAs | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx src/pages/PoolPage.test.tsx -t "SEC-B05"` |
+| Vitest — trade/limit path (regression) | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/TradePage.test.tsx -t "pair is paused"` |
+
+Product invariants: [docs/frontend.md § Pair pause disabled CTAs](./frontend.md#pair-pause-disabled-ctas-sec-b05); agent: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md).
+
 Mocks: [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Product copy: [docs/frontend.md § Swap wrap safety CTA](./frontend.md#swap-wrap-safety-cta-sec-a02).
 
 ### Wrap-mapper pause on-chain smoke (SEC-B06, GitLab #396) {#wrap-mapper-pause-smoke-sec-b06-gitlab-396}
@@ -444,6 +455,7 @@ Gitleaks abuse check: `make verify-gitleaks` (fixture must fail, clean tree must
 |--------------------------|---------------|
 | `docs-fee-discount-tiers` | `make check-fee-discount-tier-docs` |
 | `docs-launch-go-no-go` | `make check-launch-go-no-go-docs` / `make verify-issue-391` ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) |
+| `docs-blacklist-decision` | `make check-blacklist-decision-docs` / `make verify-issue-400` ([#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400)) |
 | `contracts-terra` | `make lint-contracts` && `make test-contracts` (optional LCOV: `make coverage-contracts`) |
 | `localnet-trading-swarm` | `cd packages/localnet-trading-swarm && npm ci && npx tsc -p tsconfig.json && npm run test:run` |
 | `frontend` | `bash scripts/with-node.sh --cwd frontend-dapp -- npx tsc --noEmit` && `make lint-frontend` && `make test-frontend` |

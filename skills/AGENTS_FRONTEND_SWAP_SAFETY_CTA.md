@@ -21,8 +21,10 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, or **swap
 |-------|--------------|----------|
 | Wrap mapper `config.paused === true` | **Wrapping is Temporarily Paused** | yes |
 | Wrap amount exceeds mapper `rate_limit` window | **Rate Limit Exceeded** | yes |
+| Route pair `is_paused === true` (L6 / SEC-B05) | **Pair is paused** | yes |
 
 - **Pause wins over rate limit** when both would apply (`SwapPage` `buttonText` chain).
+- **Wrap-mapper pause wins over pair pause** on native wrap-only paths.
 - Tests must cover **each state in isolation** — do not assert pause and rate limit in one combined regex ([`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts) E12 + dedicated describe).
 - Rate limit here is **on-chain wrap mapper quota**, not indexer HTTP **429** (indexer limits: [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md)).
 
@@ -31,6 +33,7 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, or **swap
 ```bash
 # Unit (no chain)
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "SEC-A02"
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx src/pages/PoolPage.test.tsx -t "SEC-B05"
 
 # E2E (needs deploy env + LocalTerra LCD)
 bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-tx
@@ -43,6 +46,7 @@ make verify-issue-396
 
 ## Related
 
+- Pair pause on `/` and `/pool`: [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx), [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx) (GitLab **#395** / SEC-B05); hook [`usePairPaused.ts`](../frontend-dapp/src/hooks/usePairPaused.ts)
 - Pair pause on `/trade`: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (GitLab #87 / #199)
 - Trading blacklist CTA: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts)
 - Native wrap routing: [`router.test.ts`](../frontend-dapp/src/services/terraclassic/router.test.ts)
