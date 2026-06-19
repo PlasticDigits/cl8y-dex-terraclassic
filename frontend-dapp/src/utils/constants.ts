@@ -13,6 +13,9 @@ export const USTC_C_TOKEN_ADDRESS = import.meta.env.VITE_USTC_C_TOKEN_ADDRESS ||
 /** Default-branch docs in GitLab (security audit, limit orders, ADRs). */
 export const DOCS_GITLAB_BASE = 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs'
 
+/** Public security posture (SEC-A01 / GitLab #387) — linked from dApp footer. */
+export const SECURITY_POSTURE_DOC_URL = `${DOCS_GITLAB_BASE}/security-posture.md`
+
 export const NATIVE_WRAPPED_PAIRS: Record<string, string> = {
   uluna: LUNC_C_TOKEN_ADDRESS,
   uusd: USTC_C_TOKEN_ADDRESS,

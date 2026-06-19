@@ -9,6 +9,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Integrators](./integrators.md) — hybrid hooks (L7), limit-book fees, [on-chain book HTTP](./integrators.md#on-chain-limit-book-lcd-proxy)
 - [Integrators — hybrid volume reconciliation](./integrators-hybrid-volume.md) — headline vs leg vs fill volumes, CG/CMC mapping ([GitLab #216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)); agent playbook [`skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md`](../skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md)
 - [Security Model](./security-model.md) — governance keys, treasury, hook safety
+- [Public security posture](./security-posture.md) — launch expectations, audit disclaimer, TVL-scaled controls (dApp footer link, SEC-A01)
 - [Contracts Security Audit & Invariants](./contracts-security-audit.md) — invariant matrix, attack paths, test mapping
 - [Indexer Invariants & API Security](./indexer-invariants.md) — HTTP/indexing invariants, caps, caches, test mapping
 - [Route solver guide](./route-solver.md) — global best-execution pipeline, glossary, `optimality_scope`, optimization theory ([GitLab #310](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/310))

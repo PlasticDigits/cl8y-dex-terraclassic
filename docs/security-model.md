@@ -1,5 +1,7 @@
 # Security Model
 
+Public **launch posture** (capped expectations, audit disclaimer, TVL-scaled controls): [`security-posture.md`](./security-posture.md) — linked from the dApp footer (SEC-A01, GitLab [#387](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/387)).
+
 ## Governance Keys
 
 The Factory contract has a single `governance` address that controls:
@@ -192,5 +194,7 @@ Production builds emit a **narrow `connect-src`** (LCD, RPC, indexer, WalletConn
 ## Audit Status
 
 Contracts have not yet been formally audited. A third-party audit is recommended before mainnet deployment with significant TVL.
+
+**User-facing summary:** [`security-posture.md`](./security-posture.md) (footer link from the dApp).
 
 For an **in-repo** invariant matrix, trust assumptions, and mapping to automated tests, see [contracts-security-audit.md](./contracts-security-audit.md). **Frontend / indexer off-chain trust** (remediation [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) / [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)): [security-model.md § Off-chain trust boundaries](./security-model.md#off-chain-trust-boundaries-frontend--indexer).

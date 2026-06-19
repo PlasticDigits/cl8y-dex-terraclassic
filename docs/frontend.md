@@ -253,6 +253,7 @@ Off-chain hardening for [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terracl
 | Deploy addresses | Factory/router on `/protocol` only; optional LCD sanity check | [`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx), [`deployAddressVerification.ts`](../frontend-dapp/src/utils/deployAddressVerification.ts) |
 | Token logos | Host allowlist; evil URLs → blockie | [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts), [`TokenLogo.tsx`](../frontend-dapp/src/components/ui/TokenLogo.tsx) |
 | Expert mode | Type `ENABLE EXPERT MODE` to enable; 30% block / 50% settings cap unchanged | [`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx), [`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts) |
+| Footer security link | Public posture doc linked from every page footer (SEC-A01, [#387](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/387)) | [`LegalFooterNotice.tsx`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx), [`security-posture.md`](./security-posture.md) |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md).
 
