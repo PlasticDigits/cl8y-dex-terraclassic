@@ -134,6 +134,10 @@ This lazy approach avoids the need for a background process or cron job to monit
 | `RemoveTrustedRouter`  | Governance            |
 | `UpdateConfig`         | Governance            |
 
+## Emergency controls (pause and blacklist)
+
+Governance on the **factory** can **pause** individual pairs (`SetPairPaused`) or **blacklist** wallets, tokens, or pairs for incident response ([ADR 0003](adr/0003-governance-trading-blacklist.md)). Copy-pastable `terrad` recipes with confirmation queries: **[`docs/runbooks/emergency-commands.md`](runbooks/emergency-commands.md)** ([SEC-B11](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399), GitLab [#399](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399)). LocalTerra rehearsal: `make verify-issue-399`. Agent playbook: [`skills/AGENTS_EMERGENCY_COMMANDS.md`](../skills/AGENTS_EMERGENCY_COMMANDS.md).
+
 ## Trading blacklist (compliance / incident response)
 
 Governance on the **factory** can block protocol interaction without bricking unrelated users' balances permanently. State lives in `BLACKLISTED_WALLETS`, `BLACKLISTED_TOKENS`, and `BLACKLISTED_PAIRS` (see [ADR 0003](adr/0003-governance-trading-blacklist.md), GitLab [#308](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/308)).

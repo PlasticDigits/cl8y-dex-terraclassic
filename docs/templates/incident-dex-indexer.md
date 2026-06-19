@@ -34,7 +34,7 @@
 
 ## Mitigation
 
-- **Swap / contract issues:** Follow [Security model](../security-model.md) (pause, governance).
+- **Swap / contract issues:** Follow [Security model](../security-model.md) (pause, governance). **On-chain emergency controls:** copy-pastable factory commands in [Emergency commands runbook](../runbooks/emergency-commands.md) — pause/unpause pair, blacklist/unblacklist wallet, token, or pair ([SEC-B11](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399)).
 - **Trading blacklist (wallet / token / pair):** [Blacklist decision runbook](../runbooks/blacklist-decision.md) — confirmed exploit actor, malicious token, compromised pair, ToS escalation, and false-positive rollback checklist (SEC-B12, GitLab [#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400)).
 - **Indexer stale / wrong data:** [Indexer reorg / replay runbook](../runbooks/indexer-reorg-replay-dedup.md), [Wasm admin runbook](../runbooks/wasm-admin-migration.md) if contract-side.
 - **Reorg halt (hash mismatch):** Stop indexer → dry-run `make indexer-reorg-recover HEIGHT=H` or `./scripts/indexer-reorg-recover.sh --height H` (add `CLEANUP=1` / `--cleanup-derived` for true fork) → `APPLY=1` / `--apply` → restart. Shallow vs deep steps in [runbook § Reorg handling](../runbooks/indexer-reorg-replay-dedup.md#reorg-handling).
