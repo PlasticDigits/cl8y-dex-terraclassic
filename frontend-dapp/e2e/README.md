@@ -137,6 +137,8 @@ Playbook: [`skills/AGENTS_FRONTEND_PRICE_CHART.md`](../../skills/AGENTS_FRONTEND
 
 Native LUNC/USTC and CW20 routes must exist after `deploy-dex-local.sh`; helpers in `e2e/helpers/wrap-e2e.ts` fail in strict mode when tokens or native-wrap pool cards are missing.
 
+**Wrap safety CTA (SEC-A02 / GitLab #389):** `wrap-swap.spec.ts` asserts exact submit copy and `disabled` for wrap-mapper **pause** and **rate limit** in isolated tests (LCD route mocks in `e2e/helpers/wrap-mapper-lcd-mock.ts`). Vitest parity: `SwapPage.test.tsx` `SEC-A02` describe. Playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md).
+
 **Pool list pagination (#340):** `/pool` loads **20 pairs per page** from the indexer. Wrap-pool **tx** specs locate the seeded **LUNC-C** card via `e2e/helpers/pool-nav.ts` (indexer search by symbol or `VITE_LUNC_C_TOKEN_ADDRESS`, then paginate fallback) — not by assuming page 1 contains LUNC-C. UI smoke tests still use the first visible pair on the default list.
 
 ## Fee tier tx (`fee-tier-tx.spec.ts`)
