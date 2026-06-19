@@ -1,4 +1,9 @@
-import { NFA_SHORT } from '@/components/legal/legalCopy'
+import {
+  NFA_SHORT,
+  SECURITY_REPORT_ISSUE_URL,
+  USER_INCIDENT_FAQ_HREF,
+  USER_INCIDENT_FAQ_LABEL,
+} from '@/components/legal/legalCopy'
 import { SECURITY_POSTURE_DOC_URL } from '@/utils/constants'
 
 export default function LegalFooterNotice() {
@@ -14,6 +19,20 @@ export default function LegalFooterNotice() {
         data-testid="security-posture-doc-link"
       >
         Security and audit docs
+      </a>
+      {' · '}
+      <a
+        href={USER_INCIDENT_FAQ_HREF}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline"
+        data-testid="user-incident-faq-link"
+      >
+        {USER_INCIDENT_FAQ_LABEL}
+      </a>
+      {' · '}
+      <a className="app-legal-footer-link" href={SECURITY_REPORT_ISSUE_URL} target="_blank" rel="noopener noreferrer">
+        Report suspicious activity
       </a>
       .
     </p>
