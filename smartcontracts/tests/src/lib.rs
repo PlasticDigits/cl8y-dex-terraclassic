@@ -8,6 +8,8 @@ mod mock_failing_hook;
 mod blacklist_tests;
 #[cfg(test)]
 mod limit_order_tests;
+#[cfg(test)]
+mod migration_tests;
 
 #[cfg(test)]
 mod tier_fixtures;
@@ -29,12 +31,17 @@ mod helpers {
     }
 
     pub fn factory_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        factory_contract_with_migrate()
+    }
+
+    pub fn factory_contract_with_migrate() -> Box<dyn cw_multi_test::Contract<Empty>> {
         let contract = ContractWrapper::new(
             cl8y_dex_factory::contract::execute,
             cl8y_dex_factory::contract::instantiate,
             cl8y_dex_factory::contract::query,
         )
-        .with_reply(cl8y_dex_factory::contract::reply);
+        .with_reply(cl8y_dex_factory::contract::reply)
+        .with_migrate(cl8y_dex_factory::contract::migrate);
         Box::new(contract)
     }
 
@@ -49,11 +56,16 @@ mod helpers {
     }
 
     pub fn fee_discount_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        fee_discount_contract_with_migrate()
+    }
+
+    pub fn fee_discount_contract_with_migrate() -> Box<dyn cw_multi_test::Contract<Empty>> {
         let contract = ContractWrapper::new(
             cl8y_dex_fee_discount::contract::execute,
             cl8y_dex_fee_discount::contract::instantiate,
             cl8y_dex_fee_discount::contract::query,
-        );
+        )
+        .with_migrate(cl8y_dex_fee_discount::contract::migrate);
         Box::new(contract)
     }
 
@@ -11272,7 +11284,7 @@ mod sweep_tests {
 #[cfg(test)]
 mod new_feature_tests {
     use super::helpers::*;
-    use cosmwasm_std::{to_json_binary, Addr, Empty, Uint128};
+    use cosmwasm_std::{to_json_binary, Addr, Uint128};
     use cw_multi_test::{App, Executor};
 
     // -----------------------------------------------------------------------
@@ -11785,67 +11797,6 @@ mod new_feature_tests {
         assert!(
             err.root_cause().to_string().contains("Unauthorized"),
             "{err}"
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // 4. Pair contract migration version check
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn pair_migration_checks_version() {
-        let mut app = App::default();
-        let governance = Addr::unchecked("governance");
-
-        let mock_old_id = app.store_code(mock_old_pair_contract());
-        let mock_future_id = app.store_code(mock_future_pair_contract());
-        let pair_code_id = app.store_code(pair_contract_with_migrate());
-
-        // --- Upgrade path: 0.9.0 → 1.2.0 should succeed ---
-        let old_contract = app
-            .instantiate_contract(
-                mock_old_id,
-                governance.clone(),
-                &Empty {},
-                &[],
-                "old_pair",
-                Some(governance.to_string()),
-            )
-            .unwrap();
-
-        app.migrate_contract(
-            governance.clone(),
-            old_contract,
-            &cl8y_dex_pair::msg::MigrateMsg {},
-            pair_code_id,
-        )
-        .unwrap();
-
-        // --- Downgrade path: 99.0.0 → 1.2.0 should fail ---
-        let future_contract = app
-            .instantiate_contract(
-                mock_future_id,
-                governance.clone(),
-                &Empty {},
-                &[],
-                "future_pair",
-                Some(governance.to_string()),
-            )
-            .unwrap();
-
-        let err = app
-            .migrate_contract(
-                governance.clone(),
-                future_contract,
-                &cl8y_dex_pair::msg::MigrateMsg {},
-                pair_code_id,
-            )
-            .unwrap_err();
-
-        let err_msg = err.root_cause().to_string();
-        assert!(
-            err_msg.contains("newer") || err_msg.contains("99.0.0"),
-            "Expected downgrade rejection error, got: {err_msg}"
         );
     }
 

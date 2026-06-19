@@ -20,6 +20,17 @@ Use this checklist when **migrating** or **upgrading** CosmWasm contracts (facto
    - Fee-discount: tiers, trusted router flags.
 5. **Smoke:** Pool query + optional LCD simulation (see deployment guide and smoke scripts).
 
+## Automated regression (SEC-C14)
+
+CI and local dev exercise migration **state preservation** without archived prior wasm artifacts:
+
+```bash
+make test-contracts
+# or: cd smartcontracts && cargo test migration_tests
+```
+
+[`smartcontracts/tests/src/migration_tests.rs`](../smartcontracts/tests/src/migration_tests.rs) (GitLab [#405](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/405)) populates factory (governance, treasury, pair registry, LP admin, wallet/token/pair blacklists), pair (fee config, discount registry link, limit book), and fee-discount (tiers, registration, trusted router), downgrades cw2 version in `cw-multi-test` storage, migrates to the current code id, and asserts query snapshots are unchanged. Pair downgrade rejection is covered by `pair_migration_checks_version`. Cross-link: [contracts security audit § C14](../contracts-security-audit.md).
+
 ## Commands (illustrative)
 
 Replace placeholders, node, and fees per your network.
