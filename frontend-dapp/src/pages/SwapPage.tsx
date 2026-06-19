@@ -74,6 +74,8 @@ import {
 } from '@/utils/feeDiscountRegistryWarning'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import { usePairPaused } from '@/hooks/usePairPaused'
+import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
@@ -628,6 +630,13 @@ export default function SwapPage() {
     enabled: isWalletConnected,
   })
 
+  const pairPaused = usePairPaused({
+    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
+    pairAddresses: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
+    enabled: swapBlacklistProbe.pairAddresses.length > 0,
+  })
+  const isPairPaused = pairPaused.isPaused
+
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
   const hybridSubmitSnapshot = useMemo(
@@ -892,6 +901,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (isWrapPaused) {
     buttonText = 'Wrapping is Temporarily Paused'
+    buttonDisabled = true
+  } else if (isPairPaused) {
+    buttonText = 'Pair is paused'
     buttonDisabled = true
   } else if (tradingBlacklist.blocked) {
     buttonText = 'Trading restricted'
@@ -1609,6 +1621,22 @@ export default function SwapPage() {
                 </a>{' '}
                 for integrator semantics.
               </p>
+            </div>
+          )}
+          {isPairPaused && (
+            <div className="alert-error mb-3 text-xs space-y-2" role="alert" data-testid="swap-pair-paused-banner">
+              <p>
+                Pair is paused — swaps are blocked until governance unpauses. Your wallet balances are unchanged; limit
+                escrow in the pair contract stays until unpause.
+              </p>
+              <a
+                className="underline text-[10px]"
+                href={USER_INCIDENT_FAQ_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                What happens during an incident?
+              </a>
             </div>
           )}
           {tradingBlacklist.blocked && tradingBlacklist.message && (
