@@ -29,6 +29,7 @@ No LocalTerra or Postgres required.
 ## Related
 
 - Master executable matrix: [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (LR-00)
+- IBC-hooks chain dependency (SEC-D02): [`AGENTS_IBC_HOOKS_DEPLOY.md`](./AGENTS_IBC_HOOKS_DEPLOY.md) ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407))
 - QA onboarding: [`docs/qa-onboarding.md`](../docs/qa-onboarding.md)
 - Deployment narrative: [`docs/deployment-guide.md`](../deployment-guide.md)
 - Historical blocker matrix (not a live gate): [`docs/reviews/20260409T030009Z/RELEASE_READINESS_MATRIX.md`](../docs/reviews/20260409T030009Z/RELEASE_READINESS_MATRIX.md)

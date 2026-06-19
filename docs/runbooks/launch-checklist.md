@@ -14,6 +14,24 @@ Ordered checklist for **pool-only** swaps: direct pair and router paths with **`
 - [ ] **Wasm policy:** production code uploaded from **workspace-optimizer** artifacts (`make build-optimized`; reference spec [`.github/workflows/contracts-wasm-optimizer.yml`](../../.github/workflows/contracts-wasm-optimizer.yml)), not from dev `cargo` wasm alone — [docs/testing.md § CI](../testing.md#ci).
 - [ ] **Hook policy:** either **no hooks** on pairs, or only **audited** hook contracts with bounded gas (hook revert fails the whole swap — [Security model § Hook safety](../security-model.md)). Follow [hook registration runbook](./hook-registration.md).
 - [ ] **Code ID whitelist** on the factory lists only intended CW20 code IDs for pair assets. **No fee-on-transfer templates** — [CW20 whitelist policy](./cw20-whitelist-policy.md); run [`scripts/verify-cw20-code-ids.sh`](../../scripts/verify-cw20-code-ids.sh) for GDEX/TerraPort IDs before whitelist.
+- [ ] **IBC-hooks chain exposure (SEC-D02):** record Terra Classic **chain binary / SDK version** and whether the **IBC-hooks** module is active on the target network; record that **app contracts do not expose IBC receive/ack/timeout entry points** (or document exposure + mitigation if that changes). **Re-run this gate after any chain upgrade or when adding new contract modules.** See [Security model § IBC hooks](../security-model.md#ibc-hooks-chain-dependency-sec-d02) and agent playbook [`skills/AGENTS_IBC_HOOKS_DEPLOY.md`](../../skills/AGENTS_IBC_HOOKS_DEPLOY.md) ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)).
+
+  **Record on the launch / deploy tracking issue (paste command output + date UTC):**
+
+  ```bash
+  # Chain version at deploy time (replace <lcd> with production LCD URL)
+  terrad version --long --node <lcd>
+  terrad query params subspaces --node <lcd> | grep -i ibchooks || echo "IBC-hooks params subspace: not listed"
+  # Optional when the node exposes module version queries:
+  terrad query upgrade module_versions --node <lcd> 2>/dev/null | grep -i ibchooks || true
+
+  # Static contract posture — must pass before deploy sign-off
+  make verify-no-ibc-hooks-in-contracts
+  # Or full #407 acceptance (docs + static grep):
+  make verify-issue-407
+  ```
+
+  **Operator attestation (required text in the deploy record):** *"CL8Y DEX app contracts do not implement `ibc_receive`, `ibc_ack`, or `ibc_timeout` CosmWasm entry points; verified by `make verify-no-ibc-hooks-in-contracts` at commit `<git-sha>` on `<date-utc>`."* If a future release adds IBC callbacks, update this statement, document threat model + mitigations, and obtain security sign-off before mainnet upload.
 
 ---
 
@@ -88,7 +106,7 @@ Choose **BLOCK** when **any** of these P0 categories has an open, unmitigated fi
 |-------------|---------------------------|-------------------|
 | **Admin controls** | Governance/treasury are EOAs; factory admin paths reachable by non-governance; hook allowlist missing for registered hooks; trusted-router or discount-registry miswired | [Security model § Governance](../security-model.md), [hook registration](./hook-registration.md), Phase 0–2 above |
 | **Value-flow invariants** | Failing contract audit invariants (P1–P7 pool path, L1–L10 limit/hybrid); fee-on-transfer or non-standard CW20 on whitelist; treasury/fee accounting mismatch on staging smoke | [`docs/contracts-security-audit.md`](../contracts-security-audit.md), [`scripts/smoke-pool-swap.sh`](../../scripts/smoke-pool-swap.sh), [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md) |
-| **Deploy / runbook** | Missing or unexecuted launch phases; optimizer wasm policy violated; `make check-fee-discount-tier-docs` or launch go/no-go doc check failing; no rollback/incident owner | This runbook, [deployment guide](../deployment-guide.md), [`make verify-issue-391`](../../Makefile) |
+| **Deploy / runbook** | Missing or unexecuted launch phases; optimizer wasm policy violated; `make check-fee-discount-tier-docs` or launch go/no-go doc check failing; **SEC-D02** IBC-hooks chain version / contract IBC entry-point record missing or stale after chain upgrade; no rollback/incident owner | This runbook, [deployment guide](../deployment-guide.md), [`make verify-issue-391`](../../Makefile), [`make verify-issue-407`](../../Makefile) |
 | **User visibility of risk** | Users cannot see **pause**, **blacklist**, or **rate-limit / indexer outage** risk in the dApp or docs; mixed-content indexer URL; missing WalletConnect or CSP deploy guards | [Security model § Off-chain trust boundaries](../security-model.md#off-chain-trust-boundaries-frontend), [frontend.md § Paused pair](../frontend.md), indexer rate limits in [`indexer-invariants.md`](../indexer-invariants.md) |
 
 ### PAUSE — delay launch
