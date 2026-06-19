@@ -2821,6 +2821,94 @@ fn hybrid_pool_and_book_legs_one_swap() {
     );
 }
 
+/// SEC-C04 / GitLab #404 — hybrid swap `min_return` is enforced on net payout (pool + book).
+#[test]
+fn hybrid_swap_rejects_min_return_above_net_output() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let bid_escrow = Uint128::new(200_000);
+    place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        bid_escrow,
+        Decimal::one(),
+    );
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_min_return");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let total_in = Uint128::new(100_000);
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::new(40_000),
+        book_input: Uint128::new(60_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: total_in,
+                },
+                hybrid: hybrid.clone(),
+                trader: None,
+                sender: None,
+                belief_price: None,
+            },
+        )
+        .unwrap();
+    let rejecting_min = sim.return_amount + Uint128::one();
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(rejecting_min),
+        to: None,
+        deadline: None,
+        hybrid: Some(hybrid),
+        trader: None,
+    })
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let s = err.root_cause().to_string();
+    assert!(
+        s.contains("Min return assertion"),
+        "hybrid min_return above net output must reject, got: {}",
+        s
+    );
+}
+
 /// GitLab #197 — hybrid execute enforces unified `max_spread` (pool spread / total gross out).
 #[test]
 fn hybrid_max_spread_exact_tolerance_succeeds() {
