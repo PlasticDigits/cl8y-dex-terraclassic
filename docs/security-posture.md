@@ -63,13 +63,23 @@ Full matrix: [contracts-security-audit.md § Residual risks](./contracts-securit
 
 Security spend and controls should track **economic attractiveness** to attackers. The goal is to keep expected attacker return negative (cost of exploit + legal/operational risk > recoverable value) at each growth stage.
 
-| TVL band (indicative) | Threat model | Minimum operator posture |
-|-------------------------|--------------|---------------------------|
-| **Bootstrap** (low TVL, early users) | Opportunistic bugs, griefing, reputational harm; limited MEV/exploit upside | Multisig/DAO governance (no EOA admin); no unaudited hooks; HTTPS indexer; pinned `VITE_*` addresses; public posture (this page) linked from dApp; incident template on file |
-| **Growth** (material pool depth) | Targeted contract research, social engineering on operators, indexer MITM | External audit (or audit delta on changed bytecode); bug bounty or disclosed disclosure channel; monitoring on factory/pair admin txs; hook and whitelist change review; rate limits and WAF on indexer |
-| **Mature** (high TVL, integrator reliance) | Nation-state-adjacent profit, sustained MEV, governance capture attempts | Full audit + periodic re-audit; multisig threshold and signer diversity; timelocks on sensitive governance actions where feasible; 24/7 paging; formal key ceremony; TWAP/oracle safeguards on thin pools; compliance blacklist runbooks exercised |
+**Protocol TVL** here means the USD value of assets in CL8Y pools, limit-order escrow, and router-adjacent state that a contract bug could drain in one incident (not market cap or off-chain balances).
 
-**Why this matters:** at low TVL, the **maximum extractable value** from pools, limit escrow, and router state is small relative to research, development, and chain costs — so rational attackers often have negative expected value. As TVL rises, the same bug class can become profitable; operators must **raise the bar** (audit, monitoring, key hygiene, timelocks) **before** TVL crosses thresholds where attack ROI turns positive.
+| Stage | Protocol TVL (USD) | Typical exploit economics | Indicative annual security spend | Minimum operator posture |
+|-------|-------------------|---------------------------|----------------------------------|---------------------------|
+| **Bootstrap (low)** | **$0 – $1M** | Max extractable value is bounded by on-chain balances; many historical DEX drains in this band are **$100k–$1M**, while a focused contract exploit typically costs **$50k–$250k** in researcher time, tooling, and capital at risk before profit — so sophisticated attacks often have **negative expected value** at the low end of this band | **$15k–$80k** (in-repo tests, basic monitoring, incident template; formal audit optional only while TVL stays well under **$500k**) | Multisig/DAO governance (no EOA admin); no unaudited hooks; HTTPS indexer; pinned `VITE_*` addresses; public posture (this page) linked from dApp |
+| **Growth** | **$1M – $25M** | TVL exceeds the professional research floor; targeted review, indexer MITM, and social engineering become rational. Peer DEX incidents at **$1M–$10M TVL** commonly involve **$500k–$5M** direct loss when a bug is found | **$80k–$300k** (initial external audit before sustained TVL crosses **~$5M**; monitoring; modest bug bounty or disclosed disclosure channel) | External audit (or audit delta on changed bytecode); factory/pair admin-tx monitoring; hook and whitelist change review; rate limits and WAF on indexer |
+| **Mature** | **$25M+** | Sustained MEV, governance-capture attempts, and repeat professional campaigns are economically justified; large-protocol DEX failures often exceed **$10M** when TVL is **$50M+** | **$250k–$1M+** (full audit + periodic re-audit, 24/7 paging, substantial bounty — industry practice is roughly **0.25–1% of TVL** per year on mature DeFi) | Multisig threshold and signer diversity; timelocks on sensitive governance actions where feasible; formal key ceremony; TWAP/oracle safeguards on thin pools (see [$100k per-pair floor](./twap-oracle.md)); compliance blacklist runbooks exercised |
+
+### How these bands are set
+
+Ranges are **indicative**, not on-chain limits. They combine:
+
+1. **Attack cost floor** — developing and executing a novel AMM/limit-order exploit is rarely a weekend project; serious attempts usually require tens to hundreds of thousands of dollars in effort before any payout.
+2. **Historical DEX loss tiers** — opportunistic / griefing incidents often sit below **$1M**; targeted contract bugs on small-to-mid protocols commonly land **$1M–$10M**; mature-protocol failures can exceed **$10M–$100M** when TVL is large.
+3. **When security spend should step up** — complete an external audit and disclosure channel **before** TVL is sustained above **~$5M**; budget for re-audits, paging, and bounty caps that scale with TVL **before** crossing **~$25M**.
+
+**Why this matters:** at bootstrap TVL, the **maximum extractable value** from pools, limit escrow, and router state is often smaller than the cost to find and weaponize a bug — so rational attackers frequently have negative expected value. As TVL rises through growth and mature bands, the same bug class can become profitable; operators must **raise the bar** (audit, monitoring, key hygiene, timelocks) **before** TVL crosses the thresholds above.
 
 This ladder is not automatic on-chain enforcement — it is an **operator commitment** documented for users and integrators. Launch checklist [**#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) tracks executable gates.
 
@@ -79,6 +89,6 @@ Third parties can confirm SEC-A01 without chain access:
 
 1. Open the dApp footer on desktop and mobile — link text **Security and audit docs** is visible without scrolling the main content area on standard viewports.
 2. Link target is `docs/security-posture.md` on the default branch (via `DOCS_GITLAB_BASE` in `frontend-dapp/src/utils/constants.ts`).
-3. This page covers capped launch expectations, audit disclaimer, admin controls, residual risks, and TVL-scaled requirements.
+3. This page covers capped launch expectations, audit disclaimer, admin controls, residual risks, and TVL-scaled requirements with **explicit USD bands** (bootstrap **$0–$1M**, growth **$1M–$25M**, mature **$25M+**).
 
 Frontend unit test: `frontend-dapp/src/components/legal/__tests__/LegalFooterNotice.test.tsx`.
