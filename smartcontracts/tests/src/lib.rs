@@ -5811,6 +5811,177 @@ mod router_coverage_tests {
         assert!(user_c_after > user_c_before);
     }
 
+    /// SEC-C04 / GitLab #404 — per-hop `min_return` on router multi-hop cannot be bypassed.
+    #[test]
+    fn test_router_multi_hop_min_return_rejected_on_second_hop() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let token_c = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token C",
+            "TKNC",
+            Uint128::new(1_000_000_000_000),
+        );
+
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bc = extract_pair_address(&resp.events);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: pair_bc.to_string(),
+                amount: Uint128::new(10_000_000),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            token_c.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: pair_bc.to_string(),
+                amount: Uint128::new(10_000_000),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            pair_bc.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(10_000_000),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_c),
+                        amount: Uint128::new(10_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let offer = Uint128::new(10_000);
+        let hop1_sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: offer,
+                    operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                        offer_asset_info: asset_info_token(&env.token_a),
+                        ask_asset_info: asset_info_token(&env.token_b),
+                        hybrid: None,
+                        min_return: None,
+                    }],
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        let hop2_sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: hop1_sim.amount,
+                    operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                        offer_asset_info: asset_info_token(&env.token_b),
+                        ask_asset_info: asset_info_token(&token_c),
+                        hybrid: None,
+                        min_return: None,
+                    }],
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        let rejecting_min = hop2_sim.amount + Uint128::one();
+
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_a),
+                    ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
+                    min_return: None,
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_b),
+                    ask_asset_info: asset_info_token(&token_c),
+                    hybrid: None,
+                    min_return: Some(rejecting_min),
+                },
+            ],
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+            unwrap_output: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.router.to_string(),
+                    amount: offer,
+                    msg: hook_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let s = err.root_cause().to_string();
+        assert!(
+            s.contains("Min return assertion"),
+            "router hop min_return above actual output must fail on pair, got: {}",
+            s
+        );
+    }
+
     #[test]
     fn test_router_config_query() {
         let mut app = App::default();
