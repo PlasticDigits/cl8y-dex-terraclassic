@@ -4,6 +4,7 @@ import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import { usePairPaused } from '@/hooks/usePairPaused'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
@@ -57,6 +58,7 @@ import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/util
 import { evaluateProvideLiquidityCw20NativeGasGate } from '@/utils/provideLiquidityNativeGasBalanceGate'
 import { isLcdConnectivityError, LCD_CONNECTIVITY_OUTAGE_MESSAGE } from '@/utils/lcdConnectivity'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
+import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 
 const POOL_SORT_OPTIONS: MenuSelectOption[] = [
   { value: 'symbol', label: 'Name (A–Z)' },
@@ -109,6 +111,9 @@ const PoolCard = memo(function PoolCard({
     pairAddress: pair.contract_addr,
     enabled: !!address,
   })
+  const pairPaused = usePairPaused({ pairAddress: pair.contract_addr })
+  const isPairPaused = pairPaused.isPaused
+
   const displayA = useTokenDisplayInfo(pair.asset_infos[0])
   const displayB = useTokenDisplayInfo(pair.asset_infos[1])
 
@@ -610,6 +615,22 @@ const PoolCard = memo(function PoolCard({
               Learn more
             </a>
           </p>
+          {isPairPaused && (
+            <div className="alert-error text-xs space-y-2" role="alert" data-testid="pool-pair-paused-banner">
+              <p>
+                This pair is paused by governance. Provide and withdraw liquidity are unavailable until the pair is
+                unpaused. LP tokens and pool shares remain in your wallet.
+              </p>
+              <a
+                className="underline text-[10px]"
+                href={USER_INCIDENT_FAQ_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                What happens during an incident?
+              </a>
+            </div>
+          )}
           {tradingBlacklist.blocked && tradingBlacklist.message && (
             <p className="alert-error text-xs" role="alert">
               {tradingBlacklist.message}
@@ -765,7 +786,8 @@ const PoolCard = memo(function PoolCard({
               addMutation.isPending ||
               insufficientAdd ||
               !provideLiquidityNativeGasGate.canAddLiquidity ||
-              tradingBlacklist.blocked
+              tradingBlacklist.blocked ||
+              isPairPaused
             }
             className={`w-full py-2.5 font-semibold text-sm ${
               !address ||
@@ -774,27 +796,30 @@ const PoolCard = memo(function PoolCard({
               addMutation.isPending ||
               insufficientAdd ||
               !provideLiquidityNativeGasGate.canAddLiquidity ||
-              tradingBlacklist.blocked
+              tradingBlacklist.blocked ||
+              isPairPaused
                 ? 'btn-disabled !w-full'
                 : 'btn-primary !w-full'
             }`}
           >
             {!address
               ? 'Connect Wallet'
-              : tradingBlacklist.blocked
-                ? 'Trading restricted'
-                : insufficientAdd
-                  ? 'Insufficient balance'
-                  : !provideLiquidityNativeGasGate.canAddLiquidity && provideLiquidityNativeGasGate.tone === 'warning'
-                    ? 'Checking gas balance…'
-                    : !provideLiquidityNativeGasGate.canAddLiquidity
-                      ? 'Not enough LUNC for gas'
-                      : terraBroadcastPendingButtonLabel(
-                          addMutation.phase,
-                          addMutation.isPending,
-                          'Provide Liquidity',
-                          'Providing Liquidity…'
-                        )}
+              : isPairPaused
+                ? 'Pair is paused'
+                : tradingBlacklist.blocked
+                  ? 'Trading restricted'
+                  : insufficientAdd
+                    ? 'Insufficient balance'
+                    : !provideLiquidityNativeGasGate.canAddLiquidity && provideLiquidityNativeGasGate.tone === 'warning'
+                      ? 'Checking gas balance…'
+                      : !provideLiquidityNativeGasGate.canAddLiquidity
+                        ? 'Not enough LUNC for gas'
+                        : terraBroadcastPendingButtonLabel(
+                            addMutation.phase,
+                            addMutation.isPending,
+                            'Provide Liquidity',
+                            'Providing Liquidity…'
+                          )}
           </button>
           <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
           {addMutation.isError && (
@@ -808,6 +833,22 @@ const PoolCard = memo(function PoolCard({
 
       {expanded === 'remove' && (
         <div className="card-neo space-y-3 animate-fade-in-up">
+          {isPairPaused && (
+            <div className="alert-error text-xs space-y-2" role="alert" data-testid="pool-pair-paused-banner">
+              <p>
+                This pair is paused by governance. Provide and withdraw liquidity are unavailable until the pair is
+                unpaused. LP tokens and pool shares remain in your wallet.
+              </p>
+              <a
+                className="underline text-[10px]"
+                href={USER_INCIDENT_FAQ_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                What happens during an incident?
+              </a>
+            </div>
+          )}
           {tradingBlacklist.blocked && tradingBlacklist.message && (
             <p className="alert-error text-xs" role="alert">
               {tradingBlacklist.message}
@@ -904,25 +945,39 @@ const PoolCard = memo(function PoolCard({
               sounds.playButtonPress()
               removeMutation.mutate()
             }}
-            disabled={!address || !lpAmount || insufficientLp || removeMutation.isPending || tradingBlacklist.blocked}
+            disabled={
+              !address ||
+              !lpAmount ||
+              insufficientLp ||
+              removeMutation.isPending ||
+              tradingBlacklist.blocked ||
+              isPairPaused
+            }
             className={`w-full py-2.5 font-semibold text-sm ${
-              !address || !lpAmount || insufficientLp || removeMutation.isPending || tradingBlacklist.blocked
+              !address ||
+              !lpAmount ||
+              insufficientLp ||
+              removeMutation.isPending ||
+              tradingBlacklist.blocked ||
+              isPairPaused
                 ? 'btn-disabled !w-full'
                 : 'btn-primary !w-full'
             }`}
           >
             {!address
               ? 'Connect Wallet'
-              : tradingBlacklist.blocked
-                ? 'Trading restricted'
-                : insufficientLp
-                  ? 'Insufficient LP Balance'
-                  : terraBroadcastPendingButtonLabel(
-                      removeMutation.phase,
-                      removeMutation.isPending,
-                      'Withdraw Liquidity',
-                      'Withdrawing…'
-                    )}
+              : isPairPaused
+                ? 'Pair is paused'
+                : tradingBlacklist.blocked
+                  ? 'Trading restricted'
+                  : insufficientLp
+                    ? 'Insufficient LP Balance'
+                    : terraBroadcastPendingButtonLabel(
+                        removeMutation.phase,
+                        removeMutation.isPending,
+                        'Withdraw Liquidity',
+                        'Withdrawing…'
+                      )}
           </button>
           <TerraBroadcastPendingLink phase={removeMutation.phase} txHash={removeMutation.pendingTxHash} />
           {removeMutation.isError && (
