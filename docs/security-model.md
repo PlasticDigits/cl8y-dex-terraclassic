@@ -87,6 +87,24 @@ Hooks are external contracts invoked via `AfterSwap` after every swap completes.
 
 **Best practice:** only governance should register hooks (enforced by the Factory auth check), and hooks should be audited before registration. Full playbook: [`docs/runbooks/hook-registration.md`](runbooks/hook-registration.md).
 
+### IBC hooks chain dependency (SEC-D02)
+
+**Threat:** Terra Classic and peer ecosystems (e.g. Astroport-style stacks) may enable **IBC-hooks middleware** — ICS-20 transfers that trigger CosmWasm `ibc_receive` / async ack paths. That class of bugs (reentrancy, infinite mint on bridged/CW20 assets) is a **chain dependency**: it does not require this DEX to implement IBC callbacks, but operators must know whether the target network exposes IBC-hooks and whether **our** wasm adds IBC entry points.
+
+| Posture | CL8Y DEX (current) |
+|---------|-------------------|
+| **App contracts** | **No** `ibc_receive`, `ibc_ack`, or `ibc_timeout` handlers in `smartcontracts/contracts/` — verified by [`scripts/verify-no-ibc-hooks-in-contracts.sh`](../scripts/verify-no-ibc-hooks-in-contracts.sh) (`make verify-no-ibc-hooks-in-contracts`). |
+| **After-swap hooks** | Separate concern — governance-registered `AfterSwap` hooks on pairs ([Hook safety](#hook-safety) above); not IBC packet callbacks. |
+| **Bridged / IBC CW20 assets** | Pairs may list IBC-denom or bridged CW20 **tokens** as assets; the DEX does not register IBC middleware. Token risk still follows [CW20 whitelist policy](runbooks/cw20-whitelist-policy.md). |
+
+**Deploy gate ([GitLab #407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)):** before production mainnet, the launch runbook requires recording:
+
+1. Target network **chain version** (`terrad version --long`) and whether **IBC-hooks** params / module versions appear on that node.
+2. An explicit attestation that deployed app wasm **does not** use IBC hook entry points (commit SHA + date), or documented exposure + mitigation if that changes.
+3. **Re-verification** after any **chain upgrade** or when **new contract modules** are added to the release.
+
+Operator playbook: [`skills/AGENTS_IBC_HOOKS_DEPLOY.md`](../skills/AGENTS_IBC_HOOKS_DEPLOY.md). Launch checklist: [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md) Phase 0.
+
 ## Fee Discount Security
 
 ### EOA-Only Self-Registration
