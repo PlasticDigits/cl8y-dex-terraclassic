@@ -279,6 +279,17 @@ Launch checklist **SEC-A02** requires retail copy **and** a disabled submit CTA 
 | Vitest — rate limit copy + disabled | same (both cases in one `describe`) |
 | Playwright — isolated LCD mocks | `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-tx` |
 
+### Pair pause disabled CTAs (SEC-B05, GitLab #395) {#pair-pause-disabled-ctas-sec-b05-gitlab-395}
+
+Launch checklist **SEC-B05** requires LCD `is_paused` gating on `/` and `/pool` to match on-chain **L6** policy (swap + LP provide/withdraw disabled while paused).
+
+| Check | Command |
+|-------|---------|
+| Vitest — swap + pool pause CTAs | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx src/pages/PoolPage.test.tsx -t "SEC-B05"` |
+| Vitest — trade/limit path (regression) | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/TradePage.test.tsx -t "pair is paused"` |
+
+Product invariants: [docs/frontend.md § Pair pause disabled CTAs](./frontend.md#pair-pause-disabled-ctas-sec-b05); agent: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md).
+
 Mocks: [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Product copy: [docs/frontend.md § Swap wrap safety CTA](./frontend.md#swap-wrap-safety-cta-sec-a02).
 
 **Header / tablet compact nav:** `e2e/navigation.spec.ts` asserts no horizontal overlap for the **Swap + More** row at 773×743, **1024–1098px** (follow-up cram band), and other tablet widths; the full primary row at 1280px; desktop **Swap → Pool → Trade** tab transitions without reload at 1440px ([GitLab **#182**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182)); and that **“Terra Classic ecosystem”** does not appear in the shell (header brand is logo + title only). Invariants: [docs/frontend.md § Responsive shell & header navigation](./frontend.md#responsive-header-navigation) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)); shell nav playbook [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md).
@@ -430,6 +441,7 @@ Gitleaks abuse check: `make verify-gitleaks` (fixture must fail, clean tree must
 |--------------------------|---------------|
 | `docs-fee-discount-tiers` | `make check-fee-discount-tier-docs` |
 | `docs-launch-go-no-go` | `make check-launch-go-no-go-docs` / `make verify-issue-391` ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) |
+| `docs-blacklist-decision` | `make check-blacklist-decision-docs` / `make verify-issue-400` ([#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400)) |
 | `contracts-terra` | `make lint-contracts` && `make test-contracts` (optional LCOV: `make coverage-contracts`) |
 | `localnet-trading-swarm` | `cd packages/localnet-trading-swarm && npm ci && npx tsc -p tsconfig.json && npm run test:run` |
 | `frontend` | `bash scripts/with-node.sh --cwd frontend-dapp -- npx tsc --noEmit` && `make lint-frontend` && `make test-frontend` |

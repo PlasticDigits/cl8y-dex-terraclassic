@@ -278,6 +278,90 @@ fn token_blacklist_blocks_swap_both_directions() {
     ));
 }
 
+fn swap_b_to_c_on_pair(
+    app: &mut App,
+    token_b: &cosmwasm_std::Addr,
+    pair_bc: &cosmwasm_std::Addr,
+    sender: &cosmwasm_std::Addr,
+    amount: Uint128,
+) {
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: None,
+        to: None,
+        deadline: None,
+        hybrid: None,
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        sender.clone(),
+        token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: pair_bc.to_string(),
+            amount,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap();
+}
+
+/// SEC-B04: blacklisting pair A must not block swaps on an unrelated pair B for the same user.
+#[test]
+fn pair_blacklist_blocks_target_pair_but_not_unrelated_control_pair() {
+    let mut app = App::default();
+    let abc = setup_router_abc_env(&mut app);
+    let env = &abc.env;
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::BlacklistPair {
+            pair: env.pair.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: None,
+        to: None,
+        deadline: None,
+        hybrid: None,
+        trader: None,
+    })
+    .unwrap();
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(500),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    let balance_c_before = query_cw20_balance(&app, &abc.token_c, &env.user);
+    swap_b_to_c_on_pair(
+        &mut app,
+        &env.token_b,
+        &abc.pair_bc,
+        &env.user,
+        Uint128::new(500),
+    );
+    let balance_c_after = query_cw20_balance(&app, &abc.token_c, &env.user);
+    assert!(balance_c_after > balance_c_before);
+}
+
 #[test]
 fn pair_blacklist_blocks_swap_and_lp() {
     let mut app = App::default();

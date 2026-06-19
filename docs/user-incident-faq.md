@@ -24,7 +24,7 @@ Governance can pause a **single trading pair** (for example during an exploit in
 
 ### What you will see
 
-- The dApp shows a **pause banner** on Trade and Limit Orders for that pair.
+- The dApp shows a **pause banner** on Trade, Limit Orders, **Swap**, and **Pool** for that pair.
 - Swap, add liquidity, new limit orders, cancel, claim parked expired limits, and limit price edits are **disabled** in the UI.
 - On-chain transactions for those actions are **rejected** with a paused error.
 
@@ -169,9 +169,11 @@ See [NATIVE_TOKEN_WRAPPING.md](../NATIVE_TOKEN_WRAPPING.md) for wrap architectur
 
 ## How the dApp helps
 
-- **Pause:** `IsPaused` query drives banners on Trade and Limit Orders.
-- **Blacklist:** Factory `BlacklistCheck` (and indexer `GET /api/v1/compliance/blacklist-check`) disables actions before you sign.
-- **Errors:** Failed transactions are humanized where possible (paused / blacklist messages).
+| Signal | UI behavior |
+|--------|-------------|
+| **Pause** | `IsPaused` query drives banners on Trade, Limit Orders, Swap, and Pool. |
+| **Blacklist** | Factory `BlacklistCheck` (and indexer `GET /api/v1/compliance/blacklist-check`) disables actions before you sign. |
+| **Errors** | Failed transactions are humanized where possible (paused / blacklist messages). |
 
 For technical integration details, see [integrators.md](./integrators.md) and [limit-orders.md](./limit-orders.md) (pause section).
 
