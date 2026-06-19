@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import PoolPage from './PoolPage'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
+import { getPairPaused } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 
@@ -61,6 +62,7 @@ vi.mock('@/services/terraclassic/pair', () => ({
   getPairFeeConfig: vi.fn().mockResolvedValue({
     commission_rate: '0.003',
   }),
+  getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   provideLiquidity: vi.fn().mockResolvedValue('txhash123'),
   withdrawLiquidity: vi.fn().mockResolvedValue('txhash123'),
 }))
@@ -103,6 +105,7 @@ const mockIndexerPair = (pairAddr: string): IndexerPair => ({
 describe('PoolPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
     vi.mocked(indexerClient.getTokens).mockResolvedValue([])
     vi.mocked(indexerClient.getPairs).mockResolvedValue(mockGetPairs)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
@@ -292,5 +295,41 @@ describe('PoolPage', () => {
     const banner = await screen.findByTestId('pool-market-data-outage-banner')
     expect(banner).toHaveTextContent(/market data service unavailable/i)
     expect(banner.textContent).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
+  })
+
+  describe('pair pause disabled LP CTAs (SEC-B05 / GitLab #395)', () => {
+    it('disables provide liquidity submit when pair is paused', async () => {
+      vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+      await user.click(provide[0]!)
+
+      expect(await screen.findByTestId('pool-pair-paused-banner')).toHaveTextContent(/paused by governance/i)
+      const aInput = await screen.findByLabelText('Asset A amount')
+      const bInput = screen.getByLabelText('Asset B amount')
+      await user.type(aInput, '1')
+      await user.type(bInput, '2')
+
+      expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
+    })
+
+    it('disables withdraw liquidity submit when pair is paused', async () => {
+      vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
+      await user.click(withdrawTabs[0]!)
+
+      expect(await screen.findByTestId('pool-pair-paused-banner')).toHaveTextContent(/paused by governance/i)
+      const lpInput = screen.getByLabelText('LP Token Amount')
+      await user.type(lpInput, '1')
+
+      expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
+    })
   })
 })

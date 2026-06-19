@@ -35,6 +35,7 @@ vi.mock('@/services/terraclassic/pair', () => ({
     commission_amount: '3000',
   }),
   swap: vi.fn().mockResolvedValue('txhash123'),
+  getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   getPool: vi.fn().mockResolvedValue({
     assets: [
       { info: { token: { contract_addr: 'tokenA' } }, amount: '1000000' },
@@ -114,7 +115,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens, isDirectWrapUnwrap, simulateMultiHopSwap } from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import type { SwapOperation } from '@/services/terraclassic/router'
-import { simulateSwap } from '@/services/terraclassic/pair'
+import { simulateSwap, getPairPaused } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
@@ -141,6 +142,7 @@ describe('SwapPage', () => {
     vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
     vi.mocked(queryPausedState).mockResolvedValue(false)
     vi.mocked(checkRateLimitExceeded).mockResolvedValue(false)
+    vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
@@ -903,6 +905,52 @@ describe('SwapPage', () => {
 
       const btn = await screen.findByRole('button', { name: 'Rate Limit Exceeded' })
       expect(btn).toBeDisabled()
+    })
+  })
+
+  describe('pair pause disabled swap CTA (SEC-B05 / GitLab #395)', () => {
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+
+    async function renderConnectedDirectSwap() {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      return { user }
+    }
+
+    it('shows pause banner and disables swap submit when route pair is paused', async () => {
+      vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
+      await renderConnectedDirectSwap()
+
+      expect(await screen.findByTestId('swap-pair-paused-banner')).toHaveTextContent(
+        /Pair is paused — swaps are blocked/i
+      )
+      expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
     })
   })
 })

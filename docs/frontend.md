@@ -747,6 +747,20 @@ Pause is evaluated **before** rate limit in the CTA precedence chain ([`SwapPage
 
 **Regression tests:** [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) (`SEC-A02` / GitLab **#389**); Playwright LCD mocks in [`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts). Agent: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md); matrix: [docs/testing.md § Swap wrap safety CTA](./testing.md#swap-wrap-safety-cta-sec-a02-gitlab-389).
 
+### Pair pause disabled CTAs (SEC-B05 / L6) {#pair-pause-disabled-ctas-sec-b05}
+
+Per-pair governance pause ([invariant **L6**](./contracts-security-audit.md)) blocks swaps and LP actions on-chain. The dApp queries LCD **`is_paused`** via [`getPairPaused`](../frontend-dapp/src/services/terraclassic/pair.ts) (shared hook [`usePairPaused`](../frontend-dapp/src/hooks/usePairPaused.ts)) and disables submit CTAs **before** broadcast.
+
+| Page | Query scope | Submit label when paused | Banner `data-testid` |
+|------|-------------|--------------------------|----------------------|
+| `/` ([`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx)) | All pair contract addresses on the active swap route (direct, multihop, native, indexer ops) | **Pair is paused** | `swap-pair-paused-banner` |
+| `/pool` ([`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx)) | Selected pool card’s pair | **Pair is paused** (provide + withdraw) | `pool-pair-paused-banner` |
+| `/trade`, `/limits` | Selected pair | Ticket / book copy (see below) | — |
+
+On `/`, **wrap-mapper pause** (SEC-A02) is evaluated **before** pair pause in the CTA precedence chain. Pair pause does **not** apply to pure wrap/unwrap paths with no pool hop.
+
+**Regression tests:** [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) and [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx) (`SEC-B05` / GitLab **#395**); trade/limit path: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (GitLab **#87** / **#199**). Retail FAQ: [user-incident-faq.md § Pair pause](./user-incident-faq.md#pair-pause).
+
 ### Trade page — indexer outage banner {#trade-page-indexer-outage-banner}
 
 When the **`getPair`** query on `/trade` fails with an **indexer transport / non-OK** error (`isIndexerUnavailableError` in [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts)), the page shows a warning **above** the workspace (`data-testid="trade-indexer-outage-banner"`).
