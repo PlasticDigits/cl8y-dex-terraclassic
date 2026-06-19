@@ -247,7 +247,7 @@ Off-chain hardening for [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terracl
 
 | Area | Invariant | Code / doc |
 |------|-----------|------------|
-| Indexer quotes | HTTPS `VITE_INDEXER_URL` in prod; hop summary at swap confirm (`swap-route-summary`) | [`client.ts`](../frontend-dapp/src/services/indexer/client.ts), [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) |
+| Indexer quotes | HTTPS `VITE_INDEXER_URL` in prod; hop summary at swap confirm (`swap-route-summary`); labeled pre-sign panel (`swap-pre-submit-summary`, SEC-D11 / #409) | [`client.ts`](../frontend-dapp/src/services/indexer/client.ts), [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx), [`SwapPreSubmitSummary.tsx`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx) |
 | Build guards | No `VITE_DEV_MNEMONIC` in non-dev builds; `VITE_WC_PROJECT_ID` required for production `vite build` | [`vite.config.ts`](../frontend-dapp/vite.config.ts), [`viteConfig.build.test.ts`](../frontend-dapp/src/viteConfig.build.test.ts) |
 | CSP | Production: `script-src 'self'`; `connect-src` = LCD + RPC + indexer + WalletConnect (no `https:` wildcard). Dev: broader policy for Vite HMR | [`index.html`](../frontend-dapp/index.html), [`render.yaml`](../render.yaml) |
 | Deploy addresses | Factory/router on `/protocol` only; optional LCD sanity check | [`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx), [`deployAddressVerification.ts`](../frontend-dapp/src/utils/deployAddressVerification.ts) |
@@ -1081,6 +1081,22 @@ The Swap page displays the effective fee after discount. When a connected wallet
 | **Single submit snapshot** | Pay raw, min received, indexer ops, hybrid params, and route display refer to one settled sim result. |
 | **No live/debounced skew** | `swapMutation` reads `submitPayRaw` (debounced), not live `inputAmount` / `marketAmountHuman`, when min received comes from `simQuery.data`; hybrid `book_input` / `max_maker_fills` come from the same debounced snapshot. |
 | **Stale submit blocked** | Submit disabled when typed raw ≠ debounced key, live book leg ≠ debounced book leg, live max makers ≠ snapshotted max makers, `isPlaceholderData`, or `simQuery.isFetching` for the active debounced key. |
+
+### Swap page — pre-sign confirmation summary (SEC-D11) {#swap-page-pre-sign-summary}
+
+Before the wallet extension opens on **`/`** / **`/swap`**, a labeled summary card helps traders catch phishing or wrong-network mistakes ([#409](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/409) / SEC-D11):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Labeled fields** | Action (`Swap`), pair symbols, pay amount, estimated receive, max spread (`slippageTolerance%`), min return after slippage floor, and chain full name. |
+| **Submit snapshot** | Amounts and min return match [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) — same debounced pay + sim as on-chain submit ([#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356)). |
+| **Chain name** | From [`getNetworkBadgeCopy()`](../frontend-dapp/src/utils/networkDisplay.ts) — must align with the network badge / env strip. |
+| **`data-testid`s** | Panel: `swap-pre-submit-summary`; rows: `swap-confirm-action`, `swap-confirm-pair`, `swap-confirm-offer`, `swap-confirm-receive`, `swap-confirm-max-spread`, `swap-confirm-min-return`, `swap-confirm-chain`. |
+| **Trade market mirror** | [`TradeMarketOrderPanel`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) reuses the component with action `Market swap` and root `trade-market-pre-submit-summary`. |
+
+Implementation: [`SwapPreSubmitSummary.tsx`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx); wired in [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) when a positive pay amount has a quote.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](../skills/AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md).
 
 ### Swap page — MEV / submission posture {#swap-mev-posture}
 

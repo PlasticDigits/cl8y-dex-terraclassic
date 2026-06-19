@@ -44,6 +44,8 @@ import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalan
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
+import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
+import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
@@ -639,6 +641,20 @@ export function TradeMarketOrderPanel({
             </div>
           )}
         </div>
+      )}
+
+      {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && (
+        <SwapPreSubmitSummary
+          actionLabel="Market swap"
+          offerSymbol={getTokenDisplaySymbol(fromToken)}
+          receiveSymbol={getTokenDisplaySymbol(toToken)}
+          offerAmountHuman={marketAmountHuman}
+          receiveAmountHuman={receiveHuman}
+          maxSpreadPercent={slippageTolerance}
+          minReceiveHuman={minReceived != null && minReceived !== '' ? minReceiveHuman : null}
+          chainFullLabel={getNetworkBadgeCopy().fullLabel}
+          data-testid="trade-market-pre-submit-summary"
+        />
       )}
 
       <button
