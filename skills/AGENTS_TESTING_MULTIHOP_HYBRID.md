@@ -13,6 +13,8 @@ Regression tests for **≥3-hop** router paths where **≥2 legs** carry non-zer
 |------|------|-------|
 | `router_two_hop_first_leg_hybrid_matches_simulate` | [`smartcontracts/tests/src/limit_order_tests.rs`](../smartcontracts/tests/src/limit_order_tests.rs) | Hybrid on hop 1 only |
 | `router_three_hop_two_legs_hybrid_matches_simulate` | same | A→B→C→D; hybrid on hops 1 & 2; hop 3 pool-only |
+| `test_router_multi_hop_min_return_rejected_on_second_hop` | [`smartcontracts/tests/src/lib.rs`](../smartcontracts/tests/src/lib.rs) `router_coverage_tests` | SEC-C04 / [#404](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/404): per-hop `min_return` on router multi-hop |
+| `hybrid_swap_rejects_min_return_above_net_output` | [`smartcontracts/tests/src/limit_order_tests.rs`](../smartcontracts/tests/src/limit_order_tests.rs) | SEC-C04 / #404: hybrid pool+book `min_return` vs net payout |
 
 **Harness helpers:**
 
@@ -27,6 +29,8 @@ Regression tests for **≥3-hop** router paths where **≥2 legs** carry non-zer
 cd smartcontracts
 cargo test router_three_hop_two_legs_hybrid_matches_simulate
 cargo test router_two_hop_first_leg_hybrid_matches_simulate
+cargo test test_router_multi_hop_min_return_rejected_on_second_hop
+cargo test hybrid_swap_rejects_min_return_above_net_output
 ```
 
 ## Indexer integration (Postgres + Wiremock LCD)

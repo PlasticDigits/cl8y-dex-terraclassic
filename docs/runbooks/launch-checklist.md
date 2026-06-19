@@ -2,7 +2,7 @@
 
 Ordered checklist for **pool-only** swaps: direct pair and router paths with **`hybrid` unset** (no on-chain limit-book leg). For hybrid-specific launch, see [`docs/reviews/20260409T030009Z/REVIEW.md`](../reviews/20260409T030009Z/REVIEW.md) §11.
 
-**Related docs:** [`docs/deployment-guide.md`](../deployment-guide.md), [`docs/security-model.md`](../security-model.md), [`docs/architecture.md`](../architecture.md), fee tiers [`docs/reference/fee-discount-tiers.md`](../reference/fee-discount-tiers.md), QA sign-off [`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) § SIGN-OFF, agent playbook [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../../skills/AGENTS_LAUNCH_GO_NO_GO.md). **Full executable matrix:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (**LR-00** launch-readiness gate).
+**Related docs:** [`docs/deployment-guide.md`](../deployment-guide.md), [`docs/security-model.md`](../security-model.md), [`docs/architecture.md`](../architecture.md), fee tiers [`docs/reference/fee-discount-tiers.md`](../reference/fee-discount-tiers.md), QA sign-off [`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) § SIGN-OFF, agent playbook [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../../skills/AGENTS_LAUNCH_GO_NO_GO.md), governance emergency rehearsal [`governance-emergency-rehearsal.md`](./governance-emergency-rehearsal.md) (**SEC-B09**, [#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)). **Full executable matrix:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (**LR-00** launch-readiness gate).
 
 **Mandatory gate:** [**Phase 5 — Go / no-go**](#phase-5--go--no-go-decision-required-before-production-mainnet) is a **required sign-off** before any **production mainnet** deploy. Complete Phases 0–4 on staging/testnet first; do **not** begin mainnet Phase 1 until Phase 5 records an explicit **GO** (or **GO with accepted risk**) on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).
 
@@ -109,7 +109,8 @@ Choose **BLOCK** when **any** of these P0 categories has an open, unmitigated fi
 Choose **PAUSE** when there is **no** open P0 blocker, but **any** of the following is true:
 
 - A **pre-launch** item from Phases 0–4 or [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) remains open **without** a linked risk-acceptance comment on the launch issue.
-- Production **governance multisig** has not rehearsed the deploy/admin txs (pause, fee update, hook registration) on staging.
+- Production **governance multisig** has not rehearsed emergency admin txs (**pause, blacklist, unpause, unblacklist**) on staging/testnet — see [**SEC-B09** governance emergency rehearsal](./governance-emergency-rehearsal.md) ([#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)); evidence must be linked from the launch tracking issue. Automated LocalTerra dry-run: `make rehearse-governance-emergency` / `make verify-issue-397`.
+- Production **governance multisig** has not rehearsed other deploy/admin txs (fee update, hook registration) on staging.
 - **Incident / rollback** runbook gap: no on-call owner, or [`docs/templates/incident-dex-indexer.md`](../templates/incident-dex-indexer.md) not adapted for this network.
 - External dependency blocker (indexer DB migration, DNS/TLS, WalletConnect project) is unresolved.
 
@@ -149,7 +150,7 @@ Choose **GO with accepted risk** only when:
 
 5. For **GO** or **GO with accepted risk**, attach or link the completed QA summary table from [`QA_TEMPLATE.md` § Summary](../../QA_TEMPLATE.md#summary) when your process requires it, then proceed to mainnet Phase 1.
 
-**Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows.
+**Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows. **SEC-B09 multisig rehearsal:** `make verify-issue-397` (or `make check-governance-emergency-rehearsal-docs` for docs only).
 
 ---
 

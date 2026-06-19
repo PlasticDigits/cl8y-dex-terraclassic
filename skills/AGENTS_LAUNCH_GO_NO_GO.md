@@ -13,7 +13,7 @@ Use this when implementing or verifying **pre-launch sign-off** before productio
 | Decision | Meaning |
 |----------|---------|
 | **BLOCK** | Any P0 category open: admin controls, value-flow invariants, deploy/runbook, user visibility of pause/blacklist/rate-limit risk |
-| **PAUSE** | No P0 blockers, but pre-launch gaps without risk acceptance, unrehearsed governance multisig, or incident-runbook gaps |
+| **PAUSE** | No P0 blockers, but pre-launch gaps without risk acceptance, unrehearsed governance multisig emergency controls (**SEC-B09** — [`governance-emergency-rehearsal.md`](../docs/runbooks/governance-emergency-rehearsal.md)), or incident-runbook gaps |
 | **GO / GO with accepted risk** | All P0 closed; pre-launch items closed or explicitly risk-accepted with residual risks documented on the launch issue |
 
 Sign-off format: [`QA_TEMPLATE.md` § SIGN-OFF](../QA_TEMPLATE.md#sign-off) (QA Tester, Dev Lead, Product Owner).
@@ -31,6 +31,7 @@ No LocalTerra or Postgres required.
 ## Related
 
 - Master executable matrix: [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (LR-00)
+- Governance emergency rehearsal (SEC-B09): [`AGENTS_GOVERNANCE_EMERGENCY_REHEARSAL.md`](./AGENTS_GOVERNANCE_EMERGENCY_REHEARSAL.md)
 - QA onboarding: [`docs/qa-onboarding.md`](../docs/qa-onboarding.md)
 - Deployment narrative: [`docs/deployment-guide.md`](../deployment-guide.md)
 - Historical blocker matrix (not a live gate): [`docs/reviews/20260409T030009Z/RELEASE_READINESS_MATRIX.md`](../docs/reviews/20260409T030009Z/RELEASE_READINESS_MATRIX.md)

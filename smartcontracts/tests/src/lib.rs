@@ -8,6 +8,8 @@ mod mock_failing_hook;
 mod blacklist_tests;
 #[cfg(test)]
 mod limit_order_tests;
+#[cfg(test)]
+mod migration_tests;
 
 #[cfg(test)]
 mod tier_fixtures;
@@ -29,12 +31,17 @@ mod helpers {
     }
 
     pub fn factory_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        factory_contract_with_migrate()
+    }
+
+    pub fn factory_contract_with_migrate() -> Box<dyn cw_multi_test::Contract<Empty>> {
         let contract = ContractWrapper::new(
             cl8y_dex_factory::contract::execute,
             cl8y_dex_factory::contract::instantiate,
             cl8y_dex_factory::contract::query,
         )
-        .with_reply(cl8y_dex_factory::contract::reply);
+        .with_reply(cl8y_dex_factory::contract::reply)
+        .with_migrate(cl8y_dex_factory::contract::migrate);
         Box::new(contract)
     }
 
@@ -49,11 +56,16 @@ mod helpers {
     }
 
     pub fn fee_discount_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        fee_discount_contract_with_migrate()
+    }
+
+    pub fn fee_discount_contract_with_migrate() -> Box<dyn cw_multi_test::Contract<Empty>> {
         let contract = ContractWrapper::new(
             cl8y_dex_fee_discount::contract::execute,
             cl8y_dex_fee_discount::contract::instantiate,
             cl8y_dex_fee_discount::contract::query,
-        );
+        )
+        .with_migrate(cl8y_dex_fee_discount::contract::migrate);
         Box::new(contract)
     }
 
@@ -5811,6 +5823,177 @@ mod router_coverage_tests {
         assert!(user_c_after > user_c_before);
     }
 
+    /// SEC-C04 / GitLab #404 — per-hop `min_return` on router multi-hop cannot be bypassed.
+    #[test]
+    fn test_router_multi_hop_min_return_rejected_on_second_hop() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let token_c = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token C",
+            "TKNC",
+            Uint128::new(1_000_000_000_000),
+        );
+
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bc = extract_pair_address(&resp.events);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000_000),
+            Uint128::new(10_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: pair_bc.to_string(),
+                amount: Uint128::new(10_000_000),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            token_c.clone(),
+            &cw20::Cw20ExecuteMsg::IncreaseAllowance {
+                spender: pair_bc.to_string(),
+                amount: Uint128::new(10_000_000),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            pair_bc.clone(),
+            &dex_common::pair::ExecuteMsg::ProvideLiquidity {
+                assets: [
+                    dex_common::types::Asset {
+                        info: asset_info_token(&env.token_b),
+                        amount: Uint128::new(10_000_000),
+                    },
+                    dex_common::types::Asset {
+                        info: asset_info_token(&token_c),
+                        amount: Uint128::new(10_000_000),
+                    },
+                ],
+                slippage_tolerance: None,
+                receiver: None,
+                deadline: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let offer = Uint128::new(10_000);
+        let hop1_sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: offer,
+                    operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                        offer_asset_info: asset_info_token(&env.token_a),
+                        ask_asset_info: asset_info_token(&env.token_b),
+                        hybrid: None,
+                        min_return: None,
+                    }],
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        let hop2_sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: hop1_sim.amount,
+                    operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                        offer_asset_info: asset_info_token(&env.token_b),
+                        ask_asset_info: asset_info_token(&token_c),
+                        hybrid: None,
+                        min_return: None,
+                    }],
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        let rejecting_min = hop2_sim.amount + Uint128::one();
+
+        let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_a),
+                    ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
+                    min_return: None,
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_b),
+                    ask_asset_info: asset_info_token(&token_c),
+                    hybrid: None,
+                    min_return: Some(rejecting_min),
+                },
+            ],
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: None,
+            to: None,
+            deadline: None,
+            unwrap_output: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.router.to_string(),
+                    amount: offer,
+                    msg: hook_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let s = err.root_cause().to_string();
+        assert!(
+            s.contains("Min return assertion"),
+            "router hop min_return above actual output must fail on pair, got: {}",
+            s
+        );
+    }
+
     #[test]
     fn test_router_config_query() {
         let mut app = App::default();
@@ -8583,7 +8766,7 @@ mod deadline_tests {
 mod audit_invariant_tests {
     use super::helpers::*;
     use super::mock_failing_hook::mock_failing_hook_contract;
-    use cosmwasm_std::{to_json_binary, Uint128};
+    use cosmwasm_std::{to_json_binary, Decimal, Uint128};
     use cw20::Cw20ExecuteMsg;
     use cw_multi_test::{App, Executor};
 
@@ -8824,6 +9007,142 @@ mod audit_invariant_tests {
         assert_eq!(
             commission_baseline, commission_bad,
             "broken discount registry must fall back to full pair fee (treasury commission B)"
+        );
+    }
+
+    /// SEC-C03 ([#402](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/402)):
+    /// commission treasury (ask token) must not change when swap reverts on max_spread.
+    #[test]
+    fn commission_treasury_unchanged_after_max_spread_rejected_swap() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
+
+        let treasury_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert!(
+            treasury_b_before > Uint128::zero(),
+            "commission treasury (token_b) should be non-zero after successful swap"
+        );
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::permille(1)),
+            min_return: None,
+            to: None,
+            deadline: None,
+            hybrid: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(100_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Max spread assertion"),
+            "expected max_spread rejection, got {}",
+            err.root_cause()
+        );
+
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_a, &env.treasury),
+            treasury_a_before,
+            "treasury token_a must be unchanged after reverted swap"
+        );
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_b, &env.treasury),
+            treasury_b_before,
+            "commission treasury (token_b) must be unchanged after reverted swap"
+        );
+    }
+
+    /// SEC-C03 ([#402](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/402)):
+    /// commission treasury (ask token) must not change when swap reverts on deadline.
+    #[test]
+    fn commission_treasury_unchanged_after_deadline_rejected_swap() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
+
+        let deadline = app.block_info().time.seconds() + 100;
+        app.update_block(|b| b.time = b.time.plus_seconds(200));
+
+        let treasury_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert!(
+            treasury_b_before > Uint128::zero(),
+            "commission treasury (token_b) should be non-zero after successful swap"
+        );
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: None,
+            to: None,
+            deadline: Some(deadline),
+            hybrid: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("Deadline")
+                || err.root_cause().to_string().contains("deadline"),
+            "expected deadline rejection, got {}",
+            err.root_cause()
+        );
+
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_a, &env.treasury),
+            treasury_a_before,
+            "treasury token_a must be unchanged after reverted swap"
+        );
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_b, &env.treasury),
+            treasury_b_before,
+            "commission treasury (token_b) must be unchanged after reverted swap"
         );
     }
 }
@@ -10965,7 +11284,7 @@ mod sweep_tests {
 #[cfg(test)]
 mod new_feature_tests {
     use super::helpers::*;
-    use cosmwasm_std::{to_json_binary, Addr, Empty, Uint128};
+    use cosmwasm_std::{to_json_binary, Addr, Uint128};
     use cw_multi_test::{App, Executor};
 
     // -----------------------------------------------------------------------
@@ -11478,67 +11797,6 @@ mod new_feature_tests {
         assert!(
             err.root_cause().to_string().contains("Unauthorized"),
             "{err}"
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // 4. Pair contract migration version check
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn pair_migration_checks_version() {
-        let mut app = App::default();
-        let governance = Addr::unchecked("governance");
-
-        let mock_old_id = app.store_code(mock_old_pair_contract());
-        let mock_future_id = app.store_code(mock_future_pair_contract());
-        let pair_code_id = app.store_code(pair_contract_with_migrate());
-
-        // --- Upgrade path: 0.9.0 → 1.2.0 should succeed ---
-        let old_contract = app
-            .instantiate_contract(
-                mock_old_id,
-                governance.clone(),
-                &Empty {},
-                &[],
-                "old_pair",
-                Some(governance.to_string()),
-            )
-            .unwrap();
-
-        app.migrate_contract(
-            governance.clone(),
-            old_contract,
-            &cl8y_dex_pair::msg::MigrateMsg {},
-            pair_code_id,
-        )
-        .unwrap();
-
-        // --- Downgrade path: 99.0.0 → 1.2.0 should fail ---
-        let future_contract = app
-            .instantiate_contract(
-                mock_future_id,
-                governance.clone(),
-                &Empty {},
-                &[],
-                "future_pair",
-                Some(governance.to_string()),
-            )
-            .unwrap();
-
-        let err = app
-            .migrate_contract(
-                governance.clone(),
-                future_contract,
-                &cl8y_dex_pair::msg::MigrateMsg {},
-                pair_code_id,
-            )
-            .unwrap_err();
-
-        let err_msg = err.root_cause().to_string();
-        assert!(
-            err_msg.contains("newer") || err_msg.contains("99.0.0"),
-            "Expected downgrade rejection error, got: {err_msg}"
         );
     }
 
