@@ -14,7 +14,7 @@ The Factory contract has a single `governance` address that controls:
 
 **Key management:** the governance address should be a multisig or DAO-controlled address in production. Never use a single EOA for mainnet governance.
 
-Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md).
+Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md). **Production mainnet** requires **Phase 5 go/no-go sign-off** on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)); see [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../skills/AGENTS_LAUNCH_GO_NO_GO.md).
 
 ## Off-chain trust boundaries (frontend)
 
@@ -144,6 +144,8 @@ Governance on the **factory** can block protocol interaction without bricking un
 
 **Queries:** `BlacklistCheck { wallet, tokens, pair, pairs }` on the factory. Indexer proxy: `GET /api/v1/compliance/blacklist-check`. dApp disables CTAs when blocked.
 
+**Frontend regression tests (SEC-A02, GitLab [#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)):** Vitest mocks `useTradingBlacklist` on Swap and Trade order ticket and asserts `describeTradingBlacklistBlock` copy in the alert plus disabled swap / limit-place CTAs for wallet, token, and pair dimensions. Copy source: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts); shared mocks: [`tradingBlacklistMocks.ts`](../frontend-dapp/src/test/tradingBlacklistMocks.ts).
+
 ## Pair Contract Auth
 
 | Action              | Authorized Caller       |
@@ -192,6 +194,18 @@ Retail swaps block above **30%** expected route slippage unless Expert Mode is e
 Production builds emit a **narrow `connect-src`** (LCD, RPC, indexer, WalletConnect relays) — no blanket `https:`. Vite dev server keeps a broader policy for HMR. Bootstrap scripts live under `/bootstrap/*.js` so production `script-src` is `'self'` only. See [`docs/frontend.md` § Trust boundaries](./frontend.md#frontend-trust-boundaries).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md).
+
+## User security contact (SEC-A07)
+
+End users who see suspicious trades, unexpected balances, or misleading UI states must have a published escalation path ([GitLab **#392**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392)):
+
+| Surface | Location |
+|---------|----------|
+| Policy | [`SECURITY.md`](../SECURITY.md) at repo root — email, GitLab template, responsible disclosure, **48–72 hour** acknowledgement window |
+| GitLab template | [`.gitlab/issue_templates/security_report.md`](../.gitlab/issue_templates/security_report.md) — `security` label, structured fields |
+| dApp footer | [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) — **Report suspicious activity** → GitLab security template (`SECURITY_REPORT_ISSUE_URL` in [`legalCopy.ts`](../frontend-dapp/src/components/legal/legalCopy.ts)) |
+
+**Third-party / agent context:** [`skills/AGENTS_SECURITY_CONTACT.md`](../skills/AGENTS_SECURITY_CONTACT.md).
 
 ## Audit Status
 

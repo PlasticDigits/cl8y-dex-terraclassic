@@ -5,6 +5,10 @@ import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
 import { useWalletStore } from '@/hooks/useWallet'
 
+const { MOCK_LUNC_C } = vi.hoisted(() => ({
+  MOCK_LUNC_C: 'terra1lunc_c_mock_address_for_testing_xxxxx',
+}))
+
 vi.mock('react-blockies', () => ({
   __esModule: true,
   default: function MockBlockies() {
@@ -57,8 +61,21 @@ vi.mock('@/utils/constants', async (importOriginal) => {
   return {
     ...actual,
     FEE_DISCOUNT_CONTRACT_ADDRESS: 'terra1feediscount',
+    WRAP_MAPPER_CONTRACT_ADDRESS: 'terra1wrap_mapper_mock',
+    LUNC_C_TOKEN_ADDRESS: MOCK_LUNC_C,
+    NATIVE_WRAPPED_PAIRS: {
+      uluna: MOCK_LUNC_C,
+    } as Record<string, string>,
+    WRAPPED_NATIVE_PAIRS: {
+      [MOCK_LUNC_C]: 'uluna',
+    } as Record<string, string>,
   }
 })
+
+vi.mock('@/services/terraclassic/wrapMapper', () => ({
+  queryPausedState: vi.fn().mockResolvedValue(false),
+  checkRateLimitExceeded: vi.fn().mockResolvedValue(false),
+}))
 
 vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
   preflightSwapRouteSpread: vi.fn().mockResolvedValue({
@@ -89,8 +106,13 @@ vi.mock('@/lib/sounds', () => ({
   },
 }))
 
+vi.mock('@/hooks/useTradingBlacklist', () => ({
+  useTradingBlacklist: vi.fn(),
+}))
+
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { findRoute, getAllTokens, simulateMultiHopSwap } from '@/services/terraclassic/router'
+import { findRoute, getAllTokens, isDirectWrapUnwrap, simulateMultiHopSwap } from '@/services/terraclassic/router'
+import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import { simulateSwap } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
@@ -100,12 +122,25 @@ import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeD
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { FEE_DISCOUNT_REGISTRY_WARNING_TEXT } from '@/utils/feeDiscountRegistryWarning'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import {
+  TRADING_BLACKLIST_ALLOWED,
+  pairBlacklistedResponse,
+  tokenBlacklistedResponse,
+  tradingBlacklistHookResult,
+  walletBlacklistedResponse,
+} from '@/test/tradingBlacklistMocks'
+import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
 
 describe('SwapPage', () => {
   beforeEach(() => {
+    vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     vi.mocked(findRoute).mockReturnValue(null)
     vi.mocked(getAllTokens).mockReturnValue([])
+    vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
+    vi.mocked(queryPausedState).mockResolvedValue(false)
+    vi.mocked(checkRateLimitExceeded).mockResolvedValue(false)
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
@@ -683,6 +718,56 @@ describe('SwapPage', () => {
     })
   })
 
+  describe('trading blacklist UX (GitLab #388 / SEC-A02)', () => {
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+
+    async function renderConnectedDirectSwap() {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      return { user }
+    }
+
+    it.each([
+      ['wallet', walletBlacklistedResponse()],
+      ['pair', pairBlacklistedResponse()],
+      ['token', tokenBlacklistedResponse(terraA)],
+    ] as const)('shows %s blacklist alert copy and disables Swap CTA', async (_variant, resp) => {
+      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
+
+      await renderConnectedDirectSwap()
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      expect(screen.getByRole('button', { name: 'Trading restricted' })).toBeDisabled()
+    })
+  })
+
   describe('fee-discount registry outage warning (GitLab #374)', () => {
     const wallet = 'terra1wallet000000000000000000000000000001'
     const terraA = 'terra1from00000000000000000000000000000001'
@@ -772,6 +857,52 @@ describe('SwapPage', () => {
         FEE_DISCOUNT_REGISTRY_WARNING_TEXT
       )
       expect(screen.queryByText(/Hold CL8Y/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('wrap pause and wrap rate limit CTA (SEC-A02 / GitLab #389)', () => {
+    const wallet = 'terra1wallet000000000000000000000000000001'
+
+    async function renderConnectedNativeWrapSwap() {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(isDirectWrapUnwrap).mockImplementation((from, to) => {
+        if (from === 'uluna' && to === MOCK_LUNC_C) return 'wrap'
+        return null
+      })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: 'uluna' } }, { token: { contract_addr: MOCK_LUNC_C } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue(['uluna', MOCK_LUNC_C])
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      return { user }
+    }
+
+    it('shows disabled Wrapping is Temporarily Paused CTA when wrap mapper is paused', async () => {
+      vi.mocked(queryPausedState).mockResolvedValue(true)
+      await renderConnectedNativeWrapSwap()
+
+      const btn = await screen.findByRole('button', { name: 'Wrapping is Temporarily Paused' })
+      expect(btn).toBeDisabled()
+    })
+
+    it('shows disabled Rate Limit Exceeded CTA when wrap mapper rate limit is exceeded', async () => {
+      vi.mocked(checkRateLimitExceeded).mockResolvedValue(true)
+      await renderConnectedNativeWrapSwap()
+
+      const btn = await screen.findByRole('button', { name: 'Rate Limit Exceeded' })
+      expect(btn).toBeDisabled()
     })
   })
 })

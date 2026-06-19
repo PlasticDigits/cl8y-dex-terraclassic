@@ -1,4 +1,9 @@
-import { NFA_SHORT, USER_INCIDENT_FAQ_HREF, USER_INCIDENT_FAQ_LABEL } from '@/components/legal/legalCopy'
+import {
+  NFA_SHORT,
+  SECURITY_REPORT_ISSUE_URL,
+  USER_INCIDENT_FAQ_HREF,
+  USER_INCIDENT_FAQ_LABEL,
+} from '@/components/legal/legalCopy'
 
 export default function LegalFooterNotice() {
   return (
@@ -14,6 +19,11 @@ export default function LegalFooterNotice() {
       >
         {USER_INCIDENT_FAQ_LABEL}
       </a>
+      {' · '}
+      <a className="app-legal-footer-link" href={SECURITY_REPORT_ISSUE_URL} target="_blank" rel="noopener noreferrer">
+        Report suspicious activity
+      </a>
+      .
     </p>
   )
 }

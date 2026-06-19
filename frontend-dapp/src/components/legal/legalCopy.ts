@@ -5,6 +5,12 @@ import { DOCS_GITLAB_BASE } from '@/utils/constants'
 export const USER_INCIDENT_FAQ_HREF = `${DOCS_GITLAB_BASE}/user-incident-faq.md`
 export const USER_INCIDENT_FAQ_LABEL = 'What happens during an incident?'
 
+/** Public security escalation (GitLab #392, SEC-A07). */
+export const SECURITY_CONTACT_EMAIL = 'contact@ceramicliberty.com'
+export const SECURITY_REPORT_ISSUE_URL =
+  'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/new?issuable_template=security_report'
+export const SECURITY_RESPONSE_WINDOW = '48–72 hours'
+
 export const NFA_SHORT =
   'CL8Y DEX is experimental software. Nothing here is financial, investment, legal, or tax advice (NFA).'
 

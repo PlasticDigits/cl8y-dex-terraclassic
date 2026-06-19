@@ -8,6 +8,11 @@ import {
 } from './helpers/swap-ui'
 import { requireTokenInCombobox } from './helpers/wrap-e2e'
 import {
+  routeWrapMapperPaused,
+  routeWrapMapperRateLimitExceeded,
+  wrapMapperAddressFromEnv,
+} from './helpers/wrap-mapper-lcd-mock'
+import {
   ARIA_SELECT_TOKEN_PAY,
   ARIA_SELECT_TOKEN_RECEIVE,
   expectAtLeastTwoPayTokenOptions,
@@ -202,18 +207,50 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await assertTxResultAlert(page)
   })
 
-  test('E12: rate limit exceeded shows error in UI', async ({ page }) => {
+  test('E12: rate limit exceeded shows disabled CTA with exact copy (SEC-A02 / GitLab #389)', async ({
+    page,
+    connectWallet,
+    request,
+  }) => {
+    await skipIfLcdUnreachable(request)
+    const wrapMapper = wrapMapperAddressFromEnv()
+    await routeWrapMapperRateLimitExceeded(page, wrapMapper)
+    await connectWallet
+    await page.waitForLoadState('networkidle')
+    await expectAtLeastTwoPayTokenOptions(page)
+
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC-C')
 
     const input = page.getByPlaceholder('0.00').first()
-    await input.fill('999999999999')
+    await input.fill('1')
 
-    await page.waitForTimeout(2000)
-    const btn = swapActionPanel(page)
-      .getByRole('button')
-      .filter({ hasText: /Rate Limit|Insufficient|Swap/i })
-      .last()
-    await expect(btn).toBeVisible()
+    const btn = swapActionPanel(page).getByRole('button', { name: 'Rate Limit Exceeded' })
+    await expect(btn).toBeVisible({ timeout: 15_000 })
+    await expect(btn).toBeDisabled()
+  })
+})
+
+test.describe('Swap wrap safety CTA — isolated LCD mocks (SEC-A02 / GitLab #389)', () => {
+  test.beforeEach(async ({ page, connectWallet, request }) => {
+    await skipIfLcdUnreachable(request)
+    await connectWallet
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    await expectAtLeastTwoPayTokenOptions(page)
+  })
+
+  test('wrap mapper paused shows disabled Wrapping is Temporarily Paused CTA', async ({ page }) => {
+    const wrapMapper = wrapMapperAddressFromEnv()
+    await routeWrapMapperPaused(page, wrapMapper)
+
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC-C')
+
+    await page.getByPlaceholder('0.00').first().fill('0.0001')
+
+    const btn = swapActionPanel(page).getByRole('button', { name: 'Wrapping is Temporarily Paused' })
+    await expect(btn).toBeVisible({ timeout: 15_000 })
+    await expect(btn).toBeDisabled()
   })
 })

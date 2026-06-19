@@ -1,6 +1,6 @@
 # Deployment Guide
 
-See also: **[Pool-only v2 launch runbook](runbooks/launch-checklist.md)** — governance, treasury, hooks, trusted router, verification.
+See also: **[Pool-only v2 launch runbook](runbooks/launch-checklist.md)** — governance, treasury, hooks, trusted router, verification, and **[Phase 5 go/no-go sign-off](runbooks/launch-checklist.md#phase-5--go--no-go-decision-required-before-production-mainnet)** (required before production mainnet — [GitLab #391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).
 
 ## Prerequisites
 
