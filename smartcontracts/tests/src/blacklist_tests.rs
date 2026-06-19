@@ -19,17 +19,35 @@ fn is_blacklisted_err(err: &dyn std::error::Error) -> bool {
 }
 
 fn batch_place_msg(side: LimitOrderSide, price: Decimal, amount: Uint128) -> cosmwasm_std::Binary {
+    batch_place_msg_with_expires(side, price, amount, None)
+}
+
+fn batch_place_msg_with_expires(
+    side: LimitOrderSide,
+    price: Decimal,
+    amount: Uint128,
+    expires_at: Option<u64>,
+) -> cosmwasm_std::Binary {
     to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
         side,
         orders: vec![LimitOrderPlacementItem {
             price,
             amount,
             max_adjust_steps: 32,
-            expires_at: None,
+            expires_at,
             hint_after_order_id: None,
         }],
     })
     .unwrap()
+}
+
+fn parse_limit_order_placed(events: &[cosmwasm_std::Event]) -> u64 {
+    events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .find(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse::<u64>().unwrap())
+        .expect("limit_order_placed attribute")
 }
 
 fn blacklist_wallet(app: &mut App, env: &TestEnv, wallet: &cosmwasm_std::Addr) {
@@ -103,6 +121,67 @@ fn wallet_blacklist_blocks_swap_lp_limits_and_unban_restores() {
     .unwrap();
     let order_id = 1u64;
 
+    // Park an expired limit order so ClaimExpiredLimitOrder can be exercised under blacklist.
+    let taker = cosmwasm_std::Addr::unchecked("taker_exp_blacklist");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+    let exp = app.block_info().time.seconds() + 60;
+    let escrow_expired = Uint128::new(10_000);
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: escrow_expired,
+                msg: batch_place_msg_with_expires(
+                    LimitOrderSide::Bid,
+                    Decimal::one(),
+                    escrow_expired,
+                    Some(exp),
+                ),
+            },
+            &[],
+        )
+        .unwrap();
+    let expired_order_id = parse_limit_order_placed(&res.events);
+
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(120);
+    });
+
+    let park_swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(1_000),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker,
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(1_000),
+            msg: park_swap_msg,
+        },
+        &[],
+    )
+    .unwrap();
+
     blacklist_wallet(&mut app, &env, &env.user);
 
     let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
@@ -174,6 +253,61 @@ fn wallet_blacklist_blocks_swap_lp_limits_and_unban_restores() {
                 slippage_tolerance: None,
                 receiver: None,
                 deadline: None,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    let hybrid = pool_only_hybrid_params(Uint128::new(500));
+    let hybrid_swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: None,
+        to: None,
+        deadline: None,
+        hybrid: Some(hybrid),
+        trader: None,
+    })
+    .unwrap();
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(500),
+                msg: hybrid_swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::UpdateLimitOrderPrice {
+                order_id,
+                price: Decimal::from_ratio(11u128, 10u128),
+                hint_after_order_id: None,
+                max_adjust_steps: 32,
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+    ));
+
+    assert!(is_blacklisted_err(
+        app.execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::ClaimExpiredLimitOrder {
+                order_id: expired_order_id,
             },
             &[],
         )

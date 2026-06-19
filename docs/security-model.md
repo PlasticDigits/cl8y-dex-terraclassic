@@ -148,6 +148,8 @@ Governance on the **factory** can block protocol interaction without bricking un
 
 **Frontend regression tests (SEC-A02, GitLab [#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)):** Vitest mocks `useTradingBlacklist` on Swap and Trade order ticket and asserts `describeTradingBlacklistBlock` copy in the alert plus disabled swap / limit-place CTAs for wallet, token, and pair dimensions. Copy source: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts); shared mocks: [`tradingBlacklistMocks.ts`](../frontend-dapp/src/test/tradingBlacklistMocks.ts).
 
+**Contract regression tests (SEC-B02, GitLab [#393](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/393)):** `blacklist_tests::wallet_blacklist_blocks_swap_lp_limits_and_unban_restores` asserts wallet blacklist rejection on swap, **hybrid swap**, provide/withdraw liquidity, limit place/cancel/**claim**/**update**, then unblacklist restores swap; `router_multihop_rejects_blacklisted_wallet` covers router multihop. Token/pair dimensions: `token_blacklist_blocks_swap_both_directions`, `pair_blacklist_blocks_swap_and_lp`. Matrix row **B1** in [contracts-security-audit.md](./contracts-security-audit.md).
+
 ## Pair Contract Auth
 
 | Action              | Authorized Caller       |
