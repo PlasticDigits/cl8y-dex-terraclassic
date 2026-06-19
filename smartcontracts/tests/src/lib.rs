@@ -8583,7 +8583,7 @@ mod deadline_tests {
 mod audit_invariant_tests {
     use super::helpers::*;
     use super::mock_failing_hook::mock_failing_hook_contract;
-    use cosmwasm_std::{to_json_binary, Uint128};
+    use cosmwasm_std::{to_json_binary, Decimal, Uint128};
     use cw20::Cw20ExecuteMsg;
     use cw_multi_test::{App, Executor};
 
@@ -8824,6 +8824,142 @@ mod audit_invariant_tests {
         assert_eq!(
             commission_baseline, commission_bad,
             "broken discount registry must fall back to full pair fee (treasury commission B)"
+        );
+    }
+
+    /// SEC-C03 ([#402](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/402)):
+    /// commission treasury (ask token) must not change when swap reverts on max_spread.
+    #[test]
+    fn commission_treasury_unchanged_after_max_spread_rejected_swap() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
+
+        let treasury_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert!(
+            treasury_b_before > Uint128::zero(),
+            "commission treasury (token_b) should be non-zero after successful swap"
+        );
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::permille(1)),
+            min_return: None,
+            to: None,
+            deadline: None,
+            hybrid: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(100_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Max spread assertion"),
+            "expected max_spread rejection, got {}",
+            err.root_cause()
+        );
+
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_a, &env.treasury),
+            treasury_a_before,
+            "treasury token_a must be unchanged after reverted swap"
+        );
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_b, &env.treasury),
+            treasury_b_before,
+            "commission treasury (token_b) must be unchanged after reverted swap"
+        );
+    }
+
+    /// SEC-C03 ([#402](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/402)):
+    /// commission treasury (ask token) must not change when swap reverts on deadline.
+    #[test]
+    fn commission_treasury_unchanged_after_deadline_rejected_swap() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
+
+        let deadline = app.block_info().time.seconds() + 100;
+        app.update_block(|b| b.time = b.time.plus_seconds(200));
+
+        let treasury_a_before = query_cw20_balance(&app, &env.token_a, &env.treasury);
+        let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert!(
+            treasury_b_before > Uint128::zero(),
+            "commission treasury (token_b) should be non-zero after successful swap"
+        );
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: None,
+            to: None,
+            deadline: Some(deadline),
+            hybrid: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert!(
+            err.root_cause().to_string().contains("Deadline")
+                || err.root_cause().to_string().contains("deadline"),
+            "expected deadline rejection, got {}",
+            err.root_cause()
+        );
+
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_a, &env.treasury),
+            treasury_a_before,
+            "treasury token_a must be unchanged after reverted swap"
+        );
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_b, &env.treasury),
+            treasury_b_before,
+            "commission treasury (token_b) must be unchanged after reverted swap"
         );
     }
 }
