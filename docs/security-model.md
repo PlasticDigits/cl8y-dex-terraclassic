@@ -16,7 +16,7 @@ The Factory contract has a single `governance` address that controls:
 
 **Key management:** the governance address should be a multisig or DAO-controlled address in production. Never use a single EOA for mainnet governance.
 
-Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md). **Production mainnet** requires **Phase 5 go/no-go sign-off** on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)); see [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../skills/AGENTS_LAUNCH_GO_NO_GO.md).
+Operator checklist (governance, treasury, hooks, router trust, pool-only verification): [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md). **Production mainnet** requires **Phase 5 go/no-go sign-off** on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)); see [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../skills/AGENTS_LAUNCH_GO_NO_GO.md). **Emergency controls rehearsal** from the planned governance multisig (pause, blacklist, unpause, unblacklist on testnet/staging): [`docs/runbooks/governance-emergency-rehearsal.md`](runbooks/governance-emergency-rehearsal.md) (**SEC-B09**, [#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)).
 
 ## Off-chain trust boundaries (frontend)
 
