@@ -143,6 +143,7 @@ See also: [Pool-only launch runbook § Phase 1 deploy trace](runbooks/launch-che
 
 ## Post-Deployment Checklist
 
+- [ ] **IBC-hooks chain exposure (SEC-D02):** record Terra Classic chain binary/SDK version and IBC-hooks module status at deploy time; attest that app contracts do not expose IBC receive/ack/timeout entry points (`make verify-no-ibc-hooks-in-contracts`). Re-run after chain upgrades or new contract modules — [launch checklist Phase 0](runbooks/launch-checklist.md#phase-0--preconditions), [security model § IBC hooks](security-model.md#ibc-hooks-chain-dependency-sec-d02) ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)).
 - [ ] **Deploy trace** posted on the launch tracking issue (see [Deploy trace](#deploy-trace-audit-record) above)
 - [ ] Run read-only pool checks: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) (`PAIR_ADDR`, optional `OFFER_TOKEN` / `TERRA_LCD_URL`)
 - [ ] Verify Factory config via `GetConfig` query
