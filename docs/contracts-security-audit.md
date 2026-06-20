@@ -1,6 +1,6 @@
 # CL8Y DEX — Contracts Security Audit (Repository)
 
-This document is the **in-repo security audit and invariant matrix** for the CosmWasm contracts under `smartcontracts/`. It complements [security-model.md](./security-model.md) (operational trust assumptions), [security-posture.md](./security-posture.md) (public launch posture linked from the dApp footer), and [testing.md](./testing.md) (how to run tests and coverage).
+This document is the **in-repo security audit and invariant matrix** for the CosmWasm contracts under `smartcontracts/`. It complements [security-model.md](./security-model.md) (operational trust assumptions), [security-posture.md](./security-posture.md) (public launch posture linked from the dApp footer), [exploit-replay-matrix.md](./exploit-replay-matrix.md) (historical Cosmos/CosmWasm incident replay — SEC-D01 / [#406](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/406)), and [testing.md](./testing.md) (how to run tests and coverage).
 
 ## Trust model (explicit)
 
@@ -81,6 +81,8 @@ Each row states a property that should **always** hold (under the trust model). 
 See invariant rows **L1–L10** above and [`limit-orders.md`](./limit-orders.md) for message shapes, pause semantics, indexer hints, and simulation limits.
 
 ## Attack paths considered (non-governance)
+
+Historical **external** incidents (Terra IBC-hooks, Osmosis LP-share, Levana oracle timing, malicious CW20, fake pair indexing, SQL injection, LCD amplification, admin key compromise, wallet phishing, stale deploy) are traced by date and protocol in [exploit-replay-matrix.md](./exploit-replay-matrix.md) (SEC-D02–D12, [#406](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/406)). Agent playbook: [`skills/AGENTS_EXPLOIT_REPLAY_MATRIX.md`](../skills/AGENTS_EXPLOIT_REPLAY_MATRIX.md).
 
 - Unauthorized factory/pair/hook/discount admin calls → blocked (`Unauthorized`).
 - Discount theft via fake `trader` from non-trusted router → blocked (query uses `sender`).
