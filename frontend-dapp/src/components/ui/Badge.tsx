@@ -7,12 +7,12 @@ export interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'badge-neo',
-  success: 'badge-neo badge-neo-success',
-  warning: 'badge-neo badge-neo-warning',
-  error: 'badge-neo badge-neo-error',
-  neutral: 'badge-neo',
-  accent: 'badge-neo badge-neo-accent',
+  default: 'badge-glass',
+  success: 'badge-glass badge-glass-success',
+  warning: 'badge-glass badge-glass-warning',
+  error: 'badge-glass badge-glass-error',
+  neutral: 'badge-glass',
+  accent: 'badge-glass badge-glass-accent',
 }
 
 export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {

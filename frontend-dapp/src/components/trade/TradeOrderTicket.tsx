@@ -600,7 +600,7 @@ function TradeOrderTicketContent({
 
   if (pairsLoading) {
     return (
-      <div className="flex justify-center py-12 card-neo">
+      <div className="flex justify-center py-12 card-glass">
         <Spinner />
       </div>
     )
@@ -621,7 +621,7 @@ function TradeOrderTicketContent({
   const bestAskLabel = bestBookLoading ? '…' : (bestAsk ?? '—')
 
   return (
-    <div className="flex flex-col h-full min-h-0 card-neo !p-0">
+    <div className="flex flex-col h-full min-h-0 card-glass !p-0">
       <div
         className="p-4 border-b border-white/10"
         style={{
@@ -708,7 +708,7 @@ function TradeOrderTicketContent({
               aria-selected={orderTab === 'limit'}
               aria-controls={limitOrderPanelId}
               data-testid="trade-order-tab-limit"
-              className={`tab-neo !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'limit' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+              className={`tab-glass !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'limit' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
               onClick={() => {
                 sounds.playButtonPress()
                 setOrderTab('limit')
@@ -723,7 +723,7 @@ function TradeOrderTicketContent({
               aria-selected={orderTab === 'market'}
               aria-controls={marketOrderPanelId}
               data-testid="trade-order-tab-market"
-              className={`tab-neo !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'market' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+              className={`tab-glass !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'market' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
               onClick={() => {
                 sounds.playButtonPress()
                 setOrderTab('market')
@@ -938,12 +938,12 @@ function TradeOrderTicketContent({
 
         <TicketSection eyebrow="Manage" title="Cancel resting limit" tone="manage">
           <div>
-            <label className="label-neo" htmlFor={cancelLimitOrderInputId}>
+            <label className="label-glass" htmlFor={cancelLimitOrderInputId}>
               Order ID
             </label>
             <input
               id={cancelLimitOrderInputId}
-              className="input-neo w-full font-mono text-sm"
+              className="input-glass w-full font-mono text-sm"
               value={cancelOrderId}
               onChange={(e) => setCancelOrderId(e.target.value)}
               placeholder="Order ID"

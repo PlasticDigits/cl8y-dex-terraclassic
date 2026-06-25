@@ -18,6 +18,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Contract Reference](./contracts-terraclassic.md) — Factory, Pair, Router message schemas. **LP CW20 shares** use **18** `decimals`; **`CreatePair` / empty-pool liquidity** rejects either asset CW20 with **`decimals > 18`** ([gitlab #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)).
 
 ## Frontend
+- [Cyberminimalist Glass System](./design-system.md) — design tokens, primitives (`shell-panel`, `card-glass`, `btn-*`, `tab-glass`, …) ([#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415))
 - [Frontend Guide](./frontend.md) — tech stack, project structure, wallet integration, [Terra Classic swap gas limits](./frontend.md#terra-classic-gas-limits), [pool list: indexer vs factory](./frontend.md#liquidity-pools-list-indexer-vs-factory)
 
 ## Development

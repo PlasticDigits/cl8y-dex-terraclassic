@@ -67,7 +67,7 @@ export function LimitOrderBidAskSideSelector({
     [focusBid, onSideChange]
   )
 
-  const tabNeo = compact ? 'tab-neo px-3 py-1.5 text-xs justify-center' : 'tab-neo px-4 py-2 text-sm'
+  const tabNeo = compact ? 'tab-glass px-3 py-1.5 text-xs justify-center' : 'tab-glass px-4 py-2 text-sm'
 
   return (
     <div
@@ -87,7 +87,7 @@ export function LimitOrderBidAskSideSelector({
         tabIndex={side === 'bid' ? 0 : -1}
         data-testid={`${idPrefix}-side-bid`}
         className={`${tabNeo} font-medium uppercase tracking-wide ${
-          side === 'bid' ? 'tab-neo-active' : 'tab-neo-inactive'
+          side === 'bid' ? 'tab-glass-active' : 'tab-glass-inactive'
         }`}
         onClick={() => onSideChange('bid')}
         onKeyDown={onBidKeyDown}
@@ -102,7 +102,7 @@ export function LimitOrderBidAskSideSelector({
         tabIndex={side === 'ask' ? 0 : -1}
         data-testid={`${idPrefix}-side-ask`}
         className={`${tabNeo} font-medium uppercase tracking-wide ${
-          side === 'ask' ? 'tab-neo-active' : 'tab-neo-inactive'
+          side === 'ask' ? 'tab-glass-active' : 'tab-glass-inactive'
         }`}
         onClick={() => onSideChange('ask')}
         onKeyDown={onAskKeyDown}

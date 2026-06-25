@@ -498,7 +498,7 @@ export default function LimitOrdersPage() {
           >
             <div className="space-y-6">
               <div>
-                <label className="label-neo" htmlFor="limit-pair">
+                <label className="label-glass" htmlFor="limit-pair">
                   Pair
                 </label>
                 <PairSearchSelect
@@ -561,7 +561,7 @@ export default function LimitOrdersPage() {
               )}
 
               {selectedPair && (
-                <div className="card-neo !p-3 min-h-[22rem] flex flex-col">
+                <div className="card-glass !p-3 min-h-[22rem] flex flex-col">
                   <OrderBookPanel
                     pairAddress={pairAddr}
                     pair={indexerPair}
@@ -576,18 +576,18 @@ export default function LimitOrdersPage() {
                 </div>
               )}
 
-              <div className="card-neo !p-4 space-y-4">
+              <div className="card-glass !p-4 space-y-4">
                 <div className="flex gap-2" role="tablist" aria-label="Place mode">
                   <button
                     type="button"
-                    className={placeMode === 'single' ? 'btn-primary' : 'btn-neo'}
+                    className={placeMode === 'single' ? 'btn-primary' : 'btn-muted'}
                     onClick={() => setPlaceMode('single')}
                   >
                     Single
                   </button>
                   <button
                     type="button"
-                    className={placeMode === 'ladder' ? 'btn-primary' : 'btn-neo'}
+                    className={placeMode === 'ladder' ? 'btn-primary' : 'btn-muted'}
                     onClick={() => setPlaceMode('ladder')}
                     data-testid="limit-place-mode-ladder"
                   >
@@ -752,19 +752,19 @@ export default function LimitOrdersPage() {
                 )}
               </div>
 
-              <div className="card-neo !p-4 space-y-4">
+              <div className="card-glass !p-4 space-y-4">
                 <h2 className="text-sm font-semibold uppercase tracking-wide">Cancel limit</h2>
                 <p className="text-[11px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
                   For your resting orders, use <strong>Edit</strong> / <strong>×</strong> on the order book above, or
                   enter an order id below.
                 </p>
                 <div>
-                  <label className="label-neo" htmlFor={limitOrdersCancelOrderInputId}>
+                  <label className="label-glass" htmlFor={limitOrdersCancelOrderInputId}>
                     Order ID
                   </label>
                   <input
                     id={limitOrdersCancelOrderInputId}
-                    className="input-neo w-full font-mono"
+                    className="input-glass w-full font-mono"
                     value={cancelOrderId}
                     onChange={(e) => setCancelOrderId(e.target.value)}
                     placeholder="e.g. 42"
@@ -809,7 +809,7 @@ export default function LimitOrdersPage() {
               </div>
 
               {pairAddr && address && (
-                <div className="card-neo !p-4 space-y-2">
+                <div className="card-glass !p-4 space-y-2">
                   <LimitOrderMyPlacementsPanel
                     variant="page"
                     pairAddr={pairAddr}

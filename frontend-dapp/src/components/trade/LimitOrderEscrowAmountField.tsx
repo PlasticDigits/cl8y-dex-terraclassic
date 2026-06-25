@@ -76,12 +76,12 @@ export function LimitOrderEscrowAmountField({
 
   return (
     <div>
-      <label className={compact ? 'label-neo text-[10px]' : 'label-neo'} htmlFor={amountInputId}>
+      <label className={compact ? 'label-glass text-[10px]' : 'label-glass'} htmlFor={amountInputId}>
         Amount ({escrowLabel})
       </label>
       <input
         id={amountInputId}
-        className={compact ? 'input-neo w-full text-sm' : 'input-neo w-full'}
+        className={compact ? 'input-glass w-full text-sm' : 'input-glass w-full'}
         value={amountHuman}
         onChange={(e) => onAmountChange(e.target.value)}
         placeholder="0.0"

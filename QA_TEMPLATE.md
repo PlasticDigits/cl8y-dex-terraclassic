@@ -513,7 +513,7 @@
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
-| 10.2.1 | Neo-brutalist borders | View components | Borders and shadows match design system | | |
+| 10.2.1 | Cyberminimalist Glass borders | View components | Borders, blur, and shadows match [`docs/design-system.md`](docs/design-system.md) | | |
 | 10.2.2 | Fonts - headings | View headings | Chakra Petch font | | |
 | 10.2.3 | Fonts - body | View body text | IBM Plex Sans font | | |
 | 10.2.4 | Uppercase labels | View labels | Uppercase styling applied | | |

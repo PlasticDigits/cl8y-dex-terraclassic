@@ -537,7 +537,7 @@ const PoolCard = memo(function PoolCard({
 
       {poolQuery.data && (
         <div className="flex gap-4 text-sm mb-4">
-          <div className="flex-1 card-neo">
+          <div className="flex-1 card-glass">
             <div className="mb-1">
               <TokenDisplay
                 info={poolQuery.data.assets[0].info}
@@ -549,7 +549,7 @@ const PoolCard = memo(function PoolCard({
               {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))}
             </p>
           </div>
-          <div className="flex-1 card-neo">
+          <div className="flex-1 card-glass">
             <div className="mb-1">
               <TokenDisplay
                 info={poolQuery.data.assets[1].info}
@@ -584,7 +584,7 @@ const PoolCard = memo(function PoolCard({
             sounds.playButtonPress()
             setExpanded(expanded === 'add' ? null : 'add')
           }}
-          className={`tab-neo !text-xs ${expanded === 'add' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+          className={`tab-glass !text-xs ${expanded === 'add' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
         >
           Provide Liquidity
         </button>
@@ -593,14 +593,14 @@ const PoolCard = memo(function PoolCard({
             sounds.playButtonPress()
             setExpanded(expanded === 'remove' ? null : 'remove')
           }}
-          className={`tab-neo !text-xs ${expanded === 'remove' ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+          className={`tab-glass !text-xs ${expanded === 'remove' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
         >
           Withdraw Liquidity
         </button>
       </div>
 
       {expanded === 'add' && (
-        <div className="card-neo space-y-3 animate-fade-in-up">
+        <div className="card-glass space-y-3 animate-fade-in-up">
           <p
             className="text-[11px] sm:text-xs leading-relaxed"
             style={{ color: 'var(--ink-dim)' }}
@@ -637,7 +637,7 @@ const PoolCard = memo(function PoolCard({
             </p>
           )}
           <div>
-            <label className="label-neo">
+            <label className="label-glass">
               Asset A Amount
               <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>
                 ({displayA.displayLabel})
@@ -666,7 +666,7 @@ const PoolCard = memo(function PoolCard({
                 if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountA(v)
               }}
               placeholder="0.00"
-              className="input-neo"
+              className="input-glass"
               aria-label="Asset A amount"
             />
             {address && (
@@ -693,7 +693,7 @@ const PoolCard = memo(function PoolCard({
             )}
           </div>
           <div>
-            <label className="label-neo">
+            <label className="label-glass">
               Asset B Amount
               <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>
                 ({displayB.displayLabel})
@@ -722,7 +722,7 @@ const PoolCard = memo(function PoolCard({
                 if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountB(v)
               }}
               placeholder="0.00"
-              className="input-neo"
+              className="input-glass"
               aria-label="Asset B amount"
             />
             {address && (
@@ -832,7 +832,7 @@ const PoolCard = memo(function PoolCard({
       )}
 
       {expanded === 'remove' && (
-        <div className="card-neo space-y-3 animate-fade-in-up">
+        <div className="card-glass space-y-3 animate-fade-in-up">
           {isPairPaused && (
             <div className="alert-error text-xs space-y-2" role="alert" data-testid="pool-pair-paused-banner">
               <p>
@@ -856,7 +856,7 @@ const PoolCard = memo(function PoolCard({
           )}
           <div>
             <div className="flex items-center justify-between">
-              <label className="label-neo" htmlFor={lpTokenAmountInputId}>
+              <label className="label-glass" htmlFor={lpTokenAmountInputId}>
                 LP Token Amount
               </label>
               {address && (
@@ -891,7 +891,7 @@ const PoolCard = memo(function PoolCard({
                 if (v === '' || /^\d*\.?\d*$/.test(v)) setLpAmount(v)
               }}
               placeholder="0.00"
-              className="input-neo"
+              className="input-glass"
             />
           </div>
           <p className="text-xs flex flex-wrap items-center gap-1" style={{ color: 'var(--ink-subtle)' }}>
@@ -922,7 +922,7 @@ const PoolCard = memo(function PoolCard({
             </label>
           )}
           <div>
-            <label className="label-neo">Slippage Tolerance</label>
+            <label className="label-glass">Slippage Tolerance</label>
             <div className="flex gap-2">
               {['0.5', '1.0', '2.0'].map((val) => (
                 <button
@@ -931,8 +931,8 @@ const PoolCard = memo(function PoolCard({
                     sounds.playButtonPress()
                     setWithdrawSlippage(val)
                   }}
-                  className={`tab-neo !text-xs !px-3 !py-1.5 ${
-                    withdrawSlippage === val ? 'tab-neo-active' : 'tab-neo-inactive'
+                  className={`tab-glass !text-xs !px-3 !py-1.5 ${
+                    withdrawSlippage === val ? 'tab-glass-active' : 'tab-glass-inactive'
                   }`}
                 >
                   {val}%
@@ -1117,14 +1117,14 @@ export default function PoolPage() {
         aria-label="Filter and sort pools"
       >
         <div className="flex-1 min-w-[12rem]">
-          <label htmlFor="pool-search" className="label-neo mb-1 block">
+          <label htmlFor="pool-search" className="label-glass mb-1 block">
             Search
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               id="pool-search"
               type="search"
-              className="input-neo flex-1"
+              className="input-glass flex-1"
               placeholder="Symbol, address, denom…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -1148,7 +1148,7 @@ export default function PoolPage() {
           </div>
         </div>
         <div>
-          <label htmlFor="pool-sort" className="label-neo mb-1 block">
+          <label htmlFor="pool-sort" className="label-glass mb-1 block">
             Sort
           </label>
           <MenuSelect
@@ -1165,7 +1165,7 @@ export default function PoolPage() {
           />
         </div>
         <div>
-          <label htmlFor="pool-order" className="label-neo mb-1 block">
+          <label htmlFor="pool-order" className="label-glass mb-1 block">
             Order
           </label>
           <MenuSelect

@@ -165,7 +165,7 @@ export default function ProtocolPage() {
           )}
         </div>
         {oracle && oracle.sources.length > 1 && (
-          <div className="card-neo !p-0 overflow-x-auto">
+          <div className="card-glass !p-0 overflow-x-auto">
             <table className="w-full text-xs" aria-label="Oracle sources">
               <thead>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
@@ -210,7 +210,7 @@ export default function ProtocolPage() {
           </p>
         )}
         {history.length > 0 && (
-          <div className="card-neo !p-0 overflow-x-auto max-h-64 overflow-y-auto">
+          <div className="card-glass !p-0 overflow-x-auto max-h-64 overflow-y-auto">
             <table className="w-full text-xs" aria-label="USTC USD oracle history">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--panel-bg-strong)' }}>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
@@ -239,7 +239,7 @@ export default function ProtocolPage() {
           <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <input
               type="text"
-              className="input-neo flex-1"
+              className="input-glass flex-1"
               placeholder="Filter by hook contract (optional)"
               value={hookFilter}
               onChange={(e) => setHookFilter(e.target.value)}
@@ -263,7 +263,7 @@ export default function ProtocolPage() {
           </p>
         )}
         {hooksQuery.data && hooksQuery.data.length > 0 && (
-          <div className="card-neo !p-0 overflow-x-auto max-h-96 overflow-y-auto">
+          <div className="card-glass !p-0 overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full text-xs" aria-label="Hook events">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--panel-bg-strong)' }}>
                 <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>

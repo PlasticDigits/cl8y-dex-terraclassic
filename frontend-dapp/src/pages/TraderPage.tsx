@@ -80,7 +80,7 @@ export default function TraderPage() {
           <input
             id={traderWalletSearchInputId}
             type="text"
-            className="input-neo flex-1"
+            className="input-glass flex-1"
             placeholder="Paste a trader wallet address"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}

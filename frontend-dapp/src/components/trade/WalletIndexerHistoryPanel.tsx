@@ -142,7 +142,7 @@ export function WalletIndexerHistoryPanel({
   if (!enabled) return null
 
   return (
-    <div className="card-neo !p-4 space-y-6" data-testid="wallet-indexer-history">
+    <div className="card-glass !p-4 space-y-6" data-testid="wallet-indexer-history">
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wide">Your history (this pair)</h2>
         <p className="text-xs mt-1" style={{ color: 'var(--ink-dim)' }}>

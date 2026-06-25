@@ -26,7 +26,7 @@ type Props = {
  * Raw-seconds override lives under Advanced in {@link LimitOrderAdvancedLimitSettings}.
  */
 export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowMs = () => Date.now() }: Props) {
-  const inputClass = (compact ? 'input-neo w-full text-sm' : 'input-neo w-full') + ' font-sans'
+  const inputClass = (compact ? 'input-glass w-full text-sm' : 'input-glass w-full') + ' font-sans'
   const btnClass = compact
     ? 'px-2 py-1 rounded-md text-[10px] uppercase tracking-wide border border-white/10 hover:bg-white/5'
     : 'px-2.5 py-1.5 rounded-lg text-xs uppercase tracking-wide border border-white/10 hover:bg-white/5'
@@ -35,7 +35,7 @@ export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowM
   return (
     <div className="space-y-2">
       <div className="flex flex-col gap-1">
-        <label className="label-neo" htmlFor={`${idPrefix}-expiry-dt`}>
+        <label className="label-glass" htmlFor={`${idPrefix}-expiry-dt`}>
           Expires
         </label>
         <p className={hintClass} style={{ color: 'var(--ink-dim)' }}>
@@ -126,14 +126,14 @@ export function LimitOrderExpiresAtRawField({ value, onChange, idPrefix, compact
   }, [value])
   return (
     <div>
-      <label className={compact ? 'label-neo text-[10px]' : 'label-neo'} htmlFor={`${idPrefix}-raw-expiry`}>
+      <label className={compact ? 'label-glass text-[10px]' : 'label-glass'} htmlFor={`${idPrefix}-raw-expiry`}>
         Raw expiry (Unix seconds, optional)
       </label>
       <input
         id={`${idPrefix}-raw-expiry`}
         type="text"
         inputMode="numeric"
-        className={compact ? 'input-neo w-full font-mono text-sm' : 'input-neo w-full font-mono'}
+        className={compact ? 'input-glass w-full font-mono text-sm' : 'input-glass w-full font-mono'}
         placeholder="Leave empty for no expiry"
         value={text}
         onChange={(e) => {

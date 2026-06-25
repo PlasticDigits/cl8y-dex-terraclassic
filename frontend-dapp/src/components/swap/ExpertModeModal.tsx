@@ -51,7 +51,7 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
           <input
             id="expert-mode-confirm"
             type="text"
-            className="input-neo w-full"
+            className="input-glass w-full"
             value={typedPhrase}
             onChange={(e) => setTypedPhrase(e.target.value)}
             autoComplete="off"

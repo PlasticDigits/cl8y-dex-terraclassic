@@ -22,7 +22,7 @@ test.describe('Limit orders page', () => {
     await page.goto('/limits')
     await page.waitForLoadState('networkidle')
     await expect(page.locator('#limit-pair')).toBeVisible({ timeout: 30_000 })
-    const placeCard = page.locator('.card-neo').filter({ hasText: 'Place limit' })
+    const placeCard = page.locator('.card-glass').filter({ hasText: 'Place limit' })
     await expect(placeCard.getByRole('button', { name: /Connect Wallet/i })).toBeVisible()
   })
 })

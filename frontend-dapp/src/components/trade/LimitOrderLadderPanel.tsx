@@ -298,7 +298,7 @@ export function LimitOrderLadderPanel({
         <label className="block text-sm">
           <span className="text-muted">Start price</span>
           <input
-            className="input-neo mt-1 w-full"
+            className="input-glass mt-1 w-full"
             value={startPrice}
             onChange={(e) => setStartPrice(e.target.value)}
             data-testid="ladder-start-price"
@@ -307,7 +307,7 @@ export function LimitOrderLadderPanel({
         <label className="block text-sm">
           <span className="text-muted">End price</span>
           <input
-            className="input-neo mt-1 w-full"
+            className="input-glass mt-1 w-full"
             value={endPrice}
             onChange={(e) => setEndPrice(e.target.value)}
             data-testid="ladder-end-price"
@@ -320,7 +320,7 @@ export function LimitOrderLadderPanel({
           type="number"
           min={2}
           max={maxRungs}
-          className="input-neo mt-1 w-full"
+          className="input-glass mt-1 w-full"
           value={rungCountInput}
           onChange={(e) => handleRungCountChange(e.target.value)}
           onBlur={handleRungCountBlur}
@@ -335,7 +335,7 @@ export function LimitOrderLadderPanel({
       <label className="block text-sm">
         <span className="text-muted">Total escrow ({side === 'bid' ? token1Symbol : token0Symbol})</span>
         <input
-          className="input-neo mt-1 w-full"
+          className="input-glass mt-1 w-full"
           value={totalHuman}
           onChange={(e) => setTotalHuman(e.target.value)}
           data-testid="ladder-total-amount"

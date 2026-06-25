@@ -37,16 +37,13 @@ export function LimitOrderPreSubmitSummary({
 }: LimitOrderPreSubmitSummaryProps) {
   const textSize = compact ? 'text-[10px]' : 'text-xs'
   const limit = parsePositivePriceHuman(typedPrice)
-  const dev =
-    refToken1PerToken0 != null && limit != null
-      ? limitPriceDeviationPercent(limit, refToken1PerToken0)
-      : null
+  const dev = refToken1PerToken0 != null && limit != null ? limitPriceDeviationPercent(limit, refToken1PerToken0) : null
 
   const gasHuman = formatTokenAmount(placeSequenceMinUluna.toString(), 6, 4)
 
   return (
     <div
-      className={`card-neo !p-2.5 space-y-2 ${textSize}`}
+      className={`card-glass !p-2.5 space-y-2 ${textSize}`}
       data-testid={testId}
       role="region"
       aria-label="Limit order summary before signing"
@@ -54,10 +51,11 @@ export function LimitOrderPreSubmitSummary({
       <p className="leading-snug" style={{ color: 'var(--ink-dim)' }}>
         A <strong style={{ color: 'var(--ink-subtle)' }}>limit order</strong> does not trade immediately. It rests on
         the book until other traders fill it over time, so there is{' '}
-        <strong style={{ color: 'var(--ink)' }}>no taker slippage</strong>, <strong style={{ color: 'var(--ink)' }}>no</strong>{' '}
-        pool <strong style={{ color: 'var(--ink)' }}>price impact</strong>, and{' '}
-        <strong style={{ color: 'var(--ink)' }}>no “min received”</strong> line like a market swap — those apply when you
-        take liquidity now.
+        <strong style={{ color: 'var(--ink)' }}>no taker slippage</strong>,{' '}
+        <strong style={{ color: 'var(--ink)' }}>no</strong> pool{' '}
+        <strong style={{ color: 'var(--ink)' }}>price impact</strong>, and{' '}
+        <strong style={{ color: 'var(--ink)' }}>no “min received”</strong> line like a market swap — those apply when
+        you take liquidity now.
       </p>
       <ul className="list-disc pl-4 space-y-1" style={{ color: 'var(--ink-dim)' }}>
         <li>

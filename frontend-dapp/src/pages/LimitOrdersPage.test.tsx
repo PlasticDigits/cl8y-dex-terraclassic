@@ -139,6 +139,20 @@ describe('LimitOrdersPage', () => {
     vi.mocked(indexerClient.getPairLimitCancellations).mockResolvedValue([])
   })
 
+  it('styles place mode toggle with btn-primary and btn-muted (#415)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+
+    const ladder = await screen.findByTestId('limit-place-mode-ladder')
+    const single = screen.getByRole('button', { name: /^single$/i })
+    expect(single).toHaveClass('btn-primary')
+    expect(ladder).toHaveClass('btn-muted')
+
+    await user.click(ladder)
+    expect(ladder).toHaveClass('btn-primary')
+    expect(single).toHaveClass('btn-muted')
+  })
+
   it('shows limits market-data outage banner when workspace indexer queries fail (GitLab #218)', async () => {
     const user = userEvent.setup()
     vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))

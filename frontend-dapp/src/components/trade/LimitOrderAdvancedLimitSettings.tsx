@@ -81,7 +81,7 @@ export function LimitOrderAdvancedLimitSettings({
       </summary>
       <div className="mt-3 space-y-3 pl-0 border-t border-white/10 pt-3">
         <div>
-          <label className={compact ? 'label-neo text-[10px]' : 'label-neo'} htmlFor={`${idPrefix}-max-steps`}>
+          <label className={compact ? 'label-glass text-[10px]' : 'label-glass'} htmlFor={`${idPrefix}-max-steps`}>
             Placement gas (book walk)
           </label>
           <p className={sm + ' mt-0.5'} style={{ color: 'var(--ink-dim)' }}>
@@ -133,7 +133,7 @@ export function LimitOrderAdvancedLimitSettings({
               <input
                 id={`${idPrefix}-max-steps`}
                 type="number"
-                className={compact ? 'input-neo w-full text-sm mt-2' : 'input-neo w-full mt-2'}
+                className={compact ? 'input-glass w-full text-sm mt-2' : 'input-glass w-full mt-2'}
                 min={1}
                 max={256}
                 value={maxSteps}

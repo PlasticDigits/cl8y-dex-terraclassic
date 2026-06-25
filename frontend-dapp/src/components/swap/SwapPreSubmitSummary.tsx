@@ -48,7 +48,7 @@ export function SwapPreSubmitSummary({
 
   return (
     <div
-      className="card-neo !p-2.5 space-y-2 text-[11px] sm:text-xs mb-3"
+      className="card-glass !p-2.5 space-y-2 text-[11px] sm:text-xs mb-3"
       data-testid={testId}
       role="region"
       aria-label="Swap summary before signing"

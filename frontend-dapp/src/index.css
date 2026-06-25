@@ -130,6 +130,7 @@
 }
 
 @layer components {
+  /* Deprecated — no src/ usages; prefer shell-panel or card-glass (docs/design-system.md). */
   .glass {
     border: 1px solid var(--line);
     background: var(--panel-bg);
@@ -172,7 +173,7 @@
     filter: brightness(1.03);
   }
 
-  /* WCAG 2.4.7 — keyboard-only focus ring (matches .input-neo; GitLab #144) */
+  /* WCAG 2.4.7 — keyboard-only focus ring (matches .input-glass; GitLab #144) */
   .btn-primary:focus-visible {
     outline: none;
     box-shadow:
@@ -248,7 +249,7 @@
     opacity: 0.6;
   }
 
-  .input-neo {
+  .input-glass {
     @apply w-full px-4 py-3 text-sm transition-colors;
     border: 1px solid rgba(255, 220, 184, 0.12);
     border-radius: 18px;
@@ -257,11 +258,11 @@
     box-shadow: inset 0 1px 0 rgba(255, 248, 235, 0.06);
   }
 
-  .input-neo::placeholder {
+  .input-glass::placeholder {
     color: var(--ink-subtle);
   }
 
-  .input-neo:focus-visible {
+  .input-glass:focus-visible {
     outline: none;
     border-color: rgba(255, 214, 153, 0.28);
     box-shadow:
@@ -269,7 +270,7 @@
       0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
-  .select-neo {
+  .select-glass {
     @apply w-full px-4 py-3 text-sm transition-colors appearance-none;
     border: 1px solid rgba(255, 220, 184, 0.12);
     border-radius: 18px;
@@ -281,7 +282,7 @@
     background-position: right 12px center;
   }
 
-  .select-neo:focus-visible {
+  .select-glass:focus-visible {
     outline: none;
     border-color: rgba(255, 214, 153, 0.28);
     box-shadow:
@@ -289,7 +290,7 @@
       0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
-  .select-neo option {
+  .select-glass option {
     background: var(--surface-raised);
     color: var(--ink);
   }
@@ -391,7 +392,7 @@
     outline-color: color-mix(in srgb, var(--mint-soft) 90%, transparent);
   }
 
-  .label-neo {
+  .label-glass {
     @apply block text-xs font-semibold uppercase tracking-wide mb-1;
     color: color-mix(in srgb, var(--ink) 76%, transparent);
   }
@@ -428,7 +429,7 @@
     color: var(--ink-dim);
   }
 
-  .card-neo {
+  .card-glass {
     @apply p-4 sm:p-5;
     border: 1px solid rgba(255, 213, 158, 0.14);
     border-radius: 24px;
@@ -469,8 +470,8 @@
       rgba(255, 255, 255, 0.03);
   }
 
-  .swap-io-card-pay.card-neo,
-  .swap-io-card-receive.card-neo {
+  .swap-io-card-pay.card-glass,
+  .swap-io-card-receive.card-glass {
     position: relative;
     z-index: 1;
     border: none;
@@ -479,12 +480,12 @@
     backdrop-filter: none;
   }
 
-  .swap-io-card-pay.card-neo {
+  .swap-io-card-pay.card-glass {
     border-radius: 24px 24px 0 0;
     border-bottom: 1px solid rgba(255, 213, 158, 0.14);
   }
 
-  .swap-io-card-receive.card-neo {
+  .swap-io-card-receive.card-glass {
     border-radius: 0 0 24px 24px;
     margin-top: -1px;
   }
@@ -508,7 +509,7 @@
       rgba(255, 255, 255, 0.42);
   }
 
-  :root[data-theme='light'] .swap-io-card-pay.card-neo {
+  :root[data-theme='light'] .swap-io-card-pay.card-glass {
     border-bottom-color: rgba(167, 108, 71, 0.2);
   }
 
@@ -519,13 +520,13 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
-  .tab-neo {
+  .tab-glass {
     @apply px-4 py-2 text-sm font-medium uppercase tracking-wide transition-colors;
     border: 1px solid rgba(255, 220, 184, 0.08);
     border-radius: 14px;
   }
 
-  .tab-neo-active {
+  .tab-glass-active {
     background: linear-gradient(180deg, rgba(255, 245, 230, 0.08), rgba(255, 255, 255, 0.02));
     color: var(--ink);
     border-color: rgba(255, 221, 186, 0.12);
@@ -534,24 +535,24 @@
       0 12px 26px rgba(21, 12, 10, 0.16);
   }
 
-  .tab-neo-inactive {
+  .tab-glass-inactive {
     color: var(--ink-dim);
     background: rgba(255, 255, 255, 0.035);
   }
 
-  .tab-neo-inactive:hover {
+  .tab-glass-inactive:hover {
     border-color: rgba(255, 221, 186, 0.12);
     color: var(--ink);
     background: rgba(255, 255, 255, 0.06);
   }
 
-  .tab-neo:focus-visible {
+  .tab-glass:focus-visible {
     outline: none;
     border-color: rgba(255, 221, 186, 0.18);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
-  .tab-neo.tab-neo-active:focus-visible {
+  .tab-glass.tab-glass-active:focus-visible {
     border-color: rgba(255, 221, 186, 0.12);
     box-shadow:
       inset 0 1px 0 rgba(255, 247, 233, 0.18),
@@ -559,7 +560,7 @@
       0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
-  .badge-neo {
+  .badge-glass {
     @apply inline-flex items-center px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide;
     border: 1px solid rgba(255, 220, 184, 0.12);
     border-radius: 999px;
@@ -567,25 +568,25 @@
     color: var(--ink-dim);
   }
 
-  .badge-neo-success {
+  .badge-glass-success {
     border-color: rgba(74, 222, 128, 0.22);
     background: rgba(14, 64, 35, 0.28);
     color: #8ff0b2;
   }
 
-  .badge-neo-warning {
+  .badge-glass-warning {
     border-color: rgba(251, 191, 36, 0.22);
     background: rgba(74, 40, 12, 0.28);
     color: #ffd28d;
   }
 
-  .badge-neo-error {
+  .badge-glass-error {
     border-color: rgba(248, 113, 113, 0.22);
     background: rgba(72, 17, 17, 0.32);
     color: #ffb8b8;
   }
 
-  .badge-neo-accent {
+  .badge-glass-accent {
     border-color: rgba(255, 221, 186, 0.14);
     background: rgba(255, 168, 77, 0.12);
     color: var(--mint-soft);

@@ -102,7 +102,7 @@ function TradeChartSlot({
   }
   const chart = <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tapeLastPriceUsd} />
   if (!wrapInCard) return chart
-  return <div className="card-neo !p-2 flex-1 min-h-0 flex flex-col">{chart}</div>
+  return <div className="card-glass !p-2 flex-1 min-h-0 flex flex-col">{chart}</div>
 }
 
 export default function TradePage() {
@@ -372,7 +372,7 @@ export default function TradePage() {
       )}
 
       <div className="shell-panel p-3">
-        <label className="label-neo mb-1 block" htmlFor={TRADE_PAIR_SELECT_ID}>
+        <label className="label-glass mb-1 block" htmlFor={TRADE_PAIR_SELECT_ID}>
           Pair
         </label>
         <LcdQueryGate query={pairsQuery} loadingFallback={<Skeleton height="2.5rem" width="100%" />}>
@@ -413,7 +413,7 @@ export default function TradePage() {
           >
             <TradeChartSlot {...chartSlotProps} />
           </div>
-          <div className="card-neo !p-3 md:col-span-2 md:row-start-3">
+          <div className="card-glass !p-3 md:col-span-2 md:row-start-3">
             <TradeRecentTradesSection
               pairRouteReady={pairRouteReady}
               tradesQuery={tradesQuery}
@@ -435,13 +435,13 @@ export default function TradePage() {
             <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
               <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
                 <Panel defaultSize={58} minSize={30} className="min-h-0">
-                  <div className="h-full min-h-[200px] card-neo !p-2 overflow-hidden flex flex-col min-h-0">
+                  <div className="h-full min-h-[200px] card-glass !p-2 overflow-hidden flex flex-col min-h-0">
                     <TradeChartSlot {...chartSlotProps} wrapInCard={false} />
                   </div>
                 </Panel>
                 <TradeResizeHandleHorizontal />
                 <Panel defaultSize={42} minSize={22} className="min-h-0">
-                  <div className="h-full flex flex-col min-h-0 card-neo !p-3">
+                  <div className="h-full flex flex-col min-h-0 card-glass !p-3">
                     <div className="flex-1 min-h-0 overflow-y-auto">
                       <TradeRecentTradesSection
                         pairRouteReady={pairRouteReady}

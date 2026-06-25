@@ -54,13 +54,13 @@ describe('OrderBookPanel', () => {
     expect(screen.getByRole('table', { name: /asks limit orders/i })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: /bids limit orders/i })).toBeInTheDocument()
 
-    const bids = screen.getByText('Bids').closest('.card-neo')
+    const bids = screen.getByText('Bids').closest('.card-glass')
     expect(bids).toBeTruthy()
     expect(within(bids as HTMLElement).getAllByText('139.2').length).toBeGreaterThanOrEqual(2)
     expect(within(bids as HTMLElement).getByText('0.801')).toBeInTheDocument()
     expect(within(bids as HTMLElement).getByText('189.2')).toBeInTheDocument()
 
-    const asks = screen.getByText('Asks').closest('.card-neo')
+    const asks = screen.getByText('Asks').closest('.card-glass')
     expect(asks).toBeTruthy()
     expect(within(asks as HTMLElement).getByText('1.162145')).toBeInTheDocument()
     expect(within(asks as HTMLElement).getAllByText('104.6').length).toBeGreaterThanOrEqual(2)
@@ -132,7 +132,7 @@ describe('OrderBookPanel', () => {
 
     renderWithProviders(<OrderBookPanel pairAddress={pair.pair_address} pair={pair} />)
 
-    const bids = screen.getByText('Bids').closest('.card-neo') as HTMLElement
+    const bids = screen.getByText('Bids').closest('.card-glass') as HTMLElement
     expect(await within(bids).findByTitle(/Order #1 ·/)).toBeInTheDocument()
     expect(within(bids).queryByTitle(/Order #2 ·/)).not.toBeInTheDocument()
 
@@ -156,7 +156,7 @@ describe('OrderBookPanel', () => {
 
     renderWithProviders(<OrderBookPanel pairAddress={pair.pair_address} pair={pair} />)
 
-    const bids = screen.getByText('Bids').closest('.card-neo') as HTMLElement
+    const bids = screen.getByText('Bids').closest('.card-glass') as HTMLElement
     expect(await within(bids).findByText(/No resting bids yet/i)).toBeInTheDocument()
     expect(within(bids).queryByRole('row', { name: /order #/i })).not.toBeInTheDocument()
   })
