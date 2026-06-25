@@ -30,6 +30,7 @@ import {
 import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
 import { toRawAmount } from '@/utils/formatAmount'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
+import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
 
 export interface LimitOrderLadderPanelProps {
   pairAddress: string
@@ -392,7 +393,7 @@ export function LimitOrderLadderPanel({
       <LimitOrderEscrowPlaceGuardMessage gate={ladderCrossingGate} data-testid="ladder-crossing-guard" />
       <button
         type="button"
-        className="btn-primary btn-cta w-full !text-xs"
+        className={TRADE_MONEY_CTA_CLASS}
         disabled={submitDisabled}
         data-testid="ladder-place-submit"
         onClick={() => placeMutation.mutate()}

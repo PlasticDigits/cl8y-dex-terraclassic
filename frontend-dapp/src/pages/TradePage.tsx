@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
@@ -49,6 +49,16 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { TradeRecentTradesSection } from '@/components/trade/TradeRecentTradesSection'
 import { detectTradeIndexerOutage } from '@/utils/tradeIndexerOutage'
 import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
+import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
+import { TradeWorkspaceDisclosure } from '@/components/trade/TradeWorkspaceDisclosure'
+import {
+  TRADE_DESKTOP_TAPE_COLLAPSED_SIZE,
+  TRADE_DESKTOP_TAPE_EXPANDED_SIZE,
+  TRADE_TAPE_EXPANDED_KEY,
+  TRADE_WALLET_HISTORY_EXPANDED_KEY,
+  readTradePanelExpanded,
+  writeTradePanelExpanded,
+} from '@/utils/tradeWorkspacePanels'
 
 const TRADE_PAIR_SELECT_ID = 'trade-pair-select'
 
@@ -278,6 +288,22 @@ export default function TradePage() {
 
   const isTradeDesktopLayout = useMediaQuery(TRADE_DESKTOP_LAYOUT_MEDIA_QUERY)
   const showWorkspaceSkeleton = pairsQuery.isLoading
+  const tapePanelRef = useRef<ImperativePanelHandle>(null)
+  const [desktopTapeExpanded, setDesktopTapeExpanded] = useState(() =>
+    readTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
+  )
+
+  const expandDesktopTape = useCallback(() => {
+    tapePanelRef.current?.expand()
+    setDesktopTapeExpanded(true)
+    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, true)
+  }, [])
+
+  const collapseDesktopTape = useCallback(() => {
+    tapePanelRef.current?.collapse()
+    setDesktopTapeExpanded(false)
+    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
+  }, [])
 
   const chartSlotProps = {
     pairRouteReady,
@@ -344,6 +370,8 @@ export default function TradePage() {
           Order book, chart, tape, and limit plus market tickets — indexer book reads proxy LCD (paginated depth).
         </p>
       </div>
+
+      <TradeOnboardingStrip />
 
       {invalidLinkNotice && (
         <InvalidPairLinkNotice
@@ -414,13 +442,21 @@ export default function TradePage() {
             <TradeChartSlot {...chartSlotProps} />
           </div>
           <div className="card-glass !p-3 md:col-span-2 md:row-start-3">
-            <TradeRecentTradesSection
-              pairRouteReady={pairRouteReady}
-              tradesQuery={tradesQuery}
-              activePair={activePair}
-              formatTimeFn={formatTime}
-              skeletonHeight="6rem"
-            />
+            <TradeWorkspaceDisclosure
+              title="Recent trades"
+              storageKey={TRADE_TAPE_EXPANDED_KEY}
+              defaultExpanded={false}
+              testId="trade-sub-lg-tape-disclosure"
+            >
+              <TradeRecentTradesSection
+                pairRouteReady={pairRouteReady}
+                tradesQuery={tradesQuery}
+                activePair={activePair}
+                formatTimeFn={formatTime}
+                skeletonHeight="6rem"
+                hideHeading
+              />
+            </TradeWorkspaceDisclosure>
           </div>
         </div>
       )}
@@ -440,17 +476,54 @@ export default function TradePage() {
                   </div>
                 </Panel>
                 <TradeResizeHandleHorizontal />
-                <Panel defaultSize={42} minSize={22} className="min-h-0">
-                  <div className="h-full flex flex-col min-h-0 card-glass !p-3">
-                    <div className="flex-1 min-h-0 overflow-y-auto">
-                      <TradeRecentTradesSection
-                        pairRouteReady={pairRouteReady}
-                        tradesQuery={tradesQuery}
-                        activePair={activePair}
-                        formatTimeFn={formatTime}
-                        skeletonHeight="5rem"
-                      />
+                <Panel
+                  ref={tapePanelRef}
+                  defaultSize={
+                    desktopTapeExpanded ? TRADE_DESKTOP_TAPE_EXPANDED_SIZE : TRADE_DESKTOP_TAPE_COLLAPSED_SIZE
+                  }
+                  minSize={TRADE_DESKTOP_TAPE_COLLAPSED_SIZE}
+                  collapsedSize={TRADE_DESKTOP_TAPE_COLLAPSED_SIZE}
+                  collapsible
+                  className="min-h-0"
+                  onExpand={() => {
+                    setDesktopTapeExpanded(true)
+                    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, true)
+                  }}
+                  onCollapse={() => {
+                    setDesktopTapeExpanded(false)
+                    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
+                  }}
+                >
+                  <div className="h-full flex flex-col min-h-0 card-glass !p-3" data-testid="trade-desktop-tape-panel">
+                    <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+                      <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
+                        Recent trades
+                      </h2>
+                      <button
+                        type="button"
+                        className="btn-muted !text-[10px] !px-2 !py-1"
+                        data-testid="trade-desktop-tape-toggle"
+                        onClick={() => (desktopTapeExpanded ? collapseDesktopTape() : expandDesktopTape())}
+                      >
+                        {desktopTapeExpanded ? 'Collapse' : 'Expand'}
+                      </button>
                     </div>
+                    {desktopTapeExpanded ? (
+                      <div className="flex-1 min-h-0 overflow-y-auto">
+                        <TradeRecentTradesSection
+                          pairRouteReady={pairRouteReady}
+                          tradesQuery={tradesQuery}
+                          activePair={activePair}
+                          formatTimeFn={formatTime}
+                          skeletonHeight="5rem"
+                          hideHeading
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
+                        Collapsed by default — expand to view the live tape, or drag the resize handle above.
+                      </p>
+                    )}
                   </div>
                 </Panel>
               </PanelGroup>
@@ -464,9 +537,15 @@ export default function TradePage() {
       )}
 
       {address && showTradeWorkspace && (
-        <div className="mt-3">
+        <TradeWorkspaceDisclosure
+          title="Wallet swap history"
+          storageKey={TRADE_WALLET_HISTORY_EXPANDED_KEY}
+          defaultExpanded={false}
+          testId="trade-wallet-history-disclosure"
+          className="mt-3"
+        >
           <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} sections={['swaps']} />
-        </div>
+        </TradeWorkspaceDisclosure>
       )}
     </div>
   )

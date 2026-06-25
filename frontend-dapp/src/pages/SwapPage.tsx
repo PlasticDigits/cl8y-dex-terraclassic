@@ -76,6 +76,7 @@ import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
+import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import { SwapAdvancedSettings } from '@/components/swap/SwapAdvancedSettings'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
@@ -1059,6 +1060,8 @@ export default function SwapPage() {
               Settings
             </button>
           </div>
+
+          <TradeOnboardingStrip />
 
           {indexerOutage && (
             <MarketDataServiceOutageBanner

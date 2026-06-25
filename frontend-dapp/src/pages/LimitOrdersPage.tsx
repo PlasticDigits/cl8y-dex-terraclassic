@@ -47,6 +47,7 @@ import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/
 import { LimitOrderLadderPanel } from '@/components/trade/LimitOrderLadderPanel'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
+import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
 import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePriceMutation'
@@ -487,6 +488,8 @@ export default function LimitOrdersPage() {
               Place or cancel on-chain limits on a pair. Bids escrow token1; asks escrow token0 (pair ordering).
             </p>
           </div>
+
+          <TradeOnboardingStrip />
 
           <LcdQueryGate
             query={pairsQuery}
