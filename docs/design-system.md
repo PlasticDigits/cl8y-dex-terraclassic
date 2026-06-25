@@ -32,6 +32,33 @@ Legacy **neo-brutalist** class names (`*-neo`) were removed in [GitLab #415](htt
 
 Theme files override the above per `data-theme='dark'` | `'light'`.
 
+## Tailwind color aliases
+
+[`tailwind.config.js`](../frontend-dapp/tailwind.config.js) maps `theme.extend.colors` to the same CSS variables — **not** a parallel hex palette.
+
+| Tailwind key | CSS variable | Notes |
+|--------------|--------------|-------|
+| `bg-0`, `bg-1`, `bg-2` | `--bg-0`, `--bg-1`, `--bg-2` | Page / surface stack |
+| `ink`, `ink-dim`, `ink-subtle` | `--ink`, `--ink-dim`, `--ink-subtle` | Text hierarchy |
+| `line`, `line-strong` | `--line`, `--line-strong` | Borders |
+| `mint`, `mint-soft` | `--mint`, `--mint-soft` | Warm accent |
+| `accent` | `--accent` | Alias of `--mint` in `index.css` |
+| `surface-*` | `--surface-*` | Raised / inset surfaces |
+| `positive`, `negative`, `warning` | `--color-positive`, etc. | Semantic status only |
+
+### Deprecated (removed #416)
+
+| Entry | Status |
+|-------|--------|
+| `primary` 50–900 blue scale | **Removed** — clashed with glass theme; use `mint` / `accent` or component primitives |
+| `dex.bg` / `dex.card` / `dex.border` / `dex.accent` slate-blue scale | **Removed** — use `bg-*`, `line`, `mint` token aliases |
+
+Prefer `@layer components` primitives (`shell-panel`, `btn-primary`, …) over raw Tailwind color utilities for product chrome.
+
+### Trade bootstrap (critical path)
+
+[`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) defines a **minimal** `:root` / `data-theme` token subset (mirrors `theme-dark.css` / `theme-light.css` for `--bg-0`, `--ink`, `--line`) so `/trade` first paint matches the hydrated app before the Vite bundle loads. See [frontend.md § Trade page — initial load](./frontend.md#trade-page-initial-load).
+
 ## Typography
 
 | Use | Font | Notes |
@@ -101,6 +128,9 @@ Labels use `.label-glass`: uppercase, `text-xs`, semibold, wide tracking.
 ```bash
 # No legacy -neo classes
 rg '-neo' frontend-dapp/src && exit 1 || echo OK
+
+# Tailwind + trade-bootstrap token alignment (#416)
+python3 scripts/check_design_tokens.py
 
 # Frontend lint + unit tests
 make lint-frontend

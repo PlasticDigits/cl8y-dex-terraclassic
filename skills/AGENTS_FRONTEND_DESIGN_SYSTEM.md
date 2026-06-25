@@ -16,7 +16,9 @@ Use when adding or restyling dApp UI so new work matches existing glass primitiv
 3. **Panels:** `shell-panel` / `shell-panel-strong` for page sections; `card-glass` for nested blocks. Use `Card` when appropriate.
 4. **Tabs/segments:** `tab-glass`, `tab-glass-active`, `tab-glass-inactive` — not raw Tailwind border utilities.
 5. **Tokens:** Style with `var(--ink)`, `var(--line)`, etc. Legacy names like `--mint` remain; do not introduce a parallel blue Tailwind primary for product chrome.
-6. **`.glass` is deprecated** — do not add usages; prefer `shell-panel` or `card-glass`.
+6. **Tailwind colors:** [`tailwind.config.js`](../frontend-dapp/tailwind.config.js) aliases `bg-*`, `ink`, `line`, `mint`, `accent` to CSS variables ([#416](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/416)). The old `primary` / `dex` blue palettes are removed.
+7. **Trade bootstrap:** [`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) must stay tiny and use the same token names as theme files — no hard-coded blues on the `/trade` critical path.
+8. **`.glass` is deprecated** — do not add usages; prefer `shell-panel` or `card-glass`.
 
 ## Quick matrix
 
@@ -34,5 +36,6 @@ Use when adding or restyling dApp UI so new work matches existing glass primitiv
 
 ```bash
 rg '-neo' frontend-dapp/src
+python3 scripts/check_design_tokens.py
 make lint-frontend
 ```
