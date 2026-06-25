@@ -34,7 +34,7 @@ import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas
 import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
-import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { DOCS_GITLAB_BASE, FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
   assetInfoLabel,
   tokenAssetInfo,
@@ -89,6 +89,14 @@ import {
   resolveSwapExpectedSlippagePercent,
   slippageSeverityClass,
 } from '@/utils/swapRouteSlippage'
+import {
+  formatTransactionDeadline,
+  ROUTE_EXECUTION_SLIPPAGE_LABEL,
+  ROUTE_EXECUTION_SLIPPAGE_TOOLTIP,
+  SLIPPAGE_PROTECTION_LABEL,
+  SLIPPAGE_PROTECTION_ON_CHAIN_FOOTNOTE,
+  TRANSACTION_DEADLINE_LABEL,
+} from '@/utils/slippageProtectionCopy'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   return_amount: string
@@ -116,6 +124,8 @@ export default function SwapPage() {
   const queryClient = useQueryClient()
 
   const swapCustomSlippagePctInputId = useId()
+  const swapCustomDeadlineInputId = useId()
+  const routeSlippageTooltipId = useId()
   const swapHybridBookLegAmountInputId = useId()
   const swapHybridMaxMakersInputId = useId()
   const swapYouPayAmountInputId = useId()
@@ -125,9 +135,9 @@ export default function SwapPage() {
   const [toToken, setToToken] = useState<string>('')
   const [showSettings, setShowSettings] = useState(false)
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(readSwapSettingsAdvancedOpen)
-  const [customDeadlineMinutes, setCustomDeadlineMinutes] = useState('')
   const [showExpertModeModal, setShowExpertModeModal] = useState(false)
   const [customSlippage, setCustomSlippage] = useState('')
+  const [customDeadlineMinutes, setCustomDeadlineMinutes] = useState('')
   const [showImpactConfirm, setShowImpactConfirm] = useState(false)
   const [indexerRouteResult, setIndexerRouteResult] = useState<IndexerRouteSolveResponse | null>(null)
   const [indexerRouteError, setIndexerRouteError] = useState<string | null>(null)
@@ -933,7 +943,7 @@ export default function SwapPage() {
     buttonText = 'Slippage is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
-    buttonText = 'Hop spread exceeds slippage tolerance'
+    buttonText = 'Hop spread exceeds slippage protection'
     buttonDisabled = true
   } else if (simQuery.isLoading || simQuoteStale) {
     buttonText = 'Calculating...'
@@ -1003,15 +1013,23 @@ export default function SwapPage() {
 
   const handleCustomDeadlineMinutes = useCallback(
     (value: string) => {
-      const sanitized = value.replace(/[^\d]/g, '')
+      const sanitized = value.replace(/[^\d.]/g, '').replace(/(\.\d*)\./g, '$1')
       setCustomDeadlineMinutes(sanitized)
-      const parsed = parseInt(sanitized, 10)
-      if (!isNaN(parsed) && parsed >= 1 && parsed <= 60) {
-        setDeadlineSeconds(parsed * 60)
+      const parsed = parseFloat(sanitized)
+      if (!isNaN(parsed) && parsed >= 0.5 && parsed <= 60) {
+        setDeadlineSeconds(Math.round(parsed * 60))
+      } else if (!isNaN(parsed) && parsed > 60) {
+        setDeadlineSeconds(3600)
       }
     },
     [setDeadlineSeconds]
   )
+
+  const customDeadlineError =
+    customDeadlineMinutes !== '' &&
+    (isNaN(parseFloat(customDeadlineMinutes)) ||
+      parseFloat(customDeadlineMinutes) < 0.5 ||
+      parseFloat(customDeadlineMinutes) > 60)
 
   return (
     <div className="relative max-w-[620px] mx-auto w-full">
@@ -1076,7 +1094,10 @@ export default function SwapPage() {
           {showSettings && (
             <>
               <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
-                <p className="label-glass mb-3">Slippage Tolerance</p>
+                <p className="label-glass mb-1">{SLIPPAGE_PROTECTION_LABEL}</p>
+                <p className="mb-3 text-[10px] leading-relaxed" style={{ color: 'var(--ink-subtle)' }}>
+                  {SLIPPAGE_PROTECTION_ON_CHAIN_FOOTNOTE}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {[0.1, 0.5, 1.0].map((val) => (
                     <button
@@ -1091,7 +1112,7 @@ export default function SwapPage() {
                   ))}
                   <div className="relative flex-1">
                     <label htmlFor={swapCustomSlippagePctInputId} className="sr-only">
-                      Custom slippage tolerance (percent)
+                      Custom slippage protection (percent)
                     </label>
                     <input
                       id={swapCustomSlippagePctInputId}
@@ -1122,11 +1143,11 @@ export default function SwapPage() {
                     className="mt-2 text-xs font-semibold uppercase tracking-wide"
                     style={{ color: 'var(--color-warning, #f59e0b)' }}
                   >
-                    High slippage increases front-running risk
+                    High slippage protection increases front-running risk
                   </p>
                 )}
                 <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <p className="label-glass mb-3">Transaction Deadline</p>
+                  <p className="label-glass mb-3">{TRANSACTION_DEADLINE_LABEL}</p>
                   <div className="flex flex-wrap gap-2" role="group" aria-label="Transaction deadline preset">
                     {SWAP_DEADLINE_PRESETS_MIN.map((minutes) => (
                       <button
@@ -1143,13 +1164,13 @@ export default function SwapPage() {
                       </button>
                     ))}
                     <div className="relative flex-1 min-w-[5rem]">
-                      <label htmlFor="swap-custom-deadline-minutes" className="sr-only">
+                      <label htmlFor={swapCustomDeadlineInputId} className="sr-only">
                         Custom transaction deadline (minutes)
                       </label>
                       <input
-                        id="swap-custom-deadline-minutes"
+                        id={swapCustomDeadlineInputId}
                         type="text"
-                        inputMode="numeric"
+                        inputMode="decimal"
                         value={customDeadlineMinutes}
                         onChange={(e) => handleCustomDeadlineMinutes(e.target.value)}
                         placeholder="Custom"
@@ -1160,12 +1181,20 @@ export default function SwapPage() {
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
                         style={{ color: 'var(--ink-subtle)' }}
                       >
-                        m
+                        min
                       </span>
                     </div>
                   </div>
+                  {customDeadlineError && (
+                    <p
+                      className="mt-2 text-xs font-semibold uppercase tracking-wide"
+                      style={{ color: 'var(--color-negative)' }}
+                    >
+                      Must be between 0.5 and 60 minutes
+                    </p>
+                  )}
                   <p className="mt-2 text-[10px] leading-relaxed" style={{ color: 'var(--ink-subtle)' }}>
-                    Swap must confirm on chain within this window (30s–60m).
+                    Swap transactions expire if not included on-chain within this window (default 5 min).
                   </p>
                 </div>
                 <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -1491,7 +1520,22 @@ export default function SwapPage() {
                     style={{ color: 'var(--ink-dim)' }}
                     data-testid="swap-expected-slippage"
                   >
-                    <span className="uppercase text-xs tracking-wide font-medium">Expected slippage</span>
+                    <span className="inline-flex items-center gap-1 uppercase text-xs tracking-wide font-medium">
+                      {ROUTE_EXECUTION_SLIPPAGE_LABEL}
+                      <span
+                        className="inline-flex h-4 w-4 cursor-help select-none items-center justify-center rounded-full border border-white/25 text-[9px] font-bold leading-none normal-case"
+                        tabIndex={0}
+                        role="img"
+                        aria-label="Expected slippage help"
+                        aria-describedby={routeSlippageTooltipId}
+                        title={ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
+                      >
+                        i
+                      </span>
+                      <span id={routeSlippageTooltipId} className="sr-only">
+                        {ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
+                      </span>
+                    </span>
                     <span className={slippageSeverityClass(parseSlippagePercent(priceImpact) ?? 0)}>
                       {priceImpact}%
                     </span>
@@ -1540,7 +1584,7 @@ export default function SwapPage() {
                 className="min-w-0 flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between"
                 style={{ color: 'var(--ink-dim)' }}
               >
-                <span className="uppercase text-xs tracking-wide font-medium">Slippage Tolerance</span>
+                <span className="uppercase text-xs tracking-wide font-medium">{SLIPPAGE_PROTECTION_LABEL}</span>
                 <span className="inline-flex items-center gap-1">
                   <span>{slippageTolerance}%</span>
                   <span aria-hidden="true" className="text-[10px]" style={{ color: 'var(--cyan)' }}>
@@ -1548,6 +1592,14 @@ export default function SwapPage() {
                   </span>
                 </span>
               </button>
+              <div
+                className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                style={{ color: 'var(--ink-dim)' }}
+                data-testid="swap-deadline-summary"
+              >
+                <span className="uppercase text-xs tracking-wide font-medium">{TRANSACTION_DEADLINE_LABEL}</span>
+                <span>{formatTransactionDeadline(deadlineSeconds)}</span>
+              </div>
             </div>
           )}
 
@@ -1594,9 +1646,9 @@ export default function SwapPage() {
             <div className="alert-error mb-3 text-xs" role="alert">
               <p className="font-semibold mb-1">Insufficient liquidity for this trade size</p>
               <p>
-                At least one hop in the route has price impact above your slippage tolerance ({slippageTolerance}% max
-                spread). Try a smaller amount, another route, or increase slippage in Settings (higher slippage
-                increases execution risk).
+                At least one hop in the route has price impact above your slippage protection ({slippageTolerance}% max
+                spread). Try a smaller amount, another route, or increase slippage protection in Settings (higher
+                protection increases execution risk).
               </p>
             </div>
           )}
@@ -1606,17 +1658,17 @@ export default function SwapPage() {
             <div className="alert-error mb-3 text-xs" role="alert">
               <p className="font-semibold mb-1">Limit book leg</p>
               <p>
-                The on-screen estimate may still diverge from execution if the indexer or LCD snapshot differs from the
-                chain at submit time (hybrid / L8). Read{' '}
+                The on-screen estimate may differ from what you receive if market conditions change between quote and
+                submit.{' '}
                 <a
-                  href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/limit-orders.md"
+                  href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline font-mono text-[10px]"
+                  className="underline"
                 >
-                  docs/limit-orders.md
-                </a>{' '}
-                for integrator semantics.
+                  Learn more about limit book routing
+                </a>
+                .
               </p>
             </div>
           )}

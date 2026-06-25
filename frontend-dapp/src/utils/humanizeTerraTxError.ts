@@ -38,8 +38,8 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   }
   if (/Max spread assertion/i.test(inner)) {
     return (
-      'Trade rejected: price impact exceeds your slippage tolerance on at least one pool hop. ' +
-      'Try a smaller amount, pick a deeper pool route, or raise slippage tolerance in Settings (higher slippage increases execution risk).'
+      'Trade rejected: price impact exceeds your slippage protection on at least one pool hop. ' +
+      'Try a smaller amount, pick a deeper pool route, or raise slippage protection in Settings (higher protection increases execution risk).'
     )
   }
   if (/material pool leg|InsufficientPoolLeg/i.test(inner)) {

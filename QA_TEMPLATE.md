@@ -508,6 +508,7 @@
 | 10.1.5 | Theme toggle | Click toggle in header (desktop) or More sheet (mobile) | Theme switches immediately (`data-theme` on `<html>`) | | |
 | 10.1.6 | Dark mode readability | Browse all pages in dark mode | All text readable, no invisible elements | | |
 | 10.1.7 | Light mode readability | Browse all pages in light mode | All text readable, no invisible elements | | |
+| 10.1.8 | Trade bootstrap continuity | Hard refresh `/trade` (disable cache) | `#trade-bootstrap-shell` warm skeleton matches hydrated `shell-panel` — no blue flash ([#416](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/416)) | | |
 
 ### 10.2 Visual Design
 

@@ -66,7 +66,7 @@ export function getDirectHybridBookSplit(input: {
 
 export type IndexerHybridExecution = {
   show: true
-  title: 'Indexer hybrid'
+  title: 'Limit book + pool'
   line: string
   degraded: boolean
 }
@@ -77,22 +77,22 @@ export function getIndexerHybridExecutionSummary(
   if (kind === 'indexer_hybrid_lcd' || kind === 'indexer_hybrid_db') {
     return {
       show: true,
-      title: 'Indexer hybrid',
+      title: 'Limit book + pool',
       line:
         kind === 'indexer_hybrid_db'
-          ? 'Route uses pool + limit book legs priced from the indexer’s Postgres mirror; final amount validated with router `simulate_swap_operations` when configured.'
-          : 'Route uses pool + limit book legs; quote is your wallet’s LCD `simulate_swap_operations` (matches submit shape on success).',
+          ? 'Your trade may fill against resting limit orders and the pool. The estimate uses indexed market data and is checked before you submit.'
+          : 'Your trade may fill against resting limit orders and the pool. The estimate is checked against your wallet before you submit.',
       degraded: false,
     }
   }
   if (kind === 'indexer_hybrid_lcd_degraded' || kind === 'indexer_hybrid_db_degraded') {
     return {
       show: true,
-      title: 'Indexer hybrid',
+      title: 'Limit book + pool',
       line:
         kind === 'indexer_hybrid_db_degraded'
-          ? 'Mirror/grid was degraded or router sim disagreed with the indexed quote — treat output as conservative.'
-          : 'At least one hop was pool-only on the indexer; remaining legs may still use the book per hop.',
+          ? 'Market data was partially unavailable — treat the estimated output as conservative.'
+          : 'One or more hops used pool-only pricing; other legs may still use the limit book.',
       degraded: true,
     }
   }

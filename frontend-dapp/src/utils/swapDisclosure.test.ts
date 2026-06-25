@@ -88,12 +88,16 @@ describe('getIndexerHybridExecutionSummary', () => {
     expect(getIndexerHybridExecutionSummary(undefined).show).toBe(false)
   })
 
-  it('shows for hybrid LCD kinds', () => {
+  it('shows for hybrid LCD kinds with retail copy (#414)', () => {
     const db = getIndexerHybridExecutionSummary('indexer_hybrid_db')
     const lcd = getIndexerHybridExecutionSummary('indexer_hybrid_lcd')
     expect(db.show).toBe(true)
     expect(lcd.show).toBe(true)
-    if (db.show) expect(db.degraded).toBe(false)
+    if (db.show) {
+      expect(db.degraded).toBe(false)
+      expect(db.title).toBe('Limit book + pool')
+      expect(db.line).not.toMatch(/Postgres|simulate_swap|LCD/i)
+    }
     if (lcd.show) expect(lcd.degraded).toBe(false)
     const b = getIndexerHybridExecutionSummary('indexer_hybrid_lcd_degraded')
     expect(b.show).toBe(true)

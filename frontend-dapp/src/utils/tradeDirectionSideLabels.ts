@@ -1,10 +1,7 @@
-/** Labels for `/trade` order ticket bid/ask direction buttons (GitLab #300). */
-export function tradeDirectionSideLabels(
-  baseSymbol: string,
-  quoteSymbol: string
-): { bidLabel: string; askLabel: string } {
+/** CEX-standard Buy/Sell labels for `/trade` bid/ask buttons (GitLab #300, #412). */
+export function tradeDirectionSideLabels(baseSymbol: string): { bidLabel: string; askLabel: string } {
   return {
     bidLabel: `Buy ${baseSymbol}`,
-    askLabel: `Buy ${quoteSymbol}`,
+    askLabel: `Sell ${baseSymbol}`,
   }
 }

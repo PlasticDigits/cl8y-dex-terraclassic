@@ -273,8 +273,8 @@ describe('SwapPage', () => {
       await user.click(screen.getByRole('button', { name: 'Settings' }))
 
       const retailPanel = within(document.getElementById('swap-slippage-settings') as HTMLElement)
-      expect(retailPanel.getByText('Slippage Tolerance')).toBeInTheDocument()
-      expect(retailPanel.getByText('Transaction Deadline')).toBeInTheDocument()
+      expect(retailPanel.getByText('Slippage protection')).toBeInTheDocument()
+      expect(retailPanel.getByText('Transaction deadline')).toBeInTheDocument()
       expect(retailPanel.getByTestId('swap-expert-mode-toggle')).toBeInTheDocument()
       const advancedDetails = screen.getByTestId('swap-advanced-settings-details')
       expect(advancedDetails).not.toHaveAttribute('open')
@@ -349,12 +349,12 @@ describe('SwapPage', () => {
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/integrator semantics/i)
-    const docLink = within(alert).getByRole('link', { name: /docs\/limit-orders\.md/i })
-    expect(docLink.getAttribute('href')).toContain('docs/limit-orders.md')
+    expect(alert).toHaveTextContent(/market conditions change/i)
+    const docLink = within(alert).getByRole('link', { name: /Learn more about limit book routing/i })
+    expect(docLink.getAttribute('href')).toContain('limit-orders.md')
 
     const execution = await screen.findByTestId('swap-execution-summary')
-    expect(execution).toHaveTextContent(/Execution:\s*Indexer hybrid/i)
+    expect(execution).toHaveTextContent(/Execution:\s*Limit book \+ pool/i)
     expect(execution).toHaveTextContent(/Hybrid \(pool \+ limit book\)/i)
   })
 

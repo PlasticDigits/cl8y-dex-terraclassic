@@ -8,6 +8,7 @@ Use when fixing **blank white flash** on hard reload of `/trade`, **missing load
 |------------|---------|
 | [docs/frontend.md § Trade page — initial load / LCP](../docs/frontend.md#trade-page-initial-load) | Invariant table, manual Lighthouse checklist |
 | [`index.html`](../frontend-dapp/index.html) | Pre-React `#trade-bootstrap-shell` for `/trade` paths |
+| [`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) | Critical-path skeleton tokens — must match `theme-dark.css` / `theme-light.css` `--bg-0` ([#416](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/416)) |
 | [`TradePageWorkspaceSkeleton.tsx`](../frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx) | Shared skeleton (`data-testid="trade-workspace-skeleton"`) |
 | [`TradePageRouteFallback.tsx`](../frontend-dapp/src/components/trade/TradePageRouteFallback.tsx) | `/trade` Suspense fallback wired in [`App.tsx`](../frontend-dapp/src/App.tsx) |
 | [`RouteContentReadyContext.tsx`](../frontend-dapp/src/contexts/RouteContentReadyContext.tsx) | Pathname-scoped ready gate — defers legal footer in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) ([GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138) nav race) |

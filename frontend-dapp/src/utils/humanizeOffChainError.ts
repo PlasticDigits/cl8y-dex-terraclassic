@@ -85,6 +85,22 @@ export function tryHumanizeFetchLikeMessage(message: string): string | null {
     return 'Market data for this request was not found. The pair or route may not be indexed yet.'
   }
 
+  if (/hybrid quote unavailable|quote unavailable/i.test(m)) {
+    return 'Could not estimate output for this trade. Try a smaller amount or disable hybrid routing, then retry.'
+  }
+
+  if (/indexer (unavailable|down)|market data.*unavailable/i.test(m)) {
+    return 'Market data is temporarily unavailable. Wait a moment and retry.'
+  }
+
+  if (/unexpected token|json parse|syntaxerror.*json/i.test(m)) {
+    return 'Market data returned an invalid response. Wait a moment and retry.'
+  }
+
+  if (/lcd fail|query failed|status code 5\d\d/i.test(m)) {
+    return 'Could not reach the chain to estimate this trade. Check your connection and retry.'
+  }
+
   return null
 }
 

@@ -119,7 +119,9 @@ impl LcdClient {
                             body_snippet = %body_snippet,
                             "LCD upstream error detail"
                         );
-                        let msg = format!("endpoint[{idx}] {log_path} returned {status}");
+                        let msg = format!(
+                            "endpoint[{idx}] {log_path} returned {status}: {body_snippet}"
+                        );
                         errors.push(msg);
                         // Contract/query rejections (4xx/500) are not endpoint outages — keep trying
                         // this LCD for subsequent queries (e.g. hybrid sim fails, pool sim succeeds).

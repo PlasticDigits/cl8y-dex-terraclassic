@@ -103,8 +103,9 @@ describe('quoteDirectHybridSwap (#418)', () => {
 })
 
 describe('quoteDisclosureForIndexerKind', () => {
-  it('describes hybrid LCD path without pool-only mismatch copy', () => {
-    expect(quoteDisclosureForIndexerKind('indexer_hybrid_lcd')).toContain('matches submit shape')
-    expect(quoteDisclosureForIndexerKind(undefined)).toContain('hybrid_simulation')
+  it('describes hybrid paths with retail copy', () => {
+    expect(quoteDisclosureForIndexerKind('indexer_hybrid_lcd')).toMatch(/limit book \+ pool/i)
+    expect(quoteDisclosureForIndexerKind(undefined)).toMatch(/limit book \+ pool/i)
+    expect(quoteDisclosureForIndexerKind(undefined)).not.toMatch(/hybrid_simulation|Pattern C/i)
   })
 })

@@ -68,6 +68,7 @@ On Cloud Agent VMs, use the lightweight bootstrap ([#335](https://gitlab.com/Pla
 make setup-indexer-postgres
 make test-indexer-integration    # serialized full integration suite
 make verify-issue-324            # #324 lib + route_solve_get_cache HTTP tests
+make verify-issue-293            # #293 live OE-1 slippage (needs LocalTerra); Postgres regression: `route_solve_slippage_percent_enrichment_293` in `api_route_solve.rs`
 ```
 
 Full stack (frontend `.env.local`, chain LCD, indexer tmux): `make setup-cloud-localterra` — see [`AGENTS.md`](../AGENTS.md) § LocalTerra.
