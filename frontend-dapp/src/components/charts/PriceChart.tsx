@@ -195,7 +195,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
               type="button"
               data-testid="price-chart-fullscreen"
               onClick={toggleFullscreen}
-              className="tab-neo !text-[10px] !px-2 !py-1 tab-neo-inactive"
+              className="tab-glass !text-[10px] !px-2 !py-1 tab-glass-inactive"
               aria-pressed={fsActive}
               aria-label={fsActive ? 'Exit chart fullscreen' : 'Expand chart to fullscreen'}
             >
@@ -212,7 +212,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
                     sounds.playButtonPress()
                     setInterval_(iv)
                   }}
-                  className={`tab-neo !text-[10px] !px-2 !py-1 ${interval === iv ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+                  className={`tab-glass !text-[10px] !px-2 !py-1 ${interval === iv ? 'tab-glass-active' : 'tab-glass-inactive'}`}
                 >
                   {iv}
                 </button>

@@ -61,8 +61,8 @@ describe('LimitOrderBidAskSideSelector', () => {
       />
     )
 
-    expect(screen.getByTestId('test-side-ask')).toHaveClass('tab-neo-active')
-    expect(screen.getByTestId('test-side-bid')).toHaveClass('tab-neo-inactive')
+    expect(screen.getByTestId('test-side-ask')).toHaveClass('tab-glass-active')
+    expect(screen.getByTestId('test-side-bid')).toHaveClass('tab-glass-inactive')
   })
 
   it('moves selection and focus with arrow keys (roving tabindex)', async () => {

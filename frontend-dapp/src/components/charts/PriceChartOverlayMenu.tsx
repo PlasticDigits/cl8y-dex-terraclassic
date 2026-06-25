@@ -40,7 +40,7 @@ export function PriceChartOverlayMenu({
       <button
         type="button"
         data-testid="price-chart-indicators-trigger"
-        className={`tab-neo !text-[10px] !px-2 !py-1 ${open ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+        className={`tab-glass !text-[10px] !px-2 !py-1 ${open ? 'tab-glass-active' : 'tab-glass-inactive'}`}
         aria-expanded={open}
         aria-controls={menuId}
         aria-haspopup="true"

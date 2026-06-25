@@ -51,7 +51,7 @@ export function InvalidPairLinkNotice({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="btn-neo text-xs"
+          className="btn-muted text-xs"
           data-testid="trade-invalid-pair-link-cta"
           onClick={focusPairSelect}
         >

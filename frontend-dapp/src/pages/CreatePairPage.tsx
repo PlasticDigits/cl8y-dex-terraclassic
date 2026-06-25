@@ -100,7 +100,7 @@ export default function CreatePairPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="label-neo" htmlFor={tokenAInputId}>
+              <label className="label-glass" htmlFor={tokenAInputId}>
                 Token A Contract Address
               </label>
               <input
@@ -109,7 +109,7 @@ export default function CreatePairPage() {
                 value={tokenA}
                 onChange={(e) => setTokenA(e.target.value)}
                 placeholder="terra1..."
-                className="input-neo font-mono"
+                className="input-glass font-mono"
               />
               {tokenAError && (
                 <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">{tokenAError}</p>
@@ -125,7 +125,7 @@ export default function CreatePairPage() {
             </div>
 
             <div>
-              <label className="label-neo" htmlFor={tokenBInputId}>
+              <label className="label-glass" htmlFor={tokenBInputId}>
                 Token B Contract Address
               </label>
               <input
@@ -134,7 +134,7 @@ export default function CreatePairPage() {
                 value={tokenB}
                 onChange={(e) => setTokenB(e.target.value)}
                 placeholder="terra1..."
-                className="input-neo font-mono"
+                className="input-glass font-mono"
               />
               {tokenBError && (
                 <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">{tokenBError}</p>

@@ -220,7 +220,7 @@ export default function TiersPage() {
         <div className="shell-panel-strong mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="label-neo">Your Status</p>
+              <p className="label-glass">Your Status</p>
               {registration?.registered ? (
                 <div>
                   <span className="font-medium" style={{ color: 'var(--ink)' }}>
@@ -312,10 +312,10 @@ export default function TiersPage() {
             fee &mdash; your tier discount applies as a percentage off whichever base fee the pair uses.
           </p>
           <div className="grid grid-cols-4 gap-2 text-xs mt-3">
-            <div className="label-neo !mb-0">Tier</div>
-            <div className="label-neo !mb-0">CL8Y Hold</div>
-            <div className="label-neo !mb-0">Discount</div>
-            <div className="label-neo !mb-0">Eff. Fee*</div>
+            <div className="label-glass !mb-0">Tier</div>
+            <div className="label-glass !mb-0">CL8Y Hold</div>
+            <div className="label-glass !mb-0">Discount</div>
+            <div className="label-glass !mb-0">Eff. Fee*</div>
             <div style={{ color: 'var(--ink-subtle)' }}>No tier</div>
             <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>
             <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>

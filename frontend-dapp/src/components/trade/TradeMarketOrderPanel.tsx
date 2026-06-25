@@ -507,7 +507,7 @@ export function TradeMarketOrderPanel({
           <button
             key={v}
             type="button"
-            className={`tab-neo !text-[10px] !px-2 !py-0.5 ${slippageTolerance === v ? 'tab-neo-active' : 'tab-neo-inactive'}`}
+            className={`tab-glass !text-[10px] !px-2 !py-0.5 ${slippageTolerance === v ? 'tab-glass-active' : 'tab-glass-inactive'}`}
             onClick={() => {
               sounds.playButtonPress()
               setSlippageTolerance(v)
@@ -541,14 +541,14 @@ export function TradeMarketOrderPanel({
             remainder).
           </p>
           <div>
-            <label className="label-neo text-[10px]" htmlFor={bookLegInputId}>
+            <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
               Book leg override ({getTokenDisplaySymbol(fromToken)})
             </label>
             <input
               id={bookLegInputId}
               type="text"
               inputMode="decimal"
-              className="input-neo !text-xs w-full font-mono"
+              className="input-glass !text-xs w-full font-mono"
               value={bookInputHuman}
               onChange={(e) => {
                 const v = e.target.value
@@ -569,13 +569,13 @@ export function TradeMarketOrderPanel({
             )}
           </div>
           <div>
-            <label className="label-neo text-[10px]" htmlFor={maxMakersInputId}>
+            <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
               Max distinct makers
             </label>
             <input
               id={maxMakersInputId}
               type="number"
-              className="input-neo !text-xs w-full"
+              className="input-glass !text-xs w-full"
               min={1}
               max={256}
               value={hybridMaxMakers}
@@ -595,7 +595,7 @@ export function TradeMarketOrderPanel({
         <p className="text-[10px] alert-error">{(simQuery.error as Error).message}</p>
       )}
       {simQuery.data && rawInputAmount !== '0' && (
-        <div className="card-neo !p-2 space-y-1 text-[10px]" data-testid="trade-market-quote">
+        <div className="card-glass !p-2 space-y-1 text-[10px]" data-testid="trade-market-quote">
           <div className="flex justify-between gap-2">
             <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
             <span className="font-mono text-right">

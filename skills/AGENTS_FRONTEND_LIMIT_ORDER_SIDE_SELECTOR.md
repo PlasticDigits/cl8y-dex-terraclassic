@@ -17,7 +17,7 @@ Use when changing **limit order side** UI on **`/trade`** ([`TradeOrderTicket.ts
 1. **Do not revert to native `<input type="radio">`** for this control without re-validating **pointer responsiveness** and cross-browser controlled-radio behavior ([**#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)).
 2. **Escrow mapping** stays in parents: `side === 'bid'` → escrow **token1**; `side === 'ask'` → escrow **token0** — the selector only toggles `side`. Parents must still **clear manual amounts** or **re-apply MAX** when `side` changes ([**#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155) — see [`useLimitOrderForm.ts`](../frontend-dapp/src/hooks/useLimitOrderForm.ts)).
 3. **Accessibility**: preserve **radiogroup** labelling, **`aria-checked`**, roving **tabIndex**, and **arrow / Home / End** behavior when extending.
-4. **Styling**: keep **`tab-neo` / `tab-neo-active` / `tab-neo-inactive`** so **`:focus-visible`** stays consistent with [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md).
+4. **Styling**: keep **`tab-glass` / `tab-glass-active` / `tab-glass-inactive`** so **`:focus-visible`** stays consistent with [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md).
 5. **`/trade` vs `/limits` labels**: on **`/trade`**, pass **`tradeDirectionSideLabels(base, quote)`** into **`bidLabel` / `askLabel`** — both buttons use **Buy** with distinct token symbols ([#300](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/300)). On **`/limits`**, keep escrow-oriented **Bid (escrow …)** / **Ask (escrow …)** copy.
 
 ## Related

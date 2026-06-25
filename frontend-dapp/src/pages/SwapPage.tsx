@@ -1039,15 +1039,15 @@ export default function SwapPage() {
           {/* Slippage Settings */}
           {showSettings && (
             <>
-              <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
-                <p className="label-neo mb-3">Slippage Tolerance</p>
+              <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
+                <p className="label-glass mb-3">Slippage Tolerance</p>
                 <div className="flex flex-wrap gap-2">
                   {[0.1, 0.5, 1.0].map((val) => (
                     <button
                       key={val}
                       onClick={() => handleSlippagePreset(val)}
-                      className={`tab-neo !text-xs !px-3 !py-1.5 ${
-                        slippageTolerance === val && !customSlippage ? 'tab-neo-active' : 'tab-neo-inactive'
+                      className={`tab-glass !text-xs !px-3 !py-1.5 ${
+                        slippageTolerance === val && !customSlippage ? 'tab-glass-active' : 'tab-glass-inactive'
                       }`}
                     >
                       {val}%
@@ -1063,7 +1063,7 @@ export default function SwapPage() {
                       value={customSlippage}
                       onChange={(e) => handleCustomSlippage(e.target.value)}
                       placeholder="Custom"
-                      className="input-neo !text-xs !py-1.5"
+                      className="input-glass !text-xs !py-1.5"
                     />
                     <span
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
@@ -1112,8 +1112,8 @@ export default function SwapPage() {
                 </div>
               </div>
               {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
-                <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
-                  <p className="label-neo mb-2">Advanced — direct swap: limit book leg</p>
+                <div className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
+                  <p className="label-glass mb-2">Advanced — direct swap: limit book leg</p>
                   <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--ink-subtle)' }}>
                     {pairInfoMenuLabel(directPair, { variant: 'full' })}
                   </p>
@@ -1132,14 +1132,14 @@ export default function SwapPage() {
                   {useHybridBook && (
                     <div className="space-y-2">
                       <div>
-                        <label className="label-neo text-[10px]" htmlFor={swapHybridBookLegAmountInputId}>
+                        <label className="label-glass text-[10px]" htmlFor={swapHybridBookLegAmountInputId}>
                           Book leg amount ({getTokenDisplaySymbol(fromToken)})
                         </label>
                         <input
                           id={swapHybridBookLegAmountInputId}
                           type="text"
                           inputMode="decimal"
-                          className="input-neo !text-xs w-full"
+                          className="input-glass !text-xs w-full"
                           value={bookInputHuman}
                           onChange={(e) => {
                             const v = e.target.value
@@ -1160,13 +1160,13 @@ export default function SwapPage() {
                         )}
                       </div>
                       <div>
-                        <label className="label-neo text-[10px]" htmlFor={swapHybridMaxMakersInputId}>
+                        <label className="label-glass text-[10px]" htmlFor={swapHybridMaxMakersInputId}>
                           Max distinct makers
                         </label>
                         <input
                           id={swapHybridMaxMakersInputId}
                           type="number"
-                          className="input-neo !text-xs w-full"
+                          className="input-glass !text-xs w-full"
                           min={1}
                           max={256}
                           value={hybridMaxMakers}
@@ -1177,8 +1177,8 @@ export default function SwapPage() {
                   )}
                 </div>
               )}
-              <div className="mb-4 sm:mb-6 card-neo animate-fade-in-up">
-                <p className="label-neo mb-3">Indexer route check</p>
+              <div className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
+                <p className="label-glass mb-3">Indexer route check</p>
                 <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
                   Compares this token pair with the indexer&apos;s BFS graph (max 4 hops). Only CW20 addresses present
                   in the indexer asset table are supported; native-only assets without a CW20 row are not routable via{' '}
@@ -1220,9 +1220,9 @@ export default function SwapPage() {
 
           {/* You Pay / swap direction / You Receive — abutting cards, control on seam */}
           <div className="swap-io-stack relative mb-4">
-            <div className="card-neo swap-io-card-pay !p-4 sm:!p-5">
+            <div className="card-glass swap-io-card-pay !p-4 sm:!p-5">
               <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                <label htmlFor={swapYouPayAmountInputId} className="label-neo !mb-0 sm:pt-1">
+                <label htmlFor={swapYouPayAmountInputId} className="label-glass !mb-0 sm:pt-1">
                   You Pay
                 </label>
                 <TokenSelect
@@ -1305,9 +1305,9 @@ export default function SwapPage() {
               </button>
             </div>
 
-            <div className="card-neo swap-io-card-receive !p-4 sm:!p-5">
+            <div className="card-glass swap-io-card-receive !p-4 sm:!p-5">
               <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                <span className="label-neo !mb-0 sm:pt-1">You Receive</span>
+                <span className="label-glass !mb-0 sm:pt-1">You Receive</span>
                 <TokenSelect
                   value={toToken}
                   tokens={allTokens}
@@ -1345,7 +1345,7 @@ export default function SwapPage() {
             {simData && (indexerHybridExec.show || directHybridBookSplit) && (
               <div
                 data-testid="swap-execution-summary"
-                className="card-neo text-[11px] sm:text-xs leading-relaxed space-y-2"
+                className="card-glass text-[11px] sm:text-xs leading-relaxed space-y-2"
                 style={{ color: 'var(--ink-dim)' }}
               >
                 {indexerHybridExec.show && (
@@ -1405,7 +1405,7 @@ export default function SwapPage() {
 
           {/* Trade Details */}
           {simData && (
-            <div className="card-neo mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm sm:block sm:space-y-2">
+            <div className="card-glass mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm sm:block sm:space-y-2">
               {poolQuery.data && (
                 <div
                   className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
@@ -1557,7 +1557,7 @@ export default function SwapPage() {
           )}
 
           {simData?.routePreflight && (
-            <div className="card-neo mb-3 text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
+            <div className="card-glass mb-3 text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
               <span className="uppercase tracking-wide font-semibold" style={{ color: 'var(--ink-subtle)' }}>
                 Route spread check:{' '}
               </span>

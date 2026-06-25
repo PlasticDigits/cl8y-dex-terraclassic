@@ -234,13 +234,13 @@ export default function ChartsPage() {
 
       {/* Pair Selector */}
       <div className="shell-panel">
-        <label htmlFor="chart-pair-search" className="label-neo mb-1 block">
+        <label htmlFor="chart-pair-search" className="label-glass mb-1 block">
           Find pair
         </label>
         <input
           id="chart-pair-search"
           type="search"
-          className="input-neo w-full mb-3"
+          className="input-glass w-full mb-3"
           placeholder="Search by symbol, pair address, or token…"
           value={pairSearch}
           onChange={(e) => setPairSearch(e.target.value)}
@@ -248,7 +248,7 @@ export default function ChartsPage() {
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div>
-            <label htmlFor="chart-pair-sort" className="label-neo mb-1 block">
+            <label htmlFor="chart-pair-sort" className="label-glass mb-1 block">
               Sort
             </label>
             <MenuSelect
@@ -266,7 +266,7 @@ export default function ChartsPage() {
             />
           </div>
           <div>
-            <label htmlFor="chart-pair-order" className="label-neo mb-1 block">
+            <label htmlFor="chart-pair-order" className="label-glass mb-1 block">
               Order
             </label>
             <MenuSelect
@@ -282,7 +282,7 @@ export default function ChartsPage() {
             />
           </div>
         </div>
-        <label htmlFor="chart-pair-select" className="label-neo mb-1 block">
+        <label htmlFor="chart-pair-select" className="label-glass mb-1 block">
           Select Pair
         </label>
         <MenuSelect
@@ -492,8 +492,8 @@ export default function ChartsPage() {
                 sounds.playButtonPress()
                 setLeaderboardSort(tab.key)
               }}
-              className={`tab-neo !text-[10px] !px-3 !py-1.5 ${
-                leaderboardSort === tab.key ? 'tab-neo-active' : 'tab-neo-inactive'
+              className={`tab-glass !text-[10px] !px-3 !py-1.5 ${
+                leaderboardSort === tab.key ? 'tab-glass-active' : 'tab-glass-inactive'
               }`}
             >
               {tab.label}

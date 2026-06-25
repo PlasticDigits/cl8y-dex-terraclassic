@@ -22,7 +22,7 @@ async function enableHybridBookLeg(page: import('@playwright/test').Page): Promi
   await page.getByRole('button', { name: 'Settings' }).click()
   await requireHybridControlsVisible(page)
   await page.getByRole('checkbox', { name: /Route part of input through the limit book/i }).check()
-  await page.locator('.card-neo').filter({ hasText: 'Book leg amount' }).getByPlaceholder('0.0').fill('0.01')
+  await page.locator('.card-glass').filter({ hasText: 'Book leg amount' }).getByPlaceholder('0.0').fill('0.01')
 }
 
 test.describe('Hybrid swap UI (LocalTerra)', () => {

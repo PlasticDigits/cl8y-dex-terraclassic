@@ -236,7 +236,7 @@ function BookSideColumn({
   const cancellations = cancellationsQuery.data ?? []
 
   return (
-    <div className="flex flex-col min-h-0 h-full card-neo !p-3 overflow-hidden">
+    <div className="flex flex-col min-h-0 h-full card-glass !p-3 overflow-hidden">
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span
@@ -410,7 +410,7 @@ export function OrderBookPanel({
 
   if (!pairAddress.startsWith('terra1')) {
     return (
-      <div className="card-neo !p-4 text-sm" style={{ color: 'var(--ink-dim)' }}>
+      <div className="card-glass !p-4 text-sm" style={{ color: 'var(--ink-dim)' }}>
         Select a pair to view the order book.
       </div>
     )

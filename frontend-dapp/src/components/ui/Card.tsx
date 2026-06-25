@@ -5,6 +5,6 @@ export interface CardProps {
 }
 
 export function Card({ children, className = '', strong = false }: CardProps) {
-  const base = strong ? 'shell-panel-strong' : 'card-neo'
+  const base = strong ? 'shell-panel-strong' : 'card-glass'
   return <div className={`${base} ${className}`.trim()}>{children}</div>
 }

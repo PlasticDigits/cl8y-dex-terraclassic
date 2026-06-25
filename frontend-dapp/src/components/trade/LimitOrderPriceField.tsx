@@ -108,12 +108,12 @@ export function LimitOrderPriceInputWithContext({
   return (
     <div className="space-y-1.5">
       <div>
-        <label className="label-neo" htmlFor={inputId}>
+        <label className="label-glass" htmlFor={inputId}>
           Price (token1 per token0)
         </label>
         <input
           id={inputId}
-          className="input-neo w-full font-mono text-sm"
+          className="input-glass w-full font-mono text-sm"
           value={price}
           onChange={(e) => onPriceChange(e.target.value)}
           aria-invalid={invalid}

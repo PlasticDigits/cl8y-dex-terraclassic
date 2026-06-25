@@ -99,7 +99,7 @@ export async function fillConservativeLimitPrice(page: Page, side: 'bid' | 'ask'
 
 /** Place-limit card scoped to Limits page / trade ticket. */
 export function placeLimitCard(page: Page) {
-  return page.locator('.card-neo').filter({ has: page.getByRole('button', { name: /^Place limit$/i }) })
+  return page.locator('.card-glass').filter({ has: page.getByRole('button', { name: /^Place limit$/i }) })
 }
 
 export type PlacementGasPresetTier = 'Low' | 'Medium' | 'High' | 'Custom'
@@ -168,7 +168,7 @@ export async function submitPlaceLimitAndExpectTx(page: Page): Promise<void> {
 }
 
 export function cancelLimitCard(page: Page) {
-  return page.locator('.card-neo').filter({ hasText: 'Cancel limit' })
+  return page.locator('.card-glass').filter({ hasText: 'Cancel limit' })
 }
 
 /** Click Place ladder and wait for TX success (retries LocalTerra account sequence races). */

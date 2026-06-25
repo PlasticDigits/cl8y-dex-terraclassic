@@ -28,14 +28,14 @@ export function TraderSummaryStats({ trader, isOwnProfile, addressRowTestId }: T
                 data-testid={addressRowTestId ?? 'trader-profile-address-row'}
               />
               {isOwnProfile && (
-                <span className="badge-neo badge-neo-accent ml-2" style={{ color: 'var(--accent)' }}>
+                <span className="badge-glass badge-glass-accent ml-2" style={{ color: 'var(--accent)' }}>
                   You
                 </span>
               )}
             </p>
           </div>
           {trader.tier_name && (
-            <span className="badge-neo" style={{ color: 'var(--ink-subtle)' }}>
+            <span className="badge-glass" style={{ color: 'var(--ink-subtle)' }}>
               Tier: {trader.tier_name}
             </span>
           )}
@@ -67,25 +67,25 @@ export function TraderSummaryStats({ trader, isOwnProfile, addressRowTestId }: T
           .
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="card-neo !p-3">
+          <div className="card-glass !p-3">
             <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
               Total Realized P&L
             </p>
             <PnlValue value={trader.total_realized_pnl} />
           </div>
-          <div className="card-neo !p-3">
+          <div className="card-glass !p-3">
             <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
               Best Trade
             </p>
             <PnlValue value={trader.best_trade_pnl} />
           </div>
-          <div className="card-neo !p-3">
+          <div className="card-glass !p-3">
             <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
               Worst Trade
             </p>
             <PnlValue value={trader.worst_trade_pnl} />
           </div>
-          <div className="card-neo !p-3">
+          <div className="card-glass !p-3">
             <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
               Total Fees Paid
             </p>
