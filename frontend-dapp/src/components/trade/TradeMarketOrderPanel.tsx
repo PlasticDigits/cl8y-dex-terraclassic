@@ -9,11 +9,10 @@ import { useDexStore } from '@/stores/dex'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { simulateSwap, simulateHybridSwap, swap } from '@/services/terraclassic/pair'
+import { simulateSwap, swap } from '@/services/terraclassic/pair'
 import {
   computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
-  preflightSwapRouteSpread,
   type SwapRoutePreflightSpread,
 } from '@/services/terraclassic/swapRoutePreflight'
 import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
@@ -23,8 +22,7 @@ import {
   executeCw20AllowanceThen,
   estimateMarketPairSwapSequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { postRouteSolve } from '@/services/indexer/client'
-import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
+import { quoteDirectHybridSwap, quoteDisclosureForIndexerKind } from '@/utils/directHybridQuote'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
@@ -36,13 +34,13 @@ import {
   type IndexerRouteQuoteKind,
   type PairInfo,
 } from '@/types'
-import { getDecimals, toRawAmount, fromRawAmount, formatTokenAmount } from '@/utils/formatAmount'
+import { getDecimals, toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
 import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
-import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
+import { getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
@@ -57,23 +55,7 @@ interface MarketSimData {
   quoteDisclosure: string
   indexerQuoteKind?: IndexerRouteQuoteKind
   indexerOperations?: SwapOperation[]
-  receiveQuoteIsPoolOnlyWithConfiguredBookLeg?: boolean
   routePreflight?: SwapRoutePreflightSpread
-}
-
-function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | undefined): string {
-  switch (kind) {
-    case 'indexer_hybrid_lcd_degraded':
-      return 'Indexer hybrid route (LCD) — one or more hops fell back to pool-only on the indexer.'
-    case 'indexer_hybrid_lcd':
-      return 'Indexer-optimized hybrid splits · quoted via your wallet LCD simulation (matches submit shape).'
-    case 'indexer_pool_lcd':
-      return 'Indexer route (pool-only legs) · quoted via your wallet LCD simulation.'
-    case 'indexer_route_only':
-      return 'Indexer-solved route · no aggregate router estimate (simulation unavailable).'
-    default:
-      return 'Quoted via your wallet (chain simulation).'
-  }
 }
 
 function computeHybridParams(
@@ -256,83 +238,32 @@ export function TradeMarketOrderPanel({
       const askInfo = tokenAssetInfo(toToken)
 
       if (useHybridBook && debouncedHybrid && debouncedWillSubmitHybrid) {
-        try {
-          const idx = await postRouteSolve(
-            fromToken,
-            toToken,
-            simRaw,
-            [
-              {
-                pool_input: debouncedHybrid.pool_input,
-                book_input: debouncedHybrid.book_input,
-                max_maker_fills: debouncedHybrid.max_maker_fills,
-                book_start_hint: debouncedHybrid.book_start_hint,
-              },
-            ],
-            quoteTrader
-          )
-          if (idx.estimated_amount_out?.trim()) {
-            const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-            const routePreflight =
-              ops.length > 0 ? await preflightSwapRouteSpread(ops, simRaw, maxSpreadStr, quoteTrader) : undefined
-            return {
-              return_amount: idx.estimated_amount_out,
-              spread_amount: '0',
-              commission_amount: '0',
-              quoteDisclosure: quoteDisclosureForIndexerKind(idx.quote_kind),
-              indexerQuoteKind: idx.quote_kind,
-              indexerOperations: ops.length > 0 ? ops : undefined,
-              receiveQuoteIsPoolOnlyWithConfiguredBookLeg: false,
-              routePreflight,
-            }
-          }
-        } catch {
-          /* fall through */
-        }
-        try {
-          const sim = await simulateHybridSwap(
-            selectedPair.contract_addr,
-            offerInfo,
-            simRaw,
-            debouncedHybrid,
-            quoteTrader
-          )
-          const ops: SwapOperation[] = [
-            {
-              terra_swap: {
-                offer_asset_info: offerInfo,
-                ask_asset_info: askInfo,
-                hybrid: debouncedHybrid,
-              },
-            },
-          ]
-          const routePreflight = await preflightSwapRouteSpread(ops, simRaw, maxSpreadStr, quoteTrader)
-          return {
-            return_amount: sim.return_amount,
-            spread_amount: sim.spread_amount,
-            commission_amount: sim.commission_amount,
-            quoteDisclosure: 'Direct pair · hybrid_simulation (Pattern C).',
-            routePreflight,
-            receiveQuoteIsPoolOnlyWithConfiguredBookLeg: false,
-          }
-        } catch {
-          /* pool-only fallback */
+        const quoted = await quoteDirectHybridSwap({
+          pairAddress: selectedPair.contract_addr,
+          fromToken,
+          toToken,
+          offerAssetInfo: offerInfo,
+          askAssetInfo: askInfo,
+          simRaw,
+          hybrid: debouncedHybrid,
+          maxSpreadStr,
+          quoteTrader,
+        })
+        return {
+          return_amount: quoted.return_amount,
+          spread_amount: quoted.spread_amount,
+          commission_amount: quoted.commission_amount,
+          quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
+          indexerQuoteKind: quoted.indexerQuoteKind,
+          indexerOperations: quoted.indexerOperations,
+          routePreflight: quoted.routePreflight,
         }
       }
 
       const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, simRaw, quoteTrader)
-      const hybridSplit = getDirectHybridBookSplit({
-        isDirect: true,
-        useHybridBook,
-        fromToken,
-        bookInputHuman: debouncedBookInputHuman.trim() ? debouncedBookInputHuman : fromRawAmount(simRaw, offerDecimals),
-        rawInputAmount: simRaw,
-        hybridMaxMakers: debouncedHybridMaxMakers,
-      })
       return {
         ...sim,
-        quoteDisclosure: 'Direct pair · hybrid_simulation (pool-only leg; book not in quote).',
-        receiveQuoteIsPoolOnlyWithConfiguredBookLeg: !!(hybridSplit?.willSubmitHybrid && !hybridSplit?.bookExceedsPay),
+        quoteDisclosure: 'Direct pair · pool-only hybrid_simulation.',
       }
     },
     enabled:
@@ -609,14 +540,6 @@ export function TradeMarketOrderPanel({
             </span>
           </div>
           <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
-          {simQuery.data.receiveQuoteIsPoolOnlyWithConfiguredBookLeg && (
-            <p
-              className="text-[10px] font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--color-warning, #f59e0b)' }}
-            >
-              Quote line is pool-only while a book leg is configured — submitted hybrid fill may differ (L8).
-            </p>
-          )}
           {indexerHybridExec.show && (
             <div className="pt-1 border-t border-white/10">
               <p className="font-semibold uppercase tracking-wide text-[10px]">{indexerHybridExec.title}</p>
