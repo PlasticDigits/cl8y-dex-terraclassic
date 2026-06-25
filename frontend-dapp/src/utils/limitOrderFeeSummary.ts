@@ -19,3 +19,14 @@ export function makerPlacementFeeBps(effectiveFeeBps: number): number {
   if (!Number.isFinite(e) || e < 0) return 0
   return Math.floor(e / 2)
 }
+
+/** Human percent label for fee bps (1 bps = 0.01%). */
+export function bpsToPercentLabel(bps: number): string {
+  const n = Number(bps)
+  if (!Number.isFinite(n) || n < 0) return '—'
+  const pct = n / 100
+  if (pct === 0) return '0%'
+  if (pct >= 1) return `${pct.toFixed(2)}%`
+  if (pct >= 0.1) return `${pct.toFixed(2)}%`
+  return `${pct.toFixed(3)}%`
+}

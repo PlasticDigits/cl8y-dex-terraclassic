@@ -6,10 +6,12 @@ import type { IndexerLimitPlacement, PairInfo } from '@/types'
 
 const claimExpiredLimitOrder = vi.fn()
 const claimExpiredLimitOrders = vi.fn()
+const cancelLimitOrder = vi.fn()
 
 vi.mock('@/services/terraclassic/pair', () => ({
   claimExpiredLimitOrder: (...args: unknown[]) => claimExpiredLimitOrder(...args),
   claimExpiredLimitOrders: (...args: unknown[]) => claimExpiredLimitOrders(...args),
+  cancelLimitOrder: (...args: unknown[]) => cancelLimitOrder(...args),
 }))
 
 vi.mock('@/lib/sounds', () => ({
@@ -38,7 +40,7 @@ const ACTIVE_ROW: IndexerLimitPlacement = {
   lifecycle_status: 'active',
 }
 
-function parkedRow(orderId: number): IndexerLimitPlacement {
+function parkedRow(orderId: number, remaining = '1000000'): IndexerLimitPlacement {
   return {
     id: orderId + 100,
     pair_address: PAIR.contract_addr,
@@ -50,7 +52,21 @@ function parkedRow(orderId: number): IndexerLimitPlacement {
     side: 'bid',
     price: '1.0',
     lifecycle_status: 'parked_expired',
-    remaining_escrow: '1000000',
+    remaining_escrow: remaining,
+  }
+}
+
+function mockCancelMutation() {
+  return {
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    isSuccess: false,
+    error: null,
+    data: undefined,
+    variables: undefined,
+    reset: vi.fn(),
   }
 }
 
@@ -58,8 +74,10 @@ describe('LimitOrderMyPlacementsPanel', () => {
   beforeEach(() => {
     claimExpiredLimitOrder.mockReset()
     claimExpiredLimitOrders.mockReset()
+    cancelLimitOrder.mockReset()
     claimExpiredLimitOrder.mockResolvedValue('TX1')
     claimExpiredLimitOrders.mockResolvedValue('TXBATCH')
+    cancelLimitOrder.mockResolvedValue('TXCANCEL')
     vi.stubGlobal(
       'confirm',
       vi.fn(() => true)
@@ -86,6 +104,52 @@ describe('LimitOrderMyPlacementsPanel', () => {
     expect(li.className).toMatch(/shadow-\[0_0_0_2px/)
   })
 
+  it('shows one-click cancel on active rows when cancel mutation is provided (#419)', () => {
+    const cancelMutation = mockCancelMutation()
+    renderWithProviders(
+      <LimitOrderMyPlacementsPanel
+        variant="page"
+        pairAddr={PAIR.contract_addr}
+        pair={PAIR}
+        walletAddress="terra1wallet"
+        rows={[ACTIVE_ROW]}
+        isLoading={false}
+        isWalletConnected
+        isPairPaused={false}
+        openWalletModal={vi.fn()}
+        cancelLimitOrderMutation={cancelMutation as never}
+        cancellations={[]}
+      />
+    )
+
+    const cancelBtn = screen.getByTestId('limits-page-cancel-placement-42')
+    expect(cancelBtn).toHaveTextContent('Cancel')
+    fireEvent.click(cancelBtn)
+    expect(window.confirm).toHaveBeenCalled()
+    expect(cancelMutation.mutate).toHaveBeenCalledWith(42)
+  })
+
+  it('disables row cancel while pair is paused (#419)', () => {
+    const cancelMutation = mockCancelMutation()
+    renderWithProviders(
+      <LimitOrderMyPlacementsPanel
+        variant="compact"
+        pairAddr={PAIR.contract_addr}
+        pair={PAIR}
+        walletAddress="terra1wallet"
+        rows={[ACTIVE_ROW]}
+        isLoading={false}
+        isWalletConnected
+        isPairPaused
+        openWalletModal={vi.fn()}
+        cancelLimitOrderMutation={cancelMutation as never}
+      />
+    )
+
+    expect(screen.getByTestId('trade-cancel-placement-42')).toBeDisabled()
+    expect(screen.getByTestId('trade-cancel-placement-42')).toHaveTextContent('Unavailable (pair paused)')
+  })
+
   it('renders Claim all parked only when at least two parked rows exist (GitLab #253)', () => {
     renderWithProviders(
       <LimitOrderMyPlacementsPanel
@@ -102,6 +166,25 @@ describe('LimitOrderMyPlacementsPanel', () => {
     )
 
     expect(screen.queryByTestId('limits-page-claim-all-parked')).not.toBeInTheDocument()
+  })
+
+  it('shows Claim dust label for sub-threshold parked rows (#419)', () => {
+    renderWithProviders(
+      <LimitOrderMyPlacementsPanel
+        variant="page"
+        pairAddr={PAIR.contract_addr}
+        pair={PAIR}
+        walletAddress="terra1wallet"
+        rows={[parkedRow(7, '5')]}
+        isLoading={false}
+        isWalletConnected
+        isPairPaused={false}
+        openWalletModal={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText(/Dust — claim remaining/i)).toBeInTheDocument()
+    expect(screen.getByTestId('limits-page-claim-expired-7')).toHaveTextContent('Claim dust')
   })
 
   it('shows Claim all parked and confirms batch claim for multiple rows', async () => {
@@ -124,8 +207,6 @@ describe('LimitOrderMyPlacementsPanel', () => {
 
     fireEvent.click(claimAll)
 
-    // Match the stable confirm prefix only; the gas-estimate suffix (GitLab #259) is asserted in
-    // limitExpiredClaimBatch.test.ts. Keeps the panel test decoupled from volatile gas-copy numbers.
     expect(window.confirm).toHaveBeenCalledWith(
       expect.stringContaining('Claim all 2 expired refund(s) in one transaction?')
     )

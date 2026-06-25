@@ -40,6 +40,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getTrades: vi.fn(),
     getPairLimitBookPage: vi.fn(),
     getPairLimitPlacements: vi.fn(),
+    getTraderLimitPlacements: vi.fn(),
     getPairLimitCancellations: vi.fn(),
   }
 })
@@ -135,7 +136,7 @@ describe('LimitOrdersPage', () => {
       has_more: false,
       next_after_order_id: null,
     })
-    vi.mocked(indexerClient.getPairLimitPlacements).mockResolvedValue([])
+    vi.mocked(indexerClient.getTraderLimitPlacements).mockResolvedValue([])
     vi.mocked(indexerClient.getPairLimitCancellations).mockResolvedValue([])
   })
 
