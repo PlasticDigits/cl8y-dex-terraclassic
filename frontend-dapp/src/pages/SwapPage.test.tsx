@@ -34,6 +34,11 @@ vi.mock('@/services/terraclassic/pair', () => ({
     spread_amount: '100',
     commission_amount: '3000',
   }),
+  simulateHybridSwap: vi.fn().mockResolvedValue({
+    return_amount: '1000000',
+    spread_amount: '100',
+    commission_amount: '3000',
+  }),
   swap: vi.fn().mockResolvedValue('txhash123'),
   getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   getPool: vi.fn().mockResolvedValue({
@@ -115,7 +120,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens, isDirectWrapUnwrap, simulateMultiHopSwap } from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
 import type { SwapOperation } from '@/services/terraclassic/router'
-import { simulateSwap, getPairPaused } from '@/services/terraclassic/pair'
+import { simulateSwap, simulateHybridSwap, getPairPaused } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
@@ -178,6 +183,47 @@ describe('SwapPage', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
   })
 
+  it('uses hybrid LCD quote when indexer POST fails and hybrid book leg is set (#418)', async () => {
+    const user = userEvent.setup()
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+    ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used'))
+    vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('indexer down'))
+    vi.mocked(simulateHybridSwap).mockResolvedValue({
+      return_amount: '4200000',
+      spread_amount: '0',
+      commission_amount: '0',
+    })
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.type(screen.getByPlaceholderText('0.0'), '0.01')
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    await waitFor(() => expect(simulateHybridSwap).toHaveBeenCalled())
+    expect(screen.queryByText(/pool-only simulation/i)).not.toBeInTheDocument()
+  })
+
   it('shows hybrid book warning with doc link before swap when book leg > 0', async () => {
     const user = userEvent.setup()
     const terraA = 'terra1from00000000000000000000000000000001'
@@ -215,7 +261,7 @@ describe('SwapPage', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
-    await user.click(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i }))
+    expect(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i })).toBeChecked()
     await user.type(screen.getByPlaceholderText('0.0'), '0.01')
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
@@ -489,7 +535,6 @@ describe('SwapPage', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
     await user.click(screen.getByRole('button', { name: 'Settings' }))
-    await user.click(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i }))
     const bookInput = screen.getByPlaceholderText('0.0')
     await user.type(bookInput, '1^2')
     expect(bookInput).toHaveValue('12')
@@ -701,7 +746,6 @@ describe('SwapPage', () => {
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
       await user.click(screen.getByRole('button', { name: 'Settings' }))
-      await user.click(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i }))
 
       const payInput = screen.getByPlaceholderText('0.00')
       await user.type(payInput, '10')

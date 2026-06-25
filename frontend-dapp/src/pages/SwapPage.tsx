@@ -9,6 +9,7 @@ import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
+import { quoteDirectHybridSwap } from '@/utils/directHybridQuote'
 import {
   computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
@@ -55,7 +56,7 @@ import { isDecimalAmountDraft, isPositiveDecimalAmount } from '@/utils/decimalAm
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
-import { getFeeDiscountHealth, getRouteSolve, postRouteSolve } from '@/services/indexer/client'
+import { getFeeDiscountHealth, getRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import {
@@ -98,10 +99,6 @@ interface SwapSimData {
   indexerQuoteKind?: IndexerRouteQuoteKind
   indexerOperations?: SwapOperation[]
   indexerIntermediateTokens?: string[]
-  /**
-   * When true, the receive line is a pool-only sim while a positive book leg is configured — submitted tx is still hybrid; fill may differ. See `docs/limit-orders.md` (GitLab #111).
-   */
-  receiveQuoteIsPoolOnlyWithConfiguredBookLeg?: boolean
   /** Per-hop pair simulations for router/indexer/native multihop quotes (router sim omits spread). See `docs/swap-max-spread-ux.md` (GitLab #134). */
   routePreflight?: SwapRoutePreflightSpread
   /** Indexer HTTP failed during quote; pool-only LCD fallback may still succeed (GitLab #241). */
@@ -131,7 +128,7 @@ export default function SwapPage() {
   const [indexerRouteResult, setIndexerRouteResult] = useState<IndexerRouteSolveResponse | null>(null)
   const [indexerRouteError, setIndexerRouteError] = useState<string | null>(null)
   const [indexerRouteLoading, setIndexerRouteLoading] = useState(false)
-  const [useHybridBook, setUseHybridBook] = useState(false)
+  const [useHybridBook, setUseHybridBook] = useState(true)
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
   const debouncedBookInputHuman = useDebouncedValue(bookInputHuman, SIM_QUOTE_DEBOUNCE_MS)
@@ -471,52 +468,39 @@ export default function SwapPage() {
       }
 
       // Advanced: manual limit-book split on a direct pair (overrides indexer hybrid for this quote).
-      if (isDirect && directPair) {
-        if (useHybridBook && fromToken.startsWith('terra1')) {
-          const payDec = getDecimals(tokenAssetInfo(fromToken))
-          const bookRaw = debouncedBookInputHuman.trim() ? toRawAmount(debouncedBookInputHuman.trim(), payDec) : '0'
-          const total = BigInt(simRaw)
-          const book = BigInt(bookRaw)
-          if (book > 0n) {
-            if (book > total) throw new Error('Book leg cannot exceed pay amount')
-            if (debouncedHybridMaxMakers < 1) throw new Error('max maker fills must be at least 1')
-            const pool = total - book
-            try {
-              const idx = await postRouteSolve(
-                fromToken,
-                toToken,
-                simRaw,
-                [
-                  {
-                    pool_input: pool.toString(),
-                    book_input: book.toString(),
-                    max_maker_fills: debouncedHybridMaxMakers,
-                    book_start_hint: null,
-                  },
-                ],
-                quoteTrader
-              )
-              if (idx.estimated_amount_out?.trim()) {
-                const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-                const routePreflight =
-                  ops.length > 0 ? await preflightSwapRouteSpread(ops, simRaw, maxSpreadStr, quoteTrader) : undefined
-                return {
-                  return_amount: idx.estimated_amount_out,
-                  spread_amount: '0',
-                  commission_amount: '0',
-                  routeSlippagePercent: idx.slippage_percent,
-                  spotAmountOut: idx.spot_amount_out,
-                  indexerQuoteKind: idx.quote_kind,
-                  receiveQuoteIsPoolOnlyWithConfiguredBookLeg: false,
-                  indexerOperations: ops.length > 0 ? ops : undefined,
-                  routePreflight,
-                }
-              }
-            } catch (e) {
-              noteIndexerFailure(e)
-              /* fall through */
-            }
+      if (isDirect && directPair && useHybridBook && fromToken.startsWith('terra1')) {
+        const hybridSplit = getDirectHybridBookSplit({
+          isDirect: true,
+          useHybridBook,
+          fromToken,
+          bookInputHuman: debouncedBookInputHuman,
+          rawInputAmount: simRaw,
+          hybridMaxMakers: debouncedHybridMaxMakers,
+        })
+        if (hybridSplit?.bookExceedsPay) throw new Error('Book leg cannot exceed pay amount')
+        if (hybridSplit?.willSubmitHybrid) {
+          const hybridParams: HybridSwapParams = {
+            pool_input: hybridSplit.poolRaw,
+            book_input: hybridSplit.bookRaw,
+            max_maker_fills: debouncedHybridMaxMakers,
+            book_start_hint: null,
           }
+          const quoted = await quoteDirectHybridSwap({
+            pairAddress: directPair.contract_addr,
+            fromToken,
+            toToken,
+            offerAssetInfo: tokenAssetInfo(fromToken),
+            askAssetInfo: tokenAssetInfo(toToken),
+            simRaw,
+            hybrid: hybridParams,
+            maxSpreadStr,
+            quoteTrader,
+          })
+          return withIndexerOutageFlag({
+            ...quoted,
+            routeSlippagePercent: quoted.routeSlippagePercent,
+            spotAmountOut: quoted.spotAmountOut,
+          })
         }
       }
 
@@ -562,8 +546,6 @@ export default function SwapPage() {
 
       if (!route) throw new Error('No route found')
       if (isDirect && directPair) {
-        const offerInfo = tokenAssetInfo(fromToken)
-        const r = await simulateSwap(directPair.contract_addr, offerInfo, simRaw, quoteTrader)
         const hybridSplit = getDirectHybridBookSplit({
           isDirect: true,
           useHybridBook,
@@ -572,12 +554,33 @@ export default function SwapPage() {
           rawInputAmount: simRaw,
           hybridMaxMakers: debouncedHybridMaxMakers,
         })
-        return withIndexerOutageFlag({
-          ...r,
-          receiveQuoteIsPoolOnlyWithConfiguredBookLeg: !!(
-            hybridSplit?.willSubmitHybrid && !hybridSplit?.bookExceedsPay
-          ),
-        })
+        if (hybridSplit?.willSubmitHybrid) {
+          const hybridParams: HybridSwapParams = {
+            pool_input: hybridSplit.poolRaw,
+            book_input: hybridSplit.bookRaw,
+            max_maker_fills: debouncedHybridMaxMakers,
+            book_start_hint: null,
+          }
+          const quoted = await quoteDirectHybridSwap({
+            pairAddress: directPair.contract_addr,
+            fromToken,
+            toToken,
+            offerAssetInfo: tokenAssetInfo(fromToken),
+            askAssetInfo: tokenAssetInfo(toToken),
+            simRaw,
+            hybrid: hybridParams,
+            maxSpreadStr,
+            quoteTrader,
+          })
+          return withIndexerOutageFlag({
+            ...quoted,
+            routeSlippagePercent: quoted.routeSlippagePercent,
+            spotAmountOut: quoted.spotAmountOut,
+          })
+        }
+        const offerInfo = tokenAssetInfo(fromToken)
+        const r = await simulateSwap(directPair.contract_addr, offerInfo, simRaw, quoteTrader)
+        return withIndexerOutageFlag(r)
       }
       if (isMultiHop && route) {
         const result = await simulateMultiHopSwap(simRaw, route, quoteTrader)
@@ -1118,8 +1121,8 @@ export default function SwapPage() {
                     {pairInfoMenuLabel(directPair, { variant: 'full' })}
                   </p>
                   <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                    Only single-hop CW20 swaps. The estimate above is pool-only; Pattern C execution can differ when the
-                    on-chain book has liquidity.
+                    Only single-hop CW20 swaps. Set a book leg to route part of the pay through resting limits (Pattern
+                    C); quotes use the same hybrid simulation as submit.
                   </p>
                   <label className="flex items-center gap-2 text-xs mb-3 cursor-pointer">
                     <input
@@ -1332,12 +1335,6 @@ export default function SwapPage() {
                   <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
                 )}
               </div>
-              {simData?.receiveQuoteIsPoolOnlyWithConfiguredBookLeg && (
-                <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                  Shown amount is a pool-only simulation. You still submit a hybrid (book leg); final receive can
-                  differ.
-                </p>
-              )}
             </div>
           </div>
 

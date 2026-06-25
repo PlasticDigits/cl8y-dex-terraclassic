@@ -28,7 +28,9 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | **Swap** client BFS fallback label | Same file — under route row: `data-testid="swap-route-source-client-fallback"` when submit uses client multihop without indexer ops |
 | **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches; pay amount and quote fields from `useSubmitAlignedSimQuote` (**#356**) |
 | **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote"` |
-| **Trade market** quote source | Same file — `simQuery` calls `postRouteSolve` when hybrid on (`useHybridBook` + `willSubmitHybrid`); sets `indexerOperations` from `router_operations` |
+| **Trade market** quote source | Same file — `simQuery` calls [`quoteDirectHybridSwap`](../frontend-dapp/src/utils/directHybridQuote.ts) when hybrid on (`useHybridBook` + `willSubmitHybrid`); indexer `POST /route/solve` then LCD `hybrid_simulation` — **no pool-only fallback** when submit is hybrid ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418)) |
+| **Swap direct hybrid quote ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418))** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `useHybridBook` default **on**; manual book leg uses same `quoteDirectHybridSwap` helper; removed `receiveQuoteIsPoolOnlyWithConfiguredBookLeg` mismatch UI |
+| **Shared hybrid quote helper** | [`directHybridQuote.ts`](../frontend-dapp/src/utils/directHybridQuote.ts) — `quoteDirectHybridSwap`, `quoteDisclosureForIndexerKind` |
 | **Quote debounce ([#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346))** | Swap + Trade market sim queries debounce pay amount and hybrid book leg (**350ms**, `useDebouncedValue`) and use `placeholderData: keepPreviousData` — see [`quoteDebounce.ts`](../frontend-dapp/src/utils/quoteDebounce.ts) |
 | **Submit–quote alignment ([#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356), [#360](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/360))** | When submit is allowed, on-chain pay raw, `minReceived`, `indexerOperations`, hybrid params (`book_input`, `max_maker_fills`), and route display all come from one debounced snapshot via [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) + [`buildSubmitAlignedSimPayload`](../frontend-dapp/src/utils/quoteDebounce.ts). Submit stays disabled while typed raw ≠ debounced key, live book leg ≠ debounced book leg, live max makers ≠ snapshotted max makers, placeholder data is shown, or `simQuery.isFetching` for the active key. |
 | **Trade market** submit (must stay in sync with display) | Same file — `swapMutation` → `swapOpsRequireRouter` / `executeMultiHopSwap` or pair `swap` with hybrid; consumes `submitPayRaw` + matching `simData` from `useSubmitAlignedSimQuote` |
@@ -63,22 +65,24 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 4. **Indexer multihop:** With indexer `router_operations` (≥2 hops), confirm **no** `swap-route-source-client-fallback` label.
 5. **Client BFS fallback:** Stop indexer or force a path with client multihop only → confirm `swap-route-source-client-fallback` appears under the route row; copy mentions client graph / not best execution.
 6. Submit a small test swap (localnet) and confirm the on-chain path matches the displayed symbols (same hop count / ends).
+7. **Hybrid quote = execute (#418):** Direct swap with Settings book leg &gt; 0 — receive line must **not** show pool-only mismatch copy; quote uses indexer or LCD `hybrid_simulation` with the same `book_input` as submit.
 
 ### Trade market (`/trade/:pairAddr` → Market tab)
 
-7. Open `/trade/<pairAddr>` → **Market** tab → enable **Use hybrid book + pool routing** → enter amount `1` → confirm **`trade-market-route-summary`** is visible with a **Route** label inside **`trade-market-quote`**.
+8. Open `/trade/<pairAddr>` → **Market** tab → **Use hybrid book + pool routing** is on by default → enter amount `1` → confirm **`trade-market-route-summary`** is visible with a **Route** label inside **`trade-market-quote`**.
 8. **Multihop:** On a pair where indexer returns **≥ 2 hops** (e.g. EMBER→COBALT via `POST /route/solve`), confirm the route shows **≥ 3** token symbols and matches a small on-chain market submit hop count.
 9. **Pool-only:** Hybrid off, amount set → quote card shows; route line is direct `PAY → RECEIVE` (or row absent only when `marketRouteLine` is null per table above).
 10. Confirm **no** duplicate route labels on the market quote card (single **Route** row only; no client BFS fallback label — trade market does not submit via client BFS today).
+11. **Hybrid quote = execute (#418):** Hybrid on (default), amount set — **no** “pool-only quote / hybrid execution” warning; `quoteDisclosure` reflects hybrid or pool-only path honestly.
 
 ### Submit–quote alignment (GitLab #356)
 
-11. **Swap debounce skew:** Type `1`, wait for quote, append `0` quickly (`10`) → Swap stays **Calculating…** / disabled until quote refreshes for `10`; only then re-enables.
-12. **Swap hybrid book skew (#360):** Enable limit book leg, pay `10`, book `2`, wait for quote, change book to `5` → Swap stays **Calculating…** / disabled until debounced book quote settles.
-13. **Swap on-chain match:** With settled quote at amount A, submit → on-chain pay matches displayed quote amount (tx / balance).
-14. **Trade market:** Repeat (11–12) on `/trade/:pairAddr` Market tab with hybrid on.
-15. **Refetch guard:** With stable amount, during 10s sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes.
-16. **Max makers (#360):** With stable pay/book, change max maker fills → submit disabled until new sim settles.
+12. **Swap debounce skew:** Type `1`, wait for quote, append `0` quickly (`10`) → Swap stays **Calculating…** / disabled until quote refreshes for `10`; only then re-enables.
+13. **Swap hybrid book skew (#360):** Enable limit book leg, pay `10`, book `2`, wait for quote, change book to `5` → Swap stays **Calculating…** / disabled until debounced book quote settles.
+14. **Swap on-chain match:** With settled quote at amount A, submit → on-chain pay matches displayed quote amount (tx / balance).
+15. **Trade market:** Repeat (12–13) on `/trade/:pairAddr` Market tab with hybrid on.
+16. **Refetch guard:** With stable amount, during 10s sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes.
+17. **Max makers (#360):** With stable pay/book, change max maker fills → submit disabled until new sim settles.
 
 ## Closed scope (GitLab #302 / #329)
 
