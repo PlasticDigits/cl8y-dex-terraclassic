@@ -27,6 +27,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | **Swap** pre-sign summary (#409 / SEC-D11) | [`SwapPreSubmitSummary.tsx`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx) in SwapPage — `swap-pre-submit-summary`, `swap-confirm-*` |
 | **Swap** client BFS fallback label | Same file — under route row: `data-testid="swap-route-source-client-fallback"` when submit uses client multihop without indexer ops |
 | **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches; pay amount and quote fields from `useSubmitAlignedSimQuote` (**#356**) |
+| **Swap Settings — retail vs Advanced (#413)** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — default panel: slippage, transaction deadline, Expert Mode (`#swap-slippage-settings`). Integrator controls (hybrid book leg, indexer route check) live in collapsible **Advanced** via [`SwapAdvancedSettings.tsx`](../frontend-dapp/src/components/swap/SwapAdvancedSettings.tsx); collapsed by default; expand persisted in `localStorage` ([`swapSettingsAdvanced.ts`](../frontend-dapp/src/utils/swapSettingsAdvanced.ts)). `data-testid`s: `swap-advanced-settings`, `swap-advanced-settings-toggle`, `swap-expert-mode-toggle`. |
 | **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote"` |
 | **Trade market** quote source | Same file — `simQuery` calls [`quoteDirectHybridSwap`](../frontend-dapp/src/utils/directHybridQuote.ts) when hybrid on (`useHybridBook` + `willSubmitHybrid`); indexer `POST /route/solve` then LCD `hybrid_simulation` — **no pool-only fallback** when submit is hybrid ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418)) |
 | **Swap direct hybrid quote ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418))** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `useHybridBook` default **on**; manual book leg uses same `quoteDirectHybridSwap` helper; removed `receiveQuoteIsPoolOnlyWithConfiguredBookLeg` mismatch UI |
@@ -65,7 +66,8 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 4. **Indexer multihop:** With indexer `router_operations` (≥2 hops), confirm **no** `swap-route-source-client-fallback` label.
 5. **Client BFS fallback:** Stop indexer or force a path with client multihop only → confirm `swap-route-source-client-fallback` appears under the route row; copy mentions client graph / not best execution.
 6. Submit a small test swap (localnet) and confirm the on-chain path matches the displayed symbols (same hop count / ends).
-7. **Hybrid quote = execute (#418):** Direct swap with Settings book leg &gt; 0 — receive line must **not** show pool-only mismatch copy; quote uses indexer or LCD `hybrid_simulation` with the same `book_input` as submit.
+7. **Hybrid quote = execute (#418):** Direct swap with Settings → **Advanced** → book leg &gt; 0 — receive line must **not** show pool-only mismatch copy; quote uses indexer or LCD `hybrid_simulation` with the same `book_input` as submit.
+8. **Settings progressive disclosure (#413):** Open Settings on `/` — retail panel shows slippage, deadline, Expert Mode only (no hop addresses, no indexer BFS). Expand **Advanced** → limit book leg + **Compare indexer route** appear; re-open Settings on refresh when `localStorage` has advanced open.
 
 ### Trade market (`/trade/:pairAddr` → Market tab)
 
@@ -78,7 +80,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 ### Submit–quote alignment (GitLab #356)
 
 12. **Swap debounce skew:** Type `1`, wait for quote, append `0` quickly (`10`) → Swap stays **Calculating…** / disabled until quote refreshes for `10`; only then re-enables.
-13. **Swap hybrid book skew (#360):** Enable limit book leg, pay `10`, book `2`, wait for quote, change book to `5` → Swap stays **Calculating…** / disabled until debounced book quote settles.
+13. **Swap hybrid book skew (#360):** Settings → **Advanced** → enable limit book leg, pay `10`, book `2`, wait for quote, change book to `5` → Swap stays **Calculating…** / disabled until debounced book quote settles.
 14. **Swap on-chain match:** With settled quote at amount A, submit → on-chain pay matches displayed quote amount (tx / balance).
 15. **Trade market:** Repeat (12–13) on `/trade/:pairAddr` Market tab with hybrid on.
 16. **Refetch guard:** With stable amount, during 10s sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes.

@@ -137,9 +137,24 @@ import {
   walletBlacklistedResponse,
 } from '@/test/tradingBlacklistMocks'
 import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
+import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
+
+async function expandSwapAdvancedSettings(user: ReturnType<typeof userEvent.setup>) {
+  const details = screen.getByTestId('swap-advanced-settings-details')
+  if (!details.hasAttribute('open')) {
+    await user.click(screen.getByTestId('swap-advanced-settings-toggle'))
+  }
+  await waitFor(() => expect(screen.getByRole('button', { name: /Compare indexer route/i })).toBeVisible())
+}
+
+async function openSwapSettingsWithAdvanced(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Settings' }))
+  await expandSwapAdvancedSettings(user)
+}
 
 describe('SwapPage', () => {
   beforeEach(() => {
+    window.localStorage.removeItem(SWAP_SETTINGS_ADVANCED_OPEN_KEY)
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     vi.mocked(findRoute).mockReturnValue(null)
@@ -216,12 +231,80 @@ describe('SwapPage', () => {
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await openSwapSettingsWithAdvanced(user)
     await user.type(screen.getByPlaceholderText('0.0'), '0.01')
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
     await waitFor(() => expect(simulateHybridSwap).toHaveBeenCalled())
     expect(screen.queryByText(/pool-only simulation/i)).not.toBeInTheDocument()
+  })
+
+  describe('Swap Settings progressive disclosure (#413)', () => {
+    const mockDirectCwPair = () => {
+      const terraA = 'terra1from00000000000000000000000000000001'
+      const terraB = 'terra1to00000000000000000000000000000001'
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+      vi.mocked(findRoute).mockReturnValue([
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ] as never)
+      return { terraA, terraB }
+    }
+
+    it('shows retail prefs only when Settings first opens', async () => {
+      const user = userEvent.setup()
+      mockDirectCwPair()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+
+      const retailPanel = within(document.getElementById('swap-slippage-settings') as HTMLElement)
+      expect(retailPanel.getByText('Slippage Tolerance')).toBeInTheDocument()
+      expect(retailPanel.getByText('Transaction Deadline')).toBeInTheDocument()
+      expect(retailPanel.getByTestId('swap-expert-mode-toggle')).toBeInTheDocument()
+      const advancedDetails = screen.getByTestId('swap-advanced-settings-details')
+      expect(advancedDetails).not.toHaveAttribute('open')
+      expect(within(advancedDetails).getByTestId('swap-indexer-route-check')).not.toBeVisible()
+    })
+
+    it('shows hybrid and indexer route check when Advanced is expanded', async () => {
+      const user = userEvent.setup()
+      mockDirectCwPair()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+      await expandSwapAdvancedSettings(user)
+
+      expect(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Compare indexer route/i })).toBeInTheDocument()
+    })
+
+    it('persists Advanced expanded state in localStorage', async () => {
+      const user = userEvent.setup()
+      mockDirectCwPair()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+      await expandSwapAdvancedSettings(user)
+
+      expect(window.localStorage.getItem(SWAP_SETTINGS_ADVANCED_OPEN_KEY)).toBe('1')
+    })
   })
 
   it('shows hybrid book warning with doc link before swap when book leg > 0', async () => {
@@ -260,7 +343,7 @@ describe('SwapPage', () => {
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await openSwapSettingsWithAdvanced(user)
     expect(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i })).toBeChecked()
     await user.type(screen.getByPlaceholderText('0.0'), '0.01')
     await user.type(screen.getByPlaceholderText('0.00'), '1')
@@ -534,7 +617,7 @@ describe('SwapPage', () => {
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await openSwapSettingsWithAdvanced(user)
     const bookInput = screen.getByPlaceholderText('0.0')
     await user.type(bookInput, '1^2')
     expect(bookInput).toHaveValue('12')
@@ -745,7 +828,7 @@ describe('SwapPage', () => {
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
-      await user.click(screen.getByRole('button', { name: 'Settings' }))
+      await openSwapSettingsWithAdvanced(user)
 
       const payInput = screen.getByPlaceholderText('0.00')
       await user.type(payInput, '10')
