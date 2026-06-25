@@ -376,6 +376,62 @@ pub async fn seed_route_solve(pool: &PgPool) -> RouteSolveSeed {
     }
 }
 
+/// Route solve seed with token B as USTC quote asset for #293 slippage enrichment tests.
+pub async fn seed_route_slippage_293(pool: &PgPool) -> RouteSolveSeed {
+    clean_db(pool).await;
+
+    let token_a = "terra1routesolveaaa".to_string();
+    let token_ustc = "terra1ustcquote293".to_string();
+    let token_c = "terra1routesolveccc".to_string();
+
+    let asset_a_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route A', 'RTEA', 6)
+         RETURNING id",
+    )
+    .bind(&token_a)
+    .fetch_one(pool)
+    .await
+    .expect("insert route asset a");
+
+    let asset_ustc_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'TerraClassic USD', 'USTC-C', 6)
+         RETURNING id",
+    )
+    .bind(&token_ustc)
+    .fetch_one(pool)
+    .await
+    .expect("insert quote asset ustc");
+
+    sqlx::query(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'Route C', 'RTEC', 6)",
+    )
+    .bind(&token_c)
+    .execute(pool)
+    .await
+    .expect("insert route asset c");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairrouteabc', $1, $2, 'terra1lproute', 30)",
+    )
+    .bind(asset_a_id)
+    .bind(asset_ustc_id)
+    .execute(pool)
+    .await
+    .expect("insert route pair");
+
+    RouteSolveSeed {
+        token_a,
+        token_b: token_ustc,
+        token_c,
+        token_d: None,
+        token_e: None,
+    }
+}
+
 /// Route solve seed + fresh `pair_reserves` mirror for Phase 1c DB hybrid tests.
 pub async fn seed_route_solve_with_mirror(pool: &PgPool) -> RouteSolveSeed {
     use bigdecimal::BigDecimal;
