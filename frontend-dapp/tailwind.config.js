@@ -19,24 +19,35 @@ export default {
         auto: 'var(--cursor-default)',
       },
       colors: {
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+        // Glass system tokens — aliases to CSS variables (docs/design-system.md § Tailwind).
+        bg: {
+          0: 'var(--bg-0)',
+          1: 'var(--bg-1)',
+          2: 'var(--bg-2)',
         },
-        dex: {
-          bg: '#0f172a',
-          card: '#1e293b',
-          border: '#334155',
-          accent: '#38bdf8',
+        ink: {
+          DEFAULT: 'var(--ink)',
+          dim: 'var(--ink-dim)',
+          subtle: 'var(--ink-subtle)',
         },
+        line: {
+          DEFAULT: 'var(--line)',
+          strong: 'var(--line-strong)',
+        },
+        mint: {
+          DEFAULT: 'var(--mint)',
+          soft: 'var(--mint-soft)',
+        },
+        accent: 'var(--accent)',
+        surface: {
+          0: 'var(--surface-0)',
+          1: 'var(--surface-1)',
+          2: 'var(--surface-2)',
+          raised: 'var(--surface-raised)',
+        },
+        positive: 'var(--color-positive)',
+        negative: 'var(--color-negative)',
+        warning: 'var(--color-warning)',
       },
     },
   },
