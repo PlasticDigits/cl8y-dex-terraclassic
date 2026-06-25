@@ -12673,6 +12673,281 @@ mod dust_amount_tests {
 }
 
 // ---------------------------------------------------------------------------
+// GitLab #401 / SEC-C01 – swap math edge-reserve and u128 boundary tests
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod sec_c01_swap_boundary_tests {
+    use super::helpers::*;
+    use cosmwasm_std::{Addr, Decimal, Uint128};
+    use cw_multi_test::{App, Executor};
+
+    fn setup_env_with_supply(app: &mut App, initial_amount: Uint128) -> TestEnv {
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+        let router_code_id = app.store_code(router_contract());
+
+        let token_a =
+            create_cw20_token(app, cw20_code_id, &user, "Token A", "TKNA", initial_amount);
+        let token_b =
+            create_cw20_token(app, cw20_code_id, &user, "Token B", "TKNB", initial_amount);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let resp = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
+                },
+                &[],
+            )
+            .unwrap();
+
+        let pair = extract_pair_address(&resp.events);
+
+        let pair_info: dex_common::types::PairInfo = app
+            .wrap()
+            .query_wasm_smart(pair.to_string(), &dex_common::pair::QueryMsg::Pair {})
+            .unwrap();
+        let lp_token = pair_info.liquidity_token;
+
+        let router = app
+            .instantiate_contract(
+                router_code_id,
+                governance.clone(),
+                &cl8y_dex_router::msg::InstantiateMsg {
+                    factory: factory.to_string(),
+                },
+                &[],
+                "router",
+                None,
+            )
+            .unwrap();
+
+        app.update_block(|b| b.height += 1);
+
+        TestEnv {
+            factory,
+            token_a,
+            token_b,
+            pair,
+            lp_token,
+            router,
+            governance,
+            treasury,
+            user,
+        }
+    }
+
+    fn pool_sim(
+        app: &App,
+        env: &TestEnv,
+        offer_token: &Addr,
+        offer_amount: Uint128,
+    ) -> dex_common::pair::HybridSimulationResponse {
+        app.wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::HybridSimulation {
+                    offer_asset: dex_common::types::Asset {
+                        info: asset_info_token(offer_token),
+                        amount: offer_amount,
+                    },
+                    hybrid: dex_common::pair::pool_only_hybrid_params(offer_amount),
+                    trader: None,
+                    sender: None,
+                    belief_price: Some(Decimal::one()),
+                },
+            )
+            .unwrap()
+    }
+
+    /// Output must not exceed the ask-side reserve; pool fee split must be exact floor division.
+    fn assert_pool_swap_accounting(
+        output_reserve: Uint128,
+        sim: &dex_common::pair::HybridSimulationResponse,
+        fee_bps: u128,
+    ) {
+        let gross = sim
+            .pool_return_amount
+            .checked_add(sim.pool_commission_amount)
+            .unwrap();
+        assert!(
+            gross <= output_reserve,
+            "gross output {gross} exceeds output reserve {output_reserve}"
+        );
+        if gross.is_zero() {
+            assert!(sim.pool_return_amount.is_zero());
+            assert!(sim.pool_commission_amount.is_zero());
+            return;
+        }
+        let expected_fee = gross.multiply_ratio(Uint128::new(fee_bps), Uint128::new(10_000));
+        assert_eq!(
+            sim.pool_commission_amount, expected_fee,
+            "fee split must be floor(gross * fee_bps / 10000)"
+        );
+        assert_eq!(
+            sim.pool_return_amount,
+            gross.checked_sub(expected_fee).unwrap(),
+            "return + commission must equal gross"
+        );
+    }
+
+    fn swap_with_belief(app: &mut App, env: &TestEnv, offer_token: &Addr, amount: Uint128) {
+        let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: Some(Decimal::one()),
+            max_spread: Some(Decimal::one()),
+            min_return: None,
+            to: None,
+            deadline: None,
+            hybrid: None,
+            trader: None,
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            offer_token.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_swap_reserves_near_u128_max_no_overflow() {
+        const FEE_BPS: u128 = 30;
+        let supply = Uint128::new(u128::MAX);
+
+        for (reserve_a, reserve_b, swap_amount) in [
+            (Uint128::new(u128::MAX / 2), Uint128::one(), Uint128::one()),
+            (Uint128::new(u128::MAX - 1), Uint128::one(), Uint128::one()),
+        ] {
+            let mut app = App::default();
+            let env = setup_env_with_supply(&mut app, supply);
+
+            provide_liquidity(&mut app, &env, &env.user, reserve_a, reserve_b);
+
+            let pool_before = query_pool(&app, &env.pair);
+            let output_reserve = pool_before.assets[1].amount;
+
+            let sim = pool_sim(&app, &env, &env.token_a, swap_amount);
+            assert_pool_swap_accounting(output_reserve, &sim, FEE_BPS);
+
+            let treasury_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+            let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+            swap_with_belief(&mut app, &env, &env.token_a, swap_amount);
+
+            let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+            let treasury_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+            let actual_return = user_b_after - user_b_before;
+            let actual_fee = treasury_b_after - treasury_b_before;
+
+            assert_eq!(actual_return, sim.pool_return_amount);
+            assert_eq!(actual_fee, sim.pool_commission_amount);
+
+            let pool_after = query_pool(&app, &env.pair);
+            let gross = sim
+                .pool_return_amount
+                .checked_add(sim.pool_commission_amount)
+                .unwrap();
+            if !gross.is_zero() {
+                assert!(
+                    pool_after.assets[1].amount < output_reserve,
+                    "output reserve must decrease when gross output is positive"
+                );
+            } else {
+                assert_eq!(pool_after.assets[1].amount, output_reserve);
+            }
+            assert_eq!(
+                pool_after.assets[1].amount + actual_return + actual_fee,
+                output_reserve,
+                "pool + user + treasury must account for full gross output"
+            );
+        }
+    }
+
+    #[test]
+    fn test_swap_extreme_imbalance_one_to_one_million_offer_scarce_side() {
+        const FEE_BPS: u128 = 30;
+        let init_a = Uint128::new(1_000_000);
+        let init_b = Uint128::new(1_000_000_000_000);
+
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(&mut app, &env, &env.user, init_a, init_b);
+
+        let pool_before = query_pool(&app, &env.pair);
+        let output_reserve = pool_before.assets[1].amount;
+        let swap_amount = Uint128::new(100_000);
+
+        let sim = pool_sim(&app, &env, &env.token_a, swap_amount);
+        assert_pool_swap_accounting(output_reserve, &sim, FEE_BPS);
+
+        let user_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+        swap_a_to_b(&mut app, &env, &env.user, swap_amount);
+        let actual_return = query_cw20_balance(&app, &env.token_b, &env.user) - user_b_before;
+        assert_eq!(actual_return, sim.pool_return_amount);
+        assert!(actual_return <= output_reserve);
+    }
+
+    #[test]
+    fn test_swap_extreme_imbalance_one_to_one_million_offer_abundant_side() {
+        const FEE_BPS: u128 = 30;
+        let init_a = Uint128::new(1_000_000);
+        let init_b = Uint128::new(1_000_000_000_000);
+        let supply = Uint128::new(2_000_000_000_000);
+
+        let mut app = App::default();
+        let env = setup_env_with_supply(&mut app, supply);
+        provide_liquidity(&mut app, &env, &env.user, init_a, init_b);
+
+        let pool_before = query_pool(&app, &env.pair);
+        let output_reserve = pool_before.assets[0].amount;
+        let swap_amount = Uint128::new(1_000_000);
+
+        let sim = pool_sim(&app, &env, &env.token_b, swap_amount);
+        assert_pool_swap_accounting(output_reserve, &sim, FEE_BPS);
+
+        let user_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+        swap_with_belief(&mut app, &env, &env.token_b, swap_amount);
+        let actual_return = query_cw20_balance(&app, &env.token_a, &env.user) - user_a_before;
+        assert_eq!(actual_return, sim.pool_return_amount);
+        assert!(actual_return <= output_reserve);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Issue #25 – Router multi-hop with reserve verification
 // ---------------------------------------------------------------------------
 #[cfg(test)]
