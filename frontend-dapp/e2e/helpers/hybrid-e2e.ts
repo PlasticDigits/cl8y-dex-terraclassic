@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 import { isChainOptional } from './chain'
+import { expandSwapAdvancedSettings } from './swap-ui'
 import { firstDualCwPair, type LcdPairInfo } from './lcd'
 
 const DEFAULT_DUAL_PAIR_MSG =
@@ -23,9 +24,10 @@ export function requireDualCwPair(
 const HYBRID_CONTROLS_MSG =
   'Direct swap hybrid controls hidden; pick a dual-CW20 pair with a direct route (see scripts/e2e-seed-hybrid-book.sh and docs/testing.md).'
 
-/** Settings panel must expose the limit-book leg controls for direct CW20 swaps. */
+/** Settings panel must expose the limit-book leg controls for direct CW20 swaps (Advanced expanded). */
 export async function requireHybridControlsVisible(page: Page, detail = HYBRID_CONTROLS_MSG): Promise<void> {
-  const hybridHeading = page.getByText('Direct swap: limit book leg')
+  await expandSwapAdvancedSettings(page)
+  const hybridHeading = page.getByText('Limit book leg')
   if ((await hybridHeading.count()) > 0) return
   if (isChainOptional()) {
     test.skip(true, detail)

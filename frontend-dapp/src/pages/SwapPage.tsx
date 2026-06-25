@@ -49,10 +49,9 @@ import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPending
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
-import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
-import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
+import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
-import { isDecimalAmountDraft, isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
+import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -78,7 +77,9 @@ import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
+import { SwapAdvancedSettings } from '@/components/swap/SwapAdvancedSettings'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
+import { readSwapSettingsAdvancedOpen, writeSwapSettingsAdvancedOpen } from '@/utils/swapSettingsAdvanced'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
@@ -133,6 +134,7 @@ export default function SwapPage() {
   const [fromToken, setFromToken] = useState<string>('')
   const [toToken, setToToken] = useState<string>('')
   const [showSettings, setShowSettings] = useState(false)
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(readSwapSettingsAdvancedOpen)
   const [showExpertModeModal, setShowExpertModeModal] = useState(false)
   const [customSlippage, setCustomSlippage] = useState('')
   const [customDeadlineMinutes, setCustomDeadlineMinutes] = useState('')
@@ -982,10 +984,28 @@ export default function SwapPage() {
     customSlippage !== '' &&
     (isNaN(parseFloat(customSlippage)) || parseFloat(customSlippage) < 0.01 || parseFloat(customSlippage) > 50)
 
+  const handleToggleSettings = useCallback(() => {
+    sounds.playButtonPress()
+    setShowSettings((prev) => !prev)
+  }, [])
+
+  const handleOpenSettings = useCallback(() => {
+    sounds.playButtonPress()
+    setShowSettings(true)
+  }, [])
+
+  const handleAdvancedSettingsOpenChange = useCallback((open: boolean) => {
+    setShowAdvancedSettings(open)
+    writeSwapSettingsAdvancedOpen(open)
+  }, [])
+
+  const SWAP_DEADLINE_PRESETS_MIN = [5, 10, 20, 30] as const
+  const activeDeadlinePresetMin = SWAP_DEADLINE_PRESETS_MIN.find((m) => deadlineSeconds === m * 60)
+
   const handleDeadlinePreset = useCallback(
-    (seconds: number) => {
+    (minutes: number) => {
       sounds.playButtonPress()
-      setDeadlineSeconds(seconds)
+      setDeadlineSeconds(minutes * 60)
       setCustomDeadlineMinutes('')
     },
     [setDeadlineSeconds]
@@ -1010,16 +1030,6 @@ export default function SwapPage() {
     (isNaN(parseFloat(customDeadlineMinutes)) ||
       parseFloat(customDeadlineMinutes) < 0.5 ||
       parseFloat(customDeadlineMinutes) > 60)
-
-  const handleToggleSettings = useCallback(() => {
-    sounds.playButtonPress()
-    setShowSettings((prev) => !prev)
-  }, [])
-
-  const handleOpenSettings = useCallback(() => {
-    sounds.playButtonPress()
-    setShowSettings(true)
-  }, [])
 
   return (
     <div className="relative max-w-[620px] mx-auto w-full">
@@ -1138,36 +1148,34 @@ export default function SwapPage() {
                 )}
                 <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                   <p className="label-glass mb-3">{TRANSACTION_DEADLINE_LABEL}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { seconds: 60, label: '1 min' },
-                      { seconds: 300, label: '5 min' },
-                      { seconds: 600, label: '10 min' },
-                    ].map(({ seconds, label }) => (
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Transaction deadline preset">
+                    {SWAP_DEADLINE_PRESETS_MIN.map((minutes) => (
                       <button
-                        key={seconds}
+                        key={minutes}
                         type="button"
-                        onClick={() => handleDeadlinePreset(seconds)}
+                        onClick={() => handleDeadlinePreset(minutes)}
                         className={`tab-glass !text-xs !px-3 !py-1.5 ${
-                          deadlineSeconds === seconds && !customDeadlineMinutes
+                          activeDeadlinePresetMin === minutes && !customDeadlineMinutes
                             ? 'tab-glass-active'
                             : 'tab-glass-inactive'
                         }`}
                       >
-                        {label}
+                        {minutes}m
                       </button>
                     ))}
-                    <div className="relative flex-1">
+                    <div className="relative flex-1 min-w-[5rem]">
                       <label htmlFor={swapCustomDeadlineInputId} className="sr-only">
                         Custom transaction deadline (minutes)
                       </label>
                       <input
                         id={swapCustomDeadlineInputId}
                         type="text"
+                        inputMode="decimal"
                         value={customDeadlineMinutes}
                         onChange={(e) => handleCustomDeadlineMinutes(e.target.value)}
                         placeholder="Custom"
                         className="input-glass !text-xs !py-1.5"
+                        data-testid="swap-deadline-custom"
                       />
                       <span
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
@@ -1211,110 +1219,32 @@ export default function SwapPage() {
                   </p>
                 </div>
               </div>
-              {showSettings && isDirect && !isWrapOrUnwrap && directPair && (
-                <div className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
-                  <p className="label-glass mb-2">Advanced — direct swap: limit book leg</p>
-                  <p className="text-[10px] font-mono mb-2" style={{ color: 'var(--ink-subtle)' }}>
-                    {pairInfoMenuLabel(directPair, { variant: 'full' })}
-                  </p>
-                  <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                    Only single-hop CW20 swaps. Set a book leg to route part of the pay through resting limits (Pattern
-                    C); quotes use the same hybrid simulation as submit.
-                  </p>
-                  <label className="flex items-center gap-2 text-xs mb-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={useHybridBook}
-                      onChange={(e) => setUseHybridBook(e.target.checked)}
-                    />
-                    Route part of input through the limit book
-                  </label>
-                  {useHybridBook && (
-                    <div className="space-y-2">
-                      <div>
-                        <label className="label-glass text-[10px]" htmlFor={swapHybridBookLegAmountInputId}>
-                          Book leg amount ({getTokenDisplaySymbol(fromToken)})
-                        </label>
-                        <input
-                          id={swapHybridBookLegAmountInputId}
-                          type="text"
-                          inputMode="decimal"
-                          className="input-glass !text-xs w-full"
-                          value={bookInputHuman}
-                          onChange={(e) => {
-                            const v = e.target.value
-                            if (isDecimalAmountDraft(v)) setBookInputHuman(v)
-                          }}
-                          placeholder="0.0"
-                        />
-                        {isWalletConnected && fromToken.startsWith('terra1') && (
-                          <AmountBalanceActions
-                            balanceQuery={balanceQuery}
-                            decimals={offerDecimals}
-                            walletConnected={isWalletConnected}
-                            compact
-                            spendableRaw={bookLegMaxResult.spendableRaw}
-                            onMax={() => setBookInputHuman(bookLegMaxResult.human)}
-                            testIdMax="swap-book-leg-max"
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <label className="label-glass text-[10px]" htmlFor={swapHybridMaxMakersInputId}>
-                          Max distinct makers
-                        </label>
-                        <input
-                          id={swapHybridMaxMakersInputId}
-                          type="number"
-                          className="input-glass !text-xs w-full"
-                          min={1}
-                          max={256}
-                          value={hybridMaxMakers}
-                          onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
-                <p className="label-glass mb-3">Indexer route check</p>
-                <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                  Compares this token pair with the indexer&apos;s BFS graph (max 4 hops). Only CW20 addresses present
-                  in the indexer asset table are supported; native-only assets without a CW20 row are not routable via{' '}
-                  <code className="font-mono text-[10px]">/api/v1/route/solve</code>.
-                </p>
-                <button
-                  type="button"
-                  className="btn-muted !text-xs"
-                  onClick={() => {
-                    sounds.playButtonPress()
-                    void checkIndexerRoute()
-                  }}
-                  disabled={indexerRouteLoading || !fromToken || !toToken}
-                >
-                  {indexerRouteLoading ? 'Checking…' : 'Compare indexer route'}
-                </button>
-                {indexerRouteError && (
-                  <p className="text-xs mt-2 font-medium" style={{ color: 'var(--color-negative)' }}>
-                    {indexerRouteError}
-                  </p>
-                )}
-                {indexerRouteResult && (
-                  <div className="mt-3 text-[11px] space-y-1.5 font-mono" style={{ color: 'var(--ink-subtle)' }}>
-                    <p>
-                      Indexer hops: {indexerRouteResult.hops.length}
-                      {route != null && <span style={{ color: 'var(--ink-dim)' }}> · Client hops: {route.length}</span>}
-                    </p>
-                    {indexerRouteResult.hops.map((h, i) => (
-                      <p key={`${h.pair}-${i}`}>
-                        {i + 1}. {shortenAddress(h.pair, 8, 6)} · {shortenAddress(h.offer_token, 4, 4)} →{' '}
-                        {shortenAddress(h.ask_token, 4, 4)}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <SwapAdvancedSettings
+                open={showAdvancedSettings}
+                onOpenChange={handleAdvancedSettingsOpenChange}
+                isDirect={isDirect}
+                isWrapOrUnwrap={isWrapOrUnwrap}
+                directPair={directPair}
+                fromToken={fromToken}
+                toToken={toToken}
+                useHybridBook={useHybridBook}
+                onUseHybridBookChange={setUseHybridBook}
+                bookInputHuman={bookInputHuman}
+                onBookInputHumanChange={setBookInputHuman}
+                hybridMaxMakers={hybridMaxMakers}
+                onHybridMaxMakersChange={setHybridMaxMakers}
+                bookLegAmountInputId={swapHybridBookLegAmountInputId}
+                hybridMaxMakersInputId={swapHybridMaxMakersInputId}
+                isWalletConnected={isWalletConnected}
+                balanceQuery={balanceQuery}
+                offerDecimals={offerDecimals}
+                bookLegMaxResult={bookLegMaxResult}
+                onCheckIndexerRoute={() => void checkIndexerRoute()}
+                indexerRouteLoading={indexerRouteLoading}
+                indexerRouteError={indexerRouteError}
+                indexerRouteResult={indexerRouteResult}
+                clientRouteHopCount={route != null ? route.length : null}
+              />
             </>
           )}
 

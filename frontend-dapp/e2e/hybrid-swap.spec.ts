@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable } from './helpers/chain'
 import { assertHybridSwapCtaNotBlocked, requireDualCwPair, requireHybridControlsVisible } from './helpers/hybrid-e2e'
+import { openSwapAdvancedSettings } from './helpers/swap-ui'
 import {
   assetInfoLabel,
   fetchTxJson,
@@ -19,7 +20,7 @@ async function selectDualCwPairTokens(page: import('@playwright/test').Page, t0:
 }
 
 async function enableHybridBookLeg(page: import('@playwright/test').Page): Promise<void> {
-  await page.getByRole('button', { name: 'Settings' }).click()
+  await openSwapAdvancedSettings(page)
   await requireHybridControlsVisible(page)
   await page.getByRole('checkbox', { name: /Route part of input through the limit book/i }).check()
   await page.locator('.card-glass').filter({ hasText: 'Book leg amount' }).getByPlaceholder('0.0').fill('0.01')

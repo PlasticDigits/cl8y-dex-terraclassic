@@ -29,6 +29,23 @@ export async function openSwapSettingsAndSetSlippage(page: Page, percent: number
   await waitForSwapQuoteIdle(panel)
 }
 
+/** Expand Swap Settings → Advanced (integrator controls, GitLab #413). */
+export async function expandSwapAdvancedSettings(page: Page): Promise<void> {
+  const details = page.getByTestId('swap-advanced-settings-details')
+  if (!(await details.getAttribute('open'))) {
+    await page.getByTestId('swap-advanced-settings-toggle').click()
+  }
+  await expect(page.getByRole('button', { name: /Compare indexer route/i })).toBeVisible({ timeout: 15_000 })
+}
+
+/** Open Settings and expand Advanced for hybrid book leg / indexer route check. */
+export async function openSwapAdvancedSettings(page: Page): Promise<void> {
+  const panel = swapActionPanel(page)
+  await panel.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.locator('#swap-slippage-settings')).toBeVisible()
+  await expandSwapAdvancedSettings(page)
+}
+
 /** Click Swap / Confirm Swap (two-step when price impact is high). */
 export async function clickSwapSubmit(page: Page, panel = swapActionPanel(page)) {
   await waitForSwapQuoteIdle(panel)
