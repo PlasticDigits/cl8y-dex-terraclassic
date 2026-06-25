@@ -193,6 +193,62 @@ async fn route_solve_pool_only_escape_hatch() {
 
 #[serial]
 #[tokio::test]
+async fn route_solve_slippage_percent_enrichment_293() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_slippage_293(&pool).await;
+    let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000&pool_only=true",
+        seed.token_a, seed.token_b
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_ok();
+    let j: Value = resp.json();
+
+    let est = j["estimated_amount_out"]
+        .as_str()
+        .expect("estimated_amount_out")
+        .parse::<u128>()
+        .expect("parse estimated_amount_out");
+    let spot = j["spot_amount_out"]
+        .as_str()
+        .expect("spot_amount_out")
+        .parse::<u128>()
+        .expect("parse spot_amount_out");
+    let slip: f64 = j["slippage_percent"]
+        .as_str()
+        .expect("slippage_percent")
+        .parse()
+        .expect("parse slippage_percent");
+
+    assert!(est > 0 && spot > 0, "expected non-zero quote outputs");
+    assert!(
+        j["token_in_price_quote"].as_str().is_some(),
+        "token_in_price_quote"
+    );
+    assert_eq!(
+        j["token_out_price_quote"].as_str(),
+        Some("1.000000000000000000"),
+        "USTC quote leg is unit price"
+    );
+
+    let lo = est.min(spot) as f64;
+    let hi = est.max(spot) as f64;
+    let recomputed = (1.0 - lo / hi) * 100.0;
+    assert!(
+        (recomputed - slip).abs() < 1.0,
+        "symmetric slippage: reported={slip} recomputed={recomputed}"
+    );
+}
+
+#[serial]
+#[tokio::test]
 async fn route_solve_hybrid_optimize_requires_amount_in() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;

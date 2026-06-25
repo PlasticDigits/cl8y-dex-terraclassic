@@ -674,7 +674,7 @@ mod tests {
         let m = HopMirror {
             reserve_0: 0,
             reserve_1: 0,
-            freshness: MirrorFreshness::MissingReserves,
+            freshness: MirrorFreshness::EmptyPool,
             ..mirror_with_book(vec![])
         };
         let out =
