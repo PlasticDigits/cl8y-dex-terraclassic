@@ -969,7 +969,7 @@ On-chain semantics are unchanged: **Bid escrows token1; Ask escrows token0** (pa
 | **Control type** | Limit **side** is a WAI-ARIA **`radiogroup`** with two **`role="radio"`** `<button type="button">` controls (`tab-glass*` styling), not native `<input type="radio">`, so the active side updates in the same React commit as `onSideChange` without browser-native controlled-radio timing quirks ([GitLab **#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)). |
 | **Roving tabindex** | The selected side has **`tabIndex={0}`**; the other **`tabIndex={-1}`** (one tab stop for the group). **ArrowRight / ArrowDown** move selection and focus toward Ask; **ArrowLeft / ArrowUp** toward Bid; **End** selects Ask; **Home** selects Bid (from the Ask control). |
 | **`data-testid`s** | **`{idPrefix}-side-radiogroup`**, **`{idPrefix}-side-bid`**, **`{idPrefix}-side-ask`**. **`/trade`** uses **`idPrefix="trade-ticket"`** ([`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx)); **`/limits`** uses **`idPrefix="limit-orders"`** ([`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)). |
-| **`/trade` button copy** | Direction buttons read **Buy {base}** / **Buy {quote}** (token0 / token1 display symbols) so both sides are distinguishable without repeating the base symbol ([GitLab **#300**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/300)). Helper: [`tradeDirectionSideLabels.ts`](../frontend-dapp/src/utils/tradeDirectionSideLabels.ts). **`/limits`** keeps escrow-oriented **Bid (escrow …)** / **Ask (escrow …)** labels. |
+| **`/trade` button copy** | Direction buttons read **Buy {base}** / **Sell {base}** (token0 display symbol) so buttons match the ticket heading ([GitLab **#412**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/412); supersedes [#300](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/300)). Helper: [`tradeDirectionSideLabels.ts`](../frontend-dapp/src/utils/tradeDirectionSideLabels.ts). **`/limits`** keeps escrow-oriented **Bid (escrow …)** / **Ask (escrow …)** labels. |
 | **Focus visibility** | Buttons use **`tab-glass*`** classes, which define **`:focus-visible`** rings aligned with [Keyboard focus visibility (WCAG 2.4.7)](#keyboard-focus-visible-wcag-247). |
 
 **Implementation:** [`LimitOrderBidAskSideSelector.tsx`](../frontend-dapp/src/components/trade/LimitOrderBidAskSideSelector.tsx).
@@ -1113,14 +1113,14 @@ All swaps and trades are signed in the connected wallet and broadcast to the **p
 #### MEV and front-running risks
 
 - **Public mempool exposure:** Once a signed transaction enters the public mempool, validators and searchers can observe it before inclusion. Large or predictable swaps may be sandwiched or front-run.
-- **Slippage tolerance is the on-chain guard:** **Slippage tolerance** (`max_spread` on pair/router messages) is the primary contract-level protection against sandwich and front-running losses. Keep it tight for large trades. The Swap Settings panel still exposes slippage presets and a **High slippage increases front-running risk** warning when tolerance exceeds 5%.
+- **Slippage protection is the on-chain guard:** **Slippage protection** (retail label; on-chain `max_spread` on pair/router messages) is the primary contract-level protection against sandwich and front-running losses. Keep it tight for large trades. The Swap Settings panel exposes slippage presets, **transaction deadline** (default 5 min), and a **High slippage protection increases front-running risk** warning when protection exceeds 5%.
 - **No UI disclosure panel:** Per product decision ([#299](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)), MEV posture is **not** surfaced in the Swap or Trade UI — an informational card would imply a user-controllable setting that does not exist.
 
 | Invariant | Meaning |
 |-----------|---------|
 | **Public mempool default** | Wallet → public Terra Classic mempool; no private relay or bundle. |
 | **No MEV toggle** | Do not add a cosmetic or disabled “MEV protection” control in the UI. |
-| **Slippage is executable protection** | `max_spread` from Settings is enforced on-chain; see [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md). |
+| **Slippage is executable protection** | `max_spread` from Settings (**Slippage protection** label) is enforced on-chain; see [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md). |
 | **Docs-only disclosure** | MEV risks live in this section and linked docs, not in Swap/Trade Settings. |
 
 Related: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md) (price impact / max spread) · [`docs/limit-orders.md`](./limit-orders.md) (hybrid routing disclosure — GitLab #111).

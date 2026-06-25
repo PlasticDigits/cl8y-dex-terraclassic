@@ -608,14 +608,11 @@ function TradeOrderTicketContent({
 
   const token0Display = indexerPair?.asset_0.symbol ?? getTokenDisplaySymbol(token0 || 'token0')
   const token1Display = indexerPair?.asset_1.symbol ?? getTokenDisplaySymbol(token1 || 'token1')
-  const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(
-    token0Display,
-    token1Display
-  )
+  const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(token0Display)
   const sideAction =
     side === 'bid'
       ? { verb: 'Buy', receive: token0Display, pay: token1Display, tone: 'bid' as const }
-      : { verb: 'Sell', receive: token1Display, pay: token0Display, tone: 'ask' as const }
+      : { verb: 'Sell', receive: token0Display, pay: token0Display, tone: 'ask' as const }
   const walletLabel = isWalletConnected && address ? `${address.slice(0, 8)}…${address.slice(-6)}` : 'Connect wallet'
   const bestBidLabel = bestBookLoading ? '…' : (bestBid ?? '—')
   const bestAskLabel = bestBookLoading ? '…' : (bestAsk ?? '—')
