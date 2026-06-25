@@ -16,22 +16,25 @@ export type DirectHybridQuoteResult = {
   spotAmountOut?: string
 }
 
-/** Human-readable quote source for direct hybrid quotes (GitLab #418). */
+/** Retail quote-source line for direct hybrid / market quote cards (GitLab #418, #414). */
 export function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | undefined): string {
   switch (kind) {
     case 'indexer_hybrid_lcd_degraded':
-      return 'Indexer hybrid route (LCD) — one or more hops fell back to pool-only on the indexer.'
+      return 'Estimated from limit book + pool routing. One or more hops used pool-only pricing.'
     case 'indexer_hybrid_lcd':
     case 'indexer_hybrid_db':
-      return 'Indexer-optimized hybrid splits · quoted via your wallet LCD simulation (matches submit shape).'
+      return 'Estimated output from limit book + pool routing, checked against your wallet before submit.'
     case 'indexer_pool_lcd':
-      return 'Indexer route (pool-only legs) · quoted via your wallet LCD simulation.'
+      return 'Estimated output from pool routing, checked against your wallet before submit.'
     case 'indexer_route_only':
-      return 'Indexer-solved route · no aggregate router estimate (simulation unavailable).'
+      return 'Route found; estimated output unavailable — review carefully before submit.'
     default:
-      return 'Direct pair · hybrid_simulation (Pattern C).'
+      return 'Estimated output from limit book + pool routing on this pair.'
   }
 }
+
+/** Pool-only direct pair quote (no limit book leg). */
+export const POOL_ONLY_QUOTE_DISCLOSURE = 'Estimated output from pool-only pricing on this pair.'
 
 /**
  * Quote a direct CW20 swap with hybrid params aligned to submit.

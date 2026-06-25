@@ -61,6 +61,9 @@ vi.mock('@/services/indexer/client', () => ({
   postRouteSolve: vi.fn().mockRejectedValue(new Error('indexer unavailable')),
 }))
 
+import * as pair from '@/services/terraclassic/pair'
+import * as indexerClient from '@/services/indexer/client'
+
 vi.mock('@/lib/sounds', () => ({
   sounds: { playButtonPress: vi.fn(), playSuccess: vi.fn(), playError: vi.fn() },
 }))
@@ -122,5 +125,38 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('0.5%')
     expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.995')
     expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
+  })
+
+  it('shows retail-friendly disclosure on the market quote card (#414)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    renderWithProviders(
+      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+    )
+
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
+    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+
+    const quoteCard = await screen.findByTestId('trade-market-quote')
+    expect(quoteCard).toHaveTextContent(/Estimated output from limit book \+ pool/i)
+    expect(quoteCard).not.toHaveTextContent(/Pattern C|hybrid_simulation|GitLab #/i)
+  })
+
+  it('humanizes simulated quote failures instead of raw error text (#414)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    vi.mocked(indexerClient.postRouteSolve).mockRejectedValue(new Error('indexer unavailable'))
+    vi.mocked(pair.simulateHybridSwap).mockRejectedValue(new Error('lcd fail'))
+    vi.mocked(pair.simulateSwap).mockRejectedValue(new Error('lcd fail'))
+
+    renderWithProviders(
+      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+    )
+
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
+    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+
+    const err = await screen.findByTestId('trade-market-quote-error')
+    expect(err).toHaveTextContent(/reach the chain/i)
+    expect(err).not.toHaveTextContent(/lcd fail/i)
   })
 })

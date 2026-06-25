@@ -99,11 +99,11 @@ export function LimitOrderPreSubmitSummary({
         </li>
       </ul>
       <p className="text-[9px] leading-snug pt-1 border-t border-white/10" style={{ color: 'var(--ink-subtle)' }}>
-        Contract fee split:{' '}
+        Contract fee split —{' '}
         <a className="underline hover:opacity-80" href={LIMIT_DOC} target="_blank" rel="noopener noreferrer">
-          limit-orders.md
+          Learn more about limit order fees
         </a>
-        . Issue: GitLab #157.
+        .
       </p>
     </div>
   )

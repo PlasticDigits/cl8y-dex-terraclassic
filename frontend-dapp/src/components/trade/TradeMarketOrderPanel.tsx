@@ -22,7 +22,13 @@ import {
   executeCw20AllowanceThen,
   estimateMarketPairSwapSequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { quoteDirectHybridSwap, quoteDisclosureForIndexerKind } from '@/utils/directHybridQuote'
+import {
+  POOL_ONLY_QUOTE_DISCLOSURE,
+  quoteDirectHybridSwap,
+  quoteDisclosureForIndexerKind,
+} from '@/utils/directHybridQuote'
+import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
+import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
@@ -263,7 +269,7 @@ export function TradeMarketOrderPanel({
       const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, simRaw, quoteTrader)
       return {
         ...sim,
-        quoteDisclosure: 'Direct pair · pool-only hybrid_simulation.',
+        quoteDisclosure: POOL_ONLY_QUOTE_DISCLOSURE,
       }
     },
     enabled:
@@ -430,7 +436,15 @@ export function TradeMarketOrderPanel({
       <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
         Executes a taker swap on this pair using your global slippage cap (
         <span className="font-mono">{slippageTolerance}%</span>
-        ). Hybrid routing walks the on-chain limit book first, then the pool (Pattern C — see docs/limit-orders.md).
+        ). When hybrid routing is enabled, your trade fills against the on-chain limit book first, then the pool.{' '}
+        <a
+          className="underline hover:opacity-80"
+          href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn more
+        </a>
       </p>
       <div className="flex flex-wrap gap-2 text-[10px]">
         <span style={{ color: 'var(--ink-dim)' }}>Slippage:</span>
@@ -523,7 +537,9 @@ export function TradeMarketOrderPanel({
         </div>
       )}
       {simQuery.isError && rawInputAmount !== '0' && (
-        <p className="text-[10px] alert-error">{(simQuery.error as Error).message}</p>
+        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
+          {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+        </p>
       )}
       {simQuery.data && rawInputAmount !== '0' && (
         <div className="card-glass !p-2 space-y-1 text-[10px]" data-testid="trade-market-quote">

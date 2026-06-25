@@ -147,7 +147,7 @@ export function WalletIndexerHistoryPanel({
         <h2 className="text-sm font-semibold uppercase tracking-wide">Your history (this pair)</h2>
         <p className="text-xs mt-1" style={{ color: 'var(--ink-dim)' }}>
           Indexed swaps, limit fills, and cancellations for your wallet on the selected pair. CSV export uses the same
-          indexer filters (GitLab #163).
+          filters as this view.
         </p>
       </div>
 

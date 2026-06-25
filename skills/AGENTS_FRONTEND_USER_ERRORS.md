@@ -21,6 +21,7 @@ Use when surfacing **wallet**, **fetch/indexer**, or **mutation** failures in th
 2. **`RetryError`** and **`TxResultAlert` (`error`)** already humanize — pass **raw** `Error.message` / `getErrorMessage(query.error)`; do not pre-humanize unless you need a different prefix strategy.
 3. **Wallet modal** — `useWalletStore.connect` stores **humanized** text in **`error`**; keep **`console.error`** in wallet services if you need the raw trace.
 4. **New patterns** — add try-match branches to **`humanizeOffChainError.ts`** (off-chain) or **`humanizeTerraTxError.ts`** (chain), then extend **`humanizeUserFacingError.test.ts`**.
+5. **Retail disclosure copy (#414)** — quote cards and hybrid alerts use plain language via **`quoteDisclosureForIndexerKind`** / **`getIndexerHybridExecutionSummary`**; doc links are **Learn more** footers, not inline filenames or GitLab issue refs. **`TradeMarketOrderPanel`** quote failures call **`humanizeUserFacingErrorFromUnknown`**.
 
 ## Related
 
