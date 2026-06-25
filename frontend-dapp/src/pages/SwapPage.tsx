@@ -34,7 +34,7 @@ import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas
 import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
-import { FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { DOCS_GITLAB_BASE, FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
   assetInfoLabel,
   tokenAssetInfo,
@@ -1728,17 +1728,17 @@ export default function SwapPage() {
             <div className="alert-error mb-3 text-xs" role="alert">
               <p className="font-semibold mb-1">Limit book leg</p>
               <p>
-                The on-screen estimate may still diverge from execution if the indexer or LCD snapshot differs from the
-                chain at submit time (hybrid / L8). Read{' '}
+                The on-screen estimate may differ from what you receive if market conditions change between quote and
+                submit.{' '}
                 <a
-                  href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/limit-orders.md"
+                  href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline font-mono text-[10px]"
+                  className="underline"
                 >
-                  docs/limit-orders.md
-                </a>{' '}
-                for integrator semantics.
+                  Learn more about limit book routing
+                </a>
+                .
               </p>
             </div>
           )}

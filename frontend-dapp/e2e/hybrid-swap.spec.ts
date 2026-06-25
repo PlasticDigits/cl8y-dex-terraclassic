@@ -47,15 +47,14 @@ test.describe('Hybrid swap UI (LocalTerra)', () => {
     const alert = page.getByRole('alert')
     await expect(alert).toBeVisible({ timeout: 15_000 })
     await expect(alert).toContainText(/limit book/i)
-    const doc = alert.getByRole('link', { name: /docs\/limit-orders\.md/i })
+    const doc = alert.getByRole('link', { name: /Learn more about limit book routing/i })
     await expect(doc).toHaveAttribute('href', /limit-orders\.md/)
 
     const execution = page.getByTestId('swap-execution-summary')
     await expect(execution).toBeVisible({ timeout: 15_000 })
     await expect(execution).toContainText(/pool \+ limit book/i)
-    // Indexer hybrid line appears when route/solve succeeds; LCD-only path still shows hybrid split copy.
     const execText = await execution.textContent()
-    expect(execText).toMatch(/Indexer hybrid|Hybrid \(pool \+ limit book\)/i)
+    expect(execText).toMatch(/Limit book \+ pool|Hybrid \(pool \+ limit book\)/i)
   })
 
   test('shows single execution-aligned route row for dual-CW20 quote (GitLab #158)', async ({

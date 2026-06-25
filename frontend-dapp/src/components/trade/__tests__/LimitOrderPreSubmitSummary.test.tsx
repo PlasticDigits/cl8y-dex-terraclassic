@@ -35,4 +35,21 @@ describe('LimitOrderPreSubmitSummary', () => {
     )
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
+
+  it('links to limit order fee docs without issue refs', () => {
+    render(
+      <LimitOrderPreSubmitSummary
+        placeSequenceMinUluna={1500000n}
+        refToken1PerToken0={2}
+        typedPrice="1.8"
+        effectiveFeeBps={30}
+        makerPlacementFeeBps={15}
+        feeLoading={false}
+        feeError={false}
+      />
+    )
+    const link = screen.getByRole('link', { name: /Learn more about limit order fees/i })
+    expect(link.getAttribute('href')).toContain('limit-orders.md')
+    expect(screen.queryByText(/GitLab #/i)).not.toBeInTheDocument()
+  })
 })

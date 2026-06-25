@@ -66,6 +66,13 @@ describe('tryHumanizeFetchLikeMessage', () => {
     expect(tryHumanizeFetchLikeMessage('Indexer API error: 503 upstream')).toMatch(/Market data service/)
     expect(tryHumanizeFetchLikeMessage('Indexer API error: 404 no pair')).toMatch(/not found/)
   })
+
+  it('maps market quote failure shapes (#414)', () => {
+    expect(tryHumanizeFetchLikeMessage('indexer unavailable')).toMatch(/temporarily unavailable/i)
+    expect(tryHumanizeFetchLikeMessage('Hybrid quote unavailable')).toMatch(/Could not estimate output/i)
+    expect(tryHumanizeFetchLikeMessage('lcd fail')).toMatch(/reach the chain/i)
+    expect(tryHumanizeFetchLikeMessage('Unexpected token < in JSON at position 0')).toMatch(/invalid response/i)
+  })
 })
 
 describe('sanitizeOpaqueErrorMessage', () => {
@@ -128,5 +135,25 @@ describe('humanizeUserFacingError', () => {
       'Transaction fee mismatch. Please reconnect your wallet and try again. If the problem persists, contact support.'
     )
     expect(out).not.toMatch(/GitLab|uluna|npm ci|Station/)
+  })
+})
+
+describe('humanizeUserFacingError — market quote shapes (#414)', () => {
+  it('humanizes indexer transport failures', () => {
+    expect(humanizeUserFacingError('indexer unavailable')).toMatch(/temporarily unavailable/i)
+    expect(humanizeUserFacingError('Hybrid quote unavailable')).toMatch(/Could not estimate output/i)
+  })
+
+  it('humanizes LCD and malformed JSON failures', () => {
+    expect(humanizeUserFacingError('lcd fail')).toMatch(/reach the chain/i)
+    expect(humanizeUserFacingError('Unexpected token < in JSON at position 0')).toMatch(/invalid response/i)
+  })
+
+  it('preserves actionable pause and blacklist messages', () => {
+    const pause =
+      'Pair is paused — swaps are blocked until governance unpauses. Your wallet balances are unchanged; limit escrow in the pair contract stays until unpause.'
+    expect(humanizeUserFacingError(pause)).toBe(pause)
+    const blacklist = 'Trading is restricted for this wallet address on-chain.'
+    expect(humanizeUserFacingError(blacklist)).toBe(blacklist)
   })
 })
