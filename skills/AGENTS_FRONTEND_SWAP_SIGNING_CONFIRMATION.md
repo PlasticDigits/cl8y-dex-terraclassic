@@ -12,7 +12,7 @@ Before the wallet extension opens, taker swap surfaces must show a **labeled pre
 | Pair | `{offer} → {receive}` symbols | `swap-confirm-pair` |
 | Offer | `{amount} {symbol}` | `swap-confirm-offer` |
 | Receive (est.) | `{amount} {symbol}` | `swap-confirm-receive` |
-| Max spread | `{slippageTolerance}%` (on-chain `max_spread`) | `swap-confirm-max-spread` |
+| Max spread | `{slippageTolerance}%` (on-chain `max_spread`; retail label **Slippage protection**) | `swap-confirm-max-spread` |
 | Min return | floor after slippage | `swap-confirm-min-return` |
 | Chain | active network full label (`LocalTerra`, `Terra Classic`, …) | `swap-confirm-chain` |
 

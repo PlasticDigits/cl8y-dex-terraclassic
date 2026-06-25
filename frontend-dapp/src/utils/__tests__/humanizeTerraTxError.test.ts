@@ -24,7 +24,7 @@ describe('tryHumanizeTerraTxMessage — existing branches (regression coverage)'
     const out = tryHumanizeTerraTxMessage(raw)
     expect(out).not.toBeNull()
     expect(out).toContain('Trade rejected')
-    expect(out).toContain('slippage tolerance')
+    expect(out).toContain('slippage protection')
   })
 
   it('humanizes LimitOrder map key not found errors (binary key)', () => {

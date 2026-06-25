@@ -24,6 +24,7 @@ import {
 } from '@/services/terraclassic/transactions'
 import { quoteDirectHybridSwap, quoteDisclosureForIndexerKind } from '@/utils/directHybridQuote'
 import { sounds } from '@/lib/sounds'
+import { SLIPPAGE_PROTECTION_LABEL } from '@/utils/slippageProtectionCopy'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -428,12 +429,12 @@ export function TradeMarketOrderPanel({
     <div className="space-y-3 border-t border-white/10 pt-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide">Market</h3>
       <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        Executes a taker swap on this pair using your global slippage cap (
+        Executes a taker swap on this pair using your global {SLIPPAGE_PROTECTION_LABEL.toLowerCase()} (
         <span className="font-mono">{slippageTolerance}%</span>
         ). Hybrid routing walks the on-chain limit book first, then the pool (Pattern C — see docs/limit-orders.md).
       </p>
       <div className="flex flex-wrap gap-2 text-[10px]">
-        <span style={{ color: 'var(--ink-dim)' }}>Slippage:</span>
+        <span style={{ color: 'var(--ink-dim)' }}>{SLIPPAGE_PROTECTION_LABEL}:</span>
         {[0.1, 0.5, 1.0].map((v) => (
           <button
             key={v}
@@ -595,7 +596,9 @@ export function TradeMarketOrderPanel({
           : terraBroadcastPendingButtonLabel(
               swapMutation.phase,
               swapMutation.isPending,
-              priceImpactTooHigh ? 'Hop spread exceeds tolerance' : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+              priceImpactTooHigh
+                ? 'Hop spread exceeds slippage protection'
+                : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
               'Submitting…'
             )}
       </button>

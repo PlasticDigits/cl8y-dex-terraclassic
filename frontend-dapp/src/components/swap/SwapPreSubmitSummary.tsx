@@ -1,4 +1,5 @@
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
+import { SLIPPAGE_PROTECTION_LABEL } from '@/utils/slippageProtectionCopy'
 
 export type SwapPreSubmitSummaryProps = {
   /** Wallet action shown before extension signing (default: Swap). */
@@ -7,7 +8,7 @@ export type SwapPreSubmitSummaryProps = {
   receiveSymbol: string
   offerAmountHuman: string
   receiveAmountHuman: string
-  /** Slippage tolerance passed on-chain as max spread (percent). */
+  /** Slippage protection passed on-chain as max_spread (percent). */
   maxSpreadPercent: number
   /** Minimum receive after slippage floor; null while quote is incomplete. */
   minReceiveHuman: string | null
@@ -30,7 +31,7 @@ function SummaryRow({ label, value, testId }: { label: string; value: string; te
 }
 
 /**
- * Pre-sign summary for taker swaps: labeled action, pair, amounts, max spread, min return, and chain
+ * Pre-sign summary for taker swaps: labeled action, pair, amounts, slippage protection, min return, and chain
  * so wallet phishing cannot substitute pair/chain without failing tests ([#409](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/409) / SEC-D11).
  */
 export function SwapPreSubmitSummary({
@@ -66,7 +67,7 @@ export function SwapPreSubmitSummary({
           value={`${receiveAmountHuman} ${receiveSymbol}`}
           testId="swap-confirm-receive"
         />
-        <SummaryRow label="Max spread" value={`${maxSpreadPercent}%`} testId="swap-confirm-max-spread" />
+        <SummaryRow label={SLIPPAGE_PROTECTION_LABEL} value={`${maxSpreadPercent}%`} testId="swap-confirm-max-spread" />
         <SummaryRow
           label="Min return"
           value={minReceiveHuman != null ? `${minReceiveHuman} ${receiveSymbol}` : '—'}
