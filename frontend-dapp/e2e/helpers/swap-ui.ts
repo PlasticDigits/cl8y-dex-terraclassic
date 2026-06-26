@@ -31,11 +31,11 @@ export async function openSwapSettingsAndSetSlippage(page: Page, percent: number
 
 /** Expand Swap Settings → Advanced (integrator controls, GitLab #413). */
 export async function expandSwapAdvancedSettings(page: Page): Promise<void> {
-  const details = page.getByTestId('swap-advanced-settings-details')
-  if (!(await details.getAttribute('open'))) {
+  const routeCheck = page.getByTestId('swap-indexer-route-check')
+  if (!(await routeCheck.isVisible().catch(() => false))) {
     await page.getByTestId('swap-advanced-settings-toggle').click()
   }
-  await expect(page.getByRole('button', { name: /Compare indexer route/i })).toBeVisible({ timeout: 15_000 })
+  await expect(routeCheck).toBeVisible({ timeout: 15_000 })
 }
 
 /** Open Settings and expand Advanced for hybrid book leg / indexer route check. */
