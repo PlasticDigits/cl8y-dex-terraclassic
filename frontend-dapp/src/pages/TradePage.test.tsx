@@ -212,6 +212,7 @@ describe('TradePage', () => {
     await screen.findByTestId('trade-desktop-workspace')
     expect(screen.getByTestId('trade-desktop-tape-toggle')).toHaveTextContent('Expand')
     expect(screen.queryByRole('table', { name: /recent trades/i })).not.toBeInTheDocument()
+    expect(window.localStorage.getItem(TRADE_TAPE_EXPANDED_KEY)).toBeNull()
   })
 
   it('persists tape disclosure expansion in localStorage (GitLab #417)', async () => {
