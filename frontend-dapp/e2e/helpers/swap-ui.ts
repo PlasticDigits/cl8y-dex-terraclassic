@@ -25,7 +25,7 @@ export async function openSwapSettingsAndSetSlippage(page: Page, percent: number
   await panel.getByRole('button', { name: 'Settings' }).click()
   const settings = page.locator('#swap-slippage-settings')
   await expect(settings).toBeVisible()
-  await settings.getByPlaceholder('Custom').fill(String(percent))
+  await settings.getByRole('textbox', { name: /Custom slippage protection/i }).fill(String(percent))
   await waitForSwapQuoteIdle(panel)
 }
 

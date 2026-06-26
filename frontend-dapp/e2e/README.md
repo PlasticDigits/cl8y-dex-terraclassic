@@ -73,8 +73,30 @@ Strict failures for LCD down, missing dual-CW20 pair, paused pair, blocked swap 
 |---------|---------|---------|
 | `E2E_HYBRID_SEED_BID_ESCROW` | `50000000` | Raw CW20 on seeded bid |
 | `E2E_HYBRID_SEED_BID_PRICE` | `1` | Bid limit price |
+| `E2E_HYBRID_SEED_ASK_ESCROW` | `50000000` | Raw token0 on seeded **ask** (multihop CORAL→* hop 1; GitLab #422) |
+| `E2E_HYBRID_SEED_ASK_PRICE` | `1` | Ask limit price |
 
 Playbook: [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../../skills/AGENTS_E2E_HYBRID_SWAP.md).
+
+## Multihop hybrid router tx (`multihop-hybrid-tx.spec.ts`, GitLab #422)
+
+Strict **≥2-hop** router swap with indexer hybrid quote (CORAL→IRON through seeded EMBER/CORAL **ask** book; pay ≥600 CORAL raw). Asserts `limit_order_fill`, return within slippage vs `simulate_swap_operations`, and attaches a success screenshot. Receive token defaults to IRON (liquid EMBER/IRON hop 2); COBALT fails hop-spread preflight on seed liquidity.
+
+```bash
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/multihop-hybrid-tx.spec.ts --project=e2e-tx
+```
+
+Playbook: [`skills/AGENTS_TESTING_MULTIHOP_HYBRID.md`](../../skills/AGENTS_TESTING_MULTIHOP_HYBRID.md).
+
+## Trader / Protocol / blacklist smoke (#422)
+
+| Spec | Project | Notes |
+|------|---------|-------|
+| `trader-page.spec.ts` | `e2e-smoke` | Indexer positions section for connected dev wallet |
+| `protocol-page.spec.ts` | `e2e-smoke` | Factory + router audit addresses |
+| `blacklist-swap.spec.ts` | `e2e-smoke` | LCD mock via `helpers/blacklist-lcd-mock.ts` — disabled **Trading restricted** CTA |
+
+Indexer required for `trader-page.spec.ts` (`bash scripts/e2e-start-indexer.sh`).
 
 ## Limit order transaction tests (`limit-orders-tx.spec.ts`)
 
