@@ -53,6 +53,21 @@ cargo test --test api_route_solve three_hop -j 1 -- --test-threads=1
 
 LCD stubs: [`indexer/tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock.rs) (`start_smart_query_data_mock`, `start_hybrid_route_optimizer_mock`).
 
+## Playwright E2E (strict on-chain, GitLab #422)
+
+| Spec | Project | What it proves |
+|------|---------|----------------|
+| [`frontend-dapp/e2e/multihop-hybrid-tx.spec.ts`](../frontend-dapp/e2e/multihop-hybrid-tx.spec.ts) | `e2e-tx` | CORAL→IRON router swap (≥2 hops through seeded EMBER/CORAL **ask** book; IRON preferred over COBALT — EMBER/COBALT hop-2 pool is too thin for ≤50% slippage UI); `limit_order_fill` + return within quote slippage; screenshot on success |
+
+Helpers: [`frontend-dapp/e2e/helpers/multihop-hybrid-e2e.ts`](../frontend-dapp/e2e/helpers/multihop-hybrid-e2e.ts). Requires global setup (`e2e-seed-hybrid-book.sh`) + indexer on `VITE_INDEXER_URL`.
+
+```bash
+bash scripts/e2e-start-indexer.sh
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/multihop-hybrid-tx.spec.ts --project=e2e-tx
+```
+
+Agent playbook: [`skills/AGENTS_E2E_STRICT_CHAIN.md`](./AGENTS_E2E_STRICT_CHAIN.md), [`skills/AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md).
+
 ## Docs cross-links
 
 - [`docs/testing.md`](../docs/testing.md) — test types and commands; [P2 epic #199](../docs/testing.md#p2-testing-epic-gitlab-199)

@@ -331,6 +331,24 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/pool-tx
 
 **Hybrid swap E2E (strict tx path, GitLab [#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/hybrid-swap.spec.ts --project=e2e-tx` — requires global-setup seeding. See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_HYBRID_SWAP.md`](../skills/AGENTS_E2E_HYBRID_SWAP.md).
 
+**Multihop hybrid + page smoke E2E (GitLab [#422](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/422)):**
+
+| Spec | Project | Acceptance |
+|------|---------|------------|
+| `e2e/multihop-hybrid-tx.spec.ts` | `e2e-tx` | Router multihop CORAL→IRON (≥2 hops; hybrid ask-book on hop 0); tx `limit_order_fill`; return within slippage; screenshot attachment |
+| `e2e/trader-page.spec.ts` | `e2e-smoke` | `/trader/{wallet}` positions section loads (rows or empty); no console errors |
+| `e2e/protocol-page.spec.ts` | `e2e-smoke` | `/protocol` factory + router `AddressRow` audit copy ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)) |
+| `e2e/blacklist-swap.spec.ts` | `e2e-smoke` | Factory `blacklist_check` LCD mock blocks Swap CTA ([#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)) |
+
+```bash
+bash scripts/e2e-start-indexer.sh
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/multihop-hybrid-tx.spec.ts e2e/trader-page.spec.ts e2e/protocol-page.spec.ts e2e/blacklist-swap.spec.ts
+# Full suite (smoke @ 5 workers, then tx @ 1):
+sg docker -c 'CI=1 make test-e2e'
+```
+
+Playbook: [`skills/AGENTS_TESTING_MULTIHOP_HYBRID.md`](../skills/AGENTS_TESTING_MULTIHOP_HYBRID.md). Blacklist mock helper: [`e2e/helpers/blacklist-lcd-mock.ts`](../frontend-dapp/e2e/helpers/blacklist-lcd-mock.ts).
+
 **Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx` — first **unpaused** dual-CW20 pair via LCD `is_paused`. See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
 **Claim all parked tx E2E (GitLab [#259](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/259)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-claim-all-tx.spec.ts --project=e2e-tx` — expiry-park harness + batch claim confirm gas copy. Requires indexer + [`scripts/e2e-seed-expired-parked-claim-all.sh`](../scripts/e2e-seed-expired-parked-claim-all.sh). See [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
