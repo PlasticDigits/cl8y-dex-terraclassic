@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 
-import { isChainOptional } from './chain'
+import { assertTxResultAlert, isChainOptional } from './chain'
 import { firstUnpausedDualCwPair, type LcdPairInfo } from './lcd'
 import { skipOrFailIfPairPaused } from './hybrid-e2e'
 
@@ -169,6 +169,32 @@ export async function submitPlaceLimitAndExpectTx(page: Page): Promise<void> {
 
 export function cancelLimitCard(page: Page) {
   return page.locator('.card-glass').filter({ hasText: 'Cancel limit' })
+}
+
+/** My open limits panel on `/limits` (primary cancel path — GitLab #419). */
+export function myOpenLimitsPanel(page: Page) {
+  return page.getByTestId('limits-my-open-limits')
+}
+
+/**
+ * Cancel a resting limit via the placements panel row CTA (not Advanced order-id form).
+ * Accepts the confirm dialog and waits for the cancel tx success alert.
+ */
+export async function submitPanelCancelPlacementAndExpectTx(page: Page, orderId: number): Promise<void> {
+  const panel = myOpenLimitsPanel(page)
+  const cancelBtn = panel.getByTestId(`limits-page-cancel-placement-${orderId}`)
+
+  await expect(cancelBtn).toBeVisible({ timeout: 120_000 })
+  await expect(cancelBtn).toBeEnabled({ timeout: 60_000 })
+
+  page.once('dialog', (dialog) => {
+    expect(dialog.message()).toContain(`Cancel order #${orderId}`)
+    void dialog.accept()
+  })
+  await cancelBtn.click()
+
+  await assertTxResultAlert(panel, 180_000)
+  await expect(panel.locator('.alert-success')).toContainText(/Cancel submitted/i)
 }
 
 /** Click Place ladder and wait for TX success (retries LocalTerra account sequence races). */
