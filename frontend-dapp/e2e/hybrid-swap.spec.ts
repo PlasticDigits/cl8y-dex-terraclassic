@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable } from './helpers/chain'
 import { assertHybridSwapCtaNotBlocked, requireDualCwPair, requireHybridControlsVisible } from './helpers/hybrid-e2e'
-import { openSwapAdvancedSettings } from './helpers/swap-ui'
+import { clickSwapSubmit, openSwapAdvancedSettings, swapActionPanel } from './helpers/swap-ui'
 import {
   assetInfoLabel,
   fetchTxJson,
@@ -19,11 +19,53 @@ async function selectDualCwPairTokens(page: import('@playwright/test').Page, t0:
   await page.getByTestId(`token-option-${t1}`).click()
 }
 
+async function dismissGettingStartedIfPresent(page: import('@playwright/test').Page) {
+  const dismiss = page.getByRole('button', { name: 'Dismiss getting started tips' })
+  if (await dismiss.isVisible().catch(() => false)) {
+    await dismiss.click()
+  }
+}
+
+async function closeSwapSettingsIfOpen(page: import('@playwright/test').Page) {
+  const settings = page.locator('#swap-slippage-settings')
+  if (await settings.isVisible().catch(() => false)) {
+    await swapActionPanel(page).getByRole('button', { name: 'Settings' }).click()
+  }
+}
+
+async function enableExpertModeForSwap(page: import('@playwright/test').Page) {
+  const panel = swapActionPanel(page)
+  const settings = page.locator('#swap-slippage-settings')
+  if (!(await settings.isVisible().catch(() => false))) {
+    await panel.getByRole('button', { name: 'Settings' }).click()
+    await expect(settings).toBeVisible()
+  }
+  const enableExpert = page.getByTestId('swap-enable-expert-mode')
+  if (await enableExpert.isVisible().catch(() => false)) {
+    await enableExpert.click()
+    await page.getByTestId('expert-mode-confirm-input').fill('ENABLE EXPERT MODE')
+    await page.getByTestId('expert-mode-confirm-enable').click()
+    await closeSwapSettingsIfOpen(page)
+    return
+  }
+  const expert = page.getByTestId('swap-expert-mode-toggle')
+  if (!(await expert.isChecked())) {
+    await expert.click({ force: true })
+    const confirm = page.getByTestId('expert-mode-confirm-input')
+    if (await confirm.isVisible().catch(() => false)) {
+      await confirm.fill('ENABLE EXPERT MODE')
+      await page.getByTestId('expert-mode-confirm-enable').click()
+    }
+  }
+  await closeSwapSettingsIfOpen(page)
+}
+
 async function enableHybridBookLeg(page: import('@playwright/test').Page): Promise<void> {
   await openSwapAdvancedSettings(page)
   await requireHybridControlsVisible(page)
   await page.getByRole('checkbox', { name: /Route part of input through the limit book/i }).check()
   await page.locator('.card-glass').filter({ hasText: 'Book leg amount' }).getByPlaceholder('0.0').fill('0.01')
+  await closeSwapSettingsIfOpen(page)
 }
 
 test.describe('Hybrid swap UI (LocalTerra)', () => {
@@ -91,7 +133,7 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     page,
     connectWallet,
     request,
-  }) => {
+  }, testInfo) => {
     test.setTimeout(420_000)
     await skipIfLcdUnreachable(request)
     await connectWallet
@@ -102,30 +144,32 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
     const t1 = assetInfoLabel(pair.asset_infos[1])
 
     await page.waitForLoadState('networkidle')
+    await dismissGettingStartedIfPresent(page)
     await expect(page.getByLabel('Select token you pay')).toBeVisible({ timeout: 60_000 })
 
     await selectDualCwPairTokens(page, t0, t1)
     await enableHybridBookLeg(page)
     await page.getByPlaceholder('0.00').first().fill('1')
 
-    const swapPanel = page.locator('main .shell-panel-strong').first()
+    const swapPanel = swapActionPanel(page)
 
     await expect(async () => {
       const calculating = swapPanel.getByRole('button', { name: /^Calculating/ })
       expect(await calculating.count()).toBe(0)
     }).toPass({ timeout: 120_000 })
 
+    await enableExpertModeForSwap(page)
+
+    const receiveLine = page.locator('.swap-io-card-receive').getByText(/\d/)
+    await expect(receiveLine.first()).toBeVisible({ timeout: 30_000 })
+    const screenshot = await page.screenshot({ fullPage: false })
+    await testInfo.attach('hybrid-swap-quote-before-submit', { body: screenshot, contentType: 'image/png' })
+
     const swapAction = swapPanel.getByRole('button').filter({ hasText: /^(Swap|Confirm Swap)/ })
     await expect(swapAction).toBeVisible({ timeout: 60_000 })
     assertHybridSwapCtaNotBlocked(await swapAction.textContent())
 
-    await expect(swapAction).toBeEnabled({ timeout: 30_000 })
-    await swapAction.click()
-    await page.waitForTimeout(500)
-    const confirmSwap = swapPanel.getByRole('button').filter({ hasText: /^Confirm Swap/ })
-    if (await confirmSwap.isVisible().catch(() => false)) {
-      await confirmSwap.click()
-    }
+    await clickSwapSubmit(page, swapPanel)
 
     const successAlert = swapPanel.locator('.alert-success').first()
     const gasHint = swapPanel.getByText(/more gas than estimated/i)
