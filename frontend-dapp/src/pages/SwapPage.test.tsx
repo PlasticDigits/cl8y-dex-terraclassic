@@ -140,9 +140,9 @@ import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist
 import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
 
 async function expandSwapAdvancedSettings(user: ReturnType<typeof userEvent.setup>) {
-  const details = screen.getByTestId('swap-advanced-settings-details')
-  if (!details.hasAttribute('open')) {
-    await user.click(screen.getByTestId('swap-advanced-settings-toggle'))
+  const toggle = screen.getByTestId('swap-advanced-settings-toggle')
+  if (toggle.getAttribute('aria-expanded') !== 'true') {
+    await user.click(toggle)
   }
   await waitFor(() => expect(screen.getByRole('button', { name: /Compare indexer route/i })).toBeVisible())
 }
@@ -276,9 +276,8 @@ describe('SwapPage', () => {
       expect(retailPanel.getByText('Slippage protection')).toBeInTheDocument()
       expect(retailPanel.getByText('Transaction deadline')).toBeInTheDocument()
       expect(retailPanel.getByTestId('swap-expert-mode-toggle')).toBeInTheDocument()
-      const advancedDetails = screen.getByTestId('swap-advanced-settings-details')
-      expect(advancedDetails).not.toHaveAttribute('open')
-      expect(within(advancedDetails).getByTestId('swap-indexer-route-check')).not.toBeVisible()
+      expect(screen.getByTestId('swap-advanced-settings-toggle')).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByTestId('swap-indexer-route-check')).not.toBeInTheDocument()
     })
 
     it('shows hybrid and indexer route check when Advanced is expanded', async () => {
