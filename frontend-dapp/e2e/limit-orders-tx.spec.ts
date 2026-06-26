@@ -9,8 +9,8 @@ import {
   selectLimitSide,
   submitPlaceLimitAndExpectTx,
   submitLadderPlaceAndExpectTx,
-  submitCancelLimitAndExpectTx,
-  cancelLimitCard,
+  submitPanelCancelPlacementAndExpectTx,
+  myOpenLimitsPanel,
 } from './helpers/limit-e2e'
 import {
   fetchTxJson,
@@ -50,7 +50,7 @@ test.describe('Limit orders funded txs', () => {
     }).toPass({ timeout: 180_000 })
   })
 
-  test('cancel limit submits after place (indexed order id)', async ({ page, connectWallet, request }) => {
+  test('cancel limit via my open limits panel after place (#419)', async ({ page, connectWallet, request }) => {
     test.setTimeout(240_000)
     await skipIfLcdUnreachable(request)
     await connectWallet
@@ -67,15 +67,19 @@ test.describe('Limit orders funded txs', () => {
     await expect(placeBtn).toBeEnabled({ timeout: 60_000 })
     await submitPlaceLimitAndExpectTx(page)
 
-    const idLocator = page.getByTestId('last-placed-order-id')
-    await expect(idLocator).toBeVisible({ timeout: 45_000 })
+    const panel = myOpenLimitsPanel(page)
+    let orderId = 0
+    await expect(async () => {
+      const idText = (await page.getByTestId('last-placed-order-id').textContent()) ?? ''
+      const orderIdMatch = idText.match(/order #(\d+)/)
+      if (!orderIdMatch) throw new Error('waiting for indexed order id')
+      orderId = Number.parseInt(orderIdMatch[1]!, 10)
+      await expect(panel.getByTestId(`limits-page-cancel-placement-${orderId}`)).toBeVisible()
+    }).toPass({ timeout: 120_000 })
 
-    const cancelCard = cancelLimitCard(page)
-    const cancelBtn = cancelCard.getByRole('button', { name: /^Cancel limit$/i })
-    await expect(cancelBtn).toBeEnabled({ timeout: 30_000 })
-    await submitCancelLimitAndExpectTx(page)
+    await submitPanelCancelPlacementAndExpectTx(page, orderId)
 
-    const cancelSuccess = cancelCard.locator('.alert-success')
+    const cancelSuccess = myOpenLimitsPanel(page).locator('.alert-success')
 
     const cancelHash = await readTxHashFromAlertLink(page, cancelSuccess)
     await expect(async () => {

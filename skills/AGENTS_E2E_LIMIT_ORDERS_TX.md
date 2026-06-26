@@ -13,6 +13,7 @@ You are changing **limit order on-chain browser tests**, **E2E LCD pair selectio
 | Unpaused dual-CW20 pair exists | `requireLimitTxPair()` + LCD `is_paused` in `e2e/helpers/lcd.ts` | Hard fail (not `test.skip`) |
 | UI pause banner absent after selection | `skipOrFailIfPairPaused()` from `hybrid-e2e.ts` | Hard fail (L6) |
 | Place / cancel wasm actions | `limit-orders-tx.spec.ts` LCD poll | Expect `place_limit_order`, `cancel_limit_order` |
+| Cancel via **My open limits** panel (not Advanced order-id form) | `submitPanelCancelPlacementAndExpectTx` in `limit-e2e.ts` ([#419](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/419)) | `limits-page-cancel-placement-{order_id}` + confirm dialog |
 | 5-rung ladder (one tx) | `limit-orders-tx.spec.ts` ladder test | Expect `place_limit_order_batch` + `place_limit_order` |
 | Claim all parked (batch claim) | `limit-orders-claim-all-tx.spec.ts` ([#259](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/259)) | Harness: `scripts/e2e-seed-expired-parked-claim-all.sh`; UI confirm includes LUNC gas; LCD `claim_expired_limit_orders_batch` |
 
