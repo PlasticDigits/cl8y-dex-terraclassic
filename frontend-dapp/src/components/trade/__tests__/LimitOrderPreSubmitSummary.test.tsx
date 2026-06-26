@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { LimitOrderPreSubmitSummary } from '../LimitOrderPreSubmitSummary'
 
 describe('LimitOrderPreSubmitSummary', () => {
-  it('renders deviation and maker fee when data is ready', () => {
+  it('renders deviation and retail maker fee when data is ready (#419)', () => {
     render(
       <LimitOrderPreSubmitSummary
         placeSequenceMinUluna={1500000n}
@@ -17,8 +17,11 @@ describe('LimitOrderPreSubmitSummary', () => {
     )
     expect(screen.getByText(/no taker slippage/i)).toBeInTheDocument()
     expect(screen.getByText('-10.0%')).toBeInTheDocument()
-    expect(screen.getByText('15')).toBeInTheDocument()
-    expect(screen.getByText('30')).toBeInTheDocument()
+    const feeLine = screen.getByTestId('limit-order-pre-submit-summary-maker-fee')
+    expect(feeLine).toHaveTextContent(/Small fee taken from your escrow at placement/i)
+    expect(feeLine).toHaveTextContent(/0\.15%/)
+    expect(feeLine).toHaveTextContent(/15/)
+    expect(feeLine).toHaveTextContent(/0\.30%/)
   })
 
   it('shows loading state for maker fee while queries run', () => {

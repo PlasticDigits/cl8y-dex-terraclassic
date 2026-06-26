@@ -1,7 +1,10 @@
+import type { UseMutationResult } from '@tanstack/react-query'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { useLimitExpiredClaimMutation } from '@/hooks/useLimitExpiredClaimMutation'
-import type { IndexerLimitPlacement, PairInfo } from '@/types'
+import type { LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
+import type { IndexerLimitCancellation, IndexerLimitPlacement, PairInfo } from '@/types'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import {
   chunkExpiredClaimOrderIds,
   confirmExpiredClaimBatchMessage,
@@ -11,7 +14,9 @@ import {
 import {
   escrowTokenAddressForLimitSide,
   formatRemainingEscrowHuman,
+  parkedClaimButtonLabel,
   partitionLimitPlacementsByLifecycle,
+  partitionParkedPlacementsByKind,
 } from '@/utils/limitPlacementLifecycle'
 
 export type LimitOrderMyPlacementsVariant = 'page' | 'compact'
@@ -28,9 +33,106 @@ export interface LimitOrderMyPlacementsPanelProps {
   isPairPaused: boolean
   /** When true, disable claims without pair-paused copy (e.g. trading blacklist). */
   claimsDisabled?: boolean
+  /** When true, disable cancel without pair-paused copy (e.g. trading blacklist). */
+  cancelDisabled?: boolean
   openWalletModal: () => void
+  /** Shared cancel mutation for one-click row cancel (#162, #419). */
+  cancelLimitOrderMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
+  /** Indexed cancellations for this pair — disables cancel on already-cancelled ids. */
+  cancellations?: IndexerLimitCancellation[]
   /** When set, the active row for this `order_id` is visually emphasized (trade ticket "View order" — GitLab #161). */
   highlightOrderId?: number | null
+}
+
+function isOrderIdInCancelVariables(orderId: number, variables: LimitOrderCancelInput | undefined): boolean {
+  if (variables == null) return false
+  if (Array.isArray(variables)) return variables.includes(orderId)
+  return variables === orderId
+}
+
+function ParkedClaimRow({
+  row,
+  pair,
+  dtPrefix,
+  rowClass,
+  compact,
+  isWalletConnected,
+  isPairPaused,
+  claimsDisabled,
+  claimMutation,
+  openWalletModal,
+}: {
+  row: IndexerLimitPlacement
+  pair: PairInfo | undefined
+  dtPrefix: string
+  rowClass: string
+  compact: boolean
+  isWalletConnected: boolean
+  isPairPaused: boolean
+  claimsDisabled: boolean
+  claimMutation: ReturnType<typeof useLimitExpiredClaimMutation>
+  openWalletModal: () => void
+}) {
+  const escrowAddr = escrowTokenAddressForLimitSide(pair, row.side)
+  const sym = escrowAddr.startsWith('terra1') ? getTokenDisplaySymbol(escrowAddr) : 'escrow'
+  const rem = formatRemainingEscrowHuman(row, pair)
+  const claimLabel = parkedClaimButtonLabel(row)
+  const isDust = claimLabel === 'Claim dust'
+  const claiming = claimMutation.isPending && isOrderIdInExpiredClaimVariables(row.order_id, claimMutation.variables)
+  const claimsBlocked = isPairPaused || claimsDisabled
+  const claimDisabled = !isWalletConnected || claiming || claimsBlocked || claimMutation.isPending
+
+  return (
+    <li
+      key={row.id}
+      data-testid={`${dtPrefix}-placement-parked-${row.order_id}`}
+      className={`rounded-md border-l-4 ${isDust ? 'border-slate-400/60 bg-white/[0.04]' : 'border-amber-500/70 bg-amber-500/[0.06]'} px-2 py-2 space-y-2 ${rowClass}`}
+    >
+      <div>
+        <span className={isDust ? 'text-slate-300/90 mr-1' : 'text-amber-400/95 mr-1'}>{isDust ? '▫' : '◆'}</span>
+        order #{row.order_id} · {row.side ?? '?'} · ~{rem} {sym}
+        {isDust ? (
+          <span className="opacity-80"> · rounding dust (below 10 units)</span>
+        ) : (
+          row.parked_block_timestamp && (
+            <span className="opacity-80"> · parked {row.parked_block_timestamp.slice(0, 19)}</span>
+          )
+        )}
+      </div>
+      {!isDust && (
+        <p className="text-[9px] leading-snug opacity-90" style={{ color: 'var(--ink-subtle)' }}>
+          Expired limits wait here until you claim — escrow returns to your wallet in one transaction.
+        </p>
+      )}
+      {isDust && (
+        <p className="text-[9px] leading-snug opacity-90" style={{ color: 'var(--ink-subtle)' }}>
+          Tiny leftover from a partial fill — claim to recover the dust amount.
+        </p>
+      )}
+      <button
+        type="button"
+        data-testid={`${dtPrefix}-claim-expired-${row.order_id}`}
+        className={
+          compact ? 'btn-primary btn-cta w-full !text-[10px] !py-1' : 'btn-primary btn-cta w-full !text-xs !py-2'
+        }
+        disabled={claimDisabled}
+        onClick={() => {
+          if (!isWalletConnected) openWalletModal()
+          else if (!claimsBlocked) claimMutation.mutate(row.order_id)
+        }}
+      >
+        {!isWalletConnected
+          ? 'Connect wallet to claim'
+          : isPairPaused
+            ? 'Unavailable (pair paused)'
+            : claimsDisabled
+              ? 'Trading restricted'
+              : claiming
+                ? 'Claiming…'
+                : claimLabel}
+      </button>
+    </li>
+  )
 }
 
 export function LimitOrderMyPlacementsPanel({
@@ -43,10 +145,14 @@ export function LimitOrderMyPlacementsPanel({
   isWalletConnected,
   isPairPaused,
   claimsDisabled = false,
+  cancelDisabled = false,
   openWalletModal,
+  cancelLimitOrderMutation,
+  cancellations = [],
   highlightOrderId = null,
 }: LimitOrderMyPlacementsPanelProps) {
   const { active, parkedExpired } = partitionLimitPlacementsByLifecycle(rows)
+  const { expired: expiredParked, dust: dustParked } = partitionParkedPlacementsByKind(parkedExpired)
   const claimMutation = useLimitExpiredClaimMutation(pairAddr, walletAddress || undefined)
   const compact = variant === 'compact'
   const titleClass = compact
@@ -56,6 +162,7 @@ export function LimitOrderMyPlacementsPanel({
   const dtPrefix = compact ? 'trade' : 'limits-page'
 
   const claimsBlocked = isPairPaused || claimsDisabled
+  const cancelBlocked = isPairPaused || cancelDisabled
   const claimAllDisabled = !isWalletConnected || claimsBlocked || claimMutation.isPending || parkedExpired.length < 2
 
   const onClaimAllParked = async () => {
@@ -80,15 +187,35 @@ export function LimitOrderMyPlacementsPanel({
     }
   }
 
+  const onCancelActive = (orderId: number) => {
+    if (!isWalletConnected) {
+      openWalletModal()
+      return
+    }
+    if (cancelBlocked || !cancelLimitOrderMutation) return
+    if (orderIdHasIndexedCancellation(cancellations, orderId)) return
+    const ok = window.confirm(`Cancel order #${orderId}? Escrow returns to your wallet after the transaction confirms.`)
+    if (!ok) return
+    cancelLimitOrderMutation.mutate(orderId)
+  }
+
   const emptyCopy =
-    'No indexed placements for this wallet on this pair (or pair code predates owner attrs). ' +
-    "Expired limits removed during another trader's swap can still appear here once the indexer marks them parked expired — use Claim refund to recover escrow."
+    'No open limits for your wallet on this pair. Place a limit above or check another pair. ' +
+    'Expired or dust rows appear here once the indexer marks them — use Claim refund / Claim dust to recover escrow.'
+
+  const panelTitle = compact ? 'My open limits' : 'My open limits'
 
   return (
     <div className={compact ? 'space-y-1 border-t border-white/10 pt-3 max-h-48 overflow-y-auto' : 'space-y-2'}>
       <h2 className={titleClass} style={{ color: 'var(--ink-dim)' }}>
-        {compact ? 'My limits (indexer)' : 'My limits (indexer)'}
+        {panelTitle}
       </h2>
+      {isPairPaused && rows.length > 0 && (
+        <p className="text-[10px] leading-snug alert-error !py-2 !px-2.5" role="status">
+          Pair is paused — cancel and claim are unavailable until governance unpauses. Escrow stays in the pair
+          contract.
+        </p>
+      )}
       {isLoading && <Spinner />}
       {!isLoading && rows.length === 0 && (
         <p className={compact ? 'text-[10px] opacity-90' : 'text-sm'} style={{ color: 'var(--ink-dim)' }}>
@@ -101,28 +228,68 @@ export function LimitOrderMyPlacementsPanel({
             <div className="space-y-1">
               {!compact && (
                 <div className="text-[11px] uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
-                  Active on book
+                  Resting on book — tap Cancel to remove
                 </div>
               )}
-              <ul className={`space-y-1 ${compact ? 'max-h-24 overflow-y-auto' : 'max-h-40 overflow-y-auto'}`}>
-                {active.map((r) => (
-                  <li
-                    key={r.id}
-                    data-testid={`${dtPrefix}-placement-active-${r.order_id}`}
-                    className={`rounded-md border px-2 py-1.5 ${rowClass} transition-shadow duration-300 ${
-                      highlightOrderId != null && r.order_id === highlightOrderId
-                        ? 'border-amber-400/70 bg-amber-500/[0.12] shadow-[0_0_0_2px_rgba(251,191,36,0.45)]'
-                        : 'border-white/10 bg-white/[0.03]'
-                    }`}
-                  >
-                    <span className="text-emerald-400/90 mr-1">●</span>
-                    order #{r.order_id} · {r.side ?? '?'} · {r.price ?? '?'} · placed {r.block_timestamp.slice(0, 19)}
-                  </li>
-                ))}
+              <ul className={`space-y-1.5 ${compact ? 'max-h-24 overflow-y-auto' : 'max-h-48 overflow-y-auto'}`}>
+                {active.map((r) => {
+                  const alreadyCancelled = orderIdHasIndexedCancellation(cancellations, r.order_id)
+                  const pendingCancel =
+                    cancelLimitOrderMutation?.isPending &&
+                    isOrderIdInCancelVariables(r.order_id, cancelLimitOrderMutation.variables)
+                  const cancelBtnDisabled =
+                    !cancelLimitOrderMutation ||
+                    !isWalletConnected ||
+                    cancelBlocked ||
+                    alreadyCancelled ||
+                    pendingCancel ||
+                    (cancelLimitOrderMutation?.isPending ?? false)
+                  return (
+                    <li
+                      key={r.id}
+                      data-testid={`${dtPrefix}-placement-active-${r.order_id}`}
+                      className={`rounded-md border px-2 py-1.5 space-y-1.5 ${rowClass} transition-shadow duration-300 ${
+                        highlightOrderId != null && r.order_id === highlightOrderId
+                          ? 'border-amber-400/70 bg-amber-500/[0.12] shadow-[0_0_0_2px_rgba(251,191,36,0.45)]'
+                          : 'border-white/10 bg-white/[0.03]'
+                      }`}
+                    >
+                      <div>
+                        <span className="text-emerald-400/90 mr-1">●</span>
+                        order #{r.order_id} · {r.side ?? '?'} · {r.price ?? '?'} · placed{' '}
+                        {r.block_timestamp.slice(0, 19)}
+                      </div>
+                      {cancelLimitOrderMutation && (
+                        <button
+                          type="button"
+                          data-testid={`${dtPrefix}-cancel-placement-${r.order_id}`}
+                          className={
+                            compact
+                              ? 'rounded-lg border border-white/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40 w-full'
+                              : 'rounded-lg border border-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40 w-full'
+                          }
+                          style={{ color: 'var(--ink-dim)' }}
+                          disabled={cancelBtnDisabled}
+                          onClick={() => onCancelActive(r.order_id)}
+                        >
+                          {!isWalletConnected
+                            ? 'Connect to cancel'
+                            : isPairPaused
+                              ? 'Unavailable (pair paused)'
+                              : cancelDisabled
+                                ? 'Trading restricted'
+                                : pendingCancel
+                                  ? 'Cancelling…'
+                                  : 'Cancel'}
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}
-          {parkedExpired.length > 0 && (
+          {expiredParked.length > 0 && (
             <div className="space-y-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div
@@ -162,53 +329,52 @@ export function LimitOrderMyPlacementsPanel({
                 )}
               </div>
               <ul className="space-y-2">
-                {parkedExpired.map((r) => {
-                  const escrowAddr = escrowTokenAddressForLimitSide(pair, r.side)
-                  const sym = escrowAddr.startsWith('terra1') ? getTokenDisplaySymbol(escrowAddr) : 'escrow'
-                  const rem = formatRemainingEscrowHuman(r, pair)
-                  const claiming =
-                    claimMutation.isPending && isOrderIdInExpiredClaimVariables(r.order_id, claimMutation.variables)
-                  const claimDisabled = !isWalletConnected || claiming || claimsBlocked || claimMutation.isPending
-                  return (
-                    <li
-                      key={r.id}
-                      data-testid={`${dtPrefix}-placement-parked-${r.order_id}`}
-                      className={`rounded-md border-l-4 border-amber-500/70 bg-amber-500/[0.06] px-2 py-2 space-y-2 ${rowClass}`}
-                    >
-                      <div>
-                        <span className="text-amber-400/95 mr-1">◆</span>
-                        order #{r.order_id} · {r.side ?? '?'} · ~{rem} {sym}
-                        {r.parked_block_timestamp && (
-                          <span className="opacity-80"> · parked {r.parked_block_timestamp.slice(0, 19)}</span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        data-testid={`${dtPrefix}-claim-expired-${r.order_id}`}
-                        className={
-                          compact
-                            ? 'btn-primary btn-cta w-full !text-[10px] !py-1'
-                            : 'btn-primary btn-cta w-full !text-xs !py-2'
-                        }
-                        disabled={claimDisabled}
-                        onClick={() => {
-                          if (!isWalletConnected) openWalletModal()
-                          else if (!claimsBlocked) claimMutation.mutate(r.order_id)
-                        }}
-                      >
-                        {!isWalletConnected
-                          ? 'Connect wallet to claim'
-                          : isPairPaused
-                            ? 'Unavailable (pair paused)'
-                            : claimsDisabled
-                              ? 'Trading restricted'
-                              : claiming
-                                ? 'Claiming…'
-                                : 'Claim refund'}
-                      </button>
-                    </li>
-                  )
-                })}
+                {expiredParked.map((r) => (
+                  <ParkedClaimRow
+                    key={r.id}
+                    row={r}
+                    pair={pair}
+                    dtPrefix={dtPrefix}
+                    rowClass={rowClass}
+                    compact={compact}
+                    isWalletConnected={isWalletConnected}
+                    isPairPaused={isPairPaused}
+                    claimsDisabled={claimsDisabled}
+                    claimMutation={claimMutation}
+                    openWalletModal={openWalletModal}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+          {dustParked.length > 0 && (
+            <div className="space-y-1">
+              <div
+                className={
+                  compact
+                    ? 'text-[10px] uppercase tracking-wide font-medium'
+                    : 'text-[11px] uppercase tracking-wide font-medium'
+                }
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                Dust — claim remaining
+              </div>
+              <ul className="space-y-2">
+                {dustParked.map((r) => (
+                  <ParkedClaimRow
+                    key={r.id}
+                    row={r}
+                    pair={pair}
+                    dtPrefix={dtPrefix}
+                    rowClass={rowClass}
+                    compact={compact}
+                    isWalletConnected={isWalletConnected}
+                    isPairPaused={isPairPaused}
+                    claimsDisabled={claimsDisabled}
+                    claimMutation={claimMutation}
+                    openWalletModal={openWalletModal}
+                  />
+                ))}
               </ul>
             </div>
           )}
@@ -223,6 +389,12 @@ export function LimitOrderMyPlacementsPanel({
         <div data-testid={`${dtPrefix}-claim-result`}>
           <TxResultAlert type="success" message="Refund transaction submitted." txHash={claimMutation.data} />
         </div>
+      )}
+      {cancelLimitOrderMutation?.isError && (
+        <TxResultAlert type="error" message={(cancelLimitOrderMutation.error as Error).message} />
+      )}
+      {cancelLimitOrderMutation?.isSuccess && !cancelLimitOrderMutation.isPending && (
+        <TxResultAlert type="success" message="Cancel submitted." txHash={cancelLimitOrderMutation.data} />
       )}
     </div>
   )

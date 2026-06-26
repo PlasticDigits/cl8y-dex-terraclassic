@@ -2,6 +2,9 @@ import type { IndexerLimitPlacement, PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo } from '@/types'
 import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
 
+/** On-chain dust flush threshold (`LIMIT_ORDER_DUST_FLUSH_THRESHOLD` in dex-common). */
+export const LIMIT_ORDER_DUST_FLUSH_THRESHOLD = 10
+
 /** Normalized lifecycle from indexer (`GET .../limit-placements`). Legacy rows without the field count as active. */
 export function normalizedLimitPlacementLifecycle(
   row: IndexerLimitPlacement
@@ -34,6 +37,35 @@ export function partitionLimitPlacementsByLifecycle(rows: IndexerLimitPlacement[
   active.sort(sortDesc)
   parkedExpired.sort(sortDesc)
   return { active, parkedExpired }
+}
+
+/** True when indexed `remaining_escrow` is below the on-chain dust flush threshold. */
+export function isParkedDustPlacement(row: IndexerLimitPlacement): boolean {
+  const raw = row.remaining_escrow?.trim()
+  if (!raw || raw === '0') return false
+  try {
+    const n = BigInt(raw)
+    return n > 0n && n < BigInt(LIMIT_ORDER_DUST_FLUSH_THRESHOLD)
+  } catch {
+    return false
+  }
+}
+
+export function parkedClaimButtonLabel(row: IndexerLimitPlacement): 'Claim dust' | 'Claim refund' {
+  return isParkedDustPlacement(row) ? 'Claim dust' : 'Claim refund'
+}
+
+export function partitionParkedPlacementsByKind(rows: IndexerLimitPlacement[]): {
+  expired: IndexerLimitPlacement[]
+  dust: IndexerLimitPlacement[]
+} {
+  const expired: IndexerLimitPlacement[] = []
+  const dust: IndexerLimitPlacement[] = []
+  for (const r of rows) {
+    if (isParkedDustPlacement(r)) dust.push(r)
+    else expired.push(r)
+  }
+  return { expired, dust }
 }
 
 /** Escrow token address for display: bid → token1, ask → token0 (pair ordering). */

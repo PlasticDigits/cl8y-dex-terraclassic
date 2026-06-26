@@ -1,5 +1,6 @@
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { formatTokenAmount } from '@/utils/formatAmount'
+import { bpsToPercentLabel } from '@/utils/limitOrderFeeSummary'
 import { limitPriceDeviationPercent, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 
 const LIMIT_DOC = `${DOCS_GITLAB_BASE}/limit-orders.md`
@@ -40,6 +41,8 @@ export function LimitOrderPreSubmitSummary({
   const dev = refToken1PerToken0 != null && limit != null ? limitPriceDeviationPercent(limit, refToken1PerToken0) : null
 
   const gasHuman = formatTokenAmount(placeSequenceMinUluna.toString(), 6, 4)
+  const makerPct = makerBps != null ? bpsToPercentLabel(makerBps) : null
+  const effectivePct = effectiveFeeBps != null ? bpsToPercentLabel(effectiveFeeBps) : null
 
   return (
     <div
@@ -55,7 +58,7 @@ export function LimitOrderPreSubmitSummary({
         <strong style={{ color: 'var(--ink)' }}>no</strong> pool{' '}
         <strong style={{ color: 'var(--ink)' }}>price impact</strong>, and{' '}
         <strong style={{ color: 'var(--ink)' }}>no “min received”</strong> line like a market swap — those apply when
-        you take liquidity now.
+        you take liquidity now (Market tab / hybrid swap).
       </p>
       <ul className="list-disc pl-4 space-y-1" style={{ color: 'var(--ink-dim)' }}>
         <li>
@@ -72,19 +75,21 @@ export function LimitOrderPreSubmitSummary({
           )}
           <span className="text-[9px] ml-1 opacity-90">(token1 per token0)</span>
         </li>
-        <li>
+        <li data-testid={`${testId}-maker-fee`}>
           <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-            Maker placement fee:{' '}
+            Maker fee (charged when placed):{' '}
           </span>
           {feeLoading ? (
             <span className="opacity-80">Loading…</span>
-          ) : feeError || effectiveFeeBps == null || makerBps == null ? (
+          ) : feeError || effectiveFeeBps == null || makerBps == null || makerPct == null ? (
             <span className="opacity-80">—</span>
           ) : (
             <span style={{ color: 'var(--ink)' }}>
-              <span className="font-mono tabular-nums">{makerBps}</span> bps of escrow at place (½ of{' '}
-              <span className="font-mono tabular-nums">{effectiveFeeBps}</span> bps effective swap fee; the other ½ is
-              charged to takers on each fill).
+              Small fee taken from your escrow at placement — about{' '}
+              <strong className="font-mono tabular-nums">{makerPct}</strong> of escrow (
+              <span className="font-mono tabular-nums">{makerBps}</span> bps; half of the{' '}
+              <span className="font-mono tabular-nums">{effectivePct}</span> swap fee). The other half is charged to
+              takers on each fill.
             </span>
           )}
         </li>
@@ -99,7 +104,6 @@ export function LimitOrderPreSubmitSummary({
         </li>
       </ul>
       <p className="text-[9px] leading-snug pt-1 border-t border-white/10" style={{ color: 'var(--ink-subtle)' }}>
-        Contract fee split —{' '}
         <a className="underline hover:opacity-80" href={LIMIT_DOC} target="_blank" rel="noopener noreferrer">
           Learn more about limit order fees
         </a>
