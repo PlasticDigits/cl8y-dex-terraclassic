@@ -294,15 +294,34 @@ export default function TradePage() {
   )
 
   const expandDesktopTape = useCallback(() => {
-    tapePanelRef.current?.expand()
+    tapePanelRef.current?.expand?.()
     setDesktopTapeExpanded(true)
     writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, true)
   }, [])
 
   const collapseDesktopTape = useCallback(() => {
-    tapePanelRef.current?.collapse()
+    tapePanelRef.current?.collapse?.()
     setDesktopTapeExpanded(false)
     writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
+  }, [])
+
+  // react-resizable-panels may fire onExpand during initial layout; keep first visit collapsed (GitLab #417).
+  useEffect(() => {
+    if (readTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)) return
+    let cancelled = false
+    const id = requestAnimationFrame(() => {
+      if (cancelled) return
+      try {
+        tapePanelRef.current?.collapse?.()
+      } catch {
+        // PanelGroup may not be registered yet in unit tests (GitLab #417).
+      }
+      setDesktopTapeExpanded(false)
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(id)
+    }
   }, [])
 
   const chartSlotProps = {
@@ -485,14 +504,8 @@ export default function TradePage() {
                   collapsedSize={TRADE_DESKTOP_TAPE_COLLAPSED_SIZE}
                   collapsible
                   className="min-h-0"
-                  onExpand={() => {
-                    setDesktopTapeExpanded(true)
-                    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, true)
-                  }}
-                  onCollapse={() => {
-                    setDesktopTapeExpanded(false)
-                    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
-                  }}
+                  onExpand={() => setDesktopTapeExpanded(true)}
+                  onCollapse={() => setDesktopTapeExpanded(false)}
                 >
                   <div className="h-full flex flex-col min-h-0 card-glass !p-3" data-testid="trade-desktop-tape-panel">
                     <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
