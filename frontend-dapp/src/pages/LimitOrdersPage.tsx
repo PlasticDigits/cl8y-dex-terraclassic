@@ -10,7 +10,7 @@ import {
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateUpdateLimitOrderPriceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { getPairLimitPlacements, getPair, getTrades } from '@/services/indexer/client'
+import { getPairLimitPlacements, getPair, getTrades, getTraderLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { PairSearchSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
@@ -129,9 +129,12 @@ export default function LimitOrdersPage() {
   } = useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
 
   const placementsQuery = useQuery({
-    queryKey: ['limitPlacements', pairAddr],
-    queryFn: () => getPairLimitPlacements(pairAddr, { limit: 100 }),
-    enabled: pairAddr.startsWith('terra1'),
+    queryKey: ['limitPlacements', pairAddr, address],
+    queryFn: () =>
+      address
+        ? getTraderLimitPlacements(address, { pair: pairAddr, limit: 100 })
+        : getPairLimitPlacements(pairAddr, { limit: 100 }),
+    enabled: pairAddr.startsWith('terra1') && !!address,
   })
 
   const cancellationsQuery = usePairLimitCancellations(pairAddr)
@@ -337,10 +340,7 @@ export default function LimitOrdersPage() {
         ? placeEscrowGate
         : placeNativeGasGate
 
-  const myPlacements = useMemo(() => {
-    if (!address || !placementsQuery.data) return []
-    return placementsQuery.data.filter((r) => r.owner === address)
-  }, [address, placementsQuery.data])
+  const myPlacements = useMemo(() => placementsQuery.data ?? [], [placementsQuery.data])
 
   const parsedCancelOrderId = parseInt(cancelOrderId, 10)
   const cancelIdIndexedAsCancelled =
@@ -407,9 +407,8 @@ export default function LimitOrdersPage() {
       for (let i = 0; i < 24; i++) {
         await new Promise((r) => setTimeout(r, 500))
         try {
-          const rows = await getPairLimitPlacements(addr, { limit: 100 })
-          const mine = rows.filter((r) => r.owner === wallet)
-          const maxId = mine.reduce((m, r) => Math.max(m, r.order_id), 0)
+          const rows = await getTraderLimitPlacements(wallet, { pair: addr, limit: 100 })
+          const maxId = rows.reduce((m, r) => Math.max(m, r.order_id), 0)
           if (maxId > 0) {
             setLastIndexedOrderId(maxId)
             setCancelOrderId(String(maxId))
@@ -575,6 +574,24 @@ export default function LimitOrdersPage() {
                     cancelLimitOrderMutation={limitCancelMutation}
                     onPrefillLimitTicket={onPrefillLimitTicketFromBook}
                     factoryPair={selectedPair}
+                  />
+                </div>
+              )}
+
+              {pairAddr && address && (
+                <div className="card-glass !p-4 space-y-2" data-testid="limits-my-open-limits">
+                  <LimitOrderMyPlacementsPanel
+                    variant="page"
+                    pairAddr={pairAddr}
+                    pair={selectedPair}
+                    walletAddress={address}
+                    rows={myPlacements}
+                    isLoading={placementsQuery.isLoading}
+                    isWalletConnected={isWalletConnected}
+                    isPairPaused={isPaused}
+                    openWalletModal={openWalletModal}
+                    cancelLimitOrderMutation={limitCancelMutation}
+                    cancellations={cancellationsQuery.data ?? []}
                   />
                 </div>
               )}
@@ -755,77 +772,68 @@ export default function LimitOrdersPage() {
                 )}
               </div>
 
-              <div className="card-glass !p-4 space-y-4">
-                <h2 className="text-sm font-semibold uppercase tracking-wide">Cancel limit</h2>
-                <p className="text-[11px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-                  For your resting orders, use <strong>Edit</strong> / <strong>×</strong> on the order book above, or
-                  enter an order id below.
-                </p>
-                <div>
-                  <label className="label-glass" htmlFor={limitOrdersCancelOrderInputId}>
-                    Order ID
-                  </label>
-                  <input
-                    id={limitOrdersCancelOrderInputId}
-                    className="input-glass w-full font-mono"
-                    value={cancelOrderId}
-                    onChange={(e) => setCancelOrderId(e.target.value)}
-                    placeholder="e.g. 42"
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="btn-primary btn-cta w-full"
-                  disabled={
-                    !isWalletConnected ||
-                    limitCancelMutation.isPending ||
-                    !pairAddr ||
-                    isPaused ||
-                    cancelIdIndexedAsCancelled
-                  }
-                  onClick={() => {
-                    if (!isWalletConnected) openWalletModal()
-                    else submitCancelFromForm()
-                  }}
-                >
-                  {!isWalletConnected
-                    ? 'Connect Wallet'
-                    : limitCancelMutation.isPending
-                      ? 'Cancelling…'
-                      : 'Cancel limit'}
-                </button>
-                {cancelIdIndexedAsCancelled && (
-                  <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-                    This order id already has an indexed cancellation.
+              <details className="card-glass !p-4 space-y-4 group">
+                <summary className="text-sm font-semibold uppercase tracking-wide cursor-pointer list-none flex items-center justify-between">
+                  <span>Cancel by order ID</span>
+                  <span className="text-[10px] font-normal normal-case opacity-70">
+                    Advanced — prefer Cancel on open limits above
+                  </span>
+                </summary>
+                <div className="pt-3 space-y-4">
+                  <p className="text-[11px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+                    For resting orders, use <strong>Cancel</strong> on your open limits above, or <strong>×</strong> on
+                    the order book. Enter an order id here only when you need a manual fallback.
                   </p>
-                )}
-                {limitCancelMutation.isError && (
-                  <TxResultAlert type="error" message={(limitCancelMutation.error as Error).message} />
-                )}
-                {limitCancelMutation.isSuccess && (
-                  <TxResultAlert
-                    type="success"
-                    message="Cancel transaction submitted."
-                    txHash={limitCancelMutation.data}
-                  />
-                )}
-              </div>
-
-              {pairAddr && address && (
-                <div className="card-glass !p-4 space-y-2">
-                  <LimitOrderMyPlacementsPanel
-                    variant="page"
-                    pairAddr={pairAddr}
-                    pair={selectedPair}
-                    walletAddress={address}
-                    rows={myPlacements}
-                    isLoading={placementsQuery.isLoading}
-                    isWalletConnected={isWalletConnected}
-                    isPairPaused={isPaused}
-                    openWalletModal={openWalletModal}
-                  />
+                  <div>
+                    <label className="label-glass" htmlFor={limitOrdersCancelOrderInputId}>
+                      Order ID
+                    </label>
+                    <input
+                      id={limitOrdersCancelOrderInputId}
+                      className="input-glass w-full font-mono"
+                      value={cancelOrderId}
+                      onChange={(e) => setCancelOrderId(e.target.value)}
+                      placeholder="e.g. 42"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary btn-cta w-full"
+                    disabled={
+                      !isWalletConnected ||
+                      limitCancelMutation.isPending ||
+                      !pairAddr ||
+                      isPaused ||
+                      cancelIdIndexedAsCancelled
+                    }
+                    onClick={() => {
+                      if (!isWalletConnected) openWalletModal()
+                      else submitCancelFromForm()
+                    }}
+                  >
+                    {!isWalletConnected
+                      ? 'Connect Wallet'
+                      : limitCancelMutation.isPending
+                        ? 'Cancelling…'
+                        : 'Cancel limit'}
+                  </button>
+                  {cancelIdIndexedAsCancelled && (
+                    <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
+                      This order id already has an indexed cancellation.
+                    </p>
+                  )}
+                  {limitCancelMutation.isError && (
+                    <TxResultAlert type="error" message={(limitCancelMutation.error as Error).message} />
+                  )}
+                  {limitCancelMutation.isSuccess && (
+                    <TxResultAlert
+                      type="success"
+                      message="Cancel transaction submitted."
+                      txHash={limitCancelMutation.data}
+                    />
+                  )}
                 </div>
-              )}
+              </details>
 
               {pairAddr && address && <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} />}
             </div>

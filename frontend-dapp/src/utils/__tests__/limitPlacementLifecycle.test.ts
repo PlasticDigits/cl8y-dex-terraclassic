@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest'
 import {
   escrowTokenAddressForLimitSide,
   formatRemainingEscrowHuman,
+  isParkedDustPlacement,
   normalizedLimitPlacementLifecycle,
+  parkedClaimButtonLabel,
   partitionLimitPlacementsByLifecycle,
+  partitionParkedPlacementsByKind,
 } from '@/utils/limitPlacementLifecycle'
 import type { IndexerLimitPlacement, PairInfo } from '@/types'
 
@@ -80,5 +83,23 @@ describe('formatRemainingEscrowHuman', () => {
       remaining_escrow: '1000000',
     })
     expect(formatRemainingEscrowHuman(r, mockPair)).not.toBe('—')
+  })
+})
+
+describe('parked dust vs expiry (#419)', () => {
+  it('detects dust when remaining_escrow is below threshold', () => {
+    expect(isParkedDustPlacement(row({ id: 1, order_id: 1, remaining_escrow: '5' }))).toBe(true)
+    expect(isParkedDustPlacement(row({ id: 2, order_id: 2, remaining_escrow: '10' }))).toBe(false)
+    expect(parkedClaimButtonLabel(row({ id: 1, order_id: 1, remaining_escrow: '3' }))).toBe('Claim dust')
+    expect(parkedClaimButtonLabel(row({ id: 2, order_id: 2, remaining_escrow: '1000' }))).toBe('Claim refund')
+  })
+
+  it('partitions parked rows into expired vs dust buckets', () => {
+    const { expired, dust } = partitionParkedPlacementsByKind([
+      row({ id: 1, order_id: 1, lifecycle_status: 'parked_expired', remaining_escrow: '2' }),
+      row({ id: 2, order_id: 2, lifecycle_status: 'parked_expired', remaining_escrow: '5000' }),
+    ])
+    expect(dust.map((r) => r.order_id)).toEqual([1])
+    expect(expired.map((r) => r.order_id)).toEqual([2])
   })
 })

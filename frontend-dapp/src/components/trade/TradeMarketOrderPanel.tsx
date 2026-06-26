@@ -484,6 +484,16 @@ export function TradeMarketOrderPanel({
       </label>
       {useHybridBook && (
         <div className="space-y-2">
+          <p
+            className="text-[10px] leading-snug"
+            style={{ color: 'var(--ink-dim)' }}
+            data-testid="trade-market-hybrid-min-return-notice"
+          >
+            Hybrid routing walks the limit book first, then fills any remainder from the pool in the same transaction.
+            Your <strong>min return</strong> (from slippage protection above) is enforced on the{' '}
+            <strong>combined</strong> book + pool payout after fees — the chain rejects the swap if net output is too
+            low. When both legs are used, at least <strong>10%</strong> of your pay amount must go through the pool.
+          </p>
           <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
             Book leg defaults to the full pay amount when the field below is empty (book first, pool takes the
             remainder).
@@ -519,6 +529,12 @@ export function TradeMarketOrderPanel({
           <div>
             <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
               Max distinct makers
+              <span
+                className="ml-1 cursor-help opacity-70"
+                title="Caps how many resting limits one swap can fill. If the book cannot satisfy your size within this cap, the remainder spills to the pool leg in the same transaction."
+              >
+                ⓘ
+              </span>
             </label>
             <input
               id={maxMakersInputId}

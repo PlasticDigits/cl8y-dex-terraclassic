@@ -14,7 +14,7 @@ import {
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateUpdateLimitOrderPriceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import { getPairLimitPlacements } from '@/services/indexer/client'
+import { getTraderLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
@@ -245,9 +245,9 @@ function TradeOrderTicketContent({
   } = useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
 
   const placementsQuery = useQuery({
-    queryKey: ['limitPlacements', pairAddr],
-    queryFn: () => getPairLimitPlacements(pairAddr, { limit: 100 }),
-    enabled: pairAddr.startsWith('terra1'),
+    queryKey: ['limitPlacements', pairAddr, address],
+    queryFn: () => getTraderLimitPlacements(address!, { pair: pairAddr, limit: 100 }),
+    enabled: pairAddr.startsWith('terra1') && !!address,
   })
 
   const cancellationsQuery = usePairLimitCancellations(pairAddr)
@@ -398,10 +398,7 @@ function TradeOrderTicketContent({
     return placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
   }, [expiryPastBlocker, crossingBlocker, placePriceGate, placeEscrowGate, placeNativeGasGate])
 
-  const myPlacements = useMemo(() => {
-    if (!address || !placementsQuery.data) return []
-    return placementsQuery.data.filter((r) => r.owner === address)
-  }, [address, placementsQuery.data])
+  const myPlacements = useMemo(() => placementsQuery.data ?? [], [placementsQuery.data])
 
   const parsedCancelOrderId = parseInt(cancelOrderId, 10)
   const cancelIdIndexedAsCancelled =
@@ -476,9 +473,8 @@ function TradeOrderTicketContent({
       for (let i = 0; i < 24; i++) {
         await new Promise((r) => setTimeout(r, 500))
         try {
-          const rows = await getPairLimitPlacements(addr, { limit: 100 })
-          const mine = rows.filter((r) => r.owner === walletAddr)
-          const maxId = mine.reduce((m, r) => Math.max(m, r.order_id), 0)
+          const rows = await getTraderLimitPlacements(walletAddr, { pair: addr, limit: 100 })
+          const maxId = rows.reduce((m, r) => Math.max(m, r.order_id), 0)
           if (maxId > 0) {
             setLastIndexedOrderId(maxId)
             setCancelOrderId(String(maxId))
@@ -768,6 +764,31 @@ function TradeOrderTicketContent({
 
         {orderTab === 'limit' && (
           <div role="tabpanel" id={limitOrderPanelId} aria-labelledby={limitOrderTabId}>
+            {pairAddr && address && (
+              <div
+                ref={placementsAnchorRef}
+                data-testid="trade-ticket-placements-anchor"
+                className="scroll-mt-4 outline-none mb-3"
+                tabIndex={-1}
+              >
+                <LimitOrderMyPlacementsPanel
+                  variant="compact"
+                  pairAddr={pairAddr}
+                  pair={selectedPair}
+                  walletAddress={address}
+                  rows={myPlacements}
+                  isLoading={placementsQuery.isLoading}
+                  isWalletConnected={isWalletConnected}
+                  isPairPaused={isPaused}
+                  claimsDisabled={tradingBlacklist.blocked}
+                  cancelDisabled={tradingBlacklist.blocked}
+                  openWalletModal={openWalletModal}
+                  cancelLimitOrderMutation={cancelMutation}
+                  cancellations={cancellationsQuery.data ?? []}
+                  highlightOrderId={highlightPlacementOrderId}
+                />
+              </div>
+            )}
             <TicketSection eyebrow="Resting order" title={`${sideAction.verb} at your price`} tone="action">
               <LimitOrderPlaceLimitHeading compact />
               <LimitOrderPriceInputWithContext
@@ -934,69 +955,57 @@ function TradeOrderTicketContent({
           </div>
         )}
 
-        <TicketSection eyebrow="Manage" title="Cancel resting limit" tone="manage">
-          <div>
-            <label className="label-glass" htmlFor={cancelLimitOrderInputId}>
-              Order ID
-            </label>
-            <input
-              id={cancelLimitOrderInputId}
-              className="input-glass w-full font-mono text-sm"
-              value={cancelOrderId}
-              onChange={(e) => setCancelOrderId(e.target.value)}
-              placeholder="Order ID"
-            />
+        <details
+          className="rounded-2xl border p-3 space-y-3 group"
+          style={{ borderColor: 'rgba(148, 163, 184, 0.16)' }}
+        >
+          <summary className="text-xs font-semibold uppercase tracking-wide cursor-pointer list-none">
+            Cancel by order ID
+            <span className="block text-[9px] font-normal normal-case opacity-70 mt-0.5">
+              Advanced — use Cancel on open limits above
+            </span>
+          </summary>
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="label-glass" htmlFor={cancelLimitOrderInputId}>
+                Order ID
+              </label>
+              <input
+                id={cancelLimitOrderInputId}
+                className="input-glass w-full font-mono text-sm"
+                value={cancelOrderId}
+                onChange={(e) => setCancelOrderId(e.target.value)}
+                placeholder="Order ID"
+              />
+            </div>
+            <button
+              type="button"
+              data-testid="trade-cancel-submit"
+              className="btn-primary btn-cta w-full !text-xs"
+              disabled={
+                cancelMutation.isPending ||
+                !pairAddr ||
+                isTradeBlocked ||
+                (isWalletConnected && cancelIdIndexedAsCancelled)
+              }
+              onClick={() => {
+                if (!isWalletConnected) openWalletModal()
+                else submitCancelFromForm()
+              }}
+            >
+              {!isWalletConnected ? 'Connect Wallet' : cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
+            </button>
+            {cancelIdIndexedAsCancelled && (
+              <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
+                This order id already has an indexed cancellation.
+              </p>
+            )}
+            {cancelMutation.isError && <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />}
+            {cancelMutation.isSuccess && (
+              <TxResultAlert type="success" message="Cancel submitted." txHash={cancelMutation.data} />
+            )}
           </div>
-          <button
-            type="button"
-            data-testid="trade-cancel-submit"
-            className={TRADE_MONEY_CTA_CLASS}
-            disabled={
-              cancelMutation.isPending ||
-              !pairAddr ||
-              isTradeBlocked ||
-              (isWalletConnected && cancelIdIndexedAsCancelled)
-            }
-            onClick={() => {
-              if (!isWalletConnected) openWalletModal()
-              else submitCancelFromForm()
-            }}
-          >
-            {!isWalletConnected ? 'Connect Wallet' : cancelMutation.isPending ? 'Cancelling…' : 'Cancel'}
-          </button>
-          {cancelIdIndexedAsCancelled && (
-            <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
-              This order id already has an indexed cancellation.
-            </p>
-          )}
-          {cancelMutation.isError && <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />}
-          {cancelMutation.isSuccess && (
-            <TxResultAlert type="success" message="Cancel submitted." txHash={cancelMutation.data} />
-          )}
-        </TicketSection>
-
-        {pairAddr && address && (
-          <div
-            ref={placementsAnchorRef}
-            data-testid="trade-ticket-placements-anchor"
-            className="scroll-mt-4 outline-none"
-            tabIndex={-1}
-          >
-            <LimitOrderMyPlacementsPanel
-              variant="compact"
-              pairAddr={pairAddr}
-              pair={selectedPair}
-              walletAddress={address}
-              rows={myPlacements}
-              isLoading={placementsQuery.isLoading}
-              isWalletConnected={isWalletConnected}
-              isPairPaused={isPaused}
-              claimsDisabled={tradingBlacklist.blocked}
-              openWalletModal={openWalletModal}
-              highlightOrderId={highlightPlacementOrderId}
-            />
-          </div>
-        )}
+        </details>
       </div>
     </div>
   )

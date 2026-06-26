@@ -142,6 +142,15 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     expect(quoteCard).not.toHaveTextContent(/Pattern C|hybrid_simulation|GitLab #/i)
   })
 
+  it('surfaces hybrid min return copy before market submit (#419)', () => {
+    renderWithProviders(
+      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+    )
+
+    expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/min return/i)
+    expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/10%/)
+  })
+
   it('humanizes simulated quote failures instead of raw error text (#414)', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     vi.mocked(indexerClient.postRouteSolve).mockRejectedValue(new Error('indexer unavailable'))

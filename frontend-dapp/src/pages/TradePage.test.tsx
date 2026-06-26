@@ -88,6 +88,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getTrades: vi.fn(),
     getPairLimitBookPage: vi.fn(),
     getPairLimitPlacements: vi.fn(),
+    getTraderLimitPlacements: vi.fn(),
     getPairLimitCancellations: vi.fn(),
     getCandles: vi.fn(),
     getPairStats: vi.fn(),
@@ -172,7 +173,7 @@ describe('TradePage', () => {
       has_more: false,
       next_after_order_id: null,
     })
-    vi.mocked(indexerClient.getPairLimitPlacements).mockResolvedValue([])
+    vi.mocked(indexerClient.getTraderLimitPlacements).mockResolvedValue([])
     vi.mocked(indexerClient.getPairLimitCancellations).mockResolvedValue([])
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
@@ -239,7 +240,7 @@ describe('TradePage', () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
     const summary = await screen.findByTestId('trade-limit-pre-submit-summary')
     expect(summary.textContent).toMatch(/no taker slippage/i)
-    expect(summary.textContent).toMatch(/Maker placement fee/i)
+    expect(summary.textContent).toMatch(/Maker fee \(charged when placed\)/i)
   })
 
   it('keeps disconnected ticket wallet CTAs actionable', async () => {
