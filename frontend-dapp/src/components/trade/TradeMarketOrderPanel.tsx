@@ -54,6 +54,7 @@ import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
+import { TRADE_MONEY_CTA_CLASS, TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
 
 interface MarketSimData {
   return_amount: string
@@ -453,7 +454,8 @@ export function TradeMarketOrderPanel({
           <button
             key={v}
             type="button"
-            className={`tab-glass !text-[10px] !px-2 !py-0.5 ${slippageTolerance === v ? 'tab-glass-active' : 'tab-glass-inactive'}`}
+            className={`${TRADE_SLIPPAGE_PRESET_CLASS} ${slippageTolerance === v ? 'tab-glass-active' : 'tab-glass-inactive'}`}
+            data-testid={`trade-market-slippage-preset-${v}`}
             onClick={() => {
               sounds.playButtonPress()
               setSlippageTolerance(v)
@@ -615,7 +617,7 @@ export function TradeMarketOrderPanel({
 
       <button
         type="button"
-        className="btn-primary btn-cta w-full !text-xs"
+        className={TRADE_MONEY_CTA_CLASS}
         disabled={!canSubmit}
         data-testid="trade-market-submit"
         onClick={() => {

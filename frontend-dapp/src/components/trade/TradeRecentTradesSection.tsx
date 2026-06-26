@@ -12,6 +12,8 @@ type TradeRecentTradesSectionProps = {
   activePair: IndexerPair | undefined
   formatTimeFn: (iso: string) => string
   skeletonHeight: string
+  /** When parent renders its own section title (desktop collapsible tape). */
+  hideHeading?: boolean
 }
 
 export function TradeRecentTradesSection({
@@ -20,14 +22,17 @@ export function TradeRecentTradesSection({
   activePair,
   formatTimeFn,
   skeletonHeight,
+  hideHeading = false,
 }: TradeRecentTradesSectionProps) {
   const tapeIndexerOutage = tradesQuery.isError && isIndexerUnavailableError(tradesQuery.error)
 
   return (
     <>
-      <h2 className="text-xs font-semibold uppercase tracking-wide mb-2 shrink-0" style={{ color: 'var(--ink-dim)' }}>
-        Recent trades
-      </h2>
+      {!hideHeading && (
+        <h2 className="text-xs font-semibold uppercase tracking-wide mb-2 shrink-0" style={{ color: 'var(--ink-dim)' }}>
+          Recent trades
+        </h2>
+      )}
       {pairRouteReady && tradesQuery.isLoading && !tradesQuery.isError && <Skeleton height={skeletonHeight} />}
       {tapeIndexerOutage && (
         <TradeMarketDataUnavailableNotice message={TRADE_PANEL_TAPE_UNAVAILABLE} data-testid="trade-tape-unavailable" />

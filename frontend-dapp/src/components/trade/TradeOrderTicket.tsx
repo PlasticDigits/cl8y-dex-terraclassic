@@ -56,6 +56,7 @@ import {
   LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE,
 } from '@/utils/limitOrderPriceEdit'
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
+import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
 
 function TicketSection({
   eyebrow,
@@ -862,7 +863,7 @@ function TradeOrderTicketContent({
               <button
                 type="button"
                 data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
-                className="btn-primary btn-cta w-full !text-xs"
+                className={TRADE_MONEY_CTA_CLASS}
                 disabled={
                   priceOnlyEdit
                     ? updatePriceMutation.isPending ||

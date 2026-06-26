@@ -1,5 +1,5 @@
 import '@/test/lightweightChartsJsdomMock'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -122,6 +122,7 @@ import {
   walletBlacklistedResponse,
 } from '@/test/tradingBlacklistMocks'
 import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
+import { TRADE_TAPE_EXPANDED_KEY, TRADE_WALLET_HISTORY_EXPANDED_KEY } from '@/utils/tradeWorkspacePanels'
 
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn().mockResolvedValue({}),
@@ -141,6 +142,7 @@ const emptyStats = {
 
 describe('TradePage', () => {
   beforeEach(() => {
+    window.localStorage.clear()
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     mockTradeDesktopLayout(false)
     vi.mocked(getConnectedWallet).mockReturnValue(null)
@@ -177,6 +179,48 @@ describe('TradePage', () => {
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
     vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({ price_usd: '0.02', sources: [] })
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
+  })
+
+  afterEach(() => {
+    window.localStorage.clear()
+  })
+
+  it('shows first-visit onboarding strip until dismissed (GitLab #417)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    expect(await screen.findByTestId('trade-onboarding-strip')).toBeInTheDocument()
+    await user.click(screen.getByTestId('trade-onboarding-dismiss'))
+    expect(screen.queryByTestId('trade-onboarding-strip')).not.toBeInTheDocument()
+  })
+
+  it('defaults tape and wallet history to collapsed on first visit (GitLab #417)', async () => {
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(screen.getByTestId('trade-sub-lg-tape-disclosure-toggle')).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByTestId('trade-sub-lg-tape-disclosure-content')).not.toBeInTheDocument()
+    expect(screen.getByTestId('trade-wallet-history-disclosure-toggle')).toHaveAttribute('aria-expanded', 'false')
+    expect(window.localStorage.getItem(TRADE_TAPE_EXPANDED_KEY)).toBeNull()
+    expect(window.localStorage.getItem(TRADE_WALLET_HISTORY_EXPANDED_KEY)).toBeNull()
+  })
+
+  it('desktop tape panel starts collapsed on first visit (GitLab #417)', async () => {
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await screen.findByTestId('trade-desktop-workspace')
+    expect(screen.getByTestId('trade-desktop-tape-toggle')).toHaveTextContent('Expand')
+    expect(screen.queryByRole('table', { name: /recent trades/i })).not.toBeInTheDocument()
+  })
+
+  it('persists tape disclosure expansion in localStorage (GitLab #417)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await screen.findByTestId('trade-sub-lg-tape-disclosure-toggle')
+    await user.click(screen.getByTestId('trade-sub-lg-tape-disclosure-toggle'))
+    expect(screen.getByTestId('trade-sub-lg-tape-disclosure-content')).toBeInTheDocument()
+    expect(window.localStorage.getItem(TRADE_TAPE_EXPANDED_KEY)).toBe('1')
   })
 
   it('sub-desktop workspace uses md two-column grid for tablet portrait (GitLab #146)', async () => {
@@ -239,14 +283,17 @@ describe('TradePage', () => {
   })
 
   it('shows per-panel outage copy when tape fails while pair metadata is cached (GitLab #165)', async () => {
+    const user = userEvent.setup()
     vi.mocked(indexerClient.getTrades).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
     expect(await screen.findByTestId('trade-indexer-outage-banner')).toBeInTheDocument()
+    await user.click(await screen.findByTestId('trade-sub-lg-tape-disclosure-toggle'))
     expect(await screen.findByTestId('trade-tape-unavailable')).toHaveTextContent(/recent trades are unavailable/i)
   })
 
   it('shows outage copy on book, tape, and chart when indexer transport fails (GitLab #165)', async () => {
+    const user = userEvent.setup()
     vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     vi.mocked(indexerClient.getTrades).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     vi.mocked(indexerClient.getCandles).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
@@ -254,6 +301,7 @@ describe('TradePage', () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
     expect(await screen.findByTestId('trade-indexer-outage-banner')).toBeInTheDocument()
+    await user.click(await screen.findByTestId('trade-sub-lg-tape-disclosure-toggle'))
     expect(await screen.findByTestId('trade-tape-unavailable')).toBeInTheDocument()
     expect(await screen.findByTestId('trade-chart-unavailable')).toBeInTheDocument()
     expect(await screen.findByTestId('trade-book-unavailable-bid')).toBeInTheDocument()
