@@ -19,7 +19,7 @@ Use when changing first-visit trade guidance, money-action button sizing on trad
 1. **Do not shrink primary money CTAs** below `TRADE_MONEY_CTA_CLASS` on limit place, market submit, or ladder place — secondary actions (View order, book row cancel) may stay compact.
 2. **Onboarding dismiss must not block** wallet connect, swap submit, or pause/blacklist banners.
 3. **Progressive disclosure is opt-in** — first visit collapses tape and wallet history only; chart, book, and order ticket stay visible.
-4. **Persist panel prefs** in `localStorage` via `readTradePanelExpanded` / `writeTradePanelExpanded`; do not use session-only state.
+4. **Persist panel prefs** in `localStorage` via `readTradePanelExpanded` / `writeTradePanelExpanded` (button handlers on desktop tape); do not write from `Panel` `onExpand` on mount — `react-resizable-panels` can spuriously expand during layout (GitLab #417 `TradePage` rAF re-collapse).
 5. **Mobile bottom nav** (`MOBILE_BOTTOM_NAV_ITEMS` in [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)) must remain reachable — onboarding strip is in-page, not fixed over the tab bar.
 
 ## Regression tests
