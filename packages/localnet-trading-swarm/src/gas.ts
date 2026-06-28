@@ -26,7 +26,7 @@ const EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP = 661_000
 /** Keep in sync with `ROUTER_SINGLE_HOP_GAS_LIMIT` in `frontend-dapp/src/utils/constants.ts` (#353). */
 const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
 /** Keep in sync with `ROUTER_SWAP_OPS_MIN_GAS_PER_HOP` (#353). */
-const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 900_000
+const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
 /** Keep in sync with `SWAP_GAS_SAFETY_MARGIN` in `frontend-dapp/src/utils/constants.ts`. */
 const SWAP_GAS_SAFETY_MARGIN = 10_000
 
