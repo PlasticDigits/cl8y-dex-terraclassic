@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import type { PairInfo } from '@/types'
 import type { IndexerRouteSolveResponse } from '@/types'
+import type { ComputeMaxSpendableHumanAmountResult } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
@@ -26,7 +27,7 @@ type Props = {
   isWalletConnected: boolean
   balanceQuery: UseQueryResult<string>
   offerDecimals: number
-  bookLegMaxResult: { spendableRaw: string; human: string }
+  bookLegMaxResult: ComputeMaxSpendableHumanAmountResult
   onCheckIndexerRoute: () => void
   indexerRouteLoading: boolean
   indexerRouteError: string | null
