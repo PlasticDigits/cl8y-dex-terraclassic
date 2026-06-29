@@ -32,4 +32,13 @@ describe('detectSwapIndexerOutage', () => {
       })
     ).toBe(false)
   })
+
+  it('returns false for indexer 429 rate limit (SEC-E04 / GitLab #426)', () => {
+    expect(
+      detectSwapIndexerOutage({
+        isError: true,
+        error: new Error('Indexer API error: 429 Too Many Requests'),
+      })
+    ).toBe(false)
+  })
 })

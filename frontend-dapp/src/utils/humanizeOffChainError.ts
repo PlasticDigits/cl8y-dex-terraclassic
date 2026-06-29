@@ -8,6 +8,7 @@ function norm(s: string): string {
   return s.trim()
 }
 
+import { INDEXER_RATE_LIMIT_RETRY_MESSAGE } from './marketDataServiceCopy'
 import {
   buildWrongNetworkConnectError,
   isWalletExtensionNotInstalledError,
@@ -75,6 +76,10 @@ export function tryHumanizeFetchLikeMessage(message: string): string | null {
 
   if (/cors|blocked by cors|not allowed by access-control-allow-origin/i.test(m)) {
     return 'Browser blocked the request (CORS). Confirm Vite origin matches indexer `CORS_ORIGINS` (see docs).'
+  }
+
+  if (/Indexer API error:\s*429\b/i.test(m) || /status code 429\b/i.test(m)) {
+    return INDEXER_RATE_LIMIT_RETRY_MESSAGE
   }
 
   if (/Indexer API error:/i.test(m) && !/Indexer API error:\s*404\b/i.test(m)) {
