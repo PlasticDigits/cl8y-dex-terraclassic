@@ -13,6 +13,7 @@ const txSpecGlobs = [
   '**/wrap-pool.spec.ts',
   '**/wrap-swap.spec.ts',
   '**/terra-broadcast-recovery.spec.ts',
+  '**/swap-route-alignment-tx.spec.ts',
 ]
 /** Market-data-down specs; require E2E_INDEXER_OUTAGE=1 and stopped indexer (GitLab #219). */
 const indexerOutageGlobs = ['**/*-indexer-outage.spec.ts']
