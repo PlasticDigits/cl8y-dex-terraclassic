@@ -17,11 +17,14 @@ import { MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
  *
  * **GitLab #165:** each trade workspace panel (book, tape, chart) must explain what
  * is missing when the market data service is down — never leave sections blank.
+ *
+ * **GitLab #427 (SEC-E05):** outage copy must distinguish **data/display unavailable**
+ * from **funds at risk** — on-chain balances, LP shares, and limit escrows stay safe.
  */
 export const TRADE_INDEXER_OUTAGE_BANNER_TITLE = MARKET_DATA_SERVICE_OUTAGE_TITLE
 
 export const TRADE_INDEXER_OUTAGE_BANNER_LEAD =
-  'Chart, tape, order book depth, and most swap/limit ticket features may be limited until the service recovers.'
+  'Chart, tape, order book depth, and most swap/limit ticket features may be limited until the service recovers. Your on-chain wallet balances, LP shares, and limit order escrows are unaffected — only what you see here may be limited.'
 
 export const TRADE_INDEXER_OUTAGE_BANNER_TAIL =
   'Limit price reference (buy-below / sell-above) can still use on-chain pool reserves via your wallet when recent trade history is missing.'
