@@ -397,6 +397,48 @@ describe('SwapPage', () => {
     expect(screen.getByRole('button', { name: 'Quote unavailable' })).toBeDisabled()
   })
 
+  it('shows calm retry guidance when indexer returns HTTP 429 (SEC-E04 / GitLab #426)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+    ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 429 Too Many Requests'))
+    vi.mocked(simulateSwap).mockRejectedValue(new Error('Indexer API error: 429 Too Many Requests'))
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    const retry = await screen.findByTestId('swap-quote-retry-error')
+    expect(retry).toHaveTextContent(/wait a moment and try again/i)
+    expect(retry).not.toHaveTextContent(/\b429\b/)
+    expect(retry).not.toHaveTextContent(/Indexer API error/i)
+    expect(retry).not.toHaveTextContent(/127\.0\.0\.1|https?:\/\//i)
+    expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
+    expect(screen.getByTestId('retry-error-button')).toBeInTheDocument()
+  })
+
   it('shows outage banner with pool fallback quote when indexer fails but LCD sim succeeds (GitLab #241)', async () => {
     const user = userEvent.setup()
     const wallet = 'terra1wallet000000000000000000000000000001'

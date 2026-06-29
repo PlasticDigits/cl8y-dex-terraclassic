@@ -27,3 +27,7 @@ export const LIMITS_MARKET_DATA_OUTAGE_LEAD =
 /** Swap route (`/` and `/swap`) — hybrid routing and indexer-backed quotes ([GitLab #241](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241)). */
 export const SWAP_MARKET_DATA_OUTAGE_LEAD =
   'Swap routing quotes and hybrid path optimization may be limited until the service recovers.'
+
+/** Calm retry guidance when indexer returns HTTP 429 (SEC-E04 / GitLab #426). */
+export const INDEXER_RATE_LIMIT_RETRY_MESSAGE =
+  'Too many requests were sent in a short time. Wait a moment and try again.'

@@ -3,6 +3,11 @@ export function isIndexerPairNotFoundError(err: unknown): boolean {
   return err instanceof Error && /Indexer API error:\s*404\b/.test(err.message)
 }
 
+/** Indexer responded 429 — rate limited (client error, not transport outage). */
+export function isIndexerRateLimitError(err: unknown): boolean {
+  return err instanceof Error && /Indexer API error:\s*429\b/.test(err.message)
+}
+
 /** Indexer responded 4xx — semantic/client error from a reachable service (not transport outage). */
 export function isIndexerClientError(err: unknown): boolean {
   return err instanceof Error && /Indexer API error:\s*4\d{2}\b/.test(err.message)

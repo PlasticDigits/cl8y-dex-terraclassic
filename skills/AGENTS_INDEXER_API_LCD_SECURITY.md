@@ -58,6 +58,8 @@ cd indexer && cargo test --test security -j 1 -- --test-threads=1
 
 Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**), global 429 burst, blacklist-check LCD **502** (**#379**), POST route solve oversized body **413** (**#379**).
 
+**Frontend 429 copy (SEC-E04 / GitLab #426):** indexer/LCD HTTP **429** is classified in [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts) (`isIndexerRateLimitError`) and humanized via [`INDEXER_RATE_LIMIT_RETRY_MESSAGE`](../frontend-dapp/src/utils/marketDataServiceCopy.ts). Vitest: `SwapPage.test.tsx` mocks indexer 429 and asserts calm retry guidance — see [docs/testing.md § SEC-E04](../docs/testing.md#indexer-http-429-calm-retry-copy-sec-e04-gitlab-426). Distinct from on-chain wrap-mapper rate limit ([`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md)).
+
 Manual check (failing LCD):
 
 ```bash

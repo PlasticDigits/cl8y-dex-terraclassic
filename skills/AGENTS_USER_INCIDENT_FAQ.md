@@ -21,13 +21,14 @@ Use when changing **user-facing copy** for **pause**, **trading blacklist**, or 
 1. **Do not** duplicate the full FAQ in `security-model.md`, runbooks, or UI — **link** to `docs/user-incident-faq.md`.
 2. **Pause vs blacklist:** pause is per-pair governance; blacklist can target wallet, token, or pair on the factory ([ADR 0003](../docs/adr/0003-governance-trading-blacklist.md)).
 3. **Funds messaging:** controls gate execute paths; they do **not** burn wallet balances. Escrow and LP stay in contracts until normal withdraw/cancel/claim after lift.
-4. **Rate limits:** distinguish **indexer HTTP 429** (off-chain, retry) from **wrap-mapper** on-chain caps (native wrap/unwrap).
+4. **Rate limits:** distinguish **indexer HTTP 429** (off-chain, retry) from **wrap-mapper** on-chain caps (native wrap/unwrap). Frontend regression: **SEC-E04** / GitLab **#426** — `isIndexerRateLimitError`, `INDEXER_RATE_LIMIT_RETRY_MESSAGE`, Vitest in `indexerErrors.test.ts`, `humanizeUserFacingError.test.ts`, `SwapPage.test.tsx`.
 5. **Tier 255 ≠ trading blacklist:** tier 255 only removes fee discounts; factory blacklist stops trading.
 
 ## Verification
 
 ```bash
 make check-user-incident-faq-docs
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/utils/__tests__/indexerErrors.test.ts src/utils/__tests__/humanizeUserFacingError.test.ts src/pages/SwapPage.test.tsx -t "429|SEC-E04"
 ```
 
 After UI copy changes, run targeted frontend unit tests if you touch `LegalFooterNotice` or pause/blacklist banners:

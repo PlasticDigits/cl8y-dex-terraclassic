@@ -67,6 +67,20 @@ describe('tryHumanizeFetchLikeMessage', () => {
     expect(tryHumanizeFetchLikeMessage('Indexer API error: 404 no pair')).toMatch(/not found/)
   })
 
+  it('maps indexer 429 to calm retry guidance without raw status (SEC-E04 / GitLab #426)', () => {
+    const out = tryHumanizeFetchLikeMessage('Indexer API error: 429 Too Many Requests')
+    expect(out).toMatch(/wait a moment and try again/i)
+    expect(out).not.toMatch(/\b429\b/)
+    expect(out).not.toMatch(/Indexer API error/i)
+    expect(out).not.toMatch(/https?:\/\//i)
+  })
+
+  it('maps LCD status code 429 to calm retry guidance (SEC-E04 / GitLab #426)', () => {
+    const out = tryHumanizeFetchLikeMessage('Query failed: status code 429')
+    expect(out).toMatch(/wait a moment and try again/i)
+    expect(out).not.toMatch(/429|status code/i)
+  })
+
   it('maps market quote failure shapes (#414)', () => {
     expect(tryHumanizeFetchLikeMessage('indexer unavailable')).toMatch(/temporarily unavailable/i)
     expect(tryHumanizeFetchLikeMessage('Hybrid quote unavailable')).toMatch(/Could not estimate output/i)
@@ -142,6 +156,13 @@ describe('humanizeUserFacingError — market quote shapes (#414)', () => {
   it('humanizes indexer transport failures', () => {
     expect(humanizeUserFacingError('indexer unavailable')).toMatch(/temporarily unavailable/i)
     expect(humanizeUserFacingError('Hybrid quote unavailable')).toMatch(/Could not estimate output/i)
+  })
+
+  it('humanizes indexer 429 with calm retry guidance and no raw HTTP status (SEC-E04 / GitLab #426)', () => {
+    const out = humanizeUserFacingError('Indexer API error: 429 Too Many Requests')
+    expect(out).toMatch(/wait a moment and try again/i)
+    expect(out).not.toMatch(/\b429\b/)
+    expect(out).not.toMatch(/Indexer API error/i)
   })
 
   it('humanizes LCD and malformed JSON failures', () => {

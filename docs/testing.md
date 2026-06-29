@@ -303,6 +303,18 @@ Launch checklist **SEC-E01** requires factory trading blacklist to disable write
 
 Product invariants: [docs/frontend.md § Trading blacklist disabled CTAs](./frontend.md#trading-blacklist-disabled-ctas-sec-e01); security model: [§ Trading blacklist](./security-model.md#trading-blacklist-compliance--incident-response). Shared mocks: [`tradingBlacklistMocks.ts`](../frontend-dapp/src/test/tradingBlacklistMocks.ts).
 
+### Indexer HTTP 429 calm retry copy (SEC-E04, GitLab #426) {#indexer-http-429-calm-retry-copy-sec-e04-gitlab-426}
+
+Launch checklist **SEC-E04** requires a frontend test that mocks **HTTP 429** from the indexer API (or LCD quote path) and asserts **calm retry guidance** with no raw HTTP status, URL, or stack trace in the displayed message. Distinct from on-chain wrap-mapper rate limits ([SEC-A02](#swap-wrap-safety-cta-sec-a02-gitlab-389)).
+
+| Check | Command |
+|-------|---------|
+| Vitest — `isIndexerRateLimitError` classification | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/utils/__tests__/indexerErrors.test.ts -t "429"` |
+| Vitest — calm retry copy mapping | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/utils/__tests__/humanizeUserFacingError.test.ts -t "429"` |
+| Vitest — swap page mocks indexer 429 | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "SEC-E04"` |
+
+Copy source: [`INDEXER_RATE_LIMIT_RETRY_MESSAGE`](../frontend-dapp/src/utils/marketDataServiceCopy.ts); classifier: [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts). User FAQ: [docs/user-incident-faq.md § Rate limits](./user-incident-faq.md#rate-limits). Agent: [`skills/AGENTS_USER_INCIDENT_FAQ.md`](../skills/AGENTS_USER_INCIDENT_FAQ.md), [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md).
+
 Mocks: [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Product copy: [docs/frontend.md § Swap wrap safety CTA](./frontend.md#swap-wrap-safety-cta-sec-a02).
 
 ### Wrap-mapper pause on-chain smoke (SEC-B06, GitLab #396) {#wrap-mapper-pause-smoke-sec-b06-gitlab-396}
