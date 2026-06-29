@@ -781,6 +781,19 @@ On `/`, **wrap-mapper pause** (SEC-A02) is evaluated **before** pair pause in th
 
 **Regression tests:** [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) and [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx) (`SEC-B05` / GitLab **#395**); trade/limit path: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (GitLab **#87** / **#199**). Retail FAQ: [user-incident-faq.md § Pair pause](./user-incident-faq.md#pair-pause).
 
+### Trading blacklist disabled CTAs (SEC-E01) {#trading-blacklist-disabled-ctas-sec-e01}
+
+Factory trading blacklist ([ADR 0003](./adr/0003-governance-trading-blacklist.md), [security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response)) gates user write actions in the dApp via [`useTradingBlacklist`](../frontend-dapp/src/hooks/useTradingBlacklist.ts) and [`describeTradingBlacklistBlock`](../frontend-dapp/src/services/terraclassic/blacklist.ts).
+
+| Page | Gated CTAs | Submit label when blocked (connected) |
+|------|------------|---------------------------------------|
+| `/` ([`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx)) | Swap | **Trading restricted** |
+| `/pool` ([`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx)) | Provide + withdraw liquidity | **Trading restricted** |
+| `/trade` ([`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx)) | Limit place, update price, cancel (form + my limits) | disabled (label unchanged) |
+| `/limits` ([`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)) | Limit place, cancel (form + book + my limits) | disabled (label unchanged) |
+
+**Regression tests:** [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx), [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx), [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx) (`SEC-E01` / GitLab **#425**); shared mocks: [`tradingBlacklistMocks.ts`](../frontend-dapp/src/test/tradingBlacklistMocks.ts). E2E LCD mock (swap only): [`e2e/blacklist-swap.spec.ts`](../frontend-dapp/e2e/blacklist-swap.spec.ts).
+
 ### Trade page — indexer outage banner {#trade-page-indexer-outage-banner}
 
 When the **`getPair`** query on `/trade` fails with an **indexer transport / non-OK** error (`isIndexerUnavailableError` in [`indexerErrors.ts`](../frontend-dapp/src/utils/indexerErrors.ts)), the page shows a warning **above** the workspace (`data-testid="trade-indexer-outage-banner"`).
