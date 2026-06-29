@@ -88,6 +88,21 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/multiho
 
 Playbook: [`skills/AGENTS_TESTING_MULTIHOP_HYBRID.md`](../../skills/AGENTS_TESTING_MULTIHOP_HYBRID.md).
 
+## Swap route display vs on-chain ops (`swap-route-alignment-tx.spec.ts`, SEC-E07 / GitLab #428)
+
+Strict Playwright tx spec confirming the **Route** row on `/` matches wasm `swap` hop sequence after submit:
+
+| Case | Route display | On-chain |
+|------|---------------|----------|
+| Direct dual-CW20 | 2 symbols, 1 arrow | 1 wasm `swap` (`offer_asset` → `ask_asset`) |
+| Multihop CORAL→IRON | ≥3 symbols, ≥2 arrows | ≥2 wasm `swap` hops in order |
+
+Helpers: `e2e/helpers/route-alignment-e2e.ts`, `txJsonWasmSwapHops` in `e2e/helpers/lcd.ts`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md).
+
+```bash
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-route-alignment-tx.spec.ts --project=e2e-tx
+```
+
 ## Trader / Protocol / blacklist smoke (#422)
 
 | Spec | Project | Notes |

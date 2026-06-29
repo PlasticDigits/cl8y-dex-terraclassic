@@ -23,6 +23,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | Route string + precedence | [`frontend-dapp/src/utils/swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts) — `computeSwapRouteDisplay` |
 | Submit route source + client fallback copy | Same file — `deriveSwapSubmitRouteSource`, `SWAP_CLIENT_BFS_FALLBACK_COPY` |
 | Unit tests | [`frontend-dapp/src/utils/swapRouteDisplay.test.ts`](../frontend-dapp/src/utils/swapRouteDisplay.test.ts), [`frontend-dapp/src/pages/SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) (`swap-route-source-client-fallback`, stale-submit **#356** `Calculating…` gate), [`frontend-dapp/src/utils/quoteDebounce.test.ts`](../frontend-dapp/src/utils/quoteDebounce.test.ts), [`frontend-dapp/src/hooks/useSubmitAlignedSimQuote.test.ts`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.test.ts) (**#356**) |
+| **On-chain route alignment (SEC-E07 / #428)** | [`frontend-dapp/e2e/swap-route-alignment-tx.spec.ts`](../frontend-dapp/e2e/swap-route-alignment-tx.spec.ts) — Playwright `e2e-tx`: direct pair + multihop; compares `swap-route-summary` symbols to wasm `swap` `offer_asset`/`ask_asset` hops via [`route-alignment-e2e.ts`](../frontend-dapp/e2e/helpers/route-alignment-e2e.ts) |
 | **Swap** route row | [`frontend-dapp/src/pages/SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `data-testid="swap-route-summary"` (trade summary grid) |
 | **Swap** pre-sign summary (#409 / SEC-D11) | [`SwapPreSubmitSummary.tsx`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx) in SwapPage — `swap-pre-submit-summary`, `swap-confirm-*` |
 | **Swap** client BFS fallback label | Same file — under route row: `data-testid="swap-route-source-client-fallback"` when submit uses client multihop without indexer ops |
@@ -85,6 +86,11 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 15. **Trade market:** Repeat (12–13) on `/trade/:pairAddr` Market tab with hybrid on.
 16. **Refetch guard:** With stable amount, during 10s sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes.
 17. **Max makers (#360):** With stable pay/book, change max maker fills → submit disabled until new sim settles.
+
+### On-chain route alignment (SEC-E07 / GitLab #428)
+
+18. **Automated:** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-route-alignment-tx.spec.ts --project=e2e-tx` — direct dual-CW20 swap (1 wasm hop) and multihop CORAL→IRON (≥2 hops); asserts UI route symbols match tx `offer_asset`/`ask_asset` sequence; no duplicate segments.
+19. **Manual (optional):** After a multihop quote on `/`, note `swap-route-summary` tokens, submit, and compare LCD tx wasm `swap` events — same hop count and symbols.
 
 ## Closed scope (GitLab #302 / #329)
 

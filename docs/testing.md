@@ -372,6 +372,8 @@ sg docker -c 'CI=1 make test-e2e'
 
 Playbook: [`skills/AGENTS_TESTING_MULTIHOP_HYBRID.md`](../skills/AGENTS_TESTING_MULTIHOP_HYBRID.md). Blacklist mock helper: [`e2e/helpers/blacklist-lcd-mock.ts`](../frontend-dapp/e2e/helpers/blacklist-lcd-mock.ts).
 
+**Swap route display vs on-chain ops (SEC-E07, GitLab [#428](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/428)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-route-alignment-tx.spec.ts --project=e2e-tx` — direct dual-CW20 (1 wasm hop) and multihop CORAL→IRON (≥2 hops); UI `swap-route-summary` symbols must match tx `offer_asset`/`ask_asset` sequence. Playbook: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md).
+
 **Limit order tx E2E (strict place + cancel, GitLab [#195](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/195)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-tx.spec.ts --project=e2e-tx` — first **unpaused** dual-CW20 pair via LCD `is_paused`. See [`frontend-dapp/e2e/README.md`](../frontend-dapp/e2e/README.md) and [`skills/AGENTS_E2E_LIMIT_ORDERS_TX.md`](../skills/AGENTS_E2E_LIMIT_ORDERS_TX.md).
 
 **Claim all parked tx E2E (GitLab [#259](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/259)):** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/limit-orders-claim-all-tx.spec.ts --project=e2e-tx` — expiry-park harness + batch claim confirm gas copy. Requires indexer + [`scripts/e2e-seed-expired-parked-claim-all.sh`](../scripts/e2e-seed-expired-parked-claim-all.sh). See [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
