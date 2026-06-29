@@ -3,6 +3,7 @@
 
 stages:
   - security
+  - test
   - build
 
 variables:
@@ -98,6 +99,102 @@ npm-audit-frontend:
   script:
     - npm audit --audit-level=high --omit=dev
   # Runtime-only audit; elliptic/cosmjs accepted risk documented in docs/supply-chain-security.md (#380 / L-12).
+
+# --- Test stage (GitLab #421): functional gates from the reference matrix ---
+# Phase 1: fast unit + build gates on MR + default branch, mirroring .github/workflows/test.yml
+# (contracts-terra / frontend / indexer). Postgres-backed indexer-integration and Playwright E2E
+# are Phase 2 (heavier: service containers + DinD LocalTerra). No allow_failure — a red functional
+# gate blocks merge (#411: "GitLab CI green != functional test pass"). Test jobs drop the global
+# `-D warnings` (that stays on the lint/audit jobs) so a stray warning never masks a test signal.
+
+.test-rules-default-branch:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+test-contracts:
+  extends: .test-rules-default-branch
+  stage: test
+  image: rust:1.96-bookworm
+  variables:
+    RUSTFLAGS: "-A dead_code"
+  rules:
+    - !reference [.test-rules-default-branch, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - smartcontracts/**/*
+        - .gitlab-ci.yml
+  script:
+    # Equivalent to `make test-contracts`.
+    - cd smartcontracts && cargo test
+  cache:
+    key: test-contracts
+    paths:
+      - .cargo/registry/
+      - smartcontracts/target/
+
+test-indexer-lib:
+  extends: .test-rules-default-branch
+  stage: test
+  image: rust:1.96-bookworm
+  variables:
+    RUSTFLAGS: "-A dead_code"
+  rules:
+    - !reference [.test-rules-default-branch, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - indexer/**/*
+        - .gitlab-ci.yml
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config
+  script:
+    # --lib = unit tests only, no Postgres. The Postgres-backed integration suite is Phase 2.
+    - cd indexer && cargo test --lib
+  cache:
+    key: test-indexer-lib
+    paths:
+      - .cargo/registry/
+      - indexer/target/
+
+test-frontend:
+  extends: .test-rules-default-branch
+  stage: test
+  image: node:24-bookworm
+  rules:
+    - !reference [.test-rules-default-branch, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - frontend-dapp/**/*
+        - .gitlab-ci.yml
+  before_script:
+    - cd frontend-dapp && npm ci
+  script:
+    # Equivalent to `make lint-frontend` + `make test-frontend`.
+    - npm run lint
+    - npm run test:run
+
+# Build gate — catches tsc -b / vite build breaks that lint + vitest do NOT. This is the recurring
+# blind spot: #246, then four more tsc-only breaks reached main (see #337 thread) because the
+# pipeline never ran a cold `tsc -b`. `npm run build` = tsc -b && vite build. The dummy
+# VITE_WC_PROJECT_ID satisfies the #378 prod-build guard; this proves the build compiles, it is not
+# a deployable artifact. Also re-asserts #117 (no sourcemaps in a production bundle).
+test-frontend-build:
+  extends: .test-rules-default-branch
+  stage: test
+  image: node:24-bookworm
+  variables:
+    VITE_WC_PROJECT_ID: "ci-build-typecheck"
+  rules:
+    - !reference [.test-rules-default-branch, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - frontend-dapp/**/*
+        - .gitlab-ci.yml
+  before_script:
+    - cd frontend-dapp && npm ci
+  script:
+    - npm run build
+    - 'if find dist -name "*.map" | grep -q .; then echo "prod dist has sourcemaps - violates issue 117"; exit 1; fi'
 
 # --- Build stage (#325) ---
 

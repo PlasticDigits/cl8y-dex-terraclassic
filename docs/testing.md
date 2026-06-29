@@ -446,11 +446,11 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 
 | Concept | Canonical wording |
 |--------|-------------------|
-| Hosted GitLab CI | [`.gitlab-ci.yml`](../.gitlab-ci.yml) — `security` stage (gitleaks, cargo/npm audit) + `build` stage (QA wasm/indexer artifacts) |
-| Where full checks run | **GitLab** on default branch + change-gated MRs; **local / QA host** for everything in [`.github/workflows/test.yml`](../.github/workflows/test.yml) |
+| Hosted GitLab CI | [`.gitlab-ci.yml`](../.gitlab-ci.yml) — `security` stage (gitleaks, cargo/npm audit) + `test` stage (contracts + indexer-lib + frontend unit/lint + build gate, [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421)) + `build` stage (QA wasm/indexer artifacts) |
+| Where full checks run | **GitLab** runs security + Phase-1 functional gates (contracts/indexer-lib/frontend unit + build) on default branch + change-gated MRs; **local / QA host** for the heavier rows (Postgres-backed indexer integration, Playwright E2E) still pending Phase 2 of [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421) |
 | [`.github/workflows/*.yml`](../.github/workflows/) | **Reference spec only** (job names, services, step order) — not executed |
 | Job names (`e2e`, `frontend-charts-integration`, …) | **Labels** mapping to Make/scripts below |
-| “CI green on main” | **GitLab pipeline green** (security + artifact jobs) **and** local automation checklist when touching contracts/frontend/indexer |
+| “CI green on main” | **GitLab pipeline green** (security + Phase-1 functional test + artifact jobs) **and** local automation checklist for the Phase-2 rows not yet hosted (indexer integration, E2E) |
 | Supply-chain local mirror | `make audit-smartcontracts`, `make audit-indexer`, `make audit-frontend`, `make gitleaks-detect` — see [supply-chain-security.md](./supply-chain-security.md) |
 
 **Agents:** For GitLab-hosted gates use [docs/supply-chain-security.md](./supply-chain-security.md) and [`skills/AGENTS_SUPPLY_CHAIN_SECURITY.md`](../skills/AGENTS_SUPPLY_CHAIN_SECURITY.md). For the full portable checklist (contracts, frontend, indexer, E2E) use [`.github/workflows/README.md`](../.github/workflows/README.md) and the relevant `skills/AGENTS_*.md` playbook.
@@ -463,6 +463,10 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 | `cargo-audit-smartcontracts` | `make audit-smartcontracts` |
 | `cargo-audit-indexer` | `make audit-indexer` |
 | `npm-audit-frontend` | `make audit-frontend` |
+| `test-contracts` | `make test-contracts` (`cd smartcontracts && cargo test`) |
+| `test-indexer-lib` | `cd indexer && cargo test --lib` |
+| `test-frontend` | `make lint-frontend` + `make test-frontend` (`npm run lint` + `npm run test:run`) |
+| `test-frontend-build` | `make build-frontend` (`npm run build` — tsc -b + vite; the build gate that catches tsc-only breaks lint/vitest miss) |
 | `qa-wasm-artifacts` | `make build-optimized` (needs Docker; DinD TLS in CI) |
 | `qa-indexer-binary` | `cd indexer && cargo build --release` |
 
