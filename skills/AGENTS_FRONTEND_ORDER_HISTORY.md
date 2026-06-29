@@ -5,7 +5,7 @@ Use when changing **trader history**, **CSV export**, **Limit orders** activity 
 ## Product intent
 
 - Traders need **durable** records of **swaps**, **limit fills** (as maker), and **limit cancellations** (when `owner` is indexed), with **timestamps**, **fees** where available, and **explorer links**.
-- **CSV** must match the same filters as JSON (`format=csv`).
+- **CSV** must match the same filters as JSON (`format=csv`). **Formula injection:** `csv_escape_cell` in [`text_csv.rs`](../indexer/src/api/text_csv.rs) prefixes cells starting with `=`, `+`, `-`, or `@` with `'` before RFC 4180 quoting (SEC-F12 / [#432](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/432)); unit tests `csv_escape_cell_neutralizes_*` and `trader_swaps_csv_neutralizes_formula_in_offer_asset`.
 
 ## Indexer (source of truth)
 
