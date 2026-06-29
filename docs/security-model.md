@@ -229,6 +229,19 @@ Production builds emit a **narrow `connect-src`** (LCD, RPC, indexer, WalletConn
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md).
 
+### Extension wallet fee guard (SEC-E08)
+
+The dApp runs a **post-sign fee/gas sanity check** for extension wallets when `chainId === localterra` ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127), [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [#429](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/429)). Implementation: [`extensionSignedFeeGuard.ts`](../frontend-dapp/src/utils/extensionSignedFeeGuard.ts) (mirrored in the cosmes **`KeplrExtension`** patch). After the wallet signs, the guard compares `signed.fee` to the dApp `stdDoc.fee` envelope; if signed uluna or gas is below **95%** of expected, the UI surfaces retail copy via [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) ([#371](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/371)).
+
+| Network | Guard active? | Rationale |
+|---------|---------------|-----------|
+| **LocalTerra** (`localterra`) | **Yes** | Station’s Keplr shim on LocalTerra can rewrite fees to ~3,000 uluna while the dApp submits ~5.6M uluna; partial rewrites (~23 vs ~36 LUNC) were also observed. The guard blocks broadcasting txs that would fail with misleading `insufficient fees` / `out of gas` on-chain. |
+| **Mainnet / testnet** (`columbus-5`, `rebel-2`, …) | **No** — `extensionSignedFeeUndershootMessage` returns `null` | **Keplr on mainnet does not exhibit this stale-fee rewrite** (maintainer confirmation on [#429](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/429)). Production networks use the standard cosmes gas flow with `preferNoSetFee` and respect the dApp fee envelope without a separate post-sign check. |
+
+**Launch posture:** absence of the guard on mainnet is **intentional**, not an oversight. Pre-launch sign-off must record wallet QA per [`docs/runbooks/extension-fee-guard-wallet-qa.md`](runbooks/extension-fee-guard-wallet-qa.md) and automated checks via `make verify-issue-429`. **Do not extend** the guard to mainnet without a new production-network repro and security sign-off.
+
+**Third-party / agent context:** [`skills/AGENTS_EXTENSION_FEE_GUARD.md`](../skills/AGENTS_EXTENSION_FEE_GUARD.md).
+
 ## User security contact (SEC-A07)
 
 End users who see suspicious trades, unexpected balances, or misleading UI states must have a published escalation path ([GitLab **#392**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392)):
