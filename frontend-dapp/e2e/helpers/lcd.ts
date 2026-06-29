@@ -184,6 +184,24 @@ export function txJsonAllSwapReturnAmounts(txJson: unknown): string[] {
   return out
 }
 
+/** One pair `swap` wasm event: offer/ask asset ids (CW20 contract or native denom). */
+export type TxWasmSwapHop = { offerAsset: string; askAsset: string }
+
+/** Ordered wasm `swap` hops from LCD tx JSON (SEC-E07 / GitLab #428). */
+export function txJsonWasmSwapHops(txJson: unknown): TxWasmSwapHop[] {
+  const root = txJson as Record<string, unknown>
+  const tr = (root.tx_response as Record<string, unknown> | undefined) ?? root
+  const out: TxWasmSwapHop[] = []
+  for (const ev of collectTxEvents(tr)) {
+    if (!isWasmLikeEventType(ev.type)) continue
+    if (wasmAttrLast(ev.attributes ?? [], 'action') !== 'swap') continue
+    const offer = wasmAttrLast(ev.attributes ?? [], 'offer_asset')
+    const ask = wasmAttrLast(ev.attributes ?? [], 'ask_asset')
+    if (offer && ask) out.push({ offerAsset: offer, askAsset: ask })
+  }
+  return out
+}
+
 type LcdExecuteMsg = Record<string, unknown>
 
 /** Decode `max_adjust_steps` from the CW20 `send` hook in a place-limit batch tx (GitLab #204). */
