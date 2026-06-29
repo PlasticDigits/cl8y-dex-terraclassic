@@ -5,8 +5,13 @@ import { tryHumanizeFetchLikeMessage } from '@/utils/humanizeOffChainError'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import { TERRA_LCD_URL } from '@/utils/constants'
 
-/** Retail copy when the Terra LCD endpoint is unreachable (W11-C2). */
-export const LCD_CONNECTIVITY_OUTAGE_MESSAGE = 'Could not connect to the network. Check your connection or try again.'
+/**
+ * Retail copy when the Terra LCD endpoint is unreachable (W11-C2).
+ * **GitLab #427 (SEC-E05):** must reassure users that on-chain funds are safe while
+ * only app display / reads are blocked.
+ */
+export const LCD_CONNECTIVITY_OUTAGE_MESSAGE =
+  'Could not connect to the network. Check your connection or try again. Your on-chain wallet balances, LP shares, and positions are unaffected — only what the app can show may be limited.'
 
 export const LCD_CONNECTIVITY_RECOVERY_POLL_MS = 5_000
 

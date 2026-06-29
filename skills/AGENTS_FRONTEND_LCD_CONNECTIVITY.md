@@ -19,6 +19,7 @@ Use when the Terra **LCD** is unavailable and the dApp shows frozen spinners, mi
 2. **Do not rely on tab focus** — recovery is the **5s LCD probe** + query invalidation, not `refetchOnWindowFocus` (global default remains **false**).
 3. **Indexer vs LCD** — indexer outage banners ([GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164)) are separate; this playbook is for **chain LCD / wallet RPC** transport.
 4. **New patterns** — extend **`isLcdConnectivityError`** and [`lcdConnectivity.test.ts`](../frontend-dapp/src/utils/__tests__/lcdConnectivity.test.ts); keep retail copy in **`LCD_CONNECTIVITY_OUTAGE_MESSAGE`** unless product asks for a variant.
+5. **Funds safety (SEC-E05)** — LCD outage copy must reassure users that on-chain balances, LP shares, and positions are **unaffected**; only app display is limited ([#427](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/427)). Vitest: [`lcdConnectivity.test.ts`](../frontend-dapp/src/utils/__tests__/lcdConnectivity.test.ts), [`LcdQueryGate.test.tsx`](../frontend-dapp/src/components/common/__tests__/LcdQueryGate.test.tsx).
 
 ## Manual QA (local)
 

@@ -26,6 +26,7 @@ Use when adding or changing **indexer-backed** pages, global outage banners, pai
 5. **`/limits`** — `detectMarketDataOutage(indexerPairQuery, tradesQuery)` only; `limits-market-data-outage-banner` + optional `limits-pair-switch-loading`; run [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx).
 6. **`/` / `/swap`** — `detectSwapIndexerOutage(simQuery, simData)`; track `indexerTransportFailed` when indexer HTTP fails but LCD pool sim succeeds; hide stale quotes on `simQuery.isError`; `swap-market-data-outage-banner`; wrap/unwrap paths skip indexer — run [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) ([#241](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241)).
 7. **New retail routes** — reuse `MarketDataServiceOutageBanner` + `detectMarketDataOutage`; add a page-specific lead in `marketDataServiceCopy.ts` and a Vitest outage case.
+8. **Funds safety (SEC-E05)** — trade banner **lead** must state on-chain balances, LP shares, and limit escrows are **unaffected** ([#427](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/427)); Vitest: [`indexerTradeOutageCopy.test.ts`](../frontend-dapp/src/utils/__tests__/indexerTradeOutageCopy.test.ts).
 
 ## Related
 

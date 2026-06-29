@@ -36,4 +36,12 @@ describe('indexerTradeOutageCopy', () => {
       expect(line.toLowerCase()).not.toContain('lcd')
     }
   })
+
+  it('reassures users on-chain funds are safe during outage (GitLab #427, SEC-E05)', () => {
+    expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/on-chain/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/unaffected/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/wallet|lp|escrow/i)
+    expect(TRADE_INDEXER_OUTAGE_BANNER_LEAD).toMatch(/only what you see/i)
+    expect(combined.toLowerCase()).not.toMatch(/funds at risk|not safe|may lose/i)
+  })
 })

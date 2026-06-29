@@ -33,6 +33,8 @@ describe('LcdQueryGate', () => {
     )
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
     expect(screen.getByText(/could not connect to the network/i)).toBeInTheDocument()
+    expect(screen.getByText(/on-chain.*unaffected/i)).toBeInTheDocument()
+    expect(screen.getByText(/only what the app can show/i)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /retry/i }))
     expect(refetch).toHaveBeenCalled()
   })
