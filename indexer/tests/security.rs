@@ -339,6 +339,127 @@ async fn limit_cancellations_limit_capped_at_200() {
     assert!(body.len() <= 200);
 }
 
+/// GitLab #431 (SEC-F05): negative/zero `limit` on capped list routes must not reach Postgres
+/// as a negative/zero SQL `LIMIT` (historical HTTP 500 — #284). Contract: clamp to **1** via
+/// `.clamp(1, max)` → **200** with at most one row (bare arrays) or nested list capped (oracle).
+async fn assert_negative_or_zero_limit_clamps_to_one(server: &TestServer, path: &str) {
+    let sep = if path.contains('?') { '&' } else { '?' };
+    for v in ["-1", "0"] {
+        let url = format!("{path}{sep}limit={v}");
+        let resp = server.get(&url).await;
+        resp.assert_status_ok();
+        let body: Value = resp.json();
+        match &body {
+            Value::Array(arr) => {
+                assert!(
+                    arr.len() <= 1,
+                    "{url}: negative/zero limit must clamp to 1 row, got {}",
+                    arr.len()
+                );
+            }
+            Value::Object(obj) if obj.get("prices").is_some() => {
+                let prices = obj["prices"].as_array().expect("prices array");
+                assert!(
+                    prices.len() <= 1,
+                    "{url}: negative/zero limit must clamp oracle prices to 1 row, got {}",
+                    prices.len()
+                );
+            }
+            other => panic!("{url}: unexpected JSON shape for limit lower-bound test: {other}"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn pair_trades_negative_and_zero_limit_clamp_to_one() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    assert_negative_or_zero_limit_clamps_to_one(
+        &server,
+        &format!("/api/v1/pairs/{}/trades", seed.pair_address),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn pair_candles_negative_and_zero_limit_clamp_to_one() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    assert_negative_or_zero_limit_clamps_to_one(
+        &server,
+        &format!(
+            "/api/v1/pairs/{}/candles?interval=1h",
+            seed.pair_address
+        ),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn oracle_history_negative_and_zero_limit_clamp_to_one() {
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    assert_negative_or_zero_limit_clamps_to_one(&server, "/api/v1/oracle/history").await;
+}
+
+#[tokio::test]
+async fn trader_trades_negative_and_zero_limit_clamp_to_one() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    assert_negative_or_zero_limit_clamps_to_one(
+        &server,
+        &format!("/api/v1/traders/{}/trades", seed.trader_address),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn limit_fills_negative_and_zero_limit_clamp_to_one() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    assert_negative_or_zero_limit_clamps_to_one(
+        &server,
+        &format!("/api/v1/pairs/{}/limit-fills", seed.pair_address),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn limit_placements_negative_and_zero_limit_clamp_to_one() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    assert_negative_or_zero_limit_clamps_to_one(
+        &server,
+        &format!("/api/v1/pairs/{}/limit-placements", seed.pair_address),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn limit_cancellations_negative_and_zero_limit_clamp_to_one() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    assert_negative_or_zero_limit_clamps_to_one(
+        &server,
+        &format!("/api/v1/pairs/{}/limit-cancellations", seed.pair_address),
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn lcd_failure_returns_sanitized_502_body() {
     let mock = MockServer::start().await;
