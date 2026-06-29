@@ -35,6 +35,7 @@ import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitEscrowMaxReapply } from '@/hooks/useLimitEscrowMaxReapply'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
@@ -213,6 +214,19 @@ export default function LimitOrdersPage() {
   })
 
   const isPaused = pausedQuery.data?.paused === true
+
+  const token0Addr =
+    selectedPair && 'token' in selectedPair.asset_infos[0] ? selectedPair.asset_infos[0].token.contract_addr : null
+  const token1Addr =
+    selectedPair && 'token' in selectedPair.asset_infos[1] ? selectedPair.asset_infos[1].token.contract_addr : null
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    token0: token0Addr,
+    token1: token1Addr,
+    pairAddress: pairAddr || null,
+    enabled: !!address && pairAddr.startsWith('terra1'),
+  })
+  const isTradeBlocked = isPaused || tradingBlacklist.blocked
 
   const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
   const updatePriceMutation = useLimitOrderUpdatePriceMutation(pairAddr, address ?? undefined)
@@ -562,6 +576,16 @@ export default function LimitOrdersPage() {
                 </div>
               )}
 
+              {selectedPair && tradingBlacklist.blocked && tradingBlacklist.message && (
+                <div className="alert-error text-sm space-y-2" role="alert">
+                  <p>{tradingBlacklist.message}</p>
+                  <p className="text-xs opacity-90">
+                    Restrictions are enforced on-chain by governance. Funds remain recoverable when the restriction is
+                    lifted.
+                  </p>
+                </div>
+              )}
+
               {selectedPair && (
                 <div className="card-glass !p-3 min-h-[22rem] flex flex-col">
                   <OrderBookPanel
@@ -569,7 +593,7 @@ export default function LimitOrdersPage() {
                     pair={indexerPair}
                     walletAddress={address ?? undefined}
                     isWalletConnected={isWalletConnected}
-                    isPairPaused={isPaused}
+                    isPairPaused={isTradeBlocked}
                     openWalletModal={openWalletModal}
                     cancelLimitOrderMutation={limitCancelMutation}
                     onPrefillLimitTicket={onPrefillLimitTicketFromBook}
@@ -589,6 +613,8 @@ export default function LimitOrdersPage() {
                     isLoading={placementsQuery.isLoading}
                     isWalletConnected={isWalletConnected}
                     isPairPaused={isPaused}
+                    claimsDisabled={tradingBlacklist.blocked}
+                    cancelDisabled={tradingBlacklist.blocked}
                     openWalletModal={openWalletModal}
                     cancelLimitOrderMutation={limitCancelMutation}
                     cancellations={cancellationsQuery.data ?? []}
@@ -624,7 +650,7 @@ export default function LimitOrdersPage() {
                     token1Symbol={getTokenDisplaySymbol(token1 || 'token1')}
                     refToken1PerToken0={refToken1PerToken0}
                     refResolutionLoading={refResolutionLoading}
-                    disabled={!isWalletConnected || isPaused}
+                    disabled={!isWalletConnected || isTradeBlocked}
                     onPlaced={(ids) => {
                       if (ids.length > 0) setLastIndexedOrderId(Math.max(...ids))
                     }}
@@ -707,11 +733,11 @@ export default function LimitOrdersPage() {
                         priceOnlyEdit
                           ? updatePriceMutation.isPending ||
                             !selectedPair ||
-                            isPaused ||
+                            isTradeBlocked ||
                             (isWalletConnected && !updatePriceCombinedOk)
                           : placeMutation.isPending ||
                             !selectedPair ||
-                            isPaused ||
+                            isTradeBlocked ||
                             editNonPriceChanged ||
                             (isWalletConnected && !placeLimitCombinedOk)
                       }
@@ -803,7 +829,7 @@ export default function LimitOrdersPage() {
                       !isWalletConnected ||
                       limitCancelMutation.isPending ||
                       !pairAddr ||
-                      isPaused ||
+                      isTradeBlocked ||
                       cancelIdIndexedAsCancelled
                     }
                     onClick={() => {

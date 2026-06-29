@@ -83,6 +83,20 @@ vi.mock('@/components/trade/LimitOrderLadderPanel', () => ({
   LimitOrderLadderPanel: () => null,
 }))
 
+vi.mock('@/hooks/useTradingBlacklist', () => ({
+  useTradingBlacklist: vi.fn(),
+}))
+
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import {
+  TRADING_BLACKLIST_ALLOWED,
+  pairBlacklistedResponse,
+  tokenBlacklistedResponse,
+  tradingBlacklistHookResult,
+  walletBlacklistedResponse,
+} from '@/test/tradingBlacklistMocks'
+import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
+
 async function selectLimitsPair(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(factory.getAllPairsPaginated).toHaveBeenCalled())
   const pairControl = await screen.findByLabelText('Trading pair')
@@ -95,6 +109,7 @@ async function selectLimitsPair(user: ReturnType<typeof userEvent.setup>) {
 
 describe('LimitOrdersPage', () => {
   beforeEach(() => {
+    vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
     vi.mocked(updateLimitOrderPrice).mockClear()
@@ -322,5 +337,50 @@ describe('LimitOrdersPage', () => {
 
     expect(await screen.findByTestId('trade-book-edit-bid-7')).toBeDisabled()
     expect(await screen.findByText(/This pair is paused by governance/i)).toBeInTheDocument()
+  })
+
+  describe('trading blacklist UX (GitLab #388 / SEC-E01)', () => {
+    async function renderConnectedWithPair() {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+      renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+      await selectLimitsPair(user)
+      return { user }
+    }
+
+    it.each([
+      ['wallet', walletBlacklistedResponse()],
+      ['pair', pairBlacklistedResponse(PAIR)],
+      ['token', tokenBlacklistedResponse('terra1aaa0000000000000000000000000000001')],
+    ] as const)('shows %s blacklist alert and disables place limit CTA', async (_variant, resp) => {
+      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
+      await renderConnectedWithPair()
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      expect(alert).toHaveTextContent(/Restrictions are enforced on-chain by governance/i)
+      expect(screen.getByTestId('limits-limit-submit')).toBeDisabled()
+    })
+
+    it.each([
+      ['wallet', walletBlacklistedResponse()],
+      ['pair', pairBlacklistedResponse(PAIR)],
+      ['token', tokenBlacklistedResponse('terra1aaa0000000000000000000000000000001')],
+    ] as const)('shows %s blacklist alert and disables cancel limit CTA', async (_variant, resp) => {
+      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
+      const { user } = await renderConnectedWithPair()
+
+      const details = screen.getByText('Cancel by order ID').closest('details')
+      expect(details).toBeTruthy()
+      await user.click(details!.querySelector('summary')!)
+
+      const orderInput = await screen.findByLabelText('Order ID')
+      await user.type(orderInput, '42')
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      expect(screen.getByRole('button', { name: /Cancel limit/i })).toBeDisabled()
+    })
   })
 })

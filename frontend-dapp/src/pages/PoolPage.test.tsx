@@ -87,11 +87,25 @@ vi.mock('@/lib/sounds', () => ({
   },
 }))
 
+vi.mock('@/hooks/useTradingBlacklist', () => ({
+  useTradingBlacklist: vi.fn(),
+}))
+
 const addr = 'terra1test00000000000000000000000000000000'
 
 vi.mock('@/hooks/useWallet', () => ({
   useWalletStore: (fn: (s: { address: string | null }) => unknown) => fn({ address: addr }),
 }))
+
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import {
+  TRADING_BLACKLIST_ALLOWED,
+  pairBlacklistedResponse,
+  tokenBlacklistedResponse,
+  tradingBlacklistHookResult,
+  walletBlacklistedResponse,
+} from '@/test/tradingBlacklistMocks'
+import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
 
 const mockIndexerPair = (pairAddr: string): IndexerPair => ({
   pair_address: pairAddr,
@@ -105,6 +119,7 @@ const mockIndexerPair = (pairAddr: string): IndexerPair => ({
 describe('PoolPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
     vi.mocked(indexerClient.getTokens).mockResolvedValue([])
     vi.mocked(indexerClient.getPairs).mockResolvedValue(mockGetPairs)
@@ -330,6 +345,53 @@ describe('PoolPage', () => {
       await user.type(lpInput, '1')
 
       expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
+    })
+  })
+
+  describe('trading blacklist UX (GitLab #388 / SEC-E01)', () => {
+    async function openProvidePanel(user: ReturnType<typeof userEvent.setup>) {
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+      await user.click(provide[0]!)
+      await user.type(await screen.findByLabelText('Asset A amount'), '1')
+      await user.type(screen.getByLabelText('Asset B amount'), '2')
+    }
+
+    async function openWithdrawPanel(user: ReturnType<typeof userEvent.setup>) {
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
+      await user.click(withdrawTabs[0]!)
+      await user.type(screen.getByLabelText('LP Token Amount'), '1')
+    }
+
+    it.each([
+      ['wallet', walletBlacklistedResponse()],
+      ['pair', pairBlacklistedResponse(mockPair.pair_address)],
+      ['token', tokenBlacklistedResponse('tokenA')],
+    ] as const)('shows %s blacklist alert and disables provide liquidity CTA', async (_variant, resp) => {
+      const user = userEvent.setup()
+      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
+      await openProvidePanel(user)
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      expect(screen.getByRole('button', { name: 'Trading restricted' })).toBeDisabled()
+    })
+
+    it.each([
+      ['wallet', walletBlacklistedResponse()],
+      ['pair', pairBlacklistedResponse(mockPair.pair_address)],
+      ['token', tokenBlacklistedResponse('tokenA')],
+    ] as const)('shows %s blacklist alert and disables withdraw liquidity CTA', async (_variant, resp) => {
+      const user = userEvent.setup()
+      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
+      await openWithdrawPanel(user)
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      expect(screen.getByRole('button', { name: 'Trading restricted' })).toBeDisabled()
     })
   })
 })

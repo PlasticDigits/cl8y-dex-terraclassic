@@ -292,6 +292,17 @@ Launch checklist **SEC-B05** requires LCD `is_paused` gating on `/` and `/pool` 
 
 Product invariants: [docs/frontend.md § Pair pause disabled CTAs](./frontend.md#pair-pause-disabled-ctas-sec-b05); agent: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md).
 
+### Trading blacklist disabled CTAs (SEC-E01, GitLab #425) {#trading-blacklist-disabled-ctas-sec-e01-gitlab-425}
+
+Launch checklist **SEC-E01** requires factory trading blacklist to disable write CTAs on `/pool` (provide + withdraw) and `/limits` (place + cancel), with Vitest coverage for wallet, token, and pair dimensions (Swap and `/trade` limit ticket already covered by [#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)).
+
+| Check | Command |
+|-------|---------|
+| Vitest — pool + limits blacklist CTAs | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/PoolPage.test.tsx src/pages/LimitOrdersPage.test.tsx -t "SEC-E01"` |
+| Vitest — swap + trade blacklist (regression) | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx src/pages/TradePage.test.tsx -t "trading blacklist"` |
+
+Product invariants: [docs/frontend.md § Trading blacklist disabled CTAs](./frontend.md#trading-blacklist-disabled-ctas-sec-e01); security model: [§ Trading blacklist](./security-model.md#trading-blacklist-compliance--incident-response). Shared mocks: [`tradingBlacklistMocks.ts`](../frontend-dapp/src/test/tradingBlacklistMocks.ts).
+
 Mocks: [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Product copy: [docs/frontend.md § Swap wrap safety CTA](./frontend.md#swap-wrap-safety-cta-sec-a02).
 
 ### Wrap-mapper pause on-chain smoke (SEC-B06, GitLab #396) {#wrap-mapper-pause-smoke-sec-b06-gitlab-396}

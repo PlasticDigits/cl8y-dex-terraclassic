@@ -48,5 +48,5 @@ make verify-issue-396
 
 - Pair pause on `/` and `/pool`: [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx), [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx) (GitLab **#395** / SEC-B05); hook [`usePairPaused.ts`](../frontend-dapp/src/hooks/usePairPaused.ts)
 - Pair pause on `/trade`: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (GitLab #87 / #199)
-- Trading blacklist CTA: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts)
+- Trading blacklist CTA: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts); pool + limits Vitest (**SEC-E01**, GitLab **#425**): [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx), [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx); [docs/frontend.md § Trading blacklist disabled CTAs](../docs/frontend.md#trading-blacklist-disabled-ctas-sec-e01)
 - Native wrap routing: [`router.test.ts`](../frontend-dapp/src/services/terraclassic/router.test.ts)
