@@ -438,6 +438,10 @@ test-e2e-indexer-outage:
 lint-frontend:
 	$(WITH_NODE) npm run lint
 
+lint-indexer-log-secrets:
+	@chmod +x scripts/lint-indexer-log-secrets.sh
+	@./scripts/lint-indexer-log-secrets.sh
+
 # Indexer
 indexer-dev:
 	cd indexer && cargo run
@@ -463,7 +467,7 @@ dev-full: start wait-healthy build-optimized deploy-local
 # Combined
 test: test-contracts test-frontend
 
-lint: lint-contracts lint-frontend check-fee-discount-tier-docs check-user-incident-faq-docs check-emergency-commands-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-ibc-hooks-deploy-docs check-extension-fee-guard-docs check-blacklist-decision-docs check-deploy-trace-docs check-exploit-replay-matrix-docs check-design-tokens verify-commit-messages
+lint: lint-contracts lint-frontend lint-indexer-log-secrets check-fee-discount-tier-docs check-user-incident-faq-docs check-emergency-commands-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-ibc-hooks-deploy-docs check-extension-fee-guard-docs check-blacklist-decision-docs check-deploy-trace-docs check-exploit-replay-matrix-docs check-design-tokens verify-commit-messages
 
 # Git hooks
 setup-hooks:

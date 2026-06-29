@@ -17,6 +17,7 @@ You are changing **LCD-proxied HTTP routes**, **rate limiting**, or **502 error 
 | **H7b** | Deep `limit-book` / `insert-hints` / price-window ≤ **101** LCD queries per request | [`LIMIT_BOOK_LCD_QUERY_BUDGET`](../indexer/src/api/limit_book_lcd.rs); [integrators.md § #267](../docs/integrators.md#insert-hints-price-window-gitlab-267) |
 | **H7c** | Route `global_v1` documents ≤ **`LCD_HYBRID_SIM_BUDGET`** hybrid sims | [`best_execution.rs`](../indexer/src/api/best_execution.rs) |
 | **H6b** | `GET /api/v1/health/fee-discount` returns only `configured`, `fee_discount_registry_ok`, `consecutive_lcd_failures` — no LCD URLs, upstream bodies, or per-trader registry state ([#373](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/373)) | [`fee_discount_health.rs`](../indexer/src/api/fee_discount_health.rs), [`api_fee_discount_health.rs`](../indexer/tests/api_fee_discount_health.rs) |
+| **F13** | Startup INFO logs never emit `database_url`, webhook URLs, mnemonics, or bearer tokens ([#433](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/433)) | [`startup.rs`](../indexer/src/startup.rs), `make lint-indexer-log-secrets`, [`operator-secrets.md`](../docs/operator-secrets.md) § Logs |
 
 Human matrix: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md). Hybrid route behavior: [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md).
 
@@ -54,9 +55,10 @@ See [`indexer/.env.example`](../indexer/.env.example) and [`docs/operator-secret
 ```bash
 cd indexer && cargo test --lib
 cd indexer && cargo test --test security -j 1 -- --test-threads=1
+make lint-indexer-log-secrets
 ```
 
-Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**), global 429 burst, blacklist-check LCD **502** (**#379**), POST route solve oversized body **413** (**#379**), capped list `limit` upper bound (`limit=99999`) and lower bound (`limit=-1` / `limit=0` clamp to **1** — **SEC-F05** / **#431**).
+Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**), global 429 burst, blacklist-check LCD **502** (**#379**), POST route solve oversized body **413** (**#379**), capped list `limit` upper bound (`limit=99999`) and lower bound (`limit=-1` / `limit=0` clamp to **1** — **SEC-F05** / **#431**). Startup log secret guard (**SEC-F13** / **#433**): `cargo test --lib startup::tests` + `make lint-indexer-log-secrets`.
 
 Broader SQL-backed list lower-bound sweep: [`api_limit_lower_bound.rs`](../indexer/tests/api_limit_lower_bound.rs) (**#317**). LCD `limit-book` / orderbook `depth` lower bounds: [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs).
 

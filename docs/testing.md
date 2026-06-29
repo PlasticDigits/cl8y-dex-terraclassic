@@ -469,7 +469,7 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 
 | Concept | Canonical wording |
 |--------|-------------------|
-| Hosted GitLab CI | [`.gitlab-ci.yml`](../.gitlab-ci.yml) — `security` stage (gitleaks, cargo/npm audit) + `test` stage (contracts + indexer-lib + frontend unit/lint + build gate, [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421)) + `build` stage (QA wasm/indexer artifacts) |
+| Hosted GitLab CI | [`.gitlab-ci.yml`](../.gitlab-ci.yml) — `security` stage (gitleaks, cargo/npm audit, indexer log-secret grep [#433](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/433)) + `test` stage (contracts + indexer-lib + frontend unit/lint + build gate, [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421)) + `build` stage (QA wasm/indexer artifacts) |
 | Where full checks run | **GitLab** runs security + Phase-1 functional gates (contracts/indexer-lib/frontend unit + build) on default branch + change-gated MRs; **local / QA host** for the heavier rows (Postgres-backed indexer integration, Playwright E2E) still pending Phase 2 of [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421) |
 | [`.github/workflows/*.yml`](../.github/workflows/) | **Reference spec only** (job names, services, step order) — not executed |
 | Job names (`e2e`, `frontend-charts-integration`, …) | **Labels** mapping to Make/scripts below |
@@ -483,6 +483,7 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 | Job | Local command |
 |-----|---------------|
 | `gitleaks` | `make gitleaks-detect` |
+| `lint-indexer-log-secrets` | `make lint-indexer-log-secrets` (SEC-F13 — grep `indexer/src/` tracing args; unit tests in [`startup.rs`](../indexer/src/startup.rs)) |
 | `cargo-audit-smartcontracts` | `make audit-smartcontracts` |
 | `cargo-audit-indexer` | `make audit-indexer` |
 | `npm-audit-frontend` | `make audit-frontend` |
