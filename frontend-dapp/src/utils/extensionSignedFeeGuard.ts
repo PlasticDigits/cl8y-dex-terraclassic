@@ -1,5 +1,6 @@
 /**
  * Post-sign fee/gas sanity check for extension wallets on LocalTerra (GitLab #127, #134).
+ * Intentionally inactive on mainnet (`columbus-5`, etc.) — see SEC-E08 / GitLab #429.
  * Mirrored in `patches/@goblinhunt+cosmes+…patch` → `KeplrExtension.js` — keep in sync.
  */
 
