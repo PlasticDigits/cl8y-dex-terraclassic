@@ -1,5 +1,6 @@
 import chainlistJson from '../../public/chains/chainlist.json'
 import { DEFAULT_NETWORK, NETWORKS } from './constants'
+import { isValidTerraBech32Address } from './terraAddressValidation'
 import { shortenAddress } from './tokenDisplay'
 
 export type ChainlistEntry = {
@@ -24,6 +25,19 @@ const chainlist = chainlistJson as ChainlistData
 
 type ExplorerPathSegment = 'tx' | 'address'
 
+/** SHA-256 tx hash as returned by RPC/LCD (64 hex digits). Rejects injectable segments ([#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). */
+const EXPLORER_TX_HASH_RE = /^[0-9a-fA-F]{64}$/
+
+function isSafeExplorerTxHash(txHash: string): boolean {
+  return EXPLORER_TX_HASH_RE.test(txHash)
+}
+
+function isSafeExplorerAddress(address: string): boolean {
+  const trimmed = address.trim()
+  if (!trimmed) return false
+  return isValidTerraBech32Address(trimmed)
+}
+
 function explorerPathBaseForChainId(chainId: string, segment: ExplorerPathSegment): string | null {
   const entry = chainlist.chains.find((c) => String(c.chainId) === chainId)
   if (!entry?.explorerUrl) return null
@@ -35,6 +49,8 @@ function explorerPathBaseForChainId(chainId: string, segment: ExplorerPathSegmen
  * Full URL to view a transaction on the block explorer for the active `VITE_NETWORK` build.
  */
 export function getExplorerTxUrl(txHash: string): string | null {
+  if (!isSafeExplorerTxHash(txHash)) return null
+
   const { chainId } = NETWORKS[DEFAULT_NETWORK].terra
 
   if (DEFAULT_NETWORK === 'local') {
@@ -52,6 +68,8 @@ export function getExplorerTxUrl(txHash: string): string | null {
  * Used by [`AddressRow`](../components/ui/AddressRow.tsx) and wallet explorer ([#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184), [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)).
  */
 export function getExplorerAddressUrl(address: string): string | null {
+  if (!isSafeExplorerAddress(address)) return null
+
   const { chainId } = NETWORKS[DEFAULT_NETWORK].terra
 
   if (DEFAULT_NETWORK === 'local') {

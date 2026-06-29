@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TerraBroadcastPendingLink } from '../TerraBroadcastPendingLink'
 
 const SAMPLE_HASH = 'ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890'
@@ -30,5 +30,25 @@ describe('TerraBroadcastPendingLink (GitLab #305 / #330)', () => {
 
     rerender(<TerraBroadcastPendingLink phase={null} txHash={null} />)
     expect(screen.queryByTestId('terra-broadcast-pending-tx')).toBeNull()
+  })
+
+  describe('explorer link safety (#430 / SEC-E10)', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+      vi.resetModules()
+    })
+
+    it('renders span (no anchor) when tx hash fails explorer URL validation', async () => {
+      vi.stubEnv('VITE_NETWORK', 'mainnet')
+      vi.resetModules()
+      const { TerraBroadcastPendingLink: Link } = await import('../TerraBroadcastPendingLink')
+
+      render(<Link phase="confirming" txHash="javascript:alert(1)" />)
+
+      expect(screen.queryByRole('link')).not.toBeInTheDocument()
+      const el = screen.getByTestId('terra-broadcast-pending-tx')
+      expect(el.tagName).toBe('SPAN')
+      // React also blocks javascript: in href at render time; builder returns null first ([#430]).
+    })
   })
 })

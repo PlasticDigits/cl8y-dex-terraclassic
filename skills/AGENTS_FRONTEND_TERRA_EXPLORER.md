@@ -18,6 +18,7 @@ Use when adding or changing **“View on explorer”** links for **transactions*
 3. **Local = LCD REST:** tx → `/cosmos/tx/v1beta1/txs/…`; address → `/cosmos/auth/v1beta1/accounts/…` on `NETWORKS.local.terra.lcd`.
 4. **Public = Finder paths:** `{explorerUrl}/tx/…` and `{explorerUrl}/address/…` (trailing slashes normalized on the base).
 5. **Hide when null:** If the helper returns `null`, omit the anchor (no dead links).
+6. **Validate segments ([#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)):** Tx hash = 64 hex digits; address = valid `terra` bech32. Reject `javascript:`, HTML specials, empty strings — return `null` so components never render an injectable `href`. Adversarial cases in [`terraExplorer.test.ts`](../frontend-dapp/src/utils/__tests__/terraExplorer.test.ts); link rendering in [`AddressRow.explorerSafety.test.tsx`](../frontend-dapp/src/components/ui/__tests__/AddressRow.explorerSafety.test.tsx) and [`TerraBroadcastPendingLink.test.tsx`](../frontend-dapp/src/components/ui/__tests__/TerraBroadcastPendingLink.test.tsx).
 
 ## Cross-links
 

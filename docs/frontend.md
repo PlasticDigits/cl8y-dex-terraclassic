@@ -199,8 +199,9 @@ Network-aware explorer links for transactions and accounts live in [`terraExplor
 |-----------|---------|
 | **Single source** | Do not hardcode Finder hosts in components; extend `chainlist.json` + `explorerPathBaseForChainId` if explorers change. |
 | **Null when unknown** | Missing `explorerUrl` for a chain returns `null` (UI hides the link). |
+| **Null when unsafe** | Tx hash must match 64 hex digits; address must pass Terra bech32 validation — otherwise `null` (no injectable `href`; [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). |
 | **Local dev LCD** | `local` uses REST paths on [`NETWORKS.local.terra.lcd`](../frontend-dapp/src/utils/constants.ts) (default `http://localhost:1317`), mirroring tx vs account resources. |
-| **Regression tests** | [`terraExplorer.test.ts`](../frontend-dapp/src/utils/__tests__/terraExplorer.test.ts) — one case per network for **tx** and **address**. |
+| **Regression tests** | [`terraExplorer.test.ts`](../frontend-dapp/src/utils/__tests__/terraExplorer.test.ts) — one case per network for **tx** and **address**, plus adversarial-input cases ([#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md) (tx links only).
 

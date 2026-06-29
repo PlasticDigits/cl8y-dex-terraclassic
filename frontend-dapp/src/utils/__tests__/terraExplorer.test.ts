@@ -44,6 +44,36 @@ describe('getExplorerTxUrl', () => {
     const { getExplorerTxUrl } = await loadExplorerUtils()
     expect(getExplorerTxUrl(SAMPLE_TX)).toBe(`https://finder.terra-classic.hexxagon.io/testnet/tx/${SAMPLE_TX}`)
   })
+
+  describe('adversarial input (#430 / SEC-E10)', () => {
+    async function loadMainnetExplorer() {
+      vi.stubEnv('VITE_NETWORK', 'mainnet')
+      vi.resetModules()
+      return loadExplorerUtils()
+    }
+
+    it('returns null for javascript: prefix instead of a javascript: URL', async () => {
+      const { getExplorerTxUrl } = await loadMainnetExplorer()
+      expect(getExplorerTxUrl('javascript:alert(1)')).toBeNull()
+      expect(getExplorerTxUrl(`javascript:alert(1)//${SAMPLE_TX}`)).toBeNull()
+    })
+
+    it('returns null for HTML-special characters in tx hash', async () => {
+      const { getExplorerTxUrl } = await loadMainnetExplorer()
+      expect(getExplorerTxUrl(`${SAMPLE_TX}<script>`)).toBeNull()
+      expect(getExplorerTxUrl(`<script>${SAMPLE_TX}`)).toBeNull()
+    })
+
+    it('returns null for empty string', async () => {
+      const { getExplorerTxUrl } = await loadMainnetExplorer()
+      expect(getExplorerTxUrl('')).toBeNull()
+    })
+
+    it('returns null for path-traversal segments', async () => {
+      const { getExplorerTxUrl } = await loadMainnetExplorer()
+      expect(getExplorerTxUrl('../etc/passwd')).toBeNull()
+    })
+  })
 })
 
 describe('getExplorerAddressUrl', () => {
@@ -76,5 +106,29 @@ describe('getExplorerAddressUrl', () => {
     expect(getExplorerAddressUrl(SAMPLE_ADDRESS)).toBe(
       `https://finder.terra-classic.hexxagon.io/testnet/address/${SAMPLE_ADDRESS}`
     )
+  })
+
+  describe('adversarial input (#430 / SEC-E10)', () => {
+    async function loadMainnetExplorer() {
+      vi.stubEnv('VITE_NETWORK', 'mainnet')
+      vi.resetModules()
+      return loadExplorerUtils()
+    }
+
+    it('returns null for javascript: prefix instead of a javascript: URL', async () => {
+      const { getExplorerAddressUrl } = await loadMainnetExplorer()
+      expect(getExplorerAddressUrl('javascript:alert(1)')).toBeNull()
+    })
+
+    it('returns null for HTML-special characters in address', async () => {
+      const { getExplorerAddressUrl } = await loadMainnetExplorer()
+      expect(getExplorerAddressUrl(`${SAMPLE_ADDRESS}<script>`)).toBeNull()
+      expect(getExplorerAddressUrl(`<script>${SAMPLE_ADDRESS}`)).toBeNull()
+    })
+
+    it('returns null for empty string', async () => {
+      const { getExplorerAddressUrl } = await loadMainnetExplorer()
+      expect(getExplorerAddressUrl('')).toBeNull()
+    })
   })
 })
