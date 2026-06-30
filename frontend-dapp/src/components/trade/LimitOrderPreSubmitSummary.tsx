@@ -2,6 +2,7 @@ import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { formatTokenAmount } from '@/utils/formatAmount'
 import { bpsToPercentLabel } from '@/utils/limitOrderFeeSummary'
 import { limitPriceDeviationPercent, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
+import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 
 const LIMIT_DOC = `${DOCS_GITLAB_BASE}/limit-orders.md`
 
@@ -18,6 +19,8 @@ export type LimitOrderPreSubmitSummaryProps = {
   feeLoading: boolean
   feeError: boolean
   compact?: boolean
+  /** Active Terra Classic network label shown as an anti-phishing chain anchor (SEC-I05 / #461). */
+  chainFullLabel?: string
   'data-testid'?: string
 }
 
@@ -34,6 +37,7 @@ export function LimitOrderPreSubmitSummary({
   feeLoading,
   feeError,
   compact,
+  chainFullLabel = getNetworkBadgeCopy().fullLabel,
   'data-testid': testId = 'limit-order-pre-submit-summary',
 }: LimitOrderPreSubmitSummaryProps) {
   const textSize = compact ? 'text-[10px]' : 'text-xs'
@@ -101,6 +105,12 @@ export function LimitOrderPreSubmitSummary({
             ~{gasHuman} LUNC
           </span>
           <span className="text-[9px] ml-1 opacity-90">(allowance + place; wallet may vary)</span>
+        </li>
+        <li data-testid={`${testId}-chain`}>
+          <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
+            Chain:{' '}
+          </span>
+          <span style={{ color: 'var(--ink)' }}>{chainFullLabel}</span>
         </li>
       </ul>
       <p className="text-[9px] leading-snug pt-1 border-t border-white/10" style={{ color: 'var(--ink-subtle)' }}>
