@@ -2,7 +2,7 @@
 
 Copy-pastable **`terrad tx wasm execute`** recipes for governance emergency controls on the **factory** contract. Use under time pressure during an active incident ([SEC-B11](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399), GitLab **#399**).
 
-**Related:** [Security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response), [ADR 0003](../adr/0003-governance-trading-blacklist.md), [user incident FAQ](../user-incident-faq.md), [incident triage template](../templates/incident-dex-indexer.md). Agent playbook: [`skills/AGENTS_EMERGENCY_COMMANDS.md`](../../skills/AGENTS_EMERGENCY_COMMANDS.md).
+**Related:** [Security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response), [ADR 0003](../adr/0003-governance-trading-blacklist.md), [blacklist decision runbook](./blacklist-decision.md) (symmetric restore gates), [user incident FAQ](../user-incident-faq.md), [incident triage template](../templates/incident-dex-indexer.md). Agent playbook: [`skills/AGENTS_EMERGENCY_COMMANDS.md`](../../skills/AGENTS_EMERGENCY_COMMANDS.md).
 
 ---
 
@@ -85,6 +85,19 @@ terrad query wasm contract-state smart "$PAIR_ADDR" '{"is_paused":{}}' \
 ---
 
 ## 2. Unpause a pair
+
+Do **not** submit `set_pair_paused` with `paused: false` until the unpause prerequisite checklist is complete. Symmetric gate with [False-positive rollback](./blacklist-decision.md#false-positive-rollback-unblacklist) in the blacklist decision runbook (**SEC-G07**, GitLab [#440](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/440)).
+
+### Before you unpause (mandatory)
+
+1. **Preserve original evidence** — copy into the incident record (immutable section or attached export): pause governance tx hash, why trading halted, approver names, UTC timestamps. Do **not** delete prior notes when reversing.
+2. **Document unpause rationale** — incident tracker link or GitLab issue; state why the pair was paused and what changed since the pause.
+3. **Confirm triggering condition is resolved** — attach evidence (tx traces, contract state reads, patched code deployed). If the exploit or abuse vector is still active, stop and keep the pair paused.
+4. **Confirm no funds at risk** — re-query on-chain state (reserves, limit escrow, attacker or compliance posture). If resuming trading re-exposes loss, stop and escalate to S1 review.
+5. **Log in incident timeline** — entry with unpause approver, checklist completion UTC, and planned `set_pair_paused` tx.
+6. **Execute governance unpause** — command below; record resulting tx hash in the timeline.
+7. **Communications** — if users saw paused-pair messaging, note public/internal comms in the incident template **Communications** section.
+8. **Post-incident** — if pause criteria misfired, open a docs follow-up to tighten this runbook.
 
 ```bash
 terrad tx wasm execute "$FACTORY_ADDR" "$(jq -nc \
@@ -263,6 +276,7 @@ Doc invariant (no chain required):
 
 ```bash
 make check-emergency-commands-docs
+make verify-issue-440   # SEC-G07 unpause prerequisite checklist
 ```
 
 ---
