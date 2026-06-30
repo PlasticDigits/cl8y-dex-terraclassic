@@ -20,6 +20,8 @@ Operator playbook for **when** governance should apply factory trading blacklist
 
 Use this during incident **Mitigation** after triage confirms abnormal on-chain or compliance signals. For **proactive** monitoring thresholds (pool drain %, slippage deviation, failed-tx burst, etc.) before evidence is confirmed, start from [anomaly-signals.md](./anomaly-signals.md). Do **not** blacklist on suspicion alone.
 
+**Discovery queries (SEC-G04):** before applying this tree, run indexer API / SQL / LCD recipes in [suspicious-activity-queries.md](./suspicious-activity-queries.md) to surface candidate wallets, pairs, and tokens — heuristics alone are insufficient for blacklist.
+
 ```mermaid
 flowchart TD
   start([Incident signal]) --> evidence{Confirmed evidence<br/>on-chain or compliance file?}

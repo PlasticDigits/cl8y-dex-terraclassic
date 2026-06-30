@@ -7,6 +7,7 @@ Use when implementing or verifying **SEC-B11** operator docs for factory emergen
 | Path | Purpose |
 |------|---------|
 | [`docs/runbooks/emergency-commands.md`](../docs/runbooks/emergency-commands.md) | Parameterized `terrad tx wasm execute` for all eight factory emergency messages |
+| [`docs/runbooks/emergency-commands.md` § Quick pool triage](../docs/runbooks/emergency-commands.md#quick-pool-triage-sec-g03) | Rank pools by liquidity before choosing `$PAIR_ADDR` (SEC-G03, [#436](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/436)) |
 | [`docs/runbooks/blacklist-decision.md`](../docs/runbooks/blacklist-decision.md) | Symmetric restore gate for `Unblacklist*` rollback checklist |
 | [`docs/templates/incident-dex-indexer.md`](../docs/templates/incident-dex-indexer.md) | Mitigation step links to the cookbook; **Incident timeline** table for tx audit trail; [Communications templates](../docs/templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05) for announcements |
 | [`docs/adr/0003-governance-trading-blacklist.md`](../docs/adr/0003-governance-trading-blacklist.md) | Blacklist design rationale |
