@@ -49,6 +49,7 @@ import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { AddressRow } from '@/components/ui/AddressRow'
+import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { isLpBurnExceedsBalance, withdrawMinAssetAmounts } from '@/utils/rawAmountMath'
@@ -774,6 +775,14 @@ const PoolCard = memo(function PoolCard({
               {provideLiquidityNativeGasGate.userMessage}
             </p>
           )}
+          {amountA && amountB && (
+            <PoolPreSubmitSummary
+              actionLabel="Provide Liquidity"
+              pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
+              amountLines={[`${amountA} ${displayA.displayLabel}`, `${amountB} ${displayB.displayLabel}`]}
+              data-testid="pool-provide-pre-submit-summary"
+            />
+          )}
           <button
             onClick={() => {
               sounds.playButtonPress()
@@ -940,6 +949,14 @@ const PoolCard = memo(function PoolCard({
               ))}
             </div>
           </div>
+          {lpAmount && (
+            <PoolPreSubmitSummary
+              actionLabel="Withdraw Liquidity"
+              pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
+              amountLines={[`${lpAmount} LP`]}
+              data-testid="pool-withdraw-pre-submit-summary"
+            />
+          )}
           <button
             onClick={() => {
               sounds.playButtonPress()
