@@ -15,8 +15,10 @@ This document describes **how to handle secrets** when operating the indexer and
 | `FACTORY_ADDRESS` | On-chain factory | Public address; not secret. |
 | `FEE_DISCOUNT_ADDRESS`, `ROUTER_ADDRESS`, `USTC_DENOM` | Optional config | Same as factory—addresses are public. |
 | `REORG_ALERT_WEBHOOK_URL` | Reorg halt webhook | Optional. POST JSON on chain reorg halt (GitLab #362). Use your paging/Slack endpoint; not a public API. |
-| `RATE_LIMIT_RPS` | Global per-IP API governor | Default **60** RPS. **`RUN_MODE=prod`:** `0` is clamped to **60** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Dev/QA may set `0` to disable the global layer (e.g. Playwright bursts). When **both** `RATE_LIMIT_RPS` and `RATE_LIMIT_LCD_HEAVY_RPS` are **0**, startup logs a **DoS-risk warning** regardless of mode ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)). |
+| `RATE_LIMIT_RPS` | Global per-IP API governor | Default **60** RPS. **`RUN_MODE=prod`:** `0` is clamped to **60** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Dev/QA may set `0` to disable the global layer (e.g. Playwright bursts). When **both** `RATE_LIMIT_RPS` and `RATE_LIMIT_LCD_HEAVY_RPS` are **0**, startup logs a **DoS-risk warning** regardless of mode ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)). In **non-prod**, dual-zero on a **non-loopback** `API_BIND` refuses startup ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)). |
 | `RATE_LIMIT_LCD_HEAVY_RPS` | Stricter per-IP limit on LCD-heavy routes | Default **10** RPS. **`RUN_MODE=prod`:** `0` is clamped to **10** with a startup warning ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). |
+| `ALLOW_ZERO_RATE_LIMITS` | Opt-out for dual-zero on public bind | Set to `1` (or `true`/`yes`) to allow **`RATE_LIMIT_RPS=0`** and **`RATE_LIMIT_LCD_HEAVY_RPS=0`** on a non-loopback `API_BIND` in non-prod — for deliberate offline/benchmark runs only ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)). Loopback binds (`127.0.0.1`, `localhost`, `::1`) do not require this override. |
+| `API_BIND` | API listener address | Default **`127.0.0.1`**. Local deploy (`deploy-dex-local.sh`) binds loopback so `RATE_LIMIT_RPS=0` is safe. Non-loopback binds (`0.0.0.0`, public IPs) with **both** rate limits at `0` refuse startup in non-prod unless `ALLOW_ZERO_RATE_LIMITS=1` ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)). |
 
 ## Rate limits (production)
 
@@ -35,7 +37,7 @@ LCD-heavy routes fan out multiple upstream LCD `smart` queries per HTTP request.
 ## `RUN_MODE=prod`
 
 - `RUN_MODE=prod` requires non-empty `DATABASE_URL`, `FACTORY_ADDRESS`, `CORS_ORIGINS`, and **LCD URLs that are not the built-in public default list** (`indexer/src/config.rs`).
-- Production cannot disable rate limiting: `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=0` are clamped to **60** and **10** respectively at config load ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Startup logs effective values; warnings are emitted if env had `0` for either knob. When **both** are `0` in env, an additional **dual-disable** warning is logged ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)).
+- Production cannot disable rate limiting: `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=0` are clamped to **60** and **10** respectively at config load ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Startup logs effective values; warnings are emitted if env had `0` for either knob. When **both** are `0` in env, an additional **dual-disable** warning is logged ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)). The non-loopback dual-zero startup guard ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)) does not apply in prod because limits are always clamped to safe minimums.
 
 ## Observability
 
