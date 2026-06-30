@@ -177,5 +177,5 @@ Choose **GO with accepted risk** only when:
 
 ## Rollback / incident
 
-- CosmWasm upgrades/migrations are **out of band** for this runbook; document admin keys and wasm migration policy separately.
+- CosmWasm upgrades/migrations are **out of band** for this runbook's deploy phases; admin keys and wasm migration policy live in [wasm admin migration](./wasm-admin-migration.md). **Rollback limitations** (reversible vs irrecoverable migration, indexer DB down.sql, partial fleet recovery): [§ Rollback and limitations](./wasm-admin-migration.md#rollback-and-limitations-sec-h05) (**SEC-H05**, [#443](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/443)).
 - For live incidents: pause via factory if your governance policy allows; communicate hook/pause behavior per security model.
