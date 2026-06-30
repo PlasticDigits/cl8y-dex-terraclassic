@@ -187,6 +187,6 @@ For technical integration details, see [integrators.md](./integrators.md) and [l
 | **Security overview** | [security-model.md](./security-model.md) |
 | **On-chain invariants** | [contracts-security-audit.md](./contracts-security-audit.md) (e.g. **L6** pause) |
 | **Blacklist design** | [adr/0003-governance-trading-blacklist.md](./adr/0003-governance-trading-blacklist.md) |
-| **Operators** | [runbooks/](./runbooks/) and [templates/incident-dex-indexer.md](./templates/incident-dex-indexer.md) |
+| **Operators** | [runbooks/](./runbooks/), [templates/incident-dex-indexer.md](./templates/incident-dex-indexer.md) (incident tracker + [Communications templates](./templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05), SEC-G05) |
 
 **Agent playbook:** [`skills/AGENTS_USER_INCIDENT_FAQ.md`](../skills/AGENTS_USER_INCIDENT_FAQ.md).

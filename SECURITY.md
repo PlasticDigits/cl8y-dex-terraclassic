@@ -44,6 +44,6 @@ General product feedback and non-security bugs should use the normal GitLab issu
 
 - Threat model and mitigations: [`docs/security-model.md`](docs/security-model.md)
 - Contract invariants: [`docs/contracts-security-audit.md`](docs/contracts-security-audit.md)
-- Internal operator incident template: [`docs/templates/incident-dex-indexer.md`](docs/templates/incident-dex-indexer.md) (not for end-user reports)
+- Internal operator incident template: [`docs/templates/incident-dex-indexer.md`](docs/templates/incident-dex-indexer.md) (not for end-user reports; per-incident comms templates in [appendix](docs/templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05), SEC-G05)
 
 Tracked as GitLab [**#392**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392) (SEC-A07).

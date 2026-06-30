@@ -7,7 +7,7 @@ Use when changing **operator criteria** for factory trading blacklist during inc
 | Doc / code | Purpose |
 |------------|---------|
 | [docs/runbooks/blacklist-decision.md](../docs/runbooks/blacklist-decision.md) | **Single** operator decision tree + rollback checklist |
-| [docs/templates/incident-dex-indexer.md](../docs/templates/incident-dex-indexer.md) | Incident tracker template — Mitigation links to runbook; [#incident-timeline](../docs/templates/incident-dex-indexer.md#incident-timeline) for audit rows |
+| [docs/templates/incident-dex-indexer.md](../docs/templates/incident-dex-indexer.md) | Incident tracker template — Mitigation links to runbook; [#incident-timeline](../docs/templates/incident-dex-indexer.md#incident-timeline) for audit rows; [Communications templates](../docs/templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05) (SEC-G05) |
 | [docs/adr/0003-governance-trading-blacklist.md](../docs/adr/0003-governance-trading-blacklist.md) | Blacklist design (on-chain storage, messages) |
 | [docs/security-model.md](../docs/security-model.md) | Security entry point — links to runbook + user FAQ |
 | [docs/user-incident-faq.md](../docs/user-incident-faq.md) | Trader/LP impact — **link only**, do not duplicate operator criteria |
@@ -32,5 +32,6 @@ make verify-issue-400
 
 - Proactive anomaly thresholds (before blacklist): [`AGENTS_ANOMALY_SIGNALS.md`](./AGENTS_ANOMALY_SIGNALS.md)
 - User incident FAQ (retail copy): [`AGENTS_USER_INCIDENT_FAQ.md`](./AGENTS_USER_INCIDENT_FAQ.md)
+- Incident comms templates (SEC-G05): [`AGENTS_INCIDENT_COMMS_TEMPLATES.md`](./AGENTS_INCIDENT_COMMS_TEMPLATES.md)
 - Launch governance checklist: [`AGENTS_LAUNCH_GO_NO_GO.md`](./AGENTS_LAUNCH_GO_NO_GO.md)
 - Hook blocking (distinct from factory blacklist): [`docs/runbooks/hook-registration.md`](../docs/runbooks/hook-registration.md)

@@ -9,7 +9,7 @@ Use when implementing or verifying **SEC-B11** operator docs for factory emergen
 | [`docs/runbooks/emergency-commands.md`](../docs/runbooks/emergency-commands.md) | Parameterized `terrad tx wasm execute` for all eight factory emergency messages |
 | [`docs/runbooks/emergency-commands.md` § Quick pool triage](../docs/runbooks/emergency-commands.md#quick-pool-triage-sec-g03) | Rank pools by liquidity before choosing `$PAIR_ADDR` (SEC-G03, [#436](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/436)) |
 | [`docs/runbooks/blacklist-decision.md`](../docs/runbooks/blacklist-decision.md) | Symmetric restore gate for `Unblacklist*` rollback checklist |
-| [`docs/templates/incident-dex-indexer.md`](../docs/templates/incident-dex-indexer.md) | Mitigation step links to the cookbook; **Incident timeline** table for tx audit trail |
+| [`docs/templates/incident-dex-indexer.md`](../docs/templates/incident-dex-indexer.md) | Mitigation step links to the cookbook; **Incident timeline** table for tx audit trail; [Communications templates](../docs/templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05) for announcements |
 | [`docs/adr/0003-governance-trading-blacklist.md`](../docs/adr/0003-governance-trading-blacklist.md) | Blacklist design rationale |
 
 ## Eight operations (factory `ExecuteMsg`)
@@ -45,6 +45,7 @@ make has-localterra && make verify-issue-399
 ## Do not duplicate
 
 - **User-facing** impact copy lives in [`docs/user-incident-faq.md`](../docs/user-incident-faq.md) — link, do not fork ([`AGENTS_USER_INCIDENT_FAQ.md`](./AGENTS_USER_INCIDENT_FAQ.md)).
+- **Per-incident announcement templates** live in the incident template appendix — [`AGENTS_INCIDENT_COMMS_TEMPLATES.md`](./AGENTS_INCIDENT_COMMS_TEMPLATES.md).
 - **Tier 255** on fee-discount is not factory blacklist — see [security model § Trading blacklist](../docs/security-model.md).
 
 ## LocalTerra notes

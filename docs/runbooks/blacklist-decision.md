@@ -125,7 +125,7 @@ If a blacklist was applied in error, **do not** submit `UnblacklistWallet`, `Unb
 3. **Confirm no funds at risk** — re-query on-chain state (reserves, escrow, attacker still active). If reversal re-exposes loss, stop and escalate to S1 review.
 4. **Log in [incident timeline](../templates/incident-dex-indexer.md#incident-timeline)** — entry with reversal approver, checklist completion UTC, and planned `Unblacklist*` tx.
 5. **Execute governance `Unblacklist*`** — record resulting tx hash in the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline).
-6. **Communications** — if users saw blocked CTAs, note public/internal comms in the incident template **Communications** section.
+6. **Communications** — if users saw blocked CTAs, use paste-ready templates in the incident template [Communications templates appendix](../templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05) (SEC-G05, [#438](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/438)); log sent copy in the incident **Communications** section.
 7. **Post-incident** — if criteria misfired, open a docs follow-up to tighten this runbook.
 
 User-facing impact after rollback: [user-incident-faq.md](../user-incident-faq.md).
