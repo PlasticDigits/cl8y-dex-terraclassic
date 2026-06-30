@@ -63,6 +63,27 @@ pub enum ConfigError {
         "API_BIND is an IPv6 address but API_IPV6_ENABLED is not set — use an IPv4 bind (e.g. 0.0.0.0 or 127.0.0.1) or set API_IPV6_ENABLED=1"
     )]
     Ipv6BindDisabled,
+    #[error(
+        "FACTORY_ADDRESS must be non-empty in every RUN_MODE — an empty factory address disables \
+         pair provenance verification and would index unverified (possibly spoofed) pairs"
+    )]
+    EmptyFactoryAddress,
+    #[error(
+        "RATE_LIMIT_RPS=0 and RATE_LIMIT_LCD_HEAVY_RPS=0 on a non-loopback API_BIND disables all \
+         rate protection on a public listener — set a non-zero limit, bind to loopback, or set \
+         ALLOW_ZERO_RATE_LIMITS=1 to override"
+    )]
+    ZeroRateLimitNonLoopbackBind,
+}
+
+/// True when `bind` is a loopback address (127.0.0.0/8, ::1) or the `localhost` hostname.
+/// Anything else — including `0.0.0.0`, `::`, public IPs, and unrecognized hostnames — is
+/// treated as non-loopback so the GitLab #458 dual-zero-rate-limit guard errs toward safety.
+fn bind_is_loopback(bind: &str) -> bool {
+    match bind.parse::<IpAddr>() {
+        Ok(ip) => ip.is_loopback(),
+        Err(_) => bind.eq_ignore_ascii_case("localhost"),
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -136,15 +157,21 @@ impl Config {
             .filter(|s| !s.is_empty())
             .collect();
 
+        // GitLab #451 (SEC-I02 H14): FACTORY_ADDRESS must be non-empty in *every* RUN_MODE.
+        // An empty factory address makes `verify_factory_provenance` skip the provenance check
+        // (pair_discovery.rs), so any contract emitting swap events — including attacker-controlled
+        // clone pairs — would be indexed unverified. Prod already rejected empty below; enforce it
+        // unconditionally so staging/QA deployments cannot silently index unverified pairs.
+        if factory_address.trim().is_empty() {
+            return Err(ConfigError::EmptyFactoryAddress);
+        }
+
         if run_mode == RunMode::Prod {
             if uses_builtin_lcd_defaults {
                 return Err(ConfigError::ProdRequiresCustomLcdUrls);
             }
             if database_url.trim().is_empty() {
                 return Err(ConfigError::ProdEmpty("DATABASE_URL"));
-            }
-            if factory_address.trim().is_empty() {
-                return Err(ConfigError::ProdEmpty("FACTORY_ADDRESS"));
             }
             if cors_origins.is_empty() {
                 return Err(ConfigError::ProdEmpty("CORS_ORIGINS"));
@@ -163,6 +190,28 @@ impl Config {
                 if ip.is_ipv6() {
                     return Err(ConfigError::Ipv6BindDisabled);
                 }
+            }
+        }
+
+        // GitLab #458 (SEC-I04 F01): refuse to start with all rate governors disabled on a
+        // non-loopback bind. RUN_MODE=prod already clamps both limits to safe minimums (below),
+        // so this guards the Dev/unset path, where a public deployment with RATE_LIMIT_RPS=0 and
+        // RATE_LIMIT_LCD_HEAVY_RPS=0 would otherwise serve unthrottled traffic with only a warning.
+        // Explicit opt-out: ALLOW_ZERO_RATE_LIMITS=1 (for deliberate offline/benchmark runs).
+        if run_mode != RunMode::Prod {
+            let rps_raw = env::var("RATE_LIMIT_RPS")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(DEFAULT_RATE_LIMIT_RPS);
+            let lcd_heavy_raw = env::var("RATE_LIMIT_LCD_HEAVY_RPS")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS);
+            let allow_zero = env::var("ALLOW_ZERO_RATE_LIMITS")
+                .ok()
+                .is_some_and(|v| matches!(v.as_str(), "1" | "true" | "yes"));
+            if rps_raw == 0 && lcd_heavy_raw == 0 && !allow_zero && !bind_is_loopback(&api_bind) {
+                return Err(ConfigError::ZeroRateLimitNonLoopbackBind);
             }
         }
 
@@ -294,6 +343,7 @@ mod tests {
             "RATE_LIMIT_LCD_HEAVY_RPS",
             "API_BIND",
             "API_IPV6_ENABLED",
+            "ALLOW_ZERO_RATE_LIMITS",
         ] {
             env::remove_var(key);
         }
@@ -419,5 +469,82 @@ mod tests {
         env::set_var("CORS_ORIGINS", "  ,  ");
         let err = Config::from_env().unwrap_err();
         assert!(matches!(err, ConfigError::ProdEmpty("CORS_ORIGINS")));
+    }
+
+    // GitLab #451 (SEC-I02 H14): empty FACTORY_ADDRESS rejected in every RUN_MODE.
+    #[test]
+    #[serial]
+    fn empty_factory_address_rejected_in_dev() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "   ");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        let err = Config::from_env().unwrap_err();
+        assert!(matches!(err, ConfigError::EmptyFactoryAddress));
+    }
+
+    // GitLab #458 (SEC-I04 F01): dual-zero rate limits on a non-loopback bind are rejected.
+    #[test]
+    #[serial]
+    fn dev_dual_zero_rate_limits_nonloopback_bind_rejected() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        env::set_var("API_BIND", "0.0.0.0");
+        let err = Config::from_env().unwrap_err();
+        assert!(matches!(err, ConfigError::ZeroRateLimitNonLoopbackBind));
+    }
+
+    #[test]
+    #[serial]
+    fn dev_dual_zero_rate_limits_nonloopback_bind_allowed_with_optout() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        env::set_var("API_BIND", "0.0.0.0");
+        env::set_var("ALLOW_ZERO_RATE_LIMITS", "1");
+        let c = Config::from_env().expect("dual-zero allowed via opt-out");
+        assert_eq!(c.rate_limit_rps, 0);
+        assert_eq!(c.rate_limit_lcd_heavy_rps, 0);
+    }
+
+    #[test]
+    #[serial]
+    fn dev_dual_zero_rate_limits_loopback_bind_loads() {
+        // Explicit loopback bind with dual-zero must still load (Playwright / local-dev path).
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        env::set_var("API_BIND", "127.0.0.1");
+        let c = Config::from_env().expect("loopback dual-zero loads");
+        assert_eq!(c.rate_limit_rps, 0);
+    }
+
+    #[test]
+    #[serial]
+    fn prod_dual_zero_nonloopback_bind_loads_via_clamp() {
+        // In prod the dual-zero limits are clamped to safe minimums, so the #458 guard never
+        // fires even on a public bind.
+        clear_config_env();
+        env::set_var("RUN_MODE", "prod");
+        env::set_var("LCD_URLS", "https://lcd.example.com");
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "https://app.example.com");
+        env::set_var("RATE_LIMIT_RPS", "0");
+        env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
+        env::set_var("API_BIND", "0.0.0.0");
+        let c = Config::from_env().expect("prod clamps dual-zero");
+        assert_eq!(c.rate_limit_rps, 60);
+        assert_eq!(c.rate_limit_lcd_heavy_rps, 10);
     }
 }
