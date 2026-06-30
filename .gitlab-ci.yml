@@ -119,10 +119,11 @@ npm-audit-frontend:
 
 # --- Test stage (GitLab #421): functional gates from the reference matrix ---
 # Phase 1: fast unit + build gates on MR + default branch, mirroring .github/workflows/test.yml
-# (contracts-terra / frontend / indexer). Postgres-backed indexer-integration and Playwright E2E
-# are Phase 2 (heavier: service containers + DinD LocalTerra). No allow_failure — a red functional
-# gate blocks merge (#411: "GitLab CI green != functional test pass"). Test jobs drop the global
-# `-D warnings` (that stays on the lint/audit jobs) so a stray warning never masks a test signal.
+# (contracts-terra / frontend / indexer). Phase 2a adds the Postgres-backed indexer-integration
+# suite (a `postgres` service container, below); the scheduled DinD-LocalTerra Playwright E2E is
+# the remaining Phase-2 row. No allow_failure — a red functional gate blocks merge (#411: "GitLab
+# CI green != functional test pass"). Test jobs drop the global `-D warnings` (that stays on the
+# lint/audit jobs) so a stray warning never masks a test signal.
 
 .test-rules-default-branch:
   rules:
@@ -212,6 +213,47 @@ test-frontend-build:
   script:
     - npm run build
     - 'if find dist -name "*.map" | grep -q .; then echo "prod dist has sourcemaps - violates issue 117"; exit 1; fi'
+
+# Phase 2a (GitLab #421): Postgres-backed indexer integration suite — the full `indexer/tests/`
+# suite that test-indexer-lib skips. Uses a `postgres` service container (no DinD / no LocalTerra).
+# The harness (indexer/tests/common/mod.rs::setup_pool) runs sqlx::migrate!() itself, so the service
+# only needs to provision the cl8y_legal role + dex_indexer_test DB. Serial (-j1 + --test-threads=1):
+# the suite shares one dex_indexer_test DB and api_hooks false-fails under parallel access
+# (docs/qa-invariants.md). The remaining Phase-2 row (scheduled DinD-LocalTerra Playwright E2E) is
+# tracked separately under #421.
+test-indexer-integration:
+  extends: .test-rules-default-branch
+  stage: test
+  image: rust:1.96-bookworm
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    RUSTFLAGS: "-A dead_code"
+    # Passed to the postgres service (auto-creates the role + DB) and consumed by the suite.
+    POSTGRES_DB: dex_indexer_test
+    POSTGRES_USER: cl8y_legal
+    POSTGRES_PASSWORD: cl8y_legal
+    TEST_DATABASE_URL: "postgres://cl8y_legal:cl8y_legal@postgres:5432/dex_indexer_test"
+  rules:
+    - !reference [.test-rules-default-branch, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - indexer/**/*
+        - .gitlab-ci.yml
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config
+    # PgPool::connect does not retry — wait for the service to accept TCP before cargo test runs.
+    - 'for i in $(seq 1 30); do (echo > /dev/tcp/postgres/5432) 2>/dev/null && break; echo "waiting for postgres ($i)"; sleep 2; done'
+  script:
+    # Equivalent to `make test-indexer-integration` (the postgres service replaces
+    # setup-indexer-postgres). Serial; the harness migrates the empty DB on first connect.
+    - cd indexer && cargo test --tests -j 1 -- --test-threads=1
+  cache:
+    key: test-indexer-integration
+    paths:
+      - .cargo/registry/
+      - indexer/target/
 
 # --- Build stage (#325) ---
 
