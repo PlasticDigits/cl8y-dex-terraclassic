@@ -247,6 +247,7 @@ Priority: **P0** correctness/architecture, **P1** production completeness, **P2*
 
 - **Labels:** `docs`, `infra`, `security`
 - **Priority:** P2
+- **Status:** **Shipped (2026):** [governance-key-rotation.md](../../runbooks/governance-key-rotation.md) — rotation cookbook (wasm admin + `governance` pointer) + LocalTerra rehearsal; migrate path in [wasm-admin-migration.md](../../runbooks/wasm-admin-migration.md). See GitLab [**#408**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/408) (**SEC-D10**).
 
 ### DEX-P2-028 — Document secrets handling (LCD API keys, DB, etc.)
 

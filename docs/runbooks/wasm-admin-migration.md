@@ -52,7 +52,8 @@ terrad tx wasm migrate <pair_addr> <new_code_id> '{}' \
 
 ## Admin rotation
 
-- Use **`update_admin`** (where supported) only through governance process; verify new admin on-chain before revoking old keys.
+- Use `terrad tx wasm set-contract-admin` (terrad v4.x; contract-level `update_admin` only where a contract exposes it) **only through the governance process**; verify the new admin on-chain before revoking old keys.
+- Full rotation cookbook — wasm admin + factory `governance` pointer, multisig signing, post-rotation verification, and a LocalTerra rehearsal: [governance key rotation](./governance-key-rotation.md) (**SEC-D10**, [#408](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/408)).
 
 ## Rollback vs forward-fix (SEC-H09)
 
@@ -81,7 +82,7 @@ If the **prior wasm is still stored on chain** and the contract **`admin` is int
 2. **Confirm you still hold admin** on the contract address:
 
    ```bash
-   terrad query wasm contract <addr> --node <rpc-url> | jq -r .contract_info.admin
+   terrad query wasm contract <addr> --node <rpc-url> --output json | jq -r .contract_info.admin
    ```
 
 3. **Migrate back** to the prior `code_id` with the appropriate migrate message (often `'{}'`).

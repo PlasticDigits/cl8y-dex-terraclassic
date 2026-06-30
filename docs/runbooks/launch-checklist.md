@@ -151,6 +151,7 @@ Choose **PAUSE** when there is **no** open P0 blocker, but **any** of the follow
 
 - A **pre-launch** item from Phases 0–4 or [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) remains open **without** a linked risk-acceptance comment on the launch issue.
 - Production **governance multisig** has not rehearsed emergency admin txs (**pause, blacklist, unpause, unblacklist**) on staging/testnet — see [**SEC-B09** governance emergency rehearsal](./governance-emergency-rehearsal.md) ([#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)); evidence must be linked from the launch tracking issue. Automated LocalTerra dry-run: `make rehearse-governance-emergency` / `make verify-issue-397`.
+- Production **governance multisig** has not rehearsed a **key rotation** (wasm contract-admin + `governance` pointer) on staging/testnet — see [**SEC-D10** governance key rotation](./governance-key-rotation.md) ([#408](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/408)); evidence must be linked from the launch tracking issue. Automated LocalTerra dry-run: `make rehearse-governance-key-rotation` / `make verify-issue-408`.
 - Production **governance multisig** has not rehearsed other deploy/admin txs (fee update, hook registration) on staging.
 - **Incident / rollback** runbook gap: no on-call owner, or [`docs/templates/incident-dex-indexer.md`](../templates/incident-dex-indexer.md) not adapted for this network (including [anomaly signals](./anomaly-signals.md) thresholds for bootstrap TVL — SEC-G02, [#435](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/435)).
 - External dependency blocker (indexer DB migration, DNS/TLS, WalletConnect project) is unresolved.
@@ -191,7 +192,7 @@ Choose **GO with accepted risk** only when:
 
 5. For **GO** or **GO with accepted risk**, attach or link the completed QA summary table from [`QA_TEMPLATE.md` § Summary](../../QA_TEMPLATE.md#summary) when your process requires it, then proceed to mainnet Phase 1.
 
-**Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows. **SEC-H08 test evidence:** confirm Phase 0 test output (or CI pipeline link) is on the launch issue before **GO** — `make verify-issue-444` (docs only). **SEC-B09 multisig rehearsal:** `make verify-issue-397` (or `make check-governance-emergency-rehearsal-docs` for docs only). **SEC-B10 key custody:** `make verify-issue-398` (or `make check-key-custody-docs` for docs only).
+**Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows. **SEC-H08 test evidence:** confirm Phase 0 test output (or CI pipeline link) is on the launch issue before **GO** — `make verify-issue-444` (docs only). **SEC-B09 multisig rehearsal:** `make verify-issue-397` (or `make check-governance-emergency-rehearsal-docs` for docs only). **SEC-B10 key custody:** `make verify-issue-398` (or `make check-key-custody-docs` for docs only). **SEC-D10 key rotation:** `make verify-issue-408` (or `make check-governance-key-rotation-docs` for docs only).
 
 ---
 
