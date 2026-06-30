@@ -86,7 +86,13 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
 
     renderWithProviders(
-      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
     )
 
     const amountInput = screen.getByTestId('limit-order-escrow-amount-input')
@@ -111,7 +117,13 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
 
     renderWithProviders(
-      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
     )
 
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
@@ -131,7 +143,13 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
 
     renderWithProviders(
-      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
     )
 
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
@@ -144,7 +162,13 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
 
   it('surfaces hybrid min return copy before market submit (#419)', () => {
     renderWithProviders(
-      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
     )
 
     expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/min return/i)
@@ -158,7 +182,13 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     vi.mocked(pair.simulateSwap).mockRejectedValue(new Error('lcd fail'))
 
     renderWithProviders(
-      <TradeMarketOrderPanel pairAddr={PAIR_ADDR} selectedPair={selectedPair} side="ask" isPaused={false} />
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
     )
 
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')

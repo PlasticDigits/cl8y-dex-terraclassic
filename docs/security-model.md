@@ -212,7 +212,7 @@ The dApp **trusts the configured indexer** for multi-hop `router_operations` aft
 | Risk | Mitigation |
 |------|------------|
 | MITM on indexer HTTP | Deploy **`VITE_INDEXER_URL` over HTTPS only**; terminate TLS at your edge; pin or monitor cert changes. |
-| Compromised indexer | Malicious but **valid** pools can appear in routes; user sees hop summary at confirmation (`data-testid="swap-route-summary"`) plus labeled pre-sign fields (`swap-confirm-*`, #409). Operators must run a trusted indexer or accept quote risk. |
+| Compromised indexer | Malicious but **valid** pools can appear in routes; user sees hop summary at confirmation (`data-testid="swap-route-summary"`) plus labeled pre-sign fields (`swap-confirm-*`, #409) including factory-sourced pair contract address(es) (`swap-confirm-pair-contract*`, #449). Submit targets are LCD factory pairs or the fixed router — not indexer-supplied pair addresses. Operators must run a trusted indexer or accept quote risk. |
 | Stale / wrong indexer env | Pin factory/router in build env; verify on [`/protocol`](../frontend-dapp/src/pages/ProtocolPage.tsx) (audit surface only). Optional LCD check: `VITE_VERIFY_DEPLOY_ADDRESSES=true` + [`deployAddressVerification.ts`](../frontend-dapp/src/utils/deployAddressVerification.ts). |
 
 **Out of scope:** client-side BFS route fallback or on-chain hop graph cross-check in the browser.

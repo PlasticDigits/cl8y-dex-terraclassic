@@ -755,6 +755,7 @@ function TradeOrderTicketContent({
               <TradeMarketOrderPanel
                 pairAddr={pairAddr}
                 selectedPair={selectedPair}
+                pairs={pairs}
                 side={side}
                 isPaused={isTradeBlocked}
               />
