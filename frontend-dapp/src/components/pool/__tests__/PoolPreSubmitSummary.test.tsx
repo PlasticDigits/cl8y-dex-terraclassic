@@ -6,7 +6,7 @@ import { PoolPreSubmitSummary } from '../PoolPreSubmitSummary'
 // action, pair, amounts, and chain label before the wallet dialog — the SEC-D11 anti-phishing
 // anchor swaps already have.
 describe('PoolPreSubmitSummary', () => {
-  it('renders provide action, pair, both amounts, and chain label', () => {
+  it('renders provide action, pair, consolidated deposit amounts, and chain label', () => {
     render(
       <PoolPreSubmitSummary
         actionLabel="Provide Liquidity"
@@ -18,8 +18,7 @@ describe('PoolPreSubmitSummary', () => {
     )
     expect(screen.getByTestId('pool-provide-pre-submit-summary-action')).toHaveTextContent('Provide Liquidity')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-pair')).toHaveTextContent('EMBER / CORAL')
-    expect(screen.getByTestId('pool-provide-pre-submit-summary-amount-0')).toHaveTextContent('12.5 EMBER')
-    expect(screen.getByTestId('pool-provide-pre-submit-summary-amount-1')).toHaveTextContent('8.0 CORAL')
+    expect(screen.getByTestId('pool-provide-pre-submit-summary-amount')).toHaveTextContent('12.5 EMBER + 8.0 CORAL')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-chain')).toHaveTextContent('Terra Classic')
   })
 
@@ -34,13 +33,12 @@ describe('PoolPreSubmitSummary', () => {
       />
     )
     expect(screen.getByTestId('pool-withdraw-pre-submit-summary-action')).toHaveTextContent('Withdraw Liquidity')
-    expect(screen.getByTestId('pool-withdraw-pre-submit-summary-amount-0')).toHaveTextContent('3.0 LP')
+    expect(screen.getByTestId('pool-withdraw-pre-submit-summary-amount')).toHaveTextContent('3.0 LP')
     expect(screen.getByTestId('pool-withdraw-pre-submit-summary-chain')).toHaveTextContent('Terra Classic')
   })
 
   it('falls back to the env network badge when no chain label is passed', () => {
     render(<PoolPreSubmitSummary actionLabel="Provide Liquidity" pairLabel="A / B" amountLines={['1 A', '1 B']} />)
-    // Default badge copy resolves to a non-empty chain label.
     expect(screen.getByTestId('pool-pre-submit-summary-chain').textContent?.trim().length).toBeGreaterThan(0)
   })
 })

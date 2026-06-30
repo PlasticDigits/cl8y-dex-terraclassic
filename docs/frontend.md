@@ -1051,6 +1051,22 @@ The **Provide Liquidity** card mirrors on-chain `provide_liquidity` math for the
 
 **Ratio warning:** if the two typed amounts are not in the current pool price ratio, the contract still executes, but the **smaller** LP term sets the mint; the excess on the other side is effectively donated to the pool (same as Astroport/TerraSwap behavior).
 
+### Pool page — pre-sign confirmation summary (SEC-I05) {#pool-page-pre-sign-summary}
+
+Before the wallet extension opens on **`/pool`**, provide and withdraw show a **compact labeled summary card** so traders catch phishing or wrong-network mistakes ([#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462) / SEC-I05 F-03):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Labeled fields** | Action (`Provide Liquidity` / `Withdraw Liquidity`), pair symbols, consolidated amount line(s), and chain full name. |
+| **Form snapshot** | Amounts match the typed values on the provide/withdraw form at submit time (not a separate quote path). |
+| **Chain name** | From [`getNetworkBadgeCopy()`](../frontend-dapp/src/utils/networkDisplay.ts) — must align with the network badge / env strip. |
+| **`data-testid`s** | Provide panel: `pool-provide-pre-submit-summary` with `-action`, `-pair`, `-amount`, `-chain`; withdraw panel: `pool-withdraw-pre-submit-summary` with the same suffixes. |
+| **Compact layout** | Four rows only (no swap-style intro paragraph) — token inputs above already show deposit amounts; the card repeats security anchors. |
+
+Implementation: [`PoolPreSubmitSummary.tsx`](../frontend-dapp/src/components/pool/PoolPreSubmitSummary.tsx); wired in [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) when provide has both amounts or withdraw has an LP amount.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](../skills/AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md).
+
 E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is pinned in [`.cursor/rules/playwright-workers.mdc`](../.cursor/rules/playwright-workers.mdc) (5 workers) to keep the Vite `webServer` stable.
 
 | GitLab | Role |
@@ -1058,6 +1074,7 @@ E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is 
 | [#109](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/109) | Add-LP balances, Max / 50%, LP estimate, tests |
 | [#147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147) | CW20/CW20 add LP: native LUNC preflight for three sequential txs (`provideLiquidityNativeGasBalanceGate.ts`) |
 | [#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112) | Pool list: indexer vs factory, router badges, filter |
+| [#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462) | Pre-sign summary card for provide/withdraw (SEC-I05 F-03) |
 
 ### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}
 

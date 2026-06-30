@@ -47,9 +47,11 @@ cd frontend-dapp && npm run test:run -- \
 2. **Do not** show factory/router on this panel — `/protocol` only ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
 3. Keep **Route** on the separate `swap-route-summary` / `trade-market-route-summary` row ([`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)); the pre-sign panel repeats pair symbols for phishing resistance, not hop detail.
 4. Limit orders use [`LimitOrderPreSubmitSummary`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) — resting semantics, not taker swap fields ([#157](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157)).
+5. Pool provide/withdraw use [`PoolPreSubmitSummary`](../frontend-dapp/src/components/pool/PoolPreSubmitSummary.tsx) — compact four-row card ([#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462)); see [`AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md).
 
 ## Related
 
 - Trust boundaries: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md)
 - Route row: [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)
+- Pool pre-sign: [`AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md)
 - Docs: [`docs/frontend.md` § Swap pre-sign summary](../docs/frontend.md#swap-page-pre-sign-summary)
