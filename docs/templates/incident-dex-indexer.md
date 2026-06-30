@@ -43,6 +43,14 @@
 - **Indexer stale / wrong data:** [Indexer reorg / replay runbook](../runbooks/indexer-reorg-replay-dedup.md), [Wasm admin runbook](../runbooks/wasm-admin-migration.md) if contract-side.
 - **Reorg halt (hash mismatch):** Stop indexer → dry-run `make indexer-reorg-recover HEIGHT=H` or `./scripts/indexer-reorg-recover.sh --height H` (add `CLEANUP=1` / `--cleanup-derived` for true fork) → `APPLY=1` / `--apply` → restart. Shallow vs deep steps in [runbook § Reorg handling](../runbooks/indexer-reorg-replay-dedup.md#reorg-handling).
 
+## Incident timeline
+
+Add rows **as events unfold** (governance txs, blacklist/pause actions, rollback steps). Paste tx hashes from [Emergency commands](../runbooks/emergency-commands.md) and record user impact per [user incident FAQ](../user-incident-faq.md).
+
+| UTC Time | Tx Hash | Wallet | Token | Pair | Admin Action | User Impact |
+|----------|---------|--------|-------|------|--------------|-------------|
+|          |         |        |       |      |              |             |
+
 ## Communications
 
 - **Internal:** 
