@@ -2,7 +2,7 @@
 
 Ordered checklist for **pool-only** swaps: direct pair and router paths with **`hybrid` unset** (no on-chain limit-book leg). For hybrid-specific launch, see [`docs/reviews/20260409T030009Z/REVIEW.md`](../reviews/20260409T030009Z/REVIEW.md) §11.
 
-**Related docs:** [`docs/deployment-guide.md`](../deployment-guide.md), [`docs/security-model.md`](../security-model.md), [`docs/architecture.md`](../architecture.md), fee tiers [`docs/reference/fee-discount-tiers.md`](../reference/fee-discount-tiers.md), QA sign-off [`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) § SIGN-OFF, agent playbook [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../../skills/AGENTS_LAUNCH_GO_NO_GO.md), governance emergency rehearsal [`governance-emergency-rehearsal.md`](./governance-emergency-rehearsal.md) (**SEC-B09**, [#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)). **Full executable matrix:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (**LR-00** launch-readiness gate).
+**Related docs:** [`docs/deployment-guide.md`](../deployment-guide.md), [`docs/security-model.md`](../security-model.md), [`docs/architecture.md`](../architecture.md), fee tiers [`docs/reference/fee-discount-tiers.md`](../reference/fee-discount-tiers.md), QA sign-off [`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) § SIGN-OFF, agent playbook [`skills/AGENTS_LAUNCH_GO_NO_GO.md`](../../skills/AGENTS_LAUNCH_GO_NO_GO.md), test evidence gate [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../../skills/AGENTS_TEST_EVIDENCE_GATE.md) (**SEC-H08**, [#444](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/444)), governance emergency rehearsal [`governance-emergency-rehearsal.md`](./governance-emergency-rehearsal.md) (**SEC-B09**, [#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)). **Full executable matrix:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) (**LR-00** launch-readiness gate).
 
 **Mandatory gate:** [**Phase 5 — Go / no-go**](#phase-5--go--no-go-decision-required-before-production-mainnet) is a **required sign-off** before any **production mainnet** deploy. Complete Phases 0–4 on staging/testnet first; do **not** begin mainnet Phase 1 until Phase 5 records an explicit **GO** (or **GO with accepted risk**) on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).
 
@@ -32,6 +32,25 @@ Ordered checklist for **pool-only** swaps: direct pair and router paths with **`
   ```
 
   **Operator attestation (required text in the deploy record):** *"CL8Y DEX app contracts do not implement `ibc_receive`, `ibc_ack`, or `ibc_timeout` CosmWasm entry points; verified by `make verify-no-ibc-hooks-in-contracts` at commit `<git-sha>` on `<date-utc>`."* If a future release adds IBC callbacks, update this statement, document threat model + mitigations, and obtain security sign-off before mainnet upload.
+
+- [ ] **Test evidence gate (SEC-H08):** before **production mainnet** deploy, record passing test output on the launch / release tracking issue ([#444](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/444)). Operators deploying from a **local build** must paste or link full command output (or a log artifact) for each suite below at the **same git SHA** as the wasm being uploaded. Operators deploying **CI-built artifacts** satisfy this gate automatically when the GitLab pipeline for that commit shows green `test-contracts`, `test-indexer-integration`, and `test-frontend` jobs — link the pipeline URL instead of re-pasting. LocalTerra swap smoke output is also required (see [Phase 3](#phase-3--post-deploy-verification-pool-only)).
+
+  **Record on the launch / deploy tracking issue (paste command output + commit SHA + date UTC, or CI pipeline link):**
+
+  ```bash
+  git rev-parse HEAD   # must match deployed build SHA
+
+  make test-contracts
+  make test-indexer-integration   # requires Postgres — make setup-indexer-postgres or full stack
+  make test-frontend
+
+  # LocalTerra swap smoke — run after deploy (Phase 3); paste here or in deploy trace
+  make smoke-pool-swap            # or ./scripts/smoke-pool-swap.sh with PAIR_ADDR / TERRA_LCD_URL
+  ```
+
+  **CI equivalent:** link the GitLab pipeline for commit `<git-sha>` with passing `test-contracts`, `test-indexer-integration`, and `test-frontend` jobs (see [docs/testing.md § CI](../testing.md#ci)).
+
+  Agent playbook: [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../../skills/AGENTS_TEST_EVIDENCE_GATE.md). Deploy trace template: [`docs/templates/deploy-trace.md`](../templates/deploy-trace.md) § Test results. Regression: `make verify-issue-444`.
 
 ---
 
@@ -122,7 +141,7 @@ Choose **BLOCK** when **any** of these P0 categories has an open, unmitigated fi
 |-------------|---------------------------|-------------------|
 | **Admin controls** | Governance/treasury are EOAs; factory admin paths reachable by non-governance; hook allowlist missing for registered hooks; trusted-router or discount-registry miswired | [Security model § Governance](../security-model.md), [hook registration](./hook-registration.md), Phase 0–2 above |
 | **Value-flow invariants** | Failing contract audit invariants (P1–P7 pool path, L1–L10 limit/hybrid); fee-on-transfer or non-standard CW20 on whitelist; treasury/fee accounting mismatch on staging smoke | [`docs/contracts-security-audit.md`](../contracts-security-audit.md), [`scripts/smoke-pool-swap.sh`](../../scripts/smoke-pool-swap.sh), [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md) |
-| **Deploy / runbook** | Missing or unexecuted launch phases; optimizer wasm policy violated; `make check-fee-discount-tier-docs` or launch go/no-go doc check failing; **SEC-D02** IBC-hooks chain version / contract IBC entry-point record missing or stale after chain upgrade; no rollback/incident owner | This runbook, [deployment guide](../deployment-guide.md), [`make verify-issue-391`](../../Makefile), [`make verify-issue-407`](../../Makefile) |
+| **Deploy / runbook** | Missing or unexecuted launch phases; optimizer wasm policy violated; `make check-fee-discount-tier-docs` or launch go/no-go doc check failing; **SEC-D02** IBC-hooks chain version / contract IBC entry-point record missing or stale after chain upgrade; **SEC-H08** test evidence (contracts, indexer integration, frontend, pool smoke) not pasted or linked on the release issue; no rollback/incident owner | This runbook, [deployment guide](../deployment-guide.md), [`make verify-issue-391`](../../Makefile), [`make verify-issue-407`](../../Makefile), [`make verify-issue-444`](../../Makefile) |
 | **User visibility of risk** | Users cannot see **pause**, **blacklist**, or **rate-limit / indexer outage** risk in the dApp or docs; mixed-content indexer URL; missing WalletConnect or CSP deploy guards | [Security model § Off-chain trust boundaries](../security-model.md#off-chain-trust-boundaries-frontend), [frontend.md § Paused pair](../frontend.md), indexer rate limits in [`indexer-invariants.md`](../indexer-invariants.md) |
 
 ### PAUSE — delay launch
@@ -171,14 +190,14 @@ Choose **GO with accepted risk** only when:
 
 5. For **GO** or **GO with accepted risk**, attach or link the completed QA summary table from [`QA_TEMPLATE.md` § Summary](../../QA_TEMPLATE.md#summary) when your process requires it, then proceed to mainnet Phase 1.
 
-**Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows. **SEC-B09 multisig rehearsal:** `make verify-issue-397` (or `make check-governance-emergency-rehearsal-docs` for docs only).
+**Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows. **SEC-H08 test evidence:** confirm Phase 0 test output (or CI pipeline link) is on the launch issue before **GO** — `make verify-issue-444` (docs only). **SEC-B09 multisig rehearsal:** `make verify-issue-397` (or `make check-governance-emergency-rehearsal-docs` for docs only).
 
 ---
 
 ## Rollback / incident
 
 - **Rollback vs forward-fix (SEC-H09):** classify the incident surface (frontend, indexer, contract, chain dependency) and follow the decision tree in [rollback-decision.md](./rollback-decision.md) — decision criteria, rollback commands, limitations, and recovery verification for each type ([#445](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/445)). Agent playbook: [`skills/AGENTS_ROLLBACK_DECISION.md`](../../skills/AGENTS_ROLLBACK_DECISION.md).
-- CosmWasm upgrades/migrations are documented in [wasm-admin-migration.md](./wasm-admin-migration.md); contract rollback limitations (prior `code_id`, admin retention) are in [rollback-decision.md § Contract](./rollback-decision.md#3-contract-incident).
+- CosmWasm upgrades/migrations are **out of band** for this runbook's deploy phases; admin keys and wasm migration policy live in [wasm admin migration](./wasm-admin-migration.md). **Rollback limitations** (reversible vs irrecoverable migration, indexer DB down.sql, partial fleet recovery): [§ Rollback and limitations](./wasm-admin-migration.md#rollback-and-limitations-sec-h05) (**SEC-H05**, [#443](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/443)); contract decision criteria in [rollback-decision.md § Contract](./rollback-decision.md#3-contract-incident).
 - For **active on-chain loss**: pause or blacklist via [emergency-commands.md](./emergency-commands.md) while executing the off-chain rollback path; communicate per [security model](../security-model.md) and [incident template](../templates/incident-dex-indexer.md).
 
-**Doc invariant:** `make check-rollback-decision-docs` or `make verify-issue-445` must pass before treating SEC-H09 as satisfied.
+**Doc invariants:** `make check-rollback-decision-docs` or `make verify-issue-445` (SEC-H09); `make verify-issue-443` (SEC-H05).

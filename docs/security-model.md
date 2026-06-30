@@ -107,6 +107,14 @@ Hooks are external contracts invoked via `AfterSwap` after every swap completes.
 
 Operator playbook: [`skills/AGENTS_IBC_HOOKS_DEPLOY.md`](../skills/AGENTS_IBC_HOOKS_DEPLOY.md). Launch checklist: [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md) Phase 0.
 
+**Deploy gate ([GitLab #444](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/444)):** before production mainnet, the launch runbook requires test evidence on the release issue:
+
+1. Passing output (or CI pipeline link at the same commit SHA) for `make test-contracts`, `make test-indexer-integration`, and `make test-frontend`.
+2. LocalTerra pool swap smoke output (`make smoke-pool-swap`) after deploy.
+3. **CI-built artifacts** satisfy (1) automatically when the pipeline `test` stage passed for that SHA.
+
+Operator playbook: [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../skills/AGENTS_TEST_EVIDENCE_GATE.md). Launch checklist: [`docs/runbooks/launch-checklist.md`](runbooks/launch-checklist.md) Phase 0.
+
 ## Fee Discount Security
 
 ### EOA-Only Self-Registration

@@ -2,7 +2,7 @@
 //!
 //! Prior deployed wasm binaries are not checked into this repo. Tests simulate an upgrade by
 //! populating live contract state, downgrading the cw2 version in `cw-multi-test` storage, then
-//! migrating to the current code id. See [`docs/runbooks/wasm-admin-migration.md`](../../docs/runbooks/wasm-admin-migration.md).
+//! migrating to the current code id. Rollback operator guidance: [`docs/runbooks/wasm-admin-migration.md`](../../docs/runbooks/wasm-admin-migration.md#rollback-and-limitations-sec-h05).
 
 use cosmwasm_std::{to_json_binary, Addr, Decimal, Empty, Uint128};
 use cw2::{get_contract_version, set_contract_version};

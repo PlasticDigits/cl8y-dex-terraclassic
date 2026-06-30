@@ -62,7 +62,62 @@ Contract incidents require governance action — there is no instant “redeploy
 2. Choose **forward-fix migrate** (new `code_id` + `Migrate`) vs **migrate back** to a prior stored `code_id` vs **pause-and-wait** using the criteria in [rollback-decision.md § Contract](./rollback-decision.md#3-contract-incident) ([#445](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/445)).
 3. Record governance tx hashes in the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline).
 
-**Limitations:** migrate-back requires the prior wasm still on chain, admin keys retained, and compatible contract state — see the runbook before broadcasting.
+**Limitations:** migrate-back requires the prior wasm still on chain, admin keys retained, and compatible contract state — see [§ Rollback and limitations](#rollback-and-limitations-sec-h05) below before broadcasting.
+
+## Rollback and limitations (SEC-H05)
+
+CosmWasm contract migration is **not** a filesystem revert. Operators need a clear picture of what can and cannot be undone after a bad or partial upgrade ([#443](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/443)).
+
+### Contract migration reversal (when possible)
+
+If the **prior wasm is still stored on chain** and the contract **`admin` is intact**, roll back an upgrade by migrating again to the **prior `code_id`** (same `terrad tx wasm migrate` flow as forward upgrades):
+
+1. **Confirm prior code still on chain:**
+
+   ```bash
+   terrad query wasm code <prior_code_id> --node <rpc-url>
+   ```
+
+2. **Confirm you still hold admin** on the contract address:
+
+   ```bash
+   terrad query wasm contract <addr> --node <rpc-url> | jq -r .contract_info.admin
+   ```
+
+3. **Migrate back** to the prior `code_id` with the appropriate migrate message (often `'{}'`).
+
+4. **Re-run post-migration verification** (state queries + smoke) and update the [deploy trace](../templates/deploy-trace.md) on the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).
+
+State-preservation regression (`make test-contracts` / [§ Automated regression](#automated-regression-sec-c14)) rehearses forward migration only; it does **not** substitute for confirming the prior `code_id` is still queryable on your network.
+
+### Irrecoverable cases (on-chain migration cannot be rolled back)
+
+| Condition | Why rollback fails |
+|-----------|-------------------|
+| **Admin cleared** | `Migrate` with `update_admin: null`, or admin rotated without retaining a signer — no entity can authorize a further `migrate` |
+| **Prior `code_id` purged** | Wasm removed from chain storage — cannot migrate back without re-storing identical wasm (yields a **new** `code_id`) |
+| **Governance / multisig key lost** | Same practical outcome as admin cleared — no valid signer for `migrate` |
+| **Bad migration with retained admin** | Reversible **only** if prior wasm remains on chain; otherwise treat as irrecoverable without governance intervention (pause, blacklist, user comms) |
+
+### Indexer DB migrations (separate rollback path)
+
+Indexer schema changes applied via `sqlx migrate` are **independent** of CosmWasm `Migrate`. `sqlx migrate` does **not** run down migrations automatically.
+
+Manual rollback SQL for selected migrations lives under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) — paired `.down.sql` files (e.g. limit-order lifecycle ([#142](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/142))). Apply only after a DB backup and with a written rollback plan. Not every forward migration has a revert script. Details: [testing.md § Manual rollback SQL](../testing.md) (under Integration Tests).
+
+After indexer schema rollback, restart the indexer and verify API health before resuming traffic.
+
+### Partial migration recovery
+
+When only **some** contracts have been migrated (e.g. factory upgraded, pairs not yet):
+
+1. **Stop** migrating remaining contracts until the already-migrated set is verified or reverted.
+2. **Pause** affected pairs via factory if governance policy allows ([emergency-commands § Pause](./emergency-commands.md#1-pause-a-pair)).
+3. **Revert** the migrated contract(s) to the prior `code_id` when [reversal is possible](#contract-migration-reversal-when-possible); leave unmigrated contracts on the old code until the fleet is aligned.
+4. **Coordinate off-chain stack** — indexer and frontend versions may assume new contract behavior; do not deploy indexer DB migrations or dApp releases that depend on unmigrated contracts until the on-chain fleet is consistent.
+5. **Log** actions in the [incident template](../templates/incident-dex-indexer.md) timeline (tx hashes, approver, user-impact assessment).
+
+Agent playbook: [`skills/AGENTS_WASM_MIGRATION_ROLLBACK.md`](../../skills/AGENTS_WASM_MIGRATION_ROLLBACK.md). Automated doc invariant: `make verify-issue-443`.
 
 ## References
 
