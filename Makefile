@@ -286,12 +286,16 @@ verify-issue-416:
 	@chmod +x scripts/qa/verify-issue-416.sh
 	./scripts/qa/verify-issue-416.sh
 
+verify-issue-440:
+	@chmod +x scripts/qa/verify-issue-440.sh
+	./scripts/qa/verify-issue-440.sh
+
 help:
 	@echo "Infrastructure:  make start | stop | reset | status | compose-ps | wait-localterra | wait-healthy | swarm-local | swarm-launch | swarm-stop"
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | test-qa-redeploy-decision"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
-	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-399 | verify-issue-400 | verify-issue-407 | verify-issue-429 | verify-issue-410 | verify-issue-416 | verify-issue-295 (needs make dev)"
+	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-399 | verify-issue-400 | verify-issue-407 | verify-issue-429 | verify-issue-410 | verify-issue-416 | verify-issue-440 | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
 	@echo "Docs:            scripts/qa/README.md"
