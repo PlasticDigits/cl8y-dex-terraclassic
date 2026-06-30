@@ -96,7 +96,7 @@ Historical **external** incidents (Terra IBC-hooks, Osmosis LP-share, Levana ora
 ## Residual risks (not “bugs” under trusted governance)
 
 - **Malicious governance** can set destructive hooks, pause pairs (blocking swaps, new limit placements, limit cancels, limit price updates, and **parked-expiry claims** until unpause), or point discount registry to broken contracts (users pay full fee if query fails). Parked `EXPIRED_LIMIT_CLAIMS` rows remain claimable only after unpause (GitLab [**#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120)).
-- **Wasm admin / migration** on-chain is outside these crates; deployment checklist should restrict migration keys. Automated state-preservation regression: [wasm admin runbook § SEC-C14](./runbooks/wasm-admin-migration.md#automated-regression-sec-c14) ([#405](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/405)).
+- **Wasm admin / migration** on-chain is outside these crates; deployment checklist should restrict migration keys. Automated state-preservation regression: [wasm admin runbook § SEC-C14](./runbooks/wasm-admin-migration.md#automated-regression-sec-c14) ([#405](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/405)). **Rollback limitations** (reversible vs irrecoverable migration, indexer DB down.sql): [wasm admin runbook § SEC-H05](./runbooks/wasm-admin-migration.md#rollback-and-limitations-sec-h05) ([#443](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/443)).
 - **Indexer / frontend** are not authoritative for on-chain safety; oracle/TWAP consumers must follow disclaimers in `dex-common` pair query docs.
 
 ## Third-party audit
