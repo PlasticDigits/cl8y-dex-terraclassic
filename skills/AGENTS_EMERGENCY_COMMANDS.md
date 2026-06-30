@@ -1,13 +1,14 @@
 # Emergency pause / blacklist command cookbook
 
-Use when implementing or verifying **SEC-B11** operator docs for factory emergency controls ([GitLab **#399**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399)).
+Use when implementing or verifying **SEC-B11** operator docs for factory emergency controls ([GitLab **#399**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399)) and **SEC-G07** unpause prerequisite gates ([#440](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/440)).
 
 ## Canonical doc
 
 | Path | Purpose |
 |------|---------|
 | [`docs/runbooks/emergency-commands.md`](../docs/runbooks/emergency-commands.md) | Parameterized `terrad tx wasm execute` for all eight factory emergency messages |
-| [`docs/templates/incident-dex-indexer.md`](../docs/templates/incident-dex-indexer.md) | Mitigation step links to the cookbook |
+| [`docs/runbooks/blacklist-decision.md`](../docs/runbooks/blacklist-decision.md) | Symmetric restore gate for `Unblacklist*` rollback checklist |
+| [`docs/templates/incident-dex-indexer.md`](../docs/templates/incident-dex-indexer.md) | Mitigation step links to the cookbook; **Incident timeline** table for tx audit trail |
 | [`docs/adr/0003-governance-trading-blacklist.md`](../docs/adr/0003-governance-trading-blacklist.md) | Blacklist design rationale |
 
 ## Eight operations (factory `ExecuteMsg`)
@@ -23,6 +24,8 @@ Use when implementing or verifying **SEC-B11** operator docs for factory emergen
 | Blacklist pair | `blacklist_pair` | `blacklist_check` with `pair` → `pair_blacklisted: true` |
 | Unblacklist pair | `unblacklist_pair` | `blacklist_check` → `pair_blacklisted: false` |
 
+**Unpause prerequisite (SEC-G07):** before broadcasting `set_pair_paused` with `paused: false`, complete the mandatory **Before you unpause** checklist in section 2 of the cookbook (incident reference, resolution evidence, funds-at-risk check, timeline entry with approver). Symmetric with the [blacklist rollback checklist](../docs/runbooks/blacklist-decision.md#false-positive-rollback-unblacklist).
+
 Wire types: [`smartcontracts/packages/dex-common/src/factory.rs`](../smartcontracts/packages/dex-common/src/factory.rs). Integration tests: [`blacklist_tests.rs`](../smartcontracts/tests/src/blacklist_tests.rs).
 
 ## Verification commands
@@ -30,6 +33,9 @@ Wire types: [`smartcontracts/packages/dex-common/src/factory.rs`](../smartcontra
 ```bash
 # Doc invariant (no chain)
 make check-emergency-commands-docs
+
+# SEC-G07 unpause prerequisite checklist (#440)
+make verify-issue-440
 
 # LocalTerra rehearsal (chain + deploy required)
 make has-localterra && make verify-issue-399

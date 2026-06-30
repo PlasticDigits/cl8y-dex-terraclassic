@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify emergency command cookbook exists and is cross-linked (GitLab #399, SEC-B11)."""
+"""Verify emergency command cookbook exists and is cross-linked (GitLab #399, SEC-B11; #440, SEC-G07)."""
 
 from __future__ import annotations
 
@@ -39,6 +39,15 @@ REQUIRED_COOKBOOK_MARKERS: tuple[str, ...] = (
     '{"is_paused":{}}',
     "blacklist_check",
     "make verify-issue-399",
+    "SEC-G07",
+    "## 2. Unpause a pair",
+    "### Before you unpause (mandatory)",
+    "Preserve original evidence",
+    "Document unpause rationale",
+    "Confirm triggering condition is resolved",
+    "Confirm no funds at risk",
+    "Log in incident timeline",
+    "blacklist-decision.md",
 )
 
 
@@ -79,7 +88,8 @@ def main() -> int:
         fail(f"missing {VERIFY_SCRIPT.relative_to(ROOT)}")
 
     print(
-        "OK: emergency-commands cookbook covers SEC-B11 operations and is cross-linked"
+        "OK: emergency-commands cookbook covers SEC-B11 operations, SEC-G07 unpause "
+        "prerequisite checklist, and is cross-linked"
     )
     return 0
 
