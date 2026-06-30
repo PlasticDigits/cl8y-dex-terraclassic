@@ -54,6 +54,16 @@ terrad tx wasm migrate <pair_addr> <new_code_id> '{}' \
 
 - Use **`update_admin`** (where supported) only through governance process; verify new admin on-chain before revoking old keys.
 
+## Rollback vs forward-fix (SEC-H09)
+
+Contract incidents require governance action — there is no instant “redeploy” like the frontend or indexer. When a post-migrate bug is discovered:
+
+1. **Pause affected pairs** if funds are at risk — [emergency commands § Pause](./emergency-commands.md#1-pause-a-pair).
+2. Choose **forward-fix migrate** (new `code_id` + `Migrate`) vs **migrate back** to a prior stored `code_id` vs **pause-and-wait** using the criteria in [rollback-decision.md § Contract](./rollback-decision.md#3-contract-incident) ([#445](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/445)).
+3. Record governance tx hashes in the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline).
+
+**Limitations:** migrate-back requires the prior wasm still on chain, admin keys retained, and compatible contract state — see [§ Rollback and limitations](#rollback-and-limitations-sec-h05) below before broadcasting.
+
 ## Rollback and limitations (SEC-H05)
 
 CosmWasm contract migration is **not** a filesystem revert. Operators need a clear picture of what can and cannot be undone after a bad or partial upgrade ([#443](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/443)).
@@ -112,5 +122,6 @@ Agent playbook: [`skills/AGENTS_WASM_MIGRATION_ROLLBACK.md`](../../skills/AGENTS
 ## References
 
 - [Deployment guide](../deployment-guide.md) — store, instantiate, instantiate2.
+- [Rollback decision runbook](./rollback-decision.md) — forward-fix vs migrate-back for all surfaces (SEC-H09).
 - [Security model](../security-model.md) — governance and treasury.
 - [Contracts reference](../contracts-terraclassic.md) — message shapes.
