@@ -1074,6 +1074,17 @@ describe('SwapPage', () => {
       const btn = await screen.findByRole('button', { name: 'Rate Limit Exceeded' })
       expect(btn).toBeDisabled()
     })
+
+    // GitLab #463 (SEC-I05 F-04): a disabled button alone isn't visible feedback —
+    // surface an inline alert with retry guidance below the form too.
+    it('shows an inline rate-limit alert with retry guidance, not just the disabled button', async () => {
+      vi.mocked(checkRateLimitExceeded).mockResolvedValue(true)
+      await renderConnectedNativeWrapSwap()
+
+      const banner = await screen.findByTestId('swap-wrap-rate-limit-banner')
+      expect(banner).toHaveTextContent(/Daily wrap limit reached/i)
+      expect(banner).toHaveTextContent(/try again later, or reduce the amount/i)
+    })
   })
 
   describe('pair pause disabled swap CTA (SEC-B05 / GitLab #395)', () => {
