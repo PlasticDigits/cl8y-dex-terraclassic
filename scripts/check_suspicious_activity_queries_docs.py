@@ -18,6 +18,7 @@ REQUIRED_RUNBOOK_MARKERS: tuple[str, ...] = (
     "## 1. Top-volume traders",
     "/api/v1/traders/leaderboard",
     "## 2. Wallets with many failed transactions",
+    "query=message.module",
     "code != 0",
     "hook_events",
     "## 3. Pairs with abnormal swap count",

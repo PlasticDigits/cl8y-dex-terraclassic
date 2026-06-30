@@ -39,6 +39,7 @@ run_step "incident template Triage links runbook" \
 
 run_step "runbook covers wallet discovery (failed tx + volume)" \
   grep -q 'traders/leaderboard' docs/runbooks/suspicious-activity-queries.md && \
+  grep -q 'query=message.module' docs/runbooks/suspicious-activity-queries.md && \
   grep -q 'code != 0' docs/runbooks/suspicious-activity-queries.md
 
 run_step "runbook covers pair/token discovery" \

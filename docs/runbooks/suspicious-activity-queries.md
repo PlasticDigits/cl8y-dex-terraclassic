@@ -81,13 +81,15 @@ curl -sG "$INDEXER_URL/api/v1/traders/$WALLET_ADDR/trades" \
 
 The indexer indexes **successful** swaps only (`swap_events`). Failed on-chain executes appear via **LCD**, not Postgres rollups.
 
+**LCD tx search:** Terra Classic LCD expects the `query=` parameter (Cosmos tx search syntax), not `events=`.
+
 ### 2a. Recent failed wasm executes (LCD)
 
 Fetch recent wasm module txs and filter `code != 0` (revert, out-of-gas, hook error, etc.):
 
 ```bash
 curl -sG "$LCD/cosmos/tx/v1beta1/txs" \
-  --data-urlencode "events=message.module='wasm'" \
+  --data-urlencode "query=message.module='wasm'" \
   --data-urlencode "pagination.limit=100" | \
   jq '[.tx_responses[] | select(.code != 0) | {
     hash: .txhash,
@@ -102,7 +104,7 @@ curl -sG "$LCD/cosmos/tx/v1beta1/txs" \
 
 ```bash
 curl -sG "$LCD/cosmos/tx/v1beta1/txs" \
-  --data-urlencode "events=message.module='wasm'" \
+  --data-urlencode "query=message.module='wasm'" \
   --data-urlencode "pagination.limit=200" | \
   jq '[.tx_responses[] | select(.code != 0 and (.tx.body.messages[0].sender? != null))]
       | group_by(.tx.body.messages[0].sender)
@@ -115,7 +117,7 @@ curl -sG "$LCD/cosmos/tx/v1beta1/txs" \
 ```bash
 export WALLET_ADDR="terra1abc..."
 curl -sG "$LCD/cosmos/tx/v1beta1/txs" \
-  --data-urlencode "events=message.sender='$WALLET_ADDR'" \
+  --data-urlencode "query=message.sender='$WALLET_ADDR'" \
   --data-urlencode "pagination.limit=50" | \
   jq '[.tx_responses[] | {hash: .txhash, code: .code, height: .height, log: (.raw_log | split("\n")[0])}]'
 ```
