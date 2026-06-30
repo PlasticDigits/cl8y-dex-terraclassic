@@ -63,4 +63,5 @@ The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https:/
 
 ## Logs
 
-- The indexer uses `tracing` for logs; **do not** log `DATABASE_URL` or bearer tokens. Configure log collectors to redact known patterns.
+- The indexer uses `tracing` for logs; **do not** log `DATABASE_URL`, `REORG_ALERT_WEBHOOK_URL`, bearer tokens, or mnemonics. Configure log collectors to redact known patterns.
+- **Automated guard (SEC-F13 / GitLab #433):** `make lint-indexer-log-secrets` greps `indexer/src/` for secret field names inside `tracing::` macro arguments and exits nonzero on match. Unit tests in [`startup.rs`](../indexer/src/startup.rs) capture startup INFO output and assert a dummy DATABASE_URL password is absent. CI job `lint-indexer-log-secrets` runs the grep on default branch and MRs touching indexer sources.
