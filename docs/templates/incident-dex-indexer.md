@@ -27,6 +27,7 @@
 - [ ] **Chain health:** RPC/LCD reachable; block height advancing?
 - [ ] **Contracts:** Pause state, factory config, router trusted on fee-discount; recent migrations?
 - [ ] **Tx samples:** Failed tx codes, out-of-gas, hook reverts? → [Suspicious activity queries](../runbooks/suspicious-activity-queries.md) § 2 (LCD failed wasm) and § 2b (`hook_events`)
+- [ ] **Top pools by liquidity:** Run [Quick pool triage (SEC-G03)](../runbooks/emergency-commands.md#quick-pool-triage-sec-g03) — indexer SQL on `pair_reserves` (preferred) or `GET /api/v1/pairs?sort=volume_24h&order=desc` (activity proxy). Record top `pair_address` values for mitigation.
 
 ### Indexer
 

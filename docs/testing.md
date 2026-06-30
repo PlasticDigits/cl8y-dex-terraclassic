@@ -510,6 +510,7 @@ Gitleaks abuse check: `make verify-gitleaks` (fixture must fail, clean tree must
 | `docs-suspicious-activity-queries` | `make check-suspicious-activity-queries-docs` / `make verify-issue-437` ([#437](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/437)) |
 | `docs-anomaly-signals` | `make check-anomaly-signals-docs` / `make verify-issue-435` ([#435](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/435)) |
 | `docs-incident-template` | `make check-incident-template-docs` / `make verify-issue-439` ([#439](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/439)) |
+| `docs-pool-triage` | `make check-pool-triage-docs` / `make verify-issue-436` ([#436](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/436)) |
 | `docs-ibc-hooks-deploy` | `make check-ibc-hooks-deploy-docs` / `make verify-issue-407` ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)) |
 | `contracts-terra` | `make lint-contracts` && `make test-contracts` (optional LCOV: `make coverage-contracts`) |
 | `localnet-trading-swarm` | `cd packages/localnet-trading-swarm && npm ci && npx tsc -p tsconfig.json && npm run test:run` |
