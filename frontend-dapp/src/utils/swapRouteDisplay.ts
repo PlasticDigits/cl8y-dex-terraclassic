@@ -12,6 +12,36 @@ export function tokenPathFromSwapOperations(operations: SwapOperation[]): string
   return out
 }
 
+/**
+ * Cross-validate the intermediate token path shown to the user against the path actually
+ * encoded in the operations that will be submitted (GitLab #450 / SEC-I02 H09).
+ *
+ * The route display uses `indexer.intermediate_tokens` while submit is built from
+ * `router_operations`. Both come from the indexer with no cross-check, so a malicious or
+ * compromised indexer could display one path and submit another within the user's slippage
+ * tolerance. This re-derives the token path from the submitted operations and asserts it equals
+ * the displayed `intermediate_tokens` (case-insensitive address compare, since addresses are the
+ * trust anchor, not the display symbol). Any mismatch returns `false` so the caller can reject the
+ * route before signing rather than trusting the indexer's display string.
+ *
+ * Returns `true` when there is nothing to cross-check (no operations, or no displayed
+ * intermediate-token list) — those paths are validated elsewhere (`token_in`/`token_out` match in
+ * `SwapPage`) and are not the spoofing surface this guard covers.
+ */
+export function swapRouteIntermediateTokensAligned(
+  operations: SwapOperation[] | undefined,
+  intermediateTokens: string[] | undefined
+): boolean {
+  if (!operations || operations.length === 0) return true
+  if (!intermediateTokens || intermediateTokens.length === 0) return true
+
+  const fromOps = tokenPathFromSwapOperations(operations)
+  if (fromOps.length !== intermediateTokens.length) return false
+
+  const norm = (addr: string) => addr.trim().toLowerCase()
+  return fromOps.every((token, i) => norm(token) === norm(intermediateTokens[i]))
+}
+
 export interface NativeRouteForDisplay {
   operations: SwapOperation[]
   needsWrapInput: boolean

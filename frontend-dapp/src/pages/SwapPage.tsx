@@ -61,6 +61,7 @@ import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/ut
 import {
   computeSwapRouteDisplay,
   deriveSwapSubmitRouteSource,
+  swapRouteIntermediateTokensAligned,
   SWAP_CLIENT_BFS_FALLBACK_COPY,
 } from '@/utils/swapRouteDisplay'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
@@ -537,6 +538,13 @@ export default function SwapPage() {
               idx.intermediate_tokens?.length === idx.hops.length + 1
                 ? idx.intermediate_tokens
                 : [idx.token_in, ...idx.hops.map((h) => h.ask_token)]
+            // GitLab #450 (SEC-I02 H09): the displayed intermediate path and the submitted
+            // operations both come from the indexer; cross-validate them so a tampered route
+            // cannot display one path and submit another. Mismatch falls through to the
+            // pool-only path rather than signing an indexer-substituted route.
+            if (!swapRouteIntermediateTokensAligned(opsForQuote, intermediates)) {
+              throw new Error('Route intermediate tokens do not match submitted operations')
+            }
             return {
               return_amount: result.amount,
               spread_amount: '0',

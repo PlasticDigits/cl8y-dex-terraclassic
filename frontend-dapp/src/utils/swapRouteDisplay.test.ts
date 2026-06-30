@@ -4,6 +4,7 @@ import {
   deriveSwapSubmitRouteSource,
   tokenPathFromSwapOperations,
   tokenPathForNativeSupportedRoute,
+  swapRouteIntermediateTokensAligned,
 } from './swapRouteDisplay'
 import type { SwapOperation } from '@/services/terraclassic/router'
 
@@ -99,6 +100,48 @@ describe('swapRouteDisplay', () => {
         isMultiHop: false,
       })
     ).toBe('direct')
+  })
+
+  // GitLab #450 (SEC-I02 H09): displayed intermediate tokens must match submitted operations.
+  describe('swapRouteIntermediateTokensAligned', () => {
+    const from = 'terra1from00000000000000000000000000000001'
+    const mid = 'terra1mid000000000000000000000000000000001'
+    const to = 'terra1to0000000000000000000000000000000001'
+    const evil = 'terra1evil00000000000000000000000000000001'
+
+    it('returns true when the submitted ops match the displayed path', () => {
+      const ops: SwapOperation[] = [op(from, mid), op(mid, to)]
+      expect(swapRouteIntermediateTokensAligned(ops, [from, mid, to])).toBe(true)
+    })
+
+    it('is case-insensitive on addresses', () => {
+      const ops: SwapOperation[] = [op(from, mid), op(mid, to)]
+      expect(
+        swapRouteIntermediateTokensAligned(ops, [from.toUpperCase(), mid, to])
+      ).toBe(true)
+    })
+
+    it('returns false when an intermediate hop is substituted', () => {
+      const ops: SwapOperation[] = [op(from, evil), op(evil, to)]
+      // Display claims from→mid→to but ops actually route through `evil`.
+      expect(swapRouteIntermediateTokensAligned(ops, [from, mid, to])).toBe(false)
+    })
+
+    it('returns false when the displayed path length differs from the ops path', () => {
+      const ops: SwapOperation[] = [op(from, to)]
+      expect(swapRouteIntermediateTokensAligned(ops, [from, mid, to])).toBe(false)
+    })
+
+    it('returns false when a terminal token is substituted', () => {
+      const ops: SwapOperation[] = [op(from, mid), op(mid, evil)]
+      expect(swapRouteIntermediateTokensAligned(ops, [from, mid, to])).toBe(false)
+    })
+
+    it('returns true (nothing to cross-check) when ops or intermediates are absent', () => {
+      expect(swapRouteIntermediateTokensAligned(undefined, [from, mid, to])).toBe(true)
+      expect(swapRouteIntermediateTokensAligned([op(from, to)], undefined)).toBe(true)
+      expect(swapRouteIntermediateTokensAligned([], [from, to])).toBe(true)
+    })
   })
 
   it('tokenPathForNativeSupportedRoute prepends native input when wrapping', () => {
