@@ -27,7 +27,10 @@ regexTarget = "secret"
 # paths in scripts/ci/gitleaks-scan-tracked.sh because useDefault inherits a built-in
 # node_modules/ exclusion that cannot be overridden in TOML (GitLab #380).
 regexes = [
-  '''terra1[a-z0-9]{38,}''',
+  # 38+ covers real on-chain addresses; 10+ also covers shorter synthetic terra1 fixtures
+  # used in test data (e.g. indexer/tests/common/mod.rs token_ustc = "terra1ustcquote293"),
+  # which generic-api-key's entropy heuristic otherwise flags as a leaked secret.
+  '''terra1[a-z0-9]{10,}''',
   '''Secp256k1PubKey''',
   # localStorage key for first-visit risk acknowledgement (GitLab #138); not a credential.
   '''cl8y-dex-risk-ack''',
