@@ -22,7 +22,7 @@
 
 - [ ] **Chain health:** RPC/LCD reachable; block height advancing?
 - [ ] **Contracts:** Pause state, factory config, router trusted on fee-discount; recent migrations?
-- [ ] **Tx samples:** Failed tx codes, out-of-gas, hook reverts?
+- [ ] **Tx samples:** Failed tx codes, out-of-gas, hook reverts? → [Suspicious activity queries](../runbooks/suspicious-activity-queries.md) § 2 (LCD failed wasm) and § 2b (`hook_events`)
 
 ### Indexer
 
@@ -31,6 +31,7 @@
 - [ ] **LCD:** Matches chain; `RUN_MODE=prod` uses correct `LCD_URLS`?
 - [ ] **Logs:** `tracing` errors from LCD or parser; block timestamp fallback warnings (`Invalid block timestamp` / `Missing block timestamp`) — see [`docs/operator-secrets.md`](../operator-secrets.md), [GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200).
 - [ ] **Reorg halt:** `INDEXER_REORG_HALT` stderr line or `target=indexer_reorg_halt` in logs / webhook; note `height`, `stored_hash`, `canonical_hash`, `recovery_command` — dry-run [`indexer-reorg-recover.sh`](../../scripts/indexer-reorg-recover.sh) before `--apply` ([runbook](../runbooks/indexer-reorg-replay-dedup.md), [GitLab #362](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/362)).
+- [ ] **Suspicious activity discovery:** Top traders, failed-tx wallets, pair/token spikes — [Suspicious activity queries runbook](../runbooks/suspicious-activity-queries.md) (SEC-G04, GitLab [#437](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/437)).
 
 ## Mitigation
 

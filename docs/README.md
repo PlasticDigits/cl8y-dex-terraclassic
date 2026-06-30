@@ -36,6 +36,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Runbook: indexer reorg, replay, dedup, backfill](./runbooks/indexer-reorg-replay-dedup.md)
 - [Runbook: Wasm admin migration](./runbooks/wasm-admin-migration.md)
 - [Runbook: trading blacklist decision tree](./runbooks/blacklist-decision.md) (SEC-B12, [#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400))
+- [Runbook: suspicious activity discovery queries](./runbooks/suspicious-activity-queries.md) (SEC-G04, [#437](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/437))
 - [Incident template (DEX + indexer)](./templates/incident-dex-indexer.md)
 
 ## QA
