@@ -131,7 +131,7 @@ Choose **PAUSE** when there is **no** open P0 blocker, but **any** of the follow
 - A **pre-launch** item from Phases 0–4 or [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) remains open **without** a linked risk-acceptance comment on the launch issue.
 - Production **governance multisig** has not rehearsed emergency admin txs (**pause, blacklist, unpause, unblacklist**) on staging/testnet — see [**SEC-B09** governance emergency rehearsal](./governance-emergency-rehearsal.md) ([#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)); evidence must be linked from the launch tracking issue. Automated LocalTerra dry-run: `make rehearse-governance-emergency` / `make verify-issue-397`.
 - Production **governance multisig** has not rehearsed other deploy/admin txs (fee update, hook registration) on staging.
-- **Incident / rollback** runbook gap: no on-call owner, or [`docs/templates/incident-dex-indexer.md`](../templates/incident-dex-indexer.md) not adapted for this network.
+- **Incident / rollback** runbook gap: no on-call owner, or [`docs/templates/incident-dex-indexer.md`](../templates/incident-dex-indexer.md) not adapted for this network (including [anomaly signals](./anomaly-signals.md) thresholds for bootstrap TVL — SEC-G02, [#435](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/435)).
 - External dependency blocker (indexer DB migration, DNS/TLS, WalletConnect project) is unresolved.
 
 Record the pause reason and planned resume date on the launch tracking issue.
