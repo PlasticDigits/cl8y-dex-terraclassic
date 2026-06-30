@@ -135,6 +135,11 @@ terrad query wasm contract-state smart "$PAIR_ADDR" '{"pool":{}}' \
 
 Stops swaps, liquidity changes, limit placement/cancel/claim, and book clean on **one** pair ([invariant **L6**](../contracts-security-audit.md)).
 
+> **User-escrow consequence (GitLab [#457](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/457), SEC-I03 F-03).** Because pause also blocks `CancelLimitOrder(s)` and `ClaimExpiredLimitOrder(s)`, **users with resting or expiry-parked limit orders cannot retrieve their escrowed funds for the entire duration of the pause.** Governance has **no force-refund path** for individual limit-order escrow — `SweepPair` only moves *excess* balance above internal reserves/escrow, not a depositor's locked order. Implications when pausing:
+> - Keep pauses as short as the incident allows; a prolonged pause freezes user escrow, not just trading.
+> - In incident comms, state that open limit orders are locked (funds are safe but not withdrawable) until unpause — see the [user incident FAQ](../user-incident-faq.md).
+> - There is currently no governed per-user escrow refund. If the team decides a governance-callable emergency force-refund is warranted, open a separate implementation issue and link it here.
+
 ```bash
 terrad tx wasm execute "$FACTORY_ADDR" "$(jq -nc \
   --arg pair "$PAIR_ADDR" \
