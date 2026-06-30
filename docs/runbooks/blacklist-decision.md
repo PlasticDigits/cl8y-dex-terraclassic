@@ -114,7 +114,7 @@ Before any governance `Blacklist*` tx, the incident record must include:
 
 ## False-positive rollback (`Unblacklist*`)
 
-If a blacklist was applied in error, **do not** submit `UnblacklistWallet`, `UnblacklistToken`, or `UnblacklistPair` until the rollback checklist is complete.
+If a blacklist was applied in error, **do not** submit `UnblacklistWallet`, `UnblacklistToken`, or `UnblacklistPair` until the rollback checklist is complete. Symmetric restore gate for pair **unpause**: [emergency-commands.md § 2](./emergency-commands.md#2-unpause-a-pair) (**SEC-G07**, [#440](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/440)).
 
 ### Rollback checklist (mandatory)
 
