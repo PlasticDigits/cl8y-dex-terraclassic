@@ -18,6 +18,10 @@
 
 ## Triage
 
+### Proactive anomaly signals (bootstrap TVL)
+
+- [ ] **Anomaly checklist:** Review [Anomaly signals runbook](../runbooks/anomaly-signals.md) (SEC-G02, GitLab [#435](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/435)) — pool drain %, add/remove profit loop, route slippage deviation, failed tx burst, LCD-heavy 429 flood. Record which thresholds fired and first response taken.
+
 ### On-chain (DEX)
 
 - [ ] **Chain health:** RPC/LCD reachable; block height advancing?

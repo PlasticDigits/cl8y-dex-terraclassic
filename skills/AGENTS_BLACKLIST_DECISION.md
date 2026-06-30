@@ -30,6 +30,7 @@ make verify-issue-400
 
 ## Related
 
+- Proactive anomaly thresholds (before blacklist): [`AGENTS_ANOMALY_SIGNALS.md`](./AGENTS_ANOMALY_SIGNALS.md)
 - User incident FAQ (retail copy): [`AGENTS_USER_INCIDENT_FAQ.md`](./AGENTS_USER_INCIDENT_FAQ.md)
 - Incident comms templates (SEC-G05): [`AGENTS_INCIDENT_COMMS_TEMPLATES.md`](./AGENTS_INCIDENT_COMMS_TEMPLATES.md)
 - Launch governance checklist: [`AGENTS_LAUNCH_GO_NO_GO.md`](./AGENTS_LAUNCH_GO_NO_GO.md)
