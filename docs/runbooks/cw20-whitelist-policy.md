@@ -6,15 +6,19 @@ Parent remediation: GitLab [#377](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 
 ## Prohibited templates
 
-**Never whitelist fee-on-transfer CW20 code IDs** (or any template that debits less than the declared `Transfer` / `Send` amount).
+**Never whitelist any CW20 code ID whose recipient balance can differ from the declared `Transfer` / `Send` amount.** Two distinct mechanics break this (GitLab [#448](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/448), SEC-I01 H05):
 
-The pair credits internal `RESERVES` from declared CW20 amounts, not balance deltas. Fee-on-transfer tokens desync reserves from on-chain balances and can break withdrawals (see `adversarial_token::fee_on_transfer_creates_reserve_imbalance`).
+- **Fee-on-transfer / transfer-tax** — debits less than the declared amount on `transfer` / `send`.
+- **Rebase / elastic-supply / balance-mutating** — the holder's balance changes *after* receipt (supply rebase, interest accrual, reflection) independent of any transfer.
+
+Both desync the pair's internal accounting. The pair (and limit-order escrow) credit declared CW20 amounts, **not** balance deltas, so a token that later reports a different balance leaves `RESERVES` / `PENDING_ESCROW` over- or under-backed versus the real balance, breaking withdrawals and escrow refunds (see `adversarial_token::fee_on_transfer_creates_reserve_imbalance`; the same imbalance arises from a post-receipt rebase).
 
 | Allowed | Forbidden |
 |---------|-----------|
 | Standard CW20 (Terraport / GDEX-style) with 1:1 transfer semantics | Templates that skim on `transfer` / `send` |
 | Protocol-issued LP tokens (factory `lp_token_code_id`) | “Tax on transfer” forks unless pair logic is redesigned |
-| Audited mintable CW20 used in local deploy | Adversarial / unaudited wasm |
+| Audited mintable CW20 used in local deploy | Rebase / elastic-supply / reflection tokens |
+| Fixed-supply, balance-stable CW20 | Adversarial / unaudited wasm |
 
 ## Pre-whitelist verification
 
@@ -23,7 +27,8 @@ Before governance adds a code ID:
 1. **Obtain the canonical wasm** from the token issuer (not a third-party mirror).
 2. **LCD `CodeInfo`** — confirm `code_id`, checksum, and uploader match expectations.
 3. **Instantiate probe** on staging — `Transfer` / `Send` amount must equal recipient balance delta (no fee skimming).
-4. **Document** the approved code ID in your deployment record.
+4. **Source review** — confirm the template implements no fee-on-transfer, transfer tax, rebase / elastic supply, reflection, or any mechanic that mutates a holder's balance outside an explicit transfer. A balance held flat across a block (no transfer) must not change.
+5. **Attach audit evidence** — record the source review or third-party audit reference alongside the approved code ID in the deployment record; do not whitelist on checksum match alone.
 
 ### GDEX / TerraPort production code IDs
 
