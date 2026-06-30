@@ -1329,7 +1329,11 @@ mod pair_addr_registry_tests {
         let mut deps = mock_dependencies();
         config_with_governance(deps.as_mut(), "gov");
         PAIR_ADDR_REGISTERED
-            .save(deps.as_mut().storage, Addr::unchecked("terra1registered"), &true)
+            .save(
+                deps.as_mut().storage,
+                Addr::unchecked("terra1registered"),
+                &true,
+            )
             .unwrap();
         let info = cosmwasm_std::testing::mock_info("gov", &[]);
 

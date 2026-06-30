@@ -5,6 +5,7 @@ import {
   tokenPathFromSwapOperations,
   tokenPathForNativeSupportedRoute,
   swapRouteIntermediateTokensAligned,
+  reconcileSwapRouteIntermediateTokens,
 } from './swapRouteDisplay'
 import type { SwapOperation } from '@/services/terraclassic/router'
 
@@ -116,9 +117,7 @@ describe('swapRouteDisplay', () => {
 
     it('is case-insensitive on addresses', () => {
       const ops: SwapOperation[] = [op(from, mid), op(mid, to)]
-      expect(
-        swapRouteIntermediateTokensAligned(ops, [from.toUpperCase(), mid, to])
-      ).toBe(true)
+      expect(swapRouteIntermediateTokensAligned(ops, [from.toUpperCase(), mid, to])).toBe(true)
     })
 
     it('returns false when an intermediate hop is substituted', () => {
@@ -141,6 +140,37 @@ describe('swapRouteDisplay', () => {
       expect(swapRouteIntermediateTokensAligned(undefined, [from, mid, to])).toBe(true)
       expect(swapRouteIntermediateTokensAligned([op(from, to)], undefined)).toBe(true)
       expect(swapRouteIntermediateTokensAligned([], [from, to])).toBe(true)
+    })
+  })
+
+  describe('reconcileSwapRouteIntermediateTokens', () => {
+    const from = 'terra1from00000000000000000000000000000001'
+    const mid = 'terra1mid000000000000000000000000000000001'
+    const to = 'terra1to0000000000000000000000000000000001'
+    const evil = 'terra1evil00000000000000000000000000000001'
+
+    it('returns intermediates unchanged when aligned', () => {
+      const ops: SwapOperation[] = [op(from, mid), op(mid, to)]
+      expect(reconcileSwapRouteIntermediateTokens(ops, [from, mid, to])).toEqual({
+        tokens: [from, mid, to],
+        mismatch: false,
+      })
+    })
+
+    it('reconciles to ops path and sets mismatch when display path is tampered', () => {
+      const ops: SwapOperation[] = [op(from, evil), op(evil, to)]
+      expect(reconcileSwapRouteIntermediateTokens(ops, [from, mid, to])).toEqual({
+        tokens: [from, evil, to],
+        mismatch: true,
+      })
+    })
+
+    it('uses ops path when intermediates are absent', () => {
+      const ops: SwapOperation[] = [op(from, mid), op(mid, to)]
+      expect(reconcileSwapRouteIntermediateTokens(ops, undefined)).toEqual({
+        tokens: [from, mid, to],
+        mismatch: false,
+      })
     })
   })
 

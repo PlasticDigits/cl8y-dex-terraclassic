@@ -42,6 +42,39 @@ export function swapRouteIntermediateTokensAligned(
   return fromOps.every((token, i) => norm(token) === norm(intermediateTokens[i]))
 }
 
+export interface SwapRouteIntermediateReconciliation {
+  /** Token path used for display and submit (inclusive of ends). */
+  tokens: string[]
+  /** True when indexer `intermediate_tokens` disagreed with `router_operations`. */
+  mismatch: boolean
+}
+
+/**
+ * Reconcile indexer `intermediate_tokens` with the path encoded in `router_operations`
+ * (GitLab #450 / SEC-I02 H09). Submit always follows operations; when the indexer display
+ * path disagrees, the ops-derived path wins and `mismatch` is set so the UI can notify the user
+ * instead of silently falling back to a different quote source.
+ */
+export function reconcileSwapRouteIntermediateTokens(
+  operations: SwapOperation[] | undefined,
+  intermediateTokens: string[] | undefined
+): SwapRouteIntermediateReconciliation {
+  if (!operations || operations.length === 0) {
+    return { tokens: intermediateTokens ?? [], mismatch: false }
+  }
+
+  const fromOps = tokenPathFromSwapOperations(operations)
+  if (!intermediateTokens || intermediateTokens.length === 0) {
+    return { tokens: fromOps, mismatch: false }
+  }
+
+  if (swapRouteIntermediateTokensAligned(operations, intermediateTokens)) {
+    return { tokens: intermediateTokens, mismatch: false }
+  }
+
+  return { tokens: fromOps, mismatch: true }
+}
+
 export interface NativeRouteForDisplay {
   operations: SwapOperation[]
   needsWrapInput: boolean
@@ -162,3 +195,7 @@ export function deriveSwapSubmitRouteSource(args: {
 
 /** Brief label when submit uses client BFS multihop (GitLab #302 / #329). */
 export const SWAP_CLIENT_BFS_FALLBACK_COPY = 'Route source: client graph (shortest path; not best execution).'
+
+/** Shown when indexer `intermediate_tokens` disagreed with `router_operations` and the route row was updated (GitLab #450 / SEC-I02 H09). */
+export const SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY =
+  'Route path updated: indexer display disagreed with submit operations; showing the path that will execute.'

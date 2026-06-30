@@ -127,10 +127,7 @@ mod blacklist_query_error_tests {
 
     /// Build a querier whose raw `contract_info` lookup at `factory` returns the given cw2
     /// version JSON, and errors (no contract) for any other address.
-    fn querier_with_factory_version(
-        factory: &str,
-        version: Option<&str>,
-    ) -> MockQuerier {
+    fn querier_with_factory_version(factory: &str, version: Option<&str>) -> MockQuerier {
         let factory = factory.to_string();
         let version = version.map(|v| v.to_string());
         let mut q = MockQuerier::default();
@@ -145,20 +142,20 @@ mod blacklist_query_error_tests {
                             };
                             SystemResult::Ok(ContractResult::Ok(to_json_vec(&cv).unwrap().into()))
                         }
-                        None => SystemResult::Ok(ContractResult::Ok(
-                            cosmwasm_std::Binary::default(),
-                        )),
+                        None => {
+                            SystemResult::Ok(ContractResult::Ok(cosmwasm_std::Binary::default()))
+                        }
                     }
                 } else {
                     SystemResult::Ok(ContractResult::Ok(cosmwasm_std::Binary::default()))
                 }
             }
             // Any other contract address: no contract at that address.
-            WasmQuery::Raw { contract_addr, .. } => SystemResult::Err(
-                cosmwasm_std::SystemError::NoSuchContract {
+            WasmQuery::Raw { contract_addr, .. } => {
+                SystemResult::Err(cosmwasm_std::SystemError::NoSuchContract {
                     addr: contract_addr.clone(),
-                },
-            ),
+                })
+            }
             _ => SystemResult::Err(cosmwasm_std::SystemError::Unknown {}),
         });
         q

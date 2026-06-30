@@ -632,6 +632,85 @@ describe('SwapPage', () => {
     expect(screen.queryByTestId('swap-route-source-client-fallback')).not.toBeInTheDocument()
   })
 
+  it('reconciles tampered indexer intermediate_tokens to ops path and notifies user (#450 / SEC-I02 H09)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    const terraA = 'terra1aa0000000000000000000000000000000001'
+    const terraB = 'terra1bb0000000000000000000000000000000001'
+    const terraC = 'terra1cc0000000000000000000000000000000001'
+    const terraEvil = 'terra1evil00000000000000000000000000000001'
+    const multihopRoute = [
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraEvil } },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraEvil } },
+          ask_asset_info: { token: { contract_addr: terraC } },
+        },
+      },
+    ] as never
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pairab000000000000000000000000000001',
+          liquidity_token: 'terra1lpab000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+        {
+          contract_addr: 'terra1pairbc000000000000000000000000000001',
+          liquidity_token: 'terra1lpbc000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraC, terraB, terraEvil])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraB } },
+          ask_asset_info: { token: { contract_addr: terraC } },
+        },
+      },
+    ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
+      token_in: terraA,
+      token_out: terraC,
+      hops: [
+        { offer_token: terraA, ask_token: terraEvil },
+        { offer_token: terraEvil, ask_token: terraC },
+      ],
+      router_operations: multihopRoute,
+      quote_kind: 'indexer_hybrid_lcd',
+      estimated_amount_out: '1000000',
+      // Display claims A→B→C but ops route through evil token.
+      intermediate_tokens: [terraA, terraB, terraC],
+    })
+    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    const routeSummary = await screen.findByTestId('swap-route-summary')
+    expect(routeSummary).toHaveTextContent(terraEvil)
+    expect(routeSummary).not.toHaveTextContent(terraB)
+    expect(await screen.findByTestId('swap-route-intermediate-reconciled')).toHaveTextContent(/route path updated/i)
+    expect(screen.queryByTestId('swap-route-source-client-fallback')).not.toBeInTheDocument()
+  })
+
   it('rejects invalid characters in book leg amount without surfacing BigInt errors', async () => {
     const user = userEvent.setup()
     const terraA = 'terra1from00000000000000000000000000000001'
