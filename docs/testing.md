@@ -280,7 +280,9 @@ Launch checklist **SEC-A02** requires retail copy **and** a disabled submit CTA 
 |-------|---------|
 | Vitest — pause copy + disabled | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "SEC-A02"` |
 | Vitest — rate limit copy + disabled | same (both cases in one `describe`) |
+| Vitest — rate limit inline alert (SEC-I05 F-04 / #463) | `bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "rate-limit alert"` |
 | Playwright — isolated LCD mocks | `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/wrap-swap.spec.ts -g "SEC-A02|wrap mapper paused" --project=e2e-tx` |
+| Playwright — rate limit inline banner (#463) | same (`E12` asserts `swap-wrap-rate-limit-banner` + retry copy) |
 
 ### Pair pause disabled CTAs (SEC-B05, GitLab #395) {#pair-pause-disabled-ctas-sec-b05-gitlab-395}
 
