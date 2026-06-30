@@ -11,7 +11,7 @@ Copy-pastable **`terrad tx wasm execute`** recipes for governance emergency cont
 1. **Confirm governance key** — only the factory `governance` address may execute these messages ([`get_config`](../deployment-guide.md)).
 2. **Fill parameters** — export the variables in [Environment](#environment) (or replace inline).
 3. **Dry-run on staging** — rehearse on LocalTerra: `make verify-issue-399` (requires `make deploy-local`).
-4. **Record tx hashes** — paste into your incident tracker for audit trail.
+4. **Record tx hashes** — paste into the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline) table for audit trail.
 
 ---
 

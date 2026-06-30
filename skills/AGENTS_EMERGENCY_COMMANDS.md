@@ -8,7 +8,7 @@ Use when implementing or verifying **SEC-B11** operator docs for factory emergen
 |------|---------|
 | [`docs/runbooks/emergency-commands.md`](../docs/runbooks/emergency-commands.md) | Parameterized `terrad tx wasm execute` for all eight factory emergency messages |
 | [`docs/runbooks/blacklist-decision.md`](../docs/runbooks/blacklist-decision.md) | Symmetric restore gate for `Unblacklist*` rollback checklist |
-| [`docs/templates/incident-dex-indexer.md`](../docs/templates/incident-dex-indexer.md) | Mitigation step links to the cookbook |
+| [`docs/templates/incident-dex-indexer.md`](../docs/templates/incident-dex-indexer.md) | Mitigation step links to the cookbook; **Incident timeline** table for tx audit trail |
 | [`docs/adr/0003-governance-trading-blacklist.md`](../docs/adr/0003-governance-trading-blacklist.md) | Blacklist design rationale |
 
 ## Eight operations (factory `ExecuteMsg`)
