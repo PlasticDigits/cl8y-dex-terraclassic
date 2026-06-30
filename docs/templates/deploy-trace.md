@@ -66,6 +66,11 @@ make test-frontend
 FACTORY_ADDRESS=<factory> ROUTER_ADDRESS=<router> FEE_DISCOUNT_ADDRESS=<fee_discount> \
   TERRA_LCD_URL=<lcd> make qa-verify-deploy-config
 
+# Env/chain address cross-check (SEC-H04 — indexer vs frontend env + on-chain router factory wiring)
+# scripts/qa/verify-env-addresses.sh
+VERIFY_ENV_INDEXER_FILE=<indexer/.env> VERIFY_ENV_FRONTEND_FILE=<frontend/.env.production> \
+  TERRA_LCD_URL=<lcd> make qa-verify-env-addresses
+
 # Pool smoke (read-only)
 PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 ```
@@ -73,7 +78,7 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 **Verification output (paste or link):**
 
 ```
-<paste full qa-verify-deploy-config output + smoke script output, or link to CI/log artifact>
+<paste full qa-verify-deploy-config + qa-verify-env-addresses output + smoke script output, or link to CI/log artifact>
 ```
 
 ### Notes
@@ -84,4 +89,4 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 
 **Runbook gates:** [launch checklist Phase 1](../runbooks/launch-checklist.md#deploy-trace-audit-record--required-before-leaving-phase-1) · [wasm admin migration Pre-flight](../runbooks/wasm-admin-migration.md#pre-flight) · [deployment guide](../deployment-guide.md#deploy-trace-audit-record)
 
-**Agent playbook:** [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md) · [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md) · [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../../skills/AGENTS_TEST_EVIDENCE_GATE.md)
+**Agent playbook:** [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md) · [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md) · [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../../skills/AGENTS_TEST_EVIDENCE_GATE.md) · [`skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md`](../../skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md)

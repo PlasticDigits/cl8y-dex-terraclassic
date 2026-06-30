@@ -44,6 +44,14 @@ Release sign-off: paste full script output on the launch tracking issue — [lau
 
 Agent playbook: [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../skills/AGENTS_TEST_EVIDENCE_GATE.md). Doc drift: **`make check-test-evidence-gate-docs`**. Issue acceptance: **`make verify-issue-444`**.
 
+## Env/chain address cross-check (invariant Q4)
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q4** Indexer and frontend env contract addresses match each other; router on-chain `config.factory` equals env `FACTORY_ADDRESS`; factory and fee-discount `config` respond at configured addresses | **`make qa-verify-env-addresses`** → [`verify-env-addresses.sh`](../scripts/qa/verify-env-addresses.sh) (also inside **`make qa-verify-deploy`** after Q1) | Non-zero exit; fix env drift or redeploy; paste failing section on the release issue |
+
+Release sign-off: paste full script output on the launch tracking issue — [launch checklist Phase 4](runbooks/launch-checklist.md#phase-4--off-chain-stack-if-applicable) (SEC-H04, [GitLab **#442**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442)). Agent playbook: [`skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md`](../skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md). Doc drift: **`make check-deploy-env-addresses-docs`**. Unit checks (no Docker): **`make test-qa-verify-env-addresses`**.
+
 ## Volume lifecycle
 
 | Invariant | Default `make start-qa` | `make reset-qa` / `QA_FRESH_VOLUMES=1 make start-qa` |
@@ -86,4 +94,5 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`docs/qa-onboarding.md`](./qa-onboarding.md) — human QA onboarding
 - [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md) — post-deploy schema check ([#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203))
 - [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md) — post-deploy config assertions ([#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441))
+- [`skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md`](../skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md) — env/chain address cross-check ([#442](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442))
 - [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — dev `make reset` (non-QA compose)

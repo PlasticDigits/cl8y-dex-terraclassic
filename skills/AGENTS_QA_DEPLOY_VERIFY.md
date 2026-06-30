@@ -17,7 +17,7 @@ Parent: [GitLab **#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic
 | Step | Command / hook |
 |------|----------------|
 | Deploy stamp | **`scripts/deploy-dex-local.sh`** writes **`.qa-deploy-stamp`** (`git_sha`, `factory_address`, `pair_address`) |
-| Schema probe | **`make qa-verify-deploy`** (also runs inside **`make start-qa`** after deploy) |
+| Schema probe | **`make qa-verify-deploy`** (also runs inside **`make start-qa`** after deploy; includes env/chain address cross-check — SEC-H04 / [#442](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442)) |
 | Probes | LCD `is_paused`, `expired_limit_refund` on stamp/factory pair |
 | Stamp | Fail if **`.qa-deploy-stamp`** `git_sha` ≠ **`git rev-parse --short HEAD`** |
 | Pair-creation fee on deploy | **`factory_create_pair`** in **`scripts/deploy-dex-local.sh`** reads on-chain `pair_creation_fee_uluna` and attaches `--amount` on every `create_pair` ([#318](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/318)); regression grep in **`scripts/qa/verify-issue-276.sh`**. **`scripts/e2e-seed-wrap-pairs.sh`** attaches the same fee when non-zero. |
@@ -98,7 +98,8 @@ make qa-verify-deploy            # uses exec fallback automatically
 
 | Path | Role |
 |------|------|
-| [`scripts/qa/verify-deploy.sh`](../scripts/qa/verify-deploy.sh) | Post-deploy verification |
+| [`scripts/qa/verify-deploy.sh`](../scripts/qa/verify-deploy.sh) | Post-deploy verification (Q1 + Q4) |
+| [`scripts/qa/verify-env-addresses.sh`](../scripts/qa/verify-env-addresses.sh) | Env/chain address cross-check (Q4) |
 | [`scripts/qa/test-verify-deploy.sh`](../scripts/qa/test-verify-deploy.sh) | Unit checks for LCD helpers (`make test-qa-verify-deploy`) |
 | [`scripts/qa/test-localterra-host-curl.sh`](../scripts/qa/test-localterra-host-curl.sh) | Exec fallback wiring (`make test-localterra-host-curl`) |
 | [`scripts/lib/localterra-host-curl.sh`](../scripts/lib/localterra-host-curl.sh) | Host curl + `docker exec` fallback |

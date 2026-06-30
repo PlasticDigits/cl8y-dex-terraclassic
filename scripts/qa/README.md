@@ -25,7 +25,7 @@ This stops any prior QA indexer and runs **`docker compose down`** (volumes **pr
 
 Optional: **`QA_FETCH_CI_ARTIFACTS=1 make start-qa`** tries GitLab generic packages for wasm/indexer before deploy. Set **`INDEXER_QA_BIN`** to a prebuilt **`cl8y-dex-indexer`** to skip release compile.
 
-Then **`make qa-verify-deploy`** (schema + deploy-stamp — [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), optional **`make qa-verify-deploy-config`** (on-chain config assertions — SEC-H03 / [#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441)), indexer background start (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), **`/health`**, and laptop steps (**`make qa-tunnel-help`**).
+Then **`make qa-verify-deploy`** (schema + deploy-stamp + env/chain address cross-check — [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203), SEC-H04 / [#442](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442)), optional **`make qa-verify-deploy-config`** (on-chain config assertions — SEC-H03 / [#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441)), indexer background start (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), **`/health`**, and laptop steps (**`make qa-tunnel-help`**).
 
 **Which reset level after code changes?** See [`skills/AGENTS_QA_REDEPLOY_DECISION.md`](../../skills/AGENTS_QA_REDEPLOY_DECISION.md) ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)).
 
@@ -132,7 +132,9 @@ Trading tokens (EMBER, CORAL, …) use **6** decimals. Fee-discount `min_cl8y_ba
 | `make test-qa-verify-deploy` | Unit checks for LCD helpers + host-curl wiring (`test-verify-deploy`, `test-localterra-host-curl`) |
 | `make test-localterra-host-curl` | Exec fallback wiring; live RPC probe when `localterra` is up |
 | `make qa-tunnel-help` | Reprint SSH + laptop steps               |
-| `make qa-verify-deploy` | Post-deploy schema + stamp check (also runs inside `start-qa`) |
+| `make qa-verify-deploy` | Post-deploy schema + stamp + env address cross-check (also runs inside `start-qa`) |
+| `make qa-verify-env-addresses` | Env/chain address cross-check only (SEC-H04 / [#442](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442)) |
+| `make qa-verify-deploy-config` | On-chain config assertions (SEC-H03 / [#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441)) |
 | `make status`       | Health summary                               |
 | `make compose-ps`   | `docker compose ps` only                     |
 
