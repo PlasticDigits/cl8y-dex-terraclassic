@@ -2,7 +2,7 @@
 
 Copy-pastable **`terrad tx wasm execute`** recipes for governance emergency controls on the **factory** contract. Use under time pressure during an active incident ([SEC-B11](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/399), GitLab **#399**).
 
-**Related:** [Security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response), [ADR 0003](../adr/0003-governance-trading-blacklist.md), [blacklist decision runbook](./blacklist-decision.md) (symmetric restore gates), [user incident FAQ](../user-incident-faq.md), [incident triage template](../templates/incident-dex-indexer.md). Agent playbook: [`skills/AGENTS_EMERGENCY_COMMANDS.md`](../../skills/AGENTS_EMERGENCY_COMMANDS.md).
+**Related:** [Security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response), [ADR 0003](../adr/0003-governance-trading-blacklist.md), [blacklist decision runbook](./blacklist-decision.md) (symmetric restore gates), [rollback decision runbook](./rollback-decision.md) (deploy rollback vs on-chain pause — SEC-H09, [#445](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/445)), [user incident FAQ](../user-incident-faq.md), [incident triage template](../templates/incident-dex-indexer.md). Agent playbook: [`skills/AGENTS_EMERGENCY_COMMANDS.md`](../../skills/AGENTS_EMERGENCY_COMMANDS.md).
 
 ---
 
@@ -356,7 +356,7 @@ make verify-issue-440   # SEC-G07 unpause prerequisite checklist
 
 ## Incident workflow
 
-During triage, open the [incident template](../templates/incident-dex-indexer.md) **Triage** section — run [Quick pool triage](#quick-pool-triage-sec-g03) to pick `$PAIR_ADDR`, then use **Mitigation** for on-chain factory controls. Pair pause is appropriate for pool-specific exploits; wallet/token/pair blacklist for compliance or broader trading halts. See [user incident FAQ](../user-incident-faq.md) for trader-facing impact. For **public/internal announcement copy**, use the incident template [Communications templates appendix](../templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05) (SEC-G05).
+During triage, open the [incident template](../templates/incident-dex-indexer.md) **Triage** section — run [Quick pool triage](#quick-pool-triage-sec-g03) to pick `$PAIR_ADDR`, then use **Mitigation** for on-chain factory controls. Pair pause is appropriate for pool-specific exploits; wallet/token/pair blacklist for compliance or broader trading halts. For **rollback vs hotfix** across frontend, indexer, contract, and chain surfaces (not just pause/blacklist), follow [rollback-decision.md](./rollback-decision.md) (SEC-H09). See [user incident FAQ](../user-incident-faq.md) for trader-facing impact. For **public/internal announcement copy**, use the incident template [Communications templates appendix](../templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05) (SEC-G05).
 
 Doc invariant (no chain required):
 

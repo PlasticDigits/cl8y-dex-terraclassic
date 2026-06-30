@@ -177,5 +177,8 @@ Choose **GO with accepted risk** only when:
 
 ## Rollback / incident
 
-- CosmWasm upgrades/migrations are **out of band** for this runbook; document admin keys and wasm migration policy separately.
-- For live incidents: pause via factory if your governance policy allows; communicate hook/pause behavior per security model.
+- **Rollback vs forward-fix (SEC-H09):** classify the incident surface (frontend, indexer, contract, chain dependency) and follow the decision tree in [rollback-decision.md](./rollback-decision.md) — decision criteria, rollback commands, limitations, and recovery verification for each type ([#445](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/445)). Agent playbook: [`skills/AGENTS_ROLLBACK_DECISION.md`](../../skills/AGENTS_ROLLBACK_DECISION.md).
+- CosmWasm upgrades/migrations are documented in [wasm-admin-migration.md](./wasm-admin-migration.md); contract rollback limitations (prior `code_id`, admin retention) are in [rollback-decision.md § Contract](./rollback-decision.md#3-contract-incident).
+- For **active on-chain loss**: pause or blacklist via [emergency-commands.md](./emergency-commands.md) while executing the off-chain rollback path; communicate per [security model](../security-model.md) and [incident template](../templates/incident-dex-indexer.md).
+
+**Doc invariant:** `make check-rollback-decision-docs` or `make verify-issue-445` must pass before treating SEC-H09 as satisfied.
