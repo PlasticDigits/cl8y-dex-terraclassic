@@ -62,6 +62,6 @@ make qa-verify-deploy-config  # Q2 config assertions
 
 ## Cross-links
 
-- Deploy trace (SEC-D12): [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md) ([#410](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/410))
+- Deploy config (SEC-H03): [`AGENTS_DEPLOY_CONFIG_VERIFY.md`](./AGENTS_DEPLOY_CONFIG_VERIFY.md) ([#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441))
+- Env/chain addresses (SEC-H04): [`AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md`](./AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md) ([#442](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442))
 - Launch checklist: [`docs/runbooks/launch-checklist.md`](../docs/runbooks/launch-checklist.md)
-- Deployment guide: [`docs/deployment-guide.md`](../docs/deployment-guide.md)

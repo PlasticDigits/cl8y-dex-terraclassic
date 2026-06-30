@@ -164,3 +164,8 @@ else
 fi
 
 echo "[qa-verify-deploy] OK — deployed pair schema matches current tree."
+
+echo ""
+echo "[qa-verify-deploy] Env/chain address cross-check (SEC-H04 / GitLab #442)..."
+chmod +x "$REPO_ROOT/scripts/qa/verify-env-addresses.sh"
+"$REPO_ROOT/scripts/qa/verify-env-addresses.sh"
