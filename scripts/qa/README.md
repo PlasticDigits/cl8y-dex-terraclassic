@@ -25,7 +25,7 @@ This stops any prior QA indexer and runs **`docker compose down`** (volumes **pr
 
 Optional: **`QA_FETCH_CI_ARTIFACTS=1 make start-qa`** tries GitLab generic packages for wasm/indexer before deploy. Set **`INDEXER_QA_BIN`** to a prebuilt **`cl8y-dex-indexer`** to skip release compile.
 
-Then **`make qa-verify-deploy`** (schema + deploy-stamp — [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), indexer background start (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), **`/health`**, and laptop steps (**`make qa-tunnel-help`**).
+Then **`make qa-verify-deploy`** (schema + deploy-stamp — [#203](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/203)), optional **`make qa-verify-deploy-config`** (on-chain config assertions — SEC-H03 / [#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441)), indexer background start (pidfile **`.indexer-qa.pid`**, log **`.indexer-qa.log`**), **`/health`**, and laptop steps (**`make qa-tunnel-help`**).
 
 **Which reset level after code changes?** See [`skills/AGENTS_QA_REDEPLOY_DECISION.md`](../../skills/AGENTS_QA_REDEPLOY_DECISION.md) ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/325)).
 

@@ -145,8 +145,9 @@ See also: [Pool-only launch runbook § Phase 1 deploy trace](runbooks/launch-che
 
 - [ ] **IBC-hooks chain exposure (SEC-D02):** record Terra Classic chain binary/SDK version and IBC-hooks module status at deploy time; attest that app contracts do not expose IBC receive/ack/timeout entry points (`make verify-no-ibc-hooks-in-contracts`). Re-run after chain upgrades or new contract modules — [launch checklist Phase 0](runbooks/launch-checklist.md#phase-0--preconditions), [security model § IBC hooks](security-model.md#ibc-hooks-chain-dependency-sec-d02) ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)).
 - [ ] **Deploy trace** posted on the launch tracking issue (see [Deploy trace](#deploy-trace-audit-record) above)
+- [ ] Run scripted config verification: [`scripts/qa/verify-deploy-config.sh`](../scripts/qa/verify-deploy-config.sh) (`make qa-verify-deploy-config`) — asserts governance, treasury, default fee, whitelisted CW20 code IDs, fee-discount tiers, trusted router, pair hooks, and blacklist state; paste output on the release issue (SEC-H03, [#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441))
 - [ ] Run read-only pool checks: [`scripts/smoke-pool-swap.sh`](../scripts/smoke-pool-swap.sh) (`PAIR_ADDR`, optional `OFFER_TOKEN` / `TERRA_LCD_URL`)
-- [ ] Verify Factory config via `GetConfig` query
+- [ ] Verify Factory config via `GetConfig` query (covered by `qa-verify-deploy-config`; manual `terrad query` optional)
 - [ ] Create a test pair and verify it appears in `GetAllPairs`
 - [ ] Execute a test swap and confirm balances
 - [ ] Verify treasury received fees
