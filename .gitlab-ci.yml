@@ -41,6 +41,23 @@ gitleaks:
     - ./scripts/ci/gitleaks-scan-tracked.sh --verbose
   # Mandatory on default branch — never allow_failure (#380 / M-13).
 
+lint-indexer-log-secrets:
+  extends: .security-rules-default-branch
+  stage: security
+  image: alpine:3.21
+  rules:
+    - !reference [.security-rules-default-branch, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - indexer/**/*
+        - scripts/lint-indexer-log-secrets.sh
+        - .gitlab-ci.yml
+  before_script:
+    - apk add --no-cache ripgrep bash
+  script:
+    - chmod +x scripts/lint-indexer-log-secrets.sh
+    - ./scripts/lint-indexer-log-secrets.sh
+
 cargo-audit-smartcontracts:
   extends: .security-rules-default-branch
   stage: security
