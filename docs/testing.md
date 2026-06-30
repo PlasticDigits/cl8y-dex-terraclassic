@@ -508,6 +508,7 @@ Gitleaks abuse check: `make verify-gitleaks` (fixture must fail, clean tree must
 | `docs-governance-emergency-rehearsal` | `make check-governance-emergency-rehearsal-docs` / `make verify-issue-397` ([#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)) |
 | `docs-blacklist-decision` | `make check-blacklist-decision-docs` / `make verify-issue-400` ([#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400)) |
 | `docs-suspicious-activity-queries` | `make check-suspicious-activity-queries-docs` / `make verify-issue-437` ([#437](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/437)) |
+| `docs-anomaly-signals` | `make check-anomaly-signals-docs` / `make verify-issue-435` ([#435](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/435)) |
 | `docs-incident-template` | `make check-incident-template-docs` / `make verify-issue-439` ([#439](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/439)) |
 | `docs-ibc-hooks-deploy` | `make check-ibc-hooks-deploy-docs` / `make verify-issue-407` ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)) |
 | `contracts-terra` | `make lint-contracts` && `make test-contracts` (optional LCOV: `make coverage-contracts`) |

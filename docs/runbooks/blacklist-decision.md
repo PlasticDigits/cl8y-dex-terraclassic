@@ -2,7 +2,7 @@
 
 Operator playbook for **when** governance should apply factory trading blacklist actions during incidents, compliance escalations, and false-positive rollbacks. Parent remediation: GitLab [#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400) (**SEC-B12**).
 
-**Related:** [ADR 0003](../adr/0003-governance-trading-blacklist.md), [security-model.md § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response), [user-incident-faq.md](../user-incident-faq.md) (trader/LP impact — link, do not duplicate), [incident template](../templates/incident-dex-indexer.md), [launch-checklist.md](./launch-checklist.md).
+**Related:** [ADR 0003](../adr/0003-governance-trading-blacklist.md), [security-model.md § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response), [user-incident-faq.md](../user-incident-faq.md) (trader/LP impact — link, do not duplicate), [incident template](../templates/incident-dex-indexer.md), [anomaly signals runbook](./anomaly-signals.md) (proactive thresholds before blacklist — SEC-G02, [#435](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/435)), [launch-checklist.md](./launch-checklist.md).
 
 ## Policy summary
 
@@ -18,7 +18,7 @@ Operator playbook for **when** governance should apply factory trading blacklist
 
 ## Decision tree
 
-Use this during incident **Mitigation** after triage confirms abnormal on-chain or compliance signals. Do **not** blacklist on suspicion alone.
+Use this during incident **Mitigation** after triage confirms abnormal on-chain or compliance signals. For **proactive** monitoring thresholds (pool drain %, slippage deviation, failed-tx burst, etc.) before evidence is confirmed, start from [anomaly-signals.md](./anomaly-signals.md). Do **not** blacklist on suspicion alone.
 
 **Discovery queries (SEC-G04):** before applying this tree, run indexer API / SQL / LCD recipes in [suspicious-activity-queries.md](./suspicious-activity-queries.md) to surface candidate wallets, pairs, and tokens — heuristics alone are insufficient for blacklist.
 
