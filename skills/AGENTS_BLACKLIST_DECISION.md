@@ -13,6 +13,8 @@ Use when changing **operator criteria** for factory trading blacklist during inc
 | [docs/user-incident-faq.md](../docs/user-incident-faq.md) | Trader/LP impact — **link only**, do not duplicate operator criteria |
 | `scripts/check_blacklist_decision_docs.py` | Drift guard for SEC-B12 acceptance topics + links |
 
+**On-chain guard posture (SEC-I03 F02, [#456](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/456)):** pair/router blacklist guards fail **closed** when the factory `BlacklistCheck` query errors (`Blacklist guard unavailable`). A broken or stale factory pointer blocks trading — it does not silently disable blacklist enforcement.
+
 ## Rules of thumb
 
 1. **Do not** duplicate the full decision tree in `security-model.md`, ADR 0003, or the user FAQ — **link** to `docs/runbooks/blacklist-decision.md`.

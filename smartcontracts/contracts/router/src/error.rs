@@ -45,6 +45,6 @@ pub enum ContractError {
     #[error("Trading blacklist: swap path or sender is blocked")]
     Blacklisted {},
 
-    #[error("Blacklist guard unavailable: factory blacklist check failed on a non-pre-1.5.0 factory")]
+    #[error("Blacklist guard unavailable: factory blacklist check failed")]
     BlacklistGuardUnavailable {},
 }
