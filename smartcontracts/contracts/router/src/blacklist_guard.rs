@@ -65,7 +65,15 @@ pub fn assert_router_swap_not_blacklisted(
         }),
     ) {
         Ok(r) => r,
-        Err(_) => return Ok(()),
+        // GitLab #456 (SEC-I03 F02): only fail open for a genuinely pre-1.5.0 factory. A
+        // reachable >=1.5.0 factory (or an unreadable/stale factory address) that errors here
+        // is anomalous, so block rather than silently disabling blacklist enforcement.
+        Err(_) => {
+            if dex_common::blacklist::blacklist_query_error_blocks(&deps.querier, factory) {
+                return Err(ContractError::BlacklistGuardUnavailable {});
+            }
+            return Ok(());
+        }
     };
 
     if resp.blocked {
