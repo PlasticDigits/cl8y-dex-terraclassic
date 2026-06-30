@@ -24,6 +24,25 @@ describe('LimitOrderPreSubmitSummary', () => {
     expect(feeLine).toHaveTextContent(/0\.30%/)
   })
 
+  // GitLab #461 (SEC-I05 F-02): an in-app chain anchor must appear before the wallet dialog.
+  it('renders a chain label so the wallet dialog is not the first chain identification', () => {
+    render(
+      <LimitOrderPreSubmitSummary
+        placeSequenceMinUluna={1500000n}
+        refToken1PerToken0={2}
+        typedPrice="1.8"
+        effectiveFeeBps={30}
+        makerPlacementFeeBps={15}
+        feeLoading={false}
+        feeError={false}
+        chainFullLabel="Terra Classic"
+      />
+    )
+    const chainRow = screen.getByTestId('limit-order-pre-submit-summary-chain')
+    expect(chainRow).toHaveTextContent(/Chain:/i)
+    expect(chainRow).toHaveTextContent('Terra Classic')
+  })
+
   it('shows loading state for maker fee while queries run', () => {
     render(
       <LimitOrderPreSubmitSummary
