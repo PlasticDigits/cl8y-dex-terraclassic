@@ -153,7 +153,8 @@ pub async fn sync_single_pair(
 }
 
 /// Ensures `pair_contract_addr` is the factory-listed pair for `asset_infos`.
-/// When `factory_addr` is empty (dev only), provenance is skipped with a warning.
+/// When `factory_addr` is empty, provenance is skipped with a warning (defensive only —
+/// config load rejects empty `FACTORY_ADDRESS` in every RUN_MODE; GitLab #451).
 pub(crate) async fn verify_factory_provenance(
     lcd: &LcdClient,
     factory_addr: &str,
@@ -177,15 +178,15 @@ pub(crate) async fn verify_factory_provenance(
         }
     });
 
-    let resp: FactoryPairResponse = lcd
-        .query_contract(factory_addr, &query)
-        .await
-        .map_err(|e| {
-            format!(
-                "factory provenance check failed for {} (factory {}): {}",
-                pair_contract_addr, factory_addr, e
-            )
-        })?;
+    let resp: FactoryPairResponse =
+        lcd.query_contract(factory_addr, &query)
+            .await
+            .map_err(|e| {
+                format!(
+                    "factory provenance check failed for {} (factory {}): {}",
+                    pair_contract_addr, factory_addr, e
+                )
+            })?;
 
     if resp.pair.contract_addr != pair_contract_addr {
         return Err(format!(
@@ -218,8 +219,13 @@ pub async fn discover_new_pair(
         .into());
     }
 
-    verify_factory_provenance(lcd, factory_addr, pair_contract_addr, &pair_info.asset_infos)
-        .await?;
+    verify_factory_provenance(
+        lcd,
+        factory_addr,
+        pair_contract_addr,
+        &pair_info.asset_infos,
+    )
+    .await?;
 
     sync_single_pair(pool, lcd, &pair_info).await
 }
