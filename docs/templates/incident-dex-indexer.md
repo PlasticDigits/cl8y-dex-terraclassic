@@ -41,10 +41,199 @@
 
 ## Communications
 
-- **Internal:** 
-- **Public:** (if any)
+During the incident, record what was sent below. For **copy-paste announcement text**, use [Appendix: Communications templates](#appendix-communications-templates-sec-g05) ([SEC-G05](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/438)).
+
+- **Internal:** (paste sent internal comms or link)
+- **Public:** (paste sent public comms, or `N/A`)
 
 ## Post-incident
 
 - **Root cause:** 
 - **Follow-ups:** (issues, docs, runbooks)
+
+---
+
+## Appendix: Communications templates (SEC-G05)
+
+**Paste-ready templates** for operator communications during incidents. Fill bracketed placeholders before sending. Trader/LP **background** (not per-incident copy): [user-incident-faq.md](../user-incident-faq.md).
+
+**Placeholders (all templates):**
+
+| Placeholder | Example |
+|-------------|---------|
+| `[TIMESTAMP_UTC]` | `2026-06-30T14:00:00Z` |
+| `[PAIR_ADDRESS]` | `terra1abc…` pair contract |
+| `[WALLET_ADDRESS]` | `terra1xyz…` blacklisted wallet |
+| `[TOKEN_ADDRESS]` | `terra1token…` CW20 contract |
+| `[BLACKLIST_TARGET]` | wallet / token / pair address (pick one) |
+| `[IMPACT_DESCRIPTION]` | What users cannot do; funds safety |
+| `[ESTIMATED_RESOLUTION]` | Next update time or ETA to unpause/unblacklist |
+| `[COMPLETED_ACTIONS]` | Mitigations already applied (postmortem / retraction) |
+| `[CONTACT_CHANNEL]` | Status page, Discord `#announcements`, email, etc. |
+| `[REASON_IF_DISCLOSABLE]` | Compliance or incident reason, or `not disclosed` |
+
+### 1. Pair paused — user-facing announcement
+
+**Public** (Discord / status page / X):
+
+```text
+CL8Y DEX — Trading paused for pool [PAIR_ADDRESS]
+
+As of [TIMESTAMP_UTC], governance paused the trading pair at [PAIR_ADDRESS].
+
+Impact: [IMPACT_DESCRIPTION]. Swaps, liquidity changes, and limit orders for this pool are temporarily disabled. Wallet balances, LP tokens, and limit escrow remain on-chain and are not seized.
+
+Estimated next update: [ESTIMATED_RESOLUTION]
+
+Questions: [CONTACT_CHANNEL]
+
+Background: https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/user-incident-faq.md#pair-pause
+```
+
+**Internal** (Slack / incident channel):
+
+```text
+[INCIDENT] Pair pause — [TIMESTAMP_UTC]
+Pair: [PAIR_ADDRESS]
+Governance tx: <hash>
+Commander: <name>
+Impact: [IMPACT_DESCRIPTION]
+Public notice sent: yes/no @ [TIMESTAMP_UTC]
+Next check: [ESTIMATED_RESOLUTION]
+Contact channel: [CONTACT_CHANNEL]
+```
+
+### 2. Blacklist applied — compliance notice
+
+Use `[WALLET_ADDRESS]`, `[TOKEN_ADDRESS]`, or `[PAIR_ADDRESS]` as `[BLACKLIST_TARGET]` depending on scope.
+
+**Public** (if disclosure is appropriate):
+
+```text
+CL8Y DEX — Trading restriction applied [TIMESTAMP_UTC]
+
+Governance added [BLACKLIST_TARGET] to the protocol trading blacklist.
+
+Reason: [REASON_IF_DISCLOSABLE]
+
+Impact: [IMPACT_DESCRIPTION]. Affected addresses cannot swap, add/remove liquidity, or place/cancel/claim limit orders until the restriction is lifted. Token balances in wallets are not confiscated.
+
+Estimated next update: [ESTIMATED_RESOLUTION]
+
+Questions: [CONTACT_CHANNEL]
+
+Background: https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/user-incident-faq.md#wallet-blacklist
+```
+
+**Internal:**
+
+```text
+[INCIDENT] Blacklist applied — [TIMESTAMP_UTC]
+Target: [BLACKLIST_TARGET] (wallet | token | pair)
+Governance tx: <hash>
+Reason (internal): <full case file summary>
+Disclosable reason sent publicly: [REASON_IF_DISCLOSABLE]
+Impact: [IMPACT_DESCRIPTION]
+Public notice sent: yes/no
+Next check: [ESTIMATED_RESOLUTION]
+```
+
+### 3. Exploit under investigation — interim user notice
+
+Send when controls are applied but root cause or scope is still unknown. Avoid naming unconfirmed attackers or exploit mechanics.
+
+**Public:**
+
+```text
+CL8Y DEX — Security review in progress [TIMESTAMP_UTC]
+
+We detected unusual activity affecting [IMPACT_DESCRIPTION] and applied protective measures (pair pause and/or trading restrictions as needed). User funds in wallets and escrow remain on-chain; affected actions are temporarily blocked while we investigate.
+
+We are working with governance to confirm scope and next steps. This is an interim update — not a final postmortem.
+
+Estimated next update: [ESTIMATED_RESOLUTION]
+
+Questions: [CONTACT_CHANNEL]
+
+Do not share exploit details publicly. Report security issues via SECURITY.md.
+```
+
+**Internal:**
+
+```text
+[INCIDENT] Exploit investigation — interim comms [TIMESTAMP_UTC]
+Scope (internal): <pairs, wallets, suspected vector>
+Controls applied: <pause/blacklist tx hashes>
+Impact (public wording): [IMPACT_DESCRIPTION]
+Interim public notice sent: yes/no
+Next update deadline: [ESTIMATED_RESOLUTION]
+Do not publish PoC or attacker addresses until IC approves.
+```
+
+### 4. False alarm retraction
+
+Use after wrongful pause or blacklist; complete [false-positive rollback checklist](../runbooks/blacklist-decision.md#false-positive-rollback-unblacklist) before sending.
+
+**Public:**
+
+```text
+CL8Y DEX — Restriction lifted [TIMESTAMP_UTC]
+
+Earlier today we paused or restricted trading for [PAIR_ADDRESS or BLACKLIST_TARGET]. After further review, governance determined this was a false alarm.
+
+Completed actions: [COMPLETED_ACTIONS] (e.g. pair unpaused, blacklist removed via governance tx <hash>).
+
+Impact: [IMPACT_DESCRIPTION] — trading and withdrawals for affected users are restored. No user funds were seized at any time.
+
+We apologize for the disruption. Questions: [CONTACT_CHANNEL]
+```
+
+**Internal:**
+
+```text
+[INCIDENT] False alarm retraction — [TIMESTAMP_UTC]
+Original control: <pause/blacklist tx>
+Rollback tx: <unpause/unblacklist tx>
+Rollback checklist: complete (see incident timeline)
+Root cause of false alarm: <summary>
+Public retraction sent: yes/no
+Follow-up docs issue: <link if criteria misfired>
+```
+
+### 5. Postmortem summary
+
+Publish after incident is closed (S1/S2) or as agreed with IC. Link from status channel and archive in the incident record.
+
+**Public:**
+
+```text
+CL8Y DEX — Incident postmortem [TIMESTAMP_UTC]
+
+Summary: [IMPACT_DESCRIPTION] — what happened in plain language (no exploit recipe).
+
+Timeline:
+- Detection: <UTC>
+- Mitigation: <UTC> — [COMPLETED_ACTIONS]
+- Recovery: <UTC>
+
+Affected users: <who was blocked, which pairs/tokens, duration>
+
+User funds: No wallet balances were confiscated. Escrow/LP remained on-chain during restrictions.
+
+Follow-up actions: <patches, monitoring, docs, governance changes> — target dates in [ESTIMATED_RESOLUTION] or linked issues.
+
+Contact: [CONTACT_CHANNEL]
+```
+
+**Internal** (attach full technical timeline, tx hashes, and root cause):
+
+```text
+[POSTMORTEM] [TIMESTAMP_UTC]
+Severity: S?
+IC: <name>
+Technical root cause: <detail>
+Affected contracts/indexer: <list>
+Governance txs: <hashes>
+Lessons / action items: <tickets>
+Public postmortem published: yes/no @ [TIMESTAMP_UTC]
+```

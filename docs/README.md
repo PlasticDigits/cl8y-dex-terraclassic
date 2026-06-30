@@ -36,7 +36,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Runbook: indexer reorg, replay, dedup, backfill](./runbooks/indexer-reorg-replay-dedup.md)
 - [Runbook: Wasm admin migration](./runbooks/wasm-admin-migration.md)
 - [Runbook: trading blacklist decision tree](./runbooks/blacklist-decision.md) (SEC-B12, [#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400))
-- [Incident template (DEX + indexer)](./templates/incident-dex-indexer.md)
+- [Incident template (DEX + indexer)](./templates/incident-dex-indexer.md) — triage + [Communications templates (SEC-G05)](./templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05); agent [`skills/AGENTS_INCIDENT_COMMS_TEMPLATES.md`](../skills/AGENTS_INCIDENT_COMMS_TEMPLATES.md)
 
 ## QA
 - [QA stack invariants](./qa-invariants.md) — `make start-qa` vs `reset-qa` / `QA_FRESH_VOLUMES` ([GitLab #202](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/202)); agent playbook [`skills/AGENTS_QA_FRESH_VOLUMES.md`](../skills/AGENTS_QA_FRESH_VOLUMES.md)

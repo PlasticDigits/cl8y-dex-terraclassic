@@ -269,4 +269,4 @@ make check-emergency-commands-docs
 
 ## Incident workflow
 
-During triage, open the [incident template](../templates/incident-dex-indexer.md) **Mitigation** section — it links here for on-chain factory controls. Pair pause is appropriate for pool-specific exploits; wallet/token/pair blacklist for compliance or broader trading halts. See [user incident FAQ](../user-incident-faq.md) for trader-facing impact.
+During triage, open the [incident template](../templates/incident-dex-indexer.md) **Mitigation** section — it links here for on-chain factory controls. Pair pause is appropriate for pool-specific exploits; wallet/token/pair blacklist for compliance or broader trading halts. See [user incident FAQ](../user-incident-faq.md) for trader-facing impact. For **public/internal announcement copy**, use the incident template [Communications templates appendix](../templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05) (SEC-G05).
