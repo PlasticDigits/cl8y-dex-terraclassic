@@ -65,7 +65,11 @@ import {
 } from '@/utils/swapRouteDisplay'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
-import { MARKET_DATA_SERVICE_OUTAGE_TITLE, SWAP_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
+import {
+  MARKET_DATA_SERVICE_OUTAGE_TITLE,
+  SWAP_MARKET_DATA_OUTAGE_LEAD,
+  WRAP_RATE_LIMIT_EXCEEDED_MESSAGE,
+} from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import {
   FEE_DISCOUNT_REGISTRY_WARNING_TEXT,
@@ -1694,6 +1698,11 @@ export default function SwapPage() {
           {tradingBlacklist.blocked && tradingBlacklist.message && (
             <div className="alert-error mb-3 text-xs" role="alert">
               <p>{tradingBlacklist.message}</p>
+            </div>
+          )}
+          {isRateLimitExceeded && (
+            <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-wrap-rate-limit-banner">
+              <p>{WRAP_RATE_LIMIT_EXCEEDED_MESSAGE}</p>
             </div>
           )}
           {simData && hasPositiveInputAmount && fromToken && toToken && (

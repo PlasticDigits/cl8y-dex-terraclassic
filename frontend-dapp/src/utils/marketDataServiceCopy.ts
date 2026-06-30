@@ -31,3 +31,7 @@ export const SWAP_MARKET_DATA_OUTAGE_LEAD =
 /** Calm retry guidance when indexer returns HTTP 429 (SEC-E04 / GitLab #426). */
 export const INDEXER_RATE_LIMIT_RETRY_MESSAGE =
   'Too many requests were sent in a short time. Wait a moment and try again.'
+
+/** Inline alert when the wrap-mapper daily rate limit blocks a wrap/unwrap (SEC-I05 / GitLab #463). */
+export const WRAP_RATE_LIMIT_EXCEEDED_MESSAGE =
+  'Daily wrap limit reached for this amount. Wait and try again later, or reduce the amount.'
