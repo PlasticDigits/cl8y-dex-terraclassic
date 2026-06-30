@@ -58,6 +58,79 @@ Shared tx flags (append to every command):
 
 ---
 
+## Quick pool triage (SEC-G03)
+
+During an active incident, rank pools by **approximate on-chain liquidity** so you know which `$PAIR_ADDR` to pause or blacklist first ([SEC-G03](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/436), GitLab **#436**). Agent playbook: [`skills/AGENTS_POOL_TRIAGE.md`](../../skills/AGENTS_POOL_TRIAGE.md).
+
+`pair_reserves` is refreshed from LCD by the indexer book-snapshot loop (~10s cadence) — see [book snapshot mirror runbook](./book-snapshot-mirror.md).
+
+### Indexer SQL (preferred — reserve-based ranking)
+
+Requires `DATABASE_URL` (from `indexer/.env` on deployed hosts). Returns pairs sorted by **descending approximate liquidity** (human-normalized reserve sum; not USD oracle TVL).
+
+```bash
+source indexer/.env
+psql "$DATABASE_URL" -X -P pager=off -c "
+SELECT
+  p.contract_address AS pair_address,
+  a0.symbol AS asset_0,
+  a1.symbol AS asset_1,
+  pr.reserve_0,
+  pr.reserve_1,
+  (pr.reserve_0 / POWER(10, a0.decimals) + pr.reserve_1 / POWER(10, a1.decimals)) AS approx_liquidity_units,
+  pr.snapshot_at
+FROM pairs p
+JOIN pair_reserves pr ON pr.pair_id = p.id
+JOIN assets a0 ON a0.id = p.asset_0_id
+JOIN assets a1 ON a1.id = p.asset_1_id
+WHERE p.is_active = true
+ORDER BY approx_liquidity_units DESC NULLS LAST
+LIMIT 20;
+"
+```
+
+**Quote-side only** (when asset_1 is the quote token for your incident):
+
+```bash
+psql "$DATABASE_URL" -X -P pager=off -c "
+SELECT
+  p.contract_address AS pair_address,
+  a1.symbol AS quote_asset,
+  pr.reserve_1 AS quote_reserve_raw,
+  pr.reserve_1 / POWER(10, a1.decimals) AS quote_reserve_human,
+  pr.snapshot_at
+FROM pairs p
+JOIN pair_reserves pr ON pr.pair_id = p.id
+JOIN assets a1 ON a1.id = p.asset_1_id
+WHERE p.is_active = true
+ORDER BY quote_reserve_human DESC NULLS LAST
+LIMIT 20;
+"
+```
+
+Export the top `pair_address` as `$PAIR_ADDR` before running the pause/blacklist blocks below.
+
+### Indexer API (24h volume proxy)
+
+When Postgres is unreachable but the indexer HTTP API is up, rank by **recent swap activity** (not reserve TVL):
+
+```bash
+export INDEXER_URL="${INDEXER_URL:-http://127.0.0.1:3001}"
+curl -sS "${INDEXER_URL}/api/v1/pairs?sort=volume_24h&order=desc&limit=20" | jq '.items[] | {pair_address, volume_quote_24h, asset_0: .asset_0.symbol, asset_1: .asset_1.symbol}'
+```
+
+### LCD fallback (single pair)
+
+When the indexer is down and you already have a candidate `$PAIR_ADDR`:
+
+```bash
+terrad query wasm contract-state smart "$PAIR_ADDR" '{"pool":{}}' \
+  --node "$LCD" | jq '.data'
+# assets[0].amount / assets[1].amount are raw on-chain reserves
+```
+
+---
+
 ## 1. Pause a pair
 
 Stops swaps, liquidity changes, limit placement/cancel/claim, and book clean on **one** pair ([invariant **L6**](../contracts-security-audit.md)).
@@ -269,4 +342,11 @@ make check-emergency-commands-docs
 
 ## Incident workflow
 
-During triage, open the [incident template](../templates/incident-dex-indexer.md) **Mitigation** section — it links here for on-chain factory controls. Pair pause is appropriate for pool-specific exploits; wallet/token/pair blacklist for compliance or broader trading halts. See [user incident FAQ](../user-incident-faq.md) for trader-facing impact.
+During triage, open the [incident template](../templates/incident-dex-indexer.md) **Triage** section — run [Quick pool triage](#quick-pool-triage-sec-g03) to pick `$PAIR_ADDR`, then use **Mitigation** for on-chain factory controls. Pair pause is appropriate for pool-specific exploits; wallet/token/pair blacklist for compliance or broader trading halts. See [user incident FAQ](../user-incident-faq.md) for trader-facing impact.
+
+Doc invariant (no chain required):
+
+```bash
+make check-pool-triage-docs
+# or: make verify-issue-436
+```
