@@ -94,6 +94,9 @@ pub enum ContractError {
         blacklisted_pairs: Vec<String>,
     },
 
+    #[error("Blacklist guard unavailable: factory blacklist check failed on a non-pre-1.5.0 factory")]
+    BlacklistGuardUnavailable {},
+
     #[error("Invariant violation: {reason}")]
     InvariantViolation { reason: String },
 
