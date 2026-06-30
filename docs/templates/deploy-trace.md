@@ -37,8 +37,10 @@ Copy this block into a comment on the **launch tracking issue** ([#391](https://
 ### Post-deploy verification
 
 ```bash
-# Factory config
-terrad query wasm contract-state smart <factory> '{"get_config":{}}' --node <lcd>
+# Scripted config assertions (SEC-H03 — governance, treasury, fee, whitelist, tiers, router, hooks, blacklist)
+# scripts/qa/verify-deploy-config.sh
+FACTORY_ADDRESS=<factory> ROUTER_ADDRESS=<router> FEE_DISCOUNT_ADDRESS=<fee_discount> \
+  TERRA_LCD_URL=<lcd> make qa-verify-deploy-config
 
 # Pool smoke (read-only)
 PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
@@ -47,7 +49,7 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 **Verification output (paste or link):**
 
 ```
-<paste query + smoke output, or link to CI/log artifact>
+<paste full qa-verify-deploy-config output + smoke script output, or link to CI/log artifact>
 ```
 
 ### Notes
@@ -58,4 +60,4 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 
 **Runbook gates:** [launch checklist Phase 1](../runbooks/launch-checklist.md#deploy-trace-audit-record--required-before-leaving-phase-1) · [wasm admin migration Pre-flight](../runbooks/wasm-admin-migration.md#pre-flight) · [deployment guide](../deployment-guide.md#deploy-trace-audit-record)
 
-**Agent playbook:** [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md)
+**Agent playbook:** [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md) · [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md)

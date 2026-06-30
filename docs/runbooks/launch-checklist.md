@@ -79,6 +79,7 @@ terrad query wasm contract-state smart <fee_discount> '{"is_trusted_router":{"ro
 
 ## Phase 3 — Post-deploy verification (pool-only)
 
+- [ ] **Config assertions (SEC-H03):** run [`scripts/qa/verify-deploy-config.sh`](../../scripts/qa/verify-deploy-config.sh) (`make qa-verify-deploy-config`) and **paste the full output** on the release / launch tracking issue. The script queries factory governance, treasury, default fee, whitelisted CW20 code IDs, fee-discount tiers, trusted router status, pair hooks, and blacklist clean-wallet state; exits non-zero if any required field is empty or fails assertion ([#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441)). Agent playbook: [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md); regression: `make verify-issue-441`.
 - [ ] **Read-only / light tx checks:** [`scripts/smoke-pool-swap.sh`](../../scripts/smoke-pool-swap.sh) — LCD pool query and optional **`hybrid_simulation`** with pool-only params (`book_input: 0`).
 - [ ] **Wrap-mapper pause (SEC-B06):** [`scripts/smoke-wrap-mapper-pause.sh`](../../scripts/smoke-wrap-mapper-pause.sh) or `make smoke-wrap-mapper-pause` — on-chain wrap/unwrap rejection under `set_paused`, restored after unpause ([#396](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/396); UI CTA: SEC-A02 / [#389](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/389)).
 - [ ] **Single-hop swap** on staging with small size; confirm treasury fee and balances.
