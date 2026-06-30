@@ -53,6 +53,50 @@ async fn list_pairs_returns_200() {
     resp.assert_status_bad_request();
 }
 
+// GitLab #459 (SEC-I04 F02): ILIKE wildcard metacharacters in `?q=` must be neutralized so a
+// wildcard-only query cannot match every pair (search-amplification / full-scan vector).
+#[serial]
+#[tokio::test]
+async fn search_wildcard_query_does_not_match_all_pairs() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    // Baseline: the seed pair is searchable by its real symbol.
+    let resp = server.get("/api/v1/pairs?q=LUNC").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert!(
+        !body["items"].as_array().unwrap().is_empty(),
+        "normal symbol search must still return the seeded pair"
+    );
+
+    // `?q=%` previously produced ILIKE '%%%' and matched every row. After escaping it matches
+    // only fields literally containing '%', of which the seed has none.
+    let resp = server.get("/api/v1/pairs?q=%25").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert!(
+        body["items"].as_array().unwrap().is_empty(),
+        "wildcard-only query '%' must not match all pairs, got {}",
+        body["total"]
+    );
+
+    // `?q=_` (single-char wildcard) must likewise match only literal underscores.
+    let resp = server.get("/api/v1/pairs?q=_").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert!(
+        body["items"].as_array().unwrap().is_empty(),
+        "wildcard-only query '_' must not match all pairs, got {}",
+        body["total"]
+    );
+
+    // Sanity: the seed really does contain searchable rows (so the empties above are meaningful).
+    let _ = &seed;
+}
+
 #[serial]
 #[tokio::test]
 async fn get_pair_returns_pair() {
