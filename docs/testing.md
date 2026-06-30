@@ -471,11 +471,11 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 
 | Concept | Canonical wording |
 |--------|-------------------|
-| Hosted GitLab CI | [`.gitlab-ci.yml`](../.gitlab-ci.yml) — `security` stage (gitleaks, cargo/npm audit, indexer log-secret grep [#433](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/433)) + `test` stage (contracts + indexer-lib + frontend unit/lint + build gate, [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421)) + `build` stage (QA wasm/indexer artifacts) |
-| Where full checks run | **GitLab** runs security + Phase-1 functional gates (contracts/indexer-lib/frontend unit + build) on default branch + change-gated MRs; **local / QA host** for the heavier rows (Postgres-backed indexer integration, Playwright E2E) still pending Phase 2 of [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421) |
+| Hosted GitLab CI | [`.gitlab-ci.yml`](../.gitlab-ci.yml) — `security` stage (gitleaks, cargo/npm audit, indexer log-secret grep [#433](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/433)) + `test` stage (contracts + indexer-lib + Postgres-backed indexer-integration + frontend unit/lint + build gate, [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421)) + `build` stage (QA wasm/indexer artifacts) |
+| Where full checks run | **GitLab** runs security + Phase-1 functional gates (contracts/indexer-lib/frontend unit + build) plus the Phase-2a Postgres-backed indexer-integration suite on default branch + change-gated MRs; **local / QA host** for the remaining heavy row (Playwright E2E) still pending the final Phase 2 of [#421](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/421) |
 | [`.github/workflows/*.yml`](../.github/workflows/) | **Reference spec only** (job names, services, step order) — not executed |
 | Job names (`e2e`, `frontend-charts-integration`, …) | **Labels** mapping to Make/scripts below |
-| “CI green on main” | **GitLab pipeline green** (security + Phase-1 functional test + artifact jobs) **and** local automation checklist for the Phase-2 rows not yet hosted (indexer integration, E2E) |
+| “CI green on main” | **GitLab pipeline green** (security + Phase-1/2a functional test + artifact jobs) **and** local automation checklist for the Phase-2 row not yet hosted (Playwright E2E) |
 | Supply-chain local mirror | `make audit-smartcontracts`, `make audit-indexer`, `make audit-frontend`, `make gitleaks-detect` — see [supply-chain-security.md](./supply-chain-security.md) |
 
 **Agents:** For GitLab-hosted gates use [docs/supply-chain-security.md](./supply-chain-security.md) and [`skills/AGENTS_SUPPLY_CHAIN_SECURITY.md`](../skills/AGENTS_SUPPLY_CHAIN_SECURITY.md). For the full portable checklist (contracts, frontend, indexer, E2E) use [`.github/workflows/README.md`](../.github/workflows/README.md) and the relevant `skills/AGENTS_*.md` playbook.
@@ -491,6 +491,7 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 | `npm-audit-frontend` | `make audit-frontend` |
 | `test-contracts` | `make test-contracts` (`cd smartcontracts && cargo test`) |
 | `test-indexer-lib` | `cd indexer && cargo test --lib` |
+| `test-indexer-integration` | `make test-indexer-integration` (`cd indexer && cargo test --tests -j1 -- --test-threads=1`; a `postgres:16` service replaces `setup-indexer-postgres` — the suite migrates the empty DB itself) |
 | `test-frontend` | `make lint-frontend` + `make test-frontend` (`npm run lint` + `npm run test:run`) |
 | `test-frontend-build` | `make build-frontend` (`npm run build` — tsc -b + vite; the build gate that catches tsc-only breaks lint/vitest miss) |
 | `qa-wasm-artifacts` | `make build-optimized` (needs Docker; DinD TLS in CI) |
@@ -506,6 +507,7 @@ Gitleaks abuse check: `make verify-gitleaks` (fixture must fail, clean tree must
 | `docs-launch-go-no-go` | `make check-launch-go-no-go-docs` / `make verify-issue-391` ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) |
 | `docs-governance-emergency-rehearsal` | `make check-governance-emergency-rehearsal-docs` / `make verify-issue-397` ([#397](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/397)) |
 | `docs-blacklist-decision` | `make check-blacklist-decision-docs` / `make verify-issue-400` ([#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400)) |
+| `docs-incident-template` | `make check-incident-template-docs` / `make verify-issue-439` ([#439](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/439)) |
 | `docs-ibc-hooks-deploy` | `make check-ibc-hooks-deploy-docs` / `make verify-issue-407` ([#407](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/407)) |
 | `contracts-terra` | `make lint-contracts` && `make test-contracts` (optional LCOV: `make coverage-contracts`) |
 | `localnet-trading-swarm` | `cd packages/localnet-trading-swarm && npm ci && npx tsc -p tsconfig.json && npm run test:run` |
