@@ -713,8 +713,8 @@ fn execute_sweep_pair(
         .add_attribute("recipient", recipient))
 }
 
-/// Update factory configuration (governance address, treasury, default fee).
-/// Governance only. Fee must be ≤ 10000 bps.
+/// Set the limit-order batch-max config on a specific pair. Governance only.
+/// Delegates to the pair's `UpdateLimitOrderConfig` execute message.
 fn execute_set_pair_limit_batch_max(
     deps: DepsMut,
     info: MessageInfo,
@@ -723,6 +723,7 @@ fn execute_set_pair_limit_batch_max(
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
     let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
     let clamped = clamp_max_batch_rungs(max_rungs);
     let msg = WasmMsg::Execute {
         contract_addr: pair_addr.to_string(),
@@ -738,6 +739,8 @@ fn execute_set_pair_limit_batch_max(
         .add_attribute("max_batch_rungs", clamped.to_string()))
 }
 
+/// Set the limit-order clean config on a specific pair. Governance only.
+/// Delegates to the pair's `UpdateLimitCleanConfig` execute message.
 fn execute_set_pair_limit_clean_config(
     deps: DepsMut,
     info: MessageInfo,
@@ -747,6 +750,7 @@ fn execute_set_pair_limit_clean_config(
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
     let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
     let msg = WasmMsg::Execute {
         contract_addr: pair_addr.to_string(),
         msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateLimitCleanConfig {
@@ -1264,5 +1268,86 @@ mod pair_addr_registry_tests {
         )
         .unwrap_err();
         assert!(err.to_string().contains("start_after pair not found"));
+    }
+
+    // GitLab #455 (SEC-I03 F01): the two limit-config admin functions must enforce
+    // assert_pair_in_registry like every other single-pair admin function, so governance
+    // cannot dispatch UpdateLimitOrderConfig / UpdateLimitCleanConfig to an arbitrary
+    // valid-but-unregistered address.
+    fn config_with_governance(deps: DepsMut, governance: &str) {
+        CONFIG
+            .save(
+                deps.storage,
+                &Config {
+                    governance: Addr::unchecked(governance),
+                    treasury: Addr::unchecked("treasury"),
+                    default_fee_bps: 30,
+                    pair_code_id: 1,
+                    lp_token_code_id: 2,
+                    default_limit_batch_max_rungs: 8,
+                    pair_creation_fee_uluna: Uint128::zero(),
+                },
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn set_pair_limit_batch_max_rejects_unregistered_pair() {
+        let mut deps = mock_dependencies();
+        config_with_governance(deps.as_mut(), "gov");
+        let info = cosmwasm_std::testing::mock_info("gov", &[]);
+
+        let err = execute_set_pair_limit_batch_max(
+            deps.as_mut(),
+            info,
+            "terra1notregistered".to_string(),
+            4,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::PairNotInRegistry { .. }));
+    }
+
+    #[test]
+    fn set_pair_limit_clean_config_rejects_unregistered_pair() {
+        let mut deps = mock_dependencies();
+        config_with_governance(deps.as_mut(), "gov");
+        let info = cosmwasm_std::testing::mock_info("gov", &[]);
+
+        let err = execute_set_pair_limit_clean_config(
+            deps.as_mut(),
+            info,
+            "terra1notregistered".to_string(),
+            Uint128::new(1),
+            Uint128::new(1),
+        )
+        .unwrap_err();
+        assert!(matches!(err, ContractError::PairNotInRegistry { .. }));
+    }
+
+    #[test]
+    fn set_pair_limit_config_accepts_registered_pair() {
+        let mut deps = mock_dependencies();
+        config_with_governance(deps.as_mut(), "gov");
+        PAIR_ADDR_REGISTERED
+            .save(deps.as_mut().storage, Addr::unchecked("terra1registered"), &true)
+            .unwrap();
+        let info = cosmwasm_std::testing::mock_info("gov", &[]);
+
+        execute_set_pair_limit_batch_max(
+            deps.as_mut(),
+            info.clone(),
+            "terra1registered".to_string(),
+            4,
+        )
+        .expect("registered pair batch-max should succeed");
+
+        execute_set_pair_limit_clean_config(
+            deps.as_mut(),
+            info,
+            "terra1registered".to_string(),
+            Uint128::new(1),
+            Uint128::new(1),
+        )
+        .expect("registered pair clean-config should succeed");
     }
 }
