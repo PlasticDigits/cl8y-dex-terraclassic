@@ -29,6 +29,21 @@ Fresh wasm on disk does **not** guarantee fresh on-chain behaviour when volumes 
 
 Release sign-off: paste full script output on the launch tracking issue — [launch checklist Phase 3](runbooks/launch-checklist.md#phase-3--post-deploy-verification-pool-only) (SEC-H03, [GitLab **#441**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441)). Agent playbook: [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md). Doc drift: **`make check-deploy-config-docs`**. Unit checks (no Docker): **`make test-qa-verify-deploy-config`**.
 
+## Pre-deploy test evidence (invariant Q3)
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q3** | Before production mainnet deploy, contract, indexer integration, frontend, and pool smoke test output is pasted or linked on the release issue at the deployed commit SHA — or a CI pipeline link shows green `test-contracts`, `test-indexer-integration`, and `test-frontend` for that SHA | Do not proceed to mainnet Phase 5 **GO**; run suites and paste output per [launch checklist Phase 0](runbooks/launch-checklist.md#phase-0--preconditions) (SEC-H08, [GitLab **#444**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/444)) |
+
+| Suite | Command |
+| ----- | ------- |
+| Contracts | **`make test-contracts`** |
+| Indexer integration | **`make test-indexer-integration`** (Postgres required) |
+| Frontend unit | **`make test-frontend`** |
+| Pool swap smoke | **`make smoke-pool-swap`** (after deploy; Phase 3) |
+
+Agent playbook: [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../skills/AGENTS_TEST_EVIDENCE_GATE.md). Doc drift: **`make check-test-evidence-gate-docs`**. Issue acceptance: **`make verify-issue-444`**.
+
 ## Volume lifecycle
 
 | Invariant | Default `make start-qa` | `make reset-qa` / `QA_FRESH_VOLUMES=1 make start-qa` |

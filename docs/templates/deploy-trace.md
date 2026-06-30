@@ -34,6 +34,30 @@ Copy this block into a comment on the **launch tracking issue** ([#391](https://
 <paste full wasm-checksums.txt contents>
 ```
 
+### Test results (pre-deploy evidence — SEC-H08)
+
+Record before production mainnet deploy (Phase 0). **CI-built artifacts:** link the GitLab pipeline for commit `<git-sha>` with green `test-contracts`, `test-indexer-integration`, and `test-frontend` jobs instead of re-pasting.
+
+| Suite | Command | Evidence |
+|-------|---------|----------|
+| Contracts | `make test-contracts` | paste output or CI job link |
+| Indexer integration | `make test-indexer-integration` | paste output or CI job link |
+| Frontend unit | `make test-frontend` | paste output or CI job link |
+| Pool swap smoke | `make smoke-pool-swap` | paste output (also in Phase 3 post-deploy) |
+
+```bash
+git rev-parse HEAD
+make test-contracts
+make test-indexer-integration
+make test-frontend
+```
+
+**Test output (paste or link):**
+
+```
+<paste full test command output, or GitLab pipeline URL for commit <git-sha>>
+```
+
 ### Post-deploy verification
 
 ```bash
@@ -60,4 +84,4 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 
 **Runbook gates:** [launch checklist Phase 1](../runbooks/launch-checklist.md#deploy-trace-audit-record--required-before-leaving-phase-1) · [wasm admin migration Pre-flight](../runbooks/wasm-admin-migration.md#pre-flight) · [deployment guide](../deployment-guide.md#deploy-trace-audit-record)
 
-**Agent playbook:** [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md) · [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md)
+**Agent playbook:** [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md) · [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md) · [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../../skills/AGENTS_TEST_EVIDENCE_GATE.md)
