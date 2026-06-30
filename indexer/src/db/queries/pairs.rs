@@ -45,6 +45,20 @@ pub struct PairListParams<'a> {
     pub offset: i64,
 }
 
+/// Escape SQL `LIKE`/`ILIKE` wildcard metacharacters (`\`, `%`, `_`) in a user-supplied
+/// search term so they match literally instead of as wildcards (GitLab #459 / SEC-I04 F02).
+///
+/// Without this, `?q=%` produces an `ILIKE '%...%'` pattern that matches every pair (and forces
+/// a full sequential scan), and `?q=_` matches any single character. PostgreSQL's default
+/// `LIKE`/`ILIKE` escape character is the backslash, so escaping these three characters in the
+/// bound pattern value is sufficient — no explicit `ESCAPE` clause is required. Backslash is
+/// escaped first to avoid double-escaping the escapes we add.
+fn escape_like_pattern(raw: &str) -> String {
+    raw.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 /// Split `XXX YYY` or `XXX/YYY` pair-symbol queries into two lowercase tokens.
 fn parse_pair_symbol_tokens(q: &str) -> Option<(String, String)> {
     let trimmed = q.trim();
@@ -95,7 +109,7 @@ fn push_pair_symbol_pair_exact_match(
 fn push_pair_relevance_score(qb: &mut QueryBuilder<'_, Postgres>, q: &str) {
     let trimmed = q.trim();
     let q_lower = trimmed.to_ascii_lowercase();
-    let pattern = format!("%{}%", trimmed);
+    let pattern = format!("%{}%", escape_like_pattern(trimmed));
 
     qb.push(" GREATEST(");
     // Tier 5: exact pair address or exact two-token pair symbol/name match.
@@ -175,7 +189,7 @@ fn push_pair_list_filters(
 ) {
     if let Some(q) = q.filter(|s| !s.trim().is_empty()) {
         let trimmed = q.trim();
-        let pattern = format!("%{}%", trimmed.to_ascii_lowercase());
+        let pattern = format!("%{}%", escape_like_pattern(&trimmed.to_ascii_lowercase()));
         qb.push(" AND (p.contract_address ILIKE ");
         qb.push_bind(pattern.clone());
         qb.push(" OR ");
@@ -183,8 +197,8 @@ fn push_pair_list_filters(
         qb.push(" OR ");
         push_asset_leg_ilike_match(qb, "a1", pattern.clone());
         if let Some((t0, t1)) = parse_pair_symbol_tokens(trimmed) {
-            let p0 = format!("%{}%", t0);
-            let p1 = format!("%{}%", t1);
+            let p0 = format!("%{}%", escape_like_pattern(&t0));
+            let p1 = format!("%{}%", escape_like_pattern(&t1));
             qb.push(" OR ((");
             push_asset_leg_ilike_match(qb, "a0", p0.clone());
             qb.push(" AND ");
@@ -371,4 +385,35 @@ pub async fn update_pair_config(
     .execute(pool)
     .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod escape_like_tests {
+    use super::escape_like_pattern;
+
+    // GitLab #459 (SEC-I04 F02): wildcard metacharacters in the search term are neutralized
+    // so `?q=%` cannot match every row and `?q=_` cannot match any single character.
+    #[test]
+    fn escapes_percent_underscore_backslash() {
+        assert_eq!(escape_like_pattern("%"), "\\%");
+        assert_eq!(escape_like_pattern("_"), "\\_");
+        assert_eq!(escape_like_pattern("\\"), "\\\\");
+    }
+
+    #[test]
+    fn backslash_escaped_before_wildcards_no_double_escape() {
+        // A literal `\%` must become `\\\%` (escaped backslash + escaped percent), not `\\%`.
+        assert_eq!(escape_like_pattern("\\%"), "\\\\\\%");
+    }
+
+    #[test]
+    fn ordinary_text_unchanged() {
+        assert_eq!(escape_like_pattern("EMBER"), "EMBER");
+        assert_eq!(escape_like_pattern("terra1abc"), "terra1abc");
+    }
+
+    #[test]
+    fn mixed_term_escaped_in_place() {
+        assert_eq!(escape_like_pattern("a%b_c"), "a\\%b\\_c");
+    }
 }
