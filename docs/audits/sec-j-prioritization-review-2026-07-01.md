@@ -3,7 +3,7 @@
 **Date:** 2026-07-01
 **Reviewer:** totdking (QA)
 **Scope:** All 62 filed issues (help/issues.md, help/issues2.md) and all uncovered checklist items SEC-A through SEC-I
-**GitLab tracking issue:** #464
+**GitLab tracking issue:** #381
 
 ---
 
