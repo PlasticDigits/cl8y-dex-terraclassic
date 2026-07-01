@@ -155,6 +155,17 @@ describe('LimitOrdersPage', () => {
     vi.mocked(indexerClient.getPairLimitCancellations).mockResolvedValue([])
   })
 
+  it('shows pre-submit summary with chain label before place (GitLab #461)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+
+    const summary = await screen.findByTestId('limits-page-pre-submit-summary')
+    expect(summary.textContent).toMatch(/Review these fields before your wallet opens/i)
+    expect(screen.getByTestId('limits-page-pre-submit-summary-action')).toHaveTextContent('Place Limit Order')
+    expect(screen.getByTestId('limits-page-pre-submit-summary-chain')).toHaveTextContent('LocalTerra')
+  })
+
   it('styles place mode toggle with btn-primary and btn-muted (#415)', async () => {
     const user = userEvent.setup()
     renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
