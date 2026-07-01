@@ -160,5 +160,21 @@ export function deriveSwapSubmitRouteSource(args: {
   return null
 }
 
+/**
+ * Swap operations used to resolve factory pair addresses — same precedence as `swapMutation`
+ * (native wrap → indexer router ops → client BFS / direct). Prevents pre-sign pair rows from
+ * showing BFS shortest-path hops while submit executes indexer `router_operations` ([#449]).
+ */
+export function deriveSwapSubmitRouteOps(args: {
+  nativeRouteInfo: NativeRouteForDisplay | null
+  indexerOperations?: SwapOperation[]
+  clientRoute: SwapOperation[] | null
+}): SwapOperation[] | null | undefined {
+  const { nativeRouteInfo, indexerOperations, clientRoute } = args
+  if (nativeRouteInfo?.operations?.length) return nativeRouteInfo.operations
+  if (swapOpsRequireRouter(indexerOperations)) return indexerOperations
+  return clientRoute ?? indexerOperations ?? undefined
+}
+
 /** Brief label when submit uses client BFS multihop (GitLab #302 / #329). */
 export const SWAP_CLIENT_BFS_FALLBACK_COPY = 'Route source: client graph (shortest path; not best execution).'
