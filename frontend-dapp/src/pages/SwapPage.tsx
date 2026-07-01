@@ -1537,7 +1537,7 @@ export default function SwapPage() {
                       <span
                         data-testid="swap-route-intermediate-reconciled"
                         className="block mt-0.5 text-[10px] font-sans leading-snug"
-                        style={{ color: 'var(--color-warning, #f59e0b)' }}
+                        style={{ color: 'var(--ink-subtle)' }}
                         role="status"
                       >
                         {SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY}

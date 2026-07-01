@@ -197,5 +197,4 @@ export function deriveSwapSubmitRouteSource(args: {
 export const SWAP_CLIENT_BFS_FALLBACK_COPY = 'Route source: client graph (shortest path; not best execution).'
 
 /** Shown when indexer `intermediate_tokens` disagreed with `router_operations` and the route row was updated (GitLab #450 / SEC-I02 H09). */
-export const SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY =
-  'Route path updated: indexer display disagreed with submit operations; showing the path that will execute.'
+export const SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY = 'Route adjusted.'

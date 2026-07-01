@@ -707,7 +707,7 @@ describe('SwapPage', () => {
     const routeSummary = await screen.findByTestId('swap-route-summary')
     expect(routeSummary).toHaveTextContent(terraEvil)
     expect(routeSummary).not.toHaveTextContent(terraB)
-    expect(await screen.findByTestId('swap-route-intermediate-reconciled')).toHaveTextContent(/route path updated/i)
+    expect(await screen.findByTestId('swap-route-intermediate-reconciled')).toHaveTextContent(/route adjusted/i)
     expect(screen.queryByTestId('swap-route-source-client-fallback')).not.toBeInTheDocument()
   })
 
