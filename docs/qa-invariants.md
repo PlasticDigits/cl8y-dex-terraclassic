@@ -52,6 +52,14 @@ Agent playbook: [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../skills/AGENTS_TEST_EV
 
 Release sign-off: paste full script output on the launch tracking issue — [launch checklist Phase 4](runbooks/launch-checklist.md#phase-4--off-chain-stack-if-applicable) (SEC-H04, [GitLab **#442**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442)). Agent playbook: [`skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md`](../skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md). Doc drift: **`make check-deploy-env-addresses-docs`**. Unit checks (no Docker): **`make test-qa-verify-env-addresses`**.
 
+## Indexer FACTORY_ADDRESS guard (invariant Q5)
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q5** Indexer refuses to start with empty or whitespace-only `FACTORY_ADDRESS` in every `RUN_MODE`; post-deploy QA asserts the env var is set before schema checks | **`make verify-issue-451`**; unit test `empty_factory_address_rejected_in_dev`; **`make qa-verify-deploy`** (Q1 pre-flight) | Fix `indexer/.env` and redeploy; do not run indexer until `FACTORY_ADDRESS` is set |
+
+Release sign-off: confirm Phase 0 **Indexer FACTORY_ADDRESS (SEC-I02)** on the launch tracking issue — [launch checklist Phase 0](runbooks/launch-checklist.md#phase-0--preconditions) ([#451](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/451)). Agent playbook: [`skills/AGENTS_FACTORY_ADDRESS_GUARD.md`](../skills/AGENTS_FACTORY_ADDRESS_GUARD.md). Doc drift: **`make check-factory-address-docs`**.
+
 ## Volume lifecycle
 
 | Invariant | Default `make start-qa` | `make reset-qa` / `QA_FRESH_VOLUMES=1 make start-qa` |

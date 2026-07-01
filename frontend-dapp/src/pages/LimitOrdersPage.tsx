@@ -26,7 +26,7 @@ import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
-import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
+import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
@@ -487,6 +487,11 @@ export default function LimitOrdersPage() {
     clearEditContext()
   }, [pairAddr, clearEditContext])
 
+  const token0Display = getTokenDisplaySymbol(token0 || 'token0')
+  const token1Display = getTokenDisplaySymbol(token1 || 'token1')
+  const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(token0Display)
+  const escrowDisplay = getTokenDisplaySymbol(escrowToken || '—')
+
   return (
     <div className="max-w-[560px] mx-auto">
       <div className="relative">
@@ -701,6 +706,11 @@ export default function LimitOrdersPage() {
                     />
                     {selectedPair && pairAddr.startsWith('terra1') && (
                       <LimitOrderPreSubmitSummary
+                        pairLabel={`${token0Display} / ${token1Display}`}
+                        sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
+                        escrowAmountLabel={
+                          amountHuman.trim() ? `${amountHuman.trim()} ${escrowDisplay}` : `— ${escrowDisplay}`
+                        }
                         placeSequenceMinUluna={limitPlaceMinUlunaFees}
                         refToken1PerToken0={refToken1PerToken0}
                         typedPrice={price}
