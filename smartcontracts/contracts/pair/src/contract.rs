@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, Event, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    Reply, Response, StdError, StdResult, SubMsg, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
@@ -152,28 +152,47 @@ pub(crate) fn effective_fee_bps_with_discount_msgs(
 /// Used to compute initial LP token supply as `sqrt(amount_a * amount_b)`,
 /// following the Uniswap V2 approach. The caller validates correctness
 /// with two-sided bounds: `result² ≤ n < (result+1)²`.
-fn isqrt(n: Uint128) -> Uint128 {
+/// Integer floor square root over `Uint256` (Newton's method). Used for the
+/// first-deposit LP mint, whose `amount_a * amount_b` product needs 256-bit
+/// headroom for high-decimal assets (GitLab #464).
+fn isqrt_u256(n: Uint256) -> Uint256 {
     if n.is_zero() {
-        return Uint128::zero();
+        return Uint256::zero();
     }
+    let two = Uint256::from(2u128);
     let mut x = n;
-    let mut y = (x + Uint128::one()) / Uint128::new(2);
+    let mut y = (x + Uint256::one()) / two;
     while y < x {
         x = y;
-        y = (x + n / x) / Uint128::new(2);
+        y = (x + n / x) / two;
     }
     x
 }
 
-/// Ceiling division: ceil(a / b). Guarantees result * b >= a, so the pool
-/// never loses value from integer rounding during swaps.
-fn ceil_div(numerator: Uint128, denominator: Uint128) -> Uint128 {
+/// Widen a `Uint128` to `Uint256` for reserve-product math (GitLab #464).
+#[inline]
+fn u256(x: Uint128) -> Uint256 {
+    Uint256::from(x)
+}
+
+/// 256-bit ceiling division — mirrors [`ceil_div`] without the u128 product
+/// ceiling. Same rounding guarantee (result * b >= a).
+fn ceil_div_u256(numerator: Uint256, denominator: Uint256) -> Uint256 {
     let d = numerator / denominator;
     if d * denominator < numerator {
-        d + Uint128::one()
+        d + Uint256::one()
     } else {
         d
     }
+}
+
+/// Narrow a 256-bit reserve-math result back to `Uint128`. The AMM outputs
+/// (swap output, LP shares, per-asset withdraw amounts) are always bounded by a
+/// `Uint128` reserve or supply, so this only trips on a genuine invariant break.
+fn narrow_u128(value: Uint256, ctx: &str) -> Result<Uint128, ContractError> {
+    Uint128::try_from(value).map_err(|_| ContractError::InvariantViolation {
+        reason: format!("256-bit result exceeds u128 ({ctx}): {value}"),
+    })
 }
 
 /// Extract the CW20 contract address from an `AssetInfo`. Panics on
@@ -306,8 +325,17 @@ fn oracle_update(
     }
 
     let dt = block_time - last_ts;
-    let price_a = Decimal::from_ratio(reserve_b, reserve_a);
-    let price_b = Decimal::from_ratio(reserve_a, reserve_b);
+    // GitLab #465: an extreme reserve ratio (reserve_b/reserve_a > Decimal::MAX) makes the
+    // panicking `Decimal::from_ratio` abort the tx. Since oracle_update runs on the swap AND
+    // withdraw paths, that panic would brick the pair and lock LP funds. Degrade gracefully:
+    // skip this observation instead of panicking. reserve_a/reserve_b are already non-zero here.
+    let (price_a, price_b) = match (
+        Decimal::checked_from_ratio(reserve_b, reserve_a),
+        Decimal::checked_from_ratio(reserve_a, reserve_b),
+    ) {
+        (Ok(a), Ok(b)) => (a, b),
+        _ => return Ok(()),
+    };
 
     let delta_a = price_times_dt(price_a, dt).map_err(|e| ContractError::Oracle {
         reason: e.to_string(),
@@ -804,15 +832,17 @@ fn spot_linear_spread_over_gross(
             "spot_linear_spread_over_gross: input_reserve is zero",
         ));
     }
-    let ideal_output = pool_input
-        .checked_mul(output_reserve)
+    // 256-bit to avoid the u128 product ceiling on large reserves (GitLab #464).
+    let ideal_output = Uint256::from(pool_input)
+        .checked_mul(Uint256::from(output_reserve))
         .map_err(StdError::from)?
-        .checked_div(input_reserve)
+        .checked_div(Uint256::from(input_reserve))
         .map_err(StdError::from)?;
-    if ideal_output > gross_output {
-        ideal_output
-            .checked_sub(gross_output)
-            .map_err(StdError::from)
+    let gross = Uint256::from(gross_output);
+    if ideal_output > gross {
+        Uint128::try_from(ideal_output - gross).map_err(|_| {
+            StdError::generic_err("spot_linear_spread_over_gross: spread exceeds u128")
+        })
     } else {
         Ok(Uint128::zero())
     }
@@ -1085,18 +1115,21 @@ fn execute_swap(
             return Err(ContractError::InsufficientLiquidity {});
         }
 
-        let k = input_reserve.checked_mul(output_reserve)?;
+        let k = u256(input_reserve).checked_mul(u256(output_reserve))?;
         let new_input_reserve = input_reserve.checked_add(pool_input_amount)?;
-        let new_output_reserve = ceil_div(k, new_input_reserve);
+        let new_output_reserve = narrow_u128(
+            ceil_div_u256(k, u256(new_input_reserve)),
+            "swap new_output_reserve",
+        )?;
         let gross_output = output_reserve.checked_sub(new_output_reserve)?;
 
-        let new_k = new_input_reserve.checked_mul(new_output_reserve)?;
+        let new_k = u256(new_input_reserve).checked_mul(u256(new_output_reserve))?;
         if new_k < k {
             return Err(ContractError::InvariantViolation {
                 reason: format!("k decreased: {} -> {}", k, new_k),
             });
         }
-        if new_k - k >= new_input_reserve {
+        if new_k - k >= u256(new_input_reserve) {
             return Err(ContractError::InvariantViolation {
                 reason: format!(
                     "k increase exceeds rounding bound: delta={}, bound={}",
@@ -1567,38 +1600,37 @@ fn execute_provide_liquidity(
     }
 
     let lp_tokens_total = if is_first_deposit {
-        let product = amount_a.checked_mul(amount_b)?;
-        let lp = isqrt(product);
+        let product = u256(amount_a).checked_mul(u256(amount_b))?;
+        let lp = narrow_u128(isqrt_u256(product), "first-deposit lp")?;
         // Sanity: isqrt rounding — lp^2 <= product < (lp+1)^2
-        if lp.checked_mul(lp)? > product {
+        if u256(lp).checked_mul(u256(lp))? > product {
             return Err(ContractError::InvariantViolation {
                 reason: format!("isqrt too large: {}^2 > {}", lp, product),
             });
         }
-        if let Ok(next_sq) = (lp + Uint128::one()).checked_mul(lp + Uint128::one()) {
-            if next_sq <= product {
-                return Err(ContractError::InvariantViolation {
-                    reason: format!("isqrt too small: {}^2 <= {}", lp + Uint128::one(), product),
-                });
-            }
+        let next = u256(lp) + Uint256::one();
+        if next.checked_mul(next)? <= product {
+            return Err(ContractError::InvariantViolation {
+                reason: format!("isqrt too small: {}^2 <= {}", lp + Uint128::one(), product),
+            });
         }
         lp
     } else {
-        let numerator_a = amount_a.checked_mul(total_supply)?;
-        let lp_a = numerator_a.checked_div(reserve_a)?;
-        let numerator_b = amount_b.checked_mul(total_supply)?;
-        let lp_b = numerator_b.checked_div(reserve_b)?;
+        let numerator_a = u256(amount_a).checked_mul(u256(total_supply))?;
+        let lp_a = narrow_u128(numerator_a.checked_div(u256(reserve_a))?, "lp_a")?;
+        let numerator_b = u256(amount_b).checked_mul(u256(total_supply))?;
+        let lp_b = narrow_u128(numerator_b.checked_div(u256(reserve_b))?, "lp_b")?;
 
         // Sanity: floor-division rounding loses < 1 LP token.
         // numerator - lp * reserve must be < reserve.
-        let rem_a = numerator_a - lp_a.checked_mul(reserve_a)?;
-        if rem_a >= reserve_a {
+        let rem_a = numerator_a - u256(lp_a).checked_mul(u256(reserve_a))?;
+        if rem_a >= u256(reserve_a) {
             return Err(ContractError::InvariantViolation {
                 reason: format!("LP-A floor rounding exceeds 1 token: rem={}", rem_a),
             });
         }
-        let rem_b = numerator_b - lp_b.checked_mul(reserve_b)?;
-        if rem_b >= reserve_b {
+        let rem_b = numerator_b - u256(lp_b).checked_mul(u256(reserve_b))?;
+        if rem_b >= u256(reserve_b) {
             return Err(ContractError::InvariantViolation {
                 reason: format!("LP-B floor rounding exceeds 1 token: rem={}", rem_b),
             });
@@ -1623,8 +1655,18 @@ fn execute_provide_liquidity(
 
     if let Some(tolerance) = slippage_tolerance {
         if !is_first_deposit {
-            let expected_lp_a = amount_a.checked_mul(total_supply)?.checked_div(reserve_a)?;
-            let expected_lp_b = amount_b.checked_mul(total_supply)?.checked_div(reserve_b)?;
+            let expected_lp_a = narrow_u128(
+                u256(amount_a)
+                    .checked_mul(u256(total_supply))?
+                    .checked_div(u256(reserve_a))?,
+                "expected_lp_a",
+            )?;
+            let expected_lp_b = narrow_u128(
+                u256(amount_b)
+                    .checked_mul(u256(total_supply))?
+                    .checked_div(u256(reserve_b))?,
+                "expected_lp_b",
+            )?;
             let expected_lp = std::cmp::max(expected_lp_a, expected_lp_b);
 
             if expected_lp > Uint128::zero() {
@@ -1750,21 +1792,27 @@ fn execute_withdraw_liquidity(
         return Err(ContractError::InsufficientLiquidity {});
     }
 
-    let numerator_a = lp_amount.checked_mul(reserve_a)?;
-    let amount_a = numerator_a.checked_div(total_supply)?;
-    let numerator_b = lp_amount.checked_mul(reserve_b)?;
-    let amount_b = numerator_b.checked_div(total_supply)?;
+    let numerator_a = u256(lp_amount).checked_mul(u256(reserve_a))?;
+    let amount_a = narrow_u128(
+        numerator_a.checked_div(u256(total_supply))?,
+        "withdraw amount_a",
+    )?;
+    let numerator_b = u256(lp_amount).checked_mul(u256(reserve_b))?;
+    let amount_b = narrow_u128(
+        numerator_b.checked_div(u256(total_supply))?,
+        "withdraw amount_b",
+    )?;
 
     // Sanity: floor-division rounding loses < 1 token per asset.
     // numerator - amount * total_supply must be < total_supply.
-    let rem_a = numerator_a - amount_a.checked_mul(total_supply)?;
-    if rem_a >= total_supply {
+    let rem_a = numerator_a - u256(amount_a).checked_mul(u256(total_supply))?;
+    if rem_a >= u256(total_supply) {
         return Err(ContractError::InvariantViolation {
             reason: format!("withdraw-A floor rounding exceeds 1 token: rem={}", rem_a),
         });
     }
-    let rem_b = numerator_b - amount_b.checked_mul(total_supply)?;
-    if rem_b >= total_supply {
+    let rem_b = numerator_b - u256(amount_b).checked_mul(u256(total_supply))?;
+    if rem_b >= u256(total_supply) {
         return Err(ContractError::InvariantViolation {
             reason: format!("withdraw-B floor rounding exceeds 1 token: rem={}", rem_b),
         });
@@ -2237,7 +2285,12 @@ fn scale_hybrid_template(
             reason: "hybrid template sum must be positive".into(),
         });
     }
-    let book = total.checked_mul(hybrid.book_input)?.checked_div(den)?;
+    let book = narrow_u128(
+        u256(total)
+            .checked_mul(u256(hybrid.book_input))?
+            .checked_div(u256(den))?,
+        "hybrid book",
+    )?;
     let pool = total.checked_sub(book)?;
     Ok(HybridSwapParams {
         pool_input: pool,
@@ -2363,9 +2416,12 @@ fn simulate_hybrid_swap_with_fee(
         if input_reserve.is_zero() || output_reserve.is_zero() {
             return Err(ContractError::InsufficientLiquidity {});
         }
-        let k = input_reserve.checked_mul(output_reserve)?;
+        let k = u256(input_reserve).checked_mul(u256(output_reserve))?;
         let new_input_reserve = input_reserve.checked_add(pool_input_amount)?;
-        let new_output_reserve = ceil_div(k, new_input_reserve);
+        let new_output_reserve = narrow_u128(
+            ceil_div_u256(k, u256(new_input_reserve)),
+            "sim new_output_reserve",
+        )?;
         let gross_output = output_reserve.checked_sub(new_output_reserve)?;
 
         let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
@@ -2736,5 +2792,63 @@ mod spot_linear_spread_tests {
         let ideal = 100u128 * 500 / 1000;
         assert_eq!(ideal, 50);
         assert_eq!(s, Uint128::new(10));
+    }
+}
+
+#[cfg(test)]
+mod oracle_overflow_tests {
+    use super::oracle_update;
+    use crate::state::{OracleState, OBSERVATIONS, ORACLE_STATE};
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::{Storage, Uint128};
+    use dex_common::oracle::Observation;
+
+    fn seed(storage: &mut dyn Storage, ts: u64) {
+        ORACLE_STATE
+            .save(
+                storage,
+                &OracleState {
+                    cardinality: 1,
+                    index: 0,
+                    cardinality_initialized: 1,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                storage,
+                0,
+                &Observation {
+                    timestamp: ts,
+                    price_a_cumulative: Uint128::zero(),
+                    price_b_cumulative: Uint128::zero(),
+                },
+            )
+            .unwrap();
+    }
+
+    // GitLab #465: an extreme reserve ratio (reserve_b/reserve_a > Decimal::MAX) must NOT panic
+    // oracle_update. Since it runs on the swap AND withdraw paths, a panic would brick the pair
+    // and lock LP funds. It must skip the observation and return Ok. Pre-fix this panicked in
+    // Decimal::from_ratio.
+    #[test]
+    fn extreme_ratio_degrades_gracefully_instead_of_panicking() {
+        let mut deps = mock_dependencies();
+        seed(&mut deps.storage, 100);
+        let res = oracle_update(&mut deps.storage, 200, Uint128::one(), Uint128::MAX);
+        assert!(res.is_ok(), "extreme ratio must not panic/err: {res:?}");
+    }
+
+    #[test]
+    fn normal_ratio_still_records_observation() {
+        let mut deps = mock_dependencies();
+        seed(&mut deps.storage, 100);
+        let res = oracle_update(
+            &mut deps.storage,
+            200,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        assert!(res.is_ok());
     }
 }
