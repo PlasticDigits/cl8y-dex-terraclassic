@@ -62,7 +62,8 @@ import {
   computeSwapRouteDisplay,
   deriveSwapSubmitRouteOps,
   deriveSwapSubmitRouteSource,
-  swapRouteIntermediateTokensAligned,
+  reconcileSwapRouteIntermediateTokens,
+  SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
   SWAP_CLIENT_BFS_FALLBACK_COPY,
 } from '@/utils/swapRouteDisplay'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
@@ -120,6 +121,8 @@ interface SwapSimData {
   routePreflight?: SwapRoutePreflightSpread
   /** Indexer HTTP failed during quote; pool-only LCD fallback may still succeed (GitLab #241). */
   indexerTransportFailed?: boolean
+  /** Indexer `intermediate_tokens` disagreed with `router_operations`; display reconciled to ops path (GitLab #450 / SEC-I02 H09). */
+  indexerRouteIntermediateReconciled?: boolean
 }
 
 export default function SwapPage() {
@@ -544,12 +547,15 @@ export default function SwapPage() {
               idx.intermediate_tokens?.length === idx.hops.length + 1
                 ? idx.intermediate_tokens
                 : [idx.token_in, ...idx.hops.map((h) => h.ask_token)]
-            // GitLab #450 (SEC-I02 H09): the displayed intermediate path and the submitted
-            // operations both come from the indexer; cross-validate them so a tampered route
-            // cannot display one path and submit another. Mismatch falls through to the
-            // pool-only path rather than signing an indexer-substituted route.
-            if (!swapRouteIntermediateTokensAligned(opsForQuote, intermediates)) {
-              throw new Error('Route intermediate tokens do not match submitted operations')
+            // GitLab #450 (SEC-I02 H09): cross-validate display vs submit path. On mismatch,
+            // reconcile to the ops-derived path and notify the user — do not fall through to
+            // pool-only, which would hide a tampered indexer response.
+            const { tokens: reconciledIntermediates, mismatch: routeIntermediateMismatch } =
+              reconcileSwapRouteIntermediateTokens(opsForQuote, intermediates)
+            if (routeIntermediateMismatch) {
+              console.warn(
+                '[swap] indexer intermediate_tokens disagreed with router_operations; reconciled route display to ops path'
+              )
             }
             return {
               return_amount: result.amount,
@@ -563,7 +569,8 @@ export default function SwapPage() {
               spotAmountOut: idx.spot_amount_out,
               indexerQuoteKind: idx.quote_kind,
               indexerOperations: opsForQuote,
-              indexerIntermediateTokens: intermediates,
+              indexerIntermediateTokens: reconciledIntermediates,
+              indexerRouteIntermediateReconciled: routeIntermediateMismatch,
               routePreflight,
             }
           }
@@ -921,6 +928,7 @@ export default function SwapPage() {
   )
 
   const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
+  const showRouteIntermediateReconciledLabel = !!simData?.indexerRouteIntermediateReconciled
 
   const insufficientBalance =
     hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
@@ -1525,6 +1533,16 @@ export default function SwapPage() {
                         style={{ color: 'var(--color-warning, #f59e0b)' }}
                       >
                         {SWAP_CLIENT_BFS_FALLBACK_COPY}
+                      </span>
+                    )}
+                    {showRouteIntermediateReconciledLabel && (
+                      <span
+                        data-testid="swap-route-intermediate-reconciled"
+                        className="block mt-0.5 text-[10px] font-sans leading-snug"
+                        style={{ color: 'var(--ink-subtle)' }}
+                        role="status"
+                      >
+                        {SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY}
                       </span>
                     )}
                   </div>
