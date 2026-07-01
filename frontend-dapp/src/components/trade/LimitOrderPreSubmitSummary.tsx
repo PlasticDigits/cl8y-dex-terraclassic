@@ -7,6 +7,14 @@ import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 const LIMIT_DOC = `${DOCS_GITLAB_BASE}/limit-orders.md`
 
 export type LimitOrderPreSubmitSummaryProps = {
+  /** Wallet action shown before extension signing (default: Place Limit Order). */
+  actionLabel?: string
+  /** Pair label, e.g. "EMBER / CORAL". */
+  pairLabel: string
+  /** Side label, e.g. "Buy EMBER" / "Sell EMBER". */
+  sideLabel: string
+  /** Escrow amount line, e.g. "12.5 CORAL". */
+  escrowAmountLabel: string
   /** Minimum uluna for increase_allowance + place (sequence estimate). */
   placeSequenceMinUluna: bigint
   /** Resolved reference token1/token0 (tape or pool). */
@@ -24,11 +32,29 @@ export type LimitOrderPreSubmitSummaryProps = {
   'data-testid'?: string
 }
 
+function SummaryRow({ label, value, testId }: { label: string; value: string; testId: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between" data-testid={testId}>
+      <span className="uppercase text-[10px] tracking-wide font-medium shrink-0" style={{ color: 'var(--ink-subtle)' }}>
+        {label}
+      </span>
+      <span className="font-mono text-[10px] sm:text-right break-words min-w-0" style={{ color: 'var(--ink)' }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
 /**
- * Pre-sign copy for **resting** limits: no immediate execution, no taker-style slippage lines;
- * instead deviation vs reference + maker placement fee + network fee floor ([GitLab #157](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157)).
+ * Pre-sign copy for **resting** limits: labeled action, pair, side, escrow amount, and chain before the wallet
+ * opens ([#461](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/461) / SEC-I05), plus deviation,
+ * maker placement fee, and network fee floor ([#157](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157)).
  */
 export function LimitOrderPreSubmitSummary({
+  actionLabel = 'Place Limit Order',
+  pairLabel,
+  sideLabel,
+  escrowAmountLabel,
   placeSequenceMinUluna,
   refToken1PerToken0,
   typedPrice,
@@ -55,14 +81,19 @@ export function LimitOrderPreSubmitSummary({
       role="region"
       aria-label="Limit order summary before signing"
     >
-      <p className="leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        A <strong style={{ color: 'var(--ink-subtle)' }}>limit order</strong> does not trade immediately. It rests on
-        the book until other traders fill it over time, so there is{' '}
-        <strong style={{ color: 'var(--ink)' }}>no taker slippage</strong>,{' '}
-        <strong style={{ color: 'var(--ink)' }}>no</strong> pool{' '}
-        <strong style={{ color: 'var(--ink)' }}>price impact</strong>, and{' '}
-        <strong style={{ color: 'var(--ink)' }}>no “min received”</strong> line like a market swap — those apply when
-        you take liquidity now (Market tab / hybrid swap).
+      <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
+        Review these fields before your wallet opens. They must match what you intend to sign on{' '}
+        <strong style={{ color: 'var(--ink-subtle)' }}>{chainFullLabel}</strong>.
+      </p>
+      <div className="space-y-1.5">
+        <SummaryRow label="Action" value={actionLabel} testId={`${testId}-action`} />
+        <SummaryRow label="Pair" value={pairLabel} testId={`${testId}-pair`} />
+        <SummaryRow label="Side" value={sideLabel} testId={`${testId}-side`} />
+        <SummaryRow label="Amount" value={escrowAmountLabel} testId={`${testId}-amount`} />
+        <SummaryRow label="Chain" value={chainFullLabel} testId={`${testId}-chain`} />
+      </div>
+      <p className="text-[9px] leading-snug pt-1 border-t border-white/10" style={{ color: 'var(--ink-subtle)' }}>
+        Resting limit — no immediate taker slippage, price impact, or min-received line like a market swap.
       </p>
       <ul className="list-disc pl-4 space-y-1" style={{ color: 'var(--ink-dim)' }}>
         <li>
@@ -105,12 +136,6 @@ export function LimitOrderPreSubmitSummary({
             ~{gasHuman} LUNC
           </span>
           <span className="text-[9px] ml-1 opacity-90">(allowance + place; wallet may vary)</span>
-        </li>
-        <li data-testid={`${testId}-chain`}>
-          <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-            Chain:{' '}
-          </span>
-          <span style={{ color: 'var(--ink)' }}>{chainFullLabel}</span>
         </li>
       </ul>
       <p className="text-[9px] leading-snug pt-1 border-t border-white/10" style={{ color: 'var(--ink-subtle)' }}>
