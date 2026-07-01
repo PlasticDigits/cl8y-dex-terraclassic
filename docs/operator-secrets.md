@@ -34,9 +34,14 @@ LCD-heavy routes fan out multiple upstream LCD `smart` queries per HTTP request.
 
 **Integrator guidance:** debounced swap/trade quotes (`/api/v1/route/solve/best`) should stay under **10 RPS per IP**; use CG/CMC orderbook caches instead of hammering `limit-book` walks. See [`integrators.md`](./integrators.md).
 
+## Indexer required env (all `RUN_MODE`)
+
+- **`FACTORY_ADDRESS` must be non-empty** (whitespace-only is rejected) in **every** `RUN_MODE` — the indexer refuses to start with `ConfigError::EmptyFactoryAddress` ([#451](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/451) / SEC-I02). An empty factory address would disable pair provenance verification and allow indexing unverified (possibly spoofed) pairs.
+- Post-deploy QA asserts the env var is set: **`make qa-verify-deploy`** ([`scripts/qa/verify-deploy.sh`](../scripts/qa/verify-deploy.sh)).
+
 ## `RUN_MODE=prod`
 
-- `RUN_MODE=prod` requires non-empty `DATABASE_URL`, `FACTORY_ADDRESS`, `CORS_ORIGINS`, and **LCD URLs that are not the built-in public default list** (`indexer/src/config.rs`).
+- `RUN_MODE=prod` additionally requires non-empty `DATABASE_URL`, `CORS_ORIGINS`, and **LCD URLs that are not the built-in public default list** (`indexer/src/config.rs`). `FACTORY_ADDRESS` non-empty is enforced for all modes (see above).
 - Production cannot disable rate limiting: `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=0` are clamped to **60** and **10** respectively at config load ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Startup logs effective values; warnings are emitted if env had `0` for either knob. When **both** are `0` in env, an additional **dual-disable** warning is logged ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)). The non-loopback dual-zero startup guard ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)) does not apply in prod because limits are always clamped to safe minimums.
 
 ## Observability
