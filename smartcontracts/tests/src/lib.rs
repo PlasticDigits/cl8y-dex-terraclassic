@@ -14224,10 +14224,10 @@ mod wrap_router_tests {
         );
     }
 
-    /// Router `minimum_receive` is enforced on the final wrapped CW20 balance held by the
-    /// router **before** unwrap. It does not bound native `uluna` after wrap-mapper fees.
+    /// Router `minimum_receive` on the unwrap path is enforced against native
+    /// delivered after wrap-mapper fee, not the pre-unwrap CW20 hop output.
     #[test]
-    fn test_unwrap_minimum_receive_checked_on_wrapped_cw20_only() {
+    fn test_unwrap_minimum_receive_checked_on_post_unwrap_net() {
         let mut app = AppBuilder::new().build(|router, _, storage| {
             router
                 .bank
@@ -14331,7 +14331,7 @@ mod wrap_router_tests {
             )
             .unwrap();
 
-        let impossibly_high = sim.amount.checked_add(Uint128::new(1_000_000)).unwrap();
+        // setup_wrap_env uses fee_bps=1 on wrap-mapper; floor at wrapped output must fail.
         let swap_hook = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
             operations: vec![
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
@@ -14348,7 +14348,7 @@ mod wrap_router_tests {
                 },
             ],
             max_spread: cosmwasm_std::Decimal::one(),
-            minimum_receive: Some(impossibly_high),
+            minimum_receive: Some(sim.amount),
             to: None,
             deadline: None,
             unwrap_output: Some(true),
@@ -14368,12 +14368,480 @@ mod wrap_router_tests {
             )
             .unwrap_err();
 
+        let unwrap_fee = sim.amount.multiply_ratio(1u128, 10_000u128);
+        let expected_net = sim.amount - unwrap_fee;
         assert!(
             err.root_cause()
                 .to_string()
                 .contains("Minimum receive assertion"),
-            "Expected MinimumReceiveAssertion on wrapped balance, got: {}",
+            "Expected MinimumReceiveAssertion on post-unwrap net ({}), got: {}",
+            expected_net,
             err.root_cause()
+        );
+    }
+
+    /// GitLab #469: when wrapped hop output equals minimum_receive but mapper fee
+    /// would deliver less native, the swap must revert.
+    #[test]
+    fn test_unwrap_minimum_receive_rejects_when_mapper_fee_skims_below_floor() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(100_000_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let governance = Addr::unchecked("governance");
+        let treasury_addr = Addr::unchecked("treasury_fee_sink");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+        let router_code_id = app.store_code(router_contract());
+        let wrap_mapper_code_id = app.store_code(wrap_mapper_contract());
+        let treasury_code_id = app.store_code(treasury_contract());
+
+        let token_a = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "Token A",
+            "TKNA",
+            Uint128::new(1_000_000_000_000),
+        );
+        let token_b = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &user,
+            "Token B",
+            "TKNB",
+            Uint128::new(1_000_000_000_000),
+        );
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury_addr.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        let resp = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair = extract_pair_address(&resp.events);
+
+        let router = app
+            .instantiate_contract(
+                router_code_id,
+                governance.clone(),
+                &cl8y_dex_router::msg::InstantiateMsg {
+                    factory: factory.to_string(),
+                },
+                &[],
+                "router",
+                None,
+            )
+            .unwrap();
+
+        let treasury_contract = app
+            .instantiate_contract(
+                treasury_code_id,
+                governance.clone(),
+                &treasury::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                },
+                &[],
+                "treasury",
+                None,
+            )
+            .unwrap();
+
+        let wrap_mapper = app
+            .instantiate_contract(
+                wrap_mapper_code_id,
+                governance.clone(),
+                &wrap_mapper::msg::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury_contract.to_string(),
+                    fee_bps: Some(50),
+                },
+                &[],
+                "wrap-mapper",
+                None,
+            )
+            .unwrap();
+
+        let lunc_c = app
+            .instantiate_contract(
+                cw20_code_id,
+                governance.clone(),
+                &cw20_mintable::msg::InstantiateMsg {
+                    name: "Wrapped LUNC".to_string(),
+                    symbol: "LUNC-C".to_string(),
+                    decimals: 6,
+                    initial_balances: vec![],
+                    mint: Some(cw20::MinterResponse {
+                        minter: wrap_mapper.to_string(),
+                        cap: None,
+                    }),
+                    marketing: None,
+                },
+                &[],
+                "lunc-c",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            wrap_mapper.clone(),
+            &wrap_mapper::msg::ExecuteMsg::SetDenomMapping {
+                denom: "uluna".to_string(),
+                cw20_addr: lunc_c.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        app.execute_contract(
+            governance.clone(),
+            treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::SetDenomWrapper {
+                denom: "uluna".to_string(),
+                wrapper: wrap_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        provide_liquidity_raw(
+            &mut app,
+            &pair,
+            &user,
+            &token_a,
+            &token_b,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            user.clone(),
+            treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(50_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        app.update_block(|b| b.height += 1);
+
+        let resp = app
+            .execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&token_b), asset_info_token(&lunc_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bl = extract_pair_address(&resp.events);
+
+        provide_liquidity_raw(
+            &mut app,
+            &pair_bl,
+            &user,
+            &token_b,
+            &lunc_c,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            governance.clone(),
+            router.clone(),
+            &cl8y_dex_router::msg::ExecuteMsg::SetWrapMapper {
+                wrap_mapper: wrap_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let offer = Uint128::new(50_000);
+        let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: offer,
+                    operations: vec![
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&token_a),
+                            ask_asset_info: asset_info_token(&token_b),
+                            hybrid: None,
+                            min_return: None,
+                        },
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&token_b),
+                            ask_asset_info: asset_info_token(&lunc_c),
+                            hybrid: None,
+                            min_return: None,
+                        },
+                    ],
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+
+        let native_before = app
+            .wrap()
+            .query_balance(user.to_string(), "uluna")
+            .unwrap()
+            .amount;
+
+        let swap_hook = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&token_a),
+                    ask_asset_info: asset_info_token(&token_b),
+                    hybrid: None,
+                    min_return: None,
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&token_b),
+                    ask_asset_info: asset_info_token(&lunc_c),
+                    hybrid: None,
+                    min_return: None,
+                },
+            ],
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: Some(sim.amount),
+            to: None,
+            deadline: None,
+            unwrap_output: Some(true),
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                user.clone(),
+                token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: router.to_string(),
+                    amount: offer,
+                    msg: swap_hook,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        let expected_net = sim.amount - sim.amount.multiply_ratio(50u128, 10_000u128);
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Minimum receive assertion"),
+            "Wrapped {} with 50bps fee delivers {}; floor {} must revert, got: {}",
+            sim.amount,
+            expected_net,
+            sim.amount,
+            err.root_cause()
+        );
+
+        let native_after = app
+            .wrap()
+            .query_balance(user.to_string(), "uluna")
+            .unwrap()
+            .amount;
+        assert_eq!(
+            native_after, native_before,
+            "Failed swap must not deliver native output"
+        );
+    }
+
+    /// Post-unwrap floor at or below net delivered amount allows the swap.
+    #[test]
+    fn test_unwrap_minimum_receive_succeeds_at_post_unwrap_net() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(100_000_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_wrap_env(&mut app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [
+                        asset_info_token(&env.token_b),
+                        asset_info_token(&env.lunc_c),
+                    ],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bl = extract_pair_address(&resp.events);
+
+        provide_liquidity_raw(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_a,
+            &env.token_b,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(50_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        provide_liquidity_raw(
+            &mut app,
+            &pair_bl,
+            &env.user,
+            &env.token_b,
+            &env.lunc_c,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.router.clone(),
+            &cl8y_dex_router::msg::ExecuteMsg::SetWrapMapper {
+                wrap_mapper: env.wrap_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let offer = Uint128::new(50_000);
+        let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: offer,
+                    operations: vec![
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&env.token_a),
+                            ask_asset_info: asset_info_token(&env.token_b),
+                            hybrid: None,
+                            min_return: None,
+                        },
+                        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                            offer_asset_info: asset_info_token(&env.token_b),
+                            ask_asset_info: asset_info_token(&env.lunc_c),
+                            hybrid: None,
+                            min_return: None,
+                        },
+                    ],
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+
+        let unwrap_fee = sim.amount.multiply_ratio(1u128, 10_000u128);
+        let post_unwrap_net = sim.amount - unwrap_fee;
+
+        let native_before = app
+            .wrap()
+            .query_balance(env.user.to_string(), "uluna")
+            .unwrap()
+            .amount;
+
+        let swap_hook = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: vec![
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_a),
+                    ask_asset_info: asset_info_token(&env.token_b),
+                    hybrid: None,
+                    min_return: None,
+                },
+                cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                    offer_asset_info: asset_info_token(&env.token_b),
+                    ask_asset_info: asset_info_token(&env.lunc_c),
+                    hybrid: None,
+                    min_return: None,
+                },
+            ],
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: Some(post_unwrap_net),
+            to: None,
+            deadline: None,
+            unwrap_output: Some(true),
+        })
+        .unwrap();
+
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: offer,
+                msg: swap_hook,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let native_after = app
+            .wrap()
+            .query_balance(env.user.to_string(), "uluna")
+            .unwrap()
+            .amount;
+        assert_eq!(
+            native_after - native_before,
+            post_unwrap_net,
+            "Recipient must receive post-unwrap net when floor equals delivered amount"
         );
     }
 

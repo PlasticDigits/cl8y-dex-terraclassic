@@ -341,7 +341,7 @@ Extend the existing test suite. Add a `wrap_mapper_contract()` helper to the hel
 | A4 | `test_swap_unwrap_output_default_none` | Backwards compatible: omitting field = no unwrap |
 | A5 | `test_multihop_with_unwrap_output` | Multi-hop swap unwraps final output correctly |
 | A6 | `test_unwrap_output_no_wrap_mapper_set` | Error when unwrap_output=true but no wrap_mapper configured |
-| A7 | `test_unwrap_output_minimum_receive` | minimum_receive still enforced before unwrap |
+| A7 | `test_unwrap_output_minimum_receive` | minimum_receive still enforced on unwrap path (post-mapper net) |
 
 ### B. Integration Tests (in `smartcontracts/tests/src/lib.rs`)
 

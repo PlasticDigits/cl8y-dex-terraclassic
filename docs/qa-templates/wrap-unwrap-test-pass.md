@@ -120,7 +120,7 @@
 - [ ] Swap with `unwrap_output: true` but no wrap-mapper set on router → clear error
 - [ ] Insufficient native balance for wrap → wallet blocks or clear error
 - [ ] Insufficient CW20 balance for unwrap → wallet blocks or clear error
-- [ ] Slippage tolerance still enforced on native swaps (minimum_receive)
+- [ ] Slippage tolerance enforced on native swaps (`minimum_receive` on post-unwrap net; see [`skills/AGENTS_ROUTER_MINIMUM_RECEIVE.md`](../skills/AGENTS_ROUTER_MINIMUM_RECEIVE.md))
 - [ ] Deadline enforcement still works on native swaps
 
 ### 10. Pool UI — Native Token Liquidity
