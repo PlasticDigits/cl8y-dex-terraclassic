@@ -4496,12 +4496,12 @@ mod pair_coverage_tests {
         let mut app = App::default();
         let governance = Addr::unchecked("governance");
         let treasury = Addr::unchecked("treasury");
-        let fake_factory = Addr::unchecked("factory");
         let user = Addr::unchecked("user");
 
         let cw20_code_id = app.store_code(cw20_mintable_contract());
         let adversarial_code_id = app.store_code(adversarial_token::adversarial_cw20_contract());
         let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
         let initial_amount = Uint128::new(1_000_000_000_000);
 
         let token_19 = app
@@ -4527,6 +4527,27 @@ mod pair_coverage_tests {
         let token_6 =
             create_cw20_token(&mut app, cw20_code_id, &user, "Six", "SIX", initial_amount);
 
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id, adversarial_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
         let pair = app
             .instantiate_contract(
                 pair_code_id,
@@ -4535,7 +4556,7 @@ mod pair_coverage_tests {
                     asset_infos: [asset_info_token(&token_19), asset_info_token(&token_6)],
                     fee_bps: 30,
                     treasury: treasury.clone(),
-                    factory: fake_factory,
+                    factory: factory.clone(),
                     lp_token_code_id: cw20_code_id,
                     token_symbols: None,
                     governance: governance.to_string(),
