@@ -10,6 +10,12 @@
 //!   Walk best-first: **descending** `price`, then **ascending** `order_id` (FIFO at same price).
 //! - **Asks** (makers escrow token0; matched on taker **token1 → token0**):
 //!   Walk best-first: **ascending** `price`, then **ascending** `order_id` (FIFO at same price).
+//!
+//! ## Zero-cost fill skip (GitLab #470 / L18)
+//!
+//! `floor(fill × price)` can be **0** while `fill > 0` when price &lt; 1 (common across mismatched
+//! token decimals). Such a fill would debit maker escrow without crediting the counter leg — skip
+//! the order (`continue`) in `match_bids` / `match_asks` and `simulate_match_*` (symmetric on both sides).
 
 use std::collections::BTreeMap;
 
@@ -1458,6 +1464,10 @@ pub fn match_bids(
             cur = order.next;
             continue;
         }
+        if cost.is_zero() {
+            cur = order.next;
+            continue;
+        }
 
         makers_used += 1;
 
@@ -1625,6 +1635,10 @@ pub fn match_asks(
             cur = order.next;
             continue;
         }
+        if cost.is_zero() {
+            cur = order.next;
+            continue;
+        }
 
         makers_used += 1;
 
@@ -1766,6 +1780,10 @@ pub fn simulate_match_bids(
             cur = order.next;
             continue;
         }
+        if cost.is_zero() {
+            cur = order.next;
+            continue;
+        }
         makers_used += 1;
         let commission = cost
             .checked_mul(Uint128::new(taker_bps as u128))?
@@ -1868,6 +1886,10 @@ pub fn simulate_match_asks(
             })?;
         }
         if fill_t0.is_zero() {
+            cur = order.next;
+            continue;
+        }
+        if cost.is_zero() {
             cur = order.next;
             continue;
         }

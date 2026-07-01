@@ -1288,6 +1288,186 @@ fn hybrid_ask_non_unity_price_treasury_fee_in_token0() {
     );
 }
 
+/// GitLab #470 — ask match must not fill when `floor(fill_t0 × price)` is zero (price &lt; 1).
+#[test]
+fn match_asks_skips_zero_cost_fill_sub_unity_price() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_470_ask");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &taker,
+        Uint128::new(10_000),
+    );
+
+    let price = Decimal::from_ratio(2u128, 5u128);
+    let ask_escrow = Uint128::new(10_000);
+    let order_id = place_ask(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_a,
+        ask_escrow,
+        price,
+    );
+
+    let maker_fee_on_place = ask_escrow.multiply_ratio(15u128, 10_000u128);
+    let initial_remaining = ask_escrow.checked_sub(maker_fee_on_place).unwrap();
+    let maker_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+    let swap_in = Uint128::one();
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: Some(Decimal::one()),
+        max_spread: Some(Decimal::one()),
+        min_return: None,
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker.clone(),
+        env.token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: swap_in,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap();
+
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert_eq!(
+        lo.remaining, initial_remaining,
+        "ask must not fill when floor(fill_t0 × price) = 0"
+    );
+    let maker_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
+    assert_eq!(
+        maker_b_after, maker_b_before,
+        "maker must receive no token1 on zero-cost fill"
+    );
+
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_b),
+                    amount: swap_in,
+                },
+                hybrid: HybridSwapParams {
+                    pool_input: Uint128::zero(),
+                    book_input: swap_in,
+                    max_maker_fills: 8,
+                    book_start_hint: None,
+                },
+                trader: None,
+                sender: None,
+                belief_price: None,
+            },
+        )
+        .unwrap();
+    assert!(
+        sim.return_amount.is_zero(),
+        "simulate must skip zero-cost ask fill (L8)"
+    );
+}
+
+/// GitLab #470 — bid match must not fill when `floor(fill × price)` is zero (price &lt; 1).
+#[test]
+fn match_bids_skips_zero_cost_fill_sub_unity_price() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_470_bid");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(10_000),
+    );
+
+    let price = Decimal::from_ratio(2u128, 5u128);
+    let bid_escrow = Uint128::new(10_000);
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        bid_escrow,
+        price,
+    );
+
+    let maker_fee_on_place = bid_escrow.multiply_ratio(15u128, 10_000u128);
+    let initial_remaining = bid_escrow.checked_sub(maker_fee_on_place).unwrap();
+    let maker_a_before = query_cw20_balance(&app, &env.token_a, &env.user);
+
+    let swap_in = Uint128::one();
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: Some(Decimal::one()),
+        max_spread: Some(Decimal::one()),
+        min_return: None,
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker.clone(),
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: swap_in,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap();
+
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert_eq!(
+        lo.remaining, initial_remaining,
+        "bid must not fill when floor(fill × price) = 0"
+    );
+    let maker_a_after = query_cw20_balance(&app, &env.token_a, &env.user);
+    assert_eq!(
+        maker_a_after, maker_a_before,
+        "maker must receive no token0 on zero-cost fill"
+    );
+}
+
 #[test]
 fn place_limit_order_expiry_not_future_rejected() {
     let mut app = App::default();

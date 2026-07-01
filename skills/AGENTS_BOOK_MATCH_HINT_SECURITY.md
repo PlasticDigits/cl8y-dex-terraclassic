@@ -13,6 +13,11 @@ You touch **hybrid swap execution**, **book matching** (`match_bids` / `match_as
 
 Wrong-side hints must **fall back to head** silently (same UX as stale/missing id).
 
+## Invariant (L18 / GitLab #470)
+
+- After computing `cost = floor(fill × price)` (and the too-expensive shrink loop), if **`cost == 0`** while **`fill > 0`**, **skip** the order — do not debit maker escrow or credit a zero counter-leg payout.
+- Apply symmetrically in **`match_bids`**, **`match_asks`**, **`simulate_match_*`**, and indexer **`db_orderbook_sim`** so quotes match execute (**L8**).
+
 ## Expired head-clog mitigation ([#289](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/289))
 
 When the book head is a long **expired** prefix, a head-only hybrid walk can hit **`MAX_SCAN_STEPS` (500)** before live liquidity. **Integrators should set `book_start_hint` to the first live order on the matcher side** (bid hint for `match_bids`, ask hint for `match_asks`) so `resolve_match_start_hint` starts past the clog. Keepers use resumable **`CleanLimitBook`** (**#274**). The indexer **`global_v2`** route optimizer emits this hint automatically when the Postgres mirror is fresh ([#332](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/332)); LCD-only (`global_v1`) and stale-mirror fallbacks still use `null`.
@@ -33,6 +38,8 @@ cd smartcontracts && cargo test -p cl8y-dex-pair proptest_limits::prop_match_bid
 cd smartcontracts && cargo test -p cl8y-dex-tests hybrid_wrong_side_book_start_hint
 cd smartcontracts && cargo test -p cl8y-dex-tests match_invalid_book_start_hint_falls_back_to_head
 cd smartcontracts && cargo test -p cl8y-dex-tests hybrid_same_side_book_start_hint_still_matches
+cd smartcontracts && cargo test -p cl8y-dex-tests match_asks_skips_zero_cost_fill_sub_unity_price
+cd smartcontracts && cargo test -p cl8y-dex-tests match_bids_skips_zero_cost_fill_sub_unity_price
 ```
 
 ## Do not regress

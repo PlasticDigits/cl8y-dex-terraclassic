@@ -313,6 +313,9 @@ fn simulate_match_bids(
         if fill == 0 {
             continue;
         }
+        if cost == 0 {
+            continue;
+        }
         makers_used += 1;
         let commission = cost.saturating_mul(taker_bps as u128) / 10_000;
         let net = cost.saturating_sub(commission);
@@ -373,6 +376,9 @@ fn simulate_match_asks(
             cost = mul_floor_u128(fill_t0, price).unwrap_or(0);
         }
         if fill_t0 == 0 {
+            continue;
+        }
+        if cost == 0 {
             continue;
         }
         makers_used += 1;
