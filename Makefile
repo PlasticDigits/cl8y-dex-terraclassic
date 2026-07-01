@@ -1,4 +1,4 @@
-.PHONY: start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint lint-indexer-log-secrets lint-log-secrets check-launch-monitoring-docs check-fee-discount-tier-docs check-user-incident-faq-docs check-emergency-commands-docs check-deploy-trace-docs check-wasm-migration-rollback-docs check-deploy-config-docs check-deploy-env-addresses-docs check-factory-address-docs check-test-evidence-gate-docs check-exploit-replay-matrix-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-ibc-hooks-deploy-docs check-extension-fee-guard-docs check-blacklist-decision-docs check-suspicious-activity-queries-docs check-anomaly-signals-docs check-incident-comms-templates-docs check-incident-template-docs check-pool-triage-docs check-rollback-decision-docs check-key-custody-docs check-governance-key-rotation-docs verify-no-ibc-hooks-in-contracts rehearse-governance-emergency rehearse-governance-key-rotation setup-hooks test-commit-msg-hook verify-commit-messages wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa smoke-pool-swap smoke-wrap-mapper-pause test-qa-fresh-volumes test-qa-verify-deploy test-qa-verify-deploy-config test-qa-verify-env-addresses test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser test-setup-cloud-agent-env qa-tunnel-help qa-verify-deploy qa-verify-env-addresses qa-verify-deploy-config verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-365 verify-issue-369 verify-issue-383 verify-issue-384 verify-issue-396 verify-issue-397 verify-issue-398 verify-issue-391 verify-issue-399 verify-issue-400 verify-issue-435 verify-issue-437 verify-issue-438 verify-issue-407 verify-issue-408 verify-issue-429 verify-issue-410 verify-issue-416 verify-issue-436 verify-issue-439 verify-issue-440 verify-issue-441 verify-issue-442 verify-issue-451 verify-issue-443 verify-issue-444 verify-issue-445 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-cloud-agent-env setup-indexer-postgres test-indexer-integration audit-smartcontracts audit-indexer audit-frontend gitleaks-detect verify-gitleaks
+.PHONY: front send start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-indexer-postgres test-indexer-integration
 
 # Infrastructure
 start:
@@ -602,26 +602,8 @@ setup-hooks:
 test-commit-msg-hook:
 	@./scripts/test-commit-msg-hook.sh
 
-verify-commit-messages:
-	@chmod +x scripts/verify-commit-messages.sh scripts/lib/strip-commit-message-stdin.sh
-	@./scripts/verify-commit-messages.sh HEAD
+send: 
+	docker exec cl8y-dex-terraclassic-localterra-1 terrad tx bank send test1 terra1753zuaneacfr60rg37l8d4t0x7j4yvqgsl7cvv 50000000uluna  --chain-id localterra --keyring-backend test --fees 6000000uluna --yes 
 
-# Supply-chain security (GitLab #380) — mirrors .gitlab-ci.yml security stage
-audit-smartcontracts:
-	@command -v cargo-audit >/dev/null 2>&1 || (echo "Install: cargo install cargo-audit --locked" && exit 1)
-	cd smartcontracts && cargo audit --deny warnings
-
-audit-indexer:
-	@command -v cargo-audit >/dev/null 2>&1 || (echo "Install: cargo install cargo-audit --locked" && exit 1)
-	cd indexer && cargo audit --deny warnings
-
-audit-frontend:
-	$(WITH_NODE) npm audit --audit-level=high --omit=dev
-
-gitleaks-detect:
-	@chmod +x scripts/ci/gitleaks-detect.sh scripts/ci/gitleaks-scan-tracked.sh
-	@./scripts/ci/gitleaks-detect.sh
-
-verify-gitleaks:
-	@chmod +x scripts/ci/verify-gitleaks.sh scripts/ci/gitleaks-scan-tracked.sh
-	@./scripts/ci/verify-gitleaks.sh
+front:
+	cd frontend-dapp && bash -c '. "$$HOME/.nvm/nvm.sh" && nvm use && VITE_NETWORK=local npm run dev -- --host'

@@ -146,6 +146,7 @@ export default defineConfig(({ mode, command }) => {
     server: {
       port: 3000,
       open: true,
+      allowedHosts: true,
     },
     optimizeDeps: {
       esbuildOptions: {
