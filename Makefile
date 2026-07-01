@@ -427,6 +427,9 @@ check-governance-emergency-rehearsal-docs:
 check-key-custody-docs:
 	python3 scripts/check_key_custody_docs.py
 
+check-governance-multisig-docs:
+	python3 scripts/check_governance_multisig_docs.py
+
 check-governance-key-rotation-docs:
 	python3 scripts/check_governance_key_rotation_docs.py
 
@@ -589,7 +592,7 @@ dev-full: start wait-healthy build-optimized deploy-local
 # Combined
 test: test-contracts test-frontend
 
-lint: lint-contracts lint-frontend lint-indexer-log-secrets lint-log-secrets check-fee-discount-tier-docs check-user-incident-faq-docs check-emergency-commands-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-ibc-hooks-deploy-docs check-extension-fee-guard-docs check-blacklist-decision-docs check-suspicious-activity-queries-docs check-anomaly-signals-docs check-incident-comms-templates-docs check-incident-template-docs check-pool-triage-docs check-rollback-decision-docs check-deploy-trace-docs check-wasm-migration-rollback-docs check-deploy-config-docs check-deploy-env-addresses-docs check-factory-address-docs check-test-evidence-gate-docs check-exploit-replay-matrix-docs check-key-custody-docs check-governance-key-rotation-docs check-design-tokens check-launch-monitoring-docs verify-commit-messages
+lint: lint-contracts lint-frontend lint-indexer-log-secrets lint-log-secrets check-fee-discount-tier-docs check-user-incident-faq-docs check-emergency-commands-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-ibc-hooks-deploy-docs check-extension-fee-guard-docs check-blacklist-decision-docs check-suspicious-activity-queries-docs check-anomaly-signals-docs check-incident-comms-templates-docs check-incident-template-docs check-pool-triage-docs check-rollback-decision-docs check-deploy-trace-docs check-wasm-migration-rollback-docs check-deploy-config-docs check-deploy-env-addresses-docs check-factory-address-docs check-test-evidence-gate-docs check-exploit-replay-matrix-docs check-key-custody-docs check-governance-multisig-docs check-governance-key-rotation-docs check-design-tokens check-launch-monitoring-docs verify-commit-messages
 
 # Git hooks
 setup-hooks:

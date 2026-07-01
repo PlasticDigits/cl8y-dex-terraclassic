@@ -9,16 +9,16 @@ Custody policy for the production **governance** key that controls the factory, 
 ## Policy
 
 - **No single EOA** controls mainnet governance, treasury, or any contract `admin`. Governance is a **threshold multisig** (`k-of-n`) or a **DAO** module. Reaffirms [Security model § Governance](../security-model.md#governance-keys) ("Never use a single EOA for mainnet governance") and [operator secrets § Chain signing keys](../operator-secrets.md#chain-signing-keys) ("Multisig governance for factory/router/pair admin is required for production").
-- Every contract `admin` (factory, router, pair, fee-discount) **must be set** to the **governance multisig** at instantiate — the deploy guide passes `--admin <governance_addr>` on every instantiate ([deployment guide](../deployment-guide.md)). No mainnet contract may be left with an EOA admin or a cleared admin.
-- This runbook is the **framework**. The **filled roster** — real signer identities, key fingerprints, the on-chain multisig address, and the final threshold — is maintained **privately** (operator key store / password manager) and is **never committed** to git ([operator secrets](../operator-secrets.md)). Only role structure and placeholders are committed here.
+- Every contract `admin` (factory, router, pair, fee-discount) **must be set** to the **governance multisig** at instantiate — the deploy guide passes `--admin` to [`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`](../reference/governance-multisig.md) on every instantiate ([deployment guide](../deployment-guide.md)). No mainnet contract may be left with an EOA admin or a cleared admin.
+- This runbook is the **framework**. The **filled roster** — real signer identities, key fingerprints, and the final threshold — is maintained **privately** (operator key store / password manager) and is **never committed** to git ([operator secrets](../operator-secrets.md)). The on-chain multisig address is public: [`docs/reference/governance-multisig.md`](../reference/governance-multisig.md).
 
-> **Status — pending multisig setup.** The production multisig has not yet been generated (see [#398](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/398)). Sections 1–4 define the required structure and process; the concrete addresses, signer identities, and final threshold are filled at the **key ceremony** before mainnet, and the filled copy is linked **privately** from the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)). Do **not** treat the Phase 0 custody gate as satisfied until the roster is populated and the multisig address is live on chain.
+> **Status — multisig address live.** Production governance / admin / upgrade address: **`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`** ([governance multisig reference](../reference/governance-multisig.md)). Signer identities and threshold are filled at the **key ceremony** and linked **privately** from the launch tracking issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)). Do **not** treat the Phase 0 custody gate as satisfied until the roster is populated and emergency rehearsals are complete from this multisig on testnet/staging.
 
 ---
 
 ## 1. Multisig type and threshold
 
-Production governance is a Cosmos **threshold multisig** (`k-of-n`) — created with `terrad keys add <name> --multisig <m1,m2,...> --multisig-threshold <k>` — or a DAO module (cw3 / DAODAO). The on-chain governance address is this multisig account, and the same address is set as each contract `admin`.
+Production governance is a Cosmos **threshold multisig** (`k-of-n`) — created with `terrad keys add <name> --multisig <m1,m2,...> --multisig-threshold <k>` — or a DAO module (cw3 / DAODAO). The on-chain governance address is **`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`** ([reference](../reference/governance-multisig.md)); the same address is set as each contract `admin`.
 
 | TVL band (see [security posture](../security-posture.md#security-requirements-scale-with-tvl)) | Minimum threshold | Notes |
 |---|---|---|

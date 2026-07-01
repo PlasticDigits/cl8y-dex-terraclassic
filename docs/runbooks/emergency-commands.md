@@ -21,7 +21,8 @@ Set once per session (mainnet example):
 
 ```bash
 export FACTORY_ADDR="<factory_contract_addr>"
-export GOVERNANCE_KEY="<governance_key_name>"   # keyring entry for factory governance
+export GOVERNANCE_MULTISIG_ADDR="terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7"  # factory config.governance
+export GOVERNANCE_KEY="<governance_key_name>"   # keyring entry for factory governance multisig
 export CHAIN_ID="columbus-5"
 export NODE="https://terra-classic-rpc.publicnode.com:443"
 export LCD="https://terra-classic-lcd.publicnode.com"

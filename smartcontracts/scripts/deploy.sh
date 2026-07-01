@@ -1,13 +1,17 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=../../scripts/lib/governance-multisig.sh
+source "$SCRIPT_DIR/../../scripts/lib/governance-multisig.sh"
+
 NETWORK="${1:-testnet}"
-OWNER="${2}"
+OWNER="${2:-$GOVERNANCE_MULTISIG_ADDR}"
 
 if [ -z "$OWNER" ]; then
-  echo "Usage: ./scripts/deploy.sh <network> <owner_address>"
+  echo "Usage: ./scripts/deploy.sh <network> [owner_address]"
   echo "  network: testnet | mainnet"
-  echo "  owner_address: terra1... address that will own the factory and router"
+  echo "  owner_address: governance/admin multisig (default: $GOVERNANCE_MULTISIG_ADDR)"
   exit 1
 fi
 
@@ -32,7 +36,7 @@ echo "=============================================="
 echo "CL8Y DEX Deployment - $NETWORK ($CHAIN_ID)"
 echo "=============================================="
 echo ""
-echo "Owner: $OWNER"
+echo "Governance / admin / upgrade: $OWNER"
 echo "Node:  $NODE"
 echo ""
 

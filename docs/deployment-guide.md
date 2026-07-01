@@ -33,15 +33,17 @@ terrad tx wasm store artifacts/cl8y_dex_factory.wasm \
 
 ## 3. Instantiate Factory
 
+Canonical governance / admin / upgrade address: **`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`** ([`docs/reference/governance-multisig.md`](reference/governance-multisig.md)).
+
 ```bash
 terrad tx wasm instantiate <factory_code_id> '{
-  "governance": "<governance_addr>",
-  "treasury": "<treasury_addr>",
+  "governance": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+  "treasury": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
   "default_fee_bps": 30,
   "pair_code_id": <pair_code_id>,
   "lp_token_code_id": <cw20_code_id>,
   "whitelisted_code_ids": [<cw20_code_id>]
-}' --label "cl8y-dex-factory" --admin <governance_addr> \
+}' --label "cl8y-dex-factory" --admin terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7 \
   --from <wallet> --gas auto --gas-adjustment 1.4 \
   --fees 500000uluna --chain-id <chain-id> --node <rpc-url>
 ```
@@ -51,7 +53,7 @@ terrad tx wasm instantiate <factory_code_id> '{
 ```bash
 terrad tx wasm instantiate <router_code_id> '{
   "factory": "<factory_contract_addr>"
-}' --label "cl8y-dex-router" --admin <governance_addr> \
+}' --label "cl8y-dex-router" --admin terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7 \
   --from <wallet> --gas auto --gas-adjustment 1.4 \
   --fees 500000uluna --chain-id <chain-id> --node <rpc-url>
 ```
@@ -60,9 +62,9 @@ terrad tx wasm instantiate <router_code_id> '{
 
 ```bash
 terrad tx wasm instantiate <fee_discount_code_id> '{
-  "governance": "<governance_addr>",
+  "governance": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
   "cl8y_token": "<cl8y_cw20_addr>"
-}' --label "cl8y-dex-fee-discount" --admin <governance_addr> \
+}' --label "cl8y-dex-fee-discount" --admin terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7 \
   --from <wallet> --gas auto --gas-adjustment 1.4 \
   --fees 500000uluna --chain-id <chain-id> --node <rpc-url>
 ```

@@ -8,7 +8,7 @@ Pre-launch **PAUSE** gate: production governance must rehearse emergency admin t
 
 ## Minimum rehearsal scope
 
-On **testnet or staging** (never first-touch on mainnet), the governance multisig must successfully sign and broadcast:
+On **testnet or staging** (never first-touch on mainnet), the governance multisig (`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` — [reference](../reference/governance-multisig.md)) must successfully sign and broadcast:
 
 | # | Factory `ExecuteMsg` | Expected on-chain effect |
 |---|----------------------|---------------------------|

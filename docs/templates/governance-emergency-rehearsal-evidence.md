@@ -7,7 +7,7 @@ Copy this table into a GitLab comment on the **launch tracking issue** ([#391](h
 | Checklist | SEC-B09 |
 | Network | _e.g. `rebel-2` testnet / staging name_ |
 | Factory | _factory contract address_ |
-| Governance multisig | _multisig address + threshold, e.g. 3-of-5_ |
+| Governance multisig | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` (_threshold, e.g. 3-of-5_) |
 | Pair exercised | _pair contract used for pause/unpause_ |
 | Blacklist target | _wallet address blacklisted then restored_ |
 | Rehearsal UTC | _ISO-8601 timestamp_ |

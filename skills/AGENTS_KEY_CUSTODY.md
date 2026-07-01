@@ -6,6 +6,7 @@ Use when implementing or verifying the **admin-key custody policy** — multisig
 
 | Doc / script | Purpose |
 |--------------|---------|
+| [`docs/reference/governance-multisig.md`](../docs/reference/governance-multisig.md) | Canonical on-chain governance / admin / upgrade address |
 | [`docs/runbooks/key-custody.md`](../docs/runbooks/key-custody.md) | Custody framework — multisig type/threshold, signer roster, backup + escalation, rotation triggers and process |
 | [`docs/runbooks/governance-emergency-rehearsal.md`](../docs/runbooks/governance-emergency-rehearsal.md) | The multisig signing flow this roster signs through (SEC-B09) |
 | [`docs/runbooks/wasm-admin-migration.md`](../docs/runbooks/wasm-admin-migration.md) § Admin rotation | `update_admin` mechanics for the wasm contract admin |
@@ -23,7 +24,7 @@ The runbook must document all six SEC-B10 items:
 5. **No single EOA** controls mainnet governance / treasury / contract `admin`.
 6. Phase 0 launch-checklist gate completed with a link to the runbook.
 
-**Pending multisig setup:** the concrete addresses, signer identities, and final threshold are **key-ceremony fill-ins** kept privately and linked from the launch issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) — do **not** invent or commit real signer values. This playbook covers the framework only.
+**Production multisig:** `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` ([`docs/reference/governance-multisig.md`](../docs/reference/governance-multisig.md)). Signer identities and threshold are **key-ceremony fill-ins** kept privately and linked from the launch issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).
 
 ## No on-chain automation here
 

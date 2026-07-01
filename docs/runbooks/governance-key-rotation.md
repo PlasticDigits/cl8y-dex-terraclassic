@@ -13,7 +13,7 @@ Copy-pastable procedure to **rotate** the two admin keys that control the CL8Y D
 | **Wasm contract-admin** | `migrate` of factory / router / pair / fee-discount | `terrad tx wasm set-contract-admin` (chain-level) |
 | **Factory `governance` pointer** | fees, hooks, CW20 whitelist, pause, blacklist, treasury, trusted routers | factory `ExecuteMsg::UpdateConfig { governance }` |
 
-Both should point at the **same governance multisig** ([key custody](./key-custody.md)). Rotating one does **not** rotate the other — a full rotation does both. Triggers (compromise / departure / scheduled / threshold change) and the higher-level process are in [key custody § 4](./key-custody.md#4-key-rotation--triggers-and-process).
+Both should point at the **same governance multisig** — `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` ([reference](../reference/governance-multisig.md), [key custody](./key-custody.md)). Rotating one does **not** rotate the other — a full rotation does both. Triggers (compromise / departure / scheduled / threshold change) and the higher-level process are in [key custody § 4](./key-custody.md#4-key-rotation--triggers-and-process).
 
 > Terra Classic `terrad` (v4.x) uses **`set-contract-admin`** — not `update-admin`. `clear-contract-admin` removes the admin **permanently** (no further migrate); never use it on a contract you may need to upgrade.
 

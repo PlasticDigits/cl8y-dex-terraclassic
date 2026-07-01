@@ -11,6 +11,7 @@ Copy this block into a comment on the **launch tracking issue** ([#391](https://
 | Field | Value |
 |-------|-------|
 | **Operator** | `<name / role>` |
+| **Governance multisig** | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` |
 | **Network / chain ID** | `<columbus-5 \| rebel-2 \| localterra \| …>` |
 | **Deploy type** | `<initial launch \| migration \| hotfix>` |
 | **Git SHA** | `<output of git rev-parse HEAD>` |

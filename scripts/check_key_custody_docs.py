@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+MULTISIG = "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7"
 RUNBOOK = ROOT / "docs/runbooks/key-custody.md"
 LAUNCH = ROOT / "docs/runbooks/launch-checklist.md"
 SECURITY = ROOT / "docs/security-model.md"
@@ -37,6 +38,7 @@ def main() -> int:
             "## 4. Key rotation",
             "update_admin",
             "UpdateConfig",
+            MULTISIG,
         ):
             if marker not in text:
                 errors.append(f"{RUNBOOK.relative_to(ROOT)} missing {marker!r}")

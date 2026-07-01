@@ -53,7 +53,7 @@ The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https:/
 ## Chain signing keys
 
 - **Hot wallets** for `terrad tx` should use hardware wallets or HSM-backed keys where possible.
-- **Multisig** governance for factory/router/pair admin is required for production; see [Security model](../security-model.md).
+- **Multisig** governance for factory/router/pair admin is required for production; see [Security model](../security-model.md) and [governance multisig reference](reference/governance-multisig.md) (`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`).
 
 ## Frontend deploy secrets
 

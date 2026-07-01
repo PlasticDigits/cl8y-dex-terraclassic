@@ -32,8 +32,8 @@ Parent schema/stamp check: invariant **Q1** in [`AGENTS_QA_DEPLOY_VERIFY.md`](./
 Set before running when values must match exactly:
 
 ```bash
-export VERIFY_CONFIG_EXPECT_GOVERNANCE=terra1...
-export VERIFY_CONFIG_EXPECT_TREASURY=terra1...
+export VERIFY_CONFIG_EXPECT_GOVERNANCE=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
+export VERIFY_CONFIG_EXPECT_TREASURY=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
 export VERIFY_CONFIG_EXPECT_DEFAULT_FEE_BPS=180
 export VERIFY_CONFIG_EXPECT_HOOK_COUNT=0   # pool-only launch
 export VERIFY_CONFIG_CLEAN_WALLET=terra1...  # address known not on blacklist (defaults to LocalTerra test1)
