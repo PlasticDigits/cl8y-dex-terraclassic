@@ -26,6 +26,7 @@ import {
   POOL_ONLY_QUOTE_DISCLOSURE,
   quoteDirectHybridSwap,
   quoteDisclosureForIndexerKind,
+  DIRECT_HYBRID_AMOUNT_RECONCILED_COPY,
 } from '@/utils/directHybridQuote'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
@@ -65,6 +66,7 @@ interface MarketSimData {
   indexerQuoteKind?: IndexerRouteQuoteKind
   indexerOperations?: SwapOperation[]
   routePreflight?: SwapRoutePreflightSpread
+  indexerAmountReconciled?: boolean
 }
 
 function computeHybridParams(
@@ -268,6 +270,7 @@ export function TradeMarketOrderPanel({
           indexerQuoteKind: quoted.indexerQuoteKind,
           indexerOperations: quoted.indexerOperations,
           routePreflight: quoted.routePreflight,
+          indexerAmountReconciled: quoted.indexerAmountReconciled,
         }
       }
 
@@ -590,6 +593,15 @@ export function TradeMarketOrderPanel({
             </span>
           </div>
           <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
+          {simQuery.data.indexerAmountReconciled && (
+            <p
+              data-testid="trade-market-amount-reconciled"
+              style={{ color: 'var(--color-warning, #f59e0b)' }}
+              role="status"
+            >
+              {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
+            </p>
+          )}
           {indexerHybridExec.show && (
             <div className="pt-1 border-t border-white/10">
               <p className="font-semibold uppercase tracking-wide text-[10px]">{indexerHybridExec.title}</p>
