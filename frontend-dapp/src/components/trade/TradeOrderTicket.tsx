@@ -830,6 +830,11 @@ function TradeOrderTicketContent({
               {selectedPair && pairAddr.startsWith('terra1') && (
                 <LimitOrderPreSubmitSummary
                   compact
+                  pairLabel={`${token0Display} / ${token1Display}`}
+                  sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
+                  escrowAmountLabel={
+                    amountHuman.trim() ? `${amountHuman.trim()} ${sideAction.pay}` : `— ${sideAction.pay}`
+                  }
                   placeSequenceMinUluna={limitPlaceMinUlunaFees}
                   refToken1PerToken0={refToken1PerToken0}
                   typedPrice={price}
