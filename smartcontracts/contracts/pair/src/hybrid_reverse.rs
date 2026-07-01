@@ -3,17 +3,29 @@
 //! Seeds binary search from constant-product pool math so reverse quotes avoid
 //! up to 128 redundant full hybrid simulations. Execute path unchanged.
 
-use cosmwasm_std::{StdError, StdResult, Uint128};
+use cosmwasm_std::{StdError, StdResult, Uint128, Uint256};
 
 use dex_common::pair::HybridSwapParams;
 
-fn ceil_div(numerator: Uint128, denominator: Uint128) -> Uint128 {
+#[inline]
+fn u256(x: Uint128) -> Uint256 {
+    Uint256::from(x)
+}
+
+/// 256-bit ceiling division (GitLab #464) — avoids the u128 product ceiling on
+/// reserve math for high-decimal assets. Same rounding guarantee (result*b >= a).
+fn ceil_div_u256(numerator: Uint256, denominator: Uint256) -> Uint256 {
     let d = numerator / denominator;
     if d * denominator < numerator {
-        d + Uint128::one()
+        d + Uint256::one()
     } else {
         d
     }
+}
+
+fn narrow_u128(value: Uint256, ctx: &str) -> StdResult<Uint128> {
+    Uint128::try_from(value)
+        .map_err(|_| StdError::generic_err(format!("256-bit result exceeds u128 ({ctx})")))
 }
 
 /// Hard cap on full `simulate_hybrid_swap_with_fee` calls per reverse query.
@@ -32,9 +44,12 @@ pub fn pool_net_output_for_input(
     if input_reserve.is_zero() || output_reserve.is_zero() {
         return Err(StdError::generic_err("pool reserves empty"));
     }
-    let k = input_reserve.checked_mul(output_reserve)?;
+    let k = u256(input_reserve).checked_mul(u256(output_reserve))?;
     let new_input_reserve = input_reserve.checked_add(pool_input)?;
-    let new_output_reserve = ceil_div(k, new_input_reserve);
+    let new_output_reserve = narrow_u128(
+        ceil_div_u256(k, u256(new_input_reserve)),
+        "pool_net new_output_reserve",
+    )?;
     let gross_output = output_reserve.checked_sub(new_output_reserve)?;
     let fee_numerator = gross_output.checked_mul(Uint128::from(effective_fee_bps as u128))?;
     let commission = fee_numerator.checked_div(Uint128::new(10_000))?;
@@ -95,10 +110,13 @@ pub fn total_offer_for_pool_leg(
             "hybrid template sum must be positive",
         ));
     }
-    Ok(ceil_div(
-        pool_input_needed.checked_mul(den)?,
-        hybrid.pool_input,
-    ))
+    narrow_u128(
+        ceil_div_u256(
+            u256(pool_input_needed).checked_mul(u256(den))?,
+            u256(hybrid.pool_input),
+        ),
+        "total_offer_for_pool_leg",
+    )
 }
 
 /// Upper-bound seed for reverse search: pool-only reverse on full `ask_target`, scaled so
@@ -159,6 +177,27 @@ mod tests {
             .unwrap();
             assert!(out_lo < Uint128::new(10_000));
         }
+    }
+
+    // GitLab #464: reserves at ~20 whole tokens/side of an 18-decimal asset (2e19 raw) give
+    // reserve_a * reserve_b = 4e38 > u128::MAX. The pre-fix native-u128 product reverted here;
+    // the 256-bit math must return a real pool output instead of overflowing.
+    #[test]
+    fn pool_net_output_survives_18dec_scale_reserves() {
+        let r = Uint128::new(20_000_000_000_000_000_000); // 2e19 raw = 20 whole 18-dec tokens
+        let one = Uint128::new(1_000_000_000_000_000_000); // 1 token in
+        let out = pool_net_output_for_input(one, r, r, 30).unwrap();
+        assert!(out > Uint128::zero(), "expected a real output, got zero");
+        assert!(out < r, "output must be below the reserve");
+        // Widening must not change small-reserve results: same call at 1e6 reserves.
+        let small = pool_net_output_for_input(
+            Uint128::new(1_000),
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+            30,
+        )
+        .unwrap();
+        assert!(small > Uint128::zero());
     }
 
     #[test]
