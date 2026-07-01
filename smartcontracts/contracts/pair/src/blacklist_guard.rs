@@ -20,16 +20,9 @@ fn probe_factory_blacklist(
 ) -> Result<Option<dex_common::blacklist::BlacklistCheckResponse>, ContractError> {
     match querier.query_wasm_smart(factory.to_string(), &FactoryQueryMsg::BlacklistCheck(check)) {
         Ok(resp) => Ok(Some(resp)),
-        // GitLab #456 (SEC-I03 F02): only fail open for a genuinely pre-1.5.0 factory. A
-        // reachable >=1.5.0 factory (or an unreadable/stale factory address) that errors here
-        // is anomalous, so block rather than silently disabling blacklist enforcement.
-        Err(_) => {
-            if dex_common::blacklist::blacklist_query_error_blocks(querier, factory) {
-                Err(ContractError::BlacklistGuardUnavailable {})
-            } else {
-                Ok(None)
-            }
-        }
+        // GitLab #456 (SEC-I03 F02): default deny — any factory BlacklistCheck query error
+        // blocks the trade instead of silently disabling blacklist enforcement.
+        Err(_) => Err(ContractError::BlacklistGuardUnavailable {}),
     }
 }
 

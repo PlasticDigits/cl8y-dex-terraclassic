@@ -52,6 +52,8 @@ Ordered checklist for **pool-only** swaps: direct pair and router paths with **`
 
   Agent playbook: [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../../skills/AGENTS_TEST_EVIDENCE_GATE.md). Deploy trace template: [`docs/templates/deploy-trace.md`](../templates/deploy-trace.md) § Test results. Regression: `make verify-issue-444`.
 
+- [ ] **Indexer FACTORY_ADDRESS (SEC-I02):** confirm `FACTORY_ADDRESS` in `indexer/.env` is **non-empty** (whitespace-only is rejected) before starting the indexer — applies in **every** `RUN_MODE`, not only production ([#451](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/451)). Startup fails with `ConfigError::EmptyFactoryAddress` when missing. Post-deploy QA also asserts the env var via **`make qa-verify-deploy`**. Agent playbook: [`skills/AGENTS_FACTORY_ADDRESS_GUARD.md`](../../skills/AGENTS_FACTORY_ADDRESS_GUARD.md). Regression: `make verify-issue-451`.
+
 ---
 
 ## Phase 1 — Deploy contracts

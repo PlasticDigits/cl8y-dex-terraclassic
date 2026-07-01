@@ -12,6 +12,7 @@ You are changing **LCD-proxied HTTP routes**, **rate limiting**, or **502 error 
 | **H6a** | LCD client **WARN** logs omit upstream URL/host and response bodies; full detail at **DEBUG** ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)) | [`lcd/mod.rs`](../indexer/src/lcd/mod.rs) |
 | **H7** | LCD-heavy routes rate-limited separately; prod cannot disable global/heavy limits with `0` | [`api/mod.rs`](../indexer/src/api/mod.rs), [`config.rs`](../indexer/src/config.rs) |
 | **H7d** | Startup warns when **both** `RATE_LIMIT_RPS=0` and `RATE_LIMIT_LCD_HEAVY_RPS=0` ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)) | [`config.rs`](../indexer/src/config.rs) |
+| **H7e** | Non-prod refuses startup when **both** rate limits are `0` and `API_BIND` is non-loopback unless **`ALLOW_ZERO_RATE_LIMITS=1`** ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)) | [`config.rs`](../indexer/src/config.rs) `bind_is_loopback`, `ConfigError::ZeroRateLimitNonLoopbackBind` |
 | **H8** | `GET max_maker_fills` clamped to on-chain **`MAX_MAKER_FILLS_HARD_CAP` (100)** | [`hybrid_limits.rs`](../indexer/src/hybrid_limits.rs), [`route_solver.rs`](../indexer/src/api/route_solver.rs); benchmark [`docs/benchmarks/max-maker-fills-route-solve.md`](../docs/benchmarks/max-maker-fills-route-solve.md) |
 | **H9** | `POST /api/v1/route/solve` body ≤ **128 KiB** → else **413** | [`api/mod.rs`](../indexer/src/api/mod.rs) `RequestBodyLimitLayer` |
 | **H7b** | Deep `limit-book` / `insert-hints` / price-window ≤ **101** LCD queries per request | [`LIMIT_BOOK_LCD_QUERY_BUDGET`](../indexer/src/api/limit_book_lcd.rs); [integrators.md § #267](../docs/integrators.md#insert-hints-price-window-gitlab-267) |
@@ -41,8 +42,10 @@ Legitimate frontend polling (e.g. deep book, route preview) should stay under **
 |-----|---------------|-----------|
 | `RATE_LIMIT_RPS` | 60 | If set to `0`, prod forces **60** |
 | `RATE_LIMIT_LCD_HEAVY_RPS` | 10 | If set to `0`, prod forces **10** ([#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)) |
+| `ALLOW_ZERO_RATE_LIMITS` | unset | Set `1` to allow dual-zero on a non-loopback `API_BIND` in non-prod ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)) |
+| `API_BIND` | `127.0.0.1` | Loopback binds allow dual-zero without override; `0.0.0.0`/public IPs require limits or opt-out ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)) |
 
-**Dev disable ([#355](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/355)):** `RATE_LIMIT_RPS=0` disables only the **global** layer. LCD-heavy routes stay limited unless **`RATE_LIMIT_LCD_HEAVY_RPS=0`** too. Set **both** to `0` for fully unlimited local QA — startup emits a **DoS-risk warning** ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)).
+**Dev disable ([#355](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/355)):** `RATE_LIMIT_RPS=0` disables only the **global** layer. LCD-heavy routes stay limited unless **`RATE_LIMIT_LCD_HEAVY_RPS=0`** too. Set **both** to `0` for fully unlimited local QA on **loopback** — startup emits a **DoS-risk warning** ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/379)). On a **non-loopback** bind, dual-zero refuses startup unless **`ALLOW_ZERO_RATE_LIMITS=1`** ([#458](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/458)). Local deploy keeps `API_BIND=127.0.0.1` and `RATE_LIMIT_LCD_HEAVY_RPS=10`.
 | `API_IPV6_ENABLED` | off | When off (default), API binds **IPv4-only** and rejects IPv6 `API_BIND` ([#282](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/282)) |
 | `RUN_MODE=prod` | — | Requires operator `LCD_URLS` (no public defaults) |
 

@@ -228,6 +228,12 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const btn = swapActionPanel(page).getByRole('button', { name: 'Rate Limit Exceeded' })
     await expect(btn).toBeVisible({ timeout: 15_000 })
     await expect(btn).toBeDisabled()
+
+    // GitLab #463 (SEC-I05 F-04): inline alert below the form, not only the disabled CTA label.
+    const banner = page.getByTestId('swap-wrap-rate-limit-banner')
+    await expect(banner).toBeVisible({ timeout: 15_000 })
+    await expect(banner).toContainText(/Daily wrap limit reached/i)
+    await expect(banner).toContainText(/try again later, or reduce the amount/i)
   })
 })
 

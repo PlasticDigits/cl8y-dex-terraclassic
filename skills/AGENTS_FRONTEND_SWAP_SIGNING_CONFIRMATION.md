@@ -48,7 +48,7 @@ cd frontend-dapp && npm run test:run -- \
 1. **Do not** remove individual field `data-testid`s — SEC-D11 regression tests assert each labeled row.
 2. **Do not** show factory/router env addresses on this panel — `/protocol` only ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). **Pair contract** row(s) are factory-sourced hop targets for transparency ([#449](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/449)); submit still uses LCD-resolved pair or fixed router, not indexer-supplied pair addresses.
 3. Keep **Route** on the separate `swap-route-summary` / `trade-market-route-summary` row ([`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)); the pre-sign panel repeats pair symbols for phishing resistance, not hop token detail.
-4. Limit orders use [`LimitOrderPreSubmitSummary`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) — resting semantics, not taker swap fields ([#157](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157)).
+4. Limit orders use [`LimitOrderPreSubmitSummary`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) — labeled action/pair/side/amount/chain plus resting fee semantics ([#157](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157), [#461](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/461) / SEC-I05).
 
 ## Related
 
