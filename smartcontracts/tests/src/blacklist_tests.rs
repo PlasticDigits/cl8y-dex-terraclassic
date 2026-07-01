@@ -3,6 +3,7 @@
 use cosmwasm_std::{to_json_binary, Decimal, Uint128};
 use cw_multi_test::{App, Executor};
 
+use cl8y_dex_pair::state::PAIR_INFO;
 use dex_common::blacklist::BlacklistCheck;
 use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::limit_placement::LimitOrderPlacementItem;
@@ -16,6 +17,10 @@ use crate::helpers::*;
 fn is_blacklisted_err(err: &dyn std::error::Error) -> bool {
     let s = err.to_string();
     s.contains("Trading blacklist") || s.contains("Blacklisted")
+}
+
+fn is_blacklist_guard_unavailable_err(err: &dyn std::error::Error) -> bool {
+    err.to_string().contains("Blacklist guard unavailable")
 }
 
 fn batch_place_msg(side: LimitOrderSide, price: Decimal, amount: Uint128) -> cosmwasm_std::Binary {
@@ -646,4 +651,48 @@ fn factory_blacklist_check_query_reflects_state() {
     assert!(check.blocked);
     assert!(check.wallet_blacklisted);
     assert!(!check.blacklisted_tokens.is_empty());
+}
+
+#[test]
+fn factory_blacklist_query_error_blocks_swap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+
+    // Point the pair at a CW20 that does not implement BlacklistCheck — simulates a stale
+    // factory pointer or factory query failure (GitLab #456 / SEC-I03 F02).
+    {
+        let mut storage = app.contract_storage_mut(&env.pair);
+        PAIR_INFO
+            .update(&mut *storage, |mut info| -> cosmwasm_std::StdResult<_> {
+                info.factory = env.token_a.clone();
+                Ok(info)
+            })
+            .unwrap();
+    }
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: None,
+        to: None,
+        deadline: None,
+        hybrid: None,
+        trader: None,
+    })
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(100),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(is_blacklist_guard_unavailable_err(&err.root_cause()));
 }
