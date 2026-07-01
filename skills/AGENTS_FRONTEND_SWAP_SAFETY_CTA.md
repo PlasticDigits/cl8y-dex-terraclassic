@@ -1,12 +1,13 @@
 # Agent playbook: Swap wrap safety CTA copy (SEC-A02)
 
-Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, or **swap submit button** gating on `/` ([GitLab **#389**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/389), launch checklist SEC-A02).
+Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, **wrap rate-limit inline alert**, or **swap submit button** gating on `/` ([GitLab **#389**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/389), launch checklist SEC-A02; inline alert [**#463**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/463) / SEC-I05 F-04).
 
 ## Canonical references
 
 | Doc / code | Purpose |
 |------------|---------|
-| [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Submit CTA precedence: wrap pause → blacklist → amount → rate limit |
+| [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Submit CTA precedence: wrap pause → blacklist → amount → rate limit; inline `swap-wrap-rate-limit-banner` when rate limit exceeded |
+| [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts) | `WRAP_RATE_LIMIT_EXCEEDED_MESSAGE` — inline alert copy (SEC-I05 / #463) |
 | [`wrapMapper.ts`](../frontend-dapp/src/services/terraclassic/wrapMapper.ts) | `queryPausedState`, `checkRateLimitExceeded` |
 | [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) | Vitest: exact copy + `toBeDisabled()` per state (isolated mocks) |
 | [`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts) | Playwright: LCD route mocks via [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts) |
@@ -21,6 +22,7 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, or **swap
 |-------|--------------|----------|
 | Wrap mapper `config.paused === true` | **Wrapping is Temporarily Paused** | yes |
 | Wrap amount exceeds mapper `rate_limit` window | **Rate Limit Exceeded** | yes |
+| Wrap rate limit exceeded (inline alert, SEC-I05 F-04 / #463) | `swap-wrap-rate-limit-banner` with `WRAP_RATE_LIMIT_EXCEEDED_MESSAGE` | visible below form (not only CTA label) |
 | Route pair `is_paused === true` (L6 / SEC-B05) | **Pair is paused** | yes |
 
 - **Pause wins over rate limit** when both would apply (`SwapPage` `buttonText` chain).
@@ -33,6 +35,7 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, or **swap
 ```bash
 # Unit (no chain)
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "SEC-A02"
+bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx -t "rate-limit alert"
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- src/pages/SwapPage.test.tsx src/pages/PoolPage.test.tsx -t "SEC-B05"
 
 # E2E (needs deploy env + LocalTerra LCD)
