@@ -54,6 +54,7 @@ import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
+import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { TRADE_MONEY_CTA_CLASS, TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
 
 interface MarketSimData {
@@ -105,11 +106,13 @@ function computeHybridParams(
 export function TradeMarketOrderPanel({
   pairAddr,
   selectedPair,
+  pairs,
   side,
   isPaused,
 }: {
   pairAddr: string
   selectedPair: PairInfo | undefined
+  pairs: PairInfo[]
   side: 'bid' | 'ask'
   isPaused: boolean
 }) {
@@ -413,6 +416,18 @@ export function TradeMarketOrderPanel({
     [fromToken, toToken, simQuery.data?.indexerOperations]
   )
 
+  const marketPairContractAddresses = useMemo(
+    () =>
+      resolveSwapRoutePairAddresses({
+        routeOps: simQuery.data?.indexerOperations,
+        pairs,
+        directPair: selectedPair,
+        fromToken,
+        toToken,
+      }),
+    [simQuery.data?.indexerOperations, pairs, selectedPair, fromToken, toToken]
+  )
+
   const receiveHuman =
     simData?.return_amount != null && simData.return_amount !== ''
       ? formatTokenAmount(simData.return_amount, receiveDecimals, 6)
@@ -610,6 +625,7 @@ export function TradeMarketOrderPanel({
           receiveAmountHuman={receiveHuman}
           maxSpreadPercent={slippageTolerance}
           minReceiveHuman={minReceived != null && minReceived !== '' ? minReceiveHuman : null}
+          pairContractAddresses={marketPairContractAddresses}
           chainFullLabel={getNetworkBadgeCopy().fullLabel}
           data-testid="trade-market-pre-submit-summary"
         />

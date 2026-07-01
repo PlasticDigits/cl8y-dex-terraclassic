@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeSwapRouteDisplay,
+  deriveSwapSubmitRouteOps,
   deriveSwapSubmitRouteSource,
   tokenPathFromSwapOperations,
   tokenPathForNativeSupportedRoute,
@@ -62,6 +63,30 @@ describe('swapRouteDisplay', () => {
     expect(line).toBe(`${sym(from)} → ${sym(mid)} → ${sym(to)}`)
   })
 
+  it('deriveSwapSubmitRouteOps prefers indexer router ops over client BFS direct (#449)', () => {
+    const from = 'terra1aa0000000000000000000000000000000001'
+    const mid = 'terra1bb0000000000000000000000000000000001'
+    const to = 'terra1cc0000000000000000000000000000000001'
+    const direct: SwapOperation[] = [op(from, to)]
+    const indexerMultihop: SwapOperation[] = [op(from, mid), op(mid, to)]
+
+    expect(
+      deriveSwapSubmitRouteOps({
+        nativeRouteInfo: null,
+        indexerOperations: indexerMultihop,
+        clientRoute: direct,
+      })
+    ).toEqual(indexerMultihop)
+
+    expect(
+      deriveSwapSubmitRouteOps({
+        nativeRouteInfo: null,
+        indexerOperations: direct,
+        clientRoute: direct,
+      })
+    ).toEqual(direct)
+  })
+
   it('deriveSwapSubmitRouteSource matches swapMutation branches (GitLab #329)', () => {
     const from = 'terra1aa0000000000000000000000000000000001'
     const mid = 'terra1bb0000000000000000000000000000000001'
@@ -116,9 +141,7 @@ describe('swapRouteDisplay', () => {
 
     it('is case-insensitive on addresses', () => {
       const ops: SwapOperation[] = [op(from, mid), op(mid, to)]
-      expect(
-        swapRouteIntermediateTokensAligned(ops, [from.toUpperCase(), mid, to])
-      ).toBe(true)
+      expect(swapRouteIntermediateTokensAligned(ops, [from.toUpperCase(), mid, to])).toBe(true)
     })
 
     it('returns false when an intermediate hop is substituted', () => {

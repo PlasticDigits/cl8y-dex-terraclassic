@@ -1127,10 +1127,10 @@ Before the wallet extension opens on **`/`** / **`/swap`**, a labeled summary ca
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Labeled fields** | Action (`Swap`), pair symbols, pay amount, estimated receive, max spread (`slippageTolerance%`), min return after slippage floor, and chain full name. |
+| **Labeled fields** | Action (`Swap`), pair symbols, factory-sourced pair contract address(es) when known ([#449](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/449)), pay amount, estimated receive, max spread (`slippageTolerance%`), min return after slippage floor, and chain full name. |
 | **Submit snapshot** | Amounts and min return match [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) — same debounced pay + sim as on-chain submit ([#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356)). |
 | **Chain name** | From [`getNetworkBadgeCopy()`](../frontend-dapp/src/utils/networkDisplay.ts) — must align with the network badge / env strip. |
-| **`data-testid`s** | Panel: `swap-pre-submit-summary`; rows: `swap-confirm-action`, `swap-confirm-pair`, `swap-confirm-offer`, `swap-confirm-receive`, `swap-confirm-max-spread`, `swap-confirm-min-return`, `swap-confirm-chain`. |
+| **`data-testid`s** | Panel: `swap-pre-submit-summary`; rows: `swap-confirm-action`, `swap-confirm-pair`, `swap-confirm-pair-contracts` / `swap-confirm-pair-contract` / `swap-confirm-hop-pair-{n}`, `swap-confirm-offer`, `swap-confirm-receive`, `swap-confirm-max-spread`, `swap-confirm-min-return`, `swap-confirm-chain`. |
 | **Trade market mirror** | [`TradeMarketOrderPanel`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) reuses the component with action `Market swap` and root `trade-market-pre-submit-summary`. |
 
 Implementation: [`SwapPreSubmitSummary.tsx`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx); wired in [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) when a positive pay amount has a quote.

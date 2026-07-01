@@ -60,10 +60,12 @@ import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOpera
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import {
   computeSwapRouteDisplay,
+  deriveSwapSubmitRouteOps,
   deriveSwapSubmitRouteSource,
   swapRouteIntermediateTokensAligned,
   SWAP_CLIENT_BFS_FALLBACK_COPY,
 } from '@/utils/swapRouteDisplay'
+import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import {
@@ -625,50 +627,6 @@ export default function SwapPage() {
     refetchInterval: 10_000,
   })
 
-  const swapBlacklistProbe = useMemo(() => {
-    const routeOps = route ?? nativeRouteInfo?.operations ?? simQuery.data?.indexerOperations
-    const tokens = new Set<string>()
-    if (fromToken?.startsWith('terra1')) tokens.add(fromToken)
-    if (toToken?.startsWith('terra1')) tokens.add(toToken)
-
-    const addresses = new Set<string>()
-    if (routeOps && routeOps.length > 0) {
-      for (const op of routeOps) {
-        const offer = assetInfoLabel(op.terra_swap.offer_asset_info)
-        const ask = assetInfoLabel(op.terra_swap.ask_asset_info)
-        if (offer.startsWith('terra1')) tokens.add(offer)
-        if (ask.startsWith('terra1')) tokens.add(ask)
-        const matched = pairs.find((p) => {
-          const a = assetInfoLabel(p.asset_infos[0])
-          const b = assetInfoLabel(p.asset_infos[1])
-          return (a === offer && b === ask) || (b === offer && a === ask)
-        })
-        if (matched?.contract_addr.startsWith('terra1')) {
-          addresses.add(matched.contract_addr)
-        }
-      }
-    } else if (directPair?.contract_addr.startsWith('terra1')) {
-      addresses.add(directPair.contract_addr)
-    }
-    const pairAddresses = [...addresses]
-    return { tokens: [...tokens], pairAddresses }
-  }, [route, nativeRouteInfo, simQuery.data?.indexerOperations, directPair, pairs, fromToken, toToken])
-
-  const tradingBlacklist = useTradingBlacklist({
-    wallet: address,
-    tokens: swapBlacklistProbe.tokens,
-    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
-    pairs: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
-    enabled: isWalletConnected,
-  })
-
-  const pairPaused = usePairPaused({
-    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
-    pairAddresses: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
-    enabled: swapBlacklistProbe.pairAddresses.length > 0,
-  })
-  const isPairPaused = pairPaused.isPaused
-
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
   const hybridSubmitSnapshot = useMemo(
@@ -725,6 +683,50 @@ export default function SwapPage() {
         }
       : undefined,
   })
+
+  const swapBlacklistProbe = useMemo(() => {
+    const routeOps = deriveSwapSubmitRouteOps({
+      nativeRouteInfo,
+      indexerOperations: simData?.indexerOperations,
+      clientRoute: route,
+    })
+    const tokens = new Set<string>()
+    if (fromToken?.startsWith('terra1')) tokens.add(fromToken)
+    if (toToken?.startsWith('terra1')) tokens.add(toToken)
+
+    if (routeOps && routeOps.length > 0) {
+      for (const op of routeOps) {
+        const offer = assetInfoLabel(op.terra_swap.offer_asset_info)
+        const ask = assetInfoLabel(op.terra_swap.ask_asset_info)
+        if (offer.startsWith('terra1')) tokens.add(offer)
+        if (ask.startsWith('terra1')) tokens.add(ask)
+      }
+    }
+
+    const pairAddresses = resolveSwapRoutePairAddresses({
+      routeOps,
+      pairs,
+      directPair,
+      fromToken,
+      toToken,
+    })
+    return { tokens: [...tokens], pairAddresses }
+  }, [route, nativeRouteInfo, simData?.indexerOperations, directPair, pairs, fromToken, toToken])
+
+  const tradingBlacklist = useTradingBlacklist({
+    wallet: address,
+    tokens: swapBlacklistProbe.tokens,
+    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
+    pairs: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
+    enabled: isWalletConnected,
+  })
+
+  const pairPaused = usePairPaused({
+    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
+    pairAddresses: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
+    enabled: swapBlacklistProbe.pairAddresses.length > 0,
+  })
+  const isPairPaused = pairPaused.isPaused
 
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Swap submitted.',
@@ -1727,6 +1729,7 @@ export default function SwapPage() {
                   ? formatTokenAmount(minReceived, getDecimals(receiveAssetInfo))
                   : null
               }
+              pairContractAddresses={swapBlacklistProbe.pairAddresses}
               chainFullLabel={getNetworkBadgeCopy().fullLabel}
             />
           )}
