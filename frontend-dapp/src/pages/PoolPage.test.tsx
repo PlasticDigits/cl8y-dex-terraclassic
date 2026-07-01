@@ -159,6 +159,57 @@ describe('PoolPage', () => {
     )
   })
 
+  it('shows provide pre-sign summary before submit when both amounts are entered (GitLab #462 / SEC-I05)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+
+    expect(screen.queryByTestId('pool-provide-pre-submit-summary')).not.toBeInTheDocument()
+
+    const aInput = screen.getByLabelText('Asset A amount')
+    const bInput = screen.getByLabelText('Asset B amount')
+    await user.type(aInput, '1')
+    await user.type(bInput, '2')
+
+    const summary = await screen.findByTestId('pool-provide-pre-submit-summary')
+    expect(summary).toHaveTextContent('Provide Liquidity')
+    expect(screen.getByTestId('pool-provide-pre-submit-summary-pair')).toBeInTheDocument()
+    expect(screen.getByTestId('pool-provide-pre-submit-summary-amount')).toHaveTextContent('1')
+    expect(screen.getByTestId('pool-provide-pre-submit-summary-chain')).toBeInTheDocument()
+
+    const submitButtons = screen.getAllByRole('button', { name: /^Provide Liquidity$/i })
+    const submit = submitButtons[submitButtons.length - 1]!
+    expect(summary.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('shows withdraw pre-sign summary before submit when LP amount is entered (GitLab #462 / SEC-I05)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
+    await user.click(withdrawTabs[0]!)
+
+    expect(screen.queryByTestId('pool-withdraw-pre-submit-summary')).not.toBeInTheDocument()
+
+    const lpInput = screen.getByLabelText('LP Token Amount')
+    await user.type(lpInput, '1.5')
+
+    const summary = await screen.findByTestId('pool-withdraw-pre-submit-summary')
+    expect(summary).toHaveTextContent('Withdraw Liquidity')
+    expect(screen.getByTestId('pool-withdraw-pre-submit-summary-amount')).toHaveTextContent('1.5 LP')
+    expect(screen.getByTestId('pool-withdraw-pre-submit-summary-chain')).toBeInTheDocument()
+
+    const submitButtons = screen.getAllByRole('button', { name: /^Withdraw Liquidity$/i })
+    const submit = submitButtons[submitButtons.length - 1]!
+    expect(summary.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('add-LP: shows per-asset balance and estimated LP when provide panel is open', async () => {
     const user = userEvent.setup()
     renderWithProviders(<PoolPage />, { route: '/pool' })

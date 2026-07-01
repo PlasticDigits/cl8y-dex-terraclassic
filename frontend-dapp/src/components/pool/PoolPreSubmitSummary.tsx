@@ -26,9 +26,12 @@ function SummaryRow({ label, value, testId }: { label: string; value: string; te
 }
 
 /**
- * Pre-sign summary for pool provide / withdraw: labeled action, pair, amounts, and chain so a
+ * Compact pre-sign summary for pool provide / withdraw: labeled action, pair, amounts, and chain so a
  * phishing page cannot substitute pair/chain without failing tests — the same SEC-D11 anti-phishing
  * anchor swaps already have ([#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462) / SEC-I05).
+ *
+ * Pool forms already show token inputs above the submit button; this card repeats only the security
+ * anchors (action, pair, consolidated amounts, chain) without duplicating the swap-style intro copy.
  */
 export function PoolPreSubmitSummary({
   actionLabel,
@@ -37,23 +40,19 @@ export function PoolPreSubmitSummary({
   chainFullLabel = getNetworkBadgeCopy().fullLabel,
   'data-testid': testId = 'pool-pre-submit-summary',
 }: PoolPreSubmitSummaryProps) {
+  const amountDisplay = amountLines.join(' + ')
+
   return (
     <div
-      className="card-glass !p-2.5 space-y-2 text-[11px] sm:text-xs mb-3"
+      className="card-glass !p-2.5 space-y-1.5 text-[11px] sm:text-xs mb-3"
       data-testid={testId}
       role="region"
       aria-label="Liquidity action summary before signing"
     >
-      <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        Review these fields before your wallet opens. They must match what you intend to sign on{' '}
-        <strong style={{ color: 'var(--ink-subtle)' }}>{chainFullLabel}</strong>.
-      </p>
       <div className="space-y-1.5">
         <SummaryRow label="Action" value={actionLabel} testId={`${testId}-action`} />
         <SummaryRow label="Pair" value={pairLabel} testId={`${testId}-pair`} />
-        {amountLines.map((line, i) => (
-          <SummaryRow key={i} label={i === 0 ? 'Amount' : ''} value={line} testId={`${testId}-amount-${i}`} />
-        ))}
+        <SummaryRow label="Amount" value={amountDisplay} testId={`${testId}-amount`} />
         <SummaryRow label="Chain" value={chainFullLabel} testId={`${testId}-chain`} />
       </div>
     </div>
