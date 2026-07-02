@@ -188,6 +188,18 @@ Integer rounding during hybrid book fills can leave **1–9 smallest-unit** rema
 
 Invariant **L16** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbooks [skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md), [skills/AGENTS_LOCALNET_TRADING_SWARM.md](../skills/AGENTS_LOCALNET_TRADING_SWARM.md).
 
+<a id="zero-cost-fill-skip-gitlab-470"></a>
+
+### Zero-cost fill skip (GitLab #470)
+
+When **`floor(fill × price) = 0`** while **`fill > 0`** (typical when the resting limit price is **&lt; 1** token1 per token0 — allowed across mismatched CW20 decimals), a naive fill would debit maker escrow without crediting the counter leg (ask: maker loses token0, receives 0 token1; bid: symmetric).
+
+**Execute + simulation:** `match_bids` / `match_asks` and **`simulate_match_*`** skip the order (`continue`) — the taker's remaining budget cannot afford a price-honoring fill at that granularity. Indexer Postgres mirror (`db_orderbook_sim`) matches on-chain math (**L8**).
+
+**Not** the same as match-time dust flush (**L16**): dust flush runs **after** a successful fill with non-zero `cost`; zero-cost skip prevents the fill entirely.
+
+Invariant **L18** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbook [skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md](../skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md).
+
 **Frontend hybrid gas ([GitLab #249](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/249), scan cap [#260](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/260), ceiling [#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)):** Terra Classic does not refund unused gas — the dApp sizes `Fee.gas` from the route quote’s `max_maker_fills` **plus** conservative book-walk overhead when `book_input > 0`, not a flat **15M** per hop unless the envelope hits the ceiling. Formula (one hop, book leg):
 
 `gasWanted = min(15_000_000, max(600_000, 550_000 + 65_000 × (max_maker_fills + 2) + 950 × max(0, scanSteps − (max_maker_fills + 2)) + 8_000 × expiredParks))`
