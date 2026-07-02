@@ -169,6 +169,17 @@ fn hop_output_from_balance(
     Ok(hop_output)
 }
 
+/// Net native amount delivered to the recipient after wrap-mapper unwrap fee.
+fn net_after_wrap_mapper_unwrap_fee(
+    wrapped_amount: Uint128,
+    fee_bps: u16,
+) -> Result<Uint128, ContractError> {
+    let fee = wrapped_amount.multiply_ratio(Uint128::from(fee_bps as u128), Uint128::new(10_000));
+    wrapped_amount
+        .checked_sub(fee)
+        .map_err(|e| ContractError::Std(e.into()))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn execute_swap_operations(
     deps: DepsMut,
@@ -341,8 +352,9 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 /// If operations remain: compute this hop's output delta, resolve the next pair,
 /// snapshot the next output token's pre-hop balance, and chain another SubMsg swap.
 ///
-/// If this was the final hop: assert `minimum_receive`, transfer hop output
-/// to the recipient (or unwrap via wrap-mapper), and clear `SWAP_STATE`.
+/// If this was the final hop: assert `minimum_receive` against the amount the
+/// recipient receives (post-unwrap net when `unwrap_output`), transfer hop
+/// output to the recipient (or unwrap via wrap-mapper), and clear `SWAP_STATE`.
 fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let mut state = SWAP_STATE.load(deps.storage)?;
 
@@ -353,20 +365,35 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     if state.remaining_operations.is_empty() {
         SWAP_STATE.remove(deps.storage);
 
+        let wrap_mapper_addr = if state.unwrap_output {
+            Some(
+                WRAP_MAPPER
+                    .may_load(deps.storage)?
+                    .ok_or(ContractError::WrapMapperNotSet {})?,
+            )
+        } else {
+            None
+        };
+
+        let delivered_amount = if let Some(ref mapper) = wrap_mapper_addr {
+            let mapper_config: wrap_mapper::ConfigResponse = deps
+                .querier
+                .query_wasm_smart(mapper.to_string(), &wrap_mapper::QueryMsg::Config {})?;
+            net_after_wrap_mapper_unwrap_fee(hop_output, mapper_config.fee_bps)?
+        } else {
+            hop_output
+        };
+
         if let Some(min) = state.minimum_receive {
-            if hop_output < min {
+            if delivered_amount < min {
                 return Err(ContractError::MinimumReceiveAssertion {
                     minimum: min.to_string(),
-                    actual: hop_output.to_string(),
+                    actual: delivered_amount.to_string(),
                 });
             }
         }
 
-        let output_msg = if state.unwrap_output {
-            let mapper = WRAP_MAPPER
-                .may_load(deps.storage)?
-                .ok_or(ContractError::WrapMapperNotSet {})?;
-
+        let output_msg = if let Some(mapper) = wrap_mapper_addr {
             let unwrap_hook = wrap_mapper::Cw20HookMsg::Unwrap {
                 recipient: Some(state.recipient.to_string()),
             };
