@@ -4,6 +4,7 @@ import { simulateHybridSwap, type QuoteTraderOptions } from '@/services/terracla
 import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import type { AssetInfo, HybridSwapParams, IndexerRouteQuoteKind } from '@/types'
+import { indexerWalletAmountMismatch, resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 
 export type DirectHybridQuoteResult = {
   return_amount: string
@@ -14,7 +15,12 @@ export type DirectHybridQuoteResult = {
   routePreflight?: SwapRoutePreflightSpread
   routeSlippagePercent?: string
   spotAmountOut?: string
+  /** Indexer `estimated_amount_out` disagreed with wallet `hybrid_simulation`; display uses wallet (GitLab #471). */
+  indexerAmountReconciled?: boolean
 }
+
+/** Shown when direct-hybrid receive was reconciled from indexer to wallet sim (GitLab #471). */
+export const DIRECT_HYBRID_AMOUNT_RECONCILED_COPY = 'Receive amount adjusted to match your wallet.'
 
 /** Retail quote-source line for direct hybrid / market quote cards (GitLab #418, #414). */
 export function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | undefined): string {
@@ -62,15 +68,26 @@ export async function quoteDirectHybridSwap(input: {
       const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
       const routePreflight =
         ops.length > 0 ? await preflightSwapRouteSpread(ops, simRaw, maxSpreadStr, quoteTrader) : undefined
+      // GitLab #471: reconcile receive + slippage to wallet sim (same as multi-hop indexer branch).
+      const walletSim = await simulateHybridSwap(pairAddress, offerAssetInfo, simRaw, hybrid, quoteTrader)
+      const indexerAmount = idx.estimated_amount_out.trim()
+      const walletAmount = walletSim.return_amount
+      const amountMismatch = indexerWalletAmountMismatch(indexerAmount, walletAmount)
+      if (amountMismatch) {
+        console.warn(
+          '[directHybridQuote] indexer estimated_amount_out disagreed with wallet hybrid_simulation; reconciled receive to wallet amount'
+        )
+      }
       return {
-        return_amount: idx.estimated_amount_out,
-        spread_amount: '0',
-        commission_amount: '0',
+        return_amount: walletAmount,
+        spread_amount: walletSim.spread_amount,
+        commission_amount: walletSim.commission_amount,
         indexerQuoteKind: idx.quote_kind,
         indexerOperations: ops.length > 0 ? ops : undefined,
         routePreflight,
-        routeSlippagePercent: idx.slippage_percent,
+        routeSlippagePercent: resolveRouteSlippagePercent(walletAmount, idx.spot_amount_out, idx.slippage_percent),
         spotAmountOut: idx.spot_amount_out,
+        indexerAmountReconciled: amountMismatch,
       }
     }
   } catch (e) {

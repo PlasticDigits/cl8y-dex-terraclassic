@@ -22,6 +22,16 @@ export function symmetricSlippagePercentFromRaw(actualOutRaw: string, expectedOu
   return ((1 - lo / hi) * 100).toFixed(2)
 }
 
+/** Warn when indexer `estimated_amount_out` disagrees with wallet sim by at least this much (GitLab #471). */
+export const INDEXER_WALLET_AMOUNT_MISMATCH_WARN_PCT = 0.1
+
+/** True when indexer and wallet receive amounts differ enough to surface a reconcile label. */
+export function indexerWalletAmountMismatch(indexerAmountOut: string, walletAmountOut: string): boolean {
+  const pct = symmetricSlippagePercentFromRaw(walletAmountOut, indexerAmountOut)
+  if (pct == null) return false
+  return parseFloat(pct) >= INDEXER_WALLET_AMOUNT_MISMATCH_WARN_PCT
+}
+
 /** Prefer wallet receive vs indexer spot; fall back to indexer slippage when spot is missing. */
 export function resolveRouteSlippagePercent(
   walletReturnRaw: string,

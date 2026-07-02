@@ -357,6 +357,66 @@ describe('SwapPage', () => {
     expect(execution).toHaveTextContent(/Hybrid \(pool \+ limit book\)/i)
   })
 
+  it('reconciles direct-hybrid receive to wallet when indexer estimate disagrees (#471)', async () => {
+    const user = userEvent.setup()
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+    ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+    vi.spyOn(indexerClient, 'postRouteSolve').mockResolvedValue({
+      token_in: terraA,
+      token_out: terraB,
+      hops: [{ pair: 'terra1pair', offer_token: terraA, ask_token: terraB }],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ],
+      quote_kind: 'indexer_hybrid_lcd',
+      estimated_amount_out: '9999999',
+      slippage_percent: '0.1',
+      spot_amount_out: '10000000',
+    })
+    vi.mocked(simulateHybridSwap).mockResolvedValue({
+      return_amount: '5000000',
+      spread_amount: '0',
+      commission_amount: '0',
+    })
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+    await openSwapSettingsWithAdvanced(user)
+    await user.type(screen.getByPlaceholderText('0.0'), '0.01')
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+    await waitFor(() => expect(simulateHybridSwap).toHaveBeenCalled())
+    const reconciled = await screen.findByTestId('swap-direct-hybrid-amount-reconciled')
+    expect(reconciled).toHaveTextContent(/Receive amount adjusted/i)
+    expect(screen.queryByText(/9\.999/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('5.000').length).toBeGreaterThan(0)
+  })
+
   it('shows market-data outage banner when sim fails with indexer transport error (GitLab #241)', async () => {
     const user = userEvent.setup()
     const wallet = 'terra1wallet000000000000000000000000000001'

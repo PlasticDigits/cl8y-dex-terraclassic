@@ -9,7 +9,7 @@ import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
-import { quoteDirectHybridSwap } from '@/utils/directHybridQuote'
+import { quoteDirectHybridSwap, DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
 import {
   computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
@@ -123,6 +123,8 @@ interface SwapSimData {
   indexerTransportFailed?: boolean
   /** Indexer `intermediate_tokens` disagreed with `router_operations`; display reconciled to ops path (GitLab #450 / SEC-I02 H09). */
   indexerRouteIntermediateReconciled?: boolean
+  /** Indexer `estimated_amount_out` disagreed with wallet hybrid sim; display reconciled to wallet (GitLab #471). */
+  indexerAmountReconciled?: boolean
 }
 
 export default function SwapPage() {
@@ -929,6 +931,7 @@ export default function SwapPage() {
 
   const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
   const showRouteIntermediateReconciledLabel = !!simData?.indexerRouteIntermediateReconciled
+  const showDirectHybridAmountReconciledLabel = !!simData?.indexerAmountReconciled
 
   const insufficientBalance =
     hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
@@ -1444,6 +1447,16 @@ export default function SwapPage() {
                       </>
                     )}
                   </div>
+                )}
+                {showDirectHybridAmountReconciledLabel && (
+                  <p
+                    data-testid="swap-direct-hybrid-amount-reconciled"
+                    className="text-[10px] font-sans leading-snug"
+                    style={{ color: 'var(--color-warning, #f59e0b)' }}
+                    role="status"
+                  >
+                    {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
+                  </p>
                 )}
               </div>
             )}

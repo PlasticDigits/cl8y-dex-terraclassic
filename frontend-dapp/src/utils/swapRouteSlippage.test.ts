@@ -5,6 +5,7 @@ import {
   parseSlippagePercent,
   resolveRouteSlippagePercent,
   resolveSwapExpectedSlippagePercent,
+  indexerWalletAmountMismatch,
   symmetricSlippagePercentFromRaw,
 } from './swapRouteSlippage'
 
@@ -34,5 +35,11 @@ describe('swapRouteSlippage (GitLab #293)', () => {
   it('prefers wallet receive vs indexer spot for route slippage', () => {
     expect(resolveRouteSlippagePercent('970000', '1000000', '1.00')).toBe('3.00')
     expect(resolveRouteSlippagePercent('970000', undefined, '1.00')).toBe('1.00')
+  })
+
+  it('detects indexer vs wallet amount mismatch for reconcile label (#471)', () => {
+    expect(indexerWalletAmountMismatch('950000', '940000')).toBe(true)
+    expect(indexerWalletAmountMismatch('940000', '940000')).toBe(false)
+    expect(indexerWalletAmountMismatch('940001', '940000')).toBe(false)
   })
 })

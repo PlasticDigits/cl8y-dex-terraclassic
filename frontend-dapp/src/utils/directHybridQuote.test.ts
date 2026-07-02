@@ -14,7 +14,7 @@ const HYBRID = {
 const OFFER = { token: { contract_addr: 'terra1from' } }
 const ASK = { token: { contract_addr: 'terra1to' } }
 
-describe('quoteDirectHybridSwap (#418)', () => {
+describe('quoteDirectHybridSwap (#418, #471)', () => {
   beforeEach(() => {
     vi.spyOn(swapRoutePreflight, 'preflightSwapRouteSpread').mockResolvedValue({
       worstSpreadPercent: '0.25',
@@ -22,7 +22,7 @@ describe('quoteDirectHybridSwap (#418)', () => {
     })
   })
 
-  it('returns indexer estimate when POST /route/solve succeeds', async () => {
+  it('reconciles indexer estimate to wallet hybrid_simulation (#471)', async () => {
     vi.spyOn(indexerClient, 'postRouteSolve').mockResolvedValue({
       estimated_amount_out: '950000',
       quote_kind: 'indexer_hybrid_lcd',
@@ -41,7 +41,11 @@ describe('quoteDirectHybridSwap (#418)', () => {
       slippage_percent: '0.5',
       spot_amount_out: '960000',
     })
-    const lcdSpy = vi.spyOn(pair, 'simulateHybridSwap')
+    vi.spyOn(pair, 'simulateHybridSwap').mockResolvedValue({
+      return_amount: '940000',
+      spread_amount: '100',
+      commission_amount: '3000',
+    })
 
     const result = await quoteDirectHybridSwap({
       pairAddress: 'terra1pair',
@@ -54,9 +58,53 @@ describe('quoteDirectHybridSwap (#418)', () => {
       maxSpreadStr: '0.01',
     })
 
-    expect(result.return_amount).toBe('950000')
+    expect(pair.simulateHybridSwap).toHaveBeenCalledWith('terra1pair', OFFER, '1000000', HYBRID, undefined)
+    expect(result.return_amount).toBe('940000')
+    expect(result.spread_amount).toBe('100')
+    expect(result.commission_amount).toBe('3000')
     expect(result.indexerQuoteKind).toBe('indexer_hybrid_lcd')
-    expect(lcdSpy).not.toHaveBeenCalled()
+    expect(result.routeSlippagePercent).toBe('2.08')
+    expect(result.indexerAmountReconciled).toBe(true)
+  })
+
+  it('uses wallet amount without reconcile flag when indexer matches', async () => {
+    vi.spyOn(indexerClient, 'postRouteSolve').mockResolvedValue({
+      estimated_amount_out: '940000',
+      quote_kind: 'indexer_hybrid_lcd',
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: OFFER,
+            ask_asset_info: ASK,
+            hybrid: HYBRID,
+          },
+        },
+      ],
+      hops: [{ pair: 'terra1pair', offer_token: 'terra1from', ask_token: 'terra1to' }],
+      token_in: 'terra1from',
+      token_out: 'terra1to',
+      slippage_percent: '0.5',
+      spot_amount_out: '960000',
+    })
+    vi.spyOn(pair, 'simulateHybridSwap').mockResolvedValue({
+      return_amount: '940000',
+      spread_amount: '0',
+      commission_amount: '0',
+    })
+
+    const result = await quoteDirectHybridSwap({
+      pairAddress: 'terra1pair',
+      fromToken: 'terra1from',
+      toToken: 'terra1to',
+      offerAssetInfo: OFFER,
+      askAssetInfo: ASK,
+      simRaw: '1000000',
+      hybrid: HYBRID,
+      maxSpreadStr: '0.01',
+    })
+
+    expect(result.return_amount).toBe('940000')
+    expect(result.indexerAmountReconciled).toBe(false)
   })
 
   it('falls back to LCD hybrid_simulation when indexer fails', async () => {
