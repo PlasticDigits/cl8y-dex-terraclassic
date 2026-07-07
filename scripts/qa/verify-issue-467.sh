@@ -9,7 +9,7 @@
 #
 # Refs: smartcontracts/packages/dex-common/src/limit_placement.rs,
 #       smartcontracts/contracts/pair/src/orderbook.rs,
-#       docs/contracts-security-audit.md (L19), docs/limit-orders.md.
+#       docs/contracts-security-audit.md (L20), docs/limit-orders.md.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -50,14 +50,14 @@ run_step "integration: dust_ask_brick_attack_prevented_valid_ask_still_fills" \
 run_step "pair unit: match_asks_skips_legacy_dust_price_without_reverting" \
   bash -c 'cd smartcontracts && cargo test -p cl8y-dex-pair match_asks_skips_legacy_dust_price_without_reverting --quiet'
 
-run_step "docs: L19 invariant row present" \
-  grep -q 'L19.*Limit price band' docs/contracts-security-audit.md
+run_step "docs: L20 invariant row present" \
+  grep -q 'L20.*Limit price band' docs/contracts-security-audit.md
 
 run_step "docs: limit-orders price band section" \
   grep -q 'limit-price-band-gitlab-467' docs/limit-orders.md
 
-run_step "skill: AGENTS_BOOK_MATCH_HINT_SECURITY L19" \
-  grep -q 'L19 / GitLab #467' skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md
+run_step "skill: AGENTS_BOOK_MATCH_HINT_SECURITY L20" \
+  grep -q 'L20 / GitLab #467' skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"

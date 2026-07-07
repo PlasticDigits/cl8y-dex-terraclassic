@@ -108,3 +108,74 @@ pub fn assert_trade_not_blacklisted_deps(
         extra_tokens,
     )
 }
+
+/// Factory trading blacklist probe for a single wallet (GitLab #468).
+pub fn wallet_is_trade_blacklisted(
+    querier: &QuerierWrapper,
+    pair_info: &PairInfoState,
+    pair_contract: &Addr,
+    wallet: &Addr,
+    extra_tokens: &[Addr],
+) -> Result<bool, ContractError> {
+    let token0 = token_addr(&pair_info.asset_infos[0])?;
+    let token1 = token_addr(&pair_info.asset_infos[1])?;
+
+    let mut tokens = vec![token0.to_string(), token1.to_string()];
+    for t in extra_tokens {
+        let s = t.to_string();
+        if !tokens.contains(&s) {
+            tokens.push(s);
+        }
+    }
+
+    let check = BlacklistCheck {
+        wallet: Some(wallet.to_string()),
+        tokens,
+        pair: Some(pair_contract.to_string()),
+        pairs: vec![],
+    };
+    let resp = probe_factory_blacklist(querier, &pair_info.factory, check)?
+        .ok_or(ContractError::BlacklistGuardUnavailable {})?;
+    Ok(resp.blocked)
+}
+
+/// Read-only blacklist gate for limit-book match walks (GitLab #468).
+pub struct TradeBlacklistGate<'a> {
+    querier: QuerierWrapper<'a>,
+    pair_info: &'a PairInfoState,
+    pair_contract: &'a Addr,
+    extra_tokens: &'a [Addr],
+}
+
+impl<'a> TradeBlacklistGate<'a> {
+    pub fn from_parts(
+        querier: QuerierWrapper<'a>,
+        pair_info: &'a PairInfoState,
+        pair_contract: &'a Addr,
+    ) -> Self {
+        Self {
+            querier,
+            pair_info,
+            pair_contract,
+            extra_tokens: &[],
+        }
+    }
+
+    pub fn from_deps(
+        deps: Deps<'a>,
+        pair_info: &'a PairInfoState,
+        pair_contract: &'a Addr,
+    ) -> Self {
+        Self::from_parts(deps.querier, pair_info, pair_contract)
+    }
+
+    pub fn is_wallet_blacklisted(&self, wallet: &Addr) -> Result<bool, ContractError> {
+        wallet_is_trade_blacklisted(
+            &self.querier,
+            self.pair_info,
+            self.pair_contract,
+            wallet,
+            self.extra_tokens,
+        )
+    }
+}

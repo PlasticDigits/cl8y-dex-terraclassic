@@ -220,14 +220,15 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
 
     let stats = sqlx::query_as::<_, StatsRow>(
         "SELECT
-           COALESCE(SUM(offer_amount), 0) AS volume_base,
-           COALESCE(SUM(return_amount), 0) AS volume_quote,
-           SUM(volume_usd) AS volume_usd,
+           COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.offer_amount ELSE se.return_amount END), 0) AS volume_base,
+           COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END), 0) AS volume_quote,
+           SUM(se.volume_usd) AS volume_usd,
            COUNT(*) AS trade_count,
-           MAX(price) AS high,
-           MIN(price) AS low
-         FROM swap_events
-         WHERE pair_id = $1 AND block_timestamp >= $2",
+           MAX(se.price) AS high,
+           MIN(se.price) AS low
+         FROM swap_events se
+         INNER JOIN pairs p ON p.id = se.pair_id
+         WHERE se.pair_id = $1 AND se.block_timestamp >= $2",
     )
     .bind(pair_id)
     .bind(cutoff)
@@ -310,16 +311,17 @@ pub async fn get_24h_stats_all_pairs(
 
     let agg_rows = sqlx::query_as::<_, AggRow>(
         "SELECT
-           pair_id,
-           COALESCE(SUM(offer_amount), 0) AS volume_base,
-           COALESCE(SUM(return_amount), 0) AS volume_quote,
-           SUM(volume_usd) AS volume_usd,
+           se.pair_id,
+           COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.offer_amount ELSE se.return_amount END), 0) AS volume_base,
+           COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END), 0) AS volume_quote,
+           SUM(se.volume_usd) AS volume_usd,
            COUNT(*) AS trade_count,
-           MAX(price) AS high,
-           MIN(price) AS low
-         FROM swap_events
-         WHERE block_timestamp >= $1
-         GROUP BY pair_id",
+           MAX(se.price) AS high,
+           MIN(se.price) AS low
+         FROM swap_events se
+         INNER JOIN pairs p ON p.id = se.pair_id
+         WHERE se.block_timestamp >= $1
+         GROUP BY se.pair_id",
     )
     .bind(cutoff)
     .fetch_all(pool)
@@ -380,9 +382,10 @@ pub async fn get_24h_stats_all_pairs(
 }
 
 /// Hybrid leg attribution for consolidated listing stats (ask-side: `pool_return_amount` /
-/// `book_return_amount`). Totals in [`get_24h_stats_for_pair`] use `offer_amount` /
-/// `return_amount` (Terraport-compatible totals); this query splits book vs pool legs without
-/// double-counting `limit_order_fills` rows. See [integrators-hybrid-volume.md](../../../docs/integrators-hybrid-volume.md).
+/// `book_return_amount`). Totals in [`get_24h_stats_for_pair`] bucket `offer_amount` /
+/// `return_amount` by pair base/quote orientation (quote per base price — GitLab #466); this query
+/// splits book vs pool legs without double-counting `limit_order_fills` rows. See
+/// [integrators-hybrid-volume.md](../../../docs/integrators-hybrid-volume.md).
 pub async fn get_24h_hybrid_breakdown(
     pool: &PgPool,
     pair_id: i32,

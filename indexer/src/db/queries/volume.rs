@@ -64,10 +64,13 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 
     sqlx::query(
         r#"INSERT INTO pair_volume_24h (pair_id, volume_quote, updated_at)
-           SELECT pair_id, SUM(return_amount), NOW()
-           FROM swap_events
-           WHERE block_timestamp >= $1
-           GROUP BY pair_id
+           SELECT se.pair_id,
+                  SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END),
+                  NOW()
+           FROM swap_events se
+           INNER JOIN pairs p ON p.id = se.pair_id
+           WHERE se.block_timestamp >= $1
+           GROUP BY se.pair_id
            ON CONFLICT (pair_id)
              DO UPDATE SET volume_quote = EXCLUDED.volume_quote,
                           updated_at = EXCLUDED.updated_at"#,

@@ -18,7 +18,7 @@ Wrong-side hints must **fall back to head** silently (same UX as stale/missing i
 - After computing `cost = floor(fill × price)` (and the too-expensive shrink loop), if **`cost == 0`** while **`fill > 0`**, **skip** the order — do not debit maker escrow or credit a zero counter-leg payout.
 - Apply symmetrically in **`match_bids`**, **`match_asks`**, **`simulate_match_*`**, and indexer **`db_orderbook_sim`** so quotes match execute (**L8**).
 
-## Invariant (L19 / GitLab #467)
+## Invariant (L20 / GitLab #467)
 
 - **`validate_limit_order_price`** in `dex-common::limit_placement` gates batch placement, ladder expansion, and **`UpdateLimitOrderPrice`**: **[`MIN_LIMIT_PRICE`, `MAX_LIMIT_PRICE`]** = **[1e-9, 1e9]** token1 per token0.
 - **`match_bids` / `match_asks` / `simulate_match_*`:** on `checked_mul_floor` overflow for `1/price` or `fill × price`, **skip** the maker (`continue`) — do not revert the whole swap (legacy rows predating the band).
