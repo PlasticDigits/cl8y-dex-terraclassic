@@ -109,18 +109,19 @@ pub async fn rebuild_candles_from_swaps(
          SELECT
            $1 AS pair_id,
            $2 AS interval,
-           date_trunc('minute', block_timestamp) -
-             (EXTRACT(MINUTE FROM block_timestamp)::int %
+           date_trunc('minute', se.block_timestamp) -
+             (EXTRACT(MINUTE FROM se.block_timestamp)::int %
               EXTRACT(EPOCH FROM interval '{}')::int / 60) * interval '1 minute' AS open_time,
-           (array_agg(price ORDER BY block_timestamp ASC, id ASC))[1] AS open,
-           MAX(price) AS high,
-           MIN(price) AS low,
-           (array_agg(price ORDER BY block_timestamp DESC, id DESC))[1] AS close,
-           SUM(offer_amount) AS volume_base,
-           SUM(return_amount) AS volume_quote,
+           (array_agg(se.price ORDER BY se.block_timestamp ASC, se.id ASC))[1] AS open,
+           MAX(se.price) AS high,
+           MIN(se.price) AS low,
+           (array_agg(se.price ORDER BY se.block_timestamp DESC, se.id DESC))[1] AS close,
+           SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.offer_amount ELSE se.return_amount END) AS volume_base,
+           SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END) AS volume_quote,
            COUNT(*)::int AS trade_count
-         FROM swap_events
-         WHERE pair_id = $1 AND block_timestamp >= $3
+         FROM swap_events se
+         INNER JOIN pairs p ON p.id = se.pair_id
+         WHERE se.pair_id = $1 AND se.block_timestamp >= $3
          GROUP BY open_time
          ON CONFLICT (pair_id, interval, open_time)
            DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
