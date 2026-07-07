@@ -79,6 +79,7 @@ For the blacklisted address:
 - Provide and withdraw liquidity
 - Limit order place, cancel, claim, and price update
 - Router multihop that includes your address as trader
+- **Resting limit fills** — if you already had orders on the book when blacklisted, takers cannot fill them; escrow parks for claim after unblacklist ([#468](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/468))
 
 ### What happens to your assets
 
