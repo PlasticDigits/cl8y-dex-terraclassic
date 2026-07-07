@@ -31,6 +31,9 @@
 //! - **Cancel / claim:** Only the stored `owner` may cancel an **active** book row or claim a parked
 //!   **`EXPIRED_LIMIT_CLAIMS`** row; cancel does not apply after a park, preventing double CW20 return.
 //!   **`ClaimExpiredLimitOrder`** is pause-gated like cancel (GitLab #120).
+//! - **Blacklisted maker (GitLab #468):** hybrid match walks never fill resting orders whose `owner`
+//!   is on the factory trading blacklist; eligible rows park into `EXPIRED_LIMIT_CLAIMS` (same escrow
+//!   path as expiry) so makers can claim after `UnblacklistWallet`.
 //! - **Bounded work:** Placement insert position is found by a linear walk
 //!   from the book head capped by `max_adjust_steps` (see `orderbook`).
 //!   Hybrid swaps cap distinct makers per tx via `max_maker_fills`.

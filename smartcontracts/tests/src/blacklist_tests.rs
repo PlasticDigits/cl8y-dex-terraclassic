@@ -696,3 +696,84 @@ fn factory_blacklist_query_error_blocks_swap() {
         .unwrap_err();
     assert!(is_blacklist_guard_unavailable_err(&err.root_cause()));
 }
+
+/// GitLab #468 — blacklisted maker's resting limits are not filled; escrow parks for post-unblacklist claim.
+#[test]
+fn blacklisted_maker_resting_limit_not_filled_taker_can_still_swap() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+
+    let maker = env.user.clone();
+    let taker = cosmwasm_std::Addr::unchecked("taker_blacklist_maker_fill");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &maker,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let bid_escrow = Uint128::new(50_000);
+    app.execute_contract(
+        maker.clone(),
+        env.token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: bid_escrow,
+            msg: batch_place_msg(LimitOrderSide::Bid, Decimal::one(), bid_escrow),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let maker_token_a_before = query_cw20_balance(&app, &env.token_a, &maker);
+    blacklist_wallet(&mut app, &env, &maker);
+
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::zero(),
+        book_input: Uint128::new(10_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(hybrid),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        taker,
+        env.token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: Uint128::new(10_000),
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap();
+
+    let maker_token_a_after = query_cw20_balance(&app, &env.token_a, &maker);
+    assert_eq!(
+        maker_token_a_after, maker_token_a_before,
+        "blacklisted maker must not receive offer-token payout from a book fill"
+    );
+
+    let parked: Option<dex_common::pair::ExpiredLimitRefundResponse> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &dex_common::pair::QueryMsg::ExpiredLimitRefund { order_id: 1 },
+        )
+        .unwrap();
+    assert!(
+        parked.is_some(),
+        "blacklisted maker order should park off-book for claim after unblacklist"
+    );
+    assert_eq!(parked.unwrap().owner, maker);
+}

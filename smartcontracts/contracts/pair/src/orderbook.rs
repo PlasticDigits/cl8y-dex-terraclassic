@@ -16,6 +16,13 @@
 //! `floor(fill × price)` can be **0** while `fill > 0` when price &lt; 1 (common across mismatched
 //! token decimals). Such a fill would debit maker escrow without crediting the counter leg — skip
 //! the order (`continue`) in `match_bids` / `match_asks` and `simulate_match_*` (symmetric on both sides).
+//!
+//! ## Blacklisted maker skip (GitLab #468)
+//!
+//! During execute walks, resting orders whose `owner` is on the factory trading blacklist are
+//! never filled; when park budget allows, they are unlinked into `EXPIRED_LIMIT_CLAIMS` (same
+//! escrow path as expiry — maker claims after `UnblacklistWallet`). Read-only sim walks skip them
+//! without mutating storage.
 
 use std::collections::BTreeMap;
 
@@ -25,6 +32,7 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 use dex_common::pair::{LimitOrderResponse, LimitOrderSide};
 
+use crate::blacklist_guard::TradeBlacklistGate;
 use crate::error::ContractError;
 use crate::state::{
     ExpiredLimitRefund, LimitOrder, EXPIRED_LIMIT_CLAIMS, HEAD_ASK, HEAD_BID, ORDERS,
@@ -1350,6 +1358,44 @@ pub fn park_expired_limit_order_for_claim(
     park_limit_order_for_clean(storage, order_id, pair_contract, false, order.expires_at)
 }
 
+/// Skip (and optionally park) a resting order when its owner is trading-blacklisted (GitLab #468).
+fn maker_owner_is_trade_blacklisted(
+    blacklist_gate: Option<&TradeBlacklistGate>,
+    owner: &Addr,
+) -> Result<bool, ContractError> {
+    match blacklist_gate {
+        Some(gate) => gate.is_wallet_blacklisted(owner),
+        None => Ok(false),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn skip_blacklisted_maker_order(
+    storage: &mut dyn Storage,
+    oid: u64,
+    owner: &Addr,
+    pair_contract: &str,
+    blacklist_gate: Option<&TradeBlacklistGate>,
+    park_off_book: bool,
+    expired_parks: &mut u32,
+    expired_parks_skipped: &mut u32,
+    fill_events: &mut Vec<Event>,
+) -> Result<bool, ContractError> {
+    if !maker_owner_is_trade_blacklisted(blacklist_gate, owner)? {
+        return Ok(false);
+    }
+    if park_off_book {
+        if *expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
+            let ev = park_limit_order_for_clean(storage, oid, pair_contract, true, None)?;
+            fill_events.push(ev);
+            *expired_parks += 1;
+        } else {
+            *expired_parks_skipped += 1;
+        }
+    }
+    Ok(true)
+}
+
 /// Match bids while taker sells token0 for token1. `token0_budget` is filled from the taker.
 #[allow(clippy::too_many_arguments)]
 pub fn match_bids(
@@ -1364,6 +1410,7 @@ pub fn match_bids(
     _receiver: &Addr,
     _treasury: &Addr,
     effective_fee_bps: u16,
+    blacklist_gate: Option<&TradeBlacklistGate>,
 ) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1406,6 +1453,21 @@ pub fn match_bids(
             } else {
                 expired_parks_skipped += 1;
             }
+            cur = next_ptr;
+            continue;
+        }
+
+        if skip_blacklisted_maker_order(
+            storage,
+            oid,
+            &order.owner,
+            pair_contract,
+            blacklist_gate,
+            true,
+            &mut expired_parks,
+            &mut expired_parks_skipped,
+            &mut fill_events,
+        )? {
             cur = next_ptr;
             continue;
         }
@@ -1537,6 +1599,7 @@ pub fn match_asks(
     _receiver: &Addr,
     _treasury: &Addr,
     effective_fee_bps: u16,
+    blacklist_gate: Option<&TradeBlacklistGate>,
 ) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1579,6 +1642,21 @@ pub fn match_asks(
             } else {
                 expired_parks_skipped += 1;
             }
+            cur = next_ptr;
+            continue;
+        }
+
+        if skip_blacklisted_maker_order(
+            storage,
+            oid,
+            &order.owner,
+            pair_contract,
+            blacklist_gate,
+            true,
+            &mut expired_parks,
+            &mut expired_parks_skipped,
+            &mut fill_events,
+        )? {
             cur = next_ptr;
             continue;
         }
@@ -1703,6 +1781,7 @@ pub fn simulate_match_bids(
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
     effective_fee_bps: u16,
+    blacklist_gate: Option<&TradeBlacklistGate>,
 ) -> Result<BookSimulateResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1729,6 +1808,10 @@ pub fn simulate_match_bids(
             continue;
         }
         if order.expires_at.is_some_and(|e| now >= e) {
+            cur = next_ptr;
+            continue;
+        }
+        if maker_owner_is_trade_blacklisted(blacklist_gate, &order.owner)? {
             cur = next_ptr;
             continue;
         }
@@ -1813,6 +1896,7 @@ pub fn simulate_match_asks(
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
     effective_fee_bps: u16,
+    blacklist_gate: Option<&TradeBlacklistGate>,
 ) -> Result<BookSimulateResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1839,6 +1923,10 @@ pub fn simulate_match_asks(
             continue;
         }
         if order.expires_at.is_some_and(|e| now >= e) {
+            cur = next_ptr;
+            continue;
+        }
+        if maker_owner_is_trade_blacklisted(blacklist_gate, &order.owner)? {
             cur = next_ptr;
             continue;
         }
@@ -2631,6 +2719,7 @@ mod book_start_hint_side_tests {
             &Addr::unchecked("taker"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -2686,6 +2775,7 @@ mod book_start_hint_side_tests {
             &Addr::unchecked("taker"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -2726,8 +2816,8 @@ mod book_start_hint_side_tests {
             None,
         )
         .unwrap();
-        let sim =
-            simulate_match_bids(storage, 1, Uint128::new(10_000), 8, Some(ask_id), 30).unwrap();
+        let sim = simulate_match_bids(storage, 1, Uint128::new(10_000), 8, Some(ask_id), 30, None)
+            .unwrap();
         assert!(sim.makers_used >= 1);
         assert!(sim.return_net > Uint128::zero());
     }
@@ -2777,6 +2867,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -2819,6 +2910,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -2874,6 +2966,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -2916,6 +3009,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap_err();
 
@@ -2965,6 +3059,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -2999,6 +3094,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -3055,6 +3151,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -3093,6 +3190,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -3133,6 +3231,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
         assert_eq!(exec.makers_used, 5);
@@ -3149,7 +3248,7 @@ mod aggregation_tests {
         for _ in 0..5 {
             insert_bid(storage2, price, escrow, owner.clone(), None, 256, None).unwrap();
         }
-        let sim = simulate_match_bids(storage2, 1, budget, 8, None, 30).unwrap();
+        let sim = simulate_match_bids(storage2, 1, budget, 8, None, 30, None).unwrap();
         assert_eq!(sim.makers_used, exec.makers_used);
         assert_eq!(sim.offer_consumed, exec.offer_consumed);
         assert_eq!(sim.return_net, exec.return_net);
@@ -3334,6 +3433,7 @@ mod proptest_limits {
                 &Addr::unchecked("recv"),
                 &Addr::unchecked("treasury"),
                 30,
+                None,
             )
             .unwrap();
             prop_assert!(result.makers_used <= cap);
@@ -3375,6 +3475,7 @@ mod proptest_limits {
                 &Addr::unchecked("recv"),
                 &Addr::unchecked("treasury"),
                 30,
+                None,
             )
             .unwrap();
             prop_assert!(result.makers_used <= cap);
@@ -3423,6 +3524,7 @@ mod proptest_limits {
                 &Addr::unchecked("recv"),
                 &Addr::unchecked("treasury"),
                 30,
+                None,
             ).unwrap();
             assert_escrow_matches_lists(storage);
         }
@@ -3468,6 +3570,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -3527,6 +3630,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -3566,6 +3670,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -3601,6 +3706,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
 
@@ -3645,9 +3751,11 @@ mod expired_park_cap_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
         )
         .unwrap();
-        let sim = simulate_match_bids(storage, exp, Uint128::new(50_000), 8, None, 30).unwrap();
+        let sim =
+            simulate_match_bids(storage, exp, Uint128::new(50_000), 8, None, 30, None).unwrap();
 
         assert!(exec.scan_steps_capped);
         assert_eq!(sim.scan_steps_capped, exec.scan_steps_capped);

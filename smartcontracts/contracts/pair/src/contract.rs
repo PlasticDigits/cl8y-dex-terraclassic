@@ -1049,6 +1049,9 @@ fn execute_swap(
     let mut book_expired_parks = 0u32;
     let mut book_expired_parks_skipped = 0u32;
     let mut book_scan_steps_capped = false;
+    let querier = deps.querier;
+    let blacklist_gate =
+        blacklist_guard::TradeBlacklistGate::from_parts(querier, &pair_info, &env.contract.address);
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
@@ -1064,6 +1067,7 @@ fn execute_swap(
                 &receiver,
                 &fee_config.treasury,
                 effective_fee_bps,
+                Some(&blacklist_gate),
             )?;
             book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
                 book_match.fill_events,
@@ -1089,6 +1093,7 @@ fn execute_swap(
                 &receiver,
                 &fee_config.treasury,
                 effective_fee_bps,
+                Some(&blacklist_gate),
             )?;
             book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
                 book_match.fill_events,
@@ -2377,6 +2382,9 @@ fn simulate_hybrid_swap_with_fee(
     let mut book_return_net = Uint128::zero();
     let mut book_commission_total = Uint128::zero();
     let mut offer_consumed_by_book = Uint128::zero();
+    let querier = deps.querier;
+    let blacklist_gate =
+        blacklist_guard::TradeBlacklistGate::from_parts(querier, &pair_info, &env.contract.address);
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
@@ -2387,6 +2395,7 @@ fn simulate_hybrid_swap_with_fee(
                 max_makers,
                 book_hint,
                 effective_fee_bps,
+                Some(&blacklist_gate),
             )?;
             book_return_net = book_sim.return_net;
             offer_consumed_by_book = book_sim.offer_consumed;
@@ -2399,6 +2408,7 @@ fn simulate_hybrid_swap_with_fee(
                 max_makers,
                 book_hint,
                 effective_fee_bps,
+                Some(&blacklist_gate),
             )?;
             book_return_net = book_sim.return_net;
             offer_consumed_by_book = book_sim.offer_consumed;

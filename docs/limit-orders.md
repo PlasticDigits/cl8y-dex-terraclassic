@@ -98,6 +98,20 @@ Integrators: [integrators.md § Limit book clean](./integrators.md#limit-book-cl
 - When the pair is **paused**, `Receive` is blocked (no swap, no new limit orders), **`CancelLimitOrder` is blocked**, **`ClaimExpiredLimitOrder` is blocked**, and **`CleanLimitBook` is blocked** (including force-clean) — active resting limits and parked expired refund rows stay locked until governance unpauses (see [contracts-security-audit.md](./contracts-security-audit.md) **L6**, GitLab [**#120**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120), [**#263**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263)).
 - **`IsPaused` query:** `{ "is_paused": {} }` → `{ "paused": bool }` so frontends can show accurate pause copy without guessing from failed transactions.
 
+### Blacklisted maker (GitLab #468)
+
+<a id="blacklisted-maker-gitlab-468"></a>
+
+When governance **`BlacklistWallet`** blocks a maker **after** they already have resting limits:
+
+- The maker cannot place, cancel, claim, or update (same as other wallet-blacklist gates).
+- **Hybrid match walks** (`match_bids` / `match_asks`) probe each stepped order's `owner` via factory `BlacklistCheck` — blacklisted makers are **never filled** and do not receive offer-token CW20 in the taker tx.
+- When park budget allows (`MAX_EXPIRED_PARKS_PER_SWAP`), the order unlinks into **`EXPIRED_LIMIT_CLAIMS`** via `park_limit_order_for_clean(..., force_expired=true)` — same escrow accounting as time-expiry (**L1**). The maker claims after **`UnblacklistWallet`**.
+- **`HybridSimulation`** skips blacklisted makers read-only (no park) so quotes align with execute for the same chain snapshot.
+- Clean-wallet takers may still swap against non-blacklisted makers behind a blacklisted head row.
+
+Regression: `blacklist_tests::blacklisted_maker_resting_limit_not_filled_taker_can_still_swap`. Invariant **L19** in [contracts-security-audit.md](./contracts-security-audit.md).
+
 ### Expiry (`expires_at`)
 
 - If **`expires_at`** is set and a hybrid (or future) match walk reaches that order when **`block_time >= expires_at`**, the contract **does not** match it. The order is **removed from the DLL**, a row is stored in **`EXPIRED_LIMIT_CLAIMS`**, and **`PENDING_ESCROW_*` is left unchanged** until the maker calls **`ClaimExpiredLimitOrder`** (which CW20-transfers and then decrements pending — same economics as cancel).
