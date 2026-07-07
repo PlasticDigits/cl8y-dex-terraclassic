@@ -10,5 +10,6 @@ pub mod poller;
 pub mod reorg_alert;
 pub mod position_tracker;
 pub mod seed_qa;
+pub mod swap_orientation;
 pub mod trader_tracker;
 pub mod volume_aggregator;

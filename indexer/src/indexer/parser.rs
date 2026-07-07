@@ -21,7 +21,8 @@ use crate::db::queries::{
 use crate::lcd::{Attribute, LcdClient, TxResponse};
 
 use super::{
-    asset_resolver, candle_builder, oracle, pair_discovery, position_tracker, trader_tracker,
+    asset_resolver, candle_builder, oracle, pair_discovery, position_tracker, swap_orientation,
+    trader_tracker,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -397,11 +398,12 @@ async fn process_swap(
     let offer_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.offer_asset).await?;
     let ask_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.ask_asset).await?;
 
-    let price = if swap.offer_amount > BigDecimal::from(0) {
-        &swap.return_amount / &swap.offer_amount
-    } else {
-        BigDecimal::from(0)
-    };
+    let oriented = swap_orientation::orient_swap_leg(
+        pair.asset_0_id,
+        offer_asset_id,
+        &swap.offer_amount,
+        &swap.return_amount,
+    );
 
     let volume_usd = compute_volume_usd(
         pool,
@@ -430,7 +432,7 @@ async fn process_swap(
         swap.spread_amount.as_ref(),
         swap.commission_amount.as_ref(),
         swap.effective_fee_bps,
-        &price,
+        &oriented.price,
         volume_usd.as_ref(),
         swap.pool_return_amount.as_ref(),
         swap.book_return_amount.as_ref(),
@@ -445,9 +447,9 @@ async fn process_swap(
         pool,
         pair.id,
         block_time,
-        &price,
-        &swap.offer_amount,
-        &swap.return_amount,
+        &oriented.price,
+        &oriented.volume_base,
+        &oriented.volume_quote,
     )
     .await?;
 
