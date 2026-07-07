@@ -46,7 +46,7 @@ For multihop routing the indexer exposes route discovery via [`GET /api/v1/route
 
 ### Place / cancel limit (GitLab [#206](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/206))
 
-- **`Cw20HookMsg::PlaceLimitOrderBatch`:** `side`, `orders[]` each with `price`, `amount` (gross escrow for that rung), `max_adjust_steps`, optional `expires_at`, optional **`hint_after_order_id`** (GitLab **#261** — per-rung predecessor for O(1) insert; explicit client hint wins over internal batch chaining from the prior successful rung). The CW20 `send` **amount must equal the sum** of per-rung `amount` values. **Same side per batch** (bid escrows token1, ask escrows token0). **Validation is all-or-nothing** (empty batch, cap, amount mismatch, invalid price/expiry, maker fee too large → whole tx reverts). **Book-walk is partial** ([#206](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/206) design note): if a rung hits `LimitInsertStepsExceeded`, that rung is skipped, escrow for skipped rungs is **CW20-refunded** to the maker, and later rungs still attempt; if **no** rung places, the tx reverts (`LimitBatchNoRungsPlaced`).
+- **`Cw20HookMsg::PlaceLimitOrderBatch`:** `side`, `orders[]` each with `price`, `amount` (gross escrow for that rung), `max_adjust_steps`, optional `expires_at`, optional **`hint_after_order_id`** (GitLab **#261** — per-rung predecessor for O(1) insert; explicit client hint wins over internal batch chaining from the prior successful rung). The CW20 `send` **amount must equal the sum** of per-rung `amount` values. **Same side per batch** (bid escrows token1, ask escrows token0). **Validation is all-or-nothing** (empty batch, cap, amount mismatch, invalid price/expiry/**price band** ([#467](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/467)), maker fee too large → whole tx reverts). **Book-walk is partial** ([#206](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/206) design note): if a rung hits `LimitInsertStepsExceeded`, that rung is skipped, escrow for skipped rungs is **CW20-refunded** to the maker, and later rungs still attempt; if **no** rung places, the tx reverts (`LimitBatchNoRungsPlaced`).
 - **`Cw20HookMsg::PlaceLimitOrderLadder`:** `ladder` with `start_price`, `end_price`, `count` (≥ 2), `total_amount`, `distribution` (`equal`), shared `max_adjust_steps` / `expires_at`, optional **`hint_after_order_id`** on the **head-most rung in book order** (GitLab **#266** — boundary anchor for deep-book placement; resolved client-side via indexer **#267**). Expanded on-chain to the same rules as batch.
 - **Batch wasm attrs:** `action=place_limit_order_batch`, `batch_count`, `batch_skipped_count`, `batch_refund_amount`, then one `action=place_limit_order` per successful rung. On-chain, CosmWasm often emits **columnar** attrs (repeated `action` keys, then parallel `order_id` / `price` / … columns); the indexer zips those into one `limit_order_placements` row per rung (see `parse_limit_order_placements_columnar` in `indexer/src/indexer/parser.rs`).
 - **Gas (dApp estimate):** one `increase_allowance` + one CW20 `send` → batch/ladder hook. Limits in [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts): base `400_000` + `180_000` × rung count vs **N** separate placements at ~`950_000` each — see [§ Batch / ladder gas savings](#batch-ladder-gas-savings).
@@ -199,6 +199,23 @@ When **`floor(fill × price) = 0`** while **`fill > 0`** (typical when the resti
 **Not** the same as match-time dust flush (**L16**): dust flush runs **after** a successful fill with non-zero `cost`; zero-cost skip prevents the fill entirely.
 
 Invariant **L18** in [contracts-security-audit.md](./contracts-security-audit.md); agent playbook [skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md](../skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md).
+
+<a id="limit-price-band-gitlab-467"></a>
+
+### Limit price band (GitLab #467)
+
+**Price** on limit orders is **token1 per token0** (same basis as pool pricing). Placement (`PlaceLimitOrderBatch` / ladder), ladder expansion, and **`UpdateLimitOrderPrice`** enforce:
+
+| Constant | Value | Role |
+|----------|-------|------|
+| [`MIN_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs) | **1e-9** | Rejects former attack vector `Decimal::raw(1)` = 1e-18 where `1/price` overflows `Uint128::checked_mul_floor` on realistic taker budgets |
+| [`MAX_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs) | **1e9** | Symmetric upper bound for `fill × price` overflow |
+
+Sub-unity prices inside the band (e.g. **0.1**, **0.4**) remain valid — see zero-cost fill skip (**L18** / #470).
+
+**Match belt-and-suspenders:** if a legacy resting row predates the band, `match_bids` / `match_asks` and **`simulate_match_*`** skip the maker on reciprocal math overflow instead of reverting the whole hybrid swap.
+
+Invariant **L19** in [contracts-security-audit.md](./contracts-security-audit.md); verification: `make verify-issue-467`.
 
 **Frontend hybrid gas ([GitLab #249](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/249), scan cap [#260](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/260), ceiling [#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)):** Terra Classic does not refund unused gas — the dApp sizes `Fee.gas` from the route quote’s `max_maker_fills` **plus** conservative book-walk overhead when `book_input > 0`, not a flat **15M** per hop unless the envelope hits the ceiling. Formula (one hop, book leg):
 

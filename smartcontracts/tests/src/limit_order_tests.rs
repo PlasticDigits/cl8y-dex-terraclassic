@@ -1391,6 +1391,124 @@ fn match_asks_skips_zero_cost_fill_sub_unity_price() {
     );
 }
 
+/// GitLab #467 — sub-minimum limit prices are rejected at placement (dust ask DoS vector).
+#[test]
+fn place_limit_order_dust_price_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    for side in [LimitOrderSide::Ask, LimitOrderSide::Bid] {
+        let (token, amount) = match side {
+            LimitOrderSide::Ask => (env.token_a.clone(), Uint128::new(1_000)),
+            LimitOrderSide::Bid => (env.token_b.clone(), Uint128::new(1_000)),
+        };
+        let msg = batch_place_msg(side.clone(), Decimal::raw(1), amount, 32, None);
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                token,
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount,
+                    msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let s = format!("{:?}", err.root_cause());
+        assert!(
+            s.contains("minimum") || s.contains("limit price"),
+            "side {:?}: {}",
+            side,
+            s
+        );
+    }
+}
+
+/// GitLab #467 — crossing hybrid swap still fills a valid ask after dust placement is blocked.
+#[test]
+fn dust_ask_brick_attack_prevented_valid_ask_still_fills() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = cosmwasm_std::Addr::unchecked("taker_467");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let dust_msg = batch_place_msg(
+        LimitOrderSide::Ask,
+        Decimal::raw(1),
+        Uint128::new(1),
+        32,
+        None,
+    );
+    assert!(
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(1),
+                msg: dust_msg,
+            },
+            &[],
+        )
+        .is_err(),
+        "dust ask must be rejected at placement"
+    );
+
+    let price = Decimal::from_ratio(1u128, 2u128);
+    let ask_escrow = Uint128::new(1_000_000);
+    let order_id = place_ask(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_a,
+        ask_escrow,
+        price,
+    );
+
+    let swap_in = Uint128::new(50_000);
+    swap_b_to_a_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_b,
+        swap_in,
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: swap_in,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+    );
+
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert!(
+        lo.remaining < ask_escrow,
+        "valid ask at book head must fill on crossing swap"
+    );
+}
+
 /// GitLab #470 — bid match must not fill when `floor(fill × price)` is zero (price &lt; 1).
 #[test]
 fn match_bids_skips_zero_cost_fill_sub_unity_price() {

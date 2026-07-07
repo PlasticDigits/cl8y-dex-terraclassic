@@ -16,6 +16,11 @@
 //! `floor(fill × price)` can be **0** while `fill > 0` when price &lt; 1 (common across mismatched
 //! token decimals). Such a fill would debit maker escrow without crediting the counter leg — skip
 //! the order (`continue`) in `match_bids` / `match_asks` and `simulate_match_*` (symmetric on both sides).
+//!
+//! ## Match-time price math overflow skip (GitLab #467 / L19)
+//!
+//! Dust or extreme resting prices can make `checked_mul_floor` overflow on `1/price` or `fill × price`.
+//! Placement rejects out-of-band prices; legacy rows skip instead of aborting the whole swap.
 
 use std::collections::BTreeMap;
 
@@ -32,9 +37,17 @@ use crate::state::{
 };
 
 use dex_common::pair::{
-    LIMIT_ORDER_DUST_FLUSH_THRESHOLD, MAX_ADJUST_STEPS_HARD_CAP, MAX_EXPIRED_PARKS_PER_SWAP,
-    MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS,
+    validate_limit_order_price, LIMIT_ORDER_DUST_FLUSH_THRESHOLD, MAX_ADJUST_STEPS_HARD_CAP,
+    MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS,
 };
+
+fn try_price_inverse(price: Decimal) -> Option<Decimal> {
+    Decimal::one().checked_div(price).ok()
+}
+
+fn try_mul_floor(amount: Uint128, factor: Decimal) -> Option<Uint128> {
+    amount.checked_mul_floor(factor).ok()
+}
 
 /// True when post-fill `remaining` is sub-threshold dust (GitLab #264).
 #[inline]
@@ -1226,11 +1239,9 @@ pub fn relink_limit_order_price(
     hint_after: Option<u64>,
     max_adjust_steps: u32,
 ) -> Result<(), ContractError> {
-    if new_price.is_zero() {
-        return Err(ContractError::InvalidHybridParams {
-            reason: "limit price must be positive".into(),
-        });
-    }
+    validate_limit_order_price(new_price).map_err(|reason| ContractError::InvalidHybridParams {
+        reason: reason.into(),
+    })?;
     let mut order = detach_limit_order_from_book(storage, id)?;
     order.price = new_price;
     match order.side {
@@ -1426,38 +1437,42 @@ pub fn match_bids(
                 reason: "zero bid price".into(),
             });
         }
-        let inv = Decimal::one().checked_div(order.price).map_err(|_| {
-            ContractError::InvariantViolation {
-                reason: "bid price div".into(),
-            }
-        })?;
+        let Some(inv) = try_price_inverse(order.price) else {
+            cur = next_ptr;
+            continue;
+        };
         // Max token0 purchasable with this bid's remaining token1 budget at price (token1 per token0).
-        let max_fill_from_bid = order.remaining.checked_mul_floor(inv).map_err(|_| {
-            ContractError::InvariantViolation {
-                reason: "bid max fill".into(),
-            }
-        })?;
+        let Some(max_fill_from_bid) = try_mul_floor(order.remaining, inv) else {
+            cur = next_ptr;
+            continue;
+        };
         let mut fill = token0_left.min(max_fill_from_bid);
         if fill.is_zero() {
             cur = order.next;
             continue;
         }
 
-        let mut cost =
-            fill.checked_mul_floor(order.price)
-                .map_err(|_| ContractError::InvariantViolation {
-                    reason: "cost mul_floor".into(),
-                })?;
+        let Some(mut cost) = try_mul_floor(fill, order.price) else {
+            cur = next_ptr;
+            continue;
+        };
+        let mut skip_order = false;
         while fill > Uint128::zero() && cost > order.remaining {
             fill = fill.saturating_sub(Uint128::one());
             if fill.is_zero() {
                 break;
             }
-            cost = fill.checked_mul_floor(order.price).map_err(|_| {
-                ContractError::InvariantViolation {
-                    reason: "cost mul_floor adjust".into(),
+            match try_mul_floor(fill, order.price) {
+                Some(adjusted) => cost = adjusted,
+                None => {
+                    skip_order = true;
+                    break;
                 }
-            })?;
+            }
+        }
+        if skip_order {
+            cur = next_ptr;
+            continue;
         }
 
         if fill.is_zero() {
@@ -1596,15 +1611,15 @@ pub fn match_asks(
 
         let max_fill_token0_from_ask = order.remaining;
         let max_fill_token0_from_budget = if !order.price.is_zero() {
-            token1_left
-                .checked_mul_floor(Decimal::one().checked_div(order.price).map_err(|_| {
-                    ContractError::InvariantViolation {
-                        reason: "ask price div".into(),
-                    }
-                })?)
-                .map_err(|_| ContractError::InvariantViolation {
-                    reason: "ask mul_floor".into(),
-                })?
+            let Some(inv) = try_price_inverse(order.price) else {
+                cur = next_ptr;
+                continue;
+            };
+            let Some(budget_fill) = try_mul_floor(token1_left, inv) else {
+                cur = next_ptr;
+                continue;
+            };
+            budget_fill
         } else {
             Uint128::zero()
         };
@@ -1615,21 +1630,27 @@ pub fn match_asks(
             continue;
         }
 
-        let mut cost = fill_t0.checked_mul_floor(order.price).map_err(|_| {
-            ContractError::InvariantViolation {
-                reason: "ask cost".into(),
-            }
-        })?;
+        let Some(mut cost) = try_mul_floor(fill_t0, order.price) else {
+            cur = next_ptr;
+            continue;
+        };
+        let mut skip_order = false;
         while fill_t0 > Uint128::zero() && cost > token1_left {
             fill_t0 = fill_t0.saturating_sub(Uint128::one());
             if fill_t0.is_zero() {
                 break;
             }
-            cost = fill_t0.checked_mul_floor(order.price).map_err(|_| {
-                ContractError::InvariantViolation {
-                    reason: "ask cost adjust".into(),
+            match try_mul_floor(fill_t0, order.price) {
+                Some(adjusted) => cost = adjusted,
+                None => {
+                    skip_order = true;
+                    break;
                 }
-            })?;
+            }
+        }
+        if skip_order {
+            cur = next_ptr;
+            continue;
         }
         if fill_t0.is_zero() {
             cur = order.next;
@@ -1745,36 +1766,40 @@ pub fn simulate_match_bids(
                 reason: "zero bid price".into(),
             });
         }
-        let inv = Decimal::one().checked_div(order.price).map_err(|_| {
-            ContractError::InvariantViolation {
-                reason: "bid price div".into(),
-            }
-        })?;
-        let max_fill_from_bid = order.remaining.checked_mul_floor(inv).map_err(|_| {
-            ContractError::InvariantViolation {
-                reason: "bid max fill".into(),
-            }
-        })?;
+        let Some(inv) = try_price_inverse(order.price) else {
+            cur = next_ptr;
+            continue;
+        };
+        let Some(max_fill_from_bid) = try_mul_floor(order.remaining, inv) else {
+            cur = next_ptr;
+            continue;
+        };
         let mut fill = token0_left.min(max_fill_from_bid);
         if fill.is_zero() {
             cur = order.next;
             continue;
         }
-        let mut cost =
-            fill.checked_mul_floor(order.price)
-                .map_err(|_| ContractError::InvariantViolation {
-                    reason: "cost mul_floor".into(),
-                })?;
+        let Some(mut cost) = try_mul_floor(fill, order.price) else {
+            cur = next_ptr;
+            continue;
+        };
+        let mut skip_order = false;
         while fill > Uint128::zero() && cost > order.remaining {
             fill = fill.saturating_sub(Uint128::one());
             if fill.is_zero() {
                 break;
             }
-            cost = fill.checked_mul_floor(order.price).map_err(|_| {
-                ContractError::InvariantViolation {
-                    reason: "cost mul_floor adjust".into(),
+            match try_mul_floor(fill, order.price) {
+                Some(adjusted) => cost = adjusted,
+                None => {
+                    skip_order = true;
+                    break;
                 }
-            })?;
+            }
+        }
+        if skip_order {
+            cur = next_ptr;
+            continue;
         }
         if fill.is_zero() {
             cur = order.next;
@@ -1852,15 +1877,15 @@ pub fn simulate_match_asks(
         let mut order = order;
         let max_fill_token0_from_ask = order.remaining;
         let max_fill_token0_from_budget = if !order.price.is_zero() {
-            token1_left
-                .checked_mul_floor(Decimal::one().checked_div(order.price).map_err(|_| {
-                    ContractError::InvariantViolation {
-                        reason: "ask price div".into(),
-                    }
-                })?)
-                .map_err(|_| ContractError::InvariantViolation {
-                    reason: "ask mul_floor".into(),
-                })?
+            let Some(inv) = try_price_inverse(order.price) else {
+                cur = next_ptr;
+                continue;
+            };
+            let Some(budget_fill) = try_mul_floor(token1_left, inv) else {
+                cur = next_ptr;
+                continue;
+            };
+            budget_fill
         } else {
             Uint128::zero()
         };
@@ -1869,21 +1894,27 @@ pub fn simulate_match_asks(
             cur = order.next;
             continue;
         }
-        let mut cost = fill_t0.checked_mul_floor(order.price).map_err(|_| {
-            ContractError::InvariantViolation {
-                reason: "ask cost".into(),
-            }
-        })?;
+        let Some(mut cost) = try_mul_floor(fill_t0, order.price) else {
+            cur = next_ptr;
+            continue;
+        };
+        let mut skip_order = false;
         while fill_t0 > Uint128::zero() && cost > token1_left {
             fill_t0 = fill_t0.saturating_sub(Uint128::one());
             if fill_t0.is_zero() {
                 break;
             }
-            cost = fill_t0.checked_mul_floor(order.price).map_err(|_| {
-                ContractError::InvariantViolation {
-                    reason: "ask cost adjust".into(),
+            match try_mul_floor(fill_t0, order.price) {
+                Some(adjusted) => cost = adjusted,
+                None => {
+                    skip_order = true;
+                    break;
                 }
-            })?;
+            }
+        }
+        if skip_order {
+            cur = next_ptr;
+            continue;
         }
         if fill_t0.is_zero() {
             cur = order.next;
@@ -2582,6 +2613,94 @@ mod tests {
         assert_eq!(row.owner, o);
         let pending_after = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
         assert_eq!(pending_before, pending_after);
+    }
+}
+
+/// GitLab #467 — legacy out-of-band resting prices skip instead of reverting the match walk.
+#[cfg(test)]
+mod limit_price_band_tests {
+    use super::*;
+    use crate::state::{LimitOrder, HEAD_ASK, ORDER_NEXT_ID, PENDING_ESCROW_TOKEN0};
+    use cosmwasm_std::testing::mock_dependencies;
+
+    fn seed_ask_chain(storage: &mut dyn Storage, asks: &[(u64, Decimal, Uint128)]) {
+        for (i, (id, price, remaining)) in asks.iter().enumerate() {
+            let prev = if i == 0 { None } else { Some(asks[i - 1].0) };
+            let next = if i + 1 < asks.len() {
+                Some(asks[i + 1].0)
+            } else {
+                None
+            };
+            ORDERS
+                .save(
+                    storage,
+                    *id,
+                    &LimitOrder {
+                        owner: Addr::unchecked("maker"),
+                        price: *price,
+                        remaining: *remaining,
+                        side: LimitOrderSide::Ask,
+                        expires_at: None,
+                        prev,
+                        next,
+                    },
+                )
+                .unwrap();
+        }
+        HEAD_ASK.save(storage, &Some(asks[0].0)).unwrap();
+        let total: Uint128 = asks.iter().map(|(_, _, r)| *r).sum();
+        PENDING_ESCROW_TOKEN0.save(storage, &total).unwrap();
+        let max_id = asks.iter().map(|(id, _, _)| *id).max().unwrap();
+        ORDER_NEXT_ID.save(storage, &(max_id + 1)).unwrap();
+    }
+
+    #[test]
+    fn match_asks_skips_legacy_dust_price_without_reverting() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        seed_ask_chain(
+            storage,
+            &[
+                (1, Decimal::raw(1), Uint128::one()),
+                (2, Decimal::from_ratio(1u128, 2u128), Uint128::new(100_000)),
+            ],
+        );
+
+        let token1_budget = Uint128::new(400_000_000_000_000_000_000_000u128);
+        let result = match_asks(
+            storage,
+            1,
+            token1_budget,
+            8,
+            None,
+            "pair",
+            "t0",
+            "t1",
+            &Addr::unchecked("taker"),
+            &Addr::unchecked("treasury"),
+            30,
+        )
+        .unwrap();
+
+        assert!(result.makers_used >= 1, "must fill past dust head");
+        assert!(
+            !result.return_net.is_zero(),
+            "taker must receive token0 from valid ask"
+        );
+        assert_eq!(
+            ORDERS.load(storage, 1).unwrap().remaining,
+            Uint128::one(),
+            "dust ask must be skipped, not filled"
+        );
+        let remaining_2 = ORDERS
+            .may_load(storage, 2)
+            .unwrap()
+            .map(|o| o.remaining)
+            .unwrap_or(Uint128::zero());
+        assert!(
+            remaining_2 < Uint128::new(100_000),
+            "valid ask behind dust must fill (remaining={remaining_2})"
+        );
     }
 }
 
