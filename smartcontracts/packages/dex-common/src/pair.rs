@@ -10,9 +10,10 @@ pub use crate::limit_clean::{
     MAX_CLEAN_SCAN_STEPS, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
 };
 pub use crate::limit_placement::{
-    clamp_max_batch_rungs, expand_limit_ladder, LimitLadderDistribution, LimitOrderConfigResponse,
-    LimitOrderLadderSpec, LimitOrderPlacementItem, DEFAULT_LIMIT_BATCH_MAX_RUNGS,
-    MAX_LIMIT_BATCH_RUNGS_HARD_CAP, SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+    clamp_max_batch_rungs, expand_limit_ladder, validate_limit_order_price,
+    LimitLadderDistribution, LimitOrderConfigResponse, LimitOrderLadderSpec,
+    LimitOrderPlacementItem, DEFAULT_LIMIT_BATCH_MAX_RUNGS, MAX_LIMIT_BATCH_RUNGS_HARD_CAP,
+    MAX_LIMIT_PRICE, MIN_LIMIT_PRICE, SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
 };
 
 // ---------------------------------------------------------------------------

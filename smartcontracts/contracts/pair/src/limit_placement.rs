@@ -14,7 +14,7 @@ use crate::state::{
     PENDING_ESCROW_TOKEN1,
 };
 use dex_common::limit_placement::{
-    expand_limit_ladder, LimitOrderLadderSpec, LimitOrderPlacementItem,
+    expand_limit_ladder, validate_limit_order_price, LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
 use dex_common::pair::LimitOrderSide;
 use dex_common::types::AssetInfo;
@@ -317,11 +317,11 @@ fn validate_placement_item(item: &LimitOrderPlacementItem, now: u64) -> Result<(
     if item.amount.is_zero() {
         return Err(ContractError::ZeroAmount {});
     }
-    if item.price.is_zero() {
-        return Err(ContractError::InvalidHybridParams {
-            reason: "limit price must be positive".into(),
-        });
-    }
+    validate_limit_order_price(item.price).map_err(|reason| {
+        ContractError::InvalidHybridParams {
+            reason: reason.into(),
+        }
+    })?;
     if let Some(t) = item.expires_at {
         if t <= now {
             return Err(ContractError::InvalidHybridParams {

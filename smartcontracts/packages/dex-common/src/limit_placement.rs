@@ -15,6 +15,33 @@ pub const DEFAULT_LIMIT_BATCH_MAX_RUNGS: u32 = 10;
 /// Suggested factory default for localnet (governance may change via `UpdateConfig`).
 pub const SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS: u32 = 20;
 
+/// Minimum limit price (token1 per token0) at placement, ladder expansion, and price update.
+///
+/// Rejects dust prices where `1/price` overflows `Uint128::checked_mul_floor` against realistic
+/// swap notionals (GitLab #467). `Decimal::raw(1)` = 1e-18 is the former attack vector; at 1e-9
+/// the mul_floor overflow threshold is ~3.4e29 raw units on the operand.
+pub const MIN_LIMIT_PRICE: Decimal = Decimal::raw(1_000_000_000);
+
+/// Maximum limit price — symmetric reciprocal bound for `fill × price` overflow (#467).
+///
+/// At 1e9 token1 per token0, bid `max_fill × price` stays within `Uint128` for `remaining` up to
+/// `Uint128::MAX`.
+pub const MAX_LIMIT_PRICE: Decimal = Decimal::raw(1_000_000_000_000_000_000_000_000_000);
+
+/// Placement / price-update gate for limit order prices (GitLab #467).
+pub fn validate_limit_order_price(price: Decimal) -> Result<(), &'static str> {
+    if price.is_zero() {
+        return Err("limit price must be positive");
+    }
+    if price < MIN_LIMIT_PRICE {
+        return Err("limit price below minimum");
+    }
+    if price > MAX_LIMIT_PRICE {
+        return Err("limit price above maximum");
+    }
+    Ok(())
+}
+
 #[cw_serde]
 pub struct LimitOrderPlacementItem {
     pub price: Decimal,
@@ -76,6 +103,8 @@ pub fn expand_limit_ladder(
     if spec.start_price.is_zero() || spec.end_price.is_zero() {
         return Err(StdError::generic_err("ladder prices must be positive"));
     }
+    validate_limit_order_price(spec.start_price).map_err(StdError::generic_err)?;
+    validate_limit_order_price(spec.end_price).map_err(StdError::generic_err)?;
     if spec.total_amount.is_zero() {
         return Err(StdError::generic_err(
             "ladder total_amount must be positive",
@@ -84,6 +113,9 @@ pub fn expand_limit_ladder(
 
     let count = spec.count;
     let prices = ladder_prices(spec.start_price, spec.end_price, count)?;
+    for price in &prices {
+        validate_limit_order_price(*price).map_err(StdError::generic_err)?;
+    }
     let amounts = ladder_amounts_equal(spec.total_amount, count)?;
     let boundary_idx =
         ladder_boundary_rung_index(&spec.side, spec.start_price, spec.end_price, count);
@@ -208,6 +240,32 @@ mod tests {
     #[test]
     fn expand_rejects_count_over_max() {
         let spec = ladder_spec(25, 100);
+        assert!(expand_limit_ladder(&spec, 20).is_err());
+    }
+
+    #[test]
+    fn validate_limit_price_rejects_dust_and_extreme() {
+        assert!(validate_limit_order_price(Decimal::zero()).is_err());
+        assert!(validate_limit_order_price(Decimal::raw(1)).is_err());
+        assert!(validate_limit_order_price(MIN_LIMIT_PRICE).is_ok());
+        assert!(validate_limit_order_price(Decimal::from_ratio(1u128, 10u128)).is_ok());
+        assert!(validate_limit_order_price(MAX_LIMIT_PRICE).is_ok());
+        assert!(validate_limit_order_price(MAX_LIMIT_PRICE + Decimal::raw(1)).is_err());
+    }
+
+    #[test]
+    fn expand_ladder_rejects_out_of_band_end_price() {
+        let spec = LimitOrderLadderSpec {
+            side: LimitOrderSide::Ask,
+            start_price: Decimal::from_ratio(1u128, 10u128),
+            end_price: Decimal::raw(1),
+            count: 3,
+            total_amount: Uint128::new(300),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
         assert!(expand_limit_ladder(&spec, 20).is_err());
     }
 

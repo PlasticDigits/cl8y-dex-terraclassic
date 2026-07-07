@@ -18,6 +18,12 @@ Wrong-side hints must **fall back to head** silently (same UX as stale/missing i
 - After computing `cost = floor(fill × price)` (and the too-expensive shrink loop), if **`cost == 0`** while **`fill > 0`**, **skip** the order — do not debit maker escrow or credit a zero counter-leg payout.
 - Apply symmetrically in **`match_bids`**, **`match_asks`**, **`simulate_match_*`**, and indexer **`db_orderbook_sim`** so quotes match execute (**L8**).
 
+## Invariant (L20 / GitLab #467)
+
+- **`validate_limit_order_price`** in `dex-common::limit_placement` gates batch placement, ladder expansion, and **`UpdateLimitOrderPrice`**: **[`MIN_LIMIT_PRICE`, `MAX_LIMIT_PRICE`]** = **[1e-9, 1e9]** token1 per token0.
+- **`match_bids` / `match_asks` / `simulate_match_*`:** on `checked_mul_floor` overflow for `1/price` or `fill × price`, **skip** the maker (`continue`) — do not revert the whole swap (legacy rows predating the band).
+- Constants: [`MIN_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs), [`MAX_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs).
+
 ## Expired head-clog mitigation ([#289](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/289))
 
 When the book head is a long **expired** prefix, a head-only hybrid walk can hit **`MAX_SCAN_STEPS` (500)** before live liquidity. **Integrators should set `book_start_hint` to the first live order on the matcher side** (bid hint for `match_bids`, ask hint for `match_asks`) so `resolve_match_start_hint` starts past the clog. Keepers use resumable **`CleanLimitBook`** (**#274**). The indexer **`global_v2`** route optimizer emits this hint automatically when the Postgres mirror is fresh ([#332](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/332)); LCD-only (`global_v1`) and stale-mirror fallbacks still use `null`.
@@ -40,6 +46,10 @@ cd smartcontracts && cargo test -p cl8y-dex-tests match_invalid_book_start_hint_
 cd smartcontracts && cargo test -p cl8y-dex-tests hybrid_same_side_book_start_hint_still_matches
 cd smartcontracts && cargo test -p cl8y-dex-tests match_asks_skips_zero_cost_fill_sub_unity_price
 cd smartcontracts && cargo test -p cl8y-dex-tests match_bids_skips_zero_cost_fill_sub_unity_price
+cd smartcontracts && cargo test -p cl8y-dex-tests place_limit_order_dust_price_rejected
+cd smartcontracts && cargo test -p cl8y-dex-tests dust_ask_brick_attack_prevented_valid_ask_still_fills
+cd smartcontracts && cargo test -p cl8y-dex-pair limit_price_band_tests
+make verify-issue-467
 ```
 
 ## Do not regress

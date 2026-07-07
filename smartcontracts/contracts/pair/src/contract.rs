@@ -38,8 +38,8 @@ use dex_common::oracle::{
 };
 use dex_common::pair::clamp_max_batch_rungs;
 use dex_common::pair::{
-    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams, LimitOrderSide,
-    LP_TOKEN_DECIMALS, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
+    validate_limit_order_price, HybridReverseSimulationResponse, HybridSimulationResponse,
+    HybridSwapParams, LimitOrderSide, LP_TOKEN_DECIMALS, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
 };
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
@@ -1404,11 +1404,9 @@ fn execute_update_limit_order_price(
     hint_after_order_id: Option<u64>,
     max_adjust_steps: u32,
 ) -> Result<Response, ContractError> {
-    if price.is_zero() {
-        return Err(ContractError::InvalidHybridParams {
-            reason: "limit price must be positive".into(),
-        });
-    }
+    validate_limit_order_price(price).map_err(|reason| ContractError::InvalidHybridParams {
+        reason: reason.into(),
+    })?;
     let o = crate::state::ORDERS.load(deps.storage, order_id)?;
     if o.owner != info.sender {
         return Err(ContractError::Unauthorized {});

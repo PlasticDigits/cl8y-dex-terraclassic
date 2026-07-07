@@ -196,6 +196,10 @@ verify-issue-274:
 	@chmod +x scripts/qa/verify-issue-274.sh scripts/lib/lcd-smart-query.sh scripts/lib/e2e-terrad-tx.sh scripts/lib/localterra-host-curl.sh scripts/e2e-provision-dev-wallet.sh
 	./scripts/qa/verify-issue-274.sh
 
+verify-issue-467:
+	@chmod +x scripts/qa/verify-issue-467.sh
+	./scripts/qa/verify-issue-467.sh
+
 # GitLab #276 — pair-creation fee (contract tests + doc cross-links).
 verify-issue-276:
 	@chmod +x scripts/qa/verify-issue-276.sh
