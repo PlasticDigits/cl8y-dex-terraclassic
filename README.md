@@ -63,6 +63,8 @@ cl8y-dex-terraclassic/
 | `make deploy-local` | Deploy all contracts to LocalTerra |
 | `make deploy-testnet` | Print testnet deployment instructions |
 | `make deploy-mainnet` | Print mainnet deployment instructions |
+| `make deploy-mainnet-soft-launch` | Soft-launch deploy (non-economic CW20, `cl8ydeploy`) — [runbook](docs/runbooks/mainnet-soft-launch.md) |
+| `make test-mainnet-soft-launch-defaults` | Soft-launch defaults + dry-run regression |
 | `make dev` | Start frontend dev server |
 | `make test` | Run all tests (contracts + frontend) |
 | `make lint` | Run all linters |

@@ -60,6 +60,8 @@ Ordered checklist for **pool-only** swaps: direct pair and router paths with **`
 
 Follow [`docs/deployment-guide.md`](../deployment-guide.md): optimized wasm → store → instantiate factory (governance, treasury, fees, whitelist) → router → fee-discount → tiers → **trusted router** → `set_discount_registry_all` (or per-pair) → create pairs.
 
+**Soft launch shortcut (non-economic CW20 only):** [`mainnet-soft-launch.md`](./mainnet-soft-launch.md) / `make deploy-mainnet-soft-launch` (single script + Coolify Dockerfiles).
+
 ### Deploy trace (audit record) — required before leaving Phase 1
 
 Record these fields on the **launch tracking issue** ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) using [`docs/templates/deploy-trace.md`](../templates/deploy-trace.md). Without this trace, operators cannot reliably determine which code was deployed or what chain version it ran against after a missed security patch (SEC-D12, [GitLab #410](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/410)).

@@ -22,6 +22,8 @@ make deploy-mainnet
 # or: ./scripts/deploy-dex-mainnet.sh
 ```
 
+**Soft launch (non-economic tokens, single script):** `make deploy-mainnet-soft-launch` — deployer key `cl8ydeploy` pays gas; this multisig remains governance/admin/treasury ([runbook](../runbooks/mainnet-soft-launch.md)).
+
 Override only for non-production rehearsal:
 
 ```bash

@@ -2,6 +2,8 @@
 
 See also: **[Pool-only v2 launch runbook](runbooks/launch-checklist.md)** — governance, treasury, hooks, trusted router, verification, and **[Phase 5 go/no-go sign-off](runbooks/launch-checklist.md#phase-5--go--no-go-decision-required-before-production-mainnet)** (required before production mainnet — [GitLab #391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).
 
+**Mainnet soft launch (non-economic CW20 + Coolify):** use the single script path in **[mainnet soft-launch runbook](runbooks/mainnet-soft-launch.md)** (`make deploy-mainnet-soft-launch`, agent [`skills/AGENTS_MAINNET_SOFT_LAUNCH.md`](../skills/AGENTS_MAINNET_SOFT_LAUNCH.md)). That path whitelists only cw20-base + cw20-mintable, deploys with key `cl8ydeploy`, and emits env for `dex.cl8y.com` / `indexer.dex.cl8y.com`. The sections below remain the manual/general reference. For a **non-economic CW20 soft launch** on columbus-5 with Coolify, see **[mainnet soft-launch runbook](runbooks/mainnet-soft-launch.md)**.
+
 ## Prerequisites
 
 - Rust stable with `wasm32-unknown-unknown` target (optional if you only use Docker for wasm)
@@ -112,6 +114,19 @@ terrad tx wasm execute <factory_addr> '{
 ```
 
 ## 7. Deploy Frontend
+
+For **Coolify** (recommended soft-launch path — `https://dex.cl8y.com` + `https://indexer.dex.cl8y.com`), use the Dockerfiles under [`docker/`](../docker/) and the env examples written by the soft-launch script — see **[mainnet soft-launch runbook](runbooks/mainnet-soft-launch.md)** and [`skills/AGENTS_MAINNET_SOFT_LAUNCH.md`](../skills/AGENTS_MAINNET_SOFT_LAUNCH.md).
+
+### Soft launch (non-economic CW20) — single script
+
+```bash
+make build-optimized
+make deploy-mainnet-soft-launch   # terrad key cl8ydeploy; governance = multisig
+```
+
+Defaults (tokens, pairs, code IDs): [`scripts/lib/mainnet-soft-launch-defaults.sh`](../scripts/lib/mainnet-soft-launch-defaults.sh). Regression: `make test-mainnet-soft-launch-defaults`.
+
+### Manual / Render frontend
 
 Update `.env.production` with the contract addresses:
 
