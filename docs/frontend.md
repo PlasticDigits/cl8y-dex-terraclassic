@@ -188,16 +188,17 @@ Reusable **shortened or full address + copy + explorer** row for bech32 and cont
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
-Network-aware explorer links for transactions and accounts live in [`terraExplorer.ts`](../frontend-dapp/src/utils/terraExplorer.ts). Both helpers read **`VITE_NETWORK`** / [`DEFAULT_NETWORK`](../frontend-dapp/src/utils/constants.ts) and resolve public Finder bases from [`chainlist.json`](../frontend-dapp/public/chains/chainlist.json) (`explorerUrl` per `chainId`). Implemented for [GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184). Wallet **View on explorer** menu row consumes `getExplorerAddressUrl` ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [Connected wallet dropdown](#connected-wallet-dropdown)).
+Network-aware explorer links for transactions and accounts live in [`terraExplorer.ts`](../frontend-dapp/src/utils/terraExplorer.ts). Both helpers read **`VITE_NETWORK`** / [`DEFAULT_NETWORK`](../frontend-dapp/src/utils/constants.ts) and resolve public Finder bases from [`chainlist.json`](../frontend-dapp/public/chains/chainlist.json) (`explorerUrl` per `chainId`). Implemented for [GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184); Galaxy Finder mainnet path corrected in [**#478**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/478). Wallet **View on explorer** menu row consumes `getExplorerAddressUrl` ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [Connected wallet dropdown](#connected-wallet-dropdown)).
 
 | Helper | Use | `local` | `mainnet` (`columbus-5`) | `testnet` (`rebel-2`) |
 |--------|-----|---------|---------------------------|------------------------|
-| [`getExplorerTxUrl`](../frontend-dapp/src/utils/terraExplorer.ts) | Tx hashes in alerts, trade history, swaps table | `{lcd}/cosmos/tx/v1beta1/txs/{hash}` | `https://finder.terraclassic.community/mainnet/tx/{hash}` | `https://finder.terra-classic.hexxagon.io/testnet/tx/{hash}` |
-| [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) | Wallet / contract bech32 “View on explorer” | `{lcd}/cosmos/auth/v1beta1/accounts/{addr}` | `…/mainnet/address/{addr}` | `…/testnet/address/{addr}` |
+| [`getExplorerTxUrl`](../frontend-dapp/src/utils/terraExplorer.ts) | Tx hashes in alerts, trade history, swaps table | `{lcd}/cosmos/tx/v1beta1/txs/{hash}` | `https://finder.terraclassic.community/columbus-5/tx/{hash}` | `https://finder.terra-classic.hexxagon.io/testnet/tx/{hash}` |
+| [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) | Wallet / contract bech32 “View on explorer” | `{lcd}/cosmos/auth/v1beta1/accounts/{addr}` | `…/columbus-5/address/{addr}` | `…/testnet/address/{addr}` |
 
 | Invariant | Meaning |
 |-----------|---------|
 | **Single source** | Do not hardcode Finder hosts in components; extend `chainlist.json` + `explorerPathBaseForChainId` if explorers change. |
+| **Galaxy Finder chain-id path (#478)** | Mainnet (`columbus-5`) `explorerUrl` must be `https://finder.terraclassic.community/columbus-5` — Galaxy Finder routes by **chain id**, not the product label `/mainnet`. Do not revert to `/mainnet`. |
 | **Null when unknown** | Missing `explorerUrl` for a chain returns `null` (UI hides the link). |
 | **Null when unsafe** | Tx hash must match 64 hex digits; address must pass Terra bech32 validation — otherwise `null` (no injectable `href`; [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). |
 | **Local dev LCD** | `local` uses REST paths on [`NETWORKS.local.terra.lcd`](../frontend-dapp/src/utils/constants.ts) (default `http://localhost:1317`), mirroring tx vs account resources. |

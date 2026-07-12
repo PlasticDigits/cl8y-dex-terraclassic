@@ -31,11 +31,13 @@ describe('getExplorerTxUrl', () => {
     expect(getExplorerTxUrl(SAMPLE_TX)).toBe(`http://localhost:1317/cosmos/tx/v1beta1/txs/${SAMPLE_TX}`)
   })
 
-  it('uses Finder mainnet tx path for mainnet builds', async () => {
+  it('uses Galaxy Finder columbus-5 tx path for mainnet builds (#478)', async () => {
     vi.stubEnv('VITE_NETWORK', 'mainnet')
     vi.resetModules()
     const { getExplorerTxUrl } = await loadExplorerUtils()
-    expect(getExplorerTxUrl(SAMPLE_TX)).toBe(`https://finder.terraclassic.community/mainnet/tx/${SAMPLE_TX}`)
+    expect(getExplorerTxUrl(SAMPLE_TX)).toBe(
+      `https://finder.terraclassic.community/columbus-5/tx/${SAMPLE_TX}`
+    )
   })
 
   it('uses Finder testnet tx path for testnet builds', async () => {
@@ -90,12 +92,12 @@ describe('getExplorerAddressUrl', () => {
     )
   })
 
-  it('uses Finder mainnet address path for mainnet builds', async () => {
+  it('uses Galaxy Finder columbus-5 address path for mainnet builds (#478)', async () => {
     vi.stubEnv('VITE_NETWORK', 'mainnet')
     vi.resetModules()
     const { getExplorerAddressUrl } = await loadExplorerUtils()
     expect(getExplorerAddressUrl(SAMPLE_ADDRESS)).toBe(
-      `https://finder.terraclassic.community/mainnet/address/${SAMPLE_ADDRESS}`
+      `https://finder.terraclassic.community/columbus-5/address/${SAMPLE_ADDRESS}`
     )
   })
 

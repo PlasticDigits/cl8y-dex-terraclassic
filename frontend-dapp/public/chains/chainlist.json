@@ -92,7 +92,7 @@
       "icon": "/chains/terraclassic-icon.png",
       "rpcUrl": "https://terra-classic-rpc.publicnode.com",
       "lcdUrl": "https://terra-classic-lcd.publicnode.com",
-      "explorerUrl": "https://finder.terraclassic.community/mainnet",
+      "explorerUrl": "https://finder.terraclassic.community/columbus-5",
       "tier": "mainnet"
     },
     {
