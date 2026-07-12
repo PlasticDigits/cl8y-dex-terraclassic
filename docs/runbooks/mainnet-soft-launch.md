@@ -37,7 +37,11 @@ Defaults live in [`scripts/lib/mainnet-soft-launch-defaults.sh`](../../scripts/l
 
 **Pairs (10):** EMBER/CORAL, EMBER/JADE, EMBER/ONYX, CORAL/RUBY, JADE/TOPAZ, ONYX/QUARTZ, RUBY/PEARL, EMBER/QUARTZ, CORAL/PEARL, JADE/ONYX.
 
-## Deploy (single script)
+## Gas / fees
+
+columbus-5 floor is **28.325 uluna/gas** (FCD `/v1/txs/gas_prices`). The soft-launch script uses `--gas auto --gas-prices=28.325uluna` via [`terrad-host.sh`](../../scripts/lib/terrad-host.sh) so each tx pays `gas_wanted × 28.325` (do **not** set a flat 5 or 100 LUNC `--fees` for all txs). Pair creation still attaches **100 LUNC** separately (`pair_creation_fee_uluna`). Rough total with 10 pairs: on the order of **~2–3k LUNC** (gas + pair fees), well under a typical funded `cl8ydeploy` balance.
+
+Override only if needed: `TERRAD_HOST_GAS_PRICES=28.325uluna` or escape-hatch `TERRAD_HOST_FEES=…uluna`.
 
 ```bash
 make build-optimized

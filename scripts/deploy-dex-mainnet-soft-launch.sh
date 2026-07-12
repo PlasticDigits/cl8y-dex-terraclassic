@@ -110,7 +110,7 @@ instantiate_no_funds() {
       $(terrad_host_common_flags) \
       --gas auto \
       --gas-adjustment "$TERRAD_HOST_GAS_ADJUSTMENT" \
-      --fees "$TERRAD_HOST_FEES" \
+      $(terrad_host_fee_flags) \
       --broadcast-mode "$TERRAD_HOST_BROADCAST_MODE" \
       -y --output json)"
     tx_hash="$(printf '%s' "$out" | jq -r '.txhash // empty')"

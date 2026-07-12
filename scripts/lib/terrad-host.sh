@@ -9,13 +9,26 @@ TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:4
 TERRAD_HOST_KEY="${TERRAD_HOST_KEY:-cl8ydeploy}"
 TERRAD_HOST_KEYRING_BACKEND="${TERRAD_HOST_KEYRING_BACKEND:-os}"
 TERRAD_HOST_GAS_ADJUSTMENT="${TERRAD_HOST_GAS_ADJUSTMENT:-1.4}"
-TERRAD_HOST_FEES="${TERRAD_HOST_FEES:-5000000uluna}"
+# Classic tax-module floor (FCD /v1/txs/gas_prices). Prefer gas-prices so fee = gas_wanted × price.
+# Fixed --fees is wrong for mixed store/execute workloads (5 LUNC too low for store; flat 100 LUNC overpays executes).
+TERRAD_HOST_GAS_PRICES="${TERRAD_HOST_GAS_PRICES:-28.325uluna}"
+# Optional escape hatch: if set, use --fees instead of --gas-prices.
+TERRAD_HOST_FEES="${TERRAD_HOST_FEES:-}"
 TERRAD_HOST_BROADCAST_MODE="${TERRAD_HOST_BROADCAST_MODE:-sync}"
 
 terrad_host_common_flags() {
   echo --chain-id "$TERRAD_HOST_CHAIN_ID" \
     --node "$TERRAD_HOST_NODE" \
     --keyring-backend "$TERRAD_HOST_KEYRING_BACKEND"
+}
+
+# Fee flags: gas-prices (default) or explicit TERRAD_HOST_FEES.
+terrad_host_fee_flags() {
+  if [[ -n "${TERRAD_HOST_FEES:-}" ]]; then
+    echo --fees "$TERRAD_HOST_FEES"
+  else
+    echo --gas-prices "$TERRAD_HOST_GAS_PRICES"
+  fi
 }
 
 # Broadcast a tx from TERRAD_HOST_KEY. Prints full JSON to stdout.
@@ -26,12 +39,13 @@ terrad_host_tx() {
     echo '{"txhash":"DRY_RUN_TX","code":0}'
     return 0
   fi
+  # shellcheck disable=SC2046
   terrad tx "$@" \
     --from "$TERRAD_HOST_KEY" \
     $(terrad_host_common_flags) \
     --gas auto \
     --gas-adjustment "$TERRAD_HOST_GAS_ADJUSTMENT" \
-    --fees "$TERRAD_HOST_FEES" \
+    $(terrad_host_fee_flags) \
     --broadcast-mode "$TERRAD_HOST_BROADCAST_MODE" \
     -y --output json
 }
