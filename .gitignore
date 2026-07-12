@@ -39,6 +39,11 @@ docker-compose.override.yml
 # QA deploy stamp (scripts/deploy-dex-local.sh; GitLab #203)
 .qa-deploy-stamp
 
+# Mainnet soft-launch generated env (scripts/deploy-dex-mainnet-soft-launch.sh)
+deployments/mainnet-soft-launch/*.env
+deployments/mainnet-soft-launch/*.env.example
+!deployments/mainnet-soft-launch/README.md
+
 # Multi-process swarm (make swarm-launch)
 scripts/bots/run/
 

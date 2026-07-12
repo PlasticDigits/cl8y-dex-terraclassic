@@ -6,7 +6,7 @@ Quick reference for **chain**, **LCD**, and **typical indexer** settings. Canoni
 |-------------|----------|--------------------------|---------------|
 | **Local** | `localterra` | `http://localhost:1317` | LocalTerra image: **terrad v4.0.1 / SDK 0.53.6** ([GitLab **#292**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/292), [`localterra-sdk53.md`](./localterra-sdk53.md)). Use `DATABASE_URL` to local Postgres; **`CORS_ORIGINS` must include every Vite origin you use** (`http://localhost:5173` and `http://127.0.0.1:5173` are distinct — [GitLab #131](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131)); `RUN_MODE` usually unset (dev defaults for LCD OK). |
 | **Testnet** | `rebel-2` | Public LCDs (see README) | Set explicit `LCD_URLS` and `RUN_MODE=prod` for production-style validation. |
-| **Mainnet** | `columbus-5` | Operator-controlled LCDs; public mirrors exist | **Required:** `RUN_MODE=prod` and **non-default** `LCD_URLS` (see [`indexer/src/config.rs`](../indexer/src/config.rs)). Observability: **`tracing` logs only** — no `/metrics` ([GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)). |
+| **Mainnet** | `columbus-5` | Operator-controlled LCDs; public mirrors exist | **Required:** `RUN_MODE=prod` and **non-default** `LCD_URLS` (see [`indexer/src/config.rs`](../indexer/src/config.rs)). Observability: **`tracing` logs only** — no `/metrics` ([GitLab #200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)). Soft launch Coolify hosts: frontend `https://dex.cl8y.com`, indexer `https://indexer.dex.cl8y.com` ([mainnet soft-launch runbook](./runbooks/mainnet-soft-launch.md)). |
 
 ## Related
 
