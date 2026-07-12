@@ -4,6 +4,7 @@ import {
   PAIR_MINIMUM_LIQUIDITY,
   estimateProvideLiquidityUserLp,
   isProportionalAddAmounts,
+  computeProportionalCounterpartRaw,
 } from '../provideLiquidityEstimate'
 import type { PoolResponse } from '@/types'
 
@@ -59,5 +60,34 @@ describe('isProportionalAddAmounts', () => {
   it('is false when one side is in excess (same pool)', () => {
     const pool = pool1m('1000000', '1000000', '1000000')
     expect(isProportionalAddAmounts('2000', '1000', pool)).toBe(false)
+  })
+
+  it('uses floor-ratio match on 1:2 pool', () => {
+    const pool = pool1m('2000000', '1000000', '2000000')
+    expect(isProportionalAddAmounts('1000000', '2000000', pool)).toBe(true)
+    expect(isProportionalAddAmounts('1000000', '2000001', pool)).toBe(false)
+  })
+})
+
+describe('computeProportionalCounterpartRaw', () => {
+  it('returns floor(edited × reserve_other / reserve_edited)', () => {
+    const pool = pool1m('2000000', '1000000', '2000000')
+    expect(computeProportionalCounterpartRaw('a', '1000000', pool)).toBe('2000000')
+    expect(computeProportionalCounterpartRaw('b', '2000000', pool)).toBe('1000000')
+  })
+
+  it('returns null for empty pool', () => {
+    const pool = pool1m('0', '0', '0')
+    expect(computeProportionalCounterpartRaw('a', '1000', pool)).toBeNull()
+  })
+
+  it('returns null for one-sided reserves', () => {
+    const pool = pool1m('1000', '1000000', '0')
+    expect(computeProportionalCounterpartRaw('a', '1000', pool)).toBeNull()
+  })
+
+  it('returns null for zero edited amount', () => {
+    const pool = pool1m('2000000', '1000000', '2000000')
+    expect(computeProportionalCounterpartRaw('a', '0', pool)).toBeNull()
   })
 })

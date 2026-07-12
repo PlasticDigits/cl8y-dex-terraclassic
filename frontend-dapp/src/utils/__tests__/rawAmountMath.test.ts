@@ -3,6 +3,7 @@ import {
   applyBpsFloor,
   applySlippagePercentFloor,
   withdrawMinAssetAmounts,
+  estimateWithdrawAssetAmounts,
   isLpBurnExceedsBalance,
   isPositiveRawAmount,
   slippagePercentToBps,
@@ -112,6 +113,19 @@ describe('withdrawMinAssetAmounts', () => {
 
   it('returns null when pool total share is zero', () => {
     expect(withdrawMinAssetAmounts('1', '0', '100', '100', 1)).toBe(null)
+  })
+})
+
+describe('estimateWithdrawAssetAmounts', () => {
+  it('equals withdrawMinAssetAmounts at 0% slippage', () => {
+    const lp = '1000000'
+    const total = '10000000'
+    const resA = '5000000'
+    const resB = '8000000'
+    expect(estimateWithdrawAssetAmounts(lp, total, resA, resB)).toEqual(
+      withdrawMinAssetAmounts(lp, total, resA, resB, 0)
+    )
+    expect(estimateWithdrawAssetAmounts(lp, total, resA, resB)).toEqual(['500000', '800000'])
   })
 })
 

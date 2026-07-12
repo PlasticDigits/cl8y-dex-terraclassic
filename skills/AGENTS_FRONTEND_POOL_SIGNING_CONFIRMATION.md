@@ -10,7 +10,7 @@ Before the wallet extension opens, pool provide and withdraw surfaces must show 
 |-------|-------|----------------------|
 | Action | `Provide Liquidity` or `Withdraw Liquidity` | `-action` |
 | Pair | `{tokenA} / {tokenB}` symbols | `-pair` |
-| Amount | provide: `{amountA} {symA} + {amountB} {symB}`; withdraw: `{lpAmount} LP` | `-amount` |
+| Amount | provide: `{amountA} {symA} + {amountB} {symB}`; withdraw: `{lpAmount} LP` plus `~{expectedA} {symA} + ~{expectedB} {symB}` when pool data is available | `-amount` |
 | Chain | active network full label (`LocalTerra`, `Terra Classic`, …) | `-chain` |
 
 Panel roots: **`pool-provide-pre-submit-summary`** and **`pool-withdraw-pre-submit-summary`** on `/pool`.
@@ -42,6 +42,7 @@ cd frontend-dapp && npm run test:run -- \
 2. **Do not** drop the pair row — amounts alone do not identify the pool contract.
 3. Keep the card **compact** (four rows: action, pair, amount, chain); avoid duplicating the swap intro copy.
 4. Swaps use [`SwapPreSubmitSummary`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx) — see [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md).
+5. Provide auto-fill / withdraw preview math: [`AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](./AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md) ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)).
 
 ## Related
 

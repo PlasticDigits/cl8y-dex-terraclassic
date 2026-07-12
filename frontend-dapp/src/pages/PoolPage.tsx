@@ -50,10 +50,11 @@ import { AddressRow } from '@/components/ui/AddressRow'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
-import { isLpBurnExceedsBalance, withdrawMinAssetAmounts } from '@/utils/rawAmountMath'
+import { isLpBurnExceedsBalance, withdrawMinAssetAmounts, estimateWithdrawAssetAmounts } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { estimateProvideLiquidityUserLp, isProportionalAddAmounts } from '@/utils/provideLiquidityEstimate'
+import { computeProvideCounterpartHuman } from '@/utils/poolProvideCounterpart'
 import { evaluateProvideLiquidityCw20NativeGasGate } from '@/utils/provideLiquidityNativeGasBalanceGate'
 import { isLcdConnectivityError, LCD_CONNECTIVITY_OUTAGE_MESSAGE } from '@/utils/lcdConnectivity'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
@@ -316,6 +317,83 @@ const PoolCard = memo(function PoolCard({
     poolQuery.data && amountA && amountB
       ? isProportionalAddAmounts(provideRawAddA, provideRawAddB, poolQuery.data)
       : null
+
+  const shouldSyncProvideCounterpart = (counterpartHuman: string, forceSync?: boolean) =>
+    forceSync || !counterpartHuman || counterpartHuman === '.'
+
+  const setProvideAmountA = (human: string, opts?: { forceSync?: boolean }) => {
+    const sync = shouldSyncProvideCounterpart(amountB, opts?.forceSync)
+    setAmountA(human)
+    if (!sync || !poolQuery.data) return
+    const counterpart = computeProvideCounterpartHuman({
+      editedSide: 'a',
+      editedHuman: human,
+      pool: poolQuery.data,
+      decimalsA,
+      decimalsB,
+      needsWrapA,
+      needsWrapB,
+      taxParamsA: wrapTaxParamsAQuery.data,
+      taxParamsB: wrapTaxParamsBQuery.data,
+    })
+    if (counterpart !== null) setAmountB(counterpart)
+  }
+
+  const setProvideAmountB = (human: string, opts?: { forceSync?: boolean }) => {
+    const sync = shouldSyncProvideCounterpart(amountA, opts?.forceSync)
+    setAmountB(human)
+    if (!sync || !poolQuery.data) return
+    const counterpart = computeProvideCounterpartHuman({
+      editedSide: 'b',
+      editedHuman: human,
+      pool: poolQuery.data,
+      decimalsA,
+      decimalsB,
+      needsWrapA,
+      needsWrapB,
+      taxParamsA: wrapTaxParamsAQuery.data,
+      taxParamsB: wrapTaxParamsBQuery.data,
+    })
+    if (counterpart !== null) setAmountA(counterpart)
+  }
+
+  const rawLpWithdraw = lpAmount ? toRawAmount(lpAmount, LP_DECIMALS) : '0'
+
+  const withdrawExpectedAssets = useMemo(() => {
+    if (!poolQuery.data || !lpAmount) return null
+    return estimateWithdrawAssetAmounts(
+      rawLpWithdraw,
+      poolQuery.data.total_share,
+      poolQuery.data.assets[0].amount,
+      poolQuery.data.assets[1].amount
+    )
+  }, [poolQuery.data, lpAmount, rawLpWithdraw])
+
+  const withdrawMinAssets = useMemo(() => {
+    if (!poolQuery.data || !lpAmount || !withdrawSlippage) return null
+    return withdrawMinAssetAmounts(
+      rawLpWithdraw,
+      poolQuery.data.total_share,
+      poolQuery.data.assets[0].amount,
+      poolQuery.data.assets[1].amount,
+      parseFloat(withdrawSlippage)
+    )
+  }, [poolQuery.data, lpAmount, withdrawSlippage, rawLpWithdraw])
+
+  const withdrawReceiveLabelA =
+    receiveWrapped || !nativeEquivA ? displayA.displayLabel : getTokenDisplaySymbol(nativeEquivA)
+  const withdrawReceiveLabelB =
+    receiveWrapped || !nativeEquivB ? displayB.displayLabel : getTokenDisplaySymbol(nativeEquivB)
+
+  const withdrawPreSubmitAmountLines = useMemo(() => {
+    const lines = [`${lpAmount} LP`]
+    if (withdrawExpectedAssets) {
+      lines.push(
+        `~${formatTokenAmount(withdrawExpectedAssets[0], decimalsA)} ${withdrawReceiveLabelA} + ~${formatTokenAmount(withdrawExpectedAssets[1], decimalsB)} ${withdrawReceiveLabelB}`
+      )
+    }
+    return lines
+  }, [lpAmount, withdrawExpectedAssets, decimalsA, decimalsB, withdrawReceiveLabelA, withdrawReceiveLabelB])
 
   const addMutation = useTerraBroadcastMutation({
     toastSuccess: 'Liquidity added.',
@@ -670,7 +748,7 @@ const PoolCard = memo(function PoolCard({
               value={amountA}
               onChange={(e) => {
                 const v = e.target.value
-                if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountA(v)
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setProvideAmountA(v)
               }}
               placeholder="0.00"
               className="input-glass"
@@ -683,11 +761,11 @@ const PoolCard = memo(function PoolCard({
                 walletConnected={!!address}
                 showHalf
                 spendableRaw={maxResultA.spendableRaw}
-                onMax={() => setAmountA(maxResultA.human)}
+                onMax={() => setProvideAmountA(maxResultA.human, { forceSync: true })}
                 onHalf={() => {
                   if (!balanceAQuery.data) return
                   const half = (BigInt(balanceAQuery.data) / 2n).toString()
-                  setAmountA(fromRawAmount(half, decimalsA))
+                  setProvideAmountA(fromRawAmount(half, decimalsA), { forceSync: true })
                 }}
                 testIdMax="pool-add-max-a"
                 testIdHalf="pool-add-half-a"
@@ -726,7 +804,7 @@ const PoolCard = memo(function PoolCard({
               value={amountB}
               onChange={(e) => {
                 const v = e.target.value
-                if (v === '' || /^\d*\.?\d*$/.test(v)) setAmountB(v)
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setProvideAmountB(v)
               }}
               placeholder="0.00"
               className="input-glass"
@@ -739,11 +817,11 @@ const PoolCard = memo(function PoolCard({
                 walletConnected={!!address}
                 showHalf
                 spendableRaw={maxResultB.spendableRaw}
-                onMax={() => setAmountB(maxResultB.human)}
+                onMax={() => setProvideAmountB(maxResultB.human, { forceSync: true })}
                 onHalf={() => {
                   if (!balanceBQuery.data) return
                   const half = (BigInt(balanceBQuery.data) / 2n).toString()
-                  setAmountB(fromRawAmount(half, decimalsB))
+                  setProvideAmountB(fromRawAmount(half, decimalsB), { forceSync: true })
                 }}
                 testIdMax="pool-add-max-b"
                 testIdHalf="pool-add-half-b"
@@ -765,7 +843,7 @@ const PoolCard = memo(function PoolCard({
             </p>
           )}
           {poolQuery.data && amountA && amountB && ratioBalanced === false && (
-            <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
+            <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="pool-provide-ratio-warning">
               Amounts are not in the current pool price ratio. The contract mints LP from the smaller side; extra tokens
               on the larger side are effectively donated to the pool.
             </p>
@@ -955,11 +1033,26 @@ const PoolCard = memo(function PoolCard({
               ))}
             </div>
           </div>
+          {lpAmount && withdrawExpectedAssets && (
+            <div className="text-xs space-y-1" style={{ color: 'var(--ink-dim)' }}>
+              <p data-testid="pool-withdraw-estimated-receive">
+                Expected receive (0% slippage): ~{formatTokenAmount(withdrawExpectedAssets[0], decimalsA)}{' '}
+                {withdrawReceiveLabelA} + ~{formatTokenAmount(withdrawExpectedAssets[1], decimalsB)}{' '}
+                {withdrawReceiveLabelB}
+              </p>
+              {withdrawMinAssets && (
+                <p data-testid="pool-withdraw-minimum-receive">
+                  Minimum receive ({withdrawSlippage}% slippage): {formatTokenAmount(withdrawMinAssets[0], decimalsA)}{' '}
+                  {withdrawReceiveLabelA} + {formatTokenAmount(withdrawMinAssets[1], decimalsB)} {withdrawReceiveLabelB}
+                </p>
+              )}
+            </div>
+          )}
           {lpAmount && (
             <PoolPreSubmitSummary
               actionLabel="Withdraw Liquidity"
               pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
-              amountLines={[`${lpAmount} LP`]}
+              amountLines={withdrawPreSubmitAmountLines}
               data-testid="pool-withdraw-pre-submit-summary"
             />
           )}
