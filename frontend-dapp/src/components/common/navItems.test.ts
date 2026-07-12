@@ -4,6 +4,7 @@ import {
   getHeaderMoreMenuItems,
   getMobileMoreMenuItems,
   HEADER_FULL_NAV_MIN_WIDTH_PX,
+  MINT_NAV_ITEM,
   MOBILE_BOTTOM_NAV_ITEMS,
   MORE_NAV_ITEMS,
   PRIMARY_NAV_ITEMS,
@@ -28,6 +29,18 @@ describe('navItems', () => {
   it('merges overflow primaries into More below full-desktop breakpoint', () => {
     expect(getHeaderMoreMenuItems(true)).toEqual(MORE_NAV_ITEMS)
     expect(getHeaderMoreMenuItems(false)).toEqual([...PRIMARY_NAV_ITEMS.slice(1), ...MORE_NAV_ITEMS])
+  })
+
+  it('appends Mint to More menus only when includeMint is true (#473)', () => {
+    expect(getHeaderMoreMenuItems(true, { includeMint: true })).toEqual([...MORE_NAV_ITEMS, MINT_NAV_ITEM])
+    expect(getHeaderMoreMenuItems(false, { includeMint: true })).toEqual([
+      ...PRIMARY_NAV_ITEMS.slice(1),
+      ...MORE_NAV_ITEMS,
+      MINT_NAV_ITEM,
+    ])
+    expect(getMobileMoreMenuItems({ includeMint: true }).map((i) => i.path)).toContain('/mint')
+    expect(getHeaderMoreMenuItems(true)).not.toContainEqual(MINT_NAV_ITEM)
+    expect(getMobileMoreMenuItems().map((i) => i.path)).not.toContain('/mint')
   })
 
   it('has expected primary and more routes for regression checks', () => {

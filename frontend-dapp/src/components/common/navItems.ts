@@ -20,6 +20,20 @@ export const MORE_NAV_ITEMS: NavItem[] = [
   { path: '/create', label: 'Create Pair' },
 ]
 
+/** Soft-launch faucet route (GitLab #473) — appended to More menus only when enabled. */
+export const MINT_NAV_ITEM: NavItem = { path: '/mint', label: 'Mint' }
+
+export type NavMenuOptions = {
+  includeMint?: boolean
+}
+
+function appendMintIfNeeded(items: NavItem[], options?: NavMenuOptions): NavItem[] {
+  if (options?.includeMint) {
+    return [...items, MINT_NAV_ITEM]
+  }
+  return items
+}
+
 /**
  * Minimum viewport width (px) for the sticky header to show every primary link inline.
  * Between **768px** and **this − 1**, Pool/Limits/Trade/Charts fold into the header **More** menu
@@ -38,8 +52,9 @@ export const DESKTOP_HEADER_NAV_ROW_LABELS = [...PRIMARY_NAV_ITEMS.map((item) =>
 /** Inline header labels when viewport is 768px–`TABLET_COMPACT_HEADER_MAX_WIDTH_PX` (desktop nav visible, compact row). */
 export const TABLET_COMPACT_HEADER_NAV_ROW_LABELS = ['Swap', 'More'] as const
 
-export function getHeaderMoreMenuItems(fullDesktopHeader: boolean): NavItem[] {
-  return fullDesktopHeader ? MORE_NAV_ITEMS : [...PRIMARY_NAV_ITEMS.slice(1), ...MORE_NAV_ITEMS]
+export function getHeaderMoreMenuItems(fullDesktopHeader: boolean, options?: NavMenuOptions): NavItem[] {
+  const base = fullDesktopHeader ? MORE_NAV_ITEMS : [...PRIMARY_NAV_ITEMS.slice(1), ...MORE_NAV_ITEMS]
+  return appendMintIfNeeded(base, options)
 }
 
 /** Bottom tab bar on viewports ≤767px — core trade routes only (GitLab #347). */
@@ -51,8 +66,8 @@ export const MOBILE_BOTTOM_NAV_ITEMS: NavItem[] = [
 ]
 
 /** Overflow primaries + secondary routes in the mobile More sheet. */
-export function getMobileMoreMenuItems(): NavItem[] {
+export function getMobileMoreMenuItems(options?: NavMenuOptions): NavItem[] {
   const bottomPaths = new Set(MOBILE_BOTTOM_NAV_ITEMS.map((item) => item.path))
   const overflowPrimaries = PRIMARY_NAV_ITEMS.filter((item) => !bottomPaths.has(item.path))
-  return [...overflowPrimaries, ...MORE_NAV_ITEMS]
+  return appendMintIfNeeded([...overflowPrimaries, ...MORE_NAV_ITEMS], options)
 }

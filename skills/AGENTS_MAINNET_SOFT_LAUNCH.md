@@ -7,6 +7,7 @@ Use when deploying or verifying the **columbus-5 soft launch** with non-economic
 | Doc / code | Purpose |
 |------------|---------|
 | [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md) | Operator runbook + invariants **SL1–SL7** |
+| [`docs/runbooks/soft-launch-faucet.md`](../docs/runbooks/soft-launch-faucet.md) | Soft-launch faucet / Mint page (**F1–F12**, GitLab #473) |
 | [`scripts/lib/mainnet-soft-launch-defaults.sh`](../scripts/lib/mainnet-soft-launch-defaults.sh) | Token/pair catalog, deploy key, code ID defaults |
 | [`scripts/deploy-dex-mainnet-soft-launch.sh`](../scripts/deploy-dex-mainnet-soft-launch.sh) | Single deploy script (`cl8ydeploy`) |
 | [`scripts/lib/terrad-host.sh`](../scripts/lib/terrad-host.sh) | Host terrad (no LocalTerra Docker) |
@@ -31,10 +32,12 @@ Use when deploying or verifying the **columbus-5 soft launch** with non-economic
 make test-mainnet-soft-launch-defaults
 make check-fee-discount-tier-docs
 DRY_RUN=1 make deploy-mainnet-soft-launch
+DRY_RUN=1 make deploy-soft-launch-faucet   # after soft-launch addresses exist (#473)
 ```
 
 ## Related
 
+- [`AGENTS_SOFT_LAUNCH_FAUCET.md`](./AGENTS_SOFT_LAUNCH_FAUCET.md) — faucet deploy + Mint UI (#473)
 - [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md) — deploy audit record
 - [`AGENTS_LAUNCH_GO_NO_GO.md`](./AGENTS_LAUNCH_GO_NO_GO.md) — Phase 5 gate
 - [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) — tier wire format

@@ -2,7 +2,7 @@
 
 Ordered operator path for a **columbus-5** pool-only soft launch using **non-economic** CW20 tokens only, Coolify hosts **`https://dex.cl8y.com`** (frontend) and **`https://indexer.dex.cl8y.com`** (indexer), and a single deploy script.
 
-**Related:** [`docs/deployment-guide.md`](../deployment-guide.md), [`launch-checklist.md`](./launch-checklist.md), [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md), agent playbook [`skills/AGENTS_MAINNET_SOFT_LAUNCH.md`](../../skills/AGENTS_MAINNET_SOFT_LAUNCH.md).
+**Related:** [`docs/deployment-guide.md`](../deployment-guide.md), [`launch-checklist.md`](./launch-checklist.md), [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md), [`soft-launch-faucet.md`](./soft-launch-faucet.md) (GitLab #473), agent playbook [`skills/AGENTS_MAINNET_SOFT_LAUNCH.md`](../../skills/AGENTS_MAINNET_SOFT_LAUNCH.md).
 
 ## Scope
 
@@ -27,6 +27,8 @@ Phase 5 GO may proceed without a separate staging/testnet deploy when budget-con
 | **SL5** | CW20-only pairs — wrap-mapper not required. |
 | **SL6** | Production indexer: `RUN_MODE=prod`, non-default `LCD_URLS`, `CORS_ORIGINS=https://dex.cl8y.com`, `VITE_INDEXER_URL=https://indexer.dex.cl8y.com` (HTTPS only). |
 | **SL7** | Fee-discount tiers match [`fee-discount-tiers.md`](../reference/fee-discount-tiers.md) (drift: `make check-fee-discount-tier-docs`). |
+
+Faucet (optional soft-launch UX) has its own invariants **F1–F12** in [`soft-launch-faucet.md`](./soft-launch-faucet.md) — does **not** change SL1–SL7 or factory whitelist.
 
 Defaults live in [`scripts/lib/mainnet-soft-launch-defaults.sh`](../../scripts/lib/mainnet-soft-launch-defaults.sh).
 
@@ -78,7 +80,7 @@ Makefile: `make deploy-mainnet-soft-launch`.
 
 **Indexer:** build context = repo root; set `DATABASE_URL`, `FACTORY_ADDRESS`, `ROUTER_ADDRESS`, `FEE_DISCOUNT_ADDRESS`, `CORS_ORIGINS=https://dex.cl8y.com`, `RUN_MODE=prod`, operator-controlled `LCD_URLS`, `API_BIND=0.0.0.0`.
 
-**Frontend:** build-args from `frontend.env.example` including `VITE_WC_PROJECT_ID` and `VITE_INDEXER_URL=https://indexer.dex.cl8y.com`. Do not set `VITE_DEV_MNEMONIC`.
+**Frontend:** build-args from `frontend.env.example` including `VITE_WC_PROJECT_ID` and `VITE_INDEXER_URL=https://indexer.dex.cl8y.com`. For the Mint page ([#473](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473)), also set `VITE_FAUCET_ADDRESS` and the six `VITE_TOKEN_{EMBER,CORAL,JADE,ONYX,RUBY,TOPAZ}_ADDRESS` values after `make deploy-soft-launch-faucet`. Do not set `VITE_DEV_MNEMONIC`.
 
 Postgres is provisioned in Coolify separately (not via repo compose).
 

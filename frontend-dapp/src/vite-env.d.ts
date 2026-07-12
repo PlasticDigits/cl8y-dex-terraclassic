@@ -8,6 +8,14 @@ declare module '*.json' {
 interface ImportMetaEnv {
   /** When `"true"`, skips the blocking first-visit risk acknowledgement (Playwright webServer only — GitLab #138). */
   readonly VITE_PLAYWRIGHT_E2E?: string
+  /** Soft-launch faucet contract (GitLab #473). */
+  readonly VITE_FAUCET_ADDRESS?: string
+  readonly VITE_TOKEN_EMBER_ADDRESS?: string
+  readonly VITE_TOKEN_CORAL_ADDRESS?: string
+  readonly VITE_TOKEN_JADE_ADDRESS?: string
+  readonly VITE_TOKEN_ONYX_ADDRESS?: string
+  readonly VITE_TOKEN_RUBY_ADDRESS?: string
+  readonly VITE_TOKEN_TOPAZ_ADDRESS?: string
 }
 
 declare module 'react-blockies'
