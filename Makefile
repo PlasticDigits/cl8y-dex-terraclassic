@@ -1,4 +1,4 @@
-.PHONY: front send start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet deploy-mainnet-soft-launch deploy-soft-launch-faucet test-mainnet-soft-launch-defaults dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-indexer-postgres test-indexer-integration
+.PHONY: front send start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet deploy-mainnet-soft-launch deploy-soft-launch-faucet test-mainnet-soft-launch-defaults dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-384 verify-issue-475 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-indexer-postgres test-indexer-integration
 
 # Infrastructure
 start:
@@ -175,6 +175,11 @@ verify-issue-383:
 verify-issue-384:
 	@chmod +x scripts/qa/verify-issue-384.sh scripts/lib/lcd-smart-query.sh scripts/lib/terrad-wait-tx.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-384.sh
+
+# GitLab #475 — retail getGasLimitForTx inventory / BASE_GAS_LIMIT guardrail (+ #474 drip).
+verify-issue-475:
+	@chmod +x scripts/qa/verify-issue-475.sh scripts/lib/terrad-wait-tx.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-475.sh
 
 # GitLab #396 — wrap-mapper pause/unpause LocalTerra smoke (SEC-B06) + SEC-A02 Vitest.
 verify-issue-396:

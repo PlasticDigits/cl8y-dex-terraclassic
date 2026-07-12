@@ -13,7 +13,7 @@ Operator path to deploy the **non-economic soft-launch CW20 faucet**, grant mint
 | Coolify `VITE_FAUCET_ADDRESS` + mintable token envs | Indexer mint-event indexing |
 | LocalTerra faucet via `deploy-dex-local.sh` | Minting QUARTZ / PEARL (cw20-base) |
 
-## Invariants (F1–F12)
+## Invariants (F1–F13)
 
 | ID | Rule |
 |----|------|
@@ -29,6 +29,7 @@ Operator path to deploy the **non-economic soft-launch CW20 faucet**, grant mint
 | **F10** | Happy path is LCD query + execute (no indexer dependency). |
 | **F11** | Frontend exposes Mint nav only when `VITE_FAUCET_ADDRESS` is set. |
 | **F12** | User pays LUNC gas for `Drip` (no sponsored meta-tx). |
+| **F13** | dApp fee envelope for `{ drip }` is **`FAUCET_DRIP_GAS_LIMIT` (400k)** in [`terraGas.ts`](../../frontend-dapp/src/services/terraclassic/terraGas.ts) — must not fall through to **`BASE_GAS_LIMIT` (200k)** ([#474](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/474) / [#475](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/475)). Verify: `make verify-issue-475`. |
 
 Soft-launch **SL1–SL7** remain in force; this faucet does not change factory whitelist or fee tiers.
 

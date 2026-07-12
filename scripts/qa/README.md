@@ -108,6 +108,7 @@ Trading tokens (EMBER, CORAL, …) use **6** decimals. Fee-discount `min_cl8y_ba
 | ---- | -------- |
 | `make verify-issue-383` | TCL8Y `decimals=18`; tier-1 register + deregister on-chain (FT-3 / FT-4) |
 | `make verify-issue-384` | `getGasLimitForTx` register/deregister limits; optional live `gas_used` check |
+| `make verify-issue-475` | Retail execute-msg gas inventory / `BASE_GAS_LIMIT` guardrail; faucet `drip` (#474); optional live drip `gas_used` |
 | `/tiers` + Keplr or Simulated Wallet | Register tier 1 succeeds when wallet holds ≥ 1 TCL8Y (requires #384 gas limits) |
 
 ---

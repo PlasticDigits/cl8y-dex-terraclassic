@@ -269,6 +269,17 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(250_000))
   })
 
+  it('uses FAUCET_DRIP_GAS_LIMIT for drip (#474 / #475)', async () => {
+    const fee = await getFeeForMsg({ drip: { token: 'terra1token' } })
+    expect(fee.gasLimit).toBe(BigInt(400_000))
+  })
+
+  it('uses UNWRAP_GAS_LIMIT for send with inner unwrap (#475)', async () => {
+    const inner = btoa(JSON.stringify({ unwrap: { recipient: null } }))
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBe(BigInt(400_000))
+  })
+
   it('adds UNWRAP_GAS_LIMIT when execute_swap_operations has unwrap_output (#343)', async () => {
     const inner = btoa(
       JSON.stringify({
