@@ -23,6 +23,7 @@ Filled from [`docs/templates/deploy-trace.md`](../../docs/templates/deploy-trace
 | Pair | 11506 | (template; 10 instances below) | `DC60D2A137141689E8195272EA825C6A4079CF5A994E673B41CD4A476D937964` |
 | Router | 11507 | `terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw` | `E56363CC04DD29FA52325F5035840A64065DFE1CEFCBE50F2FD20224A51C17FC` |
 | Fee-discount | 11508 | `terra1wcczsdk7jwj99n3my6wx8wr4ee0hn6yaapgd792lgx5elrdtrn2scfnecz` | `8D11905C70E18ED2EBACFD08A5468DA4353DCB4FD33F587AF55C435382CE5998` |
+| Soft-launch faucet (#473) | 11509 | `terra1388y0ppe2c3dy4nrmnpqp7e4ggukkrnmpzfjadfeu0pu2rm9cvkslfzcen` | `A9C19707E48BFD81BE55F2E07A67568636A77953E723B34219082AC3E5FAB879` |
 | Hook(s) | — | none (pool-only soft launch) | — |
 | CW20 base (reuse) | 6036 | QUARTZ + PEARL + LP tokens | Terraswap mainnet |
 | CW20 mintable (reuse) | 10184 | EMBER…TOPAZ | PlasticDigits cw20-mintable |
@@ -171,4 +172,5 @@ RESULT: PASS
 - **Canonical stack** is the second instantiate (bootstrap governance). Do **not** use orphan first attempt: factory `terra1weddl9adjexzz82v2cyyh9x9mleneear0aeu55eyj22287pzsyls3c4qjz`, fee-discount `terra15a5s3s9wexcy6dvlrjua4quq03mm6ve7rh93ttvf4pup8rvlqyfqsc2sf2` (Unauthorized on `add_tier`).
 - Mid-deploy publicnode RPC resets / sequence mismatch; completed via `./scripts/resume-mainnet-soft-launch-pairs.sh`.
 - Soft launch = non-economic gemstones only; Coolify cutover still outstanding after this chain trace.
+- Soft-launch faucet (#473): code **11509** / `terra1388y0ppe2c3dy4nrmnpqp7e4ggukkrnmpzfjadfeu0pu2rm9cvkslfzcen` — see [`faucet-trace.md`](./faucet-trace.md). `AddMinter` granted on EMBER…TOPAZ; primary minter remains `cl8ydeploy`. **Not** on factory CW20 whitelist (F7).
 - `make qa-verify-deploy-config` defaults to LocalTerra RPC; for mainnet set `TERRA_RPC_URL` / `TERRA_LCD_URL` and provide factory/router/fee addresses via `indexer/.env` (script does not yet honor bare `FACTORY_ADDRESS=` env alone).
