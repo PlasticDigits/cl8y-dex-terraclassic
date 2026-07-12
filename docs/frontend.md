@@ -519,7 +519,27 @@ Route **`/portfolio`** is the wallet-home surface for indexed trading exposure (
 
 ### Wallet swap and limit history (indexer) {#wallet-swap-limit-history}
 
-When a wallet is connected, **`/limits`** shows indexed **limit fills** (maker), **cancellations** (owner attribute when present on-chain), and **AMM swaps** for the **selected pair** via trader-scoped indexer routes. **`/trade`** shows the same **swap** slice for the active pair. Rows include **timestamps**, **tx hashes** (with explorer links in the table), and **fees** where the indexer stores them (`commission_amount` / `effective_fee_bps` on swaps; `commission_amount` on limit fills). **CSV export** uses `GET .../trades?format=csv`, `.../limit-fills?format=csv`, and `.../limit-cancellations?format=csv` on the **`/api/v1/traders/{addr}/...`** paths (see [`docs/indexer-invariants.md`](./indexer-invariants.md)). Third-party agents: [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md).
+When a wallet is connected, **`/limits`** shows indexed **limit fills** (maker), **cancellations** (owner attribute when present on-chain), and **AMM swaps** for the **selected pair** via trader-scoped indexer routes. **`/trade`** shows the same **swap** slice for the active pair. Rows include **timestamps**, **tx hashes** (with explorer links in the table), **fees** where the indexer stores them (`commission_amount` / `effective_fee_bps` on swaps; `commission_amount` on limit fills), and **size amounts** ([GitLab **#479**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/479)):
+
+| Section | Amount columns | Source fields |
+|---------|----------------|---------------|
+| Swaps (AMM) | **Amount in** / **Amount out** | `offer_amount` / `return_amount` |
+| Limit fills (maker) | **Token0** / **Token1** (base / quote) | `token0_amount` / `token1_amount` |
+| Limit cancellations | _(none)_ | API has no amount fields |
+
+Amount cells use the same **`formatNum(raw)`** display as public [`TradesTable`](../frontend-dapp/src/components/ui/TradesTable.tsx) (raw chain integers — parity, not a third format). Mobile keeps horizontal scroll (`data-testid="wallet-history-table-scroll"`, [#352](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/352)).
+
+**CSV export** uses `GET .../trades?format=csv`, `.../limit-fills?format=csv`, and `.../limit-cancellations?format=csv` on the **`/api/v1/traders/{addr}/...`** paths (same `pair=` filter as the table). Client `limit` is capped at **`TRADER_HISTORY_CSV_MAX_LIMIT` (200)** to match the indexer clamp — see [`docs/indexer-invariants.md`](./indexer-invariants.md). Export is **HTTP-only** (no wallet signature). Failures show an inline alert (`wallet-history-csv-error`); `fetchTraderHistoryCsv` retries once on network/timeout. Formula-injection escaping (#432) stays server-side.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Pair scope** | History + CSV stay filtered to the selected pair; do not expand to global wallet history here. |
+| **Amount parity** | Swaps reuse TradesTable amount semantics; fills expose token0/token1; cancellations stay Time / Order / Tx. |
+| **CSV cap** | Never request or advertise export above indexer max **200**. |
+| **CSV errors visible** | Download failures must not be silent; button re-enables after error. |
+| **No signing for CSV** | Keplr only supplies the address in the URL path. |
+
+Component: [`WalletIndexerHistoryPanel.tsx`](../frontend-dapp/src/components/trade/WalletIndexerHistoryPanel.tsx). Tests: [`WalletIndexerHistoryPanel.test.tsx`](../frontend-dapp/src/components/trade/__tests__/WalletIndexerHistoryPanel.test.tsx), [`e2e/wallet-history-163.spec.ts`](../frontend-dapp/e2e/wallet-history-163.spec.ts). Third-party agents: [`skills/AGENTS_FRONTEND_ORDER_HISTORY.md`](../skills/AGENTS_FRONTEND_ORDER_HISTORY.md).
 
 ### Form inputs — programmatic labels {#form-inputs-programmatic-labels}
 

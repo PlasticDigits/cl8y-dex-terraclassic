@@ -37,7 +37,20 @@ function pathSegment(value: string | number): string {
 const FETCH_TIMEOUT_MS = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 4_000 : 15_000
 const MAX_RETRIES = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 0 : 1
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Max `limit` for trader history CSV exports — matches indexer
+ * `GET /api/v1/traders/{addr}/…` clamp (`limit` ≤ 200). Do not request higher;
+ * the server silently clamps and the UI must not imply a larger export.
+ * GitLab #479.
+ */
+export const TRADER_HISTORY_CSV_MAX_LIMIT = 200
+
+function isRetryableFetchError(err: Error): boolean {
+  return err.name === 'AbortError' || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')
+}
+
+/** Shared timed fetch with one network/timeout retry (parity for JSON + CSV). */
+async function fetchText(path: string, init?: RequestInit): Promise<string> {
   let lastError: Error | undefined
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const controller = new AbortController()
@@ -50,24 +63,24 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
       if (!resp.ok) {
         throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
       }
-      const text = await resp.text()
-      try {
-        return JSON.parse(text) as T
-      } catch {
-        throw new Error(`Indexer returned invalid JSON for ${path}`)
-      }
+      return await resp.text()
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
-      const isRetryable =
-        lastError.name === 'AbortError' ||
-        lastError.message.includes('Failed to fetch') ||
-        lastError.message.includes('NetworkError')
-      if (!isRetryable || attempt >= MAX_RETRIES) throw lastError
+      if (!isRetryableFetchError(lastError) || attempt >= MAX_RETRIES) throw lastError
     } finally {
       clearTimeout(timer)
     }
   }
   throw lastError!
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const text = await fetchText(path, init)
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error(`Indexer returned invalid JSON for ${path}`)
+  }
 }
 
 async function fetchJsonPost<T>(path: string, body: unknown): Promise<T> {
@@ -355,14 +368,14 @@ export async function getTraderLimitPlacements(
 
 export type TraderHistoryCsvResource = 'trades' | 'limit-fills' | 'limit-cancellations'
 
-/** Download CSV from trader history endpoints (`format=csv`). */
+/** Download CSV from trader history endpoints (`format=csv`). Retries once on network/timeout like `fetchJson`. */
 export async function fetchTraderHistoryCsv(
   resource: TraderHistoryCsvResource,
   address: string,
   opts?: { limit?: number; pair?: string }
 ): Promise<string> {
-  const sp = new URLSearchParams({ format: 'csv' })
-  if (opts?.limit != null) sp.set('limit', String(opts.limit))
+  const limit = Math.min(opts?.limit ?? TRADER_HISTORY_CSV_MAX_LIMIT, TRADER_HISTORY_CSV_MAX_LIMIT)
+  const sp = new URLSearchParams({ format: 'csv', limit: String(limit) })
   if (
     opts?.pair?.trim() &&
     (resource === 'trades' || resource === 'limit-fills' || resource === 'limit-cancellations')
@@ -373,17 +386,7 @@ export async function fetchTraderHistoryCsv(
     resource === 'trades'
       ? `/api/v1/traders/${pathSegment(address)}/trades?${sp}`
       : `/api/v1/traders/${pathSegment(address)}/${resource}?${sp}`
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-  try {
-    const resp = await fetch(`${INDEXER_URL}${path}`, { signal: controller.signal })
-    if (!resp.ok) {
-      throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
-    }
-    return await resp.text()
-  } finally {
-    clearTimeout(timer)
-  }
+  return fetchText(path)
 }
 
 /** Trigger a browser download of CSV text (UTF-8). */

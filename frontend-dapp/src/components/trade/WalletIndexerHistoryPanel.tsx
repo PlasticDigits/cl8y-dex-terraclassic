@@ -7,11 +7,14 @@ import {
   getTraderLimitCancellations,
   getTraderLimitFills,
   getTraderTrades,
+  TRADER_HISTORY_CSV_MAX_LIMIT,
   type TraderHistoryCsvResource,
 } from '@/services/indexer/client'
+import { formatNum } from '@/utils/formatAmount'
 import { formatDateTime } from '@/utils/formatDate'
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 import { RetryError, Skeleton } from '@/components/ui'
+import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
 
 export type WalletIndexerHistorySection = 'swaps' | 'fills' | 'cancels'
 
@@ -20,6 +23,17 @@ export interface WalletIndexerHistoryPanelProps {
   pairAddress: string
   /** Defaults to all three (limits page). Trade page typically passes `['swaps']` only. */
   sections?: WalletIndexerHistorySection[]
+}
+
+/**
+ * Amount display for wallet pair history — same `formatNum(raw)` as public
+ * [`TradesTable`](../ui/TradesTable.tsx) (offer/return and fill token0/token1 are
+ * raw chain integers). Prefer this over inventing a third format; decimal-aware
+ * `formatTokenAmount` can land later when pair decimals are threaded in (#479).
+ */
+function formatHistoryAmount(raw: string | undefined): string {
+  if (raw == null || raw === '') return '—'
+  return formatNum(raw)
 }
 
 function txCell(txHash: string) {
@@ -51,7 +65,10 @@ function swapFeeLabel(t: IndexerTrade): string {
 }
 
 async function downloadCsv(resource: TraderHistoryCsvResource, address: string, pairAddress: string, slug: string) {
-  const csv = await fetchTraderHistoryCsv(resource, address, { pair: pairAddress, limit: 500 })
+  const csv = await fetchTraderHistoryCsv(resource, address, {
+    pair: pairAddress,
+    limit: TRADER_HISTORY_CSV_MAX_LIMIT,
+  })
   const base = resource === 'trades' ? 'swaps' : resource === 'limit-fills' ? 'limit-fills' : 'limit-cancellations'
   downloadTextAsFile(`${base}-${slug}.csv`, csv)
 }
@@ -70,10 +87,15 @@ function HistoryBlock<T>({
   children: (rows: T[]) => React.ReactNode
 }) {
   const [pending, setPending] = React.useState(false)
+  const [csvError, setCsvError] = React.useState<string | null>(null)
+
   const onCsv = async () => {
     setPending(true)
+    setCsvError(null)
     try {
       await onDownloadCsv()
+    } catch (err) {
+      setCsvError(humanizeUserFacingError(err instanceof Error ? err.message : String(err)))
     } finally {
       setPending(false)
     }
@@ -87,13 +109,24 @@ function HistoryBlock<T>({
         </h3>
         <button
           type="button"
-          className="text-xs py-1 px-2 rounded border border-white/15 hover:bg-white/5 transition-colors"
+          className="text-xs py-1 px-2 rounded border border-white/15 hover:bg-white/5 transition-colors disabled:opacity-60"
           disabled={pending}
           onClick={() => void onCsv()}
+          data-testid="wallet-history-download-csv"
         >
           {pending ? '…' : 'Download CSV'}
         </button>
       </div>
+      {csvError && (
+        <p
+          className="text-xs"
+          role="alert"
+          data-testid="wallet-history-csv-error"
+          style={{ color: 'var(--color-negative)' }}
+        >
+          CSV download failed: {csvError}
+        </p>
+      )}
       {query.isLoading && <Skeleton height="4rem" />}
       {query.isError && <RetryError message="Failed to load history" onRetry={() => void query.refetch()} />}
       {query.data && query.data.length === 0 && (
@@ -147,7 +180,7 @@ export function WalletIndexerHistoryPanel({
         <h2 className="text-sm font-semibold uppercase tracking-wide">Your history (this pair)</h2>
         <p className="text-xs mt-1" style={{ color: 'var(--ink-dim)' }}>
           Indexed swaps, limit fills, and cancellations for your wallet on the selected pair. CSV export uses the same
-          filters as this view.
+          filters as this view (up to {TRADER_HISTORY_CSV_MAX_LIMIT} rows).
         </p>
       </div>
 
@@ -160,11 +193,20 @@ export function WalletIndexerHistoryPanel({
         >
           {(rows: IndexerTrade[]) => (
             <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">
-              <table className="w-full text-left text-xs border-collapse min-w-[28rem]">
+              <table className="w-full text-left text-xs border-collapse min-w-[36rem]">
                 <thead>
                   <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
                     <th className="py-1.5 pr-2 font-medium">Time</th>
                     <th className="py-1.5 pr-2 font-medium">Side</th>
+                    <th className="py-1.5 pr-2 font-medium text-right" title="Amount of the asset paid in (offer side)">
+                      Amount in
+                    </th>
+                    <th
+                      className="py-1.5 pr-2 font-medium text-right"
+                      title="Amount of the asset received out (ask side)"
+                    >
+                      Amount out
+                    </th>
                     <th className="py-1.5 pr-2 font-medium">Price</th>
                     <th className="py-1.5 pr-2 font-medium">Fee</th>
                     <th className="py-1.5 font-medium">Tx</th>
@@ -177,6 +219,8 @@ export function WalletIndexerHistoryPanel({
                       <td className="py-1.5 pr-2">
                         {t.offer_asset} → {t.ask_asset}
                       </td>
+                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(t.offer_amount)}</td>
+                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(t.return_amount)}</td>
                       <td className="py-1.5 pr-2">{t.price}</td>
                       <td className="py-1.5 pr-2">{swapFeeLabel(t)}</td>
                       <td className="py-1.5">{txCell(t.tx_hash)}</td>
@@ -198,12 +242,18 @@ export function WalletIndexerHistoryPanel({
         >
           {(rows: IndexerLimitFill[]) => (
             <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">
-              <table className="w-full text-left text-xs border-collapse min-w-[32rem]">
+              <table className="w-full text-left text-xs border-collapse min-w-[40rem]">
                 <thead>
                   <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
                     <th className="py-1.5 pr-2 font-medium">Time</th>
                     <th className="py-1.5 pr-2 font-medium">Order</th>
                     <th className="py-1.5 pr-2 font-medium">Side</th>
+                    <th className="py-1.5 pr-2 font-medium text-right" title="Fill size in pair token0 (base)">
+                      Token0
+                    </th>
+                    <th className="py-1.5 pr-2 font-medium text-right" title="Fill size in pair token1 (quote)">
+                      Token1
+                    </th>
                     <th className="py-1.5 pr-2 font-medium">Price</th>
                     <th className="py-1.5 pr-2 font-medium">Commission</th>
                     <th className="py-1.5 font-medium">Tx</th>
@@ -215,6 +265,8 @@ export function WalletIndexerHistoryPanel({
                       <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(r.block_timestamp)}</td>
                       <td className="py-1.5 pr-2">#{r.order_id}</td>
                       <td className="py-1.5 pr-2">{r.side}</td>
+                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(r.token0_amount)}</td>
+                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(r.token1_amount)}</td>
                       <td className="py-1.5 pr-2">{r.price}</td>
                       <td className="py-1.5 pr-2">{r.commission_amount}</td>
                       <td className="py-1.5">{txCell(r.tx_hash)}</td>
