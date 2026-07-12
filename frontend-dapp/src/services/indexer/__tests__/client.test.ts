@@ -338,3 +338,37 @@ describe('indexer client fetchJson', () => {
     )
   })
 })
+
+describe('indexer client fetchTraderHistoryCsv (GitLab #479)', () => {
+  it('requests format=csv with clamped limit and returns text', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('id,offer_amount\n1,100\n', { status: 200 }))
+    const client = await loadModule()
+    const addr = 'terra1trader000000000000000000000000000000'
+    const pair = 'terra1pair0000000000000000000000000000000001'
+    const csv = await client.fetchTraderHistoryCsv('trades', addr, { pair, limit: 500 })
+    expect(csv).toContain('offer_amount')
+    const url = vi.mocked(fetch).mock.calls[0][0] as string
+    expect(url).toContain(`/api/v1/traders/${addr}/trades?`)
+    expect(url).toContain('format=csv')
+    expect(url).toContain(`limit=${client.TRADER_HISTORY_CSV_MAX_LIMIT}`)
+    expect(url).toContain(`pair=${encodeURIComponent(pair)}`)
+  })
+
+  it('retries once on network failure then succeeds', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Failed to fetch'))
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('id\n1\n', { status: 200 }))
+    const client = await loadModule()
+    const csv = await client.fetchTraderHistoryCsv('limit-fills', 'terra1abc', { pair: 'terra1pair' })
+    expect(csv).toBe('id\n1\n')
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws on non-ok without retrying HTTP errors', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('nope', { status: 503, statusText: 'Service Unavailable' }))
+    const client = await loadModule()
+    await expect(client.fetchTraderHistoryCsv('limit-cancellations', 'terra1abc')).rejects.toThrow(
+      'Indexer API error: 503'
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
