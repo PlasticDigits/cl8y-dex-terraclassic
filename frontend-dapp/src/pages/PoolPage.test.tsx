@@ -172,14 +172,13 @@ describe('PoolPage', () => {
     expect(screen.queryByTestId('pool-provide-pre-submit-summary')).not.toBeInTheDocument()
 
     const aInput = screen.getByLabelText('Asset A amount')
-    const bInput = screen.getByLabelText('Asset B amount')
     await user.type(aInput, '1')
-    await user.type(bInput, '2')
 
     const summary = await screen.findByTestId('pool-provide-pre-submit-summary')
     expect(summary).toHaveTextContent('Provide Liquidity')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-pair')).toBeInTheDocument()
     expect(screen.getByTestId('pool-provide-pre-submit-summary-amount')).toHaveTextContent('1')
+    expect(screen.getByLabelText('Asset B amount')).toHaveValue('2')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-chain')).toBeInTheDocument()
 
     const submitButtons = screen.getAllByRole('button', { name: /^Provide Liquidity$/i })
@@ -204,6 +203,8 @@ describe('PoolPage', () => {
     const summary = await screen.findByTestId('pool-withdraw-pre-submit-summary')
     expect(summary).toHaveTextContent('Withdraw Liquidity')
     expect(screen.getByTestId('pool-withdraw-pre-submit-summary-amount')).toHaveTextContent('1.5 LP')
+    expect(screen.getByTestId('pool-withdraw-pre-submit-summary-amount')).toHaveTextContent('tokenA')
+    expect(screen.getByTestId('pool-withdraw-pre-submit-summary-amount')).toHaveTextContent('tokenB')
     expect(screen.getByTestId('pool-withdraw-pre-submit-summary-chain')).toBeInTheDocument()
 
     const submitButtons = screen.getAllByRole('button', { name: /^Withdraw Liquidity$/i })
@@ -226,13 +227,87 @@ describe('PoolPage', () => {
     expect(balanceLines.length).toBeGreaterThanOrEqual(2)
 
     const aInput = screen.getByLabelText('Asset A amount')
-    const bInput = screen.getByLabelText('Asset B amount')
     await user.type(aInput, '1')
-    await user.type(bInput, '2')
 
     await waitFor(() => {
       expect(screen.getByText(/Estimated LP:/i)).toBeInTheDocument()
     })
+  })
+
+  it('auto-fills B when typing A on non-empty pool (#480)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+
+    await user.type(screen.getByLabelText('Asset A amount'), '1')
+    expect(screen.getByLabelText('Asset B amount')).toHaveValue('2')
+  })
+
+  it('auto-fills A when typing B with A empty (#480)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+
+    await user.type(screen.getByLabelText('Asset B amount'), '2')
+    expect(screen.getByLabelText('Asset A amount')).toHaveValue('1')
+  })
+
+  it('Max on A force-syncs B (#480)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+
+    await user.click(await screen.findByTestId('pool-add-max-a'))
+    const aVal = (screen.getByLabelText('Asset A amount') as HTMLInputElement).value
+    const bVal = (screen.getByLabelText('Asset B amount') as HTMLInputElement).value
+    expect(aVal).not.toBe('')
+    expect(bVal).not.toBe('')
+    expect(Number(bVal) / Number(aVal)).toBeCloseTo(2, 5)
+  })
+
+  it('shows ratio warning when user overrides auto-filled B (#480)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+
+    const bInput = screen.getByLabelText('Asset B amount')
+    await user.type(screen.getByLabelText('Asset A amount'), '1')
+    expect(bInput).toHaveValue('2')
+
+    await user.clear(bInput)
+    await user.type(bInput, '3')
+
+    expect(screen.getByLabelText('Asset A amount')).toHaveValue('1')
+    expect(await screen.findByTestId('pool-provide-ratio-warning')).toBeInTheDocument()
+  })
+
+  it('shows withdraw estimated receive preview (#480)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+    const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
+    await user.click(withdrawTabs[0]!)
+
+    await user.type(screen.getByLabelText('LP Token Amount'), '1')
+
+    const preview = await screen.findByTestId('pool-withdraw-estimated-receive')
+    expect(preview).toHaveTextContent(/Expected receive/i)
+    expect(preview).toHaveTextContent(/tokenA/)
+    expect(preview).toHaveTextContent(/tokenB/)
+    expect(screen.getByTestId('pool-withdraw-minimum-receive')).toBeInTheDocument()
   })
 
   it('disables provide when amount exceeds balance', async () => {
@@ -244,11 +319,9 @@ describe('PoolPage', () => {
     await user.click(provide[0]!)
 
     const aInput = await screen.findByLabelText('Asset A amount')
-    const bInput = screen.getByLabelText('Asset B amount')
     await user.clear(aInput)
     await user.type(aInput, '2')
-    await user.clear(bInput)
-    await user.type(bInput, '2')
+    await user.type(screen.getByLabelText('Asset B amount'), '2')
 
     const submit = screen.getByRole('button', { name: /Insufficient balance/i })
     expect(submit).toBeDisabled()
@@ -272,9 +345,7 @@ describe('PoolPage', () => {
     await user.click(provide[0]!)
 
     const aInput = await screen.findByLabelText('Asset A amount')
-    const bInput = screen.getByLabelText('Asset B amount')
     await user.type(aInput, '1')
-    await user.type(bInput, '2')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/allowance A \+ allowance B \+ provide liquidity/)
     expect(screen.getByRole('button', { name: /Not enough LUNC for gas/i })).toBeDisabled()
@@ -407,7 +478,6 @@ describe('PoolPage', () => {
       const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
       await user.click(provide[0]!)
       await user.type(await screen.findByLabelText('Asset A amount'), '1')
-      await user.type(screen.getByLabelText('Asset B amount'), '2')
     }
 
     async function openWithdrawPanel(user: ReturnType<typeof userEvent.setup>) {

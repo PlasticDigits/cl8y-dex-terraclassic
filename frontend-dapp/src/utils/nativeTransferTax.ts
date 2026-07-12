@@ -78,3 +78,28 @@ export async function netUlunaAfterTransferTaxAsync(grossUluna: bigint, denom = 
   const params = await fetchNativeTransferTaxParams(denom)
   return netUlunaAfterTransferTax(grossUluna, params)
 }
+
+/**
+ * Smallest gross uluna whose post-tax net is ≥ `targetNet`.
+ * Used when auto-filling a native-wrap provide side from a net-ratio counterpart.
+ */
+export function grossUlunaForTargetNet(targetNet: bigint, params: NativeTransferTaxParams): bigint {
+  if (targetNet <= 0n) return 0n
+
+  let lo = targetNet
+  let hi = targetNet + 1n
+  while (netUlunaAfterTransferTax(hi, params) < targetNet) {
+    lo = hi
+    hi *= 2n
+  }
+
+  while (lo < hi) {
+    const mid = (lo + hi) / 2n
+    if (netUlunaAfterTransferTax(mid, params) >= targetNet) {
+      hi = mid
+    } else {
+      lo = mid + 1n
+    }
+  }
+  return lo
+}

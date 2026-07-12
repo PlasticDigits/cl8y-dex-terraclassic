@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   computeNativeTransferTaxUluna,
   netUlunaAfterTransferTax,
+  grossUlunaForTargetNet,
   type NativeTransferTaxParams,
 } from '@/utils/nativeTransferTax'
 
@@ -18,5 +19,12 @@ describe('nativeTransferTax', () => {
   it('returns gross when tax rate is zero', () => {
     const gross = 1_000_000n
     expect(netUlunaAfterTransferTax(gross, { rate: '0', capUluna: 0n })).toBe(gross)
+  })
+
+  it('grossUlunaForTargetNet finds smallest gross with net ≥ target', () => {
+    const gross = 10_000_000n
+    const net = netUlunaAfterTransferTax(gross, params005)
+    expect(grossUlunaForTargetNet(net, params005)).toBe(gross)
+    expect(netUlunaAfterTransferTax(grossUlunaForTargetNet(net, params005) - 1n, params005)).toBeLessThan(net)
   })
 })

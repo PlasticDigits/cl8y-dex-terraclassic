@@ -55,6 +55,19 @@ export function applySlippagePercentFloor(rawAmount: string, slippagePercent: nu
 }
 
 /**
+ * Expected token A/B received on LP withdraw at 0% slippage (pro-rata floor).
+ * Same as {@link withdrawMinAssetAmounts} with `slippagePercent = 0`.
+ */
+export function estimateWithdrawAssetAmounts(
+  lpRaw: string,
+  totalLp: string,
+  reserveA: string,
+  reserveB: string
+): [string, string] | null {
+  return withdrawMinAssetAmounts(lpRaw, totalLp, reserveA, reserveB, 0)
+}
+
+/**
  * Minimum token A/B received on LP withdraw with slippage protection.
  * Mirrors `(reserve * lpShare / totalLp) * (1 - slippage%)` using BigInt floor math.
  */

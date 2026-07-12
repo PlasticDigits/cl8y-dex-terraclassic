@@ -64,8 +64,40 @@ export function estimateProvideLiquidityUserLp(
 }
 
 /**
+ * Pro-rata counterpart raw amount for the other pool asset:
+ * `floor(edited × reserve_other / reserve_edited)`.
+ *
+ * @returns `null` when pool reserves are empty, one-sided, or `editedRaw` is invalid/zero
+ */
+export function computeProportionalCounterpartRaw(
+  editedSide: 'a' | 'b',
+  editedRaw: string,
+  pool: Pick<PoolResponse, 'assets'>
+): string | null {
+  if (!editedRaw?.trim()) return null
+  let edited: bigint
+  try {
+    edited = BigInt(editedRaw)
+  } catch {
+    return null
+  }
+  if (edited <= 0n) return null
+
+  const resA = BigInt(pool.assets[0].amount)
+  const resB = BigInt(pool.assets[1].amount)
+
+  if (resA === 0n && resB === 0n) return null
+  if (resA === 0n || resB === 0n) return null
+
+  if (editedSide === 'a') {
+    return ((edited * resB) / resA).toString()
+  }
+  return ((edited * resA) / resB).toString()
+}
+
+/**
  * `true` when the two user amounts match the current pool price (so neither side is
- * “donated” to existing LPs). Compares the contract’s two LP terms before `min()`.
+ * “donated” to existing LPs). Uses floor-ratio match via {@link computeProportionalCounterpartRaw}.
  */
 export function isProportionalAddAmounts(
   rawAmountA: string,
@@ -85,12 +117,11 @@ export function isProportionalAddAmounts(
 
   const resA = BigInt(pool.assets[0].amount)
   const resB = BigInt(pool.assets[1].amount)
-  const totalShare = BigInt(pool.total_share)
 
   if (resA === 0n && resB === 0n) return true
   if (resA === 0n || resB === 0n) return null
 
-  const lpA = (a * totalShare) / resA
-  const lpB = (b * totalShare) / resB
-  return lpA === lpB
+  const expectedB = computeProportionalCounterpartRaw('a', rawAmountA, pool)
+  if (expectedB === null) return null
+  return expectedB === rawAmountB
 }

@@ -18,6 +18,7 @@ Use when changing **native LUNC/USTC → CW20** multi-msg flows (`wrap_deposit` 
 2. **CW20 `send` / LP asset amounts** after wrap use **net** post-tax minted units.
 3. **Simulation** for native-input swaps must use the same net offer as execute.
 4. Do not hardcode `0.995` — query LCD tax rate (LocalTerra often ~`0.0005`).
+5. **Pool provide auto-fill** ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)): ratio math uses net post-tax amounts; when the counterpart side is native-wrap, invert net → gross via `grossUlunaForTargetNet` in [`nativeTransferTax.ts`](../frontend-dapp/src/utils/nativeTransferTax.ts). See [`AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](./AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
 
 ## Related
 
