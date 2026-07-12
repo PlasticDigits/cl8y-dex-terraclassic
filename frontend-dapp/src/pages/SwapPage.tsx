@@ -43,7 +43,7 @@ import {
   type IndexerRouteQuoteKind,
 } from '@/types'
 import { sounds } from '@/lib/sounds'
-import { FeeDisplay, TxResultAlert, TokenSelect, Spinner, RetryError } from '@/components/ui'
+import { FeeDisplay, TxResultAlert, TokenSearchSelect, Spinner, RetryError } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
@@ -1224,7 +1224,7 @@ export default function SwapPage() {
                 <label htmlFor={swapYouPayAmountInputId} className="label-glass !mb-0 sm:pt-1">
                   You Pay
                 </label>
-                <TokenSelect
+                <TokenSearchSelect
                   value={fromToken}
                   tokens={allTokens}
                   excludeToken={toToken}
@@ -1307,7 +1307,7 @@ export default function SwapPage() {
             <div className="card-glass swap-io-card-receive !p-4 sm:!p-5">
               <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <span className="label-glass !mb-0 sm:pt-1">You Receive</span>
-                <TokenSelect
+                <TokenSearchSelect
                   value={toToken}
                   tokens={allTokens}
                   excludeToken={fromToken}

@@ -157,7 +157,7 @@ test.describe('Swap route display vs on-chain ops (SEC-E07 / GitLab #428)', () =
 
     await page.getByRole('button', { name: 'Swap pay and receive tokens' }).click()
     await selectTokenByContract(page, ARIA_SELECT_TOKEN_RECEIVE, receive)
-    await expect(page.getByRole('button', { name: 'Select token you receive' })).toContainText(
+    await expect(page.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue(
       new RegExp(MULTIHOP_HYBRID_RECEIVE_SYMBOL, 'i'),
       { timeout: 60_000 }
     )

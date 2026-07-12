@@ -1,6 +1,6 @@
 # Agent playbook: Portal listbox layout stability (CLS)
 
-Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListbox`**, **`portalListboxPosition.ts`**, `.token-select-*` CSS, or trade/charts pair pickers ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)).
+Use when changing **`MenuSelect`**, **`TokenSelect`**, **`TokenSearchSelect`**, **`PairSearchSelect`**, **`usePortalListbox`**, **`portalListboxPosition.ts`**, `.token-select-*` CSS, or trade/charts pair pickers ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)).
 
 ## Canonical references
 
@@ -23,6 +23,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListbox`**, *
 ## Related
 
 - Keyboard listbox APG: [`AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md) ([GitLab **#244**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244))
+- Swap token search combobox: [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) ([GitLab **#481**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/481))
 - Keyboard focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - Trade page layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Mobile tab bar inset for flip-above: `getMobileBottomNavInsetPx` ([`mobileBottomNav.ts`](../frontend-dapp/src/lib/mobileBottomNav.ts))

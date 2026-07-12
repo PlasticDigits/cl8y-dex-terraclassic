@@ -4,15 +4,16 @@ import { expect } from '@playwright/test'
 export const ARIA_SELECT_TOKEN_PAY = 'Select token you pay'
 export const ARIA_SELECT_TOKEN_RECEIVE = 'Select token you receive'
 
+/** Swap pay/receive use TokenSearchSelect combobox (GitLab #481); Mint still uses TokenSelect button. */
 export function payTokenTrigger(page: Page) {
-  return page.getByRole('button', { name: ARIA_SELECT_TOKEN_PAY })
+  return page.getByRole('combobox', { name: ARIA_SELECT_TOKEN_PAY })
 }
 
 export function receiveTokenTrigger(page: Page) {
-  return page.getByRole('button', { name: ARIA_SELECT_TOKEN_RECEIVE })
+  return page.getByRole('combobox', { name: ARIA_SELECT_TOKEN_RECEIVE })
 }
 
-/** Pay/receive triggers stay disabled until the indexer returns tokens. */
+/** Pay/receive triggers stay disabled until factory tokens load. */
 export async function waitForPayTokenTriggerEnabled(page: Page, timeout = 25_000) {
   await expect(payTokenTrigger(page)).toBeEnabled({ timeout })
 }
@@ -42,7 +43,8 @@ export async function expectAtLeastTwoPayTokenOptions(page: Page, timeout = 25_0
 }
 
 /**
- * Opens combobox by aria-label, picks first option matching substring rules, returns whether a match was clicked.
+ * Opens token combobox by aria-label, optionally types to filter, picks first matching option.
+ * Returns whether a match was clicked.
  */
 export async function selectTokenInCombobox(
   page: Page,
@@ -50,12 +52,25 @@ export async function selectTokenInCombobox(
   mustInclude: string,
   mustNotInclude?: string
 ): Promise<boolean> {
-  const trigger = page.getByRole('button', { name: ariaLabel })
+  const trigger = page.getByRole('combobox', { name: ariaLabel })
   await expect(trigger).toBeEnabled({ timeout: 25_000 })
   await trigger.click()
   const list = page.getByRole('listbox', { name: ariaLabel })
   await expect(list).toBeVisible()
+
+  // Type a short filter when the include token looks like a symbol (not an address).
+  const filterHint = mustInclude.trim()
+  if (filterHint.length >= 2 && !filterHint.toLowerCase().startsWith('terra1')) {
+    await trigger.fill('')
+    await trigger.type(filterHint.slice(0, Math.min(filterHint.length, 8)), { delay: 20 })
+    await page.waitForTimeout(350)
+  }
+
   const opts = list.getByRole('option')
+  await expect(async () => {
+    expect(await opts.count()).toBeGreaterThan(0)
+  }).toPass({ timeout: 10_000 })
+
   const n = await opts.count()
   for (let i = 0; i < n; i++) {
     const txt = (await opts.nth(i).innerText()).replace(/\s+/g, ' ')

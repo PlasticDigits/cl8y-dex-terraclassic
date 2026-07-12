@@ -2,6 +2,8 @@
 
 Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListboxKeyboard`**, **`portalListboxKeyboard.ts`**, or listbox a11y regressions ([GitLab **#244**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244), gap **M5**; broader audit **#214**).
 
+For **Swap** searchable token combobox (`TokenSearchSelect`) and **Trade/Limits** pair combobox (`PairSearchSelect`), see [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) and [docs/frontend.md § Token search](../docs/frontend.md#token-search-combobox) / [§ Pair search](../docs/frontend.md#pair-search-combobox) — those use an **input** combobox + inline key handling, **not** `usePortalListboxKeyboard`.
+
 ## Canonical references
 
 | Doc / code | Purpose |
@@ -11,7 +13,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListboxKeyboa
 | [`portalListboxKeyboard.ts`](../frontend-dapp/src/components/ui/portalListboxKeyboard.ts) | Pure typeahead + index helpers (unit-tested) |
 | [`PortalListbox.tsx`](../frontend-dapp/src/components/ui/PortalListbox.tsx) | Positioning + outside click only (no keyboard) |
 | [`MenuSelect.keyboard.test.tsx`](../frontend-dapp/src/components/ui/__tests__/MenuSelect.keyboard.test.tsx) | Vitest keyboard interaction regression |
-| [`TokenSelect.keyboard.test.tsx`](../frontend-dapp/src/components/ui/__tests__/TokenSelect.keyboard.test.tsx) | Token symbol typeahead regression |
+| [`TokenSelect.keyboard.test.tsx`](../frontend-dapp/src/components/ui/__tests__/TokenSelect.keyboard.test.tsx) | Token symbol typeahead regression (Mint) |
 
 ## Rules of thumb
 
@@ -21,7 +23,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListboxKeyboa
 4. **Preserve** click selection, Escape dismiss, portal positioning (`usePortalListbox`), and CLS invariants from [`AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md).
 5. **Visual active row** — `.token-select-option-keyboard-active` (distinct from `.token-select-option-active` selected state).
 6. **Guard duplicate select** — `selectingRef` prevents Enter key-repeat from spamming `onChange`.
-7. **Pair search combobox ([#350](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/350))** — `PairSearchSelect`: empty query may prepend the current pair so Enter re-selects it; **typed query** must highlight index **0** (first hit) and **not** prepend the current pair. Regression: `PairSearchSelect.issue350.test.tsx`.
+7. **Pair / token search combobox ([#350](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/350), [#481](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/481))** — `PairSearchSelect` / `TokenSearchSelect`: empty query may prepend the current value so Enter re-selects it; **typed query** must highlight index **0** (first hit) and **not** prepend the current value. Regressions: `PairSearchSelect.issue350.test.tsx`, `TokenSearchSelect.test.tsx`.
 
 ## Verification
 
@@ -29,12 +31,14 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`usePortalListboxKeyboa
 make test-frontend
 # or targeted:
 cd frontend-dapp && npm test -- src/components/ui/__tests__/MenuSelect.keyboard.test.tsx src/components/ui/__tests__/TokenSelect.keyboard.test.tsx src/components/ui/__tests__/portalListboxKeyboard.test.ts
+cd frontend-dapp && npm test -- src/components/trade/__tests__/TokenSearchSelect.test.tsx
 ```
 
-Manual: Tab to Swap token select → open with ArrowDown → navigate with arrows → type symbol prefix → Enter; Escape returns focus to trigger.
+Manual: Tab to Mint token select → open with ArrowDown → navigate with arrows → type symbol prefix → Enter; Escape returns focus to trigger. Swap: focus pay/receive **combobox** → type to filter → Enter (see [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md)).
 
 ## Related
 
+- Swap token search: [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md)
 - Layout / CLS: [`AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md)
 - Focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - axe E2E gate: [`AGENTS_FRONTEND_A11Y_CI.md`](./AGENTS_FRONTEND_A11Y_CI.md)

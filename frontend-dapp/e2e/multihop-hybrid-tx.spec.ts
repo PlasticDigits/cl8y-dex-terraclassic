@@ -82,14 +82,14 @@ test.describe('Multihop hybrid router swap (LocalTerra, GitLab #422)', () => {
     await page.waitForLoadState('networkidle')
     await dismissGettingStartedIfPresent(page)
     await expect(page.getByText('Loading pairs…')).toHaveCount(0, { timeout: 60_000 })
-    await expect(page.getByRole('button', { name: 'Select token you pay' })).toContainText(/ember/i, {
+    await expect(page.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue(/ember/i, {
       timeout: 60_000,
     })
 
     // Default pair load is EMBER→CORAL; flip to CORAL pay then set IRON (or fallback) receive.
     await page.getByRole('button', { name: 'Swap pay and receive tokens' }).click()
     await selectTokenByContract(page, ARIA_SELECT_TOKEN_RECEIVE, receive)
-    await expect(page.getByRole('button', { name: 'Select token you receive' })).toContainText(
+    await expect(page.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue(
       new RegExp(MULTIHOP_HYBRID_RECEIVE_SYMBOL, 'i'),
       { timeout: 60_000 }
     )
