@@ -647,6 +647,26 @@ Charts keeps its separate search + sort + `MenuSelect` layout (unchanged).
 
 **Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); [`PairSearchSelect.issue301.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue301.test.tsx); Trade page pair-switch test in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
 
+**Product parity:** Trade/Limits search **pairs**; Swap searches **tokens** — see [Token search combobox](#token-search-combobox).
+
+### Token search combobox (`TokenSearchSelect`) — Swap {#token-search-combobox}
+
+Swap **YOU PAY** / **YOU RECEIVE** use [`TokenSearchSelect`](../frontend-dapp/src/components/trade/TokenSearchSelect.tsx) — a visible search combobox aligned with pair search UX ([GitLab **#481**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/481)). Mint keeps button-trigger [`TokenSelect`](../frontend-dapp/src/components/ui/TokenSelect.tsx) (small faucet list).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Factory token universe** | Options come only from the `tokens` prop (`getAllTokens(pairs)` + native-wrap enrichment). Do **not** introduce an external/arbitrary token list or derive Swap options from `getPairs(q)`. |
+| **Client-only filter** | Search is entirely client-side via [`tokenSearchQuery.ts`](../frontend-dapp/src/utils/tokenSearchQuery.ts) (works with indexer down). Haystack = id/denom, display symbol, localStorage-cached CW20 symbol/name, registry. No `GET /api/v1/tokens?q=` yet (optional follow-up if factory counts outgrow comfortable client filtering). |
+| **Debounce / min chars / cap** | Debounce **300ms**; filter starts at ≥2 chars (or `terra1…` address ≥20); typed hits capped at **20**. Empty / too-short query browses the **full** allowed list sorted by display symbol. |
+| **excludeToken** | Other leg is omitted from options; search tricks cannot select it. `onChange` only emits ids present in the gated options list. |
+| **Query DoS / XSS** | Input `maxLength` / truncate at 128 chars; symbols/names render as **text only** (no `dangerouslySetInnerHTML`); logo URLs still pass [`resolveTrustedTokenLogoUrl`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts). |
+| **Accessibility** | Input `role="combobox"` + `aria-autocomplete="list"` + portaled `listbox`; Arrow / Enter / Escape / Tab. Typed query + Enter commits **first hit** (same #350 rule as pair search). |
+| **Quote path unchanged** | Selection still updates the same token id string; routing/simulation/execution are untouched. |
+
+**Regression tests:** [`tokenSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/tokenSearchQuery.test.ts); [`TokenSearchSelect.test.tsx`](../frontend-dapp/src/components/trade/__tests__/TokenSearchSelect.test.tsx); E2E helpers [`e2e/helpers/token-select.ts`](../frontend-dapp/e2e/helpers/token-select.ts) target `combobox` (not `button`).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_SEARCH.md`](../skills/AGENTS_FRONTEND_TOKEN_SEARCH.md); keyboard notes in [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md).
+
 ### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
 
 Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.ts`](../frontend-dapp/src/services/indexer/client.ts)). Before the UI renders stats, the response is normalized by [`traderProfilePayload.ts`](../frontend-dapp/src/services/indexer/traderProfilePayload.ts) so **arrays, `null` bodies, or partial objects** from a buggy proxy or indexer never reach the page as a “truthy” trader object (which previously could crash the route tree and strand users behind the route error UI — [GitLab #126](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)).

@@ -42,6 +42,7 @@ function TokenLabel({ tokenId }: { tokenId: string }) {
   return <>{displayLabel}</>
 }
 
+/** Button-trigger token listbox (Mint faucet). Swap uses TokenSearchSelect (#481). */
 export function TokenSelect({
   value,
   tokens,
