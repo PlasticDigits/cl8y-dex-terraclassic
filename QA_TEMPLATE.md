@@ -193,7 +193,7 @@
 | 2.5.2 | Fee with no discount | Swap without fee tier registration | Full base fee applied | | |
 | 2.5.3 | Fee with discount | Register for tier → Swap | Original fee struck through, effective fee in cyan, discount % shown | | |
 | 2.5.4 | Commission amount | Execute swap → View details | Commission amount displayed | | |
-| 2.5.5 | Fee CTA for unregistered | Connect wallet, not registered | "Hold CL8Y to reduce swap fees →" link to /tiers | | |
+| 2.5.5 | Fee CTA for unregistered | Connect wallet, not registered | "Hold CL8Y & register to reduce fees →" link to /tiers | | |
 | 2.5.6 | Fee CTA link works | Click fee CTA | Navigates to /tiers page | | |
 
 ### 2.6 Swap Transaction States
@@ -219,9 +219,14 @@
 |---|-----------|-------|-----------------|--------|-------|
 | 3.1.1 | Pool page loads | Navigate to /pool | Pool cards displayed for available pairs | | |
 | 3.1.2 | Pool card info | View any pool card | Pair info, fee badge, pool reserves for both assets shown | | |
-| 3.1.3 | Fee badge with discount | User has fee tier → View pool card | Discounted fee shown | | |
+| 3.1.3 | Fee badge with discount | User has fee tier → View pool card | Discounted fee shown (strikethrough base + effective %) | | |
 | 3.1.4 | Pool reserves accuracy | Compare on-chain reserves vs displayed | Values match | | |
 | 3.1.5 | Tab switching | Click Provide/Withdraw tabs | Tabs switch content correctly | | |
+| 3.1.6 | Fee CTA for unregistered (GitLab #476) | Connect wallet, not registered, fee discount configured | Pool card shows “· not registered”, CTA “Hold CL8Y & register…” → `/tiers` | | |
+| 3.1.7 | Fee CTA link works | Click Pool fee CTA | Navigates to /tiers | | |
+| 3.1.8 | Base fee when unregistered | Unregistered or wrong CW20 → Pool fee badge | Plain base pair fee only (not a missing-feature bug) | | |
+| 3.1.9 | Registry outage warning | Registered + LCD/indexer registry unhealthy | Non-blocking amber banner (`pool-fee-discount-registry-warning`); provide/withdraw stay enabled | | |
+| 3.1.10 | Eligibility copy | Fee discount env configured | Pool header note: hold configured CL8Y CW20 **and** register | | |
 
 ### 3.2 Provide Liquidity
 
@@ -918,7 +923,8 @@
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
-| 21.6.1 | Fee CTA link on swap page | Click "Hold CL8Y to reduce swap fees →" | Navigates to /tiers page | | |
+| 21.6.1 | Fee CTA link on swap page | Click "Hold CL8Y & register to reduce fees →" | Navigates to /tiers page | | |
+| 21.6.2 | Fee CTA link on pool page | Click Pool unregistered fee CTA | Navigates to /tiers page | | |
 | 21.6.2 | Register with insufficient CL8Y | Attempt tier registration with low balance | Clear error showing required vs actual CL8Y balance | | |
 
 

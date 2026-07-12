@@ -27,7 +27,8 @@ export const TOKENS: TokenRegistryEntry[] = [
   {
     symbol: 'CL8Y',
     name: 'CL8Y Token',
-    decimals: 6,
+    // On-chain CL8Y / LocalTerra TCL8Y use 18 decimals (GitLab #476 / #383).
+    decimals: 18,
     type: 'cw20',
     logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png',
   },

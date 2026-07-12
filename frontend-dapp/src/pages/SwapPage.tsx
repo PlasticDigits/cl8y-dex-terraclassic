@@ -18,7 +18,6 @@ import {
 } from '@/services/terraclassic/swapRoutePreflight'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
-import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
 import {
   findRoute,
   getAllTokens,
@@ -34,7 +33,7 @@ import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas
 import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
-import { DOCS_GITLAB_BASE, FEE_DISCOUNT_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
   assetInfoLabel,
   tokenAssetInfo,
@@ -55,7 +54,7 @@ import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
-import { getFeeDiscountHealth, getRouteSolve } from '@/services/indexer/client'
+import { getRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import {
@@ -75,11 +74,9 @@ import {
   WRAP_RATE_LIMIT_EXCEEDED_MESSAGE,
 } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
-import {
-  FEE_DISCOUNT_REGISTRY_WARNING_TEXT,
-  resolveFeeDiscountRegistryStatus,
-  shouldShowFeeDiscountRegistryWarning,
-} from '@/utils/feeDiscountRegistryWarning'
+import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
+import { FeeDiscountUnregisteredCta } from '@/components/feeDiscount/FeeDiscountUnregisteredCta'
+import { useFeeDiscountRegistryStatus } from '@/hooks/useFeeDiscountRegistryStatus'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
@@ -274,60 +271,8 @@ export default function SwapPage() {
     enabled: !!directPair,
   })
 
-  const discountQuery = useQuery({
-    queryKey: ['traderDiscount', address],
-    queryFn: () => {
-      if (!address) throw new Error('No address')
-      return getTraderDiscount(address)
-    },
-    enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
-    staleTime: 15_000,
-  })
-
-  const registrationQuery = useQuery({
-    queryKey: ['feeDiscountRegistration', address],
-    queryFn: () => {
-      if (!address) throw new Error('No address')
-      return getRegistration(address)
-    },
-    enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
-    staleTime: 15_000,
-  })
-
-  const feeDiscountHealthQuery = useQuery({
-    queryKey: ['feeDiscountHealth'],
-    queryFn: getFeeDiscountHealth,
-    enabled: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
-    staleTime: 30_000,
-    refetchInterval: 30_000,
-    retry: false,
-  })
-
-  const feeDiscountRegistryInput = useMemo(
-    () => ({
-      feeDiscountContractConfigured: !!FEE_DISCOUNT_CONTRACT_ADDRESS,
-      registration: registrationQuery.data,
-      discount: discountQuery.data,
-      registrationQueryError: registrationQuery.isError,
-      discountQueryError: discountQuery.isError,
-      indexerHealth: feeDiscountHealthQuery.isSuccess ? feeDiscountHealthQuery.data : null,
-    }),
-    [
-      registrationQuery.data,
-      discountQuery.data,
-      registrationQuery.isError,
-      discountQuery.isError,
-      feeDiscountHealthQuery.isSuccess,
-      feeDiscountHealthQuery.data,
-    ]
-  )
-
-  const feeDiscountRegistryStatus = useMemo(
-    () => resolveFeeDiscountRegistryStatus(feeDiscountRegistryInput),
-    [feeDiscountRegistryInput]
-  )
-
-  const showFeeDiscountRegistryWarning = shouldShowFeeDiscountRegistryWarning(feeDiscountRegistryInput)
+  const { discountBps, feeDiscountRegistryStatus, showFeeDiscountRegistryWarning, feeDiscountConfigured } =
+    useFeeDiscountRegistryStatus()
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, fromToken],
@@ -1097,11 +1042,7 @@ export default function SwapPage() {
             />
           )}
 
-          {showFeeDiscountRegistryWarning && (
-            <div className="alert-warning text-sm mb-4" role="status" data-testid="swap-fee-discount-registry-warning">
-              {FEE_DISCOUNT_REGISTRY_WARNING_TEXT}
-            </div>
-          )}
+          {showFeeDiscountRegistryWarning && <FeeDiscountRegistryWarning testId="swap-fee-discount-registry-warning" />}
 
           {showSimRetryError && (
             <RetryError
@@ -1488,7 +1429,7 @@ export default function SwapPage() {
                   <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
                   <FeeDisplay
                     feeBps={feeQuery.data.fee_bps}
-                    discountBps={discountQuery.data?.discount_bps}
+                    discountBps={discountBps}
                     commissionAmount={
                       commissionAmount && receiveAssetInfo
                         ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))
@@ -1497,19 +1438,8 @@ export default function SwapPage() {
                   />
                 </div>
               )}
-              {address && FEE_DISCOUNT_CONTRACT_ADDRESS && feeDiscountRegistryStatus === 'unregistered' && (
-                <div
-                  className="col-span-2 p-2 border-2 rounded-none text-xs shadow-[1px_1px_0_#000]"
-                  style={{
-                    borderColor: 'color-mix(in srgb, var(--cyan) 30%, transparent)',
-                    background: 'color-mix(in srgb, var(--cyan) 5%, transparent)',
-                    color: 'var(--cyan)',
-                  }}
-                >
-                  <a href="/tiers" className="hover:underline uppercase tracking-wide font-semibold">
-                    Hold CL8Y to reduce swap fees &rarr;
-                  </a>
-                </div>
+              {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
+                <FeeDiscountUnregisteredCta testId="swap-fee-discount-unregistered-cta" className="col-span-2" />
               )}
               {swapRouteLine && (
                 <div

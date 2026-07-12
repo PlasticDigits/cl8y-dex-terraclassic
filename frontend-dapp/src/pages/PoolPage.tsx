@@ -8,24 +8,22 @@ import { usePairPaused } from '@/hooks/usePairPaused'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
-import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import {
   executeTerraContract,
   executeTerraContractMulti,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
+import { useFeeDiscountRegistryStatus } from '@/hooks/useFeeDiscountRegistryStatus'
+import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
+import { FeeDiscountUnregisteredCta } from '@/components/feeDiscount/FeeDiscountUnregisteredCta'
+import { FEE_DISCOUNT_ELIGIBILITY_NOTE } from '@/utils/feeDiscountUiCopy'
 import {
   fetchNativeTransferTaxParams,
   netUlunaAfterTransferTax,
   netUlunaAfterTransferTaxAsync,
 } from '@/utils/nativeTransferTax'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import {
-  FEE_DISCOUNT_CONTRACT_ADDRESS,
-  FACTORY_CONTRACT_ADDRESS,
-  TREASURY_CONTRACT_ADDRESS,
-  WRAP_MAPPER_CONTRACT_ADDRESS,
-} from '@/utils/constants'
+import { FACTORY_CONTRACT_ADDRESS, TREASURY_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { FACTORY_PAIRS_MAX_FOR_POOL_LIST, getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
 import type { AssetInfo, IndexerPairSort, PairInfo } from '@/types'
 import { assetInfoLabel, tokenAssetInfo, getNativeEquivalent, indexerPairToPairInfo } from '@/types'
@@ -135,15 +133,7 @@ const PoolCard = memo(function PoolCard({
     staleTime: 60_000,
   })
 
-  const discountQuery = useQuery({
-    queryKey: ['traderDiscount', address],
-    queryFn: () => {
-      if (!address) throw new Error('No address')
-      return getTraderDiscount(address)
-    },
-    enabled: !!address && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
-    staleTime: 15_000,
-  })
+  const { discountBps, feeDiscountRegistryStatus, feeDiscountConfigured } = useFeeDiscountRegistryStatus()
 
   const lpBalanceQuery = useQuery({
     queryKey: ['lpBalance', address, pair.liquidity_token],
@@ -526,14 +516,30 @@ const PoolCard = memo(function PoolCard({
             </span>
           )}
         </div>
-        {feeQuery.data && (
-          <span
-            className="text-xs border-2 px-2 py-1 rounded-none shadow-[1px_1px_0_#000] uppercase tracking-wide font-semibold"
-            style={{ color: 'var(--ink-dim)', borderColor: 'rgba(255,255,255,0.2)', background: 'var(--surface-0)' }}
-          >
-            Fee: <FeeDisplay feeBps={feeQuery.data.fee_bps} discountBps={discountQuery.data?.discount_bps} />
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          {feeQuery.data && (
+            <span
+              className="text-xs border-2 px-2 py-1 rounded-none shadow-[1px_1px_0_#000] uppercase tracking-wide font-semibold"
+              style={{ color: 'var(--ink-dim)', borderColor: 'rgba(255,255,255,0.2)', background: 'var(--surface-0)' }}
+              data-testid="pool-fee-badge"
+              title={
+                feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered'
+                  ? FEE_DISCOUNT_ELIGIBILITY_NOTE
+                  : undefined
+              }
+            >
+              Fee: <FeeDisplay feeBps={feeQuery.data.fee_bps} discountBps={discountBps} />
+              {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
+                <span className="normal-case tracking-normal font-medium ml-1" style={{ color: 'var(--ink-subtle)' }}>
+                  · not registered
+                </span>
+              )}
+            </span>
+          )}
+          {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
+            <FeeDiscountUnregisteredCta testId="pool-fee-discount-unregistered-cta" />
+          )}
+        </div>
       </div>
 
       {poolQuery.data && (
@@ -1018,6 +1024,7 @@ export default function PoolPage() {
   const [order, setOrder] = useState<'asc' | 'desc'>('asc')
   const [page, setPage] = useState(0)
   const [routerKnownOnly, setRouterKnownOnly] = useState(false)
+  const { showFeeDiscountRegistryWarning, feeDiscountConfigured } = useFeeDiscountRegistryStatus()
 
   const factoryPairsQuery = useQuery({
     queryKey: ['factoryPairsForPoolList', FACTORY_PAIRS_MAX_FOR_POOL_LIST] as const,
@@ -1073,6 +1080,19 @@ export default function PoolPage() {
           <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
             Browse pairs, compare fees, and add or remove liquidity.
           </p>
+          {feeDiscountConfigured && (
+            <p
+              className="text-xs mt-2 max-w-prose"
+              style={{ color: 'var(--ink-subtle)' }}
+              data-testid="pool-fee-discount-eligibility-note"
+            >
+              {FEE_DISCOUNT_ELIGIBILITY_NOTE}{' '}
+              <a href="/tiers" className="underline font-medium" style={{ color: 'var(--cyan)' }}>
+                View tiers
+              </a>
+              .
+            </p>
+          )}
           <p className="text-xs mt-2 max-w-prose" style={{ color: 'var(--ink-dim)' }}>
             <span className="font-semibold" style={{ color: 'var(--ink-subtle)' }}>
               List source:{' '}
@@ -1212,6 +1232,8 @@ export default function PoolPage() {
           </label>
         </div>
       </div>
+
+      {showFeeDiscountRegistryWarning && <FeeDiscountRegistryWarning testId="pool-fee-discount-registry-warning" />}
 
       {pairsQuery.isLoading && (
         <div className="space-y-4" aria-live="polite">
