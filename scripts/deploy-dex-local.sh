@@ -270,6 +270,18 @@ FEE_DISCOUNT_CODE_ID=$(get_code_id "$TX_HASH")
 echo "  Fee Discount Code ID: $FEE_DISCOUNT_CODE_ID"
 
 echo ""
+echo "[7b] Uploading cl8y_dex_faucet.wasm (soft-launch faucet / GitLab #473)..."
+if [ -f /tmp/artifacts/cl8y_dex_faucet.wasm ]; then
+  TX_HASH=$(terrad_tx wasm store /tmp/artifacts/cl8y_dex_faucet.wasm | jq -r '.txhash')
+  echo "  TX: $TX_HASH"
+  FAUCET_CODE_ID=$(get_code_id "$TX_HASH")
+  echo "  Faucet Code ID: $FAUCET_CODE_ID"
+else
+  echo "  WARN: cl8y_dex_faucet.wasm missing — skipping local faucet (make build-optimized)"
+  FAUCET_CODE_ID=""
+fi
+
+echo ""
 echo "[8] Instantiating Factory..."
 # GitLab #276/#318: the factory charges a governance-settable pair-creation fee (uluna) forwarded to
 # treasury. Deploy with the real fee so local matches mainnet economics and exercises the #276 fee
@@ -496,6 +508,39 @@ done
 
 echo ""
 echo "  All ${#TOKEN_NAMES[@]} tokens created."
+
+# ── Phase 2a: Soft-launch faucet (GitLab #473) ───────────────────────────
+FAUCET_ADDRESS=""
+FAUCET_DRIP_AMOUNT="${FAUCET_DRIP_AMOUNT:-100000000}"
+FAUCET_COOLDOWN_SECONDS="${FAUCET_COOLDOWN_SECONDS:-300}"
+if [ -n "${FAUCET_CODE_ID:-}" ] && [ "${#TOKEN_ADDRESSES[@]}" -ge 6 ]; then
+  echo ""
+  echo "[Phase 2a] Instantiating soft-launch faucet (allowlist EMBER..TOPAZ)"
+  FAUCET_ALLOW_JSON=$(printf '%s\n' "${TOKEN_ADDRESSES[@]:0:6}" | jq -R . | jq -s -c .)
+  FAUCET_INIT=$(jq -nc \
+    --arg admin "$TEST_ADDRESS" \
+    --argjson tokens "$FAUCET_ALLOW_JSON" \
+    --arg drip "$FAUCET_DRIP_AMOUNT" \
+    --arg cooldown "$FAUCET_COOLDOWN_SECONDS" \
+    '{admin:$admin,allowed_tokens:$tokens,drip_amount:$drip,cooldown_seconds:($cooldown|tonumber)}')
+  TX_HASH=$(terrad_tx wasm instantiate "$FAUCET_CODE_ID" "$FAUCET_INIT" \
+      --label "cl8y-dex-faucet" \
+      --admin "$TEST_ADDRESS" | jq -r '.txhash')
+  echo "  Instantiate faucet TX: $TX_HASH"
+  FAUCET_ADDRESS=$(get_contract_address "$TX_HASH")
+  echo "  Faucet Address: $FAUCET_ADDRESS"
+  for i in 0 1 2 3 4 5; do
+    TOK="${TOKEN_ADDRESSES[$i]}"
+    SYM="${TOKEN_SYMBOLS[$i]}"
+    ADD_MSG=$(jq -nc --arg m "$FAUCET_ADDRESS" '{add_minter:{minter:$m}}')
+    TX_HASH=$(terrad_tx wasm execute "$TOK" "$ADD_MSG" | jq -r '.txhash')
+    echo "  AddMinter $SYM: $TX_HASH"
+    wait_tx "$TX_HASH"
+  done
+else
+  echo ""
+  echo "[Phase 2a] Skipping faucet (need FAUCET_CODE_ID + >=6 tokens)"
+fi
 
 # ── Phase 2b: Non-Whitelisted Tokens ────────────────────────────────────
 
@@ -897,6 +942,7 @@ echo ""
 echo "  Factory:       $FACTORY_ADDRESS"
 echo "  Router:        $ROUTER_ADDRESS"
 echo "  Fee Discount:  $FEE_DISCOUNT_ADDRESS"
+echo "  Faucet:        ${FAUCET_ADDRESS:-(skipped)}"
 echo "  TCL8Y (CL8Y):  $TCL8Y_ADDRESS"
 echo "  Treasury:      $TREASURY_ADDRESS"
 echo "  Wrap-Mapper:   $WRAP_MAPPER_ADDRESS"
@@ -941,6 +987,13 @@ VITE_NETWORK=local
 VITE_FACTORY_ADDRESS=$FACTORY_ADDRESS
 VITE_ROUTER_ADDRESS=$ROUTER_ADDRESS
 VITE_FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS
+VITE_FAUCET_ADDRESS=${FAUCET_ADDRESS:-}
+VITE_TOKEN_EMBER_ADDRESS=${TOKEN_ADDRESSES[0]:-}
+VITE_TOKEN_CORAL_ADDRESS=${TOKEN_ADDRESSES[1]:-}
+VITE_TOKEN_JADE_ADDRESS=${TOKEN_ADDRESSES[2]:-}
+VITE_TOKEN_ONYX_ADDRESS=${TOKEN_ADDRESSES[3]:-}
+VITE_TOKEN_RUBY_ADDRESS=${TOKEN_ADDRESSES[4]:-}
+VITE_TOKEN_TOPAZ_ADDRESS=${TOKEN_ADDRESSES[5]:-}
 VITE_CL8Y_TOKEN_ADDRESS=$TCL8Y_ADDRESS
 VITE_TERRA_LCD_URL=$LCD
 VITE_TERRA_RPC_URL=$NODE

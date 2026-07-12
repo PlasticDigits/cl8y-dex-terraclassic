@@ -10,6 +10,37 @@ export const TREASURY_CONTRACT_ADDRESS = import.meta.env.VITE_TREASURY_ADDRESS |
 export const LUNC_C_TOKEN_ADDRESS = import.meta.env.VITE_LUNC_C_TOKEN_ADDRESS || ''
 export const USTC_C_TOKEN_ADDRESS = import.meta.env.VITE_USTC_C_TOKEN_ADDRESS || ''
 
+/** Soft-launch faucet (GitLab #473) — unset hides Mint nav and shows unavailable on `/mint`. */
+export const FAUCET_CONTRACT_ADDRESS = import.meta.env.VITE_FAUCET_ADDRESS || ''
+
+const SOFT_LAUNCH_MINTABLE_TOKEN_ENV: { symbol: string; envKey: string }[] = [
+  { symbol: 'EMBER', envKey: 'VITE_TOKEN_EMBER_ADDRESS' },
+  { symbol: 'CORAL', envKey: 'VITE_TOKEN_CORAL_ADDRESS' },
+  { symbol: 'JADE', envKey: 'VITE_TOKEN_JADE_ADDRESS' },
+  { symbol: 'ONYX', envKey: 'VITE_TOKEN_ONYX_ADDRESS' },
+  { symbol: 'RUBY', envKey: 'VITE_TOKEN_RUBY_ADDRESS' },
+  { symbol: 'TOPAZ', envKey: 'VITE_TOKEN_TOPAZ_ADDRESS' },
+]
+
+export type SoftLaunchMintableToken = {
+  symbol: string
+  address: string
+  decimals: 6
+}
+
+/** Six soft-launch mintables only (F4) — entries with empty env addresses are omitted. */
+export const SOFT_LAUNCH_MINTABLE_TOKENS: SoftLaunchMintableToken[] = SOFT_LAUNCH_MINTABLE_TOKEN_ENV.map(
+  ({ symbol, envKey }) => ({
+    symbol,
+    address: (import.meta.env[envKey as keyof ImportMetaEnv] as string | undefined) || '',
+    decimals: 6 as const,
+  })
+).filter((t): t is SoftLaunchMintableToken => t.address.length > 0)
+
+export function isFaucetEnabled(): boolean {
+  return !!FAUCET_CONTRACT_ADDRESS
+}
+
 /** Default-branch docs in GitLab (security audit, limit orders, ADRs). */
 export const DOCS_GITLAB_BASE = 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs'
 

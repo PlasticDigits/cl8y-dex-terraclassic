@@ -7,6 +7,8 @@ mod mock_failing_hook;
 #[cfg(test)]
 mod blacklist_tests;
 #[cfg(test)]
+mod faucet_tests;
+#[cfg(test)]
 mod limit_order_tests;
 #[cfg(test)]
 mod migration_tests;
@@ -66,6 +68,16 @@ mod helpers {
             cl8y_dex_fee_discount::contract::query,
         )
         .with_migrate(cl8y_dex_fee_discount::contract::migrate);
+        Box::new(contract)
+    }
+
+    pub fn faucet_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            cl8y_dex_faucet::contract::execute,
+            cl8y_dex_faucet::contract::instantiate,
+            cl8y_dex_faucet::contract::query,
+        )
+        .with_migrate(cl8y_dex_faucet::contract::migrate);
         Box::new(contract)
     }
 

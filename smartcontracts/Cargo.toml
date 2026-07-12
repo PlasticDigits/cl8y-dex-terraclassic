@@ -5,6 +5,7 @@ members = [
   "contracts/pair",
   "contracts/router",
   "contracts/fee-discount",
+  "contracts/faucet",
   "contracts/hooks/burn-hook",
   "contracts/hooks/tax-hook",
   "contracts/hooks/lp-burn-hook",

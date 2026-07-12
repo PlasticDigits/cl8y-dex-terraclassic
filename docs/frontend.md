@@ -490,6 +490,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
 | `/limits`       | Limit order placements, lifecycle, and **wallet history** (fills, cancels, swaps on pair + CSV) — [GitLab **#163**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/163) |
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
+| `/mint`         | Soft-launch faucet Mint page (shown in More nav only when `VITE_FAUCET_ADDRESS` is set — [GitLab **#473**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473); runbook [`soft-launch-faucet.md`](./runbooks/soft-launch-faucet.md)) |
 
 ### My Portfolio (wallet-centric indexer exposure) {#my-portfolio}
 

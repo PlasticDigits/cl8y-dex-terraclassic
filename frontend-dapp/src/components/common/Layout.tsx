@@ -14,6 +14,7 @@ import {
   MOBILE_BOTTOM_NAV_ITEMS,
   PRIMARY_NAV_ITEMS,
 } from '@/components/common/navItems'
+import { FAUCET_CONTRACT_ADDRESS } from '@/utils/constants'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSyncMobileNavStack } from '@/hooks/useSyncMobileNavStack'
 import { sounds } from '@/lib/sounds'
@@ -70,7 +71,10 @@ export default function Layout() {
     setIsMobileMoreOpen(false)
   }, [location.pathname])
 
-  const headerMoreMenuItems = useMemo(() => getHeaderMoreMenuItems(fullDesktopHeader), [fullDesktopHeader])
+  const headerMoreMenuItems = useMemo(
+    () => getHeaderMoreMenuItems(fullDesktopHeader, { includeMint: !!FAUCET_CONTRACT_ADDRESS }),
+    [fullDesktopHeader]
+  )
 
   const isHeaderMoreRouteActive = useMemo(
     () =>
@@ -80,7 +84,7 @@ export default function Layout() {
     [location.pathname, headerMoreMenuItems]
   )
 
-  const mobileMoreMenuItems = useMemo(() => getMobileMoreMenuItems(), [])
+  const mobileMoreMenuItems = useMemo(() => getMobileMoreMenuItems({ includeMint: !!FAUCET_CONTRACT_ADDRESS }), [])
 
   const isMobileMoreSheetRoute = useMemo(
     () =>
