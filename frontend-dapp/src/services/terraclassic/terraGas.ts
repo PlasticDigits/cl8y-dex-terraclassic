@@ -17,6 +17,35 @@ export { HYBRID_SWAP_GAS_LIMIT }
 export { gasLimitForHybridSwap, gasLimitForHybridParams } from './hybridSwapGas'
 
 export const BASE_GAS_LIMIT = 200000
+
+/**
+ * Intentional {@link BASE_GAS_LIMIT} retail keys (GitLab #475).
+ * Only simple CW20 allowance adjusts — never economic executes (swap/drip/register/…).
+ */
+export const BASE_GAS_LIMIT_ALLOWLIST = ['increase_allowance', 'decrease_allowance'] as const
+
+export type BaseGasLimitAllowlistKey = (typeof BASE_GAS_LIMIT_ALLOWLIST)[number]
+
+export function isBaseGasLimitAllowlisted(key: string | undefined): boolean {
+  return key != null && (BASE_GAS_LIMIT_ALLOWLIST as readonly string[]).includes(key)
+}
+
+/** CosmWasm execute payloads use a single top-level variant key. */
+export function primaryExecuteMsgKey(msg: Record<string, unknown>): string | undefined {
+  const keys = Object.keys(msg)
+  return keys.length > 0 ? keys[0] : undefined
+}
+
+function warnUnmappedRetailGasFallback(msg: Record<string, unknown>): void {
+  // Dev-only: production builds must not spam; Vitest sets import.meta.env.DEV.
+  if (!import.meta.env.DEV) return
+  const key = primaryExecuteMsgKey(msg)
+  if (isBaseGasLimitAllowlisted(key)) return
+  console.warn(
+    `[terraGas] unmapped execute msg "${key ?? '(empty)'}" → BASE_GAS_LIMIT (${BASE_GAS_LIMIT}); ` +
+      `add a named constant + getGasLimitForTx branch + RETAIL_GAS_SHAPE_FIXTURES entry (GitLab #475)`
+  )
+}
 /** Legacy per-hop base; pool-only broadcast uses {@link gasLimitForExecuteSwapOperations}(1) (840k, GitLab #115 / #134). */
 export const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching — flat fallback when quote-driven estimate unavailable (GitLab #249). */
@@ -41,6 +70,12 @@ export const CREATE_PAIR_GAS_LIMIT = 1_000_000
 export const REGISTER_FEE_DISCOUNT_GAS_LIMIT = 300_000
 /** Fee-discount self-deregister; measured ~160,932 on LocalTerra (GitLab #384, FT-4). */
 export const DEREGISTER_FEE_DISCOUNT_GAS_LIMIT = 250_000
+/**
+ * Soft-launch faucet `drip` (CW20 Mint submsg). LocalTerra measured ~248k–280k class;
+ * ceiling **400k** matches wrap margin discipline (GitLab #474 / #475).
+ * Verify: `make verify-issue-475`.
+ */
+export const FAUCET_DRIP_GAS_LIMIT = 400_000
 
 /** Uluna in `Fee.amount` for one message at `gasLimit` (same math as {@link buildTerraClassicFee}). */
 export function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
@@ -204,17 +239,21 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
           return gasLimitForExecuteSwapOperations(1)
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
+        if ('unwrap' in inner) return UNWRAP_GAS_LIMIT
         if ('execute_swap_operations' in inner) {
           return gasLimitForSwapOperationsMsg(inner)
         }
       } catch {
-        // fall through to base
+        // fall through to send default
       }
     }
     return SWAP_GAS_LIMIT
+  } else if ('drip' in executeMsg) {
+    return FAUCET_DRIP_GAS_LIMIT
   } else if ('increase_allowance' in executeMsg || 'decrease_allowance' in executeMsg) {
     return BASE_GAS_LIMIT
   }
+  warnUnmappedRetailGasFallback(executeMsg)
   return BASE_GAS_LIMIT
 }
 
