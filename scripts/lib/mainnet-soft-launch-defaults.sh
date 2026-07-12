@@ -5,7 +5,8 @@
 #   SL1 — Factory whitelisted_code_ids contains ONLY cw20-base (6036) + cw20-mintable (10184).
 #   SL2 — No Terraport/GDEX/economic CW20 code IDs on the whitelist for this launch path.
 #   SL3 — Trading tokens are 6 decimals; fee-discount uses mainnet CL8Y (18 decimals).
-#   SL4 — Deploy key pays gas; governance/admin/treasury = GOVERNANCE_MULTISIG_ADDR.
+#   SL4 — Deploy key pays gas + bootstraps admin msgs; wasm --admin and final config
+#         governance/treasury = GOVERNANCE_MULTISIG_ADDR (handoff after setup).
 #   SL5 — Wrap-mapper / USTR treasury contracts are out of scope (CW20-only pairs).
 #
 # shellcheck shell=bash

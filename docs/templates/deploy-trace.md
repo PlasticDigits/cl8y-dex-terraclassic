@@ -2,6 +2,8 @@
 
 Copy this block into a comment on the **launch tracking issue** ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)) at the end of each production or staging deploy/migration. Replace placeholders; keep command output verbatim for audit.
 
+**Filled example (columbus-5 soft launch, 2026-07-12):** [`deployments/mainnet-soft-launch/deploy-trace.md`](../../deployments/mainnet-soft-launch/deploy-trace.md)
+
 **Why:** After a missed chain patch (e.g. Terra Classic IBC fix) or contract dependency update, operators must be able to identify exactly which git revision, wasm artifacts, code IDs, and chain version were live at deploy time ([GitLab #410](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/410)).
 
 ---

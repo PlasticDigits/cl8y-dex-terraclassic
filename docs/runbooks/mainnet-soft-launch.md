@@ -22,7 +22,8 @@ Phase 5 GO may proceed without a separate staging/testnet deploy when budget-con
 | **SL1** | Factory `whitelisted_code_ids` contains **only** Terraswap **cw20-base** (**6036**) and PlasticDigits **cw20-mintable** (**10184**) by default. |
 | **SL2** | No Terraport/GDEX/economic CW20 templates on the whitelist for this path. |
 | **SL3** | Soft-launch trading tokens use **6** decimals; fee-discount `cl8y_token` is mainnet CL8Y (**18** decimals). |
-| **SL4** | Deploy key (`cl8ydeploy` / `terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`) pays gas; **governance / wasm admin / treasury** = multisig [`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`](../reference/governance-multisig.md). |
+| **SL4** | Deploy key pays gas and bootstraps admin msgs; **wasm `--admin`** + **treasury** + **final `config.governance`** = multisig [`terra1zlmv2…`](../reference/governance-multisig.md). Instantiate uses deployer as temporary `config.governance`, then hands off after tiers/registry setup. |
+
 | **SL5** | CW20-only pairs — wrap-mapper not required. |
 | **SL6** | Production indexer: `RUN_MODE=prod`, non-default `LCD_URLS`, `CORS_ORIGINS=https://dex.cl8y.com`, `VITE_INDEXER_URL=https://indexer.dex.cl8y.com` (HTTPS only). |
 | **SL7** | Fee-discount tiers match [`fee-discount-tiers.md`](../reference/fee-discount-tiers.md) (drift: `make check-fee-discount-tier-docs`). |
@@ -46,8 +47,12 @@ Override only if needed: `TERRAD_HOST_GAS_PRICES=28.325uluna` or escape-hatch `T
 ```bash
 make build-optimized
 
+# cl8ydeploy lives in ~/.terra/keyring-file (auto-detected). Encrypted file keyring:
+# either run in a TTY and enter the passphrase when prompted, or once:
+#   read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
 # Key must be cl8ydeploy → terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv
 ./scripts/deploy-dex-mainnet-soft-launch.sh
+unset TERRAD_HOST_KEYRING_PASS
 ```
 
 Dry-run (no broadcast):
@@ -89,6 +94,31 @@ make qa-verify-env-addresses
 
 Paste deploy trace fields per [`docs/templates/deploy-trace.md`](../templates/deploy-trace.md).
 
-## Expanding beyond soft launch
+## Resume / recovery
+
+If instantiate used multisig as `config.governance` before admin setup (Unauthorized on `add_tier`), either:
+
+1. **Reuse stored code IDs** (no re-store) and instantiate fresh with bootstrap governance (preferred after the script fix):
+
+```bash
+FACTORY_CODE_ID=11505 PAIR_CODE_ID=11506 ROUTER_CODE_ID=11507 FEE_DISCOUNT_CODE_ID=11508 \
+  ./scripts/deploy-dex-mainnet-soft-launch.sh
+```
+
+2. **Or** have the multisig call fee-discount/factory `update_config` to set `governance` to `cl8ydeploy`, finish setup, then hand back to the multisig.
+
+Orphan instances left with empty config are harmless; point Coolify at the new addresses from `addresses.env`.
+
+### Resume pairs after RPC interrupt
+
+If create/LP stopped mid-loop (e.g. connection reset), update `deployments/mainnet-soft-launch/addresses.env` with live addresses, then:
+
+```bash
+read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
+./scripts/resume-mainnet-soft-launch-pairs.sh
+unset TERRAD_HOST_KEYRING_PASS
+```
+
+Skips pairs that already have liquidity; finishes remaining pairs, `set_discount_registry_all`, and governance handoff. Host txs retry transient RPC errors (default 5 attempts).
 
 Adding economic tokens later requires CW20 whitelist policy review ([`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md)), governance `AddWhitelistedCodeId`, and new pairs — not a full redeploy of factory/router unless migrating.

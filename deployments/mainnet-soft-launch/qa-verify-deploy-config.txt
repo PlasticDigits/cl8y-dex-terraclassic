@@ -1,0 +1,39 @@
+=== CL8Y DEX post-deploy config verification (SEC-H03 / GitLab #441) ===
+timestamp: 2026-07-12T03:42:43Z
+git_sha: da811ea
+lcd: https://terra-classic-lcd.publicnode.com
+factory: terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea
+router: terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw
+fee_discount: terra1wcczsdk7jwj99n3my6wx8wr4ee0hn6yaapgd792lgx5elrdtrn2scfnecz
+
+[1/6] Factory config (query: config)...
+  [PASS] governance=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
+  [PASS] treasury=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
+  [PASS] default_fee_bps=180
+  [PASS] governance (expected)=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
+  [PASS] treasury (expected)=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
+  [PASS] default_fee_bps (expected)=180
+
+[2/6] Factory whitelisted CW20 code IDs...
+  [PASS] whitelisted_code_ids count=2 (min 2)
+  code_ids: [6036,10184]
+
+[3/6] Fee-discount tiers (query: get_tiers)...
+  [PASS] fee_discount_tiers count=11 (min 11)
+
+[4/6] Trusted router (query: is_trusted_router)...
+  [PASS] is_trusted_router(terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw)=true
+
+[5/6] Registered hooks on first pair (query: get_hooks)...
+  pair: terra1klwuxas6x7p6fjde60kq70t0hu86wvt3fvyr2vgs0nn32fnv0q4qwznwp4
+  hooks: []
+  [PASS] no hooks registered (pool-only launch default)
+
+[6/6] Blacklist state for clean wallet (query: blacklist_check)...
+  [PASS] wallet_blacklisted(terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v)=false
+  [PASS] blocked(terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v)=false
+
+────────────────────────────────────────────────────────────────
+checks: 12   failures: 0
+RESULT: PASS
+Paste this output on the release / launch tracking issue (SEC-H03).

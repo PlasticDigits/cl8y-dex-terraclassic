@@ -1,0 +1,38 @@
+== Pool query (terra1klwuxas6x7p6fjde60kq70t0hu86wvt3fvyr2vgs0nn32fnv0q4qwznwp4) ==
+{
+  "data": {
+    "assets": [
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94"
+          }
+        },
+        "amount": "100000000000"
+      },
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena"
+          }
+        },
+        "amount": "100000000000"
+      }
+    ],
+    "total_share": "100000000000"
+  }
+}
+== HybridSimulation pool-only (book_input=0; offer CW20 terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94, amount 1000000) ==
+{
+  "data": {
+    "return_amount": "981991",
+    "spread_amount": "10",
+    "commission_amount": "17999",
+    "pool_commission_amount": "17999",
+    "book_commission_amount": "0",
+    "book_return_amount": "0",
+    "pool_return_amount": "981991",
+    "limit_book_offer_consumed": "0"
+  }
+}
+OK: smoke-pool-swap read-only checks passed.

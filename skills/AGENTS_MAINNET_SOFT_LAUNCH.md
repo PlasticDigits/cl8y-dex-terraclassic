@@ -19,7 +19,7 @@ Use when deploying or verifying the **columbus-5 soft launch** with non-economic
 
 1. **Do not** whitelist Terraport/GDEX/economic CW20 code IDs on the soft-launch path (**SL1/SL2**).
 2. **Reuse** mintable code ID **10184** and cw20-base **6036** on mainnet unless forcing a fresh store.
-3. **Deploy key** pays gas; **multisig** is `--admin` / governance / treasury (**SL4**). Host txs use `--gas-prices=28.325uluna` (not a flat fee).
+3. **Deploy key** pays gas; **multisig** is `--admin` / governance / treasury (**SL4**). Host txs use `--gas-prices=28.325uluna` (not a flat fee). Keyring auto-detects `file` when `~/.terra/keyring-file/<key>.info` exists (avoids bech32-of-name errors from wrong `--keyring-backend os`).
 4. **No compose** under `docker/` — Coolify uses the Dockerfiles directly.
 5. **HTTPS only** for `VITE_INDEXER_URL` and production CORS origin `https://dex.cl8y.com`.
 6. Keep fee-discount tiers aligned: `make check-fee-discount-tier-docs`.

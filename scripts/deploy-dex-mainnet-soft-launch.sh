@@ -103,7 +103,7 @@ instantiate_no_funds() {
     tx_hash="DRY_RUN_TX"
     echo "    tx: $tx_hash" >&2
   else
-    out="$(terrad tx wasm instantiate "$code_id" "$init_msg" \
+    out="$(terrad_host_exec tx wasm instantiate "$code_id" "$init_msg" \
       --label "$label" \
       --admin "$admin" \
       --from "$TERRAD_HOST_KEY" \
@@ -144,6 +144,8 @@ echo "=============================================="
 echo "Chain:      $TERRAD_HOST_CHAIN_ID"
 echo "Node:       $TERRAD_HOST_NODE"
 echo "Deploy key: $TERRAD_HOST_KEY"
+terrad_host_resolve_keyring_backend
+echo "Keyring:    $TERRAD_HOST_KEYRING_BACKEND ($TERRAD_HOST_HOME)"
 echo "Governance: $MAINNET_SOFT_LAUNCH_GOVERNANCE"
 echo "Treasury:   $MAINNET_SOFT_LAUNCH_TREASURY"
 echo "Tokens:     $(mainnet_soft_launch_token_count)"
@@ -155,7 +157,7 @@ require_cmd terrad
 require_cmd jq
 require_cmd sha256sum
 
-DEPLOY_ADDR="$(terrad_host_key_address)"
+DEPLOY_ADDR="$(terrad_host_key_address)" || exit 1
 if [[ "$DEPLOY_ADDR" != "$MAINNET_SOFT_LAUNCH_DEPLOY_ADDR" ]]; then
   echo "ERROR: key $TERRAD_HOST_KEY address is $DEPLOY_ADDR" >&2
   echo "  expected $MAINNET_SOFT_LAUNCH_DEPLOY_ADDR" >&2
@@ -212,19 +214,34 @@ echo "  Whitelist code IDs: base=$CW20_BASE_CODE_ID mintable=$CW20_MINTABLE_CODE
 # ── Store DEX contracts ─────────────────────────────────────────────────
 echo ""
 echo "[2] Store DEX contracts"
-FACTORY_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_factory.wasm" "factory")"
-PAIR_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_pair.wasm" "pair")"
-ROUTER_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_router.wasm" "router")"
-FEE_DISCOUNT_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_fee_discount.wasm" "fee_discount")"
+if [[ -n "${FACTORY_CODE_ID:-}" && -n "${PAIR_CODE_ID:-}" && -n "${ROUTER_CODE_ID:-}" && -n "${FEE_DISCOUNT_CODE_ID:-}" ]]; then
+  echo "  Reusing FACTORY_CODE_ID=$FACTORY_CODE_ID PAIR_CODE_ID=$PAIR_CODE_ID ROUTER_CODE_ID=$ROUTER_CODE_ID FEE_DISCOUNT_CODE_ID=$FEE_DISCOUNT_CODE_ID"
+elif [[ "${SKIP_STORE:-0}" == "1" ]]; then
+  echo "ERROR: SKIP_STORE=1 requires FACTORY_CODE_ID PAIR_CODE_ID ROUTER_CODE_ID FEE_DISCOUNT_CODE_ID" >&2
+  exit 1
+else
+  FACTORY_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_factory.wasm" "factory")"
+  PAIR_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_pair.wasm" "pair")"
+  ROUTER_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_router.wasm" "router")"
+  FEE_DISCOUNT_CODE_ID="$(store_code "$ARTIFACTS_DIR/cl8y_dex_fee_discount.wasm" "fee_discount")"
+fi
 
 # LP shares use standard cw20-base (18 decimals set by pair instantiate).
 LP_TOKEN_CODE_ID="$CW20_BASE_CODE_ID"
 
+# Bootstrap governance = deployer so add_tier / set_discount_registry work.
+# Wasm --admin and treasury stay multisig; config.governance is handed off after setup (SL4).
+BOOTSTRAP_GOVERNANCE="$DEPLOY_ADDR"
+FINAL_GOVERNANCE="$MAINNET_SOFT_LAUNCH_GOVERNANCE"
+
 # ── Instantiate factory / router / fee-discount ─────────────────────────
 echo ""
 echo "[3] Instantiate factory, router, fee-discount"
+echo "  Bootstrap governance (config): $BOOTSTRAP_GOVERNANCE"
+echo "  Wasm admin / final governance: $FINAL_GOVERNANCE"
+echo "  Treasury:                      $MAINNET_SOFT_LAUNCH_TREASURY"
 FACTORY_INIT="$(jq -nc \
-  --arg gov "$MAINNET_SOFT_LAUNCH_GOVERNANCE" \
+  --arg gov "$BOOTSTRAP_GOVERNANCE" \
   --arg treasury "$MAINNET_SOFT_LAUNCH_TREASURY" \
   --argjson fee "$MAINNET_SOFT_LAUNCH_DEFAULT_FEE_BPS" \
   --argjson pair_code "$PAIR_CODE_ID" \
@@ -242,16 +259,17 @@ FACTORY_INIT="$(jq -nc \
     pair_creation_fee_uluna: $pair_fee
   }')"
 
-FACTORY_ADDRESS="$(instantiate_no_funds "$FACTORY_CODE_ID" "$FACTORY_INIT" "cl8y-dex-factory" "$MAINNET_SOFT_LAUNCH_GOVERNANCE")"
+# Wasm admin = multisig (migrate control). Config governance = deployer until handoff.
+FACTORY_ADDRESS="$(instantiate_no_funds "$FACTORY_CODE_ID" "$FACTORY_INIT" "cl8y-dex-factory" "$FINAL_GOVERNANCE")"
 
 ROUTER_INIT="$(jq -nc --arg factory "$FACTORY_ADDRESS" '{factory: $factory}')"
-ROUTER_ADDRESS="$(instantiate_no_funds "$ROUTER_CODE_ID" "$ROUTER_INIT" "cl8y-dex-router" "$MAINNET_SOFT_LAUNCH_GOVERNANCE")"
+ROUTER_ADDRESS="$(instantiate_no_funds "$ROUTER_CODE_ID" "$ROUTER_INIT" "cl8y-dex-router" "$FINAL_GOVERNANCE")"
 
 FEE_INIT="$(jq -nc \
-  --arg gov "$MAINNET_SOFT_LAUNCH_GOVERNANCE" \
+  --arg gov "$BOOTSTRAP_GOVERNANCE" \
   --arg cl8y "$MAINNET_CL8Y_TOKEN_ADDRESS" \
   '{governance: $gov, cl8y_token: $cl8y}')"
-FEE_DISCOUNT_ADDRESS="$(instantiate_no_funds "$FEE_DISCOUNT_CODE_ID" "$FEE_INIT" "cl8y-dex-fee-discount" "$MAINNET_SOFT_LAUNCH_GOVERNANCE")"
+FEE_DISCOUNT_ADDRESS="$(instantiate_no_funds "$FEE_DISCOUNT_CODE_ID" "$FEE_INIT" "cl8y-dex-fee-discount" "$FINAL_GOVERNANCE")"
 
 echo ""
 echo "[4] Fee-discount tiers + trusted router"
@@ -347,7 +365,7 @@ for pair_entry in "${MAINNET_SOFT_LAUNCH_PAIRS[@]}"; do
       PAIR_Q="$(jq -nc --arg a "$ADDR_A" --arg b "$ADDR_B" \
         '{pair: {asset_infos: [{token:{contract_addr:$a}},{token:{contract_addr:$b}}]}}')"
       PAIR_ADDR="$(terrad_host_query wasm contract-state smart "$FACTORY_ADDRESS" "$PAIR_Q" \
-        | jq -r '.data.contract_addr // .contract_addr // empty')"
+        | jq -r '.data.pair.contract_addr // .data.contract_addr // .contract_addr // empty')"
     fi
     [[ -n "$PAIR_ADDR" ]] || {
       echo "ERROR: could not resolve pair address for $SYM_A/$SYM_B" >&2
@@ -391,6 +409,14 @@ echo ""
 echo "[7] set_discount_registry_all"
 ALL_MSG="$(jq -nc --arg r "$FEE_DISCOUNT_ADDRESS" '{set_discount_registry_all: {registry: $r}}')"
 execute_msg "$FACTORY_ADDRESS" "$ALL_MSG" "set_discount_registry_all"
+
+# ── Handoff config.governance to multisig (wasm admin already multisig) ─
+echo ""
+echo "[7b] Handoff config governance → multisig"
+FEE_HANDOFF="$(jq -nc --arg gov "$FINAL_GOVERNANCE" '{update_config: {governance: $gov}}')"
+execute_msg "$FEE_DISCOUNT_ADDRESS" "$FEE_HANDOFF" "fee-discount update_config governance"
+FACTORY_HANDOFF="$(jq -nc --arg gov "$FINAL_GOVERNANCE" '{update_config: {governance: $gov}}')"
+execute_msg "$FACTORY_ADDRESS" "$FACTORY_HANDOFF" "factory update_config governance"
 
 # ── Write env outputs ───────────────────────────────────────────────────
 echo ""
