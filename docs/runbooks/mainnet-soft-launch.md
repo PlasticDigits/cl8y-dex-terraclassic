@@ -19,7 +19,7 @@ Phase 5 GO may proceed without a separate staging/testnet deploy when budget-con
 
 | ID | Rule |
 |----|------|
-| **SL1** | Factory `whitelisted_code_ids` contains **only** CosmWasm **cw20-base** and PlasticDigits **cw20-mintable** code IDs. |
+| **SL1** | Factory `whitelisted_code_ids` contains **only** Terraswap **cw20-base** (**6036**) and PlasticDigits **cw20-mintable** (**10184**) by default. |
 | **SL2** | No Terraport/GDEX/economic CW20 templates on the whitelist for this path. |
 | **SL3** | Soft-launch trading tokens use **6** decimals; fee-discount `cl8y_token` is mainnet CL8Y (**18** decimals). |
 | **SL4** | Deploy key (`cl8ydeploy` / `terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`) pays gas; **governance / wasm admin / treasury** = multisig [`terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`](../reference/governance-multisig.md). |
@@ -33,7 +33,7 @@ Defaults live in [`scripts/lib/mainnet-soft-launch-defaults.sh`](../../scripts/l
 
 **Mintable** (mainnet code ID **10184** by default — [cw20-mintable](https://github.com/PlasticDigits/cw20-mintable)): EMBER, CORAL, JADE, ONYX, RUBY, TOPAZ.
 
-**Standard cw20-base** (stored at deploy unless `MAINNET_CW20_BASE_CODE_ID` set): QUARTZ, PEARL.
+**Standard cw20-base** (mainnet code ID **6036** by default — Terraswap cw20-base; override with `MAINNET_CW20_BASE_CODE_ID` or leave empty to store from artifacts): QUARTZ, PEARL.
 
 **Pairs (10):** EMBER/CORAL, EMBER/JADE, EMBER/ONYX, CORAL/RUBY, JADE/TOPAZ, ONYX/QUARTZ, RUBY/PEARL, EMBER/QUARTZ, CORAL/PEARL, JADE/ONYX.
 
@@ -41,8 +41,6 @@ Defaults live in [`scripts/lib/mainnet-soft-launch-defaults.sh`](../../scripts/l
 
 ```bash
 make build-optimized
-# Optional if cw20_base.wasm missing:
-# ./scripts/build-cw20-base-artifact.sh
 
 # Key must be cl8ydeploy → terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv
 ./scripts/deploy-dex-mainnet-soft-launch.sh
@@ -51,7 +49,7 @@ make build-optimized
 Dry-run (no broadcast):
 
 ```bash
-DRY_RUN=1 MAINNET_CW20_BASE_CODE_ID=1 ./scripts/deploy-dex-mainnet-soft-launch.sh
+DRY_RUN=1 ./scripts/deploy-dex-mainnet-soft-launch.sh
 ```
 
 Outputs under `deployments/mainnet-soft-launch/`:

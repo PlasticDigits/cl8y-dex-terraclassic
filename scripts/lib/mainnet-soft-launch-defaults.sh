@@ -2,7 +2,7 @@
 # Soft-launch (non-economic) CW20 + pair defaults for columbus-5.
 #
 # Invariants (see docs/runbooks/mainnet-soft-launch.md):
-#   SL1 — Factory whitelisted_code_ids contains ONLY CosmWasm cw20-base + cw20-mintable.
+#   SL1 — Factory whitelisted_code_ids contains ONLY cw20-base (6036) + cw20-mintable (10184).
 #   SL2 — No Terraport/GDEX/economic CW20 code IDs on the whitelist for this launch path.
 #   SL3 — Trading tokens are 6 decimals; fee-discount uses mainnet CL8Y (18 decimals).
 #   SL4 — Deploy key pays gas; governance/admin/treasury = GOVERNANCE_MULTISIG_ADDR.
@@ -27,8 +27,9 @@ MAINNET_CL8Y_TOKEN_ADDRESS="${MAINNET_CL8Y_TOKEN_ADDRESS:-terra16wtml2q66g82fdkx
 # Override to force a fresh store of artifacts/cw20_mintable.wasm.
 MAINNET_CW20_MINTABLE_CODE_ID="${MAINNET_CW20_MINTABLE_CODE_ID:-10184}"
 
-# CosmWasm cw20-base (standard). Empty → store from CW20_BASE_WASM / artifacts.
-MAINNET_CW20_BASE_CODE_ID="${MAINNET_CW20_BASE_CODE_ID:-}"
+# Terraswap columbus-5 cw20-base (code 6036; same template as GRDX etc.).
+# Override empty / FORCE_STORE path: unset and ensure CW20_BASE_WASM, or set FORCE via deploy script store branch.
+MAINNET_CW20_BASE_CODE_ID="${MAINNET_CW20_BASE_CODE_ID:-6036}"
 
 # Factory defaults (bps). Pair creation fee matches on-chain default (100 LUNC).
 MAINNET_SOFT_LAUNCH_DEFAULT_FEE_BPS="${MAINNET_SOFT_LAUNCH_DEFAULT_FEE_BPS:-180}"

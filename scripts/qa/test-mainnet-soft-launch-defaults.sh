@@ -14,6 +14,7 @@ ok() { echo "OK: $*"; }
 [[ "$(mainnet_soft_launch_pair_count)" -eq 10 ]] || fail "expected 10 pairs"
 [[ "$MAINNET_SOFT_LAUNCH_DEPLOY_ADDR" == "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv" ]] || fail "deploy addr"
 [[ "$MAINNET_CW20_MINTABLE_CODE_ID" == "10184" ]] || fail "mintable code id"
+[[ "$MAINNET_CW20_BASE_CODE_ID" == "6036" ]] || fail "cw20-base code id"
 [[ "$MAINNET_SOFT_LAUNCH_FRONTEND_ORIGIN" == "https://dex.cl8y.com" ]] || fail "frontend origin"
 [[ "$MAINNET_SOFT_LAUNCH_INDEXER_ORIGIN" == "https://indexer.dex.cl8y.com" ]] || fail "indexer origin"
 

@@ -5,7 +5,7 @@
 #   - make build-optimized (DEX wasm in smartcontracts/artifacts/)
 #   - terrad key MAINNET_SOFT_LAUNCH_DEPLOY_KEY (default cl8ydeploy) funded for gas + pair fees
 #   - Governance multisig already exists (admin/treasury); deployer is NOT governance
-#   - Optional: MAINNET_CW20_BASE_CODE_ID, else scripts/build-cw20-base-artifact.sh
+#   - MAINNET_CW20_BASE_CODE_ID defaults to 6036 (Terraswap cw20-base); empty → store artifact
 #
 # Usage:
 #   ./scripts/deploy-dex-mainnet-soft-launch.sh

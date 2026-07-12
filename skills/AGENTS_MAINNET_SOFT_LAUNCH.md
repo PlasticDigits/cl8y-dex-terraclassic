@@ -18,7 +18,7 @@ Use when deploying or verifying the **columbus-5 soft launch** with non-economic
 ## Rules of thumb
 
 1. **Do not** whitelist Terraport/GDEX/economic CW20 code IDs on the soft-launch path (**SL1/SL2**).
-2. **Reuse** mintable code ID **10184** on mainnet unless `FORCE_STORE_CW20_MINTABLE=1`.
+2. **Reuse** mintable code ID **10184** and cw20-base **6036** on mainnet unless forcing a fresh store.
 3. **Deploy key** pays gas; **multisig** is `--admin` / governance / treasury (**SL4**).
 4. **No compose** under `docker/` — Coolify uses the Dockerfiles directly.
 5. **HTTPS only** for `VITE_INDEXER_URL` and production CORS origin `https://dex.cl8y.com`.
@@ -30,7 +30,7 @@ Use when deploying or verifying the **columbus-5 soft launch** with non-economic
 ```bash
 make test-mainnet-soft-launch-defaults
 make check-fee-discount-tier-docs
-DRY_RUN=1 MAINNET_CW20_BASE_CODE_ID=1 make deploy-mainnet-soft-launch
+DRY_RUN=1 make deploy-mainnet-soft-launch
 ```
 
 ## Related

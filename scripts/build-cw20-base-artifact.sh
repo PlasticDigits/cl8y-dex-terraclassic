@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build CosmWasm cw20-base optimized wasm into smartcontracts/artifacts/cw20_base.wasm.
-# Used by mainnet soft-launch when MAINNET_CW20_BASE_CODE_ID is unset.
+# Used by mainnet soft-launch when MAINNET_CW20_BASE_CODE_ID is explicitly emptied.
 #
 # Pins cosmwasm/cw-plus @ v1.1.2 (matches smartcontracts/Cargo.toml cw20-base version).
 set -euo pipefail
