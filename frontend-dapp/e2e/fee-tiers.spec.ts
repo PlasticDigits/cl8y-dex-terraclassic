@@ -9,7 +9,7 @@ test.describe('Fee Tiers Page', () => {
 
   test('shows description about CL8Y tokens', async ({ page }) => {
     await page.goto('/tiers')
-    await expect(page.getByText(/Hold CL8Y tokens/i)).toBeVisible()
+    await expect(page.getByText(/Hold the configured CL8Y CW20/i)).toBeVisible()
   })
 
   test('displays all 9 public fee tiers', async ({ page }) => {

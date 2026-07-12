@@ -29,6 +29,8 @@ describe('lookupByCW20', () => {
     const entry = lookupByCW20('terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3')
     expect(entry).toBeDefined()
     expect(entry!.symbol).toBe('CL8Y')
+    // Mainnet CL8Y / LocalTerra TCL8Y are 18 decimals (GitLab #476 / #383).
+    expect(entry!.decimals).toBe(18)
   })
 
   it('returns USTR for its contract address', () => {

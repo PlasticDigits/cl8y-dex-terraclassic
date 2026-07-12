@@ -211,7 +211,8 @@ export default function TiersPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Fee Discount Tiers</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Hold CL8Y tokens to reduce swap fees, then register for the tier that matches your balance.
+          Hold the configured CL8Y CW20 and register for a tier that matches your balance. Holding alone does not apply
+          a discount.
         </p>
       </div>
 
@@ -304,8 +305,10 @@ export default function TiersPage() {
         </h3>
         <div className="text-sm space-y-2" style={{ color: 'var(--ink-dim)' }}>
           <p>
-            Your swap fee is reduced based on your registered tier. If you drop below the required CL8Y holding at any
-            time, you lose your tier.
+            Your swap fee is reduced based on your registered tier. You must hold the fee-discount contract&apos;s
+            configured CL8Y CW20 (<span className="font-mono text-xs">{CL8Y_TOKEN_ADDRESS || 'not configured'}</span>)
+            and register on this page — other similarly named tokens do not count. If you drop below the required
+            holding at any time, you lose your tier.
           </p>
           <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
             The default base fee is {(baseFee / 100).toFixed(1)}% for most pairs. Some pairs may have a different base

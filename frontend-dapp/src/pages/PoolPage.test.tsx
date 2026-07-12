@@ -76,6 +76,7 @@ vi.mock('@/services/terraclassic/settings', () => ({
 
 vi.mock('@/services/terraclassic/feeDiscount', () => ({
   getTraderDiscount: vi.fn().mockResolvedValue({ discount_bps: 0 }),
+  getRegistration: vi.fn().mockResolvedValue({ registered: false, tier_id: null, tier: null }),
 }))
 
 vi.mock('@/lib/sounds', () => ({
