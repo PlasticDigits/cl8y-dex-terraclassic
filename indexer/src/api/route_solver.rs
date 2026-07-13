@@ -20,6 +20,8 @@ use sqlx::PgPool;
 
 use crate::api::hybrid_route_opt;
 use crate::api::internal_err;
+use crate::api::route_graph;
+use crate::api::route_solve_progress;
 use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
 use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
@@ -27,6 +29,7 @@ use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
 pub use hybrid_route_opt::HybridHopJson;
 
 const ROUTE_CACHE_TTL: Duration = Duration::from_secs(12);
+const ROUTE_CACHE_TTL_DISTANT: Duration = Duration::from_secs(90);
 const ROUTE_CACHE_MAX_ENTRIES: usize = 512;
 /// Default GET hop cap (hybrid-aware routing per ADR 0001 / GitLab #191).
 pub(crate) const GET_DEFAULT_MAX_HOPS: usize = 4;
@@ -377,32 +380,30 @@ async fn resolve_route_with_max_hops(
     token_out: &str,
     max_hops: usize,
 ) -> Result<ResolvedRoute, (StatusCode, String)> {
-    let all_assets = assets::get_all_assets(pool).await.map_err(internal_err)?;
-    let pair_rows = db_pairs::get_all_pairs(pool).await.map_err(internal_err)?;
+    let snapshot = route_graph::get_route_graph_snapshot(pool).await?;
+    let (id_to_addr, addr_to_id) = (&snapshot.id_to_addr, &snapshot.addr_to_id);
 
-    let (id_to_addr, addr_to_id) = build_id_to_addr_map(&all_assets);
-
-    let start = resolve_id(&addr_to_id, token_in).ok_or_else(|| {
+    let start = resolve_id(addr_to_id, token_in).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
             "token_in not found in indexer assets".to_string(),
         )
     })?;
-    let goal = resolve_id(&addr_to_id, token_out).ok_or_else(|| {
+    let goal = resolve_id(addr_to_id, token_out).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
             "token_out not found in indexer assets".to_string(),
         )
     })?;
 
-    let hops_raw = find_path(start, goal, &pair_rows, max_hops).ok_or_else(|| {
+    let hops_raw = find_path(start, goal, &snapshot.pairs, max_hops).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
             format!("no route within {} hops", max_hops),
         )
     })?;
 
-    let (hops, ops) = build_hops_and_ops(&hops_raw, &id_to_addr)?;
+    let (hops, ops) = build_hops_and_ops(&hops_raw, id_to_addr)?;
 
     Ok(ResolvedRoute {
         token_in: token_in.trim().to_string(),
@@ -556,6 +557,7 @@ struct CacheEntry {
     at: Instant,
     body: serde_json::Value,
     amount_in: u128,
+    ttl: Duration,
 }
 
 fn route_hybrid_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
@@ -563,7 +565,7 @@ fn route_hybrid_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn amount_cache_key(amount: u128) -> u128 {
+pub(crate) fn amount_cache_key(amount: u128) -> u128 {
     if amount <= AMOUNT_CACHE_BUCKET {
         amount
     } else {
@@ -649,7 +651,7 @@ pub(crate) async fn resolve_discount_bps(
     )
 }
 
-fn hybrid_cache_key(
+pub(crate) fn hybrid_cache_key(
     solver_version: &str,
     token_in: &str,
     token_out: &str,
@@ -669,20 +671,28 @@ fn hybrid_cache_key(
     )
 }
 
+fn cache_ttl_for_hops(hop_count: usize) -> Duration {
+    if hop_count >= 2 {
+        ROUTE_CACHE_TTL_DISTANT
+    } else {
+        ROUTE_CACHE_TTL
+    }
+}
+
 fn cache_get(key: &str) -> Option<(serde_json::Value, u128)> {
     let mut g = route_hybrid_cache().lock().ok()?;
     let e = g.get(key)?;
-    if Instant::now().duration_since(e.at) > ROUTE_CACHE_TTL {
+    if Instant::now().duration_since(e.at) > e.ttl {
         g.remove(key);
         return None;
     }
     Some((e.body.clone(), e.amount_in))
 }
 
-fn cache_put(key: String, body: serde_json::Value, amount_in: u128) {
+fn cache_put(key: String, body: serde_json::Value, amount_in: u128, ttl: Duration) {
     if let Ok(mut g) = route_hybrid_cache().lock() {
         let now = Instant::now();
-        g.retain(|_, v| now.duration_since(v.at) <= ROUTE_CACHE_TTL);
+        g.retain(|_, v| now.duration_since(v.at) <= v.ttl);
         if g.len() >= ROUTE_CACHE_MAX_ENTRIES {
             if let Some(oldest_k) = g.iter().min_by_key(|(_, v)| v.at).map(|(k, _)| k.clone()) {
                 g.remove(&oldest_k);
@@ -692,6 +702,7 @@ fn cache_put(key: String, body: serde_json::Value, amount_in: u128) {
             at: now,
             body,
             amount_in,
+            ttl,
         });
     }
 }
@@ -729,9 +740,18 @@ async fn execute_hybrid_route_solve(
         max_makers,
         discount_bps,
     );
+    route_solve_progress::progress_begin(&ck);
+
     if let Some((cached, cached_amount_in)) = cache_get(&ck) {
         let mut body: RouteSolveResponse =
             serde_json::from_value(cached).map_err(crate::api::internal_err)?;
+        route_solve_progress::progress_update(
+            &ck,
+            route_solve_progress::STAGE_ENRICHING,
+            0,
+            0,
+            "Computing slippage…",
+        );
         crate::api::route_slippage::enrich_route_slippage(
             state,
             &mut body,
@@ -741,12 +761,13 @@ async fn execute_hybrid_route_solve(
             Some(cached_amount_in),
         )
         .await;
+        route_solve_progress::progress_complete(&ck, true);
         return Ok(Json(
             serde_json::to_value(body).map_err(crate::api::internal_err)?,
         ));
     }
 
-    let (body, _meta) = crate::api::best_execution::solve_global_best_execution(
+    let solve_result = crate::api::best_execution::solve_global_best_execution(
         state,
         token_in,
         token_out,
@@ -754,11 +775,22 @@ async fn execute_hybrid_route_solve(
         amount_raw,
         max_makers,
         quote_trader,
+        Some(&ck),
     )
-    .await?;
+    .await;
 
+    let (body, _meta) = match solve_result {
+        Ok(v) => v,
+        Err(e) => {
+            route_solve_progress::progress_fail(&ck, &e.1);
+            return Err(e);
+        }
+    };
+
+    let ttl = cache_ttl_for_hops(body.hops.len());
     let json_body = serde_json::to_value(&body).map_err(internal_err)?;
-    cache_put(ck, json_body.clone(), amount_u);
+    cache_put(ck.clone(), json_body.clone(), amount_u, ttl);
+    route_solve_progress::progress_complete(&ck, false);
     Ok(Json(json_body))
 }
 
@@ -1062,5 +1094,24 @@ mod hybrid_cache_key_tests {
         let a = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_500_000), 8, 0);
         let b = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_900_000), 8, 0);
         assert_eq!(a, b, "micro-variation within one amount bucket shares key");
+    }
+}
+
+#[cfg(test)]
+mod cache_ttl_tests {
+    use super::{cache_ttl_for_hops, ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT};
+    use std::time::Duration;
+
+    #[test]
+    fn cache_ttl_one_hop_uses_short_ttl() {
+        assert_eq!(cache_ttl_for_hops(1), ROUTE_CACHE_TTL);
+        assert_eq!(cache_ttl_for_hops(0), ROUTE_CACHE_TTL);
+    }
+
+    #[test]
+    fn cache_ttl_multi_hop_uses_distant_ttl() {
+        assert_eq!(cache_ttl_for_hops(2), ROUTE_CACHE_TTL_DISTANT);
+        assert_eq!(cache_ttl_for_hops(4), ROUTE_CACHE_TTL_DISTANT);
+        assert_eq!(ROUTE_CACHE_TTL_DISTANT, Duration::from_secs(90));
     }
 }

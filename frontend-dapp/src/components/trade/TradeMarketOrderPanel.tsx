@@ -574,7 +574,13 @@ export function TradeMarketOrderPanel({
       )}
 
       {simQuery.isLoading && rawInputAmount !== '0' && (
-        <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--ink-dim)' }}>
+        <div
+          className="flex items-center gap-2 text-[10px]"
+          style={{ color: 'var(--ink-dim)' }}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           <Spinner />
           Quoting…
         </div>

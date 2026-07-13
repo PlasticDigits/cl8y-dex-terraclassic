@@ -14,7 +14,8 @@ export function swapActionPanel(page: Page) {
 
 async function waitForSwapQuoteIdle(panel: Locator): Promise<void> {
   await expect(async () => {
-    const calculating = panel.getByRole('button', { name: /^Calculating/ })
+    // #484 Calculating… / #485 Searching x of y… — both mean quote still in flight.
+    const calculating = panel.getByRole('button', { name: /^(Calculating|Searching)/ })
     expect(await calculating.count()).toBe(0)
   }).toPass({ timeout: 120_000 })
 }

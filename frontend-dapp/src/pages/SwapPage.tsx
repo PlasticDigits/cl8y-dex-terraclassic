@@ -8,6 +8,8 @@ import {
   SIM_QUOTE_DEBOUNCE_MS,
   simQuoteRefetchInterval,
 } from '@/utils/quoteDebounce'
+import { resolveSimQuoteLoadingLabel } from '@/utils/routeSolveProgress'
+import { useRouteSolveProgress } from '@/hooks/useRouteSolveProgress'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -591,6 +593,36 @@ export default function SwapPage() {
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
 
+  const routeSolveProgressEnabled =
+    !isWrapOrUnwrap &&
+    !nativeRouteInfo &&
+    fromToken.startsWith('terra1') &&
+    toToken.startsWith('terra1') &&
+    debouncedRawInputAmount !== '0'
+
+  const {
+    progress: routeSolveProgress,
+    fetchStartedAtMs,
+    nowMs,
+  } = useRouteSolveProgress({
+    enabled: routeSolveProgressEnabled,
+    isFetching: simQuery.isFetching,
+    tokenIn: fromToken,
+    tokenOut: toToken,
+    amountIn: debouncedRawInputAmount,
+    trader: quoteTrader?.trader,
+    maxMakerFills: debouncedHybridMaxMakers,
+  })
+
+  const simLoadingLabel = resolveSimQuoteLoadingLabel(
+    simQuery.isFetching,
+    !!simQuery.data,
+    routeSolveProgress,
+    fetchStartedAtMs,
+    nowMs,
+    'Calculating...'
+  )
+
   const hybridSubmitSnapshot = useMemo(
     () => ({
       bookInputHuman: debouncedBookInputHuman,
@@ -925,7 +957,7 @@ export default function SwapPage() {
     buttonText = 'Hop spread exceeds slippage protection'
     buttonDisabled = true
   } else if (simQuery.isLoading || simQuoteStale) {
-    buttonText = 'Calculating...'
+    buttonText = simLoadingLabel
     buttonDisabled = true
   } else if (swapMutation.isPending) {
     buttonText = terraBroadcastPendingButtonLabel(swapMutation.phase, true, 'Swap', 'Swapping…')
@@ -1330,8 +1362,8 @@ export default function SwapPage() {
               </div>
               <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
                 {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) ? (
-                  <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
-                    Calculating...
+                  <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }} aria-hidden="true">
+                    {simLoadingLabel}
                   </span>
                 ) : simData && outputAmount && receiveAssetInfo ? (
                   formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
@@ -1339,6 +1371,11 @@ export default function SwapPage() {
                   <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
                 )}
               </div>
+              {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) && (
+                <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                  {simLoadingLabel}
+                </span>
+              )}
             </div>
           </div>
 

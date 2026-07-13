@@ -52,6 +52,7 @@ If `refetchInterval: 10_000` fires while that `queryFn` is still running, React 
 
 ## Follow-ups (out of scope for the UI hang fix)
 
-- Indexer: tighten hybrid search budget / cache hot distant pairs so JADE↔RUBY-class solves are routinely &lt;15s.
+- ~~Indexer: tighten hybrid search budget / cache hot distant pairs so JADE↔RUBY-class solves are routinely &lt;15s.~~ → **#485** ([`AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md`](./AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md))
+- ~~Product: live searching progress instead of static Calculating…~~ → **#485**
 - Optional: thread React Query `signal` through LCD `queryContract` / enrich+preflight fan-out.
 - Product: very small `estimated_amount_out` on thin multi-hop paths once quoting settles.

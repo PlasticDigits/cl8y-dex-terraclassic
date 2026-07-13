@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOC = ROOT / "docs/route-solver.md"
 BEST_EXEC = ROOT / "indexer/src/api/best_execution.rs"
 ROUTE_SOLVER = ROOT / "indexer/src/api/route_solver.rs"
+ROUTE_GRAPH = ROOT / "indexer/src/api/route_graph.rs"
 HYBRID_OPT = ROOT / "indexer/src/api/hybrid_route_opt.rs"
 
 
@@ -49,7 +50,7 @@ def extract_str_const(path: Path, name: str) -> str:
 def extract_duration_secs(path: Path, name: str) -> int:
     text = path.read_text()
     m = re.search(
-        rf"const {re.escape(name)}: Duration = Duration::from_secs\((\d+)\);",
+        rf"(?:pub )?const {re.escape(name)}: Duration = Duration::from_secs\((\d+)\);",
         text,
     )
     if not m:
@@ -76,6 +77,8 @@ def main() -> int:
     default_hops = extract_usize(ROUTE_SOLVER, "GET_DEFAULT_MAX_HOPS")
     pool_only_hops = extract_usize(ROUTE_SOLVER, "GET_POOL_ONLY_MAX_HOPS")
     cache_ttl = extract_duration_secs(ROUTE_SOLVER, "ROUTE_CACHE_TTL")
+    cache_ttl_distant = extract_duration_secs(ROUTE_SOLVER, "ROUTE_CACHE_TTL_DISTANT")
+    graph_cache_ttl = extract_duration_secs(ROUTE_GRAPH, "ROUTE_GRAPH_CACHE_TTL")
     cache_max = extract_usize(ROUTE_SOLVER, "ROUTE_CACHE_MAX_ENTRIES")
     amount_bucket = extract_u128(ROUTE_SOLVER, "AMOUNT_CACHE_BUCKET")
     grid_points = extract_usize(HYBRID_OPT, "GRID_POINTS")
@@ -90,7 +93,9 @@ def main() -> int:
         ("lcd_budget", [str(lcd_budget), "1700"]),
         ("default_hops", [f"GET_DEFAULT_MAX_HOPS` | {default_hops}", f"≤ {default_hops} hops"]),
         ("pool_only_hops", [f"GET_POOL_ONLY_MAX_HOPS` | {pool_only_hops}", f"max **{pool_only_hops} hops**"]),
-        ("cache_ttl", [f"{cache_ttl} s", f"{cache_ttl}s"]),
+        ("cache_ttl", [f"{cache_ttl} s", f"{cache_ttl}s", "12 s (1-hop direct)"]),
+        ("cache_ttl_distant", [f"{cache_ttl_distant} s", f"{cache_ttl_distant}s", "90 s"]),
+        ("graph_cache_ttl", [f"{graph_cache_ttl} s", f"{graph_cache_ttl}s", "ROUTE_GRAPH_CACHE_TTL"]),
         ("cache_max", [str(cache_max)]),
         ("amount_bucket", [str(amount_bucket), "1_000_000", "1000000"]),
         ("grid_points", [f"{grid_points}-point", f"({grid_points} ", f"= {grid_points}"]),

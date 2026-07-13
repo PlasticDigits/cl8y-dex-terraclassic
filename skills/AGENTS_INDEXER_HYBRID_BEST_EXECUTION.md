@@ -58,6 +58,8 @@ cd indexer && cargo test --test api_route_solve --test api_route_solve_db_hybrid
 
 Multi-path regression: `route_solve_global_picks_best_path_not_shortest`, `route_solve_global_response_metadata_contract`.
 
+Distant-pair latency + progress (#485): [`AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md`](./AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md); `make verify-issue-485`.
+
 ## Rate limits and LCD budgets ([#239](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/239))
 
 - `GET /route/solve` and `/route/solve/best` are **LCD-heavy** (stricter **10 RPS** per IP by default).
