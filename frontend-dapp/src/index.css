@@ -599,9 +599,19 @@
   }
 
   /**
-   * Sticky header + environment ribbon stack (GitLab #138, #482).
+   * Sticky header + environment ribbon stack (GitLab #138, #482, #486).
    * Opaque stack background + ribbon tint must block page copy from reading through
    * while scrolling; do not rely on translucent ribbon alone.
+   *
+   * Stacking inside this isolate context (GitLab #486):
+   * - `.app-header` and `.app-env-ribbon` each use `backdrop-filter`, so each forms its
+   *   own stacking context. Without an explicit order, the later ribbon sibling paints
+   *   over absolute `.app-menu` / `.wallet-menu` that extend below the header card.
+   * - `.app-header-shell` (z-index 2) sits above `.app-env-ribbon` (z-index 1) so open
+   *   menus remain fully visible/clickable over the ribbon band.
+   * - The whole sticky stack (`z-index: 40`) stays above main content (#482) and below
+   *   modal portals (`z-index: 200`). Prefer in-tree stacking over portaling menus.
+   * - Do not shrink/hide the content-column ribbon when menus open.
    */
   .app-top-sticky {
     position: sticky;
@@ -619,6 +629,11 @@
     position: relative;
     width: 100%;
     margin: 0;
+  }
+
+  /* Header menus extend below the card; keep the header layer above the ribbon (#486). */
+  .app-header-shell {
+    z-index: 2;
   }
 
   .app-header {
@@ -642,6 +657,9 @@
   }
 
   .app-env-ribbon {
+    position: relative;
+    /* Below `.app-header-shell` inside `.app-top-sticky` so open menus are not clipped (#486). */
+    z-index: 1;
     width: min(100% - 24px, 1180px);
     margin: 12px auto 0;
     display: flex;
@@ -959,6 +977,7 @@
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
+    /* Local to the header stacking context; header z-index > ribbon is what clears #486. */
     z-index: 45;
     display: grid;
     gap: 4px;
