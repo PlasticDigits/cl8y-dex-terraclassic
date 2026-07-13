@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CL8Y DEX — QuickSwap-inspired Blue + Gold concepts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* QuickSwap-like cool dark + CL8Y gold instead of purple */
+      --bg: #0d111c;
+      --bg-elev: #151a27;
+      --panel: #1a2030;
+      --field: #121722;
+      --line: rgba(148, 163, 184, 0.12);
+      --ink: #f1f5f9;
+      --muted: #94a3b8;
+      --blue: #448aff;
+      --blue-deep: #2979ff;
+      --gold: #e8b84a;
+      --gold-deep: #c9a227;
+      --gold-soft: #f5d76e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: #070a12;
+      color: var(--ink);
+      padding: 40px 28px 72px;
+    }
+    h1.sheet-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .sheet-sub {
+      color: var(--muted);
+      margin-bottom: 36px;
+      max-width: 760px;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+    .sheet-sub strong { color: #cbd5e1; font-weight: 600; }
+    .board {
+      margin-bottom: 48px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #0b0f18;
+    }
+    .board-label {
+      padding: 12px 18px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* —— App chrome (QuickSwap-like) —— */
+    .app {
+      width: 1180px;
+      max-width: 100%;
+      margin: 0 auto;
+      min-height: 760px;
+      background: var(--bg);
+      position: relative;
+    }
+    .app.light {
+      --bg: #f4f6fb;
+      --bg-elev: #ffffff;
+      --panel: #ffffff;
+      --field: #eef2f8;
+      --line: rgba(15, 23, 42, 0.08);
+      --ink: #0f172a;
+      --muted: #64748b;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .banner {
+      background: var(--blue);
+      color: #fff;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 16px;
+    }
+    .banner .pill {
+      display: inline-block;
+      margin-left: 8px;
+      background: #fff;
+      color: var(--blue-deep);
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .topnav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(13, 17, 28, 0.92);
+    }
+    .app.light .topnav { background: rgba(255,255,255,0.92); }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      min-width: 120px;
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #1e3a8a, #0f172a);
+      border: 1.5px solid var(--gold);
+      color: var(--gold-soft);
+      font-weight: 800;
+      font-size: 15px;
+    }
+    .app.light .brand-mark {
+      background: linear-gradient(145deg, #3b82f6, #1e3a8a);
+      color: #fff6d6;
+    }
+    .nav-pills {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: transparent;
+    }
+    .nav-pills a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: 10px;
+    }
+    .nav-pills a.active {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--ink);
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .net-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 12px 7px 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .net-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-soft), var(--gold-deep));
+    }
+    .btn-blue {
+      background: linear-gradient(180deg, #5b9bff 0%, var(--blue) 55%, var(--blue-deep) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 700;
+      font-size: 13px;
+      font-family: inherit;
+      box-shadow: 0 8px 18px rgba(41, 121, 255, 0.28);
+    }
+    .btn-gold {
+      background: linear-gradient(180deg, #f0c75e 0%, var(--gold) 55%, var(--gold-deep) 100%);
+      color: #0b1220;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 700;
+      font-size: 13px;
+      font-family: inherit;
+      box-shadow: 0 8px 18px rgba(201, 162, 39, 0.28);
+    }
+
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 36px 20px 48px;
+      gap: 16px;
+    }
+
+    /* —— Trade card —— */
+    .card {
+      width: 460px;
+      max-width: 100%;
+      background: var(--panel);
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      padding: 18px 18px 16px;
+      box-shadow: 0 18px 48px rgba(0,0,0,0.28);
+    }
+    .app.light .card { box-shadow: 0 16px 40px rgba(15,23,42,0.08); }
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 14px;
+      padding: 0 4px 8px;
+    }
+    .tabs button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 6px 0;
+      cursor: default;
+      position: relative;
+    }
+    .tabs button.active {
+      color: var(--blue);
+    }
+    .tabs button.active::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: -8px;
+      height: 2px;
+      background: var(--blue);
+      border-radius: 2px;
+    }
+    .tabs .gear {
+      margin-left: auto;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      display: grid; place-items: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .section {
+      background: var(--field);
+      border-radius: 14px;
+      padding: 14px 14px 12px;
+    }
+    .section + .section { margin-top: 8px; }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .section-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .amt {
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: rgba(148,163,184,0.55);
+    }
+    .amt.filled { color: var(--ink); }
+    .token {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(148,163,184,0.1);
+      border-radius: 999px;
+      padding: 6px 10px 6px 6px;
+      font-weight: 700;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    .token .ico {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: linear-gradient(135deg, #60a5fa, #1d4ed8);
+    }
+    .token .ico.gold {
+      background: linear-gradient(135deg, var(--gold-soft), var(--gold-deep));
+    }
+    .token-select {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 700;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .usd {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .flip {
+      width: 36px; height: 36px;
+      margin: -10px auto;
+      position: relative;
+      z-index: 1;
+      border-radius: 10px;
+      border: 3px solid var(--panel);
+      background: var(--field);
+      display: grid; place-items: center;
+      color: var(--blue);
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .cta {
+      width: 100%;
+      margin-top: 14px;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: inherit;
+      color: #fff;
+      background: linear-gradient(180deg, #5b9bff 0%, var(--blue) 55%, var(--blue-deep) 100%);
+    }
+    .cta.gold {
+      color: #0b1220;
+      background: linear-gradient(180deg, #f0c75e 0%, var(--gold) 55%, var(--gold-deep) 100%);
+    }
+
+    /* Limit-specific */
+    .rate-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--ink);
+    }
+    .rate-title .swap-ico {
+      color: var(--blue);
+      font-size: 16px;
+    }
+    .pct-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .pct {
+      background: rgba(148,163,184,0.12);
+      color: var(--muted);
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+    }
+    .pct.active {
+      color: var(--gold-deep);
+      background: rgba(232, 184, 74, 0.18);
+      outline: 1px solid rgba(232,184,74,0.35);
+    }
+    .app.dark-gold-pct .pct.active,
+    .app .pct.active { color: var(--gold); }
+    .expiry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      gap: 12px;
+    }
+    .expiry label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .expiry-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .expiry-controls input,
+    .expiry-controls select {
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--ink);
+      padding: 10px 12px;
+      font: inherit;
+      font-weight: 600;
+      width: 64px;
+    }
+    .expiry-controls select { width: 88px; }
+
+    .footnote {
+      width: 460px;
+      max-width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .footnote .brand-mini { color: var(--gold); font-weight: 700; }
+
+    /* Side-by-side compare for limit */
+    .pair-stage {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    .pair-stage .app { width: auto; min-height: 720px; }
+    .pair-stage .app + .app { border-left: 1px solid rgba(148,163,184,0.16); }
+
+    /* Logo board */
+    .logo-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 300px;
+    }
+    .logo-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px 20px;
+    }
+    .logo-cell.dark { background: #0d111c; }
+    .logo-cell.light { background: #f4f6fb; color: #0f172a; }
+    .mark {
+      width: 96px; height: 96px; border-radius: 50%;
+      display: grid; place-items: center;
+      border: 2.5px solid var(--gold);
+      background: linear-gradient(145deg, #1e3a8a, #0f172a);
+      font-size: 42px; font-weight: 800; color: var(--gold-soft);
+      box-shadow: 0 14px 32px rgba(0,0,0,0.3);
+    }
+    .logo-cell.light .mark {
+      background: linear-gradient(145deg, #3b82f6, #1e3a8a);
+      color: #fff6d6;
+    }
+    .lockup { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 28px; }
+    .lockup .m {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: grid; place-items: center;
+      border: 1.5px solid var(--gold);
+      background: linear-gradient(145deg, #1e3a8a, #0f172a);
+      color: var(--gold-soft); font-size: 18px; font-weight: 800;
+    }
+    .logo-cell.light .lockup .m {
+      background: linear-gradient(145deg, #3b82f6, #1e3a8a);
+      color: #fff6d6;
+    }
+    .lockup span { color: var(--gold); }
+    .tag { font-size: 12px; color: var(--muted); }
+
+    /* OG */
+    .og {
+      width: 1200px; height: 630px;
+      position: relative; overflow: hidden;
+      padding: 64px 72px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .og.dark {
+      background:
+        radial-gradient(ellipse 60% 70% at 100% 0%, rgba(68,138,255,0.28), transparent 50%),
+        radial-gradient(ellipse 40% 50% at 0% 100%, rgba(232,184,74,0.14), transparent 45%),
+        #0d111c;
+    }
+    .og.light {
+      background:
+        radial-gradient(ellipse 60% 70% at 100% 0%, rgba(68,138,255,0.18), transparent 50%),
+        radial-gradient(ellipse 40% 50% at 0% 100%, rgba(201,162,39,0.12), transparent 45%),
+        #f4f6fb;
+      color: #0f172a;
+    }
+    .og-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+    .og-mark {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: grid; place-items: center;
+      border: 2px solid var(--gold);
+      background: linear-gradient(145deg, #1e3a8a, #0f172a);
+      color: var(--gold-soft); font-size: 28px; font-weight: 800;
+    }
+    .og.light .og-mark {
+      background: linear-gradient(145deg, #3b82f6, #1e3a8a);
+      color: #fff6d6;
+    }
+    .og-name { font-size: 26px; font-weight: 700; }
+    .og-name span { color: var(--gold); }
+    .og h2 {
+      font-size: 56px; font-weight: 700; letter-spacing: -0.03em;
+      line-height: 1.08; max-width: 14ch; margin-bottom: 16px;
+    }
+    .og p { font-size: 20px; color: var(--muted); max-width: 38ch; line-height: 1.45; }
+    .og-chips {
+      position: absolute; right: 72px; bottom: 56px;
+      display: flex; gap: 8px;
+    }
+    .og-chips span {
+      font-size: 12px; font-weight: 600;
+      padding: 8px 12px; border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(26,32,48,0.6);
+    }
+    .og.light .og-chips span { background: #fff; color: #0f172a; }
+    .og-chips span.gold {
+      border-color: rgba(232,184,74,0.45);
+      color: var(--gold);
+      background: rgba(232,184,74,0.1);
+    }
+    .export-note { margin-top: 8px; color: #64748b; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1 class="sheet-title">CL8Y DEX — QuickSwap-inspired concepts</h1>
+  <p class="sheet-sub">
+    Feedback only (not production). Direction from review:
+    <strong>drop the brown fade</strong>, lean into
+    <strong>familiar QuickSwap-like UX</strong> — cool dark blue, simple centered trade card,
+    gold accents instead of purple. Limit orders use the intuitive
+    “When 1 X is worth…” layout with no extra explanatory copy.
+  </p>
+
+  <!-- LOGO -->
+  <div class="board" id="logo-board">
+    <div class="board-label">01 · Logo · circular mark (QuickSwap-like chrome)</div>
+    <div class="logo-row">
+      <div class="logo-cell dark">
+        <div class="mark">8</div>
+        <div class="lockup"><div class="m">8</div>CL<span>8</span>Y DEX</div>
+        <div class="tag">Dark · blue disc · gold 8 / rim</div>
+      </div>
+      <div class="logo-cell light">
+        <div class="mark">8</div>
+        <div class="lockup"><div class="m">8</div>CL<span>8</span>Y DEX</div>
+        <div class="tag">Light · same system</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SWAP DARK -->
+  <div class="board" id="swap-dark">
+    <div class="board-label">02 · Swap · Dark · centered QuickSwap-style layout</div>
+    <div class="app">
+      <div class="banner">Trade on Terra Classic with CL8Y DEX <span class="pill">NEW</span></div>
+      <header class="topnav">
+        <div class="brand"><div class="brand-mark">8</div> CL8Y DEX</div>
+        <nav class="nav-pills">
+          <a class="active" href="#">Swap</a>
+          <a href="#">Trade</a>
+          <a href="#">Pool</a>
+          <a href="#">Portfolio</a>
+          <a href="#">…</a>
+        </nav>
+        <div class="nav-right">
+          <div class="net-chip"><span class="net-dot"></span> Terra Classic</div>
+          <button class="btn-blue">Connect Wallet</button>
+        </div>
+      </header>
+      <div class="stage">
+        <div class="card">
+          <div class="tabs">
+            <button class="active">Best Trade ▾</button>
+            <button>Limit</button>
+            <button>DCA</button>
+            <div class="gear">⚙</div>
+          </div>
+          <div class="section">
+            <div class="section-head"><span>Pay:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico"></span> LUNC ▾</div>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+          <div class="flip">↓</div>
+          <div class="section">
+            <div class="section-head"><span>Receive:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <button class="token-select">Select Token</button>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+          <button class="cta">Connect Wallet</button>
+        </div>
+        <div class="footnote">
+          <span>Do Your Own Diligence</span>
+          <span class="brand-mini">CL8Y</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SWAP LIGHT -->
+  <div class="board" id="swap-light">
+    <div class="board-label">03 · Swap · Light · same familiar layout</div>
+    <div class="app light">
+      <div class="banner">Trade on Terra Classic with CL8Y DEX <span class="pill">NEW</span></div>
+      <header class="topnav">
+        <div class="brand"><div class="brand-mark">8</div> CL8Y DEX</div>
+        <nav class="nav-pills">
+          <a class="active" href="#">Swap</a>
+          <a href="#">Trade</a>
+          <a href="#">Pool</a>
+          <a href="#">Portfolio</a>
+          <a href="#">…</a>
+        </nav>
+        <div class="nav-right">
+          <div class="net-chip"><span class="net-dot"></span> Terra Classic</div>
+          <button class="btn-blue">Connect Wallet</button>
+        </div>
+      </header>
+      <div class="stage">
+        <div class="card">
+          <div class="tabs">
+            <button class="active">Best Trade ▾</button>
+            <button>Limit</button>
+            <button>DCA</button>
+            <div class="gear">⚙</div>
+          </div>
+          <div class="section">
+            <div class="section-head"><span>Pay:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico"></span> LUNC ▾</div>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+          <div class="flip">↓</div>
+          <div class="section">
+            <div class="section-head"><span>Receive:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <button class="token-select">Select Token</button>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+          <button class="cta">Connect Wallet</button>
+        </div>
+        <div class="footnote">
+          <span>Do Your Own Diligence</span>
+          <span class="brand-mini">CL8Y</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIMIT DARK -->
+  <div class="board" id="limit-dark">
+    <div class="board-label">04 · Limit · Dark · intuitive “When 1 X is worth” (no extra copy)</div>
+    <div class="app">
+      <div class="banner">Trade on Terra Classic with CL8Y DEX <span class="pill">NEW</span></div>
+      <header class="topnav">
+        <div class="brand"><div class="brand-mark">8</div> CL8Y DEX</div>
+        <nav class="nav-pills">
+          <a class="active" href="#">Swap</a>
+          <a href="#">Trade</a>
+          <a href="#">Pool</a>
+          <a href="#">Portfolio</a>
+          <a href="#">…</a>
+        </nav>
+        <div class="nav-right">
+          <div class="net-chip"><span class="net-dot"></span> Terra Classic</div>
+          <button class="btn-blue">Connect Wallet</button>
+        </div>
+      </header>
+      <div class="stage">
+        <div class="card">
+          <div class="tabs">
+            <button>Best Trade ▾</button>
+            <button class="active">Limit</button>
+            <button>DCA</button>
+            <div class="gear">⚙</div>
+          </div>
+
+          <div class="section">
+            <div class="rate-title">
+              <span>When 1 LUNC is worth</span>
+              <span class="swap-ico">⇄</span>
+            </div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico gold"></span> CL8Y ▾</div>
+            </div>
+            <div class="pct-row">
+              <button class="pct">0%</button>
+              <button class="pct active">+1%</button>
+              <button class="pct">+5%</button>
+              <button class="pct">+10%</button>
+            </div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="section">
+            <div class="section-head"><span>Pay:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico"></span> LUNC ▾</div>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+          <div class="flip">↓</div>
+          <div class="section">
+            <div class="section-head"><span>Receive:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico gold"></span> CL8Y ▾</div>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+
+          <div class="expiry">
+            <label>Expiry <span title="info">ⓘ</span></label>
+            <div class="expiry-controls">
+              <input value="7" readonly />
+              <select><option>Days</option></select>
+            </div>
+          </div>
+
+          <button class="cta">Connect Wallet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIMIT LIGHT -->
+  <div class="board" id="limit-light">
+    <div class="board-label">05 · Limit · Light · same simple flow</div>
+    <div class="app light">
+      <div class="banner">Trade on Terra Classic with CL8Y DEX <span class="pill">NEW</span></div>
+      <header class="topnav">
+        <div class="brand"><div class="brand-mark">8</div> CL8Y DEX</div>
+        <nav class="nav-pills">
+          <a class="active" href="#">Swap</a>
+          <a href="#">Trade</a>
+          <a href="#">Pool</a>
+          <a href="#">Portfolio</a>
+          <a href="#">…</a>
+        </nav>
+        <div class="nav-right">
+          <div class="net-chip"><span class="net-dot"></span> Terra Classic</div>
+          <button class="btn-blue">Connect Wallet</button>
+        </div>
+      </header>
+      <div class="stage">
+        <div class="card">
+          <div class="tabs">
+            <button>Best Trade ▾</button>
+            <button class="active">Limit</button>
+            <button>DCA</button>
+            <div class="gear">⚙</div>
+          </div>
+
+          <div class="section">
+            <div class="rate-title">
+              <span>When 1 LUNC is worth</span>
+              <span class="swap-ico">⇄</span>
+            </div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico gold"></span> CL8Y ▾</div>
+            </div>
+            <div class="pct-row">
+              <button class="pct">0%</button>
+              <button class="pct active">+1%</button>
+              <button class="pct">+5%</button>
+              <button class="pct">+10%</button>
+            </div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="section">
+            <div class="section-head"><span>Pay:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico"></span> LUNC ▾</div>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+          <div class="flip">↓</div>
+          <div class="section">
+            <div class="section-head"><span>Receive:</span><span>Balance: —</span></div>
+            <div class="section-row">
+              <div class="amt">0.00</div>
+              <div class="token"><span class="ico gold"></span> CL8Y ▾</div>
+            </div>
+            <div class="usd">$0</div>
+          </div>
+
+          <div class="expiry">
+            <label>Expiry <span title="info">ⓘ</span></label>
+            <div class="expiry-controls">
+              <input value="7" readonly />
+              <select><option>Days</option></select>
+            </div>
+          </div>
+
+          <button class="cta">Connect Wallet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accent variant: gold CTA -->
+  <div class="board" id="accent-compare">
+    <div class="board-label">06 · Accent choice · Blue CTA (QuickSwap-true) vs Gold CTA (CL8Y brand)</div>
+    <div class="pair-stage">
+      <div class="app" style="min-height:560px">
+        <div class="stage" style="padding-top:48px">
+          <div class="card">
+            <div class="tabs">
+              <button class="active">Best Trade ▾</button>
+              <button>Limit</button>
+              <div class="gear">⚙</div>
+            </div>
+            <div class="section">
+              <div class="section-head"><span>Pay:</span><span>Balance: —</span></div>
+              <div class="section-row">
+                <div class="amt filled">1,250</div>
+                <div class="token"><span class="ico"></span> LUNC ▾</div>
+              </div>
+            </div>
+            <div class="flip">↓</div>
+            <div class="section">
+              <div class="section-head"><span>Receive:</span><span>Balance: —</span></div>
+              <div class="section-row">
+                <div class="amt filled">42.18</div>
+                <div class="token"><span class="ico gold"></span> CL8Y ▾</div>
+              </div>
+            </div>
+            <button class="cta">Swap</button>
+            <p style="margin-top:12px;font-size:12px;color:#94a3b8;text-align:center">Primary actions in blue · gold only on brand / network / CL8Y token</p>
+          </div>
+        </div>
+      </div>
+      <div class="app" style="min-height:560px">
+        <div class="stage" style="padding-top:48px">
+          <div class="card">
+            <div class="tabs">
+              <button class="active">Best Trade ▾</button>
+              <button>Limit</button>
+              <div class="gear">⚙</div>
+            </div>
+            <div class="section">
+              <div class="section-head"><span>Pay:</span><span>Balance: —</span></div>
+              <div class="section-row">
+                <div class="amt filled">1,250</div>
+                <div class="token"><span class="ico"></span> LUNC ▾</div>
+              </div>
+            </div>
+            <div class="flip">↓</div>
+            <div class="section">
+              <div class="section-head"><span>Receive:</span><span>Balance: —</span></div>
+              <div class="section-row">
+                <div class="amt filled">42.18</div>
+                <div class="token"><span class="ico gold"></span> CL8Y ▾</div>
+              </div>
+            </div>
+            <button class="cta gold">Swap</button>
+            <p style="margin-top:12px;font-size:12px;color:#94a3b8;text-align:center">Primary CTA in gold · blue still used for tabs / select token</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OG -->
+  <div class="board" id="og-dark" style="width:fit-content;max-width:100%">
+    <div class="board-label">07 · Open Graph · Dark · 1200×630</div>
+    <div class="og dark">
+      <div class="og-brand">
+        <div class="og-mark">8</div>
+        <div class="og-name">CL<span>8</span>Y DEX</div>
+      </div>
+      <h2>Familiar swap UX. Cool blue. Gold accents.</h2>
+      <p>QuickSwap-simple trading for Terra Classic — no brown fade, no reinvented wheel.</p>
+      <div class="og-chips">
+        <span class="gold">Blue + Gold</span>
+        <span>Dark</span>
+        <span>Concept</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="board" id="og-light" style="width:fit-content;max-width:100%;margin-top:40px">
+    <div class="board-label">08 · Open Graph · Light · 1200×630</div>
+    <div class="og light">
+      <div class="og-brand">
+        <div class="og-mark">8</div>
+        <div class="og-name">CL<span>8</span>Y DEX</div>
+      </div>
+      <h2>Familiar swap UX. Cool blue. Gold accents.</h2>
+      <p>Same simple layout in light mode — centered card, clear Pay / Receive, intuitive Limit.</p>
+      <div class="og-chips">
+        <span class="gold">Blue + Gold</span>
+        <span>Light</span>
+        <span>Concept</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="export-note">Temporary concept board — folder <code>.tmp-brand-concepts/</code> is untracked; delete after feedback.</p>
+</body>
+</html>

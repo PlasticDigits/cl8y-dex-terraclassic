@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="rim" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B6914"/>
+      <stop offset="0.35" stop-color="#C9A227"/>
+      <stop offset="0.7" stop-color="#E8B84A"/>
+      <stop offset="1" stop-color="#F5D76E"/>
+    </linearGradient>
+    <linearGradient id="disc" x1="160" y1="120" x2="360" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DBEAFE"/>
+      <stop offset="0.4" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <linearGradient id="eight" x1="180" y1="140" x2="340" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFBEA"/>
+      <stop offset="0.45" stop-color="#F0C75E"/>
+      <stop offset="1" stop-color="#A16207"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#F3F6FB"/>
+  <circle cx="256" cy="256" r="168" fill="url(#disc)" stroke="url(#rim)" stroke-width="14"/>
+  <circle cx="256" cy="256" r="140" fill="none" stroke="#1E40AF" stroke-opacity="0.18" stroke-width="2"/>
+  <path d="M256 148c28 0 50 18 50 44 0 18-10 32-26 40 20 10 34 28 34 52 0 34-30 56-58 56s-58-22-58-56c0-24 14-42 34-52-16-8-26-22-26-40 0-26 22-44 50-44zm0 28c-12 0-22 8-22 18s10 18 22 18 22-8 22-18-10-18-22-18zm0 92c-18 0-30 12-30 28s12 28 30 28 30-12 30-28-12-28-30-28z" fill="url(#eight)"/>
+  <path d="M210 188c8-18 26-30 46-30" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="6" stroke-linecap="round"/>
+</svg>
