@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { assertSubmitHybridAligned, assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import {
+  assertSubmitHybridAligned,
+  assertSubmitQuotePayRawAligned,
+  shouldShowSimReceiveCalculating,
+  SIM_QUOTE_DEBOUNCE_MS,
+  simQuoteRefetchInterval,
+} from '@/utils/quoteDebounce'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -394,7 +400,7 @@ export default function SwapPage() {
   const simQuery = useQuery({
     queryKey: simQueryKey,
     placeholderData: keepPreviousData,
-    queryFn: async (): Promise<SwapSimData> => {
+    queryFn: async ({ signal }): Promise<SwapSimData> => {
       if (!isPositiveDecimalAmount(debouncedInputAmount)) throw new Error('Missing params')
 
       const simRaw = debouncedRawInputAmount
@@ -482,6 +488,7 @@ export default function SwapPage() {
           const idx = await getRouteSolve(fromToken, toToken, simRaw, {
             maxMakerFills: debouncedHybridMaxMakers,
             trader: quoteTrader?.trader,
+            signal,
           })
           const tin = idx.token_in.trim().toLowerCase()
           const tout = idx.token_out.trim().toLowerCase()
@@ -578,7 +585,8 @@ export default function SwapPage() {
       throw new Error('No route found')
     },
     enabled: hasRoute && isPositiveDecimalAmount(debouncedInputAmount),
-    refetchInterval: 10_000,
+    // Skip interval while fetching so slow multi-hop quotes are not cancel/restarted (#484).
+    refetchInterval: simQuoteRefetchInterval,
   })
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
@@ -1321,7 +1329,7 @@ export default function SwapPage() {
                 />
               </div>
               <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
-                {simQuery.isFetching ? (
+                {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) ? (
                   <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
                     Calculating...
                   </span>

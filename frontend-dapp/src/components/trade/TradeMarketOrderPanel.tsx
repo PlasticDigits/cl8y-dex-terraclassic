@@ -1,7 +1,12 @@
 import { useMemo, useState, useId } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { assertSubmitHybridAligned, assertSubmitQuotePayRawAligned, SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
+import {
+  assertSubmitHybridAligned,
+  assertSubmitQuotePayRawAligned,
+  SIM_QUOTE_DEBOUNCE_MS,
+  simQuoteRefetchInterval,
+} from '@/utils/quoteDebounce'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -286,7 +291,8 @@ export function TradeMarketOrderPanel({
       fromToken.startsWith('terra1') &&
       toToken.startsWith('terra1') &&
       debouncedRawInputAmount !== '0',
-    refetchInterval: 10_000,
+    // Skip interval while fetching so in-flight quotes are not cancel/restarted (#484).
+    refetchInterval: simQuoteRefetchInterval,
   })
 
   const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true

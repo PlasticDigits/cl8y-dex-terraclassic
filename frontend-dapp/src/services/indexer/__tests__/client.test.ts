@@ -372,3 +372,27 @@ describe('indexer client fetchTraderHistoryCsv (GitLab #479)', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('indexer route/solve timeouts and AbortSignal (#484)', () => {
+  it('exports a longer route-solve timeout than the default indexer fetch timeout', async () => {
+    const client = await loadModule()
+    expect(client.INDEXER_ROUTE_SOLVE_TIMEOUT_MS).toBeGreaterThan(client.INDEXER_FETCH_TIMEOUT_MS)
+  })
+
+  it('aborts getRouteSolve when the caller signal aborts without retrying', async () => {
+    const ac = new AbortController()
+    vi.mocked(fetch).mockImplementation(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          })
+        })
+    )
+    const client = await loadModule()
+    const pending = client.getRouteSolve('terra1a', 'terra1b', '1000', { signal: ac.signal })
+    ac.abort()
+    await expect(pending).rejects.toThrow(/abort/i)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})

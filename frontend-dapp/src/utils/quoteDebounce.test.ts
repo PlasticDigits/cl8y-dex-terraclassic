@@ -5,7 +5,30 @@ import {
   buildSubmitAlignedSimPayload,
   isSubmitQuoteStale,
   isSimQuoteStaleForSubmit,
+  shouldShowSimReceiveCalculating,
+  simQuoteRefetchInterval,
+  SIM_QUOTE_REFETCH_INTERVAL_MS,
 } from './quoteDebounce'
+
+describe('simQuoteRefetchInterval (#484)', () => {
+  it('returns false while a fetch is in flight so overlapping cancel/restart cannot pile up', () => {
+    expect(simQuoteRefetchInterval({ state: { fetchStatus: 'fetching' } })).toBe(false)
+  })
+
+  it('returns the standard interval when idle or paused', () => {
+    expect(simQuoteRefetchInterval({ state: { fetchStatus: 'idle' } })).toBe(SIM_QUOTE_REFETCH_INTERVAL_MS)
+    expect(simQuoteRefetchInterval({ state: { fetchStatus: 'paused' } })).toBe(SIM_QUOTE_REFETCH_INTERVAL_MS)
+  })
+})
+
+describe('shouldShowSimReceiveCalculating (#484)', () => {
+  it('shows Calculating only when fetching and no settled quote exists', () => {
+    expect(shouldShowSimReceiveCalculating(true, false)).toBe(true)
+    expect(shouldShowSimReceiveCalculating(true, true)).toBe(false)
+    expect(shouldShowSimReceiveCalculating(false, false)).toBe(false)
+    expect(shouldShowSimReceiveCalculating(false, true)).toBe(false)
+  })
+})
 
 describe('isSubmitQuoteStale', () => {
   it('is stale when live raw differs from debounced key', () => {
