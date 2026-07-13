@@ -382,11 +382,15 @@ export default function TradePage() {
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
+        <h1
+          className="text-lg font-bold uppercase tracking-wider font-heading"
+          style={{ color: 'var(--ink)' }}
+          data-testid="trade-page-heading"
+        >
           Trade
         </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
-          Order book, chart, tape, and limit plus market tickets — indexer book reads proxy LCD (paginated depth).
+        <p className="text-sm mt-1 max-w-3xl" style={{ color: 'var(--ink-dim)' }} data-testid="trade-page-subtitle">
+          Order book, chart, tape, and limit plus market tickets. Indexer book reads proxy LCD (paginated depth).
         </p>
       </div>
 

@@ -39,9 +39,10 @@ function appendMintIfNeeded(items: NavItem[], options?: NavMenuOptions): NavItem
  * Between **768px** and **this − 1**, Pool/Limits/Trade/Charts fold into the header **More** menu
  * so mid-range tablets avoid a cramped single row ([GitLab #136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)).
  *
- * Raised from 1024 → 1120 after follow-up: full primary row still overlapped wallet/controls at ~1024–1098px.
+ * Raised from 1024 → 1120 after follow-up (full primary row still overlapped wallet/controls at ~1024–1098px),
+ * then 1120 → 1200 so More vs theme/wallet keeps ≥ ~8px after theme moved into the header ([GitLab #483](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)).
  */
-export const HEADER_FULL_NAV_MIN_WIDTH_PX = 1120
+export const HEADER_FULL_NAV_MIN_WIDTH_PX = 1200
 
 /** Last viewport width (px) that uses tablet-compact header nav (Swap + More inline). */
 export const TABLET_COMPACT_HEADER_MAX_WIDTH_PX = HEADER_FULL_NAV_MIN_WIDTH_PX - 1

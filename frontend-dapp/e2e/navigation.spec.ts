@@ -74,8 +74,8 @@ test.describe('Full desktop header nav', () => {
     }
   })
 
-  test('primary links plus More have no horizontal overlap at full-desktop lower bound (1120px)', async ({ page }) => {
-    await page.setViewportSize({ width: 1120, height: 800 })
+  test('primary links plus More have no horizontal overlap at full-desktop lower bound (1200px)', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 })
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
@@ -101,6 +101,154 @@ test.describe('Full desktop header nav', () => {
       ).toBeLessThanOrEqual(nextLeft + epsilon)
     }
   })
+})
+
+/** Minimum gap (px) between last desktop nav control and theme group (GitLab #483). */
+const HEADER_NAV_TO_THEME_MIN_GAP_PX = 8
+/** Minimum gap (px) between header card bottom and environment ribbon top (GitLab #482). */
+const HEADER_TO_RIBBON_MIN_GAP_PX = 8
+/** Minimum gap (px) between ribbon bottom and Trade H1 at scrollY=0 (GitLab #482). */
+const RIBBON_TO_TRADE_H1_MIN_GAP_PX = 16
+
+test.describe('Sticky shell seam & ribbon opacity (GitLab #482)', () => {
+  test('header card and environment ribbon keep a clear vertical seam', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    const header = page.locator('.app-header')
+    const ribbon = page.locator('.app-env-ribbon')
+    await expect(ribbon).toBeVisible()
+
+    const headerBox = await header.boundingBox()
+    const ribbonBox = await ribbon.boundingBox()
+    expect(headerBox).not.toBeNull()
+    expect(ribbonBox).not.toBeNull()
+    expect(ribbonBox!.y - (headerBox!.y + headerBox!.height)).toBeGreaterThanOrEqual(HEADER_TO_RIBBON_MIN_GAP_PX)
+  })
+
+  test('Trade H1 clears the ribbon at scrollY=0; subtitle does not bleed through after scroll', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+
+    const ribbon = page.locator('.app-env-ribbon')
+    const heading = page.getByTestId('trade-page-heading')
+    const subtitle = page.getByTestId('trade-page-subtitle')
+    await expect(heading).toBeVisible()
+
+    const ribbonBox = await ribbon.boundingBox()
+    const headingBox = await heading.boundingBox()
+    expect(ribbonBox).not.toBeNull()
+    expect(headingBox).not.toBeNull()
+    expect(headingBox!.y - (ribbonBox!.y + ribbonBox!.height)).toBeGreaterThanOrEqual(RIBBON_TO_TRADE_H1_MIN_GAP_PX)
+
+    // Scroll until the subtitle center sits in the ribbon's vertical band, then confirm the sticky
+    // stack (not page copy) owns hit-testing — opaque stack bg + ribbon tint block bleed-through.
+    await page.evaluate(() => {
+      const ribbonEl = document.querySelector('.app-env-ribbon')
+      const subtitleEl = document.querySelector('[data-testid="trade-page-subtitle"]')
+      if (!(ribbonEl instanceof HTMLElement) || !(subtitleEl instanceof HTMLElement)) return
+      const r = ribbonEl.getBoundingClientRect()
+      const s = subtitleEl.getBoundingClientRect()
+      window.scrollBy(0, s.top + s.height / 2 - (r.top + r.height / 2))
+    })
+    await page.waitForTimeout(50)
+
+    const hitSticky = await page.evaluate(() => {
+      const ribbonEl = document.querySelector('.app-env-ribbon')
+      if (!(ribbonEl instanceof HTMLElement)) return false
+      const r = ribbonEl.getBoundingClientRect()
+      const el = document.elementFromPoint(r.left + Math.min(r.width / 2, 120), r.top + r.height / 2)
+      return Boolean(el?.closest('.app-top-sticky'))
+    })
+    expect(hitSticky).toBe(true)
+    await expect(subtitle).toBeAttached()
+  })
+
+  test('mainnet-length ribbon copy keeps label/detail readable without overlapping the header', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    const ribbon = page.locator('.app-env-ribbon')
+    const label = ribbon.locator('.app-env-ribbon-label')
+    const detail = ribbon.locator('.app-env-ribbon-detail')
+    await ribbon.evaluate((el) => {
+      el.classList.remove('app-env-ribbon--local', 'app-env-ribbon--testnet')
+      el.classList.add('app-env-ribbon--mainnet')
+    })
+    await label.evaluate((el) => {
+      el.textContent = 'Mainnet'
+    })
+    await detail.evaluate((el) => {
+      el.textContent = 'Terra Classic · columbus-5 · real assets'
+    })
+
+    const headerBox = await page.locator('.app-header').boundingBox()
+    const ribbonBox = await ribbon.boundingBox()
+    const labelBox = await label.boundingBox()
+    const detailBox = await detail.boundingBox()
+    expect(headerBox).not.toBeNull()
+    expect(ribbonBox).not.toBeNull()
+    expect(labelBox).not.toBeNull()
+    expect(detailBox).not.toBeNull()
+    expect(ribbonBox!.y - (headerBox!.y + headerBox!.height)).toBeGreaterThanOrEqual(HEADER_TO_RIBBON_MIN_GAP_PX)
+    // Label and detail share a row or wrap cleanly — no vertical overlap of the two text boxes.
+    const sameRow = Math.abs(labelBox!.y - detailBox!.y) < 4
+    if (sameRow) {
+      expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(detailBox!.x + 2)
+    } else {
+      expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(detailBox!.y + 2)
+    }
+  })
+})
+
+test.describe('Header nav → controls gap (GitLab #483)', () => {
+  for (const width of [1200, 1280, 1440] as const) {
+    test(`More and theme group keep ≥ ${HEADER_NAV_TO_THEME_MIN_GAP_PX}px gap at ${width}px (disconnected)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/')
+      await page.waitForLoadState('networkidle')
+
+      const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+      const more = nav.getByRole('button', { name: 'More' })
+      const themeGroup = page.locator('.app-header-theme-group')
+      await expect(themeGroup).toBeVisible()
+      await expect(page.locator('header.app-header-shell .network-badge')).toHaveCount(0)
+
+      const moreBox = await more.boundingBox()
+      const themeBox = await themeGroup.boundingBox()
+      expect(moreBox).not.toBeNull()
+      expect(themeBox).not.toBeNull()
+      expect(themeBox!.x - (moreBox!.x + moreBox!.width)).toBeGreaterThanOrEqual(HEADER_NAV_TO_THEME_MIN_GAP_PX)
+    })
+
+    test(`More and theme group keep ≥ ${HEADER_NAV_TO_THEME_MIN_GAP_PX}px gap at ${width}px (wallet connected)`, async ({
+      page,
+      connectWallet,
+    }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await connectWallet
+
+      const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+      const more = nav.getByRole('button', { name: 'More' })
+      const themeGroup = page.locator('.app-header-theme-group')
+      const wallet = headerConnectedWalletButton(page)
+      await expect(themeGroup).toBeVisible()
+
+      const moreBox = await more.boundingBox()
+      const themeBox = await themeGroup.boundingBox()
+      const walletBox = await wallet.boundingBox()
+      expect(moreBox).not.toBeNull()
+      expect(themeBox).not.toBeNull()
+      expect(walletBox).not.toBeNull()
+      expect(themeBox!.x - (moreBox!.x + moreBox!.width)).toBeGreaterThanOrEqual(HEADER_NAV_TO_THEME_MIN_GAP_PX)
+      expect(walletBox!.x - (themeBox!.x + themeBox!.width)).toBeGreaterThanOrEqual(0)
+    })
+  }
 })
 
 test.describe('Navigation', () => {

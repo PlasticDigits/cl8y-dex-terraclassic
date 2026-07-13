@@ -598,11 +598,19 @@
     padding-bottom: 110px;
   }
 
+  /**
+   * Sticky header + environment ribbon stack (GitLab #138, #482).
+   * Opaque stack background + ribbon tint must block page copy from reading through
+   * while scrolling; do not rely on translucent ribbon alone.
+   */
   .app-top-sticky {
     position: sticky;
     top: 0;
     z-index: 40;
     width: 100%;
+    background: var(--bg-0);
+    isolation: isolate;
+    padding-bottom: 4px;
   }
 
   .app-header-shell,
@@ -619,38 +627,45 @@
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 20px;
+    /* Keep ≥ ~8px visual air between nav column and controls (GitLab #483). */
+    column-gap: 24px;
+    row-gap: 12px;
     padding: 14px 18px;
     border: 1px solid var(--line);
     border-radius: 22px;
     background: var(--panel-bg);
     backdrop-filter: blur(24px);
+    /* Soft side/top presence; avoid a deep bottom bloom that eats the ribbon seam (#482). */
     box-shadow:
-      0 24px 80px rgba(0, 0, 0, 0.34),
+      0 10px 28px rgba(0, 0, 0, 0.22),
       inset 0 1px 0 rgba(255, 244, 222, 0.15);
   }
 
   .app-env-ribbon {
     width: min(100% - 24px, 1180px);
-    margin: 6px auto 0;
+    margin: 12px auto 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 14px;
-    padding: 8px 14px;
+    padding: 10px 14px;
+    line-height: 1.45;
     border-radius: 16px;
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid var(--line);
+    /* Panel base under the network tint so scrolled page text cannot bleed through (#482). */
+    backdrop-filter: blur(18px);
   }
 
   .app-env-ribbon-label {
     flex-shrink: 0;
-    padding: 2px 9px;
+    padding: 4px 9px;
     border-radius: 999px;
     font-size: 0.65rem;
+    line-height: 1.35;
   }
 
   .app-env-ribbon-detail {
@@ -659,40 +674,57 @@
     font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: none;
+    line-height: 1.45;
     color: var(--ink-dim);
   }
 
   .app-env-ribbon--local {
-    background: rgba(52, 211, 153, 0.08);
-    border-color: rgba(52, 211, 153, 0.22);
+    background: linear-gradient(180deg, rgba(52, 211, 153, 0.22), rgba(52, 211, 153, 0.14)), var(--panel-bg);
+    border-color: rgba(52, 211, 153, 0.28);
     color: var(--mint-soft);
   }
 
   .app-env-ribbon--local .app-env-ribbon-label {
-    background: rgba(52, 211, 153, 0.16);
+    background: rgba(52, 211, 153, 0.22);
     color: var(--mint-soft);
   }
 
   .app-env-ribbon--testnet {
-    background: rgba(251, 191, 36, 0.1);
-    border-color: rgba(251, 191, 36, 0.28);
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.24), rgba(251, 191, 36, 0.14)), var(--panel-bg);
+    border-color: rgba(251, 191, 36, 0.32);
     color: #fcd34d;
   }
 
   .app-env-ribbon--testnet .app-env-ribbon-label {
-    background: rgba(251, 191, 36, 0.2);
+    background: rgba(251, 191, 36, 0.28);
     color: #fef3c7;
   }
 
   .app-env-ribbon--mainnet {
-    background: rgba(248, 113, 113, 0.1);
-    border-color: rgba(248, 113, 113, 0.28);
+    background: linear-gradient(180deg, rgba(248, 113, 113, 0.26), rgba(248, 113, 113, 0.16)), var(--panel-bg);
+    border-color: rgba(248, 113, 113, 0.34);
     color: #fecaca;
   }
 
   .app-env-ribbon--mainnet .app-env-ribbon-label {
-    background: rgba(248, 113, 113, 0.2);
+    background: rgba(248, 113, 113, 0.28);
     color: #fff;
+  }
+
+  :root[data-theme='light'] .app-env-ribbon--testnet {
+    color: #92400e;
+  }
+
+  :root[data-theme='light'] .app-env-ribbon--testnet .app-env-ribbon-label {
+    color: #78350f;
+  }
+
+  :root[data-theme='light'] .app-env-ribbon--mainnet {
+    color: #9f1239;
+  }
+
+  :root[data-theme='light'] .app-env-ribbon--mainnet .app-env-ribbon-label {
+    color: #7f1d1d;
   }
 
   .app-mobile-legal-strip {
@@ -796,7 +828,7 @@
     align-items: center;
   }
 
-  /* Tablet compact header (768–1119px): fewer inline links — see Layout + HEADER_FULL_NAV_MIN_WIDTH_PX (GitLab #136). */
+  /* Tablet compact header (768–1199px): fewer inline links — see Layout + HEADER_FULL_NAV_MIN_WIDTH_PX (GitLab #136, #483). */
   .app-desktop-nav {
     justify-content: center;
     gap: 10px;
@@ -811,6 +843,9 @@
   .app-header-controls {
     justify-content: flex-end;
     gap: 10px;
+    /* Extra air from the nav column at full-desktop density (GitLab #483). */
+    margin-inline-start: 4px;
+    min-width: 0;
   }
 
   .app-nav-link,
@@ -1059,8 +1094,13 @@
     object-fit: contain;
   }
 
+  /**
+   * Clearance below sticky header + ribbon so page H1/subtitle start below the stack
+   * at scrollY=0 (GitLab #482). Not a measured sticky height — keep in sync with
+   * ribbon margin/padding when adjusting shell density.
+   */
   .app-main-shell {
-    padding: 44px 0 0;
+    padding: 52px 0 0;
   }
 
   .app-main {
@@ -1631,7 +1671,7 @@ input[type='number'] {
   }
 
   .app-main-shell {
-    padding-top: 54px;
+    padding-top: 64px;
   }
 
   /**
