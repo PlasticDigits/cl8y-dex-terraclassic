@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures/dev-wallet'
 import { DESKTOP_HEADER_NAV_ROW_LABELS, TABLET_COMPACT_HEADER_NAV_ROW_LABELS } from '../src/components/common/navItems'
 import { clickDesktopMoreNavItem } from './helpers/desktop-more-nav'
@@ -249,6 +250,97 @@ test.describe('Header nav → controls gap (GitLab #483)', () => {
       expect(walletBox!.x - (themeBox!.x + themeBox!.width)).toBeGreaterThanOrEqual(0)
     })
   }
+})
+
+/**
+ * Open desktop header dropdowns must paint above `.app-env-ribbon` inside `.app-top-sticky`
+ * (GitLab #486). Both header card and ribbon use `backdrop-filter` (each a stacking context);
+ * without an explicit header>ribbon z-order, the later ribbon sibling occludes protruding menus.
+ * Probe the geometric intersection — menu top alone often clears the ribbon band.
+ */
+async function assertMenuPaintsAboveRibbon(page: Page, menuSelector: string) {
+  const hit = await page.evaluate((selector) => {
+    const menu = document.querySelector(selector)
+    const ribbon = document.querySelector('.app-env-ribbon')
+    if (!(menu instanceof HTMLElement) || !(ribbon instanceof HTMLElement)) {
+      return { ok: false as const, reason: 'missing-elements' as const }
+    }
+    const m = menu.getBoundingClientRect()
+    const r = ribbon.getBoundingClientRect()
+    const overlapTop = Math.max(m.top, r.top)
+    const overlapBottom = Math.min(m.bottom, r.bottom)
+    const verticallyOverlapsRibbon = overlapBottom - overlapTop > 4
+    if (!verticallyOverlapsRibbon) {
+      return {
+        ok: true as const,
+        verticallyOverlapsRibbon: false,
+        hitsMenu: false,
+        hitsRibbon: false,
+        className: null as string | null,
+      }
+    }
+    // Mid-overlap sample: where the ribbon historically cut through menu chrome / first items.
+    const x = m.left + Math.min(Math.max(m.width / 2, 24), m.width - 8)
+    const y = overlapTop + (overlapBottom - overlapTop) / 2
+    const el = document.elementFromPoint(x, y)
+    return {
+      ok: true as const,
+      verticallyOverlapsRibbon: true,
+      hitsMenu: Boolean(el?.closest(selector)),
+      hitsRibbon: Boolean(el?.closest('.app-env-ribbon')),
+      className: el instanceof HTMLElement ? el.className : null,
+      x,
+      y,
+    }
+  }, menuSelector)
+
+  expect(hit.ok, 'menu and ribbon must be present').toBe(true)
+  if (!hit.ok) return
+  expect(hit.verticallyOverlapsRibbon, 'open menu should extend into the ribbon band').toBe(true)
+  expect(hit.hitsRibbon, `ribbon must not own hit-testing in overlap (got ${hit.className})`).toBe(false)
+  expect(hit.hitsMenu, `menu must own hit-testing in overlap (got ${hit.className})`).toBe(true)
+}
+
+test.describe('Header menus above EnvironmentRibbon (GitLab #486)', () => {
+  test('desktop More menu is fully above the ribbon and clickable', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+    await nav.getByRole('button', { name: 'More' }).click()
+    const menu = page.locator('header.app-header-shell .app-menu')
+    await expect(menu).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Protocol' })).toBeVisible()
+
+    await assertMenuPaintsAboveRibbon(page, 'header.app-header-shell .app-menu')
+
+    // First item must remain a live target (no dead zone under the ribbon).
+    await page.getByRole('menuitem', { name: 'Protocol' }).click()
+    await expect(page).toHaveURL(/\/protocol/)
+  })
+
+  test('tablet compact More menu clears the ribbon', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 800 })
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
+    await nav.getByRole('button', { name: 'More' }).click()
+    await expect(page.locator('header.app-header-shell .app-menu')).toBeVisible()
+    await assertMenuPaintsAboveRibbon(page, 'header.app-header-shell .app-menu')
+  })
+
+  test('connected wallet dropdown clears the ribbon', async ({ page, connectWallet }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await connectWallet
+
+    await headerConnectedWalletButton(page).click()
+    const menu = page.locator('header.app-header-shell .wallet-menu')
+    await expect(menu).toBeVisible()
+    await assertMenuPaintsAboveRibbon(page, 'header.app-header-shell .wallet-menu')
+    await expect(page.getByTestId('wallet-menu-copy-address')).toBeVisible()
+  })
 })
 
 test.describe('Navigation', () => {

@@ -21,7 +21,8 @@ Use when changing **`WalletButton.tsx`**, **`WalletDropdownMenuItems.tsx`**, **`
 3. **Visible without opening the menu:** desktop (`sm+`) and mobile chip triggers must include **`WalletLuncBalance`**; the dropdown header repeats balance + **`AddressRow`** (full bech32 + inline copy/explorer).
 4. **Network on trigger ([#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) — done):** use [`WalletChipNetworkIndicator.tsx`](../frontend-dapp/src/components/wallet/WalletChipNetworkIndicator.tsx) + `getNetworkBadgeCopy()` — logo at all widths, **`shortLabel` text from `sm:`** only. Mobile: balance + truncated address on chip; labeled copy/explorer/switch rows stay in the menu ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)). `data-testid="wallet-network-short-label"`.
 5. **Menu dismiss + Escape ([#187](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187) — done):** when open, render **`app-menu-dismiss`** and register **`Escape`** on `window` only while `showDropdown` is true.
-6. **Dropdown menu rows ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — done):**
+6. **Dropdown above EnvironmentRibbon ([#486](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/486)):** `.wallet-menu` shares sticky-stack stacking with More — keep `.app-header-shell` above `.app-env-ribbon` inside `.app-top-sticky`. See [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md).
+7. **Dropdown menu rows ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — done):**
    - **Copy address** — `CopyButton` with `menuLabel="Copy address"`.
    - **View on explorer** — `getExplorerAddressUrl`; hide when `null`.
    - **Switch wallet** — `disconnect()` then `setWalletModalOpen(true)`; portal `WalletModal` while connected.
@@ -33,6 +34,6 @@ Use when changing **`WalletButton.tsx`**, **`WalletDropdownMenuItems.tsx`**, **`
 - Clipboard primitive: [`AGENTS_FRONTEND_COPY_BUTTON.md`](./AGENTS_FRONTEND_COPY_BUTTON.md) ([GitLab **#183**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/183))
 - Explorer URL helpers: [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md) ([GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184))
 - Connect modal: [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md)
-- Responsive header shell: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
+- Responsive header shell (menu stacking **#486**): [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
 - Native gas gates (same balance hook): [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
 - Keyboard focus: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
