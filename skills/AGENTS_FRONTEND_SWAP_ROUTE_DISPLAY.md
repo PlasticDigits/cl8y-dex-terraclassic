@@ -38,6 +38,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | **Swap direct hybrid quote ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418))** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `useHybridBook` default **on**; manual book leg uses same `quoteDirectHybridSwap` helper; removed `receiveQuoteIsPoolOnlyWithConfiguredBookLeg` mismatch UI |
 | **Shared hybrid quote helper** | [`directHybridQuote.ts`](../frontend-dapp/src/utils/directHybridQuote.ts) — `quoteDirectHybridSwap`, `quoteDisclosureForIndexerKind`, `DIRECT_HYBRID_AMOUNT_RECONCILED_COPY` |
 | **Quote debounce ([#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346))** | Swap + Trade market sim queries debounce pay amount and hybrid book leg (**350ms**, `useDebouncedValue`) and use `placeholderData: keepPreviousData` — see [`quoteDebounce.ts`](../frontend-dapp/src/utils/quoteDebounce.ts) |
+| **Sim refetch / Calculating hang ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484))** | Use [`simQuoteRefetchInterval`](../frontend-dapp/src/utils/quoteDebounce.ts) (skip while `fetchStatus === 'fetching'`). Swap receive uses [`shouldShowSimReceiveCalculating`](../frontend-dapp/src/utils/quoteDebounce.ts) so background refetch keeps the prior amount. Indexer `getRouteSolve` uses a longer timeout + React Query `signal`. Full checklist: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md). |
 | **Submit–quote alignment ([#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356), [#360](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/360))** | When submit is allowed, on-chain pay raw, `minReceived`, `indexerOperations`, hybrid params (`book_input`, `max_maker_fills`), and route display all come from one debounced snapshot via [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) + [`buildSubmitAlignedSimPayload`](../frontend-dapp/src/utils/quoteDebounce.ts). Submit stays disabled while typed raw ≠ debounced key, live book leg ≠ debounced book leg, live max makers ≠ snapshotted max makers, placeholder data is shown, or `simQuery.isFetching` for the active key. |
 | **Trade market** submit (must stay in sync with display) | Same file — `swapMutation` → `swapOpsRequireRouter` / `executeMultiHopSwap` or pair `swap` with hybrid; consumes `submitPayRaw` + matching `simData` from `useSubmitAlignedSimQuote` |
 
@@ -54,12 +55,14 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 ## Docs cross-links
 
+- **Sim quote refetch / Calculating hang (#484):** [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md).
 - **Hybrid book leg amount input (no raw `BigInt` errors):** [GitLab **#169**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169), [`AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md`](./AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md).
 - [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) — frontend invariant **#6** (route preview) and price-impact context (**#134**).
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md#frontend-expectations-read-path) — indexer `router_operations` vs LCD spread preflight; GET `/route/solve` hybrid default ([GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)).
 - [`docs/security-model.md`](../docs/security-model.md#off-chain-trust-boundaries-frontend) — indexer MITM / compromised route risks ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
 - [`docs/frontend.md`](../docs/frontend.md#swap-page-integration) — Swap page integration.
 - [`docs/frontend.md`](../docs/frontend.md#trade-page-market-context) — Trade market ticket + route preview (**#302**).
+- [`docs/frontend.md`](../docs/frontend.md#submit-quote-alignment--calculating-ux) — submit–quote alignment + Calculating UX (#356, #360, #484).
 
 ## Regression checklist (manual)
 
@@ -90,13 +93,14 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 13. **Swap hybrid book skew (#360):** Settings → **Advanced** → enable limit book leg, pay `10`, book `2`, wait for quote, change book to `5` → Swap stays **Calculating…** / disabled until debounced book quote settles.
 14. **Swap on-chain match:** With settled quote at amount A, submit → on-chain pay matches displayed quote amount (tx / balance).
 15. **Trade market:** Repeat (12–13) on `/trade/:pairAddr` Market tab with hybrid on.
-16. **Refetch guard:** With stable amount, during 10s sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes.
+16. **Refetch guard (#356 + #484):** With stable amount, during background sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes. Receive field keeps the prior amount (`shouldShowSimReceiveCalculating`); must **not** pulse Calculating forever. Interval must use `simQuoteRefetchInterval` (no cancel/restart while still fetching).
 17. **Max makers (#360):** With stable pay/book, change max maker fills → submit disabled until new sim settles.
+18. **Slow multihop (#484):** CW20 path with expensive indexer solve — quote settles or shows **Quote unavailable**; never infinite Calculating from overlapping 10s refetches.
 
 ### On-chain route alignment (SEC-E07 / GitLab #428)
 
-18. **Automated:** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-route-alignment-tx.spec.ts --project=e2e-tx` — direct dual-CW20 swap (1 wasm hop) and multihop CORAL→IRON (≥2 hops); asserts UI route symbols match tx `offer_asset`/`ask_asset` sequence; no duplicate segments.
-19. **Manual (optional):** After a multihop quote on `/`, note `swap-route-summary` tokens, submit, and compare LCD tx wasm `swap` events — same hop count and symbols.
+19. **Automated:** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-route-alignment-tx.spec.ts --project=e2e-tx` — direct dual-CW20 swap (1 wasm hop) and multihop CORAL→IRON (≥2 hops); asserts UI route symbols match tx `offer_asset`/`ask_asset` sequence; no duplicate segments.
+20. **Manual (optional):** After a multihop quote on `/`, note `swap-route-summary` tokens, submit, and compare LCD tx wasm `swap` events — same hop count and symbols.
 
 ## Closed scope (GitLab #302 / #329)
 

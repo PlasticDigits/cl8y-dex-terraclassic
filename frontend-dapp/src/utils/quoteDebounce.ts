@@ -1,6 +1,35 @@
 /** Debounce before swap / market sim queries fire (GitLab #346). */
 export const SIM_QUOTE_DEBOUNCE_MS = 350
 
+/**
+ * Periodic sim refresh interval (Swap + Trade market).
+ * Must be paired with {@link simQuoteRefetchInterval} — a bare `10_000` lets React Query's
+ * default `cancelRefetch` abort in-flight quotes every 10s, which never settles for slow
+ * multi-hop indexer solves (GitLab #484).
+ */
+export const SIM_QUOTE_REFETCH_INTERVAL_MS = 10_000
+
+/**
+ * `refetchInterval` callback for sim quotes: skip scheduling while a fetch is in flight so a
+ * slow `queryFn` (indexer route solve + LCD enrich/sim/preflight) can finish instead of being
+ * cancelled and restarted (GitLab #484).
+ */
+export function simQuoteRefetchInterval(query: {
+  state: { fetchStatus: 'fetching' | 'paused' | 'idle' }
+}): number | false {
+  if (query.state.fetchStatus === 'fetching') return false
+  return SIM_QUOTE_REFETCH_INTERVAL_MS
+}
+
+/**
+ * Receive-field "Calculating..." gate: show only when no settled quote is available yet.
+ * Background refetch keeps the prior amount visible (`keepPreviousData`); submit stays blocked
+ * via {@link isSubmitQuoteStale} / `isFetching` (GitLab #356, #484).
+ */
+export function shouldShowSimReceiveCalculating(isFetching: boolean, hasSettledQuote: boolean): boolean {
+  return isFetching && !hasSettledQuote
+}
+
 export type SubmitHybridSnapshot = {
   bookInputHuman: string
   hybridMaxMakers: number

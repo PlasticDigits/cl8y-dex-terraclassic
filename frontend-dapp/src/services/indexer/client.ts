@@ -35,6 +35,12 @@ function pathSegment(value: string | number): string {
 }
 
 const FETCH_TIMEOUT_MS = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 4_000 : 15_000
+/**
+ * Distant CW20 pairs (e.g. JADE→RUBY) can take 20–30s+ on production hybrid `global_v1`
+ * solves. The default 15s timeout aborts mid-solve and forces a slow client BFS fallback
+ * while React Query still shows Calculating (GitLab #484).
+ */
+const ROUTE_SOLVE_TIMEOUT_MS = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 4_000 : 45_000
 const MAX_RETRIES = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 0 : 1
 
 /**
@@ -45,20 +51,63 @@ const MAX_RETRIES = import.meta.env.VITE_E2E_INDEXER_OUTAGE === '1' ? 0 : 1
  */
 export const TRADER_HISTORY_CSV_MAX_LIMIT = 200
 
+/** Exported for unit tests — default indexer HTTP timeout (ms). */
+export const INDEXER_FETCH_TIMEOUT_MS = FETCH_TIMEOUT_MS
+/** Exported for unit tests — GET/POST `/route/solve` timeout (ms). */
+export const INDEXER_ROUTE_SOLVE_TIMEOUT_MS = ROUTE_SOLVE_TIMEOUT_MS
+
+type IndexerFetchInit = RequestInit & {
+  /** Override per-request timeout (defaults to {@link FETCH_TIMEOUT_MS}). */
+  timeoutMs?: number
+}
+
 function isRetryableFetchError(err: Error): boolean {
   return err.name === 'AbortError' || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')
 }
 
+/**
+ * Combine a caller AbortSignal (e.g. React Query) with a timeout AbortController.
+ * Either abort source cancels the in-flight fetch (#484).
+ */
+function mergeTimeoutSignal(
+  timeoutMs: number,
+  external?: AbortSignal | null
+): { signal: AbortSignal; cleanup: () => void } {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const onExternalAbort = () => controller.abort()
+  if (external) {
+    if (external.aborted) {
+      controller.abort()
+    } else {
+      external.addEventListener('abort', onExternalAbort)
+    }
+  }
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer)
+      external?.removeEventListener('abort', onExternalAbort)
+    },
+  }
+}
+
 /** Shared timed fetch with one network/timeout retry (parity for JSON + CSV). */
-async function fetchText(path: string, init?: RequestInit): Promise<string> {
+async function fetchText(path: string, init?: IndexerFetchInit): Promise<string> {
+  const { timeoutMs = FETCH_TIMEOUT_MS, signal: externalSignal, ...rest } = init ?? {}
   let lastError: Error | undefined
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    // Do not retry when the caller (React Query) cancelled the quote — only timeout/network.
+    if (externalSignal?.aborted) {
+      throw externalSignal.reason instanceof Error
+        ? externalSignal.reason
+        : new DOMException('The operation was aborted.', 'AbortError')
+    }
+    const { signal, cleanup } = mergeTimeoutSignal(timeoutMs, externalSignal)
     try {
       const resp = await fetch(`${INDEXER_URL}${path}`, {
-        ...init,
-        signal: controller.signal,
+        ...rest,
+        signal,
       })
       if (!resp.ok) {
         throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
@@ -66,15 +115,16 @@ async function fetchText(path: string, init?: RequestInit): Promise<string> {
       return await resp.text()
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
+      if (externalSignal?.aborted) throw lastError
       if (!isRetryableFetchError(lastError) || attempt >= MAX_RETRIES) throw lastError
     } finally {
-      clearTimeout(timer)
+      cleanup()
     }
   }
   throw lastError!
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+async function fetchJson<T>(path: string, init?: IndexerFetchInit): Promise<T> {
   const text = await fetchText(path, init)
   try {
     return JSON.parse(text) as T
@@ -83,11 +133,12 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
-async function fetchJsonPost<T>(path: string, body: unknown): Promise<T> {
+async function fetchJsonPost<T>(path: string, body: unknown, init?: IndexerFetchInit): Promise<T> {
   return fetchJson<T>(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(body),
+    ...init,
   })
 }
 
@@ -475,11 +526,15 @@ export interface GetRouteSolveOptions {
   /** Connected wallet for CL8Y fee-tier discounted quotes (GitLab #245). */
   trader?: string
   sender?: string
+  /** React Query (or other) cancellation — aborts the in-flight solve (GitLab #484). */
+  signal?: AbortSignal
 }
 
 /**
  * Multihop route from indexer graph. GET defaults to **hybrid-aware** routing (max **3 hops**) when
  * `amountIn` is set. Pass `poolOnly: true` for legacy pool-only ops (max 4 hops).
+ * Uses a longer HTTP timeout than other indexer reads ({@link INDEXER_ROUTE_SOLVE_TIMEOUT_MS})
+ * because distant-pair hybrid solves often exceed 15s (GitLab #484).
  * **Limitation:** `token_in` / `token_out` must match indexed CW20 `contract_address` entries; native-only assets without a CW20 row are not routable via this endpoint.
  */
 export async function getRouteSolve(
@@ -495,7 +550,10 @@ export async function getRouteSolve(
   if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
   if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
   if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
-  return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`)
+  return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`, {
+    signal: options?.signal,
+    timeoutMs: ROUTE_SOLVE_TIMEOUT_MS,
+  })
 }
 
 /** `POST /api/v1/route/solve` — merges `hybrid_by_hop` into router ops and optionally returns `estimated_amount_out` from LCD simulation. */
@@ -504,14 +562,21 @@ export async function postRouteSolve(
   tokenOut: string,
   amountIn: string | undefined,
   hybridByHop: (IndexerHybridHopInput | null)[],
-  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender'>
+  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender' | 'signal'>
 ): Promise<IndexerRouteSolveResponse> {
-  return fetchJsonPost<IndexerRouteSolveResponse>('/api/v1/route/solve', {
-    token_in: tokenIn.trim(),
-    token_out: tokenOut.trim(),
-    amount_in: amountIn?.trim() || null,
-    hybrid_by_hop: hybridByHop,
-    trader: options?.trader?.trim() || null,
-    sender: options?.sender?.trim() || null,
-  })
+  return fetchJsonPost<IndexerRouteSolveResponse>(
+    '/api/v1/route/solve',
+    {
+      token_in: tokenIn.trim(),
+      token_out: tokenOut.trim(),
+      amount_in: amountIn?.trim() || null,
+      hybrid_by_hop: hybridByHop,
+      trader: options?.trader?.trim() || null,
+      sender: options?.sender?.trim() || null,
+    },
+    {
+      signal: options?.signal,
+      timeoutMs: ROUTE_SOLVE_TIMEOUT_MS,
+    }
+  )
 }
