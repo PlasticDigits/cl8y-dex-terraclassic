@@ -17,6 +17,7 @@ import type {
   IndexerOracleHistoryResponse,
   IndexerHybridHopInput,
   IndexerRouteSolveResponse,
+  IndexerRouteSolveProgress,
   IndexerLimitFill,
   IndexerLiquidityEvent,
   IndexerLimitPlacement,
@@ -553,6 +554,30 @@ export async function getRouteSolve(
   return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`, {
     signal: options?.signal,
     timeoutMs: ROUTE_SOLVE_TIMEOUT_MS,
+  })
+}
+
+/**
+ * Advisory progress for an in-flight hybrid solve (GitLab #485).
+ * Same query params as {@link getRouteSolve}; uses the default indexer timeout (not 45s).
+ * Progress is not a quote — never treat `label` as HTML.
+ */
+export async function getRouteSolveProgress(
+  tokenIn: string,
+  tokenOut: string,
+  amountIn: string,
+  options?: Pick<GetRouteSolveOptions, 'maxMakerFills' | 'trader' | 'sender' | 'signal'>
+): Promise<IndexerRouteSolveProgress> {
+  const sp = new URLSearchParams({
+    token_in: tokenIn.trim(),
+    token_out: tokenOut.trim(),
+    amount_in: amountIn.trim(),
+  })
+  if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
+  if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
+  if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
+  return fetchJson<IndexerRouteSolveProgress>(`/api/v1/route/solve/progress?${sp}`, {
+    signal: options?.signal,
   })
 }
 

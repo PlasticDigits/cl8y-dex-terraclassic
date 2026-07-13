@@ -167,6 +167,7 @@ Does **not** start LocalTerra, build optimized wasm, or run `deploy-dex-local`. 
 export PATH="/usr/local/cargo/bin:$PATH"
 make test-indexer-integration          # full suite, serialized
 make verify-issue-324                    # #324 lib + route_solve_get_cache integration
+make verify-issue-485                    # #485 graph cache + distant TTL + progress poll + frontend helpers
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
 
@@ -227,3 +228,4 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_E2E_STRICT_CHAIN.md](skills/AGENTS_E2E_STRICT_CHAIN.md) — Playwright strict on-chain E2E
 - [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — single execution-aligned **Route** row on Swap and `/trade` market quote (#158, #302)
 - [skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md](skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) — sim `refetchInterval` guard + receive Calculating UX for slow multihop quotes (#484)
+- [skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md](skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md) — distant-pair latency + `route/solve/progress` poll (#485)

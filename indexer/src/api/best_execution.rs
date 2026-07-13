@@ -2,18 +2,20 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::api::db_orderbook_sim::{self, MirrorLoadMeta};
 use crate::api::hybrid_route_opt::{
     self, HopDescriptor, HybridSimError, HybridSimSource, OptimizationMeta,
 };
+use crate::api::route_graph::{self, RouteGraphSnapshot};
 use crate::api::route_paths;
+use crate::api::route_solve_progress;
 use crate::api::route_solver::{
     apply_hybrid_by_hop, build_hops_and_ops, build_intermediate_tokens, quote_kind_after_sim,
     FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, GET_DEFAULT_MAX_HOPS,
 };
 use crate::api::AppState;
-use crate::db::queries::{assets, pairs as db_pairs};
 use axum::http::StatusCode;
 use sqlx::PgPool;
 
@@ -111,33 +113,27 @@ struct PathCandidate {
 }
 
 async fn enumerate_path_candidates(
-    pool: &PgPool,
+    snapshot: &RouteGraphSnapshot,
     token_in: &str,
     token_out: &str,
     max_hops: usize,
 ) -> Result<Vec<PathCandidate>, (StatusCode, String)> {
-    let all_assets = assets::get_all_assets(pool)
-        .await
-        .map_err(crate::api::internal_err)?;
-    let pair_rows = db_pairs::get_all_pairs(pool)
-        .await
-        .map_err(crate::api::internal_err)?;
+    let (id_to_addr, addr_to_id) = (&snapshot.id_to_addr, &snapshot.addr_to_id);
 
-    let (id_to_addr, addr_to_id) = crate::api::route_solver::build_id_to_addr_map(&all_assets);
-
-    let start = crate::api::route_solver::resolve_id(&addr_to_id, token_in).ok_or_else(|| {
+    let start = crate::api::route_solver::resolve_id(addr_to_id, token_in).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
             "token_in not found in indexer assets".to_string(),
         )
     })?;
-    let goal = crate::api::route_solver::resolve_id(&addr_to_id, token_out).ok_or_else(|| {
+    let goal = crate::api::route_solver::resolve_id(addr_to_id, token_out).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
             "token_out not found in indexer assets".to_string(),
         )
     })?;
 
+    let pair_rows = Arc::clone(&snapshot.pairs);
     let paths_raw = tokio::task::spawn_blocking(move || {
         route_paths::find_paths_top_k(start, goal, &pair_rows, max_hops, MAX_PATH_CANDIDATES)
     })
@@ -152,7 +148,7 @@ async fn enumerate_path_candidates(
 
     let mut out = Vec::with_capacity(paths_raw.len());
     for hops_raw in paths_raw {
-        let (hops, ops) = build_hops_and_ops(&hops_raw, &id_to_addr)?;
+        let (hops, ops) = build_hops_and_ops(&hops_raw, id_to_addr)?;
         out.push(PathCandidate { hops, ops });
     }
     Ok(out)
@@ -464,6 +460,104 @@ async fn evaluate_candidate(
     }))
 }
 
+async fn preload_mirrors_with_progress(
+    pool: &PgPool,
+    addrs: &[String],
+    id_to_addr: &HashMap<i32, String>,
+    max_staleness_ms: u64,
+    progress_key: Option<&str>,
+) -> Result<HashMap<String, db_orderbook_sim::HopMirror>, (StatusCode, String)> {
+    let total = addrs.len() as u32;
+    if let Some(pk) = progress_key {
+        route_solve_progress::progress_update(
+            pk,
+            route_solve_progress::STAGE_LOADING_MIRRORS,
+            0,
+            total,
+            format!("Loading mirrors 0 of {total} pairs…"),
+        );
+    }
+
+    let mut mirrors = HashMap::new();
+    if progress_key.is_some() {
+        use chrono::Utc;
+        use crate::api::db_orderbook_sim::{load_hop_mirror, DbSimError, HopMirror, MirrorFreshness};
+        use crate::db::queries::pairs;
+
+        let now_secs = Utc::now().timestamp().max(0) as u64;
+        for (i, addr) in addrs.iter().enumerate() {
+            let done = (i + 1) as u32;
+            if let Some(pk) = progress_key {
+                route_solve_progress::progress_update(
+                    pk,
+                    route_solve_progress::STAGE_LOADING_MIRRORS,
+                    done,
+                    total,
+                    format!("Loading mirrors {done} of {total} pairs…"),
+                );
+            }
+            let Some(pair_row) = pairs::get_pair_by_address(pool, addr)
+                .await
+                .map_err(crate::api::internal_err)?
+            else {
+                continue;
+            };
+            match load_hop_mirror(
+                pool,
+                addr,
+                id_to_addr,
+                &pair_row,
+                max_staleness_ms,
+                now_secs,
+            )
+            .await
+            {
+                Ok(m) => {
+                    mirrors.insert(addr.clone(), m);
+                }
+                Err(DbSimError::MissingMirror) => {
+                    mirrors.insert(
+                        addr.clone(),
+                        HopMirror {
+                            pair_id: pair_row.id,
+                            asset_0_addr: id_to_addr
+                                .get(&pair_row.asset_0_id)
+                                .cloned()
+                                .unwrap_or_default(),
+                            asset_1_addr: id_to_addr
+                                .get(&pair_row.asset_1_id)
+                                .cloned()
+                                .unwrap_or_default(),
+                            reserve_0: 0,
+                            reserve_1: 0,
+                            fee_bps: pair_row.fee_bps.unwrap_or(30) as u16,
+                            block_height: None,
+                            snapshot_at: Utc::now(),
+                            freshness: MirrorFreshness::MissingReserves,
+                            bids: vec![],
+                            asks: vec![],
+                        },
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(pair = %addr, "preload mirror failed: {}", e);
+                }
+            }
+        }
+    } else {
+        mirrors = db_orderbook_sim::preload_mirrors_for_pairs(
+            pool,
+            addrs,
+            id_to_addr,
+            max_staleness_ms,
+        )
+        .await
+        .map_err(crate::api::internal_err)?;
+    }
+
+    Ok(mirrors)
+}
+
 /// Fan out path-candidate evaluation under `concurrency_cap` (#324).
 /// Skips candidates with unusable/zero-reserve pool legs or zero DB-hybrid output (#369).
 /// Fail-fast only when every evaluated candidate hits a fatal gateway error.
@@ -481,10 +575,21 @@ async fn run_concurrent_candidate_evaluations(
     mirrors: Arc<HashMap<String, db_orderbook_sim::HopMirror>>,
     solver_version: &'static str,
     concurrency_cap: usize,
+    progress_key: Option<&str>,
 ) -> Result<(Vec<CandidateEval>, bool), (StatusCode, String)> {
     let cap = concurrency_cap.max(1);
     let search_truncated = candidates.len() > cap;
     let eval_count = candidates.len().min(cap);
+
+    if let Some(pk) = progress_key {
+        route_solve_progress::progress_update(
+            pk,
+            route_solve_progress::STAGE_EVALUATING,
+            0,
+            eval_count as u32,
+            format!("Searching 0 of {eval_count} paths…"),
+        );
+    }
 
     let state = Arc::new(state.clone());
     let token_in = token_in.trim().to_string();
@@ -527,9 +632,20 @@ async fn run_concurrent_candidate_evaluations(
     }
 
     let mut evals = Vec::with_capacity(eval_count);
+    let mut completed = 0u32;
     let mut gateway_err: Option<(StatusCode, String)> = None;
     let mut gateway_err_count = 0u32;
     while let Some(joined) = join_set.join_next().await {
+        completed = completed.saturating_add(1);
+        if let Some(pk) = progress_key {
+            route_solve_progress::progress_update(
+                pk,
+                route_solve_progress::STAGE_EVALUATING,
+                completed,
+                eval_count as u32,
+                format!("Searching {completed} of {eval_count} paths…"),
+            );
+        }
         match joined {
             Ok(Ok(Some(eval))) => {
                 let viable = !db_mode || eval.grid_out > 0;
@@ -671,6 +787,7 @@ pub async fn solve_global_best_execution(
     amount_raw: &str,
     max_maker_fills: u32,
     quote_trader: &hybrid_route_opt::QuoteTrader,
+    progress_key: Option<&str>,
 ) -> Result<(RouteSolveResponse, BestExecutionMeta), (StatusCode, String)> {
     solve_global_best_execution_inner(
         state,
@@ -681,6 +798,7 @@ pub async fn solve_global_best_execution(
         max_maker_fills,
         quote_trader,
         true,
+        progress_key,
     )
     .await
 }
@@ -694,20 +812,45 @@ pub(crate) async fn solve_global_best_execution_inner(
     max_maker_fills: u32,
     quote_trader: &hybrid_route_opt::QuoteTrader,
     enrich_slippage: bool,
+    progress_key: Option<&str>,
 ) -> Result<(RouteSolveResponse, BestExecutionMeta), (StatusCode, String)> {
+    let total_start = Instant::now();
     let solver_version = solver_version_for(state);
     let db_mode = state.route_solver_db_hybrid;
+
+    let graph_start = Instant::now();
+    if let Some(pk) = progress_key {
+        route_solve_progress::progress_update(
+            pk,
+            route_solve_progress::STAGE_GRAPH_LOAD,
+            0,
+            0,
+            "Loading token graph…",
+        );
+    }
+    let snapshot = route_graph::get_route_graph_snapshot(&state.pool).await?;
+    let graph_ms = graph_start.elapsed().as_millis();
+
+    let enum_start = Instant::now();
+    if let Some(pk) = progress_key {
+        route_solve_progress::progress_update(
+            pk,
+            route_solve_progress::STAGE_ENUMERATING,
+            0,
+            0,
+            "Enumerating paths…",
+        );
+    }
     let candidates =
-        enumerate_path_candidates(&state.pool, token_in, token_out, GET_DEFAULT_MAX_HOPS).await?;
+        enumerate_path_candidates(&snapshot, token_in, token_out, GET_DEFAULT_MAX_HOPS).await?;
+    let enum_ms = enum_start.elapsed().as_millis();
 
     let discount_bps = crate::api::route_solver::resolve_discount_bps(state, quote_trader).await;
 
+    let mirror_start = Instant::now();
     let mut mirrors: HashMap<String, db_orderbook_sim::HopMirror> = HashMap::new();
     if db_mode {
-        let all_assets = assets::get_all_assets(&state.pool)
-            .await
-            .map_err(crate::api::internal_err)?;
-        let (id_to_addr, _) = crate::api::route_solver::build_id_to_addr_map(&all_assets);
+        let id_to_addr = &snapshot.id_to_addr;
         let mut pair_addrs: HashSet<String> = HashSet::new();
         for c in &candidates {
             for h in &c.hops {
@@ -715,17 +858,19 @@ pub(crate) async fn solve_global_best_execution_inner(
             }
         }
         let addrs: Vec<String> = pair_addrs.into_iter().collect();
-        mirrors = db_orderbook_sim::preload_mirrors_for_pairs(
+        mirrors = preload_mirrors_with_progress(
             &state.pool,
             &addrs,
-            &id_to_addr,
+            id_to_addr,
             state.book_snapshot_max_staleness_ms,
+            progress_key,
         )
-        .await
-        .map_err(crate::api::internal_err)?;
+        .await?;
     }
+    let mirror_ms = mirror_start.elapsed().as_millis();
 
     let mirrors = Arc::new(mirrors);
+    let candidate_start = Instant::now();
     let (evals, search_truncated) = run_concurrent_candidate_evaluations(
         state,
         &candidates,
@@ -740,8 +885,10 @@ pub(crate) async fn solve_global_best_execution_inner(
         mirrors,
         solver_version,
         SOLVE_CONCURRENCY,
+        progress_key,
     )
     .await?;
+    let candidate_ms = candidate_start.elapsed().as_millis();
 
     let (mut body, _router_out, grid_out, mut meta) = merge_candidate_evaluations(
         &evals,
@@ -807,10 +954,24 @@ pub(crate) async fn solve_global_best_execution_inner(
         mirror_stale = meta.mirror_stale,
         fidelity_check = meta.fidelity_check.as_str(),
         search_truncated = meta.search_truncated,
+        graph_ms,
+        enum_ms,
+        mirror_ms,
+        candidate_ms,
+        total_ms = total_start.elapsed().as_millis(),
         "route best execution"
     );
 
     if enrich_slippage {
+        if let Some(pk) = progress_key {
+            route_solve_progress::progress_update(
+                pk,
+                route_solve_progress::STAGE_ENRICHING,
+                0,
+                0,
+                "Computing slippage…",
+            );
+        }
         crate::api::route_slippage::enrich_route_slippage(
             state,
             &mut body,

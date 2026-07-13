@@ -395,4 +395,32 @@ describe('indexer route/solve timeouts and AbortSignal (#484)', () => {
     await expect(pending).rejects.toThrow(/abort/i)
     expect(fetch).toHaveBeenCalledTimes(1)
   })
+
+  it('getRouteSolveProgress polls progress endpoint with amount_in (#485)', async () => {
+    const body = {
+      stage: 'evaluating',
+      done: 2,
+      total: 5,
+      label: 'Searching 2 of 5 paths…',
+      cache_hit: false,
+      updated_at_ms: 1,
+    }
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(body), { status: 200 }))
+    const client = await loadModule()
+    const result = await client.getRouteSolveProgress('terra1a', 'terra1b', '1000', {
+      maxMakerFills: 8,
+      trader: 'terra1trader',
+    })
+    expect(result).toEqual(body)
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/v1\/route\/solve\/progress\?/),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    const url = String(vi.mocked(fetch).mock.calls[0][0])
+    expect(url).toContain('token_in=terra1a')
+    expect(url).toContain('token_out=terra1b')
+    expect(url).toContain('amount_in=1000')
+    expect(url).toContain('max_maker_fills=8')
+    expect(url).toContain('trader=terra1trader')
+  })
 })

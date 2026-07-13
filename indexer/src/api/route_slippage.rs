@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use crate::api::best_execution::solve_global_best_execution_inner;
 use crate::api::hybrid_route_opt::QuoteTrader;
+use crate::api::route_graph;
 use crate::api::route_solver::{cache_key_maker_fills, resolve_discount_bps, RouteSolveResponse};
 use crate::api::AppState;
 use crate::db::queries::assets;
@@ -156,6 +157,7 @@ async fn token_price_in_quote(
         max_makers,
         quote_trader,
         false,
+        None,
     ))
     .await
     .ok()?;
@@ -207,17 +209,17 @@ pub async fn enrich_route_slippage(
         }
     }
 
-    let Ok(all_assets) = assets::get_all_assets(&state.pool).await else {
+    let Ok(snapshot) = route_graph::get_route_graph_snapshot(&state.pool).await else {
         return;
     };
-    let Some((quote_addr, quote_decimals)) = find_quote_token(&all_assets) else {
+    let Some((quote_addr, quote_decimals)) = find_quote_token(&snapshot.assets) else {
         return;
     };
 
-    let Some(dec_in) = asset_decimals(&all_assets, &body.token_in) else {
+    let Some(dec_in) = asset_decimals(&snapshot.assets, &body.token_in) else {
         return;
     };
-    let Some(dec_out) = asset_decimals(&all_assets, &body.token_out) else {
+    let Some(dec_out) = asset_decimals(&snapshot.assets, &body.token_out) else {
         return;
     };
 

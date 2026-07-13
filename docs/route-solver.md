@@ -63,7 +63,9 @@ flowchart TD
 | Global winner | `best_execution.rs` | `solve_global_best_execution` |
 | Per-hop / joint hybrid | `hybrid_route_opt.rs` | `optimize_multihop_hybrid_joint`, `GRID_POINTS` (= 17), `COORDINATE_PASSES` (= 2) |
 | Router sim | `route_solver.rs` | `maybe_simulate` |
-| Response cache | `route_solver.rs` | `ROUTE_CACHE_TTL`, `hybrid_cache_key` |
+| Response cache | `route_solver.rs` | `ROUTE_CACHE_TTL`, `ROUTE_CACHE_TTL_DISTANT`, `hybrid_cache_key` |
+| Graph snapshot cache | `route_graph.rs` | `ROUTE_GRAPH_CACHE_TTL`, `get_route_graph_snapshot` |
+| Solve progress poll | `route_solve_progress.rs` | `GET /api/v1/route/solve/progress` |
 
 ---
 
@@ -119,7 +121,9 @@ Read the response using this doc:
 | Default `max_maker_fills` | 8 | `route_solver.rs` |
 | `MAX_MAKER_FILLS_HARD_CAP` | **100** (on-chain parity; clamps GET query and DB sim — [#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/379)) | [`constants.rs`](../indexer/src/constants.rs), `dex-common/pair.rs` |
 | `ROUTE_SOLVE_POST_BODY_LIMIT` | 128 KiB | `api/mod.rs` |
-| `ROUTE_CACHE_TTL` | 12 s | `route_solver.rs` |
+| `ROUTE_CACHE_TTL` | 12 s (1-hop direct) | `route_solver.rs` |
+| `ROUTE_CACHE_TTL_DISTANT` | 90 s (multi-hop, ≥2 legs) | `route_solver.rs` |
+| `ROUTE_GRAPH_CACHE_TTL` | 15 s | `route_graph.rs` |
 | `ROUTE_CACHE_MAX_ENTRIES` | 512 | `route_solver.rs` |
 | `AMOUNT_CACHE_BUCKET` | 1_000_000 (raw offer units) | `route_solver.rs` |
 | `LCD_HYBRID_SIM_BUDGET` | 1700 (= 5×4×85) | `best_execution.rs` |
@@ -130,6 +134,22 @@ Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `a
 **`max_maker_fills` cap (GitLab #379 / #262):** GET `max_maker_fills` is clamped to **`MAX_MAKER_FILLS_HARD_CAP` = 100**, matching on-chain `dex-common::pair`. The prior indexer DB-sim cap of **30** was stale. LocalTerra route-solve latency at cap **100** remains within the **30s** API timeout under typical book depth (same bound as chain execute); abuse requests like `max_maker_fills=4294967295` are clamped before hybrid grid / LCD fanout.
 
 **Rate limits:** `route/solve` and `route/solve/best` are LCD-heavy (**10 RPS** default per IP via `RATE_LIMIT_LCD_HEAVY_RPS`; prod clamps `0` → **10** — [#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Startup **warns** when **both** `RATE_LIMIT_RPS` and `RATE_LIMIT_LCD_HEAVY_RPS` are explicitly **0** ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/379)). Sustained burst → **429** (plain text + optional rate-limit headers). LCD upstream failures → **502** `Upstream LCD query failed` (sanitized). `POST /route/solve` bodies larger than **128 KiB** → **413**.
+
+### Progress poll (`GET /api/v1/route/solve/progress`) — GitLab #485
+
+Advisory UI polling while a hybrid solve runs. **Not** a quote — no `estimated_amount_out`. Uses the **same query params** as `GET /api/v1/route/solve` (`token_in`, `token_out`, `amount_in` required, optional `trader`, `sender`, `max_maker_fills`). Progress key matches the hybrid response cache key (solver version + tokens + bucketed amount + maker-fills bucket + `discount_bps`).
+
+Registered on the **standard API router** (not LCD-heavy), so progress polls do not consume the LCD-heavy rate budget.
+
+| Field | Meaning |
+|-------|---------|
+| `stage` | `idle`, `graph_load`, `enumerating`, `loading_mirrors`, `evaluating`, `simulating`, `enriching`, `done`, `cached`, `error` |
+| `done` / `total` | Honest counters during mirror preload (pairs) and path evaluation |
+| `label` | Human-readable status (e.g. `Searching 2 of 5 paths…`) |
+| `cache_hit` | `true` when the solve served a cached hybrid body |
+| `updated_at_ms` | Unix epoch ms of last update |
+
+Before a solve starts for the key, the endpoint returns `{ "stage": "idle", "label": "Waiting…", … }`. Nested slippage price solves (token valuation) do **not** update progress.
 
 ---
 

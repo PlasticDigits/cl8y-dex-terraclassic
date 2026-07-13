@@ -20,8 +20,10 @@ pub mod hybrid_orderbook_sim;
 pub mod orderbook_sim;
 mod overview;
 mod pairs;
+mod route_graph;
 mod route_paths;
 mod route_slippage;
+mod route_solve_progress;
 mod route_solver;
 mod text_csv;
 mod tokens;
@@ -255,6 +257,7 @@ pub async fn find_pair_by_ticker(
         route_solver::solve_route,
         route_solver::solve_route_best,
         route_solver::solve_route_post,
+        route_solve_progress::solve_route_progress,
         pairs::list_pairs,
         pairs::get_pair,
         pairs::get_pair_candles,
@@ -296,6 +299,7 @@ pub async fn find_pair_by_ticker(
     components(schemas(
         route_solver::SolveRouteParams,
         route_solver::SolveRoutePostBody,
+        route_solve_progress::SolveProgress,
         hybrid_route_opt::HybridHopJson,
         route_solver::FidelityCheck,
         route_solver::RouteQuoteKind,
@@ -486,6 +490,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
         .merge(lcd_heavy_router)
+        .route(
+            "/api/v1/route/solve/progress",
+            get(route_solve_progress::solve_route_progress),
+        )
         .route("/api/v1/oracle/price", get(oracle::get_oracle_price))
         .route("/api/v1/oracle/history", get(oracle::get_oracle_history))
         .route("/cg/pairs", get(cg::cg_pairs))

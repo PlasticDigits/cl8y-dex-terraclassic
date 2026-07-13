@@ -460,6 +460,16 @@ export interface IndexerRouteSolveResponse {
   db_hybrid_queries?: number
 }
 
+/** Advisory in-flight solve status from `GET /api/v1/route/solve/progress` (GitLab #485). Not a quote. */
+export interface IndexerRouteSolveProgress {
+  stage: string
+  done: number
+  total: number
+  label: string
+  cache_hit: boolean
+  updated_at_ms: number
+}
+
 export interface IndexerTrader {
   address: string
   total_trades: number

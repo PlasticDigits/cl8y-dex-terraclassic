@@ -745,3 +745,55 @@ async fn route_solve_invalid_sender_returns_400() {
     );
     server.get(&url).await.assert_status_bad_request();
 }
+
+#[serial]
+#[tokio::test]
+async fn route_solve_progress_idle_then_terminal_after_solve() {
+    // GitLab #485: progress poll is advisory; idle before solve, terminal after.
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.router_address = Some("terra1routertest".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let progress_url = format!(
+        "/api/v1/route/solve/progress?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+    let idle: Value = server.get(&progress_url).await.json();
+    assert_eq!(idle["stage"], "idle");
+    assert!(idle["estimated_amount_out"].is_null());
+
+    let solve_url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+    server.get(&solve_url).await.assert_status_ok();
+
+    let after: Value = server.get(&progress_url).await.json();
+    let stage = after["stage"].as_str().unwrap_or("");
+    assert!(
+        stage == "done" || stage == "cached",
+        "expected terminal stage after solve, got {stage}"
+    );
+    assert!(after.get("label").and_then(|v| v.as_str()).is_some());
+    assert!(after["estimated_amount_out"].is_null());
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_progress_requires_amount_in() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve/progress?token_in={}&token_out={}",
+        seed.token_a, seed.token_b
+    );
+    server.get(&url).await.assert_status_bad_request();
+}
