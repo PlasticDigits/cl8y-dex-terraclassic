@@ -19,7 +19,7 @@ describe('navItems', () => {
 
   it('tablet compact band ends one pixel below full-desktop breakpoint', () => {
     expect(TABLET_COMPACT_HEADER_MAX_WIDTH_PX).toBe(HEADER_FULL_NAV_MIN_WIDTH_PX - 1)
-    expect(HEADER_FULL_NAV_MIN_WIDTH_PX).toBe(1120)
+    expect(HEADER_FULL_NAV_MIN_WIDTH_PX).toBe(1200)
   })
 
   it('tablet compact header shows Swap plus More only', () => {

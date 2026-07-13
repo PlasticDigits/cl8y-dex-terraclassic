@@ -3,6 +3,8 @@ import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 
 /**
  * Persistent strip under the header so local / testnet / mainnet is obvious even when the wallet badge is crowded (GitLab #138).
+ * Desktop/tablet omit the header NetworkBadge and rely on this ribbon as the primary network signal (GitLab #483).
+ * Ribbon backgrounds must stay opaque enough that scrolled page copy cannot bleed through (GitLab #482).
  */
 export default function EnvironmentRibbon() {
   const { shortLabel, fullLabel, chainId } = getNetworkBadgeCopy()

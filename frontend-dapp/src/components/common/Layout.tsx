@@ -179,7 +179,12 @@ export default function Layout() {
                   labelStyle="short"
                 />
               ) : null}
-              <NetworkBadge />
+              {/*
+                Desktop/tablet: EnvironmentRibbon is the primary network signal (#138).
+                Omit duplicate NetworkBadge so theme + wallet keep ≥ ~8px gap from More (#483).
+                Mobile keeps the badge next to the wallet chip when the ribbon wraps.
+              */}
+              {showMobileLegalStrip ? <NetworkBadge /> : null}
               <WalletButton />
             </div>
           </div>
