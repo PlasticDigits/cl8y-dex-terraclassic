@@ -198,17 +198,15 @@ export default function Layout() {
                 </div>
               ) : null}
               {/*
-                Desktop/tablet: EnvironmentRibbon is the primary network signal (#138).
-                Omit duplicate NetworkBadge so theme + wallet keep ≥ ~8px gap from More (#483).
-                Mobile keeps the badge next to the wallet chip when the ribbon wraps.
+                EnvironmentRibbon lives in the footer on all breakpoints (shell density).
+                Omit desktop NetworkBadge so theme + wallet keep ≥ ~8px gap from More (#483).
+                Mobile keeps the badge next to the wallet chip.
               */}
               {showMobileLegalStrip ? <NetworkBadge /> : null}
               <WalletButton />
             </div>
           </div>
         </header>
-
-        <EnvironmentRibbon />
       </div>
 
       <main className="app-main-shell">
@@ -221,16 +219,12 @@ export default function Layout() {
               <Outlet key={location.pathname} />
             </RouteContentReadyProvider>
           </div>
-          {showMobileLegalStrip && routeContentReady ? (
-            <div className="app-mobile-legal-strip">
-              <LegalFooterNotice />
-            </div>
-          ) : null}
         </div>
       </main>
 
       <footer className="app-footer-shell">
         <div className="app-footer">
+          <EnvironmentRibbon />
           <div className="app-footer-copy">
             <p className="app-footer-title">CL8Y DEX · Terra Classic</p>
             {routeContentReady ? <LegalFooterNotice /> : null}
