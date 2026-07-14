@@ -459,7 +459,7 @@ test.describe('Navigation', () => {
     const header = page.locator('header.app-header-shell')
     const themeGroup = header.locator('.app-header-theme-group')
     await expect(themeGroup).toBeVisible()
-    await expect(themeGroup.getByRole('button', { name: 'Dark' })).toBeVisible()
+    await expect(themeGroup.getByRole('button', { name: 'Dark theme' })).toBeVisible()
     await expect(page.locator('footer .app-footer-theme-group')).toHaveCount(0)
 
     const stickyTop = await page.locator('.app-top-sticky').boundingBox()
@@ -468,7 +468,7 @@ test.describe('Navigation', () => {
     expect(themeBox).not.toBeNull()
     expect(themeBox!.y + themeBox!.height).toBeLessThanOrEqual(stickyTop!.y + stickyTop!.height + 2)
 
-    await themeGroup.getByRole('button', { name: 'Light' }).click()
+    await themeGroup.getByRole('button', { name: 'Light theme' }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   })
 })

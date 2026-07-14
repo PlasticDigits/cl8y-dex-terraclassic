@@ -20,9 +20,10 @@ Use when changing UI SFX playback, the shell mute control, or `cl8y-dex-sounds-e
 3. **One preference for all four WAV kinds** — no per-kind mute or volume mixer in this feature.
 4. **Persist** with `cl8y-dex-sounds-enabled` as `'1'`/`'0'`; keep try/catch + in-tab session cache so private-mode write failures still mute for the session.
 5. **Placement** — beside theme: sticky header on `≥768px`; mobile **More** sheet on `≤767px` (same as theme — see [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md)).
-6. **Mute UX** — write preference **before** any `play*`; turning **off** must not play a press sound; turning **on** may play one confirmation press (current product choice).
-7. **Do not** add a global click→sound interceptor or remote audio URLs outside `public/sounds/`.
-8. **Cross-tab desync** until reload is acceptable MVP; optional `storage` event sync is a follow-up.
+6. **Icon chrome** — theme + sound use compact flat SVGs in [`shellPrefIcons.tsx`](../frontend-dapp/src/components/common/shellPrefIcons.tsx) (moon / sun / speaker); do not restore text labels in the header. Keep explicit `aria-label` / `title`.
+7. **Mute UX** — write preference **before** any `play*`; turning **off** must not play a press sound; turning **on** may play one confirmation press (current product choice).
+8. **Do not** add a global click→sound interceptor or remote audio URLs outside `public/sounds/`.
+9. **Cross-tab desync** until reload is acceptable MVP; optional `storage` event sync is a follow-up.
 
 ## Tests
 

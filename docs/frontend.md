@@ -628,7 +628,7 @@ UI audio is centralized in [`sounds.ts`](../frontend-dapp/src/lib/sounds.ts) (`p
 | All SFX kinds | One preference disables press, hover, success, and error together. |
 | Persistence | Key `cl8y-dex-sounds-enabled` stores `'1'` / `'0'`. Session cache applies immediately and survives write failures (private mode / quota) for the tab. Cross-tab sync until reload is out of scope for MVP. |
 | Mute / unmute UX | Turning **off** does not play a press sound on that click. Turning **on** plays one confirmation press. Subsequent actions reflect the new preference without a hard refresh. |
-| Shell placement | Control sits next to theme (header ≥768px; mobile More ≤767px). Keyboard-reachable; `aria-pressed` means **sounds enabled**. |
+| Shell placement | Compact **icon** controls (moon / sun / speaker) sit next to theme (header ≥768px; mobile More ≤767px). Names come from `aria-label` / `title`; `aria-pressed` on sound means **sounds enabled**. |
 | Assets | Only local WAVs under `frontend-dapp/public/sounds/` — no remote audio URLs. |
 | Visual errors remain primary | Toasts / UI error copy stay authoritative; SFX are supplemental. |
 

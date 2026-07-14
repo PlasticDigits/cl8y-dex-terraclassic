@@ -1253,12 +1253,28 @@
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .app-pref-icon-button {
+    flex-shrink: 0;
+    min-width: 34px;
+    min-height: 34px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    gap: 0;
+    border-radius: 999px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .app-pref-icon-button svg {
+    display: block;
   }
 
   .app-header-sound-toggle {
     flex-shrink: 0;
-    min-width: 4.5rem;
   }
 
   .app-mobile-nav-shell {
@@ -1315,21 +1331,23 @@
 
   /* Theme + sound mute in mobile More sheet (GitLab #487). */
   .app-mobile-pref-group {
-    display: grid;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
     gap: 8px;
+    width: 100%;
     margin-top: 6px;
     padding-top: 8px;
     border-top: 1px solid var(--chrome-border-soft);
   }
 
   .app-mobile-theme-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: inline-flex;
     gap: 8px;
   }
 
   .app-mobile-sound-toggle {
-    width: 100%;
+    flex-shrink: 0;
   }
 
   .app-menu-dismiss {

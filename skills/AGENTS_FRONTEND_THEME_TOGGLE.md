@@ -14,8 +14,8 @@ Use when moving or restyling the **dark/light** segmented control ([`ThemeSegmen
 ## Rules of thumb
 
 1. **Do not** put the only desktop theme control in the page footer — long routes (`/pool`, `/trade`) hide it below the fold ([**#170**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/170)).
-2. **Desktop/tablet (`≥768px`)**: render `ThemeSegmentedControl` inside `.app-header-controls` with `groupClassName="app-header-theme-group"` and `labelStyle="short"`.
-3. **Mobile (`≤767px`)**: keep the control in the **More** sheet (`app-mobile-theme-group`, `labelStyle="long"`); footer shell is hidden — do not rely on footer for theme on narrow viewports.
+2. **Desktop/tablet (`≥768px`)**: render `ThemeSegmentedControl` inside `.app-header-controls` with `groupClassName="app-header-theme-group"` (compact moon/sun icons via [`shellPrefIcons.tsx`](../frontend-dapp/src/components/common/shellPrefIcons.tsx)).
+3. **Mobile (`≤767px`)**: keep the control in the **More** sheet (`app-mobile-theme-group`); footer shell is hidden — do not rely on footer for theme on narrow viewports. Accessible names stay **Dark theme** / **Light theme**.
 4. Persist theme via `localStorage` key `cl8y-dex-theme` and `document.documentElement[data-theme]` (unchanged).
 5. **Density ([#483](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)):** theme group must keep **≥ ~8px** horizontal gap from the last desktop nav control (More). Do not re-add desktop `NetworkBadge` next to theme — ribbon owns network context.
 

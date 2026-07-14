@@ -12,7 +12,7 @@ describe('SoundEffectsToggle', () => {
 
     const button = screen.getByRole('button', { name: 'Mute sound effects' })
     expect(button).toHaveAttribute('aria-pressed', 'true')
-    expect(button).toHaveTextContent('Sound')
+    expect(button.querySelector('svg')).toBeTruthy()
 
     await user.click(button)
     expect(onToggle).toHaveBeenCalledWith(false)
@@ -21,11 +21,11 @@ describe('SoundEffectsToggle', () => {
 
     const muted = screen.getByRole('button', { name: 'Enable sound effects' })
     expect(muted).toHaveAttribute('aria-pressed', 'false')
-    expect(muted).toHaveTextContent('Muted')
+    expect(muted.querySelector('svg')).toBeTruthy()
   })
 
-  it('uses long labels for mobile style', () => {
+  it('keeps accessible names for mobile placement', () => {
     render(<SoundEffectsToggle enabled onToggle={() => {}} labelStyle="long" />)
-    expect(screen.getByRole('button', { name: 'Mute sound effects' })).toHaveTextContent('Sound on')
+    expect(screen.getByRole('button', { name: 'Mute sound effects' })).toBeInTheDocument()
   })
 })
