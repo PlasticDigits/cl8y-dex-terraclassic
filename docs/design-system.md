@@ -14,7 +14,7 @@ Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitla
 | Blue CTAs, gold brand | Primary actions use **blue** (`#448aff`). Brand mark, network chip, and **hairline** gold borders/text use **gold** (`#e8b84a`). |
 | Token-first | Compose UI from CSS variables (`--ink`, `--line`, `--blue`, `--gold`, `--mint`→blue, …) and `@layer components` primitives. |
 | Gold is not a fill | Do **not** use gold/amber as large dirty-brown backgrounds. Gold = tiny emphasis (borders, text, logo). Active nav uses cool `--accent-surface` + gold bottom border. |
-| Minimal on-card copy | **Anti-cognitive-overload:** labels ≤ ~5 words; errors ≤ 1 short sentence; optional **Docs** link. No `token0`/`token1` or raw bid/ask in retail UI — use symbols + Buy/Sell. Keep blocking errors and required risk ack ([#488] reopen). |
+| Minimal on-card copy | **Anti-cognitive-overload:** labels ≤ ~5 words; errors ≤ 1 short sentence; optional **Docs** link. No `token0`/`token1` or raw bid/ask in retail UI — use symbols + Buy/Sell. Keep blocking errors and required risk ack ([#488] reopen). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). |
 | Keyboard focus | Interactive primitives use `:focus-visible` with `var(--focus-ring)` — see [frontend.md § WCAG 2.4.7](./frontend.md#keyboard-focus-visible-wcag-247). |
 
 ## Color & surface tokens
@@ -107,9 +107,27 @@ Labels use `.label-glass`: uppercase, `text-xs`, semibold, wide tracking.
 
 ## Limit place IA
 
-Default `/limits` place card (#488 reopen): **rate** (“When 1 {token0} is worth”) → **% chips** (0/+1/+5/+10) → **Pay** → **Receive** → **Expiry** (advanced/ladder progressive disclosure). Order book and open placements sit **below** the place card. No instructional paragraphs on the primary card; blocking errors stay visible. Details: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md).
+Default `/limits` place card (#488 reopen): **rate** (“When 1 {token0} is worth”) → **% chips** (0/+1/+5/+10) → **Pay** → **Receive** → **Expiry** (advanced/ladder progressive disclosure). Order book and open placements sit **below** the place card. No instructional paragraphs on the primary card; blocking errors stay visible. Details: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · copy rules: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) · agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md).
 
 Default `/` Swap card: centered Pay → flip → Receive → CTA; route + min-received on card; verbose trade/signing details behind progressive disclosure. Cool flip control (no brown).
+
+Default `/trade` ticket sections (#489): short titles only — **Side**, **Limit**, **Market** — no “Maker side / Choose direction / Resting order” essays. Action panels use cool blue wash (not amber).
+
+## Terminology glossary
+
+Retail copy terms used across docs and skills ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)):
+
+| Term | Meaning |
+|------|---------|
+| Swap / Best Trade (concept) | Aggregated market swap on `/` (nav: **Swap**). Charts/trader **Best Trade** = best historical P&L trade — not the Swap route. |
+| Limit | Resting limit place flow (`/limits`, `/trade` Limit tab). |
+| Market | Immediate pair swap on `/trade` Market tab (not the `/` Swap multihop card). |
+| Pay / Receive | Limit IO labels. Swap card uses **You Pay** / **You Receive** (same roles). |
+| Buy / Sell {base} | Retail side labels on `/trade` and `/limits` (on-chain bid/ask escrow mapping unchanged). |
+| Blue primary | CTA / active tab / select-token (`--blue` / `--mint` alias). |
+| Gold accent | Logo, network chip, hairline borders/text only — not large fills. |
+| Docs link | Optional single-word control for optional depth — never replaces blocking errors. |
+| Bid / Ask (book) | Order-book column titles and on-chain side enums only; not retail place-card button copy. |
 
 ## Verification
 

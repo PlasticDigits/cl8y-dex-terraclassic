@@ -1,6 +1,6 @@
 # Agent playbook: Limit order price field (trade + standalone page)
 
-Use when changing **limit price** UX on `/trade` or `/limits`: reference line from tape **or AMM pool**, % deviation, headline-scaled USD, submit validation, **escrow headline USD** ([`escrowAmountUsdAnchorNotional`](../frontend-dapp/src/utils/limitOrderPriceReference.ts); [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)), or the **Place limit** tooltip.
+Use when changing **limit price** UX on `/trade` or `/limits`: reference line from tape **or AMM pool**, % deviation, headline-scaled USD, submit validation, **escrow headline USD** ([`escrowAmountUsdAnchorNotional`](../frontend-dapp/src/utils/limitOrderPriceReference.ts); [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)), or the **When 1 {token} is worth** rate label + % chips.
 
 **#488 IA (reopen):** place-card order is **rate** (“When 1 {token0} is worth”) → **% chips** (0/+1/+5/+10 vs ref) → **Pay** → **Receive** (read-only expected fill) → **Expiry**. Order book + open placements sit **below** the place card. No instructional paragraphs; blocking invalid-direction / escrow / gas errors stay visible. See [`docs/design-system.md`](../docs/design-system.md) § Limit place IA.
 
@@ -8,7 +8,7 @@ Use when changing **limit price** UX on `/trade` or `/limits`: reference line fr
 
 | Doc / code | Purpose |
 |------------|---------|
-| [docs/frontend.md § Trade page — limit order price field](../docs/frontend.md#trade-page-limit-order-price) | Invariants (reference, pool fallback, deviation, USD anchor, submit gate, tooltip) — [GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154), [**#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166) |
+| [docs/frontend.md § Trade page — limit order price field](../docs/frontend.md#trade-page-limit-order-price) | Invariants (reference, pool fallback, deviation, USD anchor, submit gate, rate label + chips) — [GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154), [**#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166) |
 | [docs/frontend.md § Limit place — escrow amount](../docs/frontend.md#limit-place-escrow-amount) | Escrow **Amount** headline USD + Bid/Ask amount reset / MAX re-apply — [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155) |
 | [docs/frontend.md § Trade page — limit order pre-submit summary](../docs/frontend.md#trade-page-limit-order-pre-submit-summary) | Resting-order copy, deviation recap, maker placement bps, min LUNC for place sequence — [GitLab **#157**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157) |
 | [docs/limit-orders.md § dApp: retail form](../docs/limit-orders.md#dapp-retail-form-wires-invariants) | Cross-link to #154 / #166 bullet, **#157** pre-submit summary bullet, and pure helpers list |
@@ -37,6 +37,7 @@ Use when changing **limit price** UX on `/trade` or `/limits`: reference line fr
 
 ## Related
 
+- Anti-cognitive-overload retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
 - Limit **Bid / Ask** side control (button radiogroup): [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md) ([GitLab **#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153))
 - Trade workspace layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Parked / expired limits: [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md)

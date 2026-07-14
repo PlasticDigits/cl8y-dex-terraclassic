@@ -61,18 +61,22 @@ import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
 
 function TicketSection({
-  eyebrow,
   title,
   children,
   tone = 'default',
 }: {
-  eyebrow?: string
-  title: string
+  /** Short label only (≤ ~5 words). Omit for chrome-only wrappers (#489). */
+  title?: string
   children: ReactNode
   tone?: 'default' | 'action' | 'manage'
 }) {
+  // Cool blue action wash — not warm amber/orange (#488 / #489)
   const borderColor =
-    tone === 'action' ? 'rgba(251, 146, 60, 0.22)' : tone === 'manage' ? 'rgba(148, 163, 184, 0.16)' : 'var(--line)'
+    tone === 'action'
+      ? 'color-mix(in srgb, var(--blue) 28%, var(--line))'
+      : tone === 'manage'
+        ? 'rgba(148, 163, 184, 0.16)'
+        : 'var(--line)'
   return (
     <section
       className="rounded-2xl border p-3 space-y-3"
@@ -80,22 +84,15 @@ function TicketSection({
         borderColor,
         background:
           tone === 'action'
-            ? 'linear-gradient(180deg, rgba(251, 146, 60, 0.07), rgba(255, 255, 255, 0.02))'
+            ? 'linear-gradient(180deg, color-mix(in srgb, var(--blue) 8%, transparent), rgba(255, 255, 255, 0.02))'
             : 'rgba(255, 255, 255, 0.025)',
       }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {eyebrow && (
-            <p className="text-[9px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--ink-subtle)' }}>
-              {eyebrow}
-            </p>
-          )}
-          <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink)' }}>
-            {title}
-          </h3>
-        </div>
-      </div>
+      {title ? (
+        <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink)' }}>
+          {title}
+        </h3>
+      ) : null}
       {children}
     </section>
   )
@@ -735,7 +732,7 @@ function TradeOrderTicketContent({
           </div>
         )}
 
-        <TicketSection eyebrow={orderTab === 'limit' ? 'Maker side' : 'Taker side'} title="Choose direction">
+        <TicketSection title="Side">
           <LimitOrderBidAskSideSelector
             idPrefix="trade-ticket"
             compact
@@ -754,7 +751,7 @@ function TradeOrderTicketContent({
 
         {orderTab === 'market' && selectedPair && (
           <div role="tabpanel" id={marketOrderPanelId} aria-labelledby={marketOrderTabId}>
-            <TicketSection eyebrow="Take liquidity" title={`${sideAction.verb} now`} tone="action">
+            <TicketSection title="Market" tone="action">
               <TradeMarketOrderPanel
                 pairAddr={pairAddr}
                 selectedPair={selectedPair}
@@ -768,7 +765,7 @@ function TradeOrderTicketContent({
 
         {orderTab === 'limit' && (
           <div role="tabpanel" id={limitOrderPanelId} aria-labelledby={limitOrderTabId}>
-            <TicketSection eyebrow="Resting order" title={`${sideAction.verb} at your price`} tone="action">
+            <TicketSection title="Limit" tone="action">
               <LimitOrderPriceInputWithContext
                 side={side}
                 price={price}
