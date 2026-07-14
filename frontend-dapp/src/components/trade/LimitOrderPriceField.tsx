@@ -3,38 +3,34 @@ import { formatNum } from '@/utils/formatAmount'
 import {
   anchorUsdForLimitPrice,
   isLimitPriceDirectionInvalid,
+  LIMIT_PRICE_DEVIATION_CHIP_PRESETS,
   limitPriceDeviationPercent,
+  limitPriceFromRefDeviationPercent,
+  matchingLimitPriceDeviationChip,
   type LimitOrderPriceRefSource,
   parsePositivePriceHuman,
 } from '@/utils/limitOrderPriceReference'
 
-/** Compact help — details live in docs (cognitive overload policy / #488). */
-const LIMIT_ORDER_TOOLTIP = 'Resting limit: fills over time at your price. Buys below reference; sells above.'
-
-export function LimitOrderPlaceLimitHeading({ compact }: { compact?: boolean }) {
-  const tipId = useId()
+export function LimitOrderSideFlipButton({ onFlip, compact }: { onFlip: () => void; compact?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <h3
-        className={`font-semibold uppercase tracking-wide ${compact ? 'text-xs' : 'text-sm'}`}
-        style={{ color: 'var(--ink)' }}
+    <div className={`flex justify-center ${compact ? '-my-1' : '-my-1.5'}`}>
+      <button
+        type="button"
+        aria-label="Flip limit order side (bid / ask)"
+        onClick={onFlip}
+        className={`limit-side-flip-btn${compact ? ' limit-side-flip-btn-compact' : ''}`}
+        data-testid="limit-order-side-flip"
       >
-        Place limit
-      </h3>
-      <span
-        className="inline-flex h-5 w-5 cursor-help select-none items-center justify-center rounded-full border border-white/25 text-[10px] font-bold leading-none"
-        style={{ color: 'var(--ink-dim)' }}
-        tabIndex={0}
-        role="img"
-        aria-label="Limit order help"
-        aria-describedby={tipId}
-        title={LIMIT_ORDER_TOOLTIP}
-      >
-        i
-      </span>
-      <span id={tipId} className="sr-only">
-        {LIMIT_ORDER_TOOLTIP}
-      </span>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <path
+            d="M8 1v14M8 1L4 5M8 1l4 4M8 15l-4-4M8 15l4-4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
     </div>
   )
 }
@@ -68,12 +64,17 @@ export function LimitOrderPriceInputWithContext({
   compact,
 }: LimitOrderPriceInputWithContextProps) {
   void _refSource
+  const chipsUnavailableId = useId()
   const limit = parsePositivePriceHuman(price)
   const dev = ref != null && limit != null ? limitPriceDeviationPercent(limit, ref) : null
   const invalid = ref != null && limit != null && side ? isLimitPriceDirectionInvalid(side, limit, ref) : false
   const usd = ref != null && limit != null ? anchorUsdForLimitPrice(limit, ref, tapeHeadlineUsd) : null
+  const activeChip = matchingLimitPriceDeviationChip(limit, ref)
+  const chipsDisabled = ref == null || !(ref > 0)
 
   const extremeValidDeviation = !invalid && dev != null && Math.abs(dev) >= 50
+
+  const chipLabel = (pct: number) => (pct > 0 ? `+${pct}%` : '0%')
 
   return (
     <div className="space-y-1.5">
@@ -97,6 +98,38 @@ export function LimitOrderPriceInputWithContext({
             {token1Label}
           </span>
         </div>
+        <div
+          className="mt-2 flex flex-wrap gap-2"
+          role="group"
+          aria-label="Limit price deviation from reference"
+          data-testid="limit-order-price-deviation-chips"
+        >
+          {LIMIT_PRICE_DEVIATION_CHIP_PRESETS.map((pct) => {
+            const isActive = activeChip === pct
+            return (
+              <button
+                key={pct}
+                type="button"
+                className={`limit-pct-chip${isActive ? ' limit-pct-chip-active' : ''}`}
+                disabled={chipsDisabled}
+                aria-pressed={isActive}
+                aria-describedby={chipsDisabled ? chipsUnavailableId : undefined}
+                data-testid={`limit-order-price-chip-${pct}`}
+                onClick={() => {
+                  if (ref == null || !(ref > 0)) return
+                  onPriceChange(limitPriceFromRefDeviationPercent(ref, pct))
+                }}
+              >
+                {chipLabel(pct)}
+              </button>
+            )
+          })}
+        </div>
+        {chipsDisabled && (
+          <span id={chipsUnavailableId} className="sr-only">
+            Reference price unavailable — deviation chips disabled
+          </span>
+        )}
         <div
           className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 ${compact ? 'text-[10px]' : 'text-xs'}`}
           style={{ color: 'var(--ink-dim)' }}

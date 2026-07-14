@@ -58,6 +58,12 @@ _lcd="$(_read_vite_var "$ENV_LOCAL" VITE_TERRA_LCD_URL || echo 'http://127.0.0.1
 _indexer="$(_read_vite_var "$ENV_LOCAL" VITE_INDEXER_URL || echo 'http://127.0.0.1:3001')"
 echo "[dev-frontend-local] VITE_FACTORY_ADDRESS=${_factory}"
 echo "[dev-frontend-local] VITE_TERRA_LCD_URL=${_lcd}  VITE_INDEXER_URL=${_indexer}"
+case "${_indexer}" in
+  http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*) ;;
+  http://*|https://*)
+    echo "[dev-frontend-local] Remote indexer/LCD detected — Vite will same-origin proxy via /__dev/* (see skills/AGENTS_FRONTEND_LOCAL_REMOTE_CORS_PROXY.md)." >&2
+    ;;
+esac
 
 HOST="${VITE_DEV_HOST:-127.0.0.1}"
 PORT="${VITE_DEV_PORT:-5173}"

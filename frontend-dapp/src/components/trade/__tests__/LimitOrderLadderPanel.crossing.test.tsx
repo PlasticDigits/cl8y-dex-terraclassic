@@ -81,7 +81,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
 
     const guard = await screen.findByTestId('ladder-crossing-guard')
     await waitFor(() => {
-      expect(guard).toHaveTextContent(/5 of 5 rungs will cross the market/i)
+      expect(guard).toHaveTextContent(/5 of 5 rungs cross the market/i)
     })
     expect(screen.getByTestId('ladder-place-submit')).toBeDisabled()
   })
@@ -99,7 +99,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
       />
     )
 
-    await user.click(screen.getByRole('radio', { name: /Ask \(CORAL\)/i }))
+    await user.click(screen.getByRole('radio', { name: /Sell CORAL/i }))
     await user.clear(screen.getByTestId('ladder-start-price'))
     await user.type(screen.getByTestId('ladder-start-price'), '0.1')
     await user.clear(screen.getByTestId('ladder-end-price'))
@@ -107,7 +107,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
 
     const guard = await screen.findByTestId('ladder-crossing-guard')
     await waitFor(() => {
-      expect(guard).toHaveTextContent(/5 of 5 rungs will cross the market/i)
+      expect(guard).toHaveTextContent(/5 of 5 rungs cross the market/i)
     })
     expect(screen.getByTestId('ladder-place-submit')).toBeDisabled()
   })
@@ -141,7 +141,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
 
     const guard = await screen.findByTestId('ladder-crossing-guard')
     await waitFor(() => {
-      expect(guard).toHaveTextContent(/5 of 5 rungs will cross the market/i)
+      expect(guard).toHaveTextContent(/5 of 5 rungs cross the market/i)
     })
     expect(screen.getByTestId('ladder-place-submit')).toBeDisabled()
   })

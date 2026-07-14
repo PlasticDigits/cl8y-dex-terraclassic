@@ -6,16 +6,16 @@ import type { LimitLadderPlacementPlan } from '@/utils/limitLadderPlacementPlan'
 export function formatLimitBatchGasSavingsLine(rungCount: number, batchMinUluna: bigint, savingsUluna: bigint): string {
   const batchApprox = formatTokenAmount(batchMinUluna.toString(), 6, 4)
   if (rungCount < 2 || savingsUluna <= 0n) {
-    return `One transaction after allowance · est. min gas ~${batchApprox} LUNC`
+    return `Est. gas ~${batchApprox} LUNC`
   }
   const savedApprox = formatTokenAmount(savingsUluna.toString(), 6, 4)
-  return `One tx after allowance · est. ~${batchApprox} LUNC gas (saves ~${savedApprox} LUNC vs ${rungCount} separate placements)`
+  return `Est. ~${batchApprox} LUNC gas (saves ~${savedApprox} vs ${rungCount} singles)`
 }
 
 /** Pre-submit ladder summary: path, expected rungs, gas model (GitLab #268). */
 export function formatLimitLadderPlacementSummary(
   rungCount: number,
-  maxAdjustSteps: number,
+  _maxAdjustSteps: number,
   plan: LimitLadderPlacementPlan | null | undefined
 ): string {
   const gasLimit = gasLimitForLimitOrderBatch(rungCount)
@@ -27,7 +27,6 @@ export function formatLimitLadderPlacementSummary(
       : plan?.path === 'single_anchor_ladder'
         ? 'ladder (single anchor)'
         : 'ladder (thin book)'
-  const placed = plan != null ? `${plan.skipRisk.predictedPlaced}/${rungCount} rungs expected` : `${rungCount} rungs`
-  const stepsNote = plan ? ` · max steps ${maxAdjustSteps} (recommended ${plan.recommendedMaxSteps})` : ''
-  return `${pathLabel} · ${placed} · est. gas ~${gasApprox} LUNC${stepsNote}`
+  const placed = plan != null ? `${plan.skipRisk.predictedPlaced}/${rungCount} rungs` : `${rungCount} rungs`
+  return `${pathLabel} · ${placed} · ~${gasApprox} LUNC`
 }

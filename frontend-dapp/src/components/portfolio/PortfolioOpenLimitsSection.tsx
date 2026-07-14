@@ -25,11 +25,11 @@ export function PortfolioOpenLimitsSection({
         Open limits
       </h3>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-dim)' }}>
-        Resting limit orders across all indexed pairs for your wallet. Cancel or claim refunds on{' '}
+        Manage on{' '}
         <Link to="/limits" className="underline" style={{ color: 'var(--accent)' }}>
           Limits
         </Link>{' '}
-        or per-pair on{' '}
+        or{' '}
         <Link to="/trade" className="underline" style={{ color: 'var(--accent)' }}>
           Trade
         </Link>
@@ -49,7 +49,7 @@ export function PortfolioOpenLimitsSection({
           style={{ color: 'var(--ink-dim)' }}
           data-testid="portfolio-open-limits-empty"
         >
-          No open indexed limit placements for this wallet.
+          No open limits.
         </p>
       )}
       {!isLoading && !isError && placements && placements.length > 0 && (
@@ -93,8 +93,8 @@ export function PortfolioOpenLimitsSection({
                   <td className="py-1.5 px-2 text-right font-mono" style={{ color: 'var(--ink-subtle)' }}>
                     #{row.order_id}
                   </td>
-                  <td className="py-1.5 px-2 capitalize" style={{ color: 'var(--ink-subtle)' }}>
-                    {row.side ?? '—'}
+                  <td className="py-1.5 px-2" style={{ color: 'var(--ink-subtle)' }}>
+                    {row.side === 'bid' ? 'Buy' : row.side === 'ask' ? 'Sell' : '—'}
                   </td>
                   <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>
                     {row.price != null ? formatNum(row.price, 6) : '—'}

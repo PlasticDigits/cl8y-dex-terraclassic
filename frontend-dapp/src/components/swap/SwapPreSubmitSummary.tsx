@@ -97,10 +97,6 @@ export function SwapPreSubmitSummary({
       role="region"
       aria-label="Swap summary before signing"
     >
-      <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        Review these fields before your wallet opens. They must match what you intend to sign on{' '}
-        <strong style={{ color: 'var(--ink-subtle)' }}>{chainFullLabel}</strong>.
-      </p>
       <div className="space-y-1.5">
         <SummaryRow label="Action" value={actionLabel} testId="swap-confirm-action" />
         <SummaryRow label="Pair" value={pairLabel} testId="swap-confirm-pair" />

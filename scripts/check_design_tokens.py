@@ -12,6 +12,7 @@ TAILWIND = ROOT / "frontend-dapp/tailwind.config.js"
 BOOTSTRAP = ROOT / "frontend-dapp/public/bootstrap/trade-bootstrap.css"
 THEME_DARK = ROOT / "frontend-dapp/src/theme-dark.css"
 THEME_LIGHT = ROOT / "frontend-dapp/src/theme-light.css"
+INDEX_CSS = ROOT / "frontend-dapp/src/index.css"
 DESIGN_DOC = ROOT / "docs/design-system.md"
 QA_TEMPLATE = ROOT / "QA_TEMPLATE.md"
 QA_PASS = ROOT / "QA_PASS_2026-03-13.md"
@@ -23,6 +24,8 @@ LEGACY_TAILWIND_BLUE = re.compile(
     r"#(?:3b82f6|2563eb|60a5fa|38bdf8|0f172a|1e293b|334155)",
     re.IGNORECASE,
 )
+BROWN_WARNING_FILL = re.compile(r"rgba\(\s*74,\s*(?:40|55),\s*12\b")
+GOLD_PAGE_WASH = re.compile(r"rgba\(\s*232,\s*184,\s*74\b")
 
 
 def token_value(css: str, name: str) -> str | None:
@@ -47,6 +50,7 @@ def main() -> int:
     bootstrap = BOOTSTRAP.read_text()
     theme_dark = THEME_DARK.read_text()
     theme_light = THEME_LIGHT.read_text()
+    index_css = INDEX_CSS.read_text() if INDEX_CSS.is_file() else ""
 
     if LEGACY_TAILWIND_BLUE.search(tailwind):
         errors.append("tailwind.config.js still contains legacy hard-coded blue hex palette")
@@ -81,6 +85,26 @@ def main() -> int:
             errors.append(f"theme-{theme_name}.css --gold must be #e8b84a (got {gold})")
         if "--mint: var(--blue)" not in theme_css and token_value(theme_css, "mint") != "var(--blue)":
             errors.append(f"theme-{theme_name}.css --mint must alias --blue for CTA compat")
+        if BROWN_WARNING_FILL.search(theme_css):
+            errors.append(f"theme-{theme_name}.css still uses brown warning fill rgba(74, …, 12)")
+
+    if index_css:
+        if BROWN_WARNING_FILL.search(index_css):
+            errors.append("index.css still uses brown warning fill rgba(74, …, 12)")
+        body_match = re.search(r"body\s*\{[^}]*background:[^}]*\}", index_css, re.DOTALL)
+        if body_match and GOLD_PAGE_WASH.search(body_match.group(0)):
+            errors.append("index.css body background still contains gold radial wash")
+        if re.search(
+            r"\.app-nav-link-active[\s\S]*background:\s*var\(--gold-surface\)",
+            index_css,
+        ):
+            errors.append("index.css nav active state must not use --gold-surface fill")
+        if re.search(r"rgba\(\s*249,\s*115,\s*22\b", index_css):
+            errors.append("index.css still uses orange brand glow rgba(249, 115, 22) — use cool chrome-glow")
+        if re.search(r"\.app-modal-backdrop[\s\S]{0,200}rgba\(\s*7,\s*4,\s*3\b", index_css):
+            errors.append("index.css .app-modal-backdrop still uses warm brown overlay")
+    elif not INDEX_CSS.is_file():
+        errors.append(f"missing {INDEX_CSS}")
 
     dark_bg0 = token_value(theme_dark, "bg-0")
     light_bg0 = token_value(theme_light, "bg-0")

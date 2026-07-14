@@ -1,10 +1,11 @@
 import { defineConfig, loadEnv } from 'vite'
-import type { Plugin } from 'vite'
+import type { Plugin, ProxyOptions } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { execSync } from 'child_process'
 import { networkInterfaces } from 'os'
 import { buildProductionCspMetaContent } from './viteCsp'
+import { DEV_PROXY_INDEXER_PREFIX, DEV_PROXY_LCD_PREFIX, planDevRemoteProxy } from './src/dev/viteDevProxy'
 
 let gitSha = 'dev'
 try {
@@ -87,9 +88,66 @@ function cspProductionPolicy(mode: string, env: Record<string, string>): Plugin 
   }
 }
 
+function buildDevRemoteProxy(
+  env: Record<string, string>,
+  command: string
+): {
+  proxy: Record<string, ProxyOptions>
+  define: Record<string, string>
+  logLines: string[]
+} {
+  // Only rewrite browser URLs during `vite` serve — never vitest or `vite build`.
+  const enable = command === 'serve' && !process.env.VITEST
+
+  if (!enable) {
+    return { proxy: {}, define: {}, logLines: [] }
+  }
+
+  const plan = planDevRemoteProxy(env)
+  const proxy: Record<string, ProxyOptions> = {}
+  const define: Record<string, string> = {}
+  const logLines: string[] = []
+
+  if (plan.indexerTarget && plan.indexerBrowserUrl) {
+    proxy[DEV_PROXY_INDEXER_PREFIX] = {
+      target: plan.indexerTarget,
+      changeOrigin: true,
+      secure: true,
+      rewrite: (p) => {
+        const rest = p.startsWith(DEV_PROXY_INDEXER_PREFIX) ? p.slice(DEV_PROXY_INDEXER_PREFIX.length) : p
+        return rest.length > 0 ? rest : '/'
+      },
+    }
+    define['import.meta.env.VITE_INDEXER_URL'] = JSON.stringify(plan.indexerBrowserUrl)
+    logLines.push(
+      `[vite-dev-proxy] indexer ${plan.indexerBrowserUrl} → ${plan.indexerTarget} (avoids CORS from Vite origin)`
+    )
+  }
+
+  if (plan.lcdTarget && plan.lcdBrowserUrl) {
+    proxy[DEV_PROXY_LCD_PREFIX] = {
+      target: plan.lcdTarget,
+      changeOrigin: true,
+      secure: true,
+      rewrite: (p) => {
+        const rest = p.startsWith(DEV_PROXY_LCD_PREFIX) ? p.slice(DEV_PROXY_LCD_PREFIX.length) : p
+        return rest.length > 0 ? rest : '/'
+      },
+    }
+    define['import.meta.env.VITE_TERRA_LCD_URL'] = JSON.stringify(plan.lcdBrowserUrl)
+    logLines.push(`[vite-dev-proxy] lcd ${plan.lcdBrowserUrl} → ${plan.lcdTarget} (avoids CORS from Vite origin)`)
+  }
+
+  return { proxy, define, logLines }
+}
+
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, path.join(__dirname), 'VITE_')
   assertBuildEnvGuards(command, mode, env)
+  const remoteProxy = buildDevRemoteProxy(env, command)
+  for (const line of remoteProxy.logLines) {
+    console.info(line)
+  }
 
   return {
     plugins: [react(), cspDevHosts(), cspProductionPolicy(mode, env)],
@@ -108,6 +166,7 @@ export default defineConfig(({ mode, command }) => {
       'process.env': '{}',
       __GIT_SHA__: JSON.stringify(gitSha),
       __APP_VERSION__: JSON.stringify('v0.1.0'),
+      ...remoteProxy.define,
     },
     build: {
       outDir: 'dist',
@@ -147,6 +206,10 @@ export default defineConfig(({ mode, command }) => {
       port: 3000,
       open: true,
       allowedHosts: true,
+      proxy: remoteProxy.proxy,
+    },
+    preview: {
+      proxy: remoteProxy.proxy,
     },
     optimizeDeps: {
       esbuildOptions: {

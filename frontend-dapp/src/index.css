@@ -36,7 +36,8 @@
   --mint-soft: #dbeafe;
   --accent: var(--mint);
   --accent-surface: rgba(68, 138, 255, 0.16);
-  --gold-surface: rgba(232, 184, 74, 0.14);
+  /* Hairline/border accent only — not for large fills (#488). */
+  --gold-surface: rgba(232, 184, 74, 0.06);
   --panel-bg: linear-gradient(180deg, rgba(26, 32, 48, 0.94), rgba(18, 23, 34, 0.96));
   --panel-bg-strong: linear-gradient(180deg, rgba(30, 38, 56, 0.96), rgba(16, 21, 32, 0.98));
   --grid-line: rgba(255, 255, 255, 0.03);
@@ -61,7 +62,8 @@
   --menu-bg: linear-gradient(180deg, rgb(26, 32, 48), rgb(14, 18, 28));
   --alert-error-bg: rgba(72, 17, 17, 0.32);
   --alert-error-text: #ffb8b8;
-  --alert-warning-bg: rgba(74, 55, 12, 0.28);
+  --alert-warning-bg: rgba(26, 32, 48, 0.78);
+  --alert-warning-border: rgba(232, 184, 74, 0.32);
   --alert-warning-text: #f6d58a;
   --chrome-border: rgba(148, 163, 184, 0.16);
   --chrome-border-soft: rgba(148, 163, 184, 0.1);
@@ -121,7 +123,6 @@
     background:
       radial-gradient(circle at top, rgba(68, 138, 255, 0.14), transparent 32%),
       radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.1), transparent 24%),
-      radial-gradient(circle at 85% 18%, rgba(232, 184, 74, 0.08), transparent 26%),
       linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 38%, var(--bg-0) 100%);
     background-attachment: fixed;
   }
@@ -443,7 +444,7 @@
 
   .alert-warning {
     @apply p-3 text-sm;
-    border: 1px solid rgba(251, 191, 36, 0.22);
+    border: 1px solid var(--alert-warning-border);
     border-radius: 18px;
     background: var(--alert-warning-bg);
     color: var(--alert-warning-text);
@@ -528,6 +529,17 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
+  .swap-direction-btn {
+    border: 1px solid color-mix(in srgb, var(--blue) 38%, transparent);
+    background: var(--control-surface);
+    color: var(--blue);
+    box-shadow: var(--shadow-card);
+  }
+
+  .swap-direction-btn:hover {
+    background: var(--control-surface-hover);
+  }
+
   .tab-glass {
     @apply px-4 py-2 text-sm font-medium uppercase tracking-wide transition-colors;
     border: 1px solid var(--chrome-border-soft);
@@ -583,8 +595,8 @@
   }
 
   .badge-glass-warning {
-    border-color: rgba(251, 191, 36, 0.22);
-    background: rgba(74, 40, 12, 0.28);
+    border-color: var(--alert-warning-border);
+    background: var(--control-surface);
     color: var(--alert-warning-text);
   }
 
@@ -595,9 +607,71 @@
   }
 
   .badge-glass-accent {
-    border-color: color-mix(in srgb, var(--gold) 40%, transparent);
-    background: var(--gold-surface);
+    border-color: color-mix(in srgb, var(--gold) 50%, transparent);
+    background: var(--control-surface);
     color: var(--gold);
+  }
+
+  /* Limit rate deviation chips (#488) — gold border emphasis, cool inactive fill */
+  .limit-pct-chip {
+    @apply px-2.5 py-1 text-xs font-semibold tabular-nums;
+    border-radius: 8px;
+    border: 1px solid var(--chrome-border);
+    background: var(--control-surface);
+    color: var(--ink-subtle);
+    font-family: inherit;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .limit-pct-chip:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--gold) 35%, transparent);
+    color: var(--ink);
+  }
+
+  .limit-pct-chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .limit-pct-chip-active {
+    border-color: color-mix(in srgb, var(--gold) 55%, transparent);
+    background: color-mix(in srgb, var(--gold) 10%, var(--control-surface));
+    color: var(--gold);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 22%, transparent);
+  }
+
+  .limit-side-flip-btn {
+    @apply flex items-center justify-center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 12px;
+    border: 1px solid var(--chrome-border);
+    background: var(--control-surface);
+    color: var(--blue);
+    box-shadow: var(--shadow-button-muted);
+    transition:
+      transform 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .limit-side-flip-btn:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--blue) 40%, transparent);
+  }
+
+  .limit-side-flip-btn-compact {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+  }
+
+  .limit-side-flip-btn:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-button-muted),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .app-shell {
@@ -716,14 +790,15 @@
   }
 
   .app-env-ribbon--testnet {
-    background: linear-gradient(180deg, rgba(251, 191, 36, 0.24), rgba(251, 191, 36, 0.14)), var(--panel-bg);
-    border-color: rgba(251, 191, 36, 0.32);
-    color: #fcd34d;
+    background: var(--panel-bg);
+    border-color: color-mix(in srgb, var(--gold) 42%, transparent);
+    color: var(--gold);
   }
 
   .app-env-ribbon--testnet .app-env-ribbon-label {
-    background: rgba(251, 191, 36, 0.28);
-    color: #fef3c7;
+    background: var(--control-surface);
+    border: 1px solid color-mix(in srgb, var(--gold) 38%, transparent);
+    color: var(--gold);
   }
 
   .app-env-ribbon--mainnet {
@@ -738,11 +813,11 @@
   }
 
   :root[data-theme='light'] .app-env-ribbon--testnet {
-    color: #92400e;
+    color: var(--gold);
   }
 
   :root[data-theme='light'] .app-env-ribbon--testnet .app-env-ribbon-label {
-    color: #78350f;
+    color: #b45309;
   }
 
   :root[data-theme='light'] .app-env-ribbon--mainnet {
@@ -818,7 +893,7 @@
     background: linear-gradient(180deg, rgba(68, 138, 255, 0.14), rgba(68, 138, 255, 0.04)), rgba(255, 255, 255, 0.02);
     box-shadow:
       inset 0 1px 0 var(--chrome-highlight),
-      0 16px 36px rgba(249, 115, 22, 0.16);
+      0 16px 36px rgba(37, 99, 235, 0.18);
   }
 
   .app-brand-logo {
@@ -946,9 +1021,9 @@
   .app-mobile-link-active,
   .app-mobile-more-active,
   .network-badge-active {
-    color: var(--ink);
+    color: var(--gold);
     border-color: color-mix(in srgb, var(--gold) 55%, transparent);
-    background: var(--gold-surface);
+    background: var(--accent-surface);
     box-shadow:
       inset 0 1px 0 var(--chrome-highlight),
       inset 0 -2px 0 var(--gold),
@@ -963,6 +1038,7 @@
     outline: none;
     box-shadow:
       inset 0 1px 0 var(--chrome-highlight),
+      inset 0 -2px 0 var(--gold),
       0 12px 26px rgba(8, 12, 24, 0.2),
       0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
@@ -1264,7 +1340,7 @@
   .app-modal-backdrop {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(7, 4, 3, 0.68), rgba(15, 8, 6, 0.78));
+    background: linear-gradient(180deg, rgba(6, 10, 18, 0.72), rgba(10, 14, 24, 0.82));
     backdrop-filter: blur(10px);
   }
 
@@ -1369,8 +1445,8 @@
   }
 
   .wallet-option-card-dev {
-    border-color: rgba(251, 191, 36, 0.2);
-    background: rgba(74, 40, 12, 0.26);
+    border-color: var(--alert-warning-border);
+    background: var(--control-surface);
   }
 
   .wallet-option-badge {
@@ -1584,7 +1660,7 @@
 
   .bg-yellow-900\/25,
   .bg-yellow-900\/30 {
-    background-color: rgba(74, 40, 12, 0.28) !important;
+    background-color: var(--control-surface) !important;
   }
 
   .bg-blue-900\/30,

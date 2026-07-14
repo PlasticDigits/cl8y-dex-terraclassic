@@ -3,8 +3,7 @@ import { toRawAmount } from '@/utils/formatAmount'
 /** User-visible copy — keep in sync with `LimitOrderEscrowPlaceGuardMessage` styling rules. */
 export const LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT = 'Insufficient balance'
 export const LIMIT_ORDER_ESCROW_MSG_LOADING = 'Loading wallet balance…'
-export const LIMIT_ORDER_ESCROW_MSG_BALANCE_UNAVAILABLE =
-  'Cannot verify wallet balance. Wait and retry, or check your connection.'
+export const LIMIT_ORDER_ESCROW_MSG_BALANCE_UNAVAILABLE = 'Cannot verify balance.'
 
 /**
  * Minimal balance-query shape so callers can pass React Query results without

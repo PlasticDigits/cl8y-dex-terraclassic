@@ -56,7 +56,7 @@ describe('evaluateLimitOrderNativeGasPlaceGate', () => {
       REQUIRED
     )
     expect(r.canPlaceLimit).toBe(false)
-    expect(r.userMessage).toContain('Not enough LUNC')
+    expect(r.userMessage).toContain('Need ~')
     expect(r.tone).toBe('error')
   })
 

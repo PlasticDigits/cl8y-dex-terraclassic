@@ -18,9 +18,11 @@ describe('marketDataServiceCopy', () => {
   it('uses market data service wording without env URLs (GitLab #174, #215)', () => {
     expect(MARKET_DATA_SERVICE_OUTAGE_TITLE).toMatch(/market data service/i)
     for (const lead of allLeads) {
-      expect(lead).toMatch(/limited|recovers/i)
+      expect(lead).toMatch(/limited/i)
+      expect(lead.split(/\s+/).length).toBeLessThanOrEqual(8)
       expect(lead).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
       expect(lead.toLowerCase()).not.toContain('indexer unavailable')
+      expect(lead.toLowerCase()).not.toContain('indexer')
     }
   })
 })

@@ -79,16 +79,16 @@ export function describeLimitCrossingBlocker(
   if (side === 'bid') {
     const x = limitBidCrossesBestAsk(price, bestAsk)
     if (x === true) {
-      return `Bid price must stay below the best ask (${bestAsk}) so the order does not cross the spread.`
+      return `Buy price must stay below best ask (${bestAsk}).`
     }
-    if (x === null) return 'Enter a valid positive price.'
+    if (x === null) return 'Enter a valid price.'
     return null
   }
   const x = limitAskCrossesBestBid(price, bestBid)
   if (x === true) {
-    return `Ask price must stay above the best bid (${bestBid}) so the order does not cross the spread.`
+    return `Sell price must stay above best bid (${bestBid}).`
   }
-  if (x === null) return 'Enter a valid positive price.'
+  if (x === null) return 'Enter a valid price.'
   return null
 }
 
@@ -114,10 +114,10 @@ export function describeLimitCrossingBlockerWithRef(
   if (limit == null) return null
 
   if (side === 'bid' && !bestAsk?.trim() && isLimitPriceDirectionInvalid('bid', limit, ref)) {
-    return `Bid price must stay below the market reference (${ref}) so the order does not cross the spread.`
+    return `Buy price must stay below market reference (${ref}).`
   }
   if (side === 'ask' && !bestBid?.trim() && isLimitPriceDirectionInvalid('ask', limit, ref)) {
-    return `Ask price must stay above the market reference (${ref}) so the order does not cross the spread.`
+    return `Sell price must stay above market reference (${ref}).`
   }
   return null
 }

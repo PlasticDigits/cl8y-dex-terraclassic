@@ -26,7 +26,8 @@
   --mint-soft: #dbeafe;
   --accent: var(--mint);
   --accent-surface: rgba(68, 138, 255, 0.16);
-  --gold-surface: rgba(232, 184, 74, 0.14);
+  /* Hairline/border accent only — not for large fills (#488). */
+  --gold-surface: rgba(232, 184, 74, 0.06);
   --panel-bg: linear-gradient(180deg, rgba(26, 32, 48, 0.94), rgba(18, 23, 34, 0.96));
   --panel-bg-strong: linear-gradient(180deg, rgba(30, 38, 56, 0.96), rgba(16, 21, 32, 0.98));
   --grid-line: rgba(255, 255, 255, 0.03);
@@ -52,7 +53,8 @@
   --menu-bg: linear-gradient(180deg, rgb(26, 32, 48), rgb(14, 18, 28));
   --alert-error-bg: rgba(72, 17, 17, 0.32);
   --alert-error-text: #ffb8b8;
-  --alert-warning-bg: rgba(74, 55, 12, 0.28);
+  --alert-warning-bg: rgba(26, 32, 48, 0.78);
+  --alert-warning-border: rgba(232, 184, 74, 0.32);
   --alert-warning-text: #f6d58a;
   --chrome-border: rgba(148, 163, 184, 0.16);
   --chrome-border-soft: rgba(148, 163, 184, 0.1);

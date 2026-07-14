@@ -98,7 +98,7 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     const amountInput = screen.getByTestId('limit-order-escrow-amount-input')
     await user.type(amountInput, '10')
 
-    const bookInput = screen.getByPlaceholderText('Leave empty for 100% book leg')
+    const bookInput = screen.getByPlaceholderText('Empty = full book leg')
     await user.type(bookInput, '2')
 
     await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
@@ -172,7 +172,7 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     )
 
     expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/min return/i)
-    expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/10%/)
+    expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/book first/i)
   })
 
   it('humanizes simulated quote failures instead of raw error text (#414)', async () => {

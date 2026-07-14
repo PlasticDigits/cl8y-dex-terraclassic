@@ -460,16 +460,14 @@ export function TradeMarketOrderPanel({
     <div className="space-y-3 border-t border-white/10 pt-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide">Market</h3>
       <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        Executes a taker swap on this pair using your global {SLIPPAGE_PROTECTION_LABEL.toLowerCase()} (
-        <span className="font-mono">{slippageTolerance}%</span>
-        ). When hybrid routing is enabled, your trade fills against the on-chain limit book first, then the pool.{' '}
+        Taker swap at {slippageTolerance}% {SLIPPAGE_PROTECTION_LABEL.toLowerCase()}.{' '}
         <a
           className="underline hover:opacity-80"
           href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          Learn more
+          Docs
         </a>
       </p>
       <div className="flex flex-wrap gap-2 text-[10px]">
@@ -504,27 +502,19 @@ export function TradeMarketOrderPanel({
       />
       <label className="flex items-center gap-2 text-[11px] cursor-pointer">
         <input type="checkbox" checked={useHybridBook} onChange={(e) => setUseHybridBook(e.target.checked)} />
-        Use hybrid book + pool routing
+        Hybrid book + pool
       </label>
       {useHybridBook && (
         <div className="space-y-2">
-          <p
-            className="text-[10px] leading-snug"
-            style={{ color: 'var(--ink-dim)' }}
-            data-testid="trade-market-hybrid-min-return-notice"
-          >
-            Hybrid routing walks the limit book first, then fills any remainder from the pool in the same transaction.
-            Your <strong>min return</strong> (from slippage protection above) is enforced on the{' '}
-            <strong>combined</strong> book + pool payout after fees — the chain rejects the swap if net output is too
-            low. When both legs are used, at least <strong>10%</strong> of your pay amount must go through the pool.
-          </p>
-          <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
-            Book leg defaults to the full pay amount when the field below is empty (book first, pool takes the
-            remainder).
-          </p>
+          <details className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
+            <summary className="cursor-pointer select-none">Hybrid routing details</summary>
+            <p className="mt-2 leading-snug" data-testid="trade-market-hybrid-min-return-notice">
+              Book first, then pool. Min return applies to the combined payout.
+            </p>
+          </details>
           <div>
             <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
-              Book leg override ({getTokenDisplaySymbol(fromToken)})
+              Book leg ({getTokenDisplaySymbol(fromToken)})
             </label>
             <input
               id={bookLegInputId}
@@ -536,7 +526,7 @@ export function TradeMarketOrderPanel({
                 const v = e.target.value
                 if (isDecimalAmountDraft(v)) setBookInputHuman(v)
               }}
-              placeholder="Leave empty for 100% book leg"
+              placeholder="Empty = full book leg"
             />
             {isWalletConnected && fromToken.startsWith('terra1') && (
               <AmountBalanceActions
@@ -552,10 +542,10 @@ export function TradeMarketOrderPanel({
           </div>
           <div>
             <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
-              Max distinct makers
+              Max makers
               <span
                 className="ml-1 cursor-help opacity-70"
-                title="Caps how many resting limits one swap can fill. If the book cannot satisfy your size within this cap, the remainder spills to the pool leg in the same transaction."
+                title="Caps resting limits one swap can fill; remainder goes to the pool."
               >
                 ⓘ
               </span>

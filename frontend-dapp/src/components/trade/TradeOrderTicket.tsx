@@ -41,13 +41,15 @@ import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrder
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
 import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubmitSummary'
-import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
+import { LimitOrderSideFlipButton, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
+import { LimitOrderReceiveField } from '@/components/trade/LimitOrderReceiveField'
 import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
 import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { flattenLimitBookPages, resolveLimitInsertHintAfter } from '@/utils/limitBookInsertHint'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
+import { limitOrderExpectedReceiveHuman } from '@/utils/limitOrderExpectedReceive'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
 import type { LimitBookEditContext, LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import {
@@ -201,8 +203,11 @@ function TradeOrderTicketContent({
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const escrowToken = side === 'bid' ? token1 : token0
+  const receiveToken = side === 'bid' ? token0 : token1
   const escrowDecimals = escrowToken ? getDecimals(tokenAssetInfo(escrowToken)) : 6
+  const receiveDecimals = receiveToken ? getDecimals(tokenAssetInfo(receiveToken)) : 6
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, escrowToken)
+  const receiveBalanceQuery = useLimitOrderEscrowBalance(address, receiveToken)
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
   const escrowUsdNotionalApprox = useMemo(() => {
@@ -243,6 +248,26 @@ function TradeOrderTicketContent({
     feeLoading: limitFeeLoading,
     feeError: limitFeeError,
   } = useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
+
+  const expectedReceiveHuman = useMemo(
+    () =>
+      limitOrderExpectedReceiveHuman({
+        side,
+        escrowAmountHuman: amountHuman,
+        escrowDecimals,
+        priceHuman: price,
+        effectiveFeeBps,
+      }),
+    [side, amountHuman, escrowDecimals, price, effectiveFeeBps]
+  )
+
+  const receiveUsdNotionalApprox = useMemo(() => {
+    const amt = expectedReceiveHuman != null ? parsePositivePriceHuman(expectedReceiveHuman) : null
+    if (amt == null) return null
+    const usd = escrowAmountUsdAnchorNotional(amt, side === 'bid', refToken1PerToken0, tapeHeadlineUsd)
+    if (usd == null || !Number.isFinite(usd)) return null
+    return `$${formatNum(usd, 4)}`
+  }, [expectedReceiveHuman, side, refToken1PerToken0, tapeHeadlineUsd])
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr, address],
@@ -603,8 +628,8 @@ function TradeOrderTicketContent({
     )
   }
 
-  const token0Display = indexerPair?.asset_0.symbol ?? getTokenDisplaySymbol(token0 || 'token0')
-  const token1Display = indexerPair?.asset_1.symbol ?? getTokenDisplaySymbol(token1 || 'token1')
+  const token0Display = indexerPair?.asset_0.symbol ?? getTokenDisplaySymbol(token0 || 'Base')
+  const token1Display = indexerPair?.asset_1.symbol ?? getTokenDisplaySymbol(token1 || 'Quote')
   const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(token0Display)
   const sideAction =
     side === 'bid'
@@ -631,11 +656,6 @@ function TradeOrderTicketContent({
             <h3 className="mt-1 text-base font-semibold font-heading truncate" style={{ color: 'var(--ink)' }}>
               {selectedPair ? `${sideAction.verb} ${sideAction.receive}` : 'Select a pair'}
             </h3>
-            <p className="mt-1 text-[10px] leading-snug hidden lg:block" style={{ color: 'var(--ink-dim)' }}>
-              {selectedPair
-                ? `${sideAction.pay} funds the order. Resting limits appear in the book; market orders take available liquidity.`
-                : 'Choose a trading pair from the selector to place orders.'}
-            </p>
           </div>
           <button
             type="button"
@@ -652,39 +672,26 @@ function TradeOrderTicketContent({
             {walletLabel}
           </button>
         </div>
-
-        {selectedPair && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <TicketStat label="Base" value={token0Display} />
-            <TicketStat label="Quote" value={token1Display} />
-          </div>
-        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-3 min-h-0 overflow-y-auto p-4">
         {selectedPair && isPaused && (
           <div className="alert-error text-xs space-y-2" role="alert">
-            <p>
-              Pair is paused — swaps, limit place, cancel, and parked-expiry claim are blocked until governance
-              unpauses. Your funds and escrow remain in the pair contract.
-            </p>
+            <p>Pair paused.</p>
             <a
               className="underline text-[10px]"
               href={USER_INCIDENT_FAQ_HREF}
               target="_blank"
               rel="noopener noreferrer"
             >
-              What happens during an incident?
+              Docs
             </a>
           </div>
         )}
 
         {selectedPair && tradingBlacklist.blocked && tradingBlacklist.message && (
-          <div className="alert-error text-xs space-y-2" role="alert">
+          <div className="alert-error text-xs" role="alert">
             <p>{tradingBlacklist.message}</p>
-            <p className="text-[10px] opacity-90">
-              Restrictions are enforced on-chain by governance. Funds remain recoverable when the restriction is lifted.
-            </p>
           </div>
         )}
 
@@ -739,14 +746,10 @@ function TradeOrderTicketContent({
           />
           {selectedPair && pairAddr.startsWith('terra1') && (
             <div className="grid grid-cols-2 gap-2">
-              <TicketStat label="Best bid" value={bestBidLabel} tone="bid" />
-              <TicketStat label="Best ask" value={bestAskLabel} tone="ask" />
+              <TicketStat label="Top buy" value={bestBidLabel} tone="bid" />
+              <TicketStat label="Top sell" value={bestAskLabel} tone="ask" />
             </div>
           )}
-          <p className="text-[10px] leading-snug hidden lg:block" style={{ color: 'var(--ink-dim)' }}>
-            Prices are quoted in {token1Display} per {token0Display}. Buy limits should sit below the reference; sell
-            limits above it.
-          </p>
         </TicketSection>
 
         {orderTab === 'market' && selectedPair && (
@@ -765,33 +768,7 @@ function TradeOrderTicketContent({
 
         {orderTab === 'limit' && (
           <div role="tabpanel" id={limitOrderPanelId} aria-labelledby={limitOrderTabId}>
-            {pairAddr && address && (
-              <div
-                ref={placementsAnchorRef}
-                data-testid="trade-ticket-placements-anchor"
-                className="scroll-mt-4 outline-none mb-3"
-                tabIndex={-1}
-              >
-                <LimitOrderMyPlacementsPanel
-                  variant="compact"
-                  pairAddr={pairAddr}
-                  pair={selectedPair}
-                  walletAddress={address}
-                  rows={myPlacements}
-                  isLoading={placementsQuery.isLoading}
-                  isWalletConnected={isWalletConnected}
-                  isPairPaused={isPaused}
-                  claimsDisabled={tradingBlacklist.blocked}
-                  cancelDisabled={tradingBlacklist.blocked}
-                  openWalletModal={openWalletModal}
-                  cancelLimitOrderMutation={cancelMutation}
-                  cancellations={cancellationsQuery.data ?? []}
-                  highlightOrderId={highlightPlacementOrderId}
-                />
-              </div>
-            )}
             <TicketSection eyebrow="Resting order" title={`${sideAction.verb} at your price`} tone="action">
-              <LimitOrderPlaceLimitHeading compact />
               <LimitOrderPriceInputWithContext
                 side={side}
                 price={price}
@@ -816,6 +793,16 @@ function TradeOrderTicketContent({
                 maxContext="limit_place"
                 assetIsNativeUluna={escrowToken === 'uluna'}
                 escrowUsdNotionalApprox={escrowUsdNotionalApprox}
+              />
+              <LimitOrderSideFlipButton compact onFlip={() => handleSideChange(side === 'bid' ? 'ask' : 'bid')} />
+              <LimitOrderReceiveField
+                compact
+                receiveLabel={sideAction.receive}
+                receiveAmountHuman={expectedReceiveHuman}
+                receiveDecimals={receiveDecimals}
+                receiveBalanceQuery={receiveBalanceQuery}
+                walletConnected={isWalletConnected}
+                receiveUsdNotionalApprox={receiveUsdNotionalApprox}
               />
               <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
               <LimitOrderAdvancedLimitSettings
@@ -852,12 +839,12 @@ function TradeOrderTicketContent({
                   style={{ color: 'var(--ink-dim)' }}
                   data-testid="trade-limit-edit-context"
                 >
-                  Editing order <span className="font-mono">#{editContext.orderId}</span>
+                  Editing <span className="font-mono">#{editContext.orderId}</span>
                   {priceOnlyEdit
-                    ? ' — change price and tap Update price (one tx, no maker fee).'
+                    ? ' — update price only.'
                     : editNonPriceChanged
                       ? ` — ${LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE}`
-                      : ' — adjust price to update in one tx.'}
+                      : ' — adjust price to update.'}
                 </p>
               )}
             </TicketSection>
@@ -922,6 +909,31 @@ function TradeOrderTicketContent({
                 <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
               )}
             </div>
+            {pairAddr && address && (
+              <div
+                ref={placementsAnchorRef}
+                data-testid="trade-ticket-placements-anchor"
+                className="scroll-mt-4 outline-none"
+                tabIndex={-1}
+              >
+                <LimitOrderMyPlacementsPanel
+                  variant="compact"
+                  pairAddr={pairAddr}
+                  pair={selectedPair}
+                  walletAddress={address}
+                  rows={myPlacements}
+                  isLoading={placementsQuery.isLoading}
+                  isWalletConnected={isWalletConnected}
+                  isPairPaused={isPaused}
+                  claimsDisabled={tradingBlacklist.blocked}
+                  cancelDisabled={tradingBlacklist.blocked}
+                  openWalletModal={openWalletModal}
+                  cancelLimitOrderMutation={cancelMutation}
+                  cancellations={cancellationsQuery.data ?? []}
+                  highlightOrderId={highlightPlacementOrderId}
+                />
+              </div>
+            )}
             {placeMutation.isSuccess && (
               <div className="space-y-2" data-testid="trade-limit-post-place-actions">
                 <div className="flex flex-wrap gap-2">
@@ -944,18 +956,14 @@ function TradeOrderTicketContent({
                 </div>
                 {lastIndexedOrderId == null && (
                   <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-                    If your new row is not listed yet, the indexer is still catching up — tap{' '}
-                    <span className="font-medium" style={{ color: 'var(--ink)' }}>
-                      View order
-                    </span>{' '}
-                    again after a moment to jump to the highlighted line in <strong>My limits</strong> below.
+                    Order may take a moment to appear — tap View order again.
                   </p>
                 )}
               </div>
             )}
             {lastIndexedOrderId != null && (
               <p className="text-[10px] font-mono" data-testid="trade-last-placed-order-id">
-                Last indexed: #{lastIndexedOrderId}
+                Last order: #{lastIndexedOrderId}
               </p>
             )}
           </div>
@@ -1003,7 +1011,7 @@ function TradeOrderTicketContent({
             </button>
             {cancelIdIndexedAsCancelled && (
               <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
-                This order id already has an indexed cancellation.
+                This order was already cancelled.
               </p>
             )}
             {cancelMutation.isError && <TxResultAlert type="error" message={(cancelMutation.error as Error).message} />}

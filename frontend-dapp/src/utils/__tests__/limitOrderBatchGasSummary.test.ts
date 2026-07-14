@@ -20,6 +20,6 @@ describe('formatLimitLadderPlacementSummary (GitLab #268)', () => {
     })
     expect(line).toContain('hinted batch')
     expect(line).toContain('4/5')
-    expect(line).toContain('48')
+    expect(line).toContain('LUNC')
   })
 })

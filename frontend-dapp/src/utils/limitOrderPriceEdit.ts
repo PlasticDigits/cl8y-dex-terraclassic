@@ -48,5 +48,4 @@ export function isPriceOnlyLimitEdit(
   return true
 }
 
-export const LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE =
-  'To change size, side, or expiry, cancel this order first, then place a new limit.'
+export const LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE = 'Cancel first to change size, side, or expiry.'

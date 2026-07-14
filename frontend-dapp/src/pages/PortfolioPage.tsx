@@ -82,8 +82,7 @@ export default function PortfolioPage() {
           My Portfolio
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
-          Your connected wallet&apos;s indexed trading exposure, open limits, LP balances, realized P&amp;L, and recent
-          swaps — read-only; no signing on this page.
+          Wallet overview.
         </p>
       </div>
 
@@ -150,7 +149,7 @@ export default function PortfolioPage() {
               style={{ color: 'var(--ink-dim)' }}
               data-testid="portfolio-profile-empty"
             >
-              No indexed trades yet for this wallet. Open positions below may still appear after swaps are indexed.
+              No trades yet.
             </div>
           )}
 
@@ -203,7 +202,7 @@ export default function PortfolioPage() {
             )}
             {tradesQuery.data && tradesQuery.data.length === 0 && (
               <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>
-                No indexed swaps yet.
+                No trades yet.
               </p>
             )}
             {tradesQuery.data && tradesQuery.data.length > 0 && (

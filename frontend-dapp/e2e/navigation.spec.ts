@@ -128,14 +128,14 @@ test.describe('Sticky shell seam & ribbon opacity (GitLab #482)', () => {
     expect(ribbonBox!.y - (headerBox!.y + headerBox!.height)).toBeGreaterThanOrEqual(HEADER_TO_RIBBON_MIN_GAP_PX)
   })
 
-  test('Trade H1 clears the ribbon at scrollY=0; subtitle does not bleed through after scroll', async ({ page }) => {
+  test('Trade H1 clears the ribbon at scrollY=0; page copy does not bleed through after scroll', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
 
     const ribbon = page.locator('.app-env-ribbon')
     const heading = page.getByTestId('trade-page-heading')
-    const subtitle = page.getByTestId('trade-page-subtitle')
+    const pairPanel = page.getByTestId('trade-pair-select-panel')
     await expect(heading).toBeVisible()
 
     const ribbonBox = await ribbon.boundingBox()
@@ -144,14 +144,14 @@ test.describe('Sticky shell seam & ribbon opacity (GitLab #482)', () => {
     expect(headingBox).not.toBeNull()
     expect(headingBox!.y - (ribbonBox!.y + ribbonBox!.height)).toBeGreaterThanOrEqual(RIBBON_TO_TRADE_H1_MIN_GAP_PX)
 
-    // Scroll until the subtitle center sits in the ribbon's vertical band, then confirm the sticky
+    // Scroll until the pair panel center sits in the ribbon's vertical band, then confirm the sticky
     // stack (not page copy) owns hit-testing — opaque stack bg + ribbon tint block bleed-through.
     await page.evaluate(() => {
       const ribbonEl = document.querySelector('.app-env-ribbon')
-      const subtitleEl = document.querySelector('[data-testid="trade-page-subtitle"]')
-      if (!(ribbonEl instanceof HTMLElement) || !(subtitleEl instanceof HTMLElement)) return
+      const panelEl = document.querySelector('[data-testid="trade-pair-select-panel"]')
+      if (!(ribbonEl instanceof HTMLElement) || !(panelEl instanceof HTMLElement)) return
       const r = ribbonEl.getBoundingClientRect()
-      const s = subtitleEl.getBoundingClientRect()
+      const s = panelEl.getBoundingClientRect()
       window.scrollBy(0, s.top + s.height / 2 - (r.top + r.height / 2))
     })
     await page.waitForTimeout(50)
@@ -164,7 +164,7 @@ test.describe('Sticky shell seam & ribbon opacity (GitLab #482)', () => {
       return Boolean(el?.closest('.app-top-sticky'))
     })
     expect(hitSticky).toBe(true)
-    await expect(subtitle).toBeAttached()
+    await expect(pairPanel).toBeAttached()
   })
 
   test('mainnet-length ribbon copy keeps label/detail readable without overlapping the header', async ({ page }) => {

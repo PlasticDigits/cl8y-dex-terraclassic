@@ -109,6 +109,6 @@ describe('ChartsPage (component)', () => {
       offset: 0,
     })
     renderWithProviders(<ChartsPage />)
-    await waitFor(() => expect(screen.getByText(/no pairs in the indexer yet/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/no pairs yet/i)).toBeInTheDocument())
   })
 })

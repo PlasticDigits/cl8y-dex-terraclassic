@@ -160,6 +160,9 @@ describe('LimitOrdersPage', () => {
     renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
     await selectLimitsPair(user)
 
+    expect(screen.getByTestId('limits-pre-submit-details')).toBeInTheDocument()
+    await user.click(screen.getByText('Signing details'))
+
     const summary = await screen.findByTestId('limits-page-pre-submit-summary')
     expect(summary.textContent).toMatch(/Action/i)
     expect(summary.textContent).toMatch(/Pay/i)
@@ -192,8 +195,8 @@ describe('LimitOrdersPage', () => {
     const banner = await screen.findByTestId('limits-market-data-outage-banner')
     expect(banner.textContent).toMatch(/market data service unavailable/i)
     expect(banner.textContent).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
-    expect(banner.textContent).toMatch(/order book depth|recent trades/i)
-    expect(banner.textContent).toMatch(/pool reserves/i)
+    expect(banner.textContent).toMatch(/book|tape|limits may be limited/i)
+    expect(banner.textContent).not.toMatch(/pool reserves/i)
     expect(await screen.findByTestId('trade-book-unavailable-bid')).toBeInTheDocument()
     expect(await screen.findByTestId('trade-book-unavailable-ask')).toBeInTheDocument()
   })
@@ -228,7 +231,7 @@ describe('LimitOrdersPage', () => {
 
     await screen.findByTestId('limits-market-data-outage-banner')
     const guard = await screen.findByTestId('limits-page-place-guard')
-    expect(guard.textContent).toMatch(/cannot validate limit price|pool|indexer|resolving reference/i)
+    expect(guard.textContent).toMatch(/cannot validate price/i)
   })
 
   it('shows pair-switch loading while indexer workspace queries fetch (GitLab #218 / #180)', async () => {
@@ -325,7 +328,7 @@ describe('LimitOrdersPage', () => {
     const submit = await screen.findByTestId('limits-limit-submit')
     expect(submit).toBeDisabled()
     expect(await screen.findByTestId('limits-page-edit-context')).toHaveTextContent(
-      /cancel this order first, then place a new limit/i
+      /cancel first to change size, side, or expiry/i
     )
   })
 
@@ -348,7 +351,17 @@ describe('LimitOrdersPage', () => {
     await selectLimitsPair(user)
 
     expect(await screen.findByTestId('trade-book-edit-bid-7')).toBeDisabled()
-    expect(await screen.findByText(/This pair is paused by governance/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Pair paused/i)).toBeInTheDocument()
+  })
+
+  it('renders place card before order book (#488 layout)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+
+    const placeCard = await screen.findByTestId('limits-place-card')
+    const orderBook = await screen.findByTestId('limits-order-book-panel')
+    expect(placeCard.compareDocumentPosition(orderBook) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   describe('trading blacklist UX (GitLab #388 / SEC-E01)', () => {
@@ -371,7 +384,6 @@ describe('LimitOrdersPage', () => {
 
       const alert = await screen.findByRole('alert')
       expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
-      expect(alert).toHaveTextContent(/Restrictions are enforced on-chain by governance/i)
       expect(screen.getByTestId('limits-limit-submit')).toBeDisabled()
     })
 

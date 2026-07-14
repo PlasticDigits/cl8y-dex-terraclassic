@@ -1,7 +1,6 @@
 import type { DiscountResponse, RegistrationResponse } from '@/types'
 
-export const FEE_DISCOUNT_REGISTRY_WARNING_TEXT =
-  'Fee discount unavailable; full pair fee may apply until the registry is reachable again.'
+export const FEE_DISCOUNT_REGISTRY_WARNING_TEXT = 'Fee discount unavailable; full fee may apply.'
 
 /** @see feeDiscountUiCopy.ts for unregistered CTA / eligibility copy (GitLab #476). */
 

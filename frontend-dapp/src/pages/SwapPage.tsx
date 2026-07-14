@@ -89,7 +89,6 @@ import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
-import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import { SwapAdvancedSettings } from '@/components/swap/SwapAdvancedSettings'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
@@ -108,7 +107,6 @@ import {
   ROUTE_EXECUTION_SLIPPAGE_LABEL,
   ROUTE_EXECUTION_SLIPPAGE_TOOLTIP,
   SLIPPAGE_PROTECTION_LABEL,
-  SLIPPAGE_PROTECTION_ON_CHAIN_FOOTNOTE,
   TRANSACTION_DEADLINE_LABEL,
 } from '@/utils/slippageProtectionCopy'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
@@ -1043,7 +1041,7 @@ export default function SwapPage() {
       parseFloat(customDeadlineMinutes) > 60)
 
   return (
-    <div className="relative max-w-[620px] mx-auto w-full">
+    <div className="relative max-w-[500px] mx-auto w-full">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-3 sm:inset-x-6 top-6 sm:top-8 h-[78%] rounded-[40px] theme-hero-glow blur-3xl"
@@ -1070,8 +1068,6 @@ export default function SwapPage() {
               Settings
             </button>
           </div>
-
-          <TradeOnboardingStrip />
 
           {indexerOutage && (
             <MarketDataServiceOutageBanner
@@ -1103,10 +1099,7 @@ export default function SwapPage() {
           {showSettings && (
             <>
               <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
-                <p className="label-glass mb-1">{SLIPPAGE_PROTECTION_LABEL}</p>
-                <p className="mb-3 text-[10px] leading-relaxed" style={{ color: 'var(--ink-subtle)' }}>
-                  {SLIPPAGE_PROTECTION_ON_CHAIN_FOOTNOTE}
-                </p>
+                <p className="label-glass mb-3">{SLIPPAGE_PROTECTION_LABEL}</p>
                 <div className="flex flex-wrap gap-2">
                   {[0.1, 0.5, 1.0].map((val) => (
                     <button
@@ -1202,12 +1195,12 @@ export default function SwapPage() {
                       Must be between 0.5 and 60 minutes
                     </p>
                   )}
-                  <p className="mt-2 text-[10px] leading-relaxed" style={{ color: 'var(--ink-subtle)' }}>
-                    Swap transactions expire if not included on-chain within this window (default 5 min).
-                  </p>
                 </div>
                 <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <label
+                    className="flex items-center gap-2 text-xs cursor-pointer"
+                    title={`When off, swaps with expected slippage above ${SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% (vs best-route token prices) are blocked.`}
+                  >
                     <input
                       type="checkbox"
                       checked={expertMode}
@@ -1222,10 +1215,6 @@ export default function SwapPage() {
                     />
                     Expert Mode
                   </label>
-                  <p className="mt-1 text-[10px] leading-relaxed" style={{ color: 'var(--ink-subtle)' }}>
-                    When off, swaps with expected slippage above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% (vs best-route
-                    token prices) are blocked.
-                  </p>
                 </div>
               </div>
               <SwapAdvancedSettings
@@ -1322,15 +1311,7 @@ export default function SwapPage() {
                   setToToken(tmp)
                   setShowImpactConfirm(false)
                 }}
-                className="pointer-events-auto w-11 h-11 sm:w-12 sm:h-12 rounded-[18px] border flex items-center justify-center transition-all hover:-translate-y-0.5"
-                style={{
-                  borderColor: 'rgba(255, 225, 190, 0.2)',
-                  background:
-                    'linear-gradient(180deg, rgba(72, 44, 31, 0.98), rgba(37, 22, 18, 0.99)), rgba(255, 255, 255, 0.03)',
-                  color: 'var(--cyan)',
-                  boxShadow:
-                    '0 16px 34px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 161, 59, 0.08), inset 0 1px 0 rgba(255, 243, 221, 0.2)',
-                }}
+                className="pointer-events-auto swap-direction-btn w-11 h-11 sm:w-12 sm:h-12 rounded-[18px] flex items-center justify-center transition-all hover:-translate-y-0.5"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <path
@@ -1451,142 +1432,18 @@ export default function SwapPage() {
             )}
           </div>
 
-          {/* Trade Details */}
+          {/* Trade Details — default: Route + Min Received; rest collapsed */}
           {simData && (
-            <div className="card-glass mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:text-sm sm:block sm:space-y-2">
-              {poolQuery.data && (
-                <div
-                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
-                  <span className="font-mono text-xs sm:text-right break-all">
-                    {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))} /{' '}
-                    {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
-                  </span>
-                </div>
-              )}
-              {feeQuery.data && (
-                <div
-                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
-                  <FeeDisplay
-                    feeBps={feeQuery.data.fee_bps}
-                    discountBps={discountBps}
-                    commissionAmount={
-                      commissionAmount && receiveAssetInfo
-                        ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))
-                        : undefined
-                    }
-                  />
-                </div>
-              )}
-              {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
-                <FeeDiscountUnregisteredCta testId="swap-fee-discount-unregistered-cta" className="col-span-2" />
-              )}
+            <div className="card-glass mb-4 text-xs sm:text-sm space-y-2">
               {swapRouteLine && (
                 <div
                   data-testid="swap-route-summary"
-                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between col-span-2"
+                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
                   style={{ color: 'var(--ink-dim)' }}
                 >
                   <span className="uppercase text-xs tracking-wide font-medium shrink-0">Route</span>
-                  <div className="font-mono text-xs sm:text-right break-words min-w-0">
-                    <span>{swapRouteLine}</span>
-                    {isWrapOrUnwrap && (
-                      <span className="block mt-0.5 text-[10px] font-sans" style={{ color: 'var(--ink-subtle)' }}>
-                        {wrapUnwrapType === 'wrap' ? 'Wrap (1:1)' : 'Unwrap (1:1)'}
-                      </span>
-                    )}
-                    {nativeRouteInfo && (nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
-                      <span
-                        className="block mt-0.5 text-[10px] font-sans leading-snug"
-                        style={{ color: 'var(--ink-subtle)' }}
-                      >
-                        This swap will{' '}
-                        {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
-                          ? 'wrap and unwrap'
-                          : nativeRouteInfo.needsWrapInput
-                            ? 'wrap'
-                            : 'unwrap'}{' '}
-                        your tokens
-                      </span>
-                    )}
-                    {showClientBfsFallbackLabel && (
-                      <span
-                        data-testid="swap-route-source-client-fallback"
-                        className="block mt-0.5 text-[10px] font-sans leading-snug"
-                        style={{ color: 'var(--color-warning, #f59e0b)' }}
-                      >
-                        {SWAP_CLIENT_BFS_FALLBACK_COPY}
-                      </span>
-                    )}
-                    {showRouteIntermediateReconciledLabel && (
-                      <span
-                        data-testid="swap-route-intermediate-reconciled"
-                        className="block mt-0.5 text-[10px] font-sans leading-snug"
-                        style={{ color: 'var(--ink-subtle)' }}
-                        role="status"
-                      >
-                        {SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY}
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-mono text-xs sm:text-right break-words min-w-0">{swapRouteLine}</span>
                 </div>
-              )}
-              {priceImpact !== null && (
-                <>
-                  <div
-                    className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                    style={{ color: 'var(--ink-dim)' }}
-                    data-testid="swap-expected-slippage"
-                  >
-                    <span className="inline-flex items-center gap-1 uppercase text-xs tracking-wide font-medium">
-                      {ROUTE_EXECUTION_SLIPPAGE_LABEL}
-                      <span
-                        className="inline-flex h-4 w-4 cursor-help select-none items-center justify-center rounded-full border border-white/25 text-[9px] font-bold leading-none normal-case"
-                        tabIndex={0}
-                        role="img"
-                        aria-label="Expected slippage help"
-                        aria-describedby={routeSlippageTooltipId}
-                        title={ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
-                      >
-                        i
-                      </span>
-                      <span id={routeSlippageTooltipId} className="sr-only">
-                        {ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
-                      </span>
-                    </span>
-                    <span className={slippageSeverityClass(parseSlippagePercent(priceImpact) ?? 0)}>
-                      {priceImpact}%
-                    </span>
-                  </div>
-                  {simData?.routeSlippagePercent && (
-                    <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
-                      vs best-route token prices (indexer). Hop spread: {hopSpreadPercent ?? '—'}%.
-                    </p>
-                  )}
-                  {(parseSlippagePercent(priceImpact) ?? 0) > 5 && (
-                    <div className="col-span-2 alert-error !text-xs">
-                      High expected slippage! The quoted route deviates significantly from fair cross-rate token prices.
-                    </div>
-                  )}
-                  {extremeSlippageWarning && (
-                    <div
-                      className="col-span-2 alert-error !text-xs"
-                      data-testid="swap-extreme-slippage-warning"
-                      role="alert"
-                    >
-                      <p className="font-semibold mb-1">Extreme slippage ({priceImpact}%)</p>
-                      <p>
-                        This quote is far from the fair cross-rate. It may exploit mispriced pools or show a
-                        misleadingly good multi-hop path. Proceed only if you understand the risk.
-                      </p>
-                    </div>
-                  )}
-                </>
               )}
               {minReceived !== null && (
                 <div
@@ -1599,57 +1456,196 @@ export default function SwapPage() {
                   </span>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={handleOpenSettings}
-                aria-expanded={showSettings}
-                aria-controls="swap-slippage-settings"
-                className="min-w-0 flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between"
-                style={{ color: 'var(--ink-dim)' }}
-              >
-                <span className="uppercase text-xs tracking-wide font-medium">{SLIPPAGE_PROTECTION_LABEL}</span>
-                <span className="inline-flex items-center gap-1">
-                  <span>{slippageTolerance}%</span>
-                  <span aria-hidden="true" className="text-[10px]" style={{ color: 'var(--cyan)' }}>
-                    {showSettings ? '▲' : '▼'}
-                  </span>
-                </span>
-              </button>
-              <div
-                className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                style={{ color: 'var(--ink-dim)' }}
-                data-testid="swap-deadline-summary"
-              >
-                <span className="uppercase text-xs tracking-wide font-medium">{TRANSACTION_DEADLINE_LABEL}</span>
-                <span>{formatTransactionDeadline(deadlineSeconds)}</span>
-              </div>
+              {priceImpact !== null && (
+                <>
+                  {(parseSlippagePercent(priceImpact) ?? 0) > 5 && (
+                    <div className="alert-error !text-xs">
+                      High expected slippage! The quoted route deviates significantly from fair cross-rate token prices.
+                    </div>
+                  )}
+                  {extremeSlippageWarning && (
+                    <div className="alert-error !text-xs" data-testid="swap-extreme-slippage-warning" role="alert">
+                      <p className="font-semibold mb-1">Extreme slippage ({priceImpact}%)</p>
+                      <p>
+                        This quote is far from the fair cross-rate. It may exploit mispriced pools or show a
+                        misleadingly good multi-hop path. Proceed only if you understand the risk.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+              <details data-testid="swap-trade-details">
+                <summary
+                  className="cursor-pointer uppercase text-xs tracking-wide font-medium select-none"
+                  style={{ color: 'var(--ink-subtle)' }}
+                >
+                  Trade details
+                </summary>
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:block sm:space-y-2">
+                  {poolQuery.data && (
+                    <div
+                      className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                      style={{ color: 'var(--ink-dim)' }}
+                    >
+                      <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
+                      <span className="font-mono text-xs sm:text-right break-all">
+                        {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))}{' '}
+                        /{' '}
+                        {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
+                      </span>
+                    </div>
+                  )}
+                  {feeQuery.data && (
+                    <div
+                      className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                      style={{ color: 'var(--ink-dim)' }}
+                    >
+                      <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
+                      <FeeDisplay
+                        feeBps={feeQuery.data.fee_bps}
+                        discountBps={discountBps}
+                        commissionAmount={
+                          commissionAmount && receiveAssetInfo
+                            ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))
+                            : undefined
+                        }
+                      />
+                    </div>
+                  )}
+                  {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
+                    <FeeDiscountUnregisteredCta testId="swap-fee-discount-unregistered-cta" className="col-span-2" />
+                  )}
+                  {swapRouteLine &&
+                    (isWrapOrUnwrap ||
+                      nativeRouteInfo ||
+                      showClientBfsFallbackLabel ||
+                      showRouteIntermediateReconciledLabel) && (
+                      <div
+                        className="col-span-2 space-y-0.5 font-mono text-xs sm:text-right break-words min-w-0"
+                        style={{ color: 'var(--ink-dim)' }}
+                      >
+                        {isWrapOrUnwrap && (
+                          <span className="block text-[10px] font-sans" style={{ color: 'var(--ink-subtle)' }}>
+                            {wrapUnwrapType === 'wrap' ? 'Wrap (1:1)' : 'Unwrap (1:1)'}
+                          </span>
+                        )}
+                        {nativeRouteInfo && (nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
+                          <span
+                            className="block text-[10px] font-sans leading-snug"
+                            style={{ color: 'var(--ink-subtle)' }}
+                          >
+                            This swap will{' '}
+                            {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
+                              ? 'wrap and unwrap'
+                              : nativeRouteInfo.needsWrapInput
+                                ? 'wrap'
+                                : 'unwrap'}{' '}
+                            your tokens
+                          </span>
+                        )}
+                        {showClientBfsFallbackLabel && (
+                          <span
+                            data-testid="swap-route-source-client-fallback"
+                            className="block text-[10px] font-sans leading-snug"
+                            style={{ color: 'var(--color-warning, #f59e0b)' }}
+                          >
+                            {SWAP_CLIENT_BFS_FALLBACK_COPY}
+                          </span>
+                        )}
+                        {showRouteIntermediateReconciledLabel && (
+                          <span
+                            data-testid="swap-route-intermediate-reconciled"
+                            className="block text-[10px] font-sans leading-snug"
+                            style={{ color: 'var(--ink-subtle)' }}
+                            role="status"
+                          >
+                            {SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  {priceImpact !== null && (
+                    <>
+                      <div
+                        className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                        style={{ color: 'var(--ink-dim)' }}
+                        data-testid="swap-expected-slippage"
+                      >
+                        <span className="inline-flex items-center gap-1 uppercase text-xs tracking-wide font-medium">
+                          {ROUTE_EXECUTION_SLIPPAGE_LABEL}
+                          <span
+                            className="inline-flex h-4 w-4 cursor-help select-none items-center justify-center rounded-full border border-white/25 text-[9px] font-bold leading-none normal-case"
+                            tabIndex={0}
+                            role="img"
+                            aria-label="Expected slippage help"
+                            aria-describedby={routeSlippageTooltipId}
+                            title={ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
+                          >
+                            i
+                          </span>
+                          <span id={routeSlippageTooltipId} className="sr-only">
+                            {ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
+                          </span>
+                        </span>
+                        <span className={slippageSeverityClass(parseSlippagePercent(priceImpact) ?? 0)}>
+                          {priceImpact}%
+                        </span>
+                      </div>
+                      {simData?.routeSlippagePercent && (
+                        <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
+                          Hop spread: {hopSpreadPercent ?? '—'}%.
+                        </p>
+                      )}
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleOpenSettings}
+                    aria-expanded={showSettings}
+                    aria-controls="swap-slippage-settings"
+                    className="min-w-0 flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between"
+                    style={{ color: 'var(--ink-dim)' }}
+                  >
+                    <span className="uppercase text-xs tracking-wide font-medium">{SLIPPAGE_PROTECTION_LABEL}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <span>{slippageTolerance}%</span>
+                      <span aria-hidden="true" className="text-[10px]" style={{ color: 'var(--cyan)' }}>
+                        {showSettings ? '▲' : '▼'}
+                      </span>
+                    </span>
+                  </button>
+                  <div
+                    className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                    style={{ color: 'var(--ink-dim)' }}
+                    data-testid="swap-deadline-summary"
+                  >
+                    <span className="uppercase text-xs tracking-wide font-medium">{TRANSACTION_DEADLINE_LABEL}</span>
+                    <span>{formatTransactionDeadline(deadlineSeconds)}</span>
+                  </div>
+                </div>
+              </details>
             </div>
           )}
 
           {simData?.routePreflight && (
-            <div className="card-glass mb-3 text-[11px] sm:text-xs leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-              <span className="uppercase tracking-wide font-semibold" style={{ color: 'var(--ink-subtle)' }}>
-                Route spread check:{' '}
-              </span>
-              Worst hop ≈ {simData.routePreflight.worstSpreadPercent}% of gross on that hop (pair simulation, matches
-              on-chain max spread logic). See{' '}
+            <p className="card-glass mb-3 text-[11px] sm:text-xs" style={{ color: 'var(--ink-dim)' }}>
+              Worst hop spread ≈ {simData.routePreflight.worstSpreadPercent}%.{' '}
               <a
                 href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/swap-max-spread-ux.md"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline font-mono text-[10px]"
+                className="underline"
               >
-                docs/swap-max-spread-ux.md
+                Docs
               </a>
-              .
-            </div>
+            </p>
           )}
           {routeSlippageBlocked && (
             <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-slippage-blocked">
               <p className="font-semibold mb-1">Slippage is too high</p>
               <p className="mb-2">
-                Expected slippage is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% vs best-route token
-                prices). This swap is blocked until you enable Expert Mode.
+                Expected slippage is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable Expert Mode
+                to continue.
               </p>
               <p className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
                 Dangerous: Enable Expert Mode to Swap Anyway:{' '}
@@ -1668,47 +1664,32 @@ export default function SwapPage() {
           {simData?.routePreflight?.anyHopExceedsMaxSpread && (
             <div className="alert-error mb-3 text-xs" role="alert">
               <p className="font-semibold mb-1">Insufficient liquidity for this trade size</p>
-              <p>
-                At least one hop in the route has price impact above your slippage protection ({slippageTolerance}% max
-                spread). Try a smaller amount, another route, or increase slippage protection in Settings (higher
-                protection increases execution risk).
-              </p>
+              <p>Route impact exceeds your {slippageTolerance}% protection — try a smaller amount or another route.</p>
             </div>
           )}
           {(showHybridBookSubmitWarning ||
             simData?.indexerQuoteKind === 'indexer_hybrid_lcd' ||
             simData?.indexerQuoteKind === 'indexer_hybrid_lcd_degraded') && (
-            <div className="alert-error mb-3 text-xs" role="alert">
-              <p className="font-semibold mb-1">Limit book leg</p>
-              <p>
-                The on-screen estimate may differ from what you receive if market conditions change between quote and
-                submit.{' '}
-                <a
-                  href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Learn more about limit book routing
-                </a>
-                .
-              </p>
-            </div>
+            <p className="alert-error mb-3 text-xs" role="alert">
+              Quote may change before submit.{' '}
+              <a
+                href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Docs
+              </a>
+            </p>
           )}
           {isPairPaused && (
             <div className="alert-error mb-3 text-xs space-y-2" role="alert" data-testid="swap-pair-paused-banner">
               <p>
-                Pair is paused — swaps are blocked until governance unpauses. Your wallet balances are unchanged; limit
-                escrow in the pair contract stays until unpause.
+                Pair paused.{' '}
+                <a className="underline" href={USER_INCIDENT_FAQ_HREF} target="_blank" rel="noopener noreferrer">
+                  Docs
+                </a>
               </p>
-              <a
-                className="underline text-[10px]"
-                href={USER_INCIDENT_FAQ_HREF}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                What happens during an incident?
-              </a>
             </div>
           )}
           {tradingBlacklist.blocked && tradingBlacklist.message && (
@@ -1722,31 +1703,38 @@ export default function SwapPage() {
             </div>
           )}
           {simData && hasPositiveInputAmount && fromToken && toToken && (
-            <SwapPreSubmitSummary
-              offerSymbol={getTokenDisplaySymbol(fromToken)}
-              receiveSymbol={getTokenDisplaySymbol(toToken)}
-              offerAmountHuman={inputAmount}
-              receiveAmountHuman={
-                outputAmount && receiveAssetInfo ? formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo)) : '—'
-              }
-              maxSpreadPercent={slippageTolerance}
-              minReceiveHuman={
-                minReceived != null && receiveAssetInfo
-                  ? formatTokenAmount(minReceived, getDecimals(receiveAssetInfo))
-                  : null
-              }
-              pairContractAddresses={swapBlacklistProbe.pairAddresses}
-              chainFullLabel={getNetworkBadgeCopy().fullLabel}
-            />
+            <details className="mb-3" data-testid="swap-pre-submit-details">
+              <summary
+                className="cursor-pointer uppercase text-xs tracking-wide font-medium select-none mb-2"
+                style={{ color: 'var(--ink-subtle)' }}
+              >
+                Signing details
+              </summary>
+              <SwapPreSubmitSummary
+                offerSymbol={getTokenDisplaySymbol(fromToken)}
+                receiveSymbol={getTokenDisplaySymbol(toToken)}
+                offerAmountHuman={inputAmount}
+                receiveAmountHuman={
+                  outputAmount && receiveAssetInfo
+                    ? formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
+                    : '—'
+                }
+                maxSpreadPercent={slippageTolerance}
+                minReceiveHuman={
+                  minReceived != null && receiveAssetInfo
+                    ? formatTokenAmount(minReceived, getDecimals(receiveAssetInfo))
+                    : null
+                }
+                pairContractAddresses={swapBlacklistProbe.pairAddresses}
+                chainFullLabel={getNetworkBadgeCopy().fullLabel}
+              />
+            </details>
           )}
           {/* Swap Button */}
           {showImpactConfirm && !routeSlippageBlocked && (
             <div className="alert-error mb-3 text-xs">
               <p className="font-semibold mb-1">High expected slippage warning</p>
-              <p>
-                This trade has {priceImpact}% expected slippage vs best-route token prices. Click the button again to
-                confirm.
-              </p>
+              <p>{priceImpact}% expected slippage — click again to confirm.</p>
             </div>
           )}
           <button

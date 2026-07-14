@@ -30,6 +30,7 @@ import {
 import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
 import { toRawAmount } from '@/utils/formatAmount'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
+import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
 
 export interface LimitOrderLadderPanelProps {
@@ -146,6 +147,8 @@ export function LimitOrderLadderPanel({
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddress)
 
+  const { bidLabel, askLabel } = tradeDirectionSideLabels(token0Symbol)
+
   const ladderCrossingGate = useMemo(() => {
     if (preview.error || preview.rungs.length === 0) {
       return { canPlaceLimit: true, userMessage: null, tone: 'none' as const }
@@ -158,18 +161,16 @@ export function LimitOrderLadderPanel({
     ) {
       return {
         canPlaceLimit: false,
-        userMessage: 'Resolving market reference to check whether ladder rungs cross the spread…',
+        userMessage: 'Checking market reference…',
         tone: 'warning' as const,
       }
     }
 
     let crossingCount = 0
-    let firstReason: string | null = null
     for (const r of preview.rungs) {
       const reason = describeLimitCrossingBlockerWithRef(side, r.price, bestBid, bestAsk, refToken1PerToken0)
       if (reason) {
         crossingCount += 1
-        if (firstReason == null) firstReason = reason
       }
     }
     if (crossingCount === 0) {
@@ -177,7 +178,7 @@ export function LimitOrderLadderPanel({
     }
     return {
       canPlaceLimit: false,
-      userMessage: `${crossingCount} of ${preview.rungs.length} rungs will cross the market and execute immediately as taker orders. ${firstReason}`,
+      userMessage: `${crossingCount} of ${preview.rungs.length} rungs cross the market.`,
       tone: 'warning' as const,
     }
   }, [preview.error, preview.rungs, side, bestBid, bestAsk, bestBookLoading, refToken1PerToken0, refResolutionLoading])
@@ -279,6 +280,8 @@ export function LimitOrderLadderPanel({
   const placementSummaryLine = formatLimitLadderPlacementSummary(rungCount, maxSteps, placementPlanQuery.data)
   const planNotes = placementPlanQuery.data?.notes ?? []
 
+  const planNote = planNotes[0]
+
   const submitDisabled =
     disabled ||
     placeMutation.isPending ||
@@ -292,8 +295,8 @@ export function LimitOrderLadderPanel({
         idPrefix="ladder"
         side={side}
         onSideChange={setSide}
-        bidLabel={`Bid (${token1Symbol})`}
-        askLabel={`Ask (${token0Symbol})`}
+        bidLabel={bidLabel}
+        askLabel={askLabel}
       />
       <div className="grid grid-cols-2 gap-2">
         <label className="block text-sm">
@@ -316,7 +319,7 @@ export function LimitOrderLadderPanel({
         </label>
       </div>
       <label className="block text-sm">
-        <span className="text-muted">Rung count (max {maxRungs} on this pair)</span>
+        <span className="text-muted">Rungs (max {maxRungs})</span>
         <input
           type="number"
           min={2}
@@ -334,7 +337,7 @@ export function LimitOrderLadderPanel({
         )}
       </label>
       <label className="block text-sm">
-        <span className="text-muted">Total escrow ({side === 'bid' ? token1Symbol : token0Symbol})</span>
+        <span className="text-muted">Total pay ({side === 'bid' ? token1Symbol : token0Symbol})</span>
         <input
           className="input-glass mt-1 w-full"
           value={totalHuman}
@@ -379,14 +382,14 @@ export function LimitOrderLadderPanel({
           <p className="mt-2" data-testid="ladder-gas-summary">
             {gasSummaryLine}
           </p>
-          <p className="mt-1" data-testid="ladder-placement-summary">
-            {placementPlanQuery.isLoading ? 'Probing book depth…' : placementSummaryLine}
+          <p className="mt-1 text-[10px] opacity-80" data-testid="ladder-placement-summary">
+            {placementPlanQuery.isLoading ? 'Checking depth…' : placementSummaryLine}
           </p>
-          {planNotes.map((note, i) => (
-            <p key={i} className="mt-1 text-amber-400/90" data-testid="ladder-placement-note">
-              {note}
+          {planNote && (
+            <p className="mt-1 text-amber-400/90 text-[10px]" data-testid="ladder-placement-note">
+              {planNote}
             </p>
-          ))}
+          )}
         </div>
       )}
       <LimitOrderEscrowPlaceGuardMessage gate={placeGates.inlineGate} data-testid="ladder-place-guard" />
