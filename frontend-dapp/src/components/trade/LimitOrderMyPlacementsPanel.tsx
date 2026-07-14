@@ -2,7 +2,7 @@ import type { UseMutationResult } from '@tanstack/react-query'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { useLimitExpiredClaimMutation } from '@/hooks/useLimitExpiredClaimMutation'
 import type { LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
-import type { IndexerLimitCancellation, IndexerLimitPlacement, PairInfo } from '@/types'
+import { assetInfoLabel, type IndexerLimitCancellation, type IndexerLimitPlacement, type PairInfo } from '@/types'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
@@ -47,8 +47,8 @@ export interface LimitOrderMyPlacementsPanelProps {
 
 function baseSymbolForPair(pair: PairInfo | undefined): string {
   if (!pair) return '—'
-  const addr = pair.asset_infos[0]?.token?.contract_addr
-  if (addr?.startsWith('terra1')) return getTokenDisplaySymbol(addr)
+  const id = assetInfoLabel(pair.asset_infos[0])
+  if (id.startsWith('terra1')) return getTokenDisplaySymbol(id)
   return 'Base'
 }
 
