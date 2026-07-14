@@ -17,7 +17,7 @@ describe('ThemeSegmentedControl', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: 'Light' }))
+    await user.click(screen.getByRole('button', { name: 'Light theme' }))
     expect(onSelect).toHaveBeenCalledWith('light')
 
     rerender(
@@ -29,11 +29,11 @@ describe('ThemeSegmentedControl', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Dark theme' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Light theme' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('uses long labels for mobile style', () => {
+  it('keeps accessible names for mobile placement', () => {
     render(
       <ThemeSegmentedControl
         theme="dark"

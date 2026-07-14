@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures/dev-wallet'
 import { DESKTOP_HEADER_NAV_ROW_LABELS, TABLET_COMPACT_HEADER_NAV_ROW_LABELS } from '../src/components/common/navItems'
 import { clickDesktopMoreNavItem } from './helpers/desktop-more-nav'
@@ -106,60 +105,56 @@ test.describe('Full desktop header nav', () => {
 
 /** Minimum gap (px) between last desktop nav control and theme group (GitLab #483). */
 const HEADER_NAV_TO_THEME_MIN_GAP_PX = 8
-/** Minimum gap (px) between header card bottom and environment ribbon top (GitLab #482). */
-const HEADER_TO_RIBBON_MIN_GAP_PX = 8
-/** Minimum gap (px) between ribbon bottom and Trade H1 at scrollY=0 (GitLab #482). */
-const RIBBON_TO_TRADE_H1_MIN_GAP_PX = 16
+/** Minimum gap (px) between sticky header bottom and Trade H1 at scrollY=0. */
+const HEADER_TO_TRADE_H1_MIN_GAP_PX = 16
 
-test.describe('Sticky shell seam & ribbon opacity (GitLab #482)', () => {
-  test('header card and environment ribbon keep a clear vertical seam', async ({ page }) => {
+test.describe('Footer environment ribbon & sticky header clearance', () => {
+  test('environment ribbon lives in the footer, not under the sticky header', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const header = page.locator('.app-header')
-    const ribbon = page.locator('.app-env-ribbon')
+    const ribbon = page.locator('footer.app-footer-shell .app-env-ribbon')
     await expect(ribbon).toBeVisible()
+    await expect(page.locator('.app-top-sticky .app-env-ribbon')).toHaveCount(0)
 
-    const headerBox = await header.boundingBox()
+    const headerBox = await page.locator('.app-header').boundingBox()
     const ribbonBox = await ribbon.boundingBox()
     expect(headerBox).not.toBeNull()
     expect(ribbonBox).not.toBeNull()
-    expect(ribbonBox!.y - (headerBox!.y + headerBox!.height)).toBeGreaterThanOrEqual(HEADER_TO_RIBBON_MIN_GAP_PX)
+    expect(ribbonBox!.y).toBeGreaterThan(headerBox!.y + headerBox!.height)
   })
 
-  test('Trade H1 clears the ribbon at scrollY=0; page copy does not bleed through after scroll', async ({ page }) => {
+  test('Trade H1 clears the sticky header at scrollY=0; header stays opaque while scrolling', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
 
-    const ribbon = page.locator('.app-env-ribbon')
+    const sticky = page.locator('.app-top-sticky')
     const heading = page.getByTestId('trade-page-heading')
     const pairPanel = page.getByTestId('trade-pair-select-panel')
     await expect(heading).toBeVisible()
 
-    const ribbonBox = await ribbon.boundingBox()
+    const stickyBox = await sticky.boundingBox()
     const headingBox = await heading.boundingBox()
-    expect(ribbonBox).not.toBeNull()
+    expect(stickyBox).not.toBeNull()
     expect(headingBox).not.toBeNull()
-    expect(headingBox!.y - (ribbonBox!.y + ribbonBox!.height)).toBeGreaterThanOrEqual(RIBBON_TO_TRADE_H1_MIN_GAP_PX)
+    expect(headingBox!.y - (stickyBox!.y + stickyBox!.height)).toBeGreaterThanOrEqual(HEADER_TO_TRADE_H1_MIN_GAP_PX)
 
-    // Scroll until the pair panel center sits in the ribbon's vertical band, then confirm the sticky
-    // stack (not page copy) owns hit-testing — opaque stack bg + ribbon tint block bleed-through.
     await page.evaluate(() => {
-      const ribbonEl = document.querySelector('.app-env-ribbon')
+      const stickyEl = document.querySelector('.app-top-sticky')
       const panelEl = document.querySelector('[data-testid="trade-pair-select-panel"]')
-      if (!(ribbonEl instanceof HTMLElement) || !(panelEl instanceof HTMLElement)) return
-      const r = ribbonEl.getBoundingClientRect()
-      const s = panelEl.getBoundingClientRect()
-      window.scrollBy(0, s.top + s.height / 2 - (r.top + r.height / 2))
+      if (!(stickyEl instanceof HTMLElement) || !(panelEl instanceof HTMLElement)) return
+      const s = stickyEl.getBoundingClientRect()
+      const p = panelEl.getBoundingClientRect()
+      window.scrollBy(0, p.top + p.height / 2 - (s.top + s.height / 2))
     })
     await page.waitForTimeout(50)
 
     const hitSticky = await page.evaluate(() => {
-      const ribbonEl = document.querySelector('.app-env-ribbon')
-      if (!(ribbonEl instanceof HTMLElement)) return false
-      const r = ribbonEl.getBoundingClientRect()
+      const stickyEl = document.querySelector('.app-top-sticky')
+      if (!(stickyEl instanceof HTMLElement)) return false
+      const r = stickyEl.getBoundingClientRect()
       const el = document.elementFromPoint(r.left + Math.min(r.width / 2, 120), r.top + r.height / 2)
       return Boolean(el?.closest('.app-top-sticky'))
     })
@@ -167,12 +162,12 @@ test.describe('Sticky shell seam & ribbon opacity (GitLab #482)', () => {
     await expect(pairPanel).toBeAttached()
   })
 
-  test('mainnet-length ribbon copy keeps label/detail readable without overlapping the header', async ({ page }) => {
+  test('mainnet-length footer ribbon copy keeps label/detail readable', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const ribbon = page.locator('.app-env-ribbon')
+    const ribbon = page.locator('footer.app-footer-shell .app-env-ribbon')
     const label = ribbon.locator('.app-env-ribbon-label')
     const detail = ribbon.locator('.app-env-ribbon-detail')
     await ribbon.evaluate((el) => {
@@ -186,22 +181,30 @@ test.describe('Sticky shell seam & ribbon opacity (GitLab #482)', () => {
       el.textContent = 'Terra Classic · columbus-5 · real assets'
     })
 
-    const headerBox = await page.locator('.app-header').boundingBox()
-    const ribbonBox = await ribbon.boundingBox()
     const labelBox = await label.boundingBox()
     const detailBox = await detail.boundingBox()
-    expect(headerBox).not.toBeNull()
-    expect(ribbonBox).not.toBeNull()
     expect(labelBox).not.toBeNull()
     expect(detailBox).not.toBeNull()
-    expect(ribbonBox!.y - (headerBox!.y + headerBox!.height)).toBeGreaterThanOrEqual(HEADER_TO_RIBBON_MIN_GAP_PX)
-    // Label and detail share a row or wrap cleanly — no vertical overlap of the two text boxes.
     const sameRow = Math.abs(labelBox!.y - detailBox!.y) < 4
     if (sameRow) {
       expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(detailBox!.x + 2)
     } else {
       expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(detailBox!.y + 2)
     }
+  })
+
+  test('mobile footer still shows the environment ribbon above the bottom nav', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    const ribbon = page.locator('footer.app-footer-shell .app-env-ribbon')
+    await expect(ribbon).toBeVisible()
+    const ribbonBox = await ribbon.boundingBox()
+    const navBox = await page.locator('nav.app-mobile-nav-shell').boundingBox()
+    expect(ribbonBox).not.toBeNull()
+    expect(navBox).not.toBeNull()
+    expect(ribbonBox!.y + ribbonBox!.height).toBeLessThanOrEqual(navBox!.y + 1)
   })
 })
 
@@ -252,57 +255,8 @@ test.describe('Header nav → controls gap (GitLab #483)', () => {
   }
 })
 
-/**
- * Open desktop header dropdowns must paint above `.app-env-ribbon` inside `.app-top-sticky`
- * (GitLab #486). Both header card and ribbon use `backdrop-filter` (each a stacking context);
- * without an explicit header>ribbon z-order, the later ribbon sibling occludes protruding menus.
- * Probe the geometric intersection — menu top alone often clears the ribbon band.
- */
-async function assertMenuPaintsAboveRibbon(page: Page, menuSelector: string) {
-  const hit = await page.evaluate((selector) => {
-    const menu = document.querySelector(selector)
-    const ribbon = document.querySelector('.app-env-ribbon')
-    if (!(menu instanceof HTMLElement) || !(ribbon instanceof HTMLElement)) {
-      return { ok: false as const, reason: 'missing-elements' as const }
-    }
-    const m = menu.getBoundingClientRect()
-    const r = ribbon.getBoundingClientRect()
-    const overlapTop = Math.max(m.top, r.top)
-    const overlapBottom = Math.min(m.bottom, r.bottom)
-    const verticallyOverlapsRibbon = overlapBottom - overlapTop > 4
-    if (!verticallyOverlapsRibbon) {
-      return {
-        ok: true as const,
-        verticallyOverlapsRibbon: false,
-        hitsMenu: false,
-        hitsRibbon: false,
-        className: null as string | null,
-      }
-    }
-    // Mid-overlap sample: where the ribbon historically cut through menu chrome / first items.
-    const x = m.left + Math.min(Math.max(m.width / 2, 24), m.width - 8)
-    const y = overlapTop + (overlapBottom - overlapTop) / 2
-    const el = document.elementFromPoint(x, y)
-    return {
-      ok: true as const,
-      verticallyOverlapsRibbon: true,
-      hitsMenu: Boolean(el?.closest(selector)),
-      hitsRibbon: Boolean(el?.closest('.app-env-ribbon')),
-      className: el instanceof HTMLElement ? el.className : null,
-      x,
-      y,
-    }
-  }, menuSelector)
-
-  expect(hit.ok, 'menu and ribbon must be present').toBe(true)
-  if (!hit.ok) return
-  expect(hit.verticallyOverlapsRibbon, 'open menu should extend into the ribbon band').toBe(true)
-  expect(hit.hitsRibbon, `ribbon must not own hit-testing in overlap (got ${hit.className})`).toBe(false)
-  expect(hit.hitsMenu, `menu must own hit-testing in overlap (got ${hit.className})`).toBe(true)
-}
-
-test.describe('Header menus above EnvironmentRibbon (GitLab #486)', () => {
-  test('desktop More menu is fully above the ribbon and clickable', async ({ page }) => {
+test.describe('Header menus remain clickable (footer ribbon)', () => {
+  test('desktop More menu items stay clickable', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
     await page.waitForLoadState('networkidle')
@@ -312,15 +266,11 @@ test.describe('Header menus above EnvironmentRibbon (GitLab #486)', () => {
     const menu = page.locator('header.app-header-shell .app-menu')
     await expect(menu).toBeVisible()
     await expect(page.getByRole('menuitem', { name: 'Protocol' })).toBeVisible()
-
-    await assertMenuPaintsAboveRibbon(page, 'header.app-header-shell .app-menu')
-
-    // First item must remain a live target (no dead zone under the ribbon).
     await page.getByRole('menuitem', { name: 'Protocol' }).click()
     await expect(page).toHaveURL(/\/protocol/)
   })
 
-  test('tablet compact More menu clears the ribbon', async ({ page }) => {
+  test('tablet compact More menu stays clickable', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 800 })
     await page.goto('/')
     await page.waitForLoadState('networkidle')
@@ -328,17 +278,17 @@ test.describe('Header menus above EnvironmentRibbon (GitLab #486)', () => {
     const nav = page.locator('header.app-header-shell nav.app-desktop-nav')
     await nav.getByRole('button', { name: 'More' }).click()
     await expect(page.locator('header.app-header-shell .app-menu')).toBeVisible()
-    await assertMenuPaintsAboveRibbon(page, 'header.app-header-shell .app-menu')
+    await page.getByRole('menuitem', { name: 'Pool' }).click()
+    await expect(page).toHaveURL(/\/pool/)
   })
 
-  test('connected wallet dropdown clears the ribbon', async ({ page, connectWallet }) => {
+  test('connected wallet dropdown stays interactive', async ({ page, connectWallet }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await connectWallet
 
     await headerConnectedWalletButton(page).click()
     const menu = page.locator('header.app-header-shell .wallet-menu')
     await expect(menu).toBeVisible()
-    await assertMenuPaintsAboveRibbon(page, 'header.app-header-shell .wallet-menu')
     await expect(page.getByTestId('wallet-menu-copy-address')).toBeVisible()
   })
 })
@@ -459,7 +409,7 @@ test.describe('Navigation', () => {
     const header = page.locator('header.app-header-shell')
     const themeGroup = header.locator('.app-header-theme-group')
     await expect(themeGroup).toBeVisible()
-    await expect(themeGroup.getByRole('button', { name: 'Dark' })).toBeVisible()
+    await expect(themeGroup.getByRole('button', { name: 'Dark theme' })).toBeVisible()
     await expect(page.locator('footer .app-footer-theme-group')).toHaveCount(0)
 
     const stickyTop = await page.locator('.app-top-sticky').boundingBox()
@@ -468,7 +418,7 @@ test.describe('Navigation', () => {
     expect(themeBox).not.toBeNull()
     expect(themeBox!.y + themeBox!.height).toBeLessThanOrEqual(stickyTop!.y + stickyTop!.height + 2)
 
-    await themeGroup.getByRole('button', { name: 'Light' }).click()
+    await themeGroup.getByRole('button', { name: 'Light theme' }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   })
 })

@@ -536,12 +536,21 @@
 
 ### 10.3 Sound Effects
 
+Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing or `'1'`). Mute toggle lives next to theme in the sticky header (desktop/tablet) and in the mobile **More** sheet ([GitLab **#487**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/487)).
+
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
-| 10.3.1 | Button press sound | Click a button | Press sound plays | | |
-| 10.3.2 | Hover sound | Hover over interactive element | Hover sound plays | | |
-| 10.3.3 | Success sound | Complete a successful swap | Success sound plays | | |
-| 10.3.4 | Error sound | Encounter an error | Error sound plays | | |
+| 10.3.1 | Button press sound | Fresh profile / clear `cl8y-dex-sounds-enabled`; click a nav or theme control | Press sound plays | | |
+| 10.3.2 | Hover sound | Open wallet modal; hover a connect option card | Hover sound plays | | |
+| 10.3.3 | Success sound | Complete a successful swap (Simulated Wallet OK) | Success sound plays | | |
+| 10.3.4 | Error sound | Encounter a failed tx / connect error if feasible | Error sound plays | | |
+| 10.3.5 | Mute from shell | Click the **speaker** icon in header (desktop) or More sheet (mobile) — `aria-label` **Mute sound effects**; icon becomes muted speaker | Immediate silence — the mute click itself must not play a press sound | | |
+| 10.3.6 | Muted interactions | With sounds off: nav, theme, wallet hover, success/error paths | No WAV playback from any `sounds.play*()` path | | |
+| 10.3.7 | Mute persists | Reload while muted; interact again | Remains muted; still silent | | |
+| 10.3.8 | Unmute | Click muted-speaker icon (`aria-label` **Enable sound effects**) | Optional confirmation press on unmute; subsequent interactions audible again without hard refresh | | |
+| 10.3.9 | Unmute persists | Reload while unmuted | Sounds still on | | |
+| 10.3.10 | Theme while muted | Mute SFX; toggle dark/light | Theme still changes; no press sound | | |
+| 10.3.11 | Keyboard / a11y | Tab to sound control; Space/Enter toggles | `aria-pressed` reflects enabled state; reachable by keyboard | | |
 
 ---
 

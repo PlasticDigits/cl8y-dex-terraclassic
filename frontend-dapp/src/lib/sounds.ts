@@ -1,3 +1,5 @@
+import { readSoundsEnabled } from '@/utils/soundPreferences'
+
 const SOUNDS = {
   buttonPress: '/sounds/button-press.wav',
   hover: '/sounds/hover.wav',
@@ -27,7 +29,12 @@ function getAudio(key: keyof typeof SOUNDS): HTMLAudioElement | null {
   }
 }
 
+/**
+ * Single mute gate for all SFX kinds (GitLab #487).
+ * Call sites must keep using `sounds.play*()` — do not fork mute checks per import.
+ */
 function play(key: keyof typeof SOUNDS): void {
+  if (!readSoundsEnabled()) return
   const audio = getAudio(key)
   if (!audio) return
   try {
@@ -44,4 +51,12 @@ export const sounds = {
   playHover: () => play('hover'),
   playSuccess: () => play('success'),
   playError: () => play('error'),
+}
+
+/** Test-only: drop lazy Audio singletons so stubs rebind cleanly. */
+export function resetSoundsAudioForTests(): void {
+  buttonPressAudio = null
+  hoverAudio = null
+  successAudio = null
+  errorAudio = null
 }

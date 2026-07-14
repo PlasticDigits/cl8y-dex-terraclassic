@@ -681,19 +681,10 @@
   }
 
   /**
-   * Sticky header + environment ribbon stack (GitLab #138, #482, #486).
-   * Opaque stack background + ribbon tint must block page copy from reading through
-   * while scrolling; do not rely on translucent ribbon alone.
-   *
-   * Stacking inside this isolate context (GitLab #486):
-   * - `.app-header` and `.app-env-ribbon` each use `backdrop-filter`, so each forms its
-   *   own stacking context. Without an explicit order, the later ribbon sibling paints
-   *   over absolute `.app-menu` / `.wallet-menu` that extend below the header card.
-   * - `.app-header-shell` (z-index 2) sits above `.app-env-ribbon` (z-index 1) so open
-   *   menus remain fully visible/clickable over the ribbon band.
-   * - The whole sticky stack (`z-index: 40`) stays above main content (#482) and below
-   *   modal portals (`z-index: 200`). Prefer in-tree stacking over portaling menus.
-   * - Do not shrink/hide the content-column ribbon when menus open.
+   * Sticky header only — environment ribbon lives in the footer on all breakpoints.
+   * Opaque sticky bg keeps scrolled page copy from reading through the header card.
+   * Sticky stack (`z-index: 40`) stays below modal portals (`z-index: 200`).
+   * Historical #482/#486 ribbon-under-header stacking no longer applies.
    */
   .app-top-sticky {
     position: sticky;
@@ -702,7 +693,7 @@
     width: 100%;
     background: var(--bg-0);
     isolation: isolate;
-    padding-bottom: 4px;
+    padding-bottom: 0;
   }
 
   .app-header-shell,
@@ -713,50 +704,47 @@
     margin: 0;
   }
 
-  /* Header menus extend below the card; keep the header layer above the ribbon (#486). */
   .app-header-shell {
     z-index: 2;
   }
 
   .app-header {
     width: min(100% - 24px, 1180px);
-    margin: 12px auto 0;
+    margin: 6px auto 0;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
     /* Keep ≥ ~8px visual air between nav column and controls (GitLab #483). */
-    column-gap: 24px;
-    row-gap: 12px;
-    padding: 14px 18px;
+    column-gap: 20px;
+    row-gap: 8px;
+    padding: 8px 14px;
     border: 1px solid var(--line);
-    border-radius: 22px;
+    border-radius: 18px;
     background: var(--panel-bg);
     backdrop-filter: blur(24px);
-    /* Soft side/top presence; avoid a deep bottom bloom that eats the ribbon seam (#482). */
     box-shadow:
-      0 10px 28px rgba(0, 0, 0, 0.22),
+      0 8px 22px rgba(0, 0, 0, 0.18),
       inset 0 1px 0 var(--chrome-highlight);
   }
 
+  /* Footer network strip — all breakpoints. */
   .app-env-ribbon {
     position: relative;
-    /* Below `.app-header-shell` inside `.app-top-sticky` so open menus are not clipped (#486). */
     z-index: 1;
-    width: min(100% - 24px, 1180px);
-    margin: 12px auto 0;
+    width: 100%;
+    margin: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 14px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     line-height: 1.45;
-    border-radius: 16px;
+    border-radius: 14px;
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid var(--line);
-    /* Panel base under the network tint so scrolled page text cannot bleed through (#482). */
     backdrop-filter: blur(18px);
   }
 
@@ -828,22 +816,10 @@
     color: #7f1d1d;
   }
 
-  .app-mobile-legal-strip {
-    margin-top: 14px;
-    padding: 12px 14px;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    background: var(--control-surface);
-  }
-
-  .app-mobile-legal-strip .app-legal-footer-notice {
-    font-size: 0.68rem;
-    color: var(--ink-dim);
-  }
-
   .app-footer-copy {
-    flex: 1 1 280px;
+    flex: 1 1 auto;
     min-width: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -887,19 +863,19 @@
   .app-brand-mark {
     display: grid;
     place-items: center;
-    width: 56px;
-    height: 56px;
-    border-radius: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
     background: linear-gradient(180deg, rgba(68, 138, 255, 0.14), rgba(68, 138, 255, 0.04)), rgba(255, 255, 255, 0.02);
     box-shadow:
       inset 0 1px 0 var(--chrome-highlight),
-      0 16px 36px rgba(37, 99, 235, 0.18);
+      0 12px 28px rgba(37, 99, 235, 0.16);
   }
 
   .app-brand-logo {
     display: block;
-    width: 44px;
-    height: 44px;
+    width: 34px;
+    height: 34px;
     object-fit: contain;
   }
 
@@ -962,8 +938,8 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 42px;
-    padding: 10px 14px;
+    min-height: 36px;
+    padding: 8px 12px;
     border: 1px solid var(--chrome-border-soft);
     border-radius: 14px;
     color: var(--ink-dim);
@@ -1061,7 +1037,7 @@
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
-    /* Local to the header stacking context; header z-index > ribbon is what clears #486. */
+    /* Local to the sticky header stacking context (menus stay under modal portals). */
     z-index: 45;
     display: grid;
     gap: 4px;
@@ -1198,12 +1174,11 @@
   }
 
   /**
-   * Clearance below sticky header + ribbon so page H1/subtitle start below the stack
-   * at scrollY=0 (GitLab #482). Not a measured sticky height — keep in sync with
-   * ribbon margin/padding when adjusting shell density.
+   * Clearance below sticky header so page H1/subtitle start below the stack at scrollY=0.
+   * Not a measured sticky height — keep in sync when adjusting header density.
    */
   .app-main-shell {
-    padding: 52px 0 0;
+    padding: 28px 0 0;
   }
 
   .app-main {
@@ -1219,20 +1194,19 @@
   }
 
   .app-footer-shell {
-    padding: 24px 0 32px;
+    padding: 20px 0 32px;
   }
 
   .app-footer {
     width: min(100% - 24px, 1180px);
     margin: 0 auto;
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 18px 20px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 16px;
     border: 1px solid var(--line);
-    border-radius: 22px;
+    border-radius: 20px;
     background: var(--control-surface);
     backdrop-filter: blur(18px);
     color: var(--ink-dim);
@@ -1246,6 +1220,35 @@
     display: inline-flex;
     flex-shrink: 0;
     gap: 8px;
+  }
+
+  /* Theme + sound mute sit together in the sticky header (GitLab #487). */
+  .app-header-pref-group {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .app-pref-icon-button {
+    flex-shrink: 0;
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    gap: 0;
+    border-radius: 999px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .app-pref-icon-button svg {
+    display: block;
+  }
+
+  .app-header-sound-toggle {
+    flex-shrink: 0;
   }
 
   .app-mobile-nav-shell {
@@ -1300,13 +1303,25 @@
     box-shadow: var(--shadow-menu);
   }
 
-  .app-mobile-theme-group {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Theme + sound mute in mobile More sheet (GitLab #487). */
+  .app-mobile-pref-group {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
     gap: 8px;
+    width: 100%;
     margin-top: 6px;
     padding-top: 8px;
     border-top: 1px solid var(--chrome-border-soft);
+  }
+
+  .app-mobile-theme-group {
+    display: inline-flex;
+    gap: 8px;
+  }
+
+  .app-mobile-sound-toggle {
+    flex-shrink: 0;
   }
 
   .app-menu-dismiss {
@@ -1774,7 +1789,8 @@ input[type='number'] {
   }
 
   .app-main-shell {
-    padding-top: 64px;
+    /* Compact sticky header only (ribbon is in the footer). */
+    padding-top: 28px;
   }
 
   /**
@@ -1831,10 +1847,10 @@ input[type='number'] {
     flex-wrap: nowrap;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     width: min(100% - 16px, 560px);
-    margin-top: 0px;
-    padding: 10px 12px;
+    margin-top: 4px;
+    padding: 6px 10px;
   }
 
   .app-brand {
@@ -1868,7 +1884,7 @@ input[type='number'] {
   }
 
   .app-main-shell {
-    padding-top: 22px;
+    padding-top: 14px;
   }
 
   .app-main,
@@ -1876,33 +1892,35 @@ input[type='number'] {
     width: min(100% - 16px, 560px);
   }
 
-  .app-env-ribbon {
-    width: min(100% - 16px, 560px);
-  }
-
   .app-mobile-nav-shell {
     display: grid;
   }
 
+  /* Keep footer (ribbon + NFA) above the bottom tab bar on mobile. */
   .app-footer-shell {
-    display: none;
+    display: block;
+    padding: 12px 0 calc(var(--app-mobile-nav-stack) + 16px);
   }
 
   .app-footer {
     justify-content: center;
     text-align: center;
   }
+
+  .app-footer-copy {
+    text-align: center;
+  }
 }
 
 @media (max-width: 480px) {
   .app-brand-mark {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
   }
 
   .app-brand-logo {
-    width: 38px;
-    height: 38px;
+    width: 30px;
+    height: 30px;
   }
 
   .app-header-controls {
