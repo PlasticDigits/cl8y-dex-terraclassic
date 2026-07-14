@@ -22,6 +22,7 @@ Use when moving or restyling the **dark/light** segmented control ([`ThemeSegmen
 ## Palette notes (#488)
 
 - Themes live in [`theme-dark.css`](../frontend-dapp/src/theme-dark.css) / [`theme-light.css`](../frontend-dapp/src/theme-light.css): cool navy `#0d111c` / light `#f4f6fb`, blue CTAs, gold brand.
+- **Gold usage:** border/text emphasis only — active theme segment / nav uses cool `--accent-surface` + gold hairline, not dirty brown/gold fills ([#488] reopen).
 - [`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) + [`theme.js`](../frontend-dapp/public/bootstrap/theme.js) must apply the same `data-theme` before Vite hydrates — avoid warm-brown flash on `/trade`.
 - Design-system playbook: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md).
 

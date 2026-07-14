@@ -17,12 +17,9 @@ export type LimitOrderPricePlaceGateContext = {
   refResolutionError?: boolean
 }
 
-const MSG_LOADING =
-  'Resolving reference price from the AMM pool (indexer trade tape unavailable). Try again in a moment.'
-const MSG_LCD_ERROR =
-  'Cannot validate limit price: on-chain pool query failed. Check wallet / LCD connectivity or wait for the indexer.'
-const MSG_NO_REF =
-  'Cannot validate limit price: no indexed trade and no usable AMM pool reference (empty pool or unknown token decimals). Wait for the indexer or add tokens to the registry.'
+const MSG_LOADING = 'Loading reference price…'
+const MSG_LCD_ERROR = 'Cannot validate price — pool query failed.'
+const MSG_NO_REF = 'Cannot validate price — no market reference.'
 
 /**
  * Preflight for limit **price** vs reference (GitLab #154 + #166).
@@ -76,8 +73,8 @@ export function evaluateLimitOrderPricePlaceGate(
   if (isLimitPriceDirectionInvalid(side, limit, ref)) {
     const hint =
       side === 'bid'
-        ? 'Buy limits must be below the reference price for this pair (indexed tape or AMM pool spot).'
-        : 'Sell limits must be above the reference price for this pair (indexed tape or AMM pool spot).'
+        ? 'Buy limits must be below the reference price.'
+        : 'Sell limits must be above the reference price.'
     return {
       canPlaceLimit: false,
       userMessage: hint,

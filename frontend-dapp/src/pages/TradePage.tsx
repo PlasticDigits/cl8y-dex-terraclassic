@@ -389,9 +389,6 @@ export default function TradePage() {
         >
           Trade
         </h1>
-        <p className="text-sm mt-1 max-w-3xl" style={{ color: 'var(--ink-dim)' }} data-testid="trade-page-subtitle">
-          Order book, chart, tape, and limit plus market tickets. Indexer book reads proxy LCD (paginated depth).
-        </p>
       </div>
 
       <TradeOnboardingStrip />
@@ -422,7 +419,7 @@ export default function TradePage() {
         />
       )}
 
-      <div className="shell-panel p-3">
+      <div className="shell-panel p-3" data-testid="trade-pair-select-panel">
         <label className="label-glass mb-1 block" htmlFor={TRADE_PAIR_SELECT_ID}>
           Pair
         </label>
@@ -538,7 +535,7 @@ export default function TradePage() {
                       </div>
                     ) : (
                       <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
-                        Collapsed by default — expand to view the live tape, or drag the resize handle above.
+                        Expand for live trades.
                       </p>
                     )}
                   </div>

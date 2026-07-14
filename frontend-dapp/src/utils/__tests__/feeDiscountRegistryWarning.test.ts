@@ -7,7 +7,7 @@ import {
 
 describe('feeDiscountRegistryWarning', () => {
   it('exposes stable warning copy without LCD or address details', () => {
-    expect(FEE_DISCOUNT_REGISTRY_WARNING_TEXT).toMatch(/full pair fee/i)
+    expect(FEE_DISCOUNT_REGISTRY_WARNING_TEXT).toMatch(/full fee/i)
     expect(FEE_DISCOUNT_REGISTRY_WARNING_TEXT).not.toMatch(/terra1|@|error/i)
   })
 

@@ -7,6 +7,8 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 const LEGACY_TAILWIND_BLUE_RE = /#(?:3b82f6|2563eb|60a5fa|38bdf8|0f172a|1e293b|334155)/i
 const WARM_BROWN_BG_RE = /#(?:0e0908|f4e0cb|1d110f)/i
+const BROWN_WARNING_FILL_RE = /rgba\(\s*74,\s*(?:40|55),\s*12\b/
+const GOLD_PAGE_WASH_RE = /rgba\(\s*232,\s*184,\s*74\b/
 
 describe('design token alignment (GitLab #488 blue+gold)', () => {
   it('tailwind.config.js maps colors to CSS variables, not legacy hex palettes', () => {
@@ -52,6 +54,18 @@ describe('design token alignment (GitLab #488 blue+gold)', () => {
       expect(css).toContain('--blue: #448aff')
       expect(css).toContain('--gold: #e8b84a')
       expect(css).toContain('--mint: var(--blue)')
+      expect(css).not.toMatch(BROWN_WARNING_FILL_RE)
     }
+  })
+
+  it('index.css avoids brown warning fills and gold page washes (#488)', () => {
+    const css = readFileSync(join(repoRoot, 'frontend-dapp/src/index.css'), 'utf8')
+    expect(css).not.toMatch(BROWN_WARNING_FILL_RE)
+    const bodyBlock = /body\s*\{[^}]*background:[^}]*\}/s.exec(css)?.[0] ?? ''
+    expect(bodyBlock).not.toMatch(GOLD_PAGE_WASH_RE)
+    expect(css).toMatch(/\.app-nav-link-active[\s\S]*background:\s*var\(--accent-surface\)/)
+    expect(css).not.toMatch(/\.app-nav-link-active[\s\S]*background:\s*var\(--gold-surface\)/)
+    expect(css).not.toMatch(/rgba\(\s*249,\s*115,\s*22\b/)
+    expect(css).not.toMatch(/\.app-modal-backdrop[\s\S]{0,200}rgba\(\s*7,\s*4,\s*3\b/)
   })
 })

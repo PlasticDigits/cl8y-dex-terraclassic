@@ -10,8 +10,7 @@ import { TERRA_LCD_URL } from '@/utils/constants'
  * **GitLab #427 (SEC-E05):** must reassure users that on-chain funds are safe while
  * only app display / reads are blocked.
  */
-export const LCD_CONNECTIVITY_OUTAGE_MESSAGE =
-  'Could not connect to the network. Check your connection or try again. Your on-chain wallet balances, LP shares, and positions are unaffected — only what the app can show may be limited.'
+export const LCD_CONNECTIVITY_OUTAGE_MESSAGE = 'Could not connect to the network. Your on-chain funds are safe.'
 
 export const LCD_CONNECTIVITY_RECOVERY_POLL_MS = 5_000
 

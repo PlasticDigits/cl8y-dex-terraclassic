@@ -84,6 +84,4 @@ export function walletBlacklistedLcdResponse(): BlacklistCheckLcdResponse {
 }
 
 /** Wallet blacklist alert copy (matches `describeTradingBlacklistBlock` / GitLab #388). */
-export const WALLET_BLACKLIST_ALERT_COPY =
-  'This wallet is on the protocol trading blacklist for compliance or incident response. ' +
-  'Swaps, liquidity, and limit orders are disabled until governance removes the restriction.'
+export const WALLET_BLACKLIST_ALERT_COPY = 'Wallet blacklisted. Trading disabled.'

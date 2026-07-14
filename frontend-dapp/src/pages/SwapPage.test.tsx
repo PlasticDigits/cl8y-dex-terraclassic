@@ -348,8 +348,8 @@ describe('SwapPage', () => {
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/market conditions change/i)
-    const docLink = within(alert).getByRole('link', { name: /Learn more about limit book routing/i })
+    expect(alert).toHaveTextContent(/Quote may change before submit/i)
+    const docLink = within(alert).getByRole('link', { name: /^Docs$/i })
     expect(docLink.getAttribute('href')).toContain('limit-orders.md')
 
     const execution = await screen.findByTestId('swap-execution-summary')

@@ -451,9 +451,19 @@ Retail **Max** (and pool **50%**) actions share [`AmountBalanceActions`](../fron
 
 The dApp reads **`VITE_INDEXER_URL`** (see [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)) for browser `fetch` to the indexer API. **CORS is enforced on the `Origin` header**, which comes from the URL you open in the browser (`localhost` vs `127.0.0.1` are different origins). **`CORS_ORIGINS` on the indexer must list every origin you use for Vite** (typically both `http://localhost:5173` and `http://127.0.0.1:5173`, plus preview ports if applicable — [`indexer/.env.example`](../indexer/.env.example), [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh)). If they diverge, responses can show **200** in the Network panel while the browser still blocks the body (failed CORS).
 
+#### Local CORS proxy for remote soft-launch hosts {#local-dev-remote-cors-proxy}
+
+When `.env.local` points at **remote** HTTPS backends (e.g. soft-launch `VITE_INDEXER_URL=https://indexer.dex.cl8y.com` and `VITE_TERRA_LCD_URL=https://terra-classic-lcd.publicnode.com`), production CORS will **not** allow `http://127.0.0.1:5173`. During `vite` serve, [`vite.config.ts`](../frontend-dapp/vite.config.ts) + [`src/dev/viteDevProxy.ts`](../frontend-dapp/src/dev/viteDevProxy.ts) automatically:
+
+1. Proxy **`/__dev/indexer`** → the remote indexer host (`changeOrigin: true`)
+2. Proxy **`/__dev/lcd`** → the remote LCD host
+3. Rewrite browser-facing `import.meta.env.VITE_INDEXER_URL` / `VITE_TERRA_LCD_URL` to those same-origin paths
+
+Keep the real HTTPS URLs in `.env.local` (so agents know the upstream). Set **`VITE_DEV_PROXY=0`** to disable. LocalTerra loopback URLs (`127.0.0.1` / `localhost`) are left alone. Implementation: [`vite.config.ts`](../frontend-dapp/vite.config.ts) + [`src/dev/viteDevProxy.ts`](../frontend-dapp/src/dev/viteDevProxy.ts).
+
 After a successful **Place limit**, the UI polls **`GET .../limit-placements`** to auto-fill the cancel **Order ID**. Poll failures are logged as **`[limit-place] indexer poll failed:`** ([`warnIndexerPlacementPollFailed`](../frontend-dapp/src/utils/warnIndexerPlacementPollFailed.ts); [GitLab **#131**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/131)). On **`/trade`**, the ticket also surfaces **View order** / **Place another** next steps after a successful submit ([GitLab **#161**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161); [§ Trade page — limit place success affordances](#trade-page-limit-place-success-affordances)). Operational detail: [`docs/indexer-invariants.md` § Local dev CORS](./indexer-invariants.md#local-dev-cors-localhost-vs-127001).
 
-**Third-party / agent context:** [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (local stack); indexer matrix: [`docs/environment-matrix.md`](./environment-matrix.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LOCAL_REMOTE_CORS_PROXY.md`](../skills/AGENTS_FRONTEND_LOCAL_REMOTE_CORS_PROXY.md) · [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (local stack); indexer matrix: [`docs/environment-matrix.md`](./environment-matrix.md).
 
 ## Contract Message Format
 

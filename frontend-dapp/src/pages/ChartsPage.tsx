@@ -172,9 +172,6 @@ export default function ChartsPage() {
         <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
           Charts & Analytics
         </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
-          Track pair activity, recent trades, and trader leaderboards.
-        </p>
       </div>
 
       {marketDataDown && (
@@ -292,7 +289,7 @@ export default function ChartsPage() {
           value={activePairAddr}
           options={pairMenuOptions}
           disabled={pairOptions.length === 0}
-          emptyLabel="No indexed pairs available"
+          emptyLabel="No pairs yet"
           onChange={(v) => {
             sounds.playButtonPress()
             setSelectedPairAddr(v)
@@ -336,7 +333,7 @@ export default function ChartsPage() {
         )}
         {pairsQuery.isSuccess && (pairItems?.length ?? 0) === 0 && !pairsQuery.isLoading && !marketDataDown && (
           <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-            No pairs in the indexer yet. After swaps are indexed, pairs will appear here.
+            No pairs yet.
           </p>
         )}
       </div>
@@ -358,8 +355,8 @@ export default function ChartsPage() {
             24h Stats — {indexerPairMenuLabel(activePair, { variant: 'compact' })}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatBox label="Volume (Base)" value={formatNum(stats.volume_base)} />
-            <StatBox label="Volume (Quote)" value={formatNum(stats.volume_quote)} />
+            <StatBox label={`Vol (${activePair.asset_0.symbol})`} value={formatNum(stats.volume_base)} />
+            <StatBox label={`Vol (${activePair.asset_1.symbol})`} value={formatNum(stats.volume_quote)} />
             <StatBox label="Trades" value={stats.trade_count.toLocaleString()} />
             <StatBox
               label="Price Change"
@@ -386,8 +383,7 @@ export default function ChartsPage() {
 
       {!statsQuery.isLoading && !stats && activePairAddr && (
         <div className="shell-panel text-center py-6" style={{ color: 'var(--ink-dim)' }}>
-          <p className="text-sm uppercase tracking-wide font-medium">No Trading Data Yet</p>
-          <p className="text-xs mt-1">Chart data will appear after the first trades are indexed for this pair.</p>
+          <p className="text-sm">No trades yet.</p>
         </div>
       )}
 
@@ -416,11 +412,11 @@ export default function ChartsPage() {
           {oracleInfoQuery.data && (
             <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatBox
-                label="Observations"
+                label="Obs count"
                 value={`${oracleInfoQuery.data.observations_stored} / ${oracleInfoQuery.data.observation_cardinality}`}
               />
               <StatBox
-                label="Oldest Obs."
+                label="Oldest"
                 value={
                   oracleInfoQuery.data.oldest_observation_timestamp > 0
                     ? formatTimeFromUnixSeconds(oracleInfoQuery.data.oldest_observation_timestamp)
@@ -428,14 +424,14 @@ export default function ChartsPage() {
                 }
               />
               <StatBox
-                label="Newest Obs."
+                label="Newest"
                 value={
                   oracleInfoQuery.data.newest_observation_timestamp > 0
                     ? formatTimeFromUnixSeconds(oracleInfoQuery.data.newest_observation_timestamp)
                     : '—'
                 }
               />
-              <StatBox label="Ring Buffer" value={oracleInfoQuery.data.observation_cardinality.toString()} />
+              <StatBox label="Buffer size" value={oracleInfoQuery.data.observation_cardinality.toString()} />
             </div>
           )}
           {twapQuery.isError && (
@@ -445,7 +441,7 @@ export default function ChartsPage() {
           )}
           {!twapQuery.isLoading && !twapQuery.isError && twapQuery.data?.every((e) => e.price === null) && (
             <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
-              Oracle observations are still accumulating. TWAP data will be available after sufficient trading activity.
+              TWAP building…
             </p>
           )}
         </div>

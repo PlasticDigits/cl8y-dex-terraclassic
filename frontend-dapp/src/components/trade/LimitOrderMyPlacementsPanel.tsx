@@ -4,6 +4,7 @@ import { useLimitExpiredClaimMutation } from '@/hooks/useLimitExpiredClaimMutati
 import type { LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
 import type { IndexerLimitCancellation, IndexerLimitPlacement, PairInfo } from '@/types'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import {
   chunkExpiredClaimOrderIds,
@@ -42,6 +43,19 @@ export interface LimitOrderMyPlacementsPanelProps {
   cancellations?: IndexerLimitCancellation[]
   /** When set, the active row for this `order_id` is visually emphasized (trade ticket "View order" — GitLab #161). */
   highlightOrderId?: number | null
+}
+
+function baseSymbolForPair(pair: PairInfo | undefined): string {
+  if (!pair) return '—'
+  const addr = pair.asset_infos[0]?.token?.contract_addr
+  if (addr?.startsWith('terra1')) return getTokenDisplaySymbol(addr)
+  return 'Base'
+}
+
+function sideRowLabel(side: string | null | undefined, baseSymbol: string): string {
+  if (side === 'bid') return tradeDirectionSideLabels(baseSymbol).bidLabel
+  if (side === 'ask') return tradeDirectionSideLabels(baseSymbol).askLabel
+  return side ?? '?'
 }
 
 function isOrderIdInCancelVariables(orderId: number, variables: LimitOrderCancelInput | undefined): boolean {
@@ -86,29 +100,19 @@ function ParkedClaimRow({
     <li
       key={row.id}
       data-testid={`${dtPrefix}-placement-parked-${row.order_id}`}
-      className={`rounded-md border-l-4 ${isDust ? 'border-slate-400/60 bg-white/[0.04]' : 'border-amber-500/70 bg-amber-500/[0.06]'} px-2 py-2 space-y-2 ${rowClass}`}
+      className={`rounded-md border-l-4 ${isDust ? 'border-slate-400/60 bg-white/[0.04]' : 'border-amber-500/70 bg-white/[0.04]'} px-2 py-2 space-y-2 ${rowClass}`}
     >
       <div>
         <span className={isDust ? 'text-slate-300/90 mr-1' : 'text-amber-400/95 mr-1'}>{isDust ? '▫' : '◆'}</span>
-        order #{row.order_id} · {row.side ?? '?'} · ~{rem} {sym}
+        order #{row.order_id} · {sideRowLabel(row.side, baseSymbolForPair(pair))} · ~{rem} {sym}
         {isDust ? (
-          <span className="opacity-80"> · rounding dust (below 10 units)</span>
+          <span className="opacity-80"> · dust</span>
         ) : (
           row.parked_block_timestamp && (
             <span className="opacity-80"> · parked {row.parked_block_timestamp.slice(0, 19)}</span>
           )
         )}
       </div>
-      {!isDust && (
-        <p className="text-[9px] leading-snug opacity-90" style={{ color: 'var(--ink-subtle)' }}>
-          Expired limits wait here until you claim — escrow returns to your wallet in one transaction.
-        </p>
-      )}
-      {isDust && (
-        <p className="text-[9px] leading-snug opacity-90" style={{ color: 'var(--ink-subtle)' }}>
-          Tiny leftover from a partial fill — claim to recover the dust amount.
-        </p>
-      )}
       <button
         type="button"
         data-testid={`${dtPrefix}-claim-expired-${row.order_id}`}
@@ -155,6 +159,7 @@ export function LimitOrderMyPlacementsPanel({
   const { expired: expiredParked, dust: dustParked } = partitionParkedPlacementsByKind(parkedExpired)
   const claimMutation = useLimitExpiredClaimMutation(pairAddr, walletAddress || undefined)
   const compact = variant === 'compact'
+  const baseSymbol = baseSymbolForPair(pair)
   const titleClass = compact
     ? 'uppercase tracking-wide font-semibold mb-1'
     : 'text-sm font-semibold uppercase tracking-wide'
@@ -194,14 +199,12 @@ export function LimitOrderMyPlacementsPanel({
     }
     if (cancelBlocked || !cancelLimitOrderMutation) return
     if (orderIdHasIndexedCancellation(cancellations, orderId)) return
-    const ok = window.confirm(`Cancel order #${orderId}? Escrow returns to your wallet after the transaction confirms.`)
+    const ok = window.confirm(`Cancel order #${orderId}?`)
     if (!ok) return
     cancelLimitOrderMutation.mutate(orderId)
   }
 
-  const emptyCopy =
-    'No open limits for your wallet on this pair. Place a limit above or check another pair. ' +
-    'Expired or dust rows appear here once the indexer marks them — use Claim refund / Claim dust to recover escrow.'
+  const emptyCopy = 'No open limits.'
 
   const panelTitle = compact ? 'My open limits' : 'My open limits'
 
@@ -212,8 +215,7 @@ export function LimitOrderMyPlacementsPanel({
       </h2>
       {isPairPaused && rows.length > 0 && (
         <p className="text-[10px] leading-snug alert-error !py-2 !px-2.5" role="status">
-          Pair is paused — cancel and claim are unavailable until governance unpauses. Escrow stays in the pair
-          contract.
+          Pair paused.
         </p>
       )}
       {isLoading && <Spinner />}
@@ -228,7 +230,7 @@ export function LimitOrderMyPlacementsPanel({
             <div className="space-y-1">
               {!compact && (
                 <div className="text-[11px] uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
-                  Resting on book — tap Cancel to remove
+                  Open
                 </div>
               )}
               <ul className={`space-y-1.5 ${compact ? 'max-h-24 overflow-y-auto' : 'max-h-48 overflow-y-auto'}`}>
@@ -250,13 +252,13 @@ export function LimitOrderMyPlacementsPanel({
                       data-testid={`${dtPrefix}-placement-active-${r.order_id}`}
                       className={`rounded-md border px-2 py-1.5 space-y-1.5 ${rowClass} transition-shadow duration-300 ${
                         highlightOrderId != null && r.order_id === highlightOrderId
-                          ? 'border-amber-400/70 bg-amber-500/[0.12] shadow-[0_0_0_2px_rgba(251,191,36,0.45)]'
+                          ? 'border-amber-400/70 bg-white/[0.05] shadow-[0_0_0_2px_rgba(251,191,36,0.45)]'
                           : 'border-white/10 bg-white/[0.03]'
                       }`}
                     >
                       <div>
                         <span className="text-emerald-400/90 mr-1">●</span>
-                        order #{r.order_id} · {r.side ?? '?'} · {r.price ?? '?'} · placed{' '}
+                        order #{r.order_id} · {sideRowLabel(r.side, baseSymbol)} · {r.price ?? '?'} · placed{' '}
                         {r.block_timestamp.slice(0, 19)}
                       </div>
                       {cancelLimitOrderMutation && (
@@ -308,8 +310,8 @@ export function LimitOrderMyPlacementsPanel({
                     data-testid={`${dtPrefix}-claim-all-parked`}
                     className={
                       compact
-                        ? 'rounded-lg border border-amber-500/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-amber-500/10 disabled:opacity-40'
-                        : 'rounded-lg border border-amber-500/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-amber-500/10 disabled:opacity-40'
+                        ? 'rounded-lg border border-amber-500/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40'
+                        : 'rounded-lg border border-amber-500/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40'
                     }
                     style={{ color: 'var(--ink-dim)' }}
                     disabled={claimAllDisabled}

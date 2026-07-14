@@ -2,12 +2,11 @@ import { formatTokenAmount, toRawAmount } from '@/utils/formatAmount'
 import type { EscrowBalanceQueryLike, LimitOrderEscrowPlaceGateResult } from '@/utils/limitOrderEscrowBalanceGate'
 
 export const LIMIT_ORDER_NATIVE_GAS_MSG_LOADING = 'Loading LUNC balance…'
-export const LIMIT_ORDER_NATIVE_GAS_MSG_UNAVAILABLE =
-  'Cannot verify LUNC balance. Wait and retry, or check your connection.'
+export const LIMIT_ORDER_NATIVE_GAS_MSG_UNAVAILABLE = 'Cannot verify LUNC balance.'
 
 export function twoStepCw20NativeGasInsufficientMessage(requiredUluna: bigint, secondStepLabel: string): string {
   const approx = formatTokenAmount(requiredUluna.toString(), 6, 5)
-  return `Not enough LUNC for both transactions. You need at least ~${approx} LUNC for gas (allowance + ${secondStepLabel}).`
+  return `Need ~${approx} LUNC for gas (allowance + ${secondStepLabel}).`
 }
 
 export function limitOrderNativeGasInsufficientMessage(requiredUluna: bigint): string {

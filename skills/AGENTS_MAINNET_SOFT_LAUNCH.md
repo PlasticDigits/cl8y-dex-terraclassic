@@ -23,6 +23,7 @@ Use when deploying or verifying the **columbus-5 soft launch** with non-economic
 3. **Deploy key** pays gas; **multisig** is `--admin` / governance / treasury (**SL4**). Host txs use `--gas-prices=28.325uluna` (not a flat fee). Keyring auto-detects `file` when `~/.terra/keyring-file/<key>.info` exists (avoids bech32-of-name errors from wrong `--keyring-backend os`).
 4. **No compose** under `docker/` — Coolify uses the Dockerfiles directly.
 5. **HTTPS only** for `VITE_INDEXER_URL` and production CORS origin `https://dex.cl8y.com`.
+6. **Local Vite + remote soft-launch hosts:** do not widen production CORS. Use the Vite same-origin proxy (`/__dev/indexer`, `/__dev/lcd`) — [`AGENTS_FRONTEND_LOCAL_REMOTE_CORS_PROXY.md`](./AGENTS_FRONTEND_LOCAL_REMOTE_CORS_PROXY.md).
 6. Keep fee-discount tiers aligned: `make check-fee-discount-tier-docs`.
 7. Regression: `make test-mainnet-soft-launch-defaults` (includes `DRY_RUN=1` when wasm artifacts exist).
 

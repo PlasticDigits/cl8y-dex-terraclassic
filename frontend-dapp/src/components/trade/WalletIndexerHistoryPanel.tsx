@@ -189,7 +189,7 @@ export function WalletIndexerHistoryPanel({
           title="Swaps (AMM)"
           query={swapsQuery}
           onDownloadCsv={() => downloadCsv('trades', walletAddress, pairAddress, slug)}
-          emptyLabel="No indexed swaps for this wallet on this pair."
+          emptyLabel="No swaps yet."
         >
           {(rows: IndexerTrade[]) => (
             <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">
@@ -238,7 +238,7 @@ export function WalletIndexerHistoryPanel({
           title="Limit fills (maker)"
           query={fillsQuery}
           onDownloadCsv={() => downloadCsv('limit-fills', walletAddress, pairAddress, slug)}
-          emptyLabel="No indexed limit fills for this wallet on this pair."
+          emptyLabel="No limit fills."
         >
           {(rows: IndexerLimitFill[]) => (
             <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">
@@ -248,11 +248,11 @@ export function WalletIndexerHistoryPanel({
                     <th className="py-1.5 pr-2 font-medium">Time</th>
                     <th className="py-1.5 pr-2 font-medium">Order</th>
                     <th className="py-1.5 pr-2 font-medium">Side</th>
-                    <th className="py-1.5 pr-2 font-medium text-right" title="Fill size in pair token0 (base)">
-                      Token0
+                    <th className="py-1.5 pr-2 font-medium text-right" title="Base token fill size">
+                      Base
                     </th>
-                    <th className="py-1.5 pr-2 font-medium text-right" title="Fill size in pair token1 (quote)">
-                      Token1
+                    <th className="py-1.5 pr-2 font-medium text-right" title="Quote token fill size">
+                      Quote
                     </th>
                     <th className="py-1.5 pr-2 font-medium">Price</th>
                     <th className="py-1.5 pr-2 font-medium">Commission</th>
@@ -264,7 +264,7 @@ export function WalletIndexerHistoryPanel({
                     <tr key={r.id} className="border-b border-white/5 font-mono">
                       <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(r.block_timestamp)}</td>
                       <td className="py-1.5 pr-2">#{r.order_id}</td>
-                      <td className="py-1.5 pr-2">{r.side}</td>
+                      <td className="py-1.5 pr-2">{r.side === 'bid' ? 'Buy' : r.side === 'ask' ? 'Sell' : r.side}</td>
                       <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(r.token0_amount)}</td>
                       <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(r.token1_amount)}</td>
                       <td className="py-1.5 pr-2">{r.price}</td>
@@ -284,7 +284,7 @@ export function WalletIndexerHistoryPanel({
           title="Limit cancellations"
           query={cancelsQuery}
           onDownloadCsv={() => downloadCsv('limit-cancellations', walletAddress, pairAddress, slug)}
-          emptyLabel="No indexed cancellations for this wallet on this pair."
+          emptyLabel="No cancellations."
         >
           {(rows: IndexerLimitCancellation[]) => (
             <div className="overflow-x-auto" data-testid="wallet-history-table-scroll">

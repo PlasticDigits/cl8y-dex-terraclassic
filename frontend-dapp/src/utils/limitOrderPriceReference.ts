@@ -198,6 +198,36 @@ export function limitPriceDeviationPercent(limitHuman: number, refToken1PerToken
   return ((limitHuman - refToken1PerToken0) / refToken1PerToken0) * 100
 }
 
+/** Preset deviation chips on the limit rate row (#488). */
+export const LIMIT_PRICE_DEVIATION_CHIP_PRESETS = [0, 1, 5, 10] as const
+
+export type LimitPriceDeviationChipPreset = (typeof LIMIT_PRICE_DEVIATION_CHIP_PRESETS)[number]
+
+export function formatLimitPriceHuman(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return ''
+  if (n >= 1) return n.toFixed(8).replace(/\.?0+$/, '')
+  return n.toPrecision(10).replace(/\.?0+$/, '')
+}
+
+/** Set typed limit price to reference × (1 + deviation%/100). */
+export function limitPriceFromRefDeviationPercent(refToken1PerToken0: number, deviationPercent: number): string {
+  return formatLimitPriceHuman(refToken1PerToken0 * (1 + deviationPercent / 100))
+}
+
+/** Active chip when typed price matches a preset within tolerance. */
+export function matchingLimitPriceDeviationChip(
+  limitHuman: number | null,
+  refToken1PerToken0: number | null
+): LimitPriceDeviationChipPreset | null {
+  if (limitHuman == null || refToken1PerToken0 == null || !(refToken1PerToken0 > 0)) return null
+  const dev = limitPriceDeviationPercent(limitHuman, refToken1PerToken0)
+  if (dev == null) return null
+  for (const preset of LIMIT_PRICE_DEVIATION_CHIP_PRESETS) {
+    if (Math.abs(dev - preset) < 0.08) return preset
+  }
+  return null
+}
+
 /**
  * Anchor-scaled “chart headline” USD for the typed limit price: when `limit === ref`, returns `headlineUsd`.
  * Uses the same tape/candle headline number the trade page already passes into `PriceChart` (see `docs/frontend.md` § Trade page — market context).

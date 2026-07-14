@@ -11,9 +11,10 @@ Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitla
 | Principle | Meaning |
 |-----------|---------|
 | Familiar DEX chrome | Centered trade cards, flat layered panels — QuickSwap-like, not a brown/amber page fade. |
-| Blue CTAs, gold brand | Primary actions use **blue** (`#448aff`). Brand mark, network chip, CL8Y accents use **gold** (`#e8b84a`). |
+| Blue CTAs, gold brand | Primary actions use **blue** (`#448aff`). Brand mark, network chip, and **hairline** gold borders/text use **gold** (`#e8b84a`). |
 | Token-first | Compose UI from CSS variables (`--ink`, `--line`, `--blue`, `--gold`, `--mint`→blue, …) and `@layer components` primitives. |
-| Minimal on-card copy | Prefer short labels + optional single-word **Docs** links; keep blocking errors and required risk ack ([#488] note). |
+| Gold is not a fill | Do **not** use gold/amber as large dirty-brown backgrounds. Gold = tiny emphasis (borders, text, logo). Active nav uses cool `--accent-surface` + gold bottom border. |
+| Minimal on-card copy | **Anti-cognitive-overload:** labels ≤ ~5 words; errors ≤ 1 short sentence; optional **Docs** link. No `token0`/`token1` or raw bid/ask in retail UI — use symbols + Buy/Sell. Keep blocking errors and required risk ack ([#488] reopen). |
 | Keyboard focus | Interactive primitives use `:focus-visible` with `var(--focus-ring)` — see [frontend.md § WCAG 2.4.7](./frontend.md#keyboard-focus-visible-wcag-247). |
 
 ## Color & surface tokens
@@ -25,7 +26,8 @@ Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitla
 | `--line`, `--line-strong` | Borders and dividers |
 | `--blue`, `--gold` | Primary CTA blue; brand / network gold |
 | `--mint`, `--accent` | **Aliases of `--blue`** (legacy name retained for components) |
-| `--mint-soft`, `--accent-surface`, `--gold-surface` | Soft fills for chips / active states |
+| `--mint-soft`, `--accent-surface` | Soft **cool** fills for chips / active states |
+| `--gold-surface` | Hairline / border accent only (~6–8% opacity) — **not** for large fills |
 | `--accent-gradient` | Blue CTA fill |
 | `--panel-bg`, `--panel-bg-strong`, `--card-bg` | Shell / card surfaces |
 | `--chrome-border`, `--chrome-highlight`, `--chrome-glow` | Shared chrome borders / glows |
@@ -41,6 +43,8 @@ Theme files override the above per `data-theme='dark'` | `'light'`.
 3. `trade-bootstrap.css` `--bg-0` must match theme files (no amber→blue FOUC on `/trade`).
 4. Do not reintroduce Tailwind `primary` / `dex` hard-coded hex palettes; alias via CSS variables.
 5. Safety gates and required legal/risk copy stay visible — copy minimization must not hide blockers.
+6. Gold accents are border/text only; warning surfaces use cool slate + amber border (`--alert-warning-border`), not brown washes.
+7. Open Graph `/og-image.png` and `index.html` meta describe **product** (swaps, limits, Terra Classic) — not theme jargon.
 
 ## Tailwind color aliases
 
@@ -74,9 +78,9 @@ Theme files override the above per `data-theme='dark'` | `'light'`.
 |-------|------|
 | Header mark | `/assets/cl8y-dex-glass-logo.svg` (blue disc + gold “8”) |
 | Favicons | `/favicon-16.png`, `/favicon-32.png`, `/favicon.ico` |
-| Open Graph | `/og-image.png` (~1200×630) |
+| Open Graph | `/og-image.png` (~1200×630) — product copy (swap / limits / Terra Classic), not palette marketing |
 
-Canonical same-origin only — do not wire user-controlled OG URLs.
+Canonical same-origin only — do not wire user-controlled OG URLs. Meta: `frontend-dapp/index.html` `og:description` / `twitter:description`.
 
 ## Typography
 
@@ -98,12 +102,14 @@ Labels use `.label-glass`: uppercase, `text-xs`, semibold, wide tracking.
 | `btn-muted` | Secondary / toggle-off | Mode toggles |
 | `tab-glass*` | Segmented controls | Side, slippage, order type |
 | `input-glass` / `label-glass` | Fields | Always associate `htmlFor` |
-| `badge-glass-accent` | Brand/gold chips | Prefer gold surface |
+| `badge-glass-accent` | Brand/gold chips | Cool surface + gold border/text |
 | `alert-*` | Inline notices | `role="alert"` when assertive |
 
 ## Limit place IA
 
-Default `/limits` place card: **rate** (“When 1 {token0} is worth”) → **Pay** → **Expiry** (advanced/ladder progressive disclosure). No instructional paragraphs on the primary card; blocking errors stay visible. Details: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+Default `/limits` place card (#488 reopen): **rate** (“When 1 {token0} is worth”) → **% chips** (0/+1/+5/+10) → **Pay** → **Receive** → **Expiry** (advanced/ladder progressive disclosure). Order book and open placements sit **below** the place card. No instructional paragraphs on the primary card; blocking errors stay visible. Details: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md).
+
+Default `/` Swap card: centered Pay → flip → Receive → CTA; route + min-received on card; verbose trade/signing details behind progressive disclosure. Cool flip control (no brown).
 
 ## Verification
 

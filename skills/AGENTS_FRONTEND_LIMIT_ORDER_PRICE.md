@@ -2,7 +2,7 @@
 
 Use when changing **limit price** UX on `/trade` or `/limits`: reference line from tape **or AMM pool**, % deviation, headline-scaled USD, submit validation, **escrow headline USD** ([`escrowAmountUsdAnchorNotional`](../frontend-dapp/src/utils/limitOrderPriceReference.ts); [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)), or the **Place limit** tooltip.
 
-**#488 IA:** default label is **“When 1 {token0} is worth”** (+ token1 unit). Prefer compact ref/%/USD chips — no instructional paragraphs on the place card. Blocking invalid-direction errors stay visible.
+**#488 IA (reopen):** place-card order is **rate** (“When 1 {token0} is worth”) → **% chips** (0/+1/+5/+10 vs ref) → **Pay** → **Receive** (read-only expected fill) → **Expiry**. Order book + open placements sit **below** the place card. No instructional paragraphs; blocking invalid-direction / escrow / gas errors stay visible. See [`docs/design-system.md`](../docs/design-system.md) § Limit place IA.
 
 ## Canonical references
 
@@ -12,13 +12,15 @@ Use when changing **limit price** UX on `/trade` or `/limits`: reference line fr
 | [docs/frontend.md § Limit place — escrow amount](../docs/frontend.md#limit-place-escrow-amount) | Escrow **Amount** headline USD + Bid/Ask amount reset / MAX re-apply — [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155) |
 | [docs/frontend.md § Trade page — limit order pre-submit summary](../docs/frontend.md#trade-page-limit-order-pre-submit-summary) | Resting-order copy, deviation recap, maker placement bps, min LUNC for place sequence — [GitLab **#157**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157) |
 | [docs/limit-orders.md § dApp: retail form](../docs/limit-orders.md#dapp-retail-form-wires-invariants) | Cross-link to #154 / #166 bullet, **#157** pre-submit summary bullet, and pure helpers list |
-| [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) | `tradeToToken1PerToken0Human`, `resolveLimitOrderPriceRef`, `poolReservesToToken1PerToken0Human`, `pairDecimalsForLimitPriceRef`, deviation %, `anchorUsdForLimitPrice`, **`escrowAmountUsdAnchorNotional`** (#155), direction checks |
+| [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) | `tradeToToken1PerToken0Human`, `resolveLimitOrderPriceRef`, `poolReservesToToken1PerToken0Human`, `pairDecimalsForLimitPriceRef`, deviation %, `anchorUsdForLimitPrice`, **`escrowAmountUsdAnchorNotional`** (#155), `LIMIT_PRICE_DEVIATION_CHIP_PERCENTS` / `limitPriceFromRefDeviationPercent`, direction checks |
+| [`limitOrderExpectedReceive.ts`](../frontend-dapp/src/utils/limitOrderExpectedReceive.ts) | Full-fill expected receive after maker placement fee (#488 Receive row) |
+| [`LimitOrderReceiveField.tsx`](../frontend-dapp/src/components/trade/LimitOrderReceiveField.tsx) | Read-only Receive row on `/limits` + `/trade` limit tab |
 | [`limitOrderFeeSummary.ts`](../frontend-dapp/src/utils/limitOrderFeeSummary.ts) | `effectiveSwapFeeBps`, `makerPlacementFeeBps` (integer match to pair discount + `floor(effective/2)` placement leg — #157) |
 | [`useLimitOrderMakerFeeRates.ts`](../frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts) | React Query: `getPairFeeConfig` + `getTraderDiscount` for effective / maker placement bps in the pre-submit card |
 | [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) | Pre-sign card: labeled action/pair/side/amount/chain (#461 / SEC-I05), resting vs taker semantics, deviation, maker fee, est. network fee |
 | [`useLimitOrderPriceRefBundle.ts`](../frontend-dapp/src/hooks/useLimitOrderPriceRefBundle.ts) | React Query: tape first, then LCD `getPool` when tape missing; chain `token_info` decimals when registry lacks local CW20s (#166); exposes `refResolutionLoading` / `refResolutionError` for the place gate |
 | [`limitOrderPricePlaceGate.ts`](../frontend-dapp/src/utils/limitOrderPricePlaceGate.ts) | `evaluateLimitOrderPricePlaceGate(side, price, ref, ctx?)` — mirrors submit button + mutation throw; **blocks** positive limits when ref unavailable (#166) |
-| [`LimitOrderPriceField.tsx`](../frontend-dapp/src/components/trade/LimitOrderPriceField.tsx) | `LimitOrderPlaceLimitHeading`, `LimitOrderPriceInputWithContext` (receives resolved `refToken1PerToken0` + `refSource`) |
+| [`LimitOrderPriceField.tsx`](../frontend-dapp/src/components/trade/LimitOrderPriceField.tsx) | `LimitOrderPriceInputWithContext` (ref + % chips + `LimitOrderSideFlipButton`); no on-card instructional heading |
 | [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) + [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) | Pass `indexerPair`, `latestTrade`, `tapeHeadlineUsd`; ticket runs `useLimitOrderPriceRefBundle` |
 | [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx) | Same hook + local `getPair` / `getTrades` queries |
 
@@ -30,7 +32,8 @@ Use when changing **limit price** UX on `/trade` or `/limits`: reference line fr
 4. If copy or thresholds for “extreme deviation” change, update `docs/frontend.md` and this skill together.
 5. **#166 invariant:** never allow a **positive** typed limit to submit without a resolved reference (tape or pool), unless product explicitly changes that contract.
 6. **#157 / #488 pre-submit card:** keep compact labeled rows + fee math in [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) + [`limitOrderFeeSummary.ts`](../frontend-dapp/src/utils/limitOrderFeeSummary.ts); wire fee queries through [`useLimitOrderMakerFeeRates.ts`](../frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts). **#461 / SEC-I05:** the card must include labeled **Action**, **Pair**, **Side**, **Pay/Amount**, and **Chain** rows (same `getNetworkBadgeCopy().fullLabel` as swaps) before the wallet opens — minimize instructional paragraphs; a single **Docs** link is enough. If copy or bps formula changes, update [`docs/frontend.md` § pre-submit summary](../docs/frontend.md#trade-page-limit-order-pre-submit-summary) and Vitest for `limitOrderFeeSummary` / `LimitOrderPreSubmitSummary`.
-7. **Design system:** blue+gold tokens — [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)).
+7. **Design system:** blue+gold tokens; gold = border/text only — [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)).
+8. **#488 place-card order:** do not put OrderBook / My placements above the place form on `/limits`; keep rate → chips → Pay → Receive → Expiry.
 
 ## Related
 

@@ -283,8 +283,8 @@ describe('TradePage', () => {
 
     const banner = await screen.findByTestId('trade-indexer-outage-banner')
     expect(banner.textContent).toMatch(/market data service unavailable/i)
-    expect(banner.textContent).not.toMatch(/still use chain|VITE_INDEXER_URL|127\.0\.0\.1/i)
-    expect(banner.textContent).toMatch(/order book|chart|tape/i)
+    expect(banner.textContent).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1/i)
+    expect(banner.textContent).toMatch(/data may be limited|funds stay safe/i)
   })
 
   it('shows per-panel outage copy when tape fails while pair metadata is cached (GitLab #165)', async () => {
@@ -294,7 +294,7 @@ describe('TradePage', () => {
 
     expect(await screen.findByTestId('trade-indexer-outage-banner')).toBeInTheDocument()
     await user.click(await screen.findByTestId('trade-sub-lg-tape-disclosure-toggle'))
-    expect(await screen.findByTestId('trade-tape-unavailable')).toHaveTextContent(/recent trades are unavailable/i)
+    expect(await screen.findByTestId('trade-tape-unavailable')).toHaveTextContent(/recent trades unavailable/i)
   })
 
   it('shows outage copy on book, tape, and chart when indexer transport fails (GitLab #165)', async () => {
@@ -711,8 +711,8 @@ describe('TradePage', () => {
     vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
-    const banner = await screen.findByText(/Pair is paused — swaps, limit place/i)
-    expect(banner).toHaveTextContent(/governance unpauses/i)
+    const banner = await screen.findByText(/Pair paused/i)
+    expect(banner).toBeInTheDocument()
 
     const placeBtns = screen.getAllByTestId('trade-limit-submit')
     expect(placeBtns.length).toBeGreaterThan(0)
@@ -732,7 +732,6 @@ describe('TradePage', () => {
 
       const alert = await screen.findByRole('alert')
       expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
-      expect(alert).toHaveTextContent(/Restrictions are enforced on-chain by governance/i)
 
       const placeBtns = screen.getAllByTestId('trade-limit-submit')
       expect(placeBtns.length).toBeGreaterThan(0)

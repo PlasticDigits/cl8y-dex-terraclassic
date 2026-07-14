@@ -7,9 +7,9 @@ describe('feeDiscountUiCopy (GitLab #476)', () => {
     expect(FEE_DISCOUNT_UNREGISTERED_CTA_TEXT).toMatch(/register/i)
   })
 
-  it('eligibility note requires hold + register and rejects lookalike tokens', () => {
-    expect(FEE_DISCOUNT_ELIGIBILITY_NOTE).toMatch(/configured CL8Y CW20/i)
+  it('eligibility note requires hold + register', () => {
+    expect(FEE_DISCOUNT_ELIGIBILITY_NOTE).toMatch(/CL8Y/i)
     expect(FEE_DISCOUNT_ELIGIBILITY_NOTE).toMatch(/register/i)
-    expect(FEE_DISCOUNT_ELIGIBILITY_NOTE).toMatch(/do not count/i)
+    expect(FEE_DISCOUNT_ELIGIBILITY_NOTE.split(/\s+/).length).toBeLessThanOrEqual(10)
   })
 })

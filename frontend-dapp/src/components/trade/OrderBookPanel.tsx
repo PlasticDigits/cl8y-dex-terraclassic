@@ -416,8 +416,8 @@ export function OrderBookPanel({
     )
   }
 
-  const baseSymbol = pair?.asset_0.symbol ?? 'token0'
-  const quoteSymbol = pair?.asset_1.symbol ?? 'token1'
+  const baseSymbol = pair?.asset_0.symbol ?? 'Base'
+  const quoteSymbol = pair?.asset_1.symbol ?? 'Quote'
   const priceLabel = `${quoteSymbol}/${baseSymbol}`
 
   return (
@@ -431,9 +431,9 @@ export function OrderBookPanel({
             <p
               className="text-[10px] leading-snug max-w-md"
               style={{ color: 'var(--ink-dim)' }}
-              title="Open resting limits only. Own rows: Edit / Cancel."
+              title="Your resting limits — edit or cancel on your rows."
             >
-              Resting limits · Edit / Cancel on your rows
+              Your orders
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">

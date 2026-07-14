@@ -38,16 +38,13 @@ export async function getTradingBlacklistCheck(params: BlacklistCheckParams): Pr
 
 export function describeTradingBlacklistBlock(resp: BlacklistCheckResponse): string {
   if (resp.wallet_blacklisted) {
-    return (
-      'This wallet is on the protocol trading blacklist for compliance or incident response. ' +
-      'Swaps, liquidity, and limit orders are disabled until governance removes the restriction.'
-    )
+    return 'Wallet blacklisted. Trading disabled.'
   }
   if (resp.pair_blacklisted || resp.blacklisted_pairs.length > 0) {
-    return 'This pool is on the protocol trading blacklist. Trading is disabled until governance removes the restriction.'
+    return 'Pool blacklisted. Trading disabled.'
   }
   if (resp.blacklisted_tokens.length > 0) {
-    return 'A token in this pool is on the protocol trading blacklist. Trading involving that asset is disabled.'
+    return 'Token blacklisted. Trading disabled.'
   }
-  return 'Trading is blocked by the protocol blacklist.'
+  return 'Trading blocked by blacklist.'
 }

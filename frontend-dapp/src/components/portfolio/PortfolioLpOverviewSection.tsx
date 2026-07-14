@@ -30,8 +30,7 @@ export function PortfolioLpOverviewSection({
         LP overview
       </h3>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-dim)' }}>
-        On-chain CW20 LP token balances across indexed pairs — not swap-tracked quote exposure (see Open positions
-        above). Manage liquidity on{' '}
+        LP token balances. Manage on{' '}
         <Link to="/pool" className="underline" style={{ color: 'var(--accent)' }}>
           Pool
         </Link>
@@ -39,8 +38,7 @@ export function PortfolioLpOverviewSection({
       </p>
       {capped && (
         <p className="text-xs mb-2" style={{ color: 'var(--ink-dim)' }} data-testid="portfolio-lp-capped-notice">
-          Showing balances for the first {pairsScanned ?? '—'} indexed pairs only (cap applies when the factory lists
-          more pairs).
+          Showing first {pairsScanned ?? '—'} pairs only.
         </p>
       )}
       {isLoading && (
@@ -53,7 +51,7 @@ export function PortfolioLpOverviewSection({
       {isError && <RetryError message="Failed to load LP balances" onRetry={onRetry} />}
       {!isLoading && !isError && rows && rows.length === 0 && (
         <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }} data-testid="portfolio-lp-empty">
-          No LP token balances found across scanned pairs.
+          No LP balances found.
         </p>
       )}
       {!isLoading && !isError && rows && rows.length > 0 && (

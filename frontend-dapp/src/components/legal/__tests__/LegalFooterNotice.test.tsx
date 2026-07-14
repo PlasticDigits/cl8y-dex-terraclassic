@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import LegalFooterNotice from '@/components/legal/LegalFooterNotice'
-import {
-  SECURITY_REPORT_ISSUE_URL,
-  USER_INCIDENT_FAQ_HREF,
-  USER_INCIDENT_FAQ_LABEL,
-} from '@/components/legal/legalCopy'
+import { SECURITY_REPORT_ISSUE_URL, USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { SECURITY_POSTURE_DOC_URL } from '@/utils/constants'
 
 describe('LegalFooterNotice', () => {
@@ -16,7 +12,7 @@ describe('LegalFooterNotice', () => {
     expect(link).toHaveAttribute('href', SECURITY_POSTURE_DOC_URL)
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-    expect(link).toHaveTextContent('Security and audit docs')
+    expect(link).toHaveTextContent('Security')
     expect(SECURITY_POSTURE_DOC_URL).toMatch(/security-posture\.md$/)
   })
 
@@ -25,7 +21,7 @@ describe('LegalFooterNotice', () => {
 
     const link = screen.getByTestId('user-incident-faq-link')
     expect(link).toHaveAttribute('href', USER_INCIDENT_FAQ_HREF)
-    expect(link).toHaveTextContent(USER_INCIDENT_FAQ_LABEL)
+    expect(link).toHaveTextContent('Incidents')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
@@ -33,7 +29,7 @@ describe('LegalFooterNotice', () => {
   it('links suspicious-activity reports to the GitLab security template', () => {
     render(<LegalFooterNotice />)
 
-    const link = screen.getByRole('link', { name: /report suspicious activity/i })
+    const link = screen.getByRole('link', { name: /^report$/i })
     expect(link).toHaveAttribute('href', SECURITY_REPORT_ISSUE_URL)
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')

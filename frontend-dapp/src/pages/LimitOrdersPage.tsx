@@ -20,7 +20,6 @@ import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataSer
 import { MarketDataLoadingStatus } from '@/components/common/MarketDataLoadingStatus'
 import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import { LIMITS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
-import { TRADE_INDEXER_OUTAGE_BANNER_TAIL } from '@/utils/indexerTradeOutageCopy'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
 import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
@@ -30,7 +29,6 @@ import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
-import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { useLimitOrderPriceRefBundle } from '@/hooks/useLimitOrderPriceRefBundle'
 import { useLimitOrderForm } from '@/hooks/useLimitOrderForm'
 import { useLimitEscrowMaxReapply } from '@/hooks/useLimitEscrowMaxReapply'
@@ -46,8 +44,10 @@ import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlac
 import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubmitSummary'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
+import { limitOrderExpectedReceiveHuman } from '@/utils/limitOrderExpectedReceive'
 import { LimitOrderLadderPanel } from '@/components/trade/LimitOrderLadderPanel'
-import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
+import { LimitOrderSideFlipButton, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
+import { LimitOrderReceiveField } from '@/components/trade/LimitOrderReceiveField'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
@@ -108,9 +108,12 @@ export default function LimitOrdersPage() {
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const escrowToken = side === 'bid' ? token1 : token0
+  const receiveToken = side === 'bid' ? token0 : token1
 
   const escrowDecimals = escrowToken ? getDecimals(tokenAssetInfo(escrowToken)) : 6
+  const receiveDecimals = receiveToken ? getDecimals(tokenAssetInfo(receiveToken)) : 6
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, escrowToken)
+  const receiveBalanceQuery = useLimitOrderEscrowBalance(address, receiveToken)
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
   const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
@@ -190,6 +193,26 @@ export default function LimitOrdersPage() {
     if (usd == null || !Number.isFinite(usd)) return null
     return `$${formatNum(usd, 4)}`
   }, [amountHuman, side, refToken1PerToken0, tapeHeadlineUsd])
+
+  const expectedReceiveHuman = useMemo(
+    () =>
+      limitOrderExpectedReceiveHuman({
+        side,
+        escrowAmountHuman: amountHuman,
+        escrowDecimals,
+        priceHuman: price,
+        effectiveFeeBps,
+      }),
+    [side, amountHuman, escrowDecimals, price, effectiveFeeBps]
+  )
+
+  const receiveUsdNotionalApprox = useMemo(() => {
+    const amt = expectedReceiveHuman != null ? parsePositivePriceHuman(expectedReceiveHuman) : null
+    if (amt == null) return null
+    const usd = escrowAmountUsdAnchorNotional(amt, side === 'bid', refToken1PerToken0, tapeHeadlineUsd)
+    if (usd == null || !Number.isFinite(usd)) return null
+    return `$${formatNum(usd, 4)}`
+  }, [expectedReceiveHuman, side, refToken1PerToken0, tapeHeadlineUsd])
 
   const handleSideChange = useCallback(
     (next: 'bid' | 'ask') => {
@@ -487,10 +510,11 @@ export default function LimitOrdersPage() {
     clearEditContext()
   }, [pairAddr, clearEditContext])
 
-  const token0Display = getTokenDisplaySymbol(token0 || 'token0')
-  const token1Display = getTokenDisplaySymbol(token1 || 'token1')
+  const token0Display = token0 ? getTokenDisplaySymbol(token0) : 'Base'
+  const token1Display = token1 ? getTokenDisplaySymbol(token1) : 'Quote'
   const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(token0Display)
   const escrowDisplay = getTokenDisplaySymbol(escrowToken || '—')
+  const receiveDisplay = getTokenDisplaySymbol(receiveToken || '—')
 
   return (
     <div className="max-w-[560px] mx-auto">
@@ -534,7 +558,6 @@ export default function LimitOrdersPage() {
                   testId="limits-market-data-outage-banner"
                   title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
                   lead={LIMITS_MARKET_DATA_OUTAGE_LEAD}
-                  tail={TRADE_INDEXER_OUTAGE_BANNER_TAIL}
                 />
               )}
 
@@ -543,80 +566,28 @@ export default function LimitOrdersPage() {
               )}
 
               {selectedPair && isPaused && (
-                <div className="alert-error text-sm space-y-2" role="status">
+                <div className="alert-error text-sm" role="status">
                   <p>
-                    This pair is paused by governance. New limit orders, cancel, and parked-expiry Claim refund are
-                    unavailable until the pair is unpaused. Escrow remains in the pair contract until unpause.
-                  </p>
-                  <p className="text-xs opacity-90">
-                    <a
-                      className="underline hover:opacity-80"
-                      href={USER_INCIDENT_FAQ_HREF}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      What happens during an incident?
-                    </a>
-                    {' · '}
+                    Pair paused.{' '}
                     <a
                       className="underline hover:opacity-80"
                       href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Limit orders (technical)
+                      Docs
                     </a>
                   </p>
                 </div>
               )}
 
               {selectedPair && tradingBlacklist.blocked && tradingBlacklist.message && (
-                <div className="alert-error text-sm space-y-2" role="alert">
+                <div className="alert-error text-sm" role="alert">
                   <p>{tradingBlacklist.message}</p>
-                  <p className="text-xs opacity-90">
-                    Restrictions are enforced on-chain by governance. Funds remain recoverable when the restriction is
-                    lifted.
-                  </p>
                 </div>
               )}
 
-              {selectedPair && (
-                <div className="card-glass !p-3 min-h-[22rem] flex flex-col">
-                  <OrderBookPanel
-                    pairAddress={pairAddr}
-                    pair={indexerPair}
-                    walletAddress={address ?? undefined}
-                    isWalletConnected={isWalletConnected}
-                    isPairPaused={isTradeBlocked}
-                    openWalletModal={openWalletModal}
-                    cancelLimitOrderMutation={limitCancelMutation}
-                    onPrefillLimitTicket={onPrefillLimitTicketFromBook}
-                    factoryPair={selectedPair}
-                  />
-                </div>
-              )}
-
-              {pairAddr && address && (
-                <div className="card-glass !p-4 space-y-2" data-testid="limits-my-open-limits">
-                  <LimitOrderMyPlacementsPanel
-                    variant="page"
-                    pairAddr={pairAddr}
-                    pair={selectedPair}
-                    walletAddress={address}
-                    rows={myPlacements}
-                    isLoading={placementsQuery.isLoading}
-                    isWalletConnected={isWalletConnected}
-                    isPairPaused={isPaused}
-                    claimsDisabled={tradingBlacklist.blocked}
-                    cancelDisabled={tradingBlacklist.blocked}
-                    openWalletModal={openWalletModal}
-                    cancelLimitOrderMutation={limitCancelMutation}
-                    cancellations={cancellationsQuery.data ?? []}
-                  />
-                </div>
-              )}
-
-              <div className="card-glass !p-4 space-y-4">
+              <div className="card-glass !p-4 space-y-4" data-testid="limits-place-card">
                 <div className="flex gap-2" role="tablist" aria-label="Place mode">
                   <button
                     type="button"
@@ -640,8 +611,8 @@ export default function LimitOrdersPage() {
                     walletAddress={address}
                     escrowToken={escrowToken}
                     escrowDecimals={escrowDecimals}
-                    token0Symbol={getTokenDisplaySymbol(token0 || 'token0')}
-                    token1Symbol={getTokenDisplaySymbol(token1 || 'token1')}
+                    token0Symbol={token0Display}
+                    token1Symbol={token1Display}
                     refToken1PerToken0={refToken1PerToken0}
                     refResolutionLoading={refResolutionLoading}
                     disabled={!isWalletConnected || isTradeBlocked}
@@ -652,14 +623,6 @@ export default function LimitOrdersPage() {
                 )}
                 {placeMode === 'single' && (
                   <>
-                    <LimitOrderPlaceLimitHeading />
-                    <LimitOrderBidAskSideSelector
-                      idPrefix="limit-orders"
-                      side={side}
-                      onSideChange={handleSideChange}
-                      bidLabel={`Buy ${token0Display}`}
-                      askLabel={`Sell ${token0Display}`}
-                    />
                     <LimitOrderPriceInputWithContext
                       side={side}
                       price={price}
@@ -670,6 +633,14 @@ export default function LimitOrdersPage() {
                       tapeHeadlineUsd={tapeHeadlineUsd}
                       token0Label={token0Display}
                       token1Label={token1Display}
+                    />
+                    <LimitOrderBidAskSideSelector
+                      idPrefix="limit-orders"
+                      compact
+                      side={side}
+                      onSideChange={handleSideChange}
+                      bidLabel={`Buy ${token0Display}`}
+                      askLabel={`Sell ${token0Display}`}
                     />
                     <LimitOrderEscrowAmountField
                       escrowLabel={escrowDisplay}
@@ -683,6 +654,15 @@ export default function LimitOrdersPage() {
                       assetIsNativeUluna={escrowToken === 'uluna'}
                       escrowUsdNotionalApprox={escrowUsdNotionalApprox}
                     />
+                    <LimitOrderSideFlipButton onFlip={() => handleSideChange(side === 'bid' ? 'ask' : 'bid')} />
+                    <LimitOrderReceiveField
+                      receiveLabel={receiveDisplay}
+                      receiveAmountHuman={expectedReceiveHuman}
+                      receiveDecimals={receiveDecimals}
+                      receiveBalanceQuery={receiveBalanceQuery}
+                      walletConnected={isWalletConnected}
+                      receiveUsdNotionalApprox={receiveUsdNotionalApprox}
+                    />
                     <LimitOrderExpiryField value={expiresAt} onChange={setExpiresAt} idPrefix="limit-orders-page" />
                     <LimitOrderAdvancedLimitSettings
                       open={limitAdvancedOpen}
@@ -693,23 +673,49 @@ export default function LimitOrdersPage() {
                       onExpiresAtChange={setExpiresAt}
                       idPrefix="limit-orders-page"
                     />
-                    {selectedPair && pairAddr.startsWith('terra1') && (
-                      <LimitOrderPreSubmitSummary
-                        pairLabel={`${token0Display} / ${token1Display}`}
-                        sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
-                        escrowAmountLabel={
-                          amountHuman.trim() ? `${amountHuman.trim()} ${escrowDisplay}` : `— ${escrowDisplay}`
-                        }
-                        placeSequenceMinUluna={limitPlaceMinUlunaFees}
-                        refToken1PerToken0={refToken1PerToken0}
-                        typedPrice={price}
-                        effectiveFeeBps={effectiveFeeBps}
-                        makerPlacementFeeBps={makerPlacementFeeBps}
-                        feeLoading={limitFeeLoading}
-                        feeError={limitFeeError}
-                        data-testid="limits-page-pre-submit-summary"
-                      />
-                    )}
+                    {selectedPair &&
+                      pairAddr.startsWith('terra1') &&
+                      (editContext ? (
+                        <LimitOrderPreSubmitSummary
+                          pairLabel={`${token0Display} / ${token1Display}`}
+                          sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
+                          escrowAmountLabel={
+                            amountHuman.trim() ? `${amountHuman.trim()} ${escrowDisplay}` : `— ${escrowDisplay}`
+                          }
+                          placeSequenceMinUluna={limitPlaceMinUlunaFees}
+                          refToken1PerToken0={refToken1PerToken0}
+                          typedPrice={price}
+                          effectiveFeeBps={effectiveFeeBps}
+                          makerPlacementFeeBps={makerPlacementFeeBps}
+                          feeLoading={limitFeeLoading}
+                          feeError={limitFeeError}
+                          data-testid="limits-page-pre-submit-summary"
+                        />
+                      ) : (
+                        <details data-testid="limits-pre-submit-details">
+                          <summary
+                            className="cursor-pointer uppercase text-xs tracking-wide font-medium select-none mb-2"
+                            style={{ color: 'var(--ink-subtle)' }}
+                          >
+                            Signing details
+                          </summary>
+                          <LimitOrderPreSubmitSummary
+                            pairLabel={`${token0Display} / ${token1Display}`}
+                            sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
+                            escrowAmountLabel={
+                              amountHuman.trim() ? `${amountHuman.trim()} ${escrowDisplay}` : `— ${escrowDisplay}`
+                            }
+                            placeSequenceMinUluna={limitPlaceMinUlunaFees}
+                            refToken1PerToken0={refToken1PerToken0}
+                            typedPrice={price}
+                            effectiveFeeBps={effectiveFeeBps}
+                            makerPlacementFeeBps={makerPlacementFeeBps}
+                            feeLoading={limitFeeLoading}
+                            feeError={limitFeeError}
+                            data-testid="limits-page-pre-submit-summary"
+                          />
+                        </details>
+                      ))}
                     {editContext && (
                       <p
                         className="text-xs leading-snug rounded-lg border border-white/10 px-2.5 py-2"
@@ -791,25 +797,55 @@ export default function LimitOrdersPage() {
                     )}
                     {lastIndexedOrderId != null && (
                       <p className="text-xs font-mono" data-testid="last-placed-order-id">
-                        Last indexed placement for your wallet: order #{lastIndexedOrderId}
+                        Order #{lastIndexedOrderId}
                       </p>
                     )}
                   </>
                 )}
               </div>
 
+              {selectedPair && (
+                <div className="card-glass !p-3 min-h-[12rem] flex flex-col" data-testid="limits-order-book-panel">
+                  <OrderBookPanel
+                    pairAddress={pairAddr}
+                    pair={indexerPair}
+                    walletAddress={address ?? undefined}
+                    isWalletConnected={isWalletConnected}
+                    isPairPaused={isTradeBlocked}
+                    openWalletModal={openWalletModal}
+                    cancelLimitOrderMutation={limitCancelMutation}
+                    onPrefillLimitTicket={onPrefillLimitTicketFromBook}
+                    factoryPair={selectedPair}
+                  />
+                </div>
+              )}
+
+              {pairAddr && address && (
+                <div className="card-glass !p-4 space-y-2" data-testid="limits-my-open-limits">
+                  <LimitOrderMyPlacementsPanel
+                    variant="page"
+                    pairAddr={pairAddr}
+                    pair={selectedPair}
+                    walletAddress={address}
+                    rows={myPlacements}
+                    isLoading={placementsQuery.isLoading}
+                    isWalletConnected={isWalletConnected}
+                    isPairPaused={isPaused}
+                    claimsDisabled={tradingBlacklist.blocked}
+                    cancelDisabled={tradingBlacklist.blocked}
+                    openWalletModal={openWalletModal}
+                    cancelLimitOrderMutation={limitCancelMutation}
+                    cancellations={cancellationsQuery.data ?? []}
+                  />
+                </div>
+              )}
+
               <details className="card-glass !p-4 space-y-4 group">
                 <summary className="text-sm font-semibold uppercase tracking-wide cursor-pointer list-none flex items-center justify-between">
                   <span>Cancel by order ID</span>
-                  <span className="text-[10px] font-normal normal-case opacity-70">
-                    Advanced — prefer Cancel on open limits above
-                  </span>
+                  <span className="text-[10px] font-normal normal-case opacity-70">Advanced</span>
                 </summary>
                 <div className="pt-3 space-y-4">
-                  <p className="text-[11px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-                    For resting orders, use <strong>Cancel</strong> on your open limits above, or <strong>×</strong> on
-                    the order book. Enter an order id here only when you need a manual fallback.
-                  </p>
                   <div>
                     <label className="label-glass" htmlFor={limitOrdersCancelOrderInputId}>
                       Order ID

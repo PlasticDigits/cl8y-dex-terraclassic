@@ -21,7 +21,7 @@ export function TraderPositionsTable({
   isLoading,
   isError,
   onRetry,
-  emptyMessage = 'No open quote exposure on indexed pairs.',
+  emptyMessage = 'No open positions.',
   sectionTestId = 'trader-positions-section',
 }: TraderPositionsTableProps) {
   return (
@@ -30,7 +30,7 @@ export function TraderPositionsTable({
         Open positions
       </h3>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-dim)' }}>
-        Indexer quote exposure per pair — not LP token balances. LP liquidity is on{' '}
+        Net exposure per pair. LP balances are on{' '}
         <Link to="/pool" className="underline" style={{ color: 'var(--accent)' }}>
           Pool
         </Link>
