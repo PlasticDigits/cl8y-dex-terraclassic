@@ -1300,7 +1300,7 @@ export default function SwapPage() {
               )}
             </div>
 
-            <div className="relative z-20 flex justify-center pointer-events-none -my-[22px] sm:-my-6">
+            <div className="relative z-20 flex justify-center pointer-events-none -my-5 sm:-my-[22px]">
               <button
                 type="button"
                 aria-label="Swap pay and receive tokens"
@@ -1311,7 +1311,7 @@ export default function SwapPage() {
                   setToToken(tmp)
                   setShowImpactConfirm(false)
                 }}
-                className="pointer-events-auto swap-direction-btn w-11 h-11 sm:w-12 sm:h-12 rounded-[18px] flex items-center justify-center transition-all hover:-translate-y-0.5"
+                className="pointer-events-auto swap-direction-btn w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center transition-all hover:-translate-y-0.5"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <path
@@ -1325,7 +1325,7 @@ export default function SwapPage() {
               </button>
             </div>
 
-            <div className="card-glass swap-io-card-receive !p-4 sm:!p-5">
+            <div className="card-glass swap-io-card-receive !px-4 !pt-6 !pb-4 sm:!px-5 sm:!pt-7 sm:!pb-5">
               <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <span className="label-glass !mb-0 sm:pt-1">You Receive</span>
                 <TokenSearchSelect
