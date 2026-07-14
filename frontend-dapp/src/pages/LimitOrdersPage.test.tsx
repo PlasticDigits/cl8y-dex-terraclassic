@@ -161,7 +161,8 @@ describe('LimitOrdersPage', () => {
     await selectLimitsPair(user)
 
     const summary = await screen.findByTestId('limits-page-pre-submit-summary')
-    expect(summary.textContent).toMatch(/Review these fields before your wallet opens/i)
+    expect(summary.textContent).toMatch(/Action/i)
+    expect(summary.textContent).toMatch(/Pay/i)
     expect(screen.getByTestId('limits-page-pre-submit-summary-action')).toHaveTextContent('Place Limit Order')
     expect(screen.getByTestId('limits-page-pre-submit-summary-chain')).toHaveTextContent('LocalTerra')
   })
@@ -266,7 +267,7 @@ describe('LimitOrdersPage', () => {
     await selectLimitsPair(user)
     await user.click(await screen.findByTestId('trade-book-edit-bid-7'))
 
-    expect(await screen.findByTestId('limits-page-edit-context')).toHaveTextContent(/Editing order\s+#7/i)
+    expect(await screen.findByTestId('limits-page-edit-context')).toHaveTextContent(/Editing\s+#7/i)
     expect(screen.getByTestId('limit-order-price-input')).toHaveValue('2.5')
     expect(screen.getByTestId('limit-order-escrow-amount-input')).toHaveValue('1')
   })

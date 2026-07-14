@@ -83,7 +83,7 @@ describe('LimitOrderAdvancedLimitSettings (GitLab #204)', () => {
     expect(onMaxStepsChange).toHaveBeenCalledWith(1)
   })
 
-  it('shows gas tradeoff helper copy and human-readable docs link', () => {
+  it('links Docs from Placement gas without instructional paragraphs (#488)', () => {
     render(
       <LimitOrderAdvancedLimitSettings
         {...baseProps}
@@ -91,8 +91,9 @@ describe('LimitOrderAdvancedLimitSettings (GitLab #204)', () => {
         onMaxStepsChange={vi.fn()}
       />
     )
-    expect(screen.getByText(/how much gas the placement transaction may spend/i)).toBeInTheDocument()
-    const docLink = screen.getByRole('link', { name: /how book placement gas works/i })
+    expect(screen.queryByText(/how much gas the placement transaction may spend/i)).not.toBeInTheDocument()
+    const docLink = screen.getByRole('link', { name: /^Docs$/i })
     expect(docLink.getAttribute('href')).toMatch(/limit-orders\.md#messages-cosmwasm/)
+    expect(screen.getByTestId('test-adv-preset-hint')).toHaveTextContent('Default')
   })
 })

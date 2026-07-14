@@ -2,7 +2,7 @@
 
 ## Design system
 
-Visual primitives (**Cyberminimalist Glass System**): [`design-system.md`](./design-system.md). Agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) ([#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415)).
+Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
 
 ## Tech Stack
 

@@ -46,9 +46,8 @@ function SummaryRow({ label, value, testId }: { label: string; value: string; te
 }
 
 /**
- * Pre-sign copy for **resting** limits: labeled action, pair, side, escrow amount, and chain before the wallet
- * opens ([#461](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/461) / SEC-I05), plus deviation,
- * maker placement fee, and network fee floor ([#157](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157)).
+ * Compact pre-sign summary for resting limits (#461 / SEC-I05 chain anchor; #488 copy minimization).
+ * Keeps labeled action/pair/side/amount/chain — strips instructional paragraphs.
  */
 export function LimitOrderPreSubmitSummary({
   actionLabel = 'Place Limit Order',
@@ -72,7 +71,6 @@ export function LimitOrderPreSubmitSummary({
 
   const gasHuman = formatTokenAmount(placeSequenceMinUluna.toString(), 6, 4)
   const makerPct = makerBps != null ? bpsToPercentLabel(makerBps) : null
-  const effectivePct = effectiveFeeBps != null ? bpsToPercentLabel(effectiveFeeBps) : null
 
   return (
     <div
@@ -81,68 +79,36 @@ export function LimitOrderPreSubmitSummary({
       role="region"
       aria-label="Limit order summary before signing"
     >
-      <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        Review these fields before your wallet opens. They must match what you intend to sign on{' '}
-        <strong style={{ color: 'var(--ink-subtle)' }}>{chainFullLabel}</strong>.
-      </p>
       <div className="space-y-1.5">
         <SummaryRow label="Action" value={actionLabel} testId={`${testId}-action`} />
         <SummaryRow label="Pair" value={pairLabel} testId={`${testId}-pair`} />
         <SummaryRow label="Side" value={sideLabel} testId={`${testId}-side`} />
-        <SummaryRow label="Amount" value={escrowAmountLabel} testId={`${testId}-amount`} />
+        <SummaryRow label="Pay" value={escrowAmountLabel} testId={`${testId}-amount`} />
         <SummaryRow label="Chain" value={chainFullLabel} testId={`${testId}-chain`} />
+        <SummaryRow
+          label="vs ref"
+          value={dev == null ? '—' : `${dev > 0 ? '+' : ''}${dev.toFixed(1)}%`}
+          testId={`${testId}-vs-ref`}
+        />
+        <div data-testid={`${testId}-maker-fee`}>
+          <SummaryRow
+            label="Maker fee"
+            value={
+              feeLoading
+                ? '…'
+                : feeError || effectiveFeeBps == null || makerBps == null || makerPct == null
+                  ? '—'
+                  : makerPct
+            }
+            testId={`${testId}-maker-fee-row`}
+          />
+        </div>
+        <SummaryRow label="Gas (min)" value={`~${gasHuman} LUNC`} testId={`${testId}-gas`} />
       </div>
       <p className="text-[9px] leading-snug pt-1 border-t border-white/10" style={{ color: 'var(--ink-subtle)' }}>
-        Resting limit — no immediate taker slippage, price impact, or min-received line like a market swap.
-      </p>
-      <ul className="list-disc pl-4 space-y-1" style={{ color: 'var(--ink-dim)' }}>
-        <li>
-          <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-            vs current reference:{' '}
-          </span>
-          {dev == null ? (
-            <span className="opacity-80">—</span>
-          ) : (
-            <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>
-              {dev > 0 ? '+' : ''}
-              {dev.toFixed(1)}%
-            </span>
-          )}
-          <span className="text-[9px] ml-1 opacity-90">(token1 per token0)</span>
-        </li>
-        <li data-testid={`${testId}-maker-fee`}>
-          <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-            Maker fee (charged when placed):{' '}
-          </span>
-          {feeLoading ? (
-            <span className="opacity-80">Loading…</span>
-          ) : feeError || effectiveFeeBps == null || makerBps == null || makerPct == null ? (
-            <span className="opacity-80">—</span>
-          ) : (
-            <span style={{ color: 'var(--ink)' }}>
-              Small fee taken from your escrow at placement — about{' '}
-              <strong className="font-mono tabular-nums">{makerPct}</strong> of escrow (
-              <span className="font-mono tabular-nums">{makerBps}</span> bps; half of the{' '}
-              <span className="font-mono tabular-nums">{effectivePct}</span> swap fee). The other half is charged to
-              takers on each fill.
-            </span>
-          )}
-        </li>
-        <li>
-          <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-            Est. network fee (min):{' '}
-          </span>
-          <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>
-            ~{gasHuman} LUNC
-          </span>
-          <span className="text-[9px] ml-1 opacity-90">(allowance + place; wallet may vary)</span>
-        </li>
-      </ul>
-      <p className="text-[9px] leading-snug pt-1 border-t border-white/10" style={{ color: 'var(--ink-subtle)' }}>
         <a className="underline hover:opacity-80" href={LIMIT_DOC} target="_blank" rel="noopener noreferrer">
-          Learn more about limit order fees
+          Docs
         </a>
-        .
       </p>
     </div>
   )

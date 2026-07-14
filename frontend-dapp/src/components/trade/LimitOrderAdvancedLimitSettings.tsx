@@ -18,9 +18,9 @@ const PRESET_LABELS: Record<Exclude<LimitOrderMaxAdjustStepsPresetTier, 'custom'
 }
 
 const PRESET_HINTS: Record<Exclude<LimitOrderMaxAdjustStepsPresetTier, 'custom'>, string> = {
-  low: 'Uses less gas; fine for thin books. May fail if the book is very deep.',
-  medium: 'Default — balanced gas for most pairs.',
-  high: 'Uses more gas; use on busy or deep books if placement fails.',
+  low: 'Low gas',
+  medium: 'Default',
+  high: 'High gas',
 }
 
 type Props = {
@@ -82,22 +82,16 @@ export function LimitOrderAdvancedLimitSettings({
       <div className="mt-3 space-y-3 pl-0 border-t border-white/10 pt-3">
         <div>
           <label className={compact ? 'label-glass text-[10px]' : 'label-glass'} htmlFor={`${idPrefix}-max-steps`}>
-            Placement gas (book walk)
-          </label>
-          <p className={sm + ' mt-0.5'} style={{ color: 'var(--ink-dim)' }}>
-            Controls how much gas the placement transaction may spend walking the order book to find a slot. Lower
-            settings cost less but may fail on very deep books; higher settings cost more and are more reliable on busy
-            books.{' '}
+            Placement gas{' '}
             <a
-              className="underline hover:opacity-80"
+              className="normal-case tracking-normal font-medium underline hover:opacity-80"
               href={PLACEMENT_GAS_DOC}
               target="_blank"
               rel="noopener noreferrer"
             >
-              How book placement gas works
+              Docs
             </a>
-            .
-          </p>
+          </label>
           <div className="flex flex-wrap gap-1.5 mt-2" role="group" aria-label="Placement gas preset">
             {LIMIT_ORDER_MAX_ADJUST_STEPS_PRESET_TIERS.map((tier) => (
               <button
@@ -126,20 +120,16 @@ export function LimitOrderAdvancedLimitSettings({
             </button>
           </div>
           {customMode ? (
-            <>
-              <p className={sm + ' mt-2'} style={{ color: 'var(--ink-dim)' }}>
-                Set the on-chain step cap yourself (1–256). Higher values use more gas.
-              </p>
-              <input
-                id={`${idPrefix}-max-steps`}
-                type="number"
-                className={compact ? 'input-glass w-full text-sm mt-2' : 'input-glass w-full mt-2'}
-                min={1}
-                max={256}
-                value={maxSteps}
-                onChange={(e) => onMaxStepsChange(clampLimitOrderMaxAdjustSteps(Number(e.target.value)))}
-              />
-            </>
+            <input
+              id={`${idPrefix}-max-steps`}
+              type="number"
+              className={compact ? 'input-glass w-full text-sm mt-2' : 'input-glass w-full mt-2'}
+              min={1}
+              max={256}
+              value={maxSteps}
+              onChange={(e) => onMaxStepsChange(clampLimitOrderMaxAdjustSteps(Number(e.target.value)))}
+              aria-label="Custom placement gas steps (1–256)"
+            />
           ) : (
             <p className={sm + ' mt-2'} style={{ color: 'var(--ink-dim)' }} data-testid={`${idPrefix}-preset-hint`}>
               {PRESET_HINTS[activeTier]}

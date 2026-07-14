@@ -513,13 +513,13 @@
 | 10.1.5 | Theme toggle | Click toggle in header (desktop) or More sheet (mobile) | Theme switches immediately (`data-theme` on `<html>`) | | |
 | 10.1.6 | Dark mode readability | Browse all pages in dark mode | All text readable, no invisible elements | | |
 | 10.1.7 | Light mode readability | Browse all pages in light mode | All text readable, no invisible elements | | |
-| 10.1.8 | Trade bootstrap continuity | Hard refresh `/trade` (disable cache) | `#trade-bootstrap-shell` warm skeleton matches hydrated `shell-panel` — no blue flash ([#416](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/416)) | | |
+| 10.1.8 | Trade bootstrap continuity | Hard refresh `/trade` (disable cache) | `#trade-bootstrap-shell` cool navy skeleton matches hydrated `shell-panel` — no warm-brown FOUC ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)) | | |
 
 ### 10.2 Visual Design
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
-| 10.2.1 | Cyberminimalist Glass borders | View components | Borders, blur, and shadows match [`docs/design-system.md`](docs/design-system.md) | | |
+| 10.2.1 | Blue+gold chrome borders | View components | Borders, blur, and shadows match [`docs/design-system.md`](docs/design-system.md) (#488) | | |
 | 10.2.2 | Fonts - headings | View headings | Chakra Petch font | | |
 | 10.2.3 | Fonts - body | View body text | IBM Plex Sans font | | |
 | 10.2.4 | Uppercase labels | View labels | Uppercase styling applied | | |

@@ -1,6 +1,8 @@
 # Agent playbook: Limit order price field (trade + standalone page)
 
-Use when changing **limit price** UX on `/trade` or `/limit-orders`: reference line from tape **or AMM pool**, % deviation, headline-scaled USD, submit validation, **escrow headline USD** ([`escrowAmountUsdAnchorNotional`](../frontend-dapp/src/utils/limitOrderPriceReference.ts); [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)), or the **Place limit** tooltip.
+Use when changing **limit price** UX on `/trade` or `/limits`: reference line from tape **or AMM pool**, % deviation, headline-scaled USD, submit validation, **escrow headline USD** ([`escrowAmountUsdAnchorNotional`](../frontend-dapp/src/utils/limitOrderPriceReference.ts); [GitLab **#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)), or the **Place limit** tooltip.
+
+**#488 IA:** default label is **“When 1 {token0} is worth”** (+ token1 unit). Prefer compact ref/%/USD chips — no instructional paragraphs on the place card. Blocking invalid-direction errors stay visible.
 
 ## Canonical references
 
@@ -27,7 +29,8 @@ Use when changing **limit price** UX on `/trade` or `/limit-orders`: reference l
 3. When changing submit rules, update **both** `evaluateLimitOrderPricePlaceGate` and the `placeMutation` throw path, plus Vitest under `utils/__tests__/limitOrderPrice*.test.ts`.
 4. If copy or thresholds for “extreme deviation” change, update `docs/frontend.md` and this skill together.
 5. **#166 invariant:** never allow a **positive** typed limit to submit without a resolved reference (tape or pool), unless product explicitly changes that contract.
-6. **#157 pre-submit card:** keep resting-vs-market explanations and fee math in [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) + [`limitOrderFeeSummary.ts`](../frontend-dapp/src/utils/limitOrderFeeSummary.ts); wire fee queries through [`useLimitOrderMakerFeeRates.ts`](../frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts). **#461 / SEC-I05:** the card must lead with labeled **Action**, **Pair**, **Side**, **Amount**, and **Chain** rows (same `getNetworkBadgeCopy().fullLabel` as swaps) before the wallet opens. If copy or bps formula changes, update [`docs/frontend.md` § pre-submit summary](../docs/frontend.md#trade-page-limit-order-pre-submit-summary) and Vitest for `limitOrderFeeSummary` / `LimitOrderPreSubmitSummary`.
+6. **#157 / #488 pre-submit card:** keep compact labeled rows + fee math in [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) + [`limitOrderFeeSummary.ts`](../frontend-dapp/src/utils/limitOrderFeeSummary.ts); wire fee queries through [`useLimitOrderMakerFeeRates.ts`](../frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts). **#461 / SEC-I05:** the card must include labeled **Action**, **Pair**, **Side**, **Pay/Amount**, and **Chain** rows (same `getNetworkBadgeCopy().fullLabel` as swaps) before the wallet opens — minimize instructional paragraphs; a single **Docs** link is enough. If copy or bps formula changes, update [`docs/frontend.md` § pre-submit summary](../docs/frontend.md#trade-page-limit-order-pre-submit-summary) and Vitest for `limitOrderFeeSummary` / `LimitOrderPreSubmitSummary`.
+7. **Design system:** blue+gold tokens — [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)).
 
 ## Related
 

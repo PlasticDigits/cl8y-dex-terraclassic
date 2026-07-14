@@ -36,15 +36,16 @@ export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowM
     <div className="space-y-2">
       <div className="flex flex-col gap-1">
         <label className="label-glass" htmlFor={`${idPrefix}-expiry-dt`}>
-          Expires
-        </label>
-        <p className={hintClass} style={{ color: 'var(--ink-dim)' }}>
-          Choose a local date and time, a quick preset, or set Advanced → raw seconds. On-chain:{' '}
-          <code className="text-[0.85em]">expires_at</code> in the hook message.{' '}
-          <a className="underline hover:opacity-80" href={LIMIT_ORDERS_DOC} target="_blank" rel="noopener noreferrer">
-            Expiry rules
+          Expiry{' '}
+          <a
+            className="normal-case tracking-normal font-medium underline hover:opacity-80"
+            href={LIMIT_ORDERS_DOC}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Docs
           </a>
-        </p>
+        </label>
       </div>
       <div className="flex flex-wrap gap-2">
         <button
@@ -52,7 +53,7 @@ export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowM
           className={btnClass}
           data-active={value === null}
           aria-pressed={value === null}
-          title="Order rests indefinitely until filled or cancelled."
+          title="No expiry"
           onClick={() => onChange(null)}
           style={
             value === null
@@ -74,11 +75,6 @@ export function LimitOrderExpiryField({ value, onChange, idPrefix, compact, nowM
           7d
         </button>
       </div>
-      {value === null && (
-        <p className={hintClass} style={{ color: 'var(--ink-dim)' }}>
-          Order rests indefinitely until filled or cancelled.
-        </p>
-      )}
       <input
         id={`${idPrefix}-expiry-dt`}
         type="datetime-local"

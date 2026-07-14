@@ -16,15 +16,11 @@ const baseProps = {
 }
 
 describe('LimitOrderPreSubmitSummary', () => {
-  it('renders deviation and retail maker fee when data is ready (#419)', () => {
+  it('renders deviation and compact maker fee when data is ready (#419 / #488)', () => {
     render(<LimitOrderPreSubmitSummary {...baseProps} />)
-    expect(screen.getByText(/Resting limit — no immediate taker slippage/i)).toBeInTheDocument()
-    expect(screen.getByText('-10.0%')).toBeInTheDocument()
+    expect(screen.getByTestId('limit-order-pre-submit-summary-vs-ref')).toHaveTextContent('-10.0%')
     const feeLine = screen.getByTestId('limit-order-pre-submit-summary-maker-fee')
-    expect(feeLine).toHaveTextContent(/Small fee taken from your escrow at placement/i)
     expect(feeLine).toHaveTextContent(/0\.15%/)
-    expect(feeLine).toHaveTextContent(/15/)
-    expect(feeLine).toHaveTextContent(/0\.30%/)
   })
 
   // GitLab #461 (SEC-I05 F-02): labeled signing fields before the wallet dialog.
@@ -36,7 +32,6 @@ describe('LimitOrderPreSubmitSummary', () => {
     expect(screen.getByTestId('limit-order-pre-submit-summary-amount')).toHaveTextContent('12.5 CORAL')
     const chainRow = screen.getByTestId('limit-order-pre-submit-summary-chain')
     expect(chainRow).toHaveTextContent('Terra Classic')
-    expect(screen.getByText(/Review these fields before your wallet opens/i)).toBeInTheDocument()
   })
 
   it('falls back to the env network badge when no chain label is passed', () => {
@@ -56,12 +51,12 @@ describe('LimitOrderPreSubmitSummary', () => {
         feeLoading
       />
     )
-    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expect(screen.getByText('…')).toBeInTheDocument()
   })
 
-  it('links to limit order fee docs without issue refs', () => {
+  it('links to limit order docs without issue refs', () => {
     render(<LimitOrderPreSubmitSummary {...baseProps} />)
-    const link = screen.getByRole('link', { name: /Learn more about limit order fees/i })
+    const link = screen.getByRole('link', { name: /^Docs$/i })
     expect(link.getAttribute('href')).toContain('limit-orders.md')
     expect(screen.queryByText(/GitLab #/i)).not.toBeInTheDocument()
   })

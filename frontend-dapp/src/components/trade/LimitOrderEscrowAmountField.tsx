@@ -77,7 +77,7 @@ export function LimitOrderEscrowAmountField({
   return (
     <div>
       <label className={compact ? 'label-glass text-[10px]' : 'label-glass'} htmlFor={amountInputId}>
-        Amount ({escrowLabel})
+        Pay ({escrowLabel})
       </label>
       <input
         id={amountInputId}
@@ -94,7 +94,7 @@ export function LimitOrderEscrowAmountField({
           data-testid="limit-order-escrow-usd-notional"
         >
           <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-            Headline USD (escrow):{' '}
+            ≈{' '}
           </span>
           {escrowUsdNotionalApprox != null ? <span>≈ {escrowUsdNotionalApprox}</span> : <span>—</span>}
         </p>

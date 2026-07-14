@@ -5,32 +5,36 @@ import { describe, expect, it } from 'vitest'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-const BLUE_HEX_RE = /#(?:3b82f6|2563eb|60a5fa|38bdf8|0f172a|1e293b|334155)/i
+const LEGACY_TAILWIND_BLUE_RE = /#(?:3b82f6|2563eb|60a5fa|38bdf8|0f172a|1e293b|334155)/i
+const WARM_BROWN_BG_RE = /#(?:0e0908|f4e0cb|1d110f)/i
 
-describe('design token alignment (GitLab #416)', () => {
-  it('tailwind.config.js maps colors to CSS variables, not legacy blue hex', () => {
+describe('design token alignment (GitLab #488 blue+gold)', () => {
+  it('tailwind.config.js maps colors to CSS variables, not legacy hex palettes', () => {
     const config = readFileSync(join(repoRoot, 'frontend-dapp/tailwind.config.js'), 'utf8')
-    expect(config).not.toMatch(BLUE_HEX_RE)
+    expect(config).not.toMatch(LEGACY_TAILWIND_BLUE_RE)
     expect(config).toContain("0: 'var(--bg-0)'")
     expect(config).toContain("DEFAULT: 'var(--ink)'")
+    expect(config).toContain("DEFAULT: 'var(--blue)'")
+    expect(config).toContain("DEFAULT: 'var(--gold)'")
     expect(config).not.toContain('primary:')
     expect(config).not.toContain('dex:')
   })
 
-  it('trade-bootstrap.css uses theme tokens, not hard-coded blues', () => {
+  it('trade-bootstrap.css uses cool theme tokens, not warm brown', () => {
     const css = readFileSync(join(repoRoot, 'frontend-dapp/public/bootstrap/trade-bootstrap.css'), 'utf8')
-    expect(css).not.toMatch(BLUE_HEX_RE)
+    expect(css).not.toMatch(WARM_BROWN_BG_RE)
     expect(css).toContain('background: var(--bg-0)')
     expect(css).toContain('border: 1px solid var(--line)')
-    expect(css).toContain('--bg-0: #0e0908')
+    expect(css).toContain('--bg-0: #0d111c')
     expect(css).toContain(":root[data-theme='light']")
+    expect(css).toContain('--bg-0: #f4f6fb')
   })
 
   it('trade-bootstrap dark bg-0 matches theme-dark.css', () => {
     const bootstrap = readFileSync(join(repoRoot, 'frontend-dapp/public/bootstrap/trade-bootstrap.css'), 'utf8')
     const themeDark = readFileSync(join(repoRoot, 'frontend-dapp/src/theme-dark.css'), 'utf8')
     const bg0 = /--bg-0:\s*([^;]+);/.exec(themeDark)?.[1]?.trim()
-    expect(bg0).toBeTruthy()
+    expect(bg0).toBe('#0d111c')
     expect(bootstrap).toContain(`--bg-0: ${bg0}`)
   })
 
@@ -38,7 +42,16 @@ describe('design token alignment (GitLab #416)', () => {
     const bootstrap = readFileSync(join(repoRoot, 'frontend-dapp/public/bootstrap/trade-bootstrap.css'), 'utf8')
     const themeLight = readFileSync(join(repoRoot, 'frontend-dapp/src/theme-light.css'), 'utf8')
     const bg0 = /--bg-0:\s*([^;]+);/.exec(themeLight)?.[1]?.trim()
-    expect(bg0).toBeTruthy()
+    expect(bg0).toBe('#f4f6fb')
     expect(bootstrap).toContain(`--bg-0: ${bg0}`)
+  })
+
+  it('theme files define blue primary and gold brand accents', () => {
+    for (const file of ['theme-dark.css', 'theme-light.css'] as const) {
+      const css = readFileSync(join(repoRoot, 'frontend-dapp/src', file), 'utf8')
+      expect(css).toContain('--blue: #448aff')
+      expect(css).toContain('--gold: #e8b84a')
+      expect(css).toContain('--mint: var(--blue)')
+    }
   })
 })
