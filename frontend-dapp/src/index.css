@@ -1436,6 +1436,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 14px 16px;
     border: 1px solid var(--chrome-border-soft);
     border-radius: 18px;
@@ -1445,6 +1446,54 @@
       background-color 0.18s ease,
       transform 0.18s ease,
       border-color 0.18s ease;
+  }
+
+  /* Circular brand mark left of wallet name (#490). Fixed size so badges stay visible on narrow widths. */
+  .wallet-option-main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .wallet-option-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid var(--chrome-border-soft);
+    background: color-mix(in srgb, var(--control-surface-hover) 70%, transparent);
+  }
+
+  .wallet-option-icon-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    pointer-events: none;
+  }
+
+  @media (max-width: 379px) {
+    .wallet-option-main {
+      gap: 8px;
+    }
+
+    .wallet-option-icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .wallet-option-card {
+      padding: 12px 12px;
+      gap: 8px;
+    }
   }
 
   .wallet-option-card:hover {

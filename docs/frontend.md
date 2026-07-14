@@ -96,7 +96,7 @@ Wallet signing uses the fork **`@goblinhunt/cosmes`** (`frontend-dapp/package.js
 
 ### Connect modal: extension install detection {#connect-modal-extension-install}
 
-Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExtension`](../frontend-dapp/src/services/terraclassic/keplrLikeExtension.ts) plus **`'station' in window`** for Station ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)). When an extension is detected, the row shows a **Ready** pill next to the **Extension** pill; when it is not, the row is visually subdued and an **Install** link appears — there is **no** separate **Not installed** pill (redundant with **Install**; frees horizontal space on narrow modals, [GitLab #160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)). Long wallet names truncate with an ellipsis; the full name is available via **`title`** on the label. **WalletConnect** rows are unchanged (no extension install check). **Leap** is not listed ([GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). Implementation: [`walletExtensionInstall.ts`](../frontend-dapp/src/services/terraclassic/walletExtensionInstall.ts), [`WalletModal.tsx`](../frontend-dapp/src/components/wallet/WalletModal.tsx), [`useWalletExtensionInstallSnapshot.ts`](../frontend-dapp/src/hooks/useWalletExtensionInstallSnapshot.ts).
+Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExtension`](../frontend-dapp/src/services/terraclassic/keplrLikeExtension.ts) plus **`'station' in window`** for Station ([GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139)). When an extension is detected, the row shows a **Ready** pill next to the **Extension** pill; when it is not, the row is visually subdued and an **Install** link appears — there is **no** separate **Not installed** pill (redundant with **Install**; frees horizontal space on narrow modals, [GitLab #160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)). Long wallet names truncate with an ellipsis; the full name is available via **`title`** on the label. **WalletConnect** rows are unchanged (no extension install check). **Leap** is not listed ([GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). Each production row shows a **circular brand logo** left of the name ([GitLab #490](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/490)) — see [§ Circular wallet logos](#connect-modal-wallet-logos). Implementation: [`walletExtensionInstall.ts`](../frontend-dapp/src/services/terraclassic/walletExtensionInstall.ts), [`WalletModal.tsx`](../frontend-dapp/src/components/wallet/WalletModal.tsx), [`useWalletExtensionInstallSnapshot.ts`](../frontend-dapp/src/hooks/useWalletExtensionInstallSnapshot.ts).
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -109,7 +109,23 @@ Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExt
 | Regression tests | [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). |
 | **Build gate** | QA checklist item 4: **`npm run build`** and **`npx vitest run`** in `frontend-dapp` must pass on `main` before closing [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139). See [Production build — Vite source maps § `tsc -b`](#vite-production-sourcemaps). |
 
-**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX).
+**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX + logos).
+
+### Connect modal: circular wallet logos {#connect-modal-wallet-logos}
+
+Connect Wallet rows show a fixed **32px circular logo** immediately left of the uppercase wallet name ([GitLab #490](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/490)). Logos are **local static files** under [`frontend-dapp/public/wallets/`](../frontend-dapp/public/wallets/) (mapped in [`walletIconSrc.ts`](../frontend-dapp/src/components/wallet/walletIconSrc.ts), rendered by [`WalletOptionIcon.tsx`](../frontend-dapp/src/components/wallet/WalletOptionIcon.tsx)); they are never hotlinked from CDNs. Asset provenance (official brand kit / product art vs original Simulated glyph) is listed in [`public/wallets/PROVENANCE.md`](../frontend-dapp/public/wallets/PROVENANCE.md).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Local assets only | `src` paths are `/wallets/*` served by Vite — no remote `img` hosts (CSP + supply-chain). |
+| Official / unique marks | Station, Keplr, Cosmostation use verified official marks; LuncDash / Galaxy Station use product logos vendored locally (not generic bridge placeholders). Simulated Wallet (dev) uses an **original** glyph — never a vendor trademark. |
+| Decorative a11y | Icons use empty `alt=""` + `aria-hidden` on the circle; the row **`aria-label`** and visible name remain the accessible name. |
+| Layout | `.wallet-option-icon` is `flex-shrink: 0` (32×32); name column keeps **`min-w-0` / `truncate`** so **Extension** / **Ready** / **Install** still fit on ~320px widths ([#160](#connect-modal-extension-install)). |
+| Behavior unchanged | Connect handlers, install URLs, Ready detection, and WalletConnect wiring are presentation-only for this feature. |
+| No Leap | Leap stays absent ([#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). |
+| Regression tests | [`WalletModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletModal.test.tsx) asserts icons + local files under `public/wallets/`. |
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md).
 
 ### Connected wallet chip — native LUNC balance {#connected-wallet-chip-lunc-balance}
 

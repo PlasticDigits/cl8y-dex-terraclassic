@@ -5,6 +5,8 @@ import { DEV_MODE } from '@/utils/constants'
 import { Modal } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { WALLET_EXTENSION_INSTALL_URL } from '@/services/terraclassic/walletExtensionInstall'
+import { WalletOptionIcon } from './WalletOptionIcon'
+import { SIMULATED_WALLET_ICON_SRC, walletIconSrc } from './walletIconSrc'
 
 interface WalletOption {
   name: string
@@ -72,9 +74,13 @@ export default function WalletModal({ onClose }: WalletModalProps) {
               onClick={handleDevConnect}
               onMouseEnter={() => sounds.playHover()}
               className="wallet-option-card wallet-option-card-dev"
+              aria-label="Simulated Wallet"
             >
-              <span className="font-medium uppercase tracking-wide text-sm" style={{ color: '#ffd28d' }}>
-                Simulated Wallet
+              <span className="wallet-option-main">
+                <WalletOptionIcon src={SIMULATED_WALLET_ICON_SRC} testId="wallet-option-icon-simulated" />
+                <span className="font-medium uppercase tracking-wide text-sm" style={{ color: '#ffd28d' }}>
+                  Simulated Wallet
+                </span>
               </span>
               <span className="wallet-option-badge wallet-option-badge-dev">DEV</span>
             </button>
@@ -84,6 +90,7 @@ export default function WalletModal({ onClose }: WalletModalProps) {
             const isExtension = option.walletType === WalletType.EXTENSION
             const installed = !isExtension || (extensionInstall.get(option.walletName) ?? false)
             const installUrl = isExtension ? WALLET_EXTENSION_INSTALL_URL[option.walletName] : undefined
+            const iconSrc = walletIconSrc(option.walletName)
 
             return (
               <div key={option.name} className="wallet-option-row">
@@ -103,13 +110,18 @@ export default function WalletModal({ onClose }: WalletModalProps) {
                       : option.name
                   }
                 >
-                  <span className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left">
-                    <span
-                      className="max-w-full truncate font-medium uppercase tracking-wide text-sm"
-                      style={{ color: 'var(--ink)' }}
-                      title={option.name}
-                    >
-                      {option.name}
+                  <span className="wallet-option-main">
+                    {iconSrc ? (
+                      <WalletOptionIcon src={iconSrc} testId={`wallet-option-icon-${option.walletName}`} />
+                    ) : null}
+                    <span className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left">
+                      <span
+                        className="max-w-full truncate font-medium uppercase tracking-wide text-sm"
+                        style={{ color: 'var(--ink)' }}
+                        title={option.name}
+                      >
+                        {option.name}
+                      </span>
                     </span>
                   </span>
                   <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">

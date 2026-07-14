@@ -143,4 +143,4 @@ make lint-frontend
 make test-frontend
 ```
 
-Manual matrix (both themes): Swap, Limit, Trade, Pool, Portfolio, Connect Wallet modal — cool navy/slate surfaces, blue CTAs, gold network/brand accents.
+Manual matrix (both themes): Swap, Limit, Trade, Pool, Portfolio, Connect Wallet modal — cool navy/slate surfaces, blue CTAs, gold network/brand accents. Connect Wallet rows include circular brand logos ([#490](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/490); [docs/frontend.md § logos](./frontend.md#connect-modal-wallet-logos)).
