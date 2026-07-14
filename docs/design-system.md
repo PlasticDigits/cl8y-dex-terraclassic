@@ -1,36 +1,46 @@
-# Cyberminimalist Glass System
+# QuickSwap-inspired blue + gold system
 
-Authoritative visual spec for the CL8Y DEX frontend. Implementation lives in [`frontend-dapp/src/index.css`](../frontend-dapp/src/index.css) with theme tokens in [`theme-dark.css`](../frontend-dapp/src/theme-dark.css) and [`theme-light.css`](../frontend-dapp/src/theme-light.css). Dual theme is toggled via `data-theme` on `<html>`.
+Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)). Implementation lives in [`frontend-dapp/src/index.css`](../frontend-dapp/src/index.css) with theme tokens in [`theme-dark.css`](../frontend-dapp/src/theme-dark.css) and [`theme-light.css`](../frontend-dapp/src/theme-light.css). Dual theme is toggled via `data-theme` on `<html>`.
 
-**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10.
+**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10 · docs alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489).
+
+> **Supersedes** the warm amber “Cyberminimalist Glass” identity and the #416 “no blue primary” guardrail. Class names like `*-glass` / `shell-panel` remain; colors are cool navy + blue CTAs + gold brand.
 
 ## Principles
 
 | Principle | Meaning |
 |-----------|---------|
-| Glass surfaces | Frosted panels: `backdrop-filter`, warm gradients, soft inset highlights — not flat Tailwind `primary` blue. |
-| Token-first | Compose UI from CSS variables (`--ink`, `--line`, `--mint`, …) and `@layer components` primitives below. |
-| No parallel systems | Avoid ad-hoc Tailwind color utilities for product chrome; extend tokens or primitives instead. |
+| Familiar DEX chrome | Centered trade cards, flat layered panels — QuickSwap-like, not a brown/amber page fade. |
+| Blue CTAs, gold brand | Primary actions use **blue** (`#448aff`). Brand mark, network chip, CL8Y accents use **gold** (`#e8b84a`). |
+| Token-first | Compose UI from CSS variables (`--ink`, `--line`, `--blue`, `--gold`, `--mint`→blue, …) and `@layer components` primitives. |
+| Minimal on-card copy | Prefer short labels + optional single-word **Docs** links; keep blocking errors and required risk ack ([#488] note). |
 | Keyboard focus | Interactive primitives use `:focus-visible` with `var(--focus-ring)` — see [frontend.md § WCAG 2.4.7](./frontend.md#keyboard-focus-visible-wcag-247). |
-
-Legacy **neo-brutalist** class names (`*-neo`) were removed in [GitLab #415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415); use the `*-glass` primitives below.
 
 ## Color & surface tokens
 
 | Token | Role |
 |-------|------|
-| `--bg-0`, `--bg-1`, `--bg-2` | Page background stack |
+| `--bg-0`, `--bg-1`, `--bg-2` | Page background stack (dark `#0d111c` / light `#f4f6fb`) |
 | `--ink`, `--ink-dim`, `--ink-subtle` | Primary, secondary, tertiary text |
 | `--line`, `--line-strong` | Borders and dividers |
-| `--mint`, `--mint-soft`, `--accent`, `--accent-gradient` | Warm accent (legacy `--mint` name retained) |
-| `--panel-bg`, `--panel-bg-strong` | Shell panel gradients |
-| `--card-bg` | Inset card surfaces |
-| `--control-surface`, `--control-surface-hover` | Inputs, muted buttons, tabs (inactive) |
-| `--focus-ring` | Keyboard focus ring color |
-| `--shadow-panel`, `--shadow-panel-strong`, `--shadow-card`, `--shadow-button`, `--shadow-button-muted` | Elevation |
+| `--blue`, `--gold` | Primary CTA blue; brand / network gold |
+| `--mint`, `--accent` | **Aliases of `--blue`** (legacy name retained for components) |
+| `--mint-soft`, `--accent-surface`, `--gold-surface` | Soft fills for chips / active states |
+| `--accent-gradient` | Blue CTA fill |
+| `--panel-bg`, `--panel-bg-strong`, `--card-bg` | Shell / card surfaces |
+| `--chrome-border`, `--chrome-highlight`, `--chrome-glow` | Shared chrome borders / glows |
+| `--focus-ring` | Keyboard focus ring |
 | `--color-positive`, `--color-negative`, `--color-warning` | Semantic chart / status (not button fills) |
 
 Theme files override the above per `data-theme='dark'` | `'light'`.
+
+### Invariants (#488)
+
+1. Dark `--bg-0` is `#0d111c`; light `--bg-0` is `#f4f6fb` — **not** warm brown `#0e0908` / peach `#f4e0cb`.
+2. `--blue` = `#448aff`; `--gold` = `#e8b84a`; `--mint` aliases `--blue`.
+3. `trade-bootstrap.css` `--bg-0` must match theme files (no amber→blue FOUC on `/trade`).
+4. Do not reintroduce Tailwind `primary` / `dex` hard-coded hex palettes; alias via CSS variables.
+5. Safety gates and required legal/risk copy stay visible — copy minimization must not hide blockers.
 
 ## Tailwind color aliases
 
@@ -38,26 +48,35 @@ Theme files override the above per `data-theme='dark'` | `'light'`.
 
 | Tailwind key | CSS variable | Notes |
 |--------------|--------------|-------|
-| `bg-0`, `bg-1`, `bg-2` | `--bg-0`, `--bg-1`, `--bg-2` | Page / surface stack |
-| `ink`, `ink-dim`, `ink-subtle` | `--ink`, `--ink-dim`, `--ink-subtle` | Text hierarchy |
-| `line`, `line-strong` | `--line`, `--line-strong` | Borders |
-| `mint`, `mint-soft` | `--mint`, `--mint-soft` | Warm accent |
-| `accent` | `--accent` | Alias of `--mint` in `index.css` |
+| `bg-0`, `bg-1`, `bg-2` | `--bg-0`, … | Page / surface stack |
+| `ink`, `ink-dim`, `ink-subtle` | `--ink`, … | Text hierarchy |
+| `line`, `line-strong` | `--line`, … | Borders |
+| `mint`, `mint-soft` | `--mint`, `--mint-soft` | CTA blue (legacy name) |
+| `blue`, `gold` | `--blue`, `--gold` | Explicit #488 accents |
+| `accent` | `--accent` | Alias of `--mint` / blue |
 | `surface-*` | `--surface-*` | Raised / inset surfaces |
-| `positive`, `negative`, `warning` | `--color-positive`, etc. | Semantic status only |
+| `positive`, `negative`, `warning` | `--color-*` | Semantic status only |
 
-### Deprecated (removed #416)
+### Historical (#416)
 
 | Entry | Status |
 |-------|--------|
-| `primary` 50–900 blue scale | **Removed** — clashed with glass theme; use `mint` / `accent` or component primitives |
-| `dex.bg` / `dex.card` / `dex.border` / `dex.accent` slate-blue scale | **Removed** — use `bg-*`, `line`, `mint` token aliases |
-
-Prefer `@layer components` primitives (`shell-panel`, `btn-primary`, …) over raw Tailwind color utilities for product chrome.
+| `primary` / `dex` hard-coded blue/slate scales | **Still removed** — use CSS-variable aliases (`mint`/`blue`/`gold`) and primitives |
+| “No blue primary” agent rule | **Superseded by #488** — blue CTAs are intentional |
 
 ### Trade bootstrap (critical path)
 
-[`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) defines a **minimal** `:root` / `data-theme` token subset (mirrors `theme-dark.css` / `theme-light.css` for `--bg-0`, `--ink`, `--line`) so `/trade` first paint matches the hydrated app before the Vite bundle loads. See [frontend.md § Trade page — initial load](./frontend.md#trade-page-initial-load).
+[`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) defines a **minimal** `:root` / `data-theme` token subset mirroring theme files so `/trade` first paint matches the hydrated app. See [frontend.md § Trade page — initial load](./frontend.md#trade-page-initial-load).
+
+## Brand assets
+
+| Asset | Path |
+|-------|------|
+| Header mark | `/assets/cl8y-dex-glass-logo.svg` (blue disc + gold “8”) |
+| Favicons | `/favicon-16.png`, `/favicon-32.png`, `/favicon.ico` |
+| Open Graph | `/og-image.png` (~1200×630) |
+
+Canonical same-origin only — do not wire user-controlled OG URLs.
 
 ## Typography
 
@@ -69,59 +88,22 @@ Prefer `@layer components` primitives (`shell-panel`, `btn-primary`, …) over r
 
 Labels use `.label-glass`: uppercase, `text-xs`, semibold, wide tracking.
 
-## Spacing & radii
-
-| Primitive | Padding | Border radius |
-|-----------|---------|---------------|
-| `shell-panel`, `shell-panel-strong`, `card-glass` | `p-4 sm:p-5` | 24px (`shell-panel`, `card-glass`) / 30px (`shell-panel-strong`) |
-| `btn-primary`, `btn-muted` | `px-4 py-2` | 16px |
-| `input-glass`, `select-glass`, `token-select-trigger` | `px-4 py-3` | 18px |
-| `tab-glass` | `px-4 py-2` | 14px |
-| `badge-glass` | `px-2.5 py-1` | pill (`999px`) |
-
 ## Component matrix
 
 | Class | When to use | Pair with |
 |-------|-------------|-----------|
-| `shell-panel` | Page-level sections, swap outer shell | Default route chrome |
-| `shell-panel-strong` | Emphasized panels (`Card strong`) | Hero stats, primary workspace |
-| `card-glass` | Nested content blocks inside a shell | Order ticket, swap IO rows, tables-in-card |
-| `btn-primary` | Primary CTA (submit, confirm) | Optional `btn-cta` for extra elevation |
-| `btn-muted` | Secondary / toggle-off / inline actions | Mode toggles, pair-not-found CTA |
-| `btn-disabled` | Non-interactive stand-in | Loading or blocked actions |
-| `tab-glass` + `tab-glass-active` / `tab-glass-inactive` | Segmented controls (side, slippage, order type) | `role="tablist"` or `radiogroup` as appropriate |
-| `input-glass` | Text/number fields | `label-glass` + `htmlFor` |
-| `select-glass` | Native `<select>` | Rare; prefer `token-select-*` for assets |
-| `label-glass` | Field captions | Always associate with control id |
-| `badge-glass` (+ `badge-glass-success` / `-warning` / `-error` / `-accent`) | Status chips | `Badge` component |
-| `alert-error`, `alert-success`, `alert-warning`, `alert-info` | Inline notices | Pair with `role="alert"` when assertive |
+| `shell-panel` / `shell-panel-strong` | Page-level sections | Default route chrome |
+| `card-glass` | Nested content blocks | Order ticket, swap IO rows |
+| `btn-primary` | Primary CTA (blue gradient) | Optional `btn-cta` |
+| `btn-muted` | Secondary / toggle-off | Mode toggles |
+| `tab-glass*` | Segmented controls | Side, slippage, order type |
+| `input-glass` / `label-glass` | Fields | Always associate `htmlFor` |
+| `badge-glass-accent` | Brand/gold chips | Prefer gold surface |
+| `alert-*` | Inline notices | `role="alert"` when assertive |
 
-### React wrappers
+## Limit place IA
 
-| Component | Maps to |
-|-----------|---------|
-| [`Card`](../frontend-dapp/src/components/ui/Card.tsx) | `card-glass` or `shell-panel-strong` |
-| [`Badge`](../frontend-dapp/src/components/ui/Badge.tsx) | `badge-glass*` variants |
-
-### Deprecated
-
-| Class | Status |
-|-------|--------|
-| `.glass` | **Deprecated** — unused in `src/`. Prefer `shell-panel` (padded, rounded) or `card-glass` for nested blocks. Kept in CSS for backward compatibility only; do not add new usages. |
-
-## Icons & unicode
-
-- Prefer existing SVG assets under `frontend-dapp/public/assets/`.
-- Inline unicode (arrows, middots) is acceptable in dense tables when it matches surrounding `text-xs` / `ink-dim` tone.
-- Do not mix Material / Heroicons with different stroke weights without aligning to 12–16px and `--ink-dim`.
-
-## Compliance reference pages
-
-| Page | Primitives to verify |
-|------|-------------------|
-| `/` (Swap) | `shell-panel` wrapper, `card-glass` IO stack, `label-glass`, `tab-glass*` slippage |
-| `/limits` | `card-glass` place panel, `btn-primary` / `btn-muted` place-mode toggle |
-| `/trade` | `card-glass` chart/order book, `tab-glass*` order tabs |
+Default `/limits` place card: **rate** (“When 1 {token0} is worth”) → **Pay** → **Expiry** (advanced/ladder progressive disclosure). No instructional paragraphs on the primary card; blocking errors stay visible. Details: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
 
 ## Verification
 
@@ -129,7 +111,7 @@ Labels use `.label-glass`: uppercase, `text-xs`, semibold, wide tracking.
 # No legacy -neo classes
 rg '-neo' frontend-dapp/src && exit 1 || echo OK
 
-# Tailwind + trade-bootstrap token alignment (#416)
+# Tailwind + trade-bootstrap + blue/gold alignment (#488)
 python3 scripts/check_design_tokens.py
 
 # Frontend lint + unit tests
@@ -137,4 +119,4 @@ make lint-frontend
 make test-frontend
 ```
 
-Manual: `/limits` → Single/Ladder toggle (active = `btn-primary`, inactive = `btn-muted`). `/trade?pair=invalid` → pair-not-found CTA uses `btn-muted`.
+Manual matrix (both themes): Swap, Limit, Trade, Pool, Portfolio, Connect Wallet modal — cool navy/slate surfaces, blue CTAs, gold network/brand accents.

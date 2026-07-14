@@ -8,8 +8,8 @@ import {
   parsePositivePriceHuman,
 } from '@/utils/limitOrderPriceReference'
 
-const LIMIT_ORDER_TOOLTIP =
-  'A limit order rests on the book until other traders fill it over time — it does not execute immediately like a market swap, so there is no taker slippage or min-received line. You set the price you are willing to buy or sell at (token1 per token0). Buy limits should be below the current reference; sell limits above.'
+/** Compact help — details live in docs (cognitive overload policy / #488). */
+const LIMIT_ORDER_TOOLTIP = 'Resting limit: fills over time at your price. Buys below reference; sells above.'
 
 export function LimitOrderPlaceLimitHeading({ compact }: { compact?: boolean }) {
   const tipId = useId()
@@ -61,12 +61,13 @@ export function LimitOrderPriceInputWithContext({
   onPriceChange,
   inputId,
   refToken1PerToken0: ref,
-  refSource,
+  refSource: _refSource,
   tapeHeadlineUsd,
   token0Label,
   token1Label,
   compact,
 }: LimitOrderPriceInputWithContextProps) {
+  void _refSource
   const limit = parsePositivePriceHuman(price)
   const dev = ref != null && limit != null ? limitPriceDeviationPercent(limit, ref) : null
   const invalid = ref != null && limit != null && side ? isLimitPriceDirectionInvalid(side, limit, ref) : false
@@ -74,81 +75,61 @@ export function LimitOrderPriceInputWithContext({
 
   const extremeValidDeviation = !invalid && dev != null && Math.abs(dev) >= 50
 
-  const refLine =
-    ref != null && ref > 0 ? (
-      <span className="tabular-nums">
-        {formatNum(ref, 6)} {token1Label}/{token0Label}
-      </span>
-    ) : (
-      <span className="opacity-80">—</span>
-    )
-
-  const devLine =
-    dev == null || limit == null ? (
-      <span className="opacity-80">—</span>
-    ) : (
-      <span
-        className="tabular-nums font-medium"
-        style={{
-          color: invalid ? 'var(--color-negative, #ef4444)' : extremeValidDeviation ? '#f59e0b' : 'var(--ink)',
-        }}
-      >
-        {dev > 0 ? '+' : ''}
-        {dev.toFixed(1)}%
-      </span>
-    )
-
-  const usdLine =
-    usd != null && Number.isFinite(usd) ? (
-      <span className="tabular-nums">≈ ${formatNum(usd, 4)}</span>
-    ) : (
-      <span className="opacity-80">—</span>
-    )
-
   return (
     <div className="space-y-1.5">
       <div>
         <label className="label-glass" htmlFor={inputId}>
-          Price (token1 per token0)
+          When 1 {token0Label} is worth
         </label>
-        <input
-          id={inputId}
-          className="input-glass w-full font-mono text-sm"
-          value={price}
-          onChange={(e) => onPriceChange(e.target.value)}
-          aria-invalid={invalid}
-          data-testid="limit-order-price-input"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            id={inputId}
+            className="input-glass w-full font-mono text-sm"
+            value={price}
+            onChange={(e) => onPriceChange(e.target.value)}
+            aria-invalid={invalid}
+            data-testid="limit-order-price-input"
+          />
+          <span
+            className="shrink-0 text-xs font-semibold uppercase tracking-wide"
+            style={{ color: 'var(--ink-subtle)' }}
+          >
+            {token1Label}
+          </span>
+        </div>
         <div
-          className={`mt-1.5 space-y-0.5 ${compact ? 'text-[10px]' : 'text-xs'}`}
+          className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 ${compact ? 'text-[10px]' : 'text-xs'}`}
           style={{ color: 'var(--ink-dim)' }}
           data-testid="limit-order-price-context"
         >
-          <p>
-            <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-              {ref != null
-                ? `Current (${refSource === 'pool' ? 'AMM pool spot' : 'last trade'}): `
-                : 'Current reference: '}
+          {ref != null && ref > 0 && (
+            <span className="tabular-nums" style={{ color: 'var(--ink-subtle)' }}>
+              Ref {formatNum(ref, 6)}
             </span>
-            {refLine}
-          </p>
-          <p>
-            <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-              vs reference:{' '}
+          )}
+          {dev != null && limit != null && (
+            <span
+              className="tabular-nums font-medium"
+              style={{
+                color: invalid
+                  ? 'var(--color-negative, #ef4444)'
+                  : extremeValidDeviation
+                    ? 'var(--color-warning, #e8b84a)'
+                    : 'var(--ink)',
+              }}
+            >
+              {dev > 0 ? '+' : ''}
+              {dev.toFixed(1)}%
             </span>
-            {devLine}
-            {invalid && (
-              <span className="ml-1.5 font-medium" style={{ color: 'var(--color-negative, #ef4444)' }}>
-                (invalid for {side === 'bid' ? 'buy' : 'sell'} limit)
-              </span>
-            )}
-          </p>
-          <p>
-            <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-              Headline-scaled USD:{' '}
+          )}
+          {invalid && (
+            <span className="font-medium" style={{ color: 'var(--color-negative, #ef4444)' }} role="alert">
+              Invalid {side === 'bid' ? 'buy' : 'sell'}
             </span>
-            {usdLine}
-          </p>
+          )}
+          {usd != null && Number.isFinite(usd) && (
+            <span className="tabular-nums opacity-80">≈ ${formatNum(usd, 4)}</span>
+          )}
         </div>
       </div>
     </div>

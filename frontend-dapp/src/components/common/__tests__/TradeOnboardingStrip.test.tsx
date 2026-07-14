@@ -24,8 +24,9 @@ describe('TradeOnboardingStrip', () => {
 
     expect(screen.getByTestId('trade-onboarding-strip')).toBeInTheDocument()
     expect(screen.getByTestId('trade-onboarding-swap-link')).toHaveAttribute('href', '/')
-    expect(screen.getByText(/chart, book, and limit or market tickets/i)).toBeInTheDocument()
-    expect(screen.getByText(/ladder placements across pairs/i)).toBeInTheDocument()
+    expect(screen.getByTestId('trade-onboarding-strip')).toHaveTextContent('Swap')
+    expect(screen.getByTestId('trade-onboarding-strip')).toHaveTextContent('Trade')
+    expect(screen.getByTestId('trade-onboarding-strip')).toHaveTextContent('Limits')
 
     await user.click(screen.getByTestId('trade-onboarding-dismiss'))
     expect(screen.queryByTestId('trade-onboarding-strip')).not.toBeInTheDocument()

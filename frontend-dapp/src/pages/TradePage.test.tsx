@@ -240,11 +240,12 @@ describe('TradePage', () => {
   it('limit tab shows pre-submit summary before Place limit (GitLab #157, #461)', async () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
     const summary = await screen.findByTestId('trade-limit-pre-submit-summary')
-    expect(summary.textContent).toMatch(/Review these fields before your wallet opens/i)
+    expect(summary.textContent).toMatch(/Action/i)
+    expect(summary.textContent).toMatch(/Pay/i)
     expect(screen.getByTestId('trade-limit-pre-submit-summary-action')).toHaveTextContent('Place Limit Order')
     expect(screen.getByTestId('trade-limit-pre-submit-summary-chain')).toHaveTextContent('LocalTerra')
-    expect(summary.textContent).toMatch(/Resting limit — no immediate taker slippage/i)
-    expect(summary.textContent).toMatch(/Maker fee \(charged when placed\)/i)
+    expect(summary.textContent).toMatch(/Maker fee/i)
+    expect(within(summary).getByRole('link', { name: /^Docs$/i })).toBeInTheDocument()
   })
 
   it('keeps disconnected ticket wallet CTAs actionable', async () => {

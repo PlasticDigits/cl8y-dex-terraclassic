@@ -19,7 +19,14 @@ Use when moving or restyling the **dark/light** segmented control ([`ThemeSegmen
 4. Persist theme via `localStorage` key `cl8y-dex-theme` and `document.documentElement[data-theme]` (unchanged).
 5. **Density ([#483](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)):** theme group must keep **≥ ~8px** horizontal gap from the last desktop nav control (More). Do not re-add desktop `NetworkBadge` next to theme — ribbon owns network context.
 
+## Palette notes (#488)
+
+- Themes live in [`theme-dark.css`](../frontend-dapp/src/theme-dark.css) / [`theme-light.css`](../frontend-dapp/src/theme-light.css): cool navy `#0d111c` / light `#f4f6fb`, blue CTAs, gold brand.
+- [`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) + [`theme.js`](../frontend-dapp/public/bootstrap/theme.js) must apply the same `data-theme` before Vite hydrates — avoid warm-brown flash on `/trade`.
+- Design-system playbook: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md).
+
 ## Related
 
 - Responsive header / nav density: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
 - Keyboard focus on theme buttons: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
+- Visual spec: [`docs/design-system.md`](../docs/design-system.md)

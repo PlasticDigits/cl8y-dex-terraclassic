@@ -38,6 +38,13 @@ export default {
           DEFAULT: 'var(--mint)',
           soft: 'var(--mint-soft)',
         },
+        // #488: blue = primary CTA (--mint alias); gold = brand / network accents
+        blue: {
+          DEFAULT: 'var(--blue)',
+        },
+        gold: {
+          DEFAULT: 'var(--gold)',
+        },
         accent: 'var(--accent)',
         surface: {
           0: 'var(--surface-0)',

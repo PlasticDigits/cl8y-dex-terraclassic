@@ -431,11 +431,9 @@ export function OrderBookPanel({
             <p
               className="text-[10px] leading-snug max-w-md"
               style={{ color: 'var(--ink-dim)' }}
-              title="Shows open resting limit orders only. Swaps against AMM pool liquidity appear in Recent trades, not in this book."
+              title="Open resting limits only. Own rows: Edit / Cancel."
             >
-              Resting limit orders only — AMM pool depth is not shown here. Rows you own show Edit / × (cancel); Edit
-              loads the limit ticket — change price only to update in one tx (#247), or cancel first to replace size,
-              side, or expiry.
+              Resting limits · Edit / Cancel on your rows
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">

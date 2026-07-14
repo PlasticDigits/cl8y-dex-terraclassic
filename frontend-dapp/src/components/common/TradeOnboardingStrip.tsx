@@ -25,18 +25,16 @@ export function TradeOnboardingStrip() {
       data-testid="trade-onboarding-strip"
       aria-label="Getting started"
     >
-      <div className="min-w-0 space-y-1.5 text-sm" style={{ color: 'var(--ink-dim)' }}>
+      <div className="min-w-0 space-y-1 text-sm" style={{ color: 'var(--ink-dim)' }}>
         <p className="font-semibold" style={{ color: 'var(--ink)' }}>
-          New here?{' '}
+          New?{' '}
           <Link to="/" className="underline hover:opacity-80" data-testid="trade-onboarding-swap-link">
             Start with Swap
           </Link>
         </p>
-        <p className="leading-snug">
-          <strong style={{ color: 'var(--ink)' }}>Swap</strong> is the simplest path — pool routing with optional hybrid
-          limit-book fills. Use <strong style={{ color: 'var(--ink)' }}>Trade</strong> for chart, book, and limit or
-          market tickets on one pair. Use <strong style={{ color: 'var(--ink)' }}>Limits</strong> to manage resting
-          orders and ladder placements across pairs.
+        <p className="leading-snug text-xs">
+          <strong style={{ color: 'var(--ink)' }}>Swap</strong> · <strong style={{ color: 'var(--ink)' }}>Trade</strong>{' '}
+          · <strong style={{ color: 'var(--ink)' }}>Limits</strong>
         </p>
       </div>
       <button

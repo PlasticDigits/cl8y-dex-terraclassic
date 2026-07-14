@@ -4,17 +4,17 @@ import { fileURLToPath } from 'node:url'
 import { test, expect } from '@playwright/test'
 
 /**
- * Design token visual captures for GitLab #416.
+ * Design token visual captures for GitLab #488 (blue+gold).
  * Run: cd frontend-dapp && PLAYWRIGHT_SKIP_CHAIN=1 npx playwright test e2e/design-tokens-visual.spec.ts --project=e2e-smoke
  */
-const SCREENSHOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'docs', 'qa', 'issue-416')
+const SCREENSHOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'docs', 'qa', 'issue-488')
 
-test.describe('Design token visual QA (GitLab #416)', () => {
+test.describe('Design token visual QA (GitLab #488)', () => {
   test.beforeAll(() => {
     mkdirSync(SCREENSHOT_DIR, { recursive: true })
   })
 
-  test('trade bootstrap first paint uses warm on-theme skeleton', async ({ page }) => {
+  test('trade bootstrap first paint uses cool blue on-theme skeleton', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('cl8y-dex-theme', 'dark')
     })
@@ -30,9 +30,9 @@ test.describe('Design token visual QA (GitLab #416)', () => {
     })
 
     expect(bg.theme).toBe('dark')
-    // Warm dark brown page — not slate/blue (#0f172a ≈ rgb(15, 23, 42))
-    expect(bg.bodyBg).not.toMatch(/rgb\(15,\s*23,\s*42\)/)
-    expect(bg.bodyBg).toMatch(/rgb\(\s*14,\s*9,\s*8\s*\)/)
+    // Cool navy #0d111c — not warm brown #0e0908
+    expect(bg.bodyBg).not.toMatch(/rgb\(\s*14,\s*9,\s*8\s*\)/)
+    expect(bg.bodyBg).toMatch(/rgb\(\s*13,\s*17,\s*28\s*\)/)
 
     await page.screenshot({
       path: join(SCREENSHOT_DIR, 'trade-bootstrap-first-paint.png'),

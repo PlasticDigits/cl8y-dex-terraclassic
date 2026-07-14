@@ -1,26 +1,26 @@
-/* Critical-path trade skeleton — token subset mirrors theme-dark/light.css (GitLab #416). */
+/* Critical-path trade skeleton — token subset mirrors theme-dark/light.css (GitLab #488). */
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg-0: #0e0908;
-  --ink: #fff7ee;
-  --ink-subtle: rgba(255, 212, 168, 0.76);
-  --line: rgba(255, 218, 171, 0.12);
-  --bootstrap-panel-bg: rgba(34, 21, 17, 0.5);
-  --bootstrap-shimmer: rgba(255, 212, 168, 0.14);
-  --bootstrap-shimmer-soft: rgba(255, 212, 168, 0.1);
-  --bootstrap-shimmer-block: rgba(255, 212, 168, 0.12);
+  --bg-0: #0d111c;
+  --ink: #f1f5f9;
+  --ink-subtle: rgba(148, 163, 184, 0.88);
+  --line: rgba(148, 163, 184, 0.16);
+  --bootstrap-panel-bg: rgba(26, 32, 48, 0.55);
+  --bootstrap-shimmer: rgba(148, 163, 184, 0.16);
+  --bootstrap-shimmer-soft: rgba(148, 163, 184, 0.12);
+  --bootstrap-shimmer-block: rgba(148, 163, 184, 0.14);
 }
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg-0: #f4e0cb;
-  --ink: #43261b;
-  --ink-subtle: rgba(125, 77, 52, 0.76);
-  --line: rgba(167, 108, 71, 0.18);
-  --bootstrap-panel-bg: rgba(255, 255, 255, 0.72);
-  --bootstrap-shimmer: rgba(125, 77, 52, 0.14);
-  --bootstrap-shimmer-soft: rgba(125, 77, 52, 0.1);
-  --bootstrap-shimmer-block: rgba(125, 77, 52, 0.12);
+  --bg-0: #f4f6fb;
+  --ink: #0f172a;
+  --ink-subtle: rgba(100, 116, 139, 0.88);
+  --line: rgba(100, 116, 139, 0.2);
+  --bootstrap-panel-bg: rgba(255, 255, 255, 0.78);
+  --bootstrap-shimmer: rgba(100, 116, 139, 0.14);
+  --bootstrap-shimmer-soft: rgba(100, 116, 139, 0.1);
+  --bootstrap-shimmer-block: rgba(100, 116, 139, 0.12);
 }
 
 html,

@@ -26,7 +26,7 @@ import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
-import { fetchCW20TokenInfo, getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
+import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
@@ -49,7 +49,6 @@ import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/
 import { LimitOrderLadderPanel } from '@/components/trade/LimitOrderLadderPanel'
 import { LimitOrderPlaceLimitHeading, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
-import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
 import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePriceMutation'
@@ -503,12 +502,7 @@ export default function LimitOrdersPage() {
         <div className="shell-panel-strong relative z-10">
           <div className="mb-6">
             <h1 className="text-lg font-semibold uppercase tracking-wide font-heading">Limit Orders</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
-              Place or cancel on-chain limits on a pair. Bids escrow token1; asks escrow token0 (pair ordering).
-            </p>
           </div>
-
-          <TradeOnboardingStrip />
 
           <LcdQueryGate
             query={pairsQuery}
@@ -534,12 +528,6 @@ export default function LimitOrdersPage() {
                   onChange={setPairAddr}
                 />
               </div>
-
-              {selectedPair && (
-                <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--ink-dim)' }}>
-                  Token0: {shortenAddress(token0)} · Token1: {shortenAddress(token1)}
-                </div>
-              )}
 
               {selectedPair && marketDataDown && (
                 <MarketDataServiceOutageBanner
@@ -669,8 +657,8 @@ export default function LimitOrdersPage() {
                       idPrefix="limit-orders"
                       side={side}
                       onSideChange={handleSideChange}
-                      bidLabel={`Bid (escrow ${getTokenDisplaySymbol(token1 || 'token1')})`}
-                      askLabel={`Ask (escrow ${getTokenDisplaySymbol(token0 || 'token0')})`}
+                      bidLabel={`Buy ${token0Display}`}
+                      askLabel={`Sell ${token0Display}`}
                     />
                     <LimitOrderPriceInputWithContext
                       side={side}
@@ -680,11 +668,11 @@ export default function LimitOrdersPage() {
                       refToken1PerToken0={refToken1PerToken0}
                       refSource={refSource}
                       tapeHeadlineUsd={tapeHeadlineUsd}
-                      token0Label={getTokenDisplaySymbol(token0 || 'token0')}
-                      token1Label={getTokenDisplaySymbol(token1 || 'token1')}
+                      token0Label={token0Display}
+                      token1Label={token1Display}
                     />
                     <LimitOrderEscrowAmountField
-                      escrowLabel={getTokenDisplaySymbol(escrowToken || '—')}
+                      escrowLabel={escrowDisplay}
                       escrowDecimals={escrowDecimals}
                       amountHuman={amountHuman}
                       onAmountChange={onLimitAmountInputChange}
@@ -727,13 +715,14 @@ export default function LimitOrdersPage() {
                         className="text-xs leading-snug rounded-lg border border-white/10 px-2.5 py-2"
                         style={{ color: 'var(--ink-dim)' }}
                         data-testid="limits-page-edit-context"
+                        role={editNonPriceChanged ? 'alert' : undefined}
                       >
-                        Editing order <span className="font-mono">#{editContext.orderId}</span>
+                        Editing #{editContext.orderId}
                         {priceOnlyEdit
-                          ? ' — change price and tap Update price (one tx, no maker fee).'
+                          ? ' — Update price'
                           : editNonPriceChanged
                             ? ` — ${LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE}`
-                            : ' — adjust price to update in one tx.'}
+                            : ' — Update price'}
                       </p>
                     )}
                     <button
