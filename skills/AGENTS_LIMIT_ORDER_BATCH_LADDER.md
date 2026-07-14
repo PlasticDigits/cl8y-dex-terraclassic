@@ -59,6 +59,7 @@ cd frontend-dapp && npx playwright test e2e/limit-orders-tx.spec.ts --project=e2
 
 ## Related skills
 
+- Anti-cognitive-overload retail copy (ladder progressive disclosure): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
 - Limit place/cancel E2E: [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md)
 - Placement gas presets: [`AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md)
 - Terra gas / two-tx sequences: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)

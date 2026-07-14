@@ -1,6 +1,6 @@
 # Issue #488 visual QA
 
-QuickSwap-inspired blue + gold redesign verification screenshots.
+QuickSwap-inspired blue + gold redesign verification screenshots. Docs/skills copy alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) · [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../../../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) · [`docs/qa/issue-489/`](../issue-489/).
 
 Full set is also attached on [GitLab #488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488).
 
@@ -28,4 +28,4 @@ After MR !305, reopen feedback required:
 
 Promoted brand assets live under `frontend-dapp/public/` (favicon / OG / logo SVG).
 
-Spec: [`docs/design-system.md`](../../design-system.md) · agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../../../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · theme: [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../../../skills/AGENTS_FRONTEND_THEME_TOGGLE.md) · limit price: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../../../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+Spec: [`docs/design-system.md`](../../design-system.md) · agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../../../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · theme: [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../../../skills/AGENTS_FRONTEND_THEME_TOGGLE.md) · limit price: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../../../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · copy: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../../../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)).

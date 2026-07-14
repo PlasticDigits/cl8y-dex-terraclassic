@@ -64,6 +64,11 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 - [`docs/frontend.md`](../docs/frontend.md#trade-page-market-context) — Trade market ticket + route preview (**#302**).
 - [`docs/frontend.md`](../docs/frontend.md#submit-quote-alignment--calculating-ux) — submit–quote alignment + Calculating UX (#356, #360, #484).
 
+## Related
+
+- Anti-cognitive-overload retail copy + Swap vs **Best Trade** disambiguation: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)); glossary: [`docs/design-system.md`](../docs/design-system.md#terminology-glossary)
+- Sim quote refetch / Calculating hang: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484))
+
 ## Regression checklist (manual)
 
 ### Swap (`/`)
@@ -101,6 +106,11 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 19. **Automated:** `bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-route-alignment-tx.spec.ts --project=e2e-tx` — direct dual-CW20 swap (1 wasm hop) and multihop CORAL→IRON (≥2 hops); asserts UI route symbols match tx `offer_asset`/`ask_asset` sequence; no duplicate segments.
 20. **Manual (optional):** After a multihop quote on `/`, note `swap-route-summary` tokens, submit, and compare LCD tx wasm `swap` events — same hop count and symbols.
+
+## Related
+
+- Anti-cognitive-overload retail copy (Swap vs charts **Best Trade**): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)); glossary: [`docs/design-system.md`](../docs/design-system.md#terminology-glossary)
+- Sim quote refetch / Calculating hang: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484))
 
 ## Closed scope (GitLab #302 / #329)
 
