@@ -7,6 +7,7 @@ import EnvironmentRibbon from '@/components/legal/EnvironmentRibbon'
 import LegalFooterNotice from '@/components/legal/LegalFooterNotice'
 import RiskAcknowledgementModal from '@/components/legal/RiskAcknowledgementModal'
 import { ThemeSegmentedControl, type ThemeMode } from '@/components/common/ThemeSegmentedControl'
+import { SoundEffectsToggle } from '@/components/common/SoundEffectsToggle'
 import {
   getHeaderMoreMenuItems,
   getMobileMoreMenuItems,
@@ -15,6 +16,7 @@ import {
   PRIMARY_NAV_ITEMS,
 } from '@/components/common/navItems'
 import { FAUCET_CONTRACT_ADDRESS } from '@/utils/constants'
+import { readSoundsEnabled, writeSoundsEnabled } from '@/utils/soundPreferences'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSyncMobileNavStack } from '@/hooks/useSyncMobileNavStack'
 import { sounds } from '@/lib/sounds'
@@ -39,6 +41,7 @@ export default function Layout() {
   const showMobileLegalStrip = useMediaQuery('(max-width: 767px)')
 
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
+  const [soundsEnabled, setSoundsEnabled] = useState(readSoundsEnabled)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false)
   /** Defer legal notice until route page mounts so it is not the LCP element (GitLab #179). */
@@ -64,6 +67,13 @@ export default function Layout() {
     sounds.playButtonPress()
     setTheme(mode)
     window.localStorage.setItem('cl8y-dex-theme', mode)
+  }
+
+  /** Persist first; mute click stays silent; unmute plays one confirmation press (#487). */
+  const setSoundsEnabledAndPersist = (enabled: boolean) => {
+    writeSoundsEnabled(enabled)
+    setSoundsEnabled(enabled)
+    if (enabled) sounds.playButtonPress()
   }
 
   useEffect(() => {
@@ -172,12 +182,20 @@ export default function Layout() {
 
             <div className="app-header-controls">
               {!showMobileLegalStrip ? (
-                <ThemeSegmentedControl
-                  theme={theme}
-                  onSelect={setThemeAndPersist}
-                  groupClassName="app-header-theme-group"
-                  labelStyle="short"
-                />
+                <div className="app-header-pref-group" role="group" aria-label="Display and sound">
+                  <ThemeSegmentedControl
+                    theme={theme}
+                    onSelect={setThemeAndPersist}
+                    groupClassName="app-header-theme-group"
+                    labelStyle="short"
+                  />
+                  <SoundEffectsToggle
+                    enabled={soundsEnabled}
+                    onToggle={setSoundsEnabledAndPersist}
+                    labelStyle="short"
+                    className="app-header-sound-toggle"
+                  />
+                </div>
               ) : null}
               {/*
                 Desktop/tablet: EnvironmentRibbon is the primary network signal (#138).
@@ -254,12 +272,20 @@ export default function Layout() {
               labelClassName=""
             />
           ))}
-          <ThemeSegmentedControl
-            theme={theme}
-            onSelect={setThemeAndPersist}
-            groupClassName="app-mobile-theme-group"
-            labelStyle="long"
-          />
+          <div className="app-mobile-pref-group" role="group" aria-label="Display and sound">
+            <ThemeSegmentedControl
+              theme={theme}
+              onSelect={setThemeAndPersist}
+              groupClassName="app-mobile-theme-group"
+              labelStyle="long"
+            />
+            <SoundEffectsToggle
+              enabled={soundsEnabled}
+              onToggle={setSoundsEnabledAndPersist}
+              labelStyle="long"
+              className="app-mobile-sound-toggle"
+            />
+          </div>
         </section>
       )}
     </div>

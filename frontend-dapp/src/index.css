@@ -1248,6 +1248,19 @@
     gap: 8px;
   }
 
+  /* Theme + sound mute sit together in the sticky header (GitLab #487). */
+  .app-header-pref-group {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .app-header-sound-toggle {
+    flex-shrink: 0;
+    min-width: 4.5rem;
+  }
+
   .app-mobile-nav-shell {
     position: fixed;
     right: 0;
@@ -1300,13 +1313,23 @@
     box-shadow: var(--shadow-menu);
   }
 
-  .app-mobile-theme-group {
+  /* Theme + sound mute in mobile More sheet (GitLab #487). */
+  .app-mobile-pref-group {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     margin-top: 6px;
     padding-top: 8px;
     border-top: 1px solid var(--chrome-border-soft);
+  }
+
+  .app-mobile-theme-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .app-mobile-sound-toggle {
+    width: 100%;
   }
 
   .app-menu-dismiss {

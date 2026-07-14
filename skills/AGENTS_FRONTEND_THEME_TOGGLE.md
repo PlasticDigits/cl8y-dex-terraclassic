@@ -28,6 +28,7 @@ Use when moving or restyling the **dark/light** segmented control ([`ThemeSegmen
 
 ## Related
 
+- UI sound mute (adjacent shell control): [`AGENTS_FRONTEND_SOUND_MUTE.md`](./AGENTS_FRONTEND_SOUND_MUTE.md) ([#487](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/487))
 - Responsive header / nav density: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
 - Keyboard focus on theme buttons: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - Visual spec: [`docs/design-system.md`](../docs/design-system.md)

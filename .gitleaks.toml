@@ -34,4 +34,6 @@ regexes = [
   '''Secp256k1PubKey''',
   # localStorage key for first-visit risk acknowledgement (GitLab #138); not a credential.
   '''cl8y-dex-risk-ack''',
+  # localStorage key for UI sound mute preference (GitLab #487); not a credential.
+  '''cl8y-dex-sounds-enabled''',
 ]

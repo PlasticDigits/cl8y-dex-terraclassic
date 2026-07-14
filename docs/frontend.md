@@ -603,6 +603,7 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 |-----------|---------|
 | Mobile bottom nav | Viewports **`max-width: 767px`**: `.app-desktop-nav` is hidden; primary links use `.app-mobile-nav-shell` + **More** sheet (`MORE_NAV_ITEMS` only — theme toggle stays in that sheet). |
 | Theme toggle placement | **Desktop/tablet (`min-width: 768px`)**: dark/light control in **sticky header** (`.app-header-controls`, `.app-header-theme-group`) — reachable without scrolling long routes ([GitLab **#170**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/170)). **Mobile**: same control in the **More** sheet only (footer chrome hidden). |
+| Sound mute placement | Same surfaces as theme: sticky header (`.app-header-pref-group` + [`SoundEffectsToggle`](../frontend-dapp/src/components/common/SoundEffectsToggle.tsx)) on desktop/tablet; mobile **More** sheet (`.app-mobile-pref-group`). See [UI sound effects mute](#ui-sound-effects-mute) ([GitLab **#487**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/487)). |
 | Tablet compact header | Viewports **`768px`–`1199px`**: header shows **Swap** inline plus **More**; Pool, Limits, Trade, and Charts appear **inside** the header More menu ahead of Trader / Protocol / Fee Tiers / Create Pair (`getHeaderMoreMenuItems(false)` in [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)). Includes the **1024px–1199px** band where the full primary row previously overlapped wallet/controls ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136), [#483](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)). |
 | Full desktop header | Viewports **`min-width: 1200px`**: all `PRIMARY_NAV_ITEMS` inline; header More lists **`MORE_NAV_ITEMS` only** (same as pre–#136 wide layout). |
 | Nav → controls gap | At full-desktop widths, last nav control (**More**) and `.app-header-theme-group` must keep **≥ ~8px** horizontal gap (wallet connected or not). Desktop/tablet **omit** header [`NetworkBadge`](../frontend-dapp/src/components/wallet/NetworkBadge.tsx) — [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx) is the primary network signal; mobile keeps the badge beside the wallet chip ([GitLab **#483**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)). |
@@ -614,7 +615,26 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 
 Constants: `HEADER_FULL_NAV_MIN_WIDTH_PX` (`1200`), `TABLET_COMPACT_HEADER_MAX_WIDTH_PX` (`1199`), and row label tuples `DESKTOP_HEADER_NAV_ROW_LABELS` / `TABLET_COMPACT_HEADER_NAV_ROW_LABELS` for Playwright overlap checks (`frontend-dapp/e2e/navigation.spec.ts`). Sticky seam / nav→theme gap / open-menu vs ribbon stacking assertions live in the same file under **GitLab #482** / **#483** / **#486**.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](../skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md), [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md), [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) (environment ribbon).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](../skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md), [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md), [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) (environment ribbon), [`skills/AGENTS_FRONTEND_SOUND_MUTE.md`](../skills/AGENTS_FRONTEND_SOUND_MUTE.md) (SFX mute).
+
+### UI sound effects mute {#ui-sound-effects-mute}
+
+UI audio is centralized in [`sounds.ts`](../frontend-dapp/src/lib/sounds.ts) (`playButtonPress` / `playHover` / `playSuccess` / `playError`). Playback stays **opt-in per call site** — there is no global click interceptor. Users can opt out via a shell toggle ([GitLab **#487**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/487)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| Default ON | Missing or invalid `localStorage` value → sounds enabled (matches historical QA §10.3 expectations). |
+| Single gate | Mute is enforced only inside `play()` via [`readSoundsEnabled()`](../frontend-dapp/src/utils/soundPreferences.ts). Do not fork mute checks at import call sites. |
+| All SFX kinds | One preference disables press, hover, success, and error together. |
+| Persistence | Key `cl8y-dex-sounds-enabled` stores `'1'` / `'0'`. Session cache applies immediately and survives write failures (private mode / quota) for the tab. Cross-tab sync until reload is out of scope for MVP. |
+| Mute / unmute UX | Turning **off** does not play a press sound on that click. Turning **on** plays one confirmation press. Subsequent actions reflect the new preference without a hard refresh. |
+| Shell placement | Control sits next to theme (header ≥768px; mobile More ≤767px). Keyboard-reachable; `aria-pressed` means **sounds enabled**. |
+| Assets | Only local WAVs under `frontend-dapp/public/sounds/` — no remote audio URLs. |
+| Visual errors remain primary | Toasts / UI error copy stay authoritative; SFX are supplemental. |
+
+**Regression:** [`soundPreferences.test.ts`](../frontend-dapp/src/utils/soundPreferences.test.ts), [`sounds.test.ts`](../frontend-dapp/src/lib/sounds.test.ts), [`SoundEffectsToggle.test.tsx`](../frontend-dapp/src/components/common/__tests__/SoundEffectsToggle.test.tsx). Manual: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10.3.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_SOUND_MUTE.md`](../skills/AGENTS_FRONTEND_SOUND_MUTE.md); theme adjacency: [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md).
 
 ### Keyboard focus visibility (WCAG 2.4.7) {#keyboard-focus-visible-wcag-247}
 
