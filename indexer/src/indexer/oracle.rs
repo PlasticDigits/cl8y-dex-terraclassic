@@ -46,9 +46,15 @@ pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, latest_price: 
                         tracing::error!("Oracle: failed to store {} price: {}", source, e);
                     }
                 }
-                Err(e) => {
-                    tracing::warn!("Oracle: {} failed: {}", source, e);
-                }
+                Err(e) => match e {
+                    OracleError::RateLimited => {
+                        // CoinGecko free tier often 429s; KuCoin/MEXC usually still succeed.
+                        tracing::debug!("Oracle: {} rate limited", source);
+                    }
+                    _ => {
+                        tracing::warn!("Oracle: {} failed: {}", source, e);
+                    }
+                },
             }
         }
 
@@ -104,6 +110,8 @@ fn f64_to_bd(val: f64) -> BigDecimal {
 pub enum OracleError {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
+    #[error("rate limited")]
+    RateLimited,
     #[error("Parse error: {0}")]
     Parse(String),
 }
@@ -176,17 +184,57 @@ struct CoinGeckoUsd {
     usd: Option<f64>,
 }
 
-async fn fetch_coingecko(client: &Client) -> Result<f64, OracleError> {
-    let resp: CoinGeckoResponse = client
-        .get("https://api.coingecko.com/api/v3/simple/price?ids=terrausd&vs_currencies=usd")
-        .send()
-        .await?
-        .json()
-        .await?;
+/// CoinGecko free-tier rate-limit body (HTTP 429), e.g.
+/// `{"status":{"error_code":429,"error_message":"..."}}`.
+#[derive(Deserialize)]
+struct CoinGeckoStatusBody {
+    status: Option<CoinGeckoStatus>,
+}
 
-    resp.terrausd
+#[derive(Deserialize)]
+struct CoinGeckoStatus {
+    error_code: Option<u32>,
+}
+
+async fn fetch_coingecko(client: &Client) -> Result<f64, OracleError> {
+    fetch_coingecko_url(
+        client,
+        "https://api.coingecko.com/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
+    )
+    .await
+}
+
+async fn fetch_coingecko_url(client: &Client, url: &str) -> Result<f64, OracleError> {
+    let resp = client.get(url).send().await?;
+
+    let status = resp.status();
+    let body = resp.text().await.map_err(OracleError::Http)?;
+
+    if status.as_u16() == 429 || coingecko_body_is_rate_limited(&body) {
+        return Err(OracleError::RateLimited);
+    }
+    if !status.is_success() {
+        return Err(OracleError::Parse(format!(
+            "CoinGecko HTTP {status}: {}",
+            body.chars().take(120).collect::<String>()
+        )));
+    }
+
+    let parsed: CoinGeckoResponse = serde_json::from_str(&body)
+        .map_err(|e| OracleError::Parse(format!("CoinGecko JSON: {e}")))?;
+
+    parsed
+        .terrausd
         .and_then(|t| t.usd)
         .ok_or_else(|| OracleError::Parse("CoinGecko: missing terrausd.usd field".into()))
+}
+
+fn coingecko_body_is_rate_limited(body: &str) -> bool {
+    serde_json::from_str::<CoinGeckoStatusBody>(body)
+        .ok()
+        .and_then(|b| b.status)
+        .and_then(|s| s.error_code)
+        == Some(429)
 }
 
 #[cfg(test)]
@@ -221,5 +269,38 @@ mod tests {
         assert_eq!(nan_bd, BigDecimal::from(0));
         let inf_bd = f64_to_bd(f64::INFINITY);
         assert_eq!(inf_bd, BigDecimal::from(0));
+    }
+
+    #[test]
+    fn coingecko_rate_limit_body_detected() {
+        let body = r#"{"status":{"error_code":429,"error_message":"You've exceeded the Rate Limit."}}"#;
+        assert!(coingecko_body_is_rate_limited(body));
+        assert!(!coingecko_body_is_rate_limited(r#"{"terrausd":{"usd":0.005}}"#));
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_maps_429_to_rate_limited() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .respond_with(ResponseTemplate::new(429).set_body_string(
+                r#"{"status":{"error_code":429,"error_message":"rate limit"}}"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap();
+        let url = format!(
+            "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
+            server.uri()
+        );
+        let err = fetch_coingecko_url(&client, &url).await.unwrap_err();
+        assert!(matches!(err, OracleError::RateLimited), "unexpected: {err}");
     }
 }

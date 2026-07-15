@@ -36,13 +36,33 @@ pub async fn set_last_indexed_height(pool: &PgPool, height: i64) -> Result<(), s
     set_state(pool, KEY_LAST_INDEXED_HEIGHT, &height.to_string()).await
 }
 
+/// Atomically update height + hash so a crash or concurrent writer cannot leave
+/// `last_indexed_height` and `last_indexed_block_hash` pointing at different blocks.
 pub async fn set_indexer_checkpoint(
     pool: &PgPool,
     height: i64,
     block_hash: &str,
 ) -> Result<(), sqlx::Error> {
-    set_last_indexed_height(pool, height).await?;
-    set_state(pool, KEY_LAST_INDEXED_BLOCK_HASH, block_hash).await
+    let mut tx = pool.begin().await?;
+    let height_str = height.to_string();
+    sqlx::query(
+        "INSERT INTO indexer_state (key, value, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()",
+    )
+    .bind(KEY_LAST_INDEXED_HEIGHT)
+    .bind(&height_str)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "INSERT INTO indexer_state (key, value, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()",
+    )
+    .bind(KEY_LAST_INDEXED_BLOCK_HASH)
+    .bind(block_hash)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 pub async fn record_failed_block(
