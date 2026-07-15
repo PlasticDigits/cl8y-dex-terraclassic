@@ -373,22 +373,15 @@ async fn process_swap(
     tx_hash: &str,
     ustc_price: &oracle::SharedPrice,
 ) -> Result<(), BoxError> {
-    let pair = match pairs::get_pair_by_address(pool, &swap.pair_address).await? {
-        Some(p) => p,
-        None => match pair_discovery::discover_new_pair(
-            pool,
-            lcd,
-            &config.factory_address,
-            &swap.pair_address,
-        )
-        .await
-        {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!("Could not discover pair {}: {}", swap.pair_address, e);
-                return Ok(());
-            }
-        },
+    let Some(pair) = pair_discovery::get_or_discover_pair(
+        pool,
+        lcd,
+        &config.factory_address,
+        &swap.pair_address,
+    )
+    .await?
+    else {
+        return Ok(());
     };
 
     if swap_events::trade_exists(pool, tx_hash, pair.id, swap.swap_index).await? {
@@ -791,17 +784,10 @@ async fn process_limit_order_fill(
     block_time: DateTime<Utc>,
     tx_hash: &str,
 ) -> Result<(), BoxError> {
-    let pair = match pairs::get_pair_by_address(pool, &fill.pair_address).await? {
-        Some(p) => p,
-        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &fill.pair_address)
-            .await
-        {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!("Could not discover pair {}: {}", fill.pair_address, e);
-                return Ok(());
-            }
-        },
+    let Some(pair) =
+        pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &fill.pair_address).await?
+    else {
+        return Ok(());
     };
 
     if limit_order_fills::fill_exists(pool, tx_hash, pair.id, fill.order_id).await? {
@@ -1082,17 +1068,10 @@ async fn process_limit_order_placement(
     block_time: DateTime<Utc>,
     tx_hash: &str,
 ) -> Result<(), BoxError> {
-    let pair = match pairs::get_pair_by_address(pool, &p.pair_address).await? {
-        Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &p.pair_address)
-            .await
-        {
-            Ok(pair) => pair,
-            Err(e) => {
-                tracing::warn!("Could not discover pair {}: {}", p.pair_address, e);
-                return Ok(());
-            }
-        },
+    let Some(pair) =
+        pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &p.pair_address).await?
+    else {
+        return Ok(());
     };
 
     limit_order_lifecycle::insert_placement(
@@ -1120,17 +1099,10 @@ async fn process_limit_order_cancellation(
     block_time: DateTime<Utc>,
     tx_hash: &str,
 ) -> Result<(), BoxError> {
-    let pair = match pairs::get_pair_by_address(pool, &c.pair_address).await? {
-        Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &c.pair_address)
-            .await
-        {
-            Ok(pair) => pair,
-            Err(e) => {
-                tracing::warn!("Could not discover pair {}: {}", c.pair_address, e);
-                return Ok(());
-            }
-        },
+    let Some(pair) =
+        pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &c.pair_address).await?
+    else {
+        return Ok(());
     };
 
     limit_order_lifecycle::insert_cancellation(
@@ -1197,17 +1169,10 @@ async fn process_limit_order_expired_parked(
     block_time: DateTime<Utc>,
     tx_hash: &str,
 ) -> Result<(), BoxError> {
-    let pair = match pairs::get_pair_by_address(pool, &p.pair_address).await? {
-        Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &p.pair_address)
-            .await
-        {
-            Ok(pair) => pair,
-            Err(e) => {
-                tracing::warn!("Could not discover pair {}: {}", p.pair_address, e);
-                return Ok(());
-            }
-        },
+    let Some(pair) =
+        pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &p.pair_address).await?
+    else {
+        return Ok(());
     };
 
     limit_order_lifecycle::apply_parked_expired(
@@ -1232,17 +1197,10 @@ async fn process_claim_expired_limit_order(
     block_time: DateTime<Utc>,
     tx_hash: &str,
 ) -> Result<(), BoxError> {
-    let pair = match pairs::get_pair_by_address(pool, &c.pair_address).await? {
-        Some(pair) => pair,
-        None => match pair_discovery::discover_new_pair(pool, lcd, factory_addr, &c.pair_address)
-            .await
-        {
-            Ok(pair) => pair,
-            Err(e) => {
-                tracing::warn!("Could not discover pair {}: {}", c.pair_address, e);
-                return Ok(());
-            }
-        },
+    let Some(pair) =
+        pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &c.pair_address).await?
+    else {
+        return Ok(());
     };
 
     limit_order_lifecycle::apply_claim_refund(
@@ -1334,22 +1292,10 @@ async fn process_liquidity_event(
     block_time: DateTime<Utc>,
     tx_hash: &str,
 ) -> Result<(), BoxError> {
-    let pair = match pairs::get_pair_by_address(pool, &event.pair_address).await? {
-        Some(p) => p,
-        None => match pair_discovery::discover_new_pair(
-            pool,
-            lcd,
-            factory_addr,
-            &event.pair_address,
-        )
-        .await
-        {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!("Could not discover pair {}: {}", event.pair_address, e);
-                return Ok(());
-            }
-        },
+    let Some(pair) =
+        pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &event.pair_address).await?
+    else {
+        return Ok(());
     };
 
     if liquidity::liquidity_event_exists(pool, tx_hash, pair.id, &event.event_type).await? {

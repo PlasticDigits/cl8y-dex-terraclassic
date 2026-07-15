@@ -166,7 +166,9 @@ fn chain_side_label(v: &serde_json::Value) -> String {
 
 fn lcd_query_missing_key(err: &LcdError) -> bool {
     match err {
-        LcdError::AllEndpointsFailed(msg) => msg.contains("not found"),
+        LcdError::AllEndpointsFailed(msg) | LcdError::ContractQueryRejected(msg) => {
+            msg.contains("not found")
+        }
         _ => false,
     }
 }

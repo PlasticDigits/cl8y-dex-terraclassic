@@ -1,14 +1,93 @@
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
 use sqlx::PgPool;
 
 use crate::db::queries::pairs::{self, PairRow};
 use crate::lcd::types::{
     AssetInfo, FactoryPairResponse, FeeConfigResponse, HooksResponse, PairInfo, PairsResponse,
 };
-use crate::lcd::LcdClient;
+use crate::lcd::{LcdClient, LcdError};
 
 use super::asset_resolver;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+/// TTL for in-memory negative cache of factory-rejected (foreign/unlisted) pair addresses.
+/// Terraport and other DEXes emit compatible `action=swap` events; re-querying LCD on every
+/// such swap is wasteful. A rejected address cannot become factory-listed without a new
+/// CreatePair (different contract addr).
+const PAIR_REJECT_CACHE_TTL: Duration = Duration::from_secs(3600);
+const PAIR_REJECT_CACHE_MAX: usize = 10_000;
+
+#[derive(Debug, thiserror::Error)]
+pub enum DiscoverPairError {
+    #[error(
+        "unlisted/foreign pair {pair_address} (not listed in factory {factory_address})"
+    )]
+    Unlisted {
+        pair_address: String,
+        factory_address: String,
+    },
+    #[error(
+        "unlisted/foreign pair {pair_address} (recently rejected; skipping rediscovery)"
+    )]
+    RejectedCached { pair_address: String },
+}
+
+pub fn is_rejected_pair_error(err: &(dyn std::error::Error + 'static)) -> bool {
+    err.downcast_ref::<DiscoverPairError>().is_some()
+}
+
+fn reject_cache() -> &'static Mutex<HashMap<String, Instant>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn reject_cache_get(pair_addr: &str) -> bool {
+    let Ok(mut g) = reject_cache().lock() else {
+        return false;
+    };
+    let now = Instant::now();
+    g.retain(|_, at| now.duration_since(*at) <= PAIR_REJECT_CACHE_TTL);
+    g.contains_key(pair_addr)
+}
+
+fn reject_cache_insert(pair_addr: &str) {
+    let Ok(mut g) = reject_cache().lock() else {
+        return;
+    };
+    let now = Instant::now();
+    g.retain(|_, at| now.duration_since(*at) <= PAIR_REJECT_CACHE_TTL);
+    if g.len() >= PAIR_REJECT_CACHE_MAX && !g.contains_key(pair_addr) {
+        // Evict oldest entry when at capacity.
+        if let Some(oldest) = g
+            .iter()
+            .min_by_key(|(_, at)| *at)
+            .map(|(k, _)| k.clone())
+        {
+            g.remove(&oldest);
+        }
+    }
+    g.insert(pair_addr.to_string(), now);
+}
+
+#[cfg(test)]
+fn reject_cache_clear() {
+    if let Ok(mut g) = reject_cache().lock() {
+        g.clear();
+    }
+}
+
+fn lcd_err_is_pair_not_found(err: &LcdError) -> bool {
+    match err {
+        LcdError::ContractQueryRejected(msg) | LcdError::AllEndpointsFailed(msg) => msg
+            .to_ascii_lowercase()
+            .contains("pair not found"),
+        _ => false,
+    }
+}
 
 pub async fn sync_all_pairs(
     pool: &PgPool,
@@ -178,25 +257,55 @@ pub(crate) async fn verify_factory_provenance(
         }
     });
 
-    let resp: FactoryPairResponse =
-        lcd.query_contract(factory_addr, &query)
-            .await
-            .map_err(|e| {
-                format!(
-                    "factory provenance check failed for {} (factory {}): {}",
-                    pair_contract_addr, factory_addr, e
-                )
-            })?;
+    let resp: FactoryPairResponse = match lcd.query_contract(factory_addr, &query).await {
+        Ok(r) => r,
+        Err(e) if lcd_err_is_pair_not_found(&e) => {
+            return Err(DiscoverPairError::Unlisted {
+                pair_address: pair_contract_addr.to_string(),
+                factory_address: factory_addr.to_string(),
+            }
+            .into());
+        }
+        Err(e) => {
+            return Err(format!(
+                "factory provenance check failed for {} (factory {}): {}",
+                pair_contract_addr, factory_addr, e
+            )
+            .into());
+        }
+    };
 
     if resp.pair.contract_addr != pair_contract_addr {
-        return Err(format!(
-            "pair {} is not listed in factory {} (factory maps assets to {})",
-            pair_contract_addr, factory_addr, resp.pair.contract_addr
-        )
+        return Err(DiscoverPairError::Unlisted {
+            pair_address: pair_contract_addr.to_string(),
+            factory_address: factory_addr.to_string(),
+        }
         .into());
     }
 
     Ok(())
+}
+
+/// Look up a pair in the DB, or opportunistically discover it via factory provenance.
+/// Returns `Ok(None)` when the address is foreign/unlisted or discovery soft-fails (caller
+/// should skip the event without failing the block).
+pub async fn get_or_discover_pair(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    factory_addr: &str,
+    pair_contract_addr: &str,
+) -> Result<Option<PairRow>, BoxError> {
+    if let Some(p) = pairs::get_pair_by_address(pool, pair_contract_addr).await? {
+        return Ok(Some(p));
+    }
+    match discover_new_pair(pool, lcd, factory_addr, pair_contract_addr).await {
+        Ok(p) => Ok(Some(p)),
+        Err(e) if is_rejected_pair_error(&*e) => Ok(None),
+        Err(e) => {
+            tracing::warn!("Could not discover pair {}: {}", pair_contract_addr, e);
+            Ok(None)
+        }
+    }
 }
 
 pub async fn discover_new_pair(
@@ -205,7 +314,18 @@ pub async fn discover_new_pair(
     factory_addr: &str,
     pair_contract_addr: &str,
 ) -> Result<PairRow, BoxError> {
-    tracing::info!("Discovering new pair at {}", pair_contract_addr);
+    if reject_cache_get(pair_contract_addr) {
+        tracing::debug!(
+            pair = %pair_contract_addr,
+            "Skipping rediscovery of recently rejected unlisted/foreign pair"
+        );
+        return Err(DiscoverPairError::RejectedCached {
+            pair_address: pair_contract_addr.to_string(),
+        }
+        .into());
+    }
+
+    tracing::debug!("Discovering new pair at {}", pair_contract_addr);
 
     let pair_info: PairInfo = lcd
         .query_contract(pair_contract_addr, &serde_json::json!({"pair": {}}))
@@ -219,13 +339,26 @@ pub async fn discover_new_pair(
         .into());
     }
 
-    verify_factory_provenance(
+    match verify_factory_provenance(
         lcd,
         factory_addr,
         pair_contract_addr,
         &pair_info.asset_infos,
     )
-    .await?;
+    .await
+    {
+        Ok(()) => {}
+        Err(e) if is_rejected_pair_error(&*e) => {
+            reject_cache_insert(pair_contract_addr);
+            tracing::info!(
+                pair = %pair_contract_addr,
+                factory = %factory_addr,
+                "Skipping unlisted/foreign pair (not in factory)"
+            );
+            return Err(e);
+        }
+        Err(e) => return Err(e),
+    }
 
     sync_single_pair(pool, lcd, &pair_info).await
 }
@@ -246,6 +379,8 @@ mod tests {
     use super::*;
     use base64::Engine;
     use serde_json::json;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
     use wiremock::matchers::{method, path_regex};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -312,7 +447,9 @@ mod tests {
                             json!({ "data": { "pair": pair_info_json(CANONICAL_PAIR) } })
                         } else {
                             return ResponseTemplate::new(500).set_body_json(json!({
-                                "message": "pair not found"
+                                "code": 2,
+                                "message": "Generic error: pair not found: query wasm contract failed",
+                                "details": []
                             }));
                         }
                     } else {
@@ -330,6 +467,7 @@ mod tests {
 
     #[tokio::test]
     async fn verify_factory_provenance_rejects_unlisted_pair() {
+        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, true).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -339,13 +477,18 @@ mod tests {
             .await
             .unwrap_err();
         assert!(
-            err.to_string().contains("not listed in factory"),
+            is_rejected_pair_error(&*err),
+            "unexpected error: {err}"
+        );
+        assert!(
+            err.to_string().contains("unlisted/foreign pair"),
             "unexpected error: {err}"
         );
     }
 
     #[tokio::test]
     async fn verify_factory_provenance_accepts_factory_listed_pair() {
+        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, true).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -358,6 +501,7 @@ mod tests {
 
     #[tokio::test]
     async fn verify_factory_provenance_skipped_when_factory_empty() {
+        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, false).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -370,6 +514,7 @@ mod tests {
 
     #[tokio::test]
     async fn verify_factory_provenance_fails_when_factory_has_no_pair() {
+        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, false).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -379,8 +524,120 @@ mod tests {
             .await
             .unwrap_err();
         assert!(
-            err.to_string().contains("factory provenance check failed"),
+            is_rejected_pair_error(&*err),
             "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn discover_new_pair_negative_caches_unlisted_pair() {
+        reject_cache_clear();
+        let server = MockServer::start().await;
+        let factory_hits = Arc::new(AtomicUsize::new(0));
+        let hits = factory_hits.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |req: &wiremock::Request| {
+                let path = req.url.path();
+                let segments: Vec<_> = path.split('/').collect();
+                let contract = segments.get(5).copied().unwrap_or("");
+                let query_b64 = segments.get(7).copied().unwrap_or("");
+                let query_bytes = base64::engine::general_purpose::STANDARD
+                    .decode(query_b64)
+                    .unwrap_or_default();
+                let query: serde_json::Value =
+                    serde_json::from_slice(&query_bytes).unwrap_or(json!({}));
+
+                if contract == ATTACKER_PAIR {
+                    return ResponseTemplate::new(200)
+                        .set_body_json(json!({ "data": pair_info_json(ATTACKER_PAIR) }));
+                }
+                if contract == FACTORY && query.get("pair").is_some() {
+                    hits.fetch_add(1, Ordering::SeqCst);
+                    return ResponseTemplate::new(500).set_body_json(json!({
+                        "code": 2,
+                        "message": "Generic error: pair not found: query wasm contract failed",
+                        "details": []
+                    }));
+                }
+                ResponseTemplate::new(404)
+            })
+            .mount(&server)
+            .await;
+
+        // Pool is unused on the reject path (fails before sync_single_pair).
+        let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1/unused")
+            .expect("lazy pool");
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+
+        let err1 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
+            .await
+            .unwrap_err();
+        assert!(is_rejected_pair_error(&*err1), "unexpected: {err1}");
+        assert_eq!(factory_hits.load(Ordering::SeqCst), 1);
+
+        let err2 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err2.downcast_ref::<DiscoverPairError>(),
+                Some(DiscoverPairError::RejectedCached { .. })
+            ),
+            "unexpected: {err2}"
+        );
+        assert_eq!(
+            factory_hits.load(Ordering::SeqCst),
+            1,
+            "second discover must not re-hit factory LCD"
+        );
+    }
+
+    #[tokio::test]
+    async fn lcd_pair_not_found_does_not_fan_out_to_other_endpoints() {
+        reject_cache_clear();
+        let server_a = MockServer::start().await;
+        let server_b = MockServer::start().await;
+        let hits_b = Arc::new(AtomicUsize::new(0));
+        let b = hits_b.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+                "code": 2,
+                "message": "Generic error: pair not found: query wasm contract failed",
+                "details": []
+            })))
+            .mount(&server_a)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |_req: &wiremock::Request| {
+                b.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(500).set_body_json(json!({
+                    "code": 2,
+                    "message": "Generic error: pair not found: query wasm contract failed",
+                    "details": []
+                }))
+            })
+            .mount(&server_b)
+            .await;
+
+        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30000);
+        let err = lcd
+            .query_contract::<serde_json::Value>(FACTORY, &json!({"pair": {"asset_infos": []}}))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, LcdError::ContractQueryRejected(_)),
+            "unexpected: {err}"
+        );
+        assert_eq!(
+            hits_b.load(Ordering::SeqCst),
+            0,
+            "deterministic pair-not-found must not try later LCD endpoints"
         );
     }
 }

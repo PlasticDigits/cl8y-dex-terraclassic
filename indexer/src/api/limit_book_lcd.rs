@@ -67,7 +67,9 @@ fn side_matches_book(side_label: &str, row: &ChainLimitOrderRow) -> bool {
 /// LocalTerra / wasmd often return HTTP 500 for missing contract keys instead of `{ "data": null }`.
 fn lcd_query_missing_key(err: &LcdError) -> bool {
     match err {
-        LcdError::AllEndpointsFailed(msg) => msg.contains("not found"),
+        LcdError::AllEndpointsFailed(msg) | LcdError::ContractQueryRejected(msg) => {
+            msg.contains("not found")
+        }
         _ => false,
     }
 }

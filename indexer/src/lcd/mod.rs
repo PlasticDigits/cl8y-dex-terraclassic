@@ -27,12 +27,22 @@ fn lcd_log_path(path: &str) -> &'static str {
 pub enum LcdError {
     #[error("All LCD endpoints failed: {0}")]
     AllEndpointsFailed(String),
+    /// Deterministic CosmWasm smart-query reject (e.g. factory `pair not found`).
+    /// Not an LCD outage — do not fan out to other endpoints or WARN at info level.
+    #[error("LCD contract query rejected: {0}")]
+    ContractQueryRejected(String),
     #[error("Request error: {0}")]
     Request(#[from] reqwest::Error),
     #[error("Deserialization error: {0}")]
     Deserialize(String),
     #[error("Base64 decode error: {0}")]
     Base64(String),
+}
+
+/// CosmWasm LCD returns HTTP 500 for smart-query contract errors such as factory
+/// `pair not found`. These are deterministic application rejects, not upstream outages.
+fn is_pair_not_found_reject(status: reqwest::StatusCode, body: &str) -> bool {
+    status.as_u16() == 500 && body.to_ascii_lowercase().contains("pair not found")
 }
 
 #[derive(Clone)]
@@ -107,6 +117,19 @@ impl LcdClient {
                     if !status.is_success() {
                         let body = resp.text().await.unwrap_or_default();
                         let body_snippet = body.chars().take(200).collect::<String>();
+                        if is_pair_not_found_reject(status, &body) {
+                            // Factory provenance / unknown-pair lookups — expected on mainnet
+                            // when foreign DEXes emit compatible swap events. Do not WARN or
+                            // retry other LCD endpoints (same deterministic contract answer).
+                            tracing::debug!(
+                                endpoint_idx = idx,
+                                status = %status,
+                                path = log_path,
+                                body_snippet = %body_snippet,
+                                "LCD contract query rejected (pair not found)"
+                            );
+                            return Err(LcdError::ContractQueryRejected(body_snippet));
+                        }
                         tracing::warn!(
                             endpoint_idx = idx,
                             status = %status,
