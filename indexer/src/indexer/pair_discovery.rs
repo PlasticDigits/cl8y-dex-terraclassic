@@ -31,6 +31,10 @@ pub enum DiscoverPairError {
         factory_address: String,
     },
     #[error(
+        "non-pair/foreign contract {pair_address} (does not support pair query)"
+    )]
+    NotAPair { pair_address: String },
+    #[error(
         "unlisted/foreign pair {pair_address} (recently rejected; skipping rediscovery)"
     )]
     RejectedCached { pair_address: String },
@@ -87,6 +91,23 @@ fn lcd_err_is_pair_not_found(err: &LcdError) -> bool {
             .contains("pair not found"),
         _ => false,
     }
+}
+
+/// True when `{"pair":{}}` is rejected because the contract is not a Terraport/CL8Y pair
+/// (e.g. cw20_bonding, Astroport `pair_base` with different QueryMsg).
+fn lcd_err_is_not_a_pair_contract(err: &LcdError) -> bool {
+    match err {
+        LcdError::ContractQueryRejected(msg) | LcdError::AllEndpointsFailed(msg) => {
+            let lower = msg.to_ascii_lowercase();
+            lower.contains("unknown variant") || lower.contains("error parsing into type")
+        }
+        _ => false,
+    }
+}
+
+fn remember_rejected_pair(pair_addr: &str, reason: &str) {
+    reject_cache_insert(pair_addr);
+    tracing::info!(pair = %pair_addr, reason, "Skipping unlisted/foreign pair");
 }
 
 pub async fn sync_all_pairs(
@@ -327,9 +348,20 @@ pub async fn discover_new_pair(
 
     tracing::debug!("Discovering new pair at {}", pair_contract_addr);
 
-    let pair_info: PairInfo = lcd
+    let pair_info: PairInfo = match lcd
         .query_contract(pair_contract_addr, &serde_json::json!({"pair": {}}))
-        .await?;
+        .await
+    {
+        Ok(info) => info,
+        Err(e) if lcd_err_is_not_a_pair_contract(&e) => {
+            remember_rejected_pair(pair_contract_addr, "does not support pair query");
+            return Err(DiscoverPairError::NotAPair {
+                pair_address: pair_contract_addr.to_string(),
+            }
+            .into());
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     if pair_info.contract_addr != pair_contract_addr {
         return Err(format!(
@@ -349,12 +381,7 @@ pub async fn discover_new_pair(
     {
         Ok(()) => {}
         Err(e) if is_rejected_pair_error(&*e) => {
-            reject_cache_insert(pair_contract_addr);
-            tracing::info!(
-                pair = %pair_contract_addr,
-                factory = %factory_addr,
-                "Skipping unlisted/foreign pair (not in factory)"
-            );
+            remember_rejected_pair(pair_contract_addr, "not listed in factory");
             return Err(e);
         }
         Err(e) => return Err(e),
@@ -639,5 +666,97 @@ mod tests {
             0,
             "deterministic pair-not-found must not try later LCD endpoints"
         );
+    }
+
+    #[tokio::test]
+    async fn discover_new_pair_negative_caches_non_pair_contract() {
+        reject_cache_clear();
+        let server = MockServer::start().await;
+        let hits = Arc::new(AtomicUsize::new(0));
+        let h = hits.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |_req: &wiremock::Request| {
+                h.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(500).set_body_json(json!({
+                    "code": 2,
+                    "message": "Error parsing into type pair_base::msg::QueryMsg: unknown variant `pair`, expected one of `pool`, `simulate_provide_liquidity`",
+                    "details": []
+                }))
+            })
+            .mount(&server)
+            .await;
+
+        let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1/unused")
+            .expect("lazy pool");
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+
+        let err1 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err1.downcast_ref::<DiscoverPairError>(),
+                Some(DiscoverPairError::NotAPair { .. })
+            ),
+            "unexpected: {err1}"
+        );
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+
+        let err2 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err2.downcast_ref::<DiscoverPairError>(),
+                Some(DiscoverPairError::RejectedCached { .. })
+            ),
+            "unexpected: {err2}"
+        );
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            1,
+            "second discover must not re-query non-pair contract"
+        );
+    }
+
+    #[tokio::test]
+    async fn lcd_unknown_variant_pair_does_not_fan_out() {
+        reject_cache_clear();
+        let server_a = MockServer::start().await;
+        let server_b = MockServer::start().await;
+        let hits_b = Arc::new(AtomicUsize::new(0));
+        let b = hits_b.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+                "code": 2,
+                "message": "Error parsing into type cw20_bonding::msg::QueryMsg: unknown variant `pair`",
+                "details": []
+            })))
+            .mount(&server_a)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |_req: &wiremock::Request| {
+                b.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(500)
+            })
+            .mount(&server_b)
+            .await;
+
+        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30000);
+        let err = lcd
+            .query_contract::<serde_json::Value>(ATTACKER_PAIR, &json!({"pair": {}}))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, LcdError::ContractQueryRejected(_)),
+            "unexpected: {err}"
+        );
+        assert_eq!(hits_b.load(Ordering::SeqCst), 0);
     }
 }

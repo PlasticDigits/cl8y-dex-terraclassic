@@ -27,8 +27,9 @@ fn lcd_log_path(path: &str) -> &'static str {
 pub enum LcdError {
     #[error("All LCD endpoints failed: {0}")]
     AllEndpointsFailed(String),
-    /// Deterministic CosmWasm smart-query reject (e.g. factory `pair not found`).
-    /// Not an LCD outage — do not fan out to other endpoints or WARN at info level.
+    /// Deterministic CosmWasm smart-query reject (e.g. factory `pair not found`,
+/// or foreign contract `unknown variant \`pair\``). Not an LCD outage — do not
+/// fan out to other endpoints or WARN.
     #[error("LCD contract query rejected: {0}")]
     ContractQueryRejected(String),
     #[error("Request error: {0}")]
@@ -39,10 +40,22 @@ pub enum LcdError {
     Base64(String),
 }
 
-/// CosmWasm LCD returns HTTP 500 for smart-query contract errors such as factory
-/// `pair not found`. These are deterministic application rejects, not upstream outages.
-fn is_pair_not_found_reject(status: reqwest::StatusCode, body: &str) -> bool {
-    status.as_u16() == 500 && body.to_ascii_lowercase().contains("pair not found")
+/// CosmWasm LCD returns HTTP 500 for smart-query contract errors. Same answer on
+/// every LCD — not an upstream outage.
+fn is_deterministic_contract_query_reject(status: reqwest::StatusCode, body: &str) -> bool {
+    if status.as_u16() != 500 {
+        return false;
+    }
+    let lower = body.to_ascii_lowercase();
+    lower.contains("pair not found")
+        || lower.contains("unknown variant")
+        || lower.contains("error parsing into type")
+}
+
+fn should_cooldown_endpoint(status: reqwest::StatusCode) -> bool {
+    let code = status.as_u16();
+    // Rate limits and gateway failures — back off this endpoint and try others.
+    code == 429 || code == 408 || code >= 502
 }
 
 #[derive(Clone)]
@@ -117,18 +130,34 @@ impl LcdClient {
                     if !status.is_success() {
                         let body = resp.text().await.unwrap_or_default();
                         let body_snippet = body.chars().take(200).collect::<String>();
-                        if is_pair_not_found_reject(status, &body) {
-                            // Factory provenance / unknown-pair lookups — expected on mainnet
-                            // when foreign DEXes emit compatible swap events. Do not WARN or
-                            // retry other LCD endpoints (same deterministic contract answer).
+                        if is_deterministic_contract_query_reject(status, &body) {
+                            // Expected on mainnet when foreign contracts emit compatible swap
+                            // events but reject our pair/factory queries. Do not WARN or retry
+                            // other LCD endpoints (same deterministic contract answer).
                             tracing::debug!(
                                 endpoint_idx = idx,
                                 status = %status,
                                 path = log_path,
                                 body_snippet = %body_snippet,
-                                "LCD contract query rejected (pair not found)"
+                                "LCD contract query rejected"
                             );
                             return Err(LcdError::ContractQueryRejected(body_snippet));
+                        }
+                        let msg = format!(
+                            "endpoint[{idx}] {log_path} returned {status}: {body_snippet}"
+                        );
+                        errors.push(msg);
+                        if status.as_u16() == 429 {
+                            // Public LCD mirrors rate-limit aggressively during catch-up.
+                            // Cool down and try the next endpoint; keep logs at debug.
+                            tracing::debug!(
+                                endpoint_idx = idx,
+                                status = %status,
+                                path = log_path,
+                                "LCD rate limited; cooling down endpoint"
+                            );
+                            self.mark_failed(idx).await;
+                            continue;
                         }
                         tracing::warn!(
                             endpoint_idx = idx,
@@ -142,13 +171,9 @@ impl LcdClient {
                             body_snippet = %body_snippet,
                             "LCD upstream error detail"
                         );
-                        let msg = format!(
-                            "endpoint[{idx}] {log_path} returned {status}: {body_snippet}"
-                        );
-                        errors.push(msg);
-                        // Contract/query rejections (4xx/500) are not endpoint outages — keep trying
-                        // this LCD for subsequent queries (e.g. hybrid sim fails, pool sim succeeds).
-                        if status.as_u16() >= 502 || status.as_u16() == 408 {
+                        // Transient gateway/timeouts — cool down. Other 4xx/500 contract
+                        // rejects keep the endpoint available for subsequent queries.
+                        if should_cooldown_endpoint(status) {
                             self.mark_failed(idx).await;
                         }
                         continue;
@@ -436,5 +461,48 @@ mod tests {
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
         let err = lcd.get_block_txs(1, 100, 1).await.unwrap_err();
         assert!(err.to_string().contains("incomplete tx fetch"));
+    }
+
+    #[tokio::test]
+    async fn rate_limit_429_cools_down_and_fails_over() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use wiremock::matchers::path_regex;
+
+        let server_a = MockServer::start().await;
+        let server_b = MockServer::start().await;
+        let hits_b = Arc::new(AtomicUsize::new(0));
+        let b = hits_b.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(ResponseTemplate::new(429).set_body_string("Too Many Requests"))
+            .mount(&server_a)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |_req: &wiremock::Request| {
+                b.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(200).set_body_json(json!({ "data": { "ok": true } }))
+            })
+            .mount(&server_b)
+            .await;
+
+        // Short cooldown so a follow-up request still skips endpoint A.
+        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 60_000);
+        let val: serde_json::Value = lcd
+            .query_contract("terra1pair", &json!({"pair": {}}))
+            .await
+            .expect("should fail over to endpoint B");
+        assert_eq!(val, json!({ "ok": true }));
+        assert_eq!(hits_b.load(Ordering::SeqCst), 1);
+
+        // Second call should not re-hit cooled-down A; B serves again.
+        let _val: serde_json::Value = lcd
+            .query_contract("terra1pair", &json!({"pair": {}}))
+            .await
+            .unwrap();
+        assert_eq!(hits_b.load(Ordering::SeqCst), 2);
     }
 }
