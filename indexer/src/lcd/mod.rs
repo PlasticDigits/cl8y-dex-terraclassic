@@ -41,15 +41,31 @@ pub enum LcdError {
 }
 
 /// CosmWasm LCD returns HTTP 500 for smart-query contract errors. Same answer on
-/// every LCD — not an upstream outage.
-fn is_deterministic_contract_query_reject(status: reqwest::StatusCode, body: &str) -> bool {
+/// every LCD — not an upstream outage (GitLab #493).
+///
+/// Classic factory/foreign-pair phrases always classify. Broader wasmd envelope
+/// markers (`query wasm contract failed`, `codespace wasm`) apply only on
+/// `/cosmwasm/wasm/v1/contract/...` so plain infra 500s and non-wasm REST paths
+/// still fan out / WARN.
+fn is_deterministic_contract_query_reject(
+    status: reqwest::StatusCode,
+    path: &str,
+    body: &str,
+) -> bool {
     if status.as_u16() != 500 {
         return false;
     }
     let lower = body.to_ascii_lowercase();
-    lower.contains("pair not found")
+    let classic = lower.contains("pair not found")
         || lower.contains("unknown variant")
-        || lower.contains("error parsing into type")
+        || lower.contains("error parsing into type");
+    if classic {
+        return true;
+    }
+    if !path.starts_with("/cosmwasm/wasm/v1/contract/") {
+        return false;
+    }
+    lower.contains("query wasm contract failed") || lower.contains("codespace wasm")
 }
 
 fn should_cooldown_endpoint(status: reqwest::StatusCode) -> bool {
@@ -130,7 +146,7 @@ impl LcdClient {
                     if !status.is_success() {
                         let body = resp.text().await.unwrap_or_default();
                         let body_snippet = body.chars().take(200).collect::<String>();
-                        if is_deterministic_contract_query_reject(status, &body) {
+                        if is_deterministic_contract_query_reject(status, path, &body) {
                             // Expected on mainnet when foreign contracts emit compatible swap
                             // events but reject our pair/factory queries. Do not WARN or retry
                             // other LCD endpoints (same deterministic contract answer).
@@ -504,5 +520,177 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(hits_b.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn classify_deterministic_cosmwasm_rejects() {
+        let ok = reqwest::StatusCode::OK;
+        let s500 = reqwest::StatusCode::INTERNAL_SERVER_ERROR;
+        let s502 = reqwest::StatusCode::BAD_GATEWAY;
+        let cw = "/cosmwasm/wasm/v1/contract/terra1x/smart/abc";
+        let tx = "/cosmos/tx/v1beta1/txs?query=tx.height=1";
+
+        assert!(!is_deterministic_contract_query_reject(
+            ok,
+            cw,
+            r#"{"message":"query wasm contract failed"}"#
+        ));
+        assert!(!is_deterministic_contract_query_reject(
+            s502,
+            cw,
+            r#"{"message":"query wasm contract failed"}"#
+        ));
+        assert!(is_deterministic_contract_query_reject(
+            s500,
+            cw,
+            r#"{"message":"Generic error: pair not found: query wasm contract failed"}"#
+        ));
+        assert!(is_deterministic_contract_query_reject(
+            s500,
+            cw,
+            r#"{"message":"Error parsing into type: unknown variant `pair`"}"#
+        ));
+        assert!(is_deterministic_contract_query_reject(
+            s500,
+            cw,
+            r#"{"code":2,"message":"codespace wasm code 9: query wasm contract failed: key not found"}"#
+        ));
+        assert!(is_deterministic_contract_query_reject(
+            s500,
+            cw,
+            r#"{"message":"query wasm contract failed"}"#
+        ));
+        // Infra-looking body on cosmwasm path without wasm markers → not classified.
+        assert!(!is_deterministic_contract_query_reject(
+            s500,
+            cw,
+            "internal LCD failure"
+        ));
+        // Non-cosmwasm path: classic phrases still classify; bare wasmd phrase does not.
+        assert!(is_deterministic_contract_query_reject(
+            s500,
+            tx,
+            r#"{"message":"pair not found"}"#
+        ));
+        assert!(!is_deterministic_contract_query_reject(
+            s500,
+            tx,
+            r#"{"message":"query cannot be empty"}"#
+        ));
+    }
+
+    #[tokio::test]
+    async fn wasm_query_reject_does_not_fan_out() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use wiremock::matchers::path_regex;
+
+        let server_a = MockServer::start().await;
+        let server_b = MockServer::start().await;
+        let hits_b = Arc::new(AtomicUsize::new(0));
+        let b = hits_b.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+                "code": 2,
+                "message": "codespace wasm code 9: query wasm contract failed: key not found",
+                "details": []
+            })))
+            .mount(&server_a)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |_req: &wiremock::Request| {
+                b.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(200).set_body_json(json!({ "data": { "ok": true } }))
+            })
+            .mount(&server_b)
+            .await;
+
+        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30_000);
+        let err = lcd
+            .query_contract::<serde_json::Value>(
+                "terra1pair",
+                &json!({"limit_order": {"order_id": 1}}),
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, LcdError::ContractQueryRejected(_)),
+            "unexpected: {err}"
+        );
+        assert_eq!(hits_b.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn infra_500_still_fans_out() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use wiremock::matchers::path_regex;
+
+        let server_a = MockServer::start().await;
+        let server_b = MockServer::start().await;
+        let hits_b = Arc::new(AtomicUsize::new(0));
+        let b = hits_b.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("internal LCD failure"))
+            .mount(&server_a)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |_req: &wiremock::Request| {
+                b.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(200).set_body_json(json!({ "data": { "ok": true } }))
+            })
+            .mount(&server_b)
+            .await;
+
+        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30_000);
+        let val: serde_json::Value = lcd
+            .query_contract("terra1pair", &json!({"pair": {}}))
+            .await
+            .expect("infra 500 should fail over");
+        assert_eq!(val, json!({ "ok": true }));
+        assert_eq!(hits_b.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn gateway_502_cools_down_and_fails_over() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use wiremock::matchers::path_regex;
+
+        let server_a = MockServer::start().await;
+        let server_b = MockServer::start().await;
+        let hits_b = Arc::new(AtomicUsize::new(0));
+        let b = hits_b.clone();
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(ResponseTemplate::new(502).set_body_string("bad gateway"))
+            .mount(&server_a)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(move |_req: &wiremock::Request| {
+                b.fetch_add(1, Ordering::SeqCst);
+                ResponseTemplate::new(200).set_body_json(json!({ "data": { "ok": true } }))
+            })
+            .mount(&server_b)
+            .await;
+
+        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 60_000);
+        let val: serde_json::Value = lcd
+            .query_contract("terra1pair", &json!({"pair": {}}))
+            .await
+            .expect("502 should fail over");
+        assert_eq!(val, json!({ "ok": true }));
+        assert_eq!(hits_b.load(Ordering::SeqCst), 1);
     }
 }
