@@ -64,7 +64,11 @@ import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
-import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
+import {
+  getDirectHybridBookSplit,
+  getDirectHybridSettingsExecutionSummary,
+  getIndexerHybridExecutionSummary,
+} from '@/utils/swapDisclosure'
 import {
   computeSwapRouteDisplay,
   deriveSwapSubmitRouteOps,
@@ -883,6 +887,12 @@ export default function SwapPage() {
     [simData?.indexerQuoteKind]
   )
 
+  /** Settings hybrid Execution block; silent when hybrid on + empty manual book (#492). */
+  const directHybridSettingsExec = useMemo(
+    () => getDirectHybridSettingsExecutionSummary(directHybridBookSplit),
+    [directHybridBookSplit]
+  )
+
   /** One execution-aligned path for the trade summary (GitLab #158 — never duplicate indexer vs client labels). */
   const swapRouteLine = useMemo(
     () =>
@@ -1377,7 +1387,7 @@ export default function SwapPage() {
           </div>
 
           <div className="mb-4 space-y-2">
-            {simData && (indexerHybridExec.show || directHybridBookSplit) && (
+            {simData && (indexerHybridExec.show || directHybridSettingsExec.show) && (
               <div
                 data-testid="swap-execution-summary"
                 className="card-glass text-[11px] sm:text-xs leading-relaxed space-y-2"
@@ -1392,42 +1402,29 @@ export default function SwapPage() {
                     <p>{indexerHybridExec.line}</p>
                   </div>
                 )}
-                {directHybridBookSplit && (
+                {directHybridSettingsExec.show && (
                   <div>
                     <p className="uppercase tracking-wide font-semibold mb-0.5" style={{ color: 'var(--ink-subtle)' }}>
                       {indexerHybridExec.show ? 'Settings — direct pay split' : 'Execution'}
                     </p>
-                    {directHybridBookSplit.bookExceedsPay && (
+                    {directHybridSettingsExec.variant === 'book_exceeds_pay' && (
                       <p className="font-medium" style={{ color: 'var(--color-negative)' }}>
-                        Book leg is larger than your pay amount.
+                        {directHybridSettingsExec.line}
                       </p>
                     )}
-                    {!directHybridBookSplit.bookExceedsPay && directHybridBookSplit.willSubmitHybrid && (
+                    {directHybridSettingsExec.variant === 'hybrid_manual_split' && (
                       <>
                         <p style={{ color: 'var(--ink)' }}>
-                          <span className="font-semibold">Hybrid (pool + limit book)</span> — pool{' '}
-                          {directHybridBookSplit.poolHuman} · book {directHybridBookSplit.bookHuman}{' '}
-                          {getTokenDisplaySymbol(fromToken)}
+                          <span className="font-semibold">Hybrid</span> — pool {directHybridSettingsExec.poolHuman} ·
+                          book {directHybridSettingsExec.bookHuman} {getTokenDisplaySymbol(fromToken)}
                         </p>
                         <p className="text-[10px] font-mono" style={{ color: 'var(--ink-subtle)' }}>
-                          {directHybridBookSplit.poolRaw} (pool raw) · {directHybridBookSplit.bookRaw} (book raw)
+                          {directHybridSettingsExec.poolRaw} (pool raw) · {directHybridSettingsExec.bookRaw} (book raw)
                         </p>
                       </>
                     )}
-                    {!directHybridBookSplit.bookExceedsPay && !directHybridBookSplit.willSubmitHybrid && (
-                      <>
-                        {BigInt(directHybridBookSplit.bookRaw) > 0n ? (
-                          <p style={{ color: 'var(--color-warning, #f59e0b)' }}>
-                            Book leg is set, but the hybrid path will not be submitted. Set{' '}
-                            <strong>max distinct makers</strong> to at least 1.
-                          </p>
-                        ) : (
-                          <p style={{ color: 'var(--ink)' }}>
-                            <span className="font-semibold">Pool only</span> — add a book leg in Settings to use the
-                            on-chain book for part of the pay.
-                          </p>
-                        )}
-                      </>
+                    {directHybridSettingsExec.variant === 'max_makers_blocked' && (
+                      <p style={{ color: 'var(--color-warning, #f59e0b)' }}>{directHybridSettingsExec.line}</p>
                     )}
                   </div>
                 )}
