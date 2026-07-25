@@ -64,6 +64,69 @@ export function getDirectHybridBookSplit(input: {
   }
 }
 
+/**
+ * Retail Execution block for Swap Settings hybrid split (GitLab #492).
+ * Silence when hybrid Settings are on but the manual book leg is empty — do not tell
+ * users to “add a book leg” (feature already enabled; pool-only is expected).
+ */
+export type DirectHybridSettingsExecutionSummary =
+  | { show: false }
+  | {
+      show: true
+      variant: 'book_exceeds_pay' | 'hybrid_manual_split' | 'max_makers_blocked'
+      tone: 'negative' | 'neutral' | 'warning'
+      /** Short retail line; hybrid_manual_split uses pool/book amounts instead. */
+      line?: string
+      poolHuman?: string
+      bookHuman?: string
+      poolRaw?: string
+      bookRaw?: string
+    }
+
+/**
+ * Display helper for the Swap Settings → Execution hybrid split block.
+ *
+ * Invariants (#492, cognitive load):
+ * - Hybrid Settings on + empty manual book (`bookRaw === 0`, `!willSubmitHybrid`) → `{ show: false }`
+ *   (no “Pool only — add a book leg…” copy; silence over instructional fluff).
+ * - Keep short warnings only for actionable errors (book > pay, max makers &lt; 1).
+ */
+export function getDirectHybridSettingsExecutionSummary(
+  split: DirectHybridBookSplit | null
+): DirectHybridSettingsExecutionSummary {
+  if (!split) return { show: false }
+  if (split.bookExceedsPay) {
+    return {
+      show: true,
+      variant: 'book_exceeds_pay',
+      tone: 'negative',
+      line: 'Book leg is larger than your pay amount.',
+    }
+  }
+  if (split.willSubmitHybrid) {
+    return {
+      show: true,
+      variant: 'hybrid_manual_split',
+      tone: 'neutral',
+      poolHuman: split.poolHuman,
+      bookHuman: split.bookHuman,
+      poolRaw: split.poolRaw,
+      bookRaw: split.bookRaw,
+    }
+  }
+  const book = tryParseBigInt(split.bookRaw)
+  if (book !== null && book > 0n) {
+    return {
+      show: true,
+      variant: 'max_makers_blocked',
+      tone: 'warning',
+      line: 'Set max distinct makers to at least 1.',
+    }
+  }
+  // Hybrid on, empty manual book → pool-only path; no Execution notice (#492).
+  return { show: false }
+}
+
 export type IndexerHybridExecution = {
   show: true
   title: 'Limit book + pool'

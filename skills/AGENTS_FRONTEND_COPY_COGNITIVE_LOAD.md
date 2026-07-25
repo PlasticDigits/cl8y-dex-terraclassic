@@ -11,6 +11,7 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
 5. **Keep** safety gates, risk acknowledgement (`NFA_SHORT`), and accurate error *conditions* — only shorten wording.
 6. Prefer progressive disclosure (`<details>Signing details</details>`) over always-on grids.
 7. **Docs link never replaces blocking errors** — optional depth only; do not remove risk ack, required footer, or trust-boundary warnings to save space.
+8. **Silence over instructional fluff** — if Settings already enable a feature, do not add Execution copy telling the user to enable it. Example: hybrid on + empty Swap book leg → no “add a book leg” notice ([GitLab **#492**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/492), [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)).
 
 ## QuickSwap-aligned Limits IA
 
