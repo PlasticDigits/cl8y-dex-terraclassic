@@ -53,6 +53,9 @@ function TokenLabel({ tokenId }: { tokenId: string }) {
  * Searchable token combobox for Swap (GitLab #481).
  * Client-side filter only — token universe is the `tokens` prop (factory graph).
  * Mint and other small lists keep {@link TokenSelect}.
+ *
+ * Layout stability (GitLab #498): keep the leading logo + reserved padding while open,
+ * and keep the selected label visible until the user edits (no empty flash / CLS).
  */
 export function TokenSearchSelect({
   value,
@@ -72,7 +75,8 @@ export function TokenSearchSelect({
   const listId = useId()
 
   const [open, setOpen] = useState(false)
-  const [searchText, setSearchText] = useState('')
+  /** null = not editing yet (show selected label even while open — avoids empty flash, GitLab #498). */
+  const [queryDraft, setQueryDraft] = useState<string | null>(null)
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const activeIndexRef = useRef(0)
@@ -81,6 +85,8 @@ export function TokenSearchSelect({
 
   const selectedInfo = useMemo(() => (value ? tokenAssetInfo(value) : null), [value])
   const { displayLabel: selectedLabel } = useTokenDisplayInfo(selectedInfo)
+
+  const searchText = queryDraft ?? ''
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(normalizeTokenSearchQuery(searchText)), TOKEN_SEARCH_DEBOUNCE_MS)
@@ -92,7 +98,8 @@ export function TokenSearchSelect({
   }, [activeIndex])
 
   const queryReady = isTokenSearchQueryReady(debouncedSearch)
-  const inputValue = open ? searchText : selectedLabel
+  // Closed, or open before first keystroke: keep the selected symbol visible (GitLab #498).
+  const inputValue = queryDraft !== null ? queryDraft : selectedLabel
 
   const options = useMemo(() => {
     if (tokens.length === 0) return [] as string[]
@@ -122,7 +129,7 @@ export function TokenSearchSelect({
 
   const close = useCallback(() => {
     setOpen(false)
-    setSearchText('')
+    setQueryDraft(null)
     setDebouncedSearch('')
   }, [])
 
@@ -201,8 +208,15 @@ export function TokenSearchSelect({
   return (
     <div ref={rootRef} className={`token-select-root ${rootClassName}`}>
       <div className="relative w-full">
-        {!open && selectedLogo ? (
-          <span className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2" aria-hidden>
+        {/* Keep logo + padding while open so open/close does not shift trigger text (GitLab #498). */}
+        {selectedLogo ? (
+          <span
+            className={`token-select-leading-logo pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2${
+              open && queryDraft !== null ? ' opacity-50' : ''
+            }`}
+            aria-hidden
+            data-testid="token-search-leading-logo"
+          >
             <TokenLogo
               size={22}
               logoURI={selectedLogo.logoURI}
@@ -216,7 +230,7 @@ export function TokenSearchSelect({
           type="text"
           id={id}
           role="combobox"
-          className={`token-select-trigger w-full${!open && selectedLogo ? ' !pl-11' : ''}`}
+          className={`token-select-trigger w-full${selectedLogo ? ' token-select-trigger--with-leading-logo' : ''}`}
           aria-label={ariaLabel}
           aria-autocomplete="list"
           aria-expanded={open}
@@ -227,12 +241,16 @@ export function TokenSearchSelect({
           value={inputValue}
           maxLength={TOKEN_SEARCH_MAX_QUERY_LENGTH}
           onChange={(e) => {
-            setSearchText(e.target.value.slice(0, TOKEN_SEARCH_MAX_QUERY_LENGTH))
+            setQueryDraft(e.target.value.slice(0, TOKEN_SEARCH_MAX_QUERY_LENGTH))
             if (!open) setOpen(true)
           }}
           onFocus={() => {
             if (!canOpen) return
             setOpen(true)
+            // Select label so the next keystroke replaces it without an empty-content flash (#498).
+            requestAnimationFrame(() => {
+              inputRef.current?.select()
+            })
           }}
           onKeyDown={handleInputKeyDown}
           onBlur={() => {
