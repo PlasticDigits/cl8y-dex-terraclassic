@@ -26,9 +26,7 @@ test.describe('Limit orders page', () => {
     await expect(placeCard.getByRole('button', { name: /Connect Wallet/i })).toBeVisible()
   })
 
-  test('shows ladder create options when Ladder selected while disconnected (GitLab #494)', async ({
-    page,
-  }) => {
+  test('shows ladder create options when Ladder selected while disconnected (GitLab #494)', async ({ page }) => {
     await page.goto('/limits')
     await page.waitForLoadState('networkidle')
     const pairControl = page.locator('#limit-pair')
@@ -47,5 +45,4 @@ test.describe('Limit orders page', () => {
     await expect(placeCard.getByTestId('ladder-total-amount')).toBeVisible()
     await expect(placeCard.getByTestId('ladder-place-submit')).toHaveTextContent(/Connect Wallet/i)
   })
-
 })

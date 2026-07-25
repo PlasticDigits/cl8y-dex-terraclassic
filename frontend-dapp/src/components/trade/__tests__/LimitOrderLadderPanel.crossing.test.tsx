@@ -50,7 +50,6 @@ vi.mock('@/hooks/useTradeBestBookPrices', () => ({
   useTradeBestBookPrices: () => bestBookMock(),
 }))
 
-
 const connectedPanelProps = {
   pairAddress: PAIR,
   walletAddress: 'terra1wallet000000000000000000000000001',
@@ -75,9 +74,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
 
   it('blocks bid ladder when rungs cross best ask', async () => {
     const user = userEvent.setup()
-    renderWithProviders(
-      <LimitOrderLadderPanel {...connectedPanelProps} />
-    )
+    renderWithProviders(<LimitOrderLadderPanel {...connectedPanelProps} />)
 
     await user.clear(screen.getByTestId('ladder-start-price'))
     await user.type(screen.getByTestId('ladder-start-price'), '2')
@@ -93,9 +90,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
 
   it('blocks ask ladder when rungs cross best bid', async () => {
     const user = userEvent.setup()
-    renderWithProviders(
-      <LimitOrderLadderPanel {...connectedPanelProps} />
-    )
+    renderWithProviders(<LimitOrderLadderPanel {...connectedPanelProps} />)
 
     await user.click(screen.getByRole('radio', { name: /Sell CORAL/i }))
     await user.clear(screen.getByTestId('ladder-start-price'))
@@ -120,9 +115,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
     })
 
     const user = userEvent.setup()
-    renderWithProviders(
-      <LimitOrderLadderPanel {...connectedPanelProps} refToken1PerToken0={1.1} />
-    )
+    renderWithProviders(<LimitOrderLadderPanel {...connectedPanelProps} refToken1PerToken0={1.1} />)
 
     await user.clear(screen.getByTestId('ladder-start-price'))
     await user.type(screen.getByTestId('ladder-start-price'), '15')
@@ -137,9 +130,7 @@ describe('LimitOrderLadderPanel crossing guard (GitLab #297)', () => {
   })
 
   it('allows non-crossing bid ladder within spread', async () => {
-    renderWithProviders(
-      <LimitOrderLadderPanel {...connectedPanelProps} />
-    )
+    renderWithProviders(<LimitOrderLadderPanel {...connectedPanelProps} />)
 
     await waitFor(() => {
       expect(screen.queryByTestId('ladder-crossing-guard')).not.toBeInTheDocument()

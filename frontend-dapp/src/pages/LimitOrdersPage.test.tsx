@@ -184,7 +184,6 @@ describe('LimitOrdersPage', () => {
     expect(single).toHaveClass('btn-muted')
   })
 
-
   it('shows ladder create panel when Ladder mode selected while disconnected (GitLab #494)', async () => {
     const user = userEvent.setup()
     useWalletStore.setState({ address: null, walletType: null, error: null })
