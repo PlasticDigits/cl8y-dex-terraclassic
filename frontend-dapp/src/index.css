@@ -522,9 +522,7 @@
     gap: 0.5rem;
     border-top: 1px solid var(--line);
     /* Strong panel over solid underlay — content must never read through the CTA. */
-    background:
-      var(--panel-bg-strong),
-      var(--bg-1);
+    background: var(--panel-bg-strong), var(--bg-1);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
     isolation: isolate;
