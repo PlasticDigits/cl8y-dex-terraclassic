@@ -146,6 +146,25 @@ describe('TokenSearchSelect (GitLab #481)', () => {
     expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toBeDisabled()
   })
 
+  it('keeps leading logo and selected label on open without editing (GitLab #498)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    renderWithProviders(
+      <TokenSearchSelect value={EMBER_ADDR} tokens={tokens} onChange={vi.fn()} aria-label="Select token you pay" />
+    )
+
+    const input = screen.getByRole('combobox', { name: 'Select token you pay' })
+    expect(screen.getByTestId('token-search-leading-logo')).toBeInTheDocument()
+    expect(input).toHaveClass('token-select-trigger--with-leading-logo')
+    expect(input).toHaveValue('EMBER')
+
+    await user.click(input)
+    await screen.findByRole('listbox', { name: 'Select token you pay' })
+
+    expect(screen.getByTestId('token-search-leading-logo')).toBeInTheDocument()
+    expect(input).toHaveClass('token-select-trigger--with-leading-logo')
+    expect(input).toHaveValue('EMBER')
+  })
+
   it('renders XSS-looking metadata as plain text only', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     const evil = 'terra1evil000000000000000000000000000000001'

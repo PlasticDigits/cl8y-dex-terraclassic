@@ -347,6 +347,22 @@
       0 0 0 2px transparent;
   }
 
+  /*
+   * TokenSearchSelect: reserved leading logo + padding while open/closed so mobile
+   * open/focus does not shift the symbol text (GitLab #498).
+   */
+  .token-select-leading-logo {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .token-select-trigger.token-select-trigger--with-leading-logo {
+    padding-left: 2.75rem; /* 44px — left-3 + 22px logo + gap; overrides pl-3/sm:pl-4 */
+  }
+
   .token-select-trigger:focus {
     outline: none;
   }
@@ -389,6 +405,8 @@
     box-shadow: var(--shadow-menu);
     backdrop-filter: blur(20px);
     z-index: 200;
+    /* Avoid option-text horizontal jump when the list becomes scrollable (GitLab #498). */
+    scrollbar-gutter: stable;
     /* Match page theme for portaled listbox <button> rows (avoids light “system” button surfaces in dark mode). */
     color-scheme: inherit;
   }
