@@ -791,6 +791,22 @@ Retail trade IA for Swap vs Trade vs Limits and calmer first paint on `/trade` (
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
+### Trade page — limit ticket sticky CTA {#trade-page-limit-ticket-sticky-cta}
+
+Pinned **Place limit** / **Update price** on the `/trade` order ticket must stay usable without reading as a glitch when the ticket scrollport is not at the bottom ([GitLab **#500**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500); same opacity class as sticky header [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482)):
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Sticky CTA kept** | `data-testid="trade-limit-submit-sticky"` remains `position: sticky; bottom: 0` inside the ticket scrollport so the money CTA stays visible (#348). When fully scrolled, it settles in-flow above **My open limits**. |
+| **Opaque sticky chrome** | `.trade-limit-submit-sticky` uses layered `var(--panel-bg-strong), var(--bg-1)` (+ backdrop blur). Do **not** use missing tokens (e.g. `--card`) or translucent mixes that let ADVANCED / fee rows bleed through the button. |
+| **Guards in document flow** | Price / escrow / gas / crossing banners (`LimitOrderEscrowPlaceGuardMessage`, `trade-limit-inline-guards`) render **above** the sticky footer in normal flow — never inside the sticky chrome where they can cover expiry / date inputs. |
+| **Scroll clearance** | `.trade-order-ticket-scroll` applies `--trade-limit-sticky-clearance` end padding / `scroll-padding-bottom` so expiry chips, datetime, and ADVANCED can scroll clear of the pinned footer. |
+| **Sticky payload** | Sticky chrome holds the CTA, broadcast pending link, and tx result alerts only. |
+
+Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), styles in [`index.css`](../frontend-dapp/src/index.css). Verify: `TradePage.test.tsx` (#500 DOM order) and `e2e/trade-page-responsive.spec.ts` (opaque hit-test + expiry clears footer).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](../skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md).
+
 ### Trade page — pair switch latency {#trade-page-pair-switch-latency}
 
 Pair selector changes must feel responsive on `/trade` ([GitLab **#180**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/180), W13-C2). Prior behavior waited for **`getPair`** before mounting **`PriceChart`**, serializing candle loads (~8–10s on local indexers) with no loading affordance.
