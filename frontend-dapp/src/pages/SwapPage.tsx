@@ -104,9 +104,11 @@ import {
 } from '@/utils/swapRouteSlippage'
 import {
   formatTransactionDeadline,
+  HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT,
   ROUTE_EXECUTION_SLIPPAGE_LABEL,
   ROUTE_EXECUTION_SLIPPAGE_TOOLTIP,
   SLIPPAGE_PROTECTION_LABEL,
+  SLIPPAGE_TOLERANCE_PRESETS_PERCENT,
   TRANSACTION_DEADLINE_LABEL,
 } from '@/utils/slippageProtectionCopy'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
@@ -1111,7 +1113,7 @@ export default function SwapPage() {
               <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
                 <p className="label-glass mb-3">{SLIPPAGE_PROTECTION_LABEL}</p>
                 <div className="flex flex-wrap gap-2">
-                  {[0.1, 0.5, 1.0].map((val) => (
+                  {SLIPPAGE_TOLERANCE_PRESETS_PERCENT.map((val) => (
                     <button
                       key={val}
                       onClick={() => handleSlippagePreset(val)}
@@ -1150,7 +1152,7 @@ export default function SwapPage() {
                     Must be between 0.01% and 50%
                   </p>
                 )}
-                {!customSlippageError && slippageTolerance > 5 && (
+                {!customSlippageError && slippageTolerance > HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT && (
                   <p
                     className="mt-2 text-xs font-semibold uppercase tracking-wide"
                     style={{ color: 'var(--color-warning, #f59e0b)' }}
