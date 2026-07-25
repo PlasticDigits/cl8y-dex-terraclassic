@@ -99,6 +99,10 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   if (/assert_deadline|deadline exceeded/i.test(inner)) {
     return 'Transaction took too long to confirm and the deadline was reached. Try again.'
   }
+  if (/account sequence mismatch|incorrect account sequence/i.test(inner)) {
+    // Short retail copy after shared broadcast already retried once ([GitLab #499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499), [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)).
+    return 'Wallet out of sync. Try again.'
+  }
   if (/InvariantViolation/i.test(inner)) {
     return 'Pool state inconsistency detected. Refresh the page and try again. If this keeps happening, the pool may need operator attention.'
   }
