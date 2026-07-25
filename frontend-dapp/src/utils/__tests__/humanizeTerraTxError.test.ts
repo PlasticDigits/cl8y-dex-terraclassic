@@ -152,6 +152,18 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
     })
   })
 
+  describe('account sequence mismatch (GitLab #499)', () => {
+    it('maps code-32 copy to a short retail sentence', () => {
+      const raw = 'account sequence mismatch, expected 133, got 121: incorrect account sequence'
+      expect(tryHumanizeTerraTxMessage(raw)).toBe('Wallet out of sync. Try again.')
+    })
+
+    it('maps nested Transaction failed prefixes', () => {
+      const raw = 'Transaction failed: account sequence mismatch, expected 2, got 3: incorrect account sequence'
+      expect(tryHumanizeTerraTxMessage(raw)).toBe('Wallet out of sync. Try again.')
+    })
+  })
+
   describe('InvariantViolation', () => {
     it('matches pending-escrow invariant violation', () => {
       const raw =

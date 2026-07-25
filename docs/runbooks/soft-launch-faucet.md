@@ -30,6 +30,7 @@ Operator path to deploy the **non-economic soft-launch CW20 faucet**, grant mint
 | **F11** | Frontend exposes Mint nav only when `VITE_FAUCET_ADDRESS` is set. |
 | **F12** | User pays LUNC gas for `Drip` (no sponsored meta-tx). |
 | **F13** | dApp fee envelope for `{ drip }` is **`FAUCET_DRIP_GAS_LIMIT` (400k)** in [`terraGas.ts`](../../frontend-dapp/src/services/terraclassic/terraGas.ts) — must not fall through to **`BASE_GAS_LIMIT` (200k)** ([#474](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/474) / [#475](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/475)). Verify: `make verify-issue-475`. |
+| **F14** | Mint drip uses the shared broadcast path: refresh account sequence at sign time, auto-retry **once** on Cosmos code-32 sequence mismatch, then short retail copy (**`Wallet out of sync. Try again.`**) — not raw CheckTx text ([#499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)). Invariants: [docs/frontend.md § Transaction broadcast](../frontend.md#terra-tx-broadcast-timeout); playbooks [`AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](../../skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md), [`AGENTS_SOFT_LAUNCH_FAUCET.md`](../../skills/AGENTS_SOFT_LAUNCH_FAUCET.md). |
 
 Soft-launch **SL1–SL7** remain in force; this faucet does not change factory whitelist or fee tiers.
 

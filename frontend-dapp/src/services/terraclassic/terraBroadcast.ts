@@ -9,8 +9,10 @@ import {
   bumpWalletCachedSequence,
   isAtomicWalletConnectPost,
   signTerraTxRaw,
+  type SignTerraTxRawOptions,
   walletSupportsSplitSignBroadcast,
 } from '@/services/terraclassic/terraWalletSignTxRaw'
+import { planAccountSequenceRetry } from '@/utils/terraAccountSequence'
 import { resolveTerraTxRecoveryDeadlineUnix } from '@/utils/terraMsgDeadline'
 import { tryHumanizeTerraTxMessage } from '@/utils/humanizeTerraTxError'
 import {
@@ -132,16 +134,19 @@ async function recoverPostSignBroadcast(
   return txHash
 }
 
-async function broadcastSignedSplitPath(
+async function broadcastSignedSplitPathAttempt(
   wallet: ConnectedWallet,
   unsignedTx: UnsignedTx,
   fee: ReturnType<typeof buildTerraClassicFee>,
   entries: TerraExecuteContractEntry[],
-  onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
+  onPhaseChange: TerraBroadcastOptions['onPhaseChange'] | undefined,
+  signOptions?: SignTerraTxRawOptions
 ): Promise<string> {
   onPhaseChange?.('signing')
 
-  const { txRaw, txHash, sequence } = await withTerraWalletSignLock(() => signTerraTxRaw(wallet, unsignedTx, fee))
+  const { txRaw, txHash, sequence } = await withTerraWalletSignLock(() =>
+    signTerraTxRaw(wallet, unsignedTx, fee, signOptions)
+  )
 
   onPhaseChange?.('broadcasting')
 
@@ -180,13 +185,39 @@ async function broadcastSignedSplitPath(
   return txHash
 }
 
-async function broadcastAtomicWalletPath(
+/**
+ * Split-path sign+broadcast with one automatic re-sign on Cosmos code-32 sequence mismatch ([GitLab #499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)).
+ * First attempt refreshes sequence from chain; retry uses the CheckTx-expected sequence when parseable.
+ */
+async function broadcastSignedSplitPath(
   wallet: ConnectedWallet,
   unsignedTx: UnsignedTx,
   fee: ReturnType<typeof buildTerraClassicFee>,
+  entries: TerraExecuteContractEntry[],
   onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
 ): Promise<string> {
+  try {
+    return await broadcastSignedSplitPathAttempt(wallet, unsignedTx, fee, entries, onPhaseChange, {
+      useCachedSequence: false,
+    })
+  } catch (error: unknown) {
+    const retry = planAccountSequenceRetry(wallet, error)
+    if (!retry) throw error
+    return broadcastSignedSplitPathAttempt(wallet, unsignedTx, fee, entries, onPhaseChange, retry)
+  }
+}
+
+async function broadcastAtomicWalletPathAttempt(
+  wallet: ConnectedWallet,
+  unsignedTx: UnsignedTx,
+  fee: ReturnType<typeof buildTerraClassicFee>,
+  onPhaseChange: TerraBroadcastOptions['onPhaseChange'] | undefined,
+  /** When true, keep code-32 expected sequence in cache; otherwise refresh from chain. */
+  useCachedSequence: boolean
+): Promise<string> {
   onPhaseChange?.('signing')
+  // cosmes `broadcastTx` reads getAuthInfo(true); seed cache first (#499).
+  await wallet.getAuthInfo(useCachedSequence)
   const txHash = await withTerraWalletSignLock(() => {
     onPhaseChange?.('broadcasting')
     return withPromiseTimeout(
@@ -205,6 +236,22 @@ async function broadcastAtomicWalletPath(
   }
 
   return txHash
+}
+
+/** Atomic WC/extension path: refresh sequence, then one code-32 re-broadcast ([GitLab #499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)). */
+async function broadcastAtomicWalletPath(
+  wallet: ConnectedWallet,
+  unsignedTx: UnsignedTx,
+  fee: ReturnType<typeof buildTerraClassicFee>,
+  onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
+): Promise<string> {
+  try {
+    return await broadcastAtomicWalletPathAttempt(wallet, unsignedTx, fee, onPhaseChange, false)
+  } catch (error: unknown) {
+    const retry = planAccountSequenceRetry(wallet, error)
+    if (!retry) throw error
+    return broadcastAtomicWalletPathAttempt(wallet, unsignedTx, fee, onPhaseChange, retry.useCachedSequence)
+  }
 }
 
 /**

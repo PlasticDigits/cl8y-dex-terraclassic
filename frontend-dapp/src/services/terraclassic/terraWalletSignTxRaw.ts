@@ -126,16 +126,26 @@ export type SignedTerraTxRaw = {
   sequence: bigint
 }
 
+export type SignTerraTxRawOptions = {
+  /**
+   * When true, use the wallet's cached account sequence (after code-32 expected sequence applied).
+   * Default refreshes from chain so concurrent signers do not reuse a stale page-load sequence ([GitLab #499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)).
+   */
+  useCachedSequence?: boolean
+}
+
 /**
  * Sign execute-contract msgs without broadcasting — enables post-sign recovery when RPC hangs (GitLab #359).
+ * Account sequence is refreshed from chain unless `useCachedSequence` is set (#499).
  */
 export async function signTerraTxRaw(
   wallet: ConnectedWallet,
   unsignedTx: UnsignedTx,
-  fee: Fee
+  fee: Fee,
+  options?: SignTerraTxRawOptions
 ): Promise<SignedTerraTxRaw> {
   const w = wallet as SplittableWallet
-  const { accountNumber, sequence } = await wallet.getAuthInfo(true)
+  const { accountNumber, sequence } = await wallet.getAuthInfo(options?.useCachedSequence === true)
 
   const tx = new Tx({
     chainId: wallet.chainId,
