@@ -24,6 +24,7 @@ Use when changing **`Layout.tsx`**, **primary / More nav items**, **`HEADER_FULL
 6. **Footer environment ribbon:** keep `.app-env-ribbon` inside `footer.app-footer-shell` on **all** breakpoints (including mobile above the bottom tab bar). Do **not** move it back under `.app-top-sticky` without updating docs, skills, and `navigation.spec.ts`.
 7. **Sticky header density:** prefer compact header margin/padding/brand mark; Trade H1 should clear `.app-top-sticky` by **≥ ~16px** at `scrollY=0`. Keep sticky stack opaque (`var(--bg-0)`).
 8. **Header menus:** with the ribbon in the footer, open More / wallet menus no longer compete with a under-header ribbon band (historical [#486](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/486)). Still keep menus clickable and below modal portals (`z-index: 200`).
+9. **Trade ticket sticky CTA** is a separate surface (`.trade-limit-submit-sticky`) with the same opacity intent — see [`AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](./AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) ([#500](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500)).
 
 ## Related
 
@@ -32,5 +33,6 @@ Use when changing **`Layout.tsx`**, **primary / More nav items**, **`HEADER_FULL
 - Theme toggle (header vs mobile More): [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md)
 - Environment ribbon / risk strip: [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138))
 - Trade page tablet grid (`/trade`): [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
+- Trade limit sticky CTA opacity / clearance: [`AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](./AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) ([#500](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500))
 - Keyboard focus rings / WCAG 2.4.7: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - Production build / source maps: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)

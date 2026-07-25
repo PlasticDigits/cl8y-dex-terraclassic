@@ -605,17 +605,19 @@ export default function LimitOrdersPage() {
                     Ladder
                   </button>
                 </div>
-                {placeMode === 'ladder' && selectedPair && address && (
+                {placeMode === 'ladder' && selectedPair && (
                   <LimitOrderLadderPanel
                     pairAddress={pairAddr}
                     walletAddress={address}
+                    isWalletConnected={isWalletConnected}
+                    openWalletModal={openWalletModal}
                     escrowToken={escrowToken}
                     escrowDecimals={escrowDecimals}
                     token0Symbol={token0Display}
                     token1Symbol={token1Display}
                     refToken1PerToken0={refToken1PerToken0}
                     refResolutionLoading={refResolutionLoading}
-                    disabled={!isWalletConnected || isTradeBlocked}
+                    disabled={isTradeBlocked}
                     onPlaced={(ids) => {
                       if (ids.length > 0) setLastIndexedOrderId(Math.max(...ids))
                     }}

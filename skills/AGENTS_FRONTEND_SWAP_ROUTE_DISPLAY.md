@@ -32,13 +32,13 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | **Swap** indexer route reconciliation (#450) | Same file — `data-testid="swap-route-intermediate-reconciled"` when `intermediate_tokens` disagreed with `router_operations` |
 | **Swap** direct-hybrid amount reconciliation (#471) | [`directHybridQuote.ts`](../frontend-dapp/src/utils/directHybridQuote.ts) — wallet `hybrid_simulation` receive + slippage; `data-testid="swap-direct-hybrid-amount-reconciled"` when indexer `estimated_amount_out` disagreed; Trade market: `trade-market-amount-reconciled` |
 | **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches; pay amount and quote fields from `useSubmitAlignedSimQuote` (**#356**) |
-| **Swap Settings — retail vs Advanced (#413)** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — default panel: slippage, transaction deadline, Expert Mode (`#swap-slippage-settings`). Integrator controls (hybrid book leg, indexer route check) live in collapsible **Advanced** via [`SwapAdvancedSettings.tsx`](../frontend-dapp/src/components/swap/SwapAdvancedSettings.tsx); collapsed by default; expand persisted in `localStorage` ([`swapSettingsAdvanced.ts`](../frontend-dapp/src/utils/swapSettingsAdvanced.ts)). `data-testid`s: `swap-advanced-settings`, `swap-advanced-settings-toggle`, `swap-expert-mode-toggle`. |
+| **Swap Settings — retail vs Advanced (#413)** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — default panel: slippage, transaction deadline, Expert Mode (`#swap-slippage-settings`). Integrator controls (hybrid book leg, indexer route check) live in collapsible **Advanced** via [`SwapAdvancedSettings.tsx`](../frontend-dapp/src/components/swap/SwapAdvancedSettings.tsx); collapsed by default; expand persisted in `localStorage` ([`swapSettingsAdvanced.ts`](../frontend-dapp/src/utils/swapSettingsAdvanced.ts)). `data-testid`s: `swap-advanced-settings`, `swap-advanced-settings-toggle`, `swap-expert-mode-toggle`. Default slippage **5%** + presets: [`AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](./AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) (#497). |
 | **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote"` |
 | **Trade market** quote source | Same file — `simQuery` calls [`quoteDirectHybridSwap`](../frontend-dapp/src/utils/directHybridQuote.ts) when hybrid on (`useHybridBook` + `willSubmitHybrid`); indexer `POST /route/solve` then LCD `hybrid_simulation` — **no pool-only fallback** when submit is hybrid ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418)) |
 | **Swap direct hybrid quote ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418))** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — `useHybridBook` default **on**; manual book leg uses same `quoteDirectHybridSwap` helper; removed `receiveQuoteIsPoolOnlyWithConfiguredBookLeg` mismatch UI |
 | **Shared hybrid quote helper** | [`directHybridQuote.ts`](../frontend-dapp/src/utils/directHybridQuote.ts) — `quoteDirectHybridSwap`, `quoteDisclosureForIndexerKind`, `DIRECT_HYBRID_AMOUNT_RECONCILED_COPY` |
 | **Quote debounce ([#346](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/346))** | Swap + Trade market sim queries debounce pay amount and hybrid book leg (**350ms**, `useDebouncedValue`) and use `placeholderData: keepPreviousData` — see [`quoteDebounce.ts`](../frontend-dapp/src/utils/quoteDebounce.ts) |
-| **Sim refetch / Calculating hang ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484))** | Use [`simQuoteRefetchInterval`](../frontend-dapp/src/utils/quoteDebounce.ts) (skip while `fetchStatus === 'fetching'`). Swap receive uses [`shouldShowSimReceiveCalculating`](../frontend-dapp/src/utils/quoteDebounce.ts) so background refetch keeps the prior amount. Indexer `getRouteSolve` uses a longer timeout + React Query `signal`. Full checklist: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md). |
+| **Sim refetch / Calculating hang ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484)) + stale receive on pay change ([#496](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/496))** | Use [`simQuoteRefetchInterval`](../frontend-dapp/src/utils/quoteDebounce.ts) (skip while `fetchStatus === 'fetching'`). Swap/Trade receive uses [`shouldShowSimReceiveCalculating`](../frontend-dapp/src/utils/quoteDebounce.ts): keep prior amount on same-key background refetch (#484); show Calculating/Quoting when pay is debouncing or `isPlaceholderData` (#496). Indexer `getRouteSolve` uses a longer timeout + React Query `signal`. Full checklist: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md). |
 | **Submit–quote alignment ([#356](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/356), [#360](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/360))** | When submit is allowed, on-chain pay raw, `minReceived`, `indexerOperations`, hybrid params (`book_input`, `max_maker_fills`), and route display all come from one debounced snapshot via [`useSubmitAlignedSimQuote`](../frontend-dapp/src/hooks/useSubmitAlignedSimQuote.ts) + [`buildSubmitAlignedSimPayload`](../frontend-dapp/src/utils/quoteDebounce.ts). Submit stays disabled while typed raw ≠ debounced key, live book leg ≠ debounced book leg, live max makers ≠ snapshotted max makers, placeholder data is shown, or `simQuery.isFetching` for the active key. |
 | **Trade market** submit (must stay in sync with display) | Same file — `swapMutation` → `swapOpsRequireRouter` / `executeMultiHopSwap` or pair `swap` with hybrid; consumes `submitPayRaw` + matching `simData` from `useSubmitAlignedSimQuote` |
 
@@ -55,19 +55,19 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 ## Docs cross-links
 
-- **Sim quote refetch / Calculating hang (#484):** [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md).
+- **Sim quote refetch / Calculating hang (#484) + stale receive on pay change (#496):** [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md).
 - **Hybrid book leg amount input (no raw `BigInt` errors):** [GitLab **#169**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/169), [`AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md`](./AGENTS_FRONTEND_DECIMAL_AMOUNT_INPUT.md).
 - [`docs/swap-max-spread-ux.md`](../docs/swap-max-spread-ux.md) — frontend invariant **#6** (route preview) and price-impact context (**#134**).
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md#frontend-expectations-read-path) — indexer `router_operations` vs LCD spread preflight; GET `/route/solve` hybrid default ([GitLab **#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)).
 - [`docs/security-model.md`](../docs/security-model.md#off-chain-trust-boundaries-frontend) — indexer MITM / compromised route risks ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)).
 - [`docs/frontend.md`](../docs/frontend.md#swap-page-integration) — Swap page integration.
 - [`docs/frontend.md`](../docs/frontend.md#trade-page-market-context) — Trade market ticket + route preview (**#302**).
-- [`docs/frontend.md`](../docs/frontend.md#submit-quote-alignment--calculating-ux) — submit–quote alignment + Calculating UX (#356, #360, #484).
+- [`docs/frontend.md`](../docs/frontend.md#submit-quote-alignment--calculating-ux) — submit–quote alignment + Calculating UX (#356, #360, #484, #496).
 
 ## Related
 
 - Anti-cognitive-overload retail copy + Swap vs **Best Trade** disambiguation: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)); glossary: [`docs/design-system.md`](../docs/design-system.md#terminology-glossary)
-- Sim quote refetch / Calculating hang: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484))
+- Sim quote refetch / Calculating hang + stale receive on pay change: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484), [#496](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/496))
 
 ## Regression checklist (manual)
 
@@ -99,6 +99,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 14. **Swap on-chain match:** With settled quote at amount A, submit → on-chain pay matches displayed quote amount (tx / balance).
 15. **Trade market:** Repeat (12–13) on `/trade/:pairAddr` Market tab with hybrid on.
 16. **Refetch guard (#356 + #484):** With stable amount, during background sim refetch (`simQuery.isFetching`) → submit disabled until fetch completes. Receive field keeps the prior amount (`shouldShowSimReceiveCalculating`); must **not** pulse Calculating forever. Interval must use `simQuoteRefetchInterval` (no cancel/restart while still fetching).
+16b. **Pay change clears receive (#496):** Change pay amount or pay token → You Receive / Expected receive shows Calculating/Quoting (not the previous estimate) until the new debounced quote settles; same-input background refetch still keeps the prior amount (#484).
 17. **Max makers (#360):** With stable pay/book, change max maker fills → submit disabled until new sim settles.
 18. **Slow multihop (#484):** CW20 path with expensive indexer solve — quote settles or shows **Quote unavailable**; never infinite Calculating from overlapping 10s refetches.
 
@@ -110,7 +111,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 ## Related
 
 - Anti-cognitive-overload retail copy (Swap vs charts **Best Trade**): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)); glossary: [`docs/design-system.md`](../docs/design-system.md#terminology-glossary)
-- Sim quote refetch / Calculating hang: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484))
+- Sim quote refetch / Calculating hang + stale receive on pay change: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484), [#496](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/496))
 
 ## Closed scope (GitLab #302 / #329)
 
