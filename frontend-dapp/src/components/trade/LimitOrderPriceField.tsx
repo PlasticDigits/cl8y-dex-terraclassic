@@ -2,10 +2,11 @@ import { useId } from 'react'
 import { formatNum } from '@/utils/formatAmount'
 import {
   anchorUsdForLimitPrice,
+  formatLimitPriceDeviationChipLabel,
   isLimitPriceDirectionInvalid,
   LIMIT_PRICE_DEVIATION_CHIP_PRESETS,
   limitPriceDeviationPercent,
-  limitPriceFromRefDeviationPercent,
+  limitPriceFromRefDeviationChip,
   matchingLimitPriceDeviationChip,
   type LimitOrderPriceRefSource,
   parsePositivePriceHuman,
@@ -69,12 +70,10 @@ export function LimitOrderPriceInputWithContext({
   const dev = ref != null && limit != null ? limitPriceDeviationPercent(limit, ref) : null
   const invalid = ref != null && limit != null && side ? isLimitPriceDirectionInvalid(side, limit, ref) : false
   const usd = ref != null && limit != null ? anchorUsdForLimitPrice(limit, ref, tapeHeadlineUsd) : null
-  const activeChip = matchingLimitPriceDeviationChip(limit, ref)
+  const activeChip = matchingLimitPriceDeviationChip(side, limit, ref)
   const chipsDisabled = ref == null || !(ref > 0)
 
   const extremeValidDeviation = !invalid && dev != null && Math.abs(dev) >= 50
-
-  const chipLabel = (pct: number) => (pct > 0 ? `+${pct}%` : '0%')
 
   return (
     <div className="space-y-1.5">
@@ -117,10 +116,10 @@ export function LimitOrderPriceInputWithContext({
                 data-testid={`limit-order-price-chip-${pct}`}
                 onClick={() => {
                   if (ref == null || !(ref > 0)) return
-                  onPriceChange(limitPriceFromRefDeviationPercent(ref, pct))
+                  onPriceChange(limitPriceFromRefDeviationChip(side, ref, pct))
                 }}
               >
-                {chipLabel(pct)}
+                {formatLimitPriceDeviationChipLabel(side, pct)}
               </button>
             )
           })}

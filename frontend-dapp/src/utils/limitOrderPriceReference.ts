@@ -198,10 +198,45 @@ export function limitPriceDeviationPercent(limitHuman: number, refToken1PerToken
   return ((limitHuman - refToken1PerToken0) / refToken1PerToken0) * 100
 }
 
-/** Preset deviation chips on the limit rate row (#488). */
+/**
+ * Magnitude presets for deviation chips on the limit rate row (#488).
+ * Signs are side-aware via {@link signedLimitPriceDeviationPercent} (#495):
+ * bid → below ref, ask → above ref (equality remains invalid per #154).
+ */
 export const LIMIT_PRICE_DEVIATION_CHIP_PRESETS = [0, 1, 5, 10] as const
 
 export type LimitPriceDeviationChipPreset = (typeof LIMIT_PRICE_DEVIATION_CHIP_PRESETS)[number]
+
+/**
+ * Near-market epsilon (%) for the `0` magnitude chip so chip-selected prices stay
+ * strictly maker-side (bid below ref, ask above ref). Exact at-ref (`0%`) is invalid (#154/#495).
+ */
+export const LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT = 0.01
+
+/**
+ * Signed deviation % applied by a chip for the active side.
+ * Non-zero magnitudes flip sign for bids; magnitude `0` maps to ±{@link LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT}.
+ */
+export function signedLimitPriceDeviationPercent(
+  side: 'bid' | 'ask',
+  magnitudePercent: LimitPriceDeviationChipPreset
+): number {
+  if (magnitudePercent === 0) {
+    return side === 'bid' ? -LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT : LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT
+  }
+  return side === 'bid' ? -magnitudePercent : magnitudePercent
+}
+
+/** Chip label for the active side (`0%−` / `0%+`, then signed magnitudes). */
+export function formatLimitPriceDeviationChipLabel(
+  side: 'bid' | 'ask',
+  magnitudePercent: LimitPriceDeviationChipPreset
+): string {
+  if (magnitudePercent === 0) {
+    return side === 'bid' ? '0%−' : '0%+'
+  }
+  return side === 'bid' ? `−${magnitudePercent}%` : `+${magnitudePercent}%`
+}
 
 export function formatLimitPriceHuman(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return ''
@@ -214,8 +249,21 @@ export function limitPriceFromRefDeviationPercent(refToken1PerToken0: number, de
   return formatLimitPriceHuman(refToken1PerToken0 * (1 + deviationPercent / 100))
 }
 
-/** Active chip when typed price matches a preset within tolerance. */
+/**
+ * Chip-selected limit price for the active side: applies
+ * {@link signedLimitPriceDeviationPercent} then {@link limitPriceFromRefDeviationPercent}.
+ */
+export function limitPriceFromRefDeviationChip(
+  side: 'bid' | 'ask',
+  refToken1PerToken0: number,
+  magnitudePercent: LimitPriceDeviationChipPreset
+): string {
+  return limitPriceFromRefDeviationPercent(refToken1PerToken0, signedLimitPriceDeviationPercent(side, magnitudePercent))
+}
+
+/** Active chip when typed price matches a side-aware preset within tolerance (#495). */
 export function matchingLimitPriceDeviationChip(
+  side: 'bid' | 'ask',
   limitHuman: number | null,
   refToken1PerToken0: number | null
 ): LimitPriceDeviationChipPreset | null {
@@ -223,7 +271,8 @@ export function matchingLimitPriceDeviationChip(
   const dev = limitPriceDeviationPercent(limitHuman, refToken1PerToken0)
   if (dev == null) return null
   for (const preset of LIMIT_PRICE_DEVIATION_CHIP_PRESETS) {
-    if (Math.abs(dev - preset) < 0.08) return preset
+    const signed = signedLimitPriceDeviationPercent(side, preset)
+    if (Math.abs(dev - signed) < 0.08) return preset
   }
   return null
 }

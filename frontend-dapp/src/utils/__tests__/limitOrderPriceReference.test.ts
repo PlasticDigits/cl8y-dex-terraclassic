@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest'
 import {
   anchorUsdForLimitPrice,
   escrowAmountUsdAnchorNotional,
+  formatLimitPriceDeviationChipLabel,
   isLimitPriceDirectionInvalid,
+  LIMIT_PRICE_DEVIATION_CHIP_PRESETS,
+  LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT,
   limitPriceDeviationPercent,
+  limitPriceFromRefDeviationChip,
+  matchingLimitPriceDeviationChip,
   parsePositivePriceHuman,
   poolReservesToToken1PerToken0Human,
   resolveLimitOrderPriceRef,
+  signedLimitPriceDeviationPercent,
   tradeToToken1PerToken0Human,
 } from '../limitOrderPriceReference'
 import type { IndexerPair, IndexerTrade, PairInfo, PoolResponse } from '@/types'
@@ -89,6 +95,45 @@ describe('limitPriceDeviationPercent', () => {
   it('computes signed deviation', () => {
     expect(limitPriceDeviationPercent(1.776, 0.888)).toBeCloseTo(100, 3)
     expect(limitPriceDeviationPercent(0.444, 0.888)).toBeCloseTo(-50, 3)
+  })
+})
+
+describe('signedLimitPriceDeviationPercent / chips (#495)', () => {
+  it('maps bid chips below ref and ask chips above ref', () => {
+    expect(signedLimitPriceDeviationPercent('bid', 0)).toBe(-LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT)
+    expect(signedLimitPriceDeviationPercent('ask', 0)).toBe(LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT)
+    expect(signedLimitPriceDeviationPercent('bid', 1)).toBe(-1)
+    expect(signedLimitPriceDeviationPercent('ask', 1)).toBe(1)
+    expect(signedLimitPriceDeviationPercent('bid', 10)).toBe(-10)
+    expect(signedLimitPriceDeviationPercent('ask', 10)).toBe(10)
+  })
+
+  it('labels chips with maker-side signs', () => {
+    expect(formatLimitPriceDeviationChipLabel('bid', 0)).toBe('0%−')
+    expect(formatLimitPriceDeviationChipLabel('ask', 0)).toBe('0%+')
+    expect(formatLimitPriceDeviationChipLabel('bid', 5)).toBe('−5%')
+    expect(formatLimitPriceDeviationChipLabel('ask', 5)).toBe('+5%')
+  })
+
+  it('chip prices clear the #154 direction invalid gate for every preset', () => {
+    const ref = 0.888
+    for (const side of ['bid', 'ask'] as const) {
+      for (const mag of LIMIT_PRICE_DEVIATION_CHIP_PRESETS) {
+        const priceStr = limitPriceFromRefDeviationChip(side, ref, mag)
+        const limit = parsePositivePriceHuman(priceStr)
+        expect(limit).not.toBeNull()
+        expect(isLimitPriceDirectionInvalid(side, limit!, ref)).toBe(false)
+        expect(matchingLimitPriceDeviationChip(side, limit, ref)).toBe(mag)
+      }
+    }
+  })
+
+  it('does not match opposite-side chip magnitudes as active', () => {
+    const ref = 1
+    const askPlus1 = parsePositivePriceHuman(limitPriceFromRefDeviationChip('ask', ref, 1))
+    expect(matchingLimitPriceDeviationChip('bid', askPlus1, ref)).toBeNull()
+    const bidMinus1 = parsePositivePriceHuman(limitPriceFromRefDeviationChip('bid', ref, 1))
+    expect(matchingLimitPriceDeviationChip('ask', bidMinus1, ref)).toBeNull()
   })
 })
 
