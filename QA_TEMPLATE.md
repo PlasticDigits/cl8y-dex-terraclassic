@@ -163,10 +163,10 @@
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
-| 2.3.1 | Default slippage | Open swap page fresh | Slippage is 0.5% | | |
-| 2.3.2 | Preset 0.1% | Click 0.1% button | Slippage set to 0.1%, min received recalculates | | |
-| 2.3.3 | Preset 0.5% | Click 0.5% button | Slippage set to 0.5% | | |
-| 2.3.4 | Preset 1% | Click 1% button | Slippage set to 1% | | |
+| 2.3.1 | Default slippage | Open swap page fresh | Slippage is 5% ([#497](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/497)) | | |
+| 2.3.2 | Preset 0.5% | Click 0.5% button | Slippage set to 0.5%, min received recalculates | | |
+| 2.3.3 | Preset 1% | Click 1% button | Slippage set to 1% | | |
+| 2.3.4 | Preset 5% | Click 5% button | Slippage set to 5% (matches default) | | |
 | 2.3.5 | Custom slippage | Enter custom value (e.g., 2.5%) | Custom slippage applied | | |
 | 2.3.6 | Maximum slippage | Enter 50% | Accepted (max) | | |
 | 2.3.7 | Exceed max slippage | Enter 51% | Rejected or capped at 50% | | |

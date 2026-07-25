@@ -967,9 +967,12 @@ describe('SwapPage', () => {
       await user.type(payInput, '0')
 
       expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
+      // #496: You Receive must not keep the prior amount looking current while pay amount is pending.
+      expect(screen.getByTestId('swap-you-receive')).toHaveTextContent(/Calculating/i)
 
       await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).not.toHaveTextContent(/Calculating/i))
     })
 
     it('disables Swap with Calculating… while book leg differs from debounced hybrid quote (#360)', async () => {
@@ -1315,8 +1318,8 @@ describe('SwapPage', () => {
       expect(screen.getByTestId('swap-confirm-pair')).toHaveTextContent('→')
       expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
       expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('1')
-      expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('0.5%')
-      expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.995')
+      expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('5%')
+      expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.95')
       expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
     })
   })

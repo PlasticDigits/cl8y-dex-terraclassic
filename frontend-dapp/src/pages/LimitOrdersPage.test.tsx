@@ -80,7 +80,7 @@ vi.mock('@/hooks/usePairLimitCancellations', () => ({
 }))
 
 vi.mock('@/components/trade/LimitOrderLadderPanel', () => ({
-  LimitOrderLadderPanel: () => null,
+  LimitOrderLadderPanel: () => <div data-testid="limit-order-ladder-panel" />,
 }))
 
 vi.mock('@/hooks/useTradingBlacklist', () => ({
@@ -182,6 +182,17 @@ describe('LimitOrdersPage', () => {
     await user.click(ladder)
     expect(ladder).toHaveClass('btn-primary')
     expect(single).toHaveClass('btn-muted')
+  })
+
+  it('shows ladder create panel when Ladder mode selected while disconnected (GitLab #494)', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: null, walletType: null, error: null })
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+
+    expect(screen.queryByTestId('limit-order-ladder-panel')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('limit-place-mode-ladder'))
+    expect(await screen.findByTestId('limit-order-ladder-panel')).toBeInTheDocument()
   })
 
   it('shows limits market-data outage banner when workspace indexer queries fail (GitLab #218)', async () => {

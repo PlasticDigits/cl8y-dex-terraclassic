@@ -35,7 +35,10 @@ import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
 
 export interface LimitOrderLadderPanelProps {
   pairAddress: string
-  walletAddress: string
+  /** Empty / undefined when disconnected — form still renders (GitLab #494). */
+  walletAddress?: string | null
+  isWalletConnected: boolean
+  openWalletModal: () => void
   escrowToken: string
   escrowDecimals: number
   token0Symbol: string
@@ -43,6 +46,7 @@ export interface LimitOrderLadderPanelProps {
   /** Tape / pool reference when opposite book head is empty (GitLab #385). */
   refToken1PerToken0?: number | null
   refResolutionLoading?: boolean
+  /** Trade-block only (paused / blacklist). Do not gate on wallet — use Connect Wallet CTA (#494). */
   disabled?: boolean
   onPlaced?: (orderIds: number[]) => void
 }
@@ -50,6 +54,8 @@ export interface LimitOrderLadderPanelProps {
 export function LimitOrderLadderPanel({
   pairAddress,
   walletAddress,
+  isWalletConnected,
+  openWalletModal,
   escrowToken,
   escrowDecimals,
   token0Symbol,
@@ -143,7 +149,13 @@ export function LimitOrderLadderPanel({
     }
   }, [placementPlanQuery.data?.recommendedMaxSteps, maxSteps, setMaxSteps])
 
-  const placeGates = useLimitLadderPlaceGates(walletAddress, escrowToken, totalHuman, escrowDecimals, rungCount)
+  const placeGates = useLimitLadderPlaceGates(
+    walletAddress ?? undefined,
+    escrowToken,
+    totalHuman,
+    escrowDecimals,
+    rungCount
+  )
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddress)
 
@@ -186,6 +198,7 @@ export function LimitOrderLadderPanel({
   const placeMutation = useTerraBroadcastMutation({
     toastSuccess: 'Limit ladder placed.',
     mutationFn: async () => {
+      if (!walletAddress) throw new Error('Connect wallet')
       if (preview.error || preview.rungs.length < 2) {
         throw new Error(preview.error ?? 'Invalid ladder')
       }
@@ -282,12 +295,14 @@ export function LimitOrderLadderPanel({
 
   const planNote = planNotes[0]
 
+  // Mirror Single / TradeOrderTicket: escrow+LUNC gates only apply when connected so
+  // disconnected users still get an actionable Connect Wallet CTA (GitLab #494).
   const submitDisabled =
-    disabled ||
     placeMutation.isPending ||
     Boolean(preview.error) ||
-    !placeGates.canPlace ||
-    !ladderCrossingGate.canPlaceLimit
+    Boolean(disabled) ||
+    !ladderCrossingGate.canPlaceLimit ||
+    (isWalletConnected && !placeGates.canPlace)
 
   return (
     <div className="space-y-3" data-testid="limit-order-ladder-panel">
@@ -399,14 +414,19 @@ export function LimitOrderLadderPanel({
         className={TRADE_MONEY_CTA_CLASS}
         disabled={submitDisabled}
         data-testid="ladder-place-submit"
-        onClick={() => placeMutation.mutate()}
+        onClick={() => {
+          if (!isWalletConnected) openWalletModal()
+          else placeMutation.mutate()
+        }}
       >
-        {terraBroadcastPendingButtonLabel(
-          placeMutation.phase,
-          placeMutation.isPending,
-          `Place ${rungCount}-rung ladder`,
-          'Placing ladder…'
-        )}
+        {!isWalletConnected
+          ? 'Connect Wallet'
+          : terraBroadcastPendingButtonLabel(
+              placeMutation.phase,
+              placeMutation.isPending,
+              `Place ${rungCount}-rung ladder`,
+              'Placing ladder…'
+            )}
       </button>
       <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
       {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
