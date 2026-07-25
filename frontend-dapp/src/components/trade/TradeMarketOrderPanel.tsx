@@ -36,7 +36,10 @@ import {
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
-import { SLIPPAGE_PROTECTION_LABEL } from '@/utils/slippageProtectionCopy'
+import {
+  SLIPPAGE_PROTECTION_LABEL,
+  SLIPPAGE_TOLERANCE_PRESETS_PERCENT,
+} from '@/utils/slippageProtectionCopy'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -472,7 +475,7 @@ export function TradeMarketOrderPanel({
       </p>
       <div className="flex flex-wrap gap-2 text-[10px]">
         <span style={{ color: 'var(--ink-dim)' }}>{SLIPPAGE_PROTECTION_LABEL}:</span>
-        {[0.1, 0.5, 1.0].map((v) => (
+        {SLIPPAGE_TOLERANCE_PRESETS_PERCENT.map((v) => (
           <button
             key={v}
             type="button"
