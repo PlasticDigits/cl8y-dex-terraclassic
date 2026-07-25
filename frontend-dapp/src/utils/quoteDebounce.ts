@@ -22,11 +22,28 @@ export function simQuoteRefetchInterval(query: {
 }
 
 /**
- * Receive-field "Calculating..." gate: show only when no settled quote is available yet.
- * Background refetch keeps the prior amount visible (`keepPreviousData`); submit stays blocked
- * via {@link isSubmitQuoteStale} / `isFetching` (GitLab #356, #484).
+ * Receive-field "Calculating..." gate for Swap / Trade market.
+ *
+ * - **Same pay inputs, background refetch (#484):** when a quote for the *current* query key
+ *   already settled (`hasSettledQuote` and not placeholder), keep the prior amount visible
+ *   even while `isFetching` — do not pulse Calculating on every 10s refresh.
+ * - **Pay amount / token (query key) change (#496):** treat prior amount as stale. Show
+ *   Calculating while typed pay raw ≠ debounced sim key (`payInputsPending`), or while React
+ *   Query is still showing `keepPreviousData` for a previous key (`isPlaceholderData`).
+ * - **First load:** Calculating while fetching with no settled quote yet.
+ *
+ * Submit stays blocked separately via {@link isSubmitQuoteStale} / `isFetching` (#356).
+ *
+ * @param hasSettledQuote Prefer `!!data && !isPlaceholderData` so placeholder rows from a
+ *   prior key are not treated as settled for the current inputs.
  */
-export function shouldShowSimReceiveCalculating(isFetching: boolean, hasSettledQuote: boolean): boolean {
+export function shouldShowSimReceiveCalculating(
+  isFetching: boolean,
+  hasSettledQuote: boolean,
+  isPlaceholderData = false,
+  payInputsPending = false
+): boolean {
+  if (payInputsPending || isPlaceholderData) return true
   return isFetching && !hasSettledQuote
 }
 
