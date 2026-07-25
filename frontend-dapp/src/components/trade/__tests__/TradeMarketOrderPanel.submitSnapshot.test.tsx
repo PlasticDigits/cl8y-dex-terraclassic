@@ -134,8 +134,8 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360)', () => {
     expect(screen.getByTestId('swap-confirm-pair')).toHaveTextContent('→')
     expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
     expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('1')
-    expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('0.5%')
-    expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.995')
+    expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('5%')
+    expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.95')
     expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
   })
 

@@ -13,7 +13,7 @@ Before the wallet extension opens, taker swap surfaces must show a **labeled pre
 | Pair contract(s) | Factory-sourced bech32 (truncated + copy/explorer); one row for direct, hop list for multihop ([#449](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/449)) | `swap-confirm-pair-contracts`, `swap-confirm-pair-contract` (direct), `swap-confirm-hop-pair-{n}` (multihop) |
 | Offer | `{amount} {symbol}` | `swap-confirm-offer` |
 | Receive (est.) | `{amount} {symbol}` | `swap-confirm-receive` |
-| Max spread | `{slippageTolerance}%` (on-chain `max_spread`; retail label **Slippage protection**) | `swap-confirm-max-spread` |
+| Max spread | `{slippageTolerance}%` (on-chain `max_spread`; retail label **Slippage protection**; default **5%** — [#497](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/497), [`AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](./AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md)) | `swap-confirm-max-spread` |
 | Min return | floor after slippage | `swap-confirm-min-return` |
 | Chain | active network full label (`LocalTerra`, `Terra Classic`, …) | `swap-confirm-chain` |
 
