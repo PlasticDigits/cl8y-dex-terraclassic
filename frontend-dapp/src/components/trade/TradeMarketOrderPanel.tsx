@@ -4,6 +4,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
   assertSubmitHybridAligned,
   assertSubmitQuotePayRawAligned,
+  shouldShowSimReceiveCalculating,
   SIM_QUOTE_DEBOUNCE_MS,
   simQuoteRefetchInterval,
 } from '@/utils/quoteDebounce'
@@ -36,10 +37,7 @@ import {
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
-import {
-  SLIPPAGE_PROTECTION_LABEL,
-  SLIPPAGE_TOLERANCE_PRESETS_PERCENT,
-} from '@/utils/slippageProtectionCopy'
+import { SLIPPAGE_PROTECTION_LABEL, SLIPPAGE_TOLERANCE_PRESETS_PERCENT } from '@/utils/slippageProtectionCopy'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -448,6 +446,15 @@ export function TradeMarketOrderPanel({
   const minReceiveHuman =
     minReceived != null && minReceived !== '' ? formatTokenAmount(minReceived, receiveDecimals, 6) : '—'
 
+  // Same receive stale/loading rules as Swap (#484 keep-previous vs #496 pay change).
+  const hasSettledSimQuote = !!simQuery.data && !simQuery.isPlaceholderData
+  const showReceiveCalculating = shouldShowSimReceiveCalculating(
+    simQuery.isFetching,
+    hasSettledSimQuote,
+    simQuery.isPlaceholderData,
+    rawInputAmount !== debouncedRawInputAmount
+  )
+
   const canSubmit =
     isWalletConnected &&
     !isPaused &&
@@ -566,19 +573,20 @@ export function TradeMarketOrderPanel({
         </div>
       )}
 
-      {simQuery.isLoading && rawInputAmount !== '0' && (
+      {(simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
         <div
           className="flex items-center gap-2 text-[10px]"
           style={{ color: 'var(--ink-dim)' }}
           role="status"
           aria-live="polite"
           aria-atomic="true"
+          data-testid="trade-market-quoting"
         >
           <Spinner />
           Quoting…
         </div>
       )}
-      {simQuery.isError && rawInputAmount !== '0' && (
+      {simQuery.isError && rawInputAmount !== '0' && !showReceiveCalculating && (
         <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
           {humanizeUserFacingErrorFromUnknown(simQuery.error)}
         </p>
@@ -587,14 +595,28 @@ export function TradeMarketOrderPanel({
         <div className="card-glass !p-2 space-y-1 text-[10px]" data-testid="trade-market-quote">
           <div className="flex justify-between gap-2">
             <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
-            <span className="font-mono text-right">
-              {receiveHuman} {getTokenDisplaySymbol(toToken)}
+            <span className="font-mono text-right" data-testid="trade-market-expected-receive">
+              {showReceiveCalculating ? (
+                <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
+                  Quoting…
+                </span>
+              ) : (
+                <>
+                  {receiveHuman} {getTokenDisplaySymbol(toToken)}
+                </>
+              )}
             </span>
           </div>
           <div className="flex justify-between gap-2">
             <span style={{ color: 'var(--ink-dim)' }}>Min. after slippage</span>
             <span className="font-mono text-right">
-              {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
+              {showReceiveCalculating ? (
+                <span style={{ color: 'var(--ink-subtle)' }}>—</span>
+              ) : (
+                <>
+                  {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
+                </>
+              )}
             </span>
           </div>
           <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
@@ -633,7 +655,7 @@ export function TradeMarketOrderPanel({
         </div>
       )}
 
-      {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && (
+      {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && !showReceiveCalculating && (
         <SwapPreSubmitSummary
           actionLabel="Market swap"
           offerSymbol={getTokenDisplaySymbol(fromToken)}

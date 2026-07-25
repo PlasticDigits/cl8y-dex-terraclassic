@@ -313,7 +313,6 @@ fn resolve_operation(
         SwapOperation::TerraSwap {
             offer_asset_info,
             ask_asset_info,
-            hybrid: _,
             ..
         } => {
             offer_asset_info

@@ -614,9 +614,19 @@ export default function SwapPage() {
     maxMakerFills: debouncedHybridMaxMakers,
   })
 
+  // Settled for *current* sim key only — placeholder keepPreviousData is prior-key stale (#496).
+  const hasSettledSimQuote = !!simQuery.data && !simQuery.isPlaceholderData
+  const payInputsPendingForReceive = rawInputAmount !== debouncedRawInputAmount
+  const showSimReceiveCalculating = shouldShowSimReceiveCalculating(
+    simQuery.isFetching,
+    hasSettledSimQuote,
+    simQuery.isPlaceholderData,
+    payInputsPendingForReceive
+  )
+
   const simLoadingLabel = resolveSimQuoteLoadingLabel(
     simQuery.isFetching,
-    !!simQuery.data,
+    hasSettledSimQuote,
     routeSolveProgress,
     fetchStartedAtMs,
     nowMs,
@@ -1343,8 +1353,12 @@ export default function SwapPage() {
                   disabled={allTokens.length === 0}
                 />
               </div>
-              <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
-                {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) ? (
+              <div
+                className="text-[1.75rem] sm:text-2xl font-medium"
+                style={{ color: 'var(--ink)' }}
+                data-testid="swap-you-receive"
+              >
+                {showSimReceiveCalculating ? (
                   <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }} aria-hidden="true">
                     {simLoadingLabel}
                   </span>
@@ -1354,7 +1368,7 @@ export default function SwapPage() {
                   <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
                 )}
               </div>
-              {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) && (
+              {showSimReceiveCalculating && (
                 <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                   {simLoadingLabel}
                 </span>

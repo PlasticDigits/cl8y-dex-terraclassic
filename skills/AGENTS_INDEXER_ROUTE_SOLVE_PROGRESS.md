@@ -20,7 +20,7 @@ Distant CW20 pairs (no direct pool) can take many seconds on cold hybrid `GET /a
 | **No LCD amplification** | Progress polls do **not** run hybrid grids or router sims. Endpoint is on the **standard** rate-limit router (not LCD-heavy). |
 | **Nested solves silent** | Slippage token-price solves (`route_slippage`) pass `progress_key: None`. |
 | **Optimality bounds unchanged** | Do not shrink `MAX_PATH_CANDIDATES` / hop cap / grid without bumping `solver_version` + docs. |
-| **#484 still holds** | Progress is display-only; `simQuoteRefetchInterval`, `shouldShowSimReceiveCalculating`, `isSubmitQuoteStale` unchanged. |
+| **#484 / #496 still hold** | Progress is display-only; `simQuoteRefetchInterval`, `shouldShowSimReceiveCalculating` (same-key keep-previous vs pay-change loading), `isSubmitQuoteStale` unchanged. |
 | **No flash on fast quotes** | Frontend shows progress only after ~500ms and non-idle stage. |
 
 ## Code map
