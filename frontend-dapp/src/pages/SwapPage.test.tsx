@@ -354,7 +354,50 @@ describe('SwapPage', () => {
 
     const execution = await screen.findByTestId('swap-execution-summary')
     expect(execution).toHaveTextContent(/Execution:\s*Limit book \+ pool/i)
-    expect(execution).toHaveTextContent(/Hybrid \(pool \+ limit book\)/i)
+    expect(execution).toHaveTextContent(/Hybrid\s*—\s*pool/i)
+  })
+
+  it('hides Execution notice when hybrid Settings on and book leg empty (#492)', async () => {
+    const user = userEvent.setup()
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: terraA } },
+          ask_asset_info: { token: { contract_addr: terraB } },
+        },
+      },
+    ] as never)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+    vi.mocked(simulateSwap).mockResolvedValue({
+      return_amount: '900000',
+      spread_amount: '1000',
+      commission_amount: '0',
+    })
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+
+    await openSwapSettingsWithAdvanced(user)
+    expect(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i })).toBeChecked()
+    // Leave book leg amount empty (Swap empty = book_input 0).
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await waitFor(() => expect(simulateSwap).toHaveBeenCalled())
+
+    expect(screen.queryByTestId('swap-execution-summary')).not.toBeInTheDocument()
+    expect(screen.queryByText(/add a book leg/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Pool only/i)).not.toBeInTheDocument()
   })
 
   it('reconciles direct-hybrid receive to wallet when indexer estimate disagrees (#471)', async () => {
@@ -967,9 +1010,12 @@ describe('SwapPage', () => {
       await user.type(payInput, '0')
 
       expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
+      // #496: You Receive must not keep the prior amount looking current while pay amount is pending.
+      expect(screen.getByTestId('swap-you-receive')).toHaveTextContent(/Calculating/i)
 
       await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).not.toHaveTextContent(/Calculating/i))
     })
 
     it('disables Swap with Calculating… while book leg differs from debounced hybrid quote (#360)', async () => {
@@ -1315,8 +1361,8 @@ describe('SwapPage', () => {
       expect(screen.getByTestId('swap-confirm-pair')).toHaveTextContent('→')
       expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
       expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('1')
-      expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('0.5%')
-      expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.995')
+      expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('5%')
+      expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.95')
       expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
     })
   })

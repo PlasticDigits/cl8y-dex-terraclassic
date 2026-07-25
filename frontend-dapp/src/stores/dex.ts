@@ -1,9 +1,11 @@
 import { create } from 'zustand'
 import type { PairInfo } from '@/types'
 import { readExpertMode, writeExpertMode } from '@/utils/expertMode'
+import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
 
 interface DexState {
   selectedPair: PairInfo | null
+  /** Percent; default {@link DEFAULT_SLIPPAGE_TOLERANCE_PERCENT} (GitLab #497). */
   slippageTolerance: number
   deadlineSeconds: number
   /** Off by default — allows swaps with &gt;30% route slippage when enabled (GitLab #293). */
@@ -16,7 +18,7 @@ interface DexState {
 
 export const useDexStore = create<DexState>((set) => ({
   selectedPair: null,
-  slippageTolerance: 0.5,
+  slippageTolerance: DEFAULT_SLIPPAGE_TOLERANCE_PERCENT,
   deadlineSeconds: 300,
   expertMode: readExpertMode(),
   setSelectedPair: (pair) => set({ selectedPair: pair }),

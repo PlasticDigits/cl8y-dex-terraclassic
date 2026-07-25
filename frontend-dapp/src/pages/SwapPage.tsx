@@ -64,7 +64,11 @@ import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
-import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
+import {
+  getDirectHybridBookSplit,
+  getDirectHybridSettingsExecutionSummary,
+  getIndexerHybridExecutionSummary,
+} from '@/utils/swapDisclosure'
 import {
   computeSwapRouteDisplay,
   deriveSwapSubmitRouteOps,
@@ -104,9 +108,11 @@ import {
 } from '@/utils/swapRouteSlippage'
 import {
   formatTransactionDeadline,
+  HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT,
   ROUTE_EXECUTION_SLIPPAGE_LABEL,
   ROUTE_EXECUTION_SLIPPAGE_TOOLTIP,
   SLIPPAGE_PROTECTION_LABEL,
+  SLIPPAGE_TOLERANCE_PRESETS_PERCENT,
   TRANSACTION_DEADLINE_LABEL,
 } from '@/utils/slippageProtectionCopy'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
@@ -612,9 +618,19 @@ export default function SwapPage() {
     maxMakerFills: debouncedHybridMaxMakers,
   })
 
+  // Settled for *current* sim key only — placeholder keepPreviousData is prior-key stale (#496).
+  const hasSettledSimQuote = !!simQuery.data && !simQuery.isPlaceholderData
+  const payInputsPendingForReceive = rawInputAmount !== debouncedRawInputAmount
+  const showSimReceiveCalculating = shouldShowSimReceiveCalculating(
+    simQuery.isFetching,
+    hasSettledSimQuote,
+    simQuery.isPlaceholderData,
+    payInputsPendingForReceive
+  )
+
   const simLoadingLabel = resolveSimQuoteLoadingLabel(
     simQuery.isFetching,
-    !!simQuery.data,
+    hasSettledSimQuote,
     routeSolveProgress,
     fetchStartedAtMs,
     nowMs,
@@ -871,6 +887,12 @@ export default function SwapPage() {
     [simData?.indexerQuoteKind]
   )
 
+  /** Settings hybrid Execution block; silent when hybrid on + empty manual book (#492). */
+  const directHybridSettingsExec = useMemo(
+    () => getDirectHybridSettingsExecutionSummary(directHybridBookSplit),
+    [directHybridBookSplit]
+  )
+
   /** One execution-aligned path for the trade summary (GitLab #158 — never duplicate indexer vs client labels). */
   const swapRouteLine = useMemo(
     () =>
@@ -1101,7 +1123,7 @@ export default function SwapPage() {
               <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
                 <p className="label-glass mb-3">{SLIPPAGE_PROTECTION_LABEL}</p>
                 <div className="flex flex-wrap gap-2">
-                  {[0.1, 0.5, 1.0].map((val) => (
+                  {SLIPPAGE_TOLERANCE_PRESETS_PERCENT.map((val) => (
                     <button
                       key={val}
                       onClick={() => handleSlippagePreset(val)}
@@ -1140,7 +1162,7 @@ export default function SwapPage() {
                     Must be between 0.01% and 50%
                   </p>
                 )}
-                {!customSlippageError && slippageTolerance > 5 && (
+                {!customSlippageError && slippageTolerance > HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT && (
                   <p
                     className="mt-2 text-xs font-semibold uppercase tracking-wide"
                     style={{ color: 'var(--color-warning, #f59e0b)' }}
@@ -1341,8 +1363,12 @@ export default function SwapPage() {
                   disabled={allTokens.length === 0}
                 />
               </div>
-              <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
-                {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) ? (
+              <div
+                className="text-[1.75rem] sm:text-2xl font-medium"
+                style={{ color: 'var(--ink)' }}
+                data-testid="swap-you-receive"
+              >
+                {showSimReceiveCalculating ? (
                   <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }} aria-hidden="true">
                     {simLoadingLabel}
                   </span>
@@ -1352,7 +1378,7 @@ export default function SwapPage() {
                   <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
                 )}
               </div>
-              {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) && (
+              {showSimReceiveCalculating && (
                 <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                   {simLoadingLabel}
                 </span>
@@ -1361,7 +1387,7 @@ export default function SwapPage() {
           </div>
 
           <div className="mb-4 space-y-2">
-            {simData && (indexerHybridExec.show || directHybridBookSplit) && (
+            {simData && (indexerHybridExec.show || directHybridSettingsExec.show) && (
               <div
                 data-testid="swap-execution-summary"
                 className="card-glass text-[11px] sm:text-xs leading-relaxed space-y-2"
@@ -1376,42 +1402,29 @@ export default function SwapPage() {
                     <p>{indexerHybridExec.line}</p>
                   </div>
                 )}
-                {directHybridBookSplit && (
+                {directHybridSettingsExec.show && (
                   <div>
                     <p className="uppercase tracking-wide font-semibold mb-0.5" style={{ color: 'var(--ink-subtle)' }}>
                       {indexerHybridExec.show ? 'Settings — direct pay split' : 'Execution'}
                     </p>
-                    {directHybridBookSplit.bookExceedsPay && (
+                    {directHybridSettingsExec.variant === 'book_exceeds_pay' && (
                       <p className="font-medium" style={{ color: 'var(--color-negative)' }}>
-                        Book leg is larger than your pay amount.
+                        {directHybridSettingsExec.line}
                       </p>
                     )}
-                    {!directHybridBookSplit.bookExceedsPay && directHybridBookSplit.willSubmitHybrid && (
+                    {directHybridSettingsExec.variant === 'hybrid_manual_split' && (
                       <>
                         <p style={{ color: 'var(--ink)' }}>
-                          <span className="font-semibold">Hybrid (pool + limit book)</span> — pool{' '}
-                          {directHybridBookSplit.poolHuman} · book {directHybridBookSplit.bookHuman}{' '}
-                          {getTokenDisplaySymbol(fromToken)}
+                          <span className="font-semibold">Hybrid</span> — pool {directHybridSettingsExec.poolHuman} ·
+                          book {directHybridSettingsExec.bookHuman} {getTokenDisplaySymbol(fromToken)}
                         </p>
                         <p className="text-[10px] font-mono" style={{ color: 'var(--ink-subtle)' }}>
-                          {directHybridBookSplit.poolRaw} (pool raw) · {directHybridBookSplit.bookRaw} (book raw)
+                          {directHybridSettingsExec.poolRaw} (pool raw) · {directHybridSettingsExec.bookRaw} (book raw)
                         </p>
                       </>
                     )}
-                    {!directHybridBookSplit.bookExceedsPay && !directHybridBookSplit.willSubmitHybrid && (
-                      <>
-                        {BigInt(directHybridBookSplit.bookRaw) > 0n ? (
-                          <p style={{ color: 'var(--color-warning, #f59e0b)' }}>
-                            Book leg is set, but the hybrid path will not be submitted. Set{' '}
-                            <strong>max distinct makers</strong> to at least 1.
-                          </p>
-                        ) : (
-                          <p style={{ color: 'var(--ink)' }}>
-                            <span className="font-semibold">Pool only</span> — add a book leg in Settings to use the
-                            on-chain book for part of the pay.
-                          </p>
-                        )}
-                      </>
+                    {directHybridSettingsExec.variant === 'max_makers_blocked' && (
+                      <p style={{ color: 'var(--color-warning, #f59e0b)' }}>{directHybridSettingsExec.line}</p>
                     )}
                   </div>
                 )}

@@ -242,6 +242,12 @@ pub fn first_live_book_start_hint(mirror: &HopMirror, offer_token: &str) -> Opti
         .map(|o| o.order_id as u64)
 }
 
+/// Fresh mirror with at least one fillable resting order on the taker match side (GitLab #493).
+/// Used to short-circuit the 17-point hybrid grid when the book cannot improve on pool-only.
+pub fn mirror_has_fillable_book(mirror: &HopMirror, offer_token: &str) -> bool {
+    first_live_book_start_hint(mirror, offer_token).is_some()
+}
+
 /// Slice book walk order list from a validated same-side hint, else from head (contract parity).
 fn book_orders_from_hint<'a>(
     orders: &'a [resting_orders::RestingOrderRow],
@@ -638,6 +644,17 @@ mod tests {
             first_live_book_start_hint(&m, "terra1token1"),
             Some(20)
         );
+    }
+
+    #[test]
+    fn mirror_has_fillable_book_empty_vs_live() {
+        let empty = mirror_with_book(vec![]);
+        assert!(!mirror_has_fillable_book(&empty, "terra1token0"));
+        assert!(!mirror_has_fillable_book(&empty, "terra1token1"));
+
+        let with_bid = mirror_with_book(vec![resting(1, "bid", "2", "1000")]);
+        assert!(mirror_has_fillable_book(&with_bid, "terra1token0"));
+        assert!(!mirror_has_fillable_book(&with_bid, "terra1token1"));
     }
 
     #[test]

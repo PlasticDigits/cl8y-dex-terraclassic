@@ -174,6 +174,21 @@ fn resolve_hop_book_start_hint(source: &HybridSimSource<'_>, hop: &HopDescriptor
     }
 }
 
+/// Fresh DB mirror with no fillable resting orders on the match side → pool-only is optimal
+/// (GitLab #493). Stale/missing mirrors and LCD mode keep the full grid (book state unknown).
+fn hop_has_fresh_empty_book(source: &HybridSimSource<'_>, hop: &HopDescriptor) -> bool {
+    match source {
+        HybridSimSource::Lcd(_) => false,
+        HybridSimSource::Db { mirrors, .. } => mirrors
+            .get(&hop.pair)
+            .map(|m| {
+                m.freshness == MirrorFreshness::Fresh
+                    && !db_orderbook_sim::mirror_has_fillable_book(m, &hop.offer_token)
+            })
+            .unwrap_or(false),
+    }
+}
+
 async fn query_hybrid_sim_lcd(
     lcd: &LcdClient,
     pair: &str,
@@ -353,6 +368,21 @@ async fn optimize_one_hop(
     }
 
     let max_maker_fills = clamp_max_maker_fills(max_maker_fills);
+
+    // Empty match-side book on a Fresh mirror: every book_input>0 split equals pool-only (#493).
+    if hop_has_fresh_empty_book(source, hop) {
+        let out = pool_only_or_zero(
+            source,
+            mirror_meta,
+            hop,
+            offer_amount,
+            max_maker_fills,
+            quote_trader,
+        )
+        .await?;
+        return Ok((None, out));
+    }
+
     let book_start_hint = resolve_hop_book_start_hint(source, hop);
     let mut best_book = 0u128;
     let mut best_out = 0u128;
@@ -464,31 +494,36 @@ pub async fn optimize_multihop_hybrid_joint(
     )
     .await?;
 
+    // 1-hop pool-only baseline: coordinate passes re-run the same split search (#493).
+    let skip_coordinate = hops.len() == 1 && plan.first().is_some_and(|h| h.is_none());
+
     const COORDINATE_PASSES: u32 = 2;
-    for _ in 0..COORDINATE_PASSES {
-        for hop_idx in 0..hops.len() {
-            let offer = propagate_offer_through_plan(
-                source,
-                mirror_meta.as_deref_mut(),
-                hops,
-                &plan,
-                amount_in,
-                hop_idx,
-                max_maker_fills,
-                quote_trader,
-            )
-            .await?;
-            let (hybrid, _) = optimize_one_hop(
-                source,
-                mirror_meta.as_deref_mut(),
-                &hops[hop_idx],
-                offer,
-                max_maker_fills,
-                &mut meta,
-                quote_trader,
-            )
-            .await?;
-            plan[hop_idx] = hybrid;
+    if !skip_coordinate {
+        for _ in 0..COORDINATE_PASSES {
+            for hop_idx in 0..hops.len() {
+                let offer = propagate_offer_through_plan(
+                    source,
+                    mirror_meta.as_deref_mut(),
+                    hops,
+                    &plan,
+                    amount_in,
+                    hop_idx,
+                    max_maker_fills,
+                    quote_trader,
+                )
+                .await?;
+                let (hybrid, _) = optimize_one_hop(
+                    source,
+                    mirror_meta.as_deref_mut(),
+                    &hops[hop_idx],
+                    offer,
+                    max_maker_fills,
+                    &mut meta,
+                    quote_trader,
+                )
+                .await?;
+                plan[hop_idx] = hybrid;
+            }
         }
     }
 
@@ -624,4 +659,141 @@ async fn propagate_offer_through_plan(
         };
     }
     Ok(running)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use crate::api::db_orderbook_sim::{HopMirror, MirrorFreshness, MirrorLoadMeta};
+    use crate::db::queries::resting_orders;
+    use bigdecimal::BigDecimal;
+
+    fn bd(s: &str) -> BigDecimal {
+        s.parse().unwrap()
+    }
+
+    fn resting(
+        order_id: i64,
+        side: &str,
+        price: &str,
+        remaining: &str,
+    ) -> resting_orders::RestingOrderRow {
+        resting_orders::RestingOrderRow {
+            pair_id: 1,
+            order_id,
+            side: side.to_string(),
+            price: bd(price),
+            remaining: bd(remaining),
+            owner: None,
+            expires_at: None,
+        }
+    }
+
+    fn fresh_mirror(
+        bids: Vec<resting_orders::RestingOrderRow>,
+        asks: Vec<resting_orders::RestingOrderRow>,
+    ) -> HopMirror {
+        HopMirror {
+            pair_id: 1,
+            asset_0_addr: "terra1token0".into(),
+            asset_1_addr: "terra1token1".into(),
+            reserve_0: 1_000_000_000,
+            reserve_1: 2_000_000_000,
+            fee_bps: 30,
+            block_height: Some(1),
+            snapshot_at: Utc::now(),
+            freshness: MirrorFreshness::Fresh,
+            bids,
+            asks,
+        }
+    }
+
+    fn hop() -> HopDescriptor {
+        HopDescriptor {
+            pair: "terra1pair".into(),
+            offer_token: "terra1token0".into(),
+            ask_token: "terra1token1".into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_book_short_circuits_grid() {
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let mut mirrors = HashMap::new();
+        mirrors.insert("terra1pair".into(), fresh_mirror(vec![], vec![]));
+        let source = HybridSimSource::Db {
+            lcd_fallback: &lcd,
+            mirrors: &mirrors,
+            discount_bps: 0,
+        };
+        let mut mirror_meta = MirrorLoadMeta::default();
+        let quote = QuoteTrader::default();
+
+        let (plan, meta, out) = optimize_multihop_hybrid_joint(
+            &source,
+            Some(&mut mirror_meta),
+            &[hop()],
+            100_000,
+            8,
+            &quote,
+        )
+        .await
+        .expect("optimize");
+
+        assert!(out > 0);
+        assert!(plan[0].is_none(), "empty book → pool-only plan");
+        assert!(!meta.any_book_leg);
+        // Baseline pool-only + final propagate; no 17×3 grid (#493).
+        assert!(
+            mirror_meta.db_hybrid_queries < 10,
+            "empty-book should skip full grid; got {}",
+            mirror_meta.db_hybrid_queries
+        );
+        assert_eq!(mirror_meta.lcd_fallback_queries, 0);
+    }
+
+    #[tokio::test]
+    async fn live_book_still_runs_grid() {
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let mut mirrors = HashMap::new();
+        mirrors.insert(
+            "terra1pair".into(),
+            fresh_mirror(vec![resting(1, "bid", "5", "50000000000")], vec![]),
+        );
+        let source = HybridSimSource::Db {
+            lcd_fallback: &lcd,
+            mirrors: &mirrors,
+            discount_bps: 0,
+        };
+        let mut mirror_meta = MirrorLoadMeta::default();
+        let quote = QuoteTrader::default();
+
+        let (plan, meta, out) = optimize_multihop_hybrid_joint(
+            &source,
+            Some(&mut mirror_meta),
+            &[hop()],
+            100_000,
+            8,
+            &quote,
+        )
+        .await
+        .expect("optimize");
+
+        assert!(out > 0);
+        assert!(
+            plan[0].as_ref().is_some_and(|h| {
+                h.book_input.parse::<u128>().unwrap_or(0) > 0
+            }),
+            "live book should pick a book leg; plan={:?}",
+            plan[0]
+        );
+        assert!(meta.any_book_leg);
+        // At least one full 17-point grid pass.
+        assert!(
+            mirror_meta.db_hybrid_queries >= GRID_POINTS,
+            "live book must still grid-search; got {}",
+            mirror_meta.db_hybrid_queries
+        );
+    }
 }

@@ -671,7 +671,10 @@ function TradeOrderTicketContent({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 min-h-0 overflow-y-auto p-4">
+      <div
+        className="trade-order-ticket-scroll flex flex-1 flex-col gap-3 min-h-0 overflow-y-auto"
+        data-testid="trade-order-ticket-scroll"
+      >
         {selectedPair && isPaused && (
           <div className="alert-error text-xs space-y-2" role="alert">
             <p>Pair paused.</p>
@@ -845,11 +848,22 @@ function TradeOrderTicketContent({
                 </p>
               )}
             </TicketSection>
-            <div
-              className="sticky bottom-0 z-10 -mx-4 px-4 py-3 space-y-2 border-t border-white/10"
-              style={{ background: 'color-mix(in srgb, var(--card) 92%, transparent)' }}
-              data-testid="trade-limit-submit-sticky"
-            >
+            {/*
+              Validation / place guards stay in normal document flow (GitLab #500).
+              Sticky CTA chrome must not host blocking banners that obscure expiry/date inputs.
+            */}
+            <div className="trade-limit-inline-guards space-y-2" data-testid="trade-limit-inline-guards">
+              {priceOnlyEdit && updatePriceNativeGasGate.userMessage && (
+                <LimitOrderEscrowPlaceGuardMessage
+                  gate={updatePriceNativeGasGate}
+                  data-testid="trade-limit-update-price-guard"
+                />
+              )}
+              {!priceOnlyEdit && (
+                <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
+              )}
+            </div>
+            <div className="trade-limit-submit-sticky" data-testid="trade-limit-submit-sticky">
               <button
                 type="button"
                 data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
@@ -886,15 +900,6 @@ function TradeOrderTicketContent({
                       )}
               </button>
               <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
-              {priceOnlyEdit && updatePriceNativeGasGate.userMessage && (
-                <LimitOrderEscrowPlaceGuardMessage
-                  gate={updatePriceNativeGasGate}
-                  data-testid="trade-limit-update-price-guard"
-                />
-              )}
-              {!priceOnlyEdit && (
-                <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
-              )}
               {updatePriceMutation.isError && (
                 <TxResultAlert type="error" message={(updatePriceMutation.error as Error).message} />
               )}

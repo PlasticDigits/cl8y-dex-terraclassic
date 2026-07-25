@@ -1,7 +1,8 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, searchForWorkspaceRoot } from 'vite'
 import type { Plugin, ProxyOptions } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import fs from 'fs'
 import { execSync } from 'child_process'
 import { networkInterfaces } from 'os'
 import { buildProductionCspMetaContent } from './viteCsp'
@@ -206,6 +207,20 @@ export default defineConfig(({ mode, command }) => {
       port: 3000,
       open: true,
       allowedHosts: true,
+      // Worktrees may symlink node_modules outside this checkout; allow the real path.
+      fs: {
+        allow: [
+          '.',
+          searchForWorkspaceRoot(process.cwd()),
+          ...(() => {
+            try {
+              return [path.dirname(fs.realpathSync(path.resolve(process.cwd(), 'node_modules')))]
+            } catch {
+              return [] as string[]
+            }
+          })(),
+        ],
+      },
       proxy: remoteProxy.proxy,
     },
     preview: {

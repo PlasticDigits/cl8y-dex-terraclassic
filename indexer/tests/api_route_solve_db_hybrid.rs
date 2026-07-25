@@ -1,6 +1,7 @@
 //! GitLab #319: DB-backed hybrid route solver (Phase 1c).
 //! GitLab #332: `book_start_hint` on optimized hybrid hops.
 //! GitLab #369: skip zero-reserve path candidates instead of 502 on viable direct route.
+//! GitLab #493: empty-book hybrid grid short-circuit.
 
 mod common;
 
@@ -46,6 +47,78 @@ async fn route_solve_db_hybrid_no_pair_level_lcd_calls() {
     assert_eq!(j["fidelity_check"], "passed");
     assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
     assert!(j["db_hybrid_queries"].as_u64().unwrap_or(0) > 0);
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_db_hybrid_empty_book_skips_full_grid() {
+    let pool = common::setup_pool().await;
+    // seed_route_solve_with_mirror upserts reserves only — no resting orders.
+    let seed = common::seed_route_solve_with_mirror(&pool).await;
+    let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
+    let app = common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_b
+    );
+    let j: Value = server.get(&url).await.json();
+    assert_eq!(j["solver_version"], "global_v4");
+    assert_eq!(j["quote_kind"], "indexer_pool_db");
+    assert!(j["router_operations"][0]["terra_swap"]["hybrid"].is_null());
+    let db_q = j["db_hybrid_queries"].as_u64().unwrap_or(u64::MAX);
+    // Full 1-hop grid is 17×3 (+ propagate) ≈ 50+; empty-book short-circuit stays tiny (#493).
+    assert!(
+        db_q > 0 && db_q < 10,
+        "empty-book cold solve must not run full 17×3 grid; db_hybrid_queries={db_q}"
+    );
+    assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+#[serial]
+#[tokio::test]
+async fn route_solve_db_hybrid_live_book_still_grids() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_with_mirror(&pool).await;
+    seed_route_pair_bids(
+        &pool,
+        &[resting_orders::RestingOrderInput {
+            order_id: 42,
+            side: "bid".to_string(),
+            price: bd("5"),
+            remaining: bd("50000000000"),
+            owner: Some("terra1maker".to_string()),
+            expires_at: None,
+        }],
+    )
+    .await;
+
+    let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
+    let app = common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=900000",
+        seed.token_a, seed.token_b
+    );
+    let j: Value = server.get(&url).await.json();
+    let hybrid = &j["router_operations"][0]["terra_swap"]["hybrid"];
+    assert!(
+        hybrid["book_input"]
+            .as_str()
+            .unwrap_or("0")
+            .parse::<u128>()
+            .unwrap_or(0)
+            > 0,
+        "live book must still optimize; hybrid={hybrid:?}"
+    );
+    let db_q = j["db_hybrid_queries"].as_u64().unwrap_or(0);
+    assert!(
+        db_q >= 17,
+        "live book must run the 17-point grid; db_hybrid_queries={db_q}"
+    );
+    assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
 }
 
 #[serial]
