@@ -19,7 +19,7 @@ Distant CW20 pairs (no direct pool) can take many seconds on cold hybrid `GET /a
 | **Same cache key isolation** | Progress key = hybrid cache key (`solver_version`, tokens, amount bucket, maker-fills bucket, **`discount_bps`**). No tier cross-talk (#283/#324). |
 | **No LCD amplification** | Progress polls do **not** run hybrid grids or router sims. Endpoint is on the **standard** rate-limit router (not LCD-heavy). |
 | **Nested solves silent** | Slippage token-price solves (`route_slippage`) pass `progress_key: None`. |
-| **Optimality bounds unchanged** | Do not shrink `MAX_PATH_CANDIDATES` / hop cap / grid without bumping `solver_version` + docs. |
+| **Optimality bounds unchanged** | Do not shrink `MAX_PATH_CANDIDATES` / hop cap / grid without bumping `solver_version` + docs. Empty-book pool-only short-circuit (#493) is allowed without a version bump — see [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md) § Empty-book grid short-circuit. |
 | **#484 / #496 still hold** | Progress is display-only; `simQuoteRefetchInterval`, `shouldShowSimReceiveCalculating` (same-key keep-previous vs pay-change loading), `isSubmitQuoteStale` unchanged. |
 | **No flash on fast quotes** | Frontend shows progress only after ~500ms and non-idle stage. |
 
