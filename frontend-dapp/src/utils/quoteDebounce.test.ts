@@ -21,12 +21,28 @@ describe('simQuoteRefetchInterval (#484)', () => {
   })
 })
 
-describe('shouldShowSimReceiveCalculating (#484)', () => {
-  it('shows Calculating only when fetching and no settled quote exists', () => {
+describe('shouldShowSimReceiveCalculating (#484 / #496)', () => {
+  it('shows Calculating only when fetching and no settled quote exists (#484)', () => {
     expect(shouldShowSimReceiveCalculating(true, false)).toBe(true)
     expect(shouldShowSimReceiveCalculating(true, true)).toBe(false)
     expect(shouldShowSimReceiveCalculating(false, false)).toBe(false)
     expect(shouldShowSimReceiveCalculating(false, true)).toBe(false)
+  })
+
+  it('keeps prior amount during same-input background refetch (#484)', () => {
+    expect(shouldShowSimReceiveCalculating(true, true, false, false)).toBe(false)
+  })
+
+  it('shows Calculating when keepPreviousData placeholder is for a prior query key (#496)', () => {
+    expect(shouldShowSimReceiveCalculating(true, false, true, false)).toBe(true)
+    // Even if caller passed a truthy "has data" flag, placeholder means prior-key stale.
+    expect(shouldShowSimReceiveCalculating(true, true, true, false)).toBe(true)
+    expect(shouldShowSimReceiveCalculating(false, true, true, false)).toBe(true)
+  })
+
+  it('shows Calculating while typed pay raw differs from debounced sim key (#496)', () => {
+    expect(shouldShowSimReceiveCalculating(false, true, false, true)).toBe(true)
+    expect(shouldShowSimReceiveCalculating(true, true, false, true)).toBe(true)
   })
 })
 

@@ -79,6 +79,8 @@
     ),
     rgba(255, 255, 255, 0.03);
   --btn-primary-fg: #f8fafc;
+  /* ≈ Place limit CTA + sticky padding; keep in sync with .trade-limit-submit-sticky (#500). */
+  --trade-limit-sticky-clearance: 5.5rem;
   --cursor-default: url('/assets/cursor-default.png') 0 0, default;
   --cursor-pointer: url('/assets/cursor-pointer.png') 3 1, pointer;
   --cursor-wait: url('/assets/cursor-wait.png') 10 10, wait;
@@ -345,6 +347,22 @@
       0 0 0 2px transparent;
   }
 
+  /*
+   * TokenSearchSelect: reserved leading logo + padding while open/closed so mobile
+   * open/focus does not shift the symbol text (GitLab #498).
+   */
+  .token-select-leading-logo {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .token-select-trigger.token-select-trigger--with-leading-logo {
+    padding-left: 2.75rem; /* 44px — left-3 + 22px logo + gap; overrides pl-3/sm:pl-4 */
+  }
+
   .token-select-trigger:focus {
     outline: none;
   }
@@ -387,6 +405,8 @@
     box-shadow: var(--shadow-menu);
     backdrop-filter: blur(20px);
     z-index: 200;
+    /* Avoid option-text horizontal jump when the list becomes scrollable (GitLab #498). */
+    scrollbar-gutter: stable;
     /* Match page theme for portaled listbox <button> rows (avoids light “system” button surfaces in dark mode). */
     color-scheme: inherit;
   }
@@ -465,6 +485,49 @@
     background: var(--card-bg);
     box-shadow: var(--shadow-card);
     backdrop-filter: blur(14px);
+  }
+
+  /**
+   * Trade order ticket — sticky Place limit CTA (GitLab #500).
+   * Same opacity class of bug as sticky header (#482): translucent/invalid
+   * backgrounds let form copy bleed through the pinned footer.
+   * Do not use missing tokens (e.g. `--card`); underlay with solid `--bg-1`.
+   * Padding lives here (not Tailwind `p-4`) so sticky clearance can win.
+   */
+  .trade-order-ticket-scroll {
+    padding: 1rem;
+    scroll-padding-bottom: var(--trade-limit-sticky-clearance);
+  }
+
+  /* Extra end padding so expiry / advanced / guards can scroll clear of the pinned CTA. */
+  .trade-order-ticket-scroll:has(.trade-limit-submit-sticky) {
+    padding-bottom: calc(1rem + var(--trade-limit-sticky-clearance));
+  }
+
+  .trade-limit-inline-guards {
+    /* Blocking validation stays in normal flow above the sticky CTA (#500 note). */
+    position: relative;
+    z-index: 0;
+  }
+
+  .trade-limit-submit-sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-top: 1px solid var(--line);
+    /* Strong panel over solid underlay — content must never read through the CTA. */
+    background:
+      var(--panel-bg-strong),
+      var(--bg-1);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    isolation: isolate;
   }
 
   /* Swap page: two halves abut; direction button sits on the seam (see SwapPage).

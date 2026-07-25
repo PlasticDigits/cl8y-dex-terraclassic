@@ -108,9 +108,11 @@ import {
 } from '@/utils/swapRouteSlippage'
 import {
   formatTransactionDeadline,
+  HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT,
   ROUTE_EXECUTION_SLIPPAGE_LABEL,
   ROUTE_EXECUTION_SLIPPAGE_TOOLTIP,
   SLIPPAGE_PROTECTION_LABEL,
+  SLIPPAGE_TOLERANCE_PRESETS_PERCENT,
   TRANSACTION_DEADLINE_LABEL,
 } from '@/utils/slippageProtectionCopy'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
@@ -616,9 +618,19 @@ export default function SwapPage() {
     maxMakerFills: debouncedHybridMaxMakers,
   })
 
+  // Settled for *current* sim key only — placeholder keepPreviousData is prior-key stale (#496).
+  const hasSettledSimQuote = !!simQuery.data && !simQuery.isPlaceholderData
+  const payInputsPendingForReceive = rawInputAmount !== debouncedRawInputAmount
+  const showSimReceiveCalculating = shouldShowSimReceiveCalculating(
+    simQuery.isFetching,
+    hasSettledSimQuote,
+    simQuery.isPlaceholderData,
+    payInputsPendingForReceive
+  )
+
   const simLoadingLabel = resolveSimQuoteLoadingLabel(
     simQuery.isFetching,
-    !!simQuery.data,
+    hasSettledSimQuote,
     routeSolveProgress,
     fetchStartedAtMs,
     nowMs,
@@ -1111,7 +1123,7 @@ export default function SwapPage() {
               <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
                 <p className="label-glass mb-3">{SLIPPAGE_PROTECTION_LABEL}</p>
                 <div className="flex flex-wrap gap-2">
-                  {[0.1, 0.5, 1.0].map((val) => (
+                  {SLIPPAGE_TOLERANCE_PRESETS_PERCENT.map((val) => (
                     <button
                       key={val}
                       onClick={() => handleSlippagePreset(val)}
@@ -1150,7 +1162,7 @@ export default function SwapPage() {
                     Must be between 0.01% and 50%
                   </p>
                 )}
-                {!customSlippageError && slippageTolerance > 5 && (
+                {!customSlippageError && slippageTolerance > HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT && (
                   <p
                     className="mt-2 text-xs font-semibold uppercase tracking-wide"
                     style={{ color: 'var(--color-warning, #f59e0b)' }}
@@ -1351,8 +1363,12 @@ export default function SwapPage() {
                   disabled={allTokens.length === 0}
                 />
               </div>
-              <div className="text-[1.75rem] sm:text-2xl font-medium" style={{ color: 'var(--ink)' }}>
-                {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) ? (
+              <div
+                className="text-[1.75rem] sm:text-2xl font-medium"
+                style={{ color: 'var(--ink)' }}
+                data-testid="swap-you-receive"
+              >
+                {showSimReceiveCalculating ? (
                   <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }} aria-hidden="true">
                     {simLoadingLabel}
                   </span>
@@ -1362,7 +1378,7 @@ export default function SwapPage() {
                   <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
                 )}
               </div>
-              {shouldShowSimReceiveCalculating(simQuery.isFetching, !!simData) && (
+              {showSimReceiveCalculating && (
                 <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                   {simLoadingLabel}
                 </span>

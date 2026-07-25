@@ -80,6 +80,20 @@ Unfunded pairs (`pair_reserves` with `reserve_0 = reserve_1 = 0`) are normal aft
 
 Regression: `route_solve_db_hybrid_skips_zero_reserve_path_candidate` in `indexer/tests/api_route_solve_db_hybrid.rs`; `make verify-issue-369`.
 
+## Empty-book grid short-circuit ([#493](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/493))
+
+When `global_v4` has a **Fresh** mirror with **no fillable match-side resting orders**, `optimize_one_hop` prices **pool-only once** (skip 17-point grid). **1-hop** baselines that stay pool-only also skip the 2 coordinate-descent passes. This is an optimality-preserving latency win — do **not** short-circuit hops with a live book, and do **not** shrink `GRID_POINTS` / path caps without a `solver_version` bump + docs.
+
+Related LCD hardening in the same issue: CosmWasm HTTP **500** bodies with wasmd markers (`query wasm contract failed`, `codespace wasm`, plus existing factory/foreign phrases) return `ContractQueryRejected` **without** fan-out to sibling LCD URLs; infra **502/503/timeout/429** still fail over. See [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md) and [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (P1 + empty-book rows).
+
+Regression:
+
+```bash
+cd indexer && cargo test --lib lcd hybrid_route_opt db_orderbook_sim -- --test-threads=1
+cd indexer && cargo test --test api_route_solve_db_hybrid -- --test-threads=1 \
+  empty_book_skips_full_grid live_book_still_grids
+```
+
 ## Related invariants
 
 [docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), hybrid GET cache tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)), CG/CMC consolidated reporting rows.

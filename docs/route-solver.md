@@ -206,11 +206,15 @@ References are **explanatory** — they do not imply the implementation is prova
 | Research | **Univariate grid search** / **golden-section** on unimodal functions; **coordinate descent** when multiple hops coupled |
 | Relevance | Book+pool output is queried via LCD, not a closed form — grid is a practical heuristic |
 
+**Empty-book short-circuit (GitLab [#493](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/493)):** Under `global_v4`, when a hop’s Postgres mirror is **Fresh** and has **no fillable resting orders** on the taker match side (`mirror_has_fillable_book` / `first_live_book_start_hint`), the hop prices **pool-only once** and skips the 17-point grid. This does **not** shrink optimality: with an empty match-side book every `book_input > 0` split equals pool-only (unconsumed book input spills to the pool). Stale/missing mirrors and `global_v3` (LCD) keep the full grid. Live-book hops still run all 17 fractions — no `solver_version` bump.
+
 ### 4. Joint multihop refinement
 
 | Shipped | `optimize_multihop_hybrid_joint`: sequential baseline, then **2** passes optimizing each hop with `propagate_offer_through_plan` |
 | Research | **Block coordinate descent** (e.g. Wright 2015 survey); **alternating optimization** for coupled nonlinear objectives |
 | Relevance | Hop outputs feed next hop’s offer; CD re-opens earlier hops after downstream splits change |
+
+**1-hop pool-only skip (#493):** After the sequential baseline, if the path is **1 hop** and the plan is pool-only (`hybrid: null` / `book_input = 0`), coordinate descent is skipped — it would re-run the same split search with the same offer. Multihop paths still run both CD passes.
 
 ### 5. Pool leg simulation / liquidity-weighted routing
 
@@ -226,7 +230,7 @@ References are **explanatory** — they do not imply the implementation is prova
 
 ### LCD query budget
 
-Documented upper bound: `LCD_HYBRID_SIM_BUDGET = MAX_PATH_CANDIDATES × GET_DEFAULT_MAX_HOPS × (17 + 2×2×17) = **1700**` pair-level simulations per request (worst-case estimate). Post-#319 each hop is priced from the DB orderbook mirror rather than live LCD; `lcd_hybrid_queries` is an approximate running count during evaluation.
+Documented upper bound: `LCD_HYBRID_SIM_BUDGET = MAX_PATH_CANDIDATES × GET_DEFAULT_MAX_HOPS × (17 + 2×2×17) = **1700**` pair-level simulations per request (worst-case estimate). Post-#319 each hop is priced from the DB orderbook mirror rather than live LCD; `lcd_hybrid_queries` is an approximate running count during evaluation. Empty-book short-circuit (#493) lowers **typical** `db_hybrid_queries` for empty match-side books; the **1700** figure remains the worst-case upper bound when every hop has a live book.
 
 ---
 

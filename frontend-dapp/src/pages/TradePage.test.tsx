@@ -255,6 +255,23 @@ describe('TradePage', () => {
     expect(screen.getByTestId('trade-cancel-submit')).not.toHaveAttribute('disabled')
   })
 
+  it('keeps limit place guards in document flow above sticky CTA (GitLab #500)', async () => {
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    const sticky = await screen.findByTestId('trade-limit-submit-sticky')
+    const guards = screen.getByTestId('trade-limit-inline-guards')
+    const scroll = screen.getByTestId('trade-order-ticket-scroll')
+
+    expect(scroll.className).toMatch(/trade-order-ticket-scroll/)
+    expect(sticky.className).toMatch(/trade-limit-submit-sticky/)
+    expect(scroll).toContainElement(guards)
+    expect(scroll).toContainElement(sticky)
+    expect(sticky.contains(guards)).toBe(false)
+    // Guards precede sticky in DOM so banners never sit under the pinned CTA chrome.
+    expect(guards.compareDocumentPosition(sticky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('book Edit prefills the visible desktop limit ticket (GitLab #178)', async () => {
     const user = userEvent.setup()
     mockTradeDesktopLayout(true)

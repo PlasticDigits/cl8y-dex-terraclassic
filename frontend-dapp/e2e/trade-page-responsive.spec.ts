@@ -54,6 +54,70 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     expect(box!.y + box!.height).toBeLessThanOrEqual(workspaceBox!.y + workspaceBox!.height + 2)
   })
 
+  test('limit sticky CTA is opaque; guards stay in flow; expiry can clear footer (#500)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+
+    const workspace = page.getByTestId('trade-desktop-workspace')
+    await expect(workspace).toBeVisible({ timeout: 90_000 })
+
+    const sticky = page.getByTestId('trade-limit-submit-sticky')
+    const guards = page.getByTestId('trade-limit-inline-guards')
+    const scroll = page.getByTestId('trade-order-ticket-scroll')
+    const submit = page.getByTestId('trade-limit-submit')
+    await expect(sticky).toBeAttached()
+    await expect(guards).toBeAttached()
+    await expect(scroll).toBeVisible()
+    await expect(submit).toBeAttached()
+
+    expect(
+      await guards.evaluate((el) => el.closest('[data-testid="trade-limit-submit-sticky"]') == null),
+      'place guards must not live inside the sticky CTA chrome'
+    ).toBe(true)
+    expect(
+      await submit.evaluate((el) => Boolean(el.closest('[data-testid="trade-limit-submit-sticky"]'))),
+      'Place limit button must live inside sticky CTA chrome'
+    ).toBe(true)
+
+    // Bring sticky CTA into the window viewport (ticket column can clip mid-form).
+    await submit.scrollIntoViewIfNeeded()
+    await page.waitForTimeout(50)
+
+    const bgOpaque = await sticky.evaluate((el) => {
+      const s = getComputedStyle(el)
+      const hasImage = s.backgroundImage !== 'none' && s.backgroundImage.length > 0
+      const color = s.backgroundColor
+      const transparent = color === 'rgba(0, 0, 0, 0)' || color === 'transparent'
+      return hasImage || !transparent
+    })
+    expect(bgOpaque, 'sticky CTA background must not be fully transparent').toBe(true)
+
+    const hitSticky = await submit.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const x = Math.min(Math.max(r.left + r.width / 2, 0), window.innerWidth - 1)
+      const y = Math.min(Math.max(r.top + r.height / 2, 0), window.innerHeight - 1)
+      const hit = document.elementFromPoint(x, y)
+      return Boolean(hit?.closest('[data-testid="trade-limit-submit-sticky"]'))
+    })
+    expect(hitSticky, 'pointer hit on scrolled-into-view Place limit must land in sticky chrome').toBe(true)
+
+    const expiry = page.locator('#trade-ticket-expiry-dt')
+    await expect(expiry).toBeAttached()
+    await expiry.evaluate((el) => {
+      el.scrollIntoView({ block: 'center', inline: 'nearest' })
+    })
+    await page.waitForTimeout(50)
+    const expiryBox = await expiry.boundingBox()
+    const stickyBox = await sticky.boundingBox()
+    expect(expiryBox, 'expiry input box').toBeTruthy()
+    expect(stickyBox, 'sticky CTA box').toBeTruthy()
+    expect(
+      expiryBox!.y + expiryBox!.height,
+      'expiry input should sit above the pinned sticky CTA after scroll-into-view'
+    ).toBeLessThanOrEqual(stickyBox!.y + 2)
+  })
+
   test('phone width stacks order book, ticket, then chart', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/trade')
