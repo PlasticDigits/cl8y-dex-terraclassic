@@ -13,7 +13,8 @@ use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::limit_placement::LimitOrderPlacementItem;
 use dex_common::pair::{
     pool_only_hybrid_params, Cw20HookMsg, FeeConfigResponse, HybridSimulationResponse,
-    LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide, PoolResponse, QueryMsg,
+    LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide, OwnerInventoryResponse,
+    PairProtocolResponse, PoolResponse, QueryMsg,
 };
 use dex_common::types::Asset;
 
@@ -25,8 +26,8 @@ const FACTORY_VERSION: &str = "1.5.0";
 const FACTORY_PRIOR_VERSION: &str = "1.4.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
-const PAIR_VERSION: &str = "1.8.0";
-const PAIR_PRIOR_VERSION: &str = "1.7.0";
+const PAIR_VERSION: &str = "1.9.0";
+const PAIR_PRIOR_VERSION: &str = "1.8.0";
 
 const FEE_DISCOUNT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
 const FEE_DISCOUNT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -593,6 +594,14 @@ fn pair_migration_preserves_fee_registry_lp_admin_and_limit_book() {
     assert_eq!(before.lp_admin, env.governance.to_string());
     assert!(before.discounted_commission < Uint128::new(10_000));
 
+    // The fixture instantiates current code; remove v1 owner-index state to emulate deployed 1.8.0.
+    {
+        let mut storage = app.contract_storage_mut(&env.pair);
+        cl8y_dex_pair::state::OWNER_INDEX_READY.remove(&mut *storage);
+        cl8y_dex_pair::state::OWNER_INDEX_GENERATION.remove(&mut *storage);
+        cl8y_dex_pair::state::OWNER_INDEX_BACKFILL_CURSOR.remove(&mut *storage);
+        cl8y_dex_pair::state::OWNER_ORDERS.remove(&mut *storage, (&env.user, env.limit_order_id));
+    }
     downgrade_cw2_version(&mut app, &env.pair, PAIR_NAME, PAIR_PRIOR_VERSION);
     app.migrate_contract(
         env.governance.clone(),
@@ -608,6 +617,55 @@ fn pair_migration_preserves_fee_registry_lp_admin_and_limit_book() {
 
     let after = snapshot_pair(&app, &env);
     assert_eq!(after, before);
+
+    let protocol: PairProtocolResponse = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::Protocol {})
+        .unwrap();
+    assert!(!protocol.owner_inventory_ready);
+    assert_eq!(
+        cl8y_dex_pair::state::OWNER_INDEX_BACKFILL_CURSOR
+            .load(&*app.contract_storage(&env.pair))
+            .unwrap()
+            .max_order_id,
+        Some(env.limit_order_id)
+    );
+    assert!(app
+        .wrap()
+        .query_wasm_smart::<OwnerInventoryResponse>(
+            env.pair.to_string(),
+            &QueryMsg::OwnerInventory {
+                owner: env.user.to_string(),
+                snapshot: None,
+                start_after: None,
+                limit: Some(10),
+            },
+        )
+        .is_err());
+
+    for _ in 0..2 {
+        app.execute_contract(
+            Addr::unchecked("permissionless-backfiller"),
+            env.pair.clone(),
+            &dex_common::pair::ExecuteMsg::ContinueOwnerIndexBackfill { limit: 10 },
+            &[],
+        )
+        .unwrap();
+    }
+    let inventory: OwnerInventoryResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::OwnerInventory {
+                owner: env.user.to_string(),
+                snapshot: None,
+                start_after: None,
+                limit: Some(10),
+            },
+        )
+        .unwrap();
+    assert_eq!(inventory.rows.len(), 1);
+    assert_eq!(inventory.rows[0].order_id, env.limit_order_id);
 }
 
 #[test]

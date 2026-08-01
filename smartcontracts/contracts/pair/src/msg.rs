@@ -1,7 +1,8 @@
 pub use dex_common::oracle::{ObserveResponse, OracleInfoResponse};
 pub use dex_common::pair::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, FeeConfigResponse, HooksResponse,
-    LimitOrderResponse, PairInstantiateMsg as InstantiateMsg, PoolResponse, QueryMsg,
+    LimitOrderResponse, OrderStatusResponseV1, OwnerInventoryResponse,
+    PairInstantiateMsg as InstantiateMsg, PairProtocolResponse, PoolResponse, QueryMsg,
 };
 
 use cosmwasm_schema::cw_serde;

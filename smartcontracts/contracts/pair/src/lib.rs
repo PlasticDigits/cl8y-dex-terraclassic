@@ -65,6 +65,7 @@ pub mod limit_book_clean;
 pub mod limit_placement;
 pub mod msg;
 pub mod orderbook;
+pub mod owner_inventory;
 pub mod state;
 pub mod tx_swap_index;
 

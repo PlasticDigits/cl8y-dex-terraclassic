@@ -49,6 +49,15 @@ pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 15;
 /// cover larger notionals separately.
 pub const LIMIT_ORDER_DUST_FLUSH_THRESHOLD: Uint128 = Uint128::new(10);
 
+/// Public owner-inventory and typed-status schema version.
+pub const ORDER_API_SCHEMA_VERSION: u16 = 1;
+/// Contract-enforced maximum owner-inventory page size.
+pub const MAX_OWNER_INVENTORY_PAGE_SIZE: u32 = 100;
+/// Default owner-inventory page size.
+pub const DEFAULT_OWNER_INVENTORY_PAGE_SIZE: u32 = 50;
+/// Maximum rows examined by one permissionless owner-index backfill call.
+pub const MAX_OWNER_INDEX_BACKFILL_LIMIT: u32 = 100;
+
 /// TTL for on-pair CL8Y fee-discount cache entries ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)).
 ///
 /// The discount is a 300s **snapshot**, not a live per-trade balance check: a tier holder must
@@ -118,6 +127,98 @@ pub enum LimitOrderSide {
     Ask,
 }
 
+/// Live custody state for an order in the unified owner inventory.
+#[cw_serde]
+pub enum OwnerOrderState {
+    Active,
+    ParkedRefund,
+}
+
+/// Reason an order was parked or reached a terminal state.
+#[cw_serde]
+pub enum OrderStatusReason {
+    TimeExpired,
+    Dust,
+    ForceClean,
+    Blacklisted,
+    Cancelled,
+    Claimed,
+    FullyExecuted,
+}
+
+/// Typed lifecycle state returned by [`QueryMsg::OrderStatusV1`].
+#[cw_serde]
+pub enum OrderStatus {
+    Active,
+    ParkedRefund,
+    FullyExecuted,
+    Cancelled,
+    NotFound,
+}
+
+/// Versioned order lifecycle response. Metadata is absent only for `NotFound`, or where a
+/// pre-upgrade parked row did not retain the value.
+#[cw_serde]
+pub struct OrderStatusResponseV1 {
+    pub schema_version: u16,
+    pub order_id: u64,
+    pub status: OrderStatus,
+    pub owner: Option<Addr>,
+    pub side: Option<LimitOrderSide>,
+    pub price: Option<Decimal>,
+    pub remaining: Option<Uint128>,
+    pub expires_at: Option<u64>,
+    pub reason: Option<OrderStatusReason>,
+    pub terminal_height: Option<u64>,
+    pub terminal_time: Option<u64>,
+}
+
+/// Stable first-page boundary used by keyset pagination.
+#[cw_serde]
+pub struct OwnerInventorySnapshot {
+    pub generation: u64,
+    pub max_order_id: u64,
+}
+
+/// One active or parked order owned by the queried wallet.
+#[cw_serde]
+pub struct OwnerInventoryRow {
+    pub order_id: u64,
+    pub owner: Addr,
+    pub state: OwnerOrderState,
+    pub side: LimitOrderSide,
+    pub price: Option<Decimal>,
+    pub remaining: Uint128,
+    pub expires_at: Option<u64>,
+    pub reason: Option<OrderStatusReason>,
+}
+
+#[cw_serde]
+pub struct OwnerInventoryResponse {
+    pub schema_version: u16,
+    pub snapshot: OwnerInventorySnapshot,
+    pub rows: Vec<OwnerInventoryRow>,
+    /// Exclusive order-id cursor for the next page.
+    pub next_cursor: Option<u64>,
+    pub complete: bool,
+}
+
+#[cw_serde]
+pub enum PairApiFeature {
+    TypedOrderStatus,
+    OwnerInventory,
+    OwnerIndexBackfill,
+}
+
+#[cw_serde]
+pub struct PairProtocolResponse {
+    pub schema_version: u16,
+    pub features: Vec<PairApiFeature>,
+    pub owner_inventory_ready: bool,
+    pub owner_inventory_generation: u64,
+    pub max_owner_inventory_page_size: u32,
+}
+
 /// Claimable refund for an order parked on expiry (see `ClaimExpiredLimitOrder`).
 #[cw_serde]
 pub struct ExpiredLimitRefundResponse {
@@ -128,6 +229,12 @@ pub struct ExpiredLimitRefundResponse {
     pub remaining: Uint128,
     #[serde(default)]
     pub expires_at: Option<u64>,
+    /// Absent on rows written before owner-inventory schema v1.
+    #[serde(default)]
+    pub price: Option<Decimal>,
+    /// Absent on rows written before owner-inventory schema v1.
+    #[serde(default)]
+    pub reason: Option<OrderStatusReason>,
 }
 
 /// Resting limit order returned by queries.
@@ -273,6 +380,10 @@ pub enum ExecuteMsg {
         min_remaining_token0: Uint128,
         min_remaining_token1: Uint128,
     },
+    /// Permissionless bounded continuation of the migration owner-index backfill.
+    ContinueOwnerIndexBackfill {
+        limit: u32,
+    },
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
@@ -345,6 +456,21 @@ pub enum QueryMsg {
     /// Refund row for an order removed from the book due to expiry during a match walk (`None` if none).
     #[returns(Option<ExpiredLimitRefundResponse>)]
     ExpiredLimitRefund { order_id: u64 },
+    /// Version 1 typed order lifecycle query. Unknown valid ids return `NotFound`.
+    #[returns(OrderStatusResponseV1)]
+    OrderStatusV1 { order_id: u64 },
+    /// Stable keyset-paginated active and parked custody for one owner.
+    #[returns(OwnerInventoryResponse)]
+    OwnerInventory {
+        owner: String,
+        snapshot: Option<OwnerInventorySnapshot>,
+        /// Exclusive order-id cursor.
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
+    /// API schema and capability/readiness discovery.
+    #[returns(PairProtocolResponse)]
+    Protocol {},
     /// Head order id for bid or ask list (empty book = none).
     #[returns(Option<u64>)]
     OrderBookHead { side: LimitOrderSide },

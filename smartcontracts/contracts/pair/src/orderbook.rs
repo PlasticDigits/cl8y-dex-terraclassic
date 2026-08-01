@@ -35,6 +35,7 @@ use cosmwasm_std::{
     Addr, CosmosMsg, Decimal, Event, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
+use dex_common::pair::OrderStatusReason;
 use dex_common::pair::{LimitOrderResponse, LimitOrderSide};
 
 use crate::blacklist_guard::TradeBlacklistGate;
@@ -75,17 +76,39 @@ fn finalize_order_after_fill(
     oid: u64,
     order: &LimitOrder,
     pair_contract: &str,
+    terminal_height: u64,
+    terminal_time: u64,
 ) -> Result<PostFillOutcome, ContractError> {
     if order.remaining.is_zero() {
         unlink_order(storage, oid)?;
+        crate::owner_inventory::save_terminal(
+            storage,
+            oid,
+            &order.owner,
+            order.side.clone(),
+            Some(order.price),
+            order.remaining,
+            order.expires_at,
+            OrderStatusReason::FullyExecuted,
+            terminal_height,
+            terminal_time,
+        )?;
         return Ok(PostFillOutcome::Unlinked);
     }
     if should_flush_dust(order.remaining) {
         ORDERS.save(storage, oid, order)?;
-        let event = park_limit_order_for_clean(storage, oid, pair_contract, true, None)?;
+        let event = park_limit_order_with_reason(
+            storage,
+            oid,
+            pair_contract,
+            true,
+            None,
+            OrderStatusReason::Dust,
+        )?;
         return Ok(PostFillOutcome::FlushedDust { event });
     }
     ORDERS.save(storage, oid, order)?;
+    crate::owner_inventory::save_active(storage, oid, order)?;
     Ok(PostFillOutcome::PartialSaved)
 }
 
@@ -374,6 +397,7 @@ pub fn insert_bid_with_id(
         next,
     };
     ORDERS.save(storage, id, &order)?;
+    crate::owner_inventory::save_active(storage, id, &order)?;
 
     // link neighbors
     if let Some(p) = prev {
@@ -471,6 +495,7 @@ pub fn insert_ask_with_id(
         next,
     };
     ORDERS.save(storage, id, &order)?;
+    crate::owner_inventory::save_active(storage, id, &order)?;
 
     if let Some(p) = prev {
         ORDERS
@@ -549,6 +574,7 @@ pub fn insert_bid_with_id_for_batch(
         next,
     };
     ORDERS.save(storage, id, &order)?;
+    crate::owner_inventory::save_active(storage, id, &order)?;
 
     if let Some(p) = prev {
         ORDERS
@@ -620,6 +646,7 @@ pub fn insert_ask_with_id_for_batch(
         next,
     };
     ORDERS.save(storage, id, &order)?;
+    crate::owner_inventory::save_active(storage, id, &order)?;
 
     if let Some(p) = prev {
         ORDERS
@@ -1163,6 +1190,7 @@ fn link_bid_order_at_id(
     order.prev = prev;
     order.next = next;
     ORDERS.save(storage, id, &order)?;
+    crate::owner_inventory::save_active(storage, id, &order)?;
 
     if let Some(p) = prev {
         ORDERS
@@ -1215,6 +1243,7 @@ fn link_ask_order_at_id(
     order.prev = prev;
     order.next = next;
     ORDERS.save(storage, id, &order)?;
+    crate::owner_inventory::save_active(storage, id, &order)?;
 
     if let Some(p) = prev {
         ORDERS
@@ -1328,6 +1357,28 @@ pub fn park_limit_order_for_clean(
     force_expired: bool,
     refund_expires_at: Option<u64>,
 ) -> Result<Event, ContractError> {
+    park_limit_order_with_reason(
+        storage,
+        order_id,
+        pair_contract,
+        force_expired,
+        refund_expires_at,
+        if force_expired {
+            OrderStatusReason::ForceClean
+        } else {
+            OrderStatusReason::TimeExpired
+        },
+    )
+}
+
+fn park_limit_order_with_reason(
+    storage: &mut dyn Storage,
+    order_id: u64,
+    pair_contract: &str,
+    force_expired: bool,
+    refund_expires_at: Option<u64>,
+    reason: OrderStatusReason,
+) -> Result<Event, ContractError> {
     if EXPIRED_LIMIT_CLAIMS.may_load(storage, order_id)?.is_some() {
         return Err(ContractError::InvariantViolation {
             reason: "expired limit claim already exists for order id".into(),
@@ -1339,8 +1390,11 @@ pub fn park_limit_order_for_clean(
         side: removed.side.clone(),
         remaining: removed.remaining,
         expires_at: refund_expires_at,
+        price: Some(removed.price),
+        reason: Some(reason),
     };
     EXPIRED_LIMIT_CLAIMS.save(storage, order_id, &row)?;
+    crate::owner_inventory::save_parked(storage, order_id, &row)?;
     Ok(limit_order_expired_parked_event(
         pair_contract,
         order_id,
@@ -1397,7 +1451,14 @@ fn skip_blacklisted_maker_order(
     }
     if park_off_book {
         if *expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
-            let ev = park_limit_order_for_clean(storage, oid, pair_contract, true, None)?;
+            let ev = park_limit_order_with_reason(
+                storage,
+                oid,
+                pair_contract,
+                true,
+                None,
+                OrderStatusReason::Blacklisted,
+            )?;
             fill_events.push(ev);
             *expired_parks += 1;
         } else {
@@ -1408,10 +1469,44 @@ fn skip_blacklisted_maker_order(
 }
 
 /// Match bids while taker sells token0 for token1. `token0_budget` is filled from the taker.
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub fn match_bids(
     storage: &mut dyn Storage,
     now: u64,
+    token0_budget: Uint128,
+    max_maker_fills: u32,
+    book_start_hint: Option<u64>,
+    pair_contract: &str,
+    token0_addr: &str,
+    token1_addr: &str,
+    receiver: &Addr,
+    treasury: &Addr,
+    effective_fee_bps: u16,
+    blacklist_gate: Option<&TradeBlacklistGate>,
+) -> Result<BookMatchResult, ContractError> {
+    match_bids_at_height(
+        storage,
+        now,
+        0,
+        token0_budget,
+        max_maker_fills,
+        book_start_hint,
+        pair_contract,
+        token0_addr,
+        token1_addr,
+        receiver,
+        treasury,
+        effective_fee_bps,
+        blacklist_gate,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn match_bids_at_height(
+    storage: &mut dyn Storage,
+    now: u64,
+    terminal_height: u64,
     token0_budget: Uint128,
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
@@ -1574,7 +1669,8 @@ pub fn match_bids(
         token0_left = token0_left.checked_sub(fill)?;
         token1_out_total = token1_out_total.checked_add(net_to_taker)?;
 
-        match finalize_order_after_fill(storage, oid, &order, pair_contract)? {
+        match finalize_order_after_fill(storage, oid, &order, pair_contract, terminal_height, now)?
+        {
             PostFillOutcome::Unlinked => {}
             PostFillOutcome::FlushedDust { event, .. } => {
                 fill_events.push(event);
@@ -1601,10 +1697,44 @@ pub fn match_bids(
 }
 
 /// Match asks while taker sells token1 for token0. `token1_budget` is from the taker.
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub fn match_asks(
     storage: &mut dyn Storage,
     now: u64,
+    token1_budget: Uint128,
+    max_maker_fills: u32,
+    book_start_hint: Option<u64>,
+    pair_contract: &str,
+    token0_addr: &str,
+    token1_addr: &str,
+    receiver: &Addr,
+    treasury: &Addr,
+    effective_fee_bps: u16,
+    blacklist_gate: Option<&TradeBlacklistGate>,
+) -> Result<BookMatchResult, ContractError> {
+    match_asks_at_height(
+        storage,
+        now,
+        0,
+        token1_budget,
+        max_maker_fills,
+        book_start_hint,
+        pair_contract,
+        token0_addr,
+        token1_addr,
+        receiver,
+        treasury,
+        effective_fee_bps,
+        blacklist_gate,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn match_asks_at_height(
+    storage: &mut dyn Storage,
+    now: u64,
+    terminal_height: u64,
     token1_budget: Uint128,
     max_maker_fills: u32,
     book_start_hint: Option<u64>,
@@ -1768,7 +1898,8 @@ pub fn match_asks(
         token1_left = token1_left.checked_sub(cost)?;
         token0_out_total = token0_out_total.checked_add(net_to_taker)?;
 
-        match finalize_order_after_fill(storage, oid, &order, pair_contract)? {
+        match finalize_order_after_fill(storage, oid, &order, pair_contract, terminal_height, now)?
+        {
             PostFillOutcome::Unlinked => {}
             PostFillOutcome::FlushedDust { event, .. } => {
                 fill_events.push(event);

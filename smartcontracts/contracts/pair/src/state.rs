@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::{Item, Map};
 use dex_common::oracle::Observation;
-use dex_common::pair::LimitOrderSide;
+use dex_common::pair::{LimitOrderSide, OrderStatusReason, OwnerOrderState};
 use dex_common::types::{AssetInfo, FeeConfig};
 
 /// Governance-configurable cap on batch/ladder placement size (GitLab #206).
@@ -84,9 +84,62 @@ pub struct ExpiredLimitRefund {
     pub remaining: Uint128,
     #[serde(default)]
     pub expires_at: Option<u64>,
+    #[serde(default)]
+    pub price: Option<Decimal>,
+    #[serde(default)]
+    pub reason: Option<OrderStatusReason>,
 }
 
 pub const EXPIRED_LIMIT_CLAIMS: Map<u64, ExpiredLimitRefund> = Map::new("exp_limit_cl");
+
+/// Live owner custody keyed by `(owner, order_id)`. The key remains stable when an order parks.
+#[cw_serde]
+pub struct OwnerOrderRecord {
+    pub state: OwnerOrderState,
+    pub side: LimitOrderSide,
+    pub price: Option<Decimal>,
+    pub remaining: Uint128,
+    pub expires_at: Option<u64>,
+    pub reason: Option<OrderStatusReason>,
+}
+
+pub const OWNER_ORDERS: Map<(&Addr, u64), OwnerOrderRecord> = Map::new("owner_orders_v1");
+pub const OWNER_INDEX_READY: Item<bool> = Item::new("owner_idx_ready_v1");
+pub const OWNER_INDEX_GENERATION: Item<u64> = Item::new("owner_idx_gen_v1");
+
+#[cw_serde]
+pub enum OwnerIndexBackfillPhase {
+    Active,
+    ParkedRefund,
+}
+
+#[cw_serde]
+pub struct OwnerIndexBackfillCursor {
+    pub phase: OwnerIndexBackfillPhase,
+    /// Exclusive order-id cursor within the current phase.
+    pub last_order_id: Option<u64>,
+    /// Migration-time inclusive boundary. Legacy draft cursors capture it on first continuation.
+    #[serde(default)]
+    pub max_order_id: Option<u64>,
+}
+
+pub const OWNER_INDEX_BACKFILL_CURSOR: Item<OwnerIndexBackfillCursor> =
+    Item::new("owner_idx_cursor_v1");
+
+/// Prospective terminal lifecycle record. Pre-upgrade terminal orders intentionally have no row.
+#[cw_serde]
+pub struct OrderTombstone {
+    pub owner: Addr,
+    pub side: LimitOrderSide,
+    pub price: Option<Decimal>,
+    pub remaining: Uint128,
+    pub expires_at: Option<u64>,
+    pub reason: OrderStatusReason,
+    pub terminal_height: u64,
+    pub terminal_time: u64,
+}
+
+pub const ORDER_TOMBSTONES: Map<u64, OrderTombstone> = Map::new("order_tomb_v1");
 
 /// Scope for per-transaction swap ordinals (GitLab #331).
 #[cw_serde]
@@ -110,4 +163,30 @@ pub struct LimitOrder {
     pub expires_at: Option<u64>,
     pub prev: Option<u64>,
     pub next: Option<u64>,
+}
+
+#[cfg(test)]
+mod compatibility_tests {
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::Storage;
+
+    use super::*;
+
+    #[test]
+    fn expired_limit_refund_loads_pre_1_9_row_without_new_fields() {
+        let mut deps = mock_dependencies();
+        let order_id = 41u64;
+        let legacy_json =
+            br#"{"owner":"legacy-maker","side":"ask","remaining":"123456","expires_at":987654}"#;
+        let key = EXPIRED_LIMIT_CLAIMS.key(order_id);
+        deps.storage.set(&key, legacy_json);
+
+        let row = EXPIRED_LIMIT_CLAIMS.load(&deps.storage, order_id).unwrap();
+        assert_eq!(row.owner, Addr::unchecked("legacy-maker"));
+        assert_eq!(row.side, LimitOrderSide::Ask);
+        assert_eq!(row.remaining, Uint128::new(123_456));
+        assert_eq!(row.expires_at, Some(987_654));
+        assert_eq!(row.price, None);
+        assert_eq!(row.reason, None);
+    }
 }

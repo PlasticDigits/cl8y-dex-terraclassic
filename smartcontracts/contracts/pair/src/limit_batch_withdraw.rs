@@ -63,7 +63,7 @@ fn maybe_transfer(
 /// Cancel up to `max_batch_rungs` resting orders in one tx; aggregate refunds into ≤ 2 CW20 transfers.
 pub fn execute_cancel_limit_orders(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     order_ids: Vec<u64>,
 ) -> Result<Response, ContractError> {
@@ -85,6 +85,18 @@ pub fn execute_cancel_limit_orders(
             return Err(ContractError::Unauthorized {});
         }
         let removed = orderbook::unlink_order(deps.storage, order_id)?;
+        crate::owner_inventory::save_terminal(
+            deps.storage,
+            order_id,
+            &removed.owner,
+            removed.side.clone(),
+            Some(removed.price),
+            removed.remaining,
+            removed.expires_at,
+            dex_common::pair::OrderStatusReason::Cancelled,
+            env.block.height,
+            env.block.time.seconds(),
+        )?;
         match removed.side {
             LimitOrderSide::Bid => {
                 refund_token1 = refund_token1.checked_add(removed.remaining)?;
@@ -143,7 +155,7 @@ pub fn execute_cancel_limit_orders(
 /// Claim up to `max_batch_rungs` parked-expiry rows in one tx; aggregate refunds into ≤ 2 CW20 transfers.
 pub fn execute_claim_expired_limit_orders(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     order_ids: Vec<u64>,
 ) -> Result<Response, ContractError> {
@@ -175,6 +187,18 @@ pub fn execute_claim_expired_limit_orders(
             }
         }
         EXPIRED_LIMIT_CLAIMS.remove(deps.storage, order_id);
+        crate::owner_inventory::save_terminal(
+            deps.storage,
+            order_id,
+            &row.owner,
+            row.side.clone(),
+            row.price,
+            row.remaining,
+            row.expires_at,
+            dex_common::pair::OrderStatusReason::Claimed,
+            env.block.height,
+            env.block.time.seconds(),
+        )?;
         claimed.push(order_id);
     }
 

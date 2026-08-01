@@ -23,11 +23,13 @@ use crate::msg::{
     QueryMsg,
 };
 use crate::orderbook;
+use crate::owner_inventory;
 use crate::state::{
-    LimitOrderConfig, OracleState, PairInfoState, DISCOUNT_REGISTRY, EXPIRED_LIMIT_CLAIMS,
-    FEE_CONFIG, HOOKS, LIMIT_CLEAN_CONFIG, LIMIT_ORDER_CONFIG, OBSERVATIONS, ORACLE_STATE,
-    ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1, RESERVES,
-    TOTAL_LP_SUPPLY,
+    LimitOrderConfig, OracleState, OwnerIndexBackfillCursor, OwnerIndexBackfillPhase,
+    PairInfoState, DISCOUNT_REGISTRY, EXPIRED_LIMIT_CLAIMS, FEE_CONFIG, HOOKS, LIMIT_CLEAN_CONFIG,
+    LIMIT_ORDER_CONFIG, OBSERVATIONS, ORACLE_STATE, ORDER_NEXT_ID, OWNER_INDEX_BACKFILL_CURSOR,
+    OWNER_INDEX_GENERATION, OWNER_INDEX_READY, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0,
+    PENDING_ESCROW_TOKEN1, RESERVES, TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
@@ -44,7 +46,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.8.0";
+const CONTRACT_VERSION: &str = "1.9.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -523,6 +525,8 @@ pub fn instantiate(
     ORDER_NEXT_ID.save(deps.storage, &1u64)?;
     PENDING_ESCROW_TOKEN0.save(deps.storage, &Uint128::zero())?;
     PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
+    OWNER_INDEX_READY.save(deps.storage, &true)?;
+    OWNER_INDEX_GENERATION.save(deps.storage, &1)?;
 
     save_limit_order_config(deps.storage, msg.max_batch_rungs)?;
     save_limit_clean_config(deps.storage, Uint128::zero(), Uint128::zero())?;
@@ -748,6 +752,9 @@ pub fn execute(
             min_remaining_token0,
             min_remaining_token1,
         ),
+        ExecuteMsg::ContinueOwnerIndexBackfill { limit } => {
+            owner_inventory::continue_backfill(deps.storage, limit)
+        }
     }
 }
 
@@ -1055,9 +1062,10 @@ fn execute_swap(
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
-            let book_match = orderbook::match_bids(
+            let book_match = orderbook::match_bids_at_height(
                 deps.storage,
                 env.block.time.seconds(),
+                env.block.height,
                 book_leg,
                 max_makers,
                 book_hint,
@@ -1081,9 +1089,10 @@ fn execute_swap(
             book_expired_parks_skipped = book_match.expired_parks_skipped;
             book_scan_steps_capped = book_match.scan_steps_capped;
         } else {
-            let book_match = orderbook::match_asks(
+            let book_match = orderbook::match_asks_at_height(
                 deps.storage,
                 env.block.time.seconds(),
+                env.block.height,
                 book_leg,
                 max_makers,
                 book_hint,
@@ -1436,7 +1445,7 @@ fn execute_update_limit_order_price(
 /// (including parked-expiry refunds) stay frozen while the pair is paused (GitLab #120).
 fn execute_claim_expired_limit_order(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     order_id: u64,
 ) -> Result<Response, ContractError> {
@@ -1492,6 +1501,18 @@ fn execute_claim_expired_limit_order(
     };
 
     EXPIRED_LIMIT_CLAIMS.remove(deps.storage, order_id);
+    owner_inventory::save_terminal(
+        deps.storage,
+        order_id,
+        &row.owner,
+        row.side.clone(),
+        row.price,
+        row.remaining,
+        row.expires_at,
+        dex_common::pair::OrderStatusReason::Claimed,
+        env.block.height,
+        env.block.time.seconds(),
+    )?;
 
     Ok(Response::new()
         .add_message(refund_msg)
@@ -1502,7 +1523,7 @@ fn execute_claim_expired_limit_order(
 
 fn execute_cancel_limit_order(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     order_id: u64,
 ) -> Result<Response, ContractError> {
@@ -1514,6 +1535,18 @@ fn execute_cancel_limit_order(
     let token_a = token_addr(&pair_info.asset_infos[0]);
     let token_b = token_addr(&pair_info.asset_infos[1]);
     let removed = orderbook::unlink_order(deps.storage, order_id)?;
+    owner_inventory::save_terminal(
+        deps.storage,
+        order_id,
+        &removed.owner,
+        removed.side.clone(),
+        Some(removed.price),
+        removed.remaining,
+        removed.expires_at,
+        dex_common::pair::OrderStatusReason::Cancelled,
+        env.block.height,
+        env.block.time.seconds(),
+    )?;
 
     let refund_msg = match removed.side {
         LimitOrderSide::Bid => {
@@ -2164,6 +2197,22 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ExpiredLimitRefund { order_id } => {
             to_json_binary(&query_expired_limit_refund(deps, order_id)?)
         }
+        QueryMsg::OrderStatusV1 { order_id } => {
+            to_json_binary(&owner_inventory::query_status(deps, order_id)?)
+        }
+        QueryMsg::OwnerInventory {
+            owner,
+            snapshot,
+            start_after,
+            limit,
+        } => to_json_binary(&owner_inventory::query_owner_inventory(
+            deps,
+            owner,
+            snapshot,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::Protocol {} => to_json_binary(&owner_inventory::query_protocol(deps)?),
         QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
         QueryMsg::LimitOrderConfig {} => to_json_binary(&query_limit_order_config(deps)?),
         QueryMsg::LimitCleanConfig {} => to_json_binary(&query_limit_clean_config(deps)?),
@@ -2221,6 +2270,8 @@ fn query_expired_limit_refund(
             side: r.side,
             remaining: r.remaining,
             expires_at: r.expires_at,
+            price: r.price,
+            reason: r.reason,
         }))
 }
 
@@ -2776,6 +2827,31 @@ pub fn migrate(
     if LIMIT_CLEAN_CONFIG.may_load(deps.storage)?.is_none() {
         save_limit_clean_config(deps.storage, Uint128::zero(), Uint128::zero())?;
     }
+    let owner_index_state_absent = OWNER_INDEX_READY.may_load(deps.storage)?.is_none()
+        || OWNER_INDEX_GENERATION.may_load(deps.storage)?.is_none();
+    if owner_index_state_absent {
+        OWNER_INDEX_READY.save(deps.storage, &false)?;
+        if OWNER_INDEX_GENERATION.may_load(deps.storage)?.is_none() {
+            OWNER_INDEX_GENERATION.save(deps.storage, &1)?;
+        }
+        if OWNER_INDEX_BACKFILL_CURSOR
+            .may_load(deps.storage)?
+            .is_none()
+        {
+            let max_order_id = ORDER_NEXT_ID
+                .load(deps.storage)?
+                .checked_sub(1)
+                .ok_or_else(|| StdError::generic_err("invalid zero next order id"))?;
+            OWNER_INDEX_BACKFILL_CURSOR.save(
+                deps.storage,
+                &OwnerIndexBackfillCursor {
+                    phase: OwnerIndexBackfillPhase::Active,
+                    last_order_id: None,
+                    max_order_id: Some(max_order_id),
+                },
+            )?;
+        }
+    }
 
     Ok(Response::new()
         .add_attribute("action", "migrate")
@@ -2858,5 +2934,51 @@ mod oracle_overflow_tests {
             Uint128::new(1_000_000),
         );
         assert!(res.is_ok());
+    }
+}
+
+#[cfg(test)]
+mod owner_index_migration_tests {
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+
+    use super::*;
+
+    #[test]
+    fn migration_starts_backfill_only_when_owner_index_state_is_absent() {
+        let mut deps = mock_dependencies();
+        cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.8.0").unwrap();
+        ORDER_NEXT_ID.save(&mut deps.storage, &8).unwrap();
+        migrate(deps.as_mut(), mock_env(), crate::msg::MigrateMsg {}).unwrap();
+        assert!(!OWNER_INDEX_READY.load(&deps.storage).unwrap());
+        assert_eq!(OWNER_INDEX_GENERATION.load(&deps.storage).unwrap(), 1);
+        assert_eq!(
+            OWNER_INDEX_BACKFILL_CURSOR
+                .load(&deps.storage)
+                .unwrap()
+                .phase,
+            OwnerIndexBackfillPhase::Active
+        );
+        assert_eq!(
+            OWNER_INDEX_BACKFILL_CURSOR
+                .load(&deps.storage)
+                .unwrap()
+                .max_order_id,
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn migration_preserves_existing_ready_generation_without_cursor() {
+        let mut deps = mock_dependencies();
+        cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.8.0").unwrap();
+        OWNER_INDEX_READY.save(&mut deps.storage, &true).unwrap();
+        OWNER_INDEX_GENERATION.save(&mut deps.storage, &9).unwrap();
+        migrate(deps.as_mut(), mock_env(), crate::msg::MigrateMsg {}).unwrap();
+        assert!(OWNER_INDEX_READY.load(&deps.storage).unwrap());
+        assert_eq!(OWNER_INDEX_GENERATION.load(&deps.storage).unwrap(), 9);
+        assert!(OWNER_INDEX_BACKFILL_CURSOR
+            .may_load(&deps.storage)
+            .unwrap()
+            .is_none());
     }
 }

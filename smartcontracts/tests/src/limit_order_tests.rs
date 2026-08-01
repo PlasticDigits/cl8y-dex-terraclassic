@@ -13,8 +13,9 @@ use dex_common::pair::{
     pool_only_hybrid_params, pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg,
     ExpiredLimitRefundResponse, HybridReverseSimulationResponse, HybridSimulationResponse,
     HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse,
-    LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
-    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
+    LimitOrderSide, OrderStatus, OrderStatusReason, OrderStatusResponseV1, OwnerInventoryResponse,
+    PairProtocolResponse, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP, ORDER_API_SCHEMA_VERSION,
 };
 use dex_common::types::Asset;
 
@@ -425,6 +426,74 @@ fn bid_and_hybrid_swap_partially_fills_book() {
     assert_eq!(lo.side, LimitOrderSide::Bid);
     assert!(lo.remaining < bid_escrow);
     assert!(!lo.remaining.is_zero());
+
+    let status: OrderStatusResponseV1 = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::OrderStatusV1 { order_id })
+        .unwrap();
+    assert_eq!(status.status, OrderStatus::Active);
+    assert_eq!(status.owner, Some(env.user.clone()));
+    assert_eq!(status.remaining, Some(lo.remaining));
+
+    let inventory: OwnerInventoryResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::OwnerInventory {
+                owner: env.user.to_string(),
+                snapshot: None,
+                start_after: None,
+                limit: Some(10),
+            },
+        )
+        .unwrap();
+    assert_eq!(inventory.rows.len(), 1);
+    assert_eq!(inventory.rows[0].order_id, order_id);
+
+    let protocol: PairProtocolResponse = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::Protocol {})
+        .unwrap();
+    assert_eq!(protocol.schema_version, ORDER_API_SCHEMA_VERSION);
+    assert!(protocol.owner_inventory_ready);
+}
+
+#[test]
+fn contract_full_fill_records_real_terminal_block_metadata() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let taker = Addr::unchecked("terminal-metadata-taker");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(100_000),
+        Decimal::one(),
+    );
+    let remaining = query_limit(&app, &env.pair, order_id).remaining;
+    transfer_tokens(&mut app, &env.token_a, &env.user, &taker, remaining);
+    let terminal_block = app.block_info();
+
+    hybrid_swap_a_to_b(&mut app, &env, &taker, remaining, 1, Some(Uint128::one()));
+
+    let status: OrderStatusResponseV1 = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::OrderStatusV1 { order_id })
+        .unwrap();
+    assert_eq!(status.status, OrderStatus::FullyExecuted);
+    assert_eq!(status.terminal_height, Some(terminal_block.height));
+    assert_eq!(status.terminal_time, Some(terminal_block.time.seconds()));
+    assert_ne!(status.terminal_height, Some(0));
+    assert_ne!(status.terminal_time, Some(0));
 }
 
 /// One wasm event per maker fill (`action` = `limit_order_fill`) for indexers.
@@ -1727,6 +1796,15 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
     assert_eq!(row.side, LimitOrderSide::Bid);
     assert_eq!(row.remaining, remaining_after_fee);
     assert_eq!(row.expires_at, Some(exp));
+    assert_eq!(row.price, Some(Decimal::one()));
+    assert_eq!(row.reason, Some(OrderStatusReason::TimeExpired));
+
+    let parked_status: OrderStatusResponseV1 = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::OrderStatusV1 { order_id })
+        .unwrap();
+    assert_eq!(parked_status.status, OrderStatus::ParkedRefund);
+    assert_eq!(parked_status.remaining, Some(remaining_after_fee));
 
     assert!(
         app.wrap()
@@ -1777,6 +1855,14 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
         )
         .unwrap();
     assert!(empty.is_none());
+    let claimed_status: OrderStatusResponseV1 = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::OrderStatusV1 { order_id })
+        .unwrap();
+    assert_eq!(claimed_status.status, OrderStatus::Cancelled);
+    assert_eq!(claimed_status.reason, Some(OrderStatusReason::Claimed));
+    assert!(claimed_status.terminal_height.is_some());
+    assert!(claimed_status.terminal_time.is_some());
 }
 
 // --- GitLab #250: cap expired limit parks during hybrid match walks ---
@@ -2502,6 +2588,16 @@ fn cancel_limit_order_refunds_escrow() {
     assert_eq!(
         after.checked_sub(before).unwrap(),
         escrow.checked_sub(maker_fee).unwrap()
+    );
+    let status: OrderStatusResponseV1 = app
+        .wrap()
+        .query_wasm_smart(env.pair.to_string(), &QueryMsg::OrderStatusV1 { order_id })
+        .unwrap();
+    assert_eq!(status.status, OrderStatus::Cancelled);
+    assert_eq!(status.reason, Some(OrderStatusReason::Cancelled));
+    assert_eq!(
+        status.remaining,
+        Some(escrow.checked_sub(maker_fee).unwrap())
     );
 }
 
@@ -5578,6 +5674,14 @@ fn batch_cancel_mixed_bid_ask_one_tx() {
         bal_a_after.checked_sub(bal_a_before).unwrap(),
         ask_escrow.checked_sub(maker_fee_ask).unwrap()
     );
+    for order_id in [bid_id, ask_id] {
+        let status: OrderStatusResponseV1 = app
+            .wrap()
+            .query_wasm_smart(env.pair.to_string(), &QueryMsg::OrderStatusV1 { order_id })
+            .unwrap();
+        assert_eq!(status.status, OrderStatus::Cancelled);
+        assert_eq!(status.reason, Some(OrderStatusReason::Cancelled));
+    }
 }
 
 #[test]
@@ -5830,6 +5934,14 @@ fn batch_claim_expired_two_orders_one_tx() {
         bal_after.checked_sub(bal_before).unwrap(),
         remaining.checked_mul(Uint128::new(2)).unwrap()
     );
+    for order_id in order_ids {
+        let status: OrderStatusResponseV1 = app
+            .wrap()
+            .query_wasm_smart(env.pair.to_string(), &QueryMsg::OrderStatusV1 { order_id })
+            .unwrap();
+        assert_eq!(status.status, OrderStatus::Cancelled);
+        assert_eq!(status.reason, Some(OrderStatusReason::Claimed));
+    }
 }
 
 fn execute_clean_limit_book(
