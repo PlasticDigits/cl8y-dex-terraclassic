@@ -12,9 +12,9 @@ use dex_common::limit_placement::{
 use dex_common::pair::{
     pool_only_hybrid_params, pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg,
     ExpiredLimitParkReason, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
-    HybridSimulationResponse, HybridSwapParams, LimitCleanConfigResponse,
-    LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg,
-    MAX_EXPIRED_PARKS_PER_SWAP, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
+    HybridSimulationResponse, HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse,
+    LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -1714,9 +1714,10 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
         })
         .expect("expired bid walk should emit limit_order_expired_parked");
     assert!(
-        parked_ev.attributes.iter().any(|a| {
-            a.key == "reason" && a.value == ExpiredLimitParkReason::Expired.as_attr()
-        }),
+        parked_ev
+            .attributes
+            .iter()
+            .any(|a| { a.key == "reason" && a.value == ExpiredLimitParkReason::Expired.as_attr() }),
         "park event must include reason=expired"
     );
     assert!(

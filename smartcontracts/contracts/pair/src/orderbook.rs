@@ -3268,8 +3268,7 @@ mod aggregation_tests {
                     .iter()
                     .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
                     && e.attributes.iter().any(|a| {
-                        a.key == "reason"
-                            && a.value == ExpiredLimitParkReason::DustFilled.as_attr()
+                        a.key == "reason" && a.value == ExpiredLimitParkReason::DustFilled.as_attr()
                     })
             }),
             "dust flush emits park event with reason=dust_filled"
