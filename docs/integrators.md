@@ -97,19 +97,27 @@ Permissionless pair execute **`clean_limit_book`** parks time-expired and/or gov
 
 Query **`limit_clean_config`** for per-side `min_remaining_token0` (asks) / `min_remaining_token1` (bids). **0** disables force-clean on that side. Governance: factory **`set_pair_limit_clean_config`**.
 
-**Pause:** blocked while `is_paused` (invariant **L6**). **Indexer:** `limit_order_expired_parked` still drives **`parked_expired`**; optional wasm attr **`force_expired=true`** on dust parks.
+**Pause:** blocked while `is_paused` (invariant **L6**). **Indexer:** `limit_order_expired_parked` still drives **`parked_expired`**; parks emit **`reason=expired`** or **`reason=force_cleaned`** ([#504](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/504)); historical **`force_expired=true`** remains on force-clean parks.
 
-Canonical: [limit-orders.md § Permissionless limit book clean](./limit-orders.md#permissionless-limit-book-clean), invariant **L15** in [contracts-security-audit.md](./contracts-security-audit.md), [`limit_book_clean.rs`](../smartcontracts/contracts/pair/src/limit_book_clean.rs). **No in-repo watcher** — operators may cron `clean_limit_book` from indexer backlog signals ([`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md)).
+Canonical: [limit-orders.md § Permissionless limit book clean](./limit-orders.md#permissionless-limit-book-clean), [§ Park reason](./limit-orders.md#expired-limit-park-reason-gitlab-504), invariant **L15** in [contracts-security-audit.md](./contracts-security-audit.md), [`limit_book_clean.rs`](../smartcontracts/contracts/pair/src/limit_book_clean.rs). **No in-repo watcher** — operators may cron `clean_limit_book` from indexer backlog signals ([`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md)).
 
 ## Match-time dust flush (GitLab #264) {#match-time-dust-flush-gitlab-264}
 
-During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remaining < 10`** (raw escrow units: token1 bids, token0 asks) are **auto-parked** into **`EXPIRED_LIMIT_CLAIMS`** with **`force_expired=true`** — no separate keeper tx, no CW20 in the swap. Constant: **`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`** in [`dex-common::pair`](../smartcontracts/packages/dex-common/src/pair.rs). Makers claim via **`claim_expired_limit_order`** (same as time-expiry / governance dust parks).
+During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remaining < 10`** (raw escrow units: token1 bids, token0 asks) are **auto-parked** into **`EXPIRED_LIMIT_CLAIMS`** with **`reason=DustFilled`** (wasm `reason=dust_filled`, plus historical **`force_expired=true`**) — no separate keeper tx, no CW20 in the swap. Constant: **`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`** in [`dex-common::pair`](../smartcontracts/packages/dex-common/src/pair.rs). Makers claim via **`claim_expired_limit_order`** (same as time-expiry / governance dust parks).
 
 **vs #263:** `CleanLimitBook` is permissionless, governance-threshold, and async; match-time flush is proactive with a fixed **10**-unit protocol threshold at fill time.
 
-**Indexer:** existing `limit_order_expired_parked` + `force_expired=true` → **`parked_expired`** (no parser change expected).
+**Integrator (#504):** a parked row is **not** “expired unfilled.” Query **`expired_limit_refund`** returns **`reason`**; dust flush is **`DustFilled`**. Do not infer fill from `expires_at == null` alone (blacklist / force-clean also clear it). Workaround until `reason` is deployed: `filled ≈ last_on_book_remaining − refund.remaining` (poll-race prone).
 
-Canonical: [limit-orders.md § Match-time dust flush](./limit-orders.md#match-time-dust-flush-gitlab-264), invariant **L16** in [contracts-security-audit.md](./contracts-security-audit.md), [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs). Agent playbook: [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
+**Indexer:** `limit_order_expired_parked` still maps to lifecycle **`parked_expired`**; parse wasm **`reason`** when available (follow-up OK). Historical **`force_expired=true`** remains on non-TTL parks.
+
+Canonical: [limit-orders.md § Match-time dust flush](./limit-orders.md#match-time-dust-flush-gitlab-264), [§ Park reason](./limit-orders.md#expired-limit-park-reason-gitlab-504), invariant **L16** / **L21** in [contracts-security-audit.md](./contracts-security-audit.md), [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs). Agent playbooks: [`skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md`](../skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md), [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
+
+## Parked refund `reason` (GitLab #504) {#expired-limit-park-reason-gitlab-504}
+
+LCD query **`{ "expired_limit_refund": { "order_id": N } }`** returns optional **`reason`**: `Expired` | `DustFilled` | `ForceCleaned` | `Blacklisted` (or omitted on pre-#504 rows). Claim execute is unchanged and reason-agnostic.
+
+Full table + invariants: [limit-orders.md § Park reason discriminator](./limit-orders.md#expired-limit-park-reason-gitlab-504).
 
 ## Slippage: `max_spread` and `belief_price` (hybrid)
 

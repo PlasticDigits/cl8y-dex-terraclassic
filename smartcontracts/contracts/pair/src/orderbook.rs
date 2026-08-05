@@ -35,7 +35,7 @@ use cosmwasm_std::{
     Addr, CosmosMsg, Decimal, Event, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use dex_common::pair::{LimitOrderResponse, LimitOrderSide};
+use dex_common::pair::{ExpiredLimitParkReason, LimitOrderResponse, LimitOrderSide};
 
 use crate::blacklist_guard::TradeBlacklistGate;
 use crate::error::ContractError;
@@ -82,7 +82,13 @@ fn finalize_order_after_fill(
     }
     if should_flush_dust(order.remaining) {
         ORDERS.save(storage, oid, order)?;
-        let event = park_limit_order_for_clean(storage, oid, pair_contract, true, None)?;
+        let event = park_limit_order_for_clean(
+            storage,
+            oid,
+            pair_contract,
+            ExpiredLimitParkReason::DustFilled,
+            None,
+        )?;
         return Ok(PostFillOutcome::FlushedDust { event });
     }
     ORDERS.save(storage, oid, order)?;
@@ -1305,27 +1311,32 @@ pub(crate) fn limit_order_expired_parked_event(
     maker: &Addr,
     side: LimitOrderSide,
     remaining: Uint128,
-    force_expired: bool,
+    reason: ExpiredLimitParkReason,
 ) -> Event {
+    // `force_expired=true` is historical: “parked though **not** a TTL expiry” (#263/#264/#468),
+    // not “TTL forced”. Kept for indexer back-compat; prefer `reason` (GitLab #504).
     let mut ev = Event::new("wasm")
         .add_attribute("contract_address", pair_contract)
         .add_attribute("action", "limit_order_expired_parked")
         .add_attribute("order_id", order_id.to_string())
         .add_attribute("maker", maker.as_str())
         .add_attribute("side", side_str(&side))
-        .add_attribute("remaining", remaining);
-    if force_expired {
+        .add_attribute("remaining", remaining)
+        .add_attribute("reason", reason.as_attr());
+    if reason.is_force_expired() {
         ev = ev.add_attribute("force_expired", "true");
     }
     ev
 }
 
-/// Park an order into `EXPIRED_LIMIT_CLAIMS` without moving CW20 (GitLab #263 / #120).
+/// Park an order into `EXPIRED_LIMIT_CLAIMS` without moving CW20 (GitLab #263 / #120 / #504).
+///
+/// `reason` must be set at the call site — do not re-derive from `(force_expired, expires_at)`.
 pub fn park_limit_order_for_clean(
     storage: &mut dyn Storage,
     order_id: u64,
     pair_contract: &str,
-    force_expired: bool,
+    reason: ExpiredLimitParkReason,
     refund_expires_at: Option<u64>,
 ) -> Result<Event, ContractError> {
     if EXPIRED_LIMIT_CLAIMS.may_load(storage, order_id)?.is_some() {
@@ -1339,6 +1350,7 @@ pub fn park_limit_order_for_clean(
         side: removed.side.clone(),
         remaining: removed.remaining,
         expires_at: refund_expires_at,
+        reason: Some(reason.clone()),
     };
     EXPIRED_LIMIT_CLAIMS.save(storage, order_id, &row)?;
     Ok(limit_order_expired_parked_event(
@@ -1347,7 +1359,7 @@ pub fn park_limit_order_for_clean(
         &removed.owner,
         removed.side,
         removed.remaining,
-        force_expired,
+        reason,
     ))
 }
 
@@ -1366,7 +1378,13 @@ pub fn park_expired_limit_order_for_claim(
             reason: "park_expired_limit_order_for_claim on non-expired order".into(),
         });
     }
-    park_limit_order_for_clean(storage, order_id, pair_contract, false, order.expires_at)
+    park_limit_order_for_clean(
+        storage,
+        order_id,
+        pair_contract,
+        ExpiredLimitParkReason::Expired,
+        order.expires_at,
+    )
 }
 
 /// Skip (and optionally park) a resting order when its owner is trading-blacklisted (GitLab #468).
@@ -1397,7 +1415,13 @@ fn skip_blacklisted_maker_order(
     }
     if park_off_book {
         if *expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
-            let ev = park_limit_order_for_clean(storage, oid, pair_contract, true, None)?;
+            let ev = park_limit_order_for_clean(
+                storage,
+                oid,
+                pair_contract,
+                ExpiredLimitParkReason::Blacklisted,
+                None,
+            )?;
             fill_events.push(ev);
             *expired_parks += 1;
         } else {
@@ -2695,10 +2719,16 @@ mod tests {
             .attributes
             .iter()
             .any(|a| a.key == "action" && a.value == "limit_order_expired_parked"));
+        assert!(ev.attributes.iter().any(|a| {
+            a.key == "reason" && a.value == ExpiredLimitParkReason::Expired.as_attr()
+        }));
+        assert!(!ev.attributes.iter().any(|a| a.key == "force_expired"));
         assert!(ORDERS.may_load(storage, id).unwrap().is_none());
         let row = EXPIRED_LIMIT_CLAIMS.load(storage, id).unwrap();
         assert_eq!(row.remaining, Uint128::new(1000));
         assert_eq!(row.owner, o);
+        assert_eq!(row.reason, Some(ExpiredLimitParkReason::Expired));
+        assert_eq!(row.expires_at, Some(exp));
         let pending_after = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
         assert_eq!(pending_before, pending_after);
     }
@@ -3224,6 +3254,7 @@ mod aggregation_tests {
         assert_eq!(claim.remaining, Uint128::one());
         assert_eq!(claim.owner, owner);
         assert!(claim.expires_at.is_none());
+        assert_eq!(claim.reason, Some(ExpiredLimitParkReason::DustFilled));
         let pending_after = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
         assert_eq!(
             pending_before.checked_sub(pending_after).unwrap(),
@@ -3232,11 +3263,16 @@ mod aggregation_tests {
         );
         assert_eq!(pending_after, Uint128::one());
         assert!(
-            result.fill_events.iter().any(|e| e
-                .attributes
-                .iter()
-                .any(|a| { a.key == "action" && a.value == "limit_order_expired_parked" })),
-            "dust flush emits park event"
+            result.fill_events.iter().any(|e| {
+                e.attributes
+                    .iter()
+                    .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+                    && e.attributes.iter().any(|a| {
+                        a.key == "reason"
+                            && a.value == ExpiredLimitParkReason::DustFilled.as_attr()
+                    })
+            }),
+            "dust flush emits park event with reason=dust_filled"
         );
     }
 
@@ -3279,6 +3315,7 @@ mod aggregation_tests {
         assert!(ORDERS.may_load(storage, order_id).unwrap().is_none());
         let claim = EXPIRED_LIMIT_CLAIMS.load(storage, order_id).unwrap();
         assert_eq!(claim.remaining, Uint128::new(5));
+        assert_eq!(claim.reason, Some(ExpiredLimitParkReason::DustFilled));
         let pending_after = PENDING_ESCROW_TOKEN0.may_load(storage).unwrap().unwrap();
         assert_eq!(
             pending_before.checked_sub(pending_after).unwrap(),

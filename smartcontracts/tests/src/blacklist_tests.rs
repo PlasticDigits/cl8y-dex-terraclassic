@@ -746,17 +746,18 @@ fn blacklisted_maker_resting_limit_not_filled_taker_can_still_swap() {
         trader: None,
     })
     .unwrap();
-    app.execute_contract(
-        taker,
-        env.token_a.clone(),
-        &cw20::Cw20ExecuteMsg::Send {
-            contract: env.pair.to_string(),
-            amount: Uint128::new(10_000),
-            msg: swap_msg,
-        },
-        &[],
-    )
-    .unwrap();
+    let res = app
+        .execute_contract(
+            taker,
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(10_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
 
     let maker_token_a_after = query_cw20_balance(&app, &env.token_a, &maker);
     assert_eq!(
@@ -775,5 +776,25 @@ fn blacklisted_maker_resting_limit_not_filled_taker_can_still_swap() {
         parked.is_some(),
         "blacklisted maker order should park off-book for claim after unblacklist"
     );
-    assert_eq!(parked.unwrap().owner, maker);
+    let parked = parked.unwrap();
+    assert_eq!(parked.owner, maker);
+    assert_eq!(
+        parked.reason,
+        Some(dex_common::pair::ExpiredLimitParkReason::Blacklisted),
+        "blacklist park must set reason=Blacklisted, not DustFilled (#504)"
+    );
+    assert!(parked.expires_at.is_none());
+    assert!(
+        res.events.iter().any(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+                && e.attributes.iter().any(|a| {
+                    a.key == "reason"
+                        && a.value
+                            == dex_common::pair::ExpiredLimitParkReason::Blacklisted.as_attr()
+                })
+        }),
+        "blacklist park emits reason=blacklisted"
+    );
 }

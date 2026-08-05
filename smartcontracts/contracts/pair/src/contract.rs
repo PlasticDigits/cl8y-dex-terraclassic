@@ -2221,6 +2221,7 @@ fn query_expired_limit_refund(
             side: r.side,
             remaining: r.remaining,
             expires_at: r.expires_at,
+            reason: r.reason,
         }))
 }
 
