@@ -51,7 +51,7 @@ GET /api/v1/route/solve/progress?token_in=&token_out=&amount_in=&trader=&max_mak
 ## Do / don’t
 
 - **Do** poll ~1 Hz while Swap `getRouteSolve` is in flight; abort with the sim AbortSignal.
-- **Do** keep Trade market pair-scoped **Quoting…** (direct hybrid / pool — no global solve progress).
+- **Do** keep Trade market pair-scoped **Quoting…** for now (Trade uses `GET /route/solve` by default after [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501), but still shows static Quoting… — wiring `useRouteSolveProgress` on `/trade` is an optional follow-up).
 - **Don’t** invent “found better route” claims beyond `optimality_scope`.
 - **Don’t** lower `INDEXER_ROUTE_SOLVE_TIMEOUT_MS` until distant-pair p95 is proven &lt;15s.
 - **Don’t** put progress on the LCD-heavy governor.

@@ -34,6 +34,7 @@ import {
   quoteDisclosureForIndexerKind,
   DIRECT_HYBRID_AMOUNT_RECONCILED_COPY,
 } from '@/utils/directHybridQuote'
+import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
@@ -49,12 +50,12 @@ import {
   type PairInfo,
 } from '@/types'
 import { getDecimals, toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
-import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
+import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
-import { getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
+import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
@@ -75,42 +76,25 @@ interface MarketSimData {
   indexerAmountReconciled?: boolean
 }
 
-function computeHybridParams(
-  rawTotal: string,
-  fromToken: string,
-  useHybridBook: boolean,
-  bookInputHuman: string,
+function hybridParamsFromBookSplit(
+  split: ReturnType<typeof getDirectHybridBookSplit>,
   hybridMaxMakers: number
-): { hybrid: HybridSwapParams | undefined; willSubmitHybrid: boolean } {
-  if (!useHybridBook || !fromToken.startsWith('terra1')) {
-    return { hybrid: undefined, willSubmitHybrid: false }
-  }
-  const dec = getDecimals(tokenAssetInfo(fromToken))
-  const bookHuman = bookInputHuman.trim()
-  if (bookHuman && !isDecimalAmountDraft(bookHuman)) {
-    return { hybrid: undefined, willSubmitHybrid: false }
-  }
-  const bookRawStr = bookHuman ? toRawAmount(bookHuman, dec) : rawTotal
-  const total = tryParseBigInt(rawTotal)
-  const book = tryParseBigInt(bookRawStr)
-  if (total === null || book === null) {
-    return { hybrid: undefined, willSubmitHybrid: false }
-  }
-  if (book <= 0n) return { hybrid: undefined, willSubmitHybrid: false }
-  if (book > total) return { hybrid: undefined, willSubmitHybrid: false }
-  const pool = total - book
-  if (hybridMaxMakers < 1) return { hybrid: undefined, willSubmitHybrid: false }
+): HybridSwapParams | undefined {
+  if (!split?.willSubmitHybrid) return undefined
   return {
-    hybrid: {
-      pool_input: pool.toString(),
-      book_input: book.toString(),
-      max_maker_fills: hybridMaxMakers,
-      book_start_hint: null,
-    },
-    willSubmitHybrid: true,
+    pool_input: split.poolRaw,
+    book_input: split.bookRaw,
+    max_maker_fills: hybridMaxMakers,
+    book_start_hint: null,
   }
 }
 
+/**
+ * `/trade` Market ticket — mirrors Swap default quoting (GitLab #501):
+ * - Hybrid on + empty manual book → `GET /route/solve` (solver-optimized pool/book split)
+ * - Hybrid on + typed book leg → Advanced override via `quoteDirectHybridSwap` (`POST`)
+ * - Hybrid off → pool-only pair `simulateSwap`
+ */
 export function TradeMarketOrderPanel({
   pairAddr,
   selectedPair,
@@ -135,9 +119,11 @@ export function TradeMarketOrderPanel({
   const maxMakersInputId = useId()
 
   const [marketAmountHuman, setMarketAmountHuman] = useState('')
+  /** When on (default): GET solver; typed book leg overrides via POST. When off: pool-only. */
   const [useHybridBook, setUseHybridBook] = useState(true)
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const debouncedBookInputHuman = useDebouncedValue(bookInputHuman, SIM_QUOTE_DEBOUNCE_MS)
   const debouncedHybridMaxMakers = useDebouncedValue(hybridMaxMakers, SIM_QUOTE_DEBOUNCE_MS)
 
@@ -156,27 +142,34 @@ export function TradeMarketOrderPanel({
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, fromToken)
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
-  const { hybrid: liveHybrid, willSubmitHybrid } = useMemo(
-    () => computeHybridParams(rawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers),
-    [rawInputAmount, fromToken, useHybridBook, bookInputHuman, hybridMaxMakers]
-  )
-
-  const { hybrid: debouncedHybrid, willSubmitHybrid: debouncedWillSubmitHybrid } = useMemo(
+  const liveSplit = useMemo(
     () =>
-      computeHybridParams(
-        debouncedRawInputAmount,
-        fromToken,
+      getDirectHybridBookSplit({
+        isDirect: true,
         useHybridBook,
-        debouncedBookInputHuman,
-        debouncedHybridMaxMakers
-      ),
-    [debouncedRawInputAmount, fromToken, useHybridBook, debouncedBookInputHuman, debouncedHybridMaxMakers]
+        fromToken,
+        bookInputHuman,
+        rawInputAmount,
+        hybridMaxMakers,
+      }),
+    [useHybridBook, fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers]
   )
+  const liveHybrid = hybridParamsFromBookSplit(liveSplit, hybridMaxMakers)
 
-  const marketGasMin = useMemo(
-    () => estimateMarketPairSwapSequenceUlunaFeesTotal(willSubmitHybrid, liveHybrid),
-    [willSubmitHybrid, liveHybrid]
+  const debouncedSplit = useMemo(
+    () =>
+      getDirectHybridBookSplit({
+        isDirect: true,
+        useHybridBook,
+        fromToken,
+        bookInputHuman: debouncedBookInputHuman,
+        rawInputAmount: debouncedRawInputAmount,
+        hybridMaxMakers: debouncedHybridMaxMakers,
+      }),
+    [useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
   )
+  const debouncedHybrid = hybridParamsFromBookSplit(debouncedSplit, debouncedHybridMaxMakers)
+  const debouncedWillSubmitHybrid = !!debouncedSplit?.willSubmitHybrid
 
   const bookLegMaxResult = useMemo(() => {
     if (!escrowBalanceQuery.data || rawInputAmount === '0') {
@@ -207,33 +200,6 @@ export function TradeMarketOrderPanel({
     ]
   )
 
-  const placeNativeGasGate = useMemo(
-    () =>
-      evaluateMarketSwapNativeGasPlaceGate(
-        marketAmountHuman,
-        offerDecimals,
-        {
-          data: nativeUlunaQuery.data,
-          isLoading: nativeUlunaQuery.isLoading,
-          isError: nativeUlunaQuery.isError,
-        },
-        marketGasMin,
-        willSubmitHybrid ? 'hybrid swap' : 'swap'
-      ),
-    [
-      marketAmountHuman,
-      offerDecimals,
-      nativeUlunaQuery.data,
-      nativeUlunaQuery.isLoading,
-      nativeUlunaQuery.isError,
-      marketGasMin,
-      willSubmitHybrid,
-    ]
-  )
-
-  const combinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
-  const inlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
-
   const maxSpreadStr = useMemo(() => (slippageTolerance / 100).toString(), [slippageTolerance])
   const quoteTrader = useMemo(() => (address ? { trader: address } : undefined), [address])
 
@@ -250,13 +216,15 @@ export function TradeMarketOrderPanel({
       address,
     ],
     placeholderData: keepPreviousData,
-    queryFn: async (): Promise<MarketSimData> => {
+    queryFn: async ({ signal }): Promise<MarketSimData> => {
       if (!selectedPair || debouncedRawInputAmount === '0') throw new Error('missing')
       const simRaw = debouncedRawInputAmount
       const offerInfo = tokenAssetInfo(fromToken)
       const askInfo = tokenAssetInfo(toToken)
 
+      // Advanced: manual book leg overrides indexer GET (same semantics as Swap).
       if (useHybridBook && debouncedHybrid && debouncedWillSubmitHybrid) {
+        if (debouncedSplit?.bookExceedsPay) throw new Error('Book leg cannot exceed pay amount')
         const quoted = await quoteDirectHybridSwap({
           pairAddress: selectedPair.contract_addr,
           fromToken,
@@ -280,6 +248,35 @@ export function TradeMarketOrderPanel({
         }
       }
 
+      // Default (hybrid on, empty manual book): GET /route/solve best-execution split (#501).
+      if (useHybridBook && fromToken.startsWith('terra1') && toToken.startsWith('terra1')) {
+        try {
+          const quoted = await quoteCw20ViaRouteSolve({
+            fromToken,
+            toToken,
+            simRaw,
+            maxMakerFills: debouncedHybridMaxMakers,
+            slippageTolerancePercent: slippageTolerance,
+            maxSpreadStr,
+            quoteTrader,
+            signal,
+          })
+          if (quoted) {
+            return {
+              return_amount: quoted.return_amount,
+              spread_amount: quoted.spread_amount,
+              commission_amount: quoted.commission_amount,
+              quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
+              indexerQuoteKind: quoted.indexerQuoteKind,
+              indexerOperations: quoted.indexerOperations,
+              routePreflight: quoted.routePreflight,
+            }
+          }
+        } catch {
+          /* pool-only fallback below */
+        }
+      }
+
       const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, simRaw, quoteTrader)
       return {
         ...sim,
@@ -296,6 +293,44 @@ export function TradeMarketOrderPanel({
     refetchInterval: simQuoteRefetchInterval,
   })
 
+  const solverHybridForGas = useMemo(
+    () => hybridFromSingleHopIndexerOps(simQuery.data?.indexerOperations),
+    [simQuery.data?.indexerOperations]
+  )
+
+  // Hybrid on (GET or Advanced) reserves hybrid gas; prefer settled solver / manual split params.
+  const marketGasMin = useMemo(
+    () => estimateMarketPairSwapSequenceUlunaFeesTotal(useHybridBook, liveHybrid ?? solverHybridForGas ?? undefined),
+    [useHybridBook, liveHybrid, solverHybridForGas]
+  )
+
+  const placeNativeGasGate = useMemo(
+    () =>
+      evaluateMarketSwapNativeGasPlaceGate(
+        marketAmountHuman,
+        offerDecimals,
+        {
+          data: nativeUlunaQuery.data,
+          isLoading: nativeUlunaQuery.isLoading,
+          isError: nativeUlunaQuery.isError,
+        },
+        marketGasMin,
+        useHybridBook ? 'hybrid swap' : 'swap'
+      ),
+    [
+      marketAmountHuman,
+      offerDecimals,
+      nativeUlunaQuery.data,
+      nativeUlunaQuery.isLoading,
+      nativeUlunaQuery.isError,
+      marketGasMin,
+      useHybridBook,
+    ]
+  )
+
+  const combinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
+  const inlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
+
   const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true
 
   const hybridSubmitSnapshot = useMemo(
@@ -311,7 +346,7 @@ export function TradeMarketOrderPanel({
     debouncedRawInputAmount,
     simQuery,
     slippageTolerance,
-    extraSubmitBlocked: priceImpactTooHigh,
+    extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay,
     hybrid: useHybridBook
       ? {
           enabled: true,
@@ -344,7 +379,7 @@ export function TradeMarketOrderPanel({
         offerDecimals,
         nativeUlunaQuery,
         marketGasMin,
-        debouncedWillSubmitHybrid ? 'hybrid swap' : 'swap'
+        useHybridBook ? 'hybrid swap' : 'swap'
       )
       if (!nativeGate.canPlaceLimit) {
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
@@ -373,6 +408,7 @@ export function TradeMarketOrderPanel({
             deadline
           )
         }
+        // Prefer solver hybrid from GET quote; Advanced manual split is the fallback (#501).
         const hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? submitHybrid
         const directMinReturn =
           hopHybrid && BigInt(hopHybrid.book_input) > 0n
@@ -470,7 +506,7 @@ export function TradeMarketOrderPanel({
     <div className="space-y-3 border-t border-white/10 pt-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide">Market</h3>
       <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        Taker swap at {slippageTolerance}% {SLIPPAGE_PROTECTION_LABEL.toLowerCase()}.{' '}
+        Taker swap at {slippageTolerance}% {SLIPPAGE_PROTECTION_LABEL.toLowerCase()}. Best pool/book split by default.{' '}
         <a
           className="underline hover:opacity-80"
           href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
@@ -508,70 +544,96 @@ export function TradeMarketOrderPanel({
         walletConnected={isWalletConnected}
         maxContext="market_swap"
         assetIsNativeUluna={fromToken === 'uluna'}
-        marketUsesHybrid={willSubmitHybrid}
+        marketUsesHybrid={useHybridBook}
       />
-      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-        <input type="checkbox" checked={useHybridBook} onChange={(e) => setUseHybridBook(e.target.checked)} />
-        Hybrid book + pool
-      </label>
-      {useHybridBook && (
-        <div className="space-y-2">
-          <details className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
-            <summary className="cursor-pointer select-none">Hybrid routing details</summary>
-            <p className="mt-2 leading-snug" data-testid="trade-market-hybrid-min-return-notice">
-              Book first, then pool. Min return applies to the combined payout.
-            </p>
-          </details>
-          <div>
-            <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
-              Book leg ({getTokenDisplaySymbol(fromToken)})
-            </label>
-            <input
-              id={bookLegInputId}
-              type="text"
-              inputMode="decimal"
-              className="input-glass !text-xs w-full font-mono"
-              value={bookInputHuman}
-              onChange={(e) => {
-                const v = e.target.value
-                if (isDecimalAmountDraft(v)) setBookInputHuman(v)
-              }}
-              placeholder="Empty = full book leg"
-            />
-            {isWalletConnected && fromToken.startsWith('terra1') && (
-              <AmountBalanceActions
-                balanceQuery={escrowBalanceQuery}
-                decimals={offerDecimals}
-                walletConnected={isWalletConnected}
-                compact
-                spendableRaw={bookLegMaxResult.spendableRaw}
-                onMax={() => setBookInputHuman(bookLegMaxResult.human)}
-                testIdMax="trade-market-book-leg-max"
+
+      <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
+        <button
+          type="button"
+          className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide text-left w-full"
+          style={{ color: 'var(--cyan)' }}
+          data-testid="trade-market-advanced-toggle"
+          aria-expanded={advancedOpen}
+          onClick={() => setAdvancedOpen((o) => !o)}
+        >
+          Advanced
+        </button>
+        {advancedOpen && (
+          <div className="mt-2 space-y-2 border-t border-white/10 pt-2">
+            <label className="flex items-center gap-2 text-[11px] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useHybridBook}
+                onChange={(e) => setUseHybridBook(e.target.checked)}
+                data-testid="trade-market-hybrid-toggle"
               />
+              Best execution (pool + limit book)
+            </label>
+            {useHybridBook && (
+              <div className="space-y-2">
+                <p
+                  className="text-[10px] leading-snug"
+                  style={{ color: 'var(--ink-dim)' }}
+                  data-testid="trade-market-hybrid-min-return-notice"
+                >
+                  Default quotes use the indexer solver for a price-optimal split. Type a book leg only to override. Min
+                  return applies to the combined payout.
+                </p>
+                <div>
+                  <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
+                    Book leg override ({getTokenDisplaySymbol(fromToken)})
+                  </label>
+                  <input
+                    id={bookLegInputId}
+                    type="text"
+                    inputMode="decimal"
+                    className="input-glass !text-xs w-full font-mono"
+                    value={bookInputHuman}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (isDecimalAmountDraft(v)) setBookInputHuman(v)
+                    }}
+                    placeholder="0.0"
+                    data-testid="trade-market-book-leg-input"
+                  />
+                  {isWalletConnected && fromToken.startsWith('terra1') && (
+                    <AmountBalanceActions
+                      balanceQuery={escrowBalanceQuery}
+                      decimals={offerDecimals}
+                      walletConnected={isWalletConnected}
+                      compact
+                      spendableRaw={bookLegMaxResult.spendableRaw}
+                      onMax={() => setBookInputHuman(bookLegMaxResult.human)}
+                      testIdMax="trade-market-book-leg-max"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
+                    Max makers
+                    <span
+                      className="ml-1 cursor-help opacity-70"
+                      title="Caps resting limits one swap can fill; remainder goes to the pool."
+                    >
+                      ⓘ
+                    </span>
+                  </label>
+                  <input
+                    id={maxMakersInputId}
+                    type="number"
+                    className="input-glass !text-xs w-full"
+                    min={1}
+                    max={256}
+                    value={hybridMaxMakers}
+                    onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
+                    data-testid="trade-market-max-makers"
+                  />
+                </div>
+              </div>
             )}
           </div>
-          <div>
-            <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
-              Max makers
-              <span
-                className="ml-1 cursor-help opacity-70"
-                title="Caps resting limits one swap can fill; remainder goes to the pool."
-              >
-                ⓘ
-              </span>
-            </label>
-            <input
-              id={maxMakersInputId}
-              type="number"
-              className="input-glass !text-xs w-full"
-              min={1}
-              max={256}
-              value={hybridMaxMakers}
-              onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {(simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
         <div
@@ -589,6 +651,11 @@ export function TradeMarketOrderPanel({
       {simQuery.isError && rawInputAmount !== '0' && !showReceiveCalculating && (
         <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
           {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+        </p>
+      )}
+      {liveSplit?.bookExceedsPay && (
+        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-book-exceeds-pay">
+          Book leg cannot exceed pay amount
         </p>
       )}
       {simQuery.data && rawInputAmount !== '0' && (
@@ -687,7 +754,9 @@ export function TradeMarketOrderPanel({
               swapMutation.isPending,
               priceImpactTooHigh
                 ? 'Hop spread exceeds slippage protection'
-                : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+                : liveSplit?.bookExceedsPay
+                  ? 'Book leg exceeds pay'
+                  : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
               'Submitting…'
             )}
       </button>
