@@ -196,6 +196,40 @@ pub struct LimitOrderResponse {
     pub next: Option<u64>,
 }
 
+/// Custody classification for a limit `order_id` from existing pair storage only
+/// ([GitLab #505](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/505)).
+///
+/// **`Unknown` is not proof of fill.** It means no row in `ORDERS` and no row in
+/// `EXPIRED_LIMIT_CLAIMS` — filled, cancelled, claimed, never-placed, or otherwise
+/// absent. Contract callers that need fill-vs-cancel must keep their own ledger.
+/// Transport / decode failures must remain errors; never map them to `Unknown`.
+#[cw_serde]
+pub enum OrderStatus {
+    /// Resting on the book (`ORDERS`).
+    Active,
+    /// Parked refund awaiting claim (`EXPIRED_LIMIT_CLAIMS`).
+    ParkedRefund,
+    /// No live custody row for this id.
+    Unknown,
+}
+
+/// Unified read-only lifecycle lookup for a limit `order_id` (GitLab #505).
+///
+/// Metadata options are populated only from the winning map: active rows supply
+/// price; parked refund rows do not store price today (`price` stays `None`).
+/// When `status` is [`OrderStatus::Unknown`], all metadata options are `None`.
+#[cw_serde]
+pub struct OrderStatusResponse {
+    pub order_id: u64,
+    pub status: OrderStatus,
+    pub owner: Option<Addr>,
+    pub side: Option<LimitOrderSide>,
+    /// Present for [`OrderStatus::Active`] only (parked storage has no price).
+    pub price: Option<Decimal>,
+    pub remaining: Option<Uint128>,
+    pub expires_at: Option<u64>,
+}
+
 /// Pair governance pause flag (readable without attempting a swap).
 #[cw_serde]
 pub struct PausedResponse {
@@ -398,6 +432,13 @@ pub enum QueryMsg {
     /// unfilled TTL expiry (GitLab #504). A present row does **not** imply the order went unfilled.
     #[returns(Option<ExpiredLimitRefundResponse>)]
     ExpiredLimitRefund { order_id: u64 },
+    /// Typed custody status for an `order_id` from existing maps only (GitLab #505).
+    ///
+    /// Returns [`OrderStatusResponse`] with [`OrderStatus::Active`],
+    /// [`OrderStatus::ParkedRefund`], or [`OrderStatus::Unknown`] (success, not error).
+    /// Rejects `order_id == 0`. Does not weaken [`LimitOrder`] / [`ExpiredLimitRefund`].
+    #[returns(OrderStatusResponse)]
+    OrderStatus { order_id: u64 },
     /// Head order id for bid or ask list (empty book = none).
     #[returns(Option<u64>)]
     OrderBookHead { side: LimitOrderSide },

@@ -35,7 +35,9 @@ use cosmwasm_std::{
     Addr, CosmosMsg, Decimal, Event, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use dex_common::pair::{ExpiredLimitParkReason, LimitOrderResponse, LimitOrderSide};
+use dex_common::pair::{
+    ExpiredLimitParkReason, LimitOrderResponse, LimitOrderSide, OrderStatus, OrderStatusResponse,
+};
 
 use crate::blacklist_guard::TradeBlacklistGate;
 use crate::error::ContractError;
@@ -2071,6 +2073,52 @@ pub fn load_order_response(storage: &dyn Storage, id: u64) -> StdResult<LimitOrd
     })
 }
 
+/// Typed custody status for `order_id` from existing maps only (GitLab #505).
+///
+/// Priority: `ORDERS` → `Active`; else `EXPIRED_LIMIT_CLAIMS` → `ParkedRefund`;
+/// else `Unknown` (successful response, not `Err`). Rejects `order_id == 0`.
+/// Dual presence in both maps is an invariant violation (parks unlink first);
+/// this read still prefers `Active` if somehow constructible in tests.
+pub fn query_order_status(storage: &dyn Storage, order_id: u64) -> StdResult<OrderStatusResponse> {
+    if order_id == 0 {
+        return Err(StdError::generic_err("order_id must be non-zero"));
+    }
+
+    if let Some(o) = ORDERS.may_load(storage, order_id)? {
+        return Ok(OrderStatusResponse {
+            order_id,
+            status: OrderStatus::Active,
+            owner: Some(o.owner),
+            side: Some(o.side),
+            price: Some(o.price),
+            remaining: Some(o.remaining),
+            expires_at: o.expires_at,
+        });
+    }
+
+    if let Some(r) = EXPIRED_LIMIT_CLAIMS.may_load(storage, order_id)? {
+        return Ok(OrderStatusResponse {
+            order_id,
+            status: OrderStatus::ParkedRefund,
+            owner: Some(r.owner),
+            side: Some(r.side),
+            price: None,
+            remaining: Some(r.remaining),
+            expires_at: r.expires_at,
+        });
+    }
+
+    Ok(OrderStatusResponse {
+        order_id,
+        status: OrderStatus::Unknown,
+        owner: None,
+        side: None,
+        price: None,
+        remaining: None,
+        expires_at: None,
+    })
+}
+
 pub fn query_head(storage: &dyn Storage, side: LimitOrderSide) -> StdResult<Option<u64>> {
     match side {
         LimitOrderSide::Bid => Ok(HEAD_BID.may_load(storage)?.flatten()),
@@ -3918,5 +3966,125 @@ mod expired_park_cap_tests {
         assert_eq!(sim.makers_used, exec.makers_used);
         assert_eq!(sim.offer_consumed, exec.offer_consumed);
         assert_eq!(sim.return_net, exec.return_net);
+    }
+}
+
+/// GitLab #505 — read-only OrderStatus from existing maps (no new storage).
+#[cfg(test)]
+mod order_status_tests {
+    use super::*;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    #[test]
+    fn order_status_rejects_zero_id() {
+        let deps = mock_dependencies();
+        let err = query_order_status(deps.as_ref().storage, 0).unwrap_err();
+        assert!(err.to_string().contains("non-zero"), "{err}");
+    }
+
+    #[test]
+    fn order_status_active_from_orders_map() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let id = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            owner.clone(),
+            None,
+            32,
+            Some(1_700_000_000),
+        )
+        .unwrap();
+        let st = query_order_status(storage, id).unwrap();
+        assert_eq!(st.status, OrderStatus::Active);
+        assert_eq!(st.owner.as_ref(), Some(&owner));
+        assert_eq!(st.side, Some(LimitOrderSide::Bid));
+        assert_eq!(st.price, Some(Decimal::one()));
+        assert_eq!(st.remaining, Some(Uint128::new(100)));
+        assert_eq!(st.expires_at, Some(1_700_000_000));
+    }
+
+    #[test]
+    fn order_status_parked_refund_from_claims_map() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let id = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(50),
+            owner.clone(),
+            None,
+            32,
+            Some(99),
+        )
+        .unwrap();
+        park_limit_order_for_clean(
+            storage,
+            id,
+            "pair",
+            ExpiredLimitParkReason::Expired,
+            Some(99),
+        )
+        .unwrap();
+        let st = query_order_status(storage, id).unwrap();
+        assert_eq!(st.status, OrderStatus::ParkedRefund);
+        assert_eq!(st.owner.as_ref(), Some(&owner));
+        assert_eq!(st.side, Some(LimitOrderSide::Ask));
+        assert_eq!(st.price, None, "parked rows do not store price");
+        assert_eq!(st.remaining, Some(Uint128::new(50)));
+        assert_eq!(st.expires_at, Some(99));
+    }
+
+    #[test]
+    fn order_status_unknown_when_absent_with_empty_metadata() {
+        let deps = mock_dependencies();
+        let st = query_order_status(deps.as_ref().storage, 42).unwrap();
+        assert_eq!(st.status, OrderStatus::Unknown);
+        assert_eq!(st.order_id, 42);
+        assert!(st.owner.is_none());
+        assert!(st.side.is_none());
+        assert!(st.price.is_none());
+        assert!(st.remaining.is_none());
+        assert!(st.expires_at.is_none());
+    }
+
+    /// A6 — dual presence is impossible by construction (park unlinks first). If
+    /// both maps somehow contain the same id, Active is checked first.
+    #[test]
+    fn order_status_prefers_active_when_both_maps_contain_id() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let owner = Addr::unchecked("maker");
+        let id = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(10),
+            owner.clone(),
+            None,
+            32,
+            None,
+        )
+        .unwrap();
+        // Artificially inject a parked row without unlinking (invariant break).
+        EXPIRED_LIMIT_CLAIMS
+            .save(
+                storage,
+                id,
+                &ExpiredLimitRefund {
+                    owner: Addr::unchecked("other"),
+                    side: LimitOrderSide::Ask,
+                    remaining: Uint128::new(1),
+                    expires_at: Some(1),
+                    reason: Some(ExpiredLimitParkReason::Expired),
+                },
+            )
+            .unwrap();
+        let st = query_order_status(storage, id).unwrap();
+        assert_eq!(st.status, OrderStatus::Active);
+        assert_eq!(st.owner.as_ref(), Some(&owner));
+        assert_eq!(st.side, Some(LimitOrderSide::Bid));
     }
 }

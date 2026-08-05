@@ -8,7 +8,7 @@ Use when integrating bots, indexers, or dApp copy against **`EXPIRED_LIMIT_CLAIM
 |------|----------|
 | Integrator table + invariants | [`docs/limit-orders.md` § Park reason discriminator](../docs/limit-orders.md#expired-limit-park-reason-gitlab-504) |
 | Integrator short form | [`docs/integrators.md` § Parked refund reason](../docs/integrators.md#expired-limit-park-reason-gitlab-504) |
-| Security invariant **L21** | [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) |
+| Security invariant **L22** | [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) |
 | Shared enum | [`dex-common::pair::ExpiredLimitParkReason`](../smartcontracts/packages/dex-common/src/pair.rs) |
 | Storage + park write | [`pair/src/state.rs`](../smartcontracts/contracts/pair/src/state.rs), [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs) `park_limit_order_for_clean` |
 | Clean keeper | [`limit_book_clean.rs`](../smartcontracts/contracts/pair/src/limit_book_clean.rs) |
