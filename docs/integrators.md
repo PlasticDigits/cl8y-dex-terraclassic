@@ -31,7 +31,9 @@ Details and tx attributes: [limit-orders.md](./limit-orders.md).
 
 ## On-chain limit book (LCD proxy) {#on-chain-limit-book-lcd-proxy}
 
-Resting **FIFO limit orders** live on each pair contract. The indexer exposes read-only HTTP that **proxies CosmWasm smart queries** on LCD — same JSON shapes as on-chain `OrderBookHead` / `LimitOrder` ([ADR 0002](./adr/0002-limit-book-surfacing.md), [GitLab **#194**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/194)).
+Resting **FIFO limit orders** live on each pair contract. On-chain contract consumers that need absence as a typed value (not an untyped CosmWasm error) should query **`OrderStatus { order_id }`** ([GitLab **#505**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/505)): `Active` (book), `ParkedRefund` (claimable), or `Unknown` (no custody row — **not** proof of fill). Types live in `dex_common::pair` (`OrderStatus`, `OrderStatusResponse`). See [limit-orders.md](./limit-orders.md), invariant **L21**, and [`skills/AGENTS_ORDER_STATUS_QUERY.md`](../skills/AGENTS_ORDER_STATUS_QUERY.md). Indexer HTTP proxy for `OrderStatus` is an optional follow-up (not required for #505 acceptance).
+
+The indexer exposes read-only HTTP that **proxies CosmWasm smart queries** on LCD — same JSON shapes as on-chain `OrderBookHead` / `LimitOrder` ([ADR 0002](./adr/0002-limit-book-surfacing.md), [GitLab **#194**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/194)).
 
 | Endpoint | Purpose |
 |----------|---------|

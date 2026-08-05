@@ -13,7 +13,8 @@ use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::limit_placement::LimitOrderPlacementItem;
 use dex_common::pair::{
     pool_only_hybrid_params, Cw20HookMsg, FeeConfigResponse, HybridSimulationResponse,
-    LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide, PoolResponse, QueryMsg,
+    LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide, OrderStatus, OrderStatusResponse,
+    PoolResponse, QueryMsg,
 };
 use dex_common::types::Asset;
 
@@ -25,7 +26,7 @@ const FACTORY_VERSION: &str = "1.5.0";
 const FACTORY_PRIOR_VERSION: &str = "1.4.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
-const PAIR_VERSION: &str = "1.8.0";
+const PAIR_VERSION: &str = "1.9.0";
 const PAIR_PRIOR_VERSION: &str = "1.7.0";
 
 const FEE_DISCOUNT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
@@ -608,6 +609,19 @@ fn pair_migration_preserves_fee_registry_lp_admin_and_limit_book() {
 
     let after = snapshot_pair(&app, &env);
     assert_eq!(after, before);
+
+    // T13 / GitLab #505 — additive OrderStatus works immediately after migrate (no backfill).
+    let status: OrderStatusResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::OrderStatus {
+                order_id: env.limit_order_id,
+            },
+        )
+        .unwrap();
+    assert_eq!(status.status, OrderStatus::Active);
+    assert_eq!(status.remaining, Some(after.limit_order.remaining));
 }
 
 #[test]

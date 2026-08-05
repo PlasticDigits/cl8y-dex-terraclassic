@@ -19,8 +19,8 @@ use crate::limit_placement::{
 };
 use crate::msg::{
     Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, FeeConfigResponse, HooksResponse,
-    InstantiateMsg, LimitOrderResponse, ObserveResponse, OracleInfoResponse, PoolResponse,
-    QueryMsg,
+    InstantiateMsg, LimitOrderResponse, ObserveResponse, OracleInfoResponse, OrderStatusResponse,
+    PoolResponse, QueryMsg,
 };
 use crate::orderbook;
 use crate::state::{
@@ -44,7 +44,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.8.0";
+const CONTRACT_VERSION: &str = "1.9.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -2164,6 +2164,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ExpiredLimitRefund { order_id } => {
             to_json_binary(&query_expired_limit_refund(deps, order_id)?)
         }
+        QueryMsg::OrderStatus { order_id } => to_json_binary(&query_order_status(deps, order_id)?),
         QueryMsg::OrderBookHead { side } => to_json_binary(&query_order_book_head(deps, side)?),
         QueryMsg::LimitOrderConfig {} => to_json_binary(&query_limit_order_config(deps)?),
         QueryMsg::LimitCleanConfig {} => to_json_binary(&query_limit_clean_config(deps)?),
@@ -2207,6 +2208,10 @@ fn query_is_paused(deps: Deps) -> StdResult<dex_common::pair::PausedResponse> {
 
 fn query_limit_order(deps: Deps, order_id: u64) -> StdResult<LimitOrderResponse> {
     orderbook::load_order_response(deps.storage, order_id)
+}
+
+fn query_order_status(deps: Deps, order_id: u64) -> StdResult<OrderStatusResponse> {
+    orderbook::query_order_status(deps.storage, order_id)
 }
 
 fn query_expired_limit_refund(
