@@ -12,6 +12,8 @@ mod faucet_tests;
 mod limit_order_tests;
 #[cfg(test)]
 mod migration_tests;
+#[cfg(test)]
+mod order_status_tests;
 
 #[cfg(test)]
 mod tier_fixtures;
