@@ -18,6 +18,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
 import { quoteDirectHybridSwap, DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
+import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import {
   computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
@@ -63,7 +64,6 @@ import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve } from '@/services/indexer/client'
-import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import {
   getDirectHybridBookSplit,
   getDirectHybridSettingsExecutionSummary,
@@ -73,7 +73,6 @@ import {
   computeSwapRouteDisplay,
   deriveSwapSubmitRouteOps,
   deriveSwapSubmitRouteSource,
-  reconcileSwapRouteIntermediateTokens,
   SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
   SWAP_CLIENT_BFS_FALLBACK_COPY,
 } from '@/utils/swapRouteDisplay'
@@ -102,7 +101,6 @@ import {
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
   SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
   parseSlippagePercent,
-  resolveRouteSlippagePercent,
   resolveSwapExpectedSlippagePercent,
   slippageSeverityClass,
 } from '@/utils/swapRouteSlippage'
@@ -488,50 +486,31 @@ export default function SwapPage() {
         }
       }
 
-      // Default CW20↔CW20: indexer hybrid optimization (≤3 hops) + wallet `simulate_swap_operations`.
+      // Default CW20↔CW20: indexer GET hybrid optimization + wallet sim (shared with Trade #501).
       if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && simRaw !== '0') {
         try {
-          const idx = await getRouteSolve(fromToken, toToken, simRaw, {
+          const quoted = await quoteCw20ViaRouteSolve({
+            fromToken,
+            toToken,
+            simRaw,
             maxMakerFills: debouncedHybridMaxMakers,
-            trader: quoteTrader?.trader,
+            slippageTolerancePercent: slippageTolerance,
+            maxSpreadStr,
+            quoteTrader,
             signal,
           })
-          const tin = idx.token_in.trim().toLowerCase()
-          const tout = idx.token_out.trim().toLowerCase()
-          if (tin === fromToken.trim().toLowerCase() && tout === toToken.trim().toLowerCase()) {
-            const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-            const opsForQuote = await enrichSwapOperationsWithHopMinReturns(ops, simRaw, slippageTolerance, quoteTrader)
-            const result = await simulateMultiHopSwap(simRaw, opsForQuote, quoteTrader)
-            const routePreflight = await preflightSwapRouteSpread(opsForQuote, simRaw, maxSpreadStr, quoteTrader)
-            const intermediates =
-              idx.intermediate_tokens?.length === idx.hops.length + 1
-                ? idx.intermediate_tokens
-                : [idx.token_in, ...idx.hops.map((h) => h.ask_token)]
-            // GitLab #450 (SEC-I02 H09): cross-validate display vs submit path. On mismatch,
-            // reconcile to the ops-derived path and notify the user — do not fall through to
-            // pool-only, which would hide a tampered indexer response.
-            const { tokens: reconciledIntermediates, mismatch: routeIntermediateMismatch } =
-              reconcileSwapRouteIntermediateTokens(opsForQuote, intermediates)
-            if (routeIntermediateMismatch) {
-              console.warn(
-                '[swap] indexer intermediate_tokens disagreed with router_operations; reconciled route display to ops path'
-              )
-            }
+          if (quoted) {
             return {
-              return_amount: result.amount,
-              spread_amount: '0',
-              commission_amount: '0',
-              routeSlippagePercent: resolveRouteSlippagePercent(
-                result.amount,
-                idx.spot_amount_out,
-                idx.slippage_percent
-              ),
-              spotAmountOut: idx.spot_amount_out,
-              indexerQuoteKind: idx.quote_kind,
-              indexerOperations: opsForQuote,
-              indexerIntermediateTokens: reconciledIntermediates,
-              indexerRouteIntermediateReconciled: routeIntermediateMismatch,
-              routePreflight,
+              return_amount: quoted.return_amount,
+              spread_amount: quoted.spread_amount,
+              commission_amount: quoted.commission_amount,
+              routeSlippagePercent: quoted.routeSlippagePercent,
+              spotAmountOut: quoted.spotAmountOut,
+              indexerQuoteKind: quoted.indexerQuoteKind,
+              indexerOperations: quoted.indexerOperations,
+              indexerIntermediateTokens: quoted.indexerIntermediateTokens,
+              indexerRouteIntermediateReconciled: quoted.indexerRouteIntermediateReconciled,
+              routePreflight: quoted.routePreflight,
             }
           }
         } catch (e) {
