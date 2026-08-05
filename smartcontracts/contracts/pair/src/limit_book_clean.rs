@@ -2,7 +2,7 @@
 
 use cosmwasm_std::{Event, Storage, Uint128};
 use dex_common::pair::{
-    clamp_max_clean_orders, clamp_max_clean_scan_steps, LimitOrderSide,
+    clamp_max_clean_orders, clamp_max_clean_scan_steps, ExpiredLimitParkReason, LimitOrderSide,
     MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
 };
 
@@ -162,11 +162,17 @@ pub fn clean_limit_book(
         let force = !time_exp && is_force_dust(order.remaining, min_remaining);
 
         if time_exp || force {
+            // Set reason at the call site — do not re-derive from force/expires_at alone (#504).
+            let reason = if time_exp {
+                ExpiredLimitParkReason::Expired
+            } else {
+                ExpiredLimitParkReason::ForceCleaned
+            };
             let ev = park_limit_order_for_clean(
                 storage,
                 oid,
                 pair_contract,
-                force,
+                reason,
                 if force { None } else { order.expires_at },
             )?;
             events.push(ev);

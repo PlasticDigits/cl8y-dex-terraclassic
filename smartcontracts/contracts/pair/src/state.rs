@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::{Item, Map};
 use dex_common::oracle::Observation;
-use dex_common::pair::LimitOrderSide;
+use dex_common::pair::{ExpiredLimitParkReason, LimitOrderSide};
 use dex_common::types::{AssetInfo, FeeConfig};
 
 /// Governance-configurable cap on batch/ladder placement size (GitLab #206).
@@ -74,9 +74,12 @@ pub const HEAD_ASK: Item<Option<u64>> = Item::new("head_ask");
 pub const PENDING_ESCROW_TOKEN0: Item<Uint128> = Item::new("escrow_t0");
 pub const PENDING_ESCROW_TOKEN1: Item<Uint128> = Item::new("escrow_t1");
 
-/// Refund owed when a limit order was removed from the book for expiry during a match walk.
-/// `PENDING_ESCROW_TOKEN0` / `PENDING_ESCROW_TOKEN1` still include `remaining` until
-/// `ClaimExpiredLimitOrder` transfers funds and subtracts pending.
+/// Refund owed when a limit order was parked off the book into `EXPIRED_LIMIT_CLAIMS`.
+///
+/// Paths: TTL expiry, match-time dust flush (#264), blacklist (#468), governance force-clean (#263).
+/// Naming is historical — use [`reason`](ExpiredLimitRefund::reason), not the struct name
+/// (GitLab #504). `PENDING_ESCROW_TOKEN0` / `PENDING_ESCROW_TOKEN1` still include `remaining`
+/// until `ClaimExpiredLimitOrder` transfers funds and subtracts pending.
 #[cw_serde]
 pub struct ExpiredLimitRefund {
     pub owner: Addr,
@@ -84,6 +87,9 @@ pub struct ExpiredLimitRefund {
     pub remaining: Uint128,
     #[serde(default)]
     pub expires_at: Option<u64>,
+    /// Set explicitly at each park call site. `None` only when decoding pre-#504 rows.
+    #[serde(default)]
+    pub reason: Option<ExpiredLimitParkReason>,
 }
 
 pub const EXPIRED_LIMIT_CLAIMS: Map<u64, ExpiredLimitRefund> = Map::new("exp_limit_cl");

@@ -118,7 +118,49 @@ pub enum LimitOrderSide {
     Ask,
 }
 
-/// Claimable refund for an order parked on expiry (see `ClaimExpiredLimitOrder`).
+/// Why a resting limit was parked into `EXPIRED_LIMIT_CLAIMS` (GitLab #504).
+///
+/// A parked refund row does **not** mean the order went unfilled. Match-time dust flush
+/// ([#264](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/264)) parks near-complete
+/// fills; blacklist ([#468](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/468)) and
+/// governance force-clean ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263))
+/// park without a fill. Prefer this discriminator over `expires_at` / wasm `force_expired`.
+///
+/// Wire names are stable PascalCase in JSON (`"DustFilled"`, …). Wasm event attr `reason` uses
+/// snake_case (`dust_filled`, …) — see [`ExpiredLimitParkReason::as_attr`].
+#[cw_serde]
+pub enum ExpiredLimitParkReason {
+    /// Time-to-live expiry (`expires_at` reached) during match walk or `CleanLimitBook`.
+    Expired,
+    /// Post-fill remainder below [`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`] (match-time #264).
+    DustFilled,
+    /// Governance dust threshold via permissionless `CleanLimitBook` (#263).
+    ForceCleaned,
+    /// Maker wallet trading-blacklisted during match walk (#468).
+    Blacklisted,
+}
+
+impl ExpiredLimitParkReason {
+    /// Wasm `limit_order_expired_parked` attribute value (`reason=…`).
+    pub fn as_attr(&self) -> &'static str {
+        match self {
+            Self::Expired => "expired",
+            Self::DustFilled => "dust_filled",
+            Self::ForceCleaned => "force_cleaned",
+            Self::Blacklisted => "blacklisted",
+        }
+    }
+
+    /// Historical `force_expired=true` means “parked though **not** a TTL expiry”.
+    pub fn is_force_expired(&self) -> bool {
+        !matches!(self, Self::Expired)
+    }
+}
+
+/// Claimable refund for an order parked off the book (see `ClaimExpiredLimitOrder`).
+///
+/// Naming keeps the historical `Expired*` prefix; rows may be dust-filled, force-cleaned, or
+/// blacklisted — use [`reason`](ExpiredLimitRefundResponse::reason), not the name alone (GitLab #504).
 #[cw_serde]
 pub struct ExpiredLimitRefundResponse {
     pub order_id: u64,
@@ -126,8 +168,15 @@ pub struct ExpiredLimitRefundResponse {
     pub side: LimitOrderSide,
     /// Same units as `LimitOrderResponse::remaining`: token1 for bids, token0 for asks.
     pub remaining: Uint128,
+    /// TTL timestamp copied for [`ExpiredLimitParkReason::Expired`] parks; `None` for other reasons
+    /// (and for pre-reason rows). **Do not** treat `None` as “filled” — blacklist and force-clean
+    /// also clear it.
     #[serde(default)]
     pub expires_at: Option<u64>,
+    /// Park discriminator. `None` only for rows written before #504 (legacy decode); new parks
+    /// always set an explicit reason at the park call site.
+    #[serde(default)]
+    pub reason: Option<ExpiredLimitParkReason>,
 }
 
 /// Resting limit order returned by queries.
@@ -263,15 +312,17 @@ pub enum ExecuteMsg {
     CancelLimitOrders {
         order_ids: Vec<u64>,
     },
-    /// Claim escrow for an order removed from the book because it had **expired** when a taker’s
-    /// match walk processed that price level. The refund row is stored until claimed (`ExpiredLimitRefund`
-    /// query). Owner-only. **Blocked while the pair is paused** (same `assert_not_paused` gate as
-    /// `CancelLimitOrder` — emergency pause freezes all maker withdrawal paths; GitLab #120).
+    /// Claim escrow for an order parked into `EXPIRED_LIMIT_CLAIMS` (TTL expiry, match-time dust
+    /// flush, blacklist park, or governance force-clean — see [`ExpiredLimitParkReason`]). The
+    /// refund row is stored until claimed (`ExpiredLimitRefund` query). Owner-only. **Blocked while
+    /// the pair is paused** (same `assert_not_paused` gate as `CancelLimitOrder` — emergency pause
+    /// freezes all maker withdrawal paths; GitLab #120). Economics refund `remaining` only;
+    /// `reason` is observability (#504).
     ClaimExpiredLimitOrder {
         order_id: u64,
     },
-    /// Claim multiple parked-expiry refund rows in one tx (same cap and all-or-nothing rules as
-    /// [`CancelLimitOrders`]). GitLab #246.
+    /// Claim multiple parked refund rows in one tx (same cap and all-or-nothing rules as
+    /// [`CancelLimitOrders`]). GitLab #246. Reasons may be mixed; claim is reason-agnostic.
     ClaimExpiredLimitOrders {
         order_ids: Vec<u64>,
     },
@@ -376,7 +427,9 @@ pub enum QueryMsg {
     /// Limit order by id (if it exists).
     #[returns(LimitOrderResponse)]
     LimitOrder { order_id: u64 },
-    /// Refund row for an order removed from the book due to expiry during a match walk (`None` if none).
+    /// Refund row for an order parked off-book into `EXPIRED_LIMIT_CLAIMS` (`None` if none / claimed).
+    /// Includes [`ExpiredLimitParkReason`] so integrators can distinguish dust-filled fills from
+    /// unfilled TTL expiry (GitLab #504). A present row does **not** imply the order went unfilled.
     #[returns(Option<ExpiredLimitRefundResponse>)]
     ExpiredLimitRefund { order_id: u64 },
     /// Typed custody status for an `order_id` from existing maps only (GitLab #505).
@@ -522,4 +575,57 @@ pub struct HybridReverseSimulationResponse {
     pub book_commission_amount: Uint128,
     pub book_return_amount: Uint128,
     pub pool_return_amount: Uint128,
+}
+
+#[cfg(test)]
+mod expired_limit_park_reason_tests {
+    use super::*;
+    use cosmwasm_std::{from_json, to_json_binary, Addr};
+
+    #[test]
+    fn reason_attr_and_force_expired_matrix() {
+        assert_eq!(ExpiredLimitParkReason::Expired.as_attr(), "expired");
+        assert_eq!(ExpiredLimitParkReason::DustFilled.as_attr(), "dust_filled");
+        assert_eq!(
+            ExpiredLimitParkReason::ForceCleaned.as_attr(),
+            "force_cleaned"
+        );
+        assert_eq!(ExpiredLimitParkReason::Blacklisted.as_attr(), "blacklisted");
+        assert!(!ExpiredLimitParkReason::Expired.is_force_expired());
+        assert!(ExpiredLimitParkReason::DustFilled.is_force_expired());
+        assert!(ExpiredLimitParkReason::ForceCleaned.is_force_expired());
+        assert!(ExpiredLimitParkReason::Blacklisted.is_force_expired());
+    }
+
+    #[test]
+    fn expired_limit_refund_response_legacy_json_defaults_reason_none() {
+        // Pre-#504 rows omit `reason`; decode must not panic and must not invent DustFilled.
+        let legacy = br#"{
+            "order_id": 7,
+            "owner": "terra1maker",
+            "side": "bid",
+            "remaining": "42",
+            "expires_at": null
+        }"#;
+        let row: ExpiredLimitRefundResponse = from_json(legacy).unwrap();
+        assert_eq!(row.order_id, 7);
+        assert_eq!(row.remaining, Uint128::new(42));
+        assert!(row.expires_at.is_none());
+        assert!(row.reason.is_none(), "legacy omit → None (unknown)");
+    }
+
+    #[test]
+    fn expired_limit_refund_response_round_trips_reason() {
+        let row = ExpiredLimitRefundResponse {
+            order_id: 1,
+            owner: Addr::unchecked("terra1maker"),
+            side: LimitOrderSide::Ask,
+            remaining: Uint128::new(9),
+            expires_at: None,
+            reason: Some(ExpiredLimitParkReason::DustFilled),
+        };
+        let bin = to_json_binary(&row).unwrap();
+        let back: ExpiredLimitRefundResponse = from_json(bin).unwrap();
+        assert_eq!(back.reason, Some(ExpiredLimitParkReason::DustFilled));
+    }
 }

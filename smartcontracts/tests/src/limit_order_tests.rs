@@ -11,9 +11,9 @@ use dex_common::limit_placement::{
 };
 use dex_common::pair::{
     pool_only_hybrid_params, pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg,
-    ExpiredLimitRefundResponse, HybridReverseSimulationResponse, HybridSimulationResponse,
-    HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse,
-    LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    ExpiredLimitParkReason, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
+    HybridSimulationResponse, HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse,
+    LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
     MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
@@ -1704,14 +1704,28 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
         )
         .unwrap();
 
-    let parked_ev = hybrid_res.events.iter().find(|e| {
-        e.attributes
-            .iter()
-            .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
-    });
+    let parked_ev = hybrid_res
+        .events
+        .iter()
+        .find(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+        })
+        .expect("expired bid walk should emit limit_order_expired_parked");
     assert!(
-        parked_ev.is_some(),
-        "expired bid walk should emit limit_order_expired_parked"
+        parked_ev
+            .attributes
+            .iter()
+            .any(|a| { a.key == "reason" && a.value == ExpiredLimitParkReason::Expired.as_attr() }),
+        "park event must include reason=expired"
+    );
+    assert!(
+        !parked_ev
+            .attributes
+            .iter()
+            .any(|a| a.key == "force_expired"),
+        "TTL park must not set force_expired"
     );
 
     let claim_row: Option<ExpiredLimitRefundResponse> = app
@@ -1727,6 +1741,11 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
     assert_eq!(row.side, LimitOrderSide::Bid);
     assert_eq!(row.remaining, remaining_after_fee);
     assert_eq!(row.expires_at, Some(exp));
+    assert_eq!(
+        row.reason,
+        Some(ExpiredLimitParkReason::Expired),
+        "TTL park must set reason=Expired (#504)"
+    );
 
     assert!(
         app.wrap()
@@ -6271,6 +6290,25 @@ fn clean_limit_book_force_dust_bid_then_claim_refunds() {
         .unwrap();
     let row = row.expect("parked row");
     assert!(row.expires_at.is_none(), "force-clean clears expires_at");
+    assert_eq!(
+        row.reason,
+        Some(ExpiredLimitParkReason::ForceCleaned),
+        "governance dust clean must set reason=ForceCleaned (#504)"
+    );
+    assert!(
+        res.events.iter().any(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+                && e.attributes.iter().any(|a| {
+                    a.key == "reason" && a.value == ExpiredLimitParkReason::ForceCleaned.as_attr()
+                })
+                && e.attributes
+                    .iter()
+                    .any(|a| a.key == "force_expired" && a.value == "true")
+        }),
+        "force-clean park emits reason=force_cleaned and force_expired=true"
+    );
 
     let maker_fee = escrow.multiply_ratio(15u128, 10_000u128);
     let remaining = escrow.checked_sub(maker_fee).unwrap();
@@ -6428,11 +6466,14 @@ fn match_dust_flush_bid_hybrid_then_maker_claims() {
             e.attributes
                 .iter()
                 .any(|a| a.key == "action" && a.value == "limit_order_expired_parked")
+                && e.attributes.iter().any(|a| {
+                    a.key == "reason" && a.value == ExpiredLimitParkReason::DustFilled.as_attr()
+                })
                 && e.attributes
                     .iter()
                     .any(|a| a.key == "force_expired" && a.value == "true")
         }),
-        "dust flush emits limit_order_expired_parked with force_expired=true"
+        "dust flush emits reason=dust_filled and force_expired=true (#504)"
     );
 
     assert!(
@@ -6454,6 +6495,12 @@ fn match_dust_flush_bid_hybrid_then_maker_claims() {
         .unwrap();
     let row = row.expect("dust claim row");
     assert_eq!(row.remaining, Uint128::one());
+    assert!(row.expires_at.is_none());
+    assert_eq!(
+        row.reason,
+        Some(ExpiredLimitParkReason::DustFilled),
+        "match-time dust flush must set reason=DustFilled (#504)"
+    );
 
     let bal_before = query_cw20_balance(&app, &env.token_b, &env.user);
     app.execute_contract(
