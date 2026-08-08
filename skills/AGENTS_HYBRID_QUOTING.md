@@ -51,9 +51,14 @@ cd smartcontracts && cargo test -p cl8y-dex-pair book_start_hint_side_tests
 cd smartcontracts && cargo test -p cl8y-dex-tests hybrid_wrong_side_book_start_hint
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_max_spread
 cd smartcontracts && cargo test -p cl8y-dex-tests test_swap_max_spread
+make verify-issue-501   # #501 Trade GET default + docs/skills drift (unit); VERIFY_ISSUE_501_CHAIN=1 for Playwright
+make verify-issue-501   # #501 Trade GET default + docs/skills + unit tests
 cd frontend-dapp && npm test -- src/utils/cw20RouteSolveQuote.test.ts
 cd frontend-dapp && npm test -- src/utils/directHybridQuote.test.ts
 cd frontend-dapp && npm test -- src/components/trade/__tests__/TradeMarketOrderPanel.submitSnapshot.test.tsx
+# Optional chain: VERIFY_ISSUE_501_CHAIN=1 make verify-issue-501
+# or: bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/trade-market-route-solve-501.spec.ts --project=e2e-tx
+cd frontend-dapp && npm test -- src/utils/swapDisclosure.test.ts
 cd frontend-dapp && npm test -- src/utils/swapRouteSlippage.test.ts
 cd frontend-dapp && npm test -- src/services/terraclassic/__tests__/pair.test.ts
 cd indexer && cargo test api_route_solve

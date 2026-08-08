@@ -70,7 +70,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 - Anti-cognitive-overload retail copy + Swap vs **Best Trade** disambiguation: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)); glossary: [`docs/design-system.md`](../docs/design-system.md#terminology-glossary)
 - Hybrid Execution silence when Settings on + empty book: [GitLab **#492**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/492), [`docs/limit-orders.md`](../docs/limit-orders.md#swap-ui-hybrid-vs-pool-only-estimates), [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md)
-- Trade market = Swap GET default: [GitLab **#501**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501), [`cw20RouteSolveQuote.ts`](../frontend-dapp/src/utils/cw20RouteSolveQuote.ts), [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md)
+- Trade market = Swap GET default: [GitLab **#501**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501), [`cw20RouteSolveQuote.ts`](../frontend-dapp/src/utils/cw20RouteSolveQuote.ts), [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md), `make verify-issue-501`, Playwright [`trade-market-route-solve-501-tx.spec.ts`](../frontend-dapp/e2e/trade-market-route-solve-501-tx.spec.ts)
 - Sim quote refetch / Calculating hang + stale receive on pay change: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484), [#496](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/496))
 
 ## Regression checklist (manual)

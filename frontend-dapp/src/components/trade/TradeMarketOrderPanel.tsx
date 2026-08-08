@@ -94,6 +94,7 @@ function hybridParamsFromBookSplit(
  * - Hybrid on + empty manual book → `GET /route/solve` (solver-optimized pool/book split)
  * - Hybrid on + typed book leg → Advanced override via `quoteDirectHybridSwap` (`POST`)
  * - Hybrid off → pool-only pair `simulateSwap`
+ * - Direct submit applies `hybridParamsWithSubmitCap` to solver or Advanced hybrid (#249 parity with Swap)
  */
 export function TradeMarketOrderPanel({
   pairAddr,
@@ -388,7 +389,6 @@ export function TradeMarketOrderPanel({
       const maxSpread = maxSpreadStr
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
       const idxOps = simData.indexerOperations
-      const submitHybrid = debouncedHybrid ? hybridParamsWithSubmitCap(debouncedHybrid) : undefined
       return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, payRaw, async () => {
         if (swapOpsRequireRouter(idxOps)) {
           const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
@@ -409,7 +409,11 @@ export function TradeMarketOrderPanel({
           )
         }
         // Prefer solver hybrid from GET quote; Advanced manual split is the fallback (#501).
-        const hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? submitHybrid
+        // Cap max_maker_fills like Swap so gas preflight matches the on-chain payload (#249).
+        let hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? debouncedHybrid ?? undefined
+        if (hopHybrid) {
+          hopHybrid = hybridParamsWithSubmitCap(hopHybrid)
+        }
         const directMinReturn =
           hopHybrid && BigInt(hopHybrid.book_input) > 0n
             ? await computeDirectHybridMinReturn(

@@ -1031,7 +1031,14 @@ fi
 source "$REPO_ROOT/scripts/lib/postgres-dev.env"
 set +a
 chmod +x "$REPO_ROOT/scripts/setup-postgres-dev-databases.sh"
-"$REPO_ROOT/scripts/setup-postgres-dev-databases.sh"
+# Ensure DBs exist when possible, but never abort Phase 6.2 — a failed host-psql probe
+# previously left indexer/.env without FACTORY_ADDRESS (breaks e2e-start-indexer).
+"$REPO_ROOT/scripts/setup-postgres-dev-databases.sh" || true
+# Re-source URLs after setup (may have upserted indexer/.env with DB-only keys).
+set -a
+# shellcheck source=scripts/lib/postgres-dev.env
+source "$REPO_ROOT/scripts/lib/postgres-dev.env"
+set +a
 cat > "$REPO_ROOT/indexer/.env" <<ENVEOF
 DATABASE_URL=$DATABASE_URL
 TEST_DATABASE_URL=$TEST_DATABASE_URL
