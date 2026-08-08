@@ -146,6 +146,61 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
     expect(await screen.findByTestId('trade-market-quote')).toHaveTextContent(/limit book \+ pool/i)
   })
 
+  it('hybrid off skips GET/POST route/solve and uses pool-only simulateSwap (#501)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+
+    await openAdvanced(user)
+    await user.click(screen.getByTestId('trade-market-hybrid-toggle'))
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
+    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+
+    await waitFor(() => expect(pair.simulateSwap).toHaveBeenCalled())
+    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
+    expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
+    const quoteCard = await screen.findByTestId('trade-market-quote')
+    expect(quoteCard).toHaveTextContent(/pool/i)
+    expect(quoteCard).not.toHaveTextContent(/limit book \+ pool/i)
+  })
+
+  it('submits GET solver hybrid with max_maker_fills submit cap (#501 / #249)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
+    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+
+    await user.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(pair.swap).toHaveBeenCalled())
+    const swapArgs = vi.mocked(pair.swap).mock.calls.at(-1)
+    expect(swapArgs?.[7]?.hybrid).toEqual({
+      pool_input: '800000',
+      book_input: '200000',
+      max_maker_fills: 8,
+      book_start_hint: null,
+    })
+  })
+
   it('uses POST /route/solve only for Advanced manual book leg override (#501)', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     vi.mocked(indexerClient.postRouteSolve).mockResolvedValue({

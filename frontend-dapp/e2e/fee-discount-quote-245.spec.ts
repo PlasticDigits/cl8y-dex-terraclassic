@@ -22,7 +22,9 @@ async function openTradeMarketPoolOnly(page: import('@playwright/test').Page, pa
   await page.goto(`/trade/${pairAddr}`)
   await page.waitForLoadState('networkidle')
   await page.getByTestId('trade-order-tab-market').click()
-  const hybridBook = page.getByRole('checkbox', { name: /Use hybrid book/i })
+  // Hybrid toggle lives under Advanced after #501 (default = GET /route/solve best execution).
+  await page.getByTestId('trade-market-advanced-toggle').click()
+  const hybridBook = page.getByTestId('trade-market-hybrid-toggle')
   if (await hybridBook.isChecked()) {
     await hybridBook.uncheck()
   }

@@ -56,7 +56,9 @@ That recreates the volume (see [`docker/postgres-init/`](../docker/postgres-init
 ./scripts/setup-postgres-dev-databases.sh
 ```
 
-Requires a reachable Postgres on `127.0.0.1:5432`. Uses host **`psql`** when installed; otherwise **`docker compose exec postgres psql`** (Cloud Agent VMs often lack `postgresql-client`). The script **creates `cl8y_legal` via superuser when missing** (see [Stack prerequisite](#stack-prerequisite-cl8y_legal-role)), then ensures **`dex_indexer`** + **`dex_indexer_test`** and **upserts `DATABASE_URL` / `TEST_DATABASE_URL` into `indexer/.env`** (so `cargo test` from `indexer/` loads the test DB via `dotenvy`, not the live indexer DB). `make start` runs this after compose up (best-effort if Postgres is not ready yet; re-run after `make wait-healthy`).
+Requires a reachable Postgres on `127.0.0.1:5432`. Uses host **`psql`** when installed **and** a short connectivity probe succeeds; otherwise **`docker compose exec postgres psql`** (Cloud Agent VMs often lack `postgresql-client`; some Linux hosts hang on published Postgres TCP — same userland-proxy / VPN class of quirk as LCD host curl). Probe + fallback live in [`scripts/lib/postgres-psql.sh`](../scripts/lib/postgres-psql.sh). The script **creates `cl8y_legal` via superuser when missing** (see [Stack prerequisite](#stack-prerequisite-cl8y_legal-role)), then ensures **`dex_indexer`** + **`dex_indexer_test`** and **upserts `DATABASE_URL` / `TEST_DATABASE_URL` into `indexer/.env`** (so `cargo test` from `indexer/` loads the test DB via `dotenvy`, not the live indexer DB). `make start` runs this after compose up (best-effort if Postgres is not ready yet; re-run after `make wait-healthy`).
+
+**Deploy invariant:** `scripts/deploy-dex-local.sh` Phase 6.2 always rewrites a full `indexer/.env` (including `FACTORY_ADDRESS`) even when the Postgres ensure step warns/fails — a DB-only upsert must not leave the indexer without factory/LCD vars.
 
 ### Cursor Cloud Agent (Postgres-only, no wasm deploy)
 
