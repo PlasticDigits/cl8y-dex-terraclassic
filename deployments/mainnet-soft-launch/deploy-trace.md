@@ -174,3 +174,26 @@ RESULT: PASS
 - Soft launch = non-economic gemstones only; Coolify cutover still outstanding after this chain trace.
 - Soft-launch faucet (#473): code **11509** / `terra1388y0ppe2c3dy4nrmnpqp7e4ggukkrnmpzfjadfeu0pu2rm9cvkslfzcen` — see [`faucet-trace.md`](./faucet-trace.md). `AddMinter` granted on EMBER…TOPAZ; primary minter remains `cl8ydeploy`. **Not** on factory CW20 whitelist (F7).
 - `make qa-verify-deploy-config` defaults to LocalTerra RPC; for mainnet set `TERRA_RPC_URL` / `TERRA_LCD_URL` and provide factory/router/fee addresses via `indexer/.env` (script does not yet honor bare `FACTORY_ADDRESS=` env alone).
+
+### Post–soft-launch: router ↔ wrap-mapper wiring (#502)
+
+Soft launch **SL5** left wrap out of scope (`wrap_mapper` was `null` on the router). After ustr-cmm treasury migration + wrap-mapper deploy, factory governance (2-of-3 multisig) connected the mapper.
+
+| Field | Value |
+|-------|-------|
+| **Date (UTC)** | 2026-08-08T00:18:31Z |
+| **Height** | `29849291` |
+| **Tx** | [`EAE9C840E388946E0DF4C9E0D1F9E5E3377F79911B2B39418F029F1B3B9C0754`](https://finder.terraclassic.community/mainnet/tx/EAE9C840E388946E0DF4C9E0D1F9E5E3377F79911B2B39418F029F1B3B9C0754) |
+| **Msg** | `SetWrapMapper` on router |
+| **Sender** | governance multisig `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` (2-of-3; EOA `cl8y2_admin` correctly rejected as Unauthorized) |
+| **Router** | `terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw` |
+| **Wrap-mapper** | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` |
+| **Gas** | wanted `285084` / used `229015`; fee `8075005uluna` |
+
+**Post-tx router `config` query (verified):**
+
+```json
+{"factory":"terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea","wrap_mapper":"terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2"}
+```
+
+**Auth note:** `SetWrapMapper` requires `info.sender == factory.config.governance` (not wasm admin alone, not wrap-mapper governance). Use multisig generate-only → 2 signer `tx sign --multisig` → `tx multisign` → `tx broadcast` ([governance emergency rehearsal signing flow](../../docs/runbooks/governance-emergency-rehearsal.md#signing-flow-cosmos-multisig)).
