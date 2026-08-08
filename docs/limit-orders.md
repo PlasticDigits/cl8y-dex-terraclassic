@@ -124,13 +124,15 @@ Regression: `blacklist_tests::blacklisted_maker_resting_limit_not_filled_taker_c
 
 `EXPIRED_LIMIT_CLAIMS` / `ExpiredLimitRefund` / `ClaimExpiredLimitOrder*` keep historical “expired*” names, but **a parked refund row does not mean the order went unfilled**. Match-time dust flush, blacklist park, and governance force-clean share the same claim map.
 
-| `reason` (query JSON) | Wasm attr `reason=` | Typical `expires_at` | Historical `force_expired` | Meaning |
-|----------------------|---------------------|----------------------|------------------------------|---------|
-| `Expired` | `expired` | `Some(..)` | absent | TTL reached; usually unfilled (or leftover after earlier partial fills still on book) |
-| `DustFilled` | `dust_filled` | `None` | `true` | Post-fill remainder &lt; **10** units — order traded to near-completion (#264) |
-| `ForceCleaned` | `force_cleaned` | `None` | `true` | Governance dust threshold via `CleanLimitBook` (#263) |
-| `Blacklisted` | `blacklisted` | `None` | `true` | Maker wallet blacklisted during match walk (#468) |
+| `reason` (query JSON / wasm) | Rust variant | Typical `expires_at` | Historical `force_expired` | Meaning |
+|------------------------------|--------------|----------------------|------------------------------|---------|
+| `expired` | `Expired` | `Some(..)` | absent | TTL reached; usually unfilled (or leftover after earlier partial fills still on book) |
+| `dust_filled` | `DustFilled` | `None` | `true` | Post-fill remainder &lt; **10** units — order traded to near-completion (#264) |
+| `force_cleaned` | `ForceCleaned` | `None` | `true` | Governance dust threshold via `CleanLimitBook` (#263) |
+| `blacklisted` | `Blacklisted` | `None` | `true` | Maker wallet blacklisted during match walk (#468) |
 | omitted / `null` | n/a | varies | varies | Pre-#504 row — **unknown**; do not infer fill vs expiry |
+
+JSON wire uses **snake_case** (`#[cw_serde]`), matching wasm attrs — not PascalCase.
 
 **Invariants for integrators**
 
@@ -226,7 +228,7 @@ Integer rounding during hybrid book fills can leave **1–9 smallest-unit** rema
 
 **Unchanged:** `remaining = 0` → unlink only (**no** claim row); **`remaining ≥ 10`** → partial save. Dust flush **does not** count toward **`MAX_EXPIRED_PARKS_PER_SWAP` (15)** — only time-expired / blacklist parks during the walk do.
 
-**Integrator footgun (#504):** do **not** treat a parked row as “expired unfilled.” Use query/event **`reason=DustFilled`**. See [§ Park reason discriminator](#expired-limit-park-reason-gitlab-504).
+**Integrator footgun (#504):** do **not** treat a parked row as “expired unfilled.” Use query/event **`reason=dust_filled`**. See [§ Park reason discriminator](#expired-limit-park-reason-gitlab-504).
 
 **Simulation:** `simulate_match_*` zeroes in-memory sub-threshold remainders so **`HybridSimulation`** quotes match execute (**L8**).
 

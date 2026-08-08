@@ -9,8 +9,8 @@ use cw_multi_test::{App, Executor};
 use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::limit_placement::LimitOrderPlacementItem;
 use dex_common::pair::{
-    Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, HybridSwapParams, LimitOrderResponse,
-    LimitOrderSide, OrderStatus, OrderStatusResponse, PausedResponse, QueryMsg,
+    Cw20HookMsg, ExecuteMsg, ExpiredLimitParkReason, ExpiredLimitRefundResponse, HybridSwapParams,
+    LimitOrderResponse, LimitOrderSide, OrderStatus, OrderStatusResponse, PausedResponse, QueryMsg,
 };
 
 use crate::helpers::*;
@@ -460,14 +460,19 @@ fn order_status_parked_after_clean_limit_book() {
             &QueryMsg::ExpiredLimitRefund { order_id: id },
         )
         .unwrap();
-    assert!(refund.is_some());
+    let refund = refund.expect("parked refund row");
+    assert_eq!(
+        refund.reason,
+        Some(ExpiredLimitParkReason::Expired),
+        "CleanLimitBook TTL park must set reason=Expired (#504)"
+    );
 
     let st = query_order_status(&app, &env.pair, id);
     assert_eq!(st.status, OrderStatus::ParkedRefund);
     assert_eq!(st.owner.as_ref(), Some(&env.user));
     assert_eq!(st.side, Some(LimitOrderSide::Bid));
     assert_eq!(st.price, None);
-    assert_eq!(st.remaining, Some(refund.unwrap().remaining));
+    assert_eq!(st.remaining, Some(refund.remaining));
 }
 
 /// T8 — claim parked → Unknown; ExpiredLimitRefund is None.

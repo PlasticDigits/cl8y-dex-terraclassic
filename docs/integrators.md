@@ -105,11 +105,11 @@ Canonical: [limit-orders.md § Permissionless limit book clean](./limit-orders.m
 
 ## Match-time dust flush (GitLab #264) {#match-time-dust-flush-gitlab-264}
 
-During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remaining < 10`** (raw escrow units: token1 bids, token0 asks) are **auto-parked** into **`EXPIRED_LIMIT_CLAIMS`** with **`reason=DustFilled`** (wasm `reason=dust_filled`, plus historical **`force_expired=true`**) — no separate keeper tx, no CW20 in the swap. Constant: **`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`** in [`dex-common::pair`](../smartcontracts/packages/dex-common/src/pair.rs). Makers claim via **`claim_expired_limit_order`** (same as time-expiry / governance dust parks).
+During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remaining < 10`** (raw escrow units: token1 bids, token0 asks) are **auto-parked** into **`EXPIRED_LIMIT_CLAIMS`** with query/event **`reason=dust_filled`** (Rust `DustFilled`, plus historical **`force_expired=true`**) — no separate keeper tx, no CW20 in the swap. Constant: **`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`** in [`dex-common::pair`](../smartcontracts/packages/dex-common/src/pair.rs). Makers claim via **`claim_expired_limit_order`** (same as time-expiry / governance dust parks).
 
 **vs #263:** `CleanLimitBook` is permissionless, governance-threshold, and async; match-time flush is proactive with a fixed **10**-unit protocol threshold at fill time.
 
-**Integrator (#504):** a parked row is **not** “expired unfilled.” Query **`expired_limit_refund`** returns **`reason`**; dust flush is **`DustFilled`**. Do not infer fill from `expires_at == null` alone (blacklist / force-clean also clear it). Workaround until `reason` is deployed: `filled ≈ last_on_book_remaining − refund.remaining` (poll-race prone).
+**Integrator (#504):** a parked row is **not** “expired unfilled.” Query **`expired_limit_refund`** returns **`reason`**; dust flush is **`dust_filled`**. Do not infer fill from `expires_at == null` alone (blacklist / force-clean also clear it). Prefer **`reason`** once the pair wasm includes #504; legacy poll-diff workaround (`filled ≈ last_on_book_remaining − refund.remaining`) is race-prone and only for pre-#504 rows.
 
 **Indexer:** `limit_order_expired_parked` still maps to lifecycle **`parked_expired`**; parse wasm **`reason`** when available (follow-up OK). Historical **`force_expired=true`** remains on non-TTL parks.
 
@@ -117,7 +117,7 @@ Canonical: [limit-orders.md § Match-time dust flush](./limit-orders.md#match-ti
 
 ## Parked refund `reason` (GitLab #504) {#expired-limit-park-reason-gitlab-504}
 
-LCD query **`{ "expired_limit_refund": { "order_id": N } }`** returns optional **`reason`**: `Expired` | `DustFilled` | `ForceCleaned` | `Blacklisted` (or omitted on pre-#504 rows). Claim execute is unchanged and reason-agnostic.
+LCD query **`{ "expired_limit_refund": { "order_id": N } }`** returns optional **`reason`** as snake_case JSON: `expired` | `dust_filled` | `force_cleaned` | `blacklisted` (or omitted on pre-#504 rows). Same strings on wasm `reason=`. Claim execute is unchanged and reason-agnostic.
 
 Full table + invariants: [limit-orders.md § Park reason discriminator](./limit-orders.md#expired-limit-park-reason-gitlab-504).
 

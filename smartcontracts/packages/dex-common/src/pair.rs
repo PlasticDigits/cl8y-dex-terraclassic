@@ -126,8 +126,9 @@ pub enum LimitOrderSide {
 /// governance force-clean ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263))
 /// park without a fill. Prefer this discriminator over `expires_at` / wasm `force_expired`.
 ///
-/// Wire names are stable PascalCase in JSON (`"DustFilled"`, …). Wasm event attr `reason` uses
-/// snake_case (`dust_filled`, …) — see [`ExpiredLimitParkReason::as_attr`].
+/// Wire names are stable **snake_case** in JSON (`"dust_filled"`, …) — CosmWasm `#[cw_serde]`
+/// default, same style as `side: "bid"`. Wasm event attr `reason` uses the same snake_case values
+/// via [`ExpiredLimitParkReason::as_attr`]. Rust/docs may still refer to variants as `DustFilled`.
 #[cw_serde]
 pub enum ExpiredLimitParkReason {
     /// Time-to-live expiry (`expires_at` reached) during match walk or `CleanLimitBook`.
@@ -625,6 +626,15 @@ mod expired_limit_park_reason_tests {
             reason: Some(ExpiredLimitParkReason::DustFilled),
         };
         let bin = to_json_binary(&row).unwrap();
+        let json = String::from_utf8(bin.to_vec()).unwrap();
+        assert!(
+            json.contains("\"dust_filled\""),
+            "JSON wire must be snake_case dust_filled (not PascalCase DustFilled): {json}"
+        );
+        assert!(
+            !json.contains("DustFilled"),
+            "must not emit PascalCase DustFilled on the wire: {json}"
+        );
         let back: ExpiredLimitRefundResponse = from_json(bin).unwrap();
         assert_eq!(back.reason, Some(ExpiredLimitParkReason::DustFilled));
     }
