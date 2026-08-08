@@ -9,6 +9,7 @@ import { getChainContractInfo } from '@/services/terraclassic/queries'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert } from '@/components/ui'
 import { getTerraAddressInputError } from '@/utils/terraAddressValidation'
+import { UST1_CREATE_PAIR_SECONDARY_NOTICE } from '@/utils/ust1SecondaryMarket'
 
 function useCodeIdCheck(tokenAddr: string) {
   return useQuery({
@@ -175,6 +176,7 @@ export default function CreatePairPage() {
                     submit)
                   </li>
                 )}
+                <li>{UST1_CREATE_PAIR_SECONDARY_NOTICE}</li>
               </ul>
             </div>
 

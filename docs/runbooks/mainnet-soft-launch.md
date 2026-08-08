@@ -124,3 +124,5 @@ unset TERRAD_HOST_KEYRING_PASS
 Skips pairs that already have liquidity; finishes remaining pairs, `set_discount_registry_all`, and governance handoff. Host txs retry transient RPC errors (default 5 attempts).
 
 Adding economic tokens later requires CW20 whitelist policy review ([`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md)), governance `AddWhitelistedCodeId`, and new pairs — not a full redeploy of factory/router unless migrating.
+
+**UST1 secondary AMM (post–soft-launch, GitLab [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508)):** do **not** fold UST1/vFDUSD/cUSTC into `MAINNET_SOFT_LAUNCH_PAIRS` (invariant **U6**). Use [`ust1-secondary-amm-pair.md`](./ust1-secondary-amm-pair.md) / [`skills/AGENTS_UST1_SECONDARY_AMM.md`](../../skills/AGENTS_UST1_SECONDARY_AMM.md) (`make verify-issue-508`). Oracle mint/redeem stays on `/ust1`. If inventory is missing, Path B waiver: [`../../deployments/ust1-secondary-pair/PRODUCT_WAIVER.md`](../../deployments/ust1-secondary-pair/PRODUCT_WAIVER.md).

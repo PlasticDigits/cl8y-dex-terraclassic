@@ -97,6 +97,8 @@ terrad tx wasm execute <factory_addr> '{
 
 ## 6. Create Pairs
 
+**UST1 secondary markets (GitLab [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508)):** prefer [`scripts/add-ust1-secondary-pair.sh`](../scripts/add-ust1-secondary-pair.sh) + runbook [`ust1-secondary-amm-pair.md`](runbooks/ust1-secondary-amm-pair.md) (invariants **U1–U7**). Do not add UST1 pairs to soft-launch defaults (**U6**). If seed inventory is unavailable, use the [Path B waiver](../deployments/ust1-secondary-pair/PRODUCT_WAIVER.md) instead of an empty market. LocalTerra fixture: `scripts/seed-ust1-secondary-pair-local.sh`. Regression: `make verify-issue-508`.
+
 Pairs are created through the Factory:
 
 ```bash

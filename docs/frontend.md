@@ -518,6 +518,8 @@ The frontend uses TerraSwap-compatible message names:
 
 Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__tests__/terraAddressValidation.test.ts), [`CreatePairPage.test.tsx`](../frontend-dapp/src/pages/CreatePairPage.test.tsx).
 
+**UST1 secondary AMM notice (GitLab [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508)):** Create Pair lists copy from [`ust1SecondaryMarket.ts`](../frontend-dapp/src/utils/ust1SecondaryMarket.ts) clarifying that a new AMM market is **not** oracle mint/redeem (`/ust1`). Soft-launch `/mint` remains the faucet only. Runbook: [`runbooks/ust1-secondary-amm-pair.md`](./runbooks/ust1-secondary-amm-pair.md) (**U1**).
+
 | `/charts`       | Pairs overview and per-pair charts (indexer)      |
 | `/portfolio`    | **My Portfolio** — connected wallet summary, open quote positions, wallet-wide open limits, LP overview, recent swaps ([GitLab **#212**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/212), phase 2 [**#217**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217)); alias `/my-portfolio` → `/portfolio` |
 | `/trader`       | Trader profile lookup (indexer); optional `/:address` |
