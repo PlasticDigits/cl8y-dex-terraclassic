@@ -197,3 +197,17 @@ Soft launch **SL5** left wrap out of scope (`wrap_mapper` was `null` on the rout
 ```
 
 **Auth note:** `SetWrapMapper` requires `info.sender == factory.config.governance` (not wasm admin alone, not wrap-mapper governance). Use multisig generate-only → 2 signer `tx sign --multisig` → `tx multisign` → `tx broadcast` ([governance emergency rehearsal signing flow](../../docs/runbooks/governance-emergency-rehearsal.md#signing-flow-cosmos-multisig)).
+
+### Post-SL5 wrap contracts (#507)
+
+Phase 3 ustr-cmm wrap stack (columbus-5). Router address unchanged from soft launch.
+
+| Role | Address |
+|------|---------|
+| CMM treasury (`VITE_TREASURY_ADDRESS`) | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` |
+| Wrap-mapper | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` |
+| cLUNC CW20 | `terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg` |
+| cUSTC CW20 | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` |
+| Router | `terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw` |
+
+Wrap-mapper `fee_bps`: **100** (1%). Coolify enablement: [`wrap-enablement.env.example`](./wrap-enablement.env.example); playbook [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md).

@@ -31,11 +31,11 @@ describe('type helpers', () => {
     expect(getWrappedEquivalent('terra1xyz')).toBeNull()
   })
 
-  it('getWrappedEquivalent returns LUNC-C for uluna', () => {
+  it('getWrappedEquivalent returns cLUNC address for uluna', () => {
     expect(getWrappedEquivalent('uluna')).toBe(MOCK_LUNC_C)
   })
 
-  it('getWrappedEquivalent returns USTC-C for uusd', () => {
+  it('getWrappedEquivalent returns cUSTC address for uusd', () => {
     expect(getWrappedEquivalent('uusd')).toBe(MOCK_USTC_C)
   })
 
@@ -44,11 +44,11 @@ describe('type helpers', () => {
     expect(getNativeEquivalent('uluna')).toBeNull()
   })
 
-  it('getNativeEquivalent returns uluna for LUNC-C', () => {
+  it('getNativeEquivalent returns uluna for cLUNC address', () => {
     expect(getNativeEquivalent(MOCK_LUNC_C)).toBe('uluna')
   })
 
-  it('getNativeEquivalent returns uusd for USTC-C', () => {
+  it('getNativeEquivalent returns uusd for cUSTC address', () => {
     expect(getNativeEquivalent(MOCK_USTC_C)).toBe('uusd')
   })
 })

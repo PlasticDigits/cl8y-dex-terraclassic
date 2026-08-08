@@ -18,8 +18,8 @@ test.describe('Trading blacklist swap CTA (GitLab #388 / #422)', () => {
     await page.waitForLoadState('networkidle')
     await expectAtLeastTwoPayTokenOptions(page)
 
-    await requireTokenInCombobox(page, 'Select token you pay', 'LUNC', 'LUNC-C')
-    await requireTokenInCombobox(page, 'Select token you receive', 'LUNC-C')
+    await requireTokenInCombobox(page, 'Select token you pay', 'LUNC', 'cLUNC')
+    await requireTokenInCombobox(page, 'Select token you receive', 'cLUNC')
 
     await page.getByPlaceholder('0.00').first().fill('0.0001')
 

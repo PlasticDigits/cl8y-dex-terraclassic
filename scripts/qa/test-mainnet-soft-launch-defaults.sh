@@ -60,6 +60,11 @@ else
   grep -q 'RUN_MODE=prod' "$OUT/indexer.env.example" || fail "indexer env"
   grep -q 'https://dex.cl8y.com' "$OUT/indexer.env.example" || fail "CORS origin"
   grep -q 'https://indexer.dex.cl8y.com' "$OUT/frontend.env.example" || fail "indexer URL"
+  # SL5 / #507: soft-launch frontend.env.example must not ship active wrap keys (commented hints OK)
+  ! grep -qE '^VITE_WRAP_MAPPER_ADDRESS=' "$OUT/frontend.env.example" || fail "active VITE_WRAP_MAPPER_ADDRESS in soft-launch frontend env"
+  ! grep -qE '^VITE_TREASURY_ADDRESS=' "$OUT/frontend.env.example" || fail "active VITE_TREASURY_ADDRESS in soft-launch frontend env"
+  ! grep -qE '^VITE_LUNC_C_TOKEN_ADDRESS=' "$OUT/frontend.env.example" || fail "active VITE_LUNC_C_TOKEN_ADDRESS in soft-launch frontend env"
+  ! grep -qE '^VITE_USTC_C_TOKEN_ADDRESS=' "$OUT/frontend.env.example" || fail "active VITE_USTC_C_TOKEN_ADDRESS in soft-launch frontend env"
   ok "dry-run deploy outputs"
 fi
 

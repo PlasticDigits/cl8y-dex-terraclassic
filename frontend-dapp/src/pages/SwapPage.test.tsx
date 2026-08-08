@@ -81,6 +81,15 @@ vi.mock('@/utils/constants', async (importOriginal) => {
 vi.mock('@/services/terraclassic/wrapMapper', () => ({
   queryPausedState: vi.fn().mockResolvedValue(false),
   checkRateLimitExceeded: vi.fn().mockResolvedValue(false),
+  queryWrapMapperConfig: vi.fn().mockResolvedValue({
+    governance: 'terra1gov',
+    treasury: 'terra1treasury',
+    paused: false,
+    fee_bps: 100,
+  }),
+  wrapUnwrapFeeNote: (kind: 'wrap' | 'unwrap', feeBps: number) =>
+    feeBps > 0 ? `${kind === 'wrap' ? 'Wrap' : 'Unwrap'} (1.00% fee)` : `${kind === 'wrap' ? 'Wrap' : 'Unwrap'} (1:1)`,
+  netAfterWrapMapperFee: (amount: bigint) => amount,
 }))
 
 vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
@@ -1311,9 +1320,7 @@ describe('SwapPage', () => {
       vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
       await renderConnectedDirectSwap()
 
-      expect(await screen.findByTestId('swap-pair-paused-banner')).toHaveTextContent(
-        /Pair is paused — swaps are blocked/i
-      )
+      expect(await screen.findByTestId('swap-pair-paused-banner')).toHaveTextContent(/Pair paused/i)
       expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
     })
   })

@@ -464,6 +464,12 @@ echo "[8] Writing $OUT_DIR"
   echo "VITE_TERRA_RPC_URL=https://terra-classic-rpc.publicnode.com:443"
   echo "VITE_GAS_PRICE_ULUNA=28.325"
   echo "VITE_WC_PROJECT_ID="
+  echo "# Post-SL5 wrap enablement (GitLab #507) — set in Coolify after Phase 3; do NOT uncomment in soft-launch defaults."
+  echo "# VITE_TREASURY_ADDRESS must be ustr-cmm CMM treasury (terra16j5u6…), NOT governance multisig."
+  echo "# VITE_WRAP_MAPPER_ADDRESS=terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2"
+  echo "# VITE_TREASURY_ADDRESS=terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2"
+  echo "# VITE_LUNC_C_TOKEN_ADDRESS=terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+  echo "# VITE_USTC_C_TOKEN_ADDRESS=terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
 } >"$OUT_DIR/frontend.env.example"
 
 {

@@ -37,11 +37,16 @@ import {
   findRouteWithNativeSupport,
   simulateNativeSwap,
   executeNativeSwap,
+  netCw20AfterNativeWrap,
 } from '@/services/terraclassic/router'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
-import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
-import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
+import {
+  queryPausedState,
+  checkRateLimitExceeded,
+  queryWrapMapperConfig,
+  wrapUnwrapFeeNote,
+} from '@/services/terraclassic/wrapMapper'
 import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
   assetInfoLabel,
@@ -344,14 +349,21 @@ export default function SwapPage() {
     })
   }, [balanceQuery.data, offerDecimals, rawInputAmount])
 
+  const wrapMapperActive =
+    !!WRAP_MAPPER_CONTRACT_ADDRESS &&
+    (needsWrapCheck || (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') || (nativeRouteInfo?.needsUnwrapOutput ?? false))
+
+  const wrapMapperConfigQuery = useQuery({
+    queryKey: ['wrapMapperConfig'],
+    queryFn: queryWrapMapperConfig,
+    enabled: wrapMapperActive || isWrapOrUnwrap,
+    staleTime: 30_000,
+  })
+
   const pausedQuery = useQuery({
     queryKey: ['wrapMapperPaused'],
     queryFn: queryPausedState,
-    enabled:
-      !!WRAP_MAPPER_CONTRACT_ADDRESS &&
-      (needsWrapCheck ||
-        (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') ||
-        (nativeRouteInfo?.needsUnwrapOutput ?? false)),
+    enabled: wrapMapperActive,
     staleTime: 30_000,
   })
 
@@ -365,8 +377,9 @@ export default function SwapPage() {
     staleTime: 15_000,
   })
 
-  const isWrapPaused = pausedQuery.data === true
+  const isWrapPaused = pausedQuery.data === true || wrapMapperConfigQuery.data?.paused === true
   const isRateLimitExceeded = rateLimitQuery.data === true
+  const wrapMapperFeeBps = wrapMapperConfigQuery.data?.fee_bps ?? 0
 
   const simQueryKey = useMemo(
     () =>
@@ -419,8 +432,10 @@ export default function SwapPage() {
         indexerTransportFailed ? { ...data, indexerTransportFailed: true } : data
 
       if (isWrapOrUnwrap) {
+        // Fee-aware direct wrap/unwrap preview (mapper fee_bps; wrap also nets burn tax) — #507.
+        const result = await simulateNativeSwap(simRaw, fromToken, toToken, pairs)
         return {
-          return_amount: simRaw,
+          return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
         }
@@ -432,7 +447,7 @@ export default function SwapPage() {
         if (nativeRouteInfo.operations.length > 0) {
           let preflightOffer = simRaw
           if (nativeRouteInfo.needsWrapInput) {
-            preflightOffer = (await netUlunaAfterTransferTaxAsync(BigInt(simRaw), fromToken)).toString()
+            preflightOffer = (await netCw20AfterNativeWrap(BigInt(simRaw), fromToken)).toString()
           }
           routePreflight = await preflightSwapRouteSpread(
             nativeRouteInfo.operations,
@@ -1516,9 +1531,13 @@ export default function SwapPage() {
                         className="col-span-2 space-y-0.5 font-mono text-xs sm:text-right break-words min-w-0"
                         style={{ color: 'var(--ink-dim)' }}
                       >
-                        {isWrapOrUnwrap && (
-                          <span className="block text-[10px] font-sans" style={{ color: 'var(--ink-subtle)' }}>
-                            {wrapUnwrapType === 'wrap' ? 'Wrap (1:1)' : 'Unwrap (1:1)'}
+                        {isWrapOrUnwrap && wrapUnwrapType && (
+                          <span
+                            className="block text-[10px] font-sans"
+                            style={{ color: 'var(--ink-subtle)' }}
+                            data-testid="swap-wrap-fee-note"
+                          >
+                            {wrapUnwrapFeeNote(wrapUnwrapType, wrapMapperFeeBps)}
                           </span>
                         )}
                         {nativeRouteInfo && (nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
