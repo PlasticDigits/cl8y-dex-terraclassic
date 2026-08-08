@@ -70,6 +70,14 @@ terrad_query() {
     --output json
 }
 
+# terrad may prefix "gas estimate: N" on stdout before JSON (see verify-issue-504-lcd.sh).
+txhash_from_tx_out() {
+  local raw="$1"
+  echo "$raw" | sed -n '/^{/,$p' | tail -1 | jq -r '.txhash // .tx_response.txhash // empty' 2>/dev/null \
+    || echo "$raw" | tr '\n' ' ' | grep -oE '\{.*\}' | tail -1 | jq -r '.txhash // .tx_response.txhash // empty' 2>/dev/null \
+    || true
+}
+
 pair_addr_from_tx() {
   local tx_hash="$1"
   sleep 3
@@ -139,11 +147,17 @@ fi
 
 instantiate_token() {
   local name="$1" sym="$2" label="$3"
-  local init tx addr
+  local init out tx addr
   init="$(jq -nc --arg n "$name" --arg s "$sym" --arg a "$TEST_ADDRESS" --arg amt "$INITIAL_BAL" \
     '{name:$n,symbol:$s,decimals:6,initial_balances:[{address:$a,amount:$amt}],mint:{minter:$a}}')"
-  tx="$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$init" \
-    --label "$label" --admin "$TEST_ADDRESS" | jq -r '.txhash')"
+  out="$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$init" \
+    --label "$label" --admin "$TEST_ADDRESS")"
+  tx="$(txhash_from_tx_out "$out")"
+  [[ -n "$tx" ]] || {
+    echo "seed-ust1-secondary-pair-local: instantiate $sym produced no txhash:" >&2
+    printf '%s\n' "$out" >&2
+    exit 1
+  }
   addr="$(contract_addr_from_tx "$tx")"
   [[ -n "$addr" ]] || {
     echo "seed-ust1-secondary-pair-local: instantiate $sym failed (tx $tx)." >&2
@@ -189,7 +203,13 @@ if [[ -z "$PAIR_ADDR" ]]; then
   if [[ "$PAIR_CREATION_FEE_ULUNA" != "0" && -n "$PAIR_CREATION_FEE_ULUNA" ]]; then
     fee_args=(--amount "${PAIR_CREATION_FEE_ULUNA}uluna")
   fi
-  TX_HASH="$(terrad_tx wasm execute "$VITE_FACTORY_ADDRESS" "$CREATE_MSG" "${fee_args[@]}" | jq -r '.txhash')"
+  CREATE_OUT="$(terrad_tx wasm execute "$VITE_FACTORY_ADDRESS" "$CREATE_MSG" "${fee_args[@]}")"
+  TX_HASH="$(txhash_from_tx_out "$CREATE_OUT")"
+  [[ -n "$TX_HASH" ]] || {
+    echo "seed-ust1-secondary-pair-local: create_pair produced no txhash:" >&2
+    printf '%s\n' "$CREATE_OUT" >&2
+    exit 1
+  }
   PAIR_ADDR="$(pair_addr_from_tx "$TX_HASH")"
   if [[ -z "$PAIR_ADDR" ]]; then
     PAIR_ADDR="$(factory_pair_addr "$LOCAL_UST1_TOKEN_ADDRESS" "$LOCAL_VFDUSD_TOKEN_ADDRESS" || true)"
@@ -203,7 +223,25 @@ else
   echo "  existing pair=$PAIR_ADDR"
 fi
 
-SHARE="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR_ADDR" '{"pool":{}}')" | jq -r '.total_share // "0"')"
+pool_total_share() {
+  lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$1" '{"pool":{}}')" | jq -r '.total_share // "0"'
+}
+
+wait_pool_share() {
+  local pair="$1" share="" i
+  for i in $(seq 1 20); do
+    share="$(pool_total_share "$pair")"
+    if [[ -n "$share" && "$share" != "0" && "$share" != "null" ]]; then
+      printf '%s' "$share"
+      return 0
+    fi
+    sleep 1
+  done
+  printf '0'
+  return 1
+}
+
+SHARE="$(pool_total_share "$PAIR_ADDR")"
 if [[ "$SHARE" == "0" || -z "$SHARE" ]]; then
   echo "  seeding liquidity $LIQ_RAW / $LIQ_RAW..."
   terrad_tx wasm execute "$LOCAL_UST1_TOKEN_ADDRESS" \
@@ -217,8 +255,18 @@ if [[ "$SHARE" == "0" || -z "$SHARE" ]]; then
       {info:{token:{contract_addr:$a}},amount:$aa},
       {info:{token:{contract_addr:$b}},amount:$bb}
     ],slippage_tolerance:null,receiver:null,deadline:null}}')"
-  terrad_tx wasm execute "$PAIR_ADDR" "$PROVIDE" >/dev/null
-  SHARE="$(lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD" "$PAIR_ADDR" '{"pool":{}}')" | jq -r '.total_share // "0"')"
+  PROVIDE_OUT="$(terrad_tx wasm execute "$PAIR_ADDR" "$PROVIDE")"
+  PROVIDE_TX="$(txhash_from_tx_out "$PROVIDE_OUT")"
+  [[ -n "$PROVIDE_TX" ]] || {
+    echo "seed-ust1-secondary-pair-local: provide_liquidity produced no txhash:" >&2
+    printf '%s\n' "$PROVIDE_OUT" >&2
+    exit 1
+  }
+  echo "  provide_tx=$PROVIDE_TX"
+  if ! SHARE="$(wait_pool_share "$PAIR_ADDR")"; then
+    echo "seed-ust1-secondary-pair-local: pool still empty after provide (tx $PROVIDE_TX)." >&2
+    exit 1
+  fi
 fi
 
 if [[ -n "${VITE_FEE_DISCOUNT_ADDRESS:-}" ]]; then

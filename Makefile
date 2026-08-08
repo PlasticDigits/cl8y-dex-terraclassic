@@ -281,12 +281,6 @@ verify-issue-508:
 		scripts/seed-ust1-secondary-pair-local.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-508.sh
 
-# GitLab #508 — UST1 secondary AMM pair tooling / Path B waiver (optional VERIFY508_LOCAL=1).
-verify-issue-508:
-	@chmod +x scripts/qa/verify-issue-508.sh scripts/add-ust1-secondary-pair.sh \
-		scripts/seed-ust1-secondary-pair-local.sh scripts/with-node.sh
-	./scripts/qa/verify-issue-508.sh
-
 verify-issue-369:
 	@chmod +x scripts/qa/verify-issue-369.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/qa/verify-issue-369.sh
