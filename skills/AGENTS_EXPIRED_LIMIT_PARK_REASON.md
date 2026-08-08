@@ -17,8 +17,8 @@ Use when integrating bots, indexers, or dApp copy against **`EXPIRED_LIMIT_CLAIM
 
 ## Rules of thumb
 
-1. **Read `reason` first** — query field (PascalCase JSON) or wasm attr (snake_case). Do not classify parks from `expires_at` or `force_expired` alone.
-2. **`DustFilled` ⇒ near-complete fill** — remaining is sub-`LIMIT_ORDER_DUST_FLUSH_THRESHOLD` (10). Book a fill; do not treat as zero-fill expiry.
+1. **Read `reason` first** — query JSON and wasm attr both use **snake_case** (`dust_filled`, …). Rust variant names stay PascalCase (`DustFilled`). Do not classify parks from `expires_at` or `force_expired` alone.
+2. **`dust_filled` / `DustFilled` ⇒ near-complete fill** — remaining is sub-`LIMIT_ORDER_DUST_FLUSH_THRESHOLD` (10). Book a fill; do not treat as zero-fill expiry.
 3. **`force_expired=true` means “not a TTL expiry”** — historical / inverted naming. Kept for back-compat; prefer `reason`.
 4. **Claim path is reason-agnostic** — still owner-only, pause-gated (**L6**), refunds `remaining` only. No funds-path change in #504.
 5. **Legacy rows** — omitted `reason` → unknown; use poll-diff workaround only if you accept races.
@@ -28,16 +28,22 @@ Use when integrating bots, indexers, or dApp copy against **`EXPIRED_LIMIT_CLAIM
 ## Verification
 
 ```bash
-# Unit + integration coverage for all four reasons + legacy decode
+# Preferred one-shot (crate names: dex-common / cl8y-dex-pair / cl8y-dex-tests)
+make verify-issue-504
+# Optional after make deploy-local (LCD schema smoke):
+VERIFY504_LCD=1 make verify-issue-504
+
+# Or targeted:
 cd smartcontracts && cargo test -p dex-common expired_limit_park_reason
-cd smartcontracts && cargo test -p cl8y-pair --lib match_bid_dust_remainder
-cd smartcontracts && cargo test -p cl8y-tests --test limit_order_tests match_dust_flush
-cd smartcontracts && cargo test -p cl8y-tests --test blacklist_tests blacklisted_maker_resting
-# Or full suite:
+cd smartcontracts && cargo test -p cl8y-dex-pair --lib match_bid_dust_remainder
+cd smartcontracts && cargo test -p cl8y-dex-tests --lib match_dust_flush
+cd smartcontracts && cargo test -p cl8y-dex-tests --lib blacklisted_maker_resting
 make test-contracts
 ```
+
+Crosslinks: [`docs/limit-orders.md` § Park reason](../docs/limit-orders.md#expired-limit-park-reason-gitlab-504), [`docs/integrators.md`](../docs/integrators.md#expired-limit-park-reason-gitlab-504), invariant **L22**, [`AGENTS_ORDER_STATUS_QUERY.md`](./AGENTS_ORDER_STATUS_QUERY.md) (`ParkedRefund` ≠ why), [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md), [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md).
 
 ## Follow-ups (not required to close on-chain #504)
 
 - Indexer: parse wasm `reason` / split lifecycle beyond single `parked_expired`.
-- dApp: replace `remaining_escrow < 10` “Claim dust” heuristic with indexer/LCD `reason` when available.
+- dApp: replace `remaining_escrow < 10` “Claim dust” heuristic with indexer/LCD `reason` when available (post-#504 consumer work).

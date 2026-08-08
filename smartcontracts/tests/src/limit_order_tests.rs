@@ -5945,7 +5945,16 @@ fn clean_limit_book_parks_expired_head_default_config() {
                 &QueryMsg::ExpiredLimitRefund { order_id: *id },
             )
             .unwrap();
-        assert!(row.is_some(), "order {id} should be parked");
+        let row = row.unwrap_or_else(|| panic!("order {id} should be parked"));
+        assert_eq!(
+            row.reason,
+            Some(ExpiredLimitParkReason::Expired),
+            "CleanLimitBook TTL park must set reason=Expired (#504); order {id}"
+        );
+        assert!(
+            row.expires_at.is_some(),
+            "TTL park keeps expires_at; order {id}"
+        );
         assert!(
             app.wrap()
                 .query_wasm_smart::<LimitOrderResponse>(
