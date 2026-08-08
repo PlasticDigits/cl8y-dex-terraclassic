@@ -8,6 +8,7 @@ import {
   MOBILE_BOTTOM_NAV_ITEMS,
   MORE_NAV_ITEMS,
   PRIMARY_NAV_ITEMS,
+  UST1_NAV_ITEM,
   TABLET_COMPACT_HEADER_MAX_WIDTH_PX,
   TABLET_COMPACT_HEADER_NAV_ROW_LABELS,
 } from '@/components/common/navItems'
@@ -41,6 +42,20 @@ describe('navItems', () => {
     expect(getMobileMoreMenuItems({ includeMint: true }).map((i) => i.path)).toContain('/mint')
     expect(getHeaderMoreMenuItems(true)).not.toContainEqual(MINT_NAV_ITEM)
     expect(getMobileMoreMenuItems().map((i) => i.path)).not.toContain('/mint')
+  })
+
+  it('appends UST1 (not Mint) when includeUst1 is true (#506)', () => {
+    expect(UST1_NAV_ITEM.label).toBe('UST1')
+    expect(UST1_NAV_ITEM.label).not.toBe('Mint')
+    expect(getHeaderMoreMenuItems(true, { includeUst1: true })).toEqual([...MORE_NAV_ITEMS, UST1_NAV_ITEM])
+    expect(getMobileMoreMenuItems({ includeUst1: true }).map((i) => i.path)).toContain('/ust1')
+    expect(getMobileMoreMenuItems({ includeUst1: true }).map((i) => i.label)).not.toContain('Mint')
+    expect(getHeaderMoreMenuItems(true, { includeUst1: true, includeMint: true })).toEqual([
+      ...MORE_NAV_ITEMS,
+      UST1_NAV_ITEM,
+      MINT_NAV_ITEM,
+    ])
+    expect(getHeaderMoreMenuItems(true)).not.toContainEqual(UST1_NAV_ITEM)
   })
 
   it('has expected primary and more routes for regression checks', () => {
