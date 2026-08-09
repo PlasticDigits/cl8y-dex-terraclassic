@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 import { getLocalTerraTestMnemonic } from './e2e/localterra-mnemonic'
+import { UST1_E2E_VITE_ENV } from './e2e/helpers/ust1-window-lcd-mock'
 
 const devMnemonic = getLocalTerraTestMnemonic()
 
@@ -58,6 +59,8 @@ export default defineConfig({
       VITE_E2E_INDEXER_OUTAGE: process.env.E2E_INDEXER_OUTAGE ?? '',
       /** Short broadcast cap so post-sign recovery E2E can trigger (GitLab #368). */
       VITE_TERRA_TX_BROADCAST_TIMEOUT_MS: process.env.VITE_TERRA_TX_BROADCAST_TIMEOUT_MS ?? '3000',
+      /** Bake UST1 window env so `/ust1` E2E gates run without LocalTerra deploy (#506). */
+      ...UST1_E2E_VITE_ENV,
     },
   },
   projects: [

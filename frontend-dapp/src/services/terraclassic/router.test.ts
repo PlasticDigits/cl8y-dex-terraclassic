@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 
 const { MOCK_LUNC_C, MOCK_USTC_C } = vi.hoisted(() => ({
   MOCK_LUNC_C: 'terra1lunc_c_mock_address_for_testing_xxxxx',
@@ -40,7 +40,20 @@ vi.mock('@/types', async (importOriginal) => {
   }
 })
 
-import { findRoute, getAllTokens, isDirectWrapUnwrap, findRouteWithNativeSupport } from './router'
+vi.mock('@/utils/nativeTransferTax', () => ({
+  netUlunaAfterTransferTaxAsync: vi.fn(async (gross: bigint) => gross),
+}))
+
+vi.mock('./wrapMapper', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./wrapMapper')>()
+  return {
+    ...actual,
+    queryWrapMapperFeeBps: vi.fn(async () => 100),
+  }
+})
+
+import { findRoute, getAllTokens, isDirectWrapUnwrap, findRouteWithNativeSupport, simulateNativeSwap } from './router'
+import { queryWrapMapperFeeBps } from './wrapMapper'
 import type { PairInfo } from '@/types'
 
 function mockPair(tokenA: string, tokenB: string, addr: string): PairInfo {
@@ -114,20 +127,38 @@ describe('isDirectWrapUnwrap', () => {
     expect(isDirectWrapUnwrap('uluna', 'uluna')).toBeNull()
   })
 
-  it('returns wrap for uluna -> LUNC-C', () => {
+  it('returns wrap for uluna -> cLUNC', () => {
     expect(isDirectWrapUnwrap('uluna', MOCK_LUNC_C)).toBe('wrap')
   })
 
-  it('returns unwrap for LUNC-C -> uluna', () => {
+  it('returns unwrap for cLUNC -> uluna', () => {
     expect(isDirectWrapUnwrap(MOCK_LUNC_C, 'uluna')).toBe('unwrap')
   })
 
-  it('returns wrap for uusd -> USTC-C', () => {
+  it('returns wrap for uusd -> cUSTC', () => {
     expect(isDirectWrapUnwrap('uusd', MOCK_USTC_C)).toBe('wrap')
   })
 
-  it('returns unwrap for USTC-C -> uusd', () => {
+  it('returns unwrap for cUSTC -> uusd', () => {
     expect(isDirectWrapUnwrap(MOCK_USTC_C, 'uusd')).toBe('unwrap')
+  })
+})
+
+describe('simulateNativeSwap fee_bps (GitLab #507)', () => {
+  beforeEach(() => {
+    vi.mocked(queryWrapMapperFeeBps).mockResolvedValue(100)
+  })
+
+  it('direct wrap nets mapper fee (100 bps → 1%)', async () => {
+    const result = await simulateNativeSwap('1000000', 'uluna', MOCK_LUNC_C, [])
+    expect(result.isDirectWrapUnwrap).toBe(true)
+    expect(result.amount).toBe('990000')
+  })
+
+  it('direct unwrap nets mapper fee', async () => {
+    const result = await simulateNativeSwap('1000000', MOCK_LUNC_C, 'uluna', [])
+    expect(result.isDirectWrapUnwrap).toBe(true)
+    expect(result.amount).toBe('990000')
   })
 })
 

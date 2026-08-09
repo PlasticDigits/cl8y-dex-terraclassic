@@ -80,18 +80,20 @@ describe('lookupByAssetInfo', () => {
   })
 })
 
-describe('wrapped native token entries', () => {
-  it('has LUNC-C entry', () => {
-    const luncC = TOKENS.find((t) => t.symbol === 'LUNC-C')
+describe('wrapped native token entries (GitLab #507)', () => {
+  it('has cLUNC entry (not LUNC-C)', () => {
+    const luncC = TOKENS.find((t) => t.symbol === 'cLUNC')
     expect(luncC).toBeDefined()
     expect(luncC?.name).toBe('Wrapped Luna Classic')
     expect(luncC?.decimals).toBe(6)
+    expect(TOKENS.find((t) => t.symbol === 'LUNC-C')).toBeUndefined()
   })
 
-  it('has USTC-C entry', () => {
-    const ustcC = TOKENS.find((t) => t.symbol === 'USTC-C')
+  it('has cUSTC entry (not USTC-C)', () => {
+    const ustcC = TOKENS.find((t) => t.symbol === 'cUSTC')
     expect(ustcC).toBeDefined()
     expect(ustcC?.name).toBe('Wrapped TerraClassicUSD')
     expect(ustcC?.decimals).toBe(6)
+    expect(TOKENS.find((t) => t.symbol === 'USTC-C')).toBeUndefined()
   })
 })

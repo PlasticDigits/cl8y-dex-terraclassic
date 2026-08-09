@@ -13,6 +13,23 @@ export const USTC_C_TOKEN_ADDRESS = import.meta.env.VITE_USTC_C_TOKEN_ADDRESS ||
 /** Soft-launch faucet (GitLab #473) — unset hides Mint nav and shows unavailable on `/mint`. */
 export const FAUCET_CONTRACT_ADDRESS = import.meta.env.VITE_FAUCET_ADDRESS || ''
 
+/**
+ * Always-on UST1 ↔ vFDUSD oracle window (GitLab #506 / parent #502).
+ * Unset hides UST1 nav and shows unavailable on `/ust1`. Never overload `/mint`.
+ */
+export const UST1_WINDOW_CONTRACT_ADDRESS = import.meta.env.VITE_UST1_WINDOW_ADDRESS || ''
+export const UST1_TOKEN_ADDRESS = import.meta.env.VITE_UST1_TOKEN_ADDRESS || ''
+export const VFDUSD_TOKEN_ADDRESS = import.meta.env.VITE_VFDUSD_TOKEN_ADDRESS || ''
+/** Optional — UI reads pause/staleness via window `effective_swap.oracle`. */
+export const UST1_ORACLE_CONTRACT_ADDRESS = import.meta.env.VITE_UST1_ORACLE_ADDRESS || ''
+
+/**
+ * CW20 Send → ust1-window deposit/withdraw gas envelope (GitLab #506).
+ * Deposit: Receive + Mint + Transfer; withdraw: Receive + Burn + treasury InstantWithdraw.
+ * Ceiling matches wrap/unwrap margin discipline until LocalTerra/mainnet gas_used is pinned.
+ */
+export const UST1_WINDOW_SEND_GAS_LIMIT = 800_000
+
 const SOFT_LAUNCH_MINTABLE_TOKEN_ENV: { symbol: string; envKey: string }[] = [
   { symbol: 'EMBER', envKey: 'VITE_TOKEN_EMBER_ADDRESS' },
   { symbol: 'CORAL', envKey: 'VITE_TOKEN_CORAL_ADDRESS' },
@@ -41,21 +58,32 @@ export function isFaucetEnabled(): boolean {
   return !!FAUCET_CONTRACT_ADDRESS
 }
 
+/**
+ * True when window + both token addresses are configured (nav + page execute path).
+ * Invariant **U1** — see [`docs/runbooks/ust1-window-ui.md`](../../docs/runbooks/ust1-window-ui.md).
+ */
+export function isUst1WindowEnabled(): boolean {
+  return !!UST1_WINDOW_CONTRACT_ADDRESS && !!UST1_TOKEN_ADDRESS && !!VFDUSD_TOKEN_ADDRESS
+}
+
 /** Default-branch docs in GitLab (security audit, limit orders, ADRs). */
 export const DOCS_GITLAB_BASE = 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs'
 
 /** Public security posture (SEC-A01 / GitLab #387) — linked from dApp footer. */
 export const SECURITY_POSTURE_DOC_URL = `${DOCS_GITLAB_BASE}/security-posture.md`
 
+/** Native denom → wrapped CW20. Env keys stay `VITE_LUNC_C_*` / `VITE_USTC_C_*`; display symbols are cLUNC / cUSTC (#507). */
 export const NATIVE_WRAPPED_PAIRS: Record<string, string> = {
   uluna: LUNC_C_TOKEN_ADDRESS,
   uusd: USTC_C_TOKEN_ADDRESS,
 }
 
-export const WRAPPED_NATIVE_PAIRS: Record<string, string> = {
-  [LUNC_C_TOKEN_ADDRESS]: 'uluna',
-  [USTC_C_TOKEN_ADDRESS]: 'uusd',
-}
+/** Inverse map — empty wrap env addresses are omitted (no `''` key). */
+export const WRAPPED_NATIVE_PAIRS: Record<string, string> = Object.fromEntries(
+  Object.entries(NATIVE_WRAPPED_PAIRS)
+    .filter(([, wrapped]) => !!wrapped)
+    .map(([native, wrapped]) => [wrapped, native])
+)
 
 /** Measured wrap_deposit ~301k on LocalTerra (#353). */
 export const WRAP_GAS_LIMIT = 400000

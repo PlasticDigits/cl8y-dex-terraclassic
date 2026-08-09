@@ -17,11 +17,13 @@ import { useFeeDiscountRegistryStatus } from '@/hooks/useFeeDiscountRegistryStat
 import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
 import { FeeDiscountUnregisteredCta } from '@/components/feeDiscount/FeeDiscountUnregisteredCta'
 import { FEE_DISCOUNT_ELIGIBILITY_NOTE } from '@/utils/feeDiscountUiCopy'
+import { fetchNativeTransferTaxParams, netUlunaAfterTransferTax } from '@/utils/nativeTransferTax'
+import { netCw20AfterNativeWrap } from '@/services/terraclassic/router'
 import {
-  fetchNativeTransferTaxParams,
-  netUlunaAfterTransferTax,
-  netUlunaAfterTransferTaxAsync,
-} from '@/utils/nativeTransferTax'
+  netAfterWrapMapperFee,
+  queryWrapMapperConfig,
+  wrapTreasuryMatchesEnv,
+} from '@/services/terraclassic/wrapMapper'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { FACTORY_CONTRACT_ADDRESS, TREASURY_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { FACTORY_PAIRS_MAX_FOR_POOL_LIST, getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
@@ -211,20 +213,34 @@ const PoolCard = memo(function PoolCard({
     enabled: expanded === 'add' && hasNativeOptionB && !!nativeEquivB,
     staleTime: 60_000,
   })
+  const wrapMapperConfigQuery = useQuery({
+    queryKey: ['wrapMapperConfig'],
+    queryFn: queryWrapMapperConfig,
+    enabled: expanded === 'add' && (hasNativeOptionA || hasNativeOptionB) && !!WRAP_MAPPER_CONTRACT_ADDRESS,
+    staleTime: 30_000,
+  })
+  const wrapMapperConfig = wrapMapperConfigQuery.data ?? null
+  const wrapMapperFeeBps = wrapMapperConfig?.fee_bps
+  const wrapProvideBlocked =
+    (needsWrapA || needsWrapB) &&
+    !!WRAP_MAPPER_CONTRACT_ADDRESS &&
+    (wrapMapperConfig == null || !wrapTreasuryMatchesEnv(wrapMapperConfig))
 
   const provideRawAddA = useMemo(() => {
     if (!needsWrapA || !nativeEquivA || rawAddA === '0') return rawAddA
     const params = wrapTaxParamsAQuery.data
-    if (!params) return rawAddA
-    return netUlunaAfterTransferTax(BigInt(rawAddA), params).toString()
-  }, [needsWrapA, nativeEquivA, rawAddA, wrapTaxParamsAQuery.data])
+    if (!params || wrapMapperFeeBps == null) return rawAddA
+    const afterTax = netUlunaAfterTransferTax(BigInt(rawAddA), params)
+    return netAfterWrapMapperFee(afterTax, wrapMapperFeeBps).toString()
+  }, [needsWrapA, nativeEquivA, rawAddA, wrapTaxParamsAQuery.data, wrapMapperFeeBps])
 
   const provideRawAddB = useMemo(() => {
     if (!needsWrapB || !nativeEquivB || rawAddB === '0') return rawAddB
     const params = wrapTaxParamsBQuery.data
-    if (!params) return rawAddB
-    return netUlunaAfterTransferTax(BigInt(rawAddB), params).toString()
-  }, [needsWrapB, nativeEquivB, rawAddB, wrapTaxParamsBQuery.data])
+    if (!params || wrapMapperFeeBps == null) return rawAddB
+    const afterTax = netUlunaAfterTransferTax(BigInt(rawAddB), params)
+    return netAfterWrapMapperFee(afterTax, wrapMapperFeeBps).toString()
+  }, [needsWrapB, nativeEquivB, rawAddB, wrapTaxParamsBQuery.data, wrapMapperFeeBps])
 
   const insufficientAddA =
     !!address &&
@@ -321,10 +337,12 @@ const PoolCard = memo(function PoolCard({
   const shouldSyncProvideCounterpart = (counterpartHuman: string, forceSync?: boolean) =>
     forceSync || !counterpartHuman || counterpartHuman === '.'
 
+  const wrapFeeReadyForCounterpart = (!needsWrapA && !needsWrapB) || wrapMapperFeeBps != null
+
   const setProvideAmountA = (human: string, opts?: { forceSync?: boolean }) => {
     const sync = shouldSyncProvideCounterpart(amountB, opts?.forceSync)
     setAmountA(human)
-    if (!sync || !poolQuery.data) return
+    if (!sync || !poolQuery.data || !wrapFeeReadyForCounterpart) return
     const counterpart = computeProvideCounterpartHuman({
       editedSide: 'a',
       editedHuman: human,
@@ -335,6 +353,7 @@ const PoolCard = memo(function PoolCard({
       needsWrapB,
       taxParamsA: wrapTaxParamsAQuery.data,
       taxParamsB: wrapTaxParamsBQuery.data,
+      wrapMapperFeeBps: wrapMapperFeeBps ?? 0,
     })
     if (counterpart !== null) setAmountB(counterpart)
   }
@@ -342,7 +361,7 @@ const PoolCard = memo(function PoolCard({
   const setProvideAmountB = (human: string, opts?: { forceSync?: boolean }) => {
     const sync = shouldSyncProvideCounterpart(amountA, opts?.forceSync)
     setAmountB(human)
-    if (!sync || !poolQuery.data) return
+    if (!sync || !poolQuery.data || !wrapFeeReadyForCounterpart) return
     const counterpart = computeProvideCounterpartHuman({
       editedSide: 'b',
       editedHuman: human,
@@ -353,6 +372,7 @@ const PoolCard = memo(function PoolCard({
       needsWrapB,
       taxParamsA: wrapTaxParamsAQuery.data,
       taxParamsB: wrapTaxParamsBQuery.data,
+      wrapMapperFeeBps: wrapMapperFeeBps ?? 0,
     })
     if (counterpart !== null) setAmountA(counterpart)
   }
@@ -422,10 +442,10 @@ const PoolCard = memo(function PoolCard({
         let netA = rawA
         let netB = rawB
         if (needsWrapA && nativeEquivA) {
-          netA = (await netUlunaAfterTransferTaxAsync(BigInt(grossA), nativeEquivA)).toString()
+          netA = (await netCw20AfterNativeWrap(BigInt(grossA), nativeEquivA)).toString()
         }
         if (needsWrapB && nativeEquivB) {
-          netB = (await netUlunaAfterTransferTaxAsync(BigInt(grossB), nativeEquivB)).toString()
+          netB = (await netCw20AfterNativeWrap(BigInt(grossB), nativeEquivB)).toString()
         }
         const msgs: Array<{
           contract: string
@@ -878,6 +898,7 @@ const PoolCard = memo(function PoolCard({
               !amountB ||
               addMutation.isPending ||
               insufficientAdd ||
+              wrapProvideBlocked ||
               !provideLiquidityNativeGasGate.canAddLiquidity ||
               tradingBlacklist.blocked ||
               isPairPaused
@@ -888,6 +909,7 @@ const PoolCard = memo(function PoolCard({
               !amountB ||
               addMutation.isPending ||
               insufficientAdd ||
+              wrapProvideBlocked ||
               !provideLiquidityNativeGasGate.canAddLiquidity ||
               tradingBlacklist.blocked ||
               isPairPaused
@@ -901,18 +923,23 @@ const PoolCard = memo(function PoolCard({
                 ? 'Pair is paused'
                 : tradingBlacklist.blocked
                   ? 'Trading restricted'
-                  : insufficientAdd
-                    ? 'Insufficient balance'
-                    : !provideLiquidityNativeGasGate.canAddLiquidity && provideLiquidityNativeGasGate.tone === 'warning'
-                      ? 'Checking gas balance…'
-                      : !provideLiquidityNativeGasGate.canAddLiquidity
-                        ? 'Not enough LUNC for gas'
-                        : terraBroadcastPendingButtonLabel(
-                            addMutation.phase,
-                            addMutation.isPending,
-                            'Provide Liquidity',
-                            'Providing Liquidity…'
-                          )}
+                  : wrapProvideBlocked
+                    ? wrapMapperConfig == null
+                      ? 'Wrap config unavailable'
+                      : 'Wrap treasury misconfigured'
+                    : insufficientAdd
+                      ? 'Insufficient balance'
+                      : !provideLiquidityNativeGasGate.canAddLiquidity &&
+                          provideLiquidityNativeGasGate.tone === 'warning'
+                        ? 'Checking gas balance…'
+                        : !provideLiquidityNativeGasGate.canAddLiquidity
+                          ? 'Not enough LUNC for gas'
+                          : terraBroadcastPendingButtonLabel(
+                              addMutation.phase,
+                              addMutation.isPending,
+                              'Provide Liquidity',
+                              'Providing Liquidity…'
+                            )}
           </button>
           <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
           {addMutation.isError && (

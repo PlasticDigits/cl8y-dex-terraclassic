@@ -5,6 +5,7 @@ import {
   netUlunaAfterTransferTax,
   type NativeTransferTaxParams,
 } from '@/utils/nativeTransferTax'
+import { amountForTargetNetAfterWrapMapperFee, netAfterWrapMapperFee } from '@/services/terraclassic/wrapMapper'
 import { computeProportionalCounterpartRaw } from '@/utils/provideLiquidityEstimate'
 
 export type ComputeProvideCounterpartHumanArgs = {
@@ -17,6 +18,8 @@ export type ComputeProvideCounterpartHumanArgs = {
   needsWrapB: boolean
   taxParamsA?: NativeTransferTaxParams | null
   taxParamsB?: NativeTransferTaxParams | null
+  /** Wrap-mapper fee_bps (0 when unset / unknown). GitLab #507. */
+  wrapMapperFeeBps?: number
 }
 
 function isDraftAmount(human: string): boolean {
@@ -32,7 +35,8 @@ function editedNetRaw(
   needsWrapA: boolean,
   needsWrapB: boolean,
   taxParamsA?: NativeTransferTaxParams | null,
-  taxParamsB?: NativeTransferTaxParams | null
+  taxParamsB?: NativeTransferTaxParams | null,
+  wrapMapperFeeBps = 0
 ): string | null {
   const decimals = editedSide === 'a' ? decimalsA : decimalsB
   const needsWrap = editedSide === 'a' ? needsWrapA : needsWrapB
@@ -41,7 +45,8 @@ function editedNetRaw(
   if (raw === '0') return null
   if (needsWrap) {
     if (!taxParams) return null
-    return netUlunaAfterTransferTax(BigInt(raw), taxParams).toString()
+    const afterTax = netUlunaAfterTransferTax(BigInt(raw), taxParams)
+    return netAfterWrapMapperFee(afterTax, wrapMapperFeeBps).toString()
   }
   return raw
 }
@@ -54,14 +59,16 @@ function counterpartHumanFromNetRaw(
   needsWrapA: boolean,
   needsWrapB: boolean,
   taxParamsA?: NativeTransferTaxParams | null,
-  taxParamsB?: NativeTransferTaxParams | null
+  taxParamsB?: NativeTransferTaxParams | null,
+  wrapMapperFeeBps = 0
 ): string | null {
   const decimals = counterpartSide === 'a' ? decimalsA : decimalsB
   const needsWrap = counterpartSide === 'a' ? needsWrapA : needsWrapB
   const taxParams = counterpartSide === 'a' ? taxParamsA : taxParamsB
   if (needsWrap) {
     if (!taxParams) return null
-    const gross = grossUlunaForTargetNet(BigInt(counterpartNetRaw), taxParams)
+    const afterTaxTarget = amountForTargetNetAfterWrapMapperFee(BigInt(counterpartNetRaw), wrapMapperFeeBps)
+    const gross = grossUlunaForTargetNet(afterTaxTarget, taxParams)
     return fromRawAmount(gross.toString(), decimals)
   }
   return fromRawAmount(counterpartNetRaw, decimals)
@@ -69,7 +76,8 @@ function counterpartHumanFromNetRaw(
 
 /**
  * Human-string counterpart for provide liquidity auto-fill.
- * Ratio math uses net post-tax amounts when native wrap is enabled (same as `provideRawAdd*`).
+ * Ratio math uses net post-tax + post–wrap-fee amounts when native wrap is enabled
+ * (same as `provideRawAdd*`; GitLab #342 / #507).
  */
 export function computeProvideCounterpartHuman({
   editedSide,
@@ -81,6 +89,7 @@ export function computeProvideCounterpartHuman({
   needsWrapB,
   taxParamsA,
   taxParamsB,
+  wrapMapperFeeBps = 0,
 }: ComputeProvideCounterpartHumanArgs): string | null {
   if (isDraftAmount(editedHuman) || !pool) return null
 
@@ -92,7 +101,8 @@ export function computeProvideCounterpartHuman({
     needsWrapA,
     needsWrapB,
     taxParamsA,
-    taxParamsB
+    taxParamsB,
+    wrapMapperFeeBps
   )
   if (netRaw === null) return null
 
@@ -108,6 +118,7 @@ export function computeProvideCounterpartHuman({
     needsWrapA,
     needsWrapB,
     taxParamsA,
-    taxParamsB
+    taxParamsB,
+    wrapMapperFeeBps
   )
 }

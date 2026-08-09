@@ -28,3 +28,9 @@ export const INDEXER_RATE_LIMIT_RETRY_MESSAGE =
 /** Inline alert when the wrap-mapper daily rate limit blocks a wrap/unwrap (SEC-I05 / GitLab #463). */
 export const WRAP_RATE_LIMIT_EXCEEDED_MESSAGE =
   'Daily wrap limit reached for this amount. Wait and try again later, or reduce the amount.'
+
+/** Submit CTA when wrap-mapper config / pause / rate-limit LCD queries fail closed (#507). */
+export const WRAP_CONFIG_UNAVAILABLE_CTA = 'Wrap config unavailable'
+
+/** Submit CTA when `VITE_TREASURY_ADDRESS` ≠ on-chain wrap-mapper `config.treasury` (#507 / W2). */
+export const WRAP_TREASURY_MISCONFIGURED_CTA = 'Wrap treasury misconfigured'

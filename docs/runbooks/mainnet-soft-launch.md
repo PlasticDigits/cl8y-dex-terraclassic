@@ -24,7 +24,7 @@ Phase 5 GO may proceed without a separate staging/testnet deploy when budget-con
 | **SL3** | Soft-launch trading tokens use **6** decimals; fee-discount `cl8y_token` is mainnet CL8Y (**18** decimals). |
 | **SL4** | Deploy key pays gas and bootstraps admin msgs; **wasm `--admin`** + **treasury** + **final `config.governance`** = multisig [`terra1zlmv2…`](../reference/governance-multisig.md). Instantiate uses deployer as temporary `config.governance`, then hands off after tiers/registry setup. |
 
-| **SL5** | CW20-only pairs — wrap-mapper not required. |
+| **SL5** | CW20-only pairs — wrap-mapper not required for soft launch. Post-SL5 wrap enablement is **Coolify env + frontend rebuild** per [#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507) / [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md) — the soft-launch defaults script must **not** auto-add economic wrap. |
 | **SL6** | Production indexer: `RUN_MODE=prod`, non-default `LCD_URLS`, `CORS_ORIGINS=https://dex.cl8y.com`, `VITE_INDEXER_URL=https://indexer.dex.cl8y.com` (HTTPS only). |
 | **SL7** | Fee-discount tiers match [`fee-discount-tiers.md`](../reference/fee-discount-tiers.md) (drift: `make check-fee-discount-tier-docs`). |
 
@@ -82,6 +82,8 @@ Makefile: `make deploy-mainnet-soft-launch`.
 
 **Frontend:** build-args from `frontend.env.example` including `VITE_WC_PROJECT_ID` and `VITE_INDEXER_URL=https://indexer.dex.cl8y.com`. For the Mint page ([#473](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473)), also set `VITE_FAUCET_ADDRESS` and the six `VITE_TOKEN_{EMBER,CORAL,JADE,ONYX,RUBY,TOPAZ}_ADDRESS` values after `make deploy-soft-launch-faucet`. Do not set `VITE_DEV_MNEMONIC`.
 
+**Post-SL5 UST1 track ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506) / parent [#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)):** bake Coolify `VITE_UST1_WINDOW_ADDRESS`, `VITE_UST1_TOKEN_ADDRESS`, `VITE_VFDUSD_TOKEN_ADDRESS` (optional `VITE_UST1_ORACLE_ADDRESS`) to columbus-5 addresses in [`ust1-window-ui.md`](./ust1-window-ui.md) (`docker/frontend/Dockerfile` defaults these). This is **not** the soft-launch faucet — do not put UST1/vFDUSD in gemstone mintables.
+
 Postgres is provisioned in Coolify separately (not via repo compose).
 
 ## Verification
@@ -126,3 +128,18 @@ Skips pairs that already have liquidity; finishes remaining pairs, `set_discount
 Adding economic tokens later requires CW20 whitelist policy review ([`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md)), governance `AddWhitelistedCodeId`, and new pairs — not a full redeploy of factory/router unless migrating.
 
 **UST1 secondary AMM (post–soft-launch, GitLab [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508)):** do **not** fold UST1/vFDUSD/cUSTC into `MAINNET_SOFT_LAUNCH_PAIRS` (invariant **U6**). Use [`ust1-secondary-amm-pair.md`](./ust1-secondary-amm-pair.md) / [`skills/AGENTS_UST1_SECONDARY_AMM.md`](../../skills/AGENTS_UST1_SECONDARY_AMM.md) (`make verify-issue-508`). Oracle mint/redeem stays on `/ust1`. If inventory is missing, Path B waiver: [`../../deployments/ust1-secondary-pair/PRODUCT_WAIVER.md`](../../deployments/ust1-secondary-pair/PRODUCT_WAIVER.md).
+
+## Post-SL5 wrap enablement (#507)
+
+After ustr-cmm Phase 3 deploy and router `SetWrapMapper` ([#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)), enable native wrap on the production frontend by setting Coolify build-args and rebuilding the frontend image. Playbook: [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md). Copy-paste template: [`deployments/mainnet-soft-launch/wrap-enablement.env.example`](../../deployments/mainnet-soft-launch/wrap-enablement.env.example).
+
+| Coolify key | Phase 3 address |
+|-------------|-----------------|
+| `VITE_WRAP_MAPPER_ADDRESS` | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` |
+| `VITE_TREASURY_ADDRESS` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` |
+| `VITE_LUNC_C_TOKEN_ADDRESS` | `terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg` |
+| `VITE_USTC_C_TOKEN_ADDRESS` | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` |
+
+**Treasury note:** `VITE_TREASURY_ADDRESS` is the **ustr-cmm CMM treasury** (`terra16j5u6…`) used for `WrapDeposit` / `InstantWithdraw` — **not** the DEX factory fee treasury / governance multisig (`terra1zlmv2…`). Wrap-mapper `fee_bps` on mainnet: **100** (1%). UI symbols: **cLUNC** / **cUSTC**.
+
+Do **not** uncomment wrap keys in `frontend.env.example` produced by the soft-launch deploy script; that file remains CW20-only (comment-only hints).

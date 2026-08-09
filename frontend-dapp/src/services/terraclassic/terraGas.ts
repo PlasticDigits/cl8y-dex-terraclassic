@@ -8,6 +8,7 @@ import {
   SWAP_GAS_SAFETY_MARGIN,
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
   UNWRAP_GAS_LIMIT,
+  UST1_WINDOW_SEND_GAS_LIMIT,
   WRAP_GAS_LIMIT,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
@@ -240,6 +241,7 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
         if ('unwrap' in inner) return UNWRAP_GAS_LIMIT
+        if ('deposit' in inner || 'withdraw' in inner) return UST1_WINDOW_SEND_GAS_LIMIT
         if ('execute_swap_operations' in inner) {
           return gasLimitForSwapOperationsMsg(inner)
         }

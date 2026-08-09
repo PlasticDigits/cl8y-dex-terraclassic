@@ -414,34 +414,34 @@ WRAP_MAPPER_ADDRESS=$(get_contract_address "$TX_HASH")
 echo "  Wrap-Mapper Address: $WRAP_MAPPER_ADDRESS"
 
 echo ""
-echo "[9b.5] Creating LUNC-C (Wrapped Luna Classic) CW20 token..."
-LUNC_C_INIT_MSG="{\"name\":\"Wrapped Luna Classic\",\"symbol\":\"LUNC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+echo "[9b.5] Creating cLUNC (Wrapped Luna Classic) CW20 token..."
+LUNC_C_INIT_MSG="{\"name\":\"Wrapped Luna Classic\",\"symbol\":\"cLUNC\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
 TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$LUNC_C_INIT_MSG" \
     --label "lunc-c-token" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 LUNC_C_ADDRESS=$(get_contract_address "$TX_HASH")
-echo "  LUNC-C Address: $LUNC_C_ADDRESS"
+echo "  cLUNC Address: $LUNC_C_ADDRESS"
 
 echo ""
-echo "[9b.6] Creating USTC-C (Wrapped TerraClassicUSD) CW20 token..."
-USTC_C_INIT_MSG="{\"name\":\"Wrapped TerraClassicUSD\",\"symbol\":\"USTC-C\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
+echo "[9b.6] Creating cUSTC (Wrapped TerraClassicUSD) CW20 token..."
+USTC_C_INIT_MSG="{\"name\":\"Wrapped TerraClassicUSD\",\"symbol\":\"cUSTC\",\"decimals\":6,\"initial_balances\":[{\"address\":\"$TEST_ADDRESS\",\"amount\":\"1000000000000000\"}],\"mint\":{\"minter\":\"$WRAP_MAPPER_ADDRESS\"}}"
 TX_HASH=$(terrad_tx wasm instantiate "$CW20_CODE_ID" "$USTC_C_INIT_MSG" \
     --label "ustc-c-token" \
     --admin "$TEST_ADDRESS" | jq -r '.txhash')
 echo "  TX: $TX_HASH"
 USTC_C_ADDRESS=$(get_contract_address "$TX_HASH")
-echo "  USTC-C Address: $USTC_C_ADDRESS"
+echo "  cUSTC Address: $USTC_C_ADDRESS"
 
 echo ""
 echo "[9b.7] Registering denom mappings on Wrap-Mapper..."
 TX_HASH=$(terrad_tx wasm execute "$WRAP_MAPPER_ADDRESS" \
   "{\"set_denom_mapping\":{\"denom\":\"uluna\",\"cw20_addr\":\"$LUNC_C_ADDRESS\"}}" | jq -r '.txhash')
-echo "  uluna -> LUNC-C: $TX_HASH"
+echo "  uluna -> cLUNC: $TX_HASH"
 wait_tx "$TX_HASH"
 TX_HASH=$(terrad_tx wasm execute "$WRAP_MAPPER_ADDRESS" \
   "{\"set_denom_mapping\":{\"denom\":\"uusd\",\"cw20_addr\":\"$USTC_C_ADDRESS\"}}" | jq -r '.txhash')
-echo "  uusd -> USTC-C: $TX_HASH"
+echo "  uusd -> cUSTC: $TX_HASH"
 wait_tx "$TX_HASH"
 
 echo ""
@@ -828,8 +828,8 @@ echo "----------------------------------------------"
 
 WRAP_PAIR_NUM=0
 for wp in \
-  "$LUNC_C_ADDRESS:LUNC-C:${TOKEN_ADDRESSES[0]}:EMBER:100000000000:100000000000" \
-  "$USTC_C_ADDRESS:USTC-C:${TOKEN_ADDRESSES[1]}:CORAL:100000000000:100000000000"
+  "$LUNC_C_ADDRESS:cLUNC:${TOKEN_ADDRESSES[0]}:EMBER:100000000000:100000000000" \
+  "$USTC_C_ADDRESS:cUSTC:${TOKEN_ADDRESSES[1]}:CORAL:100000000000:100000000000"
 do
   IFS=':' read -r ADDR_A SYM_A ADDR_B SYM_B LIQ_A LIQ_B <<< "$wp"
   WRAP_PAIR_NUM=$((WRAP_PAIR_NUM + 1))
@@ -946,8 +946,8 @@ echo "  Faucet:        ${FAUCET_ADDRESS:-(skipped)}"
 echo "  TCL8Y (CL8Y):  $TCL8Y_ADDRESS"
 echo "  Treasury:      $TREASURY_ADDRESS"
 echo "  Wrap-Mapper:   $WRAP_MAPPER_ADDRESS"
-echo "  LUNC-C:        $LUNC_C_ADDRESS"
-echo "  USTC-C:        $USTC_C_ADDRESS"
+echo "  cLUNC:         $LUNC_C_ADDRESS"
+echo "  cUSTC:         $USTC_C_ADDRESS"
 echo ""
 echo "  Tokens (whitelisted, code_id=$CW20_CODE_ID):"
 for i in "${!TOKEN_SYMBOLS[@]}"; do
