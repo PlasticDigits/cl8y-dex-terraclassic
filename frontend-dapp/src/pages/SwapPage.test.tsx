@@ -68,6 +68,7 @@ vi.mock('@/utils/constants', async (importOriginal) => {
     ...actual,
     FEE_DISCOUNT_CONTRACT_ADDRESS: 'terra1feediscount',
     WRAP_MAPPER_CONTRACT_ADDRESS: 'terra1wrap_mapper_mock',
+    TREASURY_CONTRACT_ADDRESS: 'terra1treasury',
     LUNC_C_TOKEN_ADDRESS: MOCK_LUNC_C,
     NATIVE_WRAPPED_PAIRS: {
       uluna: MOCK_LUNC_C,
@@ -81,6 +82,20 @@ vi.mock('@/utils/constants', async (importOriginal) => {
 vi.mock('@/services/terraclassic/wrapMapper', () => ({
   queryPausedState: vi.fn().mockResolvedValue(false),
   checkRateLimitExceeded: vi.fn().mockResolvedValue(false),
+  queryWrapMapperConfig: vi.fn().mockResolvedValue({
+    governance: 'terra1gov',
+    treasury: 'terra1treasury',
+    paused: false,
+    fee_bps: 100,
+  }),
+  wrapTreasuryMatchesEnv: (config: { treasury: string }) => config.treasury === 'terra1treasury',
+  wrapUnwrapFeeNote: (kind: 'wrap' | 'unwrap', feeBps: number | null | undefined) => {
+    if (feeBps == null) return `${kind === 'wrap' ? 'Wrap' : 'Unwrap'} fee unavailable`
+    return feeBps > 0
+      ? `${kind === 'wrap' ? 'Wrap' : 'Unwrap'} (1.00% fee)`
+      : `${kind === 'wrap' ? 'Wrap' : 'Unwrap'} (1:1)`
+  },
+  netAfterWrapMapperFee: (amount: bigint) => amount,
 }))
 
 vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
@@ -118,7 +133,8 @@ vi.mock('@/hooks/useTradingBlacklist', () => ({
 
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens, isDirectWrapUnwrap, simulateMultiHopSwap } from '@/services/terraclassic/router'
-import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
+import { queryPausedState, checkRateLimitExceeded, queryWrapMapperConfig } from '@/services/terraclassic/wrapMapper'
+import { WRAP_CONFIG_UNAVAILABLE_CTA, WRAP_TREASURY_MISCONFIGURED_CTA } from '@/utils/marketDataServiceCopy'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import { simulateSwap, simulateHybridSwap, getPairPaused } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
@@ -162,6 +178,12 @@ describe('SwapPage', () => {
     vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
     vi.mocked(queryPausedState).mockResolvedValue(false)
     vi.mocked(checkRateLimitExceeded).mockResolvedValue(false)
+    vi.mocked(queryWrapMapperConfig).mockResolvedValue({
+      governance: 'terra1gov',
+      treasury: 'terra1treasury',
+      paused: false,
+      fee_bps: 100,
+    })
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
@@ -1270,6 +1292,35 @@ describe('SwapPage', () => {
       expect(banner).toHaveTextContent(/Daily wrap limit reached/i)
       expect(banner).toHaveTextContent(/try again later, or reduce the amount/i)
     })
+
+    it('shows Wrap config unavailable when mapper config LCD fails (#507 M1)', async () => {
+      vi.mocked(queryWrapMapperConfig).mockResolvedValue(null)
+      await renderConnectedNativeWrapSwap()
+
+      const btn = await screen.findByRole('button', { name: WRAP_CONFIG_UNAVAILABLE_CTA })
+      expect(btn).toBeDisabled()
+      expect(screen.queryByText(/Wrap \(1:1\)/i)).not.toBeInTheDocument()
+    })
+
+    it('shows Wrap treasury misconfigured when env treasury ≠ on-chain (#507 M3)', async () => {
+      vi.mocked(queryWrapMapperConfig).mockResolvedValue({
+        governance: 'terra1gov',
+        treasury: 'terra1wrong_treasury_address____________',
+        paused: false,
+        fee_bps: 100,
+      })
+      await renderConnectedNativeWrapSwap()
+
+      const btn = await screen.findByRole('button', { name: WRAP_TREASURY_MISCONFIGURED_CTA })
+      expect(btn).toBeDisabled()
+    })
+
+    it('shows fee note with percent when fee_bps=100 (#507)', async () => {
+      await renderConnectedNativeWrapSwap()
+      const note = await screen.findByTestId('swap-wrap-fee-note')
+      expect(note).toHaveTextContent(/1\.00% fee/i)
+      expect(note).not.toHaveTextContent(/1:1/)
+    })
   })
 
   describe('pair pause disabled swap CTA (SEC-B05 / GitLab #395)', () => {
@@ -1311,9 +1362,7 @@ describe('SwapPage', () => {
       vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
       await renderConnectedDirectSwap()
 
-      expect(await screen.findByTestId('swap-pair-paused-banner')).toHaveTextContent(
-        /Pair is paused — swaps are blocked/i
-      )
+      expect(await screen.findByTestId('swap-pair-paused-banner')).toHaveTextContent(/Pair paused/i)
       expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
     })
   })

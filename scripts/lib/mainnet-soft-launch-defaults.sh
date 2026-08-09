@@ -8,6 +8,7 @@
 #   SL4 — Deploy key pays gas + bootstraps admin msgs; wasm --admin and final config
 #         governance/treasury = GOVERNANCE_MULTISIG_ADDR (handoff after setup).
 #   SL5 — Wrap-mapper / USTR treasury contracts are out of scope (CW20-only pairs).
+#         Post-SL5 wrap is Coolify-only (#507) — do NOT add wrap addresses to this catalog.
 #
 # shellcheck shell=bash
 

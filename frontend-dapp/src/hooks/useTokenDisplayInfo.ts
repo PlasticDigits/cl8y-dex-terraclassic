@@ -10,6 +10,7 @@ import {
   isAddressLike,
 } from '@/utils/tokenDisplay'
 import { resolveTrustedTokenLogoUrl } from '@/utils/tokenLogoAllowlist'
+import { lookupByCW20 } from '@/utils/tokenRegistry'
 
 export interface TokenDisplayInfo {
   displayLabel: string
@@ -67,7 +68,11 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
   }
 
   const chainSymbol = resolved ?? (isAddressLike(tokenId) ? shortenAddress(tokenId) : tokenId)
-  const symbol = indexerMeta?.symbol?.trim() || chainSymbol
+  // Product display for wrap CW20s is cLUNC/cUSTC even when on-chain/indexer still say LUNC-C (#507).
+  const registryCw20 = isCw20 ? lookupByCW20(tokenId) : undefined
+  const wrapProductSymbol =
+    registryCw20?.symbol === 'cLUNC' || registryCw20?.symbol === 'cUSTC' ? registryCw20.symbol : undefined
+  const symbol = wrapProductSymbol || indexerMeta?.symbol?.trim() || chainSymbol
   const addressForBlockie = isCw20 ? tokenId : undefined
   const rawLogo = indexerMeta?.logo_url?.trim() || (info ? getTokenLogoURI(info) : undefined) || undefined
   const logoURI = resolveTrustedTokenLogoUrl(rawLogo)

@@ -16,6 +16,8 @@ The router queries wrap-mapper `Config { fee_bps }` at final-hop settlement. Int
 
 Non-unwrap paths are unchanged — there is no mapper fee on a direct CW20 `Transfer`.
 
+Frontend `simulateNativeSwap` nets `fee_bps` on unwrap paths so quoted receive matches post-unwrap net ([#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507)). See [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+
 ## Code
 
 | Path | Role |
@@ -43,5 +45,6 @@ make test-contracts   # from repo root
 
 ## Related agent docs
 
+- [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) — frontend unwrap sim + Coolify env (#507)
 - [`skills/AGENTS_ROUTER_HOP_ACCOUNTING.md`](./AGENTS_ROUTER_HOP_ACCOUNTING.md) — hop output delta (R4)
 - [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md) — unwrap path wiring

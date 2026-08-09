@@ -29,7 +29,7 @@ export const MULTIHOP_HYBRID_PAY_SYMBOL = 'CORAL'
 /** EMBER/IRON pool is liquid on LocalTerra seed; EMBER/COBALT is too thin for hop-2 spread checks. */
 export const MULTIHOP_HYBRID_RECEIVE_SYMBOL = 'IRON'
 
-const PREFERRED_RECEIVE_SYMBOLS = [MULTIHOP_HYBRID_RECEIVE_SYMBOL, 'LUNC-C', 'COBALT'] as const
+const PREFERRED_RECEIVE_SYMBOLS = [MULTIHOP_HYBRID_RECEIVE_SYMBOL, 'cLUNC', 'COBALT'] as const
 
 const MULTIHOP_ROUTE_MSG =
   'Indexer route/solve did not return ≥2 hops for multihop hybrid; verify deploy pairs and indexer (GitLab #422).'

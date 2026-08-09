@@ -37,11 +37,17 @@ import {
   findRouteWithNativeSupport,
   simulateNativeSwap,
   executeNativeSwap,
+  netCw20AfterNativeWrap,
 } from '@/services/terraclassic/router'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
-import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
-import { queryPausedState, checkRateLimitExceeded } from '@/services/terraclassic/wrapMapper'
+import {
+  queryPausedState,
+  checkRateLimitExceeded,
+  queryWrapMapperConfig,
+  wrapUnwrapFeeNote,
+  wrapTreasuryMatchesEnv,
+} from '@/services/terraclassic/wrapMapper'
 import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
   assetInfoLabel,
@@ -82,7 +88,9 @@ import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/i
 import {
   MARKET_DATA_SERVICE_OUTAGE_TITLE,
   SWAP_MARKET_DATA_OUTAGE_LEAD,
+  WRAP_CONFIG_UNAVAILABLE_CTA,
   WRAP_RATE_LIMIT_EXCEEDED_MESSAGE,
+  WRAP_TREASURY_MISCONFIGURED_CTA,
 } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
@@ -344,14 +352,21 @@ export default function SwapPage() {
     })
   }, [balanceQuery.data, offerDecimals, rawInputAmount])
 
+  const wrapMapperActive =
+    !!WRAP_MAPPER_CONTRACT_ADDRESS &&
+    (needsWrapCheck || (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') || (nativeRouteInfo?.needsUnwrapOutput ?? false))
+
+  const wrapMapperConfigQuery = useQuery({
+    queryKey: ['wrapMapperConfig'],
+    queryFn: queryWrapMapperConfig,
+    enabled: wrapMapperActive || isWrapOrUnwrap,
+    staleTime: 30_000,
+  })
+
   const pausedQuery = useQuery({
     queryKey: ['wrapMapperPaused'],
     queryFn: queryPausedState,
-    enabled:
-      !!WRAP_MAPPER_CONTRACT_ADDRESS &&
-      (needsWrapCheck ||
-        (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') ||
-        (nativeRouteInfo?.needsUnwrapOutput ?? false)),
+    enabled: wrapMapperActive,
     staleTime: 30_000,
   })
 
@@ -365,7 +380,22 @@ export default function SwapPage() {
     staleTime: 15_000,
   })
 
-  const isWrapPaused = pausedQuery.data === true
+  const wrapMapperConfig = wrapMapperConfigQuery.data ?? null
+  const wrapMapperFeeBps = wrapMapperConfig?.fee_bps
+  const wrapNeedsSafetyGate =
+    !!WRAP_MAPPER_CONTRACT_ADDRESS &&
+    (wrapMapperActive || isWrapOrUnwrap || !!(nativeRouteInfo?.needsWrapInput || nativeRouteInfo?.needsUnwrapOutput))
+  const wrapTreasuryMismatch = !!wrapMapperConfig && !wrapTreasuryMatchesEnv(wrapMapperConfig)
+  const wrapConfigUnavailable = wrapNeedsSafetyGate && wrapMapperConfig == null
+  const wrapPauseUnknown = wrapMapperActive && pausedQuery.isFetched && pausedQuery.data === null
+  const wrapRateLimitUnknown =
+    !!wrapDenom &&
+    !!rawInputAmount &&
+    rawInputAmount !== '0' &&
+    rateLimitQuery.isFetched &&
+    rateLimitQuery.data === null
+  const wrapSafetyUnavailable = wrapConfigUnavailable || wrapPauseUnknown || wrapRateLimitUnknown
+  const isWrapPaused = pausedQuery.data === true || wrapMapperConfig?.paused === true
   const isRateLimitExceeded = rateLimitQuery.data === true
 
   const simQueryKey = useMemo(
@@ -383,6 +413,8 @@ export default function SwapPage() {
         debouncedHybridMaxMakers,
         slippageTolerance,
         address,
+        wrapMapperFeeBps ?? null,
+        wrapMapperConfig != null,
       ] as const,
     [
       fromToken,
@@ -396,6 +428,8 @@ export default function SwapPage() {
       debouncedHybridMaxMakers,
       slippageTolerance,
       address,
+      wrapMapperFeeBps,
+      wrapMapperConfig,
     ]
   )
 
@@ -419,8 +453,10 @@ export default function SwapPage() {
         indexerTransportFailed ? { ...data, indexerTransportFailed: true } : data
 
       if (isWrapOrUnwrap) {
+        // Fee-aware direct wrap/unwrap preview (mapper fee_bps; wrap also nets burn tax) — #507.
+        const result = await simulateNativeSwap(simRaw, fromToken, toToken, pairs)
         return {
-          return_amount: simRaw,
+          return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
         }
@@ -432,7 +468,7 @@ export default function SwapPage() {
         if (nativeRouteInfo.operations.length > 0) {
           let preflightOffer = simRaw
           if (nativeRouteInfo.needsWrapInput) {
-            preflightOffer = (await netUlunaAfterTransferTaxAsync(BigInt(simRaw), fromToken)).toString()
+            preflightOffer = (await netCw20AfterNativeWrap(BigInt(simRaw), fromToken)).toString()
           }
           routePreflight = await preflightSwapRouteSpread(
             nativeRouteInfo.operations,
@@ -927,6 +963,12 @@ export default function SwapPage() {
     buttonDisabled = false
   } else if (!hasRoute) {
     buttonText = 'No Route'
+    buttonDisabled = true
+  } else if (wrapTreasuryMismatch) {
+    buttonText = WRAP_TREASURY_MISCONFIGURED_CTA
+    buttonDisabled = true
+  } else if (wrapSafetyUnavailable) {
+    buttonText = WRAP_CONFIG_UNAVAILABLE_CTA
     buttonDisabled = true
   } else if (isWrapPaused) {
     buttonText = 'Wrapping is Temporarily Paused'
@@ -1516,9 +1558,13 @@ export default function SwapPage() {
                         className="col-span-2 space-y-0.5 font-mono text-xs sm:text-right break-words min-w-0"
                         style={{ color: 'var(--ink-dim)' }}
                       >
-                        {isWrapOrUnwrap && (
-                          <span className="block text-[10px] font-sans" style={{ color: 'var(--ink-subtle)' }}>
-                            {wrapUnwrapType === 'wrap' ? 'Wrap (1:1)' : 'Unwrap (1:1)'}
+                        {isWrapOrUnwrap && wrapUnwrapType && (
+                          <span
+                            className="block text-[10px] font-sans"
+                            style={{ color: 'var(--ink-subtle)' }}
+                            data-testid="swap-wrap-fee-note"
+                          >
+                            {wrapUnwrapFeeNote(wrapUnwrapType, wrapMapperFeeBps)}
                           </span>
                         )}
                         {nativeRouteInfo && (nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (

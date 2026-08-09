@@ -158,14 +158,14 @@ Add to `TOKENS` array:
 
 ```typescript
 {
-  symbol: 'LUNC-C',
+  symbol: 'cLUNC',
   name: 'Wrapped Luna Classic',
   decimals: 6,
   type: 'cw20',
   logoURI: '...',
 },
 {
-  symbol: 'USTC-C',
+  symbol: 'cUSTC',
   name: 'Wrapped TerraClassicUSD',
   decimals: 6,
   type: 'cw20',
@@ -187,7 +187,7 @@ Create `frontend-dapp/src/services/terraclassic/wrapMapper.ts`:
 - `getWrappedForNative(denom)` -- returns CW20 address from `NATIVE_WRAPPED_PAIRS`
 - `getNativeForWrapped(cw20Addr)` -- returns denom from `WRAPPED_NATIVE_PAIRS`
 - `isNativeToken(tokenId)` -- returns true for `uluna`, `uusd`
-- `isWrappedNative(tokenId)` -- returns true for LUNC-C/USTC-C addresses
+- `isWrappedNative(tokenId)` -- returns true for cLUNC/cUSTC addresses
 
 ## 6. Frontend: Multi-Message Transaction Support
 
@@ -248,9 +248,10 @@ Add `executeNativeSwap()` helper that:
 
 Add `simulateNativeSwap()`:
 - Substitutes native denom with wrapped CW20 for the simulation query
-- Returns 1:1 rate for the wrap/unwrap portion
+- Applies wrap-mapper `fee_bps` on direct wrap/unwrap and native-output paths: `net = amount − floor(amount × fee_bps / 10_000)` (query via `queryWrapMapperConfig`)
+- Do not claim 1:1 when `fee_bps > 0`; mainnet Phase 3 uses **100** bps (1%)
 
-For direct wrap/unwrap (LUNC<->LUNC-C), return 1:1 rate with a note about burn tax.
+For direct wrap/unwrap (LUNC↔cLUNC), show net after mapper fee plus any burn-tax note on native legs.
 
 ### Tax-aware CW20 amounts after wrap (GitLab #342)
 
@@ -259,6 +260,7 @@ For direct wrap/unwrap (LUNC<->LUNC-C), return 1:1 rate with a note about burn t
 - Helper: [`frontend-dapp/src/utils/nativeTransferTax.ts`](frontend-dapp/src/utils/nativeTransferTax.ts) — LCD `terra/tax/v1beta1/tax_rate` + Terraswap-style `gross - gross/(1+rate)` (capped).
 - Apply in [`executeNativeSwap`](frontend-dapp/src/services/terraclassic/router.ts) (`send.amount` after wrap) and [`PoolPage.tsx`](frontend-dapp/src/pages/PoolPage.tsx) native-wrap provide path.
 - Agent playbook: [`skills/AGENTS_NATIVE_WRAP_TAX.md`](skills/AGENTS_NATIVE_WRAP_TAX.md).
+- Mainnet wrap enablement + `fee_bps` UX: [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md).
 
 ## 8. Frontend: Swap UI Changes (`frontend-dapp/src/pages/SwapPage.tsx`)
 
@@ -266,16 +268,16 @@ For direct wrap/unwrap (LUNC<->LUNC-C), return 1:1 rate with a note about burn t
 
 Modify `getAllTokens(pairs)` call site to append native LUNC (`uluna`) and USTC (`uusd`) entries so users can select them alongside CW20 tokens. The selector should show:
 - LUNC (native)
-- LUNC-C (wrapped CW20)
+- cLUNC (wrapped CW20)
 - USTC (native)
-- USTC-C (wrapped CW20)
+- cUSTC (wrapped CW20)
 - ... other CW20 tokens
 
 ### 8.2 Swap flow branching
 
 After user selects tokens and enters amount, determine the swap type:
 
-1. **Direct wrap/unwrap** (e.g. LUNC -> LUNC-C): call `wrapViaTreasury()` or `unwrap()` directly. Show "Wrap" or "Unwrap" on button instead of "Swap".
+1. **Direct wrap/unwrap** (e.g. LUNC -> cLUNC): call `wrapViaTreasury()` or `unwrap()` directly. Show "Wrap" or "Unwrap" on button instead of "Swap".
 2. **Native input, CW20 output**: multi-msg TX via `executeNativeSwap()`.
 3. **CW20 input, native output**: single TX with `unwrap_output: true`.
 4. **Native input, native output**: multi-msg wrap + swap with `unwrap_output: true`.
@@ -283,37 +285,37 @@ After user selects tokens and enters amount, determine the swap type:
 
 ### 8.3 Simulation display
 
-- For direct wrap/unwrap: show "1:1" rate with burn tax note (e.g. "~0.2% burn tax on unwrap").
-- For swaps involving native tokens: simulate using wrapped CW20 equivalent, display normally.
+- For direct wrap/unwrap: show net receive after wrap-mapper `fee_bps` (and burn-tax note on native legs when applicable). Query `fee_bps` on-chain — do not hardcode 1:1 on mainnet.
+- For swaps involving native tokens: simulate using wrapped CW20 equivalent, netting mapper fee on unwrap legs; display normally.
 
 ## 9. Frontend: Pool UI Changes (`frontend-dapp/src/pages/PoolPage.tsx`)
 
 ### 9.1 Provide Liquidity
 
-For each asset in a pair that has a native equivalent (e.g. a pair containing LUNC-C):
+For each asset in a pair that has a native equivalent (e.g. a pair containing cLUNC):
 
-- Show a dropdown next to the amount input: "LUNC" / "LUNC-C" (default: "LUNC", the native version).
+- Show a dropdown next to the amount input: "LUNC" / "cLUNC" (default: "LUNC", the native version).
 - If native selected: build multi-msg TX:
   1. `treasury.WrapDeposit()` with native funds (mints CW20 to user)
   2. `CW20.IncreaseAllowance` for the pair contract
   3. `pair.ProvideLiquidity` with CW20 assets
 - If wrapped selected: existing flow (CW20 allowance + provide).
-- Amounts are known exactly since wrapping is 1:1.
+- Amounts after wrap use net post-tax CW20 units and wrap-mapper `fee_bps` where applicable.
 
 ### 9.2 Withdraw Liquidity
 
 Add a visible checkbox below the withdraw section:
-- Label: **"Receive wrapped {SYMBOL}-C"** (e.g. "Receive wrapped LUNC-C")
+- Label: **"Receive wrapped {SYMBOL}"** (e.g. "Receive wrapped cLUNC")
 - Default: **unchecked** (user receives native by default)
 
 Behavior:
 - **Unchecked** (receive native): two-step flow:
   1. Withdraw liquidity (user receives CW20 tokens)
-  2. Auto-prompt: "Unwrap {amount} LUNC-C to LUNC?" with a confirmation button
+  2. Auto-prompt: "Unwrap {amount} cLUNC to LUNC?" with a confirmation button
   3. On confirm: send CW20 to wrap-mapper with Unwrap
 - **Checked** (receive wrapped): existing single-step withdraw, no unwrap.
 
-Only show the checkbox for pairs that contain wrapped native tokens (LUNC-C or USTC-C).
+Only show the checkbox for pairs that contain wrapped native tokens (cLUNC or cUSTC).
 
 ## 10. Frontend: Types Changes (`frontend-dapp/src/types/index.ts`)
 
@@ -380,14 +382,14 @@ Full end-to-end flows deploying all contracts (factory, pair, router, wrap-mappe
 
 | # | Test | Validates |
 |---|------|-----------|
-| D1 | `isDirectWrapUnwrap` | Returns `'wrap'` for LUNC/LUNC-C, `'unwrap'` for LUNC-C/LUNC, `null` otherwise |
+| D1 | `isDirectWrapUnwrap` | Returns `'wrap'` for LUNC/cLUNC, `'unwrap'` for cLUNC/LUNC, `null` otherwise |
 | D2 | `findRoute-native-substitution` | Route found when user selects native token (substitutes wrapped for graph search) |
 | D3 | `getWrappedForNative` | Correct CW20 address returned for `uluna` and `uusd` |
-| D4 | `getNativeForWrapped` | Correct denom returned for LUNC-C and USTC-C addresses |
+| D4 | `getNativeForWrapped` | Correct denom returned for cLUNC and cUSTC addresses |
 | D5 | `executeTerraContractMulti` | Builds TX with multiple MsgExecuteContract messages correctly |
 | D6 | `gas-estimation` | Correct gas for wrap, unwrap, wrap+swap, and swap+unwrap operations |
 | D7 | `isNativeDenom` | Returns true for `uluna`/`uusd`, false for CW20 addresses |
-| D8 | `isWrappedNative` | Returns true for LUNC-C/USTC-C addresses, false for other CW20s |
+| D8 | `isWrappedNative` | Returns true for cLUNC/cUSTC addresses, false for other CW20s |
 
 ### E. Frontend E2E Tests (Playwright, in `frontend-dapp/e2e/`)
 
@@ -398,12 +400,12 @@ Using 20+ worker agents.
 | E1 | `swap-native-input` | Select native LUNC as input, swap to CW20 token, TX succeeds |
 | E2 | `swap-native-output` | Select native USTC as output, swap from CW20, receive native |
 | E3 | `swap-native-to-native` | LUNC -> USTC swap, both native, full wrap+swap+unwrap |
-| E4 | `swap-direct-wrap` | LUNC -> LUNC-C: shows 1:1 rate, button says "Wrap", executes wrap only |
-| E5 | `swap-direct-unwrap` | LUNC-C -> LUNC: shows 1:1 rate + tax note, button says "Unwrap", executes unwrap only |
-| E6 | `swap-wrapped-to-wrapped` | LUNC-C -> USTC-C: normal CW20 swap (no wrap/unwrap involved) |
+| E4 | `swap-direct-wrap` | LUNC -> cLUNC: shows fee_bps-aware net (not 1:1 when fee>0), button says "Wrap", executes wrap only |
+| E5 | `swap-direct-unwrap` | cLUNC -> LUNC: shows net after fee_bps + tax note, button says "Unwrap", executes unwrap only |
+| E6 | `swap-wrapped-to-wrapped` | cLUNC -> cUSTC: normal CW20 swap (no wrap/unwrap involved) |
 | E7 | `pool-deposit-native` | Select native in dropdown, provide liquidity succeeds via multi-msg |
 | E8 | `pool-deposit-wrapped` | Select wrapped in dropdown, provide liquidity succeeds (existing flow) |
 | E9 | `pool-withdraw-native` | Withdraw with "Receive wrapped" unchecked, auto-prompt unwrap, receive native |
 | E10 | `pool-withdraw-wrapped` | Withdraw with "Receive wrapped" checked, receive CW20 directly |
-| E11 | `token-selector-shows-both` | Token selector displays both LUNC and LUNC-C, USTC and USTC-C |
+| E11 | `token-selector-shows-both` | Token selector displays both LUNC and cLUNC, USTC and cUSTC |
 | E12 | `rate-limit-error-display` | When rate limit exceeded, user sees descriptive error message |

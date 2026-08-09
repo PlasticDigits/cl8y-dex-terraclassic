@@ -8,7 +8,7 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, **wrap ra
 |------------|---------|
 | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Submit CTA precedence: wrap pause → blacklist → amount → rate limit; inline `swap-wrap-rate-limit-banner` when rate limit exceeded |
 | [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts) | `WRAP_RATE_LIMIT_EXCEEDED_MESSAGE` — inline alert copy (SEC-I05 / #463) |
-| [`wrapMapper.ts`](../frontend-dapp/src/services/terraclassic/wrapMapper.ts) | `queryPausedState`, `checkRateLimitExceeded` |
+| [`wrapMapper.ts`](../frontend-dapp/src/services/terraclassic/wrapMapper.ts) | `queryWrapMapperConfig`, `queryPausedState`, `checkRateLimitExceeded` |
 | [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) | Vitest: exact copy + `toBeDisabled()` per state (isolated mocks) |
 | [`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts) | Playwright: LCD route mocks via [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts) |
 | [docs/frontend.md § Swap wrap safety CTA](../docs/frontend.md#swap-wrap-safety-cta-sec-a02) | Product copy table |
@@ -20,13 +20,17 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, **wrap ra
 
 | State | Submit label | Disabled |
 |-------|--------------|----------|
+| Env treasury ≠ on-chain mapper `config.treasury` (#507 / W2) | **Wrap treasury misconfigured** | yes |
+| Mapper config / pause / rate-limit LCD unavailable (#507 fail-closed) | **Wrap config unavailable** | yes |
 | Wrap mapper `config.paused === true` | **Wrapping is Temporarily Paused** | yes |
 | Wrap amount exceeds mapper `rate_limit` window | **Rate Limit Exceeded** | yes |
 | Wrap rate limit exceeded (inline alert, SEC-I05 F-04 / #463) | `swap-wrap-rate-limit-banner` with `WRAP_RATE_LIMIT_EXCEEDED_MESSAGE` | visible below form (not only CTA label) |
 | Route pair `is_paused === true` (L6 / SEC-B05) | **Pair is paused** | yes |
 
-- **Pause wins over rate limit** when both would apply (`SwapPage` `buttonText` chain).
+- **Treasury mismatch and config-unavailable win over pause / rate limit** (`SwapPage` `buttonText` chain).
+- **Pause wins over rate limit** when both would apply.
 - **Wrap-mapper pause wins over pair pause** on native wrap-only paths.
+- Never show **Wrap (1:1)** when mapper config has not loaded (`wrapUnwrapFeeNote(null)` → fee unavailable).
 - Tests must cover **each state in isolation** — do not assert pause and rate limit in one combined regex ([`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts) E12 + dedicated describe).
 - Rate limit here is **on-chain wrap mapper quota**, not indexer HTTP **429** (indexer limits: [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md)).
 
@@ -49,6 +53,7 @@ make verify-issue-396
 
 ## Related
 
+- Wrap **fee display** (`fee_bps`, cLUNC/cUSTC) is separate from pause/rate-limit CTAs — [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) (#507). `wrapMapper.ts` exports `queryWrapMapperConfig` for on-chain `fee_bps`.
 - Pair pause on `/` and `/pool`: [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx), [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx) (GitLab **#395** / SEC-B05); hook [`usePairPaused.ts`](../frontend-dapp/src/hooks/usePairPaused.ts)
 - Pair pause on `/trade`: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (GitLab #87 / #199)
 - Trading blacklist CTA: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts); pool + limits Vitest (**SEC-E01**, GitLab **#425**): [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx), [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx); [docs/frontend.md § Trading blacklist disabled CTAs](../docs/frontend.md#trading-blacklist-disabled-ctas-sec-e01)
