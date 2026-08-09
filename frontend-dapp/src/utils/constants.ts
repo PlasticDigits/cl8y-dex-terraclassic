@@ -13,6 +13,23 @@ export const USTC_C_TOKEN_ADDRESS = import.meta.env.VITE_USTC_C_TOKEN_ADDRESS ||
 /** Soft-launch faucet (GitLab #473) — unset hides Mint nav and shows unavailable on `/mint`. */
 export const FAUCET_CONTRACT_ADDRESS = import.meta.env.VITE_FAUCET_ADDRESS || ''
 
+/**
+ * Always-on UST1 ↔ vFDUSD oracle window (GitLab #506 / parent #502).
+ * Unset hides UST1 nav and shows unavailable on `/ust1`. Never overload `/mint`.
+ */
+export const UST1_WINDOW_CONTRACT_ADDRESS = import.meta.env.VITE_UST1_WINDOW_ADDRESS || ''
+export const UST1_TOKEN_ADDRESS = import.meta.env.VITE_UST1_TOKEN_ADDRESS || ''
+export const VFDUSD_TOKEN_ADDRESS = import.meta.env.VITE_VFDUSD_TOKEN_ADDRESS || ''
+/** Optional — UI reads pause/staleness via window `effective_swap.oracle`. */
+export const UST1_ORACLE_CONTRACT_ADDRESS = import.meta.env.VITE_UST1_ORACLE_ADDRESS || ''
+
+/**
+ * CW20 Send → ust1-window deposit/withdraw gas envelope (GitLab #506).
+ * Deposit: Receive + Mint + Transfer; withdraw: Receive + Burn + treasury InstantWithdraw.
+ * Ceiling matches wrap/unwrap margin discipline until LocalTerra/mainnet gas_used is pinned.
+ */
+export const UST1_WINDOW_SEND_GAS_LIMIT = 800_000
+
 const SOFT_LAUNCH_MINTABLE_TOKEN_ENV: { symbol: string; envKey: string }[] = [
   { symbol: 'EMBER', envKey: 'VITE_TOKEN_EMBER_ADDRESS' },
   { symbol: 'CORAL', envKey: 'VITE_TOKEN_CORAL_ADDRESS' },
@@ -39,6 +56,14 @@ export const SOFT_LAUNCH_MINTABLE_TOKENS: SoftLaunchMintableToken[] = SOFT_LAUNC
 
 export function isFaucetEnabled(): boolean {
   return !!FAUCET_CONTRACT_ADDRESS
+}
+
+/**
+ * True when window + both token addresses are configured (nav + page execute path).
+ * Invariant **U1** — see [`docs/runbooks/ust1-window-ui.md`](../../docs/runbooks/ust1-window-ui.md).
+ */
+export function isUst1WindowEnabled(): boolean {
+  return !!UST1_WINDOW_CONTRACT_ADDRESS && !!UST1_TOKEN_ADDRESS && !!VFDUSD_TOKEN_ADDRESS
 }
 
 /** Default-branch docs in GitLab (security audit, limit orders, ADRs). */

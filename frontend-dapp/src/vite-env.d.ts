@@ -16,6 +16,11 @@ interface ImportMetaEnv {
   readonly VITE_TOKEN_ONYX_ADDRESS?: string
   readonly VITE_TOKEN_RUBY_ADDRESS?: string
   readonly VITE_TOKEN_TOPAZ_ADDRESS?: string
+  /** UST1 oracle window (GitLab #506) — columbus-5 addresses on prod Coolify. */
+  readonly VITE_UST1_WINDOW_ADDRESS?: string
+  readonly VITE_UST1_TOKEN_ADDRESS?: string
+  readonly VITE_VFDUSD_TOKEN_ADDRESS?: string
+  readonly VITE_UST1_ORACLE_ADDRESS?: string
 }
 
 declare module 'react-blockies'

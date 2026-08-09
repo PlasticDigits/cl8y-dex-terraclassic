@@ -81,6 +81,22 @@
       "type": "cw20",
       "decimals": 6,
       "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/SPACEUSD.png"
+    },
+    {
+      "symbol": "UST1",
+      "name": "UST1",
+      "address": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/UST1.png"
+    },
+    {
+      "symbol": "vFDUSD",
+      "name": "Venus FDUSD (bridged)",
+      "address": "terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/VFDUSD.png"
     }
   ]
 }

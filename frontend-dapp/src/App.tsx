@@ -64,6 +64,7 @@ export default function App() {
                 />
                 <Route path="/protocol" element={<LazyRoute loader={() => import('./pages/ProtocolPage')} />} />
                 <Route path="/mint" element={<LazyRoute loader={() => import('./pages/MintPage')} />} />
+                <Route path="/ust1" element={<LazyRoute loader={() => import('./pages/Ust1Page')} />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

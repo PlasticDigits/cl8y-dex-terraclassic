@@ -82,6 +82,8 @@ Makefile: `make deploy-mainnet-soft-launch`.
 
 **Frontend:** build-args from `frontend.env.example` including `VITE_WC_PROJECT_ID` and `VITE_INDEXER_URL=https://indexer.dex.cl8y.com`. For the Mint page ([#473](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473)), also set `VITE_FAUCET_ADDRESS` and the six `VITE_TOKEN_{EMBER,CORAL,JADE,ONYX,RUBY,TOPAZ}_ADDRESS` values after `make deploy-soft-launch-faucet`. Do not set `VITE_DEV_MNEMONIC`.
 
+**Post-SL5 UST1 track ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506) / parent [#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)):** bake Coolify `VITE_UST1_WINDOW_ADDRESS`, `VITE_UST1_TOKEN_ADDRESS`, `VITE_VFDUSD_TOKEN_ADDRESS` (optional `VITE_UST1_ORACLE_ADDRESS`) to columbus-5 addresses in [`ust1-window-ui.md`](./ust1-window-ui.md) (`docker/frontend/Dockerfile` defaults these). This is **not** the soft-launch faucet — do not put UST1/vFDUSD in gemstone mintables.
+
 Postgres is provisioned in Coolify separately (not via repo compose).
 
 ## Verification

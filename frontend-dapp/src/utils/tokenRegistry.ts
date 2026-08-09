@@ -1,5 +1,5 @@
 import type { AssetInfo } from '@/types'
-import { LUNC_C_TOKEN_ADDRESS, USTC_C_TOKEN_ADDRESS } from './constants'
+import { LUNC_C_TOKEN_ADDRESS, UST1_TOKEN_ADDRESS, USTC_C_TOKEN_ADDRESS, VFDUSD_TOKEN_ADDRESS } from './constants'
 
 export interface TokenRegistryEntry {
   symbol: string
@@ -75,6 +75,20 @@ export const TOKENS: TokenRegistryEntry[] = [
     type: 'cw20',
     logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTC.png',
   },
+  {
+    symbol: 'UST1',
+    name: 'UST1',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/UST1.png',
+  },
+  {
+    symbol: 'vFDUSD',
+    name: 'Venus FDUSD (bridged)',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/VFDUSD.png',
+  },
 ]
 
 const DENOM_MAP: Record<string, string> = {
@@ -92,6 +106,12 @@ const CW20_MAP: Record<string, string> = {
 
 if (LUNC_C_TOKEN_ADDRESS) CW20_MAP[LUNC_C_TOKEN_ADDRESS.toLowerCase()] = 'cLUNC'
 if (USTC_C_TOKEN_ADDRESS) CW20_MAP[USTC_C_TOKEN_ADDRESS.toLowerCase()] = 'cUSTC'
+if (UST1_TOKEN_ADDRESS) CW20_MAP[UST1_TOKEN_ADDRESS.toLowerCase()] = 'UST1'
+if (VFDUSD_TOKEN_ADDRESS) CW20_MAP[VFDUSD_TOKEN_ADDRESS.toLowerCase()] = 'vFDUSD'
+
+// Published columbus-5 addresses (GitLab #506) — always resolve logos even before env is set.
+CW20_MAP['terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'] = 'UST1'
+CW20_MAP['terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'] = 'vFDUSD'
 
 const BY_SYMBOL = new Map<string, TokenRegistryEntry>()
 for (const t of TOKENS) BY_SYMBOL.set(t.symbol, t)

@@ -23,15 +23,26 @@ export const MORE_NAV_ITEMS: NavItem[] = [
 /** Soft-launch faucet route (GitLab #473) — appended to More menus only when enabled. */
 export const MINT_NAV_ITEM: NavItem = { path: '/mint', label: 'Mint' }
 
+/**
+ * ust1-window oracle mint/redeem (GitLab #506) — label must never be "Mint" (faucet).
+ * Appended to More menus only when window env is configured.
+ */
+export const UST1_NAV_ITEM: NavItem = { path: '/ust1', label: 'UST1' }
+
 export type NavMenuOptions = {
   includeMint?: boolean
+  includeUst1?: boolean
 }
 
-function appendMintIfNeeded(items: NavItem[], options?: NavMenuOptions): NavItem[] {
-  if (options?.includeMint) {
-    return [...items, MINT_NAV_ITEM]
+function appendConditionalNavItems(items: NavItem[], options?: NavMenuOptions): NavItem[] {
+  let next = items
+  if (options?.includeUst1) {
+    next = [...next, UST1_NAV_ITEM]
   }
-  return items
+  if (options?.includeMint) {
+    next = [...next, MINT_NAV_ITEM]
+  }
+  return next
 }
 
 /**
@@ -55,7 +66,7 @@ export const TABLET_COMPACT_HEADER_NAV_ROW_LABELS = ['Swap', 'More'] as const
 
 export function getHeaderMoreMenuItems(fullDesktopHeader: boolean, options?: NavMenuOptions): NavItem[] {
   const base = fullDesktopHeader ? MORE_NAV_ITEMS : [...PRIMARY_NAV_ITEMS.slice(1), ...MORE_NAV_ITEMS]
-  return appendMintIfNeeded(base, options)
+  return appendConditionalNavItems(base, options)
 }
 
 /** Bottom tab bar on viewports ≤767px — core trade routes only (GitLab #347). */
@@ -70,5 +81,5 @@ export const MOBILE_BOTTOM_NAV_ITEMS: NavItem[] = [
 export function getMobileMoreMenuItems(options?: NavMenuOptions): NavItem[] {
   const bottomPaths = new Set(MOBILE_BOTTOM_NAV_ITEMS.map((item) => item.path))
   const overflowPrimaries = PRIMARY_NAV_ITEMS.filter((item) => !bottomPaths.has(item.path))
-  return appendMintIfNeeded([...overflowPrimaries, ...MORE_NAV_ITEMS], options)
+  return appendConditionalNavItems([...overflowPrimaries, ...MORE_NAV_ITEMS], options)
 }

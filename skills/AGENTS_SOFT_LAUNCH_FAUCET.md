@@ -24,6 +24,7 @@ Use when deploying, verifying, or changing the **soft-launch CW20 faucet** / dAp
 3. **`cl8ydeploy` stays primary minter**; faucet is additional via `AddMinter` (**F5/F6**). No multisig minter handoff for noneconomic gems.
 4. **Do not** put faucet code id on factory CW20 whitelist (**F7** / **SL1–SL2**).
 5. **Hide Mint nav** unless `VITE_FAUCET_ADDRESS` is set (**F11**). Use `includeMint` on `getHeaderMoreMenuItems` / `getMobileMoreMenuItems`.
+5a. **Do not overload Mint for UST1** — oracle mint/redeem is **`/ust1`** ([GitLab **#506**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)); never add UST1/vFDUSD to `SOFT_LAUNCH_MINTABLE_TOKENS`. Playbook: [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md).
 6. **Emergency:** faucet `Pause` + CW20 `RemoveMinter`; pause preserves cooldown map (**F9**).
 7. User pays gas (**F12**). Happy path needs no indexer (**F10**).
 8. **Mint drip gas envelope ([#474](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/474) / [#475](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/475)):** `{ drip }` must map to **`FAUCET_DRIP_GAS_LIMIT`** in `getGasLimitForTx` — not **`BASE_GAS_LIMIT`**. Verify: `make verify-issue-475`. Playbook: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md).
@@ -42,6 +43,7 @@ DRY_RUN=1 make deploy-soft-launch-faucet
 ## Related
 
 - Soft launch: [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md)
+- **Anti-pattern:** do **not** overload Mint with UST1 oracle mint/redeem — use dedicated `/ust1` ([GitLab **#506**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506); [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md))
 - Shell nav: [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md) — Mint is conditional More item
 - Deploy audit: [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md)
 - Prod Vite / Coolify: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)

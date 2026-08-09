@@ -18,7 +18,7 @@
  * Playbook: `skills/AGENTS_TERRACLASSIC_GAS.md`.
  */
 
-import { UNWRAP_GAS_LIMIT, WRAP_GAS_LIMIT } from '@/utils/constants'
+import { UNWRAP_GAS_LIMIT, UST1_WINDOW_SEND_GAS_LIMIT, WRAP_GAS_LIMIT } from '@/utils/constants'
 import {
   ADD_LIQUIDITY_GAS_LIMIT,
   BASE_GAS_LIMIT,
@@ -183,6 +183,18 @@ export const RETAIL_GAS_SHAPE_FIXTURES: readonly RetailGasShapeFixture[] = [
     note: 'router/wrapMapper / PoolPage unwrap (#343 / #475)',
     msg: { send: { msg: b64({ unwrap: { recipient: null } }) } },
     expectedGas: UNWRAP_GAS_LIMIT,
+  },
+  {
+    id: 'send_inner_ust1_deposit',
+    note: 'ust1-window CW20 Send deposit (#506)',
+    msg: { send: { msg: b64({ deposit: {} }) } },
+    expectedGas: UST1_WINDOW_SEND_GAS_LIMIT,
+  },
+  {
+    id: 'send_inner_ust1_withdraw',
+    note: 'ust1-window CW20 Send withdraw (#506)',
+    msg: { send: { msg: b64({ withdraw: { min_vfdusd_out: '1' } }) } },
+    expectedGas: UST1_WINDOW_SEND_GAS_LIMIT,
   },
   {
     id: 'send_inner_withdraw_liquidity',
