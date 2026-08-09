@@ -39,6 +39,9 @@ import {
   amountForTargetNetAfterWrapMapperFee,
   wrapUnwrapFeeNote,
   queryWrapMapperFeeBps,
+  queryPausedState,
+  checkRateLimitExceeded,
+  wrapTreasuryMatchesEnv,
   clearWrapMapperConfigCache,
 } from '../wrapMapper'
 
@@ -102,11 +105,17 @@ describe('wrapMapper helpers', () => {
 })
 
 describe('wrap-mapper fee math (GitLab #507)', () => {
+  beforeEach(() => {
+    clearWrapMapperConfigCache()
+    queryContract.mockReset()
+  })
+
   it('netAfterWrapMapperFee skims floor(amount * bps / 10000)', () => {
     expect(netAfterWrapMapperFee(1_000_000n, 100)).toBe(990_000n)
     expect(netAfterWrapMapperFee(1_000_000n, 50)).toBe(995_000n)
     expect(netAfterWrapMapperFee(1_000_000n, 0)).toBe(1_000_000n)
     expect(netAfterWrapMapperFee(2_000_000n, 1)).toBe(1_999_800n)
+    expect(netAfterWrapMapperFee(1n, 100)).toBe(1n)
   })
 
   it('amountForTargetNetAfterWrapMapperFee inverts fee skim', () => {
@@ -116,20 +125,60 @@ describe('wrap-mapper fee math (GitLab #507)', () => {
     expect(gross).toBe(1_000_000n)
   })
 
-  it('wrapUnwrapFeeNote avoids false 1:1 when fee applies', () => {
+  it('amountForTargetNetAfterWrapMapperFee returns 0 when fee_bps >= 10000', () => {
+    expect(amountForTargetNetAfterWrapMapperFee(990_000n, 10_000)).toBe(0n)
+  })
+
+  it('wrapUnwrapFeeNote avoids false 1:1 when fee applies or is unknown', () => {
     expect(wrapUnwrapFeeNote('wrap', 0)).toBe('Wrap (1:1)')
     expect(wrapUnwrapFeeNote('unwrap', 0)).toBe('Unwrap (1:1)')
     expect(wrapUnwrapFeeNote('wrap', 100)).toBe('Wrap (1.00% fee)')
     expect(wrapUnwrapFeeNote('unwrap', 50)).toBe('Unwrap (0.50% fee)')
+    expect(wrapUnwrapFeeNote('wrap', null)).toBe('Wrap fee unavailable')
+    expect(wrapUnwrapFeeNote('unwrap', undefined)).toBe('Unwrap fee unavailable')
   })
 
   it('queryWrapMapperFeeBps reads on-chain config', async () => {
     queryContract.mockResolvedValue({
       governance: 'terra1gov',
-      treasury: 'terra1treasury',
+      treasury: 'terra1treasury_mock',
       paused: false,
       fee_bps: 100,
     })
     await expect(queryWrapMapperFeeBps()).resolves.toBe(100)
+  })
+
+  it('queryWrapMapperFeeBps throws when config unavailable (fail closed)', async () => {
+    queryContract.mockRejectedValue(new Error('LCD down'))
+    await expect(queryWrapMapperFeeBps()).rejects.toThrow(/config unavailable/i)
+  })
+
+  it('queryPausedState returns null when config unavailable', async () => {
+    queryContract.mockRejectedValue(new Error('LCD down'))
+    await expect(queryPausedState()).resolves.toBeNull()
+  })
+
+  it('checkRateLimitExceeded returns null when LCD fails', async () => {
+    queryContract.mockRejectedValue(new Error('LCD down'))
+    await expect(checkRateLimitExceeded('uluna', '1000')).resolves.toBeNull()
+  })
+
+  it('wrapTreasuryMatchesEnv requires exact treasury match', () => {
+    expect(
+      wrapTreasuryMatchesEnv({
+        governance: 'terra1gov',
+        treasury: 'terra1treasury_mock',
+        paused: false,
+        fee_bps: 100,
+      })
+    ).toBe(true)
+    expect(
+      wrapTreasuryMatchesEnv({
+        governance: 'terra1gov',
+        treasury: 'terra1other',
+        paused: false,
+        fee_bps: 100,
+      })
+    ).toBe(false)
   })
 })

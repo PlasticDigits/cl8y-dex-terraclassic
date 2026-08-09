@@ -20,13 +20,17 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, **wrap ra
 
 | State | Submit label | Disabled |
 |-------|--------------|----------|
+| Env treasury ≠ on-chain mapper `config.treasury` (#507 / W2) | **Wrap treasury misconfigured** | yes |
+| Mapper config / pause / rate-limit LCD unavailable (#507 fail-closed) | **Wrap config unavailable** | yes |
 | Wrap mapper `config.paused === true` | **Wrapping is Temporarily Paused** | yes |
 | Wrap amount exceeds mapper `rate_limit` window | **Rate Limit Exceeded** | yes |
 | Wrap rate limit exceeded (inline alert, SEC-I05 F-04 / #463) | `swap-wrap-rate-limit-banner` with `WRAP_RATE_LIMIT_EXCEEDED_MESSAGE` | visible below form (not only CTA label) |
 | Route pair `is_paused === true` (L6 / SEC-B05) | **Pair is paused** | yes |
 
-- **Pause wins over rate limit** when both would apply (`SwapPage` `buttonText` chain).
+- **Treasury mismatch and config-unavailable win over pause / rate limit** (`SwapPage` `buttonText` chain).
+- **Pause wins over rate limit** when both would apply.
 - **Wrap-mapper pause wins over pair pause** on native wrap-only paths.
+- Never show **Wrap (1:1)** when mapper config has not loaded (`wrapUnwrapFeeNote(null)` → fee unavailable).
 - Tests must cover **each state in isolation** — do not assert pause and rate limit in one combined regex ([`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts) E12 + dedicated describe).
 - Rate limit here is **on-chain wrap mapper quota**, not indexer HTTP **429** (indexer limits: [`AGENTS_INDEXER_API_LCD_SECURITY.md`](./AGENTS_INDEXER_API_LCD_SECURITY.md)).
 

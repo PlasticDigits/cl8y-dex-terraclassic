@@ -46,6 +46,7 @@ import {
   checkRateLimitExceeded,
   queryWrapMapperConfig,
   wrapUnwrapFeeNote,
+  wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
 import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
@@ -87,7 +88,9 @@ import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/i
 import {
   MARKET_DATA_SERVICE_OUTAGE_TITLE,
   SWAP_MARKET_DATA_OUTAGE_LEAD,
+  WRAP_CONFIG_UNAVAILABLE_CTA,
   WRAP_RATE_LIMIT_EXCEEDED_MESSAGE,
+  WRAP_TREASURY_MISCONFIGURED_CTA,
 } from '@/utils/marketDataServiceCopy'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
@@ -377,9 +380,23 @@ export default function SwapPage() {
     staleTime: 15_000,
   })
 
-  const isWrapPaused = pausedQuery.data === true || wrapMapperConfigQuery.data?.paused === true
+  const wrapMapperConfig = wrapMapperConfigQuery.data ?? null
+  const wrapMapperFeeBps = wrapMapperConfig?.fee_bps
+  const wrapNeedsSafetyGate =
+    !!WRAP_MAPPER_CONTRACT_ADDRESS &&
+    (wrapMapperActive || isWrapOrUnwrap || !!(nativeRouteInfo?.needsWrapInput || nativeRouteInfo?.needsUnwrapOutput))
+  const wrapTreasuryMismatch = !!wrapMapperConfig && !wrapTreasuryMatchesEnv(wrapMapperConfig)
+  const wrapConfigUnavailable = wrapNeedsSafetyGate && wrapMapperConfig == null
+  const wrapPauseUnknown = wrapMapperActive && pausedQuery.isFetched && pausedQuery.data === null
+  const wrapRateLimitUnknown =
+    !!wrapDenom &&
+    !!rawInputAmount &&
+    rawInputAmount !== '0' &&
+    rateLimitQuery.isFetched &&
+    rateLimitQuery.data === null
+  const wrapSafetyUnavailable = wrapConfigUnavailable || wrapPauseUnknown || wrapRateLimitUnknown
+  const isWrapPaused = pausedQuery.data === true || wrapMapperConfig?.paused === true
   const isRateLimitExceeded = rateLimitQuery.data === true
-  const wrapMapperFeeBps = wrapMapperConfigQuery.data?.fee_bps ?? 0
 
   const simQueryKey = useMemo(
     () =>
@@ -396,6 +413,8 @@ export default function SwapPage() {
         debouncedHybridMaxMakers,
         slippageTolerance,
         address,
+        wrapMapperFeeBps ?? null,
+        wrapMapperConfig != null,
       ] as const,
     [
       fromToken,
@@ -409,6 +428,8 @@ export default function SwapPage() {
       debouncedHybridMaxMakers,
       slippageTolerance,
       address,
+      wrapMapperFeeBps,
+      wrapMapperConfig,
     ]
   )
 
@@ -942,6 +963,12 @@ export default function SwapPage() {
     buttonDisabled = false
   } else if (!hasRoute) {
     buttonText = 'No Route'
+    buttonDisabled = true
+  } else if (wrapTreasuryMismatch) {
+    buttonText = WRAP_TREASURY_MISCONFIGURED_CTA
+    buttonDisabled = true
+  } else if (wrapSafetyUnavailable) {
+    buttonText = WRAP_CONFIG_UNAVAILABLE_CTA
     buttonDisabled = true
   } else if (isWrapPaused) {
     buttonText = 'Wrapping is Temporarily Paused'

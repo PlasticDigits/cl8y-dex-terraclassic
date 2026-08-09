@@ -27,9 +27,9 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | **W1** | Coolify wrap `VITE_*` must point at **columbus-5 Phase 3** published addresses (see table below). Router already wired via governance `SetWrapMapper` ([#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)). |
 | **W2** | `VITE_TREASURY_ADDRESS` = **ustr-cmm CMM treasury** `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` — **not** the DEX factory fee treasury / governance multisig `terra1zlmv2…`. |
 | **W3** | UI display symbols are **cLUNC** / **cUSTC**; env var names may remain `VITE_LUNC_C_TOKEN_ADDRESS` / `VITE_USTC_C_TOKEN_ADDRESS`. |
-| **W4** | UI, simulation, and execute paths use on-chain wrap-mapper **`fee_bps`**: `net = amount − floor(amount × fee_bps / 10_000)`. Never claim **1:1** when `fee_bps > 0`. Mainnet Phase 3: **`fee_bps = 100`** (1%). LocalTerra deploy default is often **50** unless changed. |
+| **W4** | UI, simulation, and execute paths use on-chain wrap-mapper **`fee_bps`**: `net = amount − floor(amount × fee_bps / 10_000)`. Never claim **1:1** when `fee_bps > 0` **or when config LCD failed** (fail closed: disable submit / “Wrap fee unavailable”). Mainnet Phase 3: **`fee_bps = 100`** (1%). LocalTerra deploy default is often **50** unless changed. |
 | **W5** | Soft-launch defaults script (**SL5**) must **not** silently deploy or enable economic wrap. Post-SL5 enablement is **Coolify env + frontend rebuild only** — see [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md). |
-| **W6** | Preserve pause / rate-limit CTA precedence on Swap (pause → blacklist → amount → rate limit). Fee display is separate from safety CTAs — [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). |
+| **W6** | Swap CTA precedence: treasury mismatch → config unavailable → pause → blacklist → amount → rate limit. Fee display is separate from safety CTAs — [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Runtime-check `config.treasury` vs `VITE_TREASURY_ADDRESS` (W2). |
 
 ## Published columbus-5 addresses (Phase 3)
 

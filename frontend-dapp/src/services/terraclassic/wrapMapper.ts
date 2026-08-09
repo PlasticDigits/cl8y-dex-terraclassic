@@ -62,8 +62,9 @@ export async function queryRateLimit(denom: string): Promise<RateLimitResponse> 
 }
 
 /**
- * Query wrap-mapper `Config` (paused + fee_bps). Cached ~30s.
+ * Query wrap-mapper `Config` (paused + fee_bps + treasury). Cached ~30s.
  * GitLab #507 — UI/sim must use on-chain fee_bps (mainnet expect 100).
+ * Returns null when LCD fails — callers must fail closed (never treat as fee_bps=0).
  */
 export async function queryWrapMapperConfig(): Promise<WrapMapperConfigResponse | null> {
   if (!WRAP_MAPPER_CONTRACT_ADDRESS) return null
@@ -83,21 +84,36 @@ export function clearWrapMapperConfigCache(): void {
   cachedConfig = null
 }
 
+/**
+ * On-chain wrap-mapper fee_bps. Throws when config is unavailable so simulate/execute
+ * never silently assume fee-free 1:1 (GitLab #507 review M1).
+ */
 export async function queryWrapMapperFeeBps(): Promise<number> {
   const config = await queryWrapMapperConfig()
-  if (!config) return 0
+  if (!config) throw new Error('Wrap mapper config unavailable')
   const bps = Number(config.fee_bps)
-  return Number.isFinite(bps) && bps > 0 ? Math.floor(bps) : 0
+  if (!Number.isFinite(bps) || bps < 0) throw new Error('Invalid wrap mapper fee_bps')
+  return Math.floor(bps)
 }
 
-export async function queryPausedState(): Promise<boolean> {
+/**
+ * Pause gate. `null` = LCD/config unavailable → UI must fail closed (do not assume unpaused).
+ */
+export async function queryPausedState(): Promise<boolean | null> {
   if (!WRAP_MAPPER_CONTRACT_ADDRESS) return false
-  try {
-    const config = await queryWrapMapperConfig()
-    return config?.paused === true
-  } catch {
-    return false
-  }
+  const config = await queryWrapMapperConfig()
+  if (!config) return null
+  return config.paused === true
+}
+
+/**
+ * True when Coolify `VITE_TREASURY_ADDRESS` matches on-chain mapper `config.treasury`.
+ * Mismatch misroutes wrap_deposit (GitLab #507 review M3 / W2).
+ */
+export function wrapTreasuryMatchesEnv(config: WrapMapperConfigResponse): boolean {
+  const envTreasury = TREASURY_CONTRACT_ADDRESS.trim()
+  const onChain = (config.treasury ?? '').trim()
+  return envTreasury.length > 0 && onChain.length > 0 && envTreasury === onChain
 }
 
 /**
@@ -122,7 +138,7 @@ export function amountForTargetNetAfterWrapMapperFee(targetNet: bigint, feeBps: 
   if (targetNet <= 0n) return 0n
   const bps = Math.floor(Number(feeBps))
   if (!Number.isFinite(bps) || bps <= 0) return targetNet
-  if (bps >= 10_000) return targetNet
+  if (bps >= 10_000) return 0n
   const den = 10_000n - BigInt(bps)
   let amount = (targetNet * 10_000n + den - 1n) / den
   while (netAfterWrapMapperFee(amount, bps) < targetNet) {
@@ -131,15 +147,22 @@ export function amountForTargetNetAfterWrapMapperFee(targetNet: bigint, feeBps: 
   return amount
 }
 
-/** Direct wrap/unwrap route note — never claim 1:1 when fee_bps > 0. */
-export function wrapUnwrapFeeNote(kind: 'wrap' | 'unwrap', feeBps: number): string {
-  const bps = Math.floor(Number(feeBps))
+/**
+ * Direct wrap/unwrap route note — never claim 1:1 when fee is unknown or fee_bps > 0.
+ * Pass `null`/`undefined` when mapper config has not loaded successfully.
+ */
+export function wrapUnwrapFeeNote(kind: 'wrap' | 'unwrap', feeBps: number | null | undefined): string {
   const label = kind === 'wrap' ? 'Wrap' : 'Unwrap'
-  if (!Number.isFinite(bps) || bps <= 0) return `${label} (1:1)`
+  if (feeBps == null || !Number.isFinite(Number(feeBps))) return `${label} fee unavailable`
+  const bps = Math.floor(Number(feeBps))
+  if (bps <= 0) return `${label} (1:1)`
   return `${label} (${bpsToPercentLabel(bps)} fee)`
 }
 
-export async function checkRateLimitExceeded(denom: string, wrapAmount: string): Promise<boolean> {
+/**
+ * Rate-limit gate. `null` = LCD unavailable → UI must fail closed (do not assume unlimited).
+ */
+export async function checkRateLimitExceeded(denom: string, wrapAmount: string): Promise<boolean | null> {
   if (!WRAP_MAPPER_CONTRACT_ADDRESS) return false
   try {
     const rl = await queryRateLimit(denom)
@@ -148,7 +171,7 @@ export async function checkRateLimitExceeded(denom: string, wrapAmount: string):
     const used = BigInt(rl.amount_used)
     return used + BigInt(wrapAmount) > maxAmount
   } catch {
-    return false
+    return null
   }
 }
 

@@ -158,9 +158,14 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'cLUNC')
 
-    const wrapNote = page.getByText(/1:1/)
-    const wrapNoteCount = await wrapNote.count()
-    expect(wrapNoteCount).toBeGreaterThanOrEqual(0)
+    const feeNote = page.getByTestId('swap-wrap-fee-note')
+    await expect(feeNote).toBeVisible({ timeout: 30_000 })
+    // LocalTerra mapper is often fee_bps=50; mainnet 100 — never claim 1:1 when fee applies.
+    await expect(feeNote).toHaveText(/% fee|fee unavailable|1:1/)
+    const feeText = await feeNote.innerText()
+    if (/% fee/.test(feeText)) {
+      await expect(feeNote).not.toHaveText(/1:1/)
+    }
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
