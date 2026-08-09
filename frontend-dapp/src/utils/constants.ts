@@ -109,7 +109,12 @@ export const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
  * 1,810,064-1,810,206 vs 1,810,000 granted; #353), so the floor is 950k/hop for real headroom.
  */
 export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
-export const UNWRAP_GAS_LIMIT = 400000
+/**
+ * CW20 `send` → wrap-mapper `{ unwrap }` (and router `unwrap_output` add-on).
+ * Mainnet columbus-5 OOG at 400k: tx `0E8D8DF5…72C5` gasUsed **400553** vs gasWanted 400000
+ * (WriteFlat; cLUNC unwrap after successful wrap). Ceiling **550k** for headroom.
+ */
+export const UNWRAP_GAS_LIMIT = 550_000
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 

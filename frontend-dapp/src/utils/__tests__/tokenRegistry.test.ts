@@ -81,19 +81,21 @@ describe('lookupByAssetInfo', () => {
 })
 
 describe('wrapped native token entries (GitLab #507)', () => {
-  it('has cLUNC entry (not LUNC-C)', () => {
+  it('has cLUNC entry (not LUNC-C) with distinct CLUNC badge logo', () => {
     const luncC = TOKENS.find((t) => t.symbol === 'cLUNC')
     expect(luncC).toBeDefined()
     expect(luncC?.name).toBe('Wrapped Luna Classic')
     expect(luncC?.decimals).toBe(6)
+    expect(luncC?.logoURI).toContain('/tokenlist/images/CLUNC.png')
     expect(TOKENS.find((t) => t.symbol === 'LUNC-C')).toBeUndefined()
   })
 
-  it('has cUSTC entry (not USTC-C)', () => {
+  it('has cUSTC entry (not USTC-C) with distinct CUSTC badge logo', () => {
     const ustcC = TOKENS.find((t) => t.symbol === 'cUSTC')
     expect(ustcC).toBeDefined()
     expect(ustcC?.name).toBe('Wrapped TerraClassicUSD')
     expect(ustcC?.decimals).toBe(6)
+    expect(ustcC?.logoURI).toContain('/tokenlist/images/CUSTC.png')
     expect(TOKENS.find((t) => t.symbol === 'USTC-C')).toBeUndefined()
   })
 })

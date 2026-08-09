@@ -52,9 +52,9 @@ When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches thi
 #### LUNC → cLUNC
 - [ ] Select LUNC as "From" and cLUNC as "To" on swap page (or use **More → Wrap**)
 - [ ] Inline note references wrap fee (not "1:1" when `fee_bps > 0`)
-- [ ] Button label remains "Swap" (never changes to "Wrap")
+- [ ] Button label is **Wrap** (not "Swap") on the direct wrap route
 - [ ] Enter amount — estimated output = `net` per fee formula above
-- [ ] Execute swap — transaction succeeds
+- [ ] Execute wrap — transaction succeeds
 - [ ] LUNC balance decreases by entered amount
 - [ ] cLUNC balance increases by **net** (not gross when fee > 0)
 - [ ] Treasury LUNC balance increases by entered amount
@@ -62,7 +62,8 @@ When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches thi
 #### USTC → cUSTC
 - [ ] Select USTC as "From" and cUSTC as "To" on swap page
 - [ ] Inline note references wrap fee (not "1:1" when `fee_bps > 0`)
-- [ ] Execute swap — transaction succeeds
+- [ ] Button label is **Wrap**
+- [ ] Execute wrap — transaction succeeds
 - [ ] USTC balance decreases by entered amount
 - [ ] cUSTC balance increases by **net**
 - [ ] Treasury USTC balance increases by entered amount
@@ -72,9 +73,9 @@ When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches thi
 #### cLUNC → LUNC
 - [ ] Select cLUNC as "From" and LUNC as "To" on swap page
 - [ ] Inline note references unwrap fee (not "1:1" when `fee_bps > 0`)
-- [ ] Button label remains "Swap"
+- [ ] Button label is **Unwrap**
 - [ ] Enter amount — estimated output = net after mapper fee (and burn tax note if shown)
-- [ ] Execute swap — transaction succeeds
+- [ ] Execute unwrap — transaction succeeds
 - [ ] cLUNC balance decreases by entered amount
 - [ ] LUNC balance increases by net native received (mapper fee + burn tax if applicable)
 - [ ] Treasury LUNC balance decreases by unwrap gross

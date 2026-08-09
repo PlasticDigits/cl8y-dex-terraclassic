@@ -1266,6 +1266,14 @@ describe('SwapPage', () => {
       return { user }
     }
 
+    it('labels submit CTA Wrap (not Swap) on direct LUNC→cLUNC route', async () => {
+      const { simulateNativeSwap } = await import('@/services/terraclassic/router')
+      vi.mocked(simulateNativeSwap).mockResolvedValue({ amount: '990000', isDirectWrapUnwrap: true })
+      await renderConnectedNativeWrapSwap()
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Wrap$/i })).toBeEnabled())
+      expect(screen.queryByRole('button', { name: /^Swap$/i })).not.toBeInTheDocument()
+    })
+
     it('shows disabled Wrapping is Temporarily Paused CTA when wrap mapper is paused', async () => {
       vi.mocked(queryPausedState).mockResolvedValue(true)
       await renderConnectedNativeWrapSwap()

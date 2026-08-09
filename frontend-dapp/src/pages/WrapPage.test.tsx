@@ -101,14 +101,16 @@ describe('WrapPage (#502 / #507)', () => {
     expect(await screen.findByTestId('wrap-fee-note')).toHaveTextContent(/2/)
   })
 
-  it('switches asset to USTC / cUSTC', async () => {
+  it('switches asset to USTC / cUSTC and shows logos on asset toggles', async () => {
     const user = userEvent.setup()
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     renderWithProviders(<WrapPage />)
-    await screen.findByTestId('wrap-asset-ustc')
+    const luncBtn = await screen.findByTestId('wrap-asset-lunc')
+    expect(luncBtn.querySelectorAll('img').length).toBeGreaterThanOrEqual(1)
     await user.click(screen.getByTestId('wrap-asset-ustc'))
     expect(screen.getByTestId('wrap-pay-symbol')).toHaveTextContent('Pay (USTC)')
     expect(screen.getByTestId('wrap-receive-symbol')).toHaveTextContent('Receive (cUSTC)')
+    expect(screen.getByTestId('wrap-asset-ustc').querySelectorAll('img').length).toBeGreaterThanOrEqual(1)
   })
 
   it('disables CTA when wrap-mapper paused', async () => {

@@ -44,17 +44,18 @@ test.describe('Swap with native token wrapping — UI', () => {
     expect(noteCount).toBeGreaterThanOrEqual(0)
   })
 
-  test('E3: swap button never says standalone Wrap or Unwrap', async ({ page }) => {
+  test('E3: direct wrap route labels submit CTA Wrap (not Swap)', async ({ page }) => {
+    await waitForPayTokenTriggerEnabled(page)
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'cLUNC')
+
     const swapPanel = swapActionPanel(page)
+    // Idle direct-wrap path: Enter Amount or Wrap (wallet-dependent); never plain Swap.
     const submitBtn = swapPanel.getByRole('button', {
-      name: /Connect Wallet|Enter Amount|Swap|No Route/i,
+      name: /Connect Wallet|Enter Amount|Wrap|Wrap config unavailable|Wrapping is Temporarily Paused/i,
     })
     await expect(submitBtn.first()).toBeVisible()
-
-    const wrapButton = page.locator('button').filter({ hasText: /^Wrap$/ })
-    await expect(wrapButton).toHaveCount(0)
-    const unwrapButton = page.locator('button').filter({ hasText: /^Unwrap$/ })
-    await expect(unwrapButton).toHaveCount(0)
+    await expect(swapPanel.getByRole('button', { name: /^Swap$/ })).toHaveCount(0)
   })
 
   test('E4: route display loads without errors after pair selection', async ({ page }) => {

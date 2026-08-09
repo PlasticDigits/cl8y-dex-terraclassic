@@ -957,7 +957,11 @@ export default function SwapPage() {
   const insufficientBalance =
     hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
 
-  let buttonText = 'Swap'
+  const defaultActionLabel = wrapUnwrapType === 'wrap' ? 'Wrap' : wrapUnwrapType === 'unwrap' ? 'Unwrap' : 'Swap'
+  const defaultPendingLabel =
+    wrapUnwrapType === 'wrap' ? 'Wrapping…' : wrapUnwrapType === 'unwrap' ? 'Unwrapping…' : 'Swapping…'
+
+  let buttonText = defaultActionLabel
   let buttonDisabled = false
   if (!isWalletConnected) {
     buttonText = 'Connect Wallet'
@@ -1002,10 +1006,10 @@ export default function SwapPage() {
     buttonText = simLoadingLabel
     buttonDisabled = true
   } else if (swapMutation.isPending) {
-    buttonText = terraBroadcastPendingButtonLabel(swapMutation.phase, true, 'Swap', 'Swapping…')
+    buttonText = terraBroadcastPendingButtonLabel(swapMutation.phase, true, defaultActionLabel, defaultPendingLabel)
     buttonDisabled = true
   } else if (showImpactConfirm) {
-    buttonText = `Confirm Swap (${priceImpact}% impact)`
+    buttonText = `Confirm ${defaultActionLabel} (${priceImpact}% impact)`
     buttonDisabled = false
   }
 

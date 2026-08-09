@@ -62,18 +62,19 @@ export const TOKENS: TokenRegistryEntry[] = [
   },
   {
     // Product symbols cLUNC / cUSTC (GitLab #507); env keys remain VITE_LUNC_C_* for LocalTerra parity.
+    // Logos = base LUNC/USTC art + blue "c" badge (tokenlist/images/CLUNC.png, CUSTC.png).
     symbol: 'cLUNC',
     name: 'Wrapped Luna Classic',
     decimals: 6,
     type: 'cw20',
-    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CLUNC.png',
   },
   {
     symbol: 'cUSTC',
     name: 'Wrapped TerraClassicUSD',
     decimals: 6,
     type: 'cw20',
-    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTC.png',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CUSTC.png',
   },
   {
     symbol: 'UST1',

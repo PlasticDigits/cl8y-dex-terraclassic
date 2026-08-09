@@ -214,7 +214,7 @@ Add gas constants:
 
 ```typescript
 const WRAP_GAS_LIMIT = 300000
-const UNWRAP_GAS_LIMIT = 400000
+const UNWRAP_GAS_LIMIT = 550_000 // mainnet unwrap OOG at 400k (gasUsed ~400553)
 ```
 
 ## 7. Frontend: Swap Routing Changes

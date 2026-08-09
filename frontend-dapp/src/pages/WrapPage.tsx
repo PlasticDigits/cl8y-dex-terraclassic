@@ -327,17 +327,21 @@ export default function WrapPage() {
           <div className="flex gap-2" role="group" aria-label="Wrap asset" data-testid="wrap-asset-tabs">
             {(
               [
-                ['lunc', 'LUNC / cLUNC'],
-                ['ustc', 'USTC / cUSTC'],
+                ['lunc', 'LUNC', 'cLUNC', 'uluna', LUNC_C_TOKEN_ADDRESS] as const,
+                ['ustc', 'USTC', 'cUSTC', 'uusd', USTC_C_TOKEN_ADDRESS] as const,
               ] as const
-            ).map(([value, label]) => {
+            ).map(([value, nativeSym, wrappedSym, nativeId, wrappedId]) => {
               const active = asset === value
+              const nativeLogo = tokenLogoProps(nativeId)
+              const wrappedLogo = tokenLogoProps(wrappedId)
               return (
                 <button
                   key={value}
                   type="button"
                   data-testid={`wrap-asset-${value}`}
-                  className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wide ${active ? 'btn-primary' : ''}`}
+                  className={`flex-1 py-2 px-2 text-xs font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-2 ${
+                    active ? 'btn-primary' : ''
+                  }`}
                   style={
                     active
                       ? undefined
@@ -354,7 +358,23 @@ export default function WrapPage() {
                     setSuccessTx(null)
                   }}
                 >
-                  {label}
+                  <span className="inline-flex items-center -space-x-1.5" aria-hidden>
+                    <TokenLogo
+                      addressForBlockie={nativeLogo.addressForBlockie}
+                      blockieSeed={nativeLogo.blockieSeed}
+                      logoURI={nativeLogo.logoURI}
+                      size={22}
+                    />
+                    <TokenLogo
+                      addressForBlockie={wrappedLogo.addressForBlockie}
+                      blockieSeed={wrappedLogo.blockieSeed}
+                      logoURI={wrappedLogo.logoURI}
+                      size={22}
+                    />
+                  </span>
+                  <span>
+                    {nativeSym} / {wrappedSym}
+                  </span>
                 </button>
               )
             })}
