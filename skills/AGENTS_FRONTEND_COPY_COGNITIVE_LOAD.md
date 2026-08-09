@@ -12,6 +12,12 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
 6. Prefer progressive disclosure (`<details>Signing details</details>`) over always-on grids.
 7. **Docs link never replaces blocking errors** — optional depth only; do not remove risk ack, required footer, or trust-boundary warnings to save space.
 8. **Silence over instructional fluff** — if Settings already enable a feature, do not add Execution copy telling the user to enable it. Example: hybrid on + empty Swap book leg → no “add a book leg” notice ([GitLab **#492**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/492), [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)).
+9. **No always-on educational / cross-nav / fee-trivia banners** on feature pages. **Do not ship or merge** copy that:
+   - Explains architecture the nav already implies (“via the treasury wrap-mapper”, “this is not an AMM swap”, “oracle mint/redeem”).
+   - Points users to other routes they can already find in nav (“For market trading… use Swap”, “UST1 is on UST1”).
+   - Restates universal chain facts under every CTA (“You pay network gas…”, “Burn tax may apply…”) unless that fact is a **live blocking gate** for the current action.
+   - Surfaces **dev/ops status** as retail chrome (“Mapper Ready”, contract addresses, “Unavailable” health rows) when pause/config failures are already enforced via CTA disable + short error.
+   Page chrome = **title + controls + live status (fee/limit/pause) + CTA**. Put depth in docs/`<details>`, not permanent paragraphs. Bad example that was removed from `/wrap`: subtitle + Swap/UST1 blurb + Mapper Ready + gas/burn-tax footer.
 
 ## QuickSwap-aligned Limits IA
 

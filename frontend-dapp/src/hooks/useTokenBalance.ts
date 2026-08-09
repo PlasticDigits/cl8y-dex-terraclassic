@@ -1,5 +1,5 @@
 /**
- * Generic CW20 wallet balance (GitLab #231).
- * Single implementation with limit escrow — shared React Query key `['tokenBalance', address, terra1…]`.
+ * Generic wallet balance (CW20 or native). GitLab #231.
+ * Same implementation as limit escrow — shared React Query key `['tokenBalance', address, tokenId]`.
  */
 export { useLimitOrderEscrowBalance as useTokenBalance } from '@/hooks/useLimitOrderEscrowBalance'

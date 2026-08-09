@@ -18,7 +18,7 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | [`constants.ts`](../frontend-dapp/src/utils/constants.ts) | `VITE_*` wrap addresses, `NATIVE_WRAPPED_PAIRS` |
 | [`tokenRegistry.ts`](../frontend-dapp/src/utils/tokenRegistry.ts) | Display symbols **cLUNC** / **cUSTC** (env keys stay `VITE_LUNC_C_*` / `VITE_USTC_C_*`) |
 | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Wrap UX, fee note, safety CTA precedence; `getAllTokens` always surfaces LUNC/cLUNC/USTC/cUSTC when wrap env is set |
-| [`WrapPage.tsx`](../frontend-dapp/src/pages/WrapPage.tsx) | Dedicated **More → Wrap** (`/wrap`) direct wrap/unwrap UI |
+| [`WrapPage.tsx`](../frontend-dapp/src/pages/WrapPage.tsx) | Dedicated **More → Wrap** (`/wrap`) direct wrap/unwrap UI — chrome only (no educational/cross-nav/gas fluff; [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) **§9**) |
 | [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Native-wrap provide / withdraw paths |
 
 ## Invariants (W1–W6)
@@ -31,6 +31,7 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | **W4** | UI, simulation, and execute paths use on-chain wrap-mapper **`fee_bps`**: `net = amount − floor(amount × fee_bps / 10_000)`. Never claim **1:1** when `fee_bps > 0` **or when config LCD failed** (fail closed: disable submit / “Wrap fee unavailable”). Mainnet Phase 3: **`fee_bps = 100`** (1%). LocalTerra deploy default is often **50** unless changed. |
 | **W5** | Soft-launch defaults script (**SL5**) must **not** silently deploy or enable economic wrap. Post-SL5 enablement is **Coolify env + frontend rebuild only** — see [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md). |
 | **W6** | Swap CTA precedence: treasury mismatch → config unavailable → pause → blacklist → amount → rate limit. Fee display is separate from safety CTAs — [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Runtime-check `config.treasury` vs `VITE_TREASURY_ADDRESS` (W2). |
+| **W7** | Retail wrap UI = title + asset/mode controls + live fee/rate-limit/pause + CTA. **Do not merge** “not an AMM”, “use Swap/UST1”, “Mapper Ready”, or always-on gas/burn-tax paragraphs — depth belongs in docs (`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD` **§9**). Live `fee_bps` / rate-limit / pause gates stay. |
 
 ## Published columbus-5 addresses (Phase 3)
 
@@ -64,7 +65,7 @@ Copy-paste template: [`deployments/mainnet-soft-launch/wrap-enablement.env.examp
 1. Query `fee_bps` via `queryWrapMapperConfig` (LCD) — do not hardcode mainnet 100 in app logic without a fallback query path.
 2. Direct wrap/unwrap quotes use `netAfterWrapMapperFee`; native-input swaps net CW20 after tax **and** mapper fee where applicable (`netCw20AfterNativeWrap`).
 3. Unwrap / native-output simulation must net `fee_bps` on the unwrap leg (aligns with router `minimum_receive` on post-unwrap net — **R3**).
-4. Burn tax on native transfers is **additional** to mapper `fee_bps` — [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md).
+4. Burn tax on native transfers is **additional** to mapper `fee_bps` — [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md). Document that for agents/ops; do **not** put a permanent “burn tax may apply” line on `/wrap` (W7).
 5. Enabling wrap in Coolify does **not** require redeploying factory/router; it requires correct `VITE_*` + image rebuild.
 
 ## Verification

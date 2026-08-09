@@ -6,6 +6,7 @@ import WrapPage from './WrapPage'
 import { useWalletStore } from '@/hooks/useWallet'
 import * as wrapMapper from '@/services/terraclassic/wrapMapper'
 import * as router from '@/services/terraclassic/router'
+import { getTokenBalance } from '@/services/terraclassic/queries'
 
 const { WALLET, LUNC_C, USTC_C, TREASURY, MAPPER, mockEnabled } = vi.hoisted(() => ({
   WALLET: 'terra1wallet00000000000000000000000000001',
@@ -52,15 +53,13 @@ vi.mock('@/services/terraclassic/router', async (importOriginal) => {
   }
 })
 
-vi.mock('@/hooks/useTokenBalance', () => ({
-  useTokenBalance: () => ({
-    data: '100000000',
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-}))
+vi.mock('@/services/terraclassic/queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/terraclassic/queries')>()
+  return {
+    ...actual,
+    getTokenBalance: vi.fn(),
+  }
+})
 
 vi.mock('@/hooks/useDebouncedValue', () => ({
   useDebouncedValue: <T,>(v: T) => v,
@@ -87,6 +86,11 @@ describe('WrapPage (#502 / #507)', () => {
       amount_used: '0',
     })
     vi.mocked(router.simulateNativeSwap).mockResolvedValue({ amount: '980000', isDirectWrapUnwrap: true })
+    vi.mocked(getTokenBalance).mockImplementation(async (_wallet, asset) => {
+      if ('native_token' in asset && asset.native_token.denom === 'uusd') return '250000000'
+      if ('native_token' in asset && asset.native_token.denom === 'uluna') return '100000000'
+      return '50000000'
+    })
   })
 
   it('shows unavailable when wrap env is missing', () => {
@@ -101,7 +105,11 @@ describe('WrapPage (#502 / #507)', () => {
     expect(await screen.findByTestId('wrap-mode-tabs')).toBeInTheDocument()
     expect(screen.getByTestId('wrap-tab-wrap')).toBeInTheDocument()
     expect(screen.getByTestId('wrap-tab-unwrap')).toBeInTheDocument()
-    expect(screen.getByText(/not an AMM swap/i)).toBeInTheDocument()
+    expect(screen.queryByText(/not an AMM swap/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/market trading after wrapping/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/burn tax may apply/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Mapper$/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Ready$/i)).not.toBeInTheDocument()
     expect(screen.getByTestId('wrap-pay-symbol')).toHaveTextContent('Pay (LUNC)')
     expect(screen.getByTestId('wrap-receive-symbol')).toHaveTextContent('Receive (cLUNC)')
     expect(await screen.findByTestId('wrap-fee-note')).toHaveTextContent(/2/)
@@ -118,6 +126,18 @@ describe('WrapPage (#502 / #507)', () => {
     expect(screen.getByTestId('wrap-pay-symbol')).toHaveTextContent('Pay (USTC)')
     expect(screen.getByTestId('wrap-receive-symbol')).toHaveTextContent('Receive (cUSTC)')
     expect(screen.getByTestId('wrap-asset-ustc').querySelectorAll('img').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('shows Max balance for wrap USTC (native uusd bank query)', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    renderWithProviders(<WrapPage />)
+    expect(await screen.findByTestId('wrap-max')).toBeInTheDocument()
+    await user.click(screen.getByTestId('wrap-asset-ustc'))
+    await waitFor(() => {
+      expect(getTokenBalance).toHaveBeenCalledWith(WALLET, { native_token: { denom: 'uusd' } })
+    })
+    expect(await screen.findByTestId('wrap-max')).toHaveTextContent(/250/)
   })
 
   it('disables CTA when wrap-mapper paused', async () => {

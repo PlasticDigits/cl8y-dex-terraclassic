@@ -1,16 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useTokenBalance } from '@/hooks/useTokenBalance'
-import {
-  isNativeWrapEnabled,
-  LUNC_C_TOKEN_ADDRESS,
-  USTC_C_TOKEN_ADDRESS,
-  WRAP_MAPPER_CONTRACT_ADDRESS,
-} from '@/utils/constants'
+import { isNativeWrapEnabled, LUNC_C_TOKEN_ADDRESS, USTC_C_TOKEN_ADDRESS } from '@/utils/constants'
 import { executeNativeSwap, simulateNativeSwap } from '@/services/terraclassic/router'
 import {
   checkRateLimitExceeded,
@@ -245,23 +239,6 @@ export default function WrapPage() {
     <div className="max-w-2xl mx-auto" data-testid="wrap-page">
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Wrap</h2>
-        <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Convert native LUNC/USTC to cLUNC/cUSTC (and back) via the treasury wrap-mapper. This is not an AMM swap.
-        </p>
-      </div>
-
-      <div className="shell-panel-strong mb-6">
-        <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          For market trading after wrapping, use{' '}
-          <Link to="/" className="underline" style={{ color: 'var(--ink)' }}>
-            Swap
-          </Link>
-          . Oracle mint/redeem for UST1 is on{' '}
-          <Link to="/ust1" className="underline" style={{ color: 'var(--ink)' }}>
-            UST1
-          </Link>
-          .
-        </p>
       </div>
 
       {!address && (
@@ -381,19 +358,11 @@ export default function WrapPage() {
             })}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm" data-testid="wrap-fee-panel">
-            <div>
-              <p className="label-glass">Fee</p>
-              <p className="font-medium tabular-nums" data-testid="wrap-fee-note">
-                {wrapUnwrapFeeNote(mode, feeBps)}
-              </p>
-            </div>
-            <div>
-              <p className="label-glass">Mapper</p>
-              <p className="font-medium font-mono text-xs break-all" title={WRAP_MAPPER_CONTRACT_ADDRESS}>
-                {isPaused ? 'Paused' : configUnavailable ? 'Unavailable' : 'Ready'}
-              </p>
-            </div>
+          <div className="text-sm" data-testid="wrap-fee-panel">
+            <p className="label-glass">Fee</p>
+            <p className="font-medium tabular-nums" data-testid="wrap-fee-note">
+              {wrapUnwrapFeeNote(mode, feeBps)}
+            </p>
           </div>
 
           <WrapRateLimitStatus
@@ -502,10 +471,6 @@ export default function WrapPage() {
               <TxResultAlert type="success" message="Submitted." txHash={successTx} />
             </div>
           )}
-
-          <p className="text-xs text-center" style={{ color: 'var(--ink-dim)' }}>
-            You pay network gas for each wrap transaction. Burn tax may apply on native legs.
-          </p>
         </div>
       )}
     </div>
