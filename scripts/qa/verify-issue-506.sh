@@ -64,6 +64,23 @@ else
   bad "runbook + agent skill"
 fi
 
+if rg -q "TokenLogo" frontend-dapp/src/pages/Ust1Page.tsx \
+  && rg -q "ust1-withdraw-slippage-note" frontend-dapp/src/pages/Ust1Page.tsx \
+  && rg -q "TxResultAlert" frontend-dapp/src/pages/Ust1Page.tsx
+then
+  ok "page logos + slippage disclosure + explorer success"
+else
+  bad "page logos + slippage disclosure + explorer success"
+fi
+
+if test -f frontend-dapp/e2e/ust1-window.spec.ts \
+  && test -f frontend-dapp/e2e/helpers/ust1-window-lcd-mock.ts
+then
+  ok "Playwright ust1-window gate specs"
+else
+  bad "Playwright ust1-window gate specs"
+fi
+
 echo ""
 echo "────────────────────────────────────────────────────────────────"
 echo "  PASS=$PASS  FAIL=$FAIL"

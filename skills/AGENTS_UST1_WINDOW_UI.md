@@ -31,6 +31,8 @@ Use when changing **`/ust1`**, ust1-window CW20 Send client, UST1/vFDUSD metadat
 make verify-issue-506
 make lint-frontend
 make test-frontend
+# Playwright CTA gates (LCD mocked; Vite bakes VITE_UST1_* via playwright.config):
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-window.spec.ts --project=e2e-smoke
 ```
 
 ## Related

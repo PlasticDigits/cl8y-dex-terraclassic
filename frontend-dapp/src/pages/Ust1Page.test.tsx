@@ -67,6 +67,12 @@ const healthy = {
   },
 }
 
+async function typePayAmount(user: ReturnType<typeof userEvent.setup>, amount: string) {
+  await screen.findByTestId('ust1-pay-amount')
+  await user.clear(screen.getByTestId('ust1-pay-amount'))
+  await user.type(screen.getByTestId('ust1-pay-amount'), amount)
+}
+
 describe('Ust1Page (#506)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -81,7 +87,7 @@ describe('Ust1Page (#506)', () => {
     expect(screen.getByTestId('ust1-unavailable')).toBeInTheDocument()
   })
 
-  it('loads deposit/withdraw tabs and oracle fee surface', async () => {
+  it('loads deposit/withdraw tabs and oracle fee surface with token logos', async () => {
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     renderWithProviders(<Ust1Page />)
     expect(await screen.findByTestId('ust1-mode-tabs')).toBeInTheDocument()
@@ -90,6 +96,9 @@ describe('Ust1Page (#506)', () => {
     expect(screen.getByText(/not an AMM swap/i)).toBeInTheDocument()
     expect(screen.getByTestId('ust1-oracle-status')).toHaveTextContent('Fresh')
     expect(screen.getByText('1.00%')).toBeInTheDocument()
+    expect(screen.getByTestId('ust1-pay-symbol')).toHaveTextContent('Pay (vFDUSD)')
+    expect(screen.getByTestId('ust1-receive-symbol')).toHaveTextContent('Receive (UST1)')
+    expect(document.querySelectorAll('img[src*="tokenlist/images/"]').length).toBeGreaterThanOrEqual(1)
   })
 
   it('disables CTA when window paused', async () => {
@@ -99,6 +108,18 @@ describe('Ust1Page (#506)', () => {
     await screen.findByTestId('ust1-submit')
     expect(screen.getByTestId('ust1-submit')).toBeDisabled()
     expect(screen.getByTestId('ust1-submit')).toHaveTextContent(/paused/i)
+  })
+
+  it('disables CTA when oracle paused', async () => {
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    vi.mocked(ust1Window.getUst1EffectiveSwap).mockResolvedValue({
+      ...healthy,
+      oracle: { ...healthy.oracle, paused: true },
+    } as never)
+    renderWithProviders(<Ust1Page />)
+    await screen.findByTestId('ust1-submit')
+    expect(screen.getByTestId('ust1-submit')).toBeDisabled()
+    expect(screen.getByTestId('ust1-submit')).toHaveTextContent(/oracle paused/i)
   })
 
   it('disables CTA when oracle stale', async () => {
@@ -113,13 +134,55 @@ describe('Ust1Page (#506)', () => {
     expect(screen.getByTestId('ust1-submit')).toHaveTextContent(/stale/i)
   })
 
+  it('disables CTA and shows reason when over per-tx limit', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    vi.mocked(ust1Window.getUst1EffectiveSwap).mockResolvedValue({
+      ...healthy,
+      per_tx_ust1_limit: '1000000', // 1 UST1
+    } as never)
+    renderWithProviders(<Ust1Page />)
+    await typePayAmount(user, '10')
+    await waitFor(() => {
+      expect(screen.getByTestId('ust1-submit')).toBeDisabled()
+      expect(screen.getByTestId('ust1-submit')).toHaveTextContent(/per-tx/i)
+      expect(screen.getByTestId('ust1-block-reason')).toHaveTextContent(/per-transaction/i)
+    })
+  })
+
+  it('disables CTA and shows reason when over rolling 24h limit', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    vi.mocked(ust1Window.getUst1EffectiveSwap).mockResolvedValue({
+      ...healthy,
+      rolling_24h_ust1_limit: '5000000',
+      rolling_volume_ust1: '4500000',
+    } as never)
+    renderWithProviders(<Ust1Page />)
+    await typePayAmount(user, '2')
+    await waitFor(() => {
+      expect(screen.getByTestId('ust1-submit')).toBeDisabled()
+      expect(screen.getByTestId('ust1-submit')).toHaveTextContent(/24h/i)
+      expect(screen.getByTestId('ust1-block-reason')).toHaveTextContent(/24h/i)
+    })
+  })
+
+  it('shows withdraw min-out slippage disclosure on Withdraw tab', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    renderWithProviders(<Ust1Page />)
+    await screen.findByTestId('ust1-tab-withdraw')
+    await user.click(screen.getByTestId('ust1-tab-withdraw'))
+    expect(await screen.findByTestId('ust1-withdraw-slippage-note')).toHaveTextContent(/1% minimum output/i)
+    expect(screen.queryByTestId('ust1-withdraw-slippage-note')).toBeInTheDocument()
+  })
+
   it('quotes receive and submits deposit via window client', async () => {
     const user = userEvent.setup()
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     vi.mocked(ust1Window.executeUst1Window).mockResolvedValue('txhash506')
     renderWithProviders(<Ust1Page />)
-    await screen.findByTestId('ust1-pay-amount')
-    await user.type(screen.getByTestId('ust1-pay-amount'), '1')
+    await typePayAmount(user, '1')
     await waitFor(() => {
       expect(screen.getByTestId('ust1-receive-amount').textContent).not.toBe('—')
     })
@@ -130,5 +193,6 @@ describe('Ust1Page (#506)', () => {
       expect(ust1Window.executeUst1Window).toHaveBeenCalled()
     })
     expect(await screen.findByTestId('ust1-success')).toBeInTheDocument()
+    expect(screen.getByText(/Submitted/i)).toBeInTheDocument()
   })
 })

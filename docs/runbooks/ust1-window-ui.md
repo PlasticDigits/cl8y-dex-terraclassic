@@ -64,6 +64,9 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
   src/pages/Ust1Page.test.tsx \
   src/components/common/navItems.test.ts \
   src/services/terraclassic/__tests__/terraGas.retailShapes.test.ts
+
+# Playwright (mocked LCD effective_swap; no LocalTerra ust1-window required):
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-window.spec.ts --project=e2e-smoke
 ```
 
 ### Mainnet smoke (post-deploy)

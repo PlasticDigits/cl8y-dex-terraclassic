@@ -5,7 +5,12 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useTokenBalance } from '@/hooks/useTokenBalance'
-import { isUst1WindowEnabled, UST1_WINDOW_CONTRACT_ADDRESS } from '@/utils/constants'
+import {
+  isUst1WindowEnabled,
+  UST1_TOKEN_ADDRESS,
+  UST1_WINDOW_CONTRACT_ADDRESS,
+  VFDUSD_TOKEN_ADDRESS,
+} from '@/utils/constants'
 import {
   executeUst1Window,
   getUst1EffectiveSwap,
@@ -21,13 +26,25 @@ import {
   rollingRemainingUst1,
   type Ust1WindowDirection,
 } from '@/utils/ust1WindowGates'
-import { Spinner, RetryError } from '@/components/ui'
+import { UST1_WITHDRAW_MIN_OUT_SLIPPAGE_BPS } from '@/utils/ust1WindowMath'
+import { lookupByCW20 } from '@/utils/tokenRegistry'
+import { Spinner, RetryError, TokenLogo, TxResultAlert } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 
 const UST1_DECIMALS = 6
 const QUOTE_DEBOUNCE_MS = 250
+const WITHDRAW_MIN_OUT_SLIPPAGE_PCT = (UST1_WITHDRAW_MIN_OUT_SLIPPAGE_BPS / 100).toFixed(0)
+
+function tokenLogoProps(address: string, symbol: string) {
+  const entry = lookupByCW20(address)
+  return {
+    addressForBlockie: address || undefined,
+    blockieSeed: address ? undefined : symbol,
+    logoURI: entry?.logoURI,
+  }
+}
 
 export default function Ust1Page() {
   const address = useWalletStore((s) => s.address)
@@ -144,6 +161,10 @@ export default function Ust1Page() {
   const remaining = eff ? rollingRemainingUst1(eff, nowSec) : null
   const paySym = paySymbolForDirection(direction)
   const recvSym = receiveSymbolForDirection(direction)
+  const payAddr = direction === 'deposit' ? VFDUSD_TOKEN_ADDRESS : UST1_TOKEN_ADDRESS
+  const recvAddr = direction === 'deposit' ? UST1_TOKEN_ADDRESS : VFDUSD_TOKEN_ADDRESS
+  const payLogo = tokenLogoProps(payAddr, paySym)
+  const recvLogo = tokenLogoProps(recvAddr, recvSym)
 
   return (
     <div className="max-w-2xl mx-auto" data-testid="ust1-page">
@@ -256,8 +277,14 @@ export default function Ust1Page() {
 
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">
-              <label className="label-glass" htmlFor="ust1-pay-amount">
-                Pay ({paySym})
+              <label className="label-glass inline-flex items-center gap-1.5" htmlFor="ust1-pay-amount">
+                <TokenLogo
+                  addressForBlockie={payLogo.addressForBlockie}
+                  blockieSeed={payLogo.blockieSeed}
+                  logoURI={payLogo.logoURI}
+                  size={18}
+                />
+                <span data-testid="ust1-pay-symbol">Pay ({paySym})</span>
               </label>
               {address && balanceQuery.data != null && (
                 <button
@@ -293,7 +320,15 @@ export default function Ust1Page() {
           </div>
 
           <div>
-            <p className="label-glass">Receive ({recvSym})</p>
+            <p className="label-glass inline-flex items-center gap-1.5">
+              <TokenLogo
+                addressForBlockie={recvLogo.addressForBlockie}
+                blockieSeed={recvLogo.blockieSeed}
+                logoURI={recvLogo.logoURI}
+                size={18}
+              />
+              <span data-testid="ust1-receive-symbol">Receive ({recvSym})</span>
+            </p>
             <p
               className="text-2xl font-semibold font-heading tabular-nums"
               style={{ color: 'var(--mint)' }}
@@ -307,6 +342,11 @@ export default function Ust1Page() {
                     ? formatTokenAmountAbbrev(gate.receiveRaw.toString(), UST1_DECIMALS, 6)
                     : '—'}
             </p>
+            {direction === 'withdraw' && (
+              <p className="mt-1 text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="ust1-withdraw-slippage-note">
+                Protected by {WITHDRAW_MIN_OUT_SLIPPAGE_PCT}% minimum output.
+              </p>
+            )}
           </div>
 
           {gate.statusMessage && payHuman.trim() && (
@@ -338,9 +378,9 @@ export default function Ust1Page() {
           )}
 
           {successTx && (
-            <p className="text-sm" style={{ color: 'var(--mint)' }} data-testid="ust1-success">
-              Submitted. Tx: {successTx.slice(0, 12)}…
-            </p>
+            <div data-testid="ust1-success">
+              <TxResultAlert type="success" message="Submitted." txHash={successTx} />
+            </div>
           )}
 
           <p className="text-xs text-center" style={{ color: 'var(--ink-dim)' }}>
