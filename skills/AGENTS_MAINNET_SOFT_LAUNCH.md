@@ -40,6 +40,7 @@ DRY_RUN=1 make deploy-soft-launch-faucet   # after soft-launch addresses exist (
 
 - [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) — post-SL5 wrap enablement via Coolify env (#507); do **not** silently add wrap to soft-launch defaults
 - [`AGENTS_SOFT_LAUNCH_FAUCET.md`](./AGENTS_SOFT_LAUNCH_FAUCET.md) — faucet deploy + Mint UI (#473)
+- [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — post–soft-launch UST1 secondary AMM (#508); **do not** fold into soft-launch pair catalog
 - [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md) — deploy audit record
 - [`AGENTS_LAUNCH_GO_NO_GO.md`](./AGENTS_LAUNCH_GO_NO_GO.md) — Phase 5 gate
 - [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) — tier wire format

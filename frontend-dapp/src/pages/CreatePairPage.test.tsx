@@ -49,4 +49,9 @@ describe('CreatePairPage', () => {
     expect(screen.getByText(INVALID_TERRA_ADDRESS_CHECKSUM_MSG)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Create Pair/i })).toBeDisabled()
   })
+
+  it('notes that create pair is AMM-only, not UST1 oracle mint/redeem (GitLab #508)', () => {
+    renderWithProviders(<CreatePairPage />)
+    expect(screen.getByText(/UST1 mint and redeem stay on the \/ust1 oracle window/i)).toBeInTheDocument()
+  })
 })
