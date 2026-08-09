@@ -278,7 +278,7 @@ verify-issue-506:
 	@chmod +x scripts/qa/verify-issue-506.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-506.sh
 
-# GitLab #503 — UST1/wrap production ops (registry, runbooks O1–O7, FAQ, health script).
+# GitLab #503 — UST1/wrap production ops (registry, runbooks O1–O8, FAQ, health script).
 # Optional: VERIFY503_MAINNET=1 runs read-only columbus-5 LCD probe.
 verify-issue-503:
 	@chmod +x scripts/qa/verify-issue-503.sh scripts/check-ust1-wrap-ops-health.sh \

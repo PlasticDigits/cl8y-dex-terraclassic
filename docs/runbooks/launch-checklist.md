@@ -198,6 +198,17 @@ Choose **GO with accepted risk** only when:
 
 **Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows. **SEC-H08 test evidence:** confirm Phase 0 test output (or CI pipeline link) is on the launch issue before **GO** — `make verify-issue-444` (docs only). **SEC-B09 multisig rehearsal:** `make verify-issue-397` (or `make check-governance-emergency-rehearsal-docs` for docs only). **SEC-B10 key custody:** `make verify-issue-398` (or `make check-key-custody-docs` for docs only). **SEC-D10 key rotation:** `make verify-issue-408` (or `make check-governance-key-rotation-docs` for docs only).
 
+### UST1 / wrap Phase 5 extras ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
+
+Before marketing UST1 withdraw capacity or native wrap on `dex.cl8y.com`, complete the go/no-go extras in [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md) (oracle freshness, treasury vFDUSD capacity, wrap unpaused, silence-alert + pause-drill evidence on #503). Probe:
+
+```bash
+make verify-issue-503
+UST1_OPS_STRICT_PAUSE=1 UST1_OPS_STRICT_STALE=1 UST1_OPS_STRICT_INVENTORY=1 ./scripts/check-ust1-wrap-ops-health.sh
+```
+
+Agent playbook: [`skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](../../skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md). Registry / Coolify pack: [`deployments/mainnet-ust1-wrap/`](../../deployments/mainnet-ust1-wrap/).
+
 ---
 
 ## Rollback / incident

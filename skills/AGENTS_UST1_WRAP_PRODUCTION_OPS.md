@@ -37,10 +37,11 @@ Do not confuse with UI **U1–U8** ([`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_W
 
 1. **Registry first** — edit `deployments/mainnet-ust1-wrap/REGISTRY.md` when addresses change; mirror Coolify + upstream repos.
 2. **Read-only probes** — `./scripts/check-ust1-wrap-ops-health.sh` before any governance pause.
-3. **Oracle bot** — `verify_oracle_operator_env` runs in **ust1-window**; attach silence-alert evidence on #503.
+3. **Oracle bot** — `verify_oracle_operator_env` runs in **ust1-window**; Coolify `ORACLE_MAX_SILENCE_SECS=21600` (6h, ≤ `max_oracle_age_sec`); attach silence-alert evidence on #503.
 4. **Wrap pause smoke** — LocalTerra `make smoke-wrap-mapper-pause`; mainnet in `wrap-mapper-pause.md`.
-5. **429 ≠ wrap rate limit** — indexer HTTP 429 is off-chain.
+5. **429 ≠ wrap rate limit** — indexer HTTP 429 is off-chain; read wrap-mapper `rate_limit` / `set_rate_limit` in the ops runbook.
 6. **No secrets in git** — Coolify/host secrets only; on-call people names stay private.
+7. **Agents must not broadcast governance txs** — prepare commands from the runbook; humans with wrap-stack / DEX keys sign.
 
 ## Quick commands
 
@@ -49,6 +50,7 @@ make verify-issue-503
 VERIFY503_MAINNET=1 make verify-issue-503
 ./scripts/check-ust1-wrap-ops-health.sh
 UST1_OPS_STRICT_PAUSE=1 UST1_OPS_STRICT_STALE=1 ./scripts/check-ust1-wrap-ops-health.sh
+UST1_OPS_STRICT_PAUSE=1 UST1_OPS_STRICT_STALE=1 UST1_OPS_STRICT_INVENTORY=1 ./scripts/check-ust1-wrap-ops-health.sh
 make smoke-wrap-mapper-pause   # LocalTerra; needs deploy-local
 ```
 

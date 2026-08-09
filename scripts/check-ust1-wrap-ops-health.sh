@@ -14,13 +14,15 @@
 #
 # Env:
 #   UST1_OPS_LCD_URL          LCD base (default publicnode)
-#   UST1_OPS_STRICT_PAUSE=1   Fail if window/oracle/wrap-mapper paused (default: report only)
-#   UST1_OPS_STRICT_STALE=1   Fail if oracle stale (default: report only)
+#   UST1_OPS_STRICT_PAUSE=1      Fail if window/oracle/wrap-mapper/treasury wrapping paused
+#   UST1_OPS_STRICT_STALE=1      Fail if oracle stale (default: report only)
+#   UST1_OPS_STRICT_INVENTORY=1  Fail if vFDUSD balance/allowance below warn thresholds
 #   See scripts/lib/ust1-wrap-ops-defaults.sh for address overrides.
 #
 # Example:
 #   ./scripts/check-ust1-wrap-ops-health.sh
 #   UST1_OPS_STRICT_PAUSE=1 UST1_OPS_STRICT_STALE=1 ./scripts/check-ust1-wrap-ops-health.sh
+#   UST1_OPS_STRICT_PAUSE=1 UST1_OPS_STRICT_STALE=1 UST1_OPS_STRICT_INVENTORY=1 ./scripts/check-ust1-wrap-ops-health.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -41,6 +43,7 @@ done
 LCD="${UST1_OPS_LCD_URL%/}"
 STRICT_PAUSE="${UST1_OPS_STRICT_PAUSE:-0}"
 STRICT_STALE="${UST1_OPS_STRICT_STALE:-0}"
+STRICT_INVENTORY="${UST1_OPS_STRICT_INVENTORY:-0}"
 
 PASS=0
 WARN=0
@@ -172,6 +175,8 @@ fi
 echo "    treasury vFDUSD balance=$VFD_AMT"
 if [[ "$VFD_AMT" =~ ^[0-9]+$ ]] && [[ "$VFD_AMT" -ge "$UST1_OPS_VFDUSD_BALANCE_WARN" ]]; then
   ok "treasury vFDUSD balance ≥ warn threshold ($UST1_OPS_VFDUSD_BALANCE_WARN)"
+elif [[ "$STRICT_INVENTORY" == "1" ]]; then
+  bad "treasury vFDUSD balance=$VFD_AMT below warn threshold $UST1_OPS_VFDUSD_BALANCE_WARN (STRICT_INVENTORY)"
 else
   warn "treasury vFDUSD balance=$VFD_AMT below warn threshold $UST1_OPS_VFDUSD_BALANCE_WARN"
 fi
@@ -184,6 +189,8 @@ fi
 echo "    allowance treasury→window=$ALLOW_AMT"
 if [[ "$ALLOW_AMT" =~ ^[0-9]+$ ]] && [[ "$ALLOW_AMT" -ge "$UST1_OPS_VFDUSD_ALLOWANCE_WARN" ]]; then
   ok "vFDUSD allowance ≥ warn threshold ($UST1_OPS_VFDUSD_ALLOWANCE_WARN)"
+elif [[ "$STRICT_INVENTORY" == "1" ]]; then
+  bad "vFDUSD allowance=$ALLOW_AMT below warn threshold $UST1_OPS_VFDUSD_ALLOWANCE_WARN (STRICT_INVENTORY)"
 else
   warn "vFDUSD allowance=$ALLOW_AMT below warn threshold $UST1_OPS_VFDUSD_ALLOWANCE_WARN (withdraw capacity)"
 fi
@@ -192,17 +199,19 @@ echo ""
 echo "[4] wrap solvency (treasury native ≥ CW20 supply)"
 CLUNC_INFO="$(smart "$UST1_OPS_CLUNC" '{"token_info":{}}')" || CLUNC_INFO=""
 CUSTC_INFO="$(smart "$UST1_OPS_CUSTC" '{"token_info":{}}')" || CUSTC_INFO=""
-CLUNC_SUPPLY="$(echo "${CLUNC_INFO:-null}" | jq -r '.total_supply // "0"')"
-CUSTC_SUPPLY="$(echo "${CUSTC_INFO:-null}" | jq -r '.total_supply // "0"')"
-ULUNA_BAL="$(bank_amount "$UST1_OPS_TREASURY" "uluna" || echo "")"
-UUSD_BAL="$(bank_amount "$UST1_OPS_TREASURY" "uusd" || echo "")"
-ULUNA_BAL="${ULUNA_BAL:-0}"
-UUSD_BAL="${UUSD_BAL:-0}"
-echo "    treasury uluna=$ULUNA_BAL  cLUNC supply=$CLUNC_SUPPLY"
-echo "    treasury uusd=$UUSD_BAL   cUSTC supply=$CUSTC_SUPPLY"
+CLUNC_SUPPLY="$(echo "${CLUNC_INFO:-null}" | jq -r '.total_supply // empty')"
+CUSTC_SUPPLY="$(echo "${CUSTC_INFO:-null}" | jq -r '.total_supply // empty')"
+ULUNA_BAL="$(bank_amount "$UST1_OPS_TREASURY" "uluna" || true)"
+UUSD_BAL="$(bank_amount "$UST1_OPS_TREASURY" "uusd" || true)"
+echo "    treasury uluna=${ULUNA_BAL:-<empty>}  cLUNC supply=${CLUNC_SUPPLY:-<empty>}"
+echo "    treasury uusd=${UUSD_BAL:-<empty>}   cUSTC supply=${CUSTC_SUPPLY:-<empty>}"
 
 solvency_ok() {
   local native="$1" supply="$2" label="$3"
+  if [[ -z "$native" || -z "$supply" ]]; then
+    bad "$label: LCD bank/supply query empty (refusing to treat as 0)"
+    return
+  fi
   if ! [[ "$native" =~ ^[0-9]+$ && "$supply" =~ ^[0-9]+$ ]]; then
     bad "$label: non-numeric native=$native supply=$supply"
     return
@@ -215,6 +224,25 @@ solvency_ok() {
 }
 solvency_ok "$ULUNA_BAL" "$CLUNC_SUPPLY" "cLUNC/uluna"
 solvency_ok "$UUSD_BAL" "$CUSTC_SUPPLY" "cUSTC/uusd"
+
+echo ""
+echo "[5] wrap-mapper rate_limit (read-only)"
+for denom in uluna uusd; do
+  RL="$(smart "$UST1_OPS_WRAP_MAPPER" "$(jq -nc --arg d "$denom" '{rate_limit:{denom:$d}}')")" || RL=""
+  if [[ -z "$RL" || "$RL" == "null" ]]; then
+    warn "rate_limit denom=$denom: LCD query failed"
+    continue
+  fi
+  HAS_CFG="$(echo "$RL" | jq -r 'if .config == null then "none" else "set" end')"
+  USED="$(echo "$RL" | jq -r '.amount_used // "0"')"
+  if [[ "$HAS_CFG" == "none" ]]; then
+    ok "rate_limit denom=$denom: no cap (unlimited)"
+  else
+    MAX="$(echo "$RL" | jq -r '.config.max_amount_per_window // "?"')"
+    WIN="$(echo "$RL" | jq -r '.config.window_seconds // "?"')"
+    ok "rate_limit denom=$denom: max=$MAX / ${WIN}s used=$USED"
+  fi
+done
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"

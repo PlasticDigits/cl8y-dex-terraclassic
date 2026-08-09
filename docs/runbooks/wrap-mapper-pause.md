@@ -117,6 +117,7 @@ make smoke-wrap-mapper-pause
 |---------|--------|
 | wrap-mapper `set_paused` | Blocks wrap + unwrap via mapper |
 | Factory pair `SetPaused` | Blocks that pool’s swaps/LP/limits — not native wrap |
+| Wrap-mapper `rate_limit` | Per-denom cap (read/raise in [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md) § D) |
 | Indexer HTTP 429 | Off-chain only |
 
 ---

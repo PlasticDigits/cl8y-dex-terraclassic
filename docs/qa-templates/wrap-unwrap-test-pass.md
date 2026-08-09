@@ -16,7 +16,7 @@
 - [ ] Wrap-mapper set on router (`SetWrapMapper`)
 - [ ] Treasury funded with native tokens (≥40M USTC in production)
 - [ ] Test wallet has native LUNC and USTC balances
-- [ ] Query wrap-mapper `Config { fee_bps }` — record value (mainnet Phase 3: **100**; LocalTerra deploy default often **50** unless changed)
+- [ ] Query wrap-mapper `Config { fee_bps }` — record value (on-chain authoritative; columbus-5 observed **200**; LocalTerra deploy default often **50** unless changed)
 
 ### Mainnet Coolify env checklist (#507)
 

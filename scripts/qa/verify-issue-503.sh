@@ -20,21 +20,32 @@ run_step "registry pack exists (no secrets)" \
     && grep -q "VITE_UST1_WINDOW_ADDRESS" deployments/mainnet-ust1-wrap/coolify.env.example \
     && grep -q "VITE_WRAP_MAPPER_ADDRESS" deployments/mainnet-ust1-wrap/coolify.env.example \
     && ! grep -Eiq "BEGIN (RSA |EC )?PRIVATE|mnemonic=|\"mnemonic\"" deployments/mainnet-ust1-wrap/*'
-run_step "runbook + pause playbook + skill (O1–O7)" \
+run_step "runbook + pause playbook + skill (O1–O8)" \
   bash -c 'test -f docs/runbooks/ust1-wrap-production-ops.md \
     && test -f docs/runbooks/wrap-mapper-pause.md \
     && test -f skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md \
-    && for id in O1 O2 O3 O4 O5 O6 O7; do
+    && for id in O1 O2 O3 O4 O5 O6 O7 O8; do
          grep -q "\*\*${id}\*\*" docs/runbooks/ust1-wrap-production-ops.md || exit 1
          grep -q "$id" skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md || exit 1
        done \
     && grep -q "set_paused" docs/runbooks/ust1-wrap-production-ops.md \
     && grep -q "set_wrapping_paused" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "ust1-oracle" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "ORACLE_ADDR\|set_paused.*oracle\|oracle.*set_paused\|A2. ust1-oracle" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "rate_limit" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "set_rate_limit\|SetRateLimit" docs/runbooks/ust1-wrap-production-ops.md \
     && grep -q "set_paused" docs/runbooks/wrap-mapper-pause.md \
     && grep -q "verify_oracle_operator_env" docs/runbooks/ust1-wrap-production-ops.md \
     && grep -q "ORACLE_MAX_SILENCE" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "21600" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "21600" scripts/lib/ust1-wrap-ops-defaults.sh \
     && grep -q "Oracle bot operator" docs/runbooks/ust1-wrap-production-ops.md \
-    && grep -q "Treasury / wrap governance" docs/runbooks/ust1-wrap-production-ops.md'
+    && grep -q "Treasury / wrap governance" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "Treasury execute is" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -qi "agents must not broadcast" docs/runbooks/ust1-wrap-production-ops.md \
+    && grep -q "ust1-wrap-production-ops\|#503\|check-ust1-wrap-ops-health" docs/runbooks/launch-checklist.md \
+    && grep -q "UST1_OPS_STRICT_INVENTORY\|STRICT_INVENTORY" scripts/check-ust1-wrap-ops-health.sh \
+    && grep -q "refusing to treat as 0\|LCD bank/supply query empty" scripts/check-ust1-wrap-ops-health.sh'
 run_step "phase cross-links #502/#506/#507/#508 + #503" \
   bash -c 'for n in 502 503 506 507 508; do grep -q "#${n}" docs/runbooks/ust1-wrap-production-ops.md || exit 1; done
     grep -q "ust1-window" docs/runbooks/ust1-wrap-production-ops.md

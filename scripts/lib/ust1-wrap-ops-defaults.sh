@@ -29,6 +29,7 @@
 : "${UST1_OPS_ROUTER:=terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw}"
 
 # Alert / inventory thresholds (override in env for prod tuning)
-: "${UST1_OPS_ORACLE_SILENCE_SECS:=28800}"       # ~8h — ORACLE_MAX_SILENCE_SECS upstream
+# Align with ust1-window default + on-chain max_oracle_age_sec (Coolify prod: 21600).
+: "${UST1_OPS_ORACLE_SILENCE_SECS:=21600}"       # 6h — ORACLE_MAX_SILENCE_SECS upstream
 : "${UST1_OPS_VFDUSD_BALANCE_WARN:=1000000000}"  # 1000 vFDUSD @ 6dp
 : "${UST1_OPS_VFDUSD_ALLOWANCE_WARN:=1000000000}"
