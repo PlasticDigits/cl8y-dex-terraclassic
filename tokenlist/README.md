@@ -89,6 +89,8 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 |--------|------|------|-------|
 | LUNC | Terra Luna Classic | native | ![LUNC](images/LUNC.png) |
 | USTC | TerraClassicUSD | native | ![USTC](images/USTC.png) |
+| cLUNC | Wrapped Luna Classic | cw20 | ![LUNC](images/LUNC.png) |
+| cUSTC | Wrapped TerraClassicUSD | cw20 | ![USTC](images/USTC.png) |
 | CL8Y | CL8Y Token | cw20 | ![CL8Y](images/CL8Y.png) |
 | USTR | USTR Token | cw20 | ![USTR](images/USTR.png) |
 | ALPHA | Alpha Token | cw20 | ![ALPHA](images/ALPHA.png) |

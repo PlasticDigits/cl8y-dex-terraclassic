@@ -1,13 +1,12 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
 const POOL_CARD_SELECTOR = '.shell-panel-strong'
-const WRAP_POOL_PAIR_SYMBOL = 'LUNC-C'
+const WRAP_POOL_PAIR_SYMBOL = 'cLUNC'
 
 const MISSING_WRAP_PAIR_MSG =
-  'LUNC-C pool card not found after pool search and pagination; run scripts/e2e-seed-wrap-pairs.sh (GitLab #201, #340).'
+  'cLUNC pool card not found after pool search and pagination; run scripts/e2e-seed-wrap-pairs.sh (GitLab #201, #340).'
 
-const INDEXER_OUTAGE_MSG =
-  'Pool list indexer outage — start indexer for wrap-pool E2E (GitLab #340).'
+const INDEXER_OUTAGE_MSG = 'Pool list indexer outage — start indexer for wrap-pool E2E (GitLab #340).'
 
 /** Escape user-provided symbol for safe use inside a RegExp. */
 function escapeRegExp(value: string): string {
@@ -16,7 +15,7 @@ function escapeRegExp(value: string): string {
 
 /**
  * Locator for a pool card that exposes provide/withdraw controls and includes `symbol`
- * as a whole token (avoids fuzzy matches like ALUNC-C).
+ * as a whole token (avoids fuzzy matches like AcLUNC).
  */
 export function poolCardBySymbol(page: Page, symbol: string): Locator {
   const token = escapeRegExp(symbol)
@@ -51,7 +50,10 @@ async function waitForPoolListSettled(page: Page): Promise<void> {
 
 async function submitPoolSearch(page: Page, query: string): Promise<void> {
   await page.locator('#pool-search').fill(query)
-  await page.getByRole('search', { name: /Filter and sort pools/i }).getByRole('button', { name: /^Search$/i }).click()
+  await page
+    .getByRole('search', { name: /Filter and sort pools/i })
+    .getByRole('button', { name: /^Search$/i })
+    .click()
   await waitForPoolListSettled(page)
 }
 
@@ -92,11 +94,7 @@ export type GotoPoolCardOptions = {
  * Locate a pool card by symbol using indexer search, with pagination fallback when
  * `PAGE_SIZE` (20) hides the pair on the default list (GitLab #340).
  */
-export async function gotoPoolCardBySymbol(
-  page: Page,
-  symbol: string,
-  opts?: GotoPoolCardOptions
-): Promise<Locator> {
+export async function gotoPoolCardBySymbol(page: Page, symbol: string, opts?: GotoPoolCardOptions): Promise<Locator> {
   if (opts?.goto) {
     await page.goto('/pool')
     await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible({ timeout: 90_000 })
@@ -122,7 +120,7 @@ export async function gotoPoolCardBySymbol(
   return poolCardBySymbol(page, symbol)
 }
 
-/** Default LUNC-C wrap-pool card (seeded LUNC-C/EMBER pair). */
+/** Default cLUNC wrap-pool card (seeded cLUNC/EMBER pair). */
 export async function gotoWrapPoolLuncCard(page: Page): Promise<Locator> {
   const tokenHint = process.env.VITE_LUNC_C_TOKEN_ADDRESS?.trim()
   return gotoPoolCardBySymbol(page, WRAP_POOL_PAIR_SYMBOL, {

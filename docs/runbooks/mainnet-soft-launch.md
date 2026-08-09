@@ -24,7 +24,7 @@ Phase 5 GO may proceed without a separate staging/testnet deploy when budget-con
 | **SL3** | Soft-launch trading tokens use **6** decimals; fee-discount `cl8y_token` is mainnet CL8Y (**18** decimals). |
 | **SL4** | Deploy key pays gas and bootstraps admin msgs; **wasm `--admin`** + **treasury** + **final `config.governance`** = multisig [`terra1zlmv2…`](../reference/governance-multisig.md). Instantiate uses deployer as temporary `config.governance`, then hands off after tiers/registry setup. |
 
-| **SL5** | CW20-only pairs — wrap-mapper not required. |
+| **SL5** | CW20-only pairs — wrap-mapper not required for soft launch. Post-SL5 wrap enablement is **Coolify env + frontend rebuild** per [#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507) / [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md) — the soft-launch defaults script must **not** auto-add economic wrap. |
 | **SL6** | Production indexer: `RUN_MODE=prod`, non-default `LCD_URLS`, `CORS_ORIGINS=https://dex.cl8y.com`, `VITE_INDEXER_URL=https://indexer.dex.cl8y.com` (HTTPS only). |
 | **SL7** | Fee-discount tiers match [`fee-discount-tiers.md`](../reference/fee-discount-tiers.md) (drift: `make check-fee-discount-tier-docs`). |
 
@@ -124,3 +124,18 @@ unset TERRAD_HOST_KEYRING_PASS
 Skips pairs that already have liquidity; finishes remaining pairs, `set_discount_registry_all`, and governance handoff. Host txs retry transient RPC errors (default 5 attempts).
 
 Adding economic tokens later requires CW20 whitelist policy review ([`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md)), governance `AddWhitelistedCodeId`, and new pairs — not a full redeploy of factory/router unless migrating.
+
+## Post-SL5 wrap enablement (#507)
+
+After ustr-cmm Phase 3 deploy and router `SetWrapMapper` ([#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)), enable native wrap on the production frontend by setting Coolify build-args and rebuilding the frontend image. Playbook: [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md). Copy-paste template: [`deployments/mainnet-soft-launch/wrap-enablement.env.example`](../../deployments/mainnet-soft-launch/wrap-enablement.env.example).
+
+| Coolify key | Phase 3 address |
+|-------------|-----------------|
+| `VITE_WRAP_MAPPER_ADDRESS` | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` |
+| `VITE_TREASURY_ADDRESS` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` |
+| `VITE_LUNC_C_TOKEN_ADDRESS` | `terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg` |
+| `VITE_USTC_C_TOKEN_ADDRESS` | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` |
+
+**Treasury note:** `VITE_TREASURY_ADDRESS` is the **ustr-cmm CMM treasury** (`terra16j5u6…`) used for `WrapDeposit` / `InstantWithdraw` — **not** the DEX factory fee treasury / governance multisig (`terra1zlmv2…`). Wrap-mapper `fee_bps` on mainnet: **100** (1%). UI symbols: **cLUNC** / **cUSTC**.
+
+Do **not** uncomment wrap keys in `frontend.env.example` produced by the soft-launch deploy script; that file remains CW20-only (comment-only hints).

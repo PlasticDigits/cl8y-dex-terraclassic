@@ -37,7 +37,7 @@ test.describe('Swap with native token wrapping — UI', () => {
   })
 
   test('E2: selecting native LUNC as input shows wrap note', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
 
     const wrapNote = page.getByText('This swap will wrap')
     const noteCount = await wrapNote.count()
@@ -88,7 +88,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E1: swap native input — LUNC to CW20', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'EMBER')
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
@@ -110,7 +110,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
 
   test('E2: swap native output — CW20 to native USTC', async ({ page }) => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'EMBER')
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'USTC-C')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'cUSTC')
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
@@ -130,8 +130,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E3: swap native to native — LUNC to USTC', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'USTC-C')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'cUSTC')
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
@@ -154,25 +154,18 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await assertTxResultAlert(page)
   })
 
-  test('E4: direct wrap — LUNC to LUNC-C', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC-C')
+  test('E4: direct wrap — LUNC to cLUNC', async ({ page }) => {
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'cLUNC')
 
-    const wrapNote = page.getByText(/1:1/)
-    const wrapNoteCount = await wrapNote.count()
-    expect(wrapNoteCount).toBeGreaterThanOrEqual(0)
-
-    const input = page.getByRole('textbox', { name: 'You Pay' })
-    await input.fill('0.0001')
-
-    await clickSwapSubmit(page)
-
-    await assertTxResultAlert(page)
-  })
-
-  test('E5: direct unwrap — LUNC-C to LUNC', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC-C')
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC', 'LUNC-C')
+    const feeNote = page.getByTestId('swap-wrap-fee-note')
+    await expect(feeNote).toBeVisible({ timeout: 30_000 })
+    // LocalTerra mapper is often fee_bps=50; mainnet 100 — never claim 1:1 when fee applies.
+    await expect(feeNote).toHaveText(/% fee|fee unavailable|1:1/)
+    const feeText = await feeNote.innerText()
+    if (/% fee/.test(feeText)) {
+      await expect(feeNote).not.toHaveText(/1:1/)
+    }
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
@@ -182,9 +175,21 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await assertTxResultAlert(page)
   })
 
-  test('E6: wrapped-to-wrapped swap — LUNC-C to USTC-C (normal CW20)', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC-C')
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC-C')
+  test('E5: direct unwrap — cLUNC to LUNC', async ({ page }) => {
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'cLUNC')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC', 'cLUNC')
+
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
+
+    await clickSwapSubmit(page)
+
+    await assertTxResultAlert(page)
+  })
+
+  test('E6: wrapped-to-wrapped swap — cLUNC to cUSTC (normal CW20)', async ({ page }) => {
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'cLUNC')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'cUSTC')
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
@@ -219,8 +224,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await page.waitForLoadState('networkidle')
     await expectAtLeastTwoPayTokenOptions(page)
 
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC-C')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'cLUNC')
 
     const input = page.getByPlaceholder('0.00').first()
     await input.fill('1')
@@ -250,8 +255,8 @@ test.describe('Swap wrap safety CTA — isolated LCD mocks (SEC-A02 / GitLab #38
     const wrapMapper = wrapMapperAddressFromEnv()
     await routeWrapMapperPaused(page, wrapMapper)
 
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'LUNC-C')
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC-C')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'cLUNC')
 
     await page.getByPlaceholder('0.00').first().fill('0.0001')
 

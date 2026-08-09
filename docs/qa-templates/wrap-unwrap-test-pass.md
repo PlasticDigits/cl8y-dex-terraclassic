@@ -10,58 +10,82 @@
 
 ### Prerequisites
 - [ ] Treasury and wrap-mapper contracts deployed
-- [ ] LUNC-C and USTC-C CW20 tokens created with wrap-mapper as minter
-- [ ] Denom mappings registered (uluna → LUNC-C, uusd → USTC-C)
+- [ ] cLUNC and cUSTC CW20 tokens created with wrap-mapper as minter
+- [ ] Denom mappings registered (uluna → cLUNC, uusd → cUSTC)
 - [ ] Wrappers registered on treasury (uluna → wrap-mapper, uusd → wrap-mapper)
 - [ ] Wrap-mapper set on router (`SetWrapMapper`)
 - [ ] Treasury funded with native tokens (≥40M USTC in production)
 - [ ] Test wallet has native LUNC and USTC balances
+- [ ] Query wrap-mapper `Config { fee_bps }` — record value (mainnet Phase 3: **100**; LocalTerra deploy default often **50** unless changed)
+
+### Mainnet Coolify env checklist (#507)
+
+Before testing on `https://dex.cl8y.com`, confirm Coolify frontend build-args (rebuild required after change). Template: [`deployments/mainnet-soft-launch/wrap-enablement.env.example`](../../deployments/mainnet-soft-launch/wrap-enablement.env.example). Playbook: [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+
+| Key | Expected mainnet value |
+|-----|------------------------|
+| `VITE_WRAP_MAPPER_ADDRESS` | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` |
+| `VITE_TREASURY_ADDRESS` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` (CMM treasury — **not** governance multisig `terra1zlmv2…`) |
+| `VITE_LUNC_C_TOKEN_ADDRESS` | `terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg` |
+| `VITE_USTC_C_TOKEN_ADDRESS` | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` |
+
+- [ ] All four keys set on Coolify and frontend image rebuilt
+- [ ] Token selector shows **cLUNC** / **cUSTC** (not legacy LUNC-C / USTC-C labels)
+- [ ] Soft-launch `frontend.env.example` from deploy script has wrap keys **commented only** (not active)
+
+### Fee formula (wrap-mapper `fee_bps`)
+
+For amount `A` and on-chain `fee_bps`:
+
+`net = A − floor(A × fee_bps / 10_000)`
+
+When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches this formula (plus burn tax on native legs where applicable — [`skills/AGENTS_NATIVE_WRAP_TAX.md`](../../skills/AGENTS_NATIVE_WRAP_TAX.md)).
 
 ### 1. Direct Wrap (Native → Wrapped CW20)
 
-#### LUNC → LUNC-C
-- [ ] Select LUNC as "From" and LUNC-C as "To" on swap page
-- [ ] Inline note displays: "This swap will wrap your LUNC (1:1)"
+#### LUNC → cLUNC
+- [ ] Select LUNC as "From" and cLUNC as "To" on swap page
+- [ ] Inline note references wrap fee (not "1:1" when `fee_bps > 0`)
 - [ ] Button label remains "Swap" (never changes to "Wrap")
-- [ ] Enter amount — estimated output shows 1:1 ratio
+- [ ] Enter amount — estimated output = `net` per fee formula above
 - [ ] Execute swap — transaction succeeds
 - [ ] LUNC balance decreases by entered amount
-- [ ] LUNC-C balance increases by entered amount
+- [ ] cLUNC balance increases by **net** (not gross when fee > 0)
 - [ ] Treasury LUNC balance increases by entered amount
 
-#### USTC → USTC-C
-- [ ] Select USTC as "From" and USTC-C as "To" on swap page
-- [ ] Inline note displays: "This swap will wrap your USTC (1:1)"
+#### USTC → cUSTC
+- [ ] Select USTC as "From" and cUSTC as "To" on swap page
+- [ ] Inline note references wrap fee (not "1:1" when `fee_bps > 0`)
 - [ ] Execute swap — transaction succeeds
 - [ ] USTC balance decreases by entered amount
-- [ ] USTC-C balance increases by entered amount
+- [ ] cUSTC balance increases by **net**
 - [ ] Treasury USTC balance increases by entered amount
 
 ### 2. Direct Unwrap (Wrapped CW20 → Native)
 
-#### LUNC-C → LUNC
-- [ ] Select LUNC-C as "From" and LUNC as "To" on swap page
-- [ ] Inline note displays: "This swap will unwrap your LUNC-C (1:1)"
+#### cLUNC → LUNC
+- [ ] Select cLUNC as "From" and LUNC as "To" on swap page
+- [ ] Inline note references unwrap fee (not "1:1" when `fee_bps > 0`)
 - [ ] Button label remains "Swap"
-- [ ] Enter amount — estimated output shows 1:1 ratio
+- [ ] Enter amount — estimated output = net after mapper fee (and burn tax note if shown)
 - [ ] Execute swap — transaction succeeds
-- [ ] LUNC-C balance decreases by entered amount
-- [ ] LUNC balance increases by entered amount (minus burn tax if applicable)
-- [ ] Treasury LUNC balance decreases by entered amount
+- [ ] cLUNC balance decreases by entered amount
+- [ ] LUNC balance increases by net native received (mapper fee + burn tax if applicable)
+- [ ] Treasury LUNC balance decreases by unwrap gross
 
-#### USTC-C → USTC
-- [ ] Select USTC-C as "From" and USTC as "To" on swap page
+#### cUSTC → USTC
+- [ ] Select cUSTC as "From" and USTC as "To" on swap page
 - [ ] Execute swap — transaction succeeds
-- [ ] USTC-C balance decreases by entered amount
-- [ ] USTC balance increases by entered amount (minus burn tax if applicable)
-- [ ] Treasury USTC balance decreases by entered amount
+- [ ] cUSTC balance decreases by entered amount
+- [ ] USTC balance increases by net native received
+- [ ] Treasury USTC balance decreases by unwrap gross
 
 ### 3. Native Input Swap (Native → CW20 via Wrap + Router)
 
 - [ ] Select LUNC as "From" and a non-wrapped CW20 (e.g. EMBER) as "To"
-- [ ] Route display shows wrap step (LUNC → LUNC-C → … → EMBER)
+- [ ] Route display shows wrap step (LUNC → cLUNC → … → EMBER)
 - [ ] Inline note: "This swap will wrap your tokens"
-- [ ] Enter amount — estimated output updates correctly
+- [ ] Enter amount — estimated output updates correctly (wrap fee netted on CW20 leg)
 - [ ] Execute swap — single transaction with multiple messages succeeds
 - [ ] LUNC balance decreases
 - [ ] CW20 output token balance increases
@@ -70,9 +94,10 @@
 ### 4. Native Output Swap (CW20 → Native via Router + Unwrap)
 
 - [ ] Select a CW20 token (e.g. EMBER) as "From" and LUNC as "To"
-- [ ] Route display shows unwrap step (EMBER → … → LUNC-C → LUNC)
+- [ ] Route display shows unwrap step (EMBER → … → cLUNC → LUNC)
 - [ ] Inline note: "This swap will unwrap your tokens"
 - [ ] Execute swap — transaction succeeds with `unwrap_output: true`
+- [ ] Quoted receive nets mapper `fee_bps` on final unwrap leg
 - [ ] CW20 input token balance decreases
 - [ ] LUNC balance increases
 - [ ] Treasury LUNC balance decreases by output amount
@@ -84,7 +109,7 @@
 - [ ] Inline note: "This swap will wrap and unwrap your tokens"
 - [ ] Execute swap — multi-message transaction succeeds
 - [ ] LUNC balance decreases
-- [ ] USTC balance increases
+- [ ] USTC balance increases (net of both mapper fees and taxes)
 - [ ] Treasury LUNC balance increases, Treasury USTC balance decreases
 
 ### 6. Treasury Balance Integrity
@@ -92,8 +117,8 @@
 - [ ] Record treasury LUNC and USTC balances before a sequence of wrap/unwrap operations
 - [ ] Perform: 3 wraps, 2 unwraps, 1 native input swap, 1 native output swap
 - [ ] After all operations: treasury native balance ≥ total CW20 supply for each denom
-- [ ] Query CW20 token_info for LUNC-C and USTC-C — `total_supply` matches expected minted minus burned
-- [ ] No "phantom" tokens: every LUNC-C in circulation is backed by LUNC in treasury
+- [ ] Query CW20 token_info for cLUNC and cUSTC — `total_supply` matches expected minted minus burned
+- [ ] No "phantom" tokens: every cLUNC in circulation is backed by LUNC in treasury
 
 ### 7. Rate Limits
 
@@ -106,16 +131,17 @@
 
 ### 8. Paused State
 
-- [ ] If wrap-mapper is paused by governance: attempt to wrap → clear "paused" error
+- [ ] If wrap-mapper is paused by governance: attempt to wrap → clear "paused" error / CTA **Wrapping is Temporarily Paused** (SEC-A02)
 - [ ] If wrap-mapper is paused: attempt to unwrap → clear "paused" error
 - [ ] Existing CW20 swaps (not involving wrap/unwrap) still work while wrap-mapper is paused
+- [ ] Pause CTA precedence over rate-limit CTA when both would apply ([`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md))
 
 ### 9. Error Handling & Edge Cases
 
 - [ ] Wrap with zero amount → blocked or clear error before submission
 - [ ] Unwrap with zero amount → blocked or clear error
 - [ ] Wrap an unsupported denom (not uluna/uusd) → clear error
-- [ ] Unwrap a non-registered CW20 (not LUNC-C/USTC-C) → clear error
+- [ ] Unwrap a non-registered CW20 (not cLUNC/cUSTC) → clear error
 - [ ] Unwrap more than treasury holds → transaction reverts with clear error
 - [ ] Swap with `unwrap_output: true` but no wrap-mapper set on router → clear error
 - [ ] Insufficient native balance for wrap → wallet blocks or clear error
@@ -126,14 +152,14 @@
 ### 10. Pool UI — Native Token Liquidity
 
 #### Provide Liquidity
-- [ ] For a pair containing LUNC-C or USTC-C: "Use native (auto-wrap)" checkbox appears
+- [ ] For a pair containing cLUNC or cUSTC: "Use native (auto-wrap)" checkbox appears
 - [ ] Checking the box: provide liquidity using native LUNC/USTC (auto-wraps in same TX)
 - [ ] Transaction succeeds — LP tokens received
 - [ ] Treasury balance updated correctly from the wrap
 
 #### Withdraw Liquidity
-- [ ] For a pair containing LUNC-C or USTC-C: "Receive as wrapped tokens" checkbox appears
-- [ ] With checkbox checked: receive LUNC-C/USTC-C on withdrawal
+- [ ] For a pair containing cLUNC or cUSTC: "Receive as wrapped tokens" checkbox appears
+- [ ] With checkbox checked: receive cLUNC/cUSTC on withdrawal
 - [ ] With checkbox unchecked: receive native LUNC/USTC (auto-unwrap)
 - [ ] Treasury balance updated correctly from any unwrap
 
@@ -143,7 +169,7 @@
 - [ ] Native USTC appears in the "From" token dropdown
 - [ ] Native LUNC appears in the "To" token dropdown
 - [ ] Native USTC appears in the "To" token dropdown
-- [ ] LUNC-C and USTC-C also appear separately (users can choose either)
+- [ ] cLUNC and cUSTC also appear separately (users can choose either)
 - [ ] Selecting a native token shows the correct balance (bank query, not CW20)
 - [ ] Swap direction toggle (↕) works correctly with native tokens
 

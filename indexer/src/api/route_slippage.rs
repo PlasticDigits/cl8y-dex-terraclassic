@@ -18,7 +18,7 @@ use crate::db::queries::assets;
 use crate::hybrid_limits::clamp_max_maker_fills;
 
 const PRICE_CACHE_TTL: Duration = Duration::from_secs(30);
-const QUOTE_SYMBOLS: &[&str] = &["USTC-C", "USTC", "LUNC-C", "LUNC"];
+const QUOTE_SYMBOLS: &[&str] = &["cUSTC", "USTC-C", "USTC", "cLUNC", "LUNC-C", "LUNC"];
 
 #[derive(Clone, Copy)]
 struct PriceCacheEntry {

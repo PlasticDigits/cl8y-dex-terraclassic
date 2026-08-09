@@ -115,4 +115,32 @@ describe('computeProvideCounterpartHuman', () => {
       })
     ).toBeNull()
   })
+
+  it('applies wrap-mapper fee_bps on top of burn tax when auto-filling (#507)', () => {
+    const taxOnly = computeProvideCounterpartHuman({
+      editedSide: 'a',
+      editedHuman: '1',
+      pool: pool1m2m(),
+      decimalsA: 6,
+      decimalsB: 6,
+      needsWrapA: true,
+      needsWrapB: false,
+      taxParamsA: tax005,
+      wrapMapperFeeBps: 0,
+    })
+    const withFee = computeProvideCounterpartHuman({
+      editedSide: 'a',
+      editedHuman: '1',
+      pool: pool1m2m(),
+      decimalsA: 6,
+      decimalsB: 6,
+      needsWrapA: true,
+      needsWrapB: false,
+      taxParamsA: tax005,
+      wrapMapperFeeBps: 100,
+    })
+    expect(taxOnly).not.toBeNull()
+    expect(withFee).not.toBeNull()
+    expect(Number(withFee)).toBeLessThan(Number(taxOnly))
+  })
 })

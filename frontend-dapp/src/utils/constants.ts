@@ -47,15 +47,18 @@ export const DOCS_GITLAB_BASE = 'https://gitlab.com/PlasticDigits/cl8y-dex-terra
 /** Public security posture (SEC-A01 / GitLab #387) — linked from dApp footer. */
 export const SECURITY_POSTURE_DOC_URL = `${DOCS_GITLAB_BASE}/security-posture.md`
 
+/** Native denom → wrapped CW20. Env keys stay `VITE_LUNC_C_*` / `VITE_USTC_C_*`; display symbols are cLUNC / cUSTC (#507). */
 export const NATIVE_WRAPPED_PAIRS: Record<string, string> = {
   uluna: LUNC_C_TOKEN_ADDRESS,
   uusd: USTC_C_TOKEN_ADDRESS,
 }
 
-export const WRAPPED_NATIVE_PAIRS: Record<string, string> = {
-  [LUNC_C_TOKEN_ADDRESS]: 'uluna',
-  [USTC_C_TOKEN_ADDRESS]: 'uusd',
-}
+/** Inverse map — empty wrap env addresses are omitted (no `''` key). */
+export const WRAPPED_NATIVE_PAIRS: Record<string, string> = Object.fromEntries(
+  Object.entries(NATIVE_WRAPPED_PAIRS)
+    .filter(([, wrapped]) => !!wrapped)
+    .map(([native, wrapped]) => [wrapped, native])
+)
 
 /** Measured wrap_deposit ~301k on LocalTerra (#353). */
 export const WRAP_GAS_LIMIT = 400000

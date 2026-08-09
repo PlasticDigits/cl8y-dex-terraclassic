@@ -16,7 +16,7 @@ Use when changing **`WalletButton.tsx`**, **`WalletDropdownMenuItems.tsx`**, **`
 
 ## Rules of thumb
 
-1. **LUNC only in the chip today:** native gas is always **bank `uluna`** (6 decimals, symbol **LUNC**). Do not show CW20 “LUNC-C” here — that is escrow on limit/swap forms.
+1. **LUNC only in the chip today:** native gas is always **bank `uluna`** (6 decimals, symbol **LUNC**). Do not show CW20 **cLUNC** here — that is escrow on limit/swap forms (GitLab #507).
 2. **Reuse `useNativeUlunaBalance`:** do not add a parallel LCD query; invalidate via existing `['tokenBalance']` prefixes after txs.
 3. **Visible without opening the menu:** desktop (`sm+`) and mobile chip triggers must include **`WalletLuncBalance`**; the dropdown header repeats balance + **`AddressRow`** (full bech32 + inline copy/explorer).
 4. **Network on trigger ([#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) — done):** use [`WalletChipNetworkIndicator.tsx`](../frontend-dapp/src/components/wallet/WalletChipNetworkIndicator.tsx) + `getNetworkBadgeCopy()` — logo at all widths, **`shortLabel` text from `sm:`** only. Mobile: balance + truncated address on chip; labeled copy/explorer/switch rows stay in the menu ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185)). `data-testid="wallet-network-short-label"`.
