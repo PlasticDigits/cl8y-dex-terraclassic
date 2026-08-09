@@ -10,6 +10,7 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 |------------|---------|
 | [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md) | SL1–SL7; post-SL5 wrap section |
 | [`deployments/mainnet-soft-launch/wrap-enablement.env.example`](../deployments/mainnet-soft-launch/wrap-enablement.env.example) | Active Coolify template (four `VITE_*`) |
+| [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) | Canonical Phase 2–4 address registry (#503) |
 | [`deployments/mainnet-soft-launch/deploy-trace.md`](../deployments/mainnet-soft-launch/deploy-trace.md) | Router ↔ wrap-mapper wiring (#502) + Phase 3 addresses |
 | [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md) | Architecture + frontend integration |
 | [`docs/qa-templates/wrap-unwrap-test-pass.md`](../docs/qa-templates/wrap-unwrap-test-pass.md) | Manual QA checklist |
@@ -90,5 +91,6 @@ make test-mainnet-soft-launch-defaults
 - Router `minimum_receive` / unwrap net: [`AGENTS_ROUTER_MINIMUM_RECEIVE.md`](./AGENTS_ROUTER_MINIMUM_RECEIVE.md)
 - Swap pause / rate-limit CTAs: [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md)
 - Soft launch (pre-wrap): [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md)
+- Phase 5 ops / pause playbooks: [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](./AGENTS_UST1_WRAP_PRODUCTION_OPS.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
 - Architecture: [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md)
 - Runbook: [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md)

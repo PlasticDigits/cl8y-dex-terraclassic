@@ -143,6 +143,17 @@ When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches thi
 - [ ] Existing CW20 swaps (not involving wrap/unwrap) still work while wrap-mapper is paused
 - [ ] Pause CTA precedence over rate-limit CTA when both would apply ([`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md))
 
+### 8b. Columbus-5 wrap pause smoke (#503)
+
+Operator rehearsal on mainnet (off-peak) or documented dry-run. Playbook: [`docs/runbooks/wrap-mapper-pause.md`](../runbooks/wrap-mapper-pause.md). LocalTerra substitute: `make smoke-wrap-mapper-pause`.
+
+- [ ] Preflight: `./scripts/check-ust1-wrap-ops-health.sh` (wrap-mapper not paused)
+- [ ] `set_paused: true` tx hash recorded
+- [ ] Wrap rejected + unwrap rejected while paused
+- [ ] UI pause CTA confirmed on `dex.cl8y.com`
+- [ ] `set_paused: false` tx hash recorded; tiny wrap+unwrap succeed
+- [ ] Evidence commented on [GitLab #503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503) (or dry-run + LocalTerra transcript if keys unavailable)
+
 ### 9. Error Handling & Edge Cases
 
 - [ ] Wrap with zero amount → blocked or clear error before submission

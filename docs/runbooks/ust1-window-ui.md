@@ -80,5 +80,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-wi
 - Soft-launch faucet (must stay separate): [`soft-launch-faucet.md`](./soft-launch-faucet.md), [`AGENTS_SOFT_LAUNCH_FAUCET.md`](../../skills/AGENTS_SOFT_LAUNCH_FAUCET.md)
 - Shell nav: [`AGENTS_FRONTEND_SHELL_NAV.md`](../../skills/AGENTS_FRONTEND_SHELL_NAV.md)
 - Agent playbook: [`AGENTS_UST1_WINDOW_UI.md`](../../skills/AGENTS_UST1_WINDOW_UI.md)
+- Phase 5 ops (oracle age, pause, inventory): [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md), [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](../../skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
 - Gas inventory: [`AGENTS_TERRACLASSIC_GAS.md`](../../skills/AGENTS_TERRACLASSIC_GAS.md)
 - Routes table: [`docs/frontend.md`](../frontend.md)
+- Registry: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../../deployments/mainnet-ust1-wrap/REGISTRY.md)

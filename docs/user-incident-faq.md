@@ -13,6 +13,8 @@ This is **not** financial or legal advice. For operator runbooks and on-chain in
 | **Token blacklist** | Any trade touching that CW20 | Yes — wallet balances unchanged | Trade other tokens/pairs, or wait for lift |
 | **Pair blacklist** | That pool only | Yes — LP and escrow stay on-chain | Use other pairs, or wait for lift |
 | **Rate limit** | Whoever hit the cap | Yes — no on-chain movement blocked | Wait and retry (see below) |
+| **UST1 window / oracle** | `/ust1` mint & redeem | Yes — tokens stay in your wallet | Wait for fresh oracle or unpause; retry |
+| **Wrap pause** | Native wrap / unwrap | Yes — native & cLUNC/cUSTC stay in your wallet | Wait for operator unpause |
 
 **Important:** These controls **block new protocol actions**. They do **not** burn, confiscate, or delete your wallet balances. Escrow for limit orders and LP shares remain in the contracts until you can execute the normal withdraw / cancel / claim messages again.
 
@@ -160,9 +162,53 @@ Governance may configure **per-denom wrap limits** (maximum native amount per ti
 | Wrap fails “rate limit” | No wrap completed; native stays in your wallet | Wait for the window to reset, retry a smaller amount |
 | Treasury wrapping paused | Wrap and instant withdraw disabled | Wait for operator to unpause wrapping |
 
-See [NATIVE_TOKEN_WRAPPING.md](../NATIVE_TOKEN_WRAPPING.md) for wrap architecture.
+See [NATIVE_TOKEN_WRAPPING.md](../NATIVE_TOKEN_WRAPPING.md) for wrap architecture. This is **not** the same as indexer **HTTP 429** (off-chain quotes/charts).
 
-### Pair creation (factory)
+---
+
+## UST1 oracle window
+
+The **`/ust1`** page mints and redeems **UST1 ↔ vFDUSD** through the on-chain oracle window. It is **not** the soft-launch faucet (**Mint**) and **not** an AMM swap.
+
+### What you will see
+
+- Deposit / withdraw disabled when the window is paused, the oracle is paused, or the oracle rate is **stale** (too old).
+- Clear CTA copy such as window paused / oracle unavailable — do not force-submit.
+
+### What happens to your assets
+
+| Situation | Impact | What to do |
+|-----------|--------|------------|
+| Window paused | No mint/redeem; balances unchanged | Wait for operators to unpause |
+| Oracle paused or oracle stale | Quotes/gates block submit; funds stay in wallet | Wait for a fresh oracle update; retry later |
+| Per-tx or 24h limit | Transaction rejected before completion | Use a smaller amount or wait for the rolling window |
+
+Operators restore the oracle service — they do **not** turn off age checks to fake a healthy rate. See [`ust1-wrap-production-ops.md`](./runbooks/ust1-wrap-production-ops.md).
+
+---
+
+## Wrap pause
+
+Governance can pause the **wrap-mapper** so native **LUNC/USTC ↔ cLUNC/cUSTC** wrap and unwrap stop. Ordinary CW20 pool swaps that do not wrap/unwrap can still work.
+
+### What you will see
+
+- Swap / Wrap UI: **Wrapping is Temporarily Paused** (or equivalent).
+- On-chain wrap and unwrap reject with a paused error.
+
+### What happens to your assets
+
+| Asset | During wrap pause | After unpause |
+|-------|-------------------|---------------|
+| Native LUNC / USTC in wallet | Unchanged | Wrap again when unpaused |
+| cLUNC / cUSTC in wallet | Unchanged | Unwrap when unpaused |
+| LP / other CW20 | Unaffected by wrap-mapper pause | Trade as usual |
+
+Operator playbook: [`wrap-mapper-pause.md`](./runbooks/wrap-mapper-pause.md).
+
+---
+
+## Pair creation (factory)
 
 `CreatePair` is limited to **one new pair flow per block** and may charge a creation fee. This affects **pool creators**, not everyday swappers. Retry on the next block if creation fails.
 
