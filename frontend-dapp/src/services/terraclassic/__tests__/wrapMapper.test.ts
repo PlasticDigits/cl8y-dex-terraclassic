@@ -163,6 +163,27 @@ describe('wrap-mapper fee math (GitLab #507)', () => {
     await expect(checkRateLimitExceeded('uluna', '1000')).resolves.toBeNull()
   })
 
+  it('checkRateLimitExceeded treats expired window as full capacity', async () => {
+    const startSec = Math.floor(Date.now() / 1000) - 10_000
+    queryContract.mockResolvedValue({
+      config: { max_amount_per_window: '1000', window_seconds: 3600 },
+      current_window_start: String(startSec),
+      amount_used: '1000',
+    })
+    await expect(checkRateLimitExceeded('uluna', '500')).resolves.toBe(false)
+  })
+
+  it('checkRateLimitExceeded is true when amount exceeds remaining', async () => {
+    const startSec = Math.floor(Date.now() / 1000) - 10
+    queryContract.mockResolvedValue({
+      config: { max_amount_per_window: '1000', window_seconds: 3600 },
+      current_window_start: String(startSec),
+      amount_used: '900',
+    })
+    await expect(checkRateLimitExceeded('uluna', '200')).resolves.toBe(true)
+    await expect(checkRateLimitExceeded('uluna', '100')).resolves.toBe(false)
+  })
+
   it('wrapTreasuryMatchesEnv requires exact treasury match', () => {
     expect(
       wrapTreasuryMatchesEnv({

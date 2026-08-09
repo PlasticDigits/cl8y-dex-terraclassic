@@ -54,9 +54,9 @@ describe('wrap constants', () => {
     expect(WRAP_GAS_LIMIT).toBeGreaterThan(0)
   })
 
-  it('UNWRAP_GAS_LIMIT is above mainnet OOG floor (400553 used @ 400k wanted)', () => {
-    expect(UNWRAP_GAS_LIMIT).toBeGreaterThan(400_553)
-    expect(UNWRAP_GAS_LIMIT).toBe(550_000)
+  it('UNWRAP_GAS_LIMIT is above mainnet LCD sim (~562k) with headroom', () => {
+    expect(UNWRAP_GAS_LIMIT).toBeGreaterThan(562_459)
+    expect(UNWRAP_GAS_LIMIT).toBe(800_000)
   })
 
   it('NATIVE_WRAPPED_PAIRS contains uluna and uusd', () => {

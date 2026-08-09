@@ -39,6 +39,7 @@ vi.mock('@/services/terraclassic/wrapMapper', async (importOriginal) => {
     queryWrapMapperConfig: vi.fn(),
     queryPausedState: vi.fn(),
     checkRateLimitExceeded: vi.fn(),
+    queryRateLimit: vi.fn(),
   }
 })
 
@@ -80,6 +81,11 @@ describe('WrapPage (#502 / #507)', () => {
     vi.mocked(wrapMapper.queryWrapMapperConfig).mockResolvedValue(healthyConfig)
     vi.mocked(wrapMapper.queryPausedState).mockResolvedValue(false)
     vi.mocked(wrapMapper.checkRateLimitExceeded).mockResolvedValue(false)
+    vi.mocked(wrapMapper.queryRateLimit).mockResolvedValue({
+      config: { max_amount_per_window: '110000000000000', window_seconds: 86400 },
+      current_window_start: null,
+      amount_used: '0',
+    })
     vi.mocked(router.simulateNativeSwap).mockResolvedValue({ amount: '980000', isDirectWrapUnwrap: true })
   })
 
@@ -99,6 +105,7 @@ describe('WrapPage (#502 / #507)', () => {
     expect(screen.getByTestId('wrap-pay-symbol')).toHaveTextContent('Pay (LUNC)')
     expect(screen.getByTestId('wrap-receive-symbol')).toHaveTextContent('Receive (cLUNC)')
     expect(await screen.findByTestId('wrap-fee-note')).toHaveTextContent(/2/)
+    expect(await screen.findByTestId('wrap-page-rate-limit-available')).toBeInTheDocument()
   })
 
   it('switches asset to USTC / cUSTC and shows logos on asset toggles', async () => {

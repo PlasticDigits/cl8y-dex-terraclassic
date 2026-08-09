@@ -44,10 +44,12 @@ import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/
 import {
   queryPausedState,
   checkRateLimitExceeded,
+  getNativeForWrapped,
   queryWrapMapperConfig,
   wrapUnwrapFeeNote,
   wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
+import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
 import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import {
   assetInfoLabel,
@@ -311,6 +313,24 @@ export default function SwapPage() {
   const needsWrapCheck = isWrapOrUnwrap ? wrapUnwrapType === 'wrap' : (nativeRouteInfo?.needsWrapInput ?? false)
   const wrapDenom = needsWrapCheck ? (isNativeDenom(fromToken) ? fromToken : null) : null
 
+  /** Denom for wrap-mapper rate_limit query (wrap input, unwrap output, or wrapped CW20's native). */
+  const wrapRateLimitDenom = useMemo(() => {
+    if (wrapDenom) return wrapDenom
+    if (wrapUnwrapType === 'unwrap' && isNativeDenom(toToken)) return toToken
+    if (nativeRouteInfo?.needsWrapInput && isNativeDenom(fromToken)) return fromToken
+    if (isNativeDenom(fromToken)) return fromToken
+    if (isNativeDenom(toToken)) return toToken
+    if (fromToken) {
+      const n = getNativeForWrapped(fromToken)
+      if (n) return n
+    }
+    if (toToken) {
+      const n = getNativeForWrapped(toToken)
+      if (n) return n
+    }
+    return null
+  }, [wrapDenom, wrapUnwrapType, toToken, fromToken, nativeRouteInfo?.needsWrapInput])
+
   const payIsNativeUluna = isNativeDenom(fromToken)
   const payMaxResult = useMemo(() => {
     if (!balanceQuery.data) {
@@ -356,6 +376,11 @@ export default function SwapPage() {
   const wrapMapperActive =
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
     (needsWrapCheck || (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') || (nativeRouteInfo?.needsUnwrapOutput ?? false))
+
+  const showWrapRateLimitStatus =
+    !!WRAP_MAPPER_CONTRACT_ADDRESS &&
+    !!wrapRateLimitDenom &&
+    (isWrapOrUnwrap || wrapMapperActive || !!(nativeRouteInfo?.needsWrapInput || nativeRouteInfo?.needsUnwrapOutput))
 
   const wrapMapperConfigQuery = useQuery({
     queryKey: ['wrapMapperConfig'],
@@ -1738,6 +1763,16 @@ export default function SwapPage() {
           {tradingBlacklist.blocked && tradingBlacklist.message && (
             <div className="alert-error mb-3 text-xs" role="alert">
               <p>{tradingBlacklist.message}</p>
+            </div>
+          )}
+          {showWrapRateLimitStatus && wrapRateLimitDenom && (
+            <div className="mb-3 shell-panel px-3 py-2" data-testid="swap-wrap-rate-limit-panel">
+              <WrapRateLimitStatus
+                denom={wrapRateLimitDenom}
+                symbol={getTokenDisplaySymbol(wrapRateLimitDenom)}
+                enabled={showWrapRateLimitStatus}
+                testId="swap-wrap-rate-limit"
+              />
             </div>
           )}
           {isRateLimitExceeded && (

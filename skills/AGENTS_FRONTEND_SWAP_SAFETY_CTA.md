@@ -8,7 +8,9 @@ Use when changing **wrap mapper pause**, **on-chain wrap rate limit**, **wrap ra
 |------------|---------|
 | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Submit CTA precedence: wrap pause → blacklist → amount → rate limit; inline `swap-wrap-rate-limit-banner` when rate limit exceeded |
 | [`marketDataServiceCopy.ts`](../frontend-dapp/src/utils/marketDataServiceCopy.ts) | `WRAP_RATE_LIMIT_EXCEEDED_MESSAGE` — inline alert copy (SEC-I05 / #463) |
-| [`wrapMapper.ts`](../frontend-dapp/src/services/terraclassic/wrapMapper.ts) | `queryWrapMapperConfig`, `queryPausedState`, `checkRateLimitExceeded` |
+| [`wrapMapper.ts`](../frontend-dapp/src/services/terraclassic/wrapMapper.ts) | `queryWrapMapperConfig`, `queryPausedState`, `checkRateLimitExceeded`, `queryRateLimit` |
+| [`WrapRateLimitStatus.tsx`](../frontend-dapp/src/components/wrap/WrapRateLimitStatus.tsx) | Available / max + reset countdown on Swap + `/wrap` |
+| [`wrapRateLimit.ts`](../frontend-dapp/src/utils/wrapRateLimit.ts) | Parse CosmWasm Timestamp nanos; expire window → full capacity |
 | [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) | Vitest: exact copy + `toBeDisabled()` per state (isolated mocks) |
 | [`wrap-swap.spec.ts`](../frontend-dapp/e2e/wrap-swap.spec.ts) | Playwright: LCD route mocks via [`wrap-mapper-lcd-mock.ts`](../frontend-dapp/e2e/helpers/wrap-mapper-lcd-mock.ts) |
 | [docs/frontend.md § Swap wrap safety CTA](../docs/frontend.md#swap-wrap-safety-cta-sec-a02) | Product copy table |

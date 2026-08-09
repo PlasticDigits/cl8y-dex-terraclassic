@@ -278,7 +278,7 @@ describe('gas limit selection (tested indirectly)', () => {
   it('uses UNWRAP_GAS_LIMIT for send with inner unwrap (#475)', async () => {
     const inner = btoa(JSON.stringify({ unwrap: { recipient: null } }))
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBe(BigInt(550_000))
+    expect(fee.gasLimit).toBe(BigInt(800_000))
   })
 
   it('adds UNWRAP_GAS_LIMIT when execute_swap_operations has unwrap_output (#343)', async () => {
@@ -292,7 +292,7 @@ describe('gas limit selection (tested indirectly)', () => {
       })
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBeGreaterThanOrEqual(BigInt(1_400_000 + 550_000))
+    expect(fee.gasLimit).toBeGreaterThanOrEqual(BigInt(1_400_000 + 800_000))
   })
 
   it('uses buffered pool-only gas for send with inner swap msg (GitLab #134)', async () => {

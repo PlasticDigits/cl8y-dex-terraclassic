@@ -111,10 +111,16 @@ export const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
 export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
 /**
  * CW20 `send` → wrap-mapper `{ unwrap }` (and router `unwrap_output` add-on).
- * Mainnet columbus-5 OOG at 400k: tx `0E8D8DF5…72C5` gasUsed **400553** vs gasWanted 400000
- * (WriteFlat; cLUNC unwrap after successful wrap). Ceiling **550k** for headroom.
+ *
+ * Mainnet columbus-5 LCD `/cosmos/tx/v1beta1/simulate` (signer terra1xsecn…, cLUNC→mapper):
+ * - unwrap amount 1 → ~387k gas_used
+ * - unwrap ≥1e6 raw → **~562k** gas_used (e.g. 490e6 → 562459; failed tx
+ *   `3C3B382A…287AD` wanted 550k / used 550559 OOG — ceiling was below true cost)
+ * - wrap_deposit stays ~303k (WRAP_GAS_LIMIT 400k remains OK)
+ *
+ * Ceiling **800k** (~1.4× sim) so ReadFlat/WriteFlat headroom survives state growth.
  */
-export const UNWRAP_GAS_LIMIT = 550_000
+export const UNWRAP_GAS_LIMIT = 800_000
 
 export const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
 

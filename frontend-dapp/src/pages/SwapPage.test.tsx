@@ -88,6 +88,12 @@ vi.mock('@/services/terraclassic/wrapMapper', () => ({
     paused: false,
     fee_bps: 100,
   }),
+  queryRateLimit: vi.fn().mockResolvedValue({
+    config: { max_amount_per_window: '110000000000000', window_seconds: 86400 },
+    current_window_start: null,
+    amount_used: '0',
+  }),
+  getNativeForWrapped: (addr: string) => (addr === MOCK_LUNC_C ? 'uluna' : null),
   wrapTreasuryMatchesEnv: (config: { treasury: string }) => config.treasury === 'terra1treasury',
   wrapUnwrapFeeNote: (kind: 'wrap' | 'unwrap', feeBps: number | null | undefined) => {
     if (feeBps == null) return `${kind === 'wrap' ? 'Wrap' : 'Unwrap'} fee unavailable`

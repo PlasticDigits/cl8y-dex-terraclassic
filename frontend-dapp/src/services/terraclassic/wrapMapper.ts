@@ -7,17 +7,14 @@ import {
   WRAPPED_NATIVE_PAIRS,
 } from '@/utils/constants'
 import { bpsToPercentLabel } from '@/utils/limitOrderFeeSummary'
+import { deriveWrapRateLimitStatus, type WrapRateLimitResponse } from '@/utils/wrapRateLimit'
 
 interface DenomMappingResponse {
   denom: string
   cw20_addr: string
 }
 
-interface RateLimitResponse {
-  config: { max_amount_per_window: string; window_seconds: number } | null
-  current_window_start: string | null
-  amount_used: string
-}
+export type RateLimitResponse = WrapRateLimitResponse
 
 export interface WrapMapperConfigResponse {
   governance: string
@@ -161,15 +158,15 @@ export function wrapUnwrapFeeNote(kind: 'wrap' | 'unwrap', feeBps: number | null
 
 /**
  * Rate-limit gate. `null` = LCD unavailable → UI must fail closed (do not assume unlimited).
+ * Expired windows are treated as full capacity (chain resets on next wrap).
  */
 export async function checkRateLimitExceeded(denom: string, wrapAmount: string): Promise<boolean | null> {
   if (!WRAP_MAPPER_CONTRACT_ADDRESS) return false
   try {
     const rl = await queryRateLimit(denom)
-    if (!rl.config) return false
-    const maxAmount = BigInt(rl.config.max_amount_per_window)
-    const used = BigInt(rl.amount_used)
-    return used + BigInt(wrapAmount) > maxAmount
+    const status = deriveWrapRateLimitStatus(rl, Math.floor(Date.now() / 1000))
+    if (!status) return false
+    return BigInt(wrapAmount) > status.remainingRaw
   } catch {
     return null
   }

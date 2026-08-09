@@ -32,6 +32,7 @@ import {
   WRAP_RATE_LIMIT_EXCEEDED_MESSAGE,
   WRAP_TREASURY_MISCONFIGURED_CTA,
 } from '@/utils/marketDataServiceCopy'
+import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
 
 const DECIMALS = 6
 const QUOTE_DEBOUNCE_MS = 250
@@ -394,6 +395,13 @@ export default function WrapPage() {
               </p>
             </div>
           </div>
+
+          <WrapRateLimitStatus
+            denom={nativeDenom(asset)}
+            symbol={asset === 'lunc' ? 'LUNC' : 'USTC'}
+            enabled={wrapEnabled}
+            testId="wrap-page-rate-limit"
+          />
 
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">
