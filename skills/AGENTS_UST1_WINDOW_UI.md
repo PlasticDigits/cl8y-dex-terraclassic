@@ -42,3 +42,4 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-wi
 - Gas: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
 - Design / copy: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)
 - Prod Vite / Coolify: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
+- Phase 5 ops (oracle age, pause, inventory): [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](./AGENTS_UST1_WRAP_PRODUCTION_OPS.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))

@@ -10,6 +10,7 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 |------------|---------|
 | [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md) | SL1–SL7; post-SL5 wrap section |
 | [`deployments/mainnet-soft-launch/wrap-enablement.env.example`](../deployments/mainnet-soft-launch/wrap-enablement.env.example) | Active Coolify template (four `VITE_*`) |
+| [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) | Canonical Phase 2–4 address registry (#503) |
 | [`deployments/mainnet-soft-launch/deploy-trace.md`](../deployments/mainnet-soft-launch/deploy-trace.md) | Router ↔ wrap-mapper wiring (#502) + Phase 3 addresses |
 | [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md) | Architecture + frontend integration |
 | [`docs/qa-templates/wrap-unwrap-test-pass.md`](../docs/qa-templates/wrap-unwrap-test-pass.md) | Manual QA checklist |
@@ -28,7 +29,7 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | **W1** | Coolify wrap `VITE_*` must point at **columbus-5 Phase 3** published addresses (see table below). Router already wired via governance `SetWrapMapper` ([#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)). |
 | **W2** | `VITE_TREASURY_ADDRESS` = **ustr-cmm CMM treasury** `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` — **not** the DEX factory fee treasury / governance multisig `terra1zlmv2…`. |
 | **W3** | UI display symbols are **cLUNC** / **cUSTC**; env var names may remain `VITE_LUNC_C_TOKEN_ADDRESS` / `VITE_USTC_C_TOKEN_ADDRESS`. |
-| **W4** | UI, simulation, and execute paths use on-chain wrap-mapper **`fee_bps`**: `net = amount − floor(amount × fee_bps / 10_000)`. Never claim **1:1** when `fee_bps > 0` **or when config LCD failed** (fail closed: disable submit / “Wrap fee unavailable”). Mainnet Phase 3: **`fee_bps = 100`** (1%). LocalTerra deploy default is often **50** unless changed. |
+| **W4** | UI, simulation, and execute paths use on-chain wrap-mapper **`fee_bps`**: `net = amount − floor(amount × fee_bps / 10_000)`. Never claim **1:1** when `fee_bps > 0` **or when config LCD failed** (fail closed: disable submit / “Wrap fee unavailable”). Approved Phase 0 target was **100**; live columbus-5 has been observed at **200** — always re-query (`REGISTRY.md` / health script). LocalTerra deploy default is often **50** unless changed. |
 | **W5** | Soft-launch defaults script (**SL5**) must **not** silently deploy or enable economic wrap. Post-SL5 enablement is **Coolify env + frontend rebuild only** — see [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md). |
 | **W6** | Swap CTA precedence: treasury mismatch → config unavailable → pause → blacklist → amount → rate limit. Fee display is separate from safety CTAs — [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Runtime-check `config.treasury` vs `VITE_TREASURY_ADDRESS` (W2). |
 | **W7** | Retail wrap UI = title + asset/mode controls + live fee/rate-limit/pause + CTA. **Do not merge** “not an AMM”, “use Swap/UST1”, “Mapper Ready”, or always-on gas/burn-tax paragraphs — depth belongs in docs (`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD` **§9**). Live `fee_bps` / rate-limit / pause gates stay. |
@@ -43,7 +44,7 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | cUSTC (`VITE_USTC_C_TOKEN_ADDRESS`) | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` |
 | Router (soft launch, unchanged) | `terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw` |
 
-Wrap-mapper `Config { fee_bps }` on mainnet: **100** (1%).
+Wrap-mapper `Config { fee_bps }` on mainnet: **on-chain authoritative** (observed **200** as of 2026-08; do not hardcode). Canonical pack: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md).
 
 ## Coolify env keys (frontend build-args)
 
@@ -62,7 +63,7 @@ Copy-paste template: [`deployments/mainnet-soft-launch/wrap-enablement.env.examp
 
 ## Rules of thumb
 
-1. Query `fee_bps` via `queryWrapMapperConfig` (LCD) — do not hardcode mainnet 100 in app logic without a fallback query path.
+1. Query `fee_bps` via `queryWrapMapperConfig` (LCD) — do not hardcode mainnet fee_bps in app logic without a fallback query path.
 2. Direct wrap/unwrap quotes use `netAfterWrapMapperFee`; native-input swaps net CW20 after tax **and** mapper fee where applicable (`netCw20AfterNativeWrap`).
 3. Unwrap / native-output simulation must net `fee_bps` on the unwrap leg (aligns with router `minimum_receive` on post-unwrap net — **R3**).
 4. Burn tax on native transfers is **additional** to mapper `fee_bps` — [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md). Document that for agents/ops; do **not** put a permanent “burn tax may apply” line on `/wrap` (W7).
@@ -90,5 +91,6 @@ make test-mainnet-soft-launch-defaults
 - Router `minimum_receive` / unwrap net: [`AGENTS_ROUTER_MINIMUM_RECEIVE.md`](./AGENTS_ROUTER_MINIMUM_RECEIVE.md)
 - Swap pause / rate-limit CTAs: [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md)
 - Soft launch (pre-wrap): [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md)
+- Phase 5 ops / pause playbooks: [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](./AGENTS_UST1_WRAP_PRODUCTION_OPS.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
 - Architecture: [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md)
 - Runbook: [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md)

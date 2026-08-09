@@ -34,6 +34,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 ## Operations & runbooks
 - [Environment matrix](./environment-matrix.md) — local, testnet, mainnet chain IDs and indexer expectations
 - [Operator secrets](./operator-secrets.md) — DB, LCD, keys, `RUN_MODE`; tracing-only observability ([glab#200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200))
+- [Runbook: UST1 + wrap production ops](./runbooks/ust1-wrap-production-ops.md) — Phase 5 registry, health checks, pause playbooks ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503)); agent [`skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](../skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md); wrap pause [`wrap-mapper-pause.md`](./runbooks/wrap-mapper-pause.md)
 - [Runbook: indexer reorg, replay, dedup, backfill](./runbooks/indexer-reorg-replay-dedup.md)
 - [Runbook: Wasm admin migration](./runbooks/wasm-admin-migration.md)
 - [Runbook: trading blacklist decision tree](./runbooks/blacklist-decision.md) (SEC-B12, [#400](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/400))

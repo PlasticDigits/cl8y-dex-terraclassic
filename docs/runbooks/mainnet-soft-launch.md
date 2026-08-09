@@ -82,7 +82,7 @@ Makefile: `make deploy-mainnet-soft-launch`.
 
 **Frontend:** build-args from `frontend.env.example` including `VITE_WC_PROJECT_ID` and `VITE_INDEXER_URL=https://indexer.dex.cl8y.com`. For the Mint page ([#473](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473)), also set `VITE_FAUCET_ADDRESS` and the six `VITE_TOKEN_{EMBER,CORAL,JADE,ONYX,RUBY,TOPAZ}_ADDRESS` values after `make deploy-soft-launch-faucet`. Do not set `VITE_DEV_MNEMONIC`.
 
-**Post-SL5 UST1 track ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506) / parent [#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)):** bake Coolify `VITE_UST1_WINDOW_ADDRESS`, `VITE_UST1_TOKEN_ADDRESS`, `VITE_VFDUSD_TOKEN_ADDRESS` (optional `VITE_UST1_ORACLE_ADDRESS`) to columbus-5 addresses in [`ust1-window-ui.md`](./ust1-window-ui.md) (`docker/frontend/Dockerfile` defaults these). This is **not** the soft-launch faucet — do not put UST1/vFDUSD in gemstone mintables.
+**Post-SL5 UST1 track ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506) / parent [#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)):** bake Coolify `VITE_UST1_WINDOW_ADDRESS`, `VITE_UST1_TOKEN_ADDRESS`, `VITE_VFDUSD_TOKEN_ADDRESS` (optional `VITE_UST1_ORACLE_ADDRESS`) to columbus-5 addresses in [`ust1-window-ui.md`](./ust1-window-ui.md) (`docker/frontend/Dockerfile` defaults these). Canonical Phase 2–4 registry + Coolify pack: [`deployments/mainnet-ust1-wrap/`](../../deployments/mainnet-ust1-wrap/) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503) ops hub). This is **not** the soft-launch faucet — do not put UST1/vFDUSD in gemstone mintables.
 
 Postgres is provisioned in Coolify separately (not via repo compose).
 
@@ -131,7 +131,9 @@ Adding economic tokens later requires CW20 whitelist policy review ([`cw20-white
 
 ## Post-SL5 wrap enablement (#507)
 
-After ustr-cmm Phase 3 deploy and router `SetWrapMapper` ([#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)), enable native wrap on the production frontend by setting Coolify build-args and rebuilding the frontend image. Playbook: [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md). Copy-paste template: [`deployments/mainnet-soft-launch/wrap-enablement.env.example`](../../deployments/mainnet-soft-launch/wrap-enablement.env.example).
+After ustr-cmm Phase 3 deploy and router `SetWrapMapper` ([#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)), enable native wrap on the production frontend by setting Coolify build-args and rebuilding the frontend image. Playbook: [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md). Copy-paste template: [`deployments/mainnet-soft-launch/wrap-enablement.env.example`](../../deployments/mainnet-soft-launch/wrap-enablement.env.example) (also bundled in [`deployments/mainnet-ust1-wrap/coolify.env.example`](../../deployments/mainnet-ust1-wrap/coolify.env.example)).
+
+**Phase 5 ops ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503)):** monitoring, pause playbooks, and go/no-go extras — [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md) / [`skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](../../skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md) (`make verify-issue-503`).
 
 | Coolify key | Phase 3 address |
 |-------------|-----------------|

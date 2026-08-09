@@ -4,6 +4,8 @@ Copy-pastable **`terrad tx wasm execute`** recipes for governance emergency cont
 
 **Related:** [Security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response), [ADR 0003](../adr/0003-governance-trading-blacklist.md), [blacklist decision runbook](./blacklist-decision.md) (symmetric restore gates), [rollback decision runbook](./rollback-decision.md) (deploy rollback vs on-chain pause — SEC-H09, [#445](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/445)), [user incident FAQ](../user-incident-faq.md), [incident triage template](../templates/incident-dex-indexer.md). Agent playbook: [`skills/AGENTS_EMERGENCY_COMMANDS.md`](../../skills/AGENTS_EMERGENCY_COMMANDS.md).
 
+> **Scope:** factory **pair** pause / blacklist only. For **ust1-window** or **wrap-mapper** pause, use [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md) / [`wrap-mapper-pause.md`](./wrap-mapper-pause.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503)) — different governance keys.
+
 ---
 
 ## Before you broadcast

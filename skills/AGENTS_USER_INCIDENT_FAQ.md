@@ -23,6 +23,7 @@ Use when changing **user-facing copy** for **pause**, **trading blacklist**, or 
 3. **Funds messaging:** controls gate execute paths; they do **not** burn wallet balances. Escrow and LP stay in contracts until normal withdraw/cancel/claim after lift.
 4. **Rate limits:** distinguish **indexer HTTP 429** (off-chain, retry) from **wrap-mapper** on-chain caps (native wrap/unwrap). Frontend regression: **SEC-E04** / GitLab **#426** — `isIndexerRateLimitError`, `INDEXER_RATE_LIMIT_RETRY_MESSAGE`, Vitest in `indexerErrors.test.ts`, `humanizeUserFacingError.test.ts`, `SwapPage.test.tsx`.
 5. **Tier 255 ≠ trading blacklist:** tier 255 only removes fee discounts; factory blacklist stops trading.
+6. **UST1 / wrap pause (GitLab #503):** FAQ sections **UST1 oracle window** and **Wrap pause** must stay; ops detail lives in [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](./AGENTS_UST1_WRAP_PRODUCTION_OPS.md) — do not paste pause playbooks into the FAQ.
 
 ## Verification
 

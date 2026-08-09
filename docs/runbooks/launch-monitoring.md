@@ -192,3 +192,19 @@ echo "reorg-halt:";   sed -E 's/\x1b\[[0-9;]*m//g' "$LOG" | grep -cE 'indexer_re
 Run this sweep on a schedule (cron / loop) during launch; any non-baseline line is the cue to drop
 into the relevant signal section above, then [`emergency-commands.md`](emergency-commands.md) if a
 response is warranted.
+
+---
+
+## UST1 / wrap economic probes (Phase 5 / #503)
+
+Indexer signals above do **not** cover oracle age, window pause, wrap-mapper pause, treasury vFDUSD
+capacity, or wrap solvency. For those, use:
+
+```sh
+./scripts/check-ust1-wrap-ops-health.sh
+```
+
+Full playbooks: [`ust1-wrap-production-ops.md`](ust1-wrap-production-ops.md),
+[`wrap-mapper-pause.md`](wrap-mapper-pause.md), agent
+[`skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](../../skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md)
+([GitLab **#503**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503)).
