@@ -69,6 +69,14 @@ run_step "scripts executable + shell syntax" \
     && bash -n scripts/seed-ust1-secondary-pair-local.sh \
     && bash -n scripts/lib/ust1-secondary-pair-defaults.sh'
 
+run_step "Path A guards: symbol match + unseeded gate + trade path shape" \
+  bash -c 'grep -q "norm_sym" scripts/add-ust1-secondary-pair.sh \
+    && grep -q "UST1_SEC_ALLOW_UNSEEDED" scripts/add-ust1-secondary-pair.sh \
+    && grep -q "UST1_SEC_ALLOW_DISCOUNT_FAIL" scripts/add-ust1-secondary-pair.sh \
+    && grep -q "VITE_UST1_SECONDARY_PAIR_ADDRESS" scripts/seed-ust1-secondary-pair-local.sh \
+    && ! grep -q "market=secondary" frontend-dapp/src/utils/ust1SecondaryMarket.ts \
+    && grep -q "/trade/" frontend-dapp/src/utils/ust1SecondaryMarket.ts'
+
 run_step "frontend unit: ust1SecondaryMarket + CreatePair notice" \
   bash -c '
     ROOT="'"$REPO_ROOT"'"

@@ -24,11 +24,12 @@ describe('ust1SecondaryMarket (#508)', () => {
     expect(resolvesUst1SecondaryTokens('', '', 'cUSTC')?.quote).toBe(MAINNET_CUSTC_TOKEN_ADDRESS)
   })
 
-  it('builds Trade/Swap paths without mint language', () => {
-    const tokens = resolvesUst1SecondaryTokens('', '')!
-    expect(ust1SecondaryTradePath(tokens)).toContain('/trade?')
-    expect(ust1SecondaryTradePath(tokens)).toContain('market=secondary')
-    expect(ust1SecondarySwapPath(tokens).startsWith('/?')).toBe(true)
+  it('builds Trade/Swap paths matching real routes (no fake query params)', () => {
+    expect(ust1SecondaryTradePath()).toBe('/trade')
+    expect(ust1SecondaryTradePath('terra1pairaddrxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')).toBe(
+      '/trade/terra1pairaddrxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    )
+    expect(ust1SecondarySwapPath()).toBe('/')
     expect(isUst1SecondaryPairConfigured()).toBe(false)
   })
 

@@ -6,12 +6,9 @@
  */
 
 /** columbus-5 anchors from issue #508 — override via Vite env when present. */
-export const MAINNET_UST1_TOKEN_ADDRESS =
-  'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
-export const MAINNET_VFDUSD_TOKEN_ADDRESS =
-  'terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'
-export const MAINNET_CUSTC_TOKEN_ADDRESS =
-  'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+export const MAINNET_UST1_TOKEN_ADDRESS = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+export const MAINNET_VFDUSD_TOKEN_ADDRESS = 'terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'
+export const MAINNET_CUSTC_TOKEN_ADDRESS = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
 
 export type Ust1SecondaryQuoteLeg = 'vFDUSD' | 'cUSTC'
 
@@ -64,24 +61,22 @@ export function resolvesUst1SecondaryTokens(
 }
 
 /**
- * Trade deep-link query for a UST1 secondary pair once indexed.
- * Prefer indexer pair id when known; query params are best-effort hints.
+ * Trade deep-link for a UST1 secondary pair.
+ * Matches app routes: `/trade` or `/trade/:pairAddr` (see `tradePairRoute.ts`).
+ * Prefer an explicit pair address, then `VITE_UST1_SECONDARY_PAIR_ADDRESS`.
  */
-export function ust1SecondaryTradePath(tokens: Ust1SecondaryMarketTokens): string {
-  const params = new URLSearchParams({
-    from: tokens.ust1,
-    to: tokens.quote,
-    market: 'secondary',
-  })
-  return `/trade?${params.toString()}`
+export function ust1SecondaryTradePath(pairAddress?: string): string {
+  const pair = (pairAddress ?? UST1_SECONDARY_PAIR_ADDRESS).trim()
+  if (!pair) return '/trade'
+  return `/trade/${pair}`
 }
 
-export function ust1SecondarySwapPath(tokens: Ust1SecondaryMarketTokens): string {
-  const params = new URLSearchParams({
-    from: tokens.ust1,
-    to: tokens.quote,
-  })
-  return `/?${params.toString()}`
+/**
+ * Swap CTA target for `/ust1` secondary-market links.
+ * SwapPage does not yet honor token query params — keep the home Swap route only.
+ */
+export function ust1SecondarySwapPath(): string {
+  return '/'
 }
 
 /** True when copy would violate U1 (case-insensitive substring match). */

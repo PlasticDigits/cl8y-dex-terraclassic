@@ -4,7 +4,8 @@
 # Usage:
 #   DRY_RUN=1 ./scripts/add-ust1-secondary-pair.sh              # print plan + preflight
 #   UST1_SEC_PAIR_LEG=vfdusd ./scripts/add-ust1-secondary-pair.sh
-#   UST1_SEC_SKIP_LP=1 ./scripts/add-ust1-secondary-pair.sh     # create only (discouraged)
+#   UST1_SEC_SKIP_LP=1 UST1_SEC_ALLOW_UNSEEDED=1 ./scripts/add-ust1-secondary-pair.sh
+#     # create without seed — empty markets violate U4; ALLOW_UNSEEDED required
 #
 # Requires: host terrad, funded key with pair-creation fee + (for seed) both CW20 balances.
 # Does NOT modify soft-launch gemstone defaults (invariant U6).
@@ -44,7 +45,9 @@ FEE_DISC="$UST1_SEC_FEE_DISCOUNT_ADDRESS"
 SEED_A="$UST1_SEC_SEED_AMOUNT_A"
 SEED_B="$UST1_SEC_SEED_AMOUNT_B"
 SKIP_LP="${UST1_SEC_SKIP_LP:-0}"
+ALLOW_UNSEEDED="${UST1_SEC_ALLOW_UNSEEDED:-0}"
 SET_DISCOUNT="${UST1_SEC_SET_DISCOUNT_REGISTRY:-1}"
+ALLOW_DISCOUNT_FAIL="${UST1_SEC_ALLOW_DISCOUNT_FAIL:-0}"
 
 echo "=============================================="
 echo "UST1 secondary AMM pair (#508)"
@@ -59,6 +62,12 @@ echo "SKIP_LP:  $SKIP_LP"
 echo ""
 
 die() { echo "ERROR: $*" >&2; exit 1; }
+
+norm_sym() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+if [[ "$SKIP_LP" == "1" && "$ALLOW_UNSEEDED" != "1" ]]; then
+  die "UST1_SEC_SKIP_LP=1 refused without UST1_SEC_ALLOW_UNSEEDED=1 (empty markets violate U4 / Path B)"
+fi
 
 contract_code_id() {
   local addr="$1"
@@ -122,7 +131,7 @@ broadcast_and_wait() {
 }
 
 # --- Preflight (U2/U3) ---
-echo "[preflight] token_info + code IDs"
+echo "[preflight] token_info + code IDs + symbol match"
 for addr_sym in "$UST1_ADDR:UST1" "$QUOTE_ADDR:$QUOTE_SYM"; do
   addr="${addr_sym%%:*}"
   sym="${addr_sym##*:}"
@@ -130,6 +139,9 @@ for addr_sym in "$UST1_ADDR:UST1" "$QUOTE_ADDR:$QUOTE_SYM"; do
   code_id="$(contract_code_id "$addr")"
   echo "  $sym addr=$addr symbol=$got_sym code_id=$code_id"
   [[ -n "$got_sym" ]] || die "token_info failed for $addr"
+  if [[ "$(norm_sym "$got_sym")" != "$(norm_sym "$sym")" ]]; then
+    die "$addr on-chain symbol='$got_sym' expected '$sym' (wrong token env override?)"
+  fi
   if [[ "$code_id" != "$UST1_SEC_EXPECTED_CW20_CODE_ID" ]]; then
     die "$sym code_id=$code_id expected $UST1_SEC_EXPECTED_CW20_CODE_ID (whitelist policy / U2)"
   fi
@@ -165,7 +177,7 @@ if [[ "$SKIP_LP" != "1" ]]; then
     if [[ "${DRY_RUN:-0}" == "1" ]]; then
       echo "  WARN: insufficient CW20 balances for seed (need $SEED_A / $SEED_B) — live Path A blocked until inventory (U4/U7)."
     else
-      die "insufficient CW20 for seed (UST1=$BAL_A need $SEED_A; $QUOTE_SYM=$BAL_B need $SEED_B). Mint via /ust1 window or fund deployer, or set UST1_SEC_SKIP_LP=1 (not recommended)."
+      die "insufficient CW20 for seed (UST1=$BAL_A need $SEED_A; $QUOTE_SYM=$BAL_B need $SEED_B). Mint via /ust1 window or fund deployer, or set UST1_SEC_SKIP_LP=1 UST1_SEC_ALLOW_UNSEEDED=1 (empty markets violate U4)."
     fi
   fi
 fi
@@ -180,7 +192,7 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
   if [[ "$SKIP_LP" != "1" ]]; then
     echo "  3. increase_allowance ×2 + provide_liquidity ($SEED_A / $SEED_B)"
   else
-    echo "  3. SKIP LP"
+    echo "  3. SKIP LP (ALLOW_UNSEEDED=$ALLOW_UNSEEDED)"
   fi
   echo "  4. write $ENV_OUT + append trace $TRACE_OUT"
   echo ""
@@ -204,11 +216,21 @@ else
   echo "  reusing pair $PAIR_ADDR"
 fi
 
-# --- Discount registry (optional) ---
+# --- Discount registry (optional; factory governance may be required post soft-launch) ---
 if [[ "$SET_DISCOUNT" == "1" ]]; then
   DISC_MSG="$(jq -nc --arg p "$PAIR_ADDR" --arg r "$FEE_DISC" \
     '{set_discount_registry:{pair:$p,registry:$r}}')"
-  broadcast_and_wait "set_discount_registry" wasm execute "$FACTORY" "$DISC_MSG" >/dev/null || true
+  set +e
+  broadcast_and_wait "set_discount_registry" wasm execute "$FACTORY" "$DISC_MSG" >/dev/null
+  DISC_ST=$?
+  set -e
+  if [[ "$DISC_ST" -ne 0 ]]; then
+    if [[ "$ALLOW_DISCOUNT_FAIL" == "1" ]]; then
+      echo "  WARN: set_discount_registry failed (UST1_SEC_ALLOW_DISCOUNT_FAIL=1); governance may need to run this." >&2
+    else
+      die "set_discount_registry failed — use governance multisig, or set UST1_SEC_ALLOW_DISCOUNT_FAIL=1 to continue"
+    fi
+  fi
 fi
 
 # --- Seed LP ---

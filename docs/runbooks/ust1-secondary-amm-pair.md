@@ -50,6 +50,8 @@ DRY_RUN=1 ./scripts/add-ust1-secondary-pair.sh
 UST1_SEC_PAIR_LEG=vfdusd ./scripts/add-ust1-secondary-pair.sh
 # optional: UST1_SEC_PAIR_LEG=custc
 # optional larger smoke seed: UST1_SEC_SEED_AMOUNT_A=… UST1_SEC_SEED_AMOUNT_B=…
+# create without seed is blocked unless: UST1_SEC_SKIP_LP=1 UST1_SEC_ALLOW_UNSEEDED=1
+# post–governance handoff: set_discount_registry may need multisig, or UST1_SEC_ALLOW_DISCOUNT_FAIL=1
 ```
 
 Script writes:

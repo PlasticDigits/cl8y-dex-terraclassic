@@ -292,7 +292,10 @@ if ! grep -q '^VITE_UST1_TOKEN_ADDRESS=' "$ENV_LOCAL" 2>/dev/null; then
     echo "# GitLab #508 LocalTerra UST1 secondary fixture (stand-ins; not columbus-5 anchors)"
     echo "VITE_UST1_TOKEN_ADDRESS=$LOCAL_UST1_TOKEN_ADDRESS"
     echo "VITE_VFDUSD_TOKEN_ADDRESS=$LOCAL_VFDUSD_TOKEN_ADDRESS"
+    echo "VITE_UST1_SECONDARY_PAIR_ADDRESS=$PAIR_ADDR"
   } >>"$ENV_LOCAL"
+elif ! grep -q '^VITE_UST1_SECONDARY_PAIR_ADDRESS=' "$ENV_LOCAL" 2>/dev/null; then
+  echo "VITE_UST1_SECONDARY_PAIR_ADDRESS=$PAIR_ADDR" >>"$ENV_LOCAL"
 fi
 
 echo "seed-ust1-secondary-pair-local: OK pair=$PAIR_ADDR total_share=$SHARE"
