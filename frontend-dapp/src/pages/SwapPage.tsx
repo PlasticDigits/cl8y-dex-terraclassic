@@ -185,7 +185,7 @@ export default function SwapPage() {
   const pairs = useMemo(() => pairsQuery.data?.pairs ?? [], [pairsQuery.data])
 
   useEffect(() => {
-    if (pairs.length > 0 && !fromToken) {
+    if (!fromToken) {
       const tokens = getAllTokens(pairs)
       if (tokens.length >= 2) {
         setFromToken(tokens[0])
@@ -194,7 +194,8 @@ export default function SwapPage() {
     }
   }, [pairs, fromToken])
 
-  const allTokens = useMemo(() => (pairs.length > 0 ? getAllTokens(pairs) : []), [pairs])
+  /** Includes wrap natives/CW20s whenever wrap env is set — even with no wrap factory pairs. */
+  const allTokens = useMemo(() => getAllTokens(pairs), [pairs])
 
   useEffect(() => {
     const cw20Tokens = allTokens.filter((tokenId) => tokenId.startsWith('terra1'))

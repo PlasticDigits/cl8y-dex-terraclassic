@@ -155,8 +155,10 @@ export function findRoute(pairs: PairInfo[], fromToken: string, toToken: string)
 }
 
 /**
- * Extract all unique tokens from the pairs list, including native LUNC/USTC
- * when their wrapped equivalents exist in the pair graph.
+ * Extract all unique tokens from the pairs list.
+ * When wrap env is set, always include native LUNC/USTC and cLUNC/cUSTC so Swap can
+ * direct-wrap without requiring a factory pair that already lists the wrapped CW20
+ * (mainnet soft-launch has gemstone pairs only — GitLab #502 / #507).
  */
 export function getAllTokens(pairs: PairInfo[]): string[] {
   const tokens = new Set<string>()
@@ -166,9 +168,9 @@ export function getAllTokens(pairs: PairInfo[]): string[] {
   }
 
   for (const [nativeDenom, wrappedAddr] of Object.entries(NATIVE_WRAPPED_PAIRS)) {
-    if (wrappedAddr && tokens.has(wrappedAddr)) {
-      tokens.add(nativeDenom)
-    }
+    if (!wrappedAddr) continue
+    tokens.add(wrappedAddr)
+    tokens.add(nativeDenom)
   }
 
   return Array.from(tokens)

@@ -59,6 +59,16 @@ export function isFaucetEnabled(): boolean {
 }
 
 /**
+ * True when treasury + wrap-mapper + both wrap CW20s are configured (nav + `/wrap` + Swap surface).
+ * Invariant **W1** — see [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+ */
+export function isNativeWrapEnabled(): boolean {
+  return (
+    !!WRAP_MAPPER_CONTRACT_ADDRESS && !!TREASURY_CONTRACT_ADDRESS && !!LUNC_C_TOKEN_ADDRESS && !!USTC_C_TOKEN_ADDRESS
+  )
+}
+
+/**
  * True when window + both token addresses are configured (nav + page execute path).
  * Invariant **U1** — see [`docs/runbooks/ust1-window-ui.md`](../../docs/runbooks/ust1-window-ui.md).
  */

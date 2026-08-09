@@ -41,10 +41,16 @@ For amount `A` and on-chain `fee_bps`:
 
 When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches this formula (plus burn tax on native legs where applicable — [`skills/AGENTS_NATIVE_WRAP_TAX.md`](../../skills/AGENTS_NATIVE_WRAP_TAX.md)).
 
+### 0. Discoverability (post–Coolify wrap env)
+
+- [ ] **More → Wrap** opens `/wrap` (label **Wrap**, not Mint / UST1)
+- [ ] Swap token search lists **LUNC**, **cLUNC**, **USTC**, **cUSTC** even when no wrap factory pairs exist
+- [ ] Dedicated `/wrap` page: Wrap/Unwrap tabs + LUNC/cLUNC and USTC/cUSTC asset toggles
+
 ### 1. Direct Wrap (Native → Wrapped CW20)
 
 #### LUNC → cLUNC
-- [ ] Select LUNC as "From" and cLUNC as "To" on swap page
+- [ ] Select LUNC as "From" and cLUNC as "To" on swap page (or use **More → Wrap**)
 - [ ] Inline note references wrap fee (not "1:1" when `fee_bps > 0`)
 - [ ] Button label remains "Swap" (never changes to "Wrap")
 - [ ] Enter amount — estimated output = `net` per fee formula above

@@ -9,6 +9,7 @@ import {
   MORE_NAV_ITEMS,
   PRIMARY_NAV_ITEMS,
   UST1_NAV_ITEM,
+  WRAP_NAV_ITEM,
   TABLET_COMPACT_HEADER_MAX_WIDTH_PX,
   TABLET_COMPACT_HEADER_NAV_ROW_LABELS,
 } from '@/components/common/navItems'
@@ -56,6 +57,20 @@ describe('navItems', () => {
       MINT_NAV_ITEM,
     ])
     expect(getHeaderMoreMenuItems(true)).not.toContainEqual(UST1_NAV_ITEM)
+  })
+
+  it('appends Wrap when includeWrap is true (#502 / #507)', () => {
+    expect(WRAP_NAV_ITEM.label).toBe('Wrap')
+    expect(WRAP_NAV_ITEM.path).toBe('/wrap')
+    expect(getHeaderMoreMenuItems(true, { includeWrap: true })).toEqual([...MORE_NAV_ITEMS, WRAP_NAV_ITEM])
+    expect(getMobileMoreMenuItems({ includeWrap: true }).map((i) => i.path)).toContain('/wrap')
+    expect(getHeaderMoreMenuItems(true, { includeUst1: true, includeWrap: true, includeMint: true })).toEqual([
+      ...MORE_NAV_ITEMS,
+      UST1_NAV_ITEM,
+      WRAP_NAV_ITEM,
+      MINT_NAV_ITEM,
+    ])
+    expect(getHeaderMoreMenuItems(true)).not.toContainEqual(WRAP_NAV_ITEM)
   })
 
   it('has expected primary and more routes for regression checks', () => {

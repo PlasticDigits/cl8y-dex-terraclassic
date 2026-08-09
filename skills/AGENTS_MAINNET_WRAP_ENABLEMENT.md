@@ -17,7 +17,8 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | [`router.ts`](../frontend-dapp/src/services/terraclassic/router.ts) | `netCw20AfterNativeWrap`, `simulateNativeSwap` |
 | [`constants.ts`](../frontend-dapp/src/utils/constants.ts) | `VITE_*` wrap addresses, `NATIVE_WRAPPED_PAIRS` |
 | [`tokenRegistry.ts`](../frontend-dapp/src/utils/tokenRegistry.ts) | Display symbols **cLUNC** / **cUSTC** (env keys stay `VITE_LUNC_C_*` / `VITE_USTC_C_*`) |
-| [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Wrap UX, fee note, safety CTA precedence |
+| [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Wrap UX, fee note, safety CTA precedence; `getAllTokens` always surfaces LUNC/cLUNC/USTC/cUSTC when wrap env is set |
+| [`WrapPage.tsx`](../frontend-dapp/src/pages/WrapPage.tsx) | Dedicated **More → Wrap** (`/wrap`) direct wrap/unwrap UI |
 | [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Native-wrap provide / withdraw paths |
 
 ## Invariants (W1–W6)

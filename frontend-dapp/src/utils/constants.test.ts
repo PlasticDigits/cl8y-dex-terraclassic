@@ -71,3 +71,29 @@ describe('wrap constants', () => {
     }
   })
 })
+
+describe('isNativeWrapEnabled', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('is true only when mapper, treasury, and both wrap CW20s are set', async () => {
+    vi.stubEnv('VITE_WRAP_MAPPER_ADDRESS', 'terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2')
+    vi.stubEnv('VITE_TREASURY_ADDRESS', 'terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2')
+    vi.stubEnv('VITE_LUNC_C_TOKEN_ADDRESS', 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg')
+    vi.stubEnv('VITE_USTC_C_TOKEN_ADDRESS', 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch')
+    vi.resetModules()
+    const { isNativeWrapEnabled } = await import('./constants')
+    expect(isNativeWrapEnabled()).toBe(true)
+  })
+
+  it('is false when any wrap address is missing', async () => {
+    vi.stubEnv('VITE_WRAP_MAPPER_ADDRESS', 'terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2')
+    vi.stubEnv('VITE_TREASURY_ADDRESS', '')
+    vi.stubEnv('VITE_LUNC_C_TOKEN_ADDRESS', 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg')
+    vi.stubEnv('VITE_USTC_C_TOKEN_ADDRESS', 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch')
+    vi.resetModules()
+    const { isNativeWrapEnabled } = await import('./constants')
+    expect(isNativeWrapEnabled()).toBe(false)
+  })
+})

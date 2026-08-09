@@ -108,13 +108,16 @@ describe('findRoute', () => {
 })
 
 describe('getAllTokens', () => {
-  it('extracts unique tokens from pairs', () => {
+  it('extracts unique tokens from pairs plus configured wrap assets', () => {
     const pairs = [mockPair('tokenA', 'tokenB', 'pair1'), mockPair('tokenB', 'tokenC', 'pair2')]
     const tokens = getAllTokens(pairs)
-    expect(tokens).toHaveLength(3)
     expect(tokens).toContain('tokenA')
     expect(tokens).toContain('tokenB')
     expect(tokens).toContain('tokenC')
+    expect(tokens).toContain('uluna')
+    expect(tokens).toContain('uusd')
+    expect(tokens).toContain(MOCK_LUNC_C)
+    expect(tokens).toContain(MOCK_USTC_C)
   })
 })
 
@@ -196,11 +199,21 @@ describe('findRouteWithNativeSupport', () => {
 })
 
 describe('getAllTokens with native support', () => {
-  it('returns CW20 tokens when no native mapping configured', () => {
+  it('always surfaces wrap natives/CW20s when wrap env is set (even without wrap pairs)', () => {
     const pairs = [mockPair('tokenA', 'tokenB', 'pair1')]
     const tokens = getAllTokens(pairs)
     expect(tokens).toContain('tokenA')
     expect(tokens).toContain('tokenB')
+    expect(tokens).toContain('uluna')
+    expect(tokens).toContain('uusd')
+    expect(tokens).toContain(MOCK_LUNC_C)
+    expect(tokens).toContain(MOCK_USTC_C)
+  })
+
+  it('surfaces wrap tokens with an empty pair list when wrap env is set', () => {
+    const tokens = getAllTokens([])
+    expect(tokens).toEqual(expect.arrayContaining(['uluna', 'uusd', MOCK_LUNC_C, MOCK_USTC_C]))
+    expect(tokens).toHaveLength(4)
   })
 
   it('includes native denoms when wrapped equivalent is in pair graph', () => {

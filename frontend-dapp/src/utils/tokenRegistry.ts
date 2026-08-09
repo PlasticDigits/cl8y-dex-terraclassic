@@ -109,9 +109,11 @@ if (USTC_C_TOKEN_ADDRESS) CW20_MAP[USTC_C_TOKEN_ADDRESS.toLowerCase()] = 'cUSTC'
 if (UST1_TOKEN_ADDRESS) CW20_MAP[UST1_TOKEN_ADDRESS.toLowerCase()] = 'UST1'
 if (VFDUSD_TOKEN_ADDRESS) CW20_MAP[VFDUSD_TOKEN_ADDRESS.toLowerCase()] = 'vFDUSD'
 
-// Published columbus-5 addresses (GitLab #506) — always resolve logos even before env is set.
+// Published columbus-5 addresses (GitLab #506 / #507) — always resolve logos even before env is set.
 CW20_MAP['terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'] = 'UST1'
 CW20_MAP['terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'] = 'vFDUSD'
+CW20_MAP['terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg'] = 'cLUNC'
+CW20_MAP['terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'] = 'cUSTC'
 
 const BY_SYMBOL = new Map<string, TokenRegistryEntry>()
 for (const t of TOKENS) BY_SYMBOL.set(t.symbol, t)

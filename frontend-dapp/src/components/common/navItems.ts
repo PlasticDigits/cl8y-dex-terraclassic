@@ -29,15 +29,25 @@ export const MINT_NAV_ITEM: NavItem = { path: '/mint', label: 'Mint' }
  */
 export const UST1_NAV_ITEM: NavItem = { path: '/ust1', label: 'UST1' }
 
+/**
+ * Native LUNC/USTC ↔ cLUNC/cUSTC wrap (GitLab #507 / #502) — More menu when wrap env is set.
+ * Distinct from Swap AMM paths and from UST1 oracle mint.
+ */
+export const WRAP_NAV_ITEM: NavItem = { path: '/wrap', label: 'Wrap' }
+
 export type NavMenuOptions = {
   includeMint?: boolean
   includeUst1?: boolean
+  includeWrap?: boolean
 }
 
 function appendConditionalNavItems(items: NavItem[], options?: NavMenuOptions): NavItem[] {
   let next = items
   if (options?.includeUst1) {
     next = [...next, UST1_NAV_ITEM]
+  }
+  if (options?.includeWrap) {
+    next = [...next, WRAP_NAV_ITEM]
   }
   if (options?.includeMint) {
     next = [...next, MINT_NAV_ITEM]
