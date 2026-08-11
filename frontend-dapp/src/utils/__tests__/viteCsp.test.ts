@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildProductionCspMetaContent,
   DEV_CSP_META_CONTENT,
+  PRODUCTION_LEGAL_API_ORIGIN,
+  PRODUCTION_LEGAL_TERMS_ORIGIN,
   PRODUCTION_TERRA_LCD_FALLBACK,
   PRODUCTION_TERRA_RPC_FALLBACK,
 } from '../../../viteCsp'
@@ -28,6 +30,19 @@ describe('viteCsp production policy', () => {
     expect(csp).toContain('connect-src')
     expect(csp).toContain('https://terra-classic-lcd.example.com')
     expect(csp).toContain('https://indexer.example.com')
+    expect(csp).toContain(PRODUCTION_LEGAL_API_ORIGIN)
+    expect(csp).toContain(PRODUCTION_LEGAL_TERMS_ORIGIN)
+    expect(csp).not.toMatch(/connect-src[^;]*\shttps:\s/)
+  })
+
+  it('allows Legal API override hosts without widening to https: (#517)', () => {
+    const csp = buildProductionCspMetaContent({
+      VITE_LEGAL_API_BASE_URL: 'https://legal-api.staging.example',
+      VITE_LEGAL_TERMS_BASE_URL: 'https://terms.staging.example',
+    })
+    expect(csp).toContain('https://legal-api.staging.example')
+    expect(csp).toContain('https://terms.staging.example')
+    expect(csp).not.toContain(PRODUCTION_LEGAL_API_ORIGIN)
     expect(csp).not.toMatch(/connect-src[^;]*\shttps:\s/)
   })
 

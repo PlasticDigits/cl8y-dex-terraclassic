@@ -33,7 +33,10 @@ export function setRiskAcknowledged(): void {
   window.localStorage.setItem(RISK_ACK_STORAGE_KEY, JSON.stringify({ v: RISK_ACK_VERSION }))
 }
 
-/** Playwright webServer sets this so E2E is not blocked by the blocking first-visit modal (GitLab #138). */
+/**
+ * Playwright webServer sets this so E2E is not blocked by the first-visit modal (GitLab #138).
+ * Same flag also skips the connected Legal clickwrap gate (GitLab #517).
+ */
 export function skipRiskAcknowledgementForAutomation(): boolean {
   return import.meta.env.VITE_PLAYWRIGHT_E2E === 'true'
 }

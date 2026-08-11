@@ -21,7 +21,7 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 
 1. **Do not** make the first-visit risk modal closable via backdrop or Escape without product/legal sign-off; keep **`dismissible={false}`** on that use case.
 2. **Bump `RISK_ACK_VERSION`** when changing disclaimer meaningfully so returning browsers re-run the gate.
-3. **Keep `VITE_PLAYWRIGHT_E2E` off** for real builds and manual QA; it exists only to unblock Playwright against the same dev server command.
+3. **Keep `VITE_PLAYWRIGHT_E2E` off** for real builds and manual QA; it exists only to unblock Playwright against the same dev server command (also skips Legal clickwrap — [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)).
 4. **Edit copy in one place** (`legalCopy.ts`) unless you intentionally split mobile vs desktop tone. **Footer:** `LegalFooterNotice` + `EnvironmentRibbon` render in `footer.app-footer-shell` on **all** breakpoints (mobile footer sits above the bottom tab bar).
 5. **Do not** coordinate legal footer visibility with `window` custom events from `RouteContentReadyMarker`; use **`RouteContentReadyProvider`** with `readyForPath === pathname` (regression: `RouteContentReadyContext.test.tsx`, E2E “NFA footer copy promptly after route changes”). **Do not** add render-phase `setState` on pathname change in that provider — it can break shell tab navigation ([GitLab **#182**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182); see [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md)). Keep **`Outlet key={pathname}`** in `Layout` so lazy pages remount when tabs change ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
 6. **Environment ribbon placement:** keep [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx) in the **footer** on all breakpoints (including mobile above the bottom tab bar). Do not remove network risk copy; do not move the strip back under the sticky header without updating docs/E2E. See [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md).
@@ -31,6 +31,7 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 
 ## Related
 
+- **Connected Legal clickwrap (wallet TermsGate, #517):** [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — do not replace this first-visit risk modal with clickwrap; sequence them.
 - Anti-cognitive-overload retail copy (on-card vs legal): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
 - **Responsive shell / header:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab #136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136), [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482), [#483](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483), [#486](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/486)).
 - **Production build / maps:** [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md).

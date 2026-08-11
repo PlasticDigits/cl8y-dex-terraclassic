@@ -6,6 +6,7 @@ import NetworkBadge from '@/components/wallet/NetworkBadge'
 import EnvironmentRibbon from '@/components/legal/EnvironmentRibbon'
 import LegalFooterNotice from '@/components/legal/LegalFooterNotice'
 import RiskAcknowledgementModal from '@/components/legal/RiskAcknowledgementModal'
+import ConnectedTermsGate from '@/components/legal/ConnectedTermsGate'
 import { ThemeSegmentedControl, type ThemeMode } from '@/components/common/ThemeSegmentedControl'
 import { SoundEffectsToggle } from '@/components/common/SoundEffectsToggle'
 import {
@@ -228,8 +229,11 @@ export default function Layout() {
           <div className="app-main-content">
             {isLcdUnreachable ? <LcdConnectivityBanner onRetry={retryAll} isProbing={isProbePending} /> : null}
             <RouteContentReadyProvider onReadyChange={setRouteContentReady}>
-              {/* Remount matched route on tab change so lazy Outlet content cannot stick on the prior page (GitLab #138, #182). */}
-              <Outlet key={location.pathname} />
+              {/* Wallet-bound Legal clickwrap after connect (GitLab #517); header/footer stay usable to disconnect. */}
+              <ConnectedTermsGate>
+                {/* Remount matched route on tab change so lazy Outlet content cannot stick on the prior page (GitLab #138, #182). */}
+                <Outlet key={location.pathname} />
+              </ConnectedTermsGate>
             </RouteContentReadyProvider>
           </div>
         </div>

@@ -1492,6 +1492,60 @@
     flex-shrink: 0;
   }
 
+  /* Connected Legal clickwrap shell (GitLab #517) — styles SDK TermsGate in-app panel. */
+  .app-connected-terms-gate {
+    width: 100%;
+  }
+
+  .app-connected-terms-panel,
+  .app-connected-terms-gate .cl8y-clickwrap-gate {
+    max-width: 32rem;
+    margin: 1.5rem auto;
+    padding: 1.25rem 1.35rem 1.4rem;
+    border: 1px solid var(--chrome-border-soft);
+    border-radius: 18px;
+    background: var(--control-surface);
+    color: var(--ink);
+  }
+
+  .app-connected-terms-lead,
+  .app-connected-terms-gate .cl8y-clickwrap-gate p {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+
+  .app-connected-terms-gate .cl8y-clickwrap-gate h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.15rem;
+    font-weight: 650;
+    color: var(--ink);
+  }
+
+  .app-connected-terms-gate .cl8y-clickwrap-gate a {
+    color: var(--accent);
+  }
+
+  .app-connected-terms-gate .cl8y-clickwrap-gate button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.35rem;
+    padding: 0.7rem 1.1rem;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink, #0b1220);
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .app-connected-terms-gate .cl8y-clickwrap-gate button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   .wallet-option-card {
     width: 100%;
     display: flex;
