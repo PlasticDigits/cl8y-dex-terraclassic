@@ -248,6 +248,38 @@ Pre-launch legal / UX requirements are tracked in [GitLab #138](https://gitlab.c
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md).
 
+### CL8Y Legal clickwrap (connected TermsGate) {#legal-clickwrap}
+
+Wallet-bound, versioned Terms & Conditions for the DEX property are tracked in [GitLab #517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517). This is **in addition to** the anonymous first-visit risk acknowledgement above — not a replacement.
+
+| Surface | Location |
+|---------|----------|
+| SDK | [`@plasticdigits/cl8y-clickwrap`](https://gitlab.com/PlasticDigits/cl8y-ecosystem-legal/-/tree/main/packages/cl8y-clickwrap) via [`frontend-dapp/.npmrc`](../frontend-dapp/.npmrc) (GitLab npm registry) |
+| Client / property / redirect helpers | [`legalClickwrap.ts`](../frontend-dapp/src/utils/legalClickwrap.ts) |
+| Shell gate | [`ConnectedTermsGate`](../frontend-dapp/src/components/legal/ConnectedTermsGate.tsx) wraps `<Outlet>` in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) (header/wallet stay mounted so users can disconnect) |
+| Signing | Full navigation to Legal portal `sign_urls.terra_classic` — **no** in-dapp ADR-036 verify |
+| CSP | Production `connect-src` includes `https://api.terms.cl8y.com` + `https://terms.cl8y.com` ([`viteCsp.ts`](../frontend-dapp/viteCsp.ts)) |
+| Playwright | Same `VITE_PLAYWRIGHT_E2E=true` escape hatch as #138 — never on production builds |
+
+| Invariant | Meaning |
+|-----------|---------|
+| **C1** SDK only | Use `@plasticdigits/cl8y-clickwrap`; do not fork Terra Classic verify in the DEX. |
+| **C2** Property | Status + portal use **`dex.cl8y.com`** (`VITE_LEGAL_PROPERTY` override for staging only). |
+| **C3** Network | `TerraClassic` → API `TERRA_CLASSIC` only. |
+| **C4** Sequence | Risk ack (#138) for anonymous browse; clickwrap after wallet connect. |
+| **C5** Fail closed | Connected + unknown/error status must not render transactional route children. |
+| **C6** Redirect safety | Client `sanitizeRedirectUri` preflight; portal allowlist is source of truth. |
+| **C7** CSP | Legal hosts in `connect-src` without blanket `https:`. |
+| **C8** No admin secrets | Public Legal endpoints only. |
+| **C9** E2E hatch | `VITE_PLAYWRIGHT_E2E` skips gate for Playwright `webServer` only. |
+| **C10** NFA retained | Footer NFA / environment ribbon unchanged. |
+
+**Ops (Legal Coolify / admin — cross-repo):** register property `dex.cl8y.com`; add `https://dex.cl8y.com` to Legal API `CORS_ORIGINS` and portal `VITE_REDIRECT_URI_ALLOWLIST`.
+
+**Regression:** `make verify-issue-517` · Vitest `legalClickwrap` / `ConnectedTermsGate` / `viteCsp` · Playwright `e2e/legal-clickwrap-517.spec.ts`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_CLICKWRAP.md`](../skills/AGENTS_FRONTEND_CLICKWRAP.md).
+
 ### Simulated (dev) wallet and `VITE_DEV_MNEMONIC` {#simulated-dev-wallet-and-vite_dev_mnemonic}
 
 When `VITE_DEV_MODE=true`, the UI can offer a **Simulated Wallet** (no browser extension) implemented in [`devWallet.ts`](../frontend-dapp/src/services/terraclassic/devWallet.ts). Invariants:
@@ -258,7 +290,7 @@ When `VITE_DEV_MODE=true`, the UI can offer a **Simulated Wallet** (no browser e
 | Same test vector as chain | For LocalTerra, use the same phrase as `TEST_MNEMONIC` in [`docker/init-chain.sh`](../docker/init-chain.sh). `scripts/deploy-dex-local.sh` writes it to `frontend-dapp/.env.development` after deploy. |
 | Production build guard | `vite.config.ts` throws if `VITE_DEV_MNEMONIC` is present in the merged env for any `vite build` unless `mode === 'development'` or `VITE_ALLOW_DEV_MNEMONIC=local-only` (staging/production bundles). Tracked in [GitLab #118](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/118), [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378). |
 | WalletConnect project ID | `vite build --mode production` **requires** `VITE_WC_PROJECT_ID`; `wallet.ts` has no shared default ID in the bundle ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
-| Production CSP | `vite build --mode production` replaces `index.html` CSP with env-scoped `connect-src` (LCD/RPC/indexer + WalletConnect relay) via [`viteCsp.ts`](../frontend-dapp/viteCsp.ts). Dev `vite` keeps broad `https:` in `index.html` for local endpoints. |
+| Production CSP | `vite build --mode production` replaces `index.html` CSP with env-scoped `connect-src` (LCD/RPC/indexer + WalletConnect relay + Legal API/portal — [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)) via [`viteCsp.ts`](../frontend-dapp/viteCsp.ts). Dev `vite` keeps broad `https:` in `index.html` for local endpoints. |
 | Protocol audit addresses | Factory and router addresses render on [`/protocol`](../frontend-dapp/src/pages/ProtocolPage.tsx) only (`protocol-contract-addresses`) — not on swap confirmation ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
 | Protocol external oracle | `/protocol` shows **USTC/USD** via `getOraclePrice()` → `GET /api/v1/oracle/price/ustc` (default ticker). Bare `/api/v1/oracle/price` is a ticker catalog only — use `/price/lunc` for LUNC/USD ([#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515); runbook [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md); skill [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](../skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md)). |
 | Token logo allowlist | [`TokenLogo`](../frontend-dapp/src/components/ui/TokenLogo.tsx) accepts `https:` logos only from [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts); other hosts fall back to blockies. |
@@ -276,7 +308,7 @@ Off-chain hardening for [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terracl
 |------|-----------|------------|
 | Indexer quotes | HTTPS `VITE_INDEXER_URL` in prod; hop summary at swap confirm (`swap-route-summary`); labeled pre-sign panel (`swap-pre-submit-summary`, SEC-D11 / #409) | [`client.ts`](../frontend-dapp/src/services/indexer/client.ts), [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx), [`SwapPreSubmitSummary.tsx`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx) |
 | Build guards | No `VITE_DEV_MNEMONIC` in non-dev builds; `VITE_WC_PROJECT_ID` required for production `vite build` | [`vite.config.ts`](../frontend-dapp/vite.config.ts), [`viteConfig.build.test.ts`](../frontend-dapp/src/viteConfig.build.test.ts) |
-| CSP | Production: `script-src 'self'`; `connect-src` = LCD + RPC + indexer + WalletConnect (no `https:` wildcard). Dev: broader policy for Vite HMR | [`index.html`](../frontend-dapp/index.html), [`render.yaml`](../render.yaml) |
+| CSP | Production: `script-src 'self'`; `connect-src` = LCD + RPC + indexer + WalletConnect + Legal API/portal (no `https:` wildcard). Dev: broader policy for Vite HMR | [`index.html`](../frontend-dapp/index.html), [`viteCsp.ts`](../frontend-dapp/viteCsp.ts), [`render.yaml`](../render.yaml) |
 | Deploy addresses | Factory/router on `/protocol` only; optional LCD sanity check | [`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx), [`deployAddressVerification.ts`](../frontend-dapp/src/utils/deployAddressVerification.ts) |
 | Token logos | Host allowlist; evil URLs → blockie | [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts), [`TokenLogo.tsx`](../frontend-dapp/src/components/ui/TokenLogo.tsx) |
 | Expert mode | Type `ENABLE EXPERT MODE` to enable; 30% block / 50% settings cap unchanged | [`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx), [`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts) |

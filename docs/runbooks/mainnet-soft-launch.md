@@ -135,6 +135,8 @@ After ustr-cmm Phase 3 deploy and router `SetWrapMapper` ([#502](https://gitlab.
 
 **Phase 5 ops ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503)):** monitoring, pause playbooks, and go/no-go extras — [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md) / [`skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](../../skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md) (`make verify-issue-503`).
 
+**CL8Y Legal clickwrap ([#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)):** production frontend gates connected wallets via `@plasticdigits/cl8y-clickwrap` for property `dex.cl8y.com`. Before GO, confirm Legal Coolify `CORS_ORIGINS` + portal `VITE_REDIRECT_URI_ALLOWLIST` include `https://dex.cl8y.com`, and the property is registered. Playbook: [`skills/AGENTS_FRONTEND_CLICKWRAP.md`](../../skills/AGENTS_FRONTEND_CLICKWRAP.md) (`make verify-issue-517`).
+
 | Coolify key | Phase 3 address |
 |-------------|-----------------|
 | `VITE_WRAP_MAPPER_ADDRESS` | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` |

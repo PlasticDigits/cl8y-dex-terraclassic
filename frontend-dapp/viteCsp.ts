@@ -12,6 +12,10 @@ const WALLETCONNECT_CONNECT_HOSTS = [
 export const PRODUCTION_TERRA_LCD_FALLBACK = 'https://terra-classic-lcd.publicnode.com'
 export const PRODUCTION_TERRA_RPC_FALLBACK = 'https://terra-classic-rpc.publicnode.com:443'
 
+/** Legal API + portal defaults for production connect-src (GitLab #517). Keep in sync with `legalClickwrap.ts`. */
+export const PRODUCTION_LEGAL_API_ORIGIN = 'https://api.terms.cl8y.com'
+export const PRODUCTION_LEGAL_TERMS_ORIGIN = 'https://terms.cl8y.com'
+
 function originFromEnvUrl(raw: string | undefined): string | null {
   const trimmed = raw?.trim()
   if (!trimmed) return null
@@ -27,13 +31,15 @@ function uniqueHosts(hosts: Array<string | null | undefined>): string[] {
   return [...new Set(hosts.filter((h): h is string => Boolean(h)))]
 }
 
-/** Production connect-src: env LCD/RPC/indexer + WalletConnect relay (GitLab #378 / M-07). */
+/** Production connect-src: env LCD/RPC/indexer + WalletConnect + Legal API (GitLab #378 / M-07 / #517). */
 export function buildProductionConnectSrc(env: Record<string, string>): string {
   const fromEnv = uniqueHosts([
     originFromEnvUrl(env.VITE_TERRA_LCD_URL) ?? PRODUCTION_TERRA_LCD_FALLBACK,
     originFromEnvUrl(env.VITE_TERRA_RPC_URL) ?? PRODUCTION_TERRA_RPC_FALLBACK,
     originFromEnvUrl(env.VITE_INDEXER_URL),
     ...WALLETCONNECT_CONNECT_HOSTS,
+    originFromEnvUrl(env.VITE_LEGAL_API_BASE_URL) ?? PRODUCTION_LEGAL_API_ORIGIN,
+    originFromEnvUrl(env.VITE_LEGAL_TERMS_BASE_URL) ?? PRODUCTION_LEGAL_TERMS_ORIGIN,
   ])
   return ["'self'", ...fromEnv].join(' ')
 }

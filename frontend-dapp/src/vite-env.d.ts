@@ -6,8 +6,16 @@ declare module '*.json' {
 }
 
 interface ImportMetaEnv {
-  /** When `"true"`, skips the blocking first-visit risk acknowledgement (Playwright webServer only — GitLab #138). */
+  /** When `"true"`, skips the blocking first-visit risk acknowledgement and Legal clickwrap gate (Playwright webServer only — GitLab #138 / #517). */
   readonly VITE_PLAYWRIGHT_E2E?: string
+  /** Legal API base (default https://api.terms.cl8y.com) — GitLab #517. */
+  readonly VITE_LEGAL_API_BASE_URL?: string
+  /** Legal portal base (default https://terms.cl8y.com) — GitLab #517. */
+  readonly VITE_LEGAL_TERMS_BASE_URL?: string
+  /** Legal property hostname (default dex.cl8y.com) — GitLab #517. */
+  readonly VITE_LEGAL_PROPERTY?: string
+  /** Optional extra comma-separated redirect origins for portal preflight — GitLab #517. */
+  readonly VITE_LEGAL_REDIRECT_ALLOWLIST?: string
   /** Soft-launch faucet contract (GitLab #473). */
   readonly VITE_FAUCET_ADDRESS?: string
   readonly VITE_TOKEN_EMBER_ADDRESS?: string
