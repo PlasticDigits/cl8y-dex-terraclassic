@@ -12,6 +12,23 @@ import { tokenAssetInfo, assetInfoLabel, isNativeDenom, getWrappedEquivalent } f
 import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import { netAfterWrapMapperFee, queryWrapMapperFeeBps } from './wrapMapper'
 
+/** Result of `simulateNativeSwap` (direct wrap/unwrap + native-routed swaps). */
+export type NativeSwapSimResult = {
+  /**
+   * Expected amount the user receives.
+   * Unwrap / native-output: after mapper fee **and** Classic burn tax on InstantWithdraw (#512).
+   * Wrap / wrap-input: after mapper fee only (`MsgExecuteContract` funds are untaxed).
+   */
+  amount: string
+  /**
+   * Base for router `minimum_receive` (R3): post–mapper-fee, **pre–burn-tax**.
+   * Equals `amount` when no unwrap burn tax applies. Always use this (not `amount`) when
+   * submitting `minimum_receive` on `unwrap_output` paths — the router checks fee-net only.
+   */
+  routerMinReceiveBase: string
+  isDirectWrapUnwrap: boolean
+}
+
 export interface SwapOperation {
   terra_swap: {
     offer_asset_info: AssetInfo
@@ -211,34 +228,56 @@ export function findRouteWithNativeSupport(
 }
 
 /**
- * CW20 amount minted for a gross native wrap deposit: burn tax then wrap-mapper fee_bps.
- * Must match `executeNativeSwap` / pool auto-wrap send amounts (GitLab #342, #507).
+ * CW20 amount minted for a gross native wrap deposit: wrap-mapper `fee_bps` only.
+ *
+ * Classic does **not** burn-tax `MsgExecuteContract` funds (user → treasury wrap_deposit),
+ * so mint = `gross − floor(gross × fee_bps / 10_000)` (GitLab #512; corrects #342 double-count).
+ * Must match `executeNativeSwap` / pool auto-wrap send amounts (#507).
  */
-export async function netCw20AfterNativeWrap(grossNative: bigint, denom: string): Promise<bigint> {
-  const afterTax = await netUlunaAfterTransferTaxAsync(grossNative, denom)
+export async function netCw20AfterNativeWrap(grossNative: bigint, denom?: string): Promise<bigint> {
+  void denom // retained for call-site clarity (native denom of the wrap_deposit)
   const feeBps = await queryWrapMapperFeeBps()
-  return netAfterWrapMapperFee(afterTax, feeBps)
+  return netAfterWrapMapperFee(grossNative, feeBps)
+}
+
+/**
+ * Native amount a user receives after unwrap: mapper fee then InstantWithdraw burn tax (#512).
+ * `routerMinReceiveBase` is the post-fee pre-tax amount (R3 / router `minimum_receive`).
+ */
+export async function netNativeAfterUnwrap(
+  wrappedAmount: bigint,
+  nativeDenom: string
+): Promise<{ receive: bigint; routerMinReceiveBase: bigint }> {
+  const feeBps = await queryWrapMapperFeeBps()
+  const afterFee = netAfterWrapMapperFee(wrappedAmount, feeBps)
+  const receive = await netUlunaAfterTransferTaxAsync(afterFee, nativeDenom)
+  return { receive, routerMinReceiveBase: afterFee }
 }
 
 /**
  * Simulate a swap that may involve native tokens by substituting with wrapped equivalents.
- * Direct wrap/unwrap and unwrap_output paths apply on-chain wrap-mapper `fee_bps` (#507).
+ * Direct wrap/unwrap and unwrap_output paths apply on-chain wrap-mapper `fee_bps` (#507)
+ * and Classic burn tax on unwrap InstantWithdraw (#512).
  */
 export async function simulateNativeSwap(
   offerAmount: string,
   fromToken: string,
   toToken: string,
   pairs: PairInfo[]
-): Promise<{ amount: string; isDirectWrapUnwrap: boolean }> {
+): Promise<NativeSwapSimResult> {
   const direct = isDirectWrapUnwrap(fromToken, toToken)
   if (direct === 'wrap') {
     const net = await netCw20AfterNativeWrap(BigInt(offerAmount), fromToken)
-    return { amount: net.toString(), isDirectWrapUnwrap: true }
+    const amount = net.toString()
+    return { amount, routerMinReceiveBase: amount, isDirectWrapUnwrap: true }
   }
   if (direct === 'unwrap') {
-    const feeBps = await queryWrapMapperFeeBps()
-    const net = netAfterWrapMapperFee(BigInt(offerAmount), feeBps)
-    return { amount: net.toString(), isDirectWrapUnwrap: true }
+    const { receive, routerMinReceiveBase } = await netNativeAfterUnwrap(BigInt(offerAmount), toToken)
+    return {
+      amount: receive.toString(),
+      routerMinReceiveBase: routerMinReceiveBase.toString(),
+      isDirectWrapUnwrap: true,
+    }
   }
 
   const routeInfo = findRouteWithNativeSupport(pairs, fromToken, toToken)
@@ -252,12 +291,19 @@ export async function simulateNativeSwap(
   }
 
   const result = await simulateMultiHopSwap(simOffer, routeInfo.operations)
-  let amount = result.amount
   if (routeInfo.needsUnwrapOutput) {
-    const feeBps = await queryWrapMapperFeeBps()
-    amount = netAfterWrapMapperFee(BigInt(amount), feeBps).toString()
+    const { receive, routerMinReceiveBase } = await netNativeAfterUnwrap(BigInt(result.amount), toToken)
+    return {
+      amount: receive.toString(),
+      routerMinReceiveBase: routerMinReceiveBase.toString(),
+      isDirectWrapUnwrap: false,
+    }
   }
-  return { amount, isDirectWrapUnwrap: false }
+  return {
+    amount: result.amount,
+    routerMinReceiveBase: result.amount,
+    isDirectWrapUnwrap: false,
+  }
 }
 
 /**
@@ -308,7 +354,7 @@ export async function executeNativeSwap(
 
   let cw20SendAmount = amount
   if (needsWrap) {
-    // Gross native deposit; CW20 send must use post-tax + post–wrap-fee mint (#342, #507).
+    // Gross native deposit; CW20 send must use post–wrap-fee mint (#507 / #512).
     cw20SendAmount = (await netCw20AfterNativeWrap(BigInt(amount), fromToken)).toString()
   }
 

@@ -10,8 +10,6 @@ const pool1m2m = (): PoolResponse => ({
   total_share: '2000000',
 })
 
-const tax005 = { rate: '0.0005', capUluna: 1_000_000_000_000_000n }
-
 describe('computeProvideCounterpartHuman', () => {
   it('auto-fills B from A on 1:2 pool (6 decimals)', () => {
     expect(
@@ -76,7 +74,7 @@ describe('computeProvideCounterpartHuman', () => {
     ).toBeNull()
   })
 
-  it('uses net amounts when native wrap is enabled on edited side', () => {
+  it('uses post–mapper-fee net when native wrap is enabled (#512 fee-only mint)', () => {
     const withoutWrap = computeProvideCounterpartHuman({
       editedSide: 'a',
       editedHuman: '1',
@@ -94,15 +92,16 @@ describe('computeProvideCounterpartHuman', () => {
       decimalsB: 6,
       needsWrapA: true,
       needsWrapB: false,
-      taxParamsA: tax005,
+      wrapMapperFeeBps: 200,
     })
     expect(withoutWrap).toBe('2')
     expect(withWrap).not.toBe(withoutWrap)
+    // 1 * 0.98 fee net → counterpart ~1.96 on 1:2 pool
     expect(Number(withWrap)).toBeGreaterThan(1.9)
     expect(Number(withWrap)).toBeLessThan(2)
   })
 
-  it('returns null when wrap side needs tax params but they are missing', () => {
+  it('does not require tax params for wrap-side auto-fill (#512)', () => {
     expect(
       computeProvideCounterpartHuman({
         editedSide: 'a',
@@ -112,12 +111,13 @@ describe('computeProvideCounterpartHuman', () => {
         decimalsB: 6,
         needsWrapA: true,
         needsWrapB: false,
+        wrapMapperFeeBps: 0,
       })
-    ).toBeNull()
+    ).toBe('2')
   })
 
-  it('applies wrap-mapper fee_bps on top of burn tax when auto-filling (#507)', () => {
-    const taxOnly = computeProvideCounterpartHuman({
+  it('applies wrap-mapper fee_bps when auto-filling (#507 / #512)', () => {
+    const feeFree = computeProvideCounterpartHuman({
       editedSide: 'a',
       editedHuman: '1',
       pool: pool1m2m(),
@@ -125,7 +125,6 @@ describe('computeProvideCounterpartHuman', () => {
       decimalsB: 6,
       needsWrapA: true,
       needsWrapB: false,
-      taxParamsA: tax005,
       wrapMapperFeeBps: 0,
     })
     const withFee = computeProvideCounterpartHuman({
@@ -136,11 +135,10 @@ describe('computeProvideCounterpartHuman', () => {
       decimalsB: 6,
       needsWrapA: true,
       needsWrapB: false,
-      taxParamsA: tax005,
       wrapMapperFeeBps: 100,
     })
-    expect(taxOnly).not.toBeNull()
+    expect(feeFree).not.toBeNull()
     expect(withFee).not.toBeNull()
-    expect(Number(withFee)).toBeLessThan(Number(taxOnly))
+    expect(Number(withFee)).toBeLessThan(Number(feeFree))
   })
 })

@@ -16,7 +16,14 @@ The router queries wrap-mapper `Config { fee_bps }` at final-hop settlement. Int
 
 Non-unwrap paths are unchanged — there is no mapper fee on a direct CW20 `Transfer`.
 
-Frontend `simulateNativeSwap` nets `fee_bps` on unwrap paths so quoted receive matches post-unwrap net ([#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507)). See [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+Frontend `simulateNativeSwap` returns:
+
+- `amount` — what the user **receives** (post-fee **and** InstantWithdraw burn tax on unwrap — [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512))
+- `routerMinReceiveBase` — post-fee **pre-tax** base for router `minimum_receive` (this table / **R3**)
+
+Integrators must submit `minimum_receive` from `routerMinReceiveBase` (after slippage), not from post-tax `amount`, or the floor will be looser than R3 intends. See [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md) and [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+
+**Note:** On-chain R3 still cannot observe burn tax; true native received is `routerMinReceiveBase` after tax until ustr-cmm gross-up.
 
 ## Code
 
@@ -46,5 +53,6 @@ make test-contracts   # from repo root
 ## Related agent docs
 
 - [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) — frontend unwrap sim + Coolify env (#507)
+- [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md) — burn tax on InstantWithdraw + `routerMinReceiveBase` (#512)
 - [`skills/AGENTS_ROUTER_HOP_ACCOUNTING.md`](./AGENTS_ROUTER_HOP_ACCOUNTING.md) — hop output delta (R4)
 - [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md) — unwrap path wiring

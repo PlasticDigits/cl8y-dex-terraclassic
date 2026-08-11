@@ -34,3 +34,10 @@ export const WRAP_CONFIG_UNAVAILABLE_CTA = 'Wrap config unavailable'
 
 /** Submit CTA when `VITE_TREASURY_ADDRESS` ≠ on-chain wrap-mapper `config.treasury` (#507 / W2). */
 export const WRAP_TREASURY_MISCONFIGURED_CTA = 'Wrap treasury misconfigured'
+
+/**
+ * Unwrap recipient trap (GitLab #512): exchange deposit address + memo often ignores
+ * contract-initiated InstantWithdraw transfers even when the memo is correct.
+ */
+export const WRAP_UNWRAP_EXCHANGE_DEPOSIT_WARNING =
+  'Withdraw to your own wallet, then send to an exchange normally — exchanges often ignore contract-initiated deposits.'

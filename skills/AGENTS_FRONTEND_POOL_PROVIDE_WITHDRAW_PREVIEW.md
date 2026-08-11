@@ -12,7 +12,7 @@ Use when changing **provide liquidity counterpart auto-fill**, **withdraw receiv
 | Max / 50% | Always force-sync counterpart (`forceSync: true`). |
 | Empty pool | Both reserves `0` → **no** auto-fill. |
 | Manual override | After auto-fill, user edits filled side → leave other side unchanged; `pool-provide-ratio-warning` may show. |
-| Native wrap | Ratio uses **net** post-tax raw (`provideRawAdd*`); gross display via `grossUlunaForTargetNet`. |
+| Native wrap | Ratio uses **post–mapper-fee** raw (`provideRawAdd*`; wrap_deposit untaxed — [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)); invert via `amountForTargetNetAfterWrapMapperFee`. |
 
 ### Withdraw preview
 

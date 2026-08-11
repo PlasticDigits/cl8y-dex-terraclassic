@@ -22,7 +22,7 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | [`WrapPage.tsx`](../frontend-dapp/src/pages/WrapPage.tsx) | Dedicated **More → Wrap** (`/wrap`) direct wrap/unwrap UI — chrome only (no educational/cross-nav/gas fluff; [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) **§9**) |
 | [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Native-wrap provide / withdraw paths |
 
-## Invariants (W1–W6)
+## Invariants (W1–W11)
 
 | ID | Rule |
 |----|------|
@@ -32,7 +32,11 @@ Use when enabling **native LUNC/USTC wrap** on columbus-5 **after** soft launch 
 | **W4** | UI, simulation, and execute paths use on-chain wrap-mapper **`fee_bps`**: `net = amount − floor(amount × fee_bps / 10_000)`. Never claim **1:1** when `fee_bps > 0` **or when config LCD failed** (fail closed: disable submit / “Wrap fee unavailable”). Approved Phase 0 target was **100**; live columbus-5 has been observed at **200** — always re-query (`REGISTRY.md` / health script). LocalTerra deploy default is often **50** unless changed. |
 | **W5** | Soft-launch defaults script (**SL5**) must **not** silently deploy or enable economic wrap. Post-SL5 enablement is **Coolify env + frontend rebuild only** — see [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md). |
 | **W6** | Swap CTA precedence: treasury mismatch → config unavailable → pause → blacklist → amount → rate limit. Fee display is separate from safety CTAs — [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md). Runtime-check `config.treasury` vs `VITE_TREASURY_ADDRESS` (W2). |
-| **W7** | Retail wrap UI = title + asset/mode controls + live fee/rate-limit/pause + CTA. **Do not merge** “not an AMM”, “use Swap/UST1”, “Mapper Ready”, or always-on gas/burn-tax paragraphs — depth belongs in docs (`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD` **§9**). Live `fee_bps` / rate-limit / pause gates stay. |
+| **W7** | Retail wrap UI = title + asset/mode controls + live fee/rate-limit/pause + CTA. **Do not merge** “not an AMM”, “use Swap/UST1”, “Mapper Ready”, or always-on gas essays — depth belongs in docs (`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD` **§9**). Live `fee_bps` / rate-limit / pause gates stay. Unwrap may use a **single** fee-line burn-tax disclosure + short exchange-deposit warning (**W10**/**W11**, [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)) — not a permanent educational paragraph. |
+| **W8** | Wrap / wrap-input mint quotes = mapper `fee_bps` only (`MsgExecuteContract` untaxed). [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512). |
+| **W9** | Unwrap / native-output **You Receive** = post-fee then InstantWithdraw burn tax; `routerMinReceiveBase` stays post-fee for **R3**. |
+| **W10** | Unwrap fee note discloses burn tax on payout (one line). |
+| **W11** | Unwrap UI warns against exchange deposit addresses as recipient. |
 
 ## Published columbus-5 addresses (Phase 3)
 
@@ -64,9 +68,9 @@ Copy-paste template: [`deployments/mainnet-soft-launch/wrap-enablement.env.examp
 ## Rules of thumb
 
 1. Query `fee_bps` via `queryWrapMapperConfig` (LCD) — do not hardcode mainnet fee_bps in app logic without a fallback query path.
-2. Direct wrap/unwrap quotes use `netAfterWrapMapperFee`; native-input swaps net CW20 after tax **and** mapper fee where applicable (`netCw20AfterNativeWrap`).
-3. Unwrap / native-output simulation must net `fee_bps` on the unwrap leg (aligns with router `minimum_receive` on post-unwrap net — **R3**).
-4. Burn tax on native transfers is **additional** to mapper `fee_bps` — [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md). Document that for agents/ops; do **not** put a permanent “burn tax may apply” line on `/wrap` (W7).
+2. Direct **wrap** quotes / `netCw20AfterNativeWrap` = mapper fee only (**W8**). Direct **unwrap** / native-output = fee then burn tax (**W9**) — [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md).
+3. Router `minimum_receive` on unwrap_output uses **post-fee pre-tax** (`routerMinReceiveBase`) — **R3**; display You Receive is post-tax.
+4. Burn tax on InstantWithdraw is **additional** to mapper `fee_bps` until ustr-cmm gross-up ships. Disclose on unwrap fee line (**W10**); keep `/wrap` free of permanent essays (**W7**).
 5. Enabling wrap in Coolify does **not** require redeploying factory/router; it requires correct `VITE_*` + image rebuild.
 
 ## Verification
@@ -87,7 +91,8 @@ make test-mainnet-soft-launch-defaults
 
 ## Related
 
-- Native burn tax: [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md)
+- Unwrap burn tax incidence (#512): [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md)
+- Native wrap amounts (#342/#512): [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md)
 - Router `minimum_receive` / unwrap net: [`AGENTS_ROUTER_MINIMUM_RECEIVE.md`](./AGENTS_ROUTER_MINIMUM_RECEIVE.md)
 - Swap pause / rate-limit CTAs: [`AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](./AGENTS_FRONTEND_SWAP_SAFETY_CTA.md)
 - Soft launch (pre-wrap): [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md)

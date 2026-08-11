@@ -39,7 +39,14 @@ For amount `A` and on-chain `fee_bps`:
 
 `net = A − floor(A × fee_bps / 10_000)`
 
-When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches this formula (plus burn tax on native legs where applicable — [`skills/AGENTS_NATIVE_WRAP_TAX.md`](../../skills/AGENTS_NATIVE_WRAP_TAX.md)).
+When `fee_bps > 0`, UI must **not** claim 1:1.
+
+| Direction | Expected You Receive |
+|-----------|----------------------|
+| **Wrap** | `net` per fee formula only (`MsgExecuteContract` untaxed) |
+| **Unwrap** | `net` after fee, then Classic burn tax on InstantWithdraw (`floor(net × burn_tax_rate)`) |
+
+Playbooks: [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](../../skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) (**W8–W11**), [`skills/AGENTS_NATIVE_WRAP_TAX.md`](../../skills/AGENTS_NATIVE_WRAP_TAX.md).
 
 ### 0. Discoverability (post–Coolify wrap env)
 
@@ -72,12 +79,13 @@ When `fee_bps > 0`, UI must **not** claim 1:1. Verify quoted receive matches thi
 
 #### cLUNC → LUNC
 - [ ] Select cLUNC as "From" and LUNC as "To" on swap page
-- [ ] Inline note references unwrap fee (not "1:1" when `fee_bps > 0`)
+- [ ] Inline note references unwrap fee **and** burn tax on payout (not "1:1" when `fee_bps > 0`)
+- [ ] Exchange-deposit warning visible (withdraw to own wallet first) — [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)
 - [ ] Button label is **Unwrap**
-- [ ] Enter amount — estimated output = net after mapper fee (and burn tax note if shown)
+- [ ] Enter amount — estimated output = post-fee then burn tax (e.g. 10 000 @ 200 bps + 1.5% tax → **9 653**, not 9 800)
 - [ ] Execute unwrap — transaction succeeds
 - [ ] cLUNC balance decreases by entered amount
-- [ ] LUNC balance increases by net native received (mapper fee + burn tax if applicable)
+- [ ] LUNC balance increases by **post-tax** native received (matches quote)
 - [ ] Treasury LUNC balance decreases by unwrap gross
 
 #### cUSTC → USTC
