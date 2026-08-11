@@ -7,6 +7,7 @@ import {
   WRAPPED_NATIVE_PAIRS,
 } from '@/utils/constants'
 import { bpsToPercentLabel } from '@/utils/limitOrderFeeSummary'
+import { formatBurnTaxPercentLabel } from '@/utils/nativeTransferTax'
 import { deriveWrapRateLimitStatus, type WrapRateLimitResponse } from '@/utils/wrapRateLimit'
 
 interface DenomMappingResponse {
@@ -147,11 +148,27 @@ export function amountForTargetNetAfterWrapMapperFee(targetNet: bigint, feeBps: 
 /**
  * Direct wrap/unwrap route note — never claim 1:1 when fee is unknown or fee_bps > 0.
  * Pass `null`/`undefined` when mapper config has not loaded successfully.
+ *
+ * Unwrap notes optionally include the chain burn-tax rate on InstantWithdraw (#512).
+ * Keep this to a single fee line (W7) — no permanent educational paragraphs.
  */
-export function wrapUnwrapFeeNote(kind: 'wrap' | 'unwrap', feeBps: number | null | undefined): string {
+export function wrapUnwrapFeeNote(
+  kind: 'wrap' | 'unwrap',
+  feeBps: number | null | undefined,
+  burnTaxRate?: string | null
+): string {
   const label = kind === 'wrap' ? 'Wrap' : 'Unwrap'
   if (feeBps == null || !Number.isFinite(Number(feeBps))) return `${label} fee unavailable`
   const bps = Math.floor(Number(feeBps))
+  if (kind === 'unwrap') {
+    const taxLabel = burnTaxRate != null ? formatBurnTaxPercentLabel(burnTaxRate) : null
+    if (bps <= 0) {
+      return taxLabel ? `${label} (1:1 mapper; ${taxLabel} burn tax on payout)` : `${label} (1:1)`
+    }
+    return taxLabel
+      ? `${label} (${bpsToPercentLabel(bps)} fee; You Receive after ${taxLabel} burn tax)`
+      : `${label} (${bpsToPercentLabel(bps)} fee; You Receive after burn tax)`
+  }
   if (bps <= 0) return `${label} (1:1)`
   return `${label} (${bpsToPercentLabel(bps)} fee)`
 }

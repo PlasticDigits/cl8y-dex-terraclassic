@@ -249,18 +249,25 @@ Add `executeNativeSwap()` helper that:
 Add `simulateNativeSwap()`:
 - Substitutes native denom with wrapped CW20 for the simulation query
 - Applies wrap-mapper `fee_bps` on direct wrap/unwrap and native-output paths: `net = amount − floor(amount × fee_bps / 10_000)` (query via `queryWrapMapperConfig`)
-- Do not claim 1:1 when `fee_bps > 0`; mainnet Phase 3 uses **100** bps (1%)
+- Do not claim 1:1 when `fee_bps > 0`; live columbus-5 wrap-mapper has been observed at **200** bps (2%)
+- Returns `amount` (user receive) and `routerMinReceiveBase` (post-fee pre-tax for router **R3**)
 
-For direct wrap/unwrap (LUNC↔cLUNC), show net after mapper fee plus any burn-tax note on native legs.
+For direct wrap: receive = post–mapper-fee only (`MsgExecuteContract` untaxed).  
+For direct unwrap / native-output: receive = post-fee then InstantWithdraw burn tax ([#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)).
 
-### Tax-aware CW20 amounts after wrap (GitLab #342)
+### Wrap mint vs unwrap burn tax (GitLab #342 / #512)
 
-`wrap_deposit` sends **gross** native `uluna`; treasury mints **net** CW20 after Classic burn tax. The dApp must not use gross native raw units for the subsequent CW20 `send` / `provide_liquidity` asset amounts.
+| Leg | Taxed? | Quote |
+|-----|--------|-------|
+| `wrap_deposit` (`MsgExecuteContract` + funds) | **No** | CW20 mint = gross − mapper fee |
+| Unwrap `InstantWithdraw` (`BankMsg::Send`) | **Yes** | Native receive = post-fee − `floor(post_fee × burn_tax_rate)` |
 
-- Helper: [`frontend-dapp/src/utils/nativeTransferTax.ts`](frontend-dapp/src/utils/nativeTransferTax.ts) — LCD `terra/tax/v1beta1/tax_rate` + Terraswap-style `gross - gross/(1+rate)` (capped).
-- Apply in [`executeNativeSwap`](frontend-dapp/src/services/terraclassic/router.ts) (`send.amount` after wrap) and [`PoolPage.tsx`](frontend-dapp/src/pages/PoolPage.tsx) native-wrap provide path.
-- Agent playbook: [`skills/AGENTS_NATIVE_WRAP_TAX.md`](skills/AGENTS_NATIVE_WRAP_TAX.md).
-- Mainnet wrap enablement + `fee_bps` UX: [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+- Helper: [`frontend-dapp/src/utils/nativeTransferTax.ts`](frontend-dapp/src/utils/nativeTransferTax.ts) — LCD `/terra/tax/v1beta1/params` → `burn_tax_rate` + Classic multiply tax.
+- Wrap execute / pool provide: [`netCw20AfterNativeWrap`](frontend-dapp/src/services/terraclassic/router.ts) (fee only).
+- Unwrap simulate: [`netNativeAfterUnwrap`](frontend-dapp/src/services/terraclassic/router.ts).
+- Agent playbooks: [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) (**W8–W11**), [`skills/AGENTS_NATIVE_WRAP_TAX.md`](skills/AGENTS_NATIVE_WRAP_TAX.md), [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+
+**On-chain follow-up:** gross-up InstantWithdraw in ustr-cmm so users net `gross − fee` (tax from fee residual). Until migrated, UI disclosure + accurate quotes are required.
 
 ## 8. Frontend: Swap UI Changes (`frontend-dapp/src/pages/SwapPage.tsx`)
 
@@ -285,8 +292,9 @@ After user selects tokens and enters amount, determine the swap type:
 
 ### 8.3 Simulation display
 
-- For direct wrap/unwrap: show net receive after wrap-mapper `fee_bps` (and burn-tax note on native legs when applicable). Query `fee_bps` on-chain — do not hardcode 1:1 on mainnet.
-- For swaps involving native tokens: simulate using wrapped CW20 equivalent, netting mapper fee on unwrap legs; display normally.
+- For direct wrap: show net receive after wrap-mapper `fee_bps` only. Query `fee_bps` on-chain — do not hardcode 1:1 on mainnet.
+- For direct unwrap / native-output: show net after fee **and** burn tax; fee line discloses tax; warn against exchange deposit recipients ([#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)).
+- For swaps involving native tokens: simulate using wrapped CW20 equivalent; net mapper fee (+ burn tax on unwrap legs) for display.
 
 ## 9. Frontend: Pool UI Changes (`frontend-dapp/src/pages/PoolPage.tsx`)
 
@@ -300,7 +308,7 @@ For each asset in a pair that has a native equivalent (e.g. a pair containing cL
   2. `CW20.IncreaseAllowance` for the pair contract
   3. `pair.ProvideLiquidity` with CW20 assets
 - If wrapped selected: existing flow (CW20 allowance + provide).
-- Amounts after wrap use net post-tax CW20 units and wrap-mapper `fee_bps` where applicable.
+- Amounts after wrap use post–mapper-fee CW20 units (`fee_bps`; wrap_deposit untaxed — #512).
 
 ### 9.2 Withdraw Liquidity
 

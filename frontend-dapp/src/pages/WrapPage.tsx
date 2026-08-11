@@ -25,7 +25,9 @@ import {
   WRAP_CONFIG_UNAVAILABLE_CTA,
   WRAP_RATE_LIMIT_EXCEEDED_MESSAGE,
   WRAP_TREASURY_MISCONFIGURED_CTA,
+  WRAP_UNWRAP_EXCHANGE_DEPOSIT_WARNING,
 } from '@/utils/marketDataServiceCopy'
+import { fetchNativeTransferTaxParams } from '@/utils/nativeTransferTax'
 import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
 
 const DECIMALS = 6
@@ -121,6 +123,13 @@ export default function WrapPage() {
     queryFn: () => checkRateLimitExceeded(nativeDenom(asset), amountRaw!.toString()),
     enabled: wrapEnabled && mode === 'wrap' && amountRaw != null && amountRaw > 0n,
     staleTime: 15_000,
+  })
+
+  const unwrapBurnTaxQuery = useQuery({
+    queryKey: ['nativeTransferTax', nativeDenom(asset)],
+    queryFn: () => fetchNativeTransferTaxParams(nativeDenom(asset)),
+    enabled: wrapEnabled && mode === 'unwrap',
+    staleTime: 60_000,
   })
 
   const quoteQuery = useQuery({
@@ -361,9 +370,20 @@ export default function WrapPage() {
           <div className="text-sm" data-testid="wrap-fee-panel">
             <p className="label-glass">Fee</p>
             <p className="font-medium tabular-nums" data-testid="wrap-fee-note">
-              {wrapUnwrapFeeNote(mode, feeBps)}
+              {wrapUnwrapFeeNote(mode, feeBps, mode === 'unwrap' ? unwrapBurnTaxQuery.data?.rate : null)}
             </p>
           </div>
+
+          {mode === 'unwrap' && (
+            <p
+              className="text-xs leading-snug"
+              style={{ color: 'var(--color-warning, #f59e0b)' }}
+              data-testid="wrap-unwrap-exchange-warning"
+              role="note"
+            >
+              {WRAP_UNWRAP_EXCHANGE_DEPOSIT_WARNING}
+            </p>
+          )}
 
           <WrapRateLimitStatus
             denom={nativeDenom(asset)}

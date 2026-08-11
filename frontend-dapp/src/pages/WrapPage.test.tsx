@@ -65,6 +65,17 @@ vi.mock('@/hooks/useDebouncedValue', () => ({
   useDebouncedValue: <T,>(v: T) => v,
 }))
 
+vi.mock('@/utils/nativeTransferTax', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/nativeTransferTax')>()
+  return {
+    ...actual,
+    fetchNativeTransferTaxParams: vi.fn(async () => ({
+      rate: '0.015',
+      capUluna: 1_000_000_000_000_000n,
+    })),
+  }
+})
+
 const healthyConfig = {
   governance: 'terra1gov',
   treasury: TREASURY,
@@ -110,10 +121,20 @@ describe('WrapPage (#502 / #507)', () => {
     expect(screen.queryByText(/burn tax may apply/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/^Mapper$/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/^Ready$/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('wrap-unwrap-exchange-warning')).not.toBeInTheDocument()
     expect(screen.getByTestId('wrap-pay-symbol')).toHaveTextContent('Pay (LUNC)')
     expect(screen.getByTestId('wrap-receive-symbol')).toHaveTextContent('Receive (cLUNC)')
     expect(await screen.findByTestId('wrap-fee-note')).toHaveTextContent(/2/)
     expect(await screen.findByTestId('wrap-page-rate-limit-available')).toBeInTheDocument()
+  })
+
+  it('shows exchange-deposit warning on unwrap tab (#512)', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    renderWithProviders(<WrapPage />)
+    await user.click(await screen.findByTestId('wrap-tab-unwrap'))
+    expect(await screen.findByTestId('wrap-unwrap-exchange-warning')).toHaveTextContent(/own wallet/i)
+    expect(screen.getByTestId('wrap-fee-note')).toHaveTextContent(/burn tax/i)
   })
 
   it('switches asset to USTC / cUSTC and shows logos on asset toggles', async () => {

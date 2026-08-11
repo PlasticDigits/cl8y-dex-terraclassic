@@ -41,7 +41,10 @@ vi.mock('@/types', async (importOriginal) => {
 })
 
 vi.mock('@/utils/nativeTransferTax', () => ({
-  netUlunaAfterTransferTaxAsync: vi.fn(async (gross: bigint) => gross),
+  netUlunaAfterTransferTaxAsync: vi.fn(async (gross: bigint) => {
+    // Default mock: 1.5% Classic burn tax (columbus-5 / #512).
+    return gross - (gross * 15n) / 1000n
+  }),
 }))
 
 vi.mock('./wrapMapper', async (importOriginal) => {
@@ -54,6 +57,7 @@ vi.mock('./wrapMapper', async (importOriginal) => {
 
 import { findRoute, getAllTokens, isDirectWrapUnwrap, findRouteWithNativeSupport, simulateNativeSwap } from './router'
 import { queryWrapMapperFeeBps } from './wrapMapper'
+import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import type { PairInfo } from '@/types'
 
 function mockPair(tokenA: string, tokenB: string, addr: string): PairInfo {
@@ -147,19 +151,35 @@ describe('isDirectWrapUnwrap', () => {
   })
 })
 
-describe('simulateNativeSwap fee_bps (GitLab #507)', () => {
+describe('simulateNativeSwap fee_bps + burn tax (GitLab #507 / #512)', () => {
   beforeEach(() => {
     vi.mocked(queryWrapMapperFeeBps).mockResolvedValue(100)
+    vi.mocked(netUlunaAfterTransferTaxAsync).mockImplementation(async (gross: bigint) => {
+      return gross - (gross * 15n) / 1000n
+    })
   })
 
-  it('direct wrap nets mapper fee (100 bps → 1%)', async () => {
-    const result = await simulateNativeSwap('1000000', 'uluna', MOCK_LUNC_C, [])
+  it('direct wrap nets mapper fee only — no burn tax on MsgExecuteContract (#512)', async () => {
+    vi.mocked(queryWrapMapperFeeBps).mockResolvedValue(200)
+    const result = await simulateNativeSwap('10000000000', 'uluna', MOCK_LUNC_C, [])
     expect(result.isDirectWrapUnwrap).toBe(true)
-    expect(result.amount).toBe('990000')
+    // 10_000 − 2% fee = 9_800 (not 9_751 from mistaken tax+fee)
+    expect(result.amount).toBe('9800000000')
+    expect(result.routerMinReceiveBase).toBe('9800000000')
+    expect(netUlunaAfterTransferTaxAsync).not.toHaveBeenCalled()
   })
 
-  it('direct unwrap nets mapper fee', async () => {
-    const result = await simulateNativeSwap('1000000', MOCK_LUNC_C, 'uluna', [])
+  it('direct unwrap nets mapper fee then burn tax (#512 evidence math)', async () => {
+    vi.mocked(queryWrapMapperFeeBps).mockResolvedValue(200)
+    const result = await simulateNativeSwap('10000000000', MOCK_LUNC_C, 'uluna', [])
+    expect(result.isDirectWrapUnwrap).toBe(true)
+    // fee → 9_800_000_000; tax 1.5% → 9_653_000_000
+    expect(result.routerMinReceiveBase).toBe('9800000000')
+    expect(result.amount).toBe('9653000000')
+  })
+
+  it('direct wrap with 100 bps fee', async () => {
+    const result = await simulateNativeSwap('1000000', 'uluna', MOCK_LUNC_C, [])
     expect(result.isDirectWrapUnwrap).toBe(true)
     expect(result.amount).toBe('990000')
   })

@@ -1,10 +1,5 @@
 import type { PoolResponse } from '@/types'
 import { fromRawAmount, toRawAmount } from '@/utils/formatAmount'
-import {
-  grossUlunaForTargetNet,
-  netUlunaAfterTransferTax,
-  type NativeTransferTaxParams,
-} from '@/utils/nativeTransferTax'
 import { amountForTargetNetAfterWrapMapperFee, netAfterWrapMapperFee } from '@/services/terraclassic/wrapMapper'
 import { computeProportionalCounterpartRaw } from '@/utils/provideLiquidityEstimate'
 
@@ -16,8 +11,15 @@ export type ComputeProvideCounterpartHumanArgs = {
   decimalsB: number
   needsWrapA: boolean
   needsWrapB: boolean
-  taxParamsA?: NativeTransferTaxParams | null
-  taxParamsB?: NativeTransferTaxParams | null
+  /**
+   * @deprecated Burn tax does not apply to wrap_deposit mint (#512). Kept optional for call-site
+   * compatibility; ignored when computing wrap nets.
+   */
+  taxParamsA?: unknown
+  /**
+   * @deprecated See `taxParamsA`.
+   */
+  taxParamsB?: unknown
   /** Wrap-mapper fee_bps (0 when unset / unknown). GitLab #507. */
   wrapMapperFeeBps?: number
 }
@@ -34,19 +36,15 @@ function editedNetRaw(
   decimalsB: number,
   needsWrapA: boolean,
   needsWrapB: boolean,
-  taxParamsA?: NativeTransferTaxParams | null,
-  taxParamsB?: NativeTransferTaxParams | null,
   wrapMapperFeeBps = 0
 ): string | null {
   const decimals = editedSide === 'a' ? decimalsA : decimalsB
   const needsWrap = editedSide === 'a' ? needsWrapA : needsWrapB
-  const taxParams = editedSide === 'a' ? taxParamsA : taxParamsB
   const raw = toRawAmount(editedHuman, decimals)
   if (raw === '0') return null
   if (needsWrap) {
-    if (!taxParams) return null
-    const afterTax = netUlunaAfterTransferTax(BigInt(raw), taxParams)
-    return netAfterWrapMapperFee(afterTax, wrapMapperFeeBps).toString()
+    // wrap_deposit is untaxed MsgExecuteContract; net CW20 = after mapper fee only (#512).
+    return netAfterWrapMapperFee(BigInt(raw), wrapMapperFeeBps).toString()
   }
   return raw
 }
@@ -58,17 +56,12 @@ function counterpartHumanFromNetRaw(
   decimalsB: number,
   needsWrapA: boolean,
   needsWrapB: boolean,
-  taxParamsA?: NativeTransferTaxParams | null,
-  taxParamsB?: NativeTransferTaxParams | null,
   wrapMapperFeeBps = 0
 ): string | null {
   const decimals = counterpartSide === 'a' ? decimalsA : decimalsB
   const needsWrap = counterpartSide === 'a' ? needsWrapA : needsWrapB
-  const taxParams = counterpartSide === 'a' ? taxParamsA : taxParamsB
   if (needsWrap) {
-    if (!taxParams) return null
-    const afterTaxTarget = amountForTargetNetAfterWrapMapperFee(BigInt(counterpartNetRaw), wrapMapperFeeBps)
-    const gross = grossUlunaForTargetNet(afterTaxTarget, taxParams)
+    const gross = amountForTargetNetAfterWrapMapperFee(BigInt(counterpartNetRaw), wrapMapperFeeBps)
     return fromRawAmount(gross.toString(), decimals)
   }
   return fromRawAmount(counterpartNetRaw, decimals)
@@ -76,49 +69,36 @@ function counterpartHumanFromNetRaw(
 
 /**
  * Human-string counterpart for provide liquidity auto-fill.
- * Ratio math uses net post-tax + post–wrap-fee amounts when native wrap is enabled
- * (same as `provideRawAdd*`; GitLab #342 / #507).
+ * Ratio math uses post–wrap-fee amounts when native wrap is enabled
+ * (same as `provideRawAdd*`; GitLab #507 / #512).
  */
-export function computeProvideCounterpartHuman({
-  editedSide,
-  editedHuman,
-  pool,
-  decimalsA,
-  decimalsB,
-  needsWrapA,
-  needsWrapB,
-  taxParamsA,
-  taxParamsB,
-  wrapMapperFeeBps = 0,
-}: ComputeProvideCounterpartHumanArgs): string | null {
+export function computeProvideCounterpartHuman(args: ComputeProvideCounterpartHumanArgs): string | null {
+  const { editedSide, editedHuman, pool, decimalsA, decimalsB, needsWrapA, needsWrapB, wrapMapperFeeBps = 0 } = args
+
   if (isDraftAmount(editedHuman) || !pool) return null
 
-  const netRaw = editedNetRaw(
+  const editedNet = editedNetRaw(
     editedSide,
     editedHuman,
     decimalsA,
     decimalsB,
     needsWrapA,
     needsWrapB,
-    taxParamsA,
-    taxParamsB,
     wrapMapperFeeBps
   )
-  if (netRaw === null) return null
+  if (editedNet == null) return null
 
-  const counterpartNetRaw = computeProportionalCounterpartRaw(editedSide, netRaw, pool)
-  if (counterpartNetRaw === null) return null
+  const counterpartNet = computeProportionalCounterpartRaw(editedSide, editedNet, pool)
+  if (counterpartNet == null || counterpartNet === '0') return null
 
   const counterpartSide = editedSide === 'a' ? 'b' : 'a'
   return counterpartHumanFromNetRaw(
     counterpartSide,
-    counterpartNetRaw,
+    counterpartNet,
     decimalsA,
     decimalsB,
     needsWrapA,
     needsWrapB,
-    taxParamsA,
-    taxParamsB,
     wrapMapperFeeBps
   )
 }
