@@ -234,7 +234,7 @@ async fn oracle_history_limit_capped_at_1000() {
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
-    let resp = server.get("/api/v1/oracle/history?limit=999999").await;
+    let resp = server.get("/api/v1/oracle/history/ustc?limit=999999").await;
     resp.assert_status_ok();
     let body: Value = resp.json();
     let prices = body["prices"].as_array().expect("prices array");
@@ -405,7 +405,7 @@ async fn oracle_history_negative_and_zero_limit_clamp_to_one() {
     common::seed_db(&pool).await;
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
-    assert_negative_or_zero_limit_clamps_to_one(&server, "/api/v1/oracle/history").await;
+    assert_negative_or_zero_limit_clamps_to_one(&server, "/api/v1/oracle/history/ustc").await;
 }
 
 #[tokio::test]

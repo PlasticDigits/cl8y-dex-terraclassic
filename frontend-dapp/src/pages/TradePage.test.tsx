@@ -177,7 +177,7 @@ describe('TradePage', () => {
     vi.mocked(indexerClient.getPairLimitCancellations).mockResolvedValue([])
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
-    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({ price_usd: '0.02', sources: [] })
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({ ticker: 'ustc', price_usd: '0.02', sources: [] })
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
   })
 

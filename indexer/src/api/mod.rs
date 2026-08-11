@@ -51,7 +51,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
-use crate::indexer::oracle::SharedPrice;
+use crate::indexer::oracle::OraclePriceHandles;
 use crate::lcd::LcdClient;
 
 const TICKER_MAP_TTL: Duration = Duration::from_secs(30);
@@ -67,7 +67,8 @@ pub struct TickerMapCache {
 pub struct AppState {
     pub pool: PgPool,
     pub lcd: LcdClient,
-    pub ustc_price: SharedPrice,
+    /// External CEX/USD reference prices (USTC + LUNC). USTC is also used for volume USD.
+    pub oracle_prices: OraclePriceHandles,
     pub ticker_map_cache: TickerMapCache,
     pub orderbook_cache: orderbook_sim::OrderbookCache,
     /// Set when `ROUTER_ADDRESS` is configured (LCD simulation in route solver).
@@ -284,7 +285,9 @@ pub async fn find_pair_by_ticker(
         traders::get_trader_positions,
         traders::leaderboard,
         overview::get_overview,
+        oracle::get_oracle_price_catalog,
         oracle::get_oracle_price,
+        oracle::get_oracle_history_catalog,
         oracle::get_oracle_history,
         cg::cg_pairs,
         cg::cg_tickers,
@@ -350,6 +353,7 @@ pub async fn find_pair_by_ticker(
         cmc::CmcOrderbookResponse,
         cmc::CmcTradeEntry,
         consolidated_stats::Cl8yConsolidatedExtensions,
+        oracle::OracleTickerCatalogResponse,
         oracle::OraclePriceResponse,
         oracle::OracleSourcePrice,
         oracle::OracleHistoryEntry,
@@ -361,7 +365,7 @@ pub async fn find_pair_by_ticker(
         (name = "Tokens", description = "Token/asset endpoints"),
         (name = "Traders", description = "Trader profile and leaderboard"),
         (name = "Overview", description = "Global DEX statistics"),
-        (name = "Oracle", description = "USTC/USD oracle price feeds"),
+        (name = "Oracle", description = "External USTC/USD and LUNC/USD reference feeds"),
         (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
         (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
         (name = "Hooks", description = "Post-swap hook execution events"),
@@ -494,8 +498,22 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             "/api/v1/route/solve/progress",
             get(route_solve_progress::solve_route_progress),
         )
-        .route("/api/v1/oracle/price", get(oracle::get_oracle_price))
-        .route("/api/v1/oracle/history", get(oracle::get_oracle_history))
+        .route(
+            "/api/v1/oracle/price",
+            get(oracle::get_oracle_price_catalog),
+        )
+        .route(
+            "/api/v1/oracle/price/{ticker}",
+            get(oracle::get_oracle_price),
+        )
+        .route(
+            "/api/v1/oracle/history",
+            get(oracle::get_oracle_history_catalog),
+        )
+        .route(
+            "/api/v1/oracle/history/{ticker}",
+            get(oracle::get_oracle_history),
+        )
         .route("/cg/pairs", get(cg::cg_pairs))
         .route("/cg/tickers", get(cg::cg_tickers))
         // /cg/orderbook + /cmc/orderbook/{market_pair} moved to lcd_heavy_router (#278)
@@ -559,7 +577,7 @@ pub async fn serve(
     pool: PgPool,
     lcd: LcdClient,
     config: Config,
-    ustc_price: SharedPrice,
+    oracle_prices: OraclePriceHandles,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router_address = config.router_address.clone();
@@ -567,7 +585,7 @@ pub async fn serve(
     let state = AppState {
         pool,
         lcd,
-        ustc_price,
+        oracle_prices,
         ticker_map_cache: TickerMapCache::default(),
         orderbook_cache: orderbook_sim::OrderbookCache::default(),
         router_address,

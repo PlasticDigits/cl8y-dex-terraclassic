@@ -28,10 +28,11 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
 describe('ProtocolPage contract audit surface', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'ustc',
       price_usd: '1',
       sources: [{ source: 'test', price_usd: '1', fetched_at: '2026-01-01T00:00:00Z' }],
     })
-    vi.mocked(indexerClient.getOracleHistory).mockResolvedValue({ prices: [] })
+    vi.mocked(indexerClient.getOracleHistory).mockResolvedValue({ ticker: 'ustc', prices: [] })
     vi.mocked(indexerClient.getHookEvents).mockResolvedValue([])
   })
 

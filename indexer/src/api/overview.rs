@@ -58,7 +58,7 @@ pub async fn get_overview(
         .map_err(internal_err)?
         .len() as i64;
 
-    let ustc_price = state.ustc_price.read().await.clone();
+    let ustc_price = state.oracle_prices.ustc.read().await.clone();
 
     let resp = OverviewResponse {
         total_volume_24h: global.total_volume_24h.to_string(),

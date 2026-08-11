@@ -14,6 +14,7 @@ import type {
   IndexerTokenDetail,
   IndexerHookEvent,
   IndexerOraclePriceResponse,
+  IndexerOracleTickerCatalogResponse,
   IndexerOracleHistoryResponse,
   IndexerHybridHopInput,
   IndexerRouteSolveResponse,
@@ -497,25 +498,41 @@ export async function getHookEvents(params?: GetHookEventsParams): Promise<Index
   return fetchJson<IndexerHookEvent[]>(`/api/v1/hooks${qs ? `?${qs}` : ''}`)
 }
 
-/** Latest USTC/USD oracle snapshot (indexer-polled sources). */
-export async function getOraclePrice(): Promise<IndexerOraclePriceResponse> {
-  return fetchJson<IndexerOraclePriceResponse>('/api/v1/oracle/price')
+/** Available USTC/LUNC oracle tickers and usage metadata (GitLab #515). */
+export async function getOraclePriceCatalog(): Promise<IndexerOracleTickerCatalogResponse> {
+  return fetchJson<IndexerOracleTickerCatalogResponse>('/api/v1/oracle/price')
+}
+
+/**
+ * Latest external USD reference for a TerraClassic ticker (indexer-polled CEX/aggregator sources).
+ * @param ticker `ustc` (USTC/USD) or `lunc` (LUNC/USD); defaults to `ustc`.
+ */
+export async function getOraclePrice(ticker = 'ustc'): Promise<IndexerOraclePriceResponse> {
+  return fetchJson<IndexerOraclePriceResponse>(`/api/v1/oracle/price/${pathSegment(ticker)}`)
 }
 
 export interface GetOracleHistoryParams {
+  /** `ustc` (USTC/USD) or `lunc` (LUNC/USD); defaults to `ustc`. */
+  ticker?: string
   from?: string
   to?: string
   limit?: number
 }
 
-/** USTC/USD price history (defaults to last 24h if `from` omitted). */
+/**
+ * External USD reference history for a TerraClassic ticker (defaults to last 24h if `from` omitted).
+ * @param params.ticker `ustc` or `lunc`; defaults to `ustc`.
+ */
 export async function getOracleHistory(params?: GetOracleHistoryParams): Promise<IndexerOracleHistoryResponse> {
+  const ticker = params?.ticker ?? 'ustc'
   const sp = new URLSearchParams()
   if (params?.from) sp.set('from', params.from)
   if (params?.to) sp.set('to', params.to)
   if (params?.limit != null) sp.set('limit', String(params.limit))
   const qs = sp.toString()
-  return fetchJson<IndexerOracleHistoryResponse>(`/api/v1/oracle/history${qs ? `?${qs}` : ''}`)
+  return fetchJson<IndexerOracleHistoryResponse>(
+    `/api/v1/oracle/history/${pathSegment(ticker)}${qs ? `?${qs}` : ''}`
+  )
 }
 
 export interface GetRouteSolveOptions {

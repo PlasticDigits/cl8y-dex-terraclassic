@@ -203,7 +203,7 @@ async fn oracle_history_negative_and_zero_limit_clamp_not_500() {
     common::seed_db(&pool).await;
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
-    assert_limit_low_ok(&server, "/api/v1/oracle/history").await;
+    assert_limit_low_ok(&server, "/api/v1/oracle/history/ustc").await;
 }
 
 #[tokio::test]
