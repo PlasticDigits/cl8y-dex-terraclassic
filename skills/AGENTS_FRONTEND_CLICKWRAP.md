@@ -36,7 +36,15 @@ Use when changing **connected-wallet Legal gating**, **`@plasticdigits/cl8y-clic
 
 These are **not** enforced by DEX unit tests; document completion on the issue/MR:
 
-1. Register property `dex.cl8y.com` on Legal admin API.
+1. Register property `dex.cl8y.com` on Legal admin API using the Legal repo script (interactive hidden token — **not** `ADMIN_TOKEN` env):
+
+   ```bash
+   # from cl8y-ecosystem-legal checkout
+   ./scripts/register-property.sh dex.cl8y.com "CL8Y DEX"
+   ./scripts/register-property.sh --list
+   ```
+
+   Requires Legal API deploy with `POST /admin/properties` (see Legal `skills/security-ops/SKILL.md`).
 2. Coolify Legal API `CORS_ORIGINS` includes `https://dex.cl8y.com` (localhost only if needed for local).
 3. Rebuild Legal portal with `VITE_REDIRECT_URI_ALLOWLIST` including `https://dex.cl8y.com`.
 
