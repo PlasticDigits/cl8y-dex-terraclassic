@@ -93,7 +93,10 @@ import {
   WRAP_CONFIG_UNAVAILABLE_CTA,
   WRAP_RATE_LIMIT_EXCEEDED_MESSAGE,
   WRAP_TREASURY_MISCONFIGURED_CTA,
+  WRAP_UNWRAP_EXCHANGE_DEPOSIT_WARNING,
 } from '@/utils/marketDataServiceCopy'
+import { fetchNativeTransferTaxParams } from '@/utils/nativeTransferTax'
+import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
 import { FeeDiscountUnregisteredCta } from '@/components/feeDiscount/FeeDiscountUnregisteredCta'
@@ -128,6 +131,11 @@ interface SwapSimData {
   return_amount: string
   spread_amount: string
   commission_amount: string
+  /**
+   * Post–mapper-fee pre–burn-tax base for router `minimum_receive` on unwrap_output (#512 / R3).
+   * When set, submit floor uses this instead of `return_amount` (which is post-tax display).
+   */
+  routerMinReceiveBase?: string
   /** Indexer best-route cross-rate slippage (GitLab #293). */
   routeSlippagePercent?: string
   spotAmountOut?: string
@@ -389,6 +397,20 @@ export default function SwapPage() {
     staleTime: 30_000,
   })
 
+  const unwrapBurnTaxDenom =
+    wrapUnwrapType === 'unwrap' && isNativeDenom(toToken)
+      ? toToken
+      : nativeRouteInfo?.needsUnwrapOutput && isNativeDenom(toToken)
+        ? toToken
+        : null
+
+  const unwrapBurnTaxQuery = useQuery({
+    queryKey: ['nativeTransferTax', unwrapBurnTaxDenom],
+    queryFn: () => fetchNativeTransferTaxParams(unwrapBurnTaxDenom!),
+    enabled: !!unwrapBurnTaxDenom,
+    staleTime: 60_000,
+  })
+
   const pausedQuery = useQuery({
     queryKey: ['wrapMapperPaused'],
     queryFn: queryPausedState,
@@ -479,12 +501,13 @@ export default function SwapPage() {
         indexerTransportFailed ? { ...data, indexerTransportFailed: true } : data
 
       if (isWrapOrUnwrap) {
-        // Fee-aware direct wrap/unwrap preview (mapper fee_bps; wrap also nets burn tax) — #507.
+        // Fee-aware direct wrap/unwrap preview (#507); unwrap also nets InstantWithdraw burn tax (#512).
         const result = await simulateNativeSwap(simRaw, fromToken, toToken, pairs)
         return {
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
+          routerMinReceiveBase: result.routerMinReceiveBase,
         }
       }
 
@@ -507,6 +530,7 @@ export default function SwapPage() {
           return_amount: result.amount,
           spread_amount: '0',
           commission_amount: '0',
+          routerMinReceiveBase: result.routerMinReceiveBase,
           routePreflight,
         })
       }
@@ -787,7 +811,11 @@ export default function SwapPage() {
       }
       if (!simData) throw new Error('Quote unavailable')
       const payRaw = submitPayRaw
-      const submitMinReceived = minReceived
+      // Display min uses post-tax `return_amount`; router R3 checks post-fee pre-tax (#512).
+      const submitMinReceived =
+        simData.routerMinReceiveBase != null && simData.routerMinReceiveBase !== simData.return_amount
+          ? applySlippagePercentFloor(simData.routerMinReceiveBase, slippageTolerance)
+          : minReceived
       const maxSpread = (slippageTolerance / 100).toString()
 
       if (isWrapOrUnwrap || nativeRouteInfo) {
@@ -1594,7 +1622,21 @@ export default function SwapPage() {
                             style={{ color: 'var(--ink-subtle)' }}
                             data-testid="swap-wrap-fee-note"
                           >
-                            {wrapUnwrapFeeNote(wrapUnwrapType, wrapMapperFeeBps)}
+                            {wrapUnwrapFeeNote(
+                              wrapUnwrapType,
+                              wrapMapperFeeBps,
+                              wrapUnwrapType === 'unwrap' ? unwrapBurnTaxQuery.data?.rate : null
+                            )}
+                          </span>
+                        )}
+                        {wrapUnwrapType === 'unwrap' && (
+                          <span
+                            className="block text-[10px] font-sans leading-snug"
+                            style={{ color: 'var(--color-warning, #f59e0b)' }}
+                            data-testid="swap-unwrap-exchange-warning"
+                            role="note"
+                          >
+                            {WRAP_UNWRAP_EXCHANGE_DEPOSIT_WARNING}
                           </span>
                         )}
                         {nativeRouteInfo && (nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (

@@ -17,7 +17,6 @@ import { useFeeDiscountRegistryStatus } from '@/hooks/useFeeDiscountRegistryStat
 import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
 import { FeeDiscountUnregisteredCta } from '@/components/feeDiscount/FeeDiscountUnregisteredCta'
 import { FEE_DISCOUNT_ELIGIBILITY_NOTE } from '@/utils/feeDiscountUiCopy'
-import { fetchNativeTransferTaxParams, netUlunaAfterTransferTax } from '@/utils/nativeTransferTax'
 import { netCw20AfterNativeWrap } from '@/services/terraclassic/router'
 import {
   netAfterWrapMapperFee,
@@ -201,18 +200,6 @@ const PoolCard = memo(function PoolCard({
   const needsWrapA = hasNativeOptionA && useNativeA
   const needsWrapB = hasNativeOptionB && useNativeB
 
-  const wrapTaxParamsAQuery = useQuery({
-    queryKey: ['nativeTransferTax', nativeEquivA],
-    queryFn: () => fetchNativeTransferTaxParams(nativeEquivA!),
-    enabled: expanded === 'add' && hasNativeOptionA && !!nativeEquivA,
-    staleTime: 60_000,
-  })
-  const wrapTaxParamsBQuery = useQuery({
-    queryKey: ['nativeTransferTax', nativeEquivB],
-    queryFn: () => fetchNativeTransferTaxParams(nativeEquivB!),
-    enabled: expanded === 'add' && hasNativeOptionB && !!nativeEquivB,
-    staleTime: 60_000,
-  })
   const wrapMapperConfigQuery = useQuery({
     queryKey: ['wrapMapperConfig'],
     queryFn: queryWrapMapperConfig,
@@ -226,21 +213,18 @@ const PoolCard = memo(function PoolCard({
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
     (wrapMapperConfig == null || !wrapTreasuryMatchesEnv(wrapMapperConfig))
 
+  // wrap_deposit is untaxed; CW20 provide amounts = gross − mapper fee (#512 / #507).
   const provideRawAddA = useMemo(() => {
     if (!needsWrapA || !nativeEquivA || rawAddA === '0') return rawAddA
-    const params = wrapTaxParamsAQuery.data
-    if (!params || wrapMapperFeeBps == null) return rawAddA
-    const afterTax = netUlunaAfterTransferTax(BigInt(rawAddA), params)
-    return netAfterWrapMapperFee(afterTax, wrapMapperFeeBps).toString()
-  }, [needsWrapA, nativeEquivA, rawAddA, wrapTaxParamsAQuery.data, wrapMapperFeeBps])
+    if (wrapMapperFeeBps == null) return rawAddA
+    return netAfterWrapMapperFee(BigInt(rawAddA), wrapMapperFeeBps).toString()
+  }, [needsWrapA, nativeEquivA, rawAddA, wrapMapperFeeBps])
 
   const provideRawAddB = useMemo(() => {
     if (!needsWrapB || !nativeEquivB || rawAddB === '0') return rawAddB
-    const params = wrapTaxParamsBQuery.data
-    if (!params || wrapMapperFeeBps == null) return rawAddB
-    const afterTax = netUlunaAfterTransferTax(BigInt(rawAddB), params)
-    return netAfterWrapMapperFee(afterTax, wrapMapperFeeBps).toString()
-  }, [needsWrapB, nativeEquivB, rawAddB, wrapTaxParamsBQuery.data, wrapMapperFeeBps])
+    if (wrapMapperFeeBps == null) return rawAddB
+    return netAfterWrapMapperFee(BigInt(rawAddB), wrapMapperFeeBps).toString()
+  }, [needsWrapB, nativeEquivB, rawAddB, wrapMapperFeeBps])
 
   const insufficientAddA =
     !!address &&
@@ -351,8 +335,6 @@ const PoolCard = memo(function PoolCard({
       decimalsB,
       needsWrapA,
       needsWrapB,
-      taxParamsA: wrapTaxParamsAQuery.data,
-      taxParamsB: wrapTaxParamsBQuery.data,
       wrapMapperFeeBps: wrapMapperFeeBps ?? 0,
     })
     if (counterpart !== null) setAmountB(counterpart)
@@ -370,8 +352,6 @@ const PoolCard = memo(function PoolCard({
       decimalsB,
       needsWrapA,
       needsWrapB,
-      taxParamsA: wrapTaxParamsAQuery.data,
-      taxParamsB: wrapTaxParamsBQuery.data,
       wrapMapperFeeBps: wrapMapperFeeBps ?? 0,
     })
     if (counterpart !== null) setAmountA(counterpart)

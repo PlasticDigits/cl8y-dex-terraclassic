@@ -155,6 +155,8 @@ No tokens move on a 429 — it is an HTTP throttle only.
 
 ### Native wrap / unwrap (wrap-mapper)
 
+**Unwrap receive vs fee ([#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)):** Unwrapping pays the wrap-mapper fee **and** Classic burn tax on the treasury’s native payout. The dApp **You Receive** figure includes both. Prefer withdrawing to **your own wallet** — exchange deposit addresses often ignore contract-initiated transfers even with a memo.
+
 Governance may configure **per-denom wrap limits** (maximum native amount per time window). Large wrap or instant-withdraw attempts above the cap fail with a rate-limit error **before** completing.
 
 | Symptom | Impact | What to do |
