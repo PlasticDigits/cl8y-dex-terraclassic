@@ -24,11 +24,11 @@ async fn build_app_with_health(
         config.lcd_timeout_ms,
         config.lcd_cooldown_ms,
     );
-    let ustc_price = cl8y_dex_indexer::indexer::oracle::new_shared_price();
+    let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     let state = AppState {
         pool,
         lcd,
-        ustc_price,
+        oracle_prices,
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),

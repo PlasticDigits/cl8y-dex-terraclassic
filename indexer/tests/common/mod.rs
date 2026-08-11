@@ -109,7 +109,7 @@ async fn clean_db_tables(pool: &PgPool) {
     // TRUNCATE CASCADE avoids flaky DELETE .ok() when FK rows remain.
     sqlx::query(
         "TRUNCATE TABLE
-            ustc_prices,
+            oracle_prices,
             hook_events,
             limit_order_cancellations,
             limit_order_placements,
@@ -857,9 +857,26 @@ pub async fn build_test_app_with_price(
     build_test_app_with_price_and_config(pool, ustc_price, test_config()).await
 }
 
+pub async fn build_test_app_with_prices(
+    pool: PgPool,
+    ustc_price: Option<bigdecimal::BigDecimal>,
+    lunc_price: Option<bigdecimal::BigDecimal>,
+) -> Router {
+    build_test_app_with_oracle_prices_and_config(pool, ustc_price, lunc_price, test_config()).await
+}
+
 pub async fn build_test_app_with_price_and_config(
     pool: PgPool,
     ustc_price: Option<bigdecimal::BigDecimal>,
+    config: Config,
+) -> Router {
+    build_test_app_with_oracle_prices_and_config(pool, ustc_price, None, config).await
+}
+
+pub async fn build_test_app_with_oracle_prices_and_config(
+    pool: PgPool,
+    ustc_price: Option<bigdecimal::BigDecimal>,
+    lunc_price: Option<bigdecimal::BigDecimal>,
     config: Config,
 ) -> Router {
     let lcd = LcdClient::new(
@@ -867,14 +884,17 @@ pub async fn build_test_app_with_price_and_config(
         config.lcd_timeout_ms,
         config.lcd_cooldown_ms,
     );
-    let price_handle = cl8y_dex_indexer::indexer::oracle::new_shared_price();
+    let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     if let Some(price) = ustc_price {
-        *price_handle.write().await = Some(price);
+        *oracle_prices.ustc.write().await = Some(price);
+    }
+    if let Some(price) = lunc_price {
+        *oracle_prices.lunc.write().await = Some(price);
     }
     let state = AppState {
         pool,
         lcd,
-        ustc_price: price_handle,
+        oracle_prices,
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),

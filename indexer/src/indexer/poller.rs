@@ -19,7 +19,7 @@ pub async fn run_indexer(
     lcd: LcdClient,
     config: Config,
     cancel: tokio_util::sync::CancellationToken,
-    ustc_price: oracle::SharedPrice,
+    oracle_prices: oracle::OraclePriceHandles,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), BoxError> {
     tracing::info!("Starting pair discovery from factory...");
@@ -75,10 +75,11 @@ pub async fn run_indexer(
 
     let oracle_pool = pool.clone();
     let oracle_interval = config.oracle_poll_interval_ms;
-    let oracle_price = ustc_price.clone();
+    let oracle_handles = oracle_prices.clone();
     tokio::spawn(async move {
-        oracle::run_oracle_loop(oracle_pool, oracle_interval, oracle_price).await;
+        oracle::run_oracle_loop(oracle_pool, oracle_interval, oracle_handles).await;
     });
+    let ustc_price = oracle_prices.ustc.clone();
 
     let snapshot_pool = pool.clone();
     let snapshot_lcd = lcd.clone();

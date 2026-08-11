@@ -1,3 +1,8 @@
+//! External CEX/USD reference oracle (GitLab #515).
+//!
+//! Polls KuCoin / MEXC / CoinGecko for **USTC/USD** and **LUNC/USD**.
+//! These feeds are advisory display/reference prices — not on-chain settlement.
+
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -15,15 +20,104 @@ pub fn new_shared_price() -> SharedPrice {
     Arc::new(RwLock::new(None))
 }
 
-pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, latest_price: SharedPrice) {
+/// In-memory handles for each supported external ticker.
+#[derive(Clone)]
+pub struct OraclePriceHandles {
+    pub ustc: SharedPrice,
+    pub lunc: SharedPrice,
+}
+
+impl OraclePriceHandles {
+    pub fn new() -> Self {
+        Self {
+            ustc: new_shared_price(),
+            lunc: new_shared_price(),
+        }
+    }
+
+    pub fn for_ticker(&self, ticker: OracleTicker) -> &SharedPrice {
+        match ticker {
+            OracleTicker::Ustc => &self.ustc,
+            OracleTicker::Lunc => &self.lunc,
+        }
+    }
+}
+
+impl Default for OraclePriceHandles {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Supported external USD reference tickers exposed by the API.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OracleTicker {
+    Ustc,
+    Lunc,
+}
+
+impl OracleTicker {
+    pub const ALL: [OracleTicker; 2] = [OracleTicker::Ustc, OracleTicker::Lunc];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            OracleTicker::Ustc => "ustc",
+            OracleTicker::Lunc => "lunc",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "ustc" => Some(OracleTicker::Ustc),
+            "lunc" => Some(OracleTicker::Lunc),
+            _ => None,
+        }
+    }
+
+    fn kucoin_symbol(self) -> &'static str {
+        match self {
+            OracleTicker::Ustc => "USTC-USDT",
+            OracleTicker::Lunc => "LUNC-USDT",
+        }
+    }
+
+    fn mexc_symbol(self) -> &'static str {
+        match self {
+            OracleTicker::Ustc => "USTCUSDT",
+            OracleTicker::Lunc => "LUNCUSDT",
+        }
+    }
+
+    fn coingecko_id(self) -> &'static str {
+        match self {
+            OracleTicker::Ustc => "terrausd",
+            OracleTicker::Lunc => "terra-luna",
+        }
+    }
+
+    fn display_name(self) -> &'static str {
+        match self {
+            OracleTicker::Ustc => "USTC/USD",
+            OracleTicker::Lunc => "LUNC/USD",
+        }
+    }
+}
+
+pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, prices: OraclePriceHandles) {
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
         .expect("failed to build oracle HTTP client");
 
-    if let Ok(Some(price)) = db_oracle::get_latest_average_price(&pool).await {
-        tracing::info!("Oracle: loaded cached USTC/USD price from DB: {}", price);
-        *latest_price.write().await = Some(price);
+    for ticker in OracleTicker::ALL {
+        if let Ok(Some(price)) = db_oracle::get_latest_average_price(&pool, ticker).await {
+            tracing::info!(
+                "Oracle: loaded cached {} price from DB: {}",
+                ticker.display_name(),
+                price
+            );
+            *prices.for_ticker(ticker).write().await = Some(price);
+        }
     }
 
     let interval = Duration::from_millis(poll_interval_ms);
@@ -33,68 +127,99 @@ pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, latest_price: 
         tick_count += 1;
         let fetch_coingecko = tick_count % 2 == 0;
 
-        let results = fetch_all_sources(&client, fetch_coingecko).await;
-
-        let mut prices: Vec<f64> = Vec::new();
-        for (source, result) in &results {
-            match result {
-                Ok(price) => {
-                    tracing::debug!("Oracle: {} returned ${:.8}", source, price);
-                    prices.push(*price);
-                    if let Err(e) = db_oracle::insert_price(&pool, &f64_to_bd(*price), source).await
-                    {
-                        tracing::error!("Oracle: failed to store {} price: {}", source, e);
-                    }
-                }
-                Err(e) => match e {
-                    OracleError::RateLimited => {
-                        // CoinGecko free tier often 429s; KuCoin/MEXC usually still succeed.
-                        tracing::debug!("Oracle: {} rate limited", source);
-                    }
-                    _ => {
-                        tracing::warn!("Oracle: {} failed: {}", source, e);
-                    }
-                },
-            }
-        }
-
-        if !prices.is_empty() {
-            let avg = prices.iter().sum::<f64>() / prices.len() as f64;
-            let avg_bd = f64_to_bd(avg);
-
-            tracing::info!(
-                "Oracle: USTC/USD avg ${:.8} from {}/{} sources",
-                avg,
-                prices.len(),
-                results.len()
-            );
-
-            if let Err(e) = db_oracle::insert_price(&pool, &avg_bd, "average").await {
-                tracing::error!("Oracle: failed to store average price: {}", e);
-            }
-
-            *latest_price.write().await = Some(avg_bd);
-        } else {
-            tracing::warn!("Oracle: all sources failed, retaining last known price");
+        for ticker in OracleTicker::ALL {
+            poll_ticker(&client, &pool, &prices, ticker, fetch_coingecko).await;
         }
 
         tokio::time::sleep(interval).await;
     }
 }
 
+async fn poll_ticker(
+    client: &Client,
+    pool: &PgPool,
+    prices: &OraclePriceHandles,
+    ticker: OracleTicker,
+    fetch_coingecko: bool,
+) {
+    let results = fetch_all_sources(client, ticker, fetch_coingecko).await;
+
+    let mut ok_prices: Vec<f64> = Vec::new();
+    for (source, result) in &results {
+        match result {
+            Ok(price) => {
+                tracing::debug!(
+                    "Oracle: {} {} returned ${:.8}",
+                    ticker.as_str(),
+                    source,
+                    price
+                );
+                ok_prices.push(*price);
+                if let Err(e) =
+                    db_oracle::insert_price(pool, ticker, &f64_to_bd(*price), source).await
+                {
+                    tracing::error!(
+                        "Oracle: failed to store {} {} price: {}",
+                        ticker.as_str(),
+                        source,
+                        e
+                    );
+                }
+            }
+            Err(e) => match e {
+                OracleError::RateLimited => {
+                    tracing::debug!("Oracle: {} {} rate limited", ticker.as_str(), source);
+                }
+                _ => {
+                    tracing::warn!("Oracle: {} {} failed: {}", ticker.as_str(), source, e);
+                }
+            },
+        }
+    }
+
+    if !ok_prices.is_empty() {
+        let avg = ok_prices.iter().sum::<f64>() / ok_prices.len() as f64;
+        let avg_bd = f64_to_bd(avg);
+
+        tracing::info!(
+            "Oracle: {} avg ${:.8} from {}/{} sources",
+            ticker.display_name(),
+            avg,
+            ok_prices.len(),
+            results.len()
+        );
+
+        if let Err(e) = db_oracle::insert_price(pool, ticker, &avg_bd, "average").await {
+            tracing::error!(
+                "Oracle: failed to store {} average price: {}",
+                ticker.as_str(),
+                e
+            );
+        }
+
+        *prices.for_ticker(ticker).write().await = Some(avg_bd);
+    } else {
+        tracing::warn!(
+            "Oracle: all sources failed for {}, retaining last known price",
+            ticker.display_name()
+        );
+    }
+}
+
 async fn fetch_all_sources(
     client: &Client,
+    ticker: OracleTicker,
     include_coingecko: bool,
 ) -> Vec<(&'static str, Result<f64, OracleError>)> {
-    let kucoin = fetch_kucoin(client);
-    let mexc = fetch_mexc(client);
+    let kucoin = fetch_kucoin(client, ticker);
+    let mexc = fetch_mexc(client, ticker);
 
     let (kc_res, mx_res) = tokio::join!(kucoin, mexc);
 
     let mut results = vec![("kucoin", kc_res), ("mexc", mx_res)];
 
     if include_coingecko {
-        let cg_res = fetch_coingecko(client).await;
+        let cg_res = fetch_coingecko(client, ticker).await;
         results.push(("coingecko", cg_res));
     }
 
@@ -129,13 +254,12 @@ struct KucoinData {
     price: Option<String>,
 }
 
-async fn fetch_kucoin(client: &Client) -> Result<f64, OracleError> {
-    let resp: KucoinResponse = client
-        .get("https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=USTC-USDT")
-        .send()
-        .await?
-        .json()
-        .await?;
+async fn fetch_kucoin(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
+    let url = format!(
+        "https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={}",
+        ticker.kucoin_symbol()
+    );
+    let resp: KucoinResponse = client.get(&url).send().await?.json().await?;
 
     if resp.code != "200000" {
         return Err(OracleError::Parse(format!(
@@ -158,13 +282,12 @@ struct MexcResponse {
     price: Option<String>,
 }
 
-async fn fetch_mexc(client: &Client) -> Result<f64, OracleError> {
-    let resp: MexcResponse = client
-        .get("https://api.mexc.com/api/v3/ticker/price?symbol=USTCUSDT")
-        .send()
-        .await?
-        .json()
-        .await?;
+async fn fetch_mexc(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
+    let url = format!(
+        "https://api.mexc.com/api/v3/ticker/price?symbol={}",
+        ticker.mexc_symbol()
+    );
+    let resp: MexcResponse = client.get(&url).send().await?.json().await?;
 
     resp.price
         .ok_or_else(|| OracleError::Parse("MEXC: missing price field".into()))?
@@ -173,11 +296,6 @@ async fn fetch_mexc(client: &Client) -> Result<f64, OracleError> {
 }
 
 // --- CoinGecko (fallback) ---
-
-#[derive(Deserialize)]
-struct CoinGeckoResponse {
-    terrausd: Option<CoinGeckoUsd>,
-}
 
 #[derive(Deserialize)]
 struct CoinGeckoUsd {
@@ -196,15 +314,19 @@ struct CoinGeckoStatus {
     error_code: Option<u32>,
 }
 
-async fn fetch_coingecko(client: &Client) -> Result<f64, OracleError> {
-    fetch_coingecko_url(
-        client,
-        "https://api.coingecko.com/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
-    )
-    .await
+async fn fetch_coingecko(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
+    let id = ticker.coingecko_id();
+    let url = format!(
+        "https://api.coingecko.com/api/v3/simple/price?ids={id}&vs_currencies=usd"
+    );
+    fetch_coingecko_url(client, &url, id).await
 }
 
-async fn fetch_coingecko_url(client: &Client, url: &str) -> Result<f64, OracleError> {
+async fn fetch_coingecko_url(
+    client: &Client,
+    url: &str,
+    coin_id: &str,
+) -> Result<f64, OracleError> {
     let resp = client.get(url).send().await?;
 
     let status = resp.status();
@@ -220,13 +342,16 @@ async fn fetch_coingecko_url(client: &Client, url: &str) -> Result<f64, OracleEr
         )));
     }
 
-    let parsed: CoinGeckoResponse = serde_json::from_str(&body)
+    let parsed: serde_json::Value = serde_json::from_str(&body)
         .map_err(|e| OracleError::Parse(format!("CoinGecko JSON: {e}")))?;
 
     parsed
-        .terrausd
+        .get(coin_id)
+        .and_then(|v| serde_json::from_value::<CoinGeckoUsd>(v.clone()).ok())
         .and_then(|t| t.usd)
-        .ok_or_else(|| OracleError::Parse("CoinGecko: missing terrausd.usd field".into()))
+        .ok_or_else(|| {
+            OracleError::Parse(format!("CoinGecko: missing {coin_id}.usd field"))
+        })
 }
 
 fn coingecko_body_is_rate_limited(body: &str) -> bool {
@@ -240,6 +365,43 @@ fn coingecko_body_is_rate_limited(body: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ticker_parse_accepts_known() {
+        assert_eq!(OracleTicker::parse("ustc"), Some(OracleTicker::Ustc));
+        assert_eq!(OracleTicker::parse("LUNC"), Some(OracleTicker::Lunc));
+        assert_eq!(OracleTicker::parse("unknown"), None);
+    }
+
+    #[test]
+    fn ticker_symbols_are_distinct() {
+        assert_ne!(
+            OracleTicker::Ustc.kucoin_symbol(),
+            OracleTicker::Lunc.kucoin_symbol()
+        );
+        assert_ne!(
+            OracleTicker::Ustc.mexc_symbol(),
+            OracleTicker::Lunc.mexc_symbol()
+        );
+        assert_ne!(
+            OracleTicker::Ustc.coingecko_id(),
+            OracleTicker::Lunc.coingecko_id()
+        );
+    }
+
+    #[test]
+    fn lunc_symbols_match_cex_convention() {
+        assert_eq!(OracleTicker::Lunc.kucoin_symbol(), "LUNC-USDT");
+        assert_eq!(OracleTicker::Lunc.mexc_symbol(), "LUNCUSDT");
+        assert_eq!(OracleTicker::Lunc.coingecko_id(), "terra-luna");
+    }
+
+    #[test]
+    fn ustc_symbols_unchanged() {
+        assert_eq!(OracleTicker::Ustc.kucoin_symbol(), "USTC-USDT");
+        assert_eq!(OracleTicker::Ustc.mexc_symbol(), "USTCUSDT");
+        assert_eq!(OracleTicker::Ustc.coingecko_id(), "terrausd");
+    }
 
     #[test]
     fn test_f64_to_bd() {
@@ -300,7 +462,38 @@ mod tests {
             "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
             server.uri()
         );
-        let err = fetch_coingecko_url(&client, &url).await.unwrap_err();
+        let err = fetch_coingecko_url(&client, &url, "terrausd")
+            .await
+            .unwrap_err();
         assert!(matches!(err, OracleError::RateLimited), "unexpected: {err}");
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_parses_lunc_id() {
+        use wiremock::matchers::{method, path, query_param};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .and(query_param("ids", "terra-luna"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{"terra-luna":{"usd":0.00005024}}"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap();
+        let url = format!(
+            "{}/api/v3/simple/price?ids=terra-luna&vs_currencies=usd",
+            server.uri()
+        );
+        let price = fetch_coingecko_url(&client, &url, "terra-luna")
+            .await
+            .unwrap();
+        assert!((price - 0.00005024).abs() < 1e-12);
     }
 }

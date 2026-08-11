@@ -391,25 +391,36 @@ export interface IndexerHookEvent {
   block_time: string
 }
 
-/** `GET /api/v1/oracle/price` */
+/** `GET /api/v1/oracle/price` and `GET /api/v1/oracle/history` (catalog) */
+export interface IndexerOracleTickerCatalogResponse {
+  metadata: string
+  /** Supported ticker path segments (e.g. `ustc`, `lunc`). */
+  tickers: string[]
+}
+
 export interface IndexerOracleSourcePrice {
   source: string
   price_usd: string
   fetched_at: string
 }
 
+/** `GET /api/v1/oracle/price/{ticker}` */
 export interface IndexerOraclePriceResponse {
+  /** Path ticker (`ustc` or `lunc`). */
+  ticker: string
   price_usd: string | null
   sources: IndexerOracleSourcePrice[]
 }
 
-/** `GET /api/v1/oracle/history` */
+/** `GET /api/v1/oracle/history/{ticker}` */
 export interface IndexerOracleHistoryEntry {
   price_usd: string
   fetched_at: string
 }
 
 export interface IndexerOracleHistoryResponse {
+  /** Path ticker (`ustc` or `lunc`). */
+  ticker: string
   prices: IndexerOracleHistoryEntry[]
 }
 
