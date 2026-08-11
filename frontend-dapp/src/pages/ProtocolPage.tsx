@@ -28,7 +28,7 @@ export default function ProtocolPage() {
 
   const priceQuery = useQuery({
     queryKey: ['indexer-oracle-price'],
-    queryFn: getOraclePrice,
+    queryFn: () => getOraclePrice(),
     refetchInterval: 60_000,
     retry: false,
   })
