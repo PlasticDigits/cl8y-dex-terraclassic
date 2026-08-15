@@ -64,6 +64,26 @@ describe('priceChartLightweightSeriesSync (GitLab #336)', () => {
     expect(series.update).not.toHaveBeenCalled()
   })
 
+  it('setData when invert rewrites historical OHLC at the same times (GitLab #524)', () => {
+    const series = mockSeries()
+    const previous = [candle(1, 10), candle(2, 11), candle(3, 12)]
+    const next = [candle(1, 0.1), candle(2, 1 / 11), candle(3, 1 / 12)]
+    syncCandleSeriesData(series, previous, next)
+    expect(series.setData).toHaveBeenCalledWith(next)
+    expect(series.update).not.toHaveBeenCalled()
+  })
+
+  it('update last bar then append when only the tail changed', () => {
+    const series = mockSeries()
+    const previous = [candle(1, 10), candle(2, 11)]
+    const next = [candle(1, 10), candle(2, 12), candle(3, 13)]
+    syncCandleSeriesData(series, previous, next)
+    expect(series.setData).not.toHaveBeenCalled()
+    expect(series.update).toHaveBeenCalledTimes(2)
+    expect(series.update).toHaveBeenNthCalledWith(1, next[1])
+    expect(series.update).toHaveBeenNthCalledWith(2, next[2])
+  })
+
   it('no-op when data is unchanged', () => {
     const series = mockSeries()
     const previous = [candle(1, 10), candle(2, 11)]

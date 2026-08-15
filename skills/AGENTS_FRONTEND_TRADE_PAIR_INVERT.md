@@ -22,6 +22,7 @@ After #522, UST1-as-`asset_0` pairs chart **USD of 1 UST1** (~$1). Traders need 
 - **Don’t** silently invert `/limits` standalone.
 - **Don’t** describe invert as mint/redeem (**U1**).
 - **Don’t** pass `NaN` / `Infinity` / `≤ 0` reciprocals into lightweight-charts.
+- **Don’t** `series.update()` historical bars when invert rewrites OHLC at the same times — that throws `Cannot update oldest data`. Use `setData` via `priceChartLightweightSeriesSync.ts`.
 
 ## Canonical code
 
@@ -31,6 +32,7 @@ After #522, UST1-as-`asset_0` pairs chart **USD of 1 UST1** (~$1). Traders need 
 | `frontend-dapp/src/hooks/usePairDisplayOrientation.ts` | One state for `/trade` + `/charts` |
 | `frontend-dapp/src/utils/pairPriceUsd.ts` | `resolveDisplayTapeLastPriceUsd` (factory USD unchanged) |
 | `frontend-dapp/src/components/charts/priceChartCandles.ts` | `applyChartDisplayInvert` after finite mapping |
+| `frontend-dapp/src/components/charts/priceChartLightweightSeriesSync.ts` | Invert historical rewrite → `setData` (not `update` from oldest) |
 | `frontend-dapp/src/components/trade/PairDisplayInvertControls.tsx` | Pill + ticket icon |
 | `frontend-dapp/src/components/trade/TradeOrderTicket.tsx` | No **Order ticket**; **Buy {displayBase}** + icon; factory convert on submit |
 | `frontend-dapp/src/pages/TradePage.tsx` / `ChartsPage.tsx` | Shared hook + pill |
@@ -49,7 +51,7 @@ After #522, UST1-as-`asset_0` pairs chart **USD of 1 UST1** (~$1). Traders need 
 make verify-issue-524
 ```
 
-Vitest: `tradePairDisplayOrientation.test.ts`, `pairPriceUsd.test.ts`, `priceChartCandles.test.ts`, `PriceChart.test.tsx`, `TradePage.test.tsx` (#524 describe), `TradeOrderTicket.invert.test.tsx`.
+Vitest: `tradePairDisplayOrientation.test.ts`, `pairPriceUsd.test.ts`, `priceChartCandles.test.ts`, `priceChartLightweightSeriesSync.test.ts` (invert → `setData`), `PriceChart.test.tsx`, `TradePage.test.tsx` (#524 describe), `TradeOrderTicket.invert.test.tsx`.
 
 ## Related
 

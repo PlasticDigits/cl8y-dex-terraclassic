@@ -44,6 +44,7 @@ run_step "frontend: invert helper + USD + candles + trade page" \
     src/utils/__tests__/tradePairDisplayOrientation.test.ts \
     src/utils/__tests__/pairPriceUsd.test.ts \
     src/components/charts/__tests__/priceChartCandles.test.ts \
+    src/components/charts/__tests__/priceChartLightweightSeriesSync.test.ts \
     src/components/trade/__tests__/TradeOrderTicket.invert.test.tsx \
     src/utils/__tests__/pairMenuOptions.test.ts \
     src/pages/TradePage.test.tsx'
@@ -65,6 +66,10 @@ run_step "code: no Order ticket eyebrow" \
 run_step "code: pair invert is not LimitOrderSideFlipButton" \
   grep -qE 'trade-ticket-pair-invert' frontend-dapp/src/components/trade/PairDisplayInvertControls.tsx && \
   grep -qE 'limit-order-side-flip' frontend-dapp/src/components/trade/LimitOrderPriceField.tsx
+
+run_step "code: invert historical rewrite uses setData not update" \
+  grep -qE 'firstChanged < previous.length - 1' frontend-dapp/src/components/charts/priceChartLightweightSeriesSync.ts && \
+  grep -qE 'Cannot update oldest data' frontend-dapp/src/components/charts/priceChartLightweightSeriesSync.ts
 
 run_step "docs: frontend.md T524-1–T524-11" \
   grep -qE 'trade-pair-display-invert' docs/frontend.md && \

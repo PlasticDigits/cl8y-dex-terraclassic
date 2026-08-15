@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createChart, CandlestickSeries, HistogramSeries, type IChartApi } from 'lightweight-charts'
+import { applyChartDisplayInvert } from '../priceChartCandles'
 import { syncPriceChartIndicatorOverlays, type IndicatorSeriesRefs } from '../priceChartLightweightIndicatorSync'
+import { syncCandleSeriesData } from '../priceChartLightweightSeriesSync'
 import { minLowInVisibleLogicalRange } from '../priceChartPriceScale'
 import {
   chartBundleFromCandles,
@@ -209,6 +211,30 @@ describe('lightweight-charts large candle datasets (#229)', () => {
     const canvasCountAfterFirst = container.querySelectorAll('canvas').length
     series.setData(makeChartCandlePoints(600))
     expect(container.querySelectorAll('canvas').length).toBe(canvasCountAfterFirst)
+    chart.remove()
+  })
+
+  it('update on an older bar throws Cannot update oldest data', () => {
+    container = mountChartContainer()
+    const chart = createChart(container, baseRealChartOptions(640, 400))
+    const series = chart.addSeries(CandlestickSeries, {})
+    const previous = makeChartCandlePoints(4)
+    series.setData(previous)
+    const inverted = applyChartDisplayInvert(previous, true)
+    expect(inverted[0]).toBeDefined()
+    expect(() => series.update(inverted[0]!)).toThrow(/Cannot update oldest data/)
+    chart.remove()
+  })
+
+  it('pair invert historical rewrite uses setData and does not throw (#524)', () => {
+    container = mountChartContainer()
+    const chart = createChart(container, baseRealChartOptions(640, 400))
+    const series = chart.addSeries(CandlestickSeries, {})
+    const previous = makeChartCandlePoints(8)
+    series.setData(previous)
+    const inverted = applyChartDisplayInvert(previous, true)
+    expect(inverted.length).toBe(previous.length)
+    expect(() => syncCandleSeriesData(series, previous, inverted)).not.toThrow()
     chart.remove()
   })
 })

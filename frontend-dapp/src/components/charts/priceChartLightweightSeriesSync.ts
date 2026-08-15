@@ -19,8 +19,15 @@ function linePointEqual(a: IndicatorLinePoint, b: IndicatorLinePoint): boolean {
 /**
  * Apply candle/volume/indicator data without resetting the time-scale viewport.
  *
- * - First load or structural change (interval switch, truncated history): `setData`.
- * - Background refetch with same prefix: `update` from the first changed bar onward.
+ * lightweight-charts `update` may only rewrite the **last** bar or append a newer
+ * time. Calling it on an older bar throws
+ * `Cannot update oldest data, last time=[object Object], new time=[object Object]`
+ * (the library stringifies internal TimePoints).
+ *
+ * - First load, interval switch, truncated history, or a rewrite of any
+ *   historical bar (pair invert #524 keeps times and reciprocates every OHLC):
+ *   `setData`.
+ * - Background refetch that only changes the last bar and/or appends: `update`.
  */
 export function syncCandleSeriesData(
   series: SeriesApi<'Candlestick'>,
@@ -80,6 +87,12 @@ function syncTimedSeries<T extends { time: Time }>(
 
   if (firstChanged === previous.length && next.length === previous.length) {
     return previous
+  }
+
+  // Historical bars (anything before the last existing bar) cannot use `update`.
+  if (firstChanged < previous.length - 1) {
+    series.setData(next)
+    return next
   }
 
   for (let i = firstChanged; i < next.length; i++) {
