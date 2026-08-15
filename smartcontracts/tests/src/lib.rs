@@ -8,6 +8,9 @@ mod classic_lp_cw20;
 mod mock_failing_hook;
 
 #[cfg(test)]
+mod mock_split_fee_wrap_mapper;
+
+#[cfg(test)]
 mod lp_symbol_tests;
 
 #[cfg(test)]
@@ -14873,6 +14876,204 @@ mod wrap_router_tests {
             post_unwrap_net,
             "Recipient must receive post-unwrap net when floor equals delivered amount"
         );
+    }
+
+    /// GitLab #523: post-migrate mapper `Config` has no `fee_bps`. Router must
+    /// deserialize split fields and apply `fee_unwrap_bps` (not `fee_wrap_bps`) for R3.
+    #[test]
+    fn test_unwrap_output_split_fee_config_no_fee_bps() {
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    vec![Coin::new(100_000_000_000u128, "uluna")],
+                )
+                .unwrap();
+        });
+        let env = setup_wrap_env(&mut app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let mock_code_id = app
+            .store_code(super::mock_split_fee_wrap_mapper::mock_split_fee_wrap_mapper_contract());
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let resp = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [
+                        asset_info_token(&env.token_b),
+                        asset_info_token(&env.lunc_c),
+                    ],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bl = extract_pair_address(&resp.events);
+
+        provide_liquidity_raw(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_a,
+            &env.token_b,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.user.clone(),
+            env.treasury_contract.clone(),
+            &treasury::msg::ExecuteMsg::WrapDeposit {},
+            &[Coin::new(50_000_000u128, "uluna")],
+        )
+        .unwrap();
+
+        provide_liquidity_raw(
+            &mut app,
+            &pair_bl,
+            &env.user,
+            &env.token_b,
+            &env.lunc_c,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let mock_mapper = app
+            .instantiate_contract(
+                mock_code_id,
+                env.governance.clone(),
+                &super::mock_split_fee_wrap_mapper::InstantiateMsg {
+                    governance: env.governance.to_string(),
+                    treasury: env.treasury_contract.to_string(),
+                    fee_wrap_bps: 200,
+                    fee_unwrap_bps: 51,
+                },
+                &[],
+                "mock-split-mapper",
+                None,
+            )
+            .unwrap();
+
+        let queried: dex_common::wrap_mapper::ConfigResponse = app
+            .wrap()
+            .query_wasm_smart(
+                mock_mapper.to_string(),
+                &dex_common::wrap_mapper::QueryMsg::Config {},
+            )
+            .unwrap();
+        assert_eq!(queried.fee_bps, None);
+        assert_eq!(queried.fee_wrap_bps, Some(200));
+        assert_eq!(queried.fee_unwrap_bps, Some(51));
+        assert_eq!(queried.unwrap_fee_bps().unwrap(), 51);
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.router.clone(),
+            &cl8y_dex_router::msg::ExecuteMsg::SetWrapMapper {
+                wrap_mapper: mock_mapper.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let offer = Uint128::new(50_000);
+        let ops = vec![
+            cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_a),
+                ask_asset_info: asset_info_token(&env.token_b),
+                hybrid: None,
+                min_return: None,
+            },
+            cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                offer_asset_info: asset_info_token(&env.token_b),
+                ask_asset_info: asset_info_token(&env.lunc_c),
+                hybrid: None,
+                min_return: None,
+            },
+        ];
+        let sim: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: offer,
+                    operations: ops.clone(),
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+
+        let unwrap_fee = sim.amount.multiply_ratio(51u128, 10_000u128);
+        let wrap_fee = sim.amount.multiply_ratio(200u128, 10_000u128);
+        let post_unwrap_net = sim.amount - unwrap_fee;
+        assert!(
+            wrap_fee > unwrap_fee,
+            "test needs wrap fee to skim more than unwrap fee"
+        );
+
+        let hop_floor_hook =
+            to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+                operations: ops.clone(),
+                max_spread: cosmwasm_std::Decimal::one(),
+                minimum_receive: Some(sim.amount),
+                to: None,
+                deadline: None,
+                unwrap_output: Some(true),
+            })
+            .unwrap();
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.router.to_string(),
+                    amount: offer,
+                    msg: hop_floor_hook,
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Minimum receive assertion"),
+            "hop-output floor must fail when unwrap fee is 51 bps, got: {}",
+            err.root_cause()
+        );
+
+        let ok_hook = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+            operations: ops,
+            max_spread: cosmwasm_std::Decimal::one(),
+            minimum_receive: Some(post_unwrap_net),
+            to: None,
+            deadline: None,
+            unwrap_output: Some(true),
+        })
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: offer,
+                msg: ok_hook,
+            },
+            &[],
+        )
+        .unwrap();
     }
 
     fn provide_liquidity_raw(

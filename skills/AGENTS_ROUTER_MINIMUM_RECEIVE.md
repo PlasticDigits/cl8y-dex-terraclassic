@@ -12,7 +12,7 @@ On the final hop reply (`reply_swap_hop`):
 | CW20 transfer (`unwrap_output = false`) | `hop_output` (router CW20 balance delta on output token) |
 | Unwrap (`unwrap_output = true`) | **Post–wrap-mapper net:** `hop_output − floor(hop_output × unwrap_fee_bps / 10_000)` |
 
-The router queries wrap-mapper `Config` at final-hop settlement. After ustr-cmm#9 the unwrap skim is **`fee_unwrap_bps`** ([#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); today’s router wasm still deserializes `fee_bps` — upgrade before migrate (see split-fees playbook follow-up). Integrators setting `minimum_receive` on native-output swaps must subtract the **unwrap** mapper fee from the simulated wrapped output.
+The router queries wrap-mapper `Config` at final-hop settlement and dual-reads **`fee_unwrap_bps`** (legacy `fee_bps` only when both split fields are absent) ([#523](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/523) / [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)). Integrators setting `minimum_receive` on native-output swaps must subtract the **unwrap** mapper fee from the simulated wrapped output. Store + migrate this router wasm in the same window as wrap-mapper migrate.
 
 Non-unwrap paths are unchanged — there is no mapper fee on a direct CW20 `Transfer`.
 
@@ -30,7 +30,7 @@ Integrators must submit `minimum_receive` from `routerMinReceiveBase` (after sli
 | Path | Role |
 |------|------|
 | [`smartcontracts/contracts/router/src/contract.rs`](../smartcontracts/contracts/router/src/contract.rs) | `net_after_wrap_mapper_unwrap_fee`, `reply_swap_hop` |
-| [`smartcontracts/packages/dex-common/src/wrap_mapper.rs`](../smartcontracts/packages/dex-common/src/wrap_mapper.rs) | `QueryMsg::Config`, `SetFeeBps` |
+| [`smartcontracts/packages/dex-common/src/wrap_mapper.rs`](../smartcontracts/packages/dex-common/src/wrap_mapper.rs) | `QueryMsg::Config`, `wrap_mapper_fee_pair` / `unwrap_fee_bps` (W13) |
 
 ## Regression tests
 
@@ -40,6 +40,7 @@ Integrators must submit `minimum_receive` from `routerMinReceiveBase` (after sli
 | `test_unwrap_minimum_receive_checked_on_post_unwrap_net` | Unwrap; floor at wrapped sim amount → revert (fee skims below floor) |
 | `test_unwrap_minimum_receive_rejects_when_mapper_fee_skims_below_floor` | #469 repro: `fee_bps = 50`, floor = wrapped output |
 | `test_unwrap_minimum_receive_succeeds_at_post_unwrap_net` | Floor at post-unwrap net → success; native delta matches |
+| `test_unwrap_output_split_fee_config_no_fee_bps` | Post-migrate `Config` (no `fee_bps`); R3 uses `fee_unwrap_bps` (#523) |
 
 **Run:**
 
