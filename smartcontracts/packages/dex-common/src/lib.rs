@@ -5,6 +5,7 @@ pub mod hook;
 pub mod hook_settlement;
 pub mod limit_clean;
 pub mod limit_placement;
+pub mod lp_symbol;
 pub mod max_spread;
 pub mod oracle;
 pub mod pagination;

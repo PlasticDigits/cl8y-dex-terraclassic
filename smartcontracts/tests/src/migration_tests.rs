@@ -22,11 +22,11 @@ use crate::helpers::*;
 use crate::tier_fixtures::STANDARD_PRODUCTION_TIERS;
 
 const FACTORY_NAME: &str = "cl8y-dex-factory";
-const FACTORY_VERSION: &str = "1.5.0";
-const FACTORY_PRIOR_VERSION: &str = "1.4.0";
+const FACTORY_VERSION: &str = "1.6.0";
+const FACTORY_PRIOR_VERSION: &str = "1.5.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
-const PAIR_VERSION: &str = "1.9.0";
+const PAIR_VERSION: &str = "1.10.0";
 const PAIR_PRIOR_VERSION: &str = "1.7.0";
 
 const FEE_DISCOUNT_NAME: &str = "crates.io:cl8y-dex-fee-discount";

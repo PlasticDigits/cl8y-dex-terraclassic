@@ -32,6 +32,7 @@ use crate::state::{
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
 use dex_common::hook_settlement::{collect_fee_hook_deductions, fee_settlement_transfer_messages};
+use dex_common::lp_symbol::lp_token_instantiate_meta;
 use dex_common::max_spread::{self, CheckMaxSpreadError, MaxSpreadInputs};
 use dex_common::oracle::{
     price_times_dt, Observation, DEFAULT_OBSERVATION_CARDINALITY, MAX_OBSERVATION_CARDINALITY,
@@ -44,7 +45,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.9.0";
+const CONTRACT_VERSION: &str = "1.10.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -536,22 +537,8 @@ pub fn instantiate(
         },
     )?;
 
-    let (lp_name, lp_symbol, lp_label) = match msg.token_symbols {
-        Some([ref a, ref b]) => {
-            let short_a: String = a.chars().take(4).collect();
-            let short_b: String = b.chars().take(4).collect();
-            (
-                format!("{}-{} CL8YDEX LP", a, b),
-                format!("{}-{}-LP", short_a, short_b),
-                format!("{}-{} cl8ydex lp", a, b),
-            )
-        }
-        None => (
-            "CL8Y DEX LP Token".to_string(),
-            "CL8Y-LP".to_string(),
-            "CL8Y DEX LP Token".to_string(),
-        ),
-    };
+    // GitLab #518: keep 0-9, strip non-alphanumeric. Requires digit-allowing LP CW20.
+    let (lp_name, lp_symbol, lp_label) = lp_token_instantiate_meta(msg.token_symbols.as_ref());
 
     let instantiate_lp_msg = cw20_mintable::msg::InstantiateMsg {
         name: lp_name,
