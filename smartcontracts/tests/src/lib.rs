@@ -2,7 +2,13 @@
 mod adversarial_token;
 
 #[cfg(test)]
+mod classic_lp_cw20;
+
+#[cfg(test)]
 mod mock_failing_hook;
+
+#[cfg(test)]
+mod lp_symbol_tests;
 
 #[cfg(test)]
 mod blacklist_tests;

@@ -19,6 +19,10 @@
 //!   unless both reserve CW20 tokens have `decimals` ≤
 //!   `dex_common::pair::MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`. LP share tokens use
 //!   `dex_common::pair::LP_TOKEN_DECIMALS`.
+//! - **LP ticker classic charset (#518):** the LP CW20 `symbol` is derived via
+//!   [`dex_common::lp_symbol`] so it always matches `[a-zA-Z\-]{3,12}`. Asset
+//!   symbols that contain digits (UST1, CL8Y) must not revert `create_pair`.
+//!   Name/label keep the unsanitized symbols. See invariant **F3**.
 //!
 //! ## Limit book and escrow (FIFO hybrid)
 //!

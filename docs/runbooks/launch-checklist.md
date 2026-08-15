@@ -198,6 +198,10 @@ Choose **GO with accepted risk** only when:
 
 **Automated doc invariant:** `make verify-issue-391` (or `make check-launch-go-no-go-docs`) must pass before treating this gate as satisfied in CI or agent workflows. **SEC-H08 test evidence:** confirm Phase 0 test output (or CI pipeline link) is on the launch issue before **GO** — `make verify-issue-444` (docs only). **SEC-B09 multisig rehearsal:** `make verify-issue-397` (or `make check-governance-emergency-rehearsal-docs` for docs only). **SEC-B10 key custody:** `make verify-issue-398` (or `make check-key-custody-docs` for docs only). **SEC-D10 key rotation:** `make verify-issue-408` (or `make check-governance-key-rotation-docs` for docs only).
 
+### LP ticker digits ([#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518))
+
+**BLOCK** economic-pool creation (UST1/cUSTC, UST1/USTR, cLUNC/UST1, any CL8Y pair) until factory `pair_code_id` is the #518 pair wasm. Classic columbus-5 LP CW20 rejects digits in the derived LP ticker. Regression: `make verify-issue-518`. Playbook: [`skills/AGENTS_LP_SYMBOL_DIGITS.md`](../../skills/AGENTS_LP_SYMBOL_DIGITS.md). Invariant **F3**.
+
 ### UST1 / wrap Phase 5 extras ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
 
 Before marketing UST1 withdraw capacity or native wrap on `dex.cl8y.com`, complete the go/no-go extras in [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md) (oracle freshness, treasury vFDUSD capacity, wrap unpaused, silence-alert + pause-drill evidence on #503). Probe:

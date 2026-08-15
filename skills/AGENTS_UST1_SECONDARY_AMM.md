@@ -20,10 +20,11 @@ Use when creating/seeding **UST1/vFDUSD** or **UST1/cUSTC** on the live CL8Y fac
 2. **Do not edit soft-launch gemstone catalogs (U6)** — never add UST1 to `mainnet-soft-launch-defaults.sh` `MAINNET_SOFT_LAUNCH_PAIRS`.
 3. **Whitelist (U2)** — UST1/vFDUSD/cUSTC are code **10184** on columbus-5; still verify before create. New code IDs need governance + [`cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md).
 4. **No native legs (U3)** — use cUSTC, not `uusd`.
-5. **Seed size honesty (U4)** — default smoke seed is **1.0** raw-unit human (1e6) per side on mainnet script; document any larger size. Empty pools are worse than a waiver. `UST1_SEC_SKIP_LP=1` requires `UST1_SEC_ALLOW_UNSEEDED=1`. Preflight asserts on-chain CW20 **symbols** match expected legs.
-6. **Indexer (U5)** — factory `create_pair` is enough for discovery; foreign pairs fail provenance (**P1**).
-7. **Close AC (U7)** — either live seeded pair + txs on #508, or explicit waiver text on #508 **and** #502. Tooling-only PRs do not satisfy Path A.
-8. **Keys** — host terrad via [`terrad-host.sh`](../scripts/lib/terrad-host.sh); never commit `TERRAD_HOST_KEYRING_PASS`. See [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md).
+5. **Pair code must include #518** — `create_pair` for UST1 (digit in the symbol) reverts on columbus-5 LP CW20 unless the factory `pair_code_id` sanitizes the LP ticker (**F3**). See [`AGENTS_LP_SYMBOL_DIGITS.md`](./AGENTS_LP_SYMBOL_DIGITS.md). Do not treat a LocalTerra success against digit-allowing `cw20-mintable` as mainnet-ready.
+6. **Seed size honesty (U4)** — default smoke seed is **1.0** raw-unit human (1e6) per side on mainnet script; document any larger size. Empty pools are worse than a waiver. `UST1_SEC_SKIP_LP=1` requires `UST1_SEC_ALLOW_UNSEEDED=1`. Preflight asserts on-chain CW20 **symbols** match expected legs.
+7. **Indexer (U5)** — factory `create_pair` is enough for discovery; foreign pairs fail provenance (**P1**).
+8. **Close AC (U7)** — either live seeded pair + txs on #508, or explicit waiver text on #508 **and** #502. Tooling-only PRs do not satisfy Path A.
+9. **Keys** — host terrad via [`terrad-host.sh`](../scripts/lib/terrad-host.sh); never commit `TERRAD_HOST_KEYRING_PASS`. See [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md).
 
 ## Quick commands
 

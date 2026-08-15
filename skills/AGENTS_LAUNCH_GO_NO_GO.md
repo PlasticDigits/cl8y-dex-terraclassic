@@ -37,3 +37,4 @@ No LocalTerra or Postgres required.
 - QA onboarding: [`docs/qa-onboarding.md`](../docs/qa-onboarding.md)
 - Deployment narrative: [`docs/deployment-guide.md`](../deployment-guide.md)
 - Historical blocker matrix (not a live gate): [`docs/reviews/20260409T030009Z/RELEASE_READINESS_MATRIX.md`](../docs/reviews/20260409T030009Z/RELEASE_READINESS_MATRIX.md)
+- LP ticker digits (launch blocker for UST1 / CL8Y pools): [`AGENTS_LP_SYMBOL_DIGITS.md`](./AGENTS_LP_SYMBOL_DIGITS.md) ([#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518), **F3**); `make verify-issue-518`

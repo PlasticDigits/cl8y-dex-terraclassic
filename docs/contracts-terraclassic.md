@@ -73,6 +73,23 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 
 **`CreatePair`** rejects if either asset CW20 declares `decimals` greater than **`MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`** (see `dex_common::pair`, default **18**). This aligns with empty-pool `provide_liquidity` guards ([issue #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)). When `pair_creation_fee_uluna > 0`, the caller must attach at least that much **uluna** (only uluna accepted; overpay refunded) or the tx fails with `InsufficientPairCreationFee` ([#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)).
 
+<a id="createpair-lp-ticker-gitlab-518"></a>
+
+### `CreatePair` LP ticker (GitLab [#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518))
+
+columbus-5 factory `lp_token_code_id` still validates LP tickers as classic Terraswap **`[a-zA-Z\-]{3,12}`** (no digits). The pair therefore **must not** copy raw asset symbols into the LP CW20 `symbol`.
+
+| Step | Behavior |
+|------|----------|
+| Factory | Queries each asset `TokenInfo.symbol`, truncates to 6 chars, uppercases, passes `token_symbols` into pair instantiate (also used in the pair wasm **label**). |
+| Pair | [`dex_common::lp_symbol::lp_token_instantiate_meta`](../smartcontracts/packages/dex-common/src/lp_symbol.rs) — keep **name** / **label** unique with the factory strings; derive LP `symbol` from ASCII **letters only** (4-char prefix each) as `{a}-{b}-LP`. |
+| Fallback | If the derived ticker is not length 3–12 after hyphen collapse, use **`CLY-LP`**. Do not use `CL8Y-LP` (digit `8` fails classic validation). |
+| Examples | UST1/cUSTC → `UST-CUST-LP`; CL8Y/cLUNC → `CLY-CLUN-LP`; cLUNC/cUSTC → `CLUN-CUST-LP`. |
+
+**Deploy:** this is instantiate-time only. Existing pairs keep their LP tokens. Unblock economic pools by uploading new **pair** wasm and setting factory `pair_code_id` (governance `UpdateConfig`). Changing `lp_token_code_id` to digit-allowing `cw20-mintable` is **not** required for the unblock, and is a wider blast radius (issue option 3).
+
+Invariant **F3** in [contracts-security-audit.md](./contracts-security-audit.md). Agent playbook: [`skills/AGENTS_LP_SYMBOL_DIGITS.md`](../skills/AGENTS_LP_SYMBOL_DIGITS.md). Regression: `make verify-issue-518`. Blocks UST1 secondary AMM Path A until the new pair code is live — [`ust1-secondary-amm-pair.md`](./runbooks/ust1-secondary-amm-pair.md).
+
 ### Factory storage & upgrades
 
 | Storage | Role |
