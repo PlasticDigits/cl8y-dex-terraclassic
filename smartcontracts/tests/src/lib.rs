@@ -1222,6 +1222,8 @@ mod factory_tests {
                 treasury: Some(new_treasury.to_string()),
                 default_fee_bps: None,
                 default_limit_batch_max_rungs: None,
+                pair_code_id: None,
+                lp_token_code_id: None,
             },
             &[],
         )
@@ -1846,6 +1848,8 @@ mod factory_tests {
                 treasury: Some(new_treasury.to_string()),
                 default_fee_bps: Some(50),
                 default_limit_batch_max_rungs: None,
+                pair_code_id: None,
+                lp_token_code_id: None,
             },
             &[],
         )
@@ -4655,6 +4659,8 @@ mod factory_coverage_tests {
                     treasury: None,
                     default_fee_bps: Some(100),
                     default_limit_batch_max_rungs: None,
+                    pair_code_id: None,
+                    lp_token_code_id: None,
                 },
                 &[],
             )
@@ -10637,6 +10643,8 @@ mod line_coverage_tests {
                     treasury: None,
                     default_fee_bps: Some(10001),
                     default_limit_batch_max_rungs: None,
+                    pair_code_id: None,
+                    lp_token_code_id: None,
                 },
                 &[],
             )
@@ -11788,6 +11796,8 @@ mod new_feature_tests {
                 treasury: None,
                 default_fee_bps: None,
                 default_limit_batch_max_rungs: None,
+                pair_code_id: None,
+                lp_token_code_id: None,
             },
             &[],
         )

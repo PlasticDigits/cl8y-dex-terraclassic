@@ -200,7 +200,7 @@ Choose **GO with accepted risk** only when:
 
 ### LP ticker digits ([#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518))
 
-**BLOCK** economic-pool creation (UST1/cUSTC, UST1/USTR, cLUNC/UST1, any CL8Y pair) until factory `pair_code_id` is the #518 pair wasm. Classic columbus-5 LP CW20 rejects digits in the derived LP ticker. Regression: `make verify-issue-518`. Playbook: [`skills/AGENTS_LP_SYMBOL_DIGITS.md`](../../skills/AGENTS_LP_SYMBOL_DIGITS.md). Invariant **F3**.
+**BLOCK** economic-pool creation (UST1/cUSTC, UST1/USTR, cLUNC/UST1, any CL8Y pair) until the #518 upgrade has run: new pair wasm **and** factory `lp_token_code_id` on digit-allowing `cw20-mintable` (`./scripts/upgrade-518-lp-symbol.sh`). Classic LP CW20 still rejects `UST1-CUST-LP`. Regression: `make verify-issue-518`. Playbook: [`skills/AGENTS_LP_SYMBOL_DIGITS.md`](../../skills/AGENTS_LP_SYMBOL_DIGITS.md). Invariant **F3**.
 
 ### UST1 / wrap Phase 5 extras ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
 

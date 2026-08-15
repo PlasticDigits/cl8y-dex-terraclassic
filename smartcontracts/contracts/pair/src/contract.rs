@@ -45,7 +45,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.9.0";
+const CONTRACT_VERSION: &str = "1.10.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -537,8 +537,7 @@ pub fn instantiate(
         },
     )?;
 
-    // GitLab #518: LP ticker must satisfy classic `[a-zA-Z\-]{3,12}` (columbus-5
-    // `lp_token_code_id`). Digits in UST1 / CL8Y are stripped; name/label stay unique.
+    // GitLab #518: keep 0-9, strip non-alphanumeric. Requires digit-allowing LP CW20.
     let (lp_name, lp_symbol, lp_label) = lp_token_instantiate_meta(msg.token_symbols.as_ref());
 
     let instantiate_lp_msg = cw20_mintable::msg::InstantiateMsg {

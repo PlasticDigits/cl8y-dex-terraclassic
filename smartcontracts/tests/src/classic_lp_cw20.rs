@@ -1,9 +1,8 @@
 //! Test-only LP CW20 that enforces classic Terraswap ticker rules (GitLab #518).
 //!
-//! columbus-5 `lp_token_code_id` rejects digits (`[a-zA-Z\-]{3,12}`). Workspace
-//! `cw20-mintable` already allows `[a-zA-Z0-9\-]`, so a create_pair test against
-//! mintable would not reproduce the mainnet revert. This contract accepts the
-//! same instantiate JSON as `cw20_mintable` and applies the stricter check.
+//! columbus-5 classic `lp_token_code_id` rejects digits (`[a-zA-Z\-]{3,12}`).
+//! Workspace `cw20-mintable` allows `[a-zA-Z0-9\-]`. This contract reproduces
+//! the pre-upgrade revert so tests prove the factory LP code-id rotation.
 
 use cosmwasm_std::{
     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult,

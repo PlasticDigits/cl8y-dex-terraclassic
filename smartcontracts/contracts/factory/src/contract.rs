@@ -23,7 +23,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.5.0";
+const CONTRACT_VERSION: &str = "1.6.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -96,13 +96,19 @@ pub fn execute(
             treasury,
             default_fee_bps,
             default_limit_batch_max_rungs,
+            pair_code_id,
+            lp_token_code_id,
         } => execute_update_config(
             deps,
             info,
-            governance,
-            treasury,
-            default_fee_bps,
-            default_limit_batch_max_rungs,
+            UpdateConfigParams {
+                governance,
+                treasury,
+                default_fee_bps,
+                default_limit_batch_max_rungs,
+                pair_code_id,
+                lp_token_code_id,
+            },
         ),
         ExecuteMsg::SetPairLimitBatchMax { pair, max_rungs } => {
             execute_set_pair_limit_batch_max(deps, info, pair, max_rungs)
@@ -767,39 +773,61 @@ fn execute_set_pair_limit_clean_config(
         .add_attribute("min_remaining_token1", min_remaining_token1))
 }
 
-fn execute_update_config(
-    deps: DepsMut,
-    info: MessageInfo,
+struct UpdateConfigParams {
     governance: Option<String>,
     treasury: Option<String>,
     default_fee_bps: Option<u16>,
     default_limit_batch_max_rungs: Option<u32>,
+    pair_code_id: Option<u64>,
+    lp_token_code_id: Option<u64>,
+}
+
+fn execute_update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    params: UpdateConfigParams,
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
 
     let mut config = CONFIG.load(deps.storage)?;
 
-    if let Some(gov) = governance {
+    if let Some(gov) = params.governance {
         config.governance = deps.api.addr_validate(&gov)?;
     }
-    if let Some(trs) = treasury {
+    if let Some(trs) = params.treasury {
         config.treasury = deps.api.addr_validate(&trs)?;
     }
-    if let Some(fee) = default_fee_bps {
+    if let Some(fee) = params.default_fee_bps {
         if fee > 10000 {
             return Err(ContractError::InvalidFee {});
         }
         config.default_fee_bps = fee;
     }
-    if let Some(max_rungs) = default_limit_batch_max_rungs {
+    if let Some(max_rungs) = params.default_limit_batch_max_rungs {
         config.default_limit_batch_max_rungs = clamp_max_batch_rungs(max_rungs);
+    }
+    // GitLab #518: point new create_pair at upgraded pair / digit-allowing LP CW20.
+    if let Some(code_id) = params.pair_code_id {
+        if code_id == 0 {
+            return Err(ContractError::InvalidCodeId {});
+        }
+        config.pair_code_id = code_id;
+    }
+    if let Some(code_id) = params.lp_token_code_id {
+        if code_id == 0 {
+            return Err(ContractError::InvalidCodeId {});
+        }
+        config.lp_token_code_id = code_id;
     }
 
     CONFIG.save(deps.storage, &config)?;
 
     // GitLab #277: governance rotation no longer fans a SetLpAdmin to every pair in one tx
     // (unbounded). Rotate LP-token admins explicitly afterward via SetLpAdminAll / SetLpAdminBatch.
-    Ok(Response::new().add_attribute("action", "update_config"))
+    Ok(Response::new()
+        .add_attribute("action", "update_config")
+        .add_attribute("pair_code_id", config.pair_code_id.to_string())
+        .add_attribute("lp_token_code_id", config.lp_token_code_id.to_string()))
 }
 
 // ---------------------------------------------------------------------------

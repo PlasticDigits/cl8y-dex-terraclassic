@@ -38,9 +38,10 @@
 //! ## LP ticker (GitLab #518)
 //!
 //! Factory passes truncated/uppercased asset symbols into pair `token_symbols`
-//! for LP **name** / wasm **label**. The pair sanitizes the LP CW20 `symbol` via
-//! [`dex_common::lp_symbol`] so classic `[a-zA-Z\-]{3,12}` LP code (columbus-5)
-//! accepts UST1 / CL8Y pairs. See invariant **F3**.
+//! for LP **name** / wasm **label**. The pair keeps ASCII **alphanumeric**
+//! prefixes (digits `0-9` included) and strips all other characters. New pairs
+//! need `lp_token_code_id` on digit-allowing `cw20-mintable`. Governance sets
+//! `pair_code_id` / `lp_token_code_id` via `UpdateConfig`. See invariant **F3**.
 
 pub mod contract;
 pub mod error;

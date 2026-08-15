@@ -36,7 +36,7 @@ Defaults: [`scripts/lib/ust1-secondary-pair-defaults.sh`](../../scripts/lib/ust1
 ### Preconditions
 
 1. Both assets `token_info` OK; code ID **10184** (U2).
-1b. Factory `pair_code_id` includes GitLab **#518** LP-ticker sanitization — otherwise `create_pair` for UST1 reverts (`Ticker symbol is not in expected format [a-zA-Z\\-]{3,12}`). See [contracts-terraclassic.md § CreatePair LP ticker](../contracts-terraclassic.md#createpair-lp-ticker-gitlab-518) and [`AGENTS_LP_SYMBOL_DIGITS.md`](../../skills/AGENTS_LP_SYMBOL_DIGITS.md).
+1b. Factory has completed the GitLab **#518** upgrade (pair wasm + `lp_token_code_id` = digit-allowing `cw20-mintable`). Otherwise `create_pair` for UST1 reverts on classic LP (`[a-zA-Z\\-]{3,12}`). Script: [`scripts/upgrade-518-lp-symbol.sh`](../../scripts/upgrade-518-lp-symbol.sh). See [contracts-terraclassic.md § CreatePair LP ticker](../contracts-terraclassic.md#createpair-lp-ticker-gitlab-518).
 2. Creator has **≥ `pair_creation_fee_uluna`** (default 100 LUNC) plus gas.
 3. Creator holds both CW20 balances ≥ seed amounts (default `1000000` raw = **1.0** per side — U4).
 4. UST1 inventory typically comes from `/ust1` window deposit (vFDUSD → UST1). If `total_supply(UST1)=0`, Path A is blocked until window mint inventory exists — use Path B interim waiver rather than an empty pool.

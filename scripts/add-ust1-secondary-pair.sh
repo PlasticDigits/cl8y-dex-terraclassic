@@ -9,8 +9,8 @@
 #
 # Requires: host terrad, funded key with pair-creation fee + (for seed) both CW20 balances.
 # Does NOT modify soft-launch gemstone defaults (invariant U6).
-# Precondition: factory pair_code_id includes #518 LP-ticker sanitization (F3),
-# otherwise create_pair for UST1 reverts on classic columbus-5 LP CW20.
+# Precondition: #518 upgrade live (pair wasm + digit-allowing lp_token_code_id).
+# Otherwise create_pair for UST1 reverts on classic columbus-5 LP CW20.
 #
 # Prefer TTY unlock; for non-interactive: export TERRAD_HOST_KEYRING_PASS (never commit).
 set -euo pipefail

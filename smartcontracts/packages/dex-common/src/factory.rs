@@ -63,6 +63,12 @@ pub enum ExecuteMsg {
         treasury: Option<String>,
         default_fee_bps: Option<u16>,
         default_limit_batch_max_rungs: Option<u32>,
+        /// Code ID for new pair instantiates (GitLab #518). `None` leaves current.
+        #[serde(default)]
+        pair_code_id: Option<u64>,
+        /// Code ID pairs use to instantiate LP CW20 (GitLab #518). `None` leaves current.
+        #[serde(default)]
+        lp_token_code_id: Option<u64>,
     },
     /// Set max batch/ladder rungs on one pair. Governance only.
     SetPairLimitBatchMax {
