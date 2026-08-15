@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatNum, formatTokenAmount, formatTokenAmountAbbrev, getDecimals } from '../formatAmount'
+import { formatNum, formatPairPrice, formatTokenAmount, formatTokenAmountAbbrev, getDecimals } from '../formatAmount'
 
 describe('formatNum', () => {
   it('returns 0 for zero', () => {
@@ -40,6 +40,13 @@ describe('formatNum', () => {
 
   it('handles empty string', () => {
     expect(formatNum('')).toBe('0')
+  })
+})
+
+describe('formatPairPrice', () => {
+  it('does not compact-format mixed-decimal raw ratios as T (GitLab #522)', () => {
+    expect(formatPairPrice('79718100000000', 6)).not.toMatch(/T$/)
+    expect(formatPairPrice('79.7181', 6)).toBe('79.7181')
   })
 })
 

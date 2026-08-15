@@ -287,6 +287,7 @@ async fn swap_replay_is_idempotent_on_conflict() {
         None,
         None,
         None,
+        None,
     )
     .await
     .unwrap()
@@ -309,6 +310,7 @@ async fn swap_replay_is_idempotent_on_conflict() {
         None,
         None,
         &price,
+        None,
         None,
         None,
         None,
@@ -562,6 +564,7 @@ async fn swap_replay_does_not_duplicate_rows() {
             None,
             None,
             &price,
+            None,
             None,
             None,
             None,

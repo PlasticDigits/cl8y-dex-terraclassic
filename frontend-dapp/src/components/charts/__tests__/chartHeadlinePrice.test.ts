@@ -22,4 +22,9 @@ describe('resolveTradeChartHeadlineUsd', () => {
     expect(resolveTradeChartHeadlineUsd(undefined, [])).toBe(null)
     expect(resolveTradeChartHeadlineUsd('', [])).toBe(null)
   })
+
+  it('formats an 18/6 converted USD headline near $1, not T-scale (GitLab #522)', () => {
+    expect(resolveTradeChartHeadlineUsd('0.982', [])).toBe(formatNum('0.982', 6))
+    expect(resolveTradeChartHeadlineUsd('0.982', [])).not.toMatch(/T$/)
+  })
 })

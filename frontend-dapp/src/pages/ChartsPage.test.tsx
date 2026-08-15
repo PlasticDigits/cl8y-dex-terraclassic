@@ -35,6 +35,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getTrades: vi.fn(),
     getLeaderboard: vi.fn(),
     getCandles: vi.fn(),
+    getOraclePrice: vi.fn(),
   }
 })
 
@@ -82,6 +83,11 @@ describe('ChartsPage (component)', () => {
     vi.mocked(indexerClient.getTrades).mockResolvedValue([])
     vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([])
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'ustc',
+      price_usd: '0.004928',
+      sources: [],
+    })
   })
 
   it('shows retail market-data banner when overview and pairs fail with transport errors (GitLab #215)', async () => {

@@ -33,7 +33,7 @@ Do **not** call `limitPriceFromRefDeviationPercent(ref, unsignedPreset)` from ch
 ## Rules of thumb
 
 1. **Keep reference math in `limitOrderPriceReference.ts`** — UI components should not re-derive BigInt ratios inline.
-2. **Tape headline string** passed to `anchorUsdForLimitPrice` must stay aligned with `PriceChart`’s `tapeLastPriceUsd` (usually `trades[0].price` from `getTrades`). Pool-only refs may leave headline USD as **—** until tape returns. The **escrow amount** USD line ([**#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)) consumes the **same** `tapeHeadlineUsd` + `refToken1PerToken0` tuple — do not fork a second oracle.
+2. **Tape headline string** passed to `anchorUsdForLimitPrice` must stay aligned with `PriceChart`’s `tapeLastPriceUsd`. Use `resolveTapeLastPriceUsd` (`trades[0].price_usd` or human price × quote catalog) — **never** raw `trades[0].price` ([#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)). Pool-only refs may leave headline USD as **—** until tape returns. The **escrow amount** USD line ([**#155**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)) consumes the **same** `tapeHeadlineUsd` + `refToken1PerToken0` tuple — do not fork a second oracle.
 3. When changing submit rules, update **both** `evaluateLimitOrderPricePlaceGate` and the `placeMutation` throw path, plus Vitest under `utils/__tests__/limitOrderPrice*.test.ts`.
 4. If copy or thresholds for “extreme deviation” change, update `docs/frontend.md` and this skill together.
 5. **#166 invariant:** never allow a **positive** typed limit to submit without a resolved reference (tape or pool), unless product explicitly changes that contract.

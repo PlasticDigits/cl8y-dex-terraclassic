@@ -93,6 +93,7 @@ async fn hybrid_swap_attrs_round_trip_to_swap_events_columns() {
         s.effective_fee_bps,
         &price,
         None,
+        None,
         s.pool_return_amount.as_ref(),
         s.book_return_amount.as_ref(),
         s.limit_book_offer_consumed.as_ref(),
@@ -104,7 +105,7 @@ async fn hybrid_swap_attrs_round_trip_to_swap_events_columns() {
     let row: SwapEventRow = sqlx::query_as(
         "SELECT id, pair_id, block_height, block_timestamp, tx_hash, sender, receiver,
                 offer_asset_id, ask_asset_id, offer_amount, return_amount,
-                spread_amount, commission_amount, effective_fee_bps, price, volume_usd,
+                spread_amount, commission_amount, effective_fee_bps, price, price_usd, volume_usd,
                 pool_return_amount, book_return_amount, limit_book_offer_consumed
          FROM swap_events WHERE tx_hash = $1 AND pair_id = $2",
     )

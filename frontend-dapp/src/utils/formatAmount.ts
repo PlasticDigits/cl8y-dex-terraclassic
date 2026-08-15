@@ -44,6 +44,16 @@ export function formatNum(val: string | number, sigfigs = 4): string {
 }
 
 /**
+ * Human quote-per-base or USD spot — never compact-format as T/B/M (GitLab #522).
+ * Raw mixed-decimal ratios used to render as `79.7181T`.
+ */
+export function formatPairPrice(val: string | number, sigfigs = 6): string {
+  const n = typeof val === 'string' ? parseFloat(val) : val
+  if (isNaN(n) || n === 0) return '0'
+  return renderSigFigs(n, sigfigs)
+}
+
+/**
  * Convert a raw on-chain integer amount to a human-readable number,
  * then format with significant figures and optional abbreviations.
  *

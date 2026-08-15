@@ -160,6 +160,7 @@ mod tests {
             offer_amount: "1000".to_string(),
             return_amount: "900".to_string(),
             price: "0.9".to_string(),
+            price_usd: None,
             pool_return_amount: None,
             book_return_amount: None,
             limit_book_offer_consumed: None,

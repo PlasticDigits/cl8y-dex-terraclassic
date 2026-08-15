@@ -404,6 +404,9 @@ pub struct TradeResponse {
     pub offer_amount: String,
     pub return_amount: String,
     pub price: String,
+    /// USD of 1 human unit of pair base (`asset_0`). GitLab #522.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub price_usd: Option<String>,
     /// Pattern C / hybrid: pool leg output (when present on-chain).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pool_return_amount: Option<String>,
@@ -453,6 +456,7 @@ pub fn trade_response_from_swap_row(
         offer_amount: t.offer_amount.normalized().to_string(),
         return_amount: t.return_amount.normalized().to_string(),
         price: t.price.normalized().to_string(),
+        price_usd: opt_bd_string(&t.price_usd),
         pool_return_amount: opt_bd_string(&t.pool_return_amount),
         book_return_amount: opt_bd_string(&t.book_return_amount),
         limit_book_offer_consumed: opt_bd_string(&t.limit_book_offer_consumed),
@@ -1182,6 +1186,15 @@ pub struct PairStatsResponse {
     pub open_price: Option<String>,
     pub close_price: Option<String>,
     pub price_change_pct: Option<f64>,
+    /// USD OHLC of 1 human base (GitLab #522). Absent when quote has no catalog USD.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub high_usd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub low_usd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub open_price_usd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub close_price_usd: Option<String>,
 }
 
 #[utoipa::path(
@@ -1220,5 +1233,9 @@ pub async fn get_pair_stats(
         open_price: stats.open_price.map(|v| v.to_string()),
         close_price: stats.close_price.map(|v| v.to_string()),
         price_change_pct: stats.price_change_pct,
+        high_usd: stats.high_usd.map(|v| v.to_string()),
+        low_usd: stats.low_usd.map(|v| v.to_string()),
+        open_price_usd: stats.open_price_usd.map(|v| v.to_string()),
+        close_price_usd: stats.close_price_usd.map(|v| v.to_string()),
     }))
 }
