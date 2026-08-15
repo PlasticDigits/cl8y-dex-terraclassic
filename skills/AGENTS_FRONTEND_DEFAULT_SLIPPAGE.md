@@ -7,7 +7,7 @@ Use when changing the retail **Slippage protection** default, Swap/Trade slippag
 1. **Default is 5%** for new Zustand sessions (`useDexStore.slippageTolerance` ← `DEFAULT_SLIPPAGE_TOLERANCE_PERCENT`).
 2. **On-chain mapping:** `max_spread = (slippageTolerance / 100).toString()` (e.g. `5` → `"0.05"`).
 3. **Route-impact / insufficient-liquidity warning** uses the same store value: `Route impact exceeds your {slippageTolerance}% protection…` on Swap.
-4. **Presets** are shared: `SLIPPAGE_TOLERANCE_PRESETS_PERCENT` = `[0.5, 1.0, 5.0]` on Swap Settings and Trade market. Custom input still allows `0.01`–`50`.
+4. **Presets** are shared: `SLIPPAGE_TOLERANCE_PRESETS_PERCENT` = `[0.5, 1.0, 5.0]` on Swap Settings and Trade market. Custom input still allows `0.01`–`50`. The three chips are **one aligned group** — do not wrap 0.5% onto the label row ([#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528); [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md)).
 5. **High-protection warn** (`HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT = 5`) fires only when tolerance is **strictly greater than** 5% — the default itself does not show the front-running risk banner.
 6. **Do not hard-code `0.5` as the product default** in UI, store, or “fresh session” tests. Component unit tests may still pass an arbitrary `maxSpreadPercent` prop.
 
@@ -43,3 +43,4 @@ Or: `make test-frontend` from repo root (Node 24 on `PATH`).
 - MEV / public mempool posture: [`docs/frontend.md`](../docs/frontend.md) (Slippage protection is the on-chain guard)
 - Pre-sign summary: [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md)
 - On-chain `max_spread` math: [`AGENTS_MAX_SPREAD_HYBRID.md`](./AGENTS_MAX_SPREAD_HYBRID.md)
+- Preset chip alignment (Trade + Swap): [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (`#528`)
