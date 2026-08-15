@@ -170,7 +170,6 @@ make verify-issue-324                    # #324 lib + route_solve_get_cache inte
 make verify-issue-485                    # #485 graph cache + distant TTL + progress poll + frontend helpers
 make verify-issue-515                    # #515 ticker-scoped external oracle (ustc/lunc catalog + routes)
 make verify-issue-522                    # #522 pair Price (USD) human scale + oracle conversion
-make verify-issue-522                    # #522 pair Price (USD) decimal scale + oracle conversion
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
 
@@ -243,7 +242,6 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md](skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md) — distant-pair latency + `route/solve/progress` poll (#485)
 - [skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md](skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md) — ticker-scoped USTC/LUNC external USD feeds (**X1–X6**, [#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515)); `make verify-issue-515`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
-- [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — human quote-per-base + USD of 1 human base (**P522-1/2/Q/UI**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
 - [skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md](skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — batch/ladder place UI + gas gates; Ladder create must render when disconnected (#494)
 - [skills/AGENTS_UST1_SECONDARY_AMM.md](skills/AGENTS_UST1_SECONDARY_AMM.md) — UST1 secondary AMM create/seed or Path B waiver ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508), invariants **U1–U7**); `make verify-issue-508`
 - [skills/AGENTS_LP_SYMBOL_DIGITS.md](skills/AGENTS_LP_SYMBOL_DIGITS.md) — LP ticker keeps `0-9`, strips non-alnum; factory `UpdateConfig` code IDs + [`scripts/upgrade-518-lp-symbol.sh`](scripts/upgrade-518-lp-symbol.sh) (**F3**, [#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518)); `make verify-issue-518`
@@ -253,5 +251,5 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_UST1_WINDOW_UI.md](skills/AGENTS_UST1_WINDOW_UI.md) — `/ust1` oracle vFDUSD↔UST1 mint/redeem (CW20 Send + `effective_swap`); not faucet Mint ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)); `make verify-issue-506`
 - [skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md](skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md) — post-SL5 Coolify wrap env + cLUNC/cUSTC fee UX ([#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507))
 - [skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md](skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) — unwrap InstantWithdraw burn tax quotes + exchange-deposit warning (**W8–W11**, [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)); `make verify-issue-512`
-- [skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md](skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — wrap-mapper `fee_wrap_bps` / `fee_unwrap_bps` + unwrap ≈2% all-in retune (**W12–W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); `make verify-issue-516`
+- [skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md](skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — wrap-mapper `fee_wrap_bps` / `fee_unwrap_bps` + unwrap ≈2% all-in retune (**W12–W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); `make verify-issue-516`. Router `unwrap_output` dual-read ([#523](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/523)); `make verify-issue-523`
 - [skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md](skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md) — Phase 5 UST1/wrap ops hardening: registry, health probes, pause playbooks (invariants **O1–O8**, [#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503)); `make verify-issue-503`

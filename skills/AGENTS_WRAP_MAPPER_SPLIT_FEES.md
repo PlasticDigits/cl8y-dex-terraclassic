@@ -61,9 +61,9 @@ Ship this frontend **before or in the same window** as wrap-mapper store + migra
 3. Fee notes stay honest (“fee; You Receive after burn tax”) — never “2% flat”.
 4. DEX 2-of-3 must **not** sign mapper migrate / `SetFees` (wrap-stack governance).
 
-## Follow-up (not this dApp MR)
+## Router wasm (#523)
 
-DEX **router** `dex_common::wrap_mapper::ConfigResponse` still requires `fee_bps` for on-chain `unwrap_output` **R3**. After migrate that query deserialize fails unless the router is upgraded to read `fee_unwrap_bps`. Track with the ustr-cmm#13 window — do not assume this frontend MR upgrades the router wasm.
+DEX router `dex_common::wrap_mapper::ConfigResponse` dual-reads mapper `Config` with the same **W13** rules as the dApp. `unwrap_output` **R3** uses `fee_unwrap_bps` (legacy `fee_bps` only when both split fields are absent). Store + migrate router wasm in the same window as wrap-mapper migrate ([ustr-cmm#13](https://gitlab.com/PlasticDigits2/ustr-cmm/-/work_items/13)). `make verify-issue-523`.
 
 ## Verification
 

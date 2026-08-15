@@ -378,7 +378,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             let mapper_config: wrap_mapper::ConfigResponse = deps
                 .querier
                 .query_wasm_smart(mapper.to_string(), &wrap_mapper::QueryMsg::Config {})?;
-            net_after_wrap_mapper_unwrap_fee(hop_output, mapper_config.fee_bps)?
+            net_after_wrap_mapper_unwrap_fee(hop_output, mapper_config.unwrap_fee_bps()?)?
         } else {
             hop_output
         };
