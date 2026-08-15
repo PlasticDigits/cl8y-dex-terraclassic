@@ -1,5 +1,5 @@
 import type { IndexerTrade, IndexerPair } from '@/types'
-import { formatNum } from '@/utils/formatAmount'
+import { formatNum, formatPairPrice } from '@/utils/formatAmount'
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 
 export interface TradesTableProps {
@@ -47,7 +47,11 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
             >
               Amount out
             </th>
-            <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+            <th
+              scope="col"
+              className="text-right py-2 px-2 font-medium uppercase tracking-wider"
+              title="Human quote per base (asset_1 per asset_0). Not USD — see Price (USD) on the chart."
+            >
               Price
             </th>
             <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
@@ -88,7 +92,7 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
                   {formatNum(t.return_amount)}
                 </td>
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
-                  {formatNum(t.price, 6)}
+                  {formatPairPrice(t.price, 6)}
                 </td>
                 <td className="py-1.5 px-2" style={{ color: 'var(--ink-dim)' }}>
                   {(() => {

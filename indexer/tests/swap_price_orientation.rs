@@ -52,6 +52,8 @@ async fn oriented_two_sided_swaps_high_low_are_not_reciprocals() {
         asset_0_id,
         &offer_base,
         &receive_quote,
+        6,
+        6,
     );
     assert_eq!(forward.price, BigDecimal::from_str("50.5").unwrap());
 
@@ -62,6 +64,8 @@ async fn oriented_two_sided_swaps_high_low_are_not_reciprocals() {
         asset_1_id,
         &offer_quote,
         &receive_base,
+        6,
+        6,
     );
     assert_eq!(forward.price, reverse.price);
 
@@ -144,12 +148,16 @@ async fn oriented_volume_aggregation_sums_base_and_quote_legs() {
         seed.asset_0_id,
         &offer_base,
         &receive_quote,
+        6,
+        6,
     );
     let reverse = swap_orientation::orient_swap_leg(
         seed.asset_0_id,
         seed.asset_1_id,
         &receive_quote,
         &offer_base,
+        6,
+        6,
     );
 
     let now = Utc::now();

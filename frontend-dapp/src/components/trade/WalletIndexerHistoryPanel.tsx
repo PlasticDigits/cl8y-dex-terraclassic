@@ -10,7 +10,7 @@ import {
   TRADER_HISTORY_CSV_MAX_LIMIT,
   type TraderHistoryCsvResource,
 } from '@/services/indexer/client'
-import { formatNum } from '@/utils/formatAmount'
+import { formatNum, formatPairPrice } from '@/utils/formatAmount'
 import { formatDateTime } from '@/utils/formatDate'
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 import { RetryError, Skeleton } from '@/components/ui'
@@ -221,7 +221,7 @@ export function WalletIndexerHistoryPanel({
                       </td>
                       <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(t.offer_amount)}</td>
                       <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(t.return_amount)}</td>
-                      <td className="py-1.5 pr-2">{t.price}</td>
+                      <td className="py-1.5 pr-2">{formatPairPrice(t.price, 6)}</td>
                       <td className="py-1.5 pr-2">{swapFeeLabel(t)}</td>
                       <td className="py-1.5">{txCell(t.tx_hash)}</td>
                     </tr>

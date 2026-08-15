@@ -1,7 +1,15 @@
 import { useState, useDeferredValue, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { getOverview, getPairs, getPair, getPairStats, getTrades, getLeaderboard } from '@/services/indexer/client'
+import {
+  getOverview,
+  getPairs,
+  getPair,
+  getPairStats,
+  getTrades,
+  getLeaderboard,
+  getOraclePrice,
+} from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { CHARTS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
 import { detectMarketDataOutage } from '@/utils/marketDataOutage'
@@ -10,6 +18,7 @@ import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelect
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
 import { formatNum } from '@/utils/formatAmount'
+import { pairStatsUsdField, resolveTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
@@ -138,6 +147,27 @@ export default function ChartsPage() {
     refetchInterval: 15_000,
   })
 
+  const ustcOracleQuery = useQuery({
+    queryKey: ['indexer-oracle-price', 'ustc'],
+    queryFn: () => getOraclePrice('ustc'),
+    staleTime: 60_000,
+    retry: false,
+  })
+
+  const tapeLastPriceUsd = useMemo(
+    () =>
+      resolveTapeLastPriceUsd({
+        priceUsd: tradesQuery.data?.[0]?.price_usd,
+        price: tradesQuery.data?.[0]?.price,
+        decimalsBase: activePair?.asset_0.decimals,
+        decimalsQuote: activePair?.asset_1.decimals,
+        quoteSymbol: activePair?.asset_1.symbol,
+        quoteDenom: activePair?.asset_1.denom,
+        ustcUsd: ustcOracleQuery.data?.price_usd,
+      }),
+    [tradesQuery.data, activePair, ustcOracleQuery.data?.price_usd]
+  )
+
   const leaderboardQuery = useQuery({
     queryKey: ['leaderboard', leaderboardSort],
     queryFn: () => getLeaderboard(leaderboardSort, 20),
@@ -163,6 +193,10 @@ export default function ChartsPage() {
 
   const overview = overviewQuery.data
   const stats = statsQuery.data
+  const highUsd = pairStatsUsdField(stats?.high_usd)
+  const lowUsd = pairStatsUsdField(stats?.low_usd)
+  const openUsd = pairStatsUsdField(stats?.open_price_usd)
+  const closeUsd = pairStatsUsdField(stats?.close_price_usd)
 
   const marketDataDown = detectMarketDataOutage(overviewQuery, pairsQuery)
 
@@ -341,7 +375,7 @@ export default function ChartsPage() {
       {/* Price Chart */}
       {activePairAddr && (
         <div className="h-[min(70vh,720px)]">
-          <PriceChart pairAddress={activePairAddr} tapeLastPriceUsd={tradesQuery.data?.[0]?.price} />
+          <PriceChart pairAddress={activePairAddr} tapeLastPriceUsd={tapeLastPriceUsd} />
         </div>
       )}
 
@@ -373,10 +407,10 @@ export default function ChartsPage() {
                   : undefined
               }
             />
-            <StatBox label="High" value={stats.high ? formatNum(stats.high, 6) : '—'} />
-            <StatBox label="Low" value={stats.low ? formatNum(stats.low, 6) : '—'} />
-            <StatBox label="Open" value={stats.open_price ? formatNum(stats.open_price, 6) : '—'} />
-            <StatBox label="Close" value={stats.close_price ? formatNum(stats.close_price, 6) : '—'} />
+            <StatBox label="High (USD)" value={highUsd ? formatNum(highUsd, 6) : '—'} />
+            <StatBox label="Low (USD)" value={lowUsd ? formatNum(lowUsd, 6) : '—'} />
+            <StatBox label="Open (USD)" value={openUsd ? formatNum(openUsd, 6) : '—'} />
+            <StatBox label="Close (USD)" value={closeUsd ? formatNum(closeUsd, 6) : '—'} />
           </div>
         </div>
       )}

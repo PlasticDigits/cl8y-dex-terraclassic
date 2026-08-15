@@ -169,6 +169,7 @@ make test-indexer-integration          # full suite, serialized
 make verify-issue-324                    # #324 lib + route_solve_get_cache integration
 make verify-issue-485                    # #485 graph cache + distant TTL + progress poll + frontend helpers
 make verify-issue-515                    # #515 ticker-scoped external oracle (ustc/lunc catalog + routes)
+make verify-issue-522                    # #522 pair Price (USD) human scale + oracle conversion
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
 
@@ -240,6 +241,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md](skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) — sim `refetchInterval` guard + receive Calculating UX for slow multihop quotes (#484); clear/load You Receive on pay amount/token change (#496)
 - [skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md](skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md) — distant-pair latency + `route/solve/progress` poll (#485)
 - [skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md](skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md) — ticker-scoped USTC/LUNC external USD feeds (**X1–X6**, [#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515)); `make verify-issue-515`
+- [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
 - [skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md](skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — batch/ladder place UI + gas gates; Ladder create must render when disconnected (#494)
 - [skills/AGENTS_UST1_SECONDARY_AMM.md](skills/AGENTS_UST1_SECONDARY_AMM.md) — UST1 secondary AMM create/seed or Path B waiver ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508), invariants **U1–U7**); `make verify-issue-508`
 - [skills/AGENTS_LP_SYMBOL_DIGITS.md](skills/AGENTS_LP_SYMBOL_DIGITS.md) — LP ticker keeps `0-9`, strips non-alnum; factory `UpdateConfig` code IDs + [`scripts/upgrade-518-lp-symbol.sh`](scripts/upgrade-518-lp-symbol.sh) (**F3**, [#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518)); `make verify-issue-518`

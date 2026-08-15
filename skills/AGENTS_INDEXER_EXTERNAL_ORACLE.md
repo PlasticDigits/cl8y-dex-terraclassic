@@ -55,3 +55,4 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 - [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres for integration tests
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md)
 - [`docs/twap-oracle.md`](../docs/twap-oracle.md) — on-chain TWAP (different subsystem)
+- [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles convert quote-per-base to USD of 1 human base using these tickers ([#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522))

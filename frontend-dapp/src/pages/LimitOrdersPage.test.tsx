@@ -42,6 +42,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getPairLimitPlacements: vi.fn(),
     getTraderLimitPlacements: vi.fn(),
     getPairLimitCancellations: vi.fn(),
+    getOraclePrice: vi.fn(),
   }
 })
 
@@ -133,6 +134,11 @@ describe('LimitOrdersPage', () => {
       offset: 0,
     })
     vi.mocked(indexerClient.getPair).mockResolvedValue(mockIndexerPair)
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'ustc',
+      price_usd: '0.004928',
+      sources: [],
+    })
     vi.mocked(indexerClient.getTrades).mockResolvedValue([
       {
         trade_id: 1,
