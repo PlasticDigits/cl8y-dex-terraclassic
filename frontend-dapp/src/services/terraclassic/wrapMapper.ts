@@ -17,15 +17,98 @@ interface DenomMappingResponse {
 
 export type RateLimitResponse = WrapRateLimitResponse
 
+export type WrapMapperFeeKind = 'wrap' | 'unwrap'
+
+/** Normalized wrap-mapper `Config` after parse (GitLab #516). */
 export interface WrapMapperConfigResponse {
   governance: string
   treasury: string
   paused: boolean
-  fee_bps: number
+  fee_wrap_bps: number
+  fee_unwrap_bps: number
 }
 
-const CONFIG_CACHE_MS = 30_000
+/**
+ * LCD / fixture shape. Post ustr-cmm#9 migrate, `Config` drops `fee_bps` (no dual-read).
+ * Pre-migrate columbus-5 still returns `{ fee_bps }` only — parser maps that to both sides.
+ */
+export interface RawWrapMapperConfig {
+  governance?: string
+  treasury?: string
+  paused?: boolean
+  fee_bps?: number | string | null
+  fee_wrap_bps?: number | string | null
+  fee_unwrap_bps?: number | string | null
+}
+
+/** In-memory LCD cache bound — stale quotes after gov `set_fees` last at most this long (W14). */
+export const WRAP_MAPPER_CONFIG_CACHE_MS = 30_000
+
 let cachedConfig: { at: number; value: WrapMapperConfigResponse } | null = null
+
+function parseNonNegativeBps(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.floor(n)
+}
+
+function hasFeeField(value: unknown): boolean {
+  return value != null && value !== ''
+}
+
+/**
+ * Fail closed on partial/invalid split fees. Transitional `{ fee_bps }` only when both
+ * split fields are absent (pre-migrate). Never treat missing fields as 0% (W13).
+ */
+export function parseWrapMapperFeePair(
+  raw: RawWrapMapperConfig | null | undefined
+): { fee_wrap_bps: number; fee_unwrap_bps: number } | null {
+  if (!raw) return null
+  const hasWrap = hasFeeField(raw.fee_wrap_bps)
+  const hasUnwrap = hasFeeField(raw.fee_unwrap_bps)
+  if (hasWrap || hasUnwrap) {
+    const wrap = parseNonNegativeBps(raw.fee_wrap_bps)
+    const unwrap = parseNonNegativeBps(raw.fee_unwrap_bps)
+    if (wrap == null || unwrap == null) return null
+    return { fee_wrap_bps: wrap, fee_unwrap_bps: unwrap }
+  }
+  const legacy = parseNonNegativeBps(raw.fee_bps)
+  if (legacy == null) return null
+  return { fee_wrap_bps: legacy, fee_unwrap_bps: legacy }
+}
+
+export function parseWrapMapperConfig(raw: RawWrapMapperConfig | null | undefined): WrapMapperConfigResponse | null {
+  const fees = parseWrapMapperFeePair(raw)
+  if (!raw || !fees) return null
+  return {
+    governance: String(raw.governance ?? ''),
+    treasury: String(raw.treasury ?? ''),
+    paused: raw.paused === true,
+    ...fees,
+  }
+}
+
+export function wrapMapperFeeBps(
+  config: RawWrapMapperConfig | WrapMapperConfigResponse | null | undefined,
+  kind: WrapMapperFeeKind
+): number | null {
+  const fees = parseWrapMapperFeePair(config)
+  if (!fees) return null
+  return kind === 'wrap' ? fees.fee_wrap_bps : fees.fee_unwrap_bps
+}
+
+/**
+ * `fee_unwrap_bps` so user unwrap all-in ≈ 2% (`receive/A = 0.98`) after InstantWithdraw tax.
+ * Prefer ≤2% when rounding. Escalate if tax ≥ ~2% — cannot hit 2% without subsidy/gross-up.
+ * Docs/ops only — UI quotes always use on-chain config (W3 / W14).
+ */
+export function retuneUnwrapFeeBps(burnTaxRate: number): number {
+  if (!Number.isFinite(burnTaxRate) || burnTaxRate < 0 || burnTaxRate >= 0.02) {
+    throw new Error('Cannot hit ≈2% unwrap all-in when burn tax ≥ ~2% without subsidy')
+  }
+  return Math.round(10_000 - 9800 / (1 - burnTaxRate))
+}
 
 export async function wrapViaTreasury(walletAddress: string, denom: string, amount: string): Promise<string> {
   return executeTerraContract(walletAddress, TREASURY_CONTRACT_ADDRESS, { wrap_deposit: {} }, [{ denom, amount }])
@@ -60,16 +143,18 @@ export async function queryRateLimit(denom: string): Promise<RateLimitResponse> 
 }
 
 /**
- * Query wrap-mapper `Config` (paused + fee_bps + treasury). Cached ~30s.
- * GitLab #507 — UI/sim must use on-chain fee_bps (mainnet expect 100).
- * Returns null when LCD fails — callers must fail closed (never treat as fee_bps=0).
+ * Query wrap-mapper `Config` (paused + split fees + treasury). Cached ~30s (W14).
+ * GitLab #516 — UI/sim must use on-chain `fee_wrap_bps` / `fee_unwrap_bps`.
+ * Returns null when LCD fails or fees are missing/partial — fail closed (never 0%).
  */
 export async function queryWrapMapperConfig(): Promise<WrapMapperConfigResponse | null> {
   if (!WRAP_MAPPER_CONTRACT_ADDRESS) return null
   const now = Date.now()
-  if (cachedConfig && now - cachedConfig.at < CONFIG_CACHE_MS) return cachedConfig.value
+  if (cachedConfig && now - cachedConfig.at < WRAP_MAPPER_CONFIG_CACHE_MS) return cachedConfig.value
   try {
-    const config = await queryContract<WrapMapperConfigResponse>(WRAP_MAPPER_CONTRACT_ADDRESS, { config: {} })
+    const raw = await queryContract<RawWrapMapperConfig>(WRAP_MAPPER_CONTRACT_ADDRESS, { config: {} })
+    const config = parseWrapMapperConfig(raw)
+    if (!config) return null
     cachedConfig = { at: now, value: config }
     return config
   } catch {
@@ -83,15 +168,14 @@ export function clearWrapMapperConfigCache(): void {
 }
 
 /**
- * On-chain wrap-mapper fee_bps. Throws when config is unavailable so simulate/execute
- * never silently assume fee-free 1:1 (GitLab #507 review M1).
+ * On-chain wrap-mapper fee for wrap mint or unwrap redeem. Throws when config is
+ * unavailable so simulate/execute never silently assume fee-free 1:1 (#507 M1 / #516 W13).
  */
-export async function queryWrapMapperFeeBps(): Promise<number> {
+export async function queryWrapMapperFeeBps(kind: WrapMapperFeeKind): Promise<number> {
   const config = await queryWrapMapperConfig()
-  if (!config) throw new Error('Wrap mapper config unavailable')
-  const bps = Number(config.fee_bps)
-  if (!Number.isFinite(bps) || bps < 0) throw new Error('Invalid wrap mapper fee_bps')
-  return Math.floor(bps)
+  const bps = wrapMapperFeeBps(config, kind)
+  if (bps == null) throw new Error('Wrap mapper config unavailable')
+  return bps
 }
 
 /**
@@ -108,7 +192,9 @@ export async function queryPausedState(): Promise<boolean | null> {
  * True when Coolify `VITE_TREASURY_ADDRESS` matches on-chain mapper `config.treasury`.
  * Mismatch misroutes wrap_deposit (GitLab #507 review M3 / W2).
  */
-export function wrapTreasuryMatchesEnv(config: WrapMapperConfigResponse): boolean {
+export function wrapTreasuryMatchesEnv(
+  config: Pick<WrapMapperConfigResponse, 'treasury'> | RawWrapMapperConfig
+): boolean {
   const envTreasury = TREASURY_CONTRACT_ADDRESS.trim()
   const onChain = (config.treasury ?? '').trim()
   return envTreasury.length > 0 && onChain.length > 0 && envTreasury === onChain
@@ -117,7 +203,7 @@ export function wrapTreasuryMatchesEnv(config: WrapMapperConfigResponse): boolea
 /**
  * Net amount after wrap-mapper fee skim.
  * Matches router `net_after_wrap_mapper_unwrap_fee`: `amount - floor(amount × fee_bps / 10_000)`.
- * Applies on both wrap mint and unwrap redeem (GitLab #507).
+ * Callers pass `fee_wrap_bps` for mint and `fee_unwrap_bps` for redeem (#507 / #516).
  */
 export function netAfterWrapMapperFee(amount: bigint, feeBps: number): bigint {
   if (amount <= 0n) return 0n
@@ -146,8 +232,8 @@ export function amountForTargetNetAfterWrapMapperFee(targetNet: bigint, feeBps: 
 }
 
 /**
- * Direct wrap/unwrap route note — never claim 1:1 when fee is unknown or fee_bps > 0.
- * Pass `null`/`undefined` when mapper config has not loaded successfully.
+ * Direct wrap/unwrap route note — never claim 1:1 when fee is unknown or bps > 0.
+ * Pass the matching wrap or unwrap bps (W12). Pass `null`/`undefined` when config failed.
  *
  * Unwrap notes optionally include the chain burn-tax rate on InstantWithdraw (#512).
  * Keep this to a single fee line (W7) — no permanent educational paragraphs.

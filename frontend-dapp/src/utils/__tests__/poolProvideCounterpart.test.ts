@@ -116,7 +116,7 @@ describe('computeProvideCounterpartHuman', () => {
     ).toBe('2')
   })
 
-  it('applies wrap-mapper fee_bps when auto-filling (#507 / #512)', () => {
+  it('applies wrap-mapper wrap fee when auto-filling (#507 / #512 / #516)', () => {
     const feeFree = computeProvideCounterpartHuman({
       editedSide: 'a',
       editedHuman: '1',

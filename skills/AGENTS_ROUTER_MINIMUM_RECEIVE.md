@@ -10,9 +10,9 @@ On the final hop reply (`reply_swap_hop`):
 | Path | Amount compared to `minimum_receive` |
 |------|--------------------------------------|
 | CW20 transfer (`unwrap_output = false`) | `hop_output` (router CW20 balance delta on output token) |
-| Unwrap (`unwrap_output = true`) | **Post–wrap-mapper net:** `hop_output − floor(hop_output × fee_bps / 10_000)` |
+| Unwrap (`unwrap_output = true`) | **Post–wrap-mapper net:** `hop_output − floor(hop_output × unwrap_fee_bps / 10_000)` |
 
-The router queries wrap-mapper `Config { fee_bps }` at final-hop settlement. Integrators setting `minimum_receive` on native-output swaps must subtract the mapper fee from the simulated wrapped output (or query mapper `fee_bps` off-chain).
+The router queries wrap-mapper `Config` at final-hop settlement. After ustr-cmm#9 the unwrap skim is **`fee_unwrap_bps`** ([#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); today’s router wasm still deserializes `fee_bps` — upgrade before migrate (see split-fees playbook follow-up). Integrators setting `minimum_receive` on native-output swaps must subtract the **unwrap** mapper fee from the simulated wrapped output.
 
 Non-unwrap paths are unchanged — there is no mapper fee on a direct CW20 `Transfer`.
 
@@ -23,7 +23,7 @@ Frontend `simulateNativeSwap` returns:
 
 Integrators must submit `minimum_receive` from `routerMinReceiveBase` (after slippage), not from post-tax `amount`, or the floor will be looser than R3 intends. See [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md) and [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md).
 
-**Note:** On-chain R3 still cannot observe burn tax; true native received is `routerMinReceiveBase` after tax until ustr-cmm gross-up.
+**Note:** On-chain R3 still cannot observe burn tax; true native received is `routerMinReceiveBase` after tax. ≈2% user all-in is `fee_unwrap_bps` retune ([#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)), not InstantWithdraw gross-up.
 
 ## Code
 

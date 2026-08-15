@@ -55,7 +55,7 @@ make verify-issue-396
 
 ## Related
 
-- Wrap **fee display** (`fee_bps`, cLUNC/cUSTC) is separate from pause/rate-limit CTAs — [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) (#507). `wrapMapper.ts` exports `queryWrapMapperConfig` for on-chain `fee_bps`.
+- Wrap **fee display** (`fee_wrap_bps` / `fee_unwrap_bps`, cLUNC/cUSTC) is separate from pause/rate-limit CTAs — [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) (#507), [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) (#516). `wrapMapper.ts` exports `queryWrapMapperConfig` for on-chain fees.
 - Pair pause on `/` and `/pool`: [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx), [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx) (GitLab **#395** / SEC-B05); hook [`usePairPaused.ts`](../frontend-dapp/src/hooks/usePairPaused.ts)
 - Pair pause on `/trade`: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (GitLab #87 / #199)
 - Trading blacklist CTA: [`blacklist.ts`](../frontend-dapp/src/services/terraclassic/blacklist.ts); pool + limits Vitest (**SEC-E01**, GitLab **#425**): [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx), [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx); [docs/frontend.md § Trading blacklist disabled CTAs](../docs/frontend.md#trading-blacklist-disabled-ctas-sec-e01)

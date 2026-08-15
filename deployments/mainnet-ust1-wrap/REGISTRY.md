@@ -33,7 +33,14 @@ Approved window params (governance-updatable; always re-query on-chain): `fee_bp
 
 **W2:** `VITE_TREASURY_ADDRESS` is the **ustr-cmm CMM treasury**, not the DEX factory fee/governance multisig `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`.
 
-Display symbols **cLUNC** / **cUSTC**; env keys may keep `LUNC_C` / `USTC_C` (**W3**). Wrap-mapper `fee_bps` is **on-chain authoritative** (UI must query; do not hardcode). Approved Phase 0 target was **100**; live columbus-5 has been observed at **200** — always re-query.
+Display symbols **cLUNC** / **cUSTC**; env keys may keep `LUNC_C` / `USTC_C` (**W3**). Wrap-mapper fees are **on-chain authoritative** (UI must query; do not hardcode).
+
+| Config shape | When | Notes |
+|--------------|------|-------|
+| `{ fee_bps }` | Pre [ustr-cmm#9](https://gitlab.com/PlasticDigits2/ustr-cmm/-/work_items/9) migrate (code **11565** as of 2026-08-15) | Observed **200**. UI maps to both wrap and unwrap (truthful ~3.47% unwrap all-in). |
+| `{ fee_wrap_bps, fee_unwrap_bps }` | Post migrate + `set_fees` | Product target **200 / 51** so unwrap 10 000 @ 1.5% tax ≈ **9 800**. `Config` drops `fee_bps`. |
+
+Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](../../skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) (**W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)). DEX 2-of-3 must **not** sign mapper migrate / `SetFees`.
 
 ---
 

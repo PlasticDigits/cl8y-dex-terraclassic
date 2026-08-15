@@ -64,10 +64,12 @@ VERIFY503_MAINNET=1 make verify-issue-503
 | Treasury wrap pause | treasury wrapping paused (`set_wrapping_paused`) | wrapping enabled | Unpause via treasury governance (**C**) |
 | vFDUSD inventory | CW20 balance of treasury + allowance owner=treasury spender=window | Above warn thresholds | Refill; temp window pause if drained; use `UST1_OPS_STRICT_INVENTORY=1` for launch |
 | Wrap solvency | bank `uluna`/`uusd` on treasury vs cLUNC/cUSTC `total_supply` | native ≥ supply | Pause wrap-mapper (**O5**) |
-| Wrap fee | wrap-mapper `config.fee_bps` | On-chain authoritative (UI must query) | Note drift vs product target; never hardcode in UI |
+| Wrap / unwrap fee | wrap-mapper `config.fee_wrap_bps` / `fee_unwrap_bps` (pre-migrate: `fee_bps`) | On-chain authoritative (UI must query) | Post-migrate target **200 / 51**; never hardcode; retune unwrap if tax changes |
 | Wrap rate limit | wrap-mapper `rate_limit` per denom | Caps match ops intent | Section **D** — raise/remove via governance |
 
 **Observed 2026-08-09 LCD sample:** wrap-mapper `fee_bps=200`; treasury vFDUSD balance/allowance to window were **low / zero** (health script WARNs) — refill before marketing UST1 withdraw capacity.
+
+**#516 retune (unwrap ≈2% all-in):** after ustr-cmm#9 migrate, expect `fee_wrap_bps=200` / `fee_unwrap_bps=51`. Formula: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` (1.5% → 51). If tax ≥ ~2%, escalate — cannot hit 2% without subsidy. Health script WARNs while LCD still returns a single `fee_bps`. Playbook: [`skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](../../skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md). Do not change ust1-window `fee_bps`.
 
 Indexer HTTP **429** ≠ wrap rate-limit — [user incident FAQ](../user-incident-faq.md#rate-limits).
 

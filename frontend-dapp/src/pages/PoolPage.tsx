@@ -21,6 +21,7 @@ import { netCw20AfterNativeWrap } from '@/services/terraclassic/router'
 import {
   netAfterWrapMapperFee,
   queryWrapMapperConfig,
+  wrapMapperFeeBps,
   wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
@@ -205,26 +206,27 @@ const PoolCard = memo(function PoolCard({
     queryFn: queryWrapMapperConfig,
     enabled: expanded === 'add' && (hasNativeOptionA || hasNativeOptionB) && !!WRAP_MAPPER_CONTRACT_ADDRESS,
     staleTime: 30_000,
+    refetchInterval: 30_000,
   })
   const wrapMapperConfig = wrapMapperConfigQuery.data ?? null
-  const wrapMapperFeeBps = wrapMapperConfig?.fee_bps
+  const wrapFeeBps = wrapMapperFeeBps(wrapMapperConfig, 'wrap')
   const wrapProvideBlocked =
     (needsWrapA || needsWrapB) &&
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
     (wrapMapperConfig == null || !wrapTreasuryMatchesEnv(wrapMapperConfig))
 
-  // wrap_deposit is untaxed; CW20 provide amounts = gross − mapper fee (#512 / #507).
+  // wrap_deposit is untaxed; CW20 provide amounts = gross − wrap fee (#512 / #516).
   const provideRawAddA = useMemo(() => {
     if (!needsWrapA || !nativeEquivA || rawAddA === '0') return rawAddA
-    if (wrapMapperFeeBps == null) return rawAddA
-    return netAfterWrapMapperFee(BigInt(rawAddA), wrapMapperFeeBps).toString()
-  }, [needsWrapA, nativeEquivA, rawAddA, wrapMapperFeeBps])
+    if (wrapFeeBps == null) return rawAddA
+    return netAfterWrapMapperFee(BigInt(rawAddA), wrapFeeBps).toString()
+  }, [needsWrapA, nativeEquivA, rawAddA, wrapFeeBps])
 
   const provideRawAddB = useMemo(() => {
     if (!needsWrapB || !nativeEquivB || rawAddB === '0') return rawAddB
-    if (wrapMapperFeeBps == null) return rawAddB
-    return netAfterWrapMapperFee(BigInt(rawAddB), wrapMapperFeeBps).toString()
-  }, [needsWrapB, nativeEquivB, rawAddB, wrapMapperFeeBps])
+    if (wrapFeeBps == null) return rawAddB
+    return netAfterWrapMapperFee(BigInt(rawAddB), wrapFeeBps).toString()
+  }, [needsWrapB, nativeEquivB, rawAddB, wrapFeeBps])
 
   const insufficientAddA =
     !!address &&
@@ -321,7 +323,7 @@ const PoolCard = memo(function PoolCard({
   const shouldSyncProvideCounterpart = (counterpartHuman: string, forceSync?: boolean) =>
     forceSync || !counterpartHuman || counterpartHuman === '.'
 
-  const wrapFeeReadyForCounterpart = (!needsWrapA && !needsWrapB) || wrapMapperFeeBps != null
+  const wrapFeeReadyForCounterpart = (!needsWrapA && !needsWrapB) || wrapFeeBps != null
 
   const setProvideAmountA = (human: string, opts?: { forceSync?: boolean }) => {
     const sync = shouldSyncProvideCounterpart(amountB, opts?.forceSync)
@@ -335,7 +337,7 @@ const PoolCard = memo(function PoolCard({
       decimalsB,
       needsWrapA,
       needsWrapB,
-      wrapMapperFeeBps: wrapMapperFeeBps ?? 0,
+      wrapMapperFeeBps: wrapFeeBps ?? 0,
     })
     if (counterpart !== null) setAmountB(counterpart)
   }
@@ -352,7 +354,7 @@ const PoolCard = memo(function PoolCard({
       decimalsB,
       needsWrapA,
       needsWrapB,
-      wrapMapperFeeBps: wrapMapperFeeBps ?? 0,
+      wrapMapperFeeBps: wrapFeeBps ?? 0,
     })
     if (counterpart !== null) setAmountA(counterpart)
   }

@@ -80,7 +80,8 @@ const healthyConfig = {
   governance: 'terra1gov',
   treasury: TREASURY,
   paused: false,
-  fee_bps: 200,
+  fee_wrap_bps: 200,
+  fee_unwrap_bps: 51,
 }
 
 describe('WrapPage (#502 / #507)', () => {
@@ -135,6 +136,19 @@ describe('WrapPage (#502 / #507)', () => {
     await user.click(await screen.findByTestId('wrap-tab-unwrap'))
     expect(await screen.findByTestId('wrap-unwrap-exchange-warning')).toHaveTextContent(/own wallet/i)
     expect(screen.getByTestId('wrap-fee-note')).toHaveTextContent(/burn tax/i)
+  })
+
+  it('uses distinct wrap vs unwrap fee bps in the fee note (#516)', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    renderWithProviders(<WrapPage />)
+    expect(await screen.findByTestId('wrap-fee-note')).toHaveTextContent(/2\.00% fee/)
+    expect(screen.getByTestId('wrap-fee-note')).not.toHaveTextContent(/burn tax/)
+    await user.click(await screen.findByTestId('wrap-tab-unwrap'))
+    expect(screen.getByTestId('wrap-fee-note')).toHaveTextContent(/0\.51% fee/)
+    expect(screen.getByTestId('wrap-fee-note')).toHaveTextContent(/You Receive after 1\.5% burn tax/)
+    expect(screen.getByTestId('wrap-fee-note')).not.toHaveTextContent(/2% flat/)
+    expect(screen.getByTestId('wrap-unwrap-exchange-warning')).toBeInTheDocument()
   })
 
   it('switches asset to USTC / cUSTC and shows logos on asset toggles', async () => {

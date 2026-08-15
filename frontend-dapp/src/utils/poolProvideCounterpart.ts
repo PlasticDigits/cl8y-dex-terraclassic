@@ -20,7 +20,7 @@ export type ComputeProvideCounterpartHumanArgs = {
    * @deprecated See `taxParamsA`.
    */
   taxParamsB?: unknown
-  /** Wrap-mapper fee_bps (0 when unset / unknown). GitLab #507. */
+  /** Wrap-mapper `fee_wrap_bps` only (0 when unset / unknown). GitLab #507 / #516. */
   wrapMapperFeeBps?: number
 }
 
