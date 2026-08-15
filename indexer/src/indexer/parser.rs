@@ -16,13 +16,13 @@ use std::str::FromStr;
 
 use crate::config::Config;
 use crate::db::queries::{
-    assets, limit_order_fills, limit_order_lifecycle, liquidity, pairs, swap_events,
+    assets, limit_order_fills, limit_order_lifecycle, liquidity, oracle as db_oracle, swap_events,
 };
 use crate::lcd::{Attribute, LcdClient, TxResponse};
 
 use super::{
-    asset_resolver, candle_builder, oracle, pair_discovery, position_tracker, swap_orientation,
-    trader_tracker,
+    asset_resolver, candle_builder, oracle, pair_discovery, pair_price_usd, position_tracker,
+    swap_orientation, trader_tracker,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -391,12 +391,33 @@ async fn process_swap(
     let offer_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.offer_asset).await?;
     let ask_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.ask_asset).await?;
 
+    let base_asset = assets::get_asset_by_id(pool, pair.asset_0_id).await.ok().flatten();
+    let quote_asset = assets::get_asset_by_id(pool, pair.asset_1_id).await.ok().flatten();
+    let decimals_base = base_asset.as_ref().map(|a| a.decimals).unwrap_or(6);
+    let decimals_quote = quote_asset.as_ref().map(|a| a.decimals).unwrap_or(6);
+
     let oriented = swap_orientation::orient_swap_leg(
         pair.asset_0_id,
         offer_asset_id,
         &swap.offer_amount,
         &swap.return_amount,
+        decimals_base,
+        decimals_quote,
     );
+
+    let ustc_usd = ustc_price.read().await.clone();
+    let lunc_usd = db_oracle::get_latest_average_price(pool, oracle::OracleTicker::Lunc)
+        .await
+        .ok()
+        .flatten();
+    let price_usd = quote_asset.as_ref().and_then(|quote| {
+        pair_price_usd::price_usd_for_human_quote_per_base(
+            quote,
+            &oriented.price,
+            ustc_usd.as_ref(),
+            lunc_usd.as_ref(),
+        )
+    });
 
     let volume_usd = compute_volume_usd(
         pool,
@@ -426,6 +447,7 @@ async fn process_swap(
         swap.commission_amount.as_ref(),
         swap.effective_fee_bps,
         &oriented.price,
+        price_usd.as_ref(),
         volume_usd.as_ref(),
         swap.pool_return_amount.as_ref(),
         swap.book_return_amount.as_ref(),
@@ -436,11 +458,12 @@ async fn process_swap(
         return Ok(());
     }
 
+    let candle_price = price_usd.as_ref().unwrap_or(&oriented.price);
     candle_builder::update_candles_for_swap(
         pool,
         pair.id,
         block_time,
-        &oriented.price,
+        candle_price,
         &oriented.volume_base,
         &oriented.volume_quote,
     )

@@ -21,6 +21,8 @@ pub struct SwapEventRow {
     pub commission_amount: Option<BigDecimal>,
     pub effective_fee_bps: Option<i16>,
     pub price: BigDecimal,
+    /// USD of 1 human unit of pair base (`asset_0`). GitLab #522.
+    pub price_usd: Option<BigDecimal>,
     pub volume_usd: Option<BigDecimal>,
     pub pool_return_amount: Option<BigDecimal>,
     pub book_return_amount: Option<BigDecimal>,
@@ -38,6 +40,10 @@ pub struct PairStats {
     pub open_price: Option<BigDecimal>,
     pub close_price: Option<BigDecimal>,
     pub price_change_pct: Option<f64>,
+    pub high_usd: Option<BigDecimal>,
+    pub low_usd: Option<BigDecimal>,
+    pub open_price_usd: Option<BigDecimal>,
+    pub close_price_usd: Option<BigDecimal>,
 }
 
 /// 24h hybrid vs pool-only attribution for consolidated CG/CMC reporting (GitLab #189).
@@ -67,6 +73,7 @@ pub async fn insert_swap(
     commission_amount: Option<&BigDecimal>,
     effective_fee_bps: Option<i16>,
     price: &BigDecimal,
+    price_usd: Option<&BigDecimal>,
     volume_usd: Option<&BigDecimal>,
     pool_return_amount: Option<&BigDecimal>,
     book_return_amount: Option<&BigDecimal>,
@@ -76,9 +83,9 @@ pub async fn insert_swap(
         "INSERT INTO swap_events
          (pair_id, block_height, block_timestamp, tx_hash, sender, receiver,
           offer_asset_id, ask_asset_id, offer_amount, return_amount,
-          spread_amount, commission_amount, effective_fee_bps, price, volume_usd,
+          spread_amount, commission_amount, effective_fee_bps, price, price_usd, volume_usd,
           pool_return_amount, book_return_amount, limit_book_offer_consumed, swap_index)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          ON CONFLICT (tx_hash, pair_id, swap_index) DO NOTHING
          RETURNING id",
     )
@@ -96,6 +103,7 @@ pub async fn insert_swap(
     .bind(commission_amount)
     .bind(effective_fee_bps)
     .bind(price)
+    .bind(price_usd)
     .bind(volume_usd)
     .bind(pool_return_amount)
     .bind(book_return_amount)
@@ -216,6 +224,8 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
         trade_count: Option<i64>,
         high: Option<BigDecimal>,
         low: Option<BigDecimal>,
+        high_usd: Option<BigDecimal>,
+        low_usd: Option<BigDecimal>,
     }
 
     let stats = sqlx::query_as::<_, StatsRow>(
@@ -225,7 +235,9 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
            SUM(se.volume_usd) AS volume_usd,
            COUNT(*) AS trade_count,
            MAX(se.price) AS high,
-           MIN(se.price) AS low
+           MIN(se.price) AS low,
+           MAX(se.price_usd) AS high_usd,
+           MIN(se.price_usd) AS low_usd
          FROM swap_events se
          INNER JOIN pairs p ON p.id = se.pair_id
          WHERE se.pair_id = $1 AND se.block_timestamp >= $2",
@@ -238,10 +250,11 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
     #[derive(FromRow)]
     struct PriceRow {
         price: BigDecimal,
+        price_usd: Option<BigDecimal>,
     }
 
     let open = sqlx::query_as::<_, PriceRow>(
-        "SELECT price FROM swap_events
+        "SELECT price, price_usd FROM swap_events
          WHERE pair_id = $1 AND block_timestamp >= $2
          ORDER BY block_timestamp ASC, id ASC LIMIT 1",
     )
@@ -251,7 +264,7 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
     .await?;
 
     let close = sqlx::query_as::<_, PriceRow>(
-        "SELECT price FROM swap_events
+        "SELECT price, price_usd FROM swap_events
          WHERE pair_id = $1 AND block_timestamp >= $2
          ORDER BY block_timestamp DESC, id DESC LIMIT 1",
     )
@@ -260,8 +273,10 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
     .fetch_optional(pool)
     .await?;
 
-    let open_price = open.map(|r| r.price);
-    let close_price = close.map(|r| r.price);
+    let open_price = open.as_ref().map(|r| r.price.clone());
+    let close_price = close.as_ref().map(|r| r.price.clone());
+    let open_price_usd = open.and_then(|r| r.price_usd);
+    let close_price_usd = close.and_then(|r| r.price_usd);
 
     Ok(PairStats {
         volume_base: stats.volume_base.unwrap_or_default(),
@@ -273,6 +288,10 @@ pub async fn get_24h_stats_for_pair(pool: &PgPool, pair_id: i32) -> Result<PairS
         open_price: open_price.clone(),
         close_price: close_price.clone(),
         price_change_pct: price_change_pct(open_price.as_ref(), close_price.as_ref()),
+        high_usd: stats.high_usd,
+        low_usd: stats.low_usd,
+        open_price_usd,
+        close_price_usd,
     })
 }
 
@@ -307,6 +326,8 @@ pub async fn get_24h_stats_all_pairs(
         trade_count: Option<i64>,
         high: Option<BigDecimal>,
         low: Option<BigDecimal>,
+        high_usd: Option<BigDecimal>,
+        low_usd: Option<BigDecimal>,
     }
 
     let agg_rows = sqlx::query_as::<_, AggRow>(
@@ -317,7 +338,9 @@ pub async fn get_24h_stats_all_pairs(
            SUM(se.volume_usd) AS volume_usd,
            COUNT(*) AS trade_count,
            MAX(se.price) AS high,
-           MIN(se.price) AS low
+           MIN(se.price) AS low,
+           MAX(se.price_usd) AS high_usd,
+           MIN(se.price_usd) AS low_usd
          FROM swap_events se
          INNER JOIN pairs p ON p.id = se.pair_id
          WHERE se.block_timestamp >= $1
@@ -331,10 +354,11 @@ pub async fn get_24h_stats_all_pairs(
     struct PriceRow {
         pair_id: i32,
         price: BigDecimal,
+        price_usd: Option<BigDecimal>,
     }
 
     let open_rows = sqlx::query_as::<_, PriceRow>(
-        "SELECT DISTINCT ON (pair_id) pair_id, price
+        "SELECT DISTINCT ON (pair_id) pair_id, price, price_usd
          FROM swap_events
          WHERE block_timestamp >= $1
          ORDER BY pair_id, block_timestamp ASC, id ASC",
@@ -344,7 +368,7 @@ pub async fn get_24h_stats_all_pairs(
     .await?;
 
     let close_rows = sqlx::query_as::<_, PriceRow>(
-        "SELECT DISTINCT ON (pair_id) pair_id, price
+        "SELECT DISTINCT ON (pair_id) pair_id, price, price_usd
          FROM swap_events
          WHERE block_timestamp >= $1
          ORDER BY pair_id, block_timestamp DESC, id DESC",
@@ -353,14 +377,25 @@ pub async fn get_24h_stats_all_pairs(
     .fetch_all(pool)
     .await?;
 
-    let open_map: HashMap<i32, BigDecimal> = open_rows.into_iter().map(|r| (r.pair_id, r.price)).collect();
-    let close_map: HashMap<i32, BigDecimal> =
-        close_rows.into_iter().map(|r| (r.pair_id, r.price)).collect();
+    let open_map: HashMap<i32, (BigDecimal, Option<BigDecimal>)> = open_rows
+        .into_iter()
+        .map(|r| (r.pair_id, (r.price, r.price_usd)))
+        .collect();
+    let close_map: HashMap<i32, (BigDecimal, Option<BigDecimal>)> = close_rows
+        .into_iter()
+        .map(|r| (r.pair_id, (r.price, r.price_usd)))
+        .collect();
 
     let mut result = HashMap::with_capacity(agg_rows.len());
     for row in agg_rows {
-        let open_price = open_map.get(&row.pair_id).cloned();
-        let close_price = close_map.get(&row.pair_id).cloned();
+        let (open_price, open_price_usd) = match open_map.get(&row.pair_id) {
+            Some((p, u)) => (Some(p.clone()), u.clone()),
+            None => (None, None),
+        };
+        let (close_price, close_price_usd) = match close_map.get(&row.pair_id) {
+            Some((p, u)) => (Some(p.clone()), u.clone()),
+            None => (None, None),
+        };
         let pct = price_change_pct(open_price.as_ref(), close_price.as_ref());
         result.insert(
             row.pair_id,
@@ -374,6 +409,10 @@ pub async fn get_24h_stats_all_pairs(
                 open_price,
                 close_price,
                 price_change_pct: pct,
+                high_usd: row.high_usd,
+                low_usd: row.low_usd,
+                open_price_usd,
+                close_price_usd,
             },
         );
     }

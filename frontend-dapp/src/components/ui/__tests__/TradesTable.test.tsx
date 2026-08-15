@@ -42,6 +42,12 @@ describe('TradesTable', () => {
     expect(screen.getByText('AAAAAAAA…BBBBBB')).toBeInTheDocument()
   })
 
+  it('does not compact-format a mixed-decimal raw price as T (GitLab #522)', () => {
+    render(<TradesTable trades={[{ ...mockTrade, id: 3, price: '79718100000000' }]} formatTimeFn={formatTimeFn} />)
+    expect(screen.queryByText(/T$/)).not.toBeInTheDocument()
+    expect(screen.getByText(/79,718,100,000,000/)).toBeInTheDocument()
+  })
+
   it('renders with aria-label', () => {
     render(<TradesTable trades={mockTrades} formatTimeFn={formatTimeFn} ariaLabel="Test trades" />)
     expect(screen.getByRole('table', { name: 'Test trades' })).toBeInTheDocument()

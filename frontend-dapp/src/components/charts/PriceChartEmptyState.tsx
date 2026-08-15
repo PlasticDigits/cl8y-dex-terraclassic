@@ -11,10 +11,8 @@ interface PriceChartEmptyStateProps {
  * Shown when the indexer returns no usable OHLC rows for the selected interval (successful response, empty or all invalid).
  */
 export function PriceChartEmptyState({ pairStats, statsLoading }: PriceChartEmptyStateProps) {
-  const closeLine =
-    pairStats?.close_price != null && pairStats.close_price !== ''
-      ? `24h close (indexer): ${pairStats.close_price}`
-      : null
+  const closeUsd = pairStats?.close_price_usd
+  const closeLine = closeUsd != null && closeUsd !== '' ? `24h close (USD): ${closeUsd}` : null
 
   const ariaLabel =
     'No price chart data for this interval. Try another time range, confirm the indexer has synced, or wait for trades.'

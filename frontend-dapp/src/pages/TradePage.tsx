@@ -5,7 +5,7 @@ import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHisto
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { getPair, getTrades } from '@/services/indexer/client'
+import { getOraclePrice, getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { PairSearchSelect, RetryError, Skeleton } from '@/components/ui'
@@ -48,6 +48,7 @@ import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { TradeRecentTradesSection } from '@/components/trade/TradeRecentTradesSection'
 import { detectTradeIndexerOutage } from '@/utils/tradeIndexerOutage'
+import { resolveTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { TradeWorkspaceDisclosure } from '@/components/trade/TradeWorkspaceDisclosure'
@@ -233,6 +234,13 @@ export default function TradePage() {
     retry: false,
   })
 
+  const ustcOracleQuery = useQuery({
+    queryKey: ['indexer-oracle-price', 'ustc'],
+    queryFn: () => getOraclePrice('ustc'),
+    staleTime: 60_000,
+    retry: false,
+  })
+
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = detectTradeIndexerOutage(indexerPairQuery, tradesQuery)
 
@@ -324,6 +332,20 @@ export default function TradePage() {
     }
   }, [])
 
+  const tapeLastPriceUsd = useMemo(
+    () =>
+      resolveTapeLastPriceUsd({
+        priceUsd: tradesQuery.data?.[0]?.price_usd,
+        price: tradesQuery.data?.[0]?.price,
+        decimalsBase: activePair?.asset_0.decimals,
+        decimalsQuote: activePair?.asset_1.decimals,
+        quoteSymbol: activePair?.asset_1.symbol,
+        quoteDenom: activePair?.asset_1.denom,
+        ustcUsd: ustcOracleQuery.data?.price_usd,
+      }),
+    [tradesQuery.data, activePair, ustcOracleQuery.data?.price_usd]
+  )
+
   const chartSlotProps = {
     pairRouteReady,
     pairAddr,
@@ -331,7 +353,7 @@ export default function TradePage() {
     retryMessage: getErrorMessage(indexerPairQuery.error),
     isRetrying: indexerPairRetry.isRetrying,
     onRetry: indexerPairRetry.retry,
-    tapeLastPriceUsd: tradesQuery.data?.[0]?.price,
+    tapeLastPriceUsd,
   }
 
   const tradeOrderTicket = (
@@ -341,7 +363,7 @@ export default function TradePage() {
       pairsLoading={pairsQuery.isLoading}
       indexerPair={activePair}
       latestTrade={tradesQuery.data?.[0]}
-      tapeHeadlineUsd={tradesQuery.data?.[0]?.price}
+      tapeHeadlineUsd={tapeLastPriceUsd}
       cancelLimitOrderMutation={limitCancelMutation}
       limitBookDraftKey={limitBookDraftKey}
       limitBookDraft={limitBookDraft}

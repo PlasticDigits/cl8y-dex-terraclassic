@@ -202,6 +202,8 @@ export interface IndexerTrade {
   offer_amount: string
   return_amount: string
   price: string
+  /** USD of 1 human unit of pair base (`asset_0`). GitLab #522. */
+  price_usd?: string | null
   /** Hybrid / Pattern C when indexer has on-chain attrs */
   pool_return_amount?: string
   book_return_amount?: string
@@ -336,6 +338,11 @@ export interface IndexerPairStats {
   open_price: string | null
   close_price: string | null
   price_change_pct: number | null
+  /** USD OHLC of 1 human base (GitLab #522). */
+  high_usd?: string | null
+  low_usd?: string | null
+  open_price_usd?: string | null
+  close_price_usd?: string | null
 }
 
 export interface IndexerOverview {

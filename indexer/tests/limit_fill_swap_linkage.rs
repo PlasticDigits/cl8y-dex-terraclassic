@@ -28,7 +28,7 @@ async fn fill_links_to_its_own_swap_not_the_first_on_the_pair() {
     let id0 = swap_events::insert_swap(
         &pool, seed.pair_id, 0, 1, Utc::now(), tx_hash, "terra1taker", None,
         seed.asset_0_id, seed.asset_1_id, &amt, &amt, None, None, None, &price, None, None, None,
-        None,
+        None, None,
     )
     .await
     .unwrap()
@@ -36,7 +36,7 @@ async fn fill_links_to_its_own_swap_not_the_first_on_the_pair() {
     let id1 = swap_events::insert_swap(
         &pool, seed.pair_id, 1, 1, Utc::now(), tx_hash, "terra1taker", None,
         seed.asset_0_id, seed.asset_1_id, &amt, &amt, None, None, None, &price, None, None, None,
-        None,
+        None, None,
     )
     .await
     .unwrap()
@@ -78,7 +78,7 @@ async fn explicit_swap_index_attrs_link_to_matching_swap_rows() {
     let id0 = swap_events::insert_swap(
         &pool, seed.pair_id, 0, 1, Utc::now(), tx_hash, "terra1taker", None,
         seed.asset_0_id, seed.asset_1_id, &amt, &amt, None, None, None, &price, None, None, None,
-        None,
+        None, None,
     )
     .await
     .unwrap()
@@ -86,7 +86,7 @@ async fn explicit_swap_index_attrs_link_to_matching_swap_rows() {
     let id1 = swap_events::insert_swap(
         &pool, seed.pair_id, 1, 1, Utc::now(), tx_hash, "terra1taker", None,
         seed.asset_0_id, seed.asset_1_id, &amt, &amt, None, None, None, &price, None, None, None,
-        None,
+        None, None,
     )
     .await
     .unwrap()

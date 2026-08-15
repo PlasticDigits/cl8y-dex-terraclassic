@@ -140,7 +140,7 @@ CL8Y v2 pairs may settle swaps through the **pool only** or through a **hybrid**
 |-------|-----------|
 | `base_volume` / `target_volume` (tickers) | 24h totals bucket `offer_amount` / `return_amount` by pair **base/quote** orientation (`asset_0` / `asset_1`), not raw offer/return columns ([#466](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/466)). |
 | `base_volume` / `quote_volume` (CMC summary) | Same oriented totals. |
-| `price` (trades) | **Quote per base** after normalization at index time — `return/offer` when offering base, `offer/return` when offering quote ([#466](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/466)). |
+| `price` (trades) | **Human quote per base** after orientation ([#466](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/466)) and decimal scale ([#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)): `raw × 10^(decimals_base − decimals_quote)`. CG/CMC `last_price` stays this quote-currency figure, not `price_usd`. |
 | `cl8y_extensions` (tickers + CMC summary) | Optional attribution block: `hybrid_trade_count_24h`, `pool_only_trade_count_24h`, `book_leg_volume_quote_24h`, `pool_leg_volume_quote_24h`. Safe for aggregators to ignore. |
 | `pool_leg_volume` / `book_leg_volume` (trades) | Present on hybrid swaps when indexed; sum to the trade's consolidated `target_volume` / `quote_volume`. |
 

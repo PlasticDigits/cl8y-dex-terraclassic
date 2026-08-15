@@ -5,6 +5,7 @@ pub mod candle_builder;
 pub mod fee_discount_registry_health;
 pub mod oracle;
 pub mod pair_discovery;
+pub mod pair_price_usd;
 pub mod parser;
 pub mod poller;
 pub mod reorg_alert;
