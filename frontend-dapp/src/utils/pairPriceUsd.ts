@@ -1,5 +1,6 @@
 import type { IndexerPair, IndexerTrade } from '@/types'
 import { tradeToToken1PerToken0Human } from './limitOrderPriceReference'
+import { invertUsd } from './tradePairDisplayOrientation'
 
 /** USTR is 2.5× USTC on the #508 secondary AMM (matches indexer `USTR_PER_USTC`). */
 export const USTR_PER_USTC = 2.5
@@ -123,4 +124,20 @@ export function resolveTapePriceUsd(opts: {
   const quoteUsd = quoteTokenUsd(kind, parsePositiveDecimal(opts.ustcUsd), parsePositiveDecimal(opts.luncUsd))
   if (quoteUsd == null) return null
   return String(human * quoteUsd)
+}
+
+/**
+ * USD of 1 **displayed** base (GitLab #524). Factory `price_usd` is always USD of `asset_0`.
+ * When inverted, prefer `price_usd / human_price`, else the quote catalog for the display leg.
+ */
+export function resolveDisplayTapeLastPriceUsd(
+  opts: TapeUsdInput & { inverted: boolean; displayBaseSymbol?: string; displayBaseDenom?: string | null }
+): string | null {
+  const factory = resolveTapeLastPriceUsd(opts)
+  if (!opts.inverted) return factory
+  const viaRatio = invertUsd(factory, opts.price)
+  if (viaRatio) return viaRatio
+  const kind = classifyQuoteSymbol(opts.displayBaseSymbol ?? '', opts.displayBaseDenom)
+  const catalog = quoteTokenUsd(kind, parsePositiveDecimal(opts.ustcUsd), parsePositiveDecimal(opts.luncUsd))
+  return catalog == null ? null : String(catalog)
 }

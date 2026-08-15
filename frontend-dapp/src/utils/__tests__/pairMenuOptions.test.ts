@@ -33,6 +33,13 @@ describe('pairInfoMenuLabel', () => {
   it('defaults to full', () => {
     expect(pairInfoMenuLabel(samplePairInfo())).toContain('—')
   })
+
+  it('displayInverted swaps symbol order (GitLab #524)', () => {
+    const inverted = pairInfoMenuLabel(samplePairInfo(), { variant: 'compact', displayInverted: true })
+    const factory = pairInfoMenuLabel(samplePairInfo(), { variant: 'compact' })
+    const [a, b] = factory.split(' / ')
+    expect(inverted).toBe(`${b} / ${a}`)
+  })
 })
 
 describe('indexerPairMenuLabel', () => {

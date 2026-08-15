@@ -16,6 +16,8 @@ export type PairMenuLabelVariant = 'full' | 'compact'
 
 export type PairMenuLabelOptions = {
   variant?: PairMenuLabelVariant
+  /** When true, render quote/base (display invert — GitLab #524). Combobox click is unchanged. */
+  displayInverted?: boolean
 }
 
 const DEFAULT_VARIANT: PairMenuLabelVariant = 'full'
@@ -32,7 +34,7 @@ export function pairInfoMenuLabel(pair: PairInfo, opts?: PairMenuLabelOptions): 
   const b = assetInfoLabel(pair.asset_infos[1])
   const la = getTokenDisplaySymbol(a)
   const lb = getTokenDisplaySymbol(b)
-  const core = `${la} / ${lb}`
+  const core = opts?.displayInverted ? `${lb} / ${la}` : `${la} / ${lb}`
   if (variant === 'compact') return core
   return `${core} — ${shortenAddress(pair.contract_addr)}`
 }

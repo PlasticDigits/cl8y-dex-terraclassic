@@ -28,6 +28,8 @@ export interface PairSearchSelectProps {
   'aria-label'?: string
   className?: string
   onOptionIntent?: (value: string) => void
+  /** Closed-control label only. Does not invert on combobox click (GitLab #524). */
+  selectedLabelOverride?: string
 }
 
 type PairSearchOption = {
@@ -63,6 +65,7 @@ export function PairSearchSelect({
   'aria-label': ariaLabel,
   className,
   onOptionIntent,
+  selectedLabelOverride,
 }: PairSearchSelectProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -88,8 +91,9 @@ export function PairSearchSelect({
 
   const selectedLabel = useMemo(() => {
     if (!value) return ''
+    if (selectedLabelOverride) return selectedLabelOverride
     return labelsByAddress.get(value) ?? value
-  }, [value, labelsByAddress])
+  }, [value, labelsByAddress, selectedLabelOverride])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchText.trim()), 300)

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  applyChartDisplayInvert,
   candleOpenTimeSeconds,
   indexerCandlesToChartPoints,
   indexerCandlesToVolumeHistogramPoints,
@@ -153,6 +154,18 @@ describe('indexerCandlesToVolumeHistogramPoints', () => {
       '#ff0000'
     )
     expect(pts[0]?.value).toBe(42)
+  })
+
+  it('applyChartDisplayInvert reciprocates and drops dust/zero (GitLab #524 / H5)', () => {
+    const pts = indexerCandlesToChartPoints([row({ open: '2', high: '4', low: '1', close: '3' })])
+    const inv = applyChartDisplayInvert(pts, true)
+    expect(inv).toHaveLength(1)
+    expect(inv[0].open).toBeCloseTo(0.5)
+    expect(inv[0].high).toBeCloseTo(1)
+    expect(inv[0].low).toBeCloseTo(0.25)
+    expect(inv[0].close).toBeCloseTo(1 / 3)
+    expect(applyChartDisplayInvert(pts, false)).toEqual(pts)
+    expect(applyChartDisplayInvert([{ time: 1 as never, open: 0, high: 1, low: 1, close: 1 }], true)).toEqual([])
   })
 
   it('omits volume for rows that fail OHLC validation', () => {

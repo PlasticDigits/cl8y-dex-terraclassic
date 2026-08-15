@@ -346,4 +346,41 @@ describe('PriceChart', () => {
     await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairB, '1d'))
     expect(vi.mocked(createChart)).toHaveBeenCalledTimes(2)
   })
+
+  it('renders pair invert pill and names display token in aria-live (GitLab #524)', async () => {
+    const onToggle = vi.fn()
+    renderWithProviders(
+      <PriceChart
+        pairAddress={pairA}
+        tapeLastPriceUsd="0.00485"
+        displayInverted
+        onToggleDisplayInvert={onToggle}
+        pairPillLabel="cUSTC/UST1"
+        invertAriaLabel="Show UST1 / cUSTC pricing"
+        displayBaseSymbol="cUSTC"
+      />
+    )
+    await waitFor(() => expect(screen.queryByText(/loading chart/i)).not.toBeInTheDocument())
+    const pill = screen.getByTestId('trade-pair-invert-pill')
+    expect(pill).toHaveTextContent('cUSTC/UST1')
+    expect(pill).toHaveAttribute('aria-label', 'Show UST1 / cUSTC pricing')
+    expect(screen.getByText(/last price .* usd for 1 cUSTC/i)).toBeInTheDocument()
+    await userEvent.setup().click(pill)
+    expect(onToggle).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders spoofed symbol as text in the pill (H7)', async () => {
+    renderWithProviders(
+      <PriceChart
+        pairAddress={pairA}
+        onToggleDisplayInvert={() => {}}
+        pairPillLabel={'<img onerror=alert(1)>/UST1'}
+        invertAriaLabel="Show UST1 / x pricing"
+        displayBaseSymbol={'<img onerror=alert(1)>'}
+      />
+    )
+    await waitFor(() => expect(screen.getByTestId('trade-pair-invert-pill')).toBeInTheDocument())
+    expect(screen.getByTestId('trade-pair-invert-pill').textContent).toContain('<img onerror=alert(1)>')
+    expect(document.querySelector('img[onerror]')).toBeNull()
+  })
 })

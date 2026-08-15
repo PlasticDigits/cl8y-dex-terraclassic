@@ -1,5 +1,6 @@
 import type { HistogramData, Time } from 'lightweight-charts'
 import type { IndexerCandle } from '@/types'
+import { invertOhlc } from '@/utils/tradePairDisplayOrientation'
 
 /** OHLC row passed to lightweight-charts CandlestickSeries (TradingView lightweight-charts, not the hosted widget). */
 export interface ChartCandlePoint {
@@ -71,6 +72,14 @@ function toChartCandlePoint(c: IndexerCandle): ChartCandlePoint {
  */
 export function indexerCandlesToChartPoints(data: IndexerCandle[] | undefined): ChartCandlePoint[] {
   return sortedValidCandles(data).map(toChartCandlePoint)
+}
+
+/**
+ * Display invert after factory mapping (GitLab #524). Reciprocal + high/low swap;
+ * non-finite / non-positive rows are dropped so lightweight-charts never sees `NaN`/`Infinity`.
+ */
+export function applyChartDisplayInvert(points: ChartCandlePoint[], inverted: boolean): ChartCandlePoint[] {
+  return inverted ? invertOhlc(points) : points
 }
 
 /**
