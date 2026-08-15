@@ -5,8 +5,9 @@
 #   SL1 — Factory whitelisted_code_ids contains ONLY cw20-base (6036) + cw20-mintable (10184).
 #   SL2 — No Terraport/GDEX/economic CW20 code IDs on the whitelist for this launch path.
 #   SL3 — Trading tokens are 6 decimals; fee-discount uses mainnet CL8Y (18 decimals).
-#   SL4 — Deploy key pays gas + bootstraps admin msgs; wasm --admin and final config
-#         governance/treasury = GOVERNANCE_MULTISIG_ADDR (handoff after setup).
+#   SL4 — Deploy key pays gas + bootstraps admin msgs; wasm --admin and final
+#         config.governance = GOVERNANCE_MULTISIG_ADDR. Factory treasury is the
+#         ustr-cmm CMM (MAINNET_CMM_TREASURY), not the multisig.
 #   SL5 — Wrap-mapper / USTR treasury contracts are out of scope (CW20-only pairs).
 #         Post-SL5 wrap is Coolify-only (#507) — do NOT add wrap addresses to this catalog.
 #
@@ -16,11 +17,12 @@
 MAINNET_SOFT_LAUNCH_DEPLOY_KEY="${MAINNET_SOFT_LAUNCH_DEPLOY_KEY:-cl8ydeploy}"
 MAINNET_SOFT_LAUNCH_DEPLOY_ADDR="${MAINNET_SOFT_LAUNCH_DEPLOY_ADDR:-terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv}"
 
-# Production governance / wasm admin / treasury pointer (multisig).
+# Production governance / wasm admin (multisig). Fee treasury is CMM, not the multisig.
 # shellcheck source=governance-multisig.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/governance-multisig.sh"
 MAINNET_SOFT_LAUNCH_GOVERNANCE="${MAINNET_SOFT_LAUNCH_GOVERNANCE:-$GOVERNANCE_MULTISIG_ADDR}"
-MAINNET_SOFT_LAUNCH_TREASURY="${MAINNET_SOFT_LAUNCH_TREASURY:-$GOVERNANCE_MULTISIG_ADDR}"
+MAINNET_CMM_TREASURY="${MAINNET_CMM_TREASURY:-terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2}"
+MAINNET_SOFT_LAUNCH_TREASURY="${MAINNET_SOFT_LAUNCH_TREASURY:-$MAINNET_CMM_TREASURY}"
 
 # Mainnet CL8Y CW20 (fee-discount cl8y_token).
 MAINNET_CL8Y_TOKEN_ADDRESS="${MAINNET_CL8Y_TOKEN_ADDRESS:-terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3}"

@@ -23,7 +23,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.6.0";
+const CONTRACT_VERSION: &str = "1.7.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -87,6 +87,17 @@ pub fn execute(
             execute_remove_whitelisted_code_id(deps, info, code_id)
         }
         ExecuteMsg::SetPairFee { pair, fee_bps } => execute_set_pair_fee(deps, info, pair, fee_bps),
+        ExecuteMsg::SetPairTreasury { pair, treasury } => {
+            execute_set_pair_treasury(deps, info, pair, treasury)
+        }
+        ExecuteMsg::SetPairTreasuryAll { treasury } => {
+            execute_set_pair_treasury_all(deps, info, treasury)
+        }
+        ExecuteMsg::SetPairTreasuryBatch {
+            treasury,
+            start_after,
+            limit,
+        } => execute_set_pair_treasury_batch(deps, info, treasury, start_after, limit),
         ExecuteMsg::SetPairCreationFee { fee_uluna } => {
             execute_set_pair_creation_fee(deps, info, fee_uluna)
         }
@@ -380,6 +391,135 @@ fn execute_set_pair_fee(
         .add_attribute("action", "set_pair_fee")
         .add_attribute("pair", pair_addr)
         .add_attribute("fee_bps", fee_bps.to_string()))
+}
+
+/// Set the commission recipient on one registered pair. Governance only.
+/// Does not change factory `config.treasury` — use `UpdateConfig` for new pairs.
+fn execute_set_pair_treasury(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+    treasury: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    deps.api.addr_validate(&treasury)?;
+
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
+
+    let wasm_msg = WasmMsg::Execute {
+        contract_addr: pair_addr.to_string(),
+        msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateTreasury {
+            treasury: treasury.clone(),
+        })?,
+        funds: vec![],
+    };
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "set_pair_treasury")
+        .add_attribute("pair", pair_addr)
+        .add_attribute("treasury", treasury))
+}
+
+/// Set the commission recipient on all registered pairs in one bounded tx.
+/// Governance only. Bounded to `calc_limit(None)` pairs; if `PAIR_COUNT` exceeds that,
+/// returns [`ContractError::PairTreasuryAllTooManyPairs`].
+fn execute_set_pair_treasury_all(
+    deps: DepsMut,
+    info: MessageInfo,
+    treasury: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    deps.api.addr_validate(&treasury)?;
+
+    let max_pairs = calc_limit(None);
+    let count = PAIR_COUNT.load(deps.storage)?;
+    if count > max_pairs as u64 {
+        return Err(ContractError::PairTreasuryAllTooManyPairs {
+            pair_count: count,
+            max: max_pairs as u32,
+        });
+    }
+
+    let mut messages = Vec::new();
+    for idx in 0..count {
+        if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+            messages.push(WasmMsg::Execute {
+                contract_addr: pair_info.contract_addr.to_string(),
+                msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateTreasury {
+                    treasury: treasury.clone(),
+                })?,
+                funds: vec![],
+            });
+        }
+    }
+
+    let pairs_updated = messages.len();
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "set_pair_treasury_all")
+        .add_attribute("treasury", treasury)
+        .add_attribute("pairs_updated", pairs_updated.to_string()))
+}
+
+/// Set the commission recipient on registered pairs in bounded chunks (`PAIR_INDEX` order).
+/// Governance only. Rerun with `next_start_after` until `has_more=false`.
+fn execute_set_pair_treasury_batch(
+    deps: DepsMut,
+    info: MessageInfo,
+    treasury: String,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+    deps.api.addr_validate(&treasury)?;
+
+    let batch_limit = calc_limit(limit);
+    let count = PAIR_COUNT.load(deps.storage)?;
+    let start_idx = start_after.map_or(0u64, |s| s.saturating_add(1));
+
+    if start_idx >= count {
+        return Ok(Response::new()
+            .add_attribute("action", "set_pair_treasury_batch")
+            .add_attribute("treasury", treasury)
+            .add_attribute("pairs_updated", "0")
+            .add_attribute("has_more", "false"));
+    }
+
+    let mut idx = start_idx;
+    let mut messages = Vec::new();
+    while idx < count && messages.len() < batch_limit {
+        if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+            messages.push(WasmMsg::Execute {
+                contract_addr: pair_info.contract_addr.to_string(),
+                msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateTreasury {
+                    treasury: treasury.clone(),
+                })?,
+                funds: vec![],
+            });
+        }
+        idx += 1;
+    }
+
+    let has_more = idx < count;
+    let next_start_after = has_more.then_some(idx.saturating_sub(1));
+    let last_scanned = idx.saturating_sub(1);
+    let pairs_updated = messages.len();
+
+    let mut resp = Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "set_pair_treasury_batch")
+        .add_attribute("treasury", treasury)
+        .add_attribute("pairs_updated", pairs_updated.to_string())
+        .add_attribute("has_more", has_more.to_string())
+        .add_attribute("scanned_through_index", last_scanned.to_string());
+
+    if let Some(n) = next_start_after {
+        resp = resp.add_attribute("next_start_after", n.to_string());
+    }
+
+    Ok(resp)
 }
 
 /// Set the uluna fee required to create a pair (forwarded to treasury). Governance only (GitLab #276).
@@ -824,6 +964,8 @@ fn execute_update_config(
 
     // GitLab #277: governance rotation no longer fans a SetLpAdmin to every pair in one tx
     // (unbounded). Rotate LP-token admins explicitly afterward via SetLpAdminAll / SetLpAdminBatch.
+    // Treasury pointer here is factory-only (new pairs + pair-creation fee). Rotate live pair
+    // commission recipients via SetPairTreasuryAll / SetPairTreasuryBatch.
     Ok(Response::new()
         .add_attribute("action", "update_config")
         .add_attribute("pair_code_id", config.pair_code_id.to_string())

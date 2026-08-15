@@ -5,8 +5,8 @@
 //! - Instantiates new Pair contracts (with LP tokens) via `CreatePair`.
 //! - Maintains a whitelist of allowed CW20 code IDs to prevent malicious
 //!   token contracts from being used in pairs.
-//! - Provides governance-gated admin operations: fee updates, hook
-//!   registration, discount registry configuration, pause, and sweep.
+//! - Provides governance-gated admin operations: fee updates, pair treasury
+//!   rotation, hook registration, discount registry configuration, pause, and sweep.
 //! - Stores a sequential pair index for paginated enumeration (discovery).
 //! - Maintains `PAIR_KEY_INDEX` for **O(1)** `Pairs` query cursor resolve (GitLab #258).
 //! - Maintains `PAIR_ADDR_REGISTERED` (`state.rs`) so pair-address membership

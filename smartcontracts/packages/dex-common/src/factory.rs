@@ -50,6 +50,25 @@ pub enum ExecuteMsg {
         pair: String,
         fee_bps: u16,
     },
+    /// Set the commission recipient on one registered pair. Governance only.
+    /// Does not change factory `config.treasury` (use `UpdateConfig` for new pairs).
+    SetPairTreasury {
+        pair: String,
+        treasury: String,
+    },
+    /// Set the commission recipient on all registered pairs in one bounded tx.
+    /// Fails when `PAIR_COUNT` exceeds the pagination cap; use
+    /// [`SetPairTreasuryBatch`](ExecuteMsg::SetPairTreasuryBatch).
+    SetPairTreasuryAll {
+        treasury: String,
+    },
+    /// Paginated rollout of the pair commission recipient (`PAIR_INDEX` order).
+    /// Rerun with `next_start_after` until the response reports `has_more=false`.
+    SetPairTreasuryBatch {
+        treasury: String,
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
     /// Set the uluna fee required to create a pair (forwarded to treasury). Governance only (GitLab #276).
     SetPairCreationFee {
         fee_uluna: Uint128,

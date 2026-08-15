@@ -45,7 +45,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.10.0";
+const CONTRACT_VERSION: &str = "1.11.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -641,6 +641,7 @@ pub fn execute(
             )))
         }
         ExecuteMsg::UpdateFee { fee_bps } => execute_update_fee(deps, info, fee_bps),
+        ExecuteMsg::UpdateTreasury { treasury } => execute_update_treasury(deps, info, treasury),
         ExecuteMsg::UpdateHooks { hooks } => execute_update_hooks(deps, info, hooks),
         ExecuteMsg::IncreaseObservationCardinality { new_cardinality } => {
             execute_increase_observation_cardinality(deps, new_cardinality)
@@ -1907,6 +1908,28 @@ fn execute_update_fee(
     Ok(Response::new()
         .add_attribute("action", "update_fee")
         .add_attribute("fee_bps", fee_bps.to_string()))
+}
+
+/// Set the commission recipient. Factory only.
+fn execute_update_treasury(
+    deps: DepsMut,
+    info: MessageInfo,
+    treasury: String,
+) -> Result<Response, ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let treasury_addr = deps.api.addr_validate(&treasury)?;
+    FEE_CONFIG.update(deps.storage, |mut config| -> StdResult<_> {
+        config.treasury = treasury_addr.clone();
+        Ok(config)
+    })?;
+
+    Ok(Response::new()
+        .add_attribute("action", "update_treasury")
+        .add_attribute("treasury", treasury_addr))
 }
 
 /// Replace the list of post-swap hook contracts. Factory (governance) only.

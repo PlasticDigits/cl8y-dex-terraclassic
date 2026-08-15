@@ -31,7 +31,7 @@ Approved window params (governance-updatable; always re-query on-chain): `fee_bp
 | cLUNC CW20 | `terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg` | — | `VITE_LUNC_C_TOKEN_ADDRESS` |
 | cUSTC CW20 | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` | — | `VITE_USTC_C_TOKEN_ADDRESS` |
 
-**W2:** `VITE_TREASURY_ADDRESS` is the **ustr-cmm CMM treasury**, not the DEX factory fee/governance multisig `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`.
+**W2:** `VITE_TREASURY_ADDRESS` is the **ustr-cmm CMM treasury** (wrap custody). After fee-treasury rotation, factory/pair swap commissions use this same CMM address — not the DEX governance multisig `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`.
 
 Display symbols **cLUNC** / **cUSTC**; env keys may keep `LUNC_C` / `USTC_C` (**W3**). Wrap-mapper fees are **on-chain authoritative** (UI must query; do not hardcode).
 
@@ -50,7 +50,8 @@ Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`s
 |------|---------|-------|
 | Factory | `terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea` | Soft-launch factory |
 | Router | `terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw` | `SetWrapMapper` live (#502) |
-| DEX governance / fee treasury | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` | Factory `config.governance` |
+| DEX governance (wasm admin) | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` | Factory `config.governance` |
+| DEX fee treasury (swaps + pair-creation) | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | Factory `config.treasury` + each pair `GetFeeConfig.treasury` (CMM). Soft launch originally used the multisig — rotate with [`docs/runbooks/rotate-fee-treasury.md`](../../docs/runbooks/rotate-fee-treasury.md) |
 | UST1/vFDUSD or UST1/cUSTC AMM | — | **Path B waiver** until seed inventory — [`../ust1-secondary-pair/PRODUCT_WAIVER.md`](../ust1-secondary-pair/PRODUCT_WAIVER.md) |
 
 ---

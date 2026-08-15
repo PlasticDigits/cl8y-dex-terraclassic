@@ -4711,6 +4711,266 @@ mod factory_coverage_tests {
     }
 
     #[test]
+    fn set_pair_treasury_all_rotates_existing_pairs_and_swap_fees_follow() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let new_treasury = Addr::unchecked("cmm_treasury");
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::UpdateConfig {
+                governance: None,
+                treasury: Some(new_treasury.to_string()),
+                default_fee_bps: None,
+                default_limit_batch_max_rungs: None,
+                pair_code_id: None,
+                lp_token_code_id: None,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let fee_after_factory: dex_common::pair::FeeConfigResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::GetFeeConfig {},
+            )
+            .unwrap();
+        assert_eq!(
+            fee_after_factory.fee_config.treasury, env.treasury,
+            "UpdateConfig must not rotate existing pair treasury"
+        );
+
+        let resp = app
+            .execute_contract(
+                env.governance.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetPairTreasuryAll {
+                    treasury: new_treasury.to_string(),
+                },
+                &[],
+            )
+            .unwrap();
+        assert_eq!(
+            wasm_attr_for_action(&resp.events, "set_pair_treasury_all", "pairs_updated").as_deref(),
+            Some("1")
+        );
+
+        let fee_after_rotate: dex_common::pair::FeeConfigResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::GetFeeConfig {},
+            )
+            .unwrap();
+        assert_eq!(fee_after_rotate.fee_config.treasury, new_treasury);
+        assert_eq!(fee_after_rotate.fee_config.fee_bps, 30);
+
+        let old_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let new_before = query_cw20_balance(&app, &env.token_b, &new_treasury);
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000));
+        assert_eq!(
+            query_cw20_balance(&app, &env.token_b, &env.treasury),
+            old_before,
+            "old treasury must not receive post-rotation swap fees"
+        );
+        assert!(
+            query_cw20_balance(&app, &env.token_b, &new_treasury) > new_before,
+            "new treasury must receive swap commission"
+        );
+    }
+
+    #[test]
+    fn set_pair_treasury_all_rejects_non_governance() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetPairTreasuryAll {
+                    treasury: env.user.to_string(),
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause().to_string().contains("Unauthorized"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn set_pair_treasury_batch_paginates_and_covers_all_pairs() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let new_treasury = Addr::unchecked("cmm_treasury");
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId {
+                code_id: cw20_code_id,
+            },
+            &[],
+        )
+        .unwrap();
+
+        let token_c = create_cw20_token(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "Token C",
+            "TKNC",
+            Uint128::new(1_000_000),
+        );
+        let resp_bc = app
+            .execute_contract(
+                env.user.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&env.token_b), asset_info_token(&token_c)],
+                },
+                &[],
+            )
+            .unwrap();
+        let pair_bc = extract_pair_address(&resp_bc.events);
+
+        let r1 = app
+            .execute_contract(
+                env.governance.clone(),
+                env.factory.clone(),
+                &dex_common::factory::ExecuteMsg::SetPairTreasuryBatch {
+                    treasury: new_treasury.to_string(),
+                    start_after: None,
+                    limit: Some(1),
+                },
+                &[],
+            )
+            .unwrap();
+        assert_eq!(
+            wasm_attr_for_action(&r1.events, "set_pair_treasury_batch", "pairs_updated").as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            wasm_attr_for_action(&r1.events, "set_pair_treasury_batch", "has_more").as_deref(),
+            Some("true")
+        );
+        let next = wasm_attr_for_action(&r1.events, "set_pair_treasury_batch", "next_start_after")
+            .expect("next_start_after");
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairTreasuryBatch {
+                treasury: new_treasury.to_string(),
+                start_after: Some(next.parse().unwrap()),
+                limit: Some(1),
+            },
+            &[],
+        )
+        .unwrap();
+
+        for pair in [&env.pair, &pair_bc] {
+            let fee: dex_common::pair::FeeConfigResponse = app
+                .wrap()
+                .query_wasm_smart(
+                    pair.to_string(),
+                    &dex_common::pair::QueryMsg::GetFeeConfig {},
+                )
+                .unwrap();
+            assert_eq!(fee.fee_config.treasury, new_treasury);
+        }
+    }
+
+    #[test]
+    fn set_pair_treasury_all_rejects_when_pair_count_exceeds_cap() {
+        let mut app = App::default();
+        let governance = Addr::unchecked("governance");
+        let treasury = Addr::unchecked("treasury");
+        let user = Addr::unchecked("user");
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let pair_code_id = app.store_code(pair_contract());
+        let factory_code_id = app.store_code(factory_contract());
+
+        let initial = Uint128::new(1_000_000_000_000);
+        let hub = create_cw20_token(&mut app, cw20_code_id, &user, "Hub", "HUB", initial);
+
+        let factory = app
+            .instantiate_contract(
+                factory_code_id,
+                governance.clone(),
+                &dex_common::factory::InstantiateMsg {
+                    governance: governance.to_string(),
+                    treasury: treasury.to_string(),
+                    default_fee_bps: 30,
+                    pair_code_id,
+                    lp_token_code_id: cw20_code_id,
+                    whitelisted_code_ids: vec![cw20_code_id],
+                    default_limit_batch_max_rungs:
+                        dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    pair_creation_fee_uluna: cosmwasm_std::Uint128::zero(),
+                },
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
+
+        const EXTRA_PAIRS: usize = 11;
+        for i in 0..EXTRA_PAIRS {
+            let sat = create_cw20_token(
+                &mut app,
+                cw20_code_id,
+                &user,
+                &format!("Satellite {}", i),
+                &format!("SAT{}", i),
+                initial,
+            );
+            app.execute_contract(
+                user.clone(),
+                factory.clone(),
+                &dex_common::factory::ExecuteMsg::CreatePair {
+                    asset_infos: [asset_info_token(&hub), asset_info_token(&sat)],
+                },
+                &[],
+            )
+            .unwrap();
+            app.update_block(|b| b.height += 1);
+        }
+
+        let err = app
+            .execute_contract(
+                governance,
+                factory,
+                &dex_common::factory::ExecuteMsg::SetPairTreasuryAll {
+                    treasury: user.to_string(),
+                },
+                &[],
+            )
+            .unwrap_err();
+        let msg = err.root_cause().to_string();
+        assert!(
+            msg.contains("SetPairTreasuryAll"),
+            "unexpected error: {msg}"
+        );
+        assert!(msg.contains("SetPairTreasuryBatch"));
+    }
+
+    #[test]
     fn test_set_discount_registry_all() {
         let mut app = App::default();
         let env = setup_full_env(&mut app);
@@ -10156,6 +10416,24 @@ mod line_coverage_tests {
                 env.user.clone(),
                 env.pair.clone(),
                 &dex_common::pair::ExecuteMsg::SetPaused { paused: true },
+                &[],
+            )
+            .unwrap_err();
+        assert!(err.root_cause().to_string().contains("Unauthorized"));
+    }
+
+    #[test]
+    fn test_pair_update_treasury_unauthorized() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.pair.clone(),
+                &dex_common::pair::ExecuteMsg::UpdateTreasury {
+                    treasury: env.user.to_string(),
+                },
                 &[],
             )
             .unwrap_err();

@@ -40,7 +40,7 @@ Canonical governance / admin / upgrade address: **`terra1zlmv2xydxcusurtr6rl78ws
 ```bash
 terrad tx wasm instantiate <factory_code_id> '{
   "governance": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
-  "treasury": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+  "treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
   "default_fee_bps": 30,
   "pair_code_id": <pair_code_id>,
   "lp_token_code_id": <cw20_code_id>,

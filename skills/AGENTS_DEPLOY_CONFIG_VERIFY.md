@@ -33,7 +33,7 @@ Set before running when values must match exactly:
 
 ```bash
 export VERIFY_CONFIG_EXPECT_GOVERNANCE=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
-export VERIFY_CONFIG_EXPECT_TREASURY=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7
+export VERIFY_CONFIG_EXPECT_TREASURY=terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2
 export VERIFY_CONFIG_EXPECT_DEFAULT_FEE_BPS=180
 export VERIFY_CONFIG_EXPECT_HOOK_COUNT=0   # pool-only launch
 export VERIFY_CONFIG_CLEAN_WALLET=terra1...  # address known not on blacklist (defaults to LocalTerra test1)

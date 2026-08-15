@@ -275,6 +275,10 @@ pub enum ExecuteMsg {
     UpdateFee {
         fee_bps: u16,
     },
+    /// Set the commission recipient. Factory only.
+    UpdateTreasury {
+        treasury: String,
+    },
     UpdateHooks {
         hooks: Vec<String>,
     },

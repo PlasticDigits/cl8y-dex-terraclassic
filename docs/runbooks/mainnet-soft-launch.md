@@ -22,7 +22,7 @@ Phase 5 GO may proceed without a separate staging/testnet deploy when budget-con
 | **SL1** | Factory `whitelisted_code_ids` contains **only** Terraswap **cw20-base** (**6036**) and PlasticDigits **cw20-mintable** (**10184**) by default. |
 | **SL2** | No Terraport/GDEX/economic CW20 templates on the whitelist for this path. |
 | **SL3** | Soft-launch trading tokens use **6** decimals; fee-discount `cl8y_token` is mainnet CL8Y (**18** decimals). |
-| **SL4** | Deploy key pays gas and bootstraps admin msgs; **wasm `--admin`** + **treasury** + **final `config.governance`** = multisig [`terra1zlmv2…`](../reference/governance-multisig.md). Instantiate uses deployer as temporary `config.governance`, then hands off after tiers/registry setup. |
+| **SL4** | Deploy key pays gas and bootstraps admin msgs; **wasm `--admin`** + **final `config.governance`** = multisig [`terra1zlmv2…`](../reference/governance-multisig.md). Factory **`treasury`** (swap + pair-creation fees) is the ustr-cmm CMM treasury [`terra16j5u6…`](../../deployments/mainnet-ust1-wrap/REGISTRY.md) — not the multisig. Instantiate uses deployer as temporary `config.governance`, then hands off after tiers/registry setup. |
 
 | **SL5** | CW20-only pairs — wrap-mapper not required for soft launch. Post-SL5 wrap enablement is **Coolify env + frontend rebuild** per [#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507) / [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md) — the soft-launch defaults script must **not** auto-add economic wrap. |
 | **SL6** | Production indexer: `RUN_MODE=prod`, non-default `LCD_URLS`, `CORS_ORIGINS=https://dex.cl8y.com`, `VITE_INDEXER_URL=https://indexer.dex.cl8y.com` (HTTPS only). |
@@ -144,6 +144,6 @@ After ustr-cmm Phase 3 deploy and router `SetWrapMapper` ([#502](https://gitlab.
 | `VITE_LUNC_C_TOKEN_ADDRESS` | `terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg` |
 | `VITE_USTC_C_TOKEN_ADDRESS` | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` |
 
-**Treasury note:** `VITE_TREASURY_ADDRESS` is the **ustr-cmm CMM treasury** (`terra16j5u6…`) used for `WrapDeposit` / `InstantWithdraw` — **not** the DEX factory fee treasury / governance multisig (`terra1zlmv2…`). Wrap-mapper `fee_bps` on mainnet: **100** (1%). UI symbols: **cLUNC** / **cUSTC**.
+**Treasury note:** `VITE_TREASURY_ADDRESS` is the **ustr-cmm CMM treasury** (`terra16j5u6…`) used for `WrapDeposit` / `InstantWithdraw`. Factory `config.treasury` and each pair `GetFeeConfig.treasury` must be that same CMM address (swap commissions) — **not** the DEX governance multisig (`terra1zlmv2…`). Soft launch originally pointed factory/pair fees at the multisig; rotate with [`rotate-fee-treasury.md`](./rotate-fee-treasury.md). Wrap-mapper `fee_bps` on mainnet: **100** (1%). UI symbols: **cLUNC** / **cUSTC**.
 
 Do **not** uncomment wrap keys in `frontend.env.example` produced by the soft-launch deploy script; that file remains CW20-only (comment-only hints).

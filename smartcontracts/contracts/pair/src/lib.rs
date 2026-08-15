@@ -58,7 +58,7 @@
 //! | Swap              | Any CW20 holder (via Send) |
 //! | ProvideLiquidity   | Anyone                   |
 //! | WithdrawLiquidity  | LP token holder (via Send) |
-//! | UpdateFee / Hooks / Pause / Sweep / DiscountRegistry | Factory only |
+//! | UpdateFee / UpdateTreasury / Hooks / Pause / Sweep / DiscountRegistry | Factory only |
 
 pub mod blacklist_guard;
 pub mod contract;

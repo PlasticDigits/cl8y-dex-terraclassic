@@ -230,7 +230,7 @@ fi
 LP_TOKEN_CODE_ID="$CW20_BASE_CODE_ID"
 
 # Bootstrap governance = deployer so add_tier / set_discount_registry work.
-# Wasm --admin and treasury stay multisig; config.governance is handed off after setup (SL4).
+# Wasm --admin stays multisig; factory treasury is CMM; config.governance is handed off after setup (SL4).
 BOOTSTRAP_GOVERNANCE="$DEPLOY_ADDR"
 FINAL_GOVERNANCE="$MAINNET_SOFT_LAUNCH_GOVERNANCE"
 
