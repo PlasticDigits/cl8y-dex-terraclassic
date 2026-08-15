@@ -13,6 +13,11 @@
 #   ROTATE_TREASURY_SKIP_STORE=1  + FACTORY_CODE_ID / PAIR_CODE_ID
 #   ROTATE_TREASURY_SKIP_MIGRATE=1
 #   ROTATE_TREASURY_ADDRESS=terra16j5u6…   override target
+#
+# columbus-5 store (2026-08-15, cl8ydeploy — permissionless):
+#   pair 11577  factory 11578
+# Migrate / UpdateConfig / SetPairTreasury* must be signed by wasm admin
+# terra1zlmv2… (2-of-3). cl8ydeploy will get "can not migrate: unauthorized".
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -117,6 +122,36 @@ echo "[1] preflight"
 if [[ "${ROTATE_TREASURY_SKIP_STORE:-0}" != "1" ]]; then
   need_wasm "$PAIR_WASM"
   need_wasm "$FACTORY_WASM"
+fi
+
+if [[ "${DRY_RUN:-0}" != "1" && "${ROTATE_TREASURY_SKIP_MIGRATE:-0}" != "1" ]]; then
+  FACTORY_INFO="$(curl -sS -A 'cl8y-dex-ops/1.0' --max-time 15 \
+    "$LCD_URL/cosmwasm/wasm/v1/contract/${FACTORY}")"
+  WASM_ADMIN="$(printf '%s' "$FACTORY_INFO" | jq -r '.contract_info.admin // empty')"
+  LIVE_CODE="$(printf '%s' "$FACTORY_INFO" | jq -r '.contract_info.code_id // empty')"
+  echo "  factory wasm admin=$WASM_ADMIN code_id=$LIVE_CODE"
+  terrad_host_resolve_keyring_backend
+  SIGNER_ADDR=""
+  if SIGNER_ADDR="$(terrad_host_exec keys show "$TERRAD_HOST_KEY" \
+    --keyring-backend "$TERRAD_HOST_KEYRING_BACKEND" \
+    --home "$TERRAD_HOST_HOME" \
+    --address 2>/dev/null)"; then
+    echo "  signer $TERRAD_HOST_KEY=$SIGNER_ADDR"
+  fi
+  if [[ -n "$WASM_ADMIN" && -n "$SIGNER_ADDR" && "$SIGNER_ADDR" != "$WASM_ADMIN" ]]; then
+    die "signer is not factory wasm admin.
+  migrate / SetPairTreasury must be signed by $WASM_ADMIN (2-of-3), not $SIGNER_ADDR.
+  Store already landed (pair 11577, factory 11578). Resume with the multisig:
+
+  TERRAD_HOST_KEY=<multisig-key-name> \\
+    ROTATE_TREASURY_SKIP_STORE=1 \\
+    ROTATE_TREASURY_PAIR_CODE_ID=11577 \\
+    ROTATE_TREASURY_FACTORY_CODE_ID=11578 \\
+    ./scripts/rotate-fee-treasury.sh
+
+  If the key is a Cosmos multisig, use generate-only + 2-of-3 sign (see
+  docs/runbooks/rotate-fee-treasury.md). Do not re-store wasm."
+  fi
 fi
 
 echo ""

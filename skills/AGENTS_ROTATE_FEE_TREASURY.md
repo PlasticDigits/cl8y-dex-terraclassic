@@ -14,7 +14,7 @@ Do **not** use `terra1zlmv2…` (governance / wasm admin only).
 2. Live pairs keep instantiate-time `FEE_CONFIG.treasury` until `SetPairTreasury*`.
 3. Pair `UpdateTreasury` is factory-only. Direct pair execute from an EOA is `Unauthorized`.
 4. `SetPairTreasuryAll` fails when `PAIR_COUNT` > 10 — use `SetPairTreasuryBatch`.
-5. Soft-launch columbus-5 has 10 pairs, so All is enough after migrate.
+5. Live columbus-5 has **12** pairs (over the All cap of 10) — use `SetPairTreasuryBatch`. `cl8ydeploy` may store wasm; migrate/execute require the 2-of-3 wasm admin.
 
 ## Ops
 

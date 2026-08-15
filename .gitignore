@@ -38,6 +38,8 @@ docker-compose.override.yml
 .indexer-qa.pid
 # QA deploy stamp (scripts/deploy-dex-local.sh; GitLab #203)
 .qa-deploy-stamp
+# Multisig generate-only / signature files (scripts/multisig-2of3-host-tx.sh)
+.msig-tx/
 
 # Mainnet soft-launch generated env (scripts/deploy-dex-mainnet-soft-launch.sh)
 deployments/mainnet-soft-launch/*.env
