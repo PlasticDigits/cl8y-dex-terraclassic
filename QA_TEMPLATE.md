@@ -79,7 +79,8 @@
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
-| 1.5.1 | Connect LuncDash | Click wallet → Select LuncDash → Scan QR | WalletConnect session established, address shown | | |
+| 1.5.1 | Connect LuncDash (desktop) | Click wallet → Select LuncDash → Scan QR on a second device | WalletConnect session established, address shown | | |
+| 1.5.1a | Connect LuncDash (same-device mobile, #519) | Phone browser → LuncDash → **Open Lunc Dash** or **Copy pairing link** (not QR-only) | Session established without a second device | | |
 | 1.5.2 | LuncDash QR timeout | Show QR → Wait without scanning | Timeout handled gracefully | | |
 | 1.5.3 | LuncDash reject connection | Scan QR → Reject on mobile | Error message displayed | | |
 | 1.5.4 | LuncDash disconnect | Connected → Disconnect | Session closed, UI resets | | |
@@ -94,7 +95,8 @@
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
-| 1.6.1 | Connect Galaxy Station | Click wallet → Select Galaxy Station → Scan QR | Session established, address shown | | |
+| 1.6.1 | Connect Galaxy Station (desktop) | Click wallet → Select Galaxy Station → Scan QR | Session established, address shown | | |
+| 1.6.1a | Connect Galaxy Station (same-device mobile, #519) | Phone browser → Galaxy Station → **Open Galaxy Station** or **Copy pairing link** | Session established without a second device | | |
 | 1.6.2 | Galaxy Station QR timeout | Show QR → Wait | Graceful timeout | | |
 | 1.6.3 | Galaxy Station reject | Scan → Reject on mobile | Error message | | |
 | 1.6.4 | Galaxy Station disconnect | Connected → Disconnect | Session closed, UI resets | | |

@@ -11,8 +11,11 @@ if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
+import { installWalletConnectPairingHook } from '@/services/terraclassic/walletConnectPairingHook'
 import { verifyDeployAddressesOnLcd } from '@/utils/deployAddressVerification'
 import './index.css'
+
+installWalletConnectPairingHook()
 ;(globalThis as Record<string, unknown>).Buffer = Buffer
 ;(globalThis as Record<string, unknown>).process = { env: {} }
 

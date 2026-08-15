@@ -38,7 +38,7 @@ function readCosmes(relPath: string): string {
   return readFileSync(resolve(frontendRoot, 'node_modules/@goblinhunt/cosmes', relPath), 'utf8')
 }
 
-describe('cosmes patch-package (GitLab #127, #367)', () => {
+describe('cosmes patch-package (GitLab #127, #367, #519)', () => {
   it('patch file SHA-256 matches committed patches/.cosmes-patch-sha256', () => {
     const patchPath = findCosmesPatchFile()
     const actual = sha256HexFile(patchPath)
@@ -67,5 +67,14 @@ describe('cosmes patch-package (GitLab #127, #367)', () => {
     const src = readCosmes('dist/wallet/wallets/station/StationController.js')
     expect(src).toContain('useAminoSigning = true')
     expect(src).toMatch(/GitLab #127|#208/)
+  })
+
+  it('QRCodeModal delegates to the dApp pairing hook and does not auto-redirect (GitLab #519)', () => {
+    const src = readCosmes('dist/wallet/walletconnect/QRCodeModal.js')
+    expect(src).toContain('__CL8Y_WC_PAIRING_MODAL__')
+    expect(src).toContain('GitLab #519')
+    expect(src).toContain('Copy pairing link')
+    expect(src).toContain('do not auto-redirect')
+    expect(src).not.toMatch(/if \(isMobile\(\)\) \{\s*\/\/ On mobile, redirect to mobile app/)
   })
 })
