@@ -12,6 +12,9 @@
 #
 # Unlock file keyring once:
 #   read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
+#
+# Safe to re-run: skips steps already on the multisig.
+# set-contract-admin uses a fixed gas floor (columbus-5 sim under-estimates WritePerByte).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -31,6 +34,10 @@ TERRAD_HOST_KEY="${TERRAD_HOST_KEY:-cl8ydeploy}"
 TERRAD_HOST_EXPECTED_ADDR="${TERRAD_HOST_EXPECTED_ADDR:-terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv}"
 TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
 TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:443}"
+# Execute msgs: sim is usually fine; 2.0 covers classic tax WritePerByte drift.
+TERRAD_HOST_GAS_ADJUSTMENT="${TERRAD_HOST_GAS_ADJUSTMENT:-2.0}"
+# MsgUpdateAdmin: 1.4x auto still OOG (wanted 63252 / used 64810 on faucet).
+HANDOFF_SET_ADMIN_GAS="${HANDOFF_SET_ADMIN_GAS:-200000}"
 LCD_URL="${LCD_URL:-${TERRA_LCD_URL:-https://terra-classic-lcd.publicnode.com}}"
 LCD_URL="${LCD_URL%/}"
 
@@ -121,6 +128,14 @@ exec_if_needed() {
   broadcast_and_wait "$label" "$@"
 }
 
+# columbus-5 MsgUpdateAdmin sim is ~2% low (code 11 WritePerByte). Pin gas.
+set_wasm_admin() {
+  local label="$1" current="$2" contract="$3"
+  TERRAD_HOST_GAS="$HANDOFF_SET_ADMIN_GAS" \
+    exec_if_needed "$label" "$current" "$MSIG" \
+      wasm set-contract-admin "$contract" "$MSIG"
+}
+
 verify() {
   local fail=0
   echo "=== verify (LCD $LCD_URL) ==="
@@ -177,8 +192,7 @@ phase_faucet() {
   wasm="$(wasm_admin "$FAUCET")"
   exec_if_needed "faucet update_config.admin" "$cfg_admin" "$MSIG" \
     wasm execute "$FAUCET" "$(jq -nc --arg a "$MSIG" '{update_config:{admin:$a}}')"
-  exec_if_needed "faucet set-contract-admin" "$wasm" "$MSIG" \
-    wasm set-contract-admin "$FAUCET" "$MSIG"
+  set_wasm_admin "faucet set-contract-admin" "$wasm" "$FAUCET"
 }
 
 phase_gem_minters() {
@@ -202,8 +216,7 @@ phase_gem_pairs() {
     sym="${entry%%:*}"
     addr="${entry#*:}"
     admin="$(wasm_admin "$addr")"
-    exec_if_needed "pair $sym set-contract-admin" "$admin" "$MSIG" \
-      wasm set-contract-admin "$addr" "$MSIG"
+    set_wasm_admin "pair $sym set-contract-admin" "$admin" "$addr"
   done
 }
 
@@ -219,8 +232,7 @@ phase_cl8y() {
     wasm execute "$CL8Y" "$(jq -nc --arg m "$MSIG" '{update_marketing:{marketing:$m}}')"
   exec_if_needed "CL8Y update_minter" "$minter" "$MSIG" \
     wasm execute "$CL8Y" "$(jq -nc --arg m "$MSIG" '{update_minter:{new_minter:$m}}')"
-  exec_if_needed "CL8Y set-contract-admin" "$wasm" "$MSIG" \
-    wasm set-contract-admin "$CL8Y" "$MSIG"
+  set_wasm_admin "CL8Y set-contract-admin" "$wasm" "$CL8Y"
 }
 
 PHASES=()

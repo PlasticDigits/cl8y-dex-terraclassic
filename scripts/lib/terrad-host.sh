@@ -63,6 +63,16 @@ terrad_host_fee_flags() {
   fi
 }
 
+# Gas flags: TERRAD_HOST_GAS pins a limit (columbus-5 MsgUpdateAdmin sim is often ~2% low).
+# Otherwise --gas auto + TERRAD_HOST_GAS_ADJUSTMENT.
+terrad_host_gas_flags() {
+  if [[ -n "${TERRAD_HOST_GAS:-}" ]]; then
+    echo --gas "$TERRAD_HOST_GAS"
+  else
+    echo --gas auto --gas-adjustment "$TERRAD_HOST_GAS_ADJUSTMENT"
+  fi
+}
+
 # Run terrad, feeding keyring passphrase on stdin when TERRAD_HOST_KEYRING_PASS is set.
 # File backend + --gas auto may unlock more than once per command.
 #
@@ -109,8 +119,7 @@ terrad_host_tx() {
     out="$(terrad_host_exec tx "$@" \
       --from "$TERRAD_HOST_KEY" \
       $(terrad_host_common_flags) \
-      --gas auto \
-      --gas-adjustment "$TERRAD_HOST_GAS_ADJUSTMENT" \
+      $(terrad_host_gas_flags) \
       $(terrad_host_fee_flags) \
       --broadcast-mode "$TERRAD_HOST_BROADCAST_MODE" \
       -y --output json 2>/tmp/terrad-host-tx.err)"
