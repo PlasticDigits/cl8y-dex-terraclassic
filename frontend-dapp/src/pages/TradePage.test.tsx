@@ -886,6 +886,30 @@ describe('TradePage', () => {
       expect(last.textContent ?? '').not.toMatch(/^\s*Last\s*1(\.0+)?\s*$/)
     })
 
+    it('pill toggle reciprocates typed limit price so factory submit stays token1/token0 (H1)', async () => {
+      mockUst1AndOtherPairs()
+      const user = userEvent.setup()
+      renderWithProviders(<TradePage />, { route: `/trade/${UST1_PAIR}` })
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy cUSTC')
+      })
+      const priceInput = screen.getByTestId('limit-order-price-input')
+      await user.clear(priceInput)
+      await user.type(priceInput, '0.00485')
+      await user.click(screen.getByTestId('trade-pair-invert-pill'))
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy UST1')
+      })
+      const afterPill = (screen.getByTestId('limit-order-price-input') as HTMLInputElement).value
+      expect(parseFloat(afterPill)).toBeCloseTo(1 / 0.00485, 5)
+      await user.click(screen.getByTestId('trade-ticket-pair-invert'))
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy cUSTC')
+      })
+      const afterIcon = (screen.getByTestId('limit-order-price-input') as HTMLInputElement).value
+      expect(parseFloat(afterIcon)).toBeCloseTo(0.00485, 5)
+    })
+
     it('pill and ticket icon share one invert state', async () => {
       mockUst1AndOtherPairs()
       const user = userEvent.setup()

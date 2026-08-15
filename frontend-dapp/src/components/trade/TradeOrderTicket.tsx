@@ -185,6 +185,8 @@ function TradeOrderTicketContent({
   const limitOrderPanelId = `${orderTypeTabBaseId}-limit-panel`
   const marketOrderPanelId = `${orderTypeTabBaseId}-market-panel`
   const [price, setPrice] = useState('1')
+  const prevPairAddrRef = useRef(pairAddr)
+  const prevDisplayInvertedRef = useRef(displayInverted)
   const {
     maxSteps,
     setMaxSteps,
@@ -635,6 +637,19 @@ function TradeOrderTicketContent({
     setLastIndexedOrderId(null)
   }, [pairAddr])
 
+  // Chart pill and ticket icon share one invert flag. Reciprocate the typed
+  // display price on any orientation change so factory submit stays token1/token0 (H1).
+  useEffect(() => {
+    if (prevPairAddrRef.current !== pairAddr) {
+      prevPairAddrRef.current = pairAddr
+      prevDisplayInvertedRef.current = displayInverted
+      return
+    }
+    if (prevDisplayInvertedRef.current === displayInverted) return
+    prevDisplayInvertedRef.current = displayInverted
+    setPrice((current) => displayPriceToFactoryToken1PerToken0(current, true) ?? current)
+  }, [displayInverted, pairAddr])
+
   useEffect(() => {
     if (!limitBookDraft || limitBookDraftKey < 1) return
     setOrderTab('limit')
@@ -675,8 +690,6 @@ function TradeOrderTicketContent({
   const bestBidLabel = formatBookHead(displayInverted ? bestAsk : bestBid)
   const bestAskLabel = formatBookHead(displayInverted ? bestBid : bestAsk)
   const handleToggleDisplayInvert = () => {
-    const flipped = displayPriceToFactoryToken1PerToken0(price, true)
-    if (flipped) setPrice(flipped)
     onToggleDisplayInvert?.()
   }
 
