@@ -59,7 +59,7 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `SetDiscountRegistry`      | `pair: String`, `registry: Option<String>`         | Governance  |
 | `SetDiscountRegistryAll` | `registry: Option<String>`                         | Governance — **≤10 pairs** only ([rollout invariants](#factory-discount-registry-rollout-invariants-glab-123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)) |
 | `SetDiscountRegistryBatch` | `registry: Option<String>`, `start_after?: u64`, `limit?: u32` | Governance — paginated rollout; see [invariants](#factory-discount-registry-rollout-invariants-glab-123) |
-| `UpdateConfig`             | `governance?`, `treasury?`, `default_fee_bps?`     | Governance  |
+| `UpdateConfig`             | `governance?`, `treasury?`, `default_fee_bps?`, `pair_code_id?`, `lp_token_code_id?` | Governance — code IDs for new `CreatePair` ([#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518)) |
 
 ### QueryMsg
 
@@ -73,6 +73,23 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 
 **`CreatePair`** rejects if either asset CW20 declares `decimals` greater than **`MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP`** (see `dex_common::pair`, default **18**). This aligns with empty-pool `provide_liquidity` guards ([issue #124](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/124)). When `pair_creation_fee_uluna > 0`, the caller must attach at least that much **uluna** (only uluna accepted; overpay refunded) or the tx fails with `InsufficientPairCreationFee` ([#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)).
 
+<a id="createpair-lp-ticker-gitlab-518"></a>
+
+### `CreatePair` LP ticker (GitLab [#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518))
+
+LP tickers **keep digits `0-9`** and strip every **non-alphanumeric** character from each asset-symbol prefix. The upgraded LP CW20 (`cw20-mintable`) validates **`[a-zA-Z0-9\-]{3,12}`**. Classic Terraswap LP code (`[a-zA-Z\-]`, no digits) still rejects `UST1-CUST-LP` — factory `lp_token_code_id` must be rotated.
+
+| Step | Behavior |
+|------|----------|
+| Factory | Queries each asset `TokenInfo.symbol`, truncates to 6 chars, uppercases, passes `token_symbols` into pair instantiate (also used in the pair wasm **label**). |
+| Pair | [`dex_common::lp_symbol::lp_token_instantiate_meta`](../smartcontracts/packages/dex-common/src/lp_symbol.rs) — keep **name** / **label** unique; derive LP `symbol` from ASCII **alphanumeric** only (4-char prefix each) as `{a}-{b}-LP`. |
+| Fallback | If the derived ticker is not length 3–12 after hyphen collapse, use **`CL8Y-LP`**. |
+| Examples | UST1/cUSTC → `UST1-CUST-LP`; CL8Y/cLUNC → `CL8Y-CLUN-LP`; `FOO_BAR`/`BAZ!` → `FOOB-BAZ-LP`; cLUNC/cUSTC → `CLUN-CUST-LP`. |
+
+**Upgrade:** store new factory + pair wasm, `wasm migrate` the factory (1.6.0 adds `UpdateConfig` code-id fields), then `UpdateConfig { pair_code_id, lp_token_code_id }` pointing LP at digit-allowing `cw20-mintable` (columbus-5 code **10184** may be reused). Script: [`scripts/upgrade-518-lp-symbol.sh`](../scripts/upgrade-518-lp-symbol.sh). Existing pairs keep their LP tokens.
+
+Invariant **F3** in [contracts-security-audit.md](./contracts-security-audit.md). Agent playbook: [`skills/AGENTS_LP_SYMBOL_DIGITS.md`](../skills/AGENTS_LP_SYMBOL_DIGITS.md). Regression: `make verify-issue-518`. Blocks UST1 secondary AMM Path A until the new pair code is live — [`ust1-secondary-amm-pair.md`](./runbooks/ust1-secondary-amm-pair.md).
+
 ### Factory storage & upgrades
 
 | Storage | Role |
@@ -82,7 +99,7 @@ Message names follow TerraSwap/Terraport conventions for Vyntrex compatibility.
 | `pair_key_idx` | Canonical pair key → numeric index; **O(1)** resolve of `Pairs { start_after: [AssetInfo; 2] }` cursor ([GitLab #258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)) |
 | `pair_addr_reg` | Pair contract `Addr` → `true`; **O(1)** membership for governance paths that validate a single pair address |
 
-**Invariant:** For each index `i` in `0..pair_count`, `pair_index[i].contract_addr` has a `true` entry in `pair_addr_reg`, and `pair_key_idx[pair_key(pair_index[i].asset_infos)] == i`. Maintained when pairs register in `reply_instantiate_pair`. Legacy factory instances on wasm **1.0.0** must migrate once to **1.1.0** so `pair_addr_reg` is backfilled from `pair_index` ([GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)); instances on **1.2.0** or older must migrate to **1.3.0** so `pair_key_idx` is backfilled ([GitLab #258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)); instances on **1.3.x** must migrate to **1.4.0** so stored `Config` picks up `pair_creation_fee_uluna` default **100 LUNC** via `#[serde(default)]` ([#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)).
+**Invariant:** For each index `i` in `0..pair_count`, `pair_index[i].contract_addr` has a `true` entry in `pair_addr_reg`, and `pair_key_idx[pair_key(pair_index[i].asset_infos)] == i`. Maintained when pairs register in `reply_instantiate_pair`. Legacy factory instances on wasm **1.0.0** must migrate once to **1.1.0** so `pair_addr_reg` is backfilled from `pair_index` ([GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)); instances on **1.2.0** or older must migrate to **1.3.0** so `pair_key_idx` is backfilled ([GitLab #258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)); instances on **1.3.x** must migrate to **1.4.0** so stored `Config` picks up `pair_creation_fee_uluna` default **100 LUNC** via `#[serde(default)]` ([#276](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/276)); instances on **1.5.x** must migrate to **1.6.0** so `UpdateConfig` can set `pair_code_id` / `lp_token_code_id` ([#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518)).
 
 **Gas / iteration:** Per-pair governance messages use **O(1)** `pair_addr_reg` where applicable ([#122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122)). **`Pairs` pagination** resolves `start_after` via **O(1)** `pair_key_idx` lookup, then reads at most `limit` entries from `pair_index` ([#258](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/258)). For **broadcasting** discount-registry updates across the factory, use **`SetDiscountRegistryBatch`** ([#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123), [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)) so each transaction carries a bounded Wasm message list. **`SetDiscountRegistryAll`** is a single-tx shortcut only when `PAIR_COUNT` ≤ the default pagination cap (**10**); otherwise the contract returns `DiscountRegistryAllTooManyPairs` and operators must paginate. **LP-token admin rotation** after governance change uses the same bounded model: **`SetLpAdminBatch`** ([#277](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/277)); **`SetLpAdminAll`** only when `PAIR_COUNT` ≤ **10** (`LpAdminAllTooManyPairs` otherwise). **`UpdateConfig`** no longer fans `SetLpAdmin` to every pair — run All/Batch explicitly in the rotation runbook. Indexers or LCD clients listing pairs should paginate rather than relying on unbounded queries. Off-chain operators and automation: [Indexer invariants — Factory LCD](./indexer-invariants.md#factory-lcd-pair-enumeration-vs-governance-gas-agents).
 

@@ -17,7 +17,7 @@ Use this checklist when **migrating** or **upgrading** CosmWasm contracts (facto
 
 1. **Build** optimized wasm artifacts per contract.
 2. **Store** new wasm on chain; note new `code_id`.
-3. **Migrate** each contract that supports `Migrate` (or follow contract-specific upgrade path in `smartcontracts/`).
+3. **Migrate** each contract that supports `Migrate` (or follow contract-specific upgrade path in `smartcontracts/`). **#518 LP digits:** [`scripts/upgrade-518-lp-symbol.sh`](../../scripts/upgrade-518-lp-symbol.sh) stores factory + pair, migrates factory, then `UpdateConfig` `pair_code_id` / `lp_token_code_id` ([`AGENTS_LP_SYMBOL_DIGITS.md`](../../skills/AGENTS_LP_SYMBOL_DIGITS.md)).
 4. **Verify** state after migration:
    - Factory: `get_config`, pair whitelist; after **factory 1.1.0** migrate, `pair_addr_reg` is populated from `pair_index` (see [GitLab #122](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/122), [contracts reference § Factory storage](../contracts-terraclassic.md#factory-storage--upgrades)).
    - Pair: fee config, hooks, limit-order state as applicable.

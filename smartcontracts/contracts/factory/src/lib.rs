@@ -34,6 +34,14 @@
 //! invariant for reviewers and third-party agents. Integrators that batch more
 //! than one new pair in the same block must advance the block (or split across
 //! heights).
+//!
+//! ## LP ticker (GitLab #518)
+//!
+//! Factory passes truncated/uppercased asset symbols into pair `token_symbols`
+//! for LP **name** / wasm **label**. The pair keeps ASCII **alphanumeric**
+//! prefixes (digits `0-9` included) and strips all other characters. New pairs
+//! need `lp_token_code_id` on digit-allowing `cw20-mintable`. Governance sets
+//! `pair_code_id` / `lp_token_code_id` via `UpdateConfig`. See invariant **F3**.
 
 pub mod contract;
 pub mod error;
