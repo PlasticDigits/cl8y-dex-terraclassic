@@ -891,7 +891,9 @@ Pinned **Place limit** / **Update price** on the `/trade` order ticket must stay
 
 Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), styles in [`index.css`](../frontend-dapp/src/index.css). Verify: `TradePage.test.tsx` (#500 DOM order) and `e2e/trade-page-responsive.spec.ts` (opaque hit-test + expiry clears footer).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](../skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md).
+**Open follow-up [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527):** On Chrome, `position: sticky; bottom: 0` inside the flex ticket scrollport can float **Place limit** mid-form (over Pay % chips / Receive / Expiry) instead of docking to the ticket bottom. Implementation: replace sticky-inside-scroll with a true ticket footer shared by Limit + Market. Do not use `position: fixed`. Playbook: [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](../skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) (`#500`); dock follow-up: [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`).
 
 ### Trade page — pair switch latency {#trade-page-pair-switch-latency}
 

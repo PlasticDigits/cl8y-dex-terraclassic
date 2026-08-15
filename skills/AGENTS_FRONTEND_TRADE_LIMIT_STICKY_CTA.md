@@ -2,6 +2,8 @@
 
 Use when changing the **`/trade` order ticket** sticky **Place limit** / **Update price** chrome, ticket scroll clearance, or inline place/price/gas guard placement relative to that footer ([GitLab **#500**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500)).
 
+**Open follow-up [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527):** Chrome can float this sticky CTA mid-form. Dock Limit + Market money CTAs to the ticket bottom — [`AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](./AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md). Do not add more `position: sticky` / `fixed` to “fix” the float.
+
 ## Canonical references
 
 | Doc / code | Purpose |
@@ -25,6 +27,7 @@ Use when changing the **`/trade` order ticket** sticky **Place limit** / **Updat
 ## Related
 
 - Sticky header opacity / shell clearance: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) (#482)
+- Chrome mid-form float / ticket footer dock: [`AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](./AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) ([#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527))
 - Trade workspace layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Limit price / place gates: [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md)
 - Money CTA sizing / onboarding IA: [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md)
